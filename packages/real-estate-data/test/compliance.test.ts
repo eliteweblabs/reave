@@ -17,7 +17,12 @@ const scan = runRadiusScan({
   centerLng: -71.06,
   radiusMiles: 20,
   trades: ['roofing', 'plumbing'],
+  centerLocation: { city: 'Boston', state: 'MA', zip: '02101' },
 });
 assert.ok(scan.candidates.length > 0, 'mock scan should return candidates');
+assert.ok(
+  scan.candidates.every((c) => c.city === 'Boston' && c.state === 'MA'),
+  'mock scan addresses should use scan center location',
+);
 
 console.log('compliance + scanner tests passed');

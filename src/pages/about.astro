@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
@@ -20,7 +21,7 @@ const showSiteAssistant =
   description={`About ${company.name} — the team behind the Business OS and two decades of client work across branding, development, and automation.`}
 >
   <div class="about-page">
-    <header class="about-hero">
+    <header class="about-intro">
       <p class="about-kicker">About</p>
       <h1 class="about-h1">Built by operators, for operators.</h1>
       <p class="about-lead">
@@ -31,7 +32,10 @@ const showSiteAssistant =
       </p>
     </header>
 
-    <section class="about-photo about-photo--sketch" aria-hidden="true">
+    <section
+      class="home-section home-section--photo about-page-main"
+      aria-labelledby="about-expertise-title"
+    >
       <div class="marketing-bg" aria-hidden="true">
         <div class="sketch-draw-reveal marketing-bg-photo" data-sketch-draw>
           <img
@@ -48,16 +52,22 @@ const showSiteAssistant =
         <div class="marketing-bg-grain"></div>
         <div class="marketing-bg-scrim"></div>
       </div>
-    </section>
 
-    <section class="about-block" aria-labelledby="about-expertise-title">
-      <header class="home-section-hero about-expertise-header">
-        <h2 id="about-expertise-title">Automation Expertise</h2>
-        <p class="marketing-lead">
-          Over 20 years designing logos &amp; graphics to building websites, developing plugins &amp;
-          apps.
-        </p>
-      </header>
+      <div class="home-section-inner">
+        <header class="home-section-hero">
+          <h2 id="about-expertise-title">Automation Expertise</h2>
+          <p class="marketing-lead">
+            Over 20 years designing logos &amp; graphics to building websites, developing plugins &amp;
+            apps.
+          </p>
+        </header>
+
+        <section class="section--full-bleed" aria-label="Clients we've worked with">
+          <ClientLogos />
+        </section>
+
+        <TestimonialsCarousel />
+      </div>
     </section>
 
     <section class="about-block" aria-labelledby="about-story-title">
@@ -79,10 +89,6 @@ const showSiteAssistant =
         </a>
         <a class="about-btn about-btn--ghost" href="/features">Explore the platform</a>
       </div>
-    </section>
-
-    <section class="about-block about-block--bleed" aria-label="Client testimonials">
-      <TestimonialsCarousel />
     </section>
 
     <section class="about-block about-closing" aria-labelledby="about-contact-title">
@@ -117,22 +123,23 @@ const showSiteAssistant =
 <style>
   .about-page {
     min-height: 100vh;
-    padding: calc(var(--app-header-h, 3.25rem) + 40px) 20px 96px;
+    padding: calc(var(--app-header-h, 3.25rem) + 40px) 0 96px;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
-  .about-hero,
-  .about-block,
-  .about-photo {
+  .about-intro,
+  .about-block {
     width: 100%;
     max-width: 760px;
+    padding-left: 24px;
+    padding-right: 24px;
   }
 
-  .about-hero {
+  .about-intro {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 48px;
   }
 
   .about-kicker {
@@ -164,50 +171,14 @@ const showSiteAssistant =
     color: rgba(255, 255, 255, 0.68);
   }
 
-  .about-photo {
-    position: relative;
-    margin-bottom: 48px;
-    border-radius: 14px;
-    overflow: hidden;
-    aspect-ratio: 16 / 10;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .about-photo--sketch {
-    min-height: min(52vh, 420px);
-    aspect-ratio: auto;
-  }
-
-  .about-photo--sketch .marketing-bg {
-    position: absolute;
-    inset: 0;
-  }
-
-  .about-expertise-header {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-
-  .about-expertise-header h2 {
-    margin: 0 0 14px;
-    font-family: var(--font-primary);
-    font-size: clamp(1.35rem, 3vw, 1.75rem);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: #fff;
+  .about-page-main {
+    width: 100%;
+    min-height: min(100vh, 100svh);
+    margin-bottom: 56px;
   }
 
   .about-block {
     margin-bottom: 56px;
-  }
-
-  .about-block--bleed {
-    max-width: none;
-    width: 100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-    padding: 0 20px;
   }
 
   .about-block h2 {

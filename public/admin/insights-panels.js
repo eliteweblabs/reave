@@ -40,12 +40,17 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260728q';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728q';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260728q';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { createFleetMap } from '/admin/fleet-map.js';
 
 /** Injected by os-map-loader via initInsightsPanels(). */
 let shell = {};
+
+function hasInstallFeature(id) {
+  const features = window.__installConfig?.features;
+  return Array.isArray(features) && features.includes(id);
+}
 
 function currentMap() {
   return typeof shell.getMap === 'function' ? shell.getMap() : shell.MAP;
@@ -79,6 +84,15 @@ const SOCIAL_PLATFORM_UI = {
   substack: { slug: 'substack', color: '#ff6719' },
   yelp: { slug: 'yelp', color: '#d32323' },
   googlebusiness: { slug: 'google', color: '#4285f4' },
+};
+
+// LinkedIn was removed from Simple Icons v14 — pin the last release that had it.
+const SIMPLE_ICONS_PINNED = {
+  linkedin: '13.19.0',
+};
+const ICON_CDN = (slug) => {
+  const version = SIMPLE_ICONS_PINNED[slug] || 'v16';
+  return `https://cdn.jsdelivr.net/npm/simple-icons@${version}/icons/${slug}.svg`;
 };
 
 const SOCIAL_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
@@ -310,7 +324,10 @@ function bindSocialControls(root) {
 async function loadSocialTab() {
   const root = document.getElementById('social-panel');
   if (!root) return;
-  root.innerHTML = '<div class="social-scroll"><div class="dash-loading">Loading social dashboard…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading social dashboard…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
+  });
 
   try {
     const res = await fetch(`/api/admin/social?range=${socialRangeDays}`, { cache: 'no-store' });
@@ -526,7 +543,10 @@ function renderAnalyticsDashboard(root, d) {
 async function loadAnalyticsTab() {
   const root = document.getElementById('analytics-panel');
   if (!root) return;
-  root.innerHTML = '<div class="social-scroll"><div class="dash-loading">Loading analytics…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading analytics…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
+  });
 
   try {
     const res = await fetch(`/api/admin/analytics?range=${analyticsRangeDays}`, { cache: 'no-store' });
@@ -604,6 +624,7 @@ function startFleetLocationWatch() {
 }
 
 async function initFleetLocationReporter() {
+  if (!hasInstallFeature('fleet_tracking')) return;
   if (fleetLocationReporterStarted) return;
   try {
     const res = await fetch('/api/fleet/vehicles?mine=1', { cache: 'no-store' });
@@ -785,10 +806,14 @@ async function showAddFleetVehicleDialog(onSaved) {
 }
 
 async function loadFleetTab() {
+  if (!hasInstallFeature('fleet_tracking')) return;
   const root = document.getElementById('fleet-panel');
   if (!root) return;
   stopFleetPoll();
-  root.innerHTML = '<div class="social-scroll"><div class="dash-loading">Loading fleet…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading fleet…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
+  });
 
   try {
     const res = await fetch('/api/fleet/map', { cache: 'no-store' });

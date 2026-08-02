@@ -2,7 +2,10 @@ import { distanceMiles, isWithinRadiusMiles } from '../geo/haversine.js';
 import { scoreLeadForTrades } from '../leads/score.js';
 import { normalizeTradeSlugs } from '../trades.js';
 /** Deterministic mock candidates around a center for dev/demo scans. */
-function mockCandidatesNear(centerLat, centerLng) {
+function mockCandidatesNear(centerLat, centerLng, location) {
+    const city = location?.city?.trim() || 'Local Area';
+    const state = location?.state?.trim().toUpperCase() || 'US';
+    const zip = location?.zip?.trim() || '00000';
     const offsets = [
         { dLat: 0.01, dLng: 0.008, address: '45 Oak Avenue', yearBuilt: 1962, owner: 'SMITH JOHN & MARY' },
         { dLat: -0.012, dLng: 0.005, address: '88 Pine Road', yearBuilt: 1938, owner: 'PINE HOLDINGS LLC' },
@@ -12,11 +15,11 @@ function mockCandidatesNear(centerLat, centerLng) {
     ];
     return offsets.map((o, i) => ({
         id: `mock-scan-${i}`,
-        fullAddress: `${o.address}, Springfield, IL 62701`,
+        fullAddress: zip ? `${o.address}, ${city}, ${state} ${zip}` : `${o.address}, ${city}, ${state}`,
         street: o.address,
-        city: 'Springfield',
-        state: 'IL',
-        zip: '62701',
+        city,
+        state,
+        zip,
         yearBuilt: o.yearBuilt,
         sqft: 1800 + i * 400,
         stories: o.yearBuilt < 1960 ? 2 : 1,
@@ -30,7 +33,7 @@ function mockCandidatesNear(centerLat, centerLng) {
 export function runRadiusScan(config) {
     const trades = normalizeTradeSlugs(config.trades);
     const max = config.maxResults ?? 25;
-    const raw = mockCandidatesNear(config.centerLat, config.centerLng);
+    const raw = mockCandidatesNear(config.centerLat, config.centerLng, config.centerLocation);
     const candidates = [];
     for (const row of raw) {
         const dist = distanceMiles(config.centerLat, config.centerLng, row.lat, row.lng);

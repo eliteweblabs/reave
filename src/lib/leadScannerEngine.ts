@@ -1,8 +1,9 @@
 /**
  * Daily property lead scan — radius geofence, trade filter, CRM intake.
  */
-import { runRadiusScan, normalizeTradeSlugs, type ScanCandidate } from '@reave/plugin-real-estate-data';
+import { runRadiusScan, normalizeTradeSlugs, type ScanCandidate, type ScanCenterLocation } from '@reave/plugin-real-estate-data';
 import { getCompanyConfig } from './companyConfig';
+import { getDeploymentOwnerTimezone } from './deploymentOwner';
 import { recordContactFormEngagement } from './engagementNotifications';
 import { hasFeature } from './features';
 import {
@@ -28,7 +29,9 @@ export type LeadScannerRunResult = {
   runId?: string;
 };
 
-async function resolveScanCenter(config: LeadScannerConfig): Promise<{ lat: number; lng: number } | null> {
+export async function resolveScanCenter(
+  config: LeadScannerConfig,
+): Promise<{ lat: number; lng: number } | null> {
   if (config.centerLat != null && config.centerLng != null) {
     return { lat: config.centerLat, lng: config.centerLng };
   }
@@ -41,11 +44,30 @@ async function resolveScanCenter(config: LeadScannerConfig): Promise<{ lat: numb
   return null;
 }
 
-function isScanWindow(config: LeadScannerConfig, now = new Date(), ignoreWindow = false): boolean {
+export async function resolveScanLocation(
+  center: { lat: number; lng: number },
+): Promise<ScanCenterLocation> {
+  const company = await getCompanyConfig();
+  const { parseUsAddressLocation, reverseGeocode } = await import('./mapbox');
+  const parsed = parseUsAddressLocation(company.address);
+  if (parsed) return parsed;
+
+  const reversed = await reverseGeocode(center.lat, center.lng);
+  if (reversed) return reversed;
+
+  return { city: 'Local Area', state: '', zip: '' };
+}
+
+function isScanWindow(
+  config: LeadScannerConfig,
+  timezone: string,
+  now = new Date(),
+  ignoreWindow = false,
+): boolean {
   if (ignoreWindow) return true;
   try {
     const fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: config.timezone,
+      timeZone: timezone,
       hour: 'numeric',
       hour12: false,
     });
@@ -133,8 +155,9 @@ export async function runLeadScanner(options?: {
     return { ok: false, skipped: 'Lead scanner disabled in admin settings' };
   }
 
-  if (!isScanWindow(config, new Date(), options?.ignoreWindow || options?.force)) {
-    return { ok: false, skipped: `Outside scan window (hour ${config.scanHourLocal} ${config.timezone})` };
+  const timezone = await getDeploymentOwnerTimezone();
+  if (!isScanWindow(config, timezone, new Date(), options?.ignoreWindow || options?.force)) {
+    return { ok: false, skipped: `Outside scan window (hour ${config.scanHourLocal} ${timezone})` };
   }
 
   const center = await resolveScanCenter(config);
@@ -142,6 +165,7 @@ export async function runLeadScanner(options?: {
     return { ok: false, skipped: 'Set scan center on map or enable company office location' };
   }
 
+  const centerLocation = await resolveScanLocation(center);
   const trades = normalizeTradeSlugs(config.trades);
   const scan = runRadiusScan({
     centerLat: center.lat,
@@ -149,6 +173,7 @@ export async function runLeadScanner(options?: {
     radiusMiles: config.radiusMiles,
     trades,
     maxResults: 50,
+    centerLocation,
   });
 
   let newLeads = 0;

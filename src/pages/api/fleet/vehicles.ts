@@ -26,8 +26,9 @@ function featureGate(): Response | null {
   return null;
 }
 
-export const GET: APIRoute = async ({ locals, url }) => {
+export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
+  const { url } = context;
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -40,8 +41,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
   return json({ ok: true, vehicles: result.data.vehicles });
 };
 
-export const POST: APIRoute = async ({ locals, request }) => {
+export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
+  const { request } = context;
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 

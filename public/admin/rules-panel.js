@@ -41,7 +41,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260728q';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728q';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260728q';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728q';
 
@@ -128,7 +128,7 @@ function appendRuleField(parent, label, el) {
 async function loadRulesTab() {
   const root = getRuleEditor();
   if (!root) return;
-  root.innerHTML = '<div class="de-loading">Loading rules…</div>';
+  mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
   try {
     const res = await fetch('/api/email/rules', { cache: 'no-store' });
     const data = await res.json();
@@ -156,7 +156,7 @@ function createRuleListItem(rule, activeId) {
   btn.innerHTML = `
     <span class="ch-item-row">
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
-      <span class="ch-item-date">${escHtml(formatChatDate(rule.updatedAt || rule.createdAt))}</span>
+      <span class="ch-item-date">${escHtml(shell.formatChatDate(rule.updatedAt || rule.createdAt))}</span>
     </span>
     <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
   btn.addEventListener('click', () => openRuleEditor(rule.id));
@@ -497,7 +497,7 @@ function syncRuleListItem(id, payload, savedRule) {
   const dateEl = item.querySelector('.ch-item-date');
   if (dateEl) {
     const when = (savedRule && (savedRule.updatedAt || savedRule.createdAt)) || (rule && (rule.updatedAt || rule.createdAt));
-    dateEl.textContent = formatChatDate(when);
+    dateEl.textContent = shell.formatChatDate(when);
   }
   const subEl = item.querySelector('.de-item-slug');
   if (subEl && rule) subEl.textContent = ruleSubline(rule);

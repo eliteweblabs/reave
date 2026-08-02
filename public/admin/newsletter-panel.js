@@ -40,7 +40,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260728q';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728q';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260728q';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 
 /** Injected by os-map-loader via initNewsletterPanel(). */
@@ -90,7 +90,7 @@ function nlPartsToMinutes(value, unit) {
 async function loadNewsletterTab() {
   const root = getNewsletterEditor();
   if (!root) return;
-  root.innerHTML = '<div class="de-loading">Loading newsletter…</div>';
+  mountPanelSkeleton(root, 'list', 'Loading newsletter…', { contentSelector: '.ch-sidebar' });
   try {
     const [aRes, tRes, sRes] = await Promise.all([
       fetch('/api/newsletter/automations', { cache: 'no-store' }),
@@ -287,7 +287,7 @@ function wireNewsletterEditor(root) {
     const box = root.querySelector('.nl-preview-box');
     if (!box) return;
     box.style.display = 'block';
-    box.innerHTML = '<div class="de-loading">Rendering preview…</div>';
+    box.innerHTML = skeletonHtml('list', 'Rendering preview…');
     try {
       const res = await fetch('/api/newsletter/preview', {
         method: 'POST',

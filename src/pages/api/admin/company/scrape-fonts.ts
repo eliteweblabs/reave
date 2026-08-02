@@ -4,7 +4,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { brandFontCatalogForAdmin } from '../../../../lib/brandFonts';
+import { brandFontCatalogForAdminAsync } from '../../../../lib/googleFontsCatalog';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../../lib/companyConfigStore';
 import { normalizePublicUrl } from '../../../../lib/publicUrl';
@@ -93,7 +93,7 @@ export const POST: APIRoute = async (context) => {
     ok: true,
     website: detected.website,
     company: updated,
-    fontCatalog: brandFontCatalogForAdmin(),
+    fontCatalog: await brandFontCatalogForAdminAsync(),
     detectedFamilies: detected.detectedFamilies,
     sources: detected.sources,
     message: imported.length

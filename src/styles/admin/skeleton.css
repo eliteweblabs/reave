@@ -1,25 +1,19 @@
 /**
  * ── Skeleton / shimmer loading system ──
- * Two classes used at runtime:
- *   .de-loading  — sidebar list panels & editor panes (work, chat, clients, inbox, etc.)
- *   .dash-loading — full-page dashboards (home, profile, social, analytics, fleet, etc.)
- *
- * Imported LAST in index.css so it naturally overrides panel-specific loading stubs.
- * Pure CSS — no JS changes needed.
+ * Markup from skeletonHtml() in public/admin/shared.js:
+ *   .sk-list       — sidebar list panels (work, chat, clients, inbox, etc.)
+ *   .sk-home        — home dashboard (alerts, today, stats, uptime, inbox)
+ *   .sk-dashboard  — generic stat grid + cards (profile, social, analytics, etc.)
  */
 
-/* ─────────────────────────────────────────
-   Shimmer keyframe (light & dark aware)
-───────────────────────────────────────── */
 @keyframes sk-shimmer {
   0%   { background-position: -500px 0; }
   100% { background-position:  500px 0; }
 }
 
-/* ── Design tokens ── */
 :root {
   --sk-base:  rgba(0, 0, 0, 0.07);
-  --sk-shine: rgba(0, 0, 0, 0.025);
+  --sk-shine: rgba(0, 0, 0, 0.04);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +22,18 @@
   }
 }
 
-/* Reusable shimmer bone (opt-in, used by .sk-bone children if ever added) */
+.sk-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .sk-bone {
   border-radius: 6px;
   background: linear-gradient(
@@ -41,117 +46,280 @@
   animation: sk-shimmer 1.5s ease-in-out infinite;
 }
 
-/* ─────────────────────────────────────────
-   .de-loading  — list / editor panel skeleton
-   Replaces "Loading sessions…" / "Loading projects…" etc.
-   Renders: 6 shimmer rows (avatar circle + 2 text lines)
-───────────────────────────────────────── */
-.de-loading {
-  margin: 0;
-  color: transparent;
-  font-size: 0;
+/* ── List panel (avatar + two text lines × 6) ── */
+.sk-list {
+  position: relative;
   width: 100%;
   padding: 0.85rem 1rem 0.5rem;
-  display: block;
-  min-height: 19rem;
-
-  /* Multi-layer background canvas — 6 rows × (circle + 2 lines) */
-  background:
-    /* ── row 1 ── */
-    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
-      0      0.25rem / 1.9rem 1.9rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 0.15rem / 45% 0.68rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 1.02rem / 30% 0.52rem no-repeat,
-    /* ── row 2 ── */
-    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
-      0      3.25rem / 1.9rem 1.9rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 3.15rem / 55% 0.68rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 4.02rem / 38% 0.52rem no-repeat,
-    /* ── row 3 ── */
-    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
-      0      6.25rem / 1.9rem 1.9rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 6.15rem / 50% 0.68rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 7.02rem / 28% 0.52rem no-repeat,
-    /* ── row 4 ── */
-    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
-      0      9.25rem / 1.9rem 1.9rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 9.15rem / 60% 0.68rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 10.02rem / 40% 0.52rem no-repeat,
-    /* ── row 5 ── */
-    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
-      0      12.25rem / 1.9rem 1.9rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 12.15rem / 48% 0.68rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 13.02rem / 33% 0.52rem no-repeat,
-    /* ── row 6 ── */
-    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
-      0      15.25rem / 1.9rem 1.9rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 15.15rem / 52% 0.68rem no-repeat,
-    linear-gradient(var(--sk-base), var(--sk-base))
-      2.55rem 16.02rem / 35% 0.52rem no-repeat;
-
-  animation: sk-shimmer 1.5s ease-in-out infinite;
 }
 
-/* ─────────────────────────────────────────
-   .dash-loading — dashboard / scroll-panel skeleton
-   Renders: stat grid boxes + two panel cards + a short third
-   (matches home, profile, social, analytics, fleet dashboards)
-───────────────────────────────────────── */
-.dash-loading {
-  padding: 0.65rem 0 0;
-  text-align: unset;
-  color: transparent;
-  font-size: 0;
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.1rem;
+}
+.sk-row:last-child {
+  margin-bottom: 0;
+}
+
+.sk-avatar {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  flex: 0 0 1.9rem;
+}
+
+.sk-lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sk-line {
+  height: 0.68rem;
+}
+.sk-line--short {
+  height: 0.52rem;
+}
+
+/* ── Dashboard (2×2 stat grid + two cards) — profile / insights tabs ── */
+.sk-dashboard {
+  position: relative;
   width: 100%;
-  min-height: 28rem;
-  display: block;
-
-  background:
-    /* ── Stat box 1 (top-left) ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      0                     0 / calc(50% - 0.3rem) 5.25rem no-repeat,
-    /* ── Stat box 2 (top-right) ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      calc(50% + 0.3rem)    0 / calc(50% - 0.3rem) 5.25rem no-repeat,
-    /* ── Stat box 3 (bottom-left) ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      0                     5.8rem / calc(50% - 0.3rem) 5.25rem no-repeat,
-    /* ── Stat box 4 (bottom-right) ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      calc(50% + 0.3rem)    5.8rem / calc(50% - 0.3rem) 5.25rem no-repeat,
-    /* ── Panel card 1 (inbox / today) ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      0 12.35rem / 100% 7rem no-repeat,
-    /* ── Panel card 2 (projects / events) ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      0 20.7rem  / 100% 6rem no-repeat,
-    /* ── Wide label/title line ── */
-    linear-gradient(var(--sk-base), var(--sk-base))
-      0 28rem    / 60%  1.1rem no-repeat;
-
-  border-radius: 14px 14px 0 0;
-  animation: sk-shimmer 1.5s ease-in-out infinite;
+  padding: 0.65rem 0 0;
 }
 
-/* ─────────────────────────────────────────
-   Accessibility — respect reduced-motion preference
-───────────────────────────────────────── */
+.sk-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.55rem;
+}
+
+.sk-stat {
+  height: 5.25rem;
+  border-radius: 12px;
+}
+
+.sk-card {
+  height: 7rem;
+  border-radius: 12px;
+  margin-bottom: 0.55rem;
+}
+.sk-card--short {
+  height: 6rem;
+  margin-bottom: 0;
+}
+
+/* ── Home dashboard — mirrors dash-today, dash-stats, uptime, inbox ── */
+#home-dashboard:has(.sk-home) {
+  padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem);
+  box-sizing: border-box;
+}
+
+#home-dashboard:has(.sk-home) > .home-dashboard-scroll {
+  padding-top: 0;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: var(--footer-scroll-pad);
+}
+
+.sk-home {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+  width: 100%;
+  gap: 0;
+}
+
+.sk-home-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.sk-home-alert {
+  height: 3.35rem;
+  border-radius: 12px;
+}
+
+.sk-home-section {
+  min-width: 0;
+}
+
+.sk-home-today {
+  margin-bottom: 1.35rem;
+}
+
+.sk-home-today-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.sk-home-pills {
+  width: 9.5rem;
+  height: 2.15rem;
+  border-radius: 999px;
+}
+
+.sk-home-schedule-btn {
+  width: 6.75rem;
+  height: 2rem;
+  border-radius: 999px;
+}
+
+.sk-home-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sk-home-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0.5rem;
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.sk-home-event-time {
+  width: 4.2rem;
+  height: 0.72rem;
+  flex: 0 0 4.2rem;
+  border-radius: 4px;
+}
+
+.sk-home-event-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.05rem;
+}
+
+.sk-home-event-line {
+  height: 0.72rem;
+  border-radius: 4px;
+}
+.sk-home-event-line--short {
+  width: 62%;
+  height: 0.58rem;
+}
+
+.sk-home-stats {
+  display: grid;
+  grid-template-columns: repeat(var(--dash-stat-cols), minmax(0, 1fr));
+  gap: var(--dash-stat-gap);
+  margin-bottom: 1.35rem;
+}
+
+.sk-home-stat {
+  min-height: var(--dash-stat-min-h);
+  border-radius: 14px;
+}
+
+.sk-home-uptime {
+  display: grid;
+  grid-template-columns: repeat(var(--dash-uptime-cols), minmax(0, 1fr));
+  gap: var(--dash-uptime-gap);
+  margin-bottom: 1.35rem;
+}
+
+.sk-home-uptime-tile {
+  min-height: var(--dash-uptime-add-min-h);
+  border-radius: 10px;
+}
+
+.sk-home-inbox {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: min(36vh, 16rem);
+  margin-bottom: 0.35rem;
+}
+
+.sk-home-panel-title {
+  width: 6.5rem;
+  height: 0.88rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+}
+
+.sk-home-inbox-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 0.55rem;
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.sk-home-inbox-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.45rem 0.35rem;
+}
+
+.sk-home-inbox-subject {
+  height: 0.82rem;
+  width: 88%;
+  border-radius: 4px;
+}
+
+.sk-home-inbox-meta {
+  height: 0.68rem;
+  width: 52%;
+  border-radius: 4px;
+}
+
+@media (max-width: 639px) {
+  #home-dashboard:has(.sk-home) {
+    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.5rem);
+  }
+
+  #home-dashboard:has(.sk-home) > .home-dashboard-scroll {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+
+  .sk-home-today {
+    margin-bottom: 0.85rem;
+  }
+  .sk-home-stats,
+  .sk-home-uptime {
+    margin-bottom: 0.85rem;
+  }
+  .sk-home-inbox {
+    min-height: min(42vh, 18rem);
+  }
+}
+
+/* Legacy class names — keep error text readable */
+.de-loading.de-error,
+.dash-loading.de-error {
+  margin: auto;
+  padding: 1rem;
+  color: #f85149;
+  font-size: 0.85rem;
+  background: none;
+  animation: none;
+  min-height: unset;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .de-loading,
-  .dash-loading,
   .sk-bone {
     animation: none;
-    /* Keep the shapes visible, just static */
   }
 }

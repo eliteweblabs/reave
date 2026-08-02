@@ -34,15 +34,15 @@ const logos: ClientLogo[] = shuffle([
   {
     name: "Worcester Polytechnic Institute",
     src: "/logos/clients/wpi.svg",
-    width: 390.27,
-    height: 146.14,
+    width: 98,
+    height: 42,
   },
-  { name: "Kingdom Trails", src: "/logos/clients/kingdom-trails.svg", width: 260, height: 60 },
-  { name: "UC Law San Francisco", src: "/logos/clients/uc-law-sf.svg", width: 340, height: 72 },
+  { name: "Kingdom Trails", src: "/logos/clients/kingdom-trails.svg", width: 140, height: 42 },
+  { name: "UC Law San Francisco", src: "/logos/clients/uc-law-sf.svg", width: 279, height: 60 },
   { name: "Mohegan Sun", src: "/logos/clients/mohegan-sun.svg", width: 185, height: 83 },
   { name: "Sharpie", src: "/logos/clients/sharpie.svg", width: 1000, height: 332.43 },
-  { name: "The Overlook", src: "/logos/clients/overlook.svg", width: 280, height: 60 },
-  { name: "Coinbase", src: "/logos/clients/coinbase.svg", width: 240, height: 48 },
+  { name: "The Overlook", src: "/logos/clients/overlook.svg", width: 200, height: 46 },
+  { name: "Coinbase", src: "/logos/clients/coinbase.svg", width: 142, height: 30 },
 ]);
 
 const LOOP_COPIES = 3;
@@ -122,7 +122,6 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
   .client-logos-track {
     display: flex;
     align-items: center;
-    gap: var(--logo-gap);
     width: max-content;
     animation: client-logos-scroll var(--marquee-duration, 52s) linear infinite;
     will-change: transform;
@@ -139,10 +138,12 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
   .client-logo-item {
     flex: 0 0 auto;
-    display: flex;
+    width: fit-content;
+    max-width: fit-content;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 0;
+    padding: 8px calc(var(--logo-gap) / 2);
     box-sizing: border-box;
     -webkit-user-select: none;
     user-select: none;
@@ -156,10 +157,15 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
      * without a definite height anywhere in the chain, "width: auto" has
      * nothing to resolve against and the image collapses to 0×0.
      *
+     * display:block keeps the wrapper flush to the painted logo — inline
+     * replaced elements leave descender strut space that reads as uneven
+     * padding beside square marks (Acura, Porsche, etc.).
+     *
      * max-width caps very wide-aspect logos (e.g. Johnnie Walker ~10:1) on
      * narrow viewports so they don't dwarf the rest of the strip. The value
      * scales with the viewport so it feels proportional at every breakpoint.
      */
+    display: block;
     height: 34px;
     width: auto;
     max-width: min(140px, 38vw);

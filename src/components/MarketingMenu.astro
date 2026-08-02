@@ -264,7 +264,7 @@ const { pathname, signedIn } = Astro.props;
   }
 
   .marketing-nav-cta {
-    display: inline-flex;
+    display: none; /* hidden for now — keep markup for easy restore */
     align-items: center;
     gap: 6px;
     padding: 0.45rem 0.9rem;
@@ -509,7 +509,7 @@ const { pathname, signedIn } = Astro.props;
     text-decoration: none;
   }
 
-  /* Keep the header (and hamburger → X toggle) above the dimmed backdrop. */
+  /* Keep the header (and hamburger → X toggle) above the menu overlay. */
   :global(html.marketing-menu-open) {
     overflow: hidden;
     overscroll-behavior: none;
@@ -517,6 +517,12 @@ const { pathname, signedIn } = Astro.props;
 
   :global(html.marketing-menu-open) .app-header {
     z-index: 2200;
+  }
+
+  /* Menu overlay is a fixed sibling inside the header row — sit above it. */
+  :global(html.marketing-menu-open) .marketing-nav {
+    position: relative;
+    z-index: 2100;
   }
 
   @media (prefers-reduced-motion: reduce) {

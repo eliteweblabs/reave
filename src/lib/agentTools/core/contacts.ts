@@ -498,9 +498,9 @@ export const contactsModule: AgentToolModule = {
                     website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
                     kind: {
                       type: 'string',
-                      enum: ['professional', 'personal', 'proposed'],
+                      enum: ['professional', 'service', 'personal', 'proposed'],
                       description:
-                        'Client type: professional (default project client), personal (non-project contact), or proposed (audit/prospect).',
+                        'Client type: professional (default project client), service (vendor/service provider), personal (non-project contact), or proposed (audit/prospect).',
                     },
                   },
                   required: ['name'],
@@ -527,8 +527,8 @@ export const contactsModule: AgentToolModule = {
                     website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
                     kind: {
                       type: 'string',
-                      enum: ['professional', 'personal', 'proposed'],
-                      description: 'Client type: professional, personal, or proposed (audit/prospect).',
+                      enum: ['professional', 'service', 'personal', 'proposed'],
+                      description: 'Client type: professional (project client), service, personal, or proposed (audit/prospect).',
                     },
                   },
                   additionalProperties: false,

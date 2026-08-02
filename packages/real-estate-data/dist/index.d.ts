@@ -10,5 +10,5 @@ export { distanceMiles, isWithinRadiusMiles } from './lib/geo/index.js';
 export { lookupViolations } from './lib/violations/index.js';
 export type { PropertyRecord } from './lib/providers/types.js';
 export type { TradeSlug } from './lib/trades.js';
-export type { ScanCandidate, ScanResult } from './lib/scanner/engine.js';
+export type { ScanCandidate, ScanResult, ScanCenterLocation } from './lib/scanner/engine.js';
 //# sourceMappingURL=index.d.ts.map

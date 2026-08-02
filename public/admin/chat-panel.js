@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons, mountPanelSkeleton } from './shared.js?v=20260731a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
@@ -1153,7 +1153,7 @@ async function loadChatsTab(opts = {}) {
   const savedAutoSend = keepSession ? chatState.pendingAutoSend : false;
   const wasSending = chatState.sending;
 
-  root.innerHTML = '<div class="de-loading">Loading sessions…</div>';
+  mountPanelSkeleton(root, 'list', 'Loading sessions…', { contentSelector: '.ch-sidebar' });
   try {
     chatState.threads = await fetchChatThreads();
   } catch (e) {

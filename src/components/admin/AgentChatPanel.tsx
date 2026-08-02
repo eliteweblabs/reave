@@ -23,6 +23,7 @@ import {
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   filterHelperCommands,
   matchHelperCommand,
@@ -880,14 +881,91 @@ function UserTextPart(props: { text?: string }) {
   return <span className="aui-text">{props.text}</span>;
 }
 
+function ChatImageLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="aui-chat-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        className="aui-chat-lightbox-close"
+        onClick={onClose}
+        aria-label="Close image preview"
+      >
+        ×
+      </button>
+      <img
+        className="aui-chat-lightbox-img"
+        src={src}
+        alt={alt}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>,
+    document.body,
+  );
+}
+
+function ChatImagePreview({
+  src,
+  alt,
+  className,
+  thumb = false,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  thumb?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = alt || 'Attached image';
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`aui-chat-img-btn${thumb ? ' aui-chat-img-btn--thumb' : ''}`}
+        onClick={() => setOpen(true)}
+        aria-label={`View full size: ${label}`}
+      >
+        <img className={className} src={src} alt={label} loading="lazy" />
+      </button>
+      {open ? <ChatImageLightbox src={src} alt={label} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
 function UserImagePart(props: { image?: string; alt?: string }) {
   if (!props.image) return null;
   return (
-    <img
-      className="aui-msg-img"
+    <ChatImagePreview
       src={props.image}
       alt={props.alt || 'Attached image'}
-      loading="lazy"
+      className="aui-msg-img"
     />
   );
 }
@@ -965,13 +1043,11 @@ function ComposerAttachmentPreview() {
 
   if (!previewSrc) return null;
 
+  const alt = attachment?.name || 'Attached image';
+
   return (
     <div className="aui-composer-attachment">
-      <img
-        className="aui-composer-attachment-thumb"
-        src={previewSrc}
-        alt={attachment?.name || 'Attached image'}
-      />
+      <ChatImagePreview src={previewSrc} alt={alt} className="aui-composer-attachment-thumb" thumb />
       <AttachmentPrimitive.Remove
         className="aui-composer-attachment-remove"
         aria-label="Remove attachment"

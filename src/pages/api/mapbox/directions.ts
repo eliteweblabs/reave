@@ -38,14 +38,14 @@ export const GET: APIRoute = async (context) => {
     );
   }
 
-  const toLat = parseCoord(url.searchParams.get('toLat'));
-  const toLng = parseCoord(url.searchParams.get('toLng'));
+  const toLat = parseCoord(context.url.searchParams.get('toLat'));
+  const toLng = parseCoord(context.url.searchParams.get('toLng'));
   if (toLat == null || toLng == null) {
     return json({ ok: false, error: 'toLat and toLng are required' }, 400);
   }
 
-  const fromLat = parseCoord(url.searchParams.get('fromLat'));
-  const fromLng = parseCoord(url.searchParams.get('fromLng'));
+  const fromLat = parseCoord(context.url.searchParams.get('fromLat'));
+  const fromLng = parseCoord(context.url.searchParams.get('fromLng'));
   let origin: { lat: number; lng: number; label?: string } | null = null;
 
   if (fromLat != null && fromLng != null) {
@@ -65,7 +65,7 @@ export const GET: APIRoute = async (context) => {
     );
   }
 
-  const destinationLabel = url.searchParams.get('destination')?.trim() || undefined;
+  const destinationLabel = context.url.searchParams.get('destination')?.trim() || undefined;
   const route = await getDrivingDirections(
     { lat: origin.lat, lng: origin.lng },
     { lat: toLat, lng: toLng },

@@ -12,12 +12,20 @@ export type ScanCandidate = PropertyRecord & {
   matchedTrades: TradeSlug[];
 };
 
+export type ScanCenterLocation = {
+  city: string;
+  state: string;
+  zip?: string;
+};
+
 export type ScanConfig = {
   centerLat: number;
   centerLng: number;
   radiusMiles: number;
   trades: TradeSlug[];
   maxResults?: number;
+  /** City/state/zip for mock scan addresses — should match the scan center, not a demo locale. */
+  centerLocation?: ScanCenterLocation;
 };
 
 export type ScanResult = {
@@ -31,7 +39,15 @@ export type ScanResult = {
 };
 
 /** Deterministic mock candidates around a center for dev/demo scans. */
-function mockCandidatesNear(centerLat: number, centerLng: number): Array<PropertyRecord & { lat: number; lng: number }> {
+function mockCandidatesNear(
+  centerLat: number,
+  centerLng: number,
+  location?: ScanCenterLocation,
+): Array<PropertyRecord & { lat: number; lng: number }> {
+  const city = location?.city?.trim() || 'Local Area';
+  const state = location?.state?.trim().toUpperCase() || 'US';
+  const zip = location?.zip?.trim() || '00000';
+
   const offsets = [
     { dLat: 0.01, dLng: 0.008, address: '45 Oak Avenue', yearBuilt: 1962, owner: 'SMITH JOHN & MARY' },
     { dLat: -0.012, dLng: 0.005, address: '88 Pine Road', yearBuilt: 1938, owner: 'PINE HOLDINGS LLC' },
@@ -42,11 +58,11 @@ function mockCandidatesNear(centerLat: number, centerLng: number): Array<Propert
 
   return offsets.map((o, i) => ({
     id: `mock-scan-${i}`,
-    fullAddress: `${o.address}, Springfield, IL 62701`,
+    fullAddress: zip ? `${o.address}, ${city}, ${state} ${zip}` : `${o.address}, ${city}, ${state}`,
     street: o.address,
-    city: 'Springfield',
-    state: 'IL',
-    zip: '62701',
+    city,
+    state,
+    zip,
     yearBuilt: o.yearBuilt,
     sqft: 1800 + i * 400,
     stories: o.yearBuilt < 1960 ? 2 : 1,
@@ -61,7 +77,7 @@ function mockCandidatesNear(centerLat: number, centerLng: number): Array<Propert
 export function runRadiusScan(config: ScanConfig): ScanResult {
   const trades = normalizeTradeSlugs(config.trades);
   const max = config.maxResults ?? 25;
-  const raw = mockCandidatesNear(config.centerLat, config.centerLng);
+  const raw = mockCandidatesNear(config.centerLat, config.centerLng, config.centerLocation);
 
   const candidates: ScanCandidate[] = [];
   for (const row of raw) {

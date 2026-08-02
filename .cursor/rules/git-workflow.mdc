@@ -1,5 +1,5 @@
 ---
-description: Git workflow — no PRs; commit and push to main after every successful completion
+description: Git workflow — no PRs; commit and push to main after every successful chat, build, or code change
 alwaysApply: true
 ---
 
@@ -11,7 +11,9 @@ This project does **not** use pull requests. **NEVER create PRs** (not even draf
 
 ## Auto commit and push
 
-Commit and push after **every** successful change — do not batch work up and push once at the end. For each change:
+**Always commit and push before ending a chat turn** when you changed files, fixed a build, or completed any task that touched the repo. Do not leave uncommitted work for the user to push later. Do not batch multiple changes into one push at the end of a long session — commit and push after **every** successful change.
+
+For each change:
 
 1. Run `npm run build` (or the minimal build relevant to the change). It must pass — `main` deploys to Railway on push.
 2. Run `npx astro check` and compare against the count before your change. It does **not** pass on a clean `main` (there is a standing backlog of pre-existing errors), so the bar is *no new errors*, not zero.

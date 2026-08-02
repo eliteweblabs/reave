@@ -4,10 +4,12 @@
 
 import {
   bestWorkDisplayName,
+  emailIdFromPushAlertTag,
   normalizePushAlertCopy,
   siriProposalSlugFromTag,
   workSlugFromAdminUrl,
 } from './notificationFormat';
+import { storeGetEmailInbox } from './emailInboxStore';
 import {
   storeCountPendingPushAlerts,
   storeListPendingPushAlerts,
@@ -26,6 +28,10 @@ export type PushAlertReviewNotification = {
   alertId: string;
   url: string;
   tag: string;
+  emailId?: string;
+  from?: string;
+  subject?: string;
+  contactName?: string | null;
 };
 
 async function resolvePushAlertDisplayName(alert: PushAlert): Promise<string | undefined> {
@@ -36,10 +42,27 @@ async function resolvePushAlertDisplayName(alert: PushAlert): Promise<string | u
   return bestWorkDisplayName(job);
 }
 
+async function resolveLinkedInboxEmail(alert: PushAlert) {
+  let emailId = emailIdFromPushAlertTag(alert.tag);
+  if (!emailId && alert.url?.trim()) {
+    try {
+      emailId =
+        new URL(alert.url.trim(), 'https://example.com').searchParams.get('email')?.trim() || null;
+    } catch {
+      emailId = null;
+    }
+  }
+  if (!emailId) return null;
+  return storeGetEmailInbox(emailId).catch(() => null);
+}
+
 export async function toPushAlertReviewNotification(
   alert: PushAlert,
 ): Promise<PushAlertReviewNotification> {
-  const displayName = await resolvePushAlertDisplayName(alert);
+  const [displayName, inbox] = await Promise.all([
+    resolvePushAlertDisplayName(alert),
+    resolveLinkedInboxEmail(alert),
+  ]);
   const copy = normalizePushAlertCopy(alert, { displayName });
   return {
     id: alert.id,
@@ -51,6 +74,14 @@ export async function toPushAlertReviewNotification(
     alertId: alert.id,
     url: alert.url,
     tag: alert.tag,
+    ...(inbox
+      ? {
+          emailId: inbox.id,
+          from: inbox.from || '',
+          subject: inbox.subject || '',
+          contactName: inbox.contactName,
+        }
+      : {}),
   };
 }
 

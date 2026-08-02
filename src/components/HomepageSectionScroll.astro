@@ -48,7 +48,14 @@
         const link = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href]");
         if (!link) return;
 
-        const id = sectionIdFromHref(link.getAttribute("href"));
+        const href = link.getAttribute("href");
+        if (href === "#about" || href === "/#about") {
+          event.preventDefault();
+          window.location.href = "/about";
+          return;
+        }
+
+        const id = sectionIdFromHref(href);
         if (!id) return;
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
           return;
@@ -75,6 +82,10 @@
     const params = new URLSearchParams(location.search);
     const fromQuery = params.get("section");
     const fromHash = location.hash.replace(/^#/, "");
+    if (fromQuery === "about" || fromHash === "about") {
+      window.location.replace("/about");
+      return;
+    }
     const target = (fromQuery || fromHash) as HomepageSectionId;
     if (!isHomepageSectionId(target)) return;
 

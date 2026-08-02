@@ -1,5 +1,6 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
 import { createClientMap } from '/admin/client-map.js';
+import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 
 function companyBrand() {
   return (
@@ -90,11 +91,12 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   deBtnIconSvg,
+  downloadBrandingImage,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260801a';
+} from './admin-ui.js?v=20260802a';
 import { showAdminConfirmBanner } from './push-client.js?v=20260802b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260731c';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -150,7 +152,7 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260728l';
-import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260731a';
+import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802b';
 import {
   initClientsPanel,
   clientState,
@@ -161,7 +163,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260730a';
+} from './clients-panel.js?v=20260802a';
 import {
   initChatPanel,
   chatState,
@@ -212,7 +214,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260728q';
+} from './insights-panels.js?v=20260802c';
 import {
   initRulesPanel,
   ruleState,
@@ -251,7 +253,15 @@ const PINCH_ZOOM = true;
 // Real brand logos via Simple Icons (https://simpleicons.org), pinned to a
 // major version. We render the SVG as a CSS mask so each glyph can be tinted to
 // its node's hue, keeping the full-spectrum look on the dark canvas.
-const ICON_CDN = (slug) => `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+// Some brands were removed in later releases (trademark takedowns) — pin the
+// last release that still shipped each one so icons don't 404 on the CDN.
+const SIMPLE_ICONS_PINNED = {
+  linkedin: '13.19.0',
+};
+const ICON_CDN = (slug) => {
+  const version = SIMPLE_ICONS_PINNED[slug] || 'v16';
+  return `https://cdn.jsdelivr.net/npm/simple-icons@${version}/icons/${slug}.svg`;
+};
 
 const MAP_ICON_KEYS = {
   home: 'home',
@@ -2621,6 +2631,69 @@ function formatReviewAlertWhen(iso) {
   }
 }
 
+function parseSenderDisplayName(from) {
+  const raw = String(from || '').trim();
+  const named = raw.match(/^(.+?)\s*<[^>]+>$/);
+  if (named?.[1]) return named[1].replace(/^["']|["']$/g, '').trim();
+  if (/^[^\s@]+@[^\s@]+$/.test(raw)) return '';
+  return raw.includes('@') ? '' : raw;
+}
+
+function senderLabelForReviewAlert(from, contactName) {
+  const email = parseSenderEmail(from);
+  const name = String(contactName || parseSenderDisplayName(from) || '').trim();
+  if (name && email && !name.includes('@')) return `${name} · ${email}`;
+  if (email) return email;
+  if (name) return name;
+  return String(from || '').trim();
+}
+
+function reviewAlertCopyIsDuplicated(title, detail) {
+  const t = String(title || '')
+    .trim()
+    .replace(/…+$/u, '')
+    .trim();
+  const d = String(detail || '').trim();
+  if (!t || !d) return false;
+  if (t.toLowerCase() === d.toLowerCase()) return true;
+  const tLo = t.toLowerCase().replace(/^alert:\s*/i, '');
+  const dLo = d.toLowerCase();
+  if (dLo.startsWith(tLo)) return true;
+  if (dLo.startsWith(t.toLowerCase())) return true;
+  return false;
+}
+
+function reviewAlertDisplayCopy(item) {
+  const title = String(item?.title || '').trim();
+  const detail = String(item?.detail || '').trim();
+  const from = String(item?.from || '').trim();
+  const subject = String(item?.subject || '').trim();
+  const sender = from ? senderLabelForReviewAlert(from, item?.contactName) : '';
+  const duplicated = reviewAlertCopyIsDuplicated(title, detail);
+
+  if (duplicated) {
+    return {
+      headline: sender || subject || title.replace(/^alert:\s*/i, '').trim(),
+      body: detail,
+    };
+  }
+
+  return { headline: title, body: detail };
+}
+
+function reviewAlertCopyHtml(item) {
+  const when = formatReviewAlertWhen(item.receivedAt);
+  const { headline, body } = reviewAlertDisplayCopy(item);
+  const headlineLine = when
+    ? headline
+      ? `${escHtml(when)} · ${escHtml(headline)}`
+      : escHtml(when)
+    : escHtml(headline);
+  const bodyHtml =
+    body && body.toLowerCase() !== headline.toLowerCase() ? `<p>${escHtml(body)}</p>` : '';
+  return `<strong>${headlineLine}</strong>${bodyHtml}`;
+}
+
 let uptimePlatformSyncPollTimer = null;
 let uptimePlatformSyncActive = false;
 
@@ -3475,7 +3548,25 @@ function reviewAlertVariant(type) {
   return 'push';
 }
 
-function reviewAlertIconName(type) {
+function reviewAlertIconName(item) {
+  const type = item?.type;
+  if (type === 'push_alert') {
+    if (isAuditPushAlert(item)) return 'file-text';
+    switch (item.alertKind) {
+      case 'email':
+        return 'mail';
+      case 'uptime':
+        return 'monitor';
+      case 'comment':
+        return 'message-circle';
+      case 'engagement':
+        return 'eye';
+      case 'system':
+        return 'bell';
+      default:
+        return 'bell';
+    }
+  }
   switch (type) {
     case 'meeting_conflict':
       return 'alert-triangle';
@@ -3488,7 +3579,7 @@ function reviewAlertIconName(type) {
     case 'project':
       return 'briefcase';
     case 'project_match':
-      return 'link';
+      return 'external-link';
     case 'project_comment':
       return 'message-circle';
     case 'vault_entry':
@@ -3499,8 +3590,6 @@ function reviewAlertIconName(type) {
       return 'monitor';
     case 'contact_form':
       return 'mail';
-    case 'push_alert':
-      return 'alert-triangle';
     default:
       return 'bell';
   }
@@ -3651,26 +3740,34 @@ function buildReviewAlertBanner(item) {
 
   const brandIcon = document.createElement('img');
   brandIcon.className = 'admin-setup-alert-icon admin-setup-alert-icon--brand';
-  brandIcon.src = window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+  const fallbackIconUrl = companyStaffAvatarUrl();
+  brandIcon.src = resolveReviewAlertIconUrl(item);
   brandIcon.alt = '';
   brandIcon.setAttribute('aria-hidden', 'true');
+  if (brandIcon.src !== fallbackIconUrl) {
+    brandIcon.addEventListener(
+      'error',
+      () => {
+        brandIcon.onerror = null;
+        brandIcon.src = fallbackIconUrl;
+      },
+      { once: true },
+    );
+  }
 
   const typeIcon = document.createElement('div');
   typeIcon.className = 'admin-setup-alert-icon';
   typeIcon.dataset.type = item.type;
+  if (item.alertKind) typeIcon.dataset.kind = item.alertKind;
   typeIcon.setAttribute('aria-hidden', 'true');
-  typeIcon.innerHTML = navIcon(reviewAlertIconName(item.type), 18);
+  typeIcon.innerHTML = navIcon(reviewAlertIconName(item), 18);
 
   iconsCol.appendChild(brandIcon);
   iconsCol.appendChild(typeIcon);
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
-  const when = formatReviewAlertWhen(item.receivedAt);
-  const titleLine = when
-    ? `${escHtml(when)} · ${escHtml(item.title)}`
-    : escHtml(item.title);
-  copy.innerHTML = `<strong>${titleLine}</strong><p>${escHtml(item.detail)}</p>`;
+  copy.innerHTML = reviewAlertCopyHtml(item);
   copy.addEventListener('click', () => openReviewNotificationTarget(item));
 
   const actions = document.createElement('div');
@@ -4753,16 +4850,25 @@ async function syncUptimeMonitorsFromApi() {
 
 let homeDashboardLoadPromise = null;
 
-async function loadHomeDashboard() {
+async function loadHomeDashboard(opts = {}) {
+  const quiet = opts.quiet === true;
   const root = document.getElementById('home-dashboard');
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
-  const showLoading = !root.querySelector('.home-dashboard-scroll');
+  const hasContent = Boolean(root.querySelector('.home-dashboard-scroll'));
 
   homeDashboardLoadPromise = (async () => {
-    if (showLoading) {
-      root.innerHTML = '<div class="home-dashboard-scroll"><div class="dash-loading">Loading dashboard…</div></div>';
+    if (!hasContent) {
+      mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
+        quiet: false,
+        contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+      });
+    } else if (!quiet) {
+      mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
+        quiet: true,
+        contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+      });
     }
 
     try {
@@ -4792,7 +4898,7 @@ async function refreshHomeReviewBannersQuiet() {
   if (MAP?.type !== 'home') return;
   const root = document.getElementById('home-dashboard');
   const scroll = root?.querySelector('.home-dashboard-scroll');
-  if (!scroll || scroll.querySelector('.dash-loading')) return;
+  if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton')) return;
 
   try {
     const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
@@ -5065,12 +5171,30 @@ function hasCustomCompanyIcon(company) {
   return company?.iconSource === 'admin' && !!companyIconPreviewUrl(company);
 }
 
+function companyIconDownloadUrl(company) {
+  const url = companyIconPreviewUrl(company);
+  if (!url) return '';
+  if (url.includes('/api/branding/icon')) {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      parsed.searchParams.set('size', '512');
+      return `${parsed.pathname}${parsed.search}`;
+    } catch {
+      return url.includes('?') ? `${url}&size=512` : `${url}?size=512`;
+    }
+  }
+  return url;
+}
+
 function bindCompanyLogoUpload(root, companyAlert) {
   const fileInput = root.querySelector('#company-logo-file');
   const fileWrap = root.querySelector('#company-logo-file-wrap');
   const previewWrap = root.querySelector('#company-logo-preview-wrap');
   const preview = root.querySelector('#company-logo-preview');
   const removeBtn = root.querySelector('#company-logo-remove');
+  const downloadBtn = root.querySelector('#company-logo-download');
+
+  if (downloadBtn instanceof HTMLButtonElement) setDeBtnLabel(downloadBtn, 'Download', 'download');
 
   const refreshPreview = (company) => {
     const hasLogo = hasCustomCompanyLogo(company);
@@ -5085,7 +5209,21 @@ function bindCompanyLogoUpload(root, companyAlert) {
     if (fileWrap instanceof HTMLElement) {
       fileWrap.hidden = hasLogo;
     }
+    downloadBtn?.toggleAttribute('hidden', !hasLogo);
   };
+
+  downloadBtn?.addEventListener('click', async () => {
+    const url = preview instanceof HTMLImageElement ? preview.src : '';
+    if (!url || !(downloadBtn instanceof HTMLButtonElement)) return;
+    downloadBtn.disabled = true;
+    try {
+      await downloadBrandingImage(url, 'company-logo');
+    } catch {
+      showProfileAlert(companyAlert, 'Download failed — please try again.', 'error');
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5138,8 +5276,13 @@ function bindCompanyIconUpload(root, companyAlert) {
   const previewWrap = root.querySelector('#company-icon-preview-wrap');
   const preview = root.querySelector('#company-icon-preview');
   const removeBtn = root.querySelector('#company-icon-remove');
+  const downloadBtn = root.querySelector('#company-icon-download');
+  let iconCompany = null;
+
+  if (downloadBtn instanceof HTMLButtonElement) setDeBtnLabel(downloadBtn, 'Download', 'download');
 
   const refreshPreview = (company) => {
+    iconCompany = company || null;
     const hasIcon = hasCustomCompanyIcon(company);
     const url = hasIcon ? companyIconPreviewUrl(company) : '';
 
@@ -5152,8 +5295,22 @@ function bindCompanyIconUpload(root, companyAlert) {
     if (fileWrap instanceof HTMLElement) {
       fileWrap.hidden = hasIcon;
     }
+    downloadBtn?.toggleAttribute('hidden', !hasIcon);
     window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(company);
   };
+
+  downloadBtn?.addEventListener('click', async () => {
+    const url = companyIconDownloadUrl(iconCompany) || (preview instanceof HTMLImageElement ? preview.src : '');
+    if (!url || !(downloadBtn instanceof HTMLButtonElement)) return;
+    downloadBtn.disabled = true;
+    try {
+      await downloadBrandingImage(url, 'company-icon');
+    } catch {
+      showProfileAlert(companyAlert, 'Download failed — please try again.', 'error');
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5221,6 +5378,7 @@ function bindProfileForm(root) {
 let companyMapController = null;
 let companyPendingGeo = null;
 let destroyCompanyAddressAutocomplete = null;
+let companyFontPickers = null;
 
 function destroyCompanyMap() {
   if (companyMapController) {
@@ -5236,24 +5394,58 @@ function destroyCompanyMap() {
 
 function bindCompanyForm(root, company, fontCatalog) {
   destroyCompanyMap();
+  if (companyFontPickers) {
+    companyFontPickers.destroy();
+    companyFontPickers = null;
+  }
 
   const addressInput = root.querySelector('#company-address');
   const mapHost = root.querySelector('#company-map-host');
+  const initialAddress = (addressInput?.value || company?.address || '').trim();
+  const hasStoredGeo =
+    Number.isFinite(company?.geo?.lat) && Number.isFinite(company?.geo?.lng);
+
   if (mapHost) {
     companyMapController = createClientMap(mapHost, {
       token: window.__mapboxAccessToken,
-      lat: company?.geo?.lat,
-      lng: company?.geo?.lng,
-      address: company?.address || '',
+      lat: hasStoredGeo ? company.geo.lat : null,
+      lng: hasStoredGeo ? company.geo.lng : null,
+      address: initialAddress,
       showDirections: false,
     });
   }
 
   if (addressInput) {
+    let companyGeocodeTimer = null;
+
+    async function geocodeCompanyAddressFromInput() {
+      const q = addressInput.value.trim();
+      if (!q) {
+        companyPendingGeo = null;
+        companyMapController?.setLocation(null, null, '');
+        return;
+      }
+      const geo = await geocodeClientAddressPreview(q);
+      if (geo && companyMapController) {
+        companyPendingGeo = geo;
+        companyMapController.setLocation(geo.lat, geo.lng, q);
+      } else if (companyMapController) {
+        companyMapController.setGeocodeFailed(true);
+      }
+    }
+
+    function scheduleCompanyAddressGeocode() {
+      clearTimeout(companyGeocodeTimer);
+      companyGeocodeTimer = setTimeout(() => {
+        void geocodeCompanyAddressFromInput();
+      }, 400);
+    }
+
     destroyCompanyAddressAutocomplete = mountAddressAutocomplete(
       addressInput,
       root.closest('.profile-panel-scroll') || document.getElementById('settings-panel'),
       async (pickedAddress) => {
+        clearTimeout(companyGeocodeTimer);
         companyPendingGeo = await geocodeClientAddressPreview(pickedAddress);
         if (companyPendingGeo && companyMapController) {
           companyMapController.setLocation(
@@ -5267,29 +5459,20 @@ function bindCompanyForm(root, company, fontCatalog) {
 
     addressInput.addEventListener('input', () => {
       companyPendingGeo = null;
+      if (!addressInput.value.trim()) {
+        clearTimeout(companyGeocodeTimer);
+        companyMapController?.setLocation(null, null, '');
+        return;
+      }
+      scheduleCompanyAddressGeocode();
     });
     addressInput.addEventListener('blur', () => {
-      void (async () => {
-        const q = addressInput.value.trim();
-        if (!q) {
-          companyMapController?.setLocation(null, null, '');
-          return;
-        }
-        const geo = await geocodeClientAddressPreview(q);
-        if (geo) {
-          companyPendingGeo = geo;
-          companyMapController?.setLocation(geo.lat, geo.lng, q);
-        }
-      })();
+      clearTimeout(companyGeocodeTimer);
+      void geocodeCompanyAddressFromInput();
     });
 
-    if (company?.address?.trim() && !company?.geo?.lat) {
-      void geocodeClientAddressPreview(company.address).then((geo) => {
-        if (geo && companyMapController) {
-          companyPendingGeo = geo;
-          companyMapController.setLocation(geo.lat, geo.lng, company.address);
-        }
-      });
+    if (initialAddress && !hasStoredGeo) {
+      void geocodeCompanyAddressFromInput();
     }
   }
 
@@ -5311,6 +5494,7 @@ function bindCompanyForm(root, company, fontCatalog) {
 
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
   bindCompanyIconUpload(root, root.querySelector('#company-alert'));
+  companyFontPickers = mountCompanyBrandFontPickers(root, fontCatalog);
   bindCompanyFontPreview(root, fontCatalog);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
 }
@@ -5647,24 +5831,18 @@ function renderProfileOnlyPanel(profile) {
 
 function brandFontsForRole(catalog, role) {
   return (catalog || []).filter(
-    (entry) => Array.isArray(entry.roles) && entry.roles.includes(role),
+    (entry) =>
+      entry.id.startsWith('google:') ||
+      (Array.isArray(entry.roles) && entry.roles.includes(role)),
   );
 }
 
 function renderBrandFontOptions(catalog, role, selectedId) {
-  const options = brandFontsForRole(catalog, role);
-  const fallbacks = {
-    primary: 'space-grotesk',
-    secondary: 'space-grotesk',
-    content: 'mozilla-text',
-  };
-  const selected = selectedId || fallbacks[role] || 'space-grotesk';
-  return options
-    .map(
-      (entry) =>
-        `<option value="${escHtml(entry.id)}"${entry.id === selected ? ' selected' : ''}>${escHtml(entry.label)}</option>`,
-    )
-    .join('');
+  const entry =
+    (catalog || []).find((item) => item.id === selectedId) ||
+    brandFontsForRole(catalog, role)[0];
+  if (!entry) return '';
+  return `<option value="${escHtml(entry.id)}" selected>${escHtml(entry.label)}</option>`;
 }
 
 function buildBrandFontsHref(catalog, primaryId, secondaryId, contentId) {
@@ -5744,6 +5922,7 @@ function rebuildCompanyFontSelects(root, catalog, fonts) {
   primary.value = fonts?.fontPrimaryId || primary.value;
   secondary.value = fonts?.fontSecondaryId || secondary.value;
   content.value = fonts?.fontContentId || content.value;
+  companyFontPickers?.updateCatalog(catalog);
 }
 
 function bindCompanyFontScrape(root, fontCatalog, alertEl, company) {
@@ -5830,6 +6009,7 @@ function renderCompanyPanel(company, fontCatalog) {
                   `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
                   `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo">×</button>` +
                 `</div>` +
+                `<button type="button" id="company-logo-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasLogo ? '' : ' hidden'}></button>` +
                 `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo ? ' hidden' : ''}>` +
                   `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
@@ -5842,6 +6022,7 @@ function renderCompanyPanel(company, fontCatalog) {
                   `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
                   `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon">×</button>` +
                 `</div>` +
+                `<button type="button" id="company-icon-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasIcon ? '' : ' hidden'}></button>` +
                 `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon ? ' hidden' : ''}>` +
                   `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
@@ -5915,6 +6096,28 @@ const SOCIAL_PLATFORM_LABELS = {
   googlebusiness: 'Google Business',
 };
 
+const SOCIAL_PLATFORM_UI = {
+  twitter: { slug: 'x', color: '#1d9bf0' },
+  instagram: { slug: 'instagram', color: '#e1306c' },
+  linkedin: { slug: 'linkedin', color: '#0a66c2' },
+  facebook: { slug: 'facebook', color: '#1877f2' },
+  youtube: { slug: 'youtube', color: '#ff0000' },
+  tiktok: { slug: 'tiktok', color: '#ff0050' },
+  bluesky: { slug: 'bluesky', color: '#0085ff' },
+  threads: { slug: 'threads', color: '#000000' },
+  pinterest: { slug: 'pinterest', color: '#bd081c' },
+  snapchat: { slug: 'snapchat', color: '#fffc00' },
+  discord: { slug: 'discord', color: '#5865f2' },
+  reddit: { slug: 'reddit', color: '#ff4500' },
+  github: { slug: 'github', color: '#181717' },
+  twitch: { slug: 'twitch', color: '#9146ff' },
+  telegram: { slug: 'telegram', color: '#26a5e4' },
+  whatsapp: { slug: 'whatsapp', color: '#25d366' },
+  substack: { slug: 'substack', color: '#ff6719' },
+  yelp: { slug: 'yelp', color: '#d32323' },
+  googlebusiness: { slug: 'google', color: '#4285f4' },
+};
+
 let socialPlatformCatalog = [];
 let socialDefaultVisible = [];
 
@@ -5981,6 +6184,15 @@ function socialLinkFieldRow(platform, company) {
 
 function socialPlatformLabel(platform) {
   return SOCIAL_PLATFORM_LABELS[platform] || platform || '';
+}
+
+function socialPlatformIcon(platform) {
+  const ui = SOCIAL_PLATFORM_UI[platform];
+  if (!ui) return `<span class="soc-icon soc-icon--fallback"></span>`;
+  return (
+    `<span class="soc-icon" style="--soc-color:${ui.color};` +
+    `--soc-icon:url('${ICON_CDN(ui.slug)}')"></span>`
+  );
 }
 
 function socialCopyRow(value) {
@@ -6184,7 +6396,10 @@ async function loadProfileTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading profile…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6209,7 +6424,10 @@ async function loadCompanyTab() {
   destroyCompanyMap();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading company…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading company…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6233,7 +6451,10 @@ async function loadSocialsTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading socials…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6282,7 +6503,10 @@ async function loadIndustriesTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading industries…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading industries…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6350,7 +6574,10 @@ async function loadVapiTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading Vapi…</div></div>';
+  mountPanelSkeleton(root, 'dashboard', 'Loading Vapi…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -8611,6 +8838,7 @@ initRulesPanel({
   appendEmptyDetailPane,
   isCreateDrawerOpen,
   navIcon,
+  formatChatDate,
   setFormFieldState,
   flashFormFieldSaved,
   FORM_FIELD_SAVED,
@@ -9261,7 +9489,7 @@ async function fetchOpenJobsForEmail(ev) {
 }
 
 async function runEmailProjectAction(ev, payload, errorTitle) {
-  closeEmailProjectMenu();
+  closeEmailHeaderMenus();
   try {
     await postEmailProject(ev, payload);
   } catch (e) {
@@ -9332,7 +9560,7 @@ async function rejectSuggestedProjectMatch(item, btn) {
 }
 
 async function handleEmailProjectAddNew(ev, triggerEl) {
-  closeEmailProjectMenu();
+  closeEmailHeaderMenus();
   if (triggerEl) {
     triggerEl.disabled = true;
     triggerEl.textContent = 'Creating…';
@@ -9434,6 +9662,7 @@ function createEmailProjectDropdown(ev) {
   trigger.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (openEmailProjectMenu && openEmailProjectMenu !== wrap) closeEmailProjectMenu();
+    if (openEmailAgentMenu) closeEmailAgentMenu();
     const opening = !wrap.classList.contains('open');
     if (opening) await populateEmailProjectMenu(ev, menu);
     wrap.classList.toggle('open', opening);
@@ -9446,9 +9675,10 @@ function createEmailProjectDropdown(ev) {
 }
 
 document.addEventListener('click', (e) => {
-  if (!openEmailProjectMenu) return;
-  if (openEmailProjectMenu.contains(e.target)) return;
-  closeEmailProjectMenu();
+  if (!openEmailProjectMenu && !openEmailAgentMenu) return;
+  if (openEmailProjectMenu?.contains(e.target)) return;
+  if (openEmailAgentMenu?.contains(e.target)) return;
+  closeEmailHeaderMenus();
 });
 
 function emailChatExcerpt(ev, max = 500) {
@@ -9492,15 +9722,224 @@ async function fetchFullEmailRecord(ev) {
 
 async function askAgentAboutEmail(ev) {
   const full = await fetchFullEmailRecord(ev);
-  const triageItem = reviewNotificationItemFromEmail(full);
-  if (triageItem?.awaitingTriage) {
-    await openNotificationTriageDialog(triageItem);
-    return;
-  }
   await askAgentWithPrompt(buildEmailAgentPrompt(full), {
     sourceEmailId: full.id || ev.id,
     sourceJobSlug: full.jobSlug || ev.jobSlug || null,
   });
+}
+
+async function createSenderEmailFilterRule(sender, status) {
+  const normalized = sender.trim().toLowerCase();
+  const statusTag = status === 'DELETE' ? 'DELETE' : 'AUTO_ARCHIVED';
+  const verb = statusTag === 'DELETE' ? 'Delete' : 'Archive';
+  const res = await fetch('/api/email/rules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: `${verb}: ${normalized}`,
+      status: statusTag,
+      description: `Auto-${verb.toLowerCase()} — owner chose from inbox agent menu`,
+      phrases: [normalized],
+      matchMode: 'any',
+      fields: ['from'],
+      notify: false,
+      enabled: true,
+      expiresAt: null,
+    }),
+  });
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data.rule;
+}
+
+async function clearEmailTriageLimboIfNeeded(ev, mode) {
+  const triageItem = reviewNotificationItemFromEmail(ev);
+  if (!triageItem?.awaitingTriage) return ev;
+  const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/triage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: mode === 'delete' ? 'ignore' : 'expected' }),
+  });
+  const data = await readApiJson(res);
+  if (!res.ok && !data.alreadyResolved) throw new Error(data.error || `HTTP ${res.status}`);
+  if (data.event) {
+    const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+    if (idx !== -1) emailState.allEvents[idx] = data.event;
+    return data.event;
+  }
+  return ev;
+}
+
+async function runEmailAutoArchive(ev) {
+  const sender = parseSenderEmail(ev.from);
+  if (!sender || !sender.includes('@')) {
+    await osAlert({ title: 'No sender', bodyHtml: 'Could not parse a sender address for this message.' });
+    return;
+  }
+  closeEmailAgentMenu();
+  try {
+    await createSenderEmailFilterRule(sender, 'AUTO_ARCHIVED');
+    const current = await clearEmailTriageLimboIfNeeded(ev, 'archive');
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(current.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'junk', action: 'junk', status: 'JUNK' }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    applyEmailPatchResult(current.id, data.event);
+    showChatToast(`Future mail from ${sender} will auto-archive`);
+  } catch (e) {
+    await osAlert({ title: 'Could not auto-archive', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function runEmailAutoDelete(ev) {
+  const sender = parseSenderEmail(ev.from);
+  if (!sender || !sender.includes('@')) {
+    await osAlert({ title: 'No sender', bodyHtml: 'Could not parse a sender address for this message.' });
+    return;
+  }
+  closeEmailAgentMenu();
+  try {
+    await createSenderEmailFilterRule(sender, 'DELETE');
+    await clearEmailTriageLimboIfNeeded(ev, 'delete');
+    await deleteEmail(ev);
+    showChatToast(`Future mail from ${sender} will auto-delete`);
+  } catch (e) {
+    await osAlert({ title: 'Could not auto-delete', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function runEmailAgentMenuAction(ev, actionId, itemEl) {
+  if (itemEl) itemEl.disabled = true;
+  try {
+    const full = await fetchFullEmailRecord(ev);
+    switch (actionId) {
+      case 'auto_archive':
+        await runEmailAutoArchive(full);
+        break;
+      case 'auto_delete':
+        await runEmailAutoDelete(full);
+        break;
+      case 'unsubscribe':
+        closeEmailAgentMenu();
+        await unsubscribeEmail(full, itemEl);
+        break;
+      case 'explain':
+        closeEmailAgentMenu();
+        await askAgentAboutEmail(full);
+        break;
+      case 'create_project':
+        await handleEmailProjectAddNew(full, itemEl);
+        break;
+      default:
+        break;
+    }
+  } finally {
+    if (itemEl) itemEl.disabled = false;
+  }
+}
+
+let openEmailAgentMenu = null;
+
+function closeEmailAgentMenu() {
+  if (openEmailAgentMenu) {
+    openEmailAgentMenu.classList.remove('open');
+    openEmailAgentMenu = null;
+  }
+}
+
+function closeEmailHeaderMenus() {
+  closeEmailProjectMenu();
+  closeEmailAgentMenu();
+}
+
+async function populateEmailAgentMenu(ev, menu) {
+  menu.innerHTML = '<div class="em-project-menu-empty">Loading…</div>';
+  const full = await fetchFullEmailRecord(ev);
+  const sender = formatEmailCardFrom(full);
+  const senderOk = sender !== '(unknown)' && sender.includes('@');
+
+  menu.innerHTML = '';
+  const entries = [
+    {
+      id: 'auto_archive',
+      label: `Auto Archive messages from ${sender}`,
+      disabled: !senderOk,
+    },
+    {
+      id: 'auto_delete',
+      label: `Auto Delete messages from ${sender}`,
+      disabled: !senderOk,
+    },
+    {
+      id: 'unsubscribe',
+      label: `Attempt unsubscribe from ${sender}`,
+      disabled: !senderOk || !full.unsubscribe?.available,
+      hint: !full.unsubscribe?.available ? 'No List-Unsubscribe header' : '',
+    },
+    { id: 'explain', label: 'Explain to the agent' },
+  ];
+  if (!full.jobSlug) {
+    entries.push({
+      id: 'create_project',
+      label: `Create new project from ${sender}`,
+      disabled: !senderOk,
+    });
+  }
+
+  for (const entry of entries) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'em-project-menu-item em-agent-menu-item';
+    item.setAttribute('role', 'menuitem');
+    item.disabled = Boolean(entry.disabled);
+    item.title = entry.hint || entry.label;
+    item.textContent = entry.label;
+    item.addEventListener('click', () => void runEmailAgentMenuAction(full, entry.id, item));
+    menu.appendChild(item);
+  }
+}
+
+function createEmailAgentDropdown(ev, opts = {}) {
+  const emailAwaitingTriage = isEmailAwaitingTriage(ev) && reviewNotificationTypeFromEmail(ev);
+  const wrap = document.createElement('div');
+  wrap.className = 'em-project-dropdown em-agent-dropdown';
+  if (opts.standalone) wrap.classList.add('em-agent-dropdown--solo');
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = opts.inGroup
+    ? 'em-btn-group-segment em-agent-btn em-agent-trigger'
+    : 'de-new-btn em-agent-btn em-header-action-btn em-agent-trigger';
+  trigger.setAttribute('aria-label', emailAwaitingTriage ? 'Agent triage' : 'Agent');
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.title = emailAwaitingTriage
+    ? 'Agent — triage or explain this message'
+    : 'Agent — triage actions for this sender';
+  if (emailAwaitingTriage) trigger.classList.add('em-agent-btn--triage');
+  trigger.innerHTML =
+    `<span class="em-agent-trigger-icon" aria-hidden="true">${navIcon('agent', 16)}</span>` +
+    '<span class="em-agent-trigger-caret" aria-hidden="true">▾</span>';
+
+  const menu = document.createElement('div');
+  menu.className = 'em-project-menu em-agent-menu';
+  menu.setAttribute('role', 'menu');
+
+  trigger.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (openEmailAgentMenu && openEmailAgentMenu !== wrap) closeEmailAgentMenu();
+    if (openEmailProjectMenu) closeEmailProjectMenu();
+    const opening = !wrap.classList.contains('open');
+    if (opening) await populateEmailAgentMenu(ev, menu);
+    wrap.classList.toggle('open', opening);
+    openEmailAgentMenu = opening ? wrap : null;
+  });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(menu);
+  return wrap;
 }
 
 async function markEmailJunk(ev) {
@@ -10124,7 +10563,7 @@ async function switchEmailInboxFilter(nextFilter) {
 async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
-  if (!quiet) root.innerHTML = '<div class="de-loading">Loading inbox…</div>';
+  if (!quiet) mountPanelSkeleton(root, 'list', 'Loading inbox…', { contentSelector: '.em-sidebar' });
   try {
     const [inboxRes] = await Promise.all([
       adminFetch('/api/email/inbox?junk=1'),
@@ -11461,34 +11900,18 @@ function renderEmailPanel() {
     return;
   }
 
-  const emailAwaitingTriage = isEmailAwaitingTriage(ev) && reviewNotificationTypeFromEmail(ev);
-  const agentBtn = document.createElement('button');
-  agentBtn.type = 'button';
-  if (emailAwaitingTriage) {
-    agentBtn.setAttribute('aria-label', 'Triage');
-    agentBtn.title = 'Triage — teach the agent how to handle similar cases';
-    agentBtn.classList.add('em-agent-btn--triage');
-  } else {
-    agentBtn.setAttribute('aria-label', 'Agent');
-    agentBtn.title = 'Agent';
-  }
-  agentBtn.innerHTML = navIcon('agent', 16);
-  agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
-
   const beforeIcons = [];
   const linkedChat = chatState.threads.find((t) => t.source_email_id === ev.id);
   const alreadyInLinkedChat = linkedChat && chatState.activeId === linkedChat.id;
   if (!isVerificationCodeEmail(ev) && !alreadyInLinkedChat) {
     if (shouldShowEmailProjectActions(ev)) {
-      agentBtn.className = 'em-btn-group-segment em-agent-btn';
       const group = document.createElement('div');
       group.className = 'em-btn-group';
-      group.appendChild(agentBtn);
+      group.appendChild(createEmailAgentDropdown(ev, { inGroup: true }));
       group.appendChild(createEmailProjectDropdown(ev));
       beforeIcons.push(group);
     } else {
-      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-      beforeIcons.push(agentBtn);
+      beforeIcons.push(createEmailAgentDropdown(ev, { standalone: true }));
     }
   } else if (shouldShowEmailProjectActions(ev)) {
     beforeIcons.push(createEmailProjectDropdown(ev));

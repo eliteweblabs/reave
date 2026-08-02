@@ -36,7 +36,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260728m';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260730c';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 
@@ -201,7 +201,7 @@ function getDocEditor() { return document.getElementById('doc-editor'); }
 async function loadDocumentsTab() {
   const root = getDocEditor();
   if (!root) return;
-  root.innerHTML = '<div class="de-loading">Loading templates…</div>';
+  mountPanelSkeleton(root, 'list', 'Loading templates…', { contentSelector: '.ch-sidebar' });
   try {
     const [templatesRes, shortcodesRes] = await Promise.all([
       fetch('/api/documents', { cache: 'no-store' }),
@@ -373,7 +373,7 @@ function renderNewForm(pane) {
 function renderEditForm(pane) {
   const slug = docState.activeSlug;
   const tpl = docState.templates.find((t) => t.slug === slug);
-  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+  pane.innerHTML = skeletonHtml('list', 'Loading…');
 
   fetch(`/api/documents/${encodeURIComponent(slug)}`, { cache: 'no-store' })
     .then((r) => {

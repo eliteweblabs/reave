@@ -142,7 +142,9 @@ export function brandFontById(id: string | null | undefined): BrandFontOption | 
 
 export function brandFontsForRole(role: BrandFontRole): BrandFontOption[] {
   const merged = [...BRAND_FONT_CATALOG, ...runtimeCatalog.values()];
-  return merged.filter((entry) => entry.roles.includes(role) || entry.id.startsWith('google:'));
+  return merged.filter(
+    (entry) => entry.id.startsWith('google:') || entry.roles.includes(role),
+  );
 }
 
 export function brandFontCatalogForAdmin(): Array<

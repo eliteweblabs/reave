@@ -34,10 +34,11 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   deBtnIconSvg,
+  downloadBrandingImage,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons } from './shared.js?v=20260731a';
+} from './admin-ui.js?v=20260802a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260731a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   navigateToWork,
@@ -66,7 +67,7 @@ let clientState = {
   clients: [],
   total: 0,
   search: '',
-  contactFilter: 'work',
+  contactFilter: 'all',
   activeUid: null,
   detailTab: 'profile',
   dirty: false,
@@ -76,9 +77,10 @@ let clientState = {
 };
 const CLIENT_LAST_ACTIVE_KEY = 'clients:lastActiveUid-v1';
 
-const CLIENT_KINDS = ['professional', 'personal', 'proposed'];
+const CLIENT_KINDS = ['professional', 'service', 'personal', 'proposed'];
 const CLIENT_KIND_LABELS = {
-  professional: 'Professional',
+  professional: 'Client',
+  service: 'Service',
   personal: 'Personal',
   proposed: 'Proposed',
 };
@@ -99,6 +101,7 @@ function clientKindTagHtml(c) {
   const kind = clientKindFromRecord(c);
   if (kind === 'personal') return '<span class="cl-kind-tag cl-kind-tag--personal">Personal</span>';
   if (kind === 'proposed') return '<span class="cl-kind-tag cl-kind-tag--proposed">Proposed</span>';
+  if (kind === 'service') return '<span class="cl-kind-tag cl-kind-tag--service">Service</span>';
   return '';
 }
 
@@ -253,6 +256,18 @@ const CLIENT_LIST_AVATAR_PLACEHOLDER =
   '<circle cx="12" cy="7" r="4"/>' +
   '</svg></span>';
 
+function bindClientAvatarFallback(img) {
+  if (!(img instanceof HTMLImageElement)) return;
+  img.addEventListener(
+    'error',
+    () => {
+      const host = img.closest('.cl-list-avatar-wrap') || img.closest('.cl-list-avatar');
+      if (host) host.innerHTML = CLIENT_LIST_AVATAR_PLACEHOLDER;
+    },
+    { once: true },
+  );
+}
+
 function clientListAvatarHtml(c) {
   const url =
     clientBrandingPreviewUrl(c.iconUrl) || clientBrandingPreviewUrl(c.logoUrl);
@@ -266,17 +281,29 @@ function clientListAvatarHtml(c) {
   return CLIENT_LIST_AVATAR_PLACEHOLDER;
 }
 
+function mountClientListAvatar(root) {
+  root?.querySelectorAll('.cl-list-avatar-img').forEach(bindClientAvatarFallback);
+}
+
 function filterClientsForSidebar(clients) {
   const f = clientState.contactFilter;
-  if (f === 'personal') return clients.filter((c) => clientKindFromRecord(c) === 'personal');
-  if (f === 'work') return clients.filter((c) => clientKindFromRecord(c) !== 'personal');
-  return clients;
+  if (f === 'all') return clients;
+  return clients.filter((c) => clientKindFromRecord(c) === f);
 }
 
 function clientFilterCounts(clients) {
-  const work = clients.filter((c) => clientKindFromRecord(c) !== 'personal').length;
-  const personal = clients.filter((c) => clientKindFromRecord(c) === 'personal').length;
-  return { all: clients.length, work, personal };
+  let professional = 0;
+  let service = 0;
+  let personal = 0;
+  let proposed = 0;
+  for (const c of clients) {
+    const kind = clientKindFromRecord(c);
+    if (kind === 'personal') personal++;
+    else if (kind === 'proposed') proposed++;
+    else if (kind === 'service') service++;
+    else professional++;
+  }
+  return { all: clients.length, professional, service, proposed, personal };
 }
 
 function renderClientFilterTabs(savedScrollLeft = 0) {
@@ -287,9 +314,11 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
   nav.setAttribute('aria-label', 'Client list filters');
 
   const tabs = [
-    { id: 'work', label: 'Projects', count: counts.work },
-    { id: 'personal', label: 'Personal', count: counts.personal },
     { id: 'all', label: 'All', count: counts.all },
+    { id: 'professional', label: 'Client', count: counts.professional },
+    { id: 'service', label: 'Service', count: counts.service },
+    { id: 'proposed', label: 'Proposed', count: counts.proposed },
+    { id: 'personal', label: 'Personal', count: counts.personal },
   ];
 
   for (const tab of tabs) {
@@ -410,7 +439,7 @@ async function loadClientsTab(opts = {}) {
     return;
   }
 
-  root.innerHTML = '<div class="de-loading">Loading clients…</div>';
+  mountPanelSkeleton(root, 'list', 'Loading clients…', { contentSelector: '.ch-sidebar' });
   try {
     await fetchClientsList();
   } catch (e) {
@@ -478,11 +507,15 @@ function fillClientsSidebarList(list) {
     const filterLabel =
       clientState.contactFilter === 'personal'
         ? 'No personal contacts yet.'
-        : clientState.contactFilter === 'work'
+        : clientState.contactFilter === 'professional'
           ? 'No clients yet.'
-          : clientState.search.trim()
-            ? 'No matches.'
-            : 'No clients yet.';
+          : clientState.contactFilter === 'service'
+            ? 'No service contacts yet.'
+          : clientState.contactFilter === 'proposed'
+            ? 'No proposed clients yet.'
+            : clientState.search.trim()
+              ? 'No matches.'
+              : 'No clients yet.';
     empty.textContent = clientState.search.trim() && clientState.contactFilter === 'all'
       ? 'No matches.'
       : filterLabel;
@@ -627,6 +660,7 @@ function syncClientListAvatar(uid, patch = {}) {
   const host = item.querySelector('.cl-list-avatar-wrap');
   if (!host) return;
   host.innerHTML = clientListAvatarHtml(c || { uid, ...patch });
+  mountClientListAvatar(host);
 }
 
 function appendClientField(parent, label, input) {
@@ -800,6 +834,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<img id="cl-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
           `<button type="button" id="cl-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
         `</div>` +
+        `<button type="button" id="cl-logo-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasLogo ? '' : ' hidden'}></button>` +
         `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !disabled ? ' hidden' : ''}>` +
           `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
         `</div>` +
@@ -812,6 +847,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<img id="cl-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
           `<button type="button" id="cl-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasIcon ? '' : ' hidden'}>×</button>` +
         `</div>` +
+        `<button type="button" id="cl-icon-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasIcon ? '' : ' hidden'}></button>` +
         `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !disabled ? ' hidden' : ''}>` +
           `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
         `</div>` +
@@ -847,12 +883,19 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
   const logoPreviewWrap = root.querySelector('#cl-logo-preview-wrap');
   const logoPreview = root.querySelector('#cl-logo-preview');
   const logoRemove = root.querySelector('#cl-logo-remove');
+  const logoDownload = root.querySelector('#cl-logo-download');
 
   const iconFile = root.querySelector('#cl-icon-file');
   const iconFileWrap = root.querySelector('#cl-icon-file-wrap');
   const iconPreviewWrap = root.querySelector('#cl-icon-preview-wrap');
   const iconPreview = root.querySelector('#cl-icon-preview');
   const iconRemove = root.querySelector('#cl-icon-remove');
+  const iconDownload = root.querySelector('#cl-icon-download');
+
+  if (logoDownload instanceof HTMLButtonElement) setDeBtnLabel(logoDownload, 'Download', 'download');
+  if (iconDownload instanceof HTMLButtonElement) setDeBtnLabel(iconDownload, 'Download', 'download');
+
+  const fileBase = String(uid || 'client').trim() || 'client';
 
   const refreshLogo = (logoUrl, logoSource) => {
     const url = clientBrandingPreviewUrl(logoUrl);
@@ -861,6 +904,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
     logoPreviewWrap?.toggleAttribute('hidden', !has);
     logoFileWrap?.toggleAttribute('hidden', has);
     logoRemove?.toggleAttribute('hidden', !has);
+    logoDownload?.toggleAttribute('hidden', !has);
   };
 
   const refreshIcon = (iconUrl, iconSource) => {
@@ -870,7 +914,34 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
     iconPreviewWrap?.toggleAttribute('hidden', !has);
     iconFileWrap?.toggleAttribute('hidden', has);
     iconRemove?.toggleAttribute('hidden', !has);
+    iconDownload?.toggleAttribute('hidden', !has);
   };
+
+  logoDownload?.addEventListener('click', async () => {
+    const url = logoPreview instanceof HTMLImageElement ? logoPreview.src : '';
+    if (!url || !(logoDownload instanceof HTMLButtonElement)) return;
+    logoDownload.disabled = true;
+    try {
+      await downloadBrandingImage(url, `${fileBase}-logo`);
+    } catch {
+      alert('Download failed — please try again.');
+    } finally {
+      logoDownload.disabled = false;
+    }
+  });
+
+  iconDownload?.addEventListener('click', async () => {
+    const url = iconPreview instanceof HTMLImageElement ? iconPreview.src : '';
+    if (!url || !(iconDownload instanceof HTMLButtonElement)) return;
+    iconDownload.disabled = true;
+    try {
+      await downloadBrandingImage(url, `${fileBase}-icon`);
+    } catch {
+      alert('Download failed — please try again.');
+    } finally {
+      iconDownload.disabled = false;
+    }
+  });
 
   logoFile?.addEventListener('change', async () => {
     if (!(logoFile instanceof HTMLInputElement) || !logoFile.files?.length) return;
@@ -1119,7 +1190,7 @@ function renderEditClientForm(pane) {
   clearClientFieldRegistry();
   const uid = clientState.activeUid;
   clientState.vaultGetData = null;
-  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+  pane.innerHTML = skeletonHtml('list', 'Loading…');
 
   fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
@@ -1479,7 +1550,10 @@ function syncClientListRow(uid) {
   const avatarWrap = item.querySelector('.cl-list-avatar-wrap');
   if (titleEl) titleEl.textContent = clientListTitle(c);
   if (subEl) subEl.textContent = clientListSubline(c);
-  if (avatarWrap) avatarWrap.innerHTML = clientListAvatarHtml(c);
+  if (avatarWrap) {
+    avatarWrap.innerHTML = clientListAvatarHtml(c);
+    mountClientListAvatar(avatarWrap);
+  }
 }
 
 function scheduleClientAutosave(uid, getPayload) {
@@ -1700,6 +1774,7 @@ function createClientListItem(c) {
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
     `</span></span></span></span>`;
   item.addEventListener('click', () => openClient(c.uid));
+  mountClientListAvatar(item);
   return item;
 }
 

@@ -5,6 +5,8 @@ import { clerkClient } from '@clerk/astro/server';
 import { agentAlertUserId } from './adminAgentAlert';
 import { serverEnv } from './serverEnv';
 
+export const DEFAULT_DEPLOYMENT_TIMEZONE = 'America/New_York';
+
 export type ClerkUserLike = {
   username?: string | null;
   firstName?: string | null;
@@ -99,6 +101,7 @@ export type DeploymentOwnerProfile = {
   email: string;
   phone: string;
   address: string;
+  timezone: string;
 };
 
 function profileFromClerkUser(user: {
@@ -118,6 +121,7 @@ function profileFromClerkUser(user: {
     email: user.emailAddresses?.[0]?.emailAddress?.trim() || '',
     phone: (meta.phone ?? '').trim(),
     address: (meta.address ?? '').trim(),
+    timezone: (meta.timezone ?? '').trim(),
   };
 }
 
@@ -149,4 +153,39 @@ export async function getDeploymentOwnerProfile(
     /* ignore */
   }
   return null;
+}
+
+async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
+  const secretKey = serverEnv('CLERK_SECRET_KEY') || serverEnv('CLERK_BACKEND_API_KEY');
+  if (!secretKey) return {};
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) return {};
+    const data = (await res.json()) as Record<string, unknown>;
+    return ((data.public_metadata ?? {}) as Record<string, string>) || {};
+  } catch {
+    return {};
+  }
+}
+
+/** Admin → Profile time zone; defaults to Eastern when unset. */
+export async function getDeploymentOwnerTimezone(context?: APIContext): Promise<string> {
+  if (context) {
+    const profile = await getDeploymentOwnerProfile(context);
+    if (profile?.timezone) return profile.timezone;
+  }
+
+  const ownerId = agentAlertUserId();
+  if (ownerId) {
+    const meta = await fetchClerkUserPublicMetadata(ownerId);
+    const tz = (meta.timezone ?? '').trim();
+    if (tz) return tz;
+  }
+
+  return DEFAULT_DEPLOYMENT_TIMEZONE;
 }

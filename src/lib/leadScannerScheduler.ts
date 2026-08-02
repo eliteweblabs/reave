@@ -1,6 +1,7 @@
 /**
  * Lazy scheduler for daily lead scanner poll (mirrors newsletter/uptime pattern).
  */
+import { getDeploymentOwnerTimezone } from './deploymentOwner';
 import { serverEnv } from './serverEnv';
 import { isLeadScannerEnabled, runLeadScanner } from './leadScannerEngine';
 import { getLeadScannerConfig } from './leadScannerStore';
@@ -31,12 +32,13 @@ export function ensureLeadScannerScheduler(): void {
 
 export async function leadScannerStatusSummary(): Promise<Record<string, unknown>> {
   const config = await getLeadScannerConfig();
+  const timezone = await getDeploymentOwnerTimezone();
   return {
     enabled: config.enabled,
     radiusMiles: config.radiusMiles,
     trades: config.trades,
     scanHourLocal: config.scanHourLocal,
-    timezone: config.timezone,
+    timezone,
     lastRunAt: config.lastRunAt,
     hasCenter: config.centerLat != null && config.centerLng != null,
     useCompanyOffice: config.useCompanyOffice,

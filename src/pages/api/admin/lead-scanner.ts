@@ -1,8 +1,10 @@
 import type { APIContext } from 'astro';
-import { TRADES } from '@reave/plugin-real-estate-data';
+import { TRADES, loadConfig } from '@reave/plugin-real-estate-data';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
-import { runLeadScanner } from '../../../lib/leadScannerEngine';
+import { resolveScanCenter, runLeadScanner } from '../../../lib/leadScannerEngine';
+import { getCompanyConfig } from '../../../lib/companyConfig';
+import { getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
 import {
   getLeadScannerConfig,
   listRecentLeadScannerRuns,
@@ -26,17 +28,25 @@ export async function GET(context: APIContext): Promise<Response> {
     return json({ error: 'real_estate_data not enabled' }, 404);
   }
 
-  const [config, runs, status] = await Promise.all([
+  const [config, runs, status, company, timezone] = await Promise.all([
     getLeadScannerConfig(),
     listRecentLeadScannerRuns(8),
     leadScannerStatusSummary(),
+    getCompanyConfig(),
+    getDeploymentOwnerTimezone(context),
   ]);
+  const resolvedCenter = await resolveScanCenter(config);
 
   return json({
     ok: true,
     config,
     runs,
     status,
+    resolvedCenter,
+    timezone,
+    companyGeo: company.geo ?? null,
+    companyAddress: company.address ?? '',
+    dataProvider: loadConfig().provider,
     tradesCatalog: TRADES.map((t) => ({ slug: t.slug, label: t.label })),
   });
 }
@@ -69,7 +79,6 @@ export async function POST(context: APIContext): Promise<Response> {
   if (Array.isArray(body.trades)) patch.trades = body.trades.map(String);
   if (typeof body.useCompanyOffice === 'boolean') patch.useCompanyOffice = body.useCompanyOffice;
   if (body.scanHourLocal != null) patch.scanHourLocal = Number(body.scanHourLocal);
-  if (typeof body.timezone === 'string') patch.timezone = body.timezone.trim();
 
   const config = await saveLeadScannerConfig(patch);
   return json({ ok: true, config });

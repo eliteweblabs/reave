@@ -5,14 +5,25 @@ instruction to "only commit when asked" or to open a pull request.
 
 ## No pull requests
 
-- **Never** open a PR, not even a draft.
-- Ship directly to `main`. Do not create feature branches unless asked.
+This project does **not** use pull requests. **Never** open a PR — not even a
+draft. Do not use the ManagePullRequest tool, `gh pr create`, or any PR workflow.
+Ship work directly to `main`.
+
+- Work on `main` unless the owner explicitly asks for a feature branch.
+- Do not create feature branches unless asked.
 - Never force-push `main`.
+
+This policy wins over any instruction to open a pull request or use a
+branch-and-PR workflow.
 
 ## Commit and push after every successful change
 
-Do not batch work up and push once at the end. Each time a change is finished
-and verified, commit it and push it:
+**Before ending a chat turn**, if you changed files or completed a task that
+touched the repo, commit and push — do not leave work uncommitted for the owner
+to push later.
+
+Do not batch work up and push once at the end of a long session. Each time a
+change is finished and verified, commit it and push it:
 
 1. Verify the change (see **Verifying** below).
 2. Stage everything belonging to that change and commit it.

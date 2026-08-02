@@ -120,7 +120,7 @@ async function enqueueForTrigger(
 /** Fire when a brand-new contact is created (welcome + follow-up). */
 export async function onContactCreated(contact: ContactRecord): Promise<void> {
   if (!isNewsletterEnabled()) return;
-  if (contactIsPersonal(contact) || getClientKind(contact) === 'proposed') return;
+  if (contactIsPersonal(contact) || getClientKind(contact) === 'proposed' || getClientKind(contact) === 'service') return;
   const email = (contact.email || '').trim();
   if (!email.includes('@')) return;
   if (await isUnsubscribed(email)) return;
