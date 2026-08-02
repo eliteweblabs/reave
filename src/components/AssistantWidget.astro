@@ -19,8 +19,8 @@ export interface Props {
   supportPhone?: string;
   supportEmail?: string;
   variant?: 'site' | 'portal';
-  /** Slide the FAB in on first scroll (marketing site). */
-  revealFabOnScroll?: boolean;
+  /** Slide the FAB in a few seconds after the user engages (marketing site). */
+  revealFabOnEngagement?: boolean;
 }
 
 const {
@@ -35,7 +35,7 @@ const {
   supportPhone = '',
   supportEmail = '',
   variant = 'site',
-  revealFabOnScroll = false,
+  revealFabOnEngagement = false,
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
@@ -53,7 +53,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-endpoint={endpoint}
   data-storage-key={storageKey}
   data-sheet-id={sheetId}
-  data-reveal-fab={revealFabOnScroll ? 'true' : undefined}
+  data-reveal-fab={revealFabOnEngagement ? 'true' : undefined}
 >
   <button
     class="aw-fab"
@@ -434,27 +434,33 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       return;
     }
 
+    const ENGAGEMENT_DELAY_MS = 3000;
+    const ENGAGEMENT_EVENTS = ['scroll', 'pointerdown', 'keydown', 'touchstart'] as const;
     let revealed = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const removeListeners = () => {
+      for (const ev of ENGAGEMENT_EVENTS) {
+        window.removeEventListener(ev, onEngage);
+      }
+    };
+
     const reveal = () => {
       if (revealed) return;
       revealed = true;
+      if (timer) clearTimeout(timer);
       fab.classList.add('is-visible');
-      window.removeEventListener('scroll', onScroll);
+      removeListeners();
     };
 
-    const onScroll = () => {
-      if (window.scrollY > 24) reveal();
+    const onEngage = () => {
+      if (revealed || timer) return;
+      timer = setTimeout(reveal, ENGAGEMENT_DELAY_MS);
     };
 
-    const checkNoScroll = () => {
-      const doc = document.documentElement;
-      if (doc.scrollHeight <= doc.clientHeight + 2) reveal();
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    checkNoScroll();
-    window.addEventListener('load', checkNoScroll, { once: true });
-    window.addEventListener('resize', checkNoScroll, { passive: true });
+    for (const ev of ENGAGEMENT_EVENTS) {
+      window.addEventListener(ev, onEngage, { passive: true });
+    }
   }
 
   function initAssistantWidget(root: HTMLElement) {

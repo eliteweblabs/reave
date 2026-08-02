@@ -1,13 +1,13 @@
 ---
-/** Marketing-site wrapper — `/api/site/assistant`, scroll-reveal FAB. */
+/** Marketing-site wrapper — `/api/site/assistant`, engagement-delay FAB reveal. */
 import AssistantWidget from './AssistantWidget.astro';
 
 export interface Props {
   brandTitle: string;
   supportPhone?: string;
   supportEmail?: string;
-  /** Slide the FAB in on first scroll (marketing site). */
-  revealFabOnScroll?: boolean;
+  /** Slide the FAB in a few seconds after the user engages (marketing site). */
+  revealFabOnEngagement?: boolean;
 }
 
 const {
@@ -29,5 +29,5 @@ const {
   supportPhone={supportPhone}
   supportEmail={supportEmail}
   variant="site"
-  revealFabOnScroll={true}
+  revealFabOnEngagement={true}
 />

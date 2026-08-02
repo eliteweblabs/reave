@@ -67,17 +67,27 @@ export function installPwaNavGuard() {
 
   document.documentElement.style.overscrollBehaviorX = 'none';
 
+  let trapping = false;
+
   const pushTrap = () => {
+    if (trapping) return;
+    trapping = true;
     try {
       history.pushState({ [PWA_NAV_GUARD_KEY]: Date.now() }, '', location.href);
     } catch {
       /* ignore quota / security errors */
+    } finally {
+      trapping = false;
     }
   };
 
   const onPopState = () => pushTrap();
-  pushTrap();
   window.addEventListener('popstate', onPopState);
+  // Defer the first trap until the admin shell has synced tab params into the URL
+  // (see os-map-loader boot). pushState during initial parse can loop-reload iOS PWAs.
+  const armInitialTrap = () => pushTrap();
+  if (document.readyState === 'complete') armInitialTrap();
+  else window.addEventListener('load', armInitialTrap, { once: true });
 
   const nav = window.navigation;
   const onNavigate = (event) => {
@@ -787,7 +797,6 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 // Auto-init when loaded as module from admin page
 if (typeof document !== 'undefined') {
   if (isStandalonePwa()) markAdminPwaInstalled();
-  installPwaNavGuard();
   void registerAdminServiceWorker();
 
   window.addEventListener('beforeinstallprompt', (event) => {

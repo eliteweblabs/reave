@@ -55,7 +55,7 @@ Run these in parallel when possible:
 
 ```
 create_work  OR  update_work
-  title:     "Website Redesign — {Business Name}"
+  title:     <catchy finding-based headline — see full playbook Title & slug conventions>
   status:    inquiry
   contact_uid: <confirmed uid>
   body:      <markdown audit — see template below>
@@ -109,6 +109,10 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 ```
 
 **Minimum length:** ~1,200+ characters when the site is publicly crawlable.
+
+## Title
+
+The project list shows **title** on line 1 and the **client name** on line 2 — do not repeat the business name in the title. Write a short, catchy headline (5–12 words) from the top finding (e.g. `Antique shop, antique website — not in a good way`). Never use `Website Redesign — {Business Name}`.
 
 ## Full audit follow-up
 

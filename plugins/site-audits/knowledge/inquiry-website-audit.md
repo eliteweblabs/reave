@@ -60,7 +60,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 
 ```
 create_work  OR  update_work
-  title:     "Website Redesign — {Business Name}"
+  title:     <catchy finding-based headline — see Title & slug conventions>
   status:    inquiry
   contact_uid: <confirmed uid>
   body:      <full markdown audit — see template below>
@@ -137,7 +137,14 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ## Title & slug conventions
 
-- Title: `Website Redesign — {Business Name}` (or user's phrasing)
+The project list shows **title** on line 1 and the **client name** on line 2 — do not repeat the business name in the title.
+
+- Title: a short, catchy headline (5–12 words) inspired by the **top audit finding** — witty but professional. Reference the business type or a vivid problem, not the client's name.
+  - Good: `Antique shop, antique website — not in a good way`
+  - Good: `Great reviews, terrible mobile score`
+  - Good: `Password page hiding a Shopify launch`
+  - Good: `Yelp says open, site says 404`
+  - Bad: `Website Redesign — Joe's Pizza` (redundant with the client name below)
 - Slug is auto-generated from title; reuse existing slug on `update_work`
 
 ## Example reference

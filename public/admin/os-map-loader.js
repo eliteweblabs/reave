@@ -52,6 +52,7 @@ function applyCompanyBrandingToMaps() {
 }
 
 applyCompanyBrandingToMaps();
+import { installPwaNavGuard } from '/admin/push-client.js?v=20260802a';
 import {
   IOS_ICONS,
   createIosIconBtn,
@@ -4751,24 +4752,46 @@ async function syncUptimeMonitorsFromApi() {
   }
 }
 
+let homeDashboardLoadPromise = null;
+let homeDashboardRefreshTimer = null;
+
 async function loadHomeDashboard() {
   const root = document.getElementById('home-dashboard');
   if (!root) return;
-  root.innerHTML = '<div class="home-dashboard-scroll"><div class="dash-loading">Loading dashboard…</div></div>';
+  if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
+
+  homeDashboardLoadPromise = (async () => {
+    root.innerHTML = '<div class="home-dashboard-scroll"><div class="dash-loading">Loading dashboard…</div></div>';
+
+    try {
+      const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      syncDashboardFooterBadges(data.stats);
+      renderHomeDashboard(data);
+      void initFleetLocationReporter();
+    } catch (e) {
+      root.innerHTML =
+        `<div class="home-dashboard-scroll">` +
+          `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
+        `</div>`;
+    }
+  })();
 
   try {
-    const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    syncDashboardFooterBadges(data.stats);
-    renderHomeDashboard(data);
-    void initFleetLocationReporter();
-  } catch (e) {
-    root.innerHTML =
-      `<div class="home-dashboard-scroll">` +
-        `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
-      `</div>`;
+    await homeDashboardLoadPromise;
+  } finally {
+    homeDashboardLoadPromise = null;
   }
+}
+
+function scheduleHomeDashboardRefresh() {
+  if (MAP?.type !== 'home') return;
+  clearTimeout(homeDashboardRefreshTimer);
+  homeDashboardRefreshTimer = window.setTimeout(() => {
+    homeDashboardRefreshTimer = null;
+    void loadHomeDashboard();
+  }, 400);
 }
 
 
@@ -7831,7 +7854,9 @@ function syncAdminTabUrl(key, opts = {}) {
       url.searchParams.delete('chat');
     }
 
-    history.replaceState({}, '', url.pathname + url.search + url.hash);
+    const next = url.pathname + url.search + url.hash;
+    const current = location.pathname + location.search + location.hash;
+    if (next !== current) history.replaceState({}, '', next);
   } catch {}
 }
 
@@ -8308,7 +8333,7 @@ async function refreshInboxBadgeQuiet(forceHome = false) {
   // changes (polling) or when forced by a push, so they update without a tab
   // switch. Push forces it because a new mail may not always change the count.
   if (MAP.type === 'home' && (forceHome || reviewsPendingCount !== prevCount)) {
-    await loadHomeDashboard();
+    scheduleHomeDashboardRefresh();
   }
 }
 
@@ -11685,7 +11710,6 @@ async function rebuildTabsForViewport() {
   const order = await resolveTabOrder();
   cachedTabOrder = order;
   buildTabs(order);
-  if (activeKey === 'home') loadHomeDashboard();
 }
 
 function showBootError(err) {
@@ -11722,6 +11746,7 @@ async function boot() {
   syncCanvasVisibility();
   activateMapPanel();
   syncAdminTabUrl(activeKey);
+  installPwaNavGuard();
   syncHealthLifecycle();
   syncEmailPoll();
   syncInboxBadgePoll();

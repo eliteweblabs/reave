@@ -1,0 +1,157 @@
+/**
+ * ── Skeleton / shimmer loading system ──
+ * Two classes used at runtime:
+ *   .de-loading  — sidebar list panels & editor panes (work, chat, clients, inbox, etc.)
+ *   .dash-loading — full-page dashboards (home, profile, social, analytics, fleet, etc.)
+ *
+ * Imported LAST in index.css so it naturally overrides panel-specific loading stubs.
+ * Pure CSS — no JS changes needed.
+ */
+
+/* ─────────────────────────────────────────
+   Shimmer keyframe (light & dark aware)
+───────────────────────────────────────── */
+@keyframes sk-shimmer {
+  0%   { background-position: -500px 0; }
+  100% { background-position:  500px 0; }
+}
+
+/* ── Design tokens ── */
+:root {
+  --sk-base:  rgba(0, 0, 0, 0.07);
+  --sk-shine: rgba(0, 0, 0, 0.025);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sk-base:  rgba(255, 255, 255, 0.065);
+    --sk-shine: rgba(255, 255, 255, 0.115);
+  }
+}
+
+/* Reusable shimmer bone (opt-in, used by .sk-bone children if ever added) */
+.sk-bone {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--sk-base)   0%,
+    var(--sk-shine)  50%,
+    var(--sk-base)  100%
+  );
+  background-size: 1000px 100%;
+  animation: sk-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────
+   .de-loading  — list / editor panel skeleton
+   Replaces "Loading sessions…" / "Loading projects…" etc.
+   Renders: 6 shimmer rows (avatar circle + 2 text lines)
+───────────────────────────────────────── */
+.de-loading {
+  margin: 0;
+  color: transparent;
+  font-size: 0;
+  width: 100%;
+  padding: 0.85rem 1rem 0.5rem;
+  display: block;
+  min-height: 19rem;
+
+  /* Multi-layer background canvas — 6 rows × (circle + 2 lines) */
+  background:
+    /* ── row 1 ── */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
+      0      0.25rem / 1.9rem 1.9rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 0.15rem / 45% 0.68rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 1.02rem / 30% 0.52rem no-repeat,
+    /* ── row 2 ── */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
+      0      3.25rem / 1.9rem 1.9rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 3.15rem / 55% 0.68rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 4.02rem / 38% 0.52rem no-repeat,
+    /* ── row 3 ── */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
+      0      6.25rem / 1.9rem 1.9rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 6.15rem / 50% 0.68rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 7.02rem / 28% 0.52rem no-repeat,
+    /* ── row 4 ── */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
+      0      9.25rem / 1.9rem 1.9rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 9.15rem / 60% 0.68rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 10.02rem / 40% 0.52rem no-repeat,
+    /* ── row 5 ── */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
+      0      12.25rem / 1.9rem 1.9rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 12.15rem / 48% 0.68rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 13.02rem / 33% 0.52rem no-repeat,
+    /* ── row 6 ── */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%)
+      0      15.25rem / 1.9rem 1.9rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 15.15rem / 52% 0.68rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))
+      2.55rem 16.02rem / 35% 0.52rem no-repeat;
+
+  animation: sk-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────
+   .dash-loading — dashboard / scroll-panel skeleton
+   Renders: stat grid boxes + two panel cards + a short third
+   (matches home, profile, social, analytics, fleet dashboards)
+───────────────────────────────────────── */
+.dash-loading {
+  padding: 0.65rem 0 0;
+  text-align: unset;
+  color: transparent;
+  font-size: 0;
+  width: 100%;
+  min-height: 28rem;
+  display: block;
+
+  background:
+    /* ── Stat box 1 (top-left) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      0                     0 / calc(50% - 0.3rem) 5.25rem no-repeat,
+    /* ── Stat box 2 (top-right) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      calc(50% + 0.3rem)    0 / calc(50% - 0.3rem) 5.25rem no-repeat,
+    /* ── Stat box 3 (bottom-left) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      0                     5.8rem / calc(50% - 0.3rem) 5.25rem no-repeat,
+    /* ── Stat box 4 (bottom-right) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      calc(50% + 0.3rem)    5.8rem / calc(50% - 0.3rem) 5.25rem no-repeat,
+    /* ── Panel card 1 (inbox / today) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      0 12.35rem / 100% 7rem no-repeat,
+    /* ── Panel card 2 (projects / events) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      0 20.7rem  / 100% 6rem no-repeat,
+    /* ── Wide label/title line ── */
+    linear-gradient(var(--sk-base), var(--sk-base))
+      0 28rem    / 60%  1.1rem no-repeat;
+
+  border-radius: 14px 14px 0 0;
+  animation: sk-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────
+   Accessibility — respect reduced-motion preference
+───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .de-loading,
+  .dash-loading,
+  .sk-bone {
+    animation: none;
+    /* Keep the shapes visible, just static */
+  }
+}

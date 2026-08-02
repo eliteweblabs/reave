@@ -45,19 +45,25 @@
     document.addEventListener(
       "click",
       (event) => {
-        if (!isHomepage()) return;
-
         const link = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href]");
         if (!link) return;
 
         const id = sectionIdFromHref(link.getAttribute("href"));
-        if (!id || !document.getElementById(id)) return;
+        if (!id) return;
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
           return;
         }
 
+        if (isHomepage()) {
+          if (!document.getElementById(id)) return;
+          event.preventDefault();
+          scrollToSection(id);
+          return;
+        }
+
+        // From /about, /features, etc. — land on the homepage section, not a dead hash on the wrong page.
         event.preventDefault();
-        scrollToSection(id);
+        window.location.href = id === "home" ? "/" : `/?section=${id}`;
       },
       { capture: true },
     );

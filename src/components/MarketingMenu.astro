@@ -147,6 +147,30 @@ const { pathname, signedIn } = Astro.props;
 </div>
 
 <script>
+  /** Blocks background scroll on iOS without mutating body position (avoids PWA viewport thrash). */
+  let menuTouchBlocker: ((e: TouchEvent) => void) | null = null;
+
+  function setMarketingMenuScrollBlocked(block: boolean) {
+    const root = document.querySelector("[data-marketing-menu]");
+    const scroll = root?.querySelector(".marketing-menu-scroll");
+
+    if (block) {
+      if (menuTouchBlocker) return;
+      menuTouchBlocker = (e) => {
+        const target = e.target;
+        if (target instanceof Node && scroll?.contains(target)) return;
+        e.preventDefault();
+      };
+      document.addEventListener("touchmove", menuTouchBlocker, { passive: false });
+      return;
+    }
+
+    if (menuTouchBlocker) {
+      document.removeEventListener("touchmove", menuTouchBlocker);
+      menuTouchBlocker = null;
+    }
+  }
+
   function setMarketingMenuOpen(open: boolean) {
     const root = document.querySelector("[data-marketing-menu]");
     const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
@@ -157,26 +181,30 @@ const { pathname, signedIn } = Astro.props;
     toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     toggle.classList.toggle("is-open", open);
     document.documentElement.classList.toggle("marketing-menu-open", open);
+    setMarketingMenuScrollBlocked(open);
   }
 
   function bindMarketingMenu() {
+    const root = document.querySelector("[data-marketing-menu]");
     const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
     const backdrop = document.querySelector("[data-marketing-menu-backdrop]");
-    if (!toggle || toggle.dataset.bound === "1") return;
-    toggle.dataset.bound = "1";
+    if (!root || !toggle) return;
+    if (document.documentElement.dataset.marketingMenuBound === "1") return;
+    document.documentElement.dataset.marketingMenuBound = "1";
 
-    toggle.addEventListener("click", () => {
+    toggle.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       const open = toggle.getAttribute("aria-expanded") !== "true";
       setMarketingMenuOpen(open);
     });
 
     backdrop?.addEventListener("click", () => setMarketingMenuOpen(false));
 
-    document.querySelectorAll("[data-marketing-menu-link]").forEach((el) => {
+    root.querySelectorAll("[data-marketing-menu-link]").forEach((el) => {
       el.addEventListener("click", () => setMarketingMenuOpen(false));
     });
 
-    document.querySelector("[data-marketing-sign-out]")?.addEventListener("click", async (ev) => {
+    root.querySelector("[data-marketing-sign-out]")?.addEventListener("click", async (ev) => {
       ev.preventDefault();
       setMarketingMenuOpen(false);
       const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
@@ -262,29 +290,34 @@ const { pathname, signedIn } = Astro.props;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     width: calc(36px * var(--app-header-chrome-scale, 1));
     height: calc(36px * var(--app-header-chrome-scale, 1));
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: none;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
+    background: transparent;
     color: rgba(255, 255, 255, 0.88);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      color 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
   }
 
   .marketing-nav-toggle:hover {
-    border-color: rgba(255, 255, 255, 0.28);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     color: #fff;
   }
 
+  .marketing-nav-toggle:active {
+    transform: scale(0.94);
+  }
+
   .marketing-nav-toggle-icon {
-    display: block;
+    position: absolute;
+    inset: 0;
+    width: 20px;
+    height: 20px;
+    margin: auto;
   }
 
   .marketing-nav-toggle-icon--close {
@@ -321,7 +354,7 @@ const { pathname, signedIn } = Astro.props;
   .marketing-menu:not([hidden]) {
     position: fixed;
     inset: 0;
-    z-index: 2100;
+    z-index: 2050;
   }
 
   .marketing-menu-backdrop {
@@ -330,7 +363,17 @@ const { pathname, signedIn } = Astro.props;
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    animation: marketing-menu-fade-in 0.2s ease;
+    animation: marketing-menu-fade-in 0.28s ease-out;
+    touch-action: none;
+  }
+
+  /* Blur over a scrolling page forces full repaints every frame — skip on phone/PWA. */
+  @media (max-width: 899px), (display-mode: standalone) {
+    .marketing-menu-backdrop {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(0, 0, 0, 0.78);
+    }
   }
 
   .marketing-menu-panel {
@@ -344,7 +387,7 @@ const { pathname, signedIn } = Astro.props;
     background: rgba(8, 8, 10, 0.96);
     border-left: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: -24px 0 80px rgba(0, 0, 0, 0.45);
-    animation: marketing-menu-slide-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: marketing-menu-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   @keyframes marketing-menu-fade-in {
@@ -358,9 +401,11 @@ const { pathname, signedIn } = Astro.props;
 
   @keyframes marketing-menu-slide-in {
     from {
-      transform: translateX(100%);
+      opacity: 0.92;
+      transform: translateX(18px);
     }
     to {
+      opacity: 1;
       transform: translateX(0);
     }
   }
@@ -368,6 +413,9 @@ const { pathname, signedIn } = Astro.props;
   .marketing-menu-scroll {
     flex: 1;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     padding:
       calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 20px)
       28px
@@ -401,6 +449,7 @@ const { pathname, signedIn } = Astro.props;
     display: flex;
     align-items: center;
     width: 100%;
+    touch-action: manipulation;
     padding: 0.72rem 0.2rem;
     border: none;
     border-radius: 8px;
@@ -460,8 +509,14 @@ const { pathname, signedIn } = Astro.props;
     text-decoration: none;
   }
 
+  /* Keep the header (and hamburger → X toggle) above the dimmed backdrop. */
   :global(html.marketing-menu-open) {
     overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  :global(html.marketing-menu-open) .app-header {
+    z-index: 2200;
   }
 
   /* Keep hamburger → X toggle above the menu overlay (header is z-index 2000). */

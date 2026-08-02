@@ -590,10 +590,13 @@ async function runProposalResearch(input: {
       'exists but kindExplicit is false (never classified), update_contact with kind "proposed". Use the business ' +
       'name as the contact name when no personal name is known, and save whatever phone/email/company was given.',
     auditToolsStep,
-    '4. create_work with status "inquiry", contact_uid set, title "Website Redesign — {Business Name}" (best ' +
-      'known name), and a complete markdown audit body following the required section structure — 1,200+ ' +
-      'characters for quick tier, 1,500+ for full tier, not a stub. If a quick-audit project already exists ' +
-      'and this is a full audit, use update_work instead of creating a duplicate.',
+    '4. create_work with status "inquiry", contact_uid set, and a catchy finding-based title (5–12 words — ' +
+      'witty but professional, inspired by the top audit finding; do NOT include the business name because ' +
+      'it already appears as the client name in the project list). Examples: "Antique shop, antique website — ' +
+      'not in a good way", "Great reviews, terrible mobile score". Never use "Website Redesign — {Business Name}". ' +
+      'Include a complete markdown audit body following the required section structure — 1,200+ characters for ' +
+      'quick tier, 1,500+ for full tier, not a stub. If a quick-audit project already exists and this is a full ' +
+      'audit, use update_work instead of creating a duplicate.',
     '5. End your final reply with a line formatted exactly like ' +
       '`Project: <slug>` followed by 2-3 sentences summarizing the top findings and the recommended next step.',
   ].join('\n');
