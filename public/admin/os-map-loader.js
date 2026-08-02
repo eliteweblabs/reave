@@ -2623,6 +2623,69 @@ function formatReviewAlertWhen(iso) {
   }
 }
 
+function parseSenderDisplayName(from) {
+  const raw = String(from || '').trim();
+  const named = raw.match(/^(.+?)\s*<[^>]+>$/);
+  if (named?.[1]) return named[1].replace(/^["']|["']$/g, '').trim();
+  if (/^[^\s@]+@[^\s@]+$/.test(raw)) return '';
+  return raw.includes('@') ? '' : raw;
+}
+
+function senderLabelForReviewAlert(from, contactName) {
+  const email = parseSenderEmail(from);
+  const name = String(contactName || parseSenderDisplayName(from) || '').trim();
+  if (name && email && !name.includes('@')) return `${name} · ${email}`;
+  if (email) return email;
+  if (name) return name;
+  return String(from || '').trim();
+}
+
+function reviewAlertCopyIsDuplicated(title, detail) {
+  const t = String(title || '')
+    .trim()
+    .replace(/…+$/u, '')
+    .trim();
+  const d = String(detail || '').trim();
+  if (!t || !d) return false;
+  if (t.toLowerCase() === d.toLowerCase()) return true;
+  const tLo = t.toLowerCase().replace(/^alert:\s*/i, '');
+  const dLo = d.toLowerCase();
+  if (dLo.startsWith(tLo)) return true;
+  if (dLo.startsWith(t.toLowerCase())) return true;
+  return false;
+}
+
+function reviewAlertDisplayCopy(item) {
+  const title = String(item?.title || '').trim();
+  const detail = String(item?.detail || '').trim();
+  const from = String(item?.from || '').trim();
+  const subject = String(item?.subject || '').trim();
+  const sender = from ? senderLabelForReviewAlert(from, item?.contactName) : '';
+  const duplicated = reviewAlertCopyIsDuplicated(title, detail);
+
+  if (duplicated) {
+    return {
+      headline: sender || subject || title.replace(/^alert:\s*/i, '').trim(),
+      body: detail,
+    };
+  }
+
+  return { headline: title, body: detail };
+}
+
+function reviewAlertCopyHtml(item) {
+  const when = formatReviewAlertWhen(item.receivedAt);
+  const { headline, body } = reviewAlertDisplayCopy(item);
+  const headlineLine = when
+    ? headline
+      ? `${escHtml(when)} · ${escHtml(headline)}`
+      : escHtml(when)
+    : escHtml(headline);
+  const bodyHtml =
+    body && body.toLowerCase() !== headline.toLowerCase() ? `<p>${escHtml(body)}</p>` : '';
+  return `<strong>${headlineLine}</strong>${bodyHtml}`;
+}
+
 let uptimePlatformSyncPollTimer = null;
 let uptimePlatformSyncActive = false;
 
@@ -3668,11 +3731,7 @@ function buildReviewAlertBanner(item) {
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
-  const when = formatReviewAlertWhen(item.receivedAt);
-  const titleLine = when
-    ? `${escHtml(when)} · ${escHtml(item.title)}`
-    : escHtml(item.title);
-  copy.innerHTML = `<strong>${titleLine}</strong><p>${escHtml(item.detail)}</p>`;
+  copy.innerHTML = reviewAlertCopyHtml(item);
   copy.addEventListener('click', () => openReviewNotificationTarget(item));
 
   const actions = document.createElement('div');

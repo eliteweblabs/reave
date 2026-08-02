@@ -3,6 +3,7 @@
  * Single source of truth — webPush stores these strings; dashboard reads them back.
  */
 
+import { parseSenderEmail, parseSenderName } from './emailAddress';
 import type { PushAlert } from './pushAlertStore';
 
 export const NOTIFICATION_TITLE_MAX = 120;
@@ -148,4 +149,62 @@ export function formatNotificationPayload(title: string, body: string): { title:
     title: truncateNotificationText(title, NOTIFICATION_TITLE_MAX),
     detail: truncateNotificationText(body, NOTIFICATION_DETAIL_MAX),
   };
+}
+
+/** Inbox id embedded in a push-alert tag (plain id, otp-{id}, or email-{id}). */
+export function emailIdFromPushAlertTag(tag: string): string | null {
+  const raw = tag.trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (lower.startsWith('otp-')) return raw.slice(4).trim() || null;
+  if (lower.startsWith('email-')) return raw.slice(6).trim() || null;
+  if (/^[0-9a-f-]{36}$/i.test(raw)) return raw;
+  return null;
+}
+
+/** Human label for the sender line on dashboard review alerts. */
+export function senderLabelForNotification(from: string, contactName?: string | null): string {
+  const email = parseSenderEmail(from);
+  const name = (contactName || parseSenderName(from)).trim();
+  if (name && email && !name.includes('@')) return `${name} · ${email}`;
+  if (email) return email;
+  if (name) return name;
+  return from.trim();
+}
+
+/** True when the title repeats (or truncates) the detail body. */
+export function notificationCopyIsDuplicated(title: string, detail: string): boolean {
+  const t = title.trim().replace(/…+$/u, '').trim();
+  const d = detail.trim();
+  if (!t || !d) return false;
+  if (t.toLowerCase() === d.toLowerCase()) return true;
+  const tLo = t.toLowerCase().replace(/^alert:\s*/i, '');
+  const dLo = d.toLowerCase();
+  if (dLo.startsWith(tLo)) return true;
+  if (dLo.startsWith(t.toLowerCase())) return true;
+  return false;
+}
+
+/** Dashboard headline + body — avoids title/detail duplication for inbox pushes. */
+export function dashboardReviewAlertCopy(input: {
+  title: string;
+  detail: string;
+  from?: string;
+  subject?: string;
+  contactName?: string | null;
+}): { headline: string; body: string } {
+  const title = input.title.trim();
+  const detail = input.detail.trim();
+  const duplicated = notificationCopyIsDuplicated(title, detail);
+  const sender = input.from?.trim() ? senderLabelForNotification(input.from, input.contactName) : '';
+  const subject = input.subject?.trim() || '';
+
+  if (duplicated) {
+    return {
+      headline: sender || subject || title.replace(/^alert:\s*/i, '').trim(),
+      body: detail,
+    };
+  }
+
+  return { headline: title, body: detail };
 }

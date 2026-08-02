@@ -930,7 +930,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
             ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
             : category === 'client'
               ? `Client: ${contactName ?? senderEmail}`
-              : summary.slice(0, 60);
+              : email.subject?.trim() || contactName || senderEmail || 'New email';
     const attachmentCount = attachments.length;
     const pushBody = isProjectReply
       ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
