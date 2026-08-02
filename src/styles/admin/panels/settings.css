@@ -708,10 +708,30 @@
 .ls-run-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 3.25rem);
+}
+.ls-run-demo-banner {
+  flex: 0 0 auto;
+  margin: 0 1rem 0.65rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--fg);
+}
+.ls-run-demo-banner code {
+  font-size: 0.72rem;
+}
+.ls-run-main {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(220px, 34%) minmax(0, 1fr);
   gap: 0;
-  padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 3.25rem);
 }
 .ls-run-log-section {
   display: flex;
@@ -973,7 +993,7 @@
   color: #f59e0b;
 }
 @media (max-width: 860px) {
-  .ls-run-body {
+  .ls-run-main {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(140px, 28vh) minmax(0, 1fr);
   }

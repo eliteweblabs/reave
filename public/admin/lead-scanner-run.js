@@ -114,6 +114,11 @@ function ensureRunPanel() {
   panel.setAttribute('aria-hidden', 'true');
   panel.innerHTML =
     `<div class="ls-run-body">` +
+    `<div id="ls-run-demo-banner" class="ls-run-demo-banner" hidden>` +
+    `<strong>Demo data</strong> — these are sample properties near your scan center, not live assessor records. ` +
+    `Set <code>REAL_ESTATE_DATA_PROVIDER=propdata</code> and <code>PROPDATA_API_KEY</code> on Railway for real parcels, owners, and values.` +
+    `</div>` +
+    `<div class="ls-run-main">` +
     `<section class="ls-run-log-section">` +
     `<div class="ls-run-log-label">Scan log</div>` +
     `<div class="ls-run-log" id="ls-run-log" role="log" aria-live="polite"></div>` +
@@ -136,6 +141,7 @@ function ensureRunPanel() {
     `</div>` +
     `<div class="ls-run-cards" id="ls-run-cards"></div>` +
     `</section>` +
+    `</div>` +
     `</div>` +
     `<footer class="ls-run-footer">` +
     `<button type="button" id="ls-run-import" class="prof-btn-primary" disabled>Import selected as projects</button>` +
@@ -211,8 +217,8 @@ export class LeadScannerRunSession {
     });
   }
 
-  open() {
-    this._swapSubheader('Lead scan', 'Starting…');
+  open(options = {}) {
+    this._swapSubheader('Lead scan', options.status || 'Starting…');
     this.panel.classList.add('is-open');
     this.panel.setAttribute('aria-hidden', 'false');
     this.settingsRoot?.classList.add('ls-scan-active');
@@ -223,6 +229,8 @@ export class LeadScannerRunSession {
     this.candidates = [];
     this.importedById = {};
     this._syncImportBtn();
+    const banner = this.panel.querySelector('#ls-run-demo-banner');
+    if (banner) banner.hidden = options.dataProvider !== 'mock';
   }
 
   close() {
@@ -333,21 +341,26 @@ export class LeadScannerRunSession {
     this._syncImportBtn();
   }
 
-  async startNewScan({ payload, centerLabel, trades, radiusMiles, dataProvider }) {
-    this.open();
-    this.setStatus('Scanning…');
+  async startNewScan({ saveSettings, centerLabel, trades, radiusMiles, dataProvider }) {
+    this.open({ status: 'Scanning…', dataProvider });
+    void this.logLine('Starting scan…');
 
-    await this.logLine('Applying scan settings…', 320);
-    await this.logLine(`Locking center on ${centerLabel}…`, 380);
-    await this.logLine(`Drawing ${radiusMiles}-mile service radius…`, 420);
+    if (saveSettings) {
+      void this.logLine('Applying scan settings…');
+      await saveSettings();
+    }
+
+    void this.logLine(`Locking center on ${centerLabel}…`);
+    void this.logLine(`Drawing ${radiusMiles}-mile service radius…`);
     const tradeText =
       trades.length > 0
-        ? trades.slice(0, 4).map(tradeLabel).join(', ') + (trades.length > 4 ? '…' : '')
+        ? trades.slice(0, 4).join(', ') + (trades.length > 4 ? '…' : '')
         : 'all configured trades';
-    await this.logLine(`Filtering for ${tradeText}…`, 360);
-    await this.logLine(
-      `Querying ${dataProvider === 'mock' ? 'demo' : dataProvider} property records…`,
-      280,
+    void this.logLine(`Filtering for ${tradeText}…`);
+    void this.logLine(
+      dataProvider === 'mock'
+        ? 'Querying demo property records (not live assessor data)…'
+        : `Querying ${dataProvider} property records…`,
     );
 
     const res = await adminFetch('/api/admin/lead-scanner?action=scan', { method: 'POST' });
@@ -358,7 +371,7 @@ export class LeadScannerRunSession {
     this.runId = r.runId || '';
     const candidates = r.candidates || [];
 
-    await this.logLine('Running compliance & liability scoring…', 400);
+    await this.logLine('Running compliance & liability scoring…', 120);
 
     if (!candidates.length) {
       await this.logLine('No properties matched your radius and trade filters.');
@@ -366,16 +379,18 @@ export class LeadScannerRunSession {
       return r;
     }
 
-    await this.logLine(`Found ${candidates.length} candidate${candidates.length === 1 ? '' : 's'}. Pulling imagery and assessor data…`, 300);
+    await this.logLine(
+      `Found ${candidates.length} candidate${candidates.length === 1 ? '' : 's'}. Pulling imagery and assessor data…`,
+      80,
+    );
     await this.revealCandidates(candidates, {});
     await this.logLine('Scan complete — cherry-pick the leads you want, then import as projects.', 0);
-    this.setStatus(`${candidates.length} ready for review`);
+    this.setStatus(`${candidates.length} propert${candidates.length === 1 ? 'y' : 'ies'} — select leads to import`);
     return r;
   }
 
-  async openExistingRun(runId) {
-    this.open();
-    this.setStatus('Loading scan…');
+  async openExistingRun(runId, dataProvider = 'mock') {
+    this.open({ status: 'Loading scan…', dataProvider });
     await this.logLine('Loading saved scan results…', 200);
     const run = await this.loadRun(runId);
     const n = run.candidates?.length ?? 0;

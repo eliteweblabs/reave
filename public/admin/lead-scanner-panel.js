@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260728m';
 import { createClientMap } from './client-map.js?v=20260802c';
-import { getLeadScannerRunSession } from './lead-scanner-run.js?v=20260802e';
+import { getLeadScannerRunSession } from './lead-scanner-run.js?v=20260802f';
 
 let mapController = null;
 
@@ -234,8 +234,9 @@ export function bindLeadScannerPanel(root, data) {
       const runId = btn.dataset.runId;
       if (!runId) return;
       try {
-        await session.openExistingRun(runId);
+        await session.openExistingRun(runId, data.dataProvider || 'mock');
       } catch (e) {
+        session.close();
         showAlert(root, e.message || 'Could not load scan.', 'error');
       }
     });
@@ -260,21 +261,26 @@ export function bindLeadScannerPanel(root, data) {
   const runBtn = root.querySelector('#lead-scanner-run-now');
   runBtn?.addEventListener('click', async () => {
     runBtn.disabled = true;
+    const payload = collectPayload(form);
+    const provider = data.dataProvider || 'mock';
     try {
-      const payload = collectPayload(form);
-      await adminFetch('/api/admin/lead-scanner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
       await session.startNewScan({
-        payload,
+        saveSettings: () =>
+          adminFetch('/api/admin/lead-scanner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }).then(async (res) => {
+            const json = await res.json();
+            if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+          }),
         centerLabel: centerLabelForScan(form, data),
         trades: payload.trades.map(tradeLabel),
         radiusMiles: payload.radiusMiles,
-        dataProvider: data.dataProvider || 'mock',
+        dataProvider: provider,
       });
     } catch (e) {
+      session.close();
       showAlert(root, e.message || 'Scan failed.', 'error');
     } finally {
       runBtn.disabled = false;
@@ -287,7 +293,7 @@ export function bindLeadScannerPanel(root, data) {
       `<p class="prof-hint prof-hint--block"><button type="button" class="ls-open-latest" style="background:none;border:none;padding:0;color:var(--accent);cursor:pointer;font:inherit">Open latest scan (${data.activeRun.candidates.length} properties)</button></p>`,
     );
     root.querySelector('.ls-open-latest')?.addEventListener('click', () => {
-      void session.openExistingRun(data.activeRun.id);
+      void session.openExistingRun(data.activeRun.id, data.dataProvider || 'mock');
     });
   }
 }
