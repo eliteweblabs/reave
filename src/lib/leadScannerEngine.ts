@@ -28,7 +28,9 @@ export type LeadScannerRunResult = {
   runId?: string;
 };
 
-async function resolveScanCenter(config: LeadScannerConfig): Promise<{ lat: number; lng: number } | null> {
+export async function resolveScanCenter(
+  config: LeadScannerConfig,
+): Promise<{ lat: number; lng: number } | null> {
   if (config.centerLat != null && config.centerLng != null) {
     return { lat: config.centerLat, lng: config.centerLng };
   }

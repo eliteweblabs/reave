@@ -42,7 +42,7 @@ function formatDuration(seconds) {
 
 /**
  * @param {HTMLElement} container
- * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string }} opts
+ * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string, emptyHint?: string, showDirections?: boolean }} opts
  */
 export function createClientMap(container, opts = {}) {
   /** @type {import('mapbox-gl').Map | null} */
@@ -54,8 +54,11 @@ export function createClientMap(container, opts = {}) {
   const routeLayerId = 'cl-route-line';
   let currentGeo = null;
   let currentAddress = (opts.address || '').trim();
+  const emptyHint =
+    (opts.emptyHint || '').trim() || 'Enter an address to show the map.';
   let mapReady = false;
   let geocodeFailed = false;
+  let mapLoadFailed = false;
 
   const metaEl = document.createElement('div');
   metaEl.className = 'cl-map-meta';
@@ -99,18 +102,26 @@ export function createClientMap(container, opts = {}) {
   function syncEmptyState() {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
     const mapWorking = hasGeo && mapReady;
-    const hideEmpty = mapWorking;
-    emptyEl.hidden = hideEmpty;
-    mapEl.hidden = !hasGeo;
+    mapEl.hidden = !hasGeo || mapLoadFailed;
     directionsBtn.disabled = !hasGeo;
     openMapsBtn.hidden = !hasGeo;
-    if (!hideEmpty && !hasGeo && currentAddress && !geocodeFailed) {
+
+    if (mapWorking || (hasGeo && !mapLoadFailed)) {
+      emptyEl.hidden = true;
+    } else if (hasGeo && mapLoadFailed) {
+      emptyEl.hidden = false;
+      emptyEl.textContent = 'Could not load map.';
+    } else if (currentAddress && !geocodeFailed) {
+      emptyEl.hidden = false;
       emptyEl.textContent = 'Loading map…';
-    } else if (!hideEmpty && !hasGeo && currentAddress && geocodeFailed) {
+    } else if (currentAddress && geocodeFailed) {
+      emptyEl.hidden = false;
       emptyEl.textContent = 'Could not locate this address on the map.';
-    } else if (!hideEmpty && !hasGeo) {
-      emptyEl.textContent = 'Enter an address to show the map.';
+    } else {
+      emptyEl.hidden = false;
+      emptyEl.textContent = emptyHint;
     }
+
     if (hasGeo) {
       openMapsBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
         `${currentGeo.lat},${currentGeo.lng}`,
@@ -121,32 +132,39 @@ export function createClientMap(container, opts = {}) {
   async function ensureMap() {
     const token = opts.token || window.__mapboxAccessToken;
     if (!token) {
+      mapLoadFailed = true;
+      syncEmptyState();
       emptyEl.textContent = 'Mapbox token not configured.';
-      emptyEl.hidden = false;
-      mapEl.hidden = true;
       return null;
     }
 
-    const mapboxgl = await loadMapboxGl();
-    if (destroyed) return null;
+    try {
+      const mapboxgl = await loadMapboxGl();
+      if (destroyed) return null;
 
-    if (!map) {
-      mapboxgl.accessToken = token;
-      map = new mapboxgl.Map({
-        container: mapEl,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [-71.0589, 42.3601],
-        zoom: 11,
-        attributionControl: true,
-      });
-      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-      await new Promise((resolve) => {
-        if (map.isStyleLoaded()) resolve();
-        else map.once('load', resolve);
-      });
+      if (!map) {
+        mapboxgl.accessToken = token;
+        map = new mapboxgl.Map({
+          container: mapEl,
+          style: 'mapbox://styles/mapbox/streets-v12',
+          center: [-71.0589, 42.3601],
+          zoom: 11,
+          attributionControl: true,
+        });
+        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+        await new Promise((resolve) => {
+          if (map.isStyleLoaded()) resolve();
+          else map.once('load', resolve);
+        });
+      }
+
+      mapLoadFailed = false;
+      return { map, mapboxgl };
+    } catch {
+      mapLoadFailed = true;
+      syncEmptyState();
+      return null;
     }
-
-    return { map, mapboxgl };
   }
 
   async function setLocation(lat, lng, address) {
@@ -157,8 +175,14 @@ export function createClientMap(container, opts = {}) {
       Number.isFinite(parsedLat) && Number.isFinite(parsedLng)
         ? { lat: parsedLat, lng: parsedLng, address: address || currentAddress || '' }
         : null;
-    if (!currentGeo) mapReady = false;
-    if (currentGeo) geocodeFailed = false;
+    if (!currentGeo) {
+      mapReady = false;
+      mapLoadFailed = false;
+    }
+    if (currentGeo) {
+      geocodeFailed = false;
+      mapLoadFailed = false;
+    }
     syncEmptyState();
     metaEl.hidden = true;
     metaEl.textContent = '';

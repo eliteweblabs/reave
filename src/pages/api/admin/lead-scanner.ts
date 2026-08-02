@@ -2,7 +2,8 @@ import type { APIContext } from 'astro';
 import { TRADES } from '@reave/plugin-real-estate-data';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
-import { runLeadScanner } from '../../../lib/leadScannerEngine';
+import { resolveScanCenter, runLeadScanner } from '../../../lib/leadScannerEngine';
+import { getCompanyConfig } from '../../../lib/companyConfig';
 import {
   getLeadScannerConfig,
   listRecentLeadScannerRuns,
@@ -26,17 +27,22 @@ export async function GET(context: APIContext): Promise<Response> {
     return json({ error: 'real_estate_data not enabled' }, 404);
   }
 
-  const [config, runs, status] = await Promise.all([
+  const [config, runs, status, company] = await Promise.all([
     getLeadScannerConfig(),
     listRecentLeadScannerRuns(8),
     leadScannerStatusSummary(),
+    getCompanyConfig(),
   ]);
+  const resolvedCenter = await resolveScanCenter(config);
 
   return json({
     ok: true,
     config,
     runs,
     status,
+    resolvedCenter,
+    companyGeo: company.geo ?? null,
+    companyAddress: company.address ?? '',
     tradesCatalog: TRADES.map((t) => ({ slug: t.slug, label: t.label })),
   });
 }

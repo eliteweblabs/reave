@@ -152,7 +152,7 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260728l';
-import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260731a';
+import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802a';
 import {
   initClientsPanel,
   clientState,
@@ -5294,21 +5294,51 @@ function bindCompanyForm(root, company, fontCatalog) {
 
   const addressInput = root.querySelector('#company-address');
   const mapHost = root.querySelector('#company-map-host');
+  const initialAddress = (addressInput?.value || company?.address || '').trim();
+  const hasStoredGeo =
+    Number.isFinite(company?.geo?.lat) && Number.isFinite(company?.geo?.lng);
+
   if (mapHost) {
     companyMapController = createClientMap(mapHost, {
       token: window.__mapboxAccessToken,
-      lat: company?.geo?.lat,
-      lng: company?.geo?.lng,
-      address: company?.address || '',
+      lat: hasStoredGeo ? company.geo.lat : null,
+      lng: hasStoredGeo ? company.geo.lng : null,
+      address: initialAddress,
       showDirections: false,
     });
   }
 
   if (addressInput) {
+    let companyGeocodeTimer = null;
+
+    async function geocodeCompanyAddressFromInput() {
+      const q = addressInput.value.trim();
+      if (!q) {
+        companyPendingGeo = null;
+        companyMapController?.setLocation(null, null, '');
+        return;
+      }
+      const geo = await geocodeClientAddressPreview(q);
+      if (geo && companyMapController) {
+        companyPendingGeo = geo;
+        companyMapController.setLocation(geo.lat, geo.lng, q);
+      } else if (companyMapController) {
+        companyMapController.setGeocodeFailed(true);
+      }
+    }
+
+    function scheduleCompanyAddressGeocode() {
+      clearTimeout(companyGeocodeTimer);
+      companyGeocodeTimer = setTimeout(() => {
+        void geocodeCompanyAddressFromInput();
+      }, 400);
+    }
+
     destroyCompanyAddressAutocomplete = mountAddressAutocomplete(
       addressInput,
       root.closest('.profile-panel-scroll') || document.getElementById('settings-panel'),
       async (pickedAddress) => {
+        clearTimeout(companyGeocodeTimer);
         companyPendingGeo = await geocodeClientAddressPreview(pickedAddress);
         if (companyPendingGeo && companyMapController) {
           companyMapController.setLocation(
@@ -5322,33 +5352,20 @@ function bindCompanyForm(root, company, fontCatalog) {
 
     addressInput.addEventListener('input', () => {
       companyPendingGeo = null;
+      if (!addressInput.value.trim()) {
+        clearTimeout(companyGeocodeTimer);
+        companyMapController?.setLocation(null, null, '');
+        return;
+      }
+      scheduleCompanyAddressGeocode();
     });
     addressInput.addEventListener('blur', () => {
-      void (async () => {
-        const q = addressInput.value.trim();
-        if (!q) {
-          companyMapController?.setLocation(null, null, '');
-          return;
-        }
-        const geo = await geocodeClientAddressPreview(q);
-        if (geo) {
-          companyPendingGeo = geo;
-          companyMapController?.setLocation(geo.lat, geo.lng, q);
-        } else {
-          companyMapController?.setGeocodeFailed(true);
-        }
-      })();
+      clearTimeout(companyGeocodeTimer);
+      void geocodeCompanyAddressFromInput();
     });
 
-    if (company?.address?.trim() && !company?.geo?.lat) {
-      void geocodeClientAddressPreview(company.address).then((geo) => {
-        if (geo && companyMapController) {
-          companyPendingGeo = geo;
-          companyMapController.setLocation(geo.lat, geo.lng, company.address);
-        } else if (companyMapController) {
-          companyMapController.setGeocodeFailed(true);
-        }
-      });
+    if (initialAddress && !hasStoredGeo) {
+      void geocodeCompanyAddressFromInput();
     }
   }
 

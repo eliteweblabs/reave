@@ -2,7 +2,7 @@
  * Lead Scanner admin settings — geofence radius, trades, daily scan hour.
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260728m';
-import { createClientMap } from './client-map.js?v=20260728m';
+import { createClientMap } from './client-map.js?v=20260802a';
 
 let mapController = null;
 
@@ -127,21 +127,61 @@ function collectPayload(form) {
   };
 }
 
-export function bindLeadScannerPanel(root, data) {
-  destroyLeadScannerMap();
-  const cfg = data.config || {};
-  const mapHost = root.querySelector('#lead-scanner-map-host');
-  if (mapHost) {
-    mapController = createClientMap(mapHost, {
-      token: window.__mapboxAccessToken,
-      lat: cfg.centerLat,
-      lng: cfg.centerLng,
-      address: 'Scan center',
-      showDirections: false,
-    });
+function readScanCenter(form, data) {
+  const latRaw = form.querySelector('#lead-scanner-lat')?.value ?? '';
+  const lngRaw = form.querySelector('#lead-scanner-lng')?.value ?? '';
+  const lat = latRaw !== '' ? Number(latRaw) : NaN;
+  const lng = lngRaw !== '' ? Number(lngRaw) : NaN;
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { lat, lng, address: '' };
   }
 
+  const useOffice = form.querySelector('#lead-scanner-use-office')?.checked !== false;
+  const geo = data.companyGeo;
+  if (useOffice && geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+    return {
+      lat: geo.lat,
+      lng: geo.lng,
+      address: (data.companyAddress || '').trim() || 'Company office',
+    };
+  }
+
+  return null;
+}
+
+function syncLeadScannerMap(form, data) {
+  const center = readScanCenter(form, data);
+  if (center && mapController) {
+    mapController.setLocation(center.lat, center.lng, center.address);
+  } else if (mapController) {
+    mapController.setLocation(null, null, '');
+  }
+  requestAnimationFrame(() => mapController?.resize());
+}
+
+export function bindLeadScannerPanel(root, data) {
+  destroyLeadScannerMap();
   const form = root.querySelector('#lead-scanner-form');
+  const mapHost = root.querySelector('#lead-scanner-map-host');
+  if (mapHost && form) {
+    const initial = readScanCenter(form, data);
+    mapController = createClientMap(mapHost, {
+      token: window.__mapboxAccessToken,
+      lat: initial?.lat ?? null,
+      lng: initial?.lng ?? null,
+      address: initial?.address ?? '',
+      showDirections: false,
+      emptyHint:
+        'Set latitude and longitude below, or enable company office with a geocoded address in Company settings.',
+    });
+
+    const syncMap = () => syncLeadScannerMap(form, data);
+    form.querySelector('#lead-scanner-lat')?.addEventListener('input', syncMap);
+    form.querySelector('#lead-scanner-lng')?.addEventListener('input', syncMap);
+    form.querySelector('#lead-scanner-use-office')?.addEventListener('change', syncMap);
+    setTimeout(() => mapController?.resize(), 250);
+  }
+
   form?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     try {
