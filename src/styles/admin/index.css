@@ -1,5 +1,6 @@
 @import './tokens.css';
 @import './shell.css';
+@import './skeleton.css';
 @import './panels/editor.css';
 @import './panels/chat.css';
 @import './panels/email.css';
