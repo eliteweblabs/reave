@@ -96,7 +96,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260801a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton } from './shared.js?v=20260731c';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -3716,9 +3716,20 @@ function buildReviewAlertBanner(item) {
 
   const brandIcon = document.createElement('img');
   brandIcon.className = 'admin-setup-alert-icon admin-setup-alert-icon--brand';
-  brandIcon.src = window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+  const fallbackIconUrl = companyStaffAvatarUrl();
+  brandIcon.src = resolveReviewAlertIconUrl(item);
   brandIcon.alt = '';
   brandIcon.setAttribute('aria-hidden', 'true');
+  if (brandIcon.src !== fallbackIconUrl) {
+    brandIcon.addEventListener(
+      'error',
+      () => {
+        brandIcon.onerror = null;
+        brandIcon.src = fallbackIconUrl;
+      },
+      { once: true },
+    );
+  }
 
   const typeIcon = document.createElement('div');
   typeIcon.className = 'admin-setup-alert-icon';

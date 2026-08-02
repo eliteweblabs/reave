@@ -174,6 +174,75 @@ export function companyStaffAvatarUrl() {
   return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
 }
 
+const GENERIC_SENDER_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'aol.com',
+  'proton.me',
+  'protonmail.com',
+  'mail.com',
+  'msn.com',
+  'ymail.com',
+]);
+
+const TRANSACTIONAL_EMAIL_SUBDOMAINS = new Set([
+  'email',
+  'mail',
+  'alerts',
+  'notifications',
+  'notify',
+  'messaging',
+  'e',
+  'm',
+  'noreply',
+  'no-reply',
+]);
+
+function parseSenderEmailForIcon(from) {
+  const raw = String(from || '').trim();
+  const angled = raw.match(/<([^>]+)>/);
+  if (angled?.[1]) return angled[1].trim();
+  if (/^[^\s@]+@[^\s@]+$/.test(raw)) return raw;
+  return '';
+}
+
+/** Registrable brand domain for favicon lookup — null for personal inboxes or unparseable senders. */
+export function brandDomainFromSenderEmail(from) {
+  const email = parseSenderEmailForIcon(from);
+  const match = email.match(/@([^@\s]+)/);
+  if (!match) return null;
+  const domain = match[1].toLowerCase();
+  if (GENERIC_SENDER_EMAIL_DOMAINS.has(domain)) return null;
+  const parts = domain.split('.');
+  if (parts.length >= 3 && TRANSACTIONAL_EMAIL_SUBDOMAINS.has(parts[0])) {
+    return parts.slice(1).join('.');
+  }
+  return domain;
+}
+
+/** Google favicon URL for a sender address — null when no brand domain can be inferred. */
+export function senderFaviconUrl(from, size = 64) {
+  const domain = brandDomainFromSenderEmail(from);
+  if (!domain) return null;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
+}
+
+/** Best icon for a dashboard notification — CRM contact, sender favicon, or company avatar. */
+export function resolveReviewAlertIconUrl(item = {}) {
+  const contactIcon = brandingPreviewUrl(item.iconUrl);
+  if (contactIcon) return contactIcon;
+  const senderIcon = item.from ? senderFaviconUrl(item.from) : null;
+  if (senderIcon) return senderIcon;
+  return companyStaffAvatarUrl();
+}
+
 const contactAuthorIconByUid = new Map();
 let contactAuthorIconPrefetchPromise = null;
 
