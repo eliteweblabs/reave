@@ -272,11 +272,16 @@ export async function getInstallConfig(): Promise<InstallConfig> {
   return getInstallConfigSync();
 }
 
+function clientFooterNav(config: InstallConfig): FooterNavKey[] {
+  if (config.features.includes('fleet_tracking')) return config.footerNav;
+  return config.footerNav.filter((key) => key !== 'fleet');
+}
+
 export function getInstallConfigClient(): InstallConfigClient {
   const config = getInstallConfigSync();
   return {
     features: config.features,
-    footerNav: config.footerNav,
+    footerNav: clientFooterNav(config),
     profileMenu: config.profileMenu,
     homepageVoice: config.homepageVoice,
     chatFocusSkin: config.chatFocusSkin,

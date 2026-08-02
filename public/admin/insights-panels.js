@@ -47,6 +47,11 @@ import { createFleetMap } from '/admin/fleet-map.js';
 /** Injected by os-map-loader via initInsightsPanels(). */
 let shell = {};
 
+function hasInstallFeature(id) {
+  const features = window.__installConfig?.features;
+  return Array.isArray(features) && features.includes(id);
+}
+
 function currentMap() {
   return typeof shell.getMap === 'function' ? shell.getMap() : shell.MAP;
 }
@@ -612,6 +617,7 @@ function startFleetLocationWatch() {
 }
 
 async function initFleetLocationReporter() {
+  if (!hasInstallFeature('fleet_tracking')) return;
   if (fleetLocationReporterStarted) return;
   try {
     const res = await fetch('/api/fleet/vehicles?mine=1', { cache: 'no-store' });
@@ -793,6 +799,7 @@ async function showAddFleetVehicleDialog(onSaved) {
 }
 
 async function loadFleetTab() {
+  if (!hasInstallFeature('fleet_tracking')) return;
   const root = document.getElementById('fleet-panel');
   if (!root) return;
   stopFleetPoll();
