@@ -5900,6 +5900,28 @@ const SOCIAL_PLATFORM_LABELS = {
   googlebusiness: 'Google Business',
 };
 
+const SOCIAL_PLATFORM_UI = {
+  twitter: { slug: 'x', color: '#1d9bf0' },
+  instagram: { slug: 'instagram', color: '#e1306c' },
+  linkedin: { slug: 'linkedin', color: '#0a66c2' },
+  facebook: { slug: 'facebook', color: '#1877f2' },
+  youtube: { slug: 'youtube', color: '#ff0000' },
+  tiktok: { slug: 'tiktok', color: '#ff0050' },
+  bluesky: { slug: 'bluesky', color: '#0085ff' },
+  threads: { slug: 'threads', color: '#000000' },
+  pinterest: { slug: 'pinterest', color: '#bd081c' },
+  snapchat: { slug: 'snapchat', color: '#fffc00' },
+  discord: { slug: 'discord', color: '#5865f2' },
+  reddit: { slug: 'reddit', color: '#ff4500' },
+  github: { slug: 'github', color: '#181717' },
+  twitch: { slug: 'twitch', color: '#9146ff' },
+  telegram: { slug: 'telegram', color: '#26a5e4' },
+  whatsapp: { slug: 'whatsapp', color: '#25d366' },
+  substack: { slug: 'substack', color: '#ff6719' },
+  yelp: { slug: 'yelp', color: '#d32323' },
+  googlebusiness: { slug: 'google', color: '#4285f4' },
+};
+
 let socialPlatformCatalog = [];
 let socialDefaultVisible = [];
 
@@ -5966,6 +5988,15 @@ function socialLinkFieldRow(platform, company) {
 
 function socialPlatformLabel(platform) {
   return SOCIAL_PLATFORM_LABELS[platform] || platform || '';
+}
+
+function socialPlatformIcon(platform) {
+  const ui = SOCIAL_PLATFORM_UI[platform];
+  if (!ui) return `<span class="soc-icon soc-icon--fallback"></span>`;
+  return (
+    `<span class="soc-icon" style="--soc-color:${ui.color};` +
+    `--soc-icon:url('${ICON_CDN(ui.slug)}')"></span>`
+  );
 }
 
 function socialCopyRow(value) {

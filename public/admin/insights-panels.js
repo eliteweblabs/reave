@@ -81,6 +81,8 @@ const SOCIAL_PLATFORM_UI = {
   googlebusiness: { slug: 'google', color: '#4285f4' },
 };
 
+const ICON_CDN = (slug) => `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
 const SOCIAL_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
 
 function socialNumFmt(n) {
