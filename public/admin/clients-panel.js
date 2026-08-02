@@ -66,7 +66,7 @@ let clientState = {
   clients: [],
   total: 0,
   search: '',
-  contactFilter: 'work',
+  contactFilter: 'all',
   activeUid: null,
   detailTab: 'profile',
   dirty: false,
@@ -268,15 +268,21 @@ function clientListAvatarHtml(c) {
 
 function filterClientsForSidebar(clients) {
   const f = clientState.contactFilter;
-  if (f === 'personal') return clients.filter((c) => clientKindFromRecord(c) === 'personal');
-  if (f === 'work') return clients.filter((c) => clientKindFromRecord(c) !== 'personal');
-  return clients;
+  if (f === 'all') return clients;
+  return clients.filter((c) => clientKindFromRecord(c) === f);
 }
 
 function clientFilterCounts(clients) {
-  const work = clients.filter((c) => clientKindFromRecord(c) !== 'personal').length;
-  const personal = clients.filter((c) => clientKindFromRecord(c) === 'personal').length;
-  return { all: clients.length, work, personal };
+  let professional = 0;
+  let personal = 0;
+  let proposed = 0;
+  for (const c of clients) {
+    const kind = clientKindFromRecord(c);
+    if (kind === 'personal') personal++;
+    else if (kind === 'proposed') proposed++;
+    else professional++;
+  }
+  return { all: clients.length, professional, proposed, personal };
 }
 
 function renderClientFilterTabs(savedScrollLeft = 0) {
@@ -287,9 +293,10 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
   nav.setAttribute('aria-label', 'Client list filters');
 
   const tabs = [
-    { id: 'work', label: 'Projects', count: counts.work },
-    { id: 'personal', label: 'Personal', count: counts.personal },
     { id: 'all', label: 'All', count: counts.all },
+    { id: 'professional', label: 'Professional', count: counts.professional },
+    { id: 'proposed', label: 'Proposed', count: counts.proposed },
+    { id: 'personal', label: 'Personal', count: counts.personal },
   ];
 
   for (const tab of tabs) {
@@ -478,11 +485,13 @@ function fillClientsSidebarList(list) {
     const filterLabel =
       clientState.contactFilter === 'personal'
         ? 'No personal contacts yet.'
-        : clientState.contactFilter === 'work'
-          ? 'No clients yet.'
-          : clientState.search.trim()
-            ? 'No matches.'
-            : 'No clients yet.';
+        : clientState.contactFilter === 'professional'
+          ? 'No professional clients yet.'
+          : clientState.contactFilter === 'proposed'
+            ? 'No proposed clients yet.'
+            : clientState.search.trim()
+              ? 'No matches.'
+              : 'No clients yet.';
     empty.textContent = clientState.search.trim() && clientState.contactFilter === 'all'
       ? 'No matches.'
       : filterLabel;
