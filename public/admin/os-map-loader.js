@@ -10513,6 +10513,20 @@ function buildEmailSwipeActions(ev) {
     return actions;
   }
 
+  if (isEmailRouted(ev)) {
+    return [
+      swipeAgentAction(() => askAgentAboutEmail(ev)),
+      swipeArchiveAction({
+        label: 'Unarchive',
+        onClick: () => unarchiveEmail(ev),
+      }),
+      swipeDeleteAction({
+        label: 'Trash',
+        onClick: () => deleteEmail(ev),
+      }),
+    ];
+  }
+
   const actions = [
     swipeAgentAction(() => askAgentAboutEmail(ev)),
   ];
