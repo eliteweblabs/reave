@@ -64,12 +64,20 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
               class="home-hero-industry-layer home-hero-industry-next"
               data-hero-industry-next
               hidden
-            ></span>
+            >
+              <span class="home-hero-industry-clip" data-hero-industry-clip>
+                <span class="home-hero-industry-text" data-hero-industry-text></span>
+              </span>
+            </span>
             <span
               class="home-hero-industry-layer home-hero-industry-current"
               data-hero-industry-current
             >
-              {firstIndustry}
+              <span class="home-hero-industry-clip" data-hero-industry-clip>
+                <span class="home-hero-industry-text" data-hero-industry-text>
+                  {firstIndustry}
+                </span>
+              </span>
             </span>
           </span>
         </span>
@@ -306,6 +314,18 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     position: absolute;
     left: 0;
     top: 0;
+  }
+
+  .home-hero-industry-clip {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    height: 1.35em;
+    will-change: width;
+  }
+
+  .home-hero-industry-text {
+    display: inline-block;
     white-space: nowrap;
     font-family: var(--font-primary);
     font-weight: 600;

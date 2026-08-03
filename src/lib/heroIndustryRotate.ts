@@ -1,7 +1,7 @@
 /**
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
- * Text layers stay fixed; clip-path hides/reveals each word (overlay wipes fail on iOS
- * Safari because -webkit-background-clip:text paints above sibling z-index layers).
+ * Clipping runs on overflow-hidden wrappers, not on gradient text — clip-path and overlay
+ * wipes fail on iOS Safari because -webkit-background-clip:text paints in its own layer.
  * Viewport width matches each word and is eased from the outgoing to the incoming width
  * across the reveal, so the centered tagline glides instead of snapping.
  */
@@ -28,35 +28,49 @@ function animate(durationMs: number, onFrame: (eased: number) => void): Promise<
   });
 }
 
+function getClip(layer: HTMLElement): HTMLElement | null {
+  return layer.querySelector<HTMLElement>('[data-hero-industry-clip]');
+}
+
+function getText(layer: HTMLElement): HTMLElement | null {
+  return layer.querySelector<HTMLElement>('[data-hero-industry-text]');
+}
+
 function measureText(layer: HTMLElement, text: string): number {
+  const textEl = getText(layer);
+  const clipEl = getClip(layer);
+  if (!textEl || !clipEl) return 0;
+
   const wasHidden = layer.hidden;
   if (wasHidden) layer.hidden = false;
-  layer.textContent = text;
+  clipEl.style.width = 'auto';
+  textEl.textContent = text;
   // Fractional width: rounding to offsetWidth leaves a visible 1px hop mid-wipe.
-  const width = layer.getBoundingClientRect().width;
+  const width = textEl.getBoundingClientRect().width;
   if (wasHidden) layer.hidden = true;
   return width;
 }
 
-function setClip(el: HTMLElement, leftPct: number, rightPct: number) {
-  const clip = `inset(0 ${rightPct}% 0 ${leftPct}%)`;
-  el.style.clipPath = clip;
-  el.style.webkitClipPath = clip;
+function setClipWidth(clip: HTMLElement, widthPx: number) {
+  clip.style.width = `${widthPx}px`;
 }
 
-function clearClip(el: HTMLElement) {
-  el.style.clipPath = '';
-  el.style.webkitClipPath = '';
+function clearClipWidth(clip: HTMLElement, fullWidthPx: number) {
+  clip.style.width = `${fullWidthPx}px`;
 }
 
-/** Erase left→right: the leading edge cuts in from the left until nothing is left. */
-function animateWipeOut(el: HTMLElement, durationMs: number): Promise<void> {
-  return animate(durationMs, (eased) => setClip(el, eased * 100, 0));
+/** Erase left→right: shrink the clip rail until nothing is left. */
+function animateWipeOut(clip: HTMLElement, fullWidthPx: number, durationMs: number): Promise<void> {
+  return animate(durationMs, (eased) => {
+    setClipWidth(clip, fullWidthPx * (1 - eased));
+  });
 }
 
-/** Reveal left→right: the trailing edge retreats to the right, uncovering the word. */
-function animateWipeIn(el: HTMLElement, durationMs: number): Promise<void> {
-  return animate(durationMs, (eased) => setClip(el, 0, (1 - eased) * 100));
+/** Reveal left→right: grow the clip rail, uncovering the word. */
+function animateWipeIn(clip: HTMLElement, fullWidthPx: number, durationMs: number): Promise<void> {
+  return animate(durationMs, (eased) => {
+    setClipWidth(clip, fullWidthPx * eased);
+  });
 }
 
 export function initHeroIndustryRotate(root: HTMLElement) {
@@ -76,14 +90,17 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   const viewport = root.querySelector<HTMLElement>('[data-hero-industry-viewport]');
   const current = root.querySelector<HTMLElement>('[data-hero-industry-current]');
   const next = root.querySelector<HTMLElement>('[data-hero-industry-next]');
-  if (!viewport || !current || !next) return;
+  const currentClip = current ? getClip(current) : null;
+  const nextClip = next ? getClip(next) : null;
+  const currentText = current ? getText(current) : null;
+  if (!viewport || !current || !next || !currentClip || !nextClip || !currentText) return;
 
   const intervalMs = Number(root.dataset.intervalMs) || 2500;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const labelWidth = (label: string) => measureText(current, label);
 
-  const initial = current.textContent?.trim() ?? '';
+  const initial = currentText.textContent?.trim() ?? '';
   const found = industries.indexOf(initial);
   let index = found >= 0 ? found : Math.floor(Math.random() * industries.length);
 
@@ -106,12 +123,16 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   };
 
   const resetLayers = (label: string, widthPx?: number) => {
-    current.textContent = label;
+    const textEl = getText(current);
+    if (textEl) textEl.textContent = label;
     current.hidden = false;
-    next.textContent = '';
+    const nextText = getText(next);
+    if (nextText) nextText.textContent = '';
     next.hidden = true;
-    clearClip(current);
-    clearClip(next);
+    if (widthPx != null) {
+      clearClipWidth(currentClip, widthPx);
+      clearClipWidth(nextClip, 0);
+    }
     root.dataset.heroIndustryLabel = label;
     if (widthPx != null) setViewportWidth(widthPx);
   };
@@ -141,28 +162,36 @@ export function initHeroIndustryRotate(root: HTMLElement) {
       return;
     }
 
-    current.textContent = outgoing;
+    const currentTextEl = getText(current);
+    const nextTextEl = getText(next);
+    if (!currentTextEl || !nextTextEl) {
+      swapping = false;
+      return;
+    }
+
+    currentTextEl.textContent = outgoing;
     current.hidden = false;
-    next.textContent = incoming;
+    nextTextEl.textContent = incoming;
     next.hidden = true;
     setViewportWidth(outgoingWidth);
+    clearClipWidth(currentClip, outgoingWidth);
+    clearClipWidth(nextClip, 0);
 
     // Step 1 — wipe out at the outgoing word width.
-    clearClip(current);
-    await animateWipeOut(current, WIPE_MS);
+    await animateWipeOut(currentClip, outgoingWidth, WIPE_MS);
 
-    current.textContent = '';
+    currentTextEl.textContent = '';
     current.hidden = true;
-    clearClip(current);
+    clearClipWidth(currentClip, outgoingWidth);
 
     // Step 2 — wipe reveal, travelling the same direction as the erase, while the
     // viewport eases to the new width. Sharing one easing curve keeps the box edge
     // at outgoingWidth * (1 - eased) ahead of the wipe front, so the incoming word
     // is never clipped even when it is much longer than the outgoing one.
     next.hidden = false;
-    setClip(next, 0, 100);
+    setClipWidth(nextClip, 0);
     await Promise.all([
-      animateWipeIn(next, WIPE_MS),
+      animateWipeIn(nextClip, incomingWidth, WIPE_MS),
       animateViewportWidth(outgoingWidth, incomingWidth, WIPE_MS),
     ]);
 
