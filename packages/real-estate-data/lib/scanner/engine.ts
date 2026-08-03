@@ -1,5 +1,7 @@
 import { distanceMiles, isWithinRadiusMiles } from '../geo/haversine.js';
 import { scoreLeadForTrades } from '../leads/score.js';
+import { loadConfig } from '../config.js';
+import { attomSearchRadius } from '../providers/attom.js';
 import type { PropertyRecord } from '../providers/types.js';
 import { normalizeTradeSlugs, type TradeSlug } from '../trades.js';
 
@@ -36,6 +38,8 @@ export type ScanResult = {
   trades: TradeSlug[];
   candidatesFound: number;
   candidates: ScanCandidate[];
+  provider?: string;
+  error?: string;
 };
 
 /** Deterministic mock candidates around a center for dev/demo scans. */
@@ -90,15 +94,22 @@ function mockCandidatesNear(
   }));
 }
 
-export function runRadiusScan(config: ScanConfig): ScanResult {
+function scoreCandidates(
+  config: ScanConfig,
+  raw: Array<PropertyRecord & { lat?: number; lng?: number }>,
+  provider: string,
+): ScanResult {
   const trades = normalizeTradeSlugs(config.trades);
   const max = config.maxResults ?? 25;
-  const raw = mockCandidatesNear(config.centerLat, config.centerLng, config.centerLocation);
-
   const candidates: ScanCandidate[] = [];
+
   for (const row of raw) {
-    const dist = distanceMiles(config.centerLat, config.centerLng, row.lat, row.lng);
-    if (!isWithinRadiusMiles(config.centerLat, config.centerLng, row.lat, row.lng, config.radiusMiles)) {
+    const lat = row.lat;
+    const lng = row.lng;
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+    const dist = distanceMiles(config.centerLat, config.centerLng, lat, lng);
+    if (!isWithinRadiusMiles(config.centerLat, config.centerLng, lat, lng, config.radiusMiles)) {
       continue;
     }
 
@@ -111,6 +122,8 @@ export function runRadiusScan(config: ScanConfig): ScanResult {
 
     candidates.push({
       ...row,
+      lat,
+      lng,
       distanceMiles: Math.round(dist * 10) / 10,
       leadScore: lead.score,
       leadReasons: lead.reasons,
@@ -128,5 +141,50 @@ export function runRadiusScan(config: ScanConfig): ScanResult {
     trades,
     candidatesFound: candidates.length,
     candidates: candidates.slice(0, max),
+    provider,
   };
+}
+
+function runMockRadiusScan(config: ScanConfig): ScanResult {
+  const raw = mockCandidatesNear(config.centerLat, config.centerLng, config.centerLocation);
+  return scoreCandidates(config, raw, 'mock');
+}
+
+async function runAttomRadiusScan(config: ScanConfig): Promise<ScanResult> {
+  try {
+    const rows = await attomSearchRadius({
+      centerLat: config.centerLat,
+      centerLng: config.centerLng,
+      radiusMiles: config.radiusMiles,
+      pageSize: config.maxResults ?? 25,
+    });
+    return scoreCandidates(config, rows, 'attom');
+  } catch (e) {
+    const trades = normalizeTradeSlugs(config.trades);
+    return {
+      ok: true,
+      scannedAt: new Date().toISOString(),
+      center: { lat: config.centerLat, lng: config.centerLng },
+      radiusMiles: config.radiusMiles,
+      trades,
+      candidatesFound: 0,
+      candidates: [],
+      provider: 'attom',
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+/** Radius lead scan — uses ATTOM when configured, otherwise mock demo data. */
+export async function runRadiusScan(config: ScanConfig): Promise<ScanResult> {
+  const provider = loadConfig().provider;
+  if (provider === 'attom' && loadConfig().attom.apiKey) {
+    return runAttomRadiusScan(config);
+  }
+  return runMockRadiusScan(config);
+}
+
+/** @deprecated Sync mock-only scan — prefer async runRadiusScan. */
+export function runRadiusScanSync(config: ScanConfig): ScanResult {
+  return runMockRadiusScan(config);
 }

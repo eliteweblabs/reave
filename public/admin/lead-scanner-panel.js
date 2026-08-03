@@ -36,7 +36,9 @@ export function renderLeadScannerPanel(data) {
   const provider = data.dataProvider || 'mock';
   const providerHint =
     provider === 'mock'
-      ? `<p class="prof-hint prof-hint--block">Data provider: <code>mock</code> — demo street names near your map center. Set <code>REAL_ESTATE_DATA_PROVIDER=propdata</code> for live assessor data.</p>`
+      ? `<p class="prof-hint prof-hint--block">Data provider: <code>mock</code> — demo street names near your map center. Set <code>REAL_ESTATE_DATA_PROVIDER=attom</code> and <code>ATTOM_API_KEY</code> for live assessor data.</p>`
+      : provider === 'attom'
+        ? `<p class="prof-hint prof-hint--block">Data provider: <code>attom</code> — live parcel records from your ATTOM trial.</p>`
       : `<p class="prof-hint prof-hint--block">Data provider: <code>${escHtml(provider)}</code>.</p>`;
 
   const vArea = data.violationServiceArea;

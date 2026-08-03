@@ -156,7 +156,7 @@ async function handle_run_lead_scan(args, _ctx) {
         return JSON.stringify({ error: 'center_lat and center_lng are required', code: 'INVALID_INPUT' });
     }
     const trades = normalizeTradeSlugs(Array.isArray(args.trades) ? args.trades.map(String) : ['plumbing', 'roofing', 'general_contractor']);
-    const result = runRadiusScan({
+    const result = await runRadiusScan({
         centerLat,
         centerLng,
         radiusMiles,
@@ -177,6 +177,7 @@ async function handle_real_estate_data_status(_args, _ctx) {
             REAL_ESTATE_DATA_PROVIDER: cfg.provider,
             hasPropdataKey: !!cfg.propdata.apiKey,
             hasAssessorsearchKey: !!cfg.assessorsearch.apiKey,
+            hasAttomKey: !!cfg.attom.apiKey,
         },
     });
 }

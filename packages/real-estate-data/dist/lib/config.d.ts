@@ -9,6 +9,9 @@ export type RealEstateDataConfig = {
         apiKey: string;
         baseUrl: string;
     };
+    attom: {
+        apiKey: string;
+    };
 };
 export declare function loadConfig(): RealEstateDataConfig;
 export declare function isRealEstateDataConfigured(): boolean;

@@ -206,7 +206,7 @@ export async function runLeadScanner(options?: {
 
   const centerLocation = await resolveScanLocation(center);
   const trades = normalizeTradeSlugs(config.trades);
-  const scan = runRadiusScan({
+  const scan = await runRadiusScan({
     centerLat: center.lat,
     centerLng: center.lng,
     radiusMiles: config.radiusMiles,
@@ -214,6 +214,10 @@ export async function runLeadScanner(options?: {
     maxResults: 50,
     centerLocation,
   });
+
+  if (scan.error) {
+    return { ok: false, skipped: scan.error, candidatesFound: 0 };
+  }
 
   const candidates = scan.candidates.map(serializeScanCandidate);
 

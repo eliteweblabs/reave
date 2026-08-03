@@ -1,5 +1,7 @@
 import { distanceMiles, isWithinRadiusMiles } from '../geo/haversine.js';
 import { scoreLeadForTrades } from '../leads/score.js';
+import { loadConfig } from '../config.js';
+import { attomSearchRadius } from '../providers/attom.js';
 import { normalizeTradeSlugs } from '../trades.js';
 /** Deterministic mock candidates around a center for dev/demo scans. */
 function mockCandidatesNear(centerLat, centerLng, location) {
@@ -45,14 +47,17 @@ function mockCandidatesNear(centerLat, centerLng, location) {
         lng: centerLng + o.dLng,
     }));
 }
-export function runRadiusScan(config) {
+function scoreCandidates(config, raw, provider) {
     const trades = normalizeTradeSlugs(config.trades);
     const max = config.maxResults ?? 25;
-    const raw = mockCandidatesNear(config.centerLat, config.centerLng, config.centerLocation);
     const candidates = [];
     for (const row of raw) {
-        const dist = distanceMiles(config.centerLat, config.centerLng, row.lat, row.lng);
-        if (!isWithinRadiusMiles(config.centerLat, config.centerLng, row.lat, row.lng, config.radiusMiles)) {
+        const lat = row.lat;
+        const lng = row.lng;
+        if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng))
+            continue;
+        const dist = distanceMiles(config.centerLat, config.centerLng, lat, lng);
+        if (!isWithinRadiusMiles(config.centerLat, config.centerLng, lat, lng, config.radiusMiles)) {
             continue;
         }
         const lead = scoreLeadForTrades(row, trades, {
@@ -63,6 +68,8 @@ export function runRadiusScan(config) {
             continue;
         candidates.push({
             ...row,
+            lat,
+            lng,
             distanceMiles: Math.round(dist * 10) / 10,
             leadScore: lead.score,
             leadReasons: lead.reasons,
@@ -78,6 +85,48 @@ export function runRadiusScan(config) {
         trades,
         candidatesFound: candidates.length,
         candidates: candidates.slice(0, max),
+        provider,
     };
+}
+function runMockRadiusScan(config) {
+    const raw = mockCandidatesNear(config.centerLat, config.centerLng, config.centerLocation);
+    return scoreCandidates(config, raw, 'mock');
+}
+async function runAttomRadiusScan(config) {
+    try {
+        const rows = await attomSearchRadius({
+            centerLat: config.centerLat,
+            centerLng: config.centerLng,
+            radiusMiles: config.radiusMiles,
+            pageSize: config.maxResults ?? 25,
+        });
+        return scoreCandidates(config, rows, 'attom');
+    }
+    catch (e) {
+        const trades = normalizeTradeSlugs(config.trades);
+        return {
+            ok: true,
+            scannedAt: new Date().toISOString(),
+            center: { lat: config.centerLat, lng: config.centerLng },
+            radiusMiles: config.radiusMiles,
+            trades,
+            candidatesFound: 0,
+            candidates: [],
+            provider: 'attom',
+            error: e instanceof Error ? e.message : String(e),
+        };
+    }
+}
+/** Radius lead scan — uses ATTOM when configured, otherwise mock demo data. */
+export async function runRadiusScan(config) {
+    const provider = loadConfig().provider;
+    if (provider === 'attom' && loadConfig().attom.apiKey) {
+        return runAttomRadiusScan(config);
+    }
+    return runMockRadiusScan(config);
+}
+/** @deprecated Sync mock-only scan — prefer async runRadiusScan. */
+export function runRadiusScanSync(config) {
+    return runMockRadiusScan(config);
 }
 //# sourceMappingURL=engine.js.map

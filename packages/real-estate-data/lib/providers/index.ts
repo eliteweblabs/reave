@@ -1,5 +1,6 @@
 import { loadConfig } from '../config.js';
 import { assessorsearchProvider } from './assessorsearch.js';
+import { attomProvider } from './attom.js';
 import { mockProvider } from './mock.js';
 import { propdataProvider } from './propdata.js';
 import type {
@@ -15,6 +16,7 @@ const PROVIDERS: Record<ProviderId, PropertyDataProvider> = {
   mock: mockProvider,
   propdata: propdataProvider,
   assessorsearch: assessorsearchProvider,
+  attom: attomProvider,
 };
 
 export function getActiveProvider(): PropertyDataProvider {

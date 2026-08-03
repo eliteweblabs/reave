@@ -94,7 +94,7 @@ export type CompsLookupResult = {
     error: string;
     code?: string;
 };
-export type ProviderId = 'mock' | 'propdata' | 'assessorsearch';
+export type ProviderId = 'mock' | 'propdata' | 'assessorsearch' | 'attom';
 export interface PropertyDataProvider {
     id: ProviderId;
     configured: () => boolean;

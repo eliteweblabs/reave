@@ -1,11 +1,13 @@
 import { loadConfig } from '../config.js';
 import { assessorsearchProvider } from './assessorsearch.js';
+import { attomProvider } from './attom.js';
 import { mockProvider } from './mock.js';
 import { propdataProvider } from './propdata.js';
 const PROVIDERS = {
     mock: mockProvider,
     propdata: propdataProvider,
     assessorsearch: assessorsearchProvider,
+    attom: attomProvider,
 };
 export function getActiveProvider() {
     const id = loadConfig().provider;

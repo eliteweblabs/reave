@@ -33,6 +33,11 @@ export type ScanResult = {
     trades: TradeSlug[];
     candidatesFound: number;
     candidates: ScanCandidate[];
+    provider?: string;
+    error?: string;
 };
-export declare function runRadiusScan(config: ScanConfig): ScanResult;
+/** Radius lead scan — uses ATTOM when configured, otherwise mock demo data. */
+export declare function runRadiusScan(config: ScanConfig): Promise<ScanResult>;
+/** @deprecated Sync mock-only scan — prefer async runRadiusScan. */
+export declare function runRadiusScanSync(config: ScanConfig): ScanResult;
 //# sourceMappingURL=engine.d.ts.map

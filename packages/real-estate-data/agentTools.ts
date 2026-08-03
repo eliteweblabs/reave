@@ -192,7 +192,7 @@ async function handle_run_lead_scan(args: Record<string, unknown>, _ctx: ToolCon
   const trades = normalizeTradeSlugs(
     Array.isArray(args.trades) ? args.trades.map(String) : ['plumbing', 'roofing', 'general_contractor'],
   );
-  const result = runRadiusScan({
+  const result = await runRadiusScan({
     centerLat,
     centerLng,
     radiusMiles,
@@ -214,6 +214,7 @@ async function handle_real_estate_data_status(_args: Record<string, unknown>, _c
       REAL_ESTATE_DATA_PROVIDER: cfg.provider,
       hasPropdataKey: !!cfg.propdata.apiKey,
       hasAssessorsearchKey: !!cfg.assessorsearch.apiKey,
+      hasAttomKey: !!cfg.attom.apiKey,
     },
   });
 }

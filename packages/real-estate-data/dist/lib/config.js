@@ -14,6 +14,9 @@ export function loadConfig() {
             apiKey: env('ASSESSORSEARCH_API_KEY'),
             baseUrl: env('ASSESSORSEARCH_BASE_URL') || 'https://api.assessorsearch.com',
         },
+        attom: {
+            apiKey: env('ATTOM_API_KEY'),
+        },
     };
 }
 export function isRealEstateDataConfigured() {
@@ -25,6 +28,8 @@ export function isRealEstateDataConfigured() {
             return !!cfg.propdata.apiKey;
         case 'assessorsearch':
             return !!cfg.assessorsearch.apiKey;
+        case 'attom':
+            return !!cfg.attom.apiKey;
         default:
             return false;
     }

@@ -4,7 +4,7 @@ export { lookupProperty, lookupComps, getFloorArea, getActiveProvider, listProvi
 export { buildComplianceTimeline, COMPLIANCE_RULES } from './lib/compliance/index.js';
 export { buildHazardProfile } from './lib/hazards/index.js';
 export { buildLiabilityRadarReport, scoreLeadForTrades } from './lib/leads/score.js';
-export { runRadiusScan } from './lib/scanner/engine.js';
+export { runRadiusScan, runRadiusScanSync } from './lib/scanner/engine.js';
 export { TRADES, normalizeTradeSlugs } from './lib/trades.js';
 export { distanceMiles, isWithinRadiusMiles } from './lib/geo/index.js';
 export { lookupViolations, describeViolationServiceArea, type ViolationLookupOptions, type ViolationServiceAreaSummary, } from './lib/violations/index.js';

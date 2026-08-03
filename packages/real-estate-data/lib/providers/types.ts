@@ -91,7 +91,7 @@ export type CompsLookupResult =
   | { ok: true; comps: ComparableSale[] }
   | { ok: false; error: string; code?: string };
 
-export type ProviderId = 'mock' | 'propdata' | 'assessorsearch';
+export type ProviderId = 'mock' | 'propdata' | 'assessorsearch' | 'attom';
 
 export interface PropertyDataProvider {
   id: ProviderId;
