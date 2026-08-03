@@ -6,13 +6,32 @@ const UNSAFE_SVG_PATTERN =
 const EVENT_HANDLER_ATTR = /\s(on[a-z]+|formaction|xlink:href\s*=\s*["']?\s*javascript:)/gi;
 const JS_URL = /javascript:/gi;
 
+/** Illustrator / legacy export filenames → root-relative /public assets. */
+const SVG_RASTER_ALIASES: Record<string, string> = {
+  'content-1.png': '/reave-icon-1.png',
+  'content-1.jpg': '/reave-icon-1.png',
+  'content-1.jpeg': '/reave-icon-1.png',
+  'reave-icon-1.png': '/reave-icon-1.png',
+  'reave-logo-1.png': '/reave-logo-1.png',
+};
+
+function resolveSvgRasterHref(href: string): string {
+  if (/^https?:\/\//i.test(href) || href.startsWith('data:') || href.startsWith('#')) {
+    return href;
+  }
+  const file = (href.replace(/^\//, '').split('/').pop() ?? href).toLowerCase();
+  if (SVG_RASTER_ALIASES[file]) return SVG_RASTER_ALIASES[file];
+  return href.startsWith('/') ? href : `/${file}`;
+}
+
 /** Rewrite relative raster refs in pasted SVGs to root-absolute /public paths. */
 export function resolveSvgAssetUrls(svg: string): string {
   return svg.replace(
-    /(\s(?:xlink:)?href\s*=\s*(["']))(?!\/|https?:|#|data:)([^"']+)\2/gi,
-    (_match, prefix: string, _quote: string, href: string) => {
-      const file = href.split('/').pop() ?? href;
-      return `${prefix}/${file}${_quote}`;
+    /(\s(?:xlink:)?href\s*=\s*(["']))([^"']+)\2/gi,
+    (_match, prefix: string, quote: string, href: string) => {
+      const resolved = resolveSvgRasterHref(href);
+      if (resolved === href) return _match;
+      return `${prefix}${resolved}${quote}`;
     },
   );
 }
