@@ -11,13 +11,40 @@ interface Props {
   opacity?: number;
   /** contain = full pattern visible; cover = fill the box uniformly (may crop). */
   fit?: ReaveBgPatternFit;
+  /** Stagger each path from opacity 0 → 1 on load. */
+  reveal?: boolean;
+  /** Time window for random path start times (ms). */
+  revealWindowMs?: number;
+  /** Per-path fade duration (ms). */
+  revealFadeMs?: number;
 }
 
-const { class: className = '', opacity, fit = 'contain' } = Astro.props;
+const {
+  class: className = '',
+  opacity,
+  fit = 'contain',
+  reveal = false,
+  revealWindowMs = 2500,
+  revealFadeMs = 250,
+} = Astro.props;
+
 const style = opacity != null ? `opacity: ${opacity}` : undefined;
 const svg = renderReaveBgPatternSvg(fit);
 ---
 
-<div class:list={['reave-bg-pattern', className]} style={style} aria-hidden="true">
+<div
+  class:list={['reave-bg-pattern', className]}
+  style={style}
+  aria-hidden="true"
+  data-reveal={reveal ? 'true' : undefined}
+  data-reveal-window-ms={reveal ? String(revealWindowMs) : undefined}
+  data-reveal-fade-ms={reveal ? String(revealFadeMs) : undefined}
+>
   <Fragment set:html={svg} />
 </div>
+
+{reveal && (
+  <script>
+    import '../lib/reaveBgPatternReveal.ts';
+  </script>
+)}

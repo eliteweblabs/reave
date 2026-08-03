@@ -50,6 +50,10 @@
   display: block;
 }
 
+.reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path {
+  opacity: 0;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --brand-gradient-shadow:
