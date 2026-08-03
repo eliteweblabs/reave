@@ -134,6 +134,10 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
   .home-hero-pattern {
     z-index: 1;
     mix-blend-mode: soft-light;
+    /* iOS Safari fails to repaint a masked + blended layer when a descendant's
+       opacity changes via JS unless the layer is eagerly composited. */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
     -webkit-mask-image: linear-gradient(
       to bottom,
       #000 0%,
@@ -247,6 +251,8 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     vertical-align: bottom;
     height: 1.35em;
     will-change: width;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .home-hero-industry-text {
@@ -261,6 +267,11 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    /* Without its own compositing layer, iOS Safari leaves the newly-uncovered
+       portion of background-clip:text unpainted when the clip rail's width
+       changes via JS instead of a CSS transition. */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .home-hero-industry-current {
