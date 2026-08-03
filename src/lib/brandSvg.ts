@@ -8,10 +8,10 @@ const JS_URL = /javascript:/gi;
 
 /** Illustrator / legacy export filenames → root-relative /public assets. */
 const SVG_RASTER_ALIASES: Record<string, string> = {
-  'content-1.png': '/reave-icon-1.png',
-  'content-1.jpg': '/reave-icon-1.png',
-  'content-1.jpeg': '/reave-icon-1.png',
-  'reave-icon-1.png': '/reave-icon-1.png',
+  'content-1.png': '/reave-icon.png',
+  'content-1.jpg': '/reave-icon.png',
+  'content-1.jpeg': '/reave-icon.png',
+  'reave-icon-1.png': '/reave-icon.png',
   'reave-logo-1.png': '/reave-logo-1.png',
 };
 

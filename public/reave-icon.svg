@@ -108,7 +108,7 @@
     </filter>
     <mask id="mask" x="0" y="0" width="512" height="512" maskUnits="userSpaceOnUse">
       <g class="st1">
-        <image width="427" height="264" transform="translate(40 123)" xlink:href="reave-icon-1.png"/>
+        <image width="427" height="264" transform="translate(40 123)" xlink:href="/reave-icon.png"/>
       </g>
     </mask>
     <clipPath id="clippath-4">
