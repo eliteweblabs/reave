@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { SITE } from '../config/site';
-import { sanitizeInlineSvg } from './brandSvg';
+import { sanitizeInlineSvg, resolveSvgAssetUrls } from './brandSvg';
 import { rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from './portalOgImage';
@@ -45,7 +45,7 @@ function pushRaster(
 }
 
 function pushSvg(sources: BrandMarkSource[], raw?: string | null): void {
-  const svg = raw?.trim() ? sanitizeInlineSvg(raw.trim()) : null;
+  const svg = raw?.trim() ? sanitizeInlineSvg(resolveSvgAssetUrls(raw.trim())) : null;
   if (svg) sources.push({ kind: 'svg', svg });
 }
 

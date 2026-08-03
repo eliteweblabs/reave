@@ -6,6 +6,17 @@ const UNSAFE_SVG_PATTERN =
 const EVENT_HANDLER_ATTR = /\s(on[a-z]+|formaction|xlink:href\s*=\s*["']?\s*javascript:)/gi;
 const JS_URL = /javascript:/gi;
 
+/** Rewrite relative raster refs in pasted SVGs to root-absolute /public paths. */
+export function resolveSvgAssetUrls(svg: string): string {
+  return svg.replace(
+    /(\s(?:xlink:)?href\s*=\s*(["']))(?!\/|https?:|#|data:)([^"']+)\2/gi,
+    (_match, prefix: string, _quote: string, href: string) => {
+      const file = href.split('/').pop() ?? href;
+      return `${prefix}/${file}${_quote}`;
+    },
+  );
+}
+
 /** Strip dangerous markup from owner-pasted SVG before inline render. */
 export function sanitizeInlineSvg(raw: string): string | null {
   const trimmed = raw.trim();
@@ -52,7 +63,7 @@ export function prepareInlineBrandSvg(
   raw: string,
   { className, idPrefix = 'brand' }: PrepareInlineBrandSvgOptions = {},
 ): string | null {
-  const sanitized = sanitizeInlineSvg(raw);
+  const sanitized = sanitizeInlineSvg(resolveSvgAssetUrls(raw));
   if (!sanitized) return null;
 
   let svg = prefixSvgIds(sanitized, idPrefix);

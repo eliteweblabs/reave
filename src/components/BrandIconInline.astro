@@ -1,4 +1,6 @@
 ---
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { CompanyConfig } from '../lib/companyConfig';
 import {
   brandIconUrl,
@@ -6,6 +8,7 @@ import {
   companyHeroIconSvg,
 } from '../lib/companyConfig';
 import { prepareInlineBrandSvg } from '../lib/brandSvg';
+import ReaveIconAnimated from './ReaveIconAnimated.astro';
 
 export interface Props {
   company: CompanyConfig;
@@ -13,22 +16,33 @@ export interface Props {
 }
 
 const { company, variant = 'front' } = Astro.props;
-const customSvg = companyHeroIconSvg(company);
 const isGlow = variant === 'glow';
 const className = isGlow
   ? 'home-hero-icon-glow-svg reave-icon-svg'
   : 'home-hero-icon reave-icon-svg';
 const idPrefix = isGlow ? 'hero-icon-glow' : 'hero-icon';
+
+/** Public REΛVE icon SVG — used when admin has not pasted an Icon/Logo SVG. */
+const DEFAULT_HERO_ICON_SVG = readFileSync(
+  path.join(process.cwd(), 'public/reave-icon.svg'),
+  'utf8',
+);
+
+const customSvg = companyHeroIconSvg(company);
+const svgSource = customSvg || DEFAULT_HERO_ICON_SVG;
+const inlineSvg = prepareInlineBrandSvg(svgSource, { className, idPrefix });
 const rasterFallbackUrl = brandIconUrl(512, companyBrandingVersion(company));
-const inlineSvg = customSvg
-  ? prepareInlineBrandSvg(customSvg, { className, idPrefix })
-  : null;
+const useAdminRaster =
+  !inlineSvg &&
+  Boolean(customSvg) &&
+  company.iconSource === 'admin' &&
+  company.iconPath.includes('/api/branding/icon');
 ---
 
 {
   inlineSvg ? (
     <Fragment set:html={inlineSvg} />
-  ) : (
+  ) : useAdminRaster ? (
     <img
       src={rasterFallbackUrl}
       alt=""
@@ -38,5 +52,7 @@ const inlineSvg = customSvg
       decoding="async"
       aria-hidden="true"
     />
+  ) : (
+    <ReaveIconAnimated class={className} idSuffix={isGlow ? 'glow' : 'front'} />
   )
 }
