@@ -3,6 +3,7 @@
  * favicons, PWA icons, OG cards, and avatars. Falls back to the first letter
  * of the company display name when no mark is configured.
  */
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { SITE } from '../config/site';
 import { sanitizeInlineSvg } from './brandSvg';
@@ -202,6 +203,11 @@ export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Pro
     .toBuffer();
 }
 
+/** HTTP ETag values must be ASCII — hash display names that may contain Unicode (e.g. REΛVE). */
+function brandingNameTag(name: string): string {
+  return createHash('sha256').update(name, 'utf8').digest('base64url').slice(0, 12);
+}
+
 export function brandingEtag(
   stored: StoredCompanyConfig | null,
   size: number,
@@ -214,6 +220,6 @@ export function brandingEtag(
     stored?.logoData ? 'l' : '',
     stored?.logoSvg?.trim() ? 'L' : '',
   ].join('');
-  const name = stored?.name ?? '';
-  return `${updated}:${flags}:${name}:${kind}:${size}`;
+  const nameTag = brandingNameTag(stored?.name ?? '');
+  return `${updated}:${flags}:${nameTag}:${kind}:${size}`;
 }

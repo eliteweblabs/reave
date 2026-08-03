@@ -5,7 +5,7 @@ import {
   companyBrandingVersion,
   companyHeroIconSvg,
 } from '../lib/companyConfig';
-import InlineBrandSvg from './InlineBrandSvg.astro';
+import { prepareInlineBrandSvg } from '../lib/brandSvg';
 
 export interface Props {
   company: CompanyConfig;
@@ -20,11 +20,14 @@ const className = isGlow
   : 'home-hero-icon reave-icon-svg';
 const idPrefix = isGlow ? 'hero-icon-glow' : 'hero-icon';
 const rasterFallbackUrl = brandIconUrl(512, companyBrandingVersion(company));
+const inlineSvg = customSvg
+  ? prepareInlineBrandSvg(customSvg, { className, idPrefix })
+  : null;
 ---
 
 {
-  customSvg ? (
-    <InlineBrandSvg svg={customSvg} class={className} idPrefix={idPrefix} />
+  inlineSvg ? (
+    <Fragment set:html={inlineSvg} />
   ) : (
     <img
       src={rasterFallbackUrl}
