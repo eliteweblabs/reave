@@ -9,6 +9,8 @@ import { recordProjectShareView } from '../../../../../../lib/linkTracking';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
 import { isLinkPreviewRequest, isOwnerPreviewRequest, isStaffSession } from '../../../../../../lib/staffSession';
 import { storeReadWork } from '../../../../../../lib/workStore';
+import { checkInMemoryRateLimit } from '../../../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -29,6 +31,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
   if (isStaffSession(locals) || isOwnerPreviewRequest(request) || isLinkPreviewRequest(request)) {
     return json({ ok: true, recorded: false });
+  }
+
+  const rate = checkInMemoryRateLimit(`portal-viewed:${contactUid}:${clientIp(request)}`, {
+    windowMs: 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many requests' }, 429);
   }
 
   let body: Record<string, unknown> = {};

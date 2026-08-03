@@ -48,6 +48,8 @@ import { createLogger } from '../../../lib/logger';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 import { secretMatches } from '../../../lib/secretCompare';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 const log = createLogger('siri-proposal');
 
@@ -95,6 +97,14 @@ async function isAuthenticated(context: APIContext): Promise<boolean> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
+  const rate = checkInMemoryRateLimit(`siri:${clientIp(context.request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 60,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
+  }
+
   if (!(await isAuthenticated(context))) {
     return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or sign in as deployment owner.' }, 401);
   }

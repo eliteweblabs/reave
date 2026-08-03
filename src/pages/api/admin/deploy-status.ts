@@ -1,6 +1,6 @@
 /**
  * GET /api/admin/deploy-status — lightweight deploy snapshot for the topbar indicator.
- * Public (no auth) — dev convenience so deploy state is visible without signing in.
+ * Requires deployment owner session unless DEPLOY_STATUS_PUBLIC=1 (dev convenience).
  */
 
 import type { APIContext } from 'astro';
@@ -10,6 +10,8 @@ import {
   formatDeployDateEastern,
   getDeployStatus,
 } from '../../../lib/deployStatus';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
 
@@ -20,7 +22,12 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export async function GET(_context: APIContext): Promise<Response> {
+export async function GET(context: APIContext): Promise<Response> {
+  if (serverEnv('DEPLOY_STATUS_PUBLIC') !== '1') {
+    const auth = await requireDashboardUser(context);
+    if (auth instanceof Response) return auth;
+  }
+
   const deploy = await getDeployStatus().catch(() => null);
   if (!deploy) {
     return json({ ok: true, deploy: null });
