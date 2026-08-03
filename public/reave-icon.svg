@@ -14,41 +14,80 @@
       <stop offset="45%" stop-color="#4c1d95"/>
       <stop offset="100%" stop-color="#701a75"/>
     </linearGradient>
+
+    <style>
+      .reave-lava-blob {
+        transform-box: fill-box;
+        transform-origin: center;
+        will-change: transform;
+      }
+
+      @keyframes reave-icon-lava-drift-1 {
+        0%, 100% { transform: translate(0px, 0px) scale(1); }
+        25% { transform: translate(70px, -40px) scale(1.14); }
+        50% { transform: translate(-20px, 30px) scale(0.86); }
+        75% { transform: translate(30px, -10px) scale(1.07); }
+      }
+
+      @keyframes reave-icon-lava-drift-2 {
+        0%, 100% { transform: translate(0px, 0px) scale(1); }
+        25% { transform: translate(50px, 50px) scale(1.15); }
+        50% { transform: translate(-30px, -30px) scale(0.88); }
+        75% { transform: translate(20px, 30px) scale(1.08); }
+      }
+
+      @keyframes reave-icon-lava-drift-3 {
+        0%, 100% { transform: translate(0px, 0px) scale(1); }
+        25% { transform: translate(50px, -50px) scale(1.14); }
+        50% { transform: translate(-30px, 20px) scale(0.88); }
+        75% { transform: translate(20px, -20px) scale(1.07); }
+      }
+
+      @keyframes reave-icon-lava-drift-4 {
+        0%, 100% { transform: translate(0px, 0px) scale(1); }
+        25% { transform: translate(50px, 50px) scale(1.16); }
+        50% { transform: translate(-30px, -20px) scale(0.89); }
+        75% { transform: translate(25px, 30px) scale(1.07); }
+      }
+
+      @keyframes reave-icon-lava-drift-5 {
+        0%, 100% { transform: translate(0px, 0px) scale(1); }
+        25% { transform: translate(50px, -50px) scale(1.17); }
+        50% { transform: translate(-30px, 15px) scale(0.89); }
+        75% { transform: translate(25px, -20px) scale(1.09); }
+      }
+
+      .reave-lava-blob-1 { animation: reave-icon-lava-drift-1 24s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+      .reave-lava-blob-2 { animation: reave-icon-lava-drift-2 28s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+      .reave-lava-blob-3 { animation: reave-icon-lava-drift-3 26s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+      .reave-lava-blob-4 { animation: reave-icon-lava-drift-4 22s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+      .reave-lava-blob-5 { animation: reave-icon-lava-drift-5 30s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .reave-lava-blob { animation: none !important; }
+      }
+    </style>
   </defs>
 
   <g clip-path="url(#reave-icon-clip)">
     <rect width="512" height="512" fill="url(#reave-icon-lava-base)"/>
 
     <g filter="url(#reave-icon-lava-blur)">
-      <circle cx="190" cy="240" r="110" fill="#6366f1" opacity="0.48">
-        <animate attributeName="cx" dur="24s" repeatCount="indefinite" values="190;260;170;220;190" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="cy" dur="24s" repeatCount="indefinite" values="240;200;270;230;240" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="r" dur="24s" repeatCount="indefinite" values="110;125;95;118;110" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-      </circle>
-
-      <circle cx="280" cy="210" r="100" fill="#a855f7" opacity="0.42">
-        <animate attributeName="cx" dur="28s" repeatCount="indefinite" values="280;330;250;300;280" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="cy" dur="28s" repeatCount="indefinite" values="210;260;180;240;210" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="r" dur="28s" repeatCount="indefinite" values="100;115;88;108;100" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-      </circle>
-
-      <circle cx="320" cy="290" r="105" fill="#c026d3" opacity="0.4">
-        <animate attributeName="cx" dur="26s" repeatCount="indefinite" values="320;370;290;340;320" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="cy" dur="26s" repeatCount="indefinite" values="290;240;310;270;290" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="r" dur="26s" repeatCount="indefinite" values="105;120;92;112;105" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-      </circle>
-
-      <circle cx="240" cy="180" r="95" fill="#ec4899" opacity="0.36">
-        <animate attributeName="cx" dur="22s" repeatCount="indefinite" values="240;290;210;265;240" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="cy" dur="22s" repeatCount="indefinite" values="180;230;160;210;180" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="r" dur="22s" repeatCount="indefinite" values="95;110;85;102;95" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-      </circle>
-
-      <circle cx="260" cy="320" r="90" fill="#7c3aed" opacity="0.34">
-        <animate attributeName="cx" dur="30s" repeatCount="indefinite" values="260;310;230;285;260" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="cy" dur="30s" repeatCount="indefinite" values="320;270;335;300;320" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        <animate attributeName="r" dur="30s" repeatCount="indefinite" values="90;105;80;98;90" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-      </circle>
+      <g class="reave-lava-blob reave-lava-blob-1">
+        <circle cx="190" cy="240" r="110" fill="#6366f1" opacity="0.48"/>
+      </g>
+      <g class="reave-lava-blob reave-lava-blob-2">
+        <circle cx="280" cy="210" r="100" fill="#a855f7" opacity="0.42"/>
+      </g>
+      <g class="reave-lava-blob reave-lava-blob-3">
+        <circle cx="320" cy="290" r="105" fill="#c026d3" opacity="0.4"/>
+      </g>
+      <g class="reave-lava-blob reave-lava-blob-4">
+        <circle cx="240" cy="180" r="95" fill="#ec4899" opacity="0.36"/>
+      </g>
+      <g class="reave-lava-blob reave-lava-blob-5">
+        <circle cx="260" cy="320" r="90" fill="#7c3aed" opacity="0.34"/>
+      </g>
     </g>
   </g>
 </svg>

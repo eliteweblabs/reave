@@ -1,7 +1,8 @@
 ---
 /**
  * Vector REAVE wordmark — logo silhouette filled with a slow lava-lamp gradient.
- * Letter groups keep the homepage cascade; all share one animated fill pattern.
+ * Letter groups keep the homepage cascade; each clips a shared animated layer.
+ * CSS keyframes (not SMIL) — Chrome does not run SVG SMIL animations.
  */
 
 /** Subpaths for the homepage letter cascade (same geometry, split for animation). */
@@ -37,36 +38,34 @@ const parts = [
       <stop offset="100%" stop-color="#701a75"/>
     </linearGradient>
 
-    <pattern id="header-lava-fill" patternUnits="userSpaceOnUse" width="926.878" height="262.015" x="0" y="0">
+    {
+      parts.map((part) => (
+        <clipPath id={`header-logo-clip-${part.id}`}>
+          <path d={part.d} />
+        </clipPath>
+      ))
+    }
+
+    <g id="header-lava-layer">
       <rect width="926.878" height="262.015" fill="url(#header-lava-base)"/>
       <g filter="url(#header-lava-blur)">
-        <circle cx="173" cy="150" r="150" fill="#6366f1" opacity="0.48">
-          <animate attributeName="cx" dur="24s" repeatCount="indefinite" values="173;269;135;211;173" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="cy" dur="24s" repeatCount="indefinite" values="150;90;170;120;150" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="r" dur="24s" repeatCount="indefinite" values="150;170;130;160;150" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </circle>
-        <circle cx="403" cy="110" r="135" fill="#a855f7" opacity="0.42">
-          <animate attributeName="cx" dur="28s" repeatCount="indefinite" values="403;499;365;441;403" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="cy" dur="28s" repeatCount="indefinite" values="110;170;80;140;110" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="r" dur="28s" repeatCount="indefinite" values="135;155;120;145;135" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </circle>
-        <circle cx="595" cy="155" r="145" fill="#c026d3" opacity="0.4">
-          <animate attributeName="cx" dur="26s" repeatCount="indefinite" values="595;691;557;633;595" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="cy" dur="26s" repeatCount="indefinite" values="155;95;175;130;155" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="r" dur="26s" repeatCount="indefinite" values="145;165;125;150;145" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </circle>
-        <circle cx="787" cy="120" r="130" fill="#ec4899" opacity="0.36">
-          <animate attributeName="cx" dur="22s" repeatCount="indefinite" values="787;863;730;816;787" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="cy" dur="22s" repeatCount="indefinite" values="120;180;90;150;120" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="r" dur="22s" repeatCount="indefinite" values="130;150;115;140;130" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </circle>
-        <circle cx="480" cy="200" r="120" fill="#7c3aed" opacity="0.34">
-          <animate attributeName="cx" dur="30s" repeatCount="indefinite" values="480;556;422;509;480" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="cy" dur="30s" repeatCount="indefinite" values="200;140;210;170;200" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-          <animate attributeName="r" dur="30s" repeatCount="indefinite" values="120;140;105;130;120" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </circle>
+        <g class="header-lava-blob header-lava-blob-1">
+          <circle cx="173" cy="150" r="150" fill="#6366f1" opacity="0.48"/>
+        </g>
+        <g class="header-lava-blob header-lava-blob-2">
+          <circle cx="403" cy="110" r="135" fill="#a855f7" opacity="0.42"/>
+        </g>
+        <g class="header-lava-blob header-lava-blob-3">
+          <circle cx="595" cy="155" r="145" fill="#c026d3" opacity="0.4"/>
+        </g>
+        <g class="header-lava-blob header-lava-blob-4">
+          <circle cx="787" cy="120" r="130" fill="#ec4899" opacity="0.36"/>
+        </g>
+        <g class="header-lava-blob header-lava-blob-5">
+          <circle cx="480" cy="200" r="120" fill="#7c3aed" opacity="0.34"/>
+        </g>
       </g>
-    </pattern>
+    </g>
   </defs>
 
   {
@@ -75,9 +74,63 @@ const parts = [
         class="app-header-logo-part"
         style={`--logo-part-index: ${index}`}
         data-logo-part={part.id}
+        clip-path={`url(#header-logo-clip-${part.id})`}
       >
-        <path d={part.d} fill="url(#header-lava-fill)" />
+        <use href="#header-lava-layer" width="926.878" height="262.015"/>
       </g>
     ))
   }
 </svg>
+
+<style>
+  .header-lava-blob {
+    transform-box: fill-box;
+    transform-origin: center;
+    will-change: transform;
+  }
+
+  @keyframes header-lava-drift-1 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    25% { transform: translate(96px, -60px) scale(1.13); }
+    50% { transform: translate(-38px, 20px) scale(0.87); }
+    75% { transform: translate(38px, -30px) scale(1.07); }
+  }
+
+  @keyframes header-lava-drift-2 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    25% { transform: translate(96px, 60px) scale(1.15); }
+    50% { transform: translate(-38px, -30px) scale(0.89); }
+    75% { transform: translate(38px, 30px) scale(1.07); }
+  }
+
+  @keyframes header-lava-drift-3 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    25% { transform: translate(96px, -60px) scale(1.14); }
+    50% { transform: translate(-38px, 20px) scale(0.86); }
+    75% { transform: translate(38px, -25px) scale(1.03); }
+  }
+
+  @keyframes header-lava-drift-4 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    25% { transform: translate(76px, 60px) scale(1.15); }
+    50% { transform: translate(-57px, -30px) scale(0.88); }
+    75% { transform: translate(29px, 30px) scale(1.08); }
+  }
+
+  @keyframes header-lava-drift-5 {
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    25% { transform: translate(76px, -60px) scale(1.17); }
+    50% { transform: translate(-58px, 10px) scale(0.88); }
+    75% { transform: translate(29px, -30px) scale(1.08); }
+  }
+
+  .header-lava-blob-1 { animation: header-lava-drift-1 24s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+  .header-lava-blob-2 { animation: header-lava-drift-2 28s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+  .header-lava-blob-3 { animation: header-lava-drift-3 26s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+  .header-lava-blob-4 { animation: header-lava-drift-4 22s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+  .header-lava-blob-5 { animation: header-lava-drift-5 30s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header-lava-blob { animation: none !important; }
+  }
+</style>
