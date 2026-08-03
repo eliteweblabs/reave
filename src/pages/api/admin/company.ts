@@ -5,6 +5,7 @@ import {
   resolveCompanyAddressGeo,
   type CompanyConfigInput,
 } from '../../../lib/companyConfig';
+import { sanitizeInlineSvg } from '../../../lib/brandSvg';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
@@ -39,6 +40,19 @@ export async function POST(context: APIContext): Promise<Response> {
     body = await context.request.json();
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
+  }
+
+  if (body.logoSvg !== undefined) {
+    const t = (body.logoSvg ?? '').trim();
+    if (t && !sanitizeInlineSvg(t)) {
+      return json({ error: 'Logo SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
+    }
+  }
+  if (body.iconSvg !== undefined) {
+    const t = (body.iconSvg ?? '').trim();
+    if (t && !sanitizeInlineSvg(t)) {
+      return json({ error: 'Icon SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
+    }
   }
 
   const stored = normalizeCompanyInput(body);

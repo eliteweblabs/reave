@@ -5,7 +5,7 @@ import { isDeploymentOwner } from "../lib/deploymentOwner";
 import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
-import HeaderLogoAnimated from "./HeaderLogoAnimated.astro";
+import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
 import {
   Shield,
@@ -89,13 +89,9 @@ const showHeaderProfile = userId && !showMarketingNav;
     aria-hidden={homepageLogoReveal ? "true" : undefined}
     tabindex={homepageLogoReveal ? -1 : undefined}
   >
-    {homepageLogoReveal ? (
-      <span class="app-header-logo-clip" aria-hidden="true">
-        <HeaderLogoAnimated />
-      </span>
-    ) : (
-      <span class="app-header-logo-mark brand-img logo-img" aria-hidden="true"></span>
-    )}
+    <span class="app-header-logo-clip" aria-hidden="true">
+      <BrandLogoInline company={company} />
+    </span>
   </a>
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
@@ -536,9 +532,8 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 
   /*
-   * Letter silhouette via CSS mask (not SVG clipPath + raster fill).
-   * Illustrator clip-path:url(#…) breaks in iOS WebViews; reave-logo-1.png
-   * is a full rectangle, so a failed clip shows a gradient block.
+   * Legacy PNG mask fallback — header now uses inline SVG (BrandLogoInline).
+   * Kept for reference if a raster-only portal brand is needed later.
    */
   .app-header-logo-mark {
     display: block;

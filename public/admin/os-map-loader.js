@@ -6108,7 +6108,11 @@ function renderCompanyPanel(company, fontCatalog) {
               `</div>` +
             `</div>` +
           `</div>` +
-          `<span class="prof-hint prof-hint--block">Logo: header and homepage. Icon: favicons, install icons, and team comment avatars. PNG, JPEG, or WebP — max 2 MB each.</span>` +
+          `<div class="prof-field"><label for="company-logoSvg">Logo SVG (inline, animated)</label>` +
+          `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the header wordmark. Leave blank for the built-in REAVE animation.">${escHtml(c.logoSvg || '')}</textarea></div>` +
+          `<div class="prof-field"><label for="company-iconSvg">Icon SVG (inline, animated)</label>` +
+          `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the homepage hero icon. Leave blank for the built-in chevron animation.">${escHtml(c.iconSvg || '')}</textarea></div>` +
+          `<span class="prof-hint prof-hint--block">PNG uploads still power favicons, OG images, and emails. Inline SVG overrides the animated header logo and homepage hero icon only.</span>` +
           `<div class="prof-field prof-field--font-heading">` +
             `<div class="prof-font-heading-row">` +
               `<label>Typography</label>` +

@@ -139,6 +139,10 @@ export type CompanyConfig = {
   iconSource: 'admin' | 'default';
   /** Bust browser cache after admin icon changes. */
   iconVersion: string;
+  /** Inline SVG for header wordmark (admin paste or empty = built-in animated default). */
+  logoSvg: string;
+  /** Inline SVG for homepage hero icon (admin paste or empty = built-in animated default). */
+  iconSvg: string;
   /** Vapi assistant UUID — admin setting, env fallback. */
   vapiAssistantId: string;
   /** Spoken greeting template (supports {{companyName}}). */
@@ -382,6 +386,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     socialGoogleBusiness: trim(stored?.socialGoogleBusiness),
     socialHiddenPlatforms: parseHiddenSocialPlatforms(stored?.socialHiddenPlatforms),
     fonts,
+    logoSvg: trim(stored?.logoSvg),
+    iconSvg: trim(stored?.iconSvg),
     ...logo,
     ...icon,
   };
@@ -449,6 +455,10 @@ export type CompanyConfigInput = {
   fontPrimary?: string;
   fontSecondary?: string;
   fontContent?: string;
+  /** Paste full <svg>…</svg> for animated header wordmark. */
+  logoSvg?: string;
+  /** Paste full <svg>…</svg> for animated homepage hero icon. */
+  iconSvg?: string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -509,6 +519,14 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   }
   if (input.fontContent !== undefined) {
     out.fontContent = normalizeBrandFontInput(input.fontContent, 'content');
+  }
+  if (input.logoSvg !== undefined) {
+    const t = input.logoSvg.trim();
+    out.logoSvg = t || null;
+  }
+  if (input.iconSvg !== undefined) {
+    const t = input.iconSvg.trim();
+    out.iconSvg = t || null;
   }
   return out;
 }

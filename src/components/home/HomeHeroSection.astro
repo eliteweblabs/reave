@@ -3,9 +3,8 @@
  * Homepage hero — brand icon, headline, and shuffling industry tagline.
  */
 import { ArrowRight } from "lucide-astro";
-import { BRAND_ICON_SIZES } from "../../lib/brandIconRaster";
-import { brandIconUrl, getCompanyConfig } from "../../lib/companyConfig";
-import { LOGO_ICON_AVATAR_PATH } from "../../lib/companyLogo";
+import BrandIconInline from "../../components/BrandIconInline.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
 import {
   DEFAULT_DECK_INDUSTRIES,
   listEnabledDeckIndustries,
@@ -23,10 +22,6 @@ const startIndex =
     ? Math.floor(Math.random() * industryLabels.length)
     : 0;
 const firstIndustry = industryLabels[startIndex] ?? "your business";
-const heroIconSrc =
-  company.iconSource === "admin"
-    ? brandIconUrl(BRAND_ICON_SIZES.png512, company.iconVersion)
-    : LOGO_ICON_AVATAR_PATH;
 ---
 
 <section
@@ -39,15 +34,7 @@ const heroIconSrc =
 
   <div class="home-hero-inner">
     <div class="home-hero-icon-wrap" data-hero-icon>
-      <img
-        class="home-hero-icon"
-        src={heroIconSrc}
-        alt=""
-        width="512"
-        height="512"
-        decoding="async"
-        fetchpriority="high"
-      />
+      <BrandIconInline company={company} />
     </div>
 
     <div class="home-hero-copy">
@@ -147,7 +134,8 @@ const heroIconSrc =
     transform-origin: center center;
   }
 
-  .home-hero-icon {
+  .home-hero-icon,
+  .home-hero-icon-wrap :global(svg) {
     display: block;
     width: 100%;
     height: 100%;

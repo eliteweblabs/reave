@@ -1,0 +1,14 @@
+---
+import { prepareInlineBrandSvg } from '../lib/brandSvg';
+
+export interface Props {
+  svg: string;
+  class?: string;
+  idPrefix?: string;
+}
+
+const { svg, class: className, idPrefix = 'brand' } = Astro.props;
+const markup = prepareInlineBrandSvg(svg, { className, idPrefix });
+---
+
+{markup ? <Fragment set:html={markup} /> : null}

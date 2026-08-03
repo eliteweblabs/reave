@@ -149,6 +149,13 @@
   color: var(--fg);
   outline: none;
 }
+.prof-field textarea.prof-svg-input {
+  min-height: 10rem;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: max(13px, 0.78rem);
+  line-height: 1.45;
+}
 .prof-field input:focus,
 .prof-field select:focus,
 .prof-field textarea:focus {

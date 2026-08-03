@@ -42,6 +42,10 @@ export type StoredCompanyConfig = {
   iconPath?: string | null;
   iconData?: string | null;
   iconMediaType?: string | null;
+  /** Owner-pasted inline SVG for header wordmark (animated). */
+  logoSvg?: string | null;
+  /** Owner-pasted inline SVG for homepage hero icon (animated). */
+  iconSvg?: string | null;
   vapiAssistantId?: string | null;
   vapiFirstMessage?: string | null;
   vapiSystemPrompt?: string | null;
@@ -99,6 +103,8 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_media_type TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_path TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_media_type TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_svg TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_svg TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_assistant_id TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_first_message TEXT;
@@ -242,6 +248,8 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     iconPath: typeof o.iconPath === 'string' ? o.iconPath.trim() : null,
     iconData: typeof o.iconData === 'string' && o.iconData ? o.iconData : null,
     iconMediaType: typeof o.iconMediaType === 'string' && o.iconMediaType ? o.iconMediaType.trim() : null,
+    logoSvg: typeof o.logoSvg === 'string' && o.logoSvg.trim() ? o.logoSvg : null,
+    iconSvg: typeof o.iconSvg === 'string' && o.iconSvg.trim() ? o.iconSvg : null,
     vapiAssistantId: str('vapiAssistantId') || null,
     vapiFirstMessage: typeof o.vapiFirstMessage === 'string' ? o.vapiFirstMessage : null,
     vapiSystemPrompt: typeof o.vapiSystemPrompt === 'string' ? o.vapiSystemPrompt : null,
@@ -313,6 +321,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     icon_path: string | null;
     icon_data: string | null;
     icon_media_type: string | null;
+    logo_svg: string | null;
+    icon_svg: string | null;
     vapi_assistant_id: string | null;
     vapi_first_message: string | null;
     vapi_system_prompt: string | null;
@@ -350,8 +360,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
-            logo_path, logo_data, logo_media_type,
-            icon_path, icon_data, icon_media_type,
+            logo_path, logo_data, logo_media_type, logo_svg,
+            icon_path, icon_data, icon_media_type, icon_svg,
             vapi_assistant_id, vapi_first_message, vapi_system_prompt,
             social_twitter, social_instagram, social_linkedin, social_facebook,
             social_youtube, social_tiktok, social_bluesky, social_threads, social_pinterest,
@@ -377,6 +387,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     iconPath: row.icon_path,
     iconData: row.icon_data,
     iconMediaType: row.icon_media_type,
+    logoSvg: row.logo_svg,
+    iconSvg: row.icon_svg,
     vapiAssistantId: row.vapi_assistant_id,
     vapiFirstMessage: row.vapi_first_message,
     vapiSystemPrompt: row.vapi_system_prompt,
@@ -436,40 +448,42 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        icon_path = $11,
        icon_data = $12,
        icon_media_type = $13,
-       vapi_assistant_id = $14,
-       vapi_first_message = $15,
-       vapi_system_prompt = $16,
-       social_twitter = $17,
-       social_instagram = $18,
-       social_linkedin = $19,
-       social_facebook = $20,
-       social_youtube = $21,
-       social_tiktok = $22,
-       social_bluesky = $23,
-       social_threads = $24,
-       social_pinterest = $25,
-       social_snapchat = $26,
-       social_discord = $27,
-       social_reddit = $28,
-       social_github = $29,
-       social_twitch = $30,
-       social_telegram = $31,
-       social_whatsapp = $32,
-       social_substack = $33,
-       social_yelp = $34,
-       social_google_business = $35,
-       social_hidden_platforms = $36,
-       address = $37,
-       geo_lat = $38,
-       geo_lng = $39,
-       geo_place_id = $40,
-       geo_geocoded_at = $41,
-       font_display = $42,
-       font_body = $43,
-       font_primary = $44,
-       font_secondary = $45,
-       font_content = $46,
-       font_google_specs = $47,
+       logo_svg = $14,
+       icon_svg = $15,
+       vapi_assistant_id = $16,
+       vapi_first_message = $17,
+       vapi_system_prompt = $18,
+       social_twitter = $19,
+       social_instagram = $20,
+       social_linkedin = $21,
+       social_facebook = $22,
+       social_youtube = $23,
+       social_tiktok = $24,
+       social_bluesky = $25,
+       social_threads = $26,
+       social_pinterest = $27,
+       social_snapchat = $28,
+       social_discord = $29,
+       social_reddit = $30,
+       social_github = $31,
+       social_twitch = $32,
+       social_telegram = $33,
+       social_whatsapp = $34,
+       social_substack = $35,
+       social_yelp = $36,
+       social_google_business = $37,
+       social_hidden_platforms = $38,
+       address = $39,
+       geo_lat = $40,
+       geo_lng = $41,
+       geo_place_id = $42,
+       geo_geocoded_at = $43,
+       font_display = $44,
+       font_body = $45,
+       font_primary = $46,
+       font_secondary = $47,
+       font_content = $48,
+       font_google_specs = $49,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -486,6 +500,8 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.iconPath ?? null,
       config.iconData ?? null,
       config.iconMediaType ?? null,
+      config.logoSvg ?? null,
+      config.iconSvg ?? null,
       config.vapiAssistantId ?? null,
       config.vapiFirstMessage ?? null,
       config.vapiSystemPrompt ?? null,

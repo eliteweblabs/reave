@@ -1,0 +1,24 @@
+---
+import type { CompanyConfig } from '../lib/companyConfig';
+import HeaderLogoAnimated from './HeaderLogoAnimated.astro';
+import InlineBrandSvg from './InlineBrandSvg.astro';
+
+export interface Props {
+  company: CompanyConfig;
+}
+
+const { company } = Astro.props;
+const customSvg = company.logoSvg?.trim() ?? '';
+---
+
+{
+  customSvg ? (
+    <InlineBrandSvg
+      svg={customSvg}
+      class="app-header-logo-svg brand-img logo-img app-header-logo-svg--animated"
+      idPrefix="header-logo"
+    />
+  ) : (
+    <HeaderLogoAnimated />
+  )
+}

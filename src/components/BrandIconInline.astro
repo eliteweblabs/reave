@@ -1,0 +1,20 @@
+---
+import type { CompanyConfig } from '../lib/companyConfig';
+import InlineBrandSvg from './InlineBrandSvg.astro';
+import ReaveIconAnimated from './ReaveIconAnimated.astro';
+
+export interface Props {
+  company: CompanyConfig;
+}
+
+const { company } = Astro.props;
+const customSvg = company.iconSvg?.trim() ?? '';
+---
+
+{
+  customSvg ? (
+    <InlineBrandSvg svg={customSvg} class="home-hero-icon reave-icon-svg" idPrefix="hero-icon" />
+  ) : (
+    <ReaveIconAnimated />
+  )
+}
