@@ -1,5 +1,15 @@
 ---
 /** Default animated REAVE chevron — inline for hero / favicon-adjacent UI. */
+export interface Props {
+  class?: string;
+  /** Suffix for SVG defs ids when multiple icons share a page. */
+  idSuffix?: string;
+}
+
+const { class: className = 'reave-icon-svg home-hero-icon', idSuffix = 'default' } = Astro.props;
+const clipId = `reave-icon-clip-${idSuffix}`;
+const blurId = `reave-icon-lava-blur-${idSuffix}`;
+const baseId = `reave-icon-lava-base-${idSuffix}`;
 ---
 
 <svg
@@ -7,27 +17,27 @@
   width="512"
   height="512"
   viewBox="0 0 512 512"
-  class="reave-icon-svg home-hero-icon"
+  class={className}
   aria-hidden="true"
   focusable="false"
 >
   <defs>
-    <clipPath id="reave-icon-clip-default">
+    <clipPath id={clipId}>
       <path d="M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051Z"/>
     </clipPath>
-    <filter id="reave-icon-lava-blur-default" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+    <filter id={blurId} x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="28"/>
     </filter>
-    <linearGradient id="reave-icon-lava-base-default" x1="64" y1="448" x2="448" y2="64" gradientUnits="userSpaceOnUse">
+    <linearGradient id={baseId} x1="64" y1="448" x2="448" y2="64" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#6366f1"/>
       <stop offset="52%" stop-color="#c026d3"/>
       <stop offset="100%" stop-color="#f472b6"/>
     </linearGradient>
   </defs>
 
-  <g clip-path="url(#reave-icon-clip-default)">
-    <rect width="512" height="512" fill="url(#reave-icon-lava-base-default)"/>
-    <g filter="url(#reave-icon-lava-blur-default)">
+  <g clip-path={`url(#${clipId})`}>
+    <rect width="512" height="512" fill={`url(#${baseId})`} />
+    <g filter={`url(#${blurId})`}>
       <g class="reave-lava-blob reave-lava-blob-1">
         <circle cx="190" cy="240" r="110" fill="#a855f7" opacity="0.58"/>
       </g>

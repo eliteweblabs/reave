@@ -5,16 +5,22 @@ import ReaveIconAnimated from './ReaveIconAnimated.astro';
 
 export interface Props {
   company: CompanyConfig;
+  variant?: 'front' | 'glow';
 }
 
-const { company } = Astro.props;
+const { company, variant = 'front' } = Astro.props;
 const customSvg = company.iconSvg?.trim() ?? '';
+const isGlow = variant === 'glow';
+const className = isGlow
+  ? 'home-hero-icon-glow-svg reave-icon-svg'
+  : 'home-hero-icon reave-icon-svg';
+const idPrefix = isGlow ? 'hero-icon-glow' : 'hero-icon';
 ---
 
 {
   customSvg ? (
-    <InlineBrandSvg svg={customSvg} class="home-hero-icon reave-icon-svg" idPrefix="hero-icon" />
+    <InlineBrandSvg svg={customSvg} class={className} idPrefix={idPrefix} />
   ) : (
-    <ReaveIconAnimated />
+    <ReaveIconAnimated class={className} idSuffix={isGlow ? 'glow' : 'front'} />
   )
 }

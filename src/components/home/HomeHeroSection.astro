@@ -36,8 +36,12 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
 
   <div class="home-hero-inner">
     <div class="home-hero-icon-wrap" data-hero-icon>
-      <div class="home-hero-icon-glow" data-hero-icon-glow aria-hidden="true"></div>
-      <BrandIconInline company={company} />
+      <div class="home-hero-icon-glow-layer" aria-hidden="true">
+        <BrandIconInline company={company} variant="glow" />
+      </div>
+      <div class="home-hero-icon-front">
+        <BrandIconInline company={company} variant="front" />
+      </div>
     </div>
 
     <div class="home-hero-copy">
@@ -86,7 +90,6 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
 <script>
   import "../../lib/heroIndustryRotate.ts";
   import "../../lib/heroIconScroll.ts";
-  import "../../lib/heroIconGlow.ts";
 </script>
 
 <style>
@@ -146,52 +149,67 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     touch-action: manipulation;
   }
 
-  .home-hero-icon-glow {
+  .home-hero-icon-glow-layer {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    inset: 0;
     z-index: 0;
-    width: 118%;
-    height: 118%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
-    opacity: 0;
-    transform: translate(calc(-50% + var(--glow-x, 0px)), calc(-50% + var(--glow-y, 0px)));
-    transition: opacity 0.45s ease;
-    background:
-      radial-gradient(
-        circle at 50% 50%,
-        rgba(244, 114, 182, 0.72) 0%,
-        rgba(217, 70, 239, 0.5) 22%,
-        rgba(192, 38, 211, 0.38) 38%,
-        rgba(99, 102, 241, 0.28) 58%,
-        transparent 72%
-      ),
-      conic-gradient(
-        from var(--glow-angle, 120deg) at 50% 50%,
-        rgba(99, 102, 241, 0.55) 0deg,
-        rgba(168, 85, 247, 0.5) 72deg,
-        rgba(192, 38, 211, 0.58) 144deg,
-        rgba(244, 114, 182, 0.62) 216deg,
-        rgba(236, 72, 153, 0.52) 288deg,
-        rgba(99, 102, 241, 0.55) 360deg
-      );
-    filter: blur(34px) saturate(1.35);
-    will-change: transform, opacity;
   }
 
-  .home-hero-icon-wrap--glow-active .home-hero-icon-glow {
-    opacity: 0.92;
+  .home-hero-icon-glow-layer :global(svg),
+  .home-hero-icon-glow-svg {
+    display: block;
+    width: 105.3%;
+    height: 105.3%;
+    object-fit: contain;
+    filter:
+      blur(10px)
+      saturate(1.45)
+      brightness(1.15)
+      drop-shadow(0 0 28px rgba(192, 38, 211, 0.55))
+      drop-shadow(0 0 48px rgba(244, 114, 182, 0.35));
+    animation: home-hero-icon-glow-pulse 3.6s ease-in-out infinite;
+    will-change: filter, opacity;
   }
 
-  .home-hero-icon-wrap--glow-pulse .home-hero-icon-glow {
-    opacity: 1;
-    filter: blur(38px) saturate(1.55);
+  @keyframes home-hero-icon-glow-pulse {
+    0%,
+    100% {
+      filter:
+        blur(8px)
+        saturate(1.3)
+        brightness(1.08)
+        drop-shadow(0 0 22px rgba(192, 38, 211, 0.45))
+        drop-shadow(0 0 38px rgba(244, 114, 182, 0.28));
+      opacity: 0.82;
+    }
+
+    50% {
+      filter:
+        blur(14px)
+        saturate(1.6)
+        brightness(1.22)
+        drop-shadow(0 0 36px rgba(192, 38, 211, 0.68))
+        drop-shadow(0 0 58px rgba(244, 114, 182, 0.42));
+      opacity: 1;
+    }
+  }
+
+  .home-hero-icon-front {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
   }
 
   .home-hero-icon,
-  .home-hero-icon-wrap :global(svg) {
-    position: relative;
-    z-index: 1;
+  .home-hero-icon-front :global(svg) {
     display: block;
     width: 100%;
     height: 100%;
@@ -331,10 +349,15 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
       will-change: auto;
     }
 
-    .home-hero-icon-glow {
-      opacity: 0.45;
-      transform: translate(-50%, -50%);
-      filter: blur(28px) saturate(1.1);
+    .home-hero-icon-glow-layer :global(svg),
+    .home-hero-icon-glow-svg {
+      animation: none;
+      opacity: 0.7;
+      filter:
+        blur(8px)
+        saturate(1.2)
+        brightness(1.05)
+        drop-shadow(0 0 24px rgba(192, 38, 211, 0.4));
     }
   }
 </style>
