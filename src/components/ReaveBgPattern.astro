@@ -1,0 +1,21 @@
+---
+/**
+ * Tiled REΛVE chevron background pattern.
+ * Always scales uniformly — override --reave-bg-pattern-tile (one length) only.
+ */
+interface Props {
+  class?: string;
+  /** Uniform tile size, e.g. "512px" or "clamp(280px, 36vw, 512px)". */
+  tileSize?: string;
+  opacity?: number;
+}
+
+const { class: className = '', tileSize, opacity } = Astro.props;
+
+const styleParts: string[] = [];
+if (tileSize) styleParts.push(`--reave-bg-pattern-tile: ${tileSize}`);
+if (opacity != null) styleParts.push(`opacity: ${opacity}`);
+const style = styleParts.length > 0 ? styleParts.join('; ') : undefined;
+---
+
+<div class:list={['reave-bg-pattern', className]} aria-hidden="true" style={style}></div>

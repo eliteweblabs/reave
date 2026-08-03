@@ -28,6 +28,24 @@
     0 0 0 1px rgba(255, 255, 255, 0.4);
   --create-fab-bg: var(--brand-gradient);
   --create-fab-shadow: var(--brand-gradient-shadow);
+  /** Native SVG artboard — one value scales the tile uniformly (never stretch x/y separately). */
+  --reave-bg-pattern-url: url("/reave-bg-pattern.svg");
+  --reave-bg-pattern-tile: 512px;
+}
+
+/**
+ * Tiled brand chevron pattern overlay. Use ReaveBgPattern.astro or class="reave-bg-pattern".
+ * Scale with --reave-bg-pattern-tile only (same value for both axes).
+ */
+.reave-bg-pattern {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--reave-bg-pattern-url);
+  background-repeat: repeat;
+  background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
+  background-position: center;
 }
 
 @media (prefers-color-scheme: dark) {

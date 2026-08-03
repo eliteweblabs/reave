@@ -4,6 +4,7 @@
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
+import ReaveBgPattern from "../../components/ReaveBgPattern.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import {
   DEFAULT_DECK_INDUSTRIES,
@@ -31,6 +32,7 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
   aria-labelledby="home-hero-title"
 >
   <div class="home-hero-mesh" aria-hidden="true"></div>
+  <ReaveBgPattern class="home-hero-pattern" tileSize="clamp(300px, 42vw, 512px)" opacity={0.085} />
 
   <div class="home-hero-inner">
     <div class="home-hero-icon-wrap" data-hero-icon>
@@ -112,6 +114,11 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
       radial-gradient(ellipse 80% 55% at 15% 20%, rgba(244, 114, 182, 0.2) 0%, transparent 62%),
       radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
       radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
+  }
+
+  .home-hero-pattern {
+    z-index: 1;
+    mix-blend-mode: soft-light;
   }
 
   .home-hero-inner {
