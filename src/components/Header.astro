@@ -98,17 +98,19 @@ const showHeaderProfile = userId && !showMarketingNav;
   )}
 
   <div class="app-header-end topbar-end">
-    <DeployStatusDot />
     {showHeaderSignIn && (
-      <button
-        type="button"
-        class="app-header-signin"
-        data-ios-sheet-open="sign-in-sheet"
-        aria-label="Sign in"
-        title="Sign in"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-      </button>
+      <div class="topbar-auth-cluster">
+        <DeployStatusDot />
+        <button
+          type="button"
+          class="app-header-signin"
+          data-ios-sheet-open="sign-in-sheet"
+          aria-label="Sign in"
+          title="Sign in"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </button>
+      </div>
     )}
 
     {showHeaderProfile && (adminShell ? (
@@ -124,6 +126,7 @@ const showHeaderProfile = userId && !showMarketingNav;
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
           </button>
           <div class="topbar-profile-cluster">
+            <DeployStatusDot />
             <div class="app-header-menu topbar-menu topbar-profile-menu">
               <button
                 type="button"
@@ -164,6 +167,7 @@ const showHeaderProfile = userId && !showMarketingNav;
         </>
       ) : showHomeAdminEntry ? (
         <div class="topbar-profile-cluster">
+          <DeployStatusDot />
           <div class="topbar-profile-hit">
             <a
               href="/admin/?tab=home"
@@ -185,6 +189,7 @@ const showHeaderProfile = userId && !showMarketingNav;
         </div>
       ) : (
         <div class="topbar-profile-cluster">
+          <DeployStatusDot />
           <div class="app-header-menu topbar-menu topbar-profile-menu">
           <button
             type="button"
@@ -235,6 +240,8 @@ const showHeaderProfile = userId && !showMarketingNav;
         </div>
         </div>
       ))}
+
+    {!showHeaderSignIn && !showHeaderProfile && <DeployStatusDot />}
   </div>
 
   {adminShell && (
@@ -589,9 +596,23 @@ const showHeaderProfile = userId && !showMarketingNav;
     align-items: center;
     flex-wrap: nowrap;
     gap: 0.35rem;
+    flex: 0 0 auto;
+    width: auto;
     flex-shrink: 0;
     margin-left: auto;
     overflow: visible;
+  }
+
+  .app-header-row:has(.marketing-nav) .topbar-end {
+    margin-left: 0;
+  }
+
+  .topbar-auth-cluster {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex: 0 0 auto;
+    flex-shrink: 0;
   }
 
   .app-header-signin {
@@ -762,7 +783,7 @@ const showHeaderProfile = userId && !showMarketingNav;
     position: relative;
     width: 9px;
     height: 9px;
-    margin-right: 2px;
+    margin-right: 0;
     padding: 0;
     border: none;
     border-radius: 50%;
