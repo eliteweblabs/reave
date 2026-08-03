@@ -34,16 +34,16 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
   <div class="home-hero-mesh" aria-hidden="true"></div>
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
-  <div class="home-hero-inner">
-    <div class="home-hero-icon-wrap" data-hero-icon>
-      <div class="home-hero-icon-glow-layer" aria-hidden="true">
-        <BrandIconInline company={company} variant="glow" />
-      </div>
-      <div class="home-hero-icon-front">
-        <BrandIconInline company={company} variant="front" />
-      </div>
+  <div class="home-hero-icon-wrap" data-hero-icon>
+    <div class="home-hero-icon-glow-layer" aria-hidden="true">
+      <BrandIconInline company={company} variant="glow" />
     </div>
+    <div class="home-hero-icon-front">
+      <BrandIconInline company={company} variant="front" />
+    </div>
+  </div>
 
+  <div class="home-hero-inner">
     <div class="home-hero-copy">
       <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
       <p class="home-hero-tagline">
@@ -99,10 +99,6 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     width: 100%;
     min-height: 100vh;
     min-height: 100svh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 24px) 20px 64px;
     scroll-margin-top: 0;
     overflow: hidden;
@@ -153,25 +149,37 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
   }
 
   .home-hero-inner {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 720px;
+    position: absolute;
+    z-index: 2;
+    left: 50%;
+    top: calc(50% + clamp(90px, 17.5vw, 140px) + 28px);
+    transform: translateX(-50%);
+    width: min(100%, 720px);
+    padding: 0 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 28px;
+    gap: 18px;
     text-align: center;
+    pointer-events: none;
+  }
+
+  .home-hero-inner :is(a, button) {
+    pointer-events: auto;
   }
 
   .home-hero-icon-wrap {
-    position: relative;
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    top: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     width: clamp(180px, 35vw, 280px);
     height: clamp(180px, 35vw, 280px);
     will-change: transform, opacity;
+    transform: translate(-50%, -50%);
     transform-origin: center center;
     isolation: isolate;
     touch-action: manipulation;

@@ -23,7 +23,7 @@ export function initHeroIconScroll() {
     const scale = 1 - progress * 0.18;
     const opacity = 1 - progress * 0.35;
 
-    iconWrap.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
+    iconWrap.style.transform = `translate(-50%, calc(-50% + ${translateY}px)) scale(${scale})`;
     iconWrap.style.opacity = String(opacity);
   };
 
