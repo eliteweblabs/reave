@@ -1,4 +1,4 @@
-const SECTION_IDS = ["home", "addons", "services", "portfolio", "contact"] as const;
+const SECTION_IDS = ["home", "addons", "contact"] as const;
 export type HomepageSectionId = (typeof SECTION_IDS)[number];
 
 export function isHomepageSectionId(value: string): value is HomepageSectionId {

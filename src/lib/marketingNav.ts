@@ -32,8 +32,8 @@ export const MARKETING_NAV_GROUPS: MarketingNavGroup[] = [
     label: "Company",
     links: [
       { href: "/about", label: "About" },
-      { href: "/#services", label: "Services" },
-      { href: "/#portfolio", label: "Portfolio" },
+      { href: "/services", label: "Services" },
+      { href: "/about#portfolio", label: "Portfolio" },
       { href: "/#contact", label: "Contact" },
     ],
   },
@@ -46,6 +46,7 @@ export function isMarketingPagePath(pathname: string): boolean {
     path === "/features" ||
     path === "/demo" ||
     path === "/about" ||
+    path === "/services" ||
     path === "/privacy" ||
     path === "/terms" ||
     path.startsWith("/form/")

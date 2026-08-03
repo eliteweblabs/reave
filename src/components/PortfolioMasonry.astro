@@ -24,7 +24,7 @@ import dpmConstructionFeatured from "../assets/images/portfolio/dpm-construction
 import carePlusMark from "../assets/images/portfolio/care-plus-mark.jpg";
 import levinesLawFeatured from "../assets/images/portfolio/levines-law-featured.jpg";
 
-type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "3x2";
+type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "3x2" | "4x1";
 
 interface PortfolioItem {
   title: string;
@@ -40,8 +40,8 @@ const items: PortfolioItem[] = [
   {
     title: "M-Dot",
     description:
-      "Boston hip-hop artist hub — fullscreen album slideshow, bottom dock nav, and swipe-up drawers linking Spotify, Bandcamp, tour dates, and socials.",
-    tags: ["Web Design", "Music", "Artist Site"],
+      "Boston-born East Coast hip-hop artist and producer — a lyric-first MC with two decades in the underground, collaborations with Pete Rock, DJ Premier, and Method Man, 17 European tours, and placements on NBC, STARZ, and Def Jam. REΛVE built his digital home base to match that pedigree.",
+    tags: ["Web Design", "Music", "Artist Brand"],
     image: mdotWorldFeatured,
     imageAlt: "M-Dot portrait splash page with bottom music and social dock on black",
     size: "2x1",
@@ -50,12 +50,12 @@ const items: PortfolioItem[] = [
   {
     title: "Mohegan Sun",
     description:
-      "Casino-floor exotic car display — scissor-door Lamborghini staging, directional signage, and polished event production for a major resort partner.",
+      "One of the largest casino-resort destinations in the U.S. — owned by the Mohegan Tribe, with twin casinos, 1,500+ rooms, a 10,000-seat arena, and world-class dining and entertainment. REΛVE supported experiential marketing and on-property event production for this flagship New England partner.",
     tags: ["Events", "Marketing", "Experiential"],
     image: moheganSunFeatured,
     imageAlt:
       "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
-    size: "2x2",
+    size: "4x1",
   },
   {
     title: "Porsche Miami Art Week",
@@ -68,10 +68,10 @@ const items: PortfolioItem[] = [
     size: "2x1",
   },
   {
-    title: "VIP Perks Marker Security",
+    title: "VIP Perks · Marker Security",
     description:
-      "Punk in Drublic festival production — stage lighting, branded vertical banners, crowd barricades, and on-site security coordination.",
-    tags: ["Events", "Music", "Production"],
+      "Markers Protection Services — a Worcester-based event security firm staffing concerts and festivals across New England since 2000. REΛVE consulted on logistics, design, branding, and app development.",
+    tags: ["Consulting", "Branding", "App Development"],
     image: vipPerksFeatured,
     imageAlt:
       "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
@@ -88,10 +88,10 @@ const items: PortfolioItem[] = [
     button: { label: "View project", href: "/#contact" },
   },
   {
-    title: "CREED",
+    title: "Creed Lounge",
     description:
-      "Nightlife venue marketing with neon signage photography, social hooks, and event-hour callouts.",
-    tags: ["Venue", "Marketing", "Photography"],
+      "Worcester's premier multicultural hookah lounge — late-night cocktails, live music, and a cross-cultural nightlife destination on Pleasant Street. REΛVE developed the venue's brand identity and marketing presence from the ground up.",
+    tags: ["Branding", "Identity", "Nightlife"],
     image: creedFeatured,
     imageAlt: "CREED hookah lounge sign against a glass skyscraper at dusk",
     size: "2x2",
@@ -99,8 +99,8 @@ const items: PortfolioItem[] = [
   {
     title: "Air Race 21",
     description:
-      "Race-day livery and event graphics — ornate linework over aviation photography for a national air series.",
-    tags: ["Branding", "Events", "Aviation"],
+      "Reno Jet Racing Team in the Jet Class at the National Championship Air Races — the world's fastest motorsport, where modified L-39 Albatros jets exceed 500 mph on a closed pylon course. REΛVE developed race-day livery and event graphics for the #21 team.",
+    tags: ["Branding", "Aviation", "Events"],
     image: arFeatured,
     imageAlt: "Red racing jet with Air Race 21 decorative graphic overlay",
     size: "2x1",
@@ -169,13 +169,13 @@ const items: PortfolioItem[] = [
     size: "1x1",
   },
   {
-    title: "Angler Fish Aquatics",
+    title: "Anglerfish Aquatics",
     description:
-      "Illustrative wordmark — ANGLERFISH letterforms shape the fish silhouette, lure, and teeth with script Aquatics beneath.",
-    tags: ["Logo", "Branding", "Aquatics"],
+      "Rhode Island USA Swimming club in Cumberland — learn-to-swim, competitive team, and triathlon training for all ages, with Olympic medalist Erik Vendt on staff. REΛVE designed the team's distinctive wordmark identity.",
+    tags: ["Logo", "Branding", "Sports"],
     image: anglerFishFeatured,
     imageAlt:
-      "Angler Fish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
+      "Anglerfish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
     size: "2x1",
   },
   {
@@ -324,6 +324,11 @@ const items: PortfolioItem[] = [
   .masonry-item--3x2 {
     grid-column: span 3;
     grid-row: span 2;
+  }
+
+  .masonry-item--4x1 {
+    grid-column: span 4;
+    grid-row: span 1;
   }
 
   .masonry-card {
@@ -505,6 +510,11 @@ const items: PortfolioItem[] = [
       grid-row: span 2;
     }
 
+    .masonry-item--4x1 {
+      grid-column: span 4;
+      grid-row: span 1;
+    }
+
     .masonry-item--2x2 {
       grid-column: span 2;
       grid-row: span 2;
@@ -535,6 +545,7 @@ const items: PortfolioItem[] = [
     }
 
     .masonry-item--3x2,
+    .masonry-item--4x1,
     .masonry-item--2x2,
     .masonry-item--2x1 {
       grid-column: span 2;

@@ -1,0 +1,43 @@
+---
+import Layout from "../layouts/Layout.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import HomeServicesSection from "../components/home/HomeServicesSection.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
+import "../styles/marketing-sections.css";
+
+const company = await getCompanyConfig(Astro.request);
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+---
+
+<Layout
+  title="Services"
+  description={`${company.name} — digital consulting, custom development, WordPress, full-stack branding, managed hosting, and one-on-one training.`}
+>
+  <div class="services-page">
+    <HomeServicesSection standalone />
+  </div>
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+      />
+    )
+  }
+</Layout>
+
+<style>
+  .services-page {
+    min-height: 100vh;
+    padding: calc(
+        var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
+          40px
+      )
+      0 96px;
+  }
+</style>

@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
+import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
@@ -69,6 +70,8 @@ const showSiteAssistant =
         <TestimonialsCarousel />
       </div>
     </section>
+
+    <HomePortfolioSection />
 
     <section class="about-block" aria-labelledby="about-story-title">
       <h2 id="about-story-title">What we do today</h2>
@@ -250,5 +253,10 @@ const showSiteAssistant =
 
   .about-closing .about-cta-row {
     justify-content: center;
+  }
+
+  .about-portfolio {
+    width: 100%;
+    margin-bottom: 56px;
   }
 </style>

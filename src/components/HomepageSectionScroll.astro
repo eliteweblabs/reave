@@ -55,6 +55,12 @@
           return;
         }
 
+        if (href === "#services" || href === "/#services") {
+          event.preventDefault();
+          window.location.href = "/services";
+          return;
+        }
+
         const id = sectionIdFromHref(href);
         if (!id) return;
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -84,6 +90,10 @@
     const fromHash = location.hash.replace(/^#/, "");
     if (fromQuery === "about" || fromHash === "about") {
       window.location.replace("/about");
+      return;
+    }
+    if (fromQuery === "services" || fromHash === "services") {
+      window.location.replace("/services");
       return;
     }
     const target = (fromQuery || fromHash) as HomepageSectionId;
