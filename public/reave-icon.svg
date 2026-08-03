@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+  <defs>
+    <clipPath id="reave-icon-clip">
+      <path d="M179.749,160.752c-3.759-.743-11.442,13.905-14.994,19.773-24.838,42.467-57.483,98.429-82.3,140.849-6.165,10.622-10.895,18.355-12.719,23.11-2.512,6.544,1.266,7.366,7.31,7.917,48.21.922,142.621.019,191.051.331,4.922.006,10.559-.041,14.794-.365,6.122-.553,9.592-1.73,6.641-8.577-25.921-47.332-65.253-111.889-92.855-160.032-4.06-6.567-12.873-23.866-16.884-23.006h-.044ZM331.69,351.939c3.759.743,11.442-13.905,14.994-19.773,24.838-42.467,57.483-98.429,82.3-140.849,6.165-10.622,10.895-18.355,12.719-23.11,2.512-6.544-1.266-7.366-7.31-7.917-48.21-.922-142.621-.019-191.051-.331-4.922-.006-10.559.041-14.794.365-6.122.553-9.592,1.73-6.641,8.577,25.921,47.332,65.253,111.889,92.855,160.032,4.06,6.567,12.873,23.866,16.884,23.006h.044Z"/>
+    </clipPath>
+
+    <filter id="reave-icon-lava-blur" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="32"/>
+    </filter>
+
+    <linearGradient id="reave-icon-lava-base" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="45%" stop-color="#4c1d95"/>
+      <stop offset="100%" stop-color="#701a75"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#reave-icon-clip)">
+    <rect width="512" height="512" fill="url(#reave-icon-lava-base)"/>
+
+    <g filter="url(#reave-icon-lava-blur)">
+      <circle cx="190" cy="240" r="110" fill="#6366f1" opacity="0.48">
+        <animate attributeName="cx" dur="24s" repeatCount="indefinite" values="190;260;170;220;190" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="cy" dur="24s" repeatCount="indefinite" values="240;200;270;230;240" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="r" dur="24s" repeatCount="indefinite" values="110;125;95;118;110" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+      </circle>
+
+      <circle cx="280" cy="210" r="100" fill="#a855f7" opacity="0.42">
+        <animate attributeName="cx" dur="28s" repeatCount="indefinite" values="280;330;250;300;280" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="cy" dur="28s" repeatCount="indefinite" values="210;260;180;240;210" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="r" dur="28s" repeatCount="indefinite" values="100;115;88;108;100" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+      </circle>
+
+      <circle cx="320" cy="290" r="105" fill="#c026d3" opacity="0.4">
+        <animate attributeName="cx" dur="26s" repeatCount="indefinite" values="320;370;290;340;320" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="cy" dur="26s" repeatCount="indefinite" values="290;240;310;270;290" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="r" dur="26s" repeatCount="indefinite" values="105;120;92;112;105" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+      </circle>
+
+      <circle cx="240" cy="180" r="95" fill="#ec4899" opacity="0.36">
+        <animate attributeName="cx" dur="22s" repeatCount="indefinite" values="240;290;210;265;240" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="cy" dur="22s" repeatCount="indefinite" values="180;230;160;210;180" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="r" dur="22s" repeatCount="indefinite" values="95;110;85;102;95" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+      </circle>
+
+      <circle cx="260" cy="320" r="90" fill="#7c3aed" opacity="0.34">
+        <animate attributeName="cx" dur="30s" repeatCount="indefinite" values="260;310;230;285;260" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="cy" dur="30s" repeatCount="indefinite" values="320;270;335;300;320" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+        <animate attributeName="r" dur="30s" repeatCount="indefinite" values="90;105;80;98;90" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"/>
+      </circle>
+    </g>
+  </g>
+</svg>
