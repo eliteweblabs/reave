@@ -96,7 +96,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260802c';
-import { showAdminConfirmBanner } from './push-client.js?v=20260803a';
+import { showAdminConfirmBanner, installPwaNavGuard } from './push-client.js?v=20260804a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
@@ -12380,6 +12380,7 @@ async function boot() {
   syncCanvasVisibility();
   activateMapPanel();
   syncAdminTabUrl(activeKey);
+  installPwaNavGuard();
   syncHealthLifecycle();
   syncEmailPoll();
   syncInboxBadgePoll();

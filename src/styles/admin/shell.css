@@ -10,7 +10,27 @@ html, body {
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  overscroll-behavior-x: none;
   background: var(--bg);
+}
+
+/* Installed PWA — stop trackpad back/forward chaining from scroll edges. */
+html.pwa-standalone :is(
+  .ch-list,
+  .ch-messages,
+  .de-list,
+  .em-detail,
+  .search-overlay-results,
+  .re-form-scroll,
+  .de-sc-dir-body,
+  .home-dashboard-scroll,
+  .profile-panel-scroll,
+  .schedule-panel-scroll,
+  .em-list,
+  .aui-viewport,
+  #tabs-scroll
+) {
+  overscroll-behavior-x: none;
 }
 html {
   -webkit-text-size-adjust: 100%;

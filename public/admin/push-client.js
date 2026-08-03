@@ -55,6 +55,94 @@ export function isAdminSpa() {
   return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 }
 
+const PWA_NAV_GUARD_KEY = 'reave-pwa-nav-guard';
+const PWA_WHEEL_SLOP_PX = 8;
+let pwaNavGuardCleanup = null;
+
+function isHorizontalScrollContainer(el) {
+  if (!(el instanceof Element)) return false;
+  const ox = getComputedStyle(el).overflowX;
+  return ox === 'auto' || ox === 'scroll' || ox === 'overlay';
+}
+
+/** True when a nested overflow-x region can still absorb this horizontal wheel delta. */
+function canConsumeHorizontalWheel(target, deltaX) {
+  let node = target instanceof Element ? target : null;
+  while (node && node !== document.documentElement) {
+    if (isHorizontalScrollContainer(node)) {
+      const max = node.scrollWidth - node.clientWidth;
+      if (max > 1) {
+        const sl = node.scrollLeft;
+        if (deltaX > 0 && sl < max - 1) return true;
+        if (deltaX < 0 && sl > 1) return true;
+      }
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
+
+/**
+ * Block OS/browser back-forward gestures in an installed PWA (trackpad swipe,
+ * mouse back button, etc.) so navigation stays inside the admin app shell.
+ *
+ * Call once after the admin shell has synced tab params into the URL (boot).
+ * No-op in a normal browser tab. Safe to call repeatedly — installs at most once.
+ */
+export function installPwaNavGuard() {
+  if (typeof window === 'undefined' || !isStandalonePwa() || !isAdminSpa()) return () => {};
+  if (pwaNavGuardCleanup) return pwaNavGuardCleanup;
+
+  document.documentElement.classList.add('pwa-standalone');
+  document.documentElement.style.overscrollBehaviorX = 'none';
+
+  let trapping = false;
+
+  const pushTrap = () => {
+    if (trapping) return;
+    trapping = true;
+    try {
+      history.pushState({ [PWA_NAV_GUARD_KEY]: true }, '', location.href);
+    } catch {
+      /* ignore quota / security errors */
+    } finally {
+      trapping = false;
+    }
+  };
+
+  const onPopState = () => pushTrap();
+  window.addEventListener('popstate', onPopState);
+  pushTrap();
+
+  const nav = window.navigation;
+  const onNavigate = (event) => {
+    if (event.navigationType !== 'traverse' || !event.canIntercept) return;
+    event.intercept({ handler() {} });
+  };
+  nav?.addEventListener?.('navigate', onNavigate);
+
+  const onWheel = (event) => {
+    const dx = event.deltaX;
+    const dy = event.deltaY;
+    if (Math.abs(dx) < PWA_WHEEL_SLOP_PX) return;
+    if (Math.abs(dx) <= Math.abs(dy)) return;
+    if (event.target instanceof Element && event.target.closest('#wrap')) return;
+    if (canConsumeHorizontalWheel(event.target, dx)) return;
+    event.preventDefault();
+  };
+  window.addEventListener('wheel', onWheel, { capture: true, passive: false });
+
+  pwaNavGuardCleanup = () => {
+    window.removeEventListener('popstate', onPopState);
+    nav?.removeEventListener?.('navigate', onNavigate);
+    window.removeEventListener('wheel', onWheel, { capture: true });
+    document.documentElement.classList.remove('pwa-standalone');
+    pwaNavGuardCleanup = null;
+  };
+
+  return pwaNavGuardCleanup;
+}
+
 function isIos() {
   if (typeof navigator === 'undefined') return false;
   return (
