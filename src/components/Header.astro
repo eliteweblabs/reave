@@ -261,6 +261,32 @@ const showHeaderProfile = userId && !showMarketingNav;
 )}
 <script src="/deploy-indicator.js?v=20260804b" defer></script>
 
+<script>
+  /** Pin public headers to the visual viewport top during iOS overscroll bounce. */
+  function bindAppHeaderViewportPin() {
+    if (document.documentElement.dataset.appHeaderVvPin === "1") return;
+    const header = document.querySelector(".app-header:not(.app-header--admin)");
+    const vv = window.visualViewport;
+    if (!header || !vv) return;
+    document.documentElement.dataset.appHeaderVvPin = "1";
+
+    const sync = () => {
+      document.documentElement.style.setProperty(
+        "--app-header-vv-top",
+        `${window.visualViewport?.offsetTop ?? 0}px`,
+      );
+    };
+
+    vv.addEventListener("scroll", sync, { passive: true });
+    vv.addEventListener("resize", sync, { passive: true });
+    window.addEventListener("scroll", sync, { passive: true });
+    sync();
+  }
+
+  bindAppHeaderViewportPin();
+  document.addEventListener("astro:page-load", bindAppHeaderViewportPin);
+</script>
+
 <style is:global>
   :root {
     --app-header-h: 3.25rem;
@@ -306,6 +332,16 @@ const showHeaderProfile = userId && !showMarketingNav;
     }
   }
 
+  /*
+   * Public/marketing headers scroll with the document. iOS rubber-band overscroll
+   * moves layout-viewport-fixed chrome; --app-header-vv-top (set from
+   * visualViewport in the script below) keeps the bar pinned to the screen top.
+   */
+  html:has(body > .app-header:not(.app-header--admin)),
+  html:has(body > .app-header:not(.app-header--admin)) body {
+    overscroll-behavior-y: none;
+  }
+
   .app-header {
     position: fixed;
     top: 0;
@@ -321,6 +357,10 @@ const showHeaderProfile = userId && !showMarketingNav;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+  }
+
+  .app-header:not(.app-header--admin) {
+    top: var(--app-header-vv-top, 0px);
   }
 
   .app-header--admin {

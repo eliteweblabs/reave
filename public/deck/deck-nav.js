@@ -550,6 +550,8 @@
 
   var copyBtn = $('#quote-copy');
   if (copyBtn) {
+    var iconCheck =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
     copyBtn.addEventListener('click', function () {
       var desc = $('#quote-description');
       if (!desc) return;
@@ -557,10 +559,13 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(
           function () {
-            copyBtn.textContent = 'Copied';
+            var prev = copyBtn.innerHTML;
+            copyBtn.innerHTML = iconCheck;
+            copyBtn.setAttribute('aria-label', 'Copied');
             setTimeout(function () {
-              copyBtn.textContent = 'Copy description';
-            }, 1400);
+              copyBtn.innerHTML = prev;
+              copyBtn.setAttribute('aria-label', 'Copy description');
+            }, 1000);
           },
           function () {},
         );

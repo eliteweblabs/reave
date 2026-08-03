@@ -36,7 +36,8 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260728i';
+  showCopyButtonFeedback,
+} from './admin-ui.js?v=20260803b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
@@ -190,12 +191,8 @@ function showChatToast(message, nearEl) {
 async function copyChatText(text, btn) {
   try {
     await navigator.clipboard.writeText(text);
-    showChatToast('Copied', btn);
-    if (btn) {
-      const prev = btn.getAttribute('aria-label');
-      btn.setAttribute('aria-label', 'Copied');
-      setTimeout(() => btn.setAttribute('aria-label', prev || 'Copy'), 1500);
-    }
+    if (btn) showCopyButtonFeedback(btn);
+    else showChatToast('Copied');
     return true;
   } catch {
     showChatToast('Copy failed — check browser permissions');

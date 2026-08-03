@@ -95,7 +95,8 @@ import {
   downloadBrandingImage,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260802c';
+  showCopyButtonFeedback,
+} from './admin-ui.js?v=20260803b';
 import { showAdminConfirmBanner, installPwaNavGuard } from './push-client.js?v=20260804a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260803a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
@@ -111,7 +112,7 @@ import {
   queueWorkDeepLink,
   workStatusLabel,
   workClientSubline,
-} from './work-panel.js?v=20260803a';
+} from './work-panel.js?v=20260803b';
 import {
   initTodoPanel,
   todoState,
@@ -129,7 +130,7 @@ import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260803e';
+} from './documents-panel.js?v=20260803f';
 import {
   initKnowledgePanel,
   knowledgeState,
@@ -197,7 +198,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260803a';
+} from './chat-panel.js?v=20260803b';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -2863,10 +2864,7 @@ async function showUptimeSyncResultDialog(result) {
       const text = manualItems.map((item) => item.url).join('\n');
       try {
         await navigator.clipboard.writeText(text);
-        copyBtn.textContent = 'Copied';
-        window.setTimeout(() => {
-          copyBtn.textContent = 'Copy URLs';
-        }, 1800);
+        showCopyButtonFeedback(copyBtn);
       } catch {
         await osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' });
       }
@@ -12025,7 +12023,8 @@ async function copyEmailVerificationCode(code, nearEl) {
     showChatToast('Tap the code to copy', nearEl);
     return false;
   }
-  showChatToast('Copied — switch back to your browser to paste', nearEl);
+  if (nearEl) showCopyButtonFeedback(nearEl);
+  else showChatToast('Copied — switch back to your browser to paste', nearEl);
   return true;
 }
 
