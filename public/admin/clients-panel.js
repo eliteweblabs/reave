@@ -486,7 +486,7 @@ function scheduleClientSearch() {
   clientSearchTimer = setTimeout(async () => {
     try {
       await fetchClientsList();
-      renderClientsEditor();
+      refreshClientsSidebarList();
     } catch (e) {
       alert(`Search failed: ${e.message}`);
     }

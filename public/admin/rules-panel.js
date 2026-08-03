@@ -172,6 +172,40 @@ function createRuleSwipeRow(rule, activeId) {
   ]);
 }
 
+function fillRulesSidebarList(list) {
+  const { rules, activeId } = ruleState;
+  const ordered = [...rules]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .filter((rule) =>
+      matchesListSearch(ruleState.search, rule.title, rule.status, ruleSubline(rule), rule.description),
+    );
+  list.replaceChildren();
+  for (const rule of ordered) {
+    list.appendChild(createRuleSwipeRow(rule, activeId));
+  }
+  if (ordered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = ruleState.search.trim() ? 'No matches.' : 'No rules yet.';
+    list.appendChild(empty);
+  }
+}
+
+function refreshRulesSidebarList() {
+  const root = getRuleEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderRulesEditor();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput instanceof HTMLInputElement) {
+    const n = ruleState.rules.length;
+    searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
+  }
+  fillRulesSidebarList(list);
+}
+
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
@@ -182,12 +216,6 @@ function renderRulesEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const ordered = [...rules]
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .filter((rule) =>
-      matchesListSearch(ruleState.search, rule.title, rule.status, ruleSubline(rule), rule.description),
-    );
-
   const subheader = listSearchSubheader({
     itemCount: rules.length,
     search: {
@@ -195,7 +223,7 @@ function renderRulesEditor() {
       placeholder: `Search ${rules.length} ${rules.length === 1 ? 'Rule' : 'Rules'}`,
       onInput: (value) => {
         ruleState.search = value;
-        renderRulesEditor();
+        refreshRulesSidebarList();
       },
     },
   });
@@ -244,15 +272,7 @@ function renderRulesEditor() {
   list.className = 'ch-list';
   bindSwipeListScroll(list);
   bindListMultiSelect(list, { onBulkDelete: bulkDeleteRules });
-  for (const rule of ordered) {
-    list.appendChild(createRuleSwipeRow(rule, activeId));
-  }
-  if (ordered.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = ruleState.search.trim() ? 'No matches.' : 'No rules yet.';
-    list.appendChild(empty);
-  }
+  fillRulesSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
 

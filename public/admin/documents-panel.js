@@ -221,14 +221,43 @@ async function loadDocumentsTab() {
   renderDocEditor();
 }
 
+function fillDocumentsSidebarList(list) {
+  const { templates, search } = docState;
+  const visibleTemplates = templates.filter((tpl) =>
+    matchesListSearch(search, tpl.title, tpl.slug),
+  );
+  list.replaceChildren();
+  for (const tpl of visibleTemplates) {
+    list.appendChild(createDocumentSwipeRow(tpl));
+  }
+  if (visibleTemplates.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = search.trim() ? 'No matches.' : 'No templates yet.';
+    list.appendChild(empty);
+  }
+}
+
+function refreshDocumentsSidebarList() {
+  const root = getDocEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderDocEditor();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput instanceof HTMLInputElement) {
+    const n = docState.templates.length;
+    searchInput.placeholder = `Search ${n} ${n === 1 ? 'Document' : 'Documents'}`;
+  }
+  fillDocumentsSidebarList(list);
+}
+
 function renderDocEditor() {
   const root = getDocEditor();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
   const { templates, activeSlug, dirty, search } = docState;
-  const visibleTemplates = templates.filter((tpl) =>
-    matchesListSearch(search, tpl.title, tpl.slug),
-  );
 
   root.innerHTML = '';
 
@@ -243,7 +272,7 @@ function renderDocEditor() {
       placeholder: `Search ${templates.length} ${templates.length === 1 ? 'Document' : 'Documents'}`,
       onInput: (value) => {
         docState.search = value;
-        renderDocEditor();
+        refreshDocumentsSidebarList();
       },
     },
   });
@@ -253,15 +282,7 @@ function renderDocEditor() {
   list.className = 'ch-list';
   bindSwipeListScroll(list);
   bindListMultiSelect(list, { onBulkDelete: bulkDeleteDocuments });
-  for (const tpl of visibleTemplates) {
-    list.appendChild(createDocumentSwipeRow(tpl));
-  }
-  if (visibleTemplates.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = search.trim() ? 'No matches.' : 'No templates yet.';
-    list.appendChild(empty);
-  }
+  fillDocumentsSidebarList(list);
   sidebar.appendChild(list);
 
   // ── Shortcodes directory ──

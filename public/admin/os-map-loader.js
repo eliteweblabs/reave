@@ -79,6 +79,7 @@ import {
   closeOpenSwipeRow,
   bindSwipeListScroll,
   bindListMultiSelect,
+  exitListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -128,7 +129,7 @@ import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260728l';
+} from './documents-panel.js?v=20260803e';
 import {
   initKnowledgePanel,
   knowledgeState,
@@ -163,7 +164,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260802a';
+} from './clients-panel.js?v=20260803e';
 import {
   initChatPanel,
   chatState,
@@ -219,7 +220,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
-} from './rules-panel.js?v=20260728q';
+} from './rules-panel.js?v=20260803e';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -320,6 +321,17 @@ function isSettingsMapType(type) {
 
 function settingsPanelRoot() {
   return document.getElementById('settings-panel');
+}
+
+function settingsPanelHasFocusedInput() {
+  const root = settingsPanelRoot();
+  if (!root) return false;
+  const active = document.activeElement;
+  return (
+    active instanceof HTMLElement &&
+    root.contains(active) &&
+    (active.matches('input:not([type=hidden]), textarea, select') || active.isContentEditable)
+  );
 }
 
 /** Home dashboard tiles that live in the footer nav — omit from the grid. */
@@ -752,7 +764,15 @@ function buildMap() {
 }
 
 function setActiveMap(key, opts = {}) {
-  const force = opts.force === true;
+  let force = opts.force === true;
+  if (
+    force &&
+    key === activeKey &&
+    isSettingsMapType(MAPS[key]?.type) &&
+    settingsPanelHasFocusedInput()
+  ) {
+    force = false;
+  }
   if (!MAPS[key]) return;
   if (key === activeKey && !force) {
     updateTabs();
@@ -5731,8 +5751,8 @@ function syncIndustriesListFromServer(listEl, industries) {
     const labelInput = row.querySelector('.ind-label');
     const slugInput = row.querySelector('.ind-slug');
     const cb = row.querySelector('.ind-enabled-cb');
-    if (labelInput) labelInput.value = item.label || '';
-    if (slugInput) slugInput.value = item.slug || '';
+    if (labelInput && labelInput !== active) labelInput.value = item.label || '';
+    if (slugInput && slugInput !== active) slugInput.value = item.slug || '';
     if (cb) cb.checked = item.enabled !== false;
   });
   if (active instanceof HTMLInputElement && listEl.contains(active)) {
@@ -10679,7 +10699,23 @@ async function loadEmailTab(quiet) {
   if (!openedFromDeepLink && !emailState.activeId) {
     getEmailPanel()?.classList.remove('em-pane-active');
   }
-  renderEmailPanel();
+  if (quiet && root.querySelector('.ch-sidebar .ch-list')) {
+    refreshEmailSidebarList();
+    const stillVisible =
+      !emailState.activeId ||
+      (emailState.inboxFilter === 'sent'
+        ? filteredSentEvents().some((ev) => ev.id === emailState.activeId)
+        : emailState.inboxFilter === 'draft'
+          ? filteredDraftEvents().some((ev) => ev.id === emailState.activeId)
+          : filteredInboxEvents().some((ev) => ev.id === emailState.activeId));
+    if (stillVisible) {
+      renderEmailPanel({ preserveSidebar: true, preservePane: true });
+    } else {
+      renderEmailPanel({ preserveSidebar: true });
+    }
+  } else {
+    renderEmailPanel();
+  }
   ensureEmailMobilePaneOpen();
   syncInboxAppBadge(emailState.allEvents);
 }
@@ -10719,6 +10755,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
       (isAllRefresh && emailState.inboxRefreshing ? ' em-filter-tab--refreshing' : '');
     btn.setAttribute('role', 'tab');
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.dataset.filter = tab.id;
 
     if (canBulkDelete) {
       btn.innerHTML =
@@ -10765,6 +10802,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     'em-filter-tab em-filter-tab--draft' + (draftActive ? ' active' : '');
   draftBtn.setAttribute('role', 'tab');
   draftBtn.setAttribute('aria-selected', draftActive ? 'true' : 'false');
+  draftBtn.dataset.filter = draftTab.id;
   draftBtn.innerHTML = `${escHtml(draftTab.label)} <span class="em-filter-count">${draftTab.count}</span>`;
   draftBtn.addEventListener('click', () => {
     void switchEmailInboxFilter(draftTab.id);
@@ -10779,6 +10817,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     'em-filter-tab em-filter-tab--sent' + (sentActive ? ' active' : '');
   sentBtn.setAttribute('role', 'tab');
   sentBtn.setAttribute('aria-selected', sentActive ? 'true' : 'false');
+  sentBtn.dataset.filter = sentTab.id;
   sentBtn.innerHTML = `${escHtml(sentTab.label)} <span class="em-filter-count">${sentTab.count}</span>`;
   sentBtn.addEventListener('click', () => {
     void switchEmailInboxFilter(sentTab.id);
@@ -10790,31 +10829,122 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
   return wrap;
 }
 
+function emailCountForActiveTab() {
+  const counts = inboxTabCounts();
+  if (emailState.inboxFilter === 'sent') return counts.sent;
+  if (emailState.inboxFilter === 'draft') return counts.draft;
+  if (emailState.inboxFilter === 'junk') return counts.junk;
+  if (emailState.inboxFilter === 'receipt') return counts.receipt;
+  if (emailState.inboxFilter === 'alert') return counts.alert;
+  if (emailState.inboxFilter === 'review') return counts.review;
+  if (emailState.inboxFilter === 'book') return counts.book;
+  if (emailState.inboxFilter === 'project') return counts.project;
+  if (emailState.inboxFilter === 'routed') return counts.routed;
+  return counts.all;
+}
+
+function emailSidebarEmptyInnerHtml() {
+  if (emailState.search.trim()) return 'No matches.';
+  if (emailState.inboxFilter === 'sent') {
+    return (
+      'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>'
+    );
+  }
+  if (emailState.inboxFilter === 'draft') {
+    return 'No drafts yet.<br><span class="em-hint">Unsent compose messages will appear here.</span>';
+  }
+  if (emailState.inboxFilter === 'junk') return 'No junk messages.';
+  if (emailState.inboxFilter === 'alert') return 'No alerts.';
+  if (emailState.inboxFilter === 'review') return 'No messages need review.';
+  if (emailState.inboxFilter === 'book') return 'No emails with a proposed meeting time.';
+  if (emailState.inboxFilter === 'project') {
+    return 'No project emails yet. Create or link a project from an inbound message.';
+  }
+  if (emailState.inboxFilter === 'routed') return 'No archived messages yet.';
+  if (emailState.inboxFilter === 'receipt') {
+    return 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt, or use <strong>Find missing receipts</strong> above.';
+  }
+  return (
+    'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. ' +
+    escHtml(companyBrand().inboundEmailExample || 'inbox@mail.example.com') +
+    ').</span>'
+  );
+}
+
+function fillEmailSidebarList(list) {
+  exitListMultiSelect(list);
+  const isSent = emailState.inboxFilter === 'sent';
+  const isDraft = emailState.inboxFilter === 'draft';
+  const events = isSent
+    ? filteredSentEvents()
+    : isDraft
+      ? filteredDraftEvents()
+      : filteredInboxEvents();
+  list.replaceChildren();
+  for (const ev of events) {
+    list.appendChild(
+      isSent ? createSentListItem(ev) : isDraft ? createDraftListItem(ev) : createEmailSwipeRow(ev),
+    );
+  }
+  if (events.length === 0) {
+    list.appendChild(createCenteredListEmpty({ innerHtml: emailSidebarEmptyInnerHtml() }));
+  }
+  if (!isSent && !isDraft) bindEmailListSeenObserver(list);
+}
+
+function updateEmailFilterTabCounts(root) {
+  const counts = inboxTabCounts();
+  root.querySelectorAll('.em-filter-tab[data-filter]').forEach((btn) => {
+    const id = btn.dataset.filter;
+    if (!id) return;
+    if (id === 'all' && emailState.inboxFilter === 'all') return;
+    const countEl = btn.querySelector('.em-filter-count');
+    if (!countEl) return;
+    const count =
+      id === 'sent'
+        ? counts.sent
+        : id === 'draft'
+          ? counts.draft
+          : id === 'junk'
+            ? counts.junk
+            : id === 'receipt'
+              ? counts.receipt
+              : id === 'alert'
+                ? counts.alert
+                : id === 'review'
+                  ? counts.review
+                  : id === 'book'
+                    ? counts.book
+                    : id === 'project'
+                      ? counts.project
+                      : id === 'routed'
+                        ? counts.routed
+                        : counts.all;
+    countEl.textContent = String(count);
+  });
+}
+
+function refreshEmailSidebarList() {
+  const root = getEmailPanel();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderEmailPanel();
+    return;
+  }
+  const countForTab = emailCountForActiveTab();
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput instanceof HTMLInputElement) {
+    searchInput.placeholder = `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`;
+  }
+  fillEmailSidebarList(list);
+  updateEmailFilterTabCounts(root);
+}
+
 function renderEmailSidebar(savedFilterScroll = 0) {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const counts = inboxTabCounts();
-  const countForTab =
-    emailState.inboxFilter === 'sent'
-      ? counts.sent
-      : emailState.inboxFilter === 'draft'
-        ? counts.draft
-      : emailState.inboxFilter === 'junk'
-      ? counts.junk
-      : emailState.inboxFilter === 'receipt'
-        ? counts.receipt
-        : emailState.inboxFilter === 'alert'
-        ? counts.alert
-        : emailState.inboxFilter === 'review'
-          ? counts.review
-          : emailState.inboxFilter === 'book'
-            ? counts.book
-            : emailState.inboxFilter === 'project'
-              ? counts.project
-            : emailState.inboxFilter === 'routed'
-              ? counts.routed
-              : counts.all;
+  const countForTab = emailCountForActiveTab();
   const subheader = listSearchSubheader({
     itemCount: countForTab,
     search: {
@@ -10828,13 +10958,15 @@ function renderEmailSidebar(savedFilterScroll = 0) {
             : emailState.inboxFilter === 'draft'
               ? filteredDraftEvents()
               : filteredInboxEvents();
-        if (emailState.activeId && !visible.some((ev) => ev.id === emailState.activeId)) {
+        const clearedActive =
+          emailState.activeId && !visible.some((ev) => ev.id === emailState.activeId);
+        if (clearedActive) {
           emailState.activeId = null;
           emailState.composing = false;
           emailState.activeDraftId = null;
           getEmailPanel()?.classList.remove('em-pane-active');
         }
-        renderEmailPanel();
+        renderEmailPanel({ preserveSidebar: true, preservePane: !clearedActive });
       },
     },
     below:
@@ -10845,7 +10977,6 @@ function renderEmailSidebar(savedFilterScroll = 0) {
 
   const isSent = emailState.inboxFilter === 'sent';
   const isDraft = emailState.inboxFilter === 'draft';
-  const events = isSent ? filteredSentEvents() : isDraft ? filteredDraftEvents() : filteredInboxEvents();
   if (subheader) {
     sidebar.appendChild(subheader.el);
     applyEmailFilterTabsScroll(
@@ -10864,50 +10995,12 @@ function renderEmailSidebar(savedFilterScroll = 0) {
       onBulkDelete: bulkDeleteEmails,
     });
   }
-  for (const ev of events) {
-    list.appendChild(
-      isSent ? createSentListItem(ev) : isDraft ? createDraftListItem(ev) : createEmailSwipeRow(ev),
-    );
-  }
-  if (events.length === 0) {
-    let emptyBody;
-    if (emailState.search.trim()) {
-      emptyBody = 'No matches.';
-    } else if (emailState.inboxFilter === 'sent') {
-      emptyBody =
-        'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>';
-    } else if (emailState.inboxFilter === 'draft') {
-      emptyBody =
-        'No drafts yet.<br><span class="em-hint">Unsent compose messages will appear here.</span>';
-    } else if (emailState.inboxFilter === 'junk') {
-      emptyBody = 'No junk messages.';
-    } else if (emailState.inboxFilter === 'alert') {
-      emptyBody = 'No alerts.';
-    } else if (emailState.inboxFilter === 'review') {
-      emptyBody = 'No messages need review.';
-    } else if (emailState.inboxFilter === 'book') {
-      emptyBody = 'No emails with a proposed meeting time.';
-    } else if (emailState.inboxFilter === 'project') {
-      emptyBody = 'No project emails yet. Create or link a project from an inbound message.';
-    } else if (emailState.inboxFilter === 'routed') {
-      emptyBody = 'No archived messages yet.';
-    } else if (emailState.inboxFilter === 'receipt') {
-      emptyBody =
-        'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt, or use <strong>Find missing receipts</strong> above.';
-    } else {
-      emptyBody =
-        'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. ' +
-        escHtml(companyBrand().inboundEmailExample || 'inbox@mail.example.com') +
-        ').</span>';
-    }
-    list.appendChild(createCenteredListEmpty({ innerHtml: emptyBody }));
-  }
+  fillEmailSidebarList(list);
   attachIosPullToRefresh(list, () => {
     if (MAP.type !== 'email') return;
     return loadEmailTab(true);
   });
   sidebar.appendChild(list);
-  if (!isSent && !isDraft) bindEmailListSeenObserver(list);
   return sidebar;
 }
 
@@ -11884,13 +11977,25 @@ function openEmailEvent(id) {
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: id });
 }
 
-function renderEmailPanel() {
+function renderEmailPanel(opts = {}) {
   const root = getEmailPanel();
   if (!root) return;
   const savedSidebarScroll = captureSidebarListScroll(root);
   const savedFilterScroll = captureFilterTabsScroll(root);
-  root.innerHTML = '';
-  root.appendChild(renderEmailSidebar(savedFilterScroll));
+
+  if (opts.preserveSidebar) {
+    refreshEmailSidebarList();
+  } else {
+    root.innerHTML = '';
+    root.appendChild(renderEmailSidebar(savedFilterScroll));
+  }
+
+  if (opts.preservePane) {
+    finishSidebarListScroll(root, savedSidebarScroll);
+    return;
+  }
+
+  root.querySelector('.ch-pane')?.remove();
 
   const pane = document.createElement('div');
   pane.className = 'ch-pane';
