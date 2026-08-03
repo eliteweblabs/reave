@@ -52,7 +52,7 @@ const SIMPLE_ICONS_CDN = (slug: string) =>
   `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
 /** Production stack — shown in the "Built with" footer on /features. */
-type StackTech = { slug: string; name: string; color: string; role: string };
+type StackTech = { slug: string; name: string; color: string; role: string; iconSrc?: string };
 
 const builtWithStack: StackTech[] = [
   { slug: "astro", name: "Astro", color: "#BC52EE", role: "App & API" },
@@ -65,12 +65,12 @@ const builtWithStack: StackTech[] = [
   { slug: "clerk", name: "Clerk", color: "#6C47FF", role: "Admin auth" },
   { slug: "resend", name: "Resend", color: "#FFFFFF", role: "Email in + out" },
   { slug: "anthropic", name: "Anthropic", color: "#D4A574", role: "AI agent" },
-  { slug: "telnyx", name: "Telnyx", color: "#00E3AA", role: "SMS & voice" },
+  { slug: "telnyx", name: "Telnyx", color: "#00E3AA", role: "SMS & voice", iconSrc: "/logos/stack/telnyx.svg" },
   { slug: "github", name: "GitHub", color: "#FFFFFF", role: "Source control" },
   { slug: "cloudflare", name: "Cloudflare", color: "#F38020", role: "DNS & edge" },
   { slug: "caldotcom", name: "Cal.com", color: "#FFFFFF", role: "Scheduling" },
   { slug: "plausibleanalytics", name: "Plausible", color: "#5850EC", role: "Web analytics" },
-  { slug: "uptimerobot", name: "UptimeRobot", color: "#3BD671", role: "Uptime monitoring" },
+  { slug: "uptimerobot", name: "UptimeRobot", color: "#3BD671", role: "Uptime monitoring", iconSrc: "/logos/stack/uptimerobot.svg" },
 ];
 
 const deployModes = [
@@ -878,19 +878,23 @@ const customPrompts: PromptExample[] = [
           builtWithStack.map((tech) => (
             <li class="fx-built-item">
               <span
-                class="fx-built-logo fx-built-logo--pending"
+                class:list={["fx-built-logo", !tech.iconSrc && "fx-built-logo--pending"]}
                 data-initial={tech.name.charAt(0)}
-                style={`--brand-color: ${tech.color}`}
+                style={`--brand-color: ${tech.color}${tech.iconSrc ? `;--brand-icon:url(${JSON.stringify(tech.iconSrc)})` : ""}`}
                 aria-hidden="true"
               >
-                <img
-                  class="fx-built-logo-probe"
-                  src={SIMPLE_ICONS_CDN(tech.slug)}
-                  alt=""
-                  decoding="async"
-                  onload="const el=this.parentElement;if(!el)return;el.classList.remove('fx-built-logo--pending');el.style.setProperty('--brand-icon','url('+JSON.stringify(this.src)+')')"
-                  onerror="this.parentElement?.classList.add('fx-built-logo--fallback')"
-                />
+                {
+                  !tech.iconSrc && (
+                    <img
+                      class="fx-built-logo-probe"
+                      src={SIMPLE_ICONS_CDN(tech.slug)}
+                      alt=""
+                      decoding="async"
+                      onload="const el=this.parentElement;if(!el)return;el.classList.remove('fx-built-logo--pending');el.style.setProperty('--brand-icon','url('+JSON.stringify(this.src)+')')"
+                      onerror="this.parentElement?.classList.add('fx-built-logo--fallback')"
+                    />
+                  )
+                }
               </span>
               <span class="fx-built-name">{tech.name}</span>
               <span class="fx-built-role">{tech.role}</span>
