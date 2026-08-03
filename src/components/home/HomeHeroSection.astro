@@ -1,28 +1,21 @@
 ---
 /**
- * Homepage hero — brand icon, headline, and shuffling industry tagline.
+ * Homepage hero — brand icon, headline, and rotating example voice commands.
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveBgPattern from "../../components/ReaveBgPattern.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
-import {
-  DEFAULT_DECK_INDUSTRIES,
-  listEnabledDeckIndustries,
-} from "../../lib/deckIndustriesStore";
+import { HERO_EXAMPLE_COMMANDS } from "../../lib/heroExampleCommands";
 
 const company = await getCompanyConfig(Astro.request);
-const enabled = await listEnabledDeckIndustries();
-const industryLabels =
-  enabled.length > 0
-    ? enabled.map((i) => i.label.trim()).filter(Boolean)
-    : DEFAULT_DECK_INDUSTRIES.map((i) => i.label);
+const exampleCommands = [...HERO_EXAMPLE_COMMANDS];
 
 const startIndex =
-  industryLabels.length > 0
-    ? Math.floor(Math.random() * industryLabels.length)
+  exampleCommands.length > 0
+    ? Math.floor(Math.random() * exampleCommands.length)
     : 0;
-const firstIndustry = industryLabels[startIndex] ?? "your business";
+const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
 ---
 
 <section
@@ -42,35 +35,34 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     <div class="home-hero-copy">
       <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
       <p class="home-hero-tagline">
-        An OS for
         <span
-          class="home-hero-industry"
+          class="home-hero-command"
           data-hero-industry
-          data-industries={JSON.stringify(industryLabels)}
-          data-interval-ms="2500"
+          data-industries={JSON.stringify(exampleCommands)}
+          data-interval-ms="4200"
         >
           <span
-            class="home-hero-industry-viewport"
+            class="home-hero-command-viewport"
             data-hero-industry-viewport
             aria-live="polite"
-            style={`min-width: ${firstIndustry.length}ch`}
+            style={`min-width: ${firstCommand.length}ch`}
           >
             <span
-              class="home-hero-industry-layer home-hero-industry-next"
+              class="home-hero-command-layer home-hero-command-next"
               data-hero-industry-next
               hidden
             >
-              <span class="home-hero-industry-clip" data-hero-industry-clip>
-                <span class="home-hero-industry-text" data-hero-industry-text></span>
+              <span class="home-hero-command-clip" data-hero-industry-clip>
+                <span class="home-hero-command-text" data-hero-industry-text></span>
               </span>
             </span>
             <span
-              class="home-hero-industry-layer home-hero-industry-current"
+              class="home-hero-command-layer home-hero-command-current"
               data-hero-industry-current
             >
-              <span class="home-hero-industry-clip" data-hero-industry-clip>
-                <span class="home-hero-industry-text" data-hero-industry-text>
-                  {firstIndustry}
+              <span class="home-hero-command-clip" data-hero-industry-clip>
+                <span class="home-hero-command-text" data-hero-industry-text>
+                  {firstCommand}
                 </span>
               </span>
             </span>
@@ -160,7 +152,7 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     left: 50%;
     top: calc(50% + clamp(90px, 17.5vw, 140px) + 28px);
     transform: translateX(-50%);
-    width: min(100%, 720px);
+    width: min(100%, 920px);
     padding: 0 20px;
     display: flex;
     flex-direction: column;
@@ -213,55 +205,54 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
 
   .home-hero-tagline {
     margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: center;
-    gap: 0.35em;
+    width: 100%;
     font-family: var(--font-content);
-    font-size: clamp(1.05rem, 2.8vw, 1.35rem);
-    line-height: 1.4;
+    font-size: clamp(0.98rem, 2.5vw, 1.22rem);
+    line-height: 1.45;
     color: rgba(255, 255, 255, 0.68);
   }
 
-  .home-hero-industry {
-    display: inline-block;
-    vertical-align: baseline;
-    text-align: left;
+  .home-hero-command {
+    display: block;
+    width: 100%;
+    text-align: center;
   }
 
-  .home-hero-industry-viewport {
+  .home-hero-command-viewport {
     position: relative;
     display: inline-block;
     vertical-align: bottom;
-    height: 1.35em;
+    max-width: 100%;
+    height: 1.45em;
     overflow: hidden;
     background: #050505;
   }
 
-  .home-hero-industry-layer {
+  .home-hero-command-layer {
     position: absolute;
     left: 0;
     top: 0;
   }
 
-  .home-hero-industry-clip {
+  .home-hero-command-clip {
     display: inline-block;
     overflow: hidden;
     vertical-align: bottom;
-    height: 1.35em;
+    height: 1.45em;
+    max-width: 100%;
     will-change: width;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
   }
 
-  .home-hero-industry-text {
+  .home-hero-command-text {
     display: inline-block;
     white-space: nowrap;
     font-family: var(--font-primary);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.35;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.45;
     color: #fff;
     background: var(--brand-gradient);
     -webkit-background-clip: text;
@@ -274,16 +265,16 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     -webkit-transform: translateZ(0);
   }
 
-  .home-hero-industry-current {
+  .home-hero-command-current {
     z-index: 1;
   }
 
-  .home-hero-industry-next {
+  .home-hero-command-next {
     z-index: 2;
   }
 
-  .home-hero-industry-next[hidden],
-  .home-hero-industry-current[hidden] {
+  .home-hero-command-next[hidden],
+  .home-hero-command-current[hidden] {
     display: none;
   }
 
