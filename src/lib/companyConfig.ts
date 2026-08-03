@@ -7,7 +7,7 @@ import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin'
 import {
   BRANDING_LOGO_PATH,
   BRANDING_ICON_PATH,
-  LOGO_ICON_AVATAR_PATH,
+  BRANDING_OG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
 import { BRAND_ICON_SIZES } from './brandIconRaster';
@@ -265,17 +265,33 @@ export function companyLogoUrl(path: string, version?: string | null): string {
   return `${base}${base.includes('?') ? '&' : '?'}v=${encodeURIComponent(v)}`;
 }
 
-/** Build a sized branding icon URL (admin upload or default AV mark). */
-export function brandIconUrl(size: number, version?: string | null): string {
+/** Cache-bust query for branding API routes after admin saves. */
+export function companyBrandingVersion(company: CompanyConfig): string | null {
+  const v = trim(company.iconVersion) || trim(company.logoVersion);
+  return v || null;
+}
+
+/** Build a sized branding icon URL (admin PNG/SVG rasterized at request time). */
+export function brandIconUrl(size: number, version?: string | null, opts?: { transparent?: boolean }): string {
   const params = new URLSearchParams({ size: String(size) });
   const v = trim(version);
   if (v) params.set('v', v);
+  if (opts?.transparent) params.set('transparent', '1');
   return `${BRANDING_ICON_PATH}?${params.toString()}`;
 }
 
-/** Resolved favicon / PWA icon URLs — always served from /api/branding/icon (admin or default). */
-export function companyFaviconUrls(company: CompanyConfig): typeof SITE.favicons {
-  const version = company.iconSource === 'admin' ? company.iconVersion : null;
+export type CompanyFaviconUrls = {
+  ico: string;
+  png32: string;
+  png16: string;
+  appleTouchIcon: string;
+  png192: string;
+  png512: string;
+};
+
+/** Resolved favicon / PWA icon URLs — rasterized from admin branding at request time. */
+export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
+  const version = companyBrandingVersion(company);
   return {
     ico: brandIconUrl(BRAND_ICON_SIZES.png32, version),
     png32: brandIconUrl(BRAND_ICON_SIZES.png32, version),
@@ -286,12 +302,21 @@ export function companyFaviconUrls(company: CompanyConfig): typeof SITE.favicons
   };
 }
 
-/** Staff / team avatar for comments — custom icon or transparent default mark. */
+/** Runtime OG / Twitter card image from admin branding. */
+export function companyOgImageUrl(company: CompanyConfig): string {
+  const version = companyBrandingVersion(company);
+  if (!version) return BRANDING_OG_PATH;
+  return `${BRANDING_OG_PATH}?v=${encodeURIComponent(version)}`;
+}
+
+/** Admin-uploaded header logo image (not inline SVG). */
+export function hasCompanyHeaderLogoImage(company: CompanyConfig): boolean {
+  return company.logoSource === 'admin' && Boolean(trim(company.logoPath));
+}
+
+/** Staff / team avatar — square mark from admin branding API. */
 export function companyStaffAvatarUrl(company: CompanyConfig): string {
-  if (company.iconSource === 'admin') {
-    return brandIconUrl(BRAND_ICON_SIZES.png192, company.iconVersion);
-  }
-  return LOGO_ICON_AVATAR_PATH;
+  return brandIconUrl(BRAND_ICON_SIZES.png192, companyBrandingVersion(company), { transparent: true });
 }
 
 /** Homepage quantum mask — custom admin logo, default silhouette, or hidden. */

@@ -6,7 +6,7 @@ import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
-import { getCompanyConfig } from "../lib/companyConfig";
+import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
 import { brandFontCssVars } from "../lib/brandFonts";
 import { isMarketingPagePath } from "../lib/marketingNav";
 import { requestOrigin } from "../lib/requestOrigin";
@@ -38,7 +38,7 @@ export interface Props {
 const {
   title,
   description: descriptionProp,
-  ogImage = SITE.ogImage,
+  ogImage: ogImageProp,
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
@@ -47,6 +47,7 @@ const {
 
 const company = await getCompanyConfig(Astro.request);
 const description = descriptionProp ?? company.description;
+const ogImage = ogImageProp ?? companyOgImageUrl(company);
 /** Browser tab title — "Page | Company | Tagline" (tagline from admin → Company → description). */
 const titleParts = [title, company.name, company.description]
   .map((part) => part?.trim())

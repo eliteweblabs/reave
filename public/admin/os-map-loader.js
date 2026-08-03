@@ -5192,13 +5192,10 @@ function companyIconPreviewUrl(company) {
 }
 
 function companyStaffAvatarPreviewUrl(company) {
-  if (company?.iconSource === 'admin' && company?.iconPath) {
-    const path = String(company.iconPath);
-    const v = company.iconVersion ? `?v=${encodeURIComponent(company.iconVersion)}` : '';
-    if (/^https?:\/\//i.test(path)) return path + (company.iconVersion ? v : '');
-    return `${path.startsWith('/') ? path : `/${path}`}${v}`;
-  }
-  return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+  const version = company?.iconVersion || company?.logoVersion;
+  const params = new URLSearchParams({ size: '192', transparent: '1' });
+  if (version) params.set('v', version);
+  return `/api/branding/icon?${params.toString()}`;
 }
 
 function hasCustomCompanyLogo(company) {
@@ -6109,10 +6106,10 @@ function renderCompanyPanel(company, fontCatalog) {
             `</div>` +
           `</div>` +
           `<div class="prof-field"><label for="company-logoSvg">Logo SVG (inline, animated)</label>` +
-          `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the header wordmark. Leave blank for the built-in REAVE animation.">${escHtml(c.logoSvg || '')}</textarea></div>` +
+          `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the header when no logo PNG is uploaded. Leave blank to use the logo PNG or company name.">${escHtml(c.logoSvg || '')}</textarea></div>` +
           `<div class="prof-field"><label for="company-iconSvg">Icon SVG (inline, animated)</label>` +
           `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the homepage hero icon. Leave blank for the built-in chevron animation.">${escHtml(c.iconSvg || '')}</textarea></div>` +
-          `<span class="prof-hint prof-hint--block">PNG uploads still power favicons, OG images, and emails. Inline SVG overrides the animated header logo and homepage hero icon only.</span>` +
+          `<span class="prof-hint prof-hint--block">Logo PNG or SVG powers the header (PNG → SVG → company name). Icon PNG or SVG is rasterized at runtime for favicons, OG, PWA, and avatars — first letter of the company name when nothing is set. Homepage hero icon still uses Icon SVG when pasted.</span>` +
           `<div class="prof-field prof-field--font-heading">` +
             `<div class="prof-font-heading-row">` +
               `<label>Typography</label>` +

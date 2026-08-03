@@ -172,7 +172,7 @@ export function mountPanelSkeleton(root, kind, label, opts = {}) {
 
 /** Company icon used in the account menu (same fallback chain as Header.astro). */
 export function companyStaffAvatarUrl() {
-  return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+  return window.__companyStaffAvatarUrl || '/api/branding/icon?size=192&transparent=1';
 }
 
 const GENERIC_SENDER_EMAIL_DOMAINS = new Set([

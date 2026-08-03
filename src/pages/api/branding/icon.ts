@@ -2,10 +2,9 @@ import type { APIRoute } from 'astro';
 import {
   BRAND_ICON_SIZES,
   isBrandIconSize,
-  rasterizeBrandIcon,
-  readDefaultBrandIcon,
 } from '../../../lib/brandIconRaster';
-import { getStoredCompanyIcon } from '../../../lib/companyConfigStore';
+import { brandingEtag, renderCompanyBrandIconPng } from '../../../lib/brandImageRender';
+import { getStoredCompanyConfig } from '../../../lib/companyConfigStore';
 
 export const prerender = false;
 
@@ -17,21 +16,11 @@ function parseSize(raw: string | null): number {
 
 export const GET: APIRoute = async ({ request, url }) => {
   const size = parseSize(url.searchParams.get('size'));
-  const icon = await getStoredCompanyIcon();
+  const transparent = url.searchParams.get('transparent') === '1';
+  const stored = await getStoredCompanyConfig();
+  const body = await renderCompanyBrandIconPng(stored, size, { transparent });
+  const etag = `"${brandingEtag(stored, size, 'icon')}"`;
 
-  let body: Buffer;
-  let etagSource: string;
-
-  if (icon) {
-    const source = Buffer.from(icon.dataBase64, 'base64');
-    body = await rasterizeBrandIcon(source, size);
-    etagSource = `${icon.updatedAt ?? '0'}:${size}`;
-  } else {
-    body = await readDefaultBrandIcon(size);
-    etagSource = `default:${size}`;
-  }
-
-  const etag = `"${etagSource}"`;
   if (request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304 });
   }

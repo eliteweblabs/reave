@@ -6,7 +6,7 @@
  * automatically; inline styles provide the light-mode fallback for
  * clients that strip <style> blocks (Gmail, older Outlook).
  */
-import { getCompanyConfig } from './companyConfig';
+import { getCompanyConfig, hasCompanyHeaderLogoImage, companyLogoUrl } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 
@@ -61,9 +61,16 @@ export async function brandedEmailHtml(opts: {
 }): Promise<string> {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
-  const logoUrl = `${base}${company.logoPath.startsWith('/') ? company.logoPath : `/${company.logoPath}`}`;
-  const homeUrl = base;
   const brandName = company.name || 'Business OS';
+  const logoUrl = hasCompanyHeaderLogoImage(company)
+    ? `${base}${companyLogoUrl(company.logoPath, company.logoVersion)}`
+    : '';
+  const homeUrl = base;
+
+  const logoHeaderHtml = logoUrl
+    ? `<img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="88" height="28"
+           style="display:block;max-width:220px;width:auto;height:28px;border:0;outline:none;text-decoration:none" />`
+    : `<span style="display:inline-block;color:#ffffff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${esc(brandName)}</span>`;
 
   const bodyRows = opts.paragraphs
     .map(
@@ -174,9 +181,7 @@ export async function brandedEmailHtml(opts: {
           <tr>
             <td style="background-color:#09090b;padding:22px 32px;border-radius:12px 12px 0 0" align="center">
               <a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
-                <img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="88" height="28"
-                     style="display:block;width:88px;height:auto;border:0;outline:none;text-decoration:none"
-                     onerror="this.style.display='none'" />
+                ${logoHeaderHtml}
               </a>
             </td>
           </tr>

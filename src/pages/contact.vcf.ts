@@ -6,7 +6,7 @@
  */
 import type { APIRoute } from 'astro';
 import { buildCompanyContactVCard } from '../lib/carddav/vcard';
-import { companyLogoUrl, getCompanyConfig } from '../lib/companyConfig';
+import { companyStaffAvatarUrl, getCompanyConfig } from '../lib/companyConfig';
 import { getDeploymentOwnerProfile } from '../lib/deploymentOwner';
 import { siteBaseUrl } from '../lib/requestOrigin';
 
@@ -35,8 +35,7 @@ export const GET: APIRoute = async (context) => {
     ? `https://${org.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
     : '';
 
-  const iconPath = companyLogoUrl(org.iconPath, org.iconVersion);
-  const photoUrl = iconPath ? absoluteAssetUrl(request, iconPath) : '';
+  const photoUrl = absoluteAssetUrl(request, companyStaffAvatarUrl(org));
 
   const body = buildCompanyContactVCard({
     firstName: owner?.firstName || '',

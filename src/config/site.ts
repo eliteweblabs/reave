@@ -5,7 +5,7 @@
  * All paths are root-relative (served from /public/).
  * Layout.astro reads from here; update this file to change site-wide branding.
  */
-import { LOGO_ICON_OG_PATH } from '../lib/companyLogo';
+import { BRANDING_OG_PATH } from '../lib/companyLogo';
 
 export const SITE = {
   /** Fallback display name when company details are not configured yet. */
@@ -17,8 +17,8 @@ export const SITE = {
   /** Fallback logo path (root-relative, under /public). Override in admin → Company details. */
   logoPath: "/reave-logo.png",
 
-  /** Default OG / Twitter card image — regenerate with `npm run icons:generate`. */
-  ogImage: LOGO_ICON_OG_PATH,
+  /** Default OG / Twitter card — runtime PNG from admin branding (see /api/branding/og.png). */
+  ogImage: BRANDING_OG_PATH,
 
   /** Default og:type. */
   ogType: "website" as const,

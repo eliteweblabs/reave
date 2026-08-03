@@ -453,15 +453,49 @@ const showHeaderProfile = userId && !showMarketingNav;
    * descendants on the link alone; an inner wrapper with contain:paint fixes it.
    */
   .app-header-logo-clip {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     overflow: hidden;
     height: var(--app-header-logo-h);
-    width: calc(var(--app-header-logo-h) * (926.878 / 262.015));
+    width: auto;
+    max-width: min(42vw, 280px);
     transform: translateZ(0);
     contain: paint;
     isolation: isolate;
     clip-path: inset(0);
     -webkit-clip-path: inset(0);
+  }
+
+  .app-header-logo-img {
+    display: block;
+    height: var(--app-header-logo-h);
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  .app-header-logo-text {
+    display: block;
+    font-family: var(--font-primary);
+    font-size: calc(var(--app-header-logo-h) * 0.72);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    pointer-events: none;
+    background: var(
+      --portal-brand-gradient,
+      var(--brand-gradient, linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #fff;
   }
 
   .app-header-logo-svg--animated {

@@ -47,7 +47,7 @@
   let pendingProjectKind = null;
 
   function companyStaffAvatarUrl() {
-    return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+    return window.__companyStaffAvatarUrl || '/api/branding/icon?size=192&transparent=1';
   }
 
   function focusAuthorIconUrl(thread) {

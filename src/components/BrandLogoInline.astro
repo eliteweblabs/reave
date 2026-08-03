@@ -1,6 +1,6 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
-import HeaderLogoAnimated from './HeaderLogoAnimated.astro';
+import { companyLogoUrl, hasCompanyHeaderLogoImage } from '../lib/companyConfig';
 import InlineBrandSvg from './InlineBrandSvg.astro';
 
 export interface Props {
@@ -9,16 +9,29 @@ export interface Props {
 
 const { company } = Astro.props;
 const customSvg = company.logoSvg?.trim() ?? '';
+const logoImageUrl = hasCompanyHeaderLogoImage(company)
+  ? companyLogoUrl(company.logoPath, company.logoVersion)
+  : '';
+const displayName = company.name?.trim() || 'Business OS';
 ---
 
 {
-  customSvg ? (
+  logoImageUrl ? (
+    <img
+      src={logoImageUrl}
+      alt={displayName}
+      class="app-header-logo-img brand-img logo-img"
+      width="926"
+      height="262"
+      decoding="async"
+    />
+  ) : customSvg ? (
     <InlineBrandSvg
       svg={customSvg}
       class="app-header-logo-svg brand-img logo-img app-header-logo-svg--animated"
       idPrefix="header-logo"
     />
   ) : (
-    <HeaderLogoAnimated />
+    <span class="app-header-logo-text brand">{displayName}</span>
   )
 }

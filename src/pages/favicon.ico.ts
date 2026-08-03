@@ -1,30 +1,20 @@
 /**
  * Root /favicon.ico — browsers auto-request this path.
- * Serves a 32×32 PNG generated from the admin icon (or default AV mark).
+ * Serves a 32×32 PNG generated from admin branding (PNG/SVG) or first letter.
  */
 import type { APIRoute } from 'astro';
-import { BRAND_ICON_SIZES, rasterizeBrandIcon, readDefaultBrandIcon } from '../lib/brandIconRaster';
-import { getStoredCompanyIcon } from '../lib/companyConfigStore';
+import { BRAND_ICON_SIZES } from '../lib/brandIconRaster';
+import { brandingEtag, renderCompanyBrandIconPng } from '../lib/brandImageRender';
+import { getStoredCompanyConfig } from '../lib/companyConfigStore';
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
   const size = BRAND_ICON_SIZES.png32;
-  const icon = await getStoredCompanyIcon();
+  const stored = await getStoredCompanyConfig();
+  const body = await renderCompanyBrandIconPng(stored, size);
+  const etag = `"${brandingEtag(stored, size, 'icon')}"`;
 
-  let body: Buffer;
-  let etagSource: string;
-
-  if (icon) {
-    const source = Buffer.from(icon.dataBase64, 'base64');
-    body = await rasterizeBrandIcon(source, size);
-    etagSource = `${icon.updatedAt ?? '0'}:ico`;
-  } else {
-    body = await readDefaultBrandIcon(size);
-    etagSource = 'default:ico';
-  }
-
-  const etag = `"${etagSource}"`;
   if (request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304 });
   }

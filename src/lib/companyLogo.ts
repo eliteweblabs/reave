@@ -1,8 +1,11 @@
 /** Public URL for uploaded company logos (served from Postgres / local config). */
 export const BRANDING_LOGO_PATH = '/api/branding/logo';
 
-/** Square brand mark for Open Graph / Twitter cards — safe to replace without touching favicons or the header logo. */
+/** Static OG fallback when a GIF URL is unsuitable for link previews. */
 export const LOGO_ICON_OG_PATH = '/logo-icon-og.png';
+
+/** Runtime OG image — admin icon/logo PNG or SVG, or first letter of company name. */
+export const BRANDING_OG_PATH = '/api/branding/og.png';
 
 /** Transparent AV mark for header profile icon and staff comment avatars. */
 export const LOGO_ICON_AVATAR_PATH = '/logo-icon-avatar.png';

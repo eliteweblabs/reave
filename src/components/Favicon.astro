@@ -1,10 +1,8 @@
 ---
 /**
  * Universal favicon links — single source of truth for every page.
- * Raster-only (PNG + multi-res .ico) for maximum browser compatibility;
- * we intentionally avoid an SVG favicon because the brand mark is a raster
- * image and embedded-image SVG favicons render inconsistently across browsers.
- * Include inside any page's <head>.
+ * Icons are rasterized at request time from admin PNG/SVG branding, or the
+ * first letter of the company name when nothing is configured.
  */
 import { getCompanyConfig, companyFaviconUrls } from "../lib/companyConfig";
 
