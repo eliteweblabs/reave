@@ -10,6 +10,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  /* Leave document navigations to the browser — intercepting them caused reload
+     loops in installed PWAs when auth or query params changed. */
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);

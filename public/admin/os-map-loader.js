@@ -95,7 +95,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260802c';
-import { showAdminConfirmBanner } from './push-client.js?v=20260802b';
+import { showAdminConfirmBanner } from './push-client.js?v=20260803a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
@@ -794,7 +794,16 @@ function setActiveMap(key, opts = {}) {
     }
   }
   syncAdminTabUrl(key, opts);
-  void refreshInboxBadgeQuiet();
+  if (key === 'home' && prevType !== 'home') void refreshInboxBadgeQuiet();
+}
+
+function homeDashboardHasContent() {
+  const root = document.getElementById('home-dashboard');
+  return Boolean(
+    root?.querySelector(
+      '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+    ),
+  );
 }
 
 function isPanelMapKey(key) {
@@ -819,7 +828,8 @@ function isPanelMapKey(key) {
 
 function activateMapPanel(opts = {}) {
   if (MAP.type === 'home') {
-    loadHomeDashboard();
+    const quiet = !opts.refreshHome && homeDashboardHasContent();
+    loadHomeDashboard({ quiet });
   } else if (MAP.type === 'profile') {
     loadProfileTab();
   } else if (MAP.type === 'company') {
@@ -4849,6 +4859,8 @@ async function syncUptimeMonitorsFromApi() {
 }
 
 let homeDashboardLoadPromise = null;
+let homeDashboardLastLoadAt = 0;
+const HOME_DASHBOARD_MIN_RELOAD_MS = 1500;
 
 async function loadHomeDashboard(opts = {}) {
   const quiet = opts.quiet === true;
@@ -4856,7 +4868,11 @@ async function loadHomeDashboard(opts = {}) {
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
-  const hasContent = Boolean(root.querySelector('.home-dashboard-scroll'));
+  const hasContent = homeDashboardHasContent();
+  if (!quiet && hasContent) {
+    const elapsed = Date.now() - homeDashboardLastLoadAt;
+    if (elapsed < HOME_DASHBOARD_MIN_RELOAD_MS) return;
+  }
 
   homeDashboardLoadPromise = (async () => {
     if (!hasContent) {
@@ -4872,13 +4888,15 @@ async function loadHomeDashboard(opts = {}) {
     }
 
     try {
-      const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const res = await adminFetch('/api/admin/dashboard');
+      const data = await readAdminJson(res, 'dashboard');
+      if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDashboardFooterBadges(data.stats);
       renderHomeDashboard(data);
+      homeDashboardLastLoadAt = Date.now();
       void initFleetLocationReporter();
     } catch (e) {
+      if (e.message === 'Session expired') return;
       root.innerHTML =
         `<div class="home-dashboard-scroll">` +
           `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
@@ -4901,9 +4919,9 @@ async function refreshHomeReviewBannersQuiet() {
   if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton')) return;
 
   try {
-    const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) return;
+    const res = await adminFetch('/api/admin/dashboard');
+    const data = await readAdminJson(res, 'dashboard');
+    if (!data.ok) return;
     syncDashboardFooterBadges(data.stats);
 
     scroll.querySelector('.dash-review-alerts')?.remove();
@@ -6427,7 +6445,7 @@ function renderVapiPanel(company) {
  */
 function prependSettingsBackHeader(root) {
   const { header } = createPaneSubheader({
-    back: { label: 'Back', onClick: () => setActiveMap('home', { force: true }) },
+    back: { label: 'Back', onClick: () => setActiveMap('home', { force: true, refreshHome: true }) },
     className: 'settings-subheader',
   });
   root.prepend(header);
@@ -7075,7 +7093,7 @@ function activateFooterNavFromDrag(nav) {
       expandFooterNav();
       return;
     }
-    setActiveMap('home', { force: activeKey === 'home' });
+    setActiveMap('home', { force: activeKey === 'home', refreshHome: activeKey === 'home' });
     return;
   }
   if (nav === 'chat') {
@@ -7388,7 +7406,7 @@ function initFooterNav() {
       expandFooterNav();
       return;
     }
-    setActiveMap('home', { force: activeKey === 'home' });
+    setActiveMap('home', { force: activeKey === 'home', refreshHome: activeKey === 'home' });
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     activateFooterChatNav();
@@ -7842,7 +7860,7 @@ function initTopbarMenus() {
       ev.preventDefault();
       closeTopbarMenus();
       closeSearchOverlay();
-      setActiveMap('home', { force: true });
+      setActiveMap('home', { force: true, refreshHome: true });
     });
   }
 }
@@ -8575,8 +8593,8 @@ async function syncInboxAppBadge(events, reviewsPending) {
 async function refreshFooterBadgesQuiet() {
   try {
     const [dashRes, inboxRes] = await Promise.all([
-      fetch('/api/admin/dashboard', { cache: 'no-store' }),
-      fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
+      adminFetch('/api/admin/dashboard'),
+      adminFetch('/api/email/inbox?limit=100'),
     ]);
 
     const inboxOk = inboxRes.ok;

@@ -30,6 +30,11 @@ const isPublicAdminAsset = createRouteMatcher([
   "/admin/sw.js",
 ]);
 
+/** Service worker scripts must revalidate every load so fixes reach installed PWAs. */
+function isServiceWorkerScript(pathname: string): boolean {
+  return pathname === "/admin/sw.js" || pathname === "/c/sw.js";
+}
+
 function featureBlockedResponse(): Response {
   return applySecurityHeaders(new Response("Not found", { status: 404 }));
 }
@@ -123,6 +128,9 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
   }
 
   const response = await next();
+  if (isServiceWorkerScript(pathname)) {
+    response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  }
   return applySecurityHeaders(response);
 });
 
