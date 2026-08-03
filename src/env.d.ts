@@ -65,6 +65,8 @@ interface ImportMetaEnv {
   RAILWAY_WEBHOOK_INGRESS_KEY?: string;
   /** Set to 1 to auto-investigate Railway deploy failures (repo lock + agent). Default: off. */
   RAILWAY_INCIDENT_HANDLER?: string;
+  /** Kap plugin upload auth (X-Kap-Key / Bearer). View at /r/{token}. */
+  KAP_UPLOAD_KEY?: string;
   /** GitHub PAT (read-only Contents+Metadata) for dev/status tools. Recommended even for public repos to avoid rate limits. */
   GITHUB_TOKEN?: string;
   /** Optional alias for GITHUB_TOKEN. */
