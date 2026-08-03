@@ -87,7 +87,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 130%;
     min-height: 130%;
     pointer-events: none;
-    touch-action: auto;
+    touch-action: manipulation;
     cursor: default;
     isolation: isolate;
     overflow: visible;
@@ -179,7 +179,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 
   .quantum-logo-stack--in-section .quantum-host {
     pointer-events: none;
-    touch-action: auto;
+    touch-action: manipulation;
   }
 
   .quantum-host :global(canvas) {
