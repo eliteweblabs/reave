@@ -28,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initWorkPanel(). */
@@ -1177,7 +1177,7 @@ function slugifyTitle(title) {
 async function loadWorkTab(opts = {}) {
   const root = getWorkEditor();
   if (!root) return;
-  void prefetchContactAuthorIcons();
+  await ensureContactAuthorIconsReady();
   const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
   const preserveNew =
     workState.activeSlug === '__new__' &&

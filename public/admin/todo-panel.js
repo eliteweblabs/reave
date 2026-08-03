@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, prefetchContactAuthorIcons, mountPanelSkeleton } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260730c';
@@ -193,7 +193,7 @@ function filterTodoItems(todos) {
 async function loadTodoTab(opts = {}) {
   const root = getTodoEditor();
   if (!root) return;
-  void prefetchContactAuthorIcons();
+  await ensureContactAuthorIconsReady();
   const preserveNew =
     todoState.activeId === '__new__' &&
     todoState.draft &&

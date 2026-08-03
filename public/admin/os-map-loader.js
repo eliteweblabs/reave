@@ -97,7 +97,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260802c';
 import { showAdminConfirmBanner, installPwaNavGuard } from './push-client.js?v=20260804a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260803a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -111,7 +111,7 @@ import {
   queueWorkDeepLink,
   workStatusLabel,
   workClientSubline,
-} from './work-panel.js?v=20260728l';
+} from './work-panel.js?v=20260803a';
 import {
   initTodoPanel,
   todoState,
@@ -124,7 +124,7 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260728l';
+} from './todo-panel.js?v=20260803a';
 import {
   initDocumentsPanel,
   docState,
@@ -134,7 +134,7 @@ import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260728p';
+} from './knowledge-panel.js?v=20260803a';
 import {
   initSchedulePanel,
   scheduleState,
@@ -164,7 +164,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260803e';
+} from './clients-panel.js?v=20260803a';
 import {
   initChatPanel,
   chatState,
@@ -197,7 +197,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260730c';
+} from './chat-panel.js?v=20260803a';
 import {
   initCreateDrawer,
   beginCreateDrawer,

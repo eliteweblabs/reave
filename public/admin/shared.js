@@ -306,7 +306,8 @@ export function registerContactAuthorIcons(clients) {
     if (!client?.uid) continue;
     const iconUrl =
       brandingPreviewUrl(client.iconUrl) || brandingPreviewUrl(client.logoUrl);
-    contactAuthorIconByUid.set(client.uid, iconUrl);
+    if (iconUrl) contactAuthorIconByUid.set(client.uid, iconUrl);
+    else contactAuthorIconByUid.delete(client.uid);
   }
 }
 
@@ -320,6 +321,11 @@ export function prefetchContactAuthorIcons() {
     })
     .catch(() => undefined);
   return contactAuthorIconPrefetchPromise;
+}
+
+/** Wait for client branding icons before rendering sidebar rows (avoids REΛVE fallback flash). */
+export async function ensureContactAuthorIconsReady() {
+  await prefetchContactAuthorIcons();
 }
 
 export function resolveContactAuthorIconUrl(contactUid, explicitIconUrl) {

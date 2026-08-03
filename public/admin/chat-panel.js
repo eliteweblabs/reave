@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons, mountPanelSkeleton } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
@@ -1120,7 +1120,7 @@ function formatChatDate(iso) {
 async function loadChatsTab(opts = {}) {
   const root = getChatPanel();
   if (!root) return;
-  void prefetchContactAuthorIcons();
+  await ensureContactAuthorIconsReady();
 
   // Fix #1: when returning to the Chats tab and the live React chat tree is
   // already mounted for the current thread, keep it instead of tearing it down.
