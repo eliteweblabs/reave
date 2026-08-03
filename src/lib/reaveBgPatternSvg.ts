@@ -7,7 +7,10 @@ const FIT_TO_PAR: Record<ReaveBgPatternFit, 'meet' | 'slice'> = {
   cover: 'slice',
 };
 
-/** Inline the full pattern SVG once — paths stay individually targetable in the DOM. */
+/**
+ * One artwork file, one DOM tree — never CSS-tiled.
+ * Tiling would slice chevrons at edges and block per-element styling.
+ */
 export function renderReaveBgPatternSvg(fit: ReaveBgPatternFit = 'contain'): string {
   const preserve = FIT_TO_PAR[fit];
 
