@@ -15,4 +15,5 @@ export const HERO_EXAMPLE_COMMANDS = [
   "Text the homeowner we're running twenty minutes late.",
   "Siri, what's the status on claim number 8842?",
   "Run payroll for the Denver warehouse shift.",
+  "Send Parker Marketing the non-disclosure contract for signature",
 ] as const;
