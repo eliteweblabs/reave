@@ -67,13 +67,7 @@ const QUANTUM_PARTICLE_COUNT = 4000;
  */
 const QUANTUM_BALL_RADIUS = 32.0;
 
-/**
- * Homepage particle stack extends this fraction of the hero height into the next
- * section (CSS `height: 130%` ↔ 0.30). Keep in sync with QuantumLogo.astro.
- */
-const HERO_BLEED_FRAC = 0.3;
-
-/** Lift logo + cloud above the hero optical center (fraction of hero band height). */
+/** Lift logo + cloud above the optical center (fraction of viewport height). */
 const HERO_CONTENT_LIFT_FRAC = 0.2;
 
 /** Baseline spin speed after swipe momentum settles (rad/sec). */
@@ -428,15 +422,10 @@ export function attachQuantumCoreOpticalEngine(
   camera.position.z = VIEW_Z;
 
   const stackEl = host.parentElement as HTMLElement | null;
-  const isCompactStack =
-    stackEl?.classList.contains("quantum-logo-stack--compact") ?? false;
-  /** Scrollable homepage hero — parallax from scroll, not pointer drag. */
-  const useScrollParallax =
-    stackEl?.classList.contains("quantum-logo-stack--in-section") ?? false;
 
   let presentationGalaxy: boolean | null = null;
   function setPresentationMode(galaxy: boolean): void {
-    if (!stackEl || isCompactStack || presentationGalaxy === galaxy) return;
+    if (!stackEl || presentationGalaxy === galaxy) return;
     presentationGalaxy = galaxy;
     stackEl.classList.toggle("quantum-logo-stack--galaxy", galaxy);
     stackEl.classList.toggle("quantum-logo-stack--logo", !galaxy);
@@ -451,14 +440,6 @@ export function attachQuantumCoreOpticalEngine(
 
   function getViewportSize(): { w: number; h: number } {
     const rect = host.getBoundingClientRect();
-    /* Host rect only on the scrollable homepage — visualViewport shrinks/grows with
-       the mobile URL bar during scroll and retriggers WebGL buffer reallocations. */
-    if (useScrollParallax) {
-      return {
-        w: Math.max(1, Math.round(rect.width)),
-        h: Math.max(1, Math.round(rect.height)),
-      };
-    }
     const vv = window.visualViewport;
     const w = Math.max(
       1,
@@ -471,43 +452,20 @@ export function attachQuantumCoreOpticalEngine(
     return { w, h };
   }
 
-  /** Hero band only (excludes the homepage bleed into the next section). */
-  function getHeroViewportSize(): { w: number; h: number } {
-    const { w, h } = getViewportSize();
-    if (!useScrollParallax) return { w, h };
-    return {
-      w,
-      h: Math.max(1, Math.round(h / (1 + HERO_BLEED_FRAC))),
-    };
-  }
-
   /**
    * Y the camera looks at (hero optical center). Content sits above this by
    * HERO_CONTENT_LIFT_FRAC so the cloud reads higher in the frame.
    */
   let contentAnchorY = 0;
 
-  /** Keep the logo/cloud in the hero band of a taller bleed canvas, lifted ~20%. */
+  /** Keep the logo/cloud lifted in the frame. */
   function syncHeroBleedOffset(): void {
     const visibleH =
       2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
-    if (!useScrollParallax) {
-      contentAnchorY = 0;
-      const liftY = visibleH * HERO_CONTENT_LIFT_FRAC;
-      pulseGroup.position.y = liftY;
-      logoResolve.position.y = liftY;
-      return;
-    }
-    const { h: canvasH } = getViewportSize();
-    const heroH = canvasH / (1 + HERO_BLEED_FRAC);
-    const heroFrac = heroH / Math.max(canvasH, 1);
-    /* Hero center sits above the canvas center by (bleed/2) of hero height. */
-    const nudgeFrac = (canvasH / 2 - heroH / 2) / Math.max(canvasH, 1);
-    contentAnchorY = visibleH * nudgeFrac;
-    const liftY = visibleH * heroFrac * HERO_CONTENT_LIFT_FRAC;
-    const y = contentAnchorY + liftY;
-    pulseGroup.position.y = y;
-    logoResolve.position.y = y;
+    contentAnchorY = 0;
+    const liftY = visibleH * HERO_CONTENT_LIFT_FRAC;
+    pulseGroup.position.y = liftY;
+    logoResolve.position.y = liftY;
   }
 
   const renderer = new THREE.WebGLRenderer({
@@ -535,8 +493,8 @@ export function attachQuantumCoreOpticalEngine(
   const introDurationBase = Math.max(0, options?.introRush?.durationSec ?? 0);
   /* Keep the intro on devices that report reduced motion — only shorten it and damp reactive FX. */
   const introDurationSec = introDurationBase * (prefersReduced ? 0.7 : 1);
-  const useGalaxyIntro = introDurationSec > 0 && !isCompactStack;
-  /** Compact/header: scale outward from home. Hero/preloader: full-screen galaxy field. */
+  const useGalaxyIntro = introDurationSec > 0;
+  /** Full-screen galaxy field during the preloader intro. */
   const introOutwardMin = 2.4;
   const introOutwardMax = 4.2;
   const BALL_RADIUS = isMobileLike ? 22 : QUANTUM_BALL_RADIUS;
@@ -840,7 +798,7 @@ export function attachQuantumCoreOpticalEngine(
   function logoTargetWorldSize(aspect: number): { w: number; h: number } {
     const { w: canvasW, h: canvasH } = getViewportSize();
     /* Cap against the hero band so the bleed extension doesn’t shrink the logo. */
-    const { w: vw, h: vh } = getHeroViewportSize();
+    const { w: vw, h: vh } = getViewportSize();
     const visibleH =
       2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
     const visibleW = visibleH * (canvasW / Math.max(1, canvasH));
@@ -967,17 +925,6 @@ export function attachQuantumCoreOpticalEngine(
     hasPointerSample = false;
   }
 
-  /** True while a pointer is actively dragging the homepage gesture catcher. */
-  let homeGestureActive = false;
-  /**
-   * Homepage gesture arbitration: `pending` until the first clear move, then
-   * `cloud` (down/left/right) or `scroll` (up — leave the page alone).
-   */
-  let homeGestureMode: "pending" | "cloud" | "scroll" = "pending";
-  let homeGestureStartX = 0;
-  let homeGestureStartY = 0;
-  let homeGesturePointerId: number | null = null;
-
   /**
    * Impart cloud motion from pointer travel (trackball).
    * Swipe direction sets both live 360° rotation and coasting angular velocity.
@@ -1063,10 +1010,6 @@ export function attachQuantumCoreOpticalEngine(
     resetPointerSample();
   }
 
-  const gestureEl =
-    (stackEl?.querySelector("[data-quantum-gesture]") as HTMLElement | null) ??
-    null;
-
   /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
   const onPointerMove = (e: PointerEvent) => {
     setParallaxFromClient(e.clientX, e.clientY, {
@@ -1086,84 +1029,6 @@ export function attachQuantumCoreOpticalEngine(
     cloudDragging = false;
     if (e.pointerType === "touch" && e.isPrimary) clearParallaxTargets();
     else resetPointerSample();
-  };
-
-  /**
-   * Homepage hero gesture catcher: left/right/down steer the cloud.
-   * Upward pans use CSS `touch-action: pan-up` so the page can scroll —
-   * we detect that early and stop driving the cloud / skip pointer capture.
-   */
-  const onHomeGestureDown = (e: PointerEvent) => {
-    if (!e.isPrimary) return;
-    homeGestureActive = true;
-    homeGestureMode = "pending";
-    homeGestureStartX = e.clientX;
-    homeGestureStartY = e.clientY;
-    homeGesturePointerId = e.pointerId;
-    resetPointerSample();
-    /* Seed sample only — no cloud impulse until direction is known. */
-    prevPointerX = e.clientX;
-    prevPointerY = e.clientY;
-    prevPointerT = performance.now();
-    hasPointerSample = true;
-  };
-  const onHomeGestureMove = (e: PointerEvent) => {
-    if (!homeGestureActive || !e.isPrimary) return;
-    if (homeGestureMode === "scroll") return;
-
-    if (homeGestureMode === "pending") {
-      const dx0 = e.clientX - homeGestureStartX;
-      const dy0 = e.clientY - homeGestureStartY;
-      const dist = Math.hypot(dx0, dy0);
-      if (dist < 8) return;
-      /* Touch finger moving up → page scroll; mouse drags always steer the cloud. */
-      if (
-        e.pointerType === "touch" &&
-        dy0 < -2 &&
-        Math.abs(dy0) >= Math.abs(dx0) * 0.85
-      ) {
-        homeGestureMode = "scroll";
-        homeGestureActive = false;
-        resetPointerSample();
-        return;
-      }
-      homeGestureMode = "cloud";
-      try {
-        gestureEl?.setPointerCapture(e.pointerId);
-      } catch {
-        /* ignore capture failures */
-      }
-      /* Reset sample at the decision point so the first cloud impulse is clean. */
-      prevPointerX = e.clientX;
-      prevPointerY = e.clientY;
-      prevPointerT = performance.now();
-      hasPointerSample = true;
-      return;
-    }
-
-    setParallaxFromClient(e.clientX, e.clientY, {
-      pointerType: e.pointerType,
-      buttons: e.buttons || 1,
-      driveCloud: true,
-    });
-  };
-  const onHomeGestureUp = (e: PointerEvent) => {
-    if (!e.isPrimary) return;
-    if (
-      homeGesturePointerId != null &&
-      gestureEl?.hasPointerCapture?.(homeGesturePointerId)
-    ) {
-      try {
-        gestureEl.releasePointerCapture(homeGesturePointerId);
-      } catch {
-        /* ignore */
-      }
-    }
-    homeGestureActive = false;
-    homeGestureMode = "pending";
-    homeGesturePointerId = null;
-    cloudDragging = false;
-    resetPointerSample();
   };
 
   const touchClient = (e: TouchEvent) =>
@@ -1188,49 +1053,14 @@ export function attachQuantumCoreOpticalEngine(
     clearParallaxTargets();
   };
 
-  let scrollActive = false;
-  let scrollIdleTimer = 0;
+  host.addEventListener("touchstart", onHostTouchStart, { passive: true });
+  host.addEventListener("touchmove", onHostTouchMove, { passive: false });
+  host.addEventListener("touchend", onHostTouchEnd, { passive: true });
+  host.addEventListener("touchcancel", onHostTouchEnd, { passive: true });
 
-  const markScrollActive = () => {
-    scrollActive = true;
-    window.clearTimeout(scrollIdleTimer);
-    scrollIdleTimer = window.setTimeout(() => {
-      scrollActive = false;
-      scrollIdleTimer = 0;
-      pendingResize = true;
-      onResize();
-    }, 180);
-  };
-
-  const onScroll = () => {
-    markScrollActive();
-  };
-
-  if (useScrollParallax) {
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
-    if (gestureEl) {
-      gestureEl.addEventListener("pointerdown", onHomeGestureDown, {
-        passive: true,
-      });
-      gestureEl.addEventListener("pointermove", onHomeGestureMove, {
-        passive: true,
-      });
-      gestureEl.addEventListener("pointerup", onHomeGestureUp, { passive: true });
-      gestureEl.addEventListener("pointercancel", onHomeGestureUp, {
-        passive: true,
-      });
-    }
-  } else {
-    host.addEventListener("touchstart", onHostTouchStart, { passive: true });
-    host.addEventListener("touchmove", onHostTouchMove, { passive: false });
-    host.addEventListener("touchend", onHostTouchEnd, { passive: true });
-    host.addEventListener("touchcancel", onHostTouchEnd, { passive: true });
-
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("pointerdown", onPointerDown, { passive: true });
-    window.addEventListener("pointerup", onPointerUp, { passive: true });
-  }
+  window.addEventListener("pointermove", onPointerMove, { passive: true });
+  window.addEventListener("pointerdown", onPointerDown, { passive: true });
+  window.addEventListener("pointerup", onPointerUp, { passive: true });
 
   function triggerShake(amt: number) {
     shakeIntensity = amt;
@@ -1372,7 +1202,7 @@ export function attachQuantumCoreOpticalEngine(
     }
     syncParticleSpin();
     const idleSizeWobble =
-      inIntro || isCompactStack || prefersReduced
+      inIntro || prefersReduced
         ? 0
         : Math.sin(sceneT * 0.44) * 0.055 * motionScale * idleVoiceDamp;
 
@@ -1508,7 +1338,7 @@ export function attachQuantumCoreOpticalEngine(
       );
     } else {
       const baseIdleAmp =
-        isCompactStack || prefersReduced
+        prefersReduced
           ? 0
           : 0.034 * motionScale * (1 - resolveMix * 0.22);
       const idleAmp = baseIdleAmp * voiceMorphMul;
@@ -1562,7 +1392,7 @@ export function attachQuantumCoreOpticalEngine(
 
     /* Idle breath calms while voice is active; voice adds a subtle swell instead of scatter. */
     const idleBreath =
-      inIntro || isCompactStack
+      inIntro
         ? 1
         : 1 + Math.sin(sceneT * 0.32) * 0.014 * motionScale * idleVoiceDamp;
     const scaleBreath =
@@ -1590,13 +1420,11 @@ export function attachQuantumCoreOpticalEngine(
   }
 
   let resizeRaf = 0;
-  let pendingResize = false;
   let lastBufferW = 0;
   let lastBufferH = 0;
   const RESIZE_DELTA_PX = 12;
 
   const applyResize = () => {
-    pendingResize = false;
     const { w, h } = getViewportSize();
     if (
       lastBufferW > 0 &&
@@ -1616,10 +1444,6 @@ export function attachQuantumCoreOpticalEngine(
   };
 
   const onResize = () => {
-    if (useScrollParallax && scrollActive) {
-      pendingResize = true;
-      return;
-    }
     cancelAnimationFrame(resizeRaf);
     resizeRaf = requestAnimationFrame(() => {
       resizeRaf = 0;
@@ -1627,9 +1451,7 @@ export function attachQuantumCoreOpticalEngine(
     });
   };
   window.addEventListener("resize", onResize);
-  if (!useScrollParallax) {
-    window.visualViewport?.addEventListener("resize", onResize);
-  }
+  window.visualViewport?.addEventListener("resize", onResize);
 
   applyResize();
   raf = requestAnimationFrame(animate);
@@ -1651,25 +1473,13 @@ export function attachQuantumCoreOpticalEngine(
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);
     window.removeEventListener("vapi-transcript", onTranscript);
-    window.clearTimeout(scrollIdleTimer);
-    if (useScrollParallax) {
-      window.removeEventListener("scroll", onScroll);
-      window.visualViewport?.removeEventListener("scroll", onScroll);
-      if (gestureEl) {
-        gestureEl.removeEventListener("pointerdown", onHomeGestureDown);
-        gestureEl.removeEventListener("pointermove", onHomeGestureMove);
-        gestureEl.removeEventListener("pointerup", onHomeGestureUp);
-        gestureEl.removeEventListener("pointercancel", onHomeGestureUp);
-      }
-    } else {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointerup", onPointerUp);
-      host.removeEventListener("touchstart", onHostTouchStart);
-      host.removeEventListener("touchmove", onHostTouchMove);
-      host.removeEventListener("touchend", onHostTouchEnd);
-      host.removeEventListener("touchcancel", onHostTouchEnd);
-    }
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerdown", onPointerDown);
+    window.removeEventListener("pointerup", onPointerUp);
+    host.removeEventListener("touchstart", onHostTouchStart);
+    host.removeEventListener("touchmove", onHostTouchMove);
+    host.removeEventListener("touchend", onHostTouchEnd);
+    host.removeEventListener("touchcancel", onHostTouchEnd);
     renderer.domElement.removeEventListener("webglcontextlost", onCtxLost);
 
     particlesGeo.dispose();

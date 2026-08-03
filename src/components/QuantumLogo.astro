@@ -9,14 +9,10 @@ export interface Props {
   logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
-  /** Homepage full-viewport; centered keeps the logo in the middle. */
-  layout?: "homepage" | "centered";
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
   /** Rush duration in seconds (default 2). */
   introDuration?: number;
-  /** Delay before WebGL init (homepage only, ms). */
-  initDelay?: number;
   class?: string;
 }
 
@@ -24,43 +20,29 @@ const {
   heroMask,
   logoSrc,
   hostId = "quantumCanvasHost",
-  layout = "homepage",
   introRush = true,
   introDuration = 4,
-  initDelay,
   class: className,
 } = Astro.props;
-
-const isHomepage = layout === "homepage";
-const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 ---
 
 <div
   class:list={[
     "quantum-logo-stack",
-    isHomepage && "quantum-logo-stack--homepage",
-    isHomepage && "quantum-logo-stack--in-section",
-    layout === "centered" && "quantum-logo-stack--centered",
+    "quantum-logo-stack--centered",
     introRush && "quantum-logo-stack--galaxy",
     !introRush && "quantum-logo-stack--logo",
     className,
   ]}
   data-quantum-logo
-  data-layout={layout}
-  data-pause-offscreen={isHomepage ? "true" : undefined}
   data-host-id={hostId}
   data-logo-src={logoSrc}
   data-hero-mask={heroMask}
   data-intro-rush={introRush ? "true" : "false"}
   data-intro-duration={String(introDuration)}
-  data-init-delay={String(resolvedInitDelay)}
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
-  {/* Hero-band only: pan-up scrolls the page; down/left/right drive the particle cloud. */}
-  {isHomepage && (
-    <div class="quantum-gesture-catcher" data-quantum-gesture tabindex="-1"></div>
-  )}
 </div>
 
 <style>
@@ -75,70 +57,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     cursor: default;
     touch-action: pan-y;
     overflow: hidden;
-  }
-
-  /* Scrollable homepage hero: canvas stays non-interactive (bleed overlays About).
-     Extends ~30% past the hero so particles can dissolve into the next section. */
-  .quantum-logo-stack--in-section {
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: auto;
-    height: 130%;
-    min-height: 130%;
-    pointer-events: none;
-    touch-action: manipulation;
-    cursor: default;
-    isolation: isolate;
-    overflow: visible;
-    /* Fade the bleed so the opaque WebGL clear softens into the section below. */
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 68%,
-      rgba(0, 0, 0, 0.55) 82%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 68%,
-      rgba(0, 0, 0, 0.55) 82%,
-      transparent 100%
-    );
-  }
-
-  /*
-   * Covers only the hero band (100/130 of the tall stack). Browser may scroll on
-   * upward pans; left/right/down are left to JS for particle control.
-   */
-  .quantum-gesture-catcher {
-    display: none;
-  }
-
-  .quantum-logo-stack--in-section .quantum-gesture-catcher {
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: calc(100% / 1.3);
-    z-index: 1;
-    pointer-events: auto;
-    touch-action: pan-up;
-    cursor: grab;
-  }
-
-  .quantum-logo-stack--in-section .quantum-gesture-catcher:active {
-    cursor: grabbing;
-  }
-
-  /* Standalone full-bleed pages (non-scroll hosts) keep the fixed cover. */
-  .quantum-logo-stack--homepage:not(.quantum-logo-stack--in-section) {
-    position: fixed;
-    min-height: 100vh;
-    min-height: 100dvh;
-    touch-action: none;
   }
 
   .quantum-logo-stack--centered {
@@ -161,11 +79,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
   }
 
-  /* Scrollable homepage: CSS filter on the WebGL stack repaints every frame during scroll. */
-  .quantum-logo-stack--in-section.quantum-logo-stack--logo {
-    filter: none;
-  }
-
   .quantum-host {
     position: absolute;
     inset: 0;
@@ -175,11 +88,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     pointer-events: auto;
     touch-action: none;
     overflow: hidden;
-  }
-
-  .quantum-logo-stack--in-section .quantum-host {
-    pointer-events: none;
-    touch-action: manipulation;
   }
 
   .quantum-host :global(canvas) {
@@ -203,44 +111,19 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     );
   }
 
-  function waitForPreloaderGone(): Promise<void> {
-    return new Promise((resolve) => {
-      const boot = document.getElementById("boot");
-      if (!boot) {
-        resolve();
-        return;
-      }
-      const finish = () => {
-        obs?.disconnect();
-        resolve();
-      };
-      const obs = new MutationObserver(() => {
-        if (!document.getElementById("boot")) finish();
-      });
-      obs.observe(document.body, { childList: true, subtree: true });
-      window.setTimeout(finish, 6000);
-    });
-  }
-
   function initStack(stack: HTMLElement): () => void {
     const hostId = stack.dataset.hostId || "quantumCanvasHost";
     const host = document.getElementById(hostId);
     if (!host) return () => {};
 
-    const layout = stack.dataset.layout || "homepage";
     const logoSrc = stack.dataset.logoSrc || "/reave-logo.png";
     const introRush = stack.dataset.introRush === "true";
     const introDuration = Number(stack.dataset.introDuration) || 4;
-    const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
-
-    document.documentElement.classList.add("quantum-page-touch");
-    document.body.classList.add("quantum-page-touch");
 
     let detach: (() => void) | undefined;
     let delayId = 0;
     let cancelled = false;
     let started = false;
-    let visibilityObs: IntersectionObserver | undefined;
 
     const start = () => {
       if (cancelled || started) return;
@@ -251,38 +134,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       });
     };
 
-    const delayMs = prefersReducedMotion() ? 0 : resolvedInitDelay;
-
-    const scheduleStart = () => {
-      delayId = window.setTimeout(start, delayMs);
-    };
-
-    if (layout === "homepage" && document.getElementById("boot")) {
-      void waitForPreloaderGone().then(scheduleStart);
-    } else {
-      scheduleStart();
-    }
-
-    // Pause the WebGL loop while the hero is offscreen (scrollable homepage).
-    if (stack.dataset.pauseOffscreen === "true" && "IntersectionObserver" in window) {
-      let paused = false;
-      visibilityObs = new IntersectionObserver(
-        (entries) => {
-          const ratio = Math.max(...entries.map((entry) => entry.intersectionRatio));
-          /* Hysteresis: avoid RAF stop/start flicker when the hero edge crosses ~5%. */
-          if (!paused && ratio <= 0) {
-            paused = true;
-            host.dataset.quantumPaused = "true";
-          } else if (paused && ratio >= 0.08) {
-            paused = false;
-            host.dataset.quantumPaused = "false";
-            host.dispatchEvent(new CustomEvent("quantum-resume"));
-          }
-        },
-        { root: null, threshold: [0, 0.08, 0.15] },
-      );
-      visibilityObs.observe(stack);
-    }
+    const delayMs = prefersReducedMotion() ? 0 : 0;
+    delayId = window.setTimeout(start, delayMs);
 
     const parent = stack.parentElement;
     let obs: MutationObserver | undefined;
@@ -301,11 +154,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     return () => {
       cancelled = true;
       window.clearTimeout(delayId);
-      visibilityObs?.disconnect();
       detach?.();
       obs?.disconnect();
-      document.documentElement.classList.remove("quantum-page-touch");
-      document.body.classList.remove("quantum-page-touch");
     };
   }
 

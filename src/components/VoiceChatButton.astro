@@ -1036,8 +1036,7 @@ const positionClasses = {
             // Use event listeners instead of callbacks to avoid cloning issues
             // Daily.co tries to clone functions in callbacks, causing DataCloneError
             if (vapiInstance && typeof vapiInstance.on === "function") {
-              // Drive the homepage quantum visualizer from Vapi's own audio
-              // (we no longer capture the mic ourselves). volume-level is 0..1.
+              // Forward Vapi volume levels for any listening UI (e.g. transcript pulse).
               vapiInstance.on("volume-level", function (v) {
                 const level =
                   typeof v === "number"

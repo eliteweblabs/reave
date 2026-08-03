@@ -13,24 +13,6 @@ html {
   overflow: hidden;
 }
 
-/* Soften the top of the first photo section so hero particles can read through. */
-.home-section--photo[data-home-section="about"] .marketing-bg {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(0, 0, 0, 0.55) 18%,
-    #000 36%,
-    #000 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(0, 0, 0, 0.55) 18%,
-    #000 36%,
-    #000 100%
-  );
-}
-
 .marketing-bg-photo {
   position: absolute;
   inset: 0;
@@ -88,7 +70,6 @@ html {
 
 .home-section {
   position: relative;
-  /* Sit under the hero particle bleed; section content still stacks above its own bg. */
   z-index: 1;
   width: 100%;
   padding: 64px 24px;
@@ -104,7 +85,6 @@ html {
   overflow: hidden;
 }
 
-.home-section--photo[data-home-section="about"],
 .about-page-main.home-section--photo {
   min-height: 100vh;
   min-height: 100svh;
@@ -170,6 +150,7 @@ html {
   font-size: clamp(28px, 5vw, 36px);
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: #fff;
   margin: 0 0 10px;
 }
 
@@ -178,14 +159,6 @@ html {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
   margin: 16px 0 8px;
-}
-
-.home-section-hero h2 {
-  font-size: clamp(28px, 5vw, 36px);
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 10px;
-  letter-spacing: -0.02em;
 }
 
 .home-section-inner p,

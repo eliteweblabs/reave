@@ -326,8 +326,8 @@ export function companyStaffAvatarUrl(company: CompanyConfig): string {
   return brandIconUrl(BRAND_ICON_SIZES.png192, companyBrandingVersion(company), { transparent: true });
 }
 
-/** Homepage quantum mask — custom admin logo, default silhouette, or hidden. */
-export function homepageHeroMask(company: CompanyConfig): string | null {
+/** Deck preloader quantum mask — custom admin logo, default silhouette, or hidden. */
+export function deckQuantumHeroMask(company: CompanyConfig): string | null {
   if (company.logoSource === 'hidden') return null;
   if (company.logoSource === 'admin') {
     return companyLogoUrl(company.logoPath, company.logoVersion);
@@ -335,8 +335,8 @@ export function homepageHeroMask(company: CompanyConfig): string | null {
   return '/reave-logo-mask.png';
 }
 
-/** Static logo image for the quantum intro resolve (default /reave-logo.png). */
-export function homepageHeroLogo(company: CompanyConfig): string | null {
+/** Static logo image for the deck preloader intro resolve (default /reave-logo.png). */
+export function deckQuantumHeroLogo(company: CompanyConfig): string | null {
   if (company.logoSource === 'hidden') return null;
   return companyLogoUrl(company.logoPath, company.logoVersion) || SITE.logoPath;
 }
