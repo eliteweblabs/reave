@@ -1,4 +1,4 @@
-/** Railway deploy status bulb in the header (all signed-in owner pages). */
+/** Railway deploy status bulb in the site header (public dev indicator). */
 (function () {
   const DEPLOY_POLL_MS = 60_000;
   let deployPollTimer = null;

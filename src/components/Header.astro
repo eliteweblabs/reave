@@ -1,7 +1,6 @@
 ---
 import DeployStatusDot from "./DeployStatusDot.astro";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
-import { isDeploymentOwner } from "../lib/deploymentOwner";
 import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
@@ -47,8 +46,6 @@ const profileIconSrc = companyStaffAvatarUrl(company);
 
 const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
-const isOwner = userId ? await isDeploymentOwner(Astro) : false;
-const showDeployIndicator = isOwner;
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 const inAdminRoute = adminShell || path.startsWith("/admin");
@@ -100,21 +97,21 @@ const showHeaderProfile = userId && !showMarketingNav;
     <MarketingMenu pathname={path} signedIn={Boolean(userId)} />
   )}
 
-  {showHeaderSignIn && (
-    <button
-      type="button"
-      class="app-header-signin"
-      data-ios-sheet-open="sign-in-sheet"
-      aria-label="Sign in"
-      title="Sign in"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-    </button>
-  )}
+  <div class="app-header-end topbar-end">
+    <DeployStatusDot />
+    {showHeaderSignIn && (
+      <button
+        type="button"
+        class="app-header-signin"
+        data-ios-sheet-open="sign-in-sheet"
+        aria-label="Sign in"
+        title="Sign in"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </button>
+    )}
 
-  {showHeaderProfile && (
-    <div class="app-header-end topbar-end">
-      {adminShell ? (
+    {showHeaderProfile && (adminShell ? (
         <>
           <button
             type="button"
@@ -127,7 +124,6 @@ const showHeaderProfile = userId && !showMarketingNav;
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
           </button>
           <div class="topbar-profile-cluster">
-            {showDeployIndicator && <DeployStatusDot />}
             <div class="app-header-menu topbar-menu topbar-profile-menu">
               <button
                 type="button"
@@ -168,7 +164,6 @@ const showHeaderProfile = userId && !showMarketingNav;
         </>
       ) : showHomeAdminEntry ? (
         <div class="topbar-profile-cluster">
-          {showDeployIndicator && <DeployStatusDot />}
           <div class="topbar-profile-hit">
             <a
               href="/admin/?tab=home"
@@ -190,7 +185,6 @@ const showHeaderProfile = userId && !showMarketingNav;
         </div>
       ) : (
         <div class="topbar-profile-cluster">
-          {showDeployIndicator && <DeployStatusDot />}
           <div class="app-header-menu topbar-menu topbar-profile-menu">
           <button
             type="button"
@@ -240,9 +234,8 @@ const showHeaderProfile = userId && !showMarketingNav;
           </div>
         </div>
         </div>
-      )}
-    </div>
-  )}
+      ))}
+  </div>
 
   {adminShell && (
     <time id="topbar-dash-date" class="topbar-dash-date" datetime="" hidden></time>
@@ -261,9 +254,7 @@ const showHeaderProfile = userId && !showMarketingNav;
 {userId && (
   <script src="/review-badge.js?v=20260717a" defer></script>
 )}
-{showDeployIndicator && (
-  <script src="/deploy-indicator.js?v=20260804a" defer></script>
-)}
+<script src="/deploy-indicator.js?v=20260804b" defer></script>
 
 <style is:global>
   :root {
@@ -604,7 +595,6 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 
   .app-header-signin {
-    margin-left: auto;
     width: var(--app-header-signin-h);
     height: var(--app-header-signin-h);
     border-radius: 50%;

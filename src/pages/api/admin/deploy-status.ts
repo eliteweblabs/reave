@@ -1,9 +1,9 @@
 /**
  * GET /api/admin/deploy-status — lightweight deploy snapshot for the topbar indicator.
+ * Public (no auth) — dev convenience so deploy state is visible without signing in.
  */
 
 import type { APIContext } from 'astro';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   deployIndicatorTone,
   deployTooltip,
@@ -20,11 +20,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
-  if (auth instanceof Response) return auth;
-  const { userId } = auth;
-
+export async function GET(_context: APIContext): Promise<Response> {
   const deploy = await getDeployStatus().catch(() => null);
   if (!deploy) {
     return json({ ok: true, deploy: null });
