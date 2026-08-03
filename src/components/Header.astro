@@ -332,14 +332,11 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 
   /*
-   * Public/marketing headers scroll with the document. iOS rubber-band overscroll
-   * moves layout-viewport-fixed chrome; --app-header-vv-top (set from
-   * visualViewport in the script below) keeps the bar pinned to the screen top.
+   * Public/marketing headers are fixed. iOS rubber-band overscroll moves
+   * layout-viewport-fixed chrome; --app-header-vv-top (synced from visualViewport
+   * above) keeps the bar pinned to the screen top without blocking native
+   * overscroll or pull-to-refresh.
    */
-  html:has(body > .app-header:not(.app-header--admin)),
-  html:has(body > .app-header:not(.app-header--admin)) body {
-    overscroll-behavior-y: none;
-  }
 
   .app-header {
     position: fixed;
