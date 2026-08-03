@@ -1,5 +1,5 @@
 const DEFAULT_REVEAL_WINDOW_MS = 2500;
-const DEFAULT_FADE_MS = 250;
+const DEFAULT_FADE_MS = 500;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -39,15 +39,16 @@ export function initReaveBgPatternReveal(root: ParentNode = document): number {
 
     paths.forEach((path) => {
       path.style.opacity = '0';
-      path.style.transition = `opacity ${fadeMs}ms ease`;
+      path.style.transition = `opacity ${fadeMs}ms ease-in`;
       path.style.transitionDelay = `${Math.random() * maxDelay}ms`;
     });
 
+    // Commit the hidden state before triggering fade-in so transitions actually run.
+    void wrap.getBoundingClientRect();
+
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        paths.forEach((path) => {
-          path.style.opacity = '1';
-        });
+      paths.forEach((path) => {
+        path.style.opacity = '1';
       });
     });
   });
