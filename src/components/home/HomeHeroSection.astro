@@ -34,13 +34,8 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
   <div class="home-hero-mesh" aria-hidden="true"></div>
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
-  <div class="home-hero-icon-wrap" data-hero-icon>
-    <div class="home-hero-icon-glow-layer" aria-hidden="true">
-      <BrandIconInline company={company} variant="glow" />
-    </div>
-    <div class="home-hero-icon-front">
-      <BrandIconInline company={company} variant="front" />
-    </div>
+  <div class="home-hero-icon-wrap">
+    <BrandIconInline company={company} />
   </div>
 
   <div class="home-hero-inner">
@@ -97,7 +92,6 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
 
 <script>
   import "../../lib/heroIndustryRotate.ts";
-  import "../../lib/heroIconScroll.ts";
 </script>
 
 <style>
@@ -181,86 +175,16 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     z-index: 1;
     left: 50%;
     top: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: clamp(180px, 35vw, 280px);
     height: clamp(180px, 35vw, 280px);
-    will-change: transform, opacity;
     transform: translate(-50%, -50%);
-    transform-origin: center center;
-    isolation: isolate;
-    touch-action: manipulation;
   }
 
-  .home-hero-icon-glow-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-
-  .home-hero-icon-glow-layer :global(svg),
-  .home-hero-icon-glow-layer :global(img),
-  .home-hero-icon-glow-svg {
-    display: block;
-    width: 105.3%;
-    height: 105.3%;
-    object-fit: contain;
-    filter:
-      blur(12px)
-      grayscale(1)
-      brightness(0.12)
-      drop-shadow(0 0 22px rgba(0, 0, 0, 0.75))
-      drop-shadow(0 0 42px rgba(0, 0, 0, 0.45));
-    animation: home-hero-icon-glow-pulse 3.6s ease-in-out infinite;
-    will-change: filter, opacity;
-  }
-
-  @keyframes home-hero-icon-glow-pulse {
-    0%,
-    100% {
-      filter:
-        blur(10px)
-        grayscale(1)
-        brightness(0.1)
-        drop-shadow(0 0 18px rgba(0, 0, 0, 0.65))
-        drop-shadow(0 0 34px rgba(0, 0, 0, 0.38));
-      opacity: 0.72;
-    }
-
-    50% {
-      filter:
-        blur(16px)
-        grayscale(1)
-        brightness(0.16)
-        drop-shadow(0 0 28px rgba(0, 0, 0, 0.85))
-        drop-shadow(0 0 52px rgba(0, 0, 0, 0.52));
-      opacity: 0.92;
-    }
-  }
-
-  .home-hero-icon-front {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .home-hero-icon,
-  .home-hero-icon-front :global(svg),
-  .home-hero-icon-front :global(img) {
+  .home-hero-icon-wrap :global(svg),
+  .home-hero-icon-wrap :global(img) {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    filter: drop-shadow(0 12px 40px rgba(192, 38, 211, 0.35));
   }
 
   .home-hero-copy {
@@ -400,22 +324,5 @@ const firstIndustry = industryLabels[startIndex] ?? "your business";
     border-color: rgba(255, 255, 255, 0.38);
     transform: translateY(-1px);
     text-decoration: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .home-hero-icon-wrap {
-      will-change: auto;
-    }
-
-    .home-hero-icon-glow-layer :global(svg),
-    .home-hero-icon-glow-svg {
-      animation: none;
-      opacity: 0.75;
-      filter:
-        blur(10px)
-        grayscale(1)
-        brightness(0.12)
-        drop-shadow(0 0 20px rgba(0, 0, 0, 0.6));
-    }
   }
 </style>

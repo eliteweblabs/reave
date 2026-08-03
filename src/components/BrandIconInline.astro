@@ -1,42 +1,12 @@
 ---
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import type { CompanyConfig } from '../lib/companyConfig';
-import { prepareInlineBrandSvg, svgHasExternalRasterRefs } from '../lib/brandSvg';
-import ReaveIconAnimated from './ReaveIconAnimated.astro';
+import ReaveIcon from './ReaveIconAnimated.astro';
 
 export interface Props {
   company: CompanyConfig;
-  variant?: 'front' | 'glow';
 }
 
-const { company, variant = 'front' } = Astro.props;
-const isGlow = variant === 'glow';
-const className = isGlow
-  ? 'home-hero-icon-glow-svg reave-icon-svg'
-  : 'home-hero-icon reave-icon-svg';
-const idPrefix = isGlow ? 'hero-icon-glow' : 'hero-icon';
-
-/** Public REΛVE icon — primary homepage hero source. */
-const DEFAULT_HERO_ICON_SVG = readFileSync(
-  path.join(process.cwd(), 'public/reave-icon.svg'),
-  'utf8',
-);
-
-/** Admin Icon SVG when it is fully inline (no Illustrator raster sidecars like content-1.png). */
-const adminIconSvg = company.iconSvg?.trim() ?? '';
-const svgSource =
-  adminIconSvg && !svgHasExternalRasterRefs(adminIconSvg)
-    ? adminIconSvg
-    : DEFAULT_HERO_ICON_SVG;
-
-const inlineSvg = prepareInlineBrandSvg(svgSource, { className, idPrefix });
+const { company: _company } = Astro.props;
 ---
 
-{
-  inlineSvg ? (
-    <Fragment set:html={inlineSvg} />
-  ) : (
-    <ReaveIconAnimated class={className} idSuffix={isGlow ? 'glow' : 'front'} />
-  )
-}
+<ReaveIcon class="home-hero-icon" />

@@ -14,8 +14,6 @@ import {
 interface Props {
   /** Admin SPA shell — profile menu; tab nav lives in footer */
   adminShell?: boolean;
-  /** Homepage — hide header logo on hero, cascade in after first section */
-  homepageLogoReveal?: boolean;
   /** Vercel-style inline nav + hamburger on public marketing pages */
   marketingNav?: boolean;
   /** Homepage — single user icon links to admin instead of tools/profile menus */
@@ -32,7 +30,6 @@ interface Props {
 
 const {
   adminShell = false,
-  homepageLogoReveal = false,
   marketingNav = false,
   homeAdminEntry = false,
   staffPreview = false,
@@ -73,7 +70,6 @@ const showHeaderProfile = userId && !showMarketingNav;
     {
       "app-header--admin": adminShell,
       "app-header--portal-brand": !!portalBrand,
-      "app-header--homepage-logo-reveal": homepageLogoReveal,
     },
   ]}
   id={adminShell ? "topbar" : undefined}
@@ -81,10 +77,8 @@ const showHeaderProfile = userId && !showMarketingNav;
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
     href={logoHref}
-    class:list={["app-header-logo brand", homepageLogoReveal && "app-header-logo--hero-hidden"]}
+    class="app-header-logo brand"
     aria-label={logoAriaLabel}
-    aria-hidden={homepageLogoReveal ? "true" : undefined}
-    tabindex={homepageLogoReveal ? -1 : undefined}
   >
     <span class="app-header-logo-clip" aria-hidden="true">
       <BrandLogoInline company={company} />
@@ -274,10 +268,6 @@ const showHeaderProfile = userId && !showMarketingNav;
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
-    /* Cascade distance — 300px or 3× logo height, whichever is larger. */
-    --app-header-logo-drop: max(300px, calc(3 * var(--app-header-logo-h)));
-    --app-header-logo-part-stagger: 100ms;
-    --app-header-logo-part-duration: 0.55s;
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
@@ -440,31 +430,11 @@ const showHeaderProfile = userId && !showMarketingNav;
     text-decoration: none;
   }
 
-  .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
-    pointer-events: none;
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo--hero-hidden {
-    pointer-events: auto;
-  }
-
-  /*
-   * Dedicated clip layer — iOS Safari often fails to clip transformed SVG
-   * descendants on the link alone; an inner wrapper with contain:paint fixes it.
-   */
   .app-header-logo-clip {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    overflow: hidden;
     height: var(--app-header-logo-h);
-    width: auto;
     max-width: min(42vw, 280px);
-    transform: translateZ(0);
-    contain: paint;
-    isolation: isolate;
-    clip-path: inset(0);
-    -webkit-clip-path: inset(0);
   }
 
   .app-header-logo-img {
@@ -472,8 +442,6 @@ const showHeaderProfile = userId && !showMarketingNav;
     height: var(--app-header-logo-h);
     width: auto;
     max-width: 100%;
-    object-fit: contain;
-    pointer-events: none;
   }
 
   .app-header-logo-text {
@@ -498,78 +466,14 @@ const showHeaderProfile = userId && !showMarketingNav;
     color: #fff;
   }
 
-  .app-header-logo-svg--animated {
+  .app-header-logo-svg {
     display: block;
     height: var(--app-header-logo-h);
     width: calc(var(--app-header-logo-h) * (926.878 / 262.015));
-    max-width: none;
-    pointer-events: none;
-    overflow: hidden;
   }
 
   /*
-   * Per-letter yo-yo cascade inside the clip slot, on every pointer type.
-   * transform-box: view-box keeps translateY() in CSS pixels.
-   *
-   * The per-letter stagger is what makes the drop readable: the easing covers
-   * roughly three quarters of the ~30px travel in the first frame, so letters
-   * moving in unison land together and read as a pop instead of a slide. Do not
-   * collapse this onto the whole wordmark. (The clip wrapper's paint
-   * containment keeps the transformed letters inside the slot on iOS.)
-   */
-  .app-header--homepage-logo-reveal .app-header-logo-part {
-    transform-box: view-box;
-    transform-origin: center top;
-    transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
-    transition-property: transform;
-    transition-duration: var(--app-header-logo-part-duration);
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: calc(
-      (var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) *
-        var(--app-header-logo-part-stagger)
-    );
-    will-change: transform;
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-    transform: translate3d(0, 0, 0);
-    transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
-  }
-
-  @media (pointer: coarse) {
-    .app-header--homepage-logo-reveal.app-header--logo-visible::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      pointer-events: none;
-      background: linear-gradient(
-        180deg,
-        rgba(5, 5, 5, 0.94) 0%,
-        rgba(5, 5, 5, 0.82) 72%,
-        rgba(5, 5, 5, 0) 100%
-      );
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .app-header--homepage-logo-reveal .app-header-logo-part {
-      transition-property: opacity;
-      transition-duration: 0.2s;
-      transition-timing-function: ease;
-      transition-delay: 0ms;
-      transform: translate3d(0, 0, 0);
-      opacity: 0;
-    }
-
-    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-      opacity: 1;
-    }
-  }
-
-  /*
-   * Legacy PNG mask fallback — header now uses inline SVG (BrandLogoInline).
-   * Kept for reference if a raster-only portal brand is needed later.
+   * Legacy PNG mask fallback — kept for reference if a raster-only portal brand is needed later.
    */
   .app-header-logo-mark {
     display: block;
