@@ -1,4 +1,4 @@
-const DEFAULT_REVEAL_WINDOW_MS = 2500;
+const DEFAULT_REVEAL_WINDOW_MS = 5000;
 const DEFAULT_FADE_MS = 250;
 
 function prefersReducedMotion(): boolean {
@@ -8,6 +8,15 @@ function prefersReducedMotion(): boolean {
 function readMs(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 export function initReaveBgPatternReveal(root: ParentNode = document): number {
@@ -35,12 +44,13 @@ export function initReaveBgPatternReveal(root: ParentNode = document): number {
 
     const fadeMs = readMs(wrap.dataset.revealFadeMs, DEFAULT_FADE_MS);
     const windowMs = readMs(wrap.dataset.revealWindowMs, DEFAULT_REVEAL_WINDOW_MS);
-    const maxDelay = Math.max(0, windowMs - fadeMs);
+    const intervalMs = windowMs / paths.length;
+    const order = shuffle(paths);
 
-    paths.forEach((path) => {
+    order.forEach((path, sequence) => {
       path.style.opacity = '0';
       path.style.transition = `opacity ${fadeMs}ms ease`;
-      path.style.transitionDelay = `${Math.random() * maxDelay}ms`;
+      path.style.transitionDelay = `${sequence * intervalMs}ms`;
     });
 
     requestAnimationFrame(() => {
