@@ -135,6 +135,22 @@
   width: 14px;
   height: 14px;
 }
+.em-filter-tab--refresh .em-filter-refresh-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.em-filter-tab--refresh .em-filter-refresh-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.em-filter-tab--refreshing .em-filter-refresh-icon svg {
+  animation: em-filter-refresh-spin 0.75s linear infinite;
+}
+@keyframes em-filter-refresh-spin {
+  to { transform: rotate(360deg); }
+}
 .em-filter-count {
   font-variant-numeric: tabular-nums;
   opacity: 0.85;

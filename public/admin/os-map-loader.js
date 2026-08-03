@@ -94,7 +94,7 @@ import {
   downloadBrandingImage,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260802a';
+} from './admin-ui.js?v=20260802c';
 import { showAdminConfirmBanner } from './push-client.js?v=20260802b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
@@ -7957,6 +7957,7 @@ let emailState = {
   storage: 'files',
   digest: null,
   pushConfigured: false,
+  inboxRefreshing: false,
 };
 let pendingEmailDeepLinkId = null;
 let emailPollTimer = null;
@@ -10677,10 +10678,13 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     btn.type = 'button';
     const isActive = emailState.inboxFilter === tab.id;
     const canBulkDelete = isActive && tab.id !== 'all' && tab.count > 0;
+    const isAllRefresh = isActive && tab.id === 'all';
     btn.className =
       'em-filter-tab' +
       (isActive ? ' active' : '') +
-      (canBulkDelete ? ' em-filter-tab--purge' : '');
+      (canBulkDelete ? ' em-filter-tab--purge' : '') +
+      (isAllRefresh ? ' em-filter-tab--refresh' : '') +
+      (isAllRefresh && emailState.inboxRefreshing ? ' em-filter-tab--refreshing' : '');
     btn.setAttribute('role', 'tab');
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
 
@@ -10691,6 +10695,21 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
       btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
       btn.title = `Delete all ${tab.label.toLowerCase()} messages`;
       btn.addEventListener('click', () => bulkDeleteInboxCategory(tab));
+    } else if (isAllRefresh) {
+      btn.innerHTML =
+        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
+        `<span class="em-filter-refresh-icon">${IOS_ICONS.refresh}</span>`;
+      btn.setAttribute('aria-label', 'Refresh inbox');
+      btn.title = 'Check for new mail';
+      btn.addEventListener('click', () => {
+        if (emailState.inboxRefreshing) return;
+        emailState.inboxRefreshing = true;
+        renderEmailPanel();
+        void loadEmailTab(true).finally(() => {
+          emailState.inboxRefreshing = false;
+          renderEmailPanel();
+        });
+      });
     } else {
       btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
       btn.addEventListener('click', () => {
