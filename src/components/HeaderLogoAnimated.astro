@@ -1,8 +1,7 @@
 ---
 /**
- * Vector REAVE wordmark — logo silhouette filled with a slow lava-lamp gradient.
- * Letter groups keep the homepage cascade; each clips a shared animated layer.
- * CSS keyframes (not SMIL) — Chrome does not run SVG SMIL animations.
+ * Vector REAVE wordmark — letter paths filled with the brand gradient.
+ * No clipPath + raster (that breaks in iOS WebViews when the PNG is a full rect).
  */
 
 /** Subpaths for the homepage letter cascade (same geometry, split for animation). */
@@ -28,109 +27,28 @@ const parts = [
   focusable="false"
 >
   <defs>
-    <filter id="header-lava-blur" x="-60%" y="-80%" width="220%" height="260%" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="36"/>
-    </filter>
-
-    <linearGradient id="header-lava-base" x1="0" y1="131" x2="926.878" y2="131" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="52%" stop-color="#c026d3"/>
-      <stop offset="100%" stop-color="#f472b6"/>
+    <linearGradient
+      id="header-logo-brand"
+      gradientUnits="userSpaceOnUse"
+      x1="0"
+      y1="131"
+      x2="926.878"
+      y2="131"
+    >
+      <stop offset="0%" stop-color="var(--brand-indigo, #6366f1)"></stop>
+      <stop offset="52%" stop-color="var(--brand-magenta, #c026d3)"></stop>
+      <stop offset="100%" stop-color="var(--brand-pink, #f472b6)"></stop>
     </linearGradient>
-
-    {
-      parts.map((part) => (
-        <clipPath id={`header-logo-clip-${part.id}`}>
-          <path d={part.d} />
-        </clipPath>
-      ))
-    }
-
-    <g id="header-lava-layer">
-      <rect width="926.878" height="262.015" fill="url(#header-lava-base)"/>
-      <g filter="url(#header-lava-blur)">
-        <g class="header-lava-blob header-lava-blob-1">
-          <circle cx="173" cy="150" r="150" fill="#a855f7" opacity="0.58"/>
-        </g>
-        <g class="header-lava-blob header-lava-blob-2">
-          <circle cx="403" cy="110" r="135" fill="#d946ef" opacity="0.55"/>
-        </g>
-        <g class="header-lava-blob header-lava-blob-3">
-          <circle cx="595" cy="155" r="145" fill="#c026d3" opacity="0.62"/>
-        </g>
-        <g class="header-lava-blob header-lava-blob-4">
-          <circle cx="787" cy="120" r="130" fill="#f472b6" opacity="0.6"/>
-        </g>
-        <g class="header-lava-blob header-lava-blob-5">
-          <circle cx="480" cy="200" r="120" fill="#ec4899" opacity="0.52"/>
-        </g>
-      </g>
-    </g>
   </defs>
-
   {
     parts.map((part, index) => (
       <g
         class="app-header-logo-part"
         style={`--logo-part-index: ${index}`}
         data-logo-part={part.id}
-        clip-path={`url(#header-logo-clip-${part.id})`}
       >
-        <use href="#header-lava-layer" width="926.878" height="262.015"/>
+        <path d={part.d} fill="url(#header-logo-brand)" />
       </g>
     ))
   }
 </svg>
-
-<style>
-  .header-lava-blob {
-    transform-box: fill-box;
-    transform-origin: center;
-    will-change: transform;
-  }
-
-  @keyframes header-lava-drift-1 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    25% { transform: translate(96px, -60px) scale(1.13); }
-    50% { transform: translate(-38px, 20px) scale(0.87); }
-    75% { transform: translate(38px, -30px) scale(1.07); }
-  }
-
-  @keyframes header-lava-drift-2 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    25% { transform: translate(96px, 60px) scale(1.15); }
-    50% { transform: translate(-38px, -30px) scale(0.89); }
-    75% { transform: translate(38px, 30px) scale(1.07); }
-  }
-
-  @keyframes header-lava-drift-3 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    25% { transform: translate(96px, -60px) scale(1.14); }
-    50% { transform: translate(-38px, 20px) scale(0.86); }
-    75% { transform: translate(38px, -25px) scale(1.03); }
-  }
-
-  @keyframes header-lava-drift-4 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    25% { transform: translate(76px, 60px) scale(1.15); }
-    50% { transform: translate(-57px, -30px) scale(0.88); }
-    75% { transform: translate(29px, 30px) scale(1.08); }
-  }
-
-  @keyframes header-lava-drift-5 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    25% { transform: translate(76px, -60px) scale(1.17); }
-    50% { transform: translate(-58px, 10px) scale(0.88); }
-    75% { transform: translate(29px, -30px) scale(1.08); }
-  }
-
-  .header-lava-blob-1 { animation: header-lava-drift-1 24s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-  .header-lava-blob-2 { animation: header-lava-drift-2 28s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-  .header-lava-blob-3 { animation: header-lava-drift-3 26s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-  .header-lava-blob-4 { animation: header-lava-drift-4 22s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-  .header-lava-blob-5 { animation: header-lava-drift-5 30s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .header-lava-blob { animation: none !important; }
-  }
-</style>

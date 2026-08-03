@@ -1,6 +1,7 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
 import { companyLogoUrl, hasCompanyHeaderLogoImage } from '../lib/companyConfig';
+import HeaderLogoAnimated from './HeaderLogoAnimated.astro';
 import InlineBrandSvg from './InlineBrandSvg.astro';
 
 export interface Props {
@@ -32,6 +33,6 @@ const displayName = company.name?.trim() || 'Business OS';
       idPrefix="header-logo"
     />
   ) : (
-    <span class="app-header-logo-text brand">{displayName}</span>
+    <HeaderLogoAnimated />
   )
 }
