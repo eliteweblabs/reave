@@ -6,6 +6,11 @@ const UNSAFE_SVG_PATTERN =
 const EVENT_HANDLER_ATTR = /\s(on[a-z]+|formaction|xlink:href\s*=\s*["']?\s*javascript:)/gi;
 const JS_URL = /javascript:/gi;
 
+/** True when SVG embeds raster sidecars (Illustrator exports like content-1.png). */
+export function svgHasExternalRasterRefs(svg: string): boolean {
+  return /<image\b[^>]*(?:xlink:)?href\s*=\s*["'](?!#|data:)[^"']+["']/i.test(svg);
+}
+
 /** Illustrator / legacy export filenames → root-relative /public assets. */
 const SVG_RASTER_ALIASES: Record<string, string> = {
   'content-1.png': '/reave-icon.png',
