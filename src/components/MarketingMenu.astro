@@ -1,11 +1,10 @@
 ---
 /**
- * Vercel-style marketing navigation — desktop inline links + hamburger overlay.
+ * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
 import { ArrowRight, X } from "lucide-astro";
 import {
   MARKETING_NAV_GROUPS,
-  MARKETING_NAV_INLINE,
   marketingNavActivePath,
 } from "../lib/marketingNav";
 
@@ -18,18 +17,30 @@ const { pathname, signedIn } = Astro.props;
 ---
 
 <div class="marketing-nav" data-marketing-nav>
-  <nav class="marketing-nav-inline" aria-label="Primary">
-    {
-      MARKETING_NAV_INLINE.map((link) => (
-        <a
-          href={link.href}
-          class:list={["marketing-nav-link", marketingNavActivePath(pathname, link.href) && "is-active"]}
-        >
-          {link.label}
+  {
+    !signedIn ? (
+      <button
+        type="button"
+        class="marketing-nav-signin"
+        data-ios-sheet-open="sign-in-sheet"
+      >
+        Sign in
+      </button>
+    ) : (
+      <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
+        <a href="/admin/?tab=home" class="marketing-nav-link">
+          Administration
         </a>
-      ))
-    }
-  </nav>
+        <button
+          type="button"
+          class="marketing-nav-link marketing-nav-link--button"
+          data-marketing-sign-out-inline
+        >
+          Sign out
+        </button>
+      </nav>
+    )
+  }
 
   <a class="marketing-nav-cta" href="/demo">
     Demo now
@@ -103,38 +114,25 @@ const { pathname, signedIn } = Astro.props;
         ))
       }
 
-      <section class="marketing-menu-group" aria-labelledby="menu-account">
-        <h2 id="menu-account" class="marketing-menu-group-label">Account</h2>
-        <ul class="marketing-menu-list">
-          {
-            signedIn ? (
-              <>
-                <li>
-                  <a href="/admin/?tab=home" class="marketing-menu-link" data-marketing-menu-link>
-                    Administration
-                  </a>
-                </li>
-                <li>
-                  <button type="button" class="marketing-menu-link marketing-menu-link--button" data-marketing-sign-out>
-                    Sign out
-                  </button>
-                </li>
-              </>
-            ) : (
+      {
+        signedIn && (
+          <section class="marketing-menu-group" aria-labelledby="menu-account">
+            <h2 id="menu-account" class="marketing-menu-group-label">Account</h2>
+            <ul class="marketing-menu-list">
               <li>
-                <button
-                  type="button"
-                  class="marketing-menu-link marketing-menu-link--button"
-                  data-ios-sheet-open="sign-in-sheet"
-                  data-marketing-menu-link
-                >
-                  Sign in
+                <a href="/admin/?tab=home" class="marketing-menu-link" data-marketing-menu-link>
+                  Administration
+                </a>
+              </li>
+              <li>
+                <button type="button" class="marketing-menu-link marketing-menu-link--button" data-marketing-sign-out>
+                  Sign out
                 </button>
               </li>
-            )
-          }
-        </ul>
-      </section>
+            </ul>
+          </section>
+        )
+      }
     </div>
 
     <footer class="marketing-menu-footer">
@@ -204,8 +202,7 @@ const { pathname, signedIn } = Astro.props;
       el.addEventListener("click", () => setMarketingMenuOpen(false));
     });
 
-    root.querySelector("[data-marketing-sign-out]")?.addEventListener("click", async (ev) => {
-      ev.preventDefault();
+    async function marketingSignOut() {
       setMarketingMenuOpen(false);
       const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
       if (Clerk) {
@@ -214,6 +211,16 @@ const { pathname, signedIn } = Astro.props;
       } else {
         window.location.href = "/sign-out";
       }
+    }
+
+    root.querySelector("[data-marketing-sign-out]")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      void marketingSignOut();
+    });
+
+    document.querySelector("[data-marketing-sign-out-inline]")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      void marketingSignOut();
     });
 
     document.addEventListener("keydown", (ev) => {
@@ -232,6 +239,27 @@ const { pathname, signedIn } = Astro.props;
     gap: 0.35rem;
     margin-left: auto;
     flex-shrink: 0;
+  }
+
+  .marketing-nav-signin {
+    padding: 0.35rem 0.75rem;
+    border: none;
+    border-radius: 999px;
+    font-family: var(--font-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.82);
+    background: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .marketing-nav-signin:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .marketing-nav-inline {
@@ -261,6 +289,11 @@ const { pathname, signedIn } = Astro.props;
 
   .marketing-nav-link.is-active {
     color: #fff;
+  }
+
+  .marketing-nav-link--button {
+    font: inherit;
+    cursor: pointer;
   }
 
   .marketing-nav-cta {
@@ -333,8 +366,12 @@ const { pathname, signedIn } = Astro.props;
   }
 
   @media (min-width: 900px) {
-    .marketing-nav-inline {
+    .marketing-nav-inline--signed-in {
       display: flex;
+    }
+
+    .marketing-nav-toggle {
+      display: none;
     }
   }
 

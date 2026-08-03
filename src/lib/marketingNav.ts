@@ -39,13 +39,6 @@ export const MARKETING_NAV_GROUPS: MarketingNavGroup[] = [
   },
 ];
 
-/** Flat list for the desktop inline bar (subset — keep the header clean). */
-export const MARKETING_NAV_INLINE: MarketingNavLink[] = [
-  { href: "/features", label: "Platform" },
-  { href: "/demo", label: "Demo" },
-  { href: "/about", label: "About" },
-];
-
 export function isMarketingPagePath(pathname: string): boolean {
   const path = pathname.replace(/\/$/, "") || "/";
   if (path === "/") return true;
