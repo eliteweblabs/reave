@@ -3,11 +3,10 @@
  * Text layers stay fixed; clip-path hides/reveals each word (overlay wipes fail on iOS
  * Safari because -webkit-background-clip:text paints above sibling z-index layers).
  * Viewport width matches each word and is eased from the outgoing to the incoming width
- * while both layers are blank, so the centered tagline glides instead of snapping.
+ * across the reveal, so the centered tagline glides instead of snapping.
  */
 
 const WIPE_MS = 520;
-const WIDTH_MS = 260;
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -95,9 +94,13 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     viewport.style.width = `${widthPx}px`;
   };
 
-  const animateViewportWidth = (fromPx: number, toPx: number): Promise<void> => {
+  const animateViewportWidth = (
+    fromPx: number,
+    toPx: number,
+    durationMs: number,
+  ): Promise<void> => {
     if (Math.abs(toPx - fromPx) < 0.5) return Promise.resolve();
-    return animate(WIDTH_MS, (eased) => {
+    return animate(durationMs, (eased) => {
       setViewportWidth(fromPx + (toPx - fromPx) * eased);
     });
   };
@@ -152,14 +155,16 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     current.hidden = true;
     clearClip(current);
 
-    // Step 2 — resize while both layers are blank, so the words on either side
-    // of the viewport glide to their new centered position instead of snapping.
-    await animateViewportWidth(outgoingWidth, incomingWidth);
-
-    // Step 3 — wipe reveal, travelling the same direction as the erase.
+    // Step 2 — wipe reveal, travelling the same direction as the erase, while the
+    // viewport eases to the new width. Sharing one easing curve keeps the box edge
+    // at outgoingWidth * (1 - eased) ahead of the wipe front, so the incoming word
+    // is never clipped even when it is much longer than the outgoing one.
     next.hidden = false;
     setClip(next, 0, 100);
-    await animateWipeIn(next, WIPE_MS);
+    await Promise.all([
+      animateWipeIn(next, WIPE_MS),
+      animateViewportWidth(outgoingWidth, incomingWidth, WIPE_MS),
+    ]);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming, incomingWidth);
