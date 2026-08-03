@@ -1,92 +1,157 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 512 512">
+  <!-- Generator: Adobe Illustrator 29.8.2, SVG Export Plug-In . SVG Version: 2.1.1 Build 3)  -->
   <defs>
-    <clipPath id="reave-icon-clip">
-      <path d="M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051Z"/>
-    </clipPath>
-
-    <filter id="reave-icon-lava-blur" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="28"/>
-    </filter>
-
-    <linearGradient id="reave-icon-lava-base" x1="64" y1="448" x2="448" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="52%" stop-color="#c026d3"/>
-      <stop offset="100%" stop-color="#f472b6"/>
-    </linearGradient>
-
     <style>
-      .reave-lava-blob {
-        transform-box: fill-box;
-        transform-origin: center;
-        will-change: transform;
+      .st0 {
+        mask: url(#mask);
       }
 
-      @keyframes reave-icon-lava-drift-1 {
-        0%, 100% { transform: translate(0px, 0px) scale(1); }
-        25% { transform: translate(70px, -40px) scale(1.14); }
-        50% { transform: translate(-20px, 30px) scale(0.86); }
-        75% { transform: translate(30px, -10px) scale(1.07); }
+      .st1 {
+        filter: url(#luminosity-invert);
       }
 
-      @keyframes reave-icon-lava-drift-2 {
-        0%, 100% { transform: translate(0px, 0px) scale(1); }
-        25% { transform: translate(50px, 50px) scale(1.15); }
-        50% { transform: translate(-30px, -30px) scale(0.88); }
-        75% { transform: translate(20px, 30px) scale(1.08); }
+      .st2 {
+        fill: url(#radial-gradient);
       }
 
-      @keyframes reave-icon-lava-drift-3 {
-        0%, 100% { transform: translate(0px, 0px) scale(1); }
-        25% { transform: translate(50px, -50px) scale(1.14); }
-        50% { transform: translate(-30px, 20px) scale(0.88); }
-        75% { transform: translate(20px, -20px) scale(1.07); }
+      .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10, .st11, .st12, .st13 {
+        isolation: isolate;
       }
 
-      @keyframes reave-icon-lava-drift-4 {
-        0%, 100% { transform: translate(0px, 0px) scale(1); }
-        25% { transform: translate(50px, 50px) scale(1.16); }
-        50% { transform: translate(-30px, -20px) scale(0.89); }
-        75% { transform: translate(25px, 30px) scale(1.07); }
+      .st14 {
+        clip-path: url(#clippath-1);
       }
 
-      @keyframes reave-icon-lava-drift-5 {
-        0%, 100% { transform: translate(0px, 0px) scale(1); }
-        25% { transform: translate(50px, -50px) scale(1.17); }
-        50% { transform: translate(-30px, 15px) scale(0.89); }
-        75% { transform: translate(25px, -20px) scale(1.09); }
+      .st15 {
+        clip-path: url(#clippath-4);
       }
 
-      .reave-lava-blob-1 { animation: reave-icon-lava-drift-1 24s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-      .reave-lava-blob-2 { animation: reave-icon-lava-drift-2 28s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-      .reave-lava-blob-3 { animation: reave-icon-lava-drift-3 26s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-      .reave-lava-blob-4 { animation: reave-icon-lava-drift-4 22s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
-      .reave-lava-blob-5 { animation: reave-icon-lava-drift-5 30s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+      .st16, .st9, .st10, .st11, .st12, .st13 {
+        fill: #fff;
+      }
 
-      @media (prefers-reduced-motion: reduce) {
-        .reave-lava-blob { animation: none !important; }
+      .st4 {
+        fill: url(#radial-gradient2);
+      }
+
+      .st4, .st10 {
+        opacity: .58;
+      }
+
+      .st5 {
+        fill: url(#radial-gradient5);
+      }
+
+      .st5, .st11 {
+        opacity: .6;
+      }
+
+      .st6 {
+        fill: url(#radial-gradient4);
+      }
+
+      .st6, .st9 {
+        opacity: .62;
+      }
+
+      .st7 {
+        fill: url(#radial-gradient6);
+      }
+
+      .st7, .st12 {
+        opacity: .52;
+      }
+
+      .st8 {
+        fill: url(#radial-gradient3);
+      }
+
+      .st8, .st13 {
+        opacity: .55;
+      }
+
+      .st17 {
+        fill: url(#radial-gradient1);
+      }
+
+      .st18 {
+        display: none;
+      }
+
+      .st19 {
+        mix-blend-mode: screen;
+        opacity: .75;
       }
     </style>
+    <radialGradient id="radial-gradient" cx="253.686" cy="255.442" fx="253.686" fy="255.442" r="174.913" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f0f"/>
+      <stop offset=".194" stop-color="#fb02fe"/>
+      <stop offset=".354" stop-color="#f108fd"/>
+      <stop offset=".502" stop-color="#e014fc"/>
+      <stop offset=".642" stop-color="#c823fa"/>
+      <stop offset=".777" stop-color="#a838f7"/>
+      <stop offset=".907" stop-color="#8350f3"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </radialGradient>
+    <clipPath id="clippath-1">
+      <path class="st2" d="M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051,0Z"/>
+    </clipPath>
+    <radialGradient id="radial-gradient1" cx="256" cy="256" fx="256" fy="256" r="256" gradientTransform="translate(0 512) scale(1 -1)" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient2" cx="190" cy="240" fx="190" fy="240" r="110" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient3" cx="280" cy="210" fx="280" fy="210" r="100" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient4" cx="320" cy="290" fx="320" fy="290" r="105" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient5" cx="240" cy="180" fx="240" fy="180" r="95" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient6" cx="260" cy="320" fx="260" fy="320" r="90" xlink:href="#radial-gradient"/>
+    <filter id="luminosity-invert" x="0" y="0" width="512" height="512" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feColorMatrix result="cm" values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0"/>
+    </filter>
+    <mask id="mask" x="0" y="0" width="512" height="512" maskUnits="userSpaceOnUse">
+      <g class="st1">
+        <image width="427" height="264" transform="translate(40 123)" xlink:href="reave-icon-1.png"/>
+      </g>
+    </mask>
+    <clipPath id="clippath-4">
+      <path class="st16" d="M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051,0Z"/>
+    </clipPath>
   </defs>
-
-  <g clip-path="url(#reave-icon-clip)">
-    <rect width="512" height="512" fill="url(#reave-icon-lava-base)"/>
-
-    <g filter="url(#reave-icon-lava-blur)">
-      <g class="reave-lava-blob reave-lava-blob-1">
-        <circle cx="190" cy="240" r="110" fill="#a855f7" opacity="0.58"/>
-      </g>
-      <g class="reave-lava-blob reave-lava-blob-2">
-        <circle cx="280" cy="210" r="100" fill="#d946ef" opacity="0.55"/>
-      </g>
-      <g class="reave-lava-blob reave-lava-blob-3">
-        <circle cx="320" cy="290" r="105" fill="#c026d3" opacity="0.62"/>
-      </g>
-      <g class="reave-lava-blob reave-lava-blob-4">
-        <circle cx="240" cy="180" r="95" fill="#f472b6" opacity="0.6"/>
-      </g>
-      <g class="reave-lava-blob reave-lava-blob-5">
-        <circle cx="260" cy="320" r="90" fill="#ec4899" opacity="0.52"/>
+  <g class="st3">
+    <g id="Layer_1" focusable="false">
+      <g>
+        <g>
+          <path class="st2" d="M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051,0Z"/>
+          <g class="st14">
+            <g>
+              <rect class="st17" width="512" height="512"/>
+              <g class="st18">
+                <circle class="st4" cx="190" cy="240" r="110"/>
+                <circle class="st8" cx="280" cy="210" r="100"/>
+                <circle class="st6" cx="320" cy="290" r="105"/>
+                <circle class="st5" cx="240" cy="180" r="95"/>
+                <circle class="st7" cx="260" cy="320" r="90"/>
+              </g>
+            </g>
+          </g>
+        </g>
+        <g class="st0">
+          <g class="st19">
+            <g>
+              <path class="st16" d="M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051,0Z"/>
+              <g class="st15">
+                <g>
+                  <rect class="st16" width="512" height="512"/>
+                  <g class="st18">
+                    <circle class="st10" cx="190" cy="240" r="110"/>
+                    <circle class="st13" cx="280" cy="210" r="100"/>
+                    <circle class="st9" cx="320" cy="290" r="105"/>
+                    <circle class="st11" cx="240" cy="180" r="95"/>
+                    <circle class="st12" cx="260" cy="320" r="90"/>
+                  </g>
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
       </g>
     </g>
   </g>
