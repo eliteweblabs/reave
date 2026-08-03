@@ -75,9 +75,19 @@ export function isAllowedProjectFileMediaType(
 }
 
 /** SVG can embed scripts — never serve inline in the browser. */
+export function sanitizeContentDispositionFilename(filename: string): string {
+  return (
+    filename
+      .replace(/[\x00-\x1f\x7f]/g, '')
+      .replace(/"/g, '')
+      .trim()
+      .slice(0, 255) || 'file'
+  );
+}
+
 export function projectFileContentDisposition(mediaType: string, filename: string): string {
   const normalized = mediaType.trim().toLowerCase();
-  const safeName = filename.replace(/"/g, '');
+  const safeName = sanitizeContentDispositionFilename(filename);
   if (normalized === 'image/svg+xml') {
     return `attachment; filename="${safeName}"`;
   }

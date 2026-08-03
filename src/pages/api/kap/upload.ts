@@ -12,6 +12,8 @@ import {
 } from '../../../lib/kapRecordings';
 import { secretMatches } from '../../../lib/secretCompare';
 import { serverEnv } from '../../../lib/serverEnv';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -38,6 +40,14 @@ function isKapUploadAuthorized(request: Request): boolean {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
+  const rate = checkInMemoryRateLimit(`kap:${clientIp(context.request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 15,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many uploads. Please try again later.' }, 429);
+  }
+
   if (!serverEnv('KAP_UPLOAD_KEY')?.trim()) {
     return json({ ok: false, error: 'KAP_UPLOAD_KEY is not configured on this service' }, 503);
   }
