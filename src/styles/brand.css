@@ -52,8 +52,6 @@
 
 .reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path {
   opacity: 0;
-  transition: opacity 500ms ease-in;
-  transition-delay: 0ms;
 }
 
 @media (prefers-color-scheme: dark) {

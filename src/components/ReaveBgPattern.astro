@@ -13,7 +13,7 @@ interface Props {
   fit?: ReaveBgPatternFit;
   /** Stagger each path from opacity 0 → 1 on load. */
   reveal?: boolean;
-  /** Time window for random path start times (ms). */
+  /** Total time for the connected spread to finish (ms). */
   revealWindowMs?: number;
   /** Per-path fade duration (ms). */
   revealFadeMs?: number;
@@ -24,7 +24,7 @@ const {
   opacity,
   fit = 'contain',
   reveal = false,
-  revealWindowMs = 2500,
+  revealWindowMs = 4000,
   revealFadeMs = 500,
 } = Astro.props;
 
