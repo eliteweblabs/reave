@@ -5,16 +5,41 @@
  */
 import { serverEnv } from './serverEnv';
 
+/**
+ * A production Clerk instance serves its Frontend API from a CNAME on the app's
+ * own domain (e.g. `clerk.example.com`), which `'self'` does not cover. The host
+ * is base64-encoded inside the publishable key, so derive it instead of pinning
+ * another literal domain per install.
+ */
+function clerkInstanceOrigins(): string[] {
+  const encoded = (serverEnv('PUBLIC_CLERK_PUBLISHABLE_KEY') ?? '').replace(/^pk_(test|live)_/, '');
+  if (!encoded) return [];
+
+  let host: string;
+  try {
+    host = atob(encoded).replace(/\$$/, '');
+  } catch {
+    return [];
+  }
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(host)) return [];
+
+  // Clerk pairs the `clerk.` FAPI host with an `accounts.` hosted portal.
+  const portal = host.startsWith('clerk.') ? `accounts.${host.slice(6)}` : '';
+  return [`https://${host}`, ...(portal ? [`https://${portal}`] : [])];
+}
+
+const CLERK_SRC = ['https://*.clerk.accounts.dev', 'https://*.clerk.com', ...clerkInstanceOrigins()].join(' ');
+
 const CSP_VALUE = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com",
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_SRC} https://cdn.jsdelivr.net https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.mapbox.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://cdn.jsdelivr.net https://api.vapi.ai https://*.vapi.ai wss://*.vapi.ai https://*.daily.co wss://*.daily.co https://cloudflareinsights.com https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com https://*.openstreetmap.org https://nominatim.openstreetmap.org",
+  `connect-src 'self' ${CLERK_SRC} https://clerk-telemetry.com https://cdn.jsdelivr.net https://api.vapi.ai https://*.vapi.ai wss://*.vapi.ai https://*.daily.co wss://*.daily.co https://cloudflareinsights.com https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com https://*.openstreetmap.org https://nominatim.openstreetmap.org`,
   "media-src 'self' blob: https:",
   "worker-src 'self' blob:",
-  "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
+  `frame-src 'self' ${CLERK_SRC}`,
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
