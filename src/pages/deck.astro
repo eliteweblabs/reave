@@ -8,7 +8,7 @@ import Header from '../components/Header.astro';
 import Preloader from '../components/Preloader.astro';
 import { assertDeckScript } from '../deck/validate';
 import type { DeckVideoEnter } from '../deck/types';
-import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from '../lib/companyConfig';
+import { getCompanyConfig, deckQuantumHeroMask, deckQuantumHeroLogo } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
 import {
   Home,
@@ -30,8 +30,8 @@ export const prerender = false;
 
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
-const heroMask = homepageHeroMask(company);
-const heroLogo = homepageHeroLogo(company);
+const heroMask = deckQuantumHeroMask(company);
+const heroLogo = deckQuantumHeroLogo(company);
 
 /** Same Lucide set as admin header/footer nav, mapped to deck sections. */
 const DOCK_ICONS: Record<string, typeof Home> = {
@@ -396,12 +396,6 @@ const deckPayload = {
 
       .app-header {
         z-index: 7000;
-      }
-
-      body .app-header-logo .quantum-logo-stack--compact {
-        width: 66px;
-        height: 66px;
-        flex: 0 0 66px;
       }
 
       #scroll-track {
