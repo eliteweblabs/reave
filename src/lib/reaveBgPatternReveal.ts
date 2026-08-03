@@ -1,5 +1,7 @@
 const DEFAULT_REVEAL_WINDOW_MS = 5000;
 const DEFAULT_FADE_MS = 250;
+/** Once this fraction of paths are visible, swap one out for each new reveal. */
+const VISIBLE_THRESHOLD_RATIO = 0.75;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -45,19 +47,36 @@ export function initReaveBgPatternReveal(root: ParentNode = document): number {
     const fadeMs = readMs(wrap.dataset.revealFadeMs, DEFAULT_FADE_MS);
     const windowMs = readMs(wrap.dataset.revealWindowMs, DEFAULT_REVEAL_WINDOW_MS);
     const intervalMs = windowMs / paths.length;
+    const threshold = Math.max(1, Math.round(paths.length * VISIBLE_THRESHOLD_RATIO));
     const order = shuffle(paths);
+    const visibleQueue: SVGPathElement[] = [];
+    let step = 0;
 
-    order.forEach((path, sequence) => {
+    paths.forEach((path) => {
       path.style.opacity = '0';
       path.style.transition = `opacity ${fadeMs}ms ease`;
-      path.style.transitionDelay = `${sequence * intervalMs}ms`;
+      path.style.transitionDelay = '0ms';
     });
+
+    const tick = () => {
+      const pathToReveal = order[step % order.length];
+      pathToReveal.style.opacity = '1';
+      visibleQueue.push(pathToReveal);
+
+      if (step >= threshold) {
+        const toHide = visibleQueue.shift();
+        if (toHide) {
+          toHide.style.opacity = '0';
+        }
+      }
+
+      step += 1;
+    };
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        paths.forEach((path) => {
-          path.style.opacity = '1';
-        });
+        tick();
+        window.setInterval(tick, intervalMs);
       });
     });
   });
