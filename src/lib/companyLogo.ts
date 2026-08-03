@@ -25,6 +25,17 @@ export function isLogoUploadMediaType(type: string): boolean {
   return LOGO_UPLOAD_MEDIA_TYPES.has(type.trim().toLowerCase());
 }
 
+/** Some browsers omit file.type — infer from extension before rejecting uploads. */
+export function inferLogoUploadMediaType(file: Pick<File, 'type' | 'name'>): string | null {
+  const type = file.type.trim().toLowerCase();
+  if (isLogoUploadMediaType(type)) return type;
+  const name = file.name.trim().toLowerCase();
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.webp')) return 'image/webp';
+  return null;
+}
+
 /** Static logo paths removed from /public but still stored in company config. */
 const LEGACY_PUBLIC_LOGO_PATHS: Record<string, string> = {
   '/logo.png': '/reave-logo.png',

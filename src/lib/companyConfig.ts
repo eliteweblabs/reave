@@ -224,7 +224,8 @@ function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'l
   if (storedLogo === '') {
     return { logoPath: '', logoSource: 'hidden', logoVersion: version };
   }
-  if (storedLogo) {
+  // Stale row: API path without binary data (e.g. PNG cleared but path left behind).
+  if (storedLogo && storedLogo !== BRANDING_LOGO_PATH) {
     return {
       logoPath: normalizePublicLogoPath(storedLogo),
       logoSource: 'admin',
@@ -243,8 +244,9 @@ function resolveIcon(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'i
   if (stored?.iconData && stored?.iconMediaType) {
     return { iconPath: BRANDING_ICON_PATH, iconSource: 'admin', iconVersion: version };
   }
-  const storedIcon = stored?.iconPath;
-  if (storedIcon) {
+  const storedIcon = trim(stored?.iconPath);
+  // Stale row: API path without binary data — fall back to SVG rasterization / site default.
+  if (storedIcon && storedIcon !== BRANDING_ICON_PATH) {
     return { iconPath: storedIcon, iconSource: 'admin', iconVersion: version };
   }
   return {

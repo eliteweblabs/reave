@@ -4,7 +4,7 @@ import {
   clearStoredCompanyLogo,
   setStoredCompanyLogo,
 } from '../../../../lib/companyConfigStore';
-import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
+import { inferLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -33,8 +33,8 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ error: 'Missing logo file' }, 400);
   }
 
-  const mediaType = file.type.trim().toLowerCase();
-  if (!isLogoUploadMediaType(mediaType)) {
+  const mediaType = inferLogoUploadMediaType(file);
+  if (!mediaType) {
     return json({ error: 'Logo must be PNG, JPEG, or WebP' }, 400);
   }
   if (file.size > LOGO_UPLOAD_MAX_BYTES) {

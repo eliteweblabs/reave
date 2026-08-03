@@ -5176,19 +5176,55 @@ function showProfileAlert(el, msg, type) {
 }
 
 function companyLogoPreviewUrl(company) {
-  if (!company?.logoPath || company.logoSource === 'hidden') return '';
-  const path = String(company.logoPath);
-  const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
-  if (/^https?:\/\//i.test(path)) return path + (company.logoVersion ? v : '');
-  return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+  if (hasUploadedCompanyLogoPng(company)) {
+    const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
+    return `/api/branding/logo${v}`;
+  }
+  if (company?.logoSource === 'admin' && company.logoPath && company.logoSource !== 'hidden') {
+    const path = String(company.logoPath);
+    const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
+    if (/^https?:\/\//i.test(path)) return path + (company.logoVersion ? v : '');
+    return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+  }
+  return '';
+}
+
+function companyBrandingIconPreviewUrl(company, size = 512) {
+  const version = company?.iconVersion || company?.logoVersion;
+  const params = new URLSearchParams({ size: String(size) });
+  if (version) params.set('v', version);
+  return `/api/branding/icon?${params.toString()}`;
 }
 
 function companyIconPreviewUrl(company) {
-  if (!company?.iconPath || company.iconSource !== 'admin') return '';
-  const path = String(company.iconPath);
-  const v = company.iconVersion ? `?v=${encodeURIComponent(company.iconVersion)}` : '';
-  if (/^https?:\/\//i.test(path)) return path + (company.iconVersion ? v : '');
-  return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+  if (hasCompanyIconMark(company)) {
+    return companyBrandingIconPreviewUrl(company, 512);
+  }
+  return '';
+}
+
+function hasUploadedCompanyLogoPng(company) {
+  return company?.logoSource === 'admin' && String(company?.logoPath || '').includes('/api/branding/logo');
+}
+
+function hasUploadedCompanyIconPng(company) {
+  return company?.iconSource === 'admin' && String(company?.iconPath || '').includes('/api/branding/icon');
+}
+
+function hasLegacyCompanyIconPath(company) {
+  return (
+    company?.iconSource === 'admin' &&
+    !!company?.iconPath &&
+    !String(company.iconPath).includes('/api/branding/icon')
+  );
+}
+
+function hasCompanyIconMark(company) {
+  return (
+    hasUploadedCompanyIconPng(company) ||
+    hasLegacyCompanyIconPath(company) ||
+    !!(company?.iconSvg || company?.logoSvg)
+  );
 }
 
 function companyStaffAvatarPreviewUrl(company) {
@@ -5198,12 +5234,21 @@ function companyStaffAvatarPreviewUrl(company) {
   return `/api/branding/icon?${params.toString()}`;
 }
 
+function syncHeaderProfileIcon(url) {
+  if (!url) return;
+  document.querySelectorAll('.topbar-profile-icon-img').forEach((img) => {
+    if (img instanceof HTMLImageElement) img.src = url;
+  });
+}
+
 function hasCustomCompanyLogo(company) {
-  return company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company);
+  return hasUploadedCompanyLogoPng(company) || (
+    company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company)
+  );
 }
 
 function hasCustomCompanyIcon(company) {
-  return company?.iconSource === 'admin' && !!companyIconPreviewUrl(company);
+  return hasCompanyIconMark(company);
 }
 
 function companyIconDownloadUrl(company) {
@@ -5233,6 +5278,7 @@ function bindCompanyLogoUpload(root, companyAlert) {
 
   const refreshPreview = (company) => {
     const hasLogo = hasCustomCompanyLogo(company);
+    const hasPng = hasUploadedCompanyLogoPng(company);
     const url = hasLogo ? companyLogoPreviewUrl(company) : '';
 
     if (preview instanceof HTMLImageElement) {
@@ -5242,7 +5288,10 @@ function bindCompanyLogoUpload(root, companyAlert) {
       previewWrap.hidden = !hasLogo;
     }
     if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasLogo;
+      fileWrap.hidden = hasPng;
+    }
+    if (removeBtn instanceof HTMLButtonElement) {
+      removeBtn.hidden = !hasPng && !(company?.logoSource === 'admin' && company?.logoPath);
     }
     downloadBtn?.toggleAttribute('hidden', !hasLogo);
   };
@@ -5305,7 +5354,7 @@ function bindCompanyLogoUpload(root, companyAlert) {
   });
 }
 
-function bindCompanyIconUpload(root, companyAlert) {
+function bindCompanyIconUpload(root, companyAlert, initialCompany) {
   const fileInput = root.querySelector('#company-icon-file');
   const fileWrap = root.querySelector('#company-icon-file-wrap');
   const previewWrap = root.querySelector('#company-icon-preview-wrap');
@@ -5319,7 +5368,10 @@ function bindCompanyIconUpload(root, companyAlert) {
   const refreshPreview = (company) => {
     iconCompany = company || null;
     const hasIcon = hasCustomCompanyIcon(company);
+    const hasPng = hasUploadedCompanyIconPng(company);
+    const hasRemovableIcon = hasPng || hasLegacyCompanyIconPath(company);
     const url = hasIcon ? companyIconPreviewUrl(company) : '';
+    const avatarUrl = companyStaffAvatarPreviewUrl(company);
 
     if (preview instanceof HTMLImageElement) {
       preview.src = url;
@@ -5328,10 +5380,14 @@ function bindCompanyIconUpload(root, companyAlert) {
       previewWrap.hidden = !hasIcon;
     }
     if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasIcon;
+      fileWrap.hidden = hasPng;
+    }
+    if (removeBtn instanceof HTMLButtonElement) {
+      removeBtn.hidden = !hasRemovableIcon;
     }
     downloadBtn?.toggleAttribute('hidden', !hasIcon);
-    window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(company);
+    window.__companyStaffAvatarUrl = avatarUrl;
+    syncHeaderProfileIcon(`${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`);
   };
 
   downloadBtn?.addEventListener('click', async () => {
@@ -5359,7 +5415,6 @@ function bindCompanyIconUpload(root, companyAlert) {
       const json = await res.json();
       if (res.ok && json.company) {
         refreshPreview(json.company);
-        window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(json.company);
         showProfileAlert(companyAlert, 'Icon updated.', 'success');
       } else {
         showProfileAlert(companyAlert, json.error || 'Icon upload failed.', 'error');
@@ -5381,7 +5436,6 @@ function bindCompanyIconUpload(root, companyAlert) {
       const json = await res.json();
       if (res.ok && json.company) {
         refreshPreview(json.company);
-        window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(json.company);
         showProfileAlert(companyAlert, 'Icon removed — using site default.', 'success');
       } else {
         showProfileAlert(companyAlert, json.error || 'Could not remove icon.', 'error');
@@ -5392,6 +5446,10 @@ function bindCompanyIconUpload(root, companyAlert) {
       removeBtn.disabled = false;
     }
   });
+
+  if (initialCompany) refreshPreview(initialCompany);
+
+  return { refreshPreview };
 }
 
 function bindProfileForm(root) {
@@ -5511,6 +5569,9 @@ function bindCompanyForm(root, company, fontCatalog) {
     }
   }
 
+  bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
+  const iconBranding = bindCompanyIconUpload(root, root.querySelector('#company-alert'), company);
+
   bindAutosaveForm(root, {
     formSelector: '#company-form',
     alertEl: root.querySelector('#company-alert'),
@@ -5522,13 +5583,13 @@ function bindCompanyForm(root, company, fontCatalog) {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (res.ok) companyPendingGeo = null;
+      if (res.ok) {
+        companyPendingGeo = null;
+        if (json.company) iconBranding.refreshPreview(json.company);
+      }
       return { ok: res.ok, error: json.error };
     },
   });
-
-  bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
-  bindCompanyIconUpload(root, root.querySelector('#company-alert'));
   companyFontPickers = mountCompanyBrandFontPickers(root, fontCatalog);
   bindCompanyFontPreview(root, fontCatalog);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
@@ -6055,8 +6116,11 @@ function renderCompanyPanel(company, fontCatalog) {
   const fonts = c.fonts || {};
   const logoUrl = companyLogoPreviewUrl(c);
   const hasLogo = hasCustomCompanyLogo(c);
+  const hasLogoPng = hasUploadedCompanyLogoPng(c);
   const iconUrl = companyIconPreviewUrl(c);
   const hasIcon = hasCustomCompanyIcon(c);
+  const hasIconPng = hasUploadedCompanyIconPng(c);
+  const hasRemovableIcon = hasIconPng || hasLegacyCompanyIconPath(c);
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -6083,10 +6147,10 @@ function renderCompanyPanel(company, fontCatalog) {
               `<div class="prof-logo-upload">` +
                 `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
                   `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
-                  `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo">×</button>` +
+                  `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
                 `</div>` +
                 `<button type="button" id="company-logo-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasLogo ? '' : ' hidden'}></button>` +
-                `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo ? ' hidden' : ''}>` +
+                `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng ? ' hidden' : ''}>` +
                   `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
               `</div>` +
@@ -6096,10 +6160,10 @@ function renderCompanyPanel(company, fontCatalog) {
               `<div class="prof-logo-upload">` +
                 `<div id="company-icon-preview-wrap" class="prof-logo-preview-wrap"${hasIcon ? '' : ' hidden'}>` +
                   `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
-                  `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon">×</button>` +
+                  `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
                 `</div>` +
                 `<button type="button" id="company-icon-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasIcon ? '' : ' hidden'}></button>` +
-                `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon ? ' hidden' : ''}>` +
+                `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng ? ' hidden' : ''}>` +
                   `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
               `</div>` +
