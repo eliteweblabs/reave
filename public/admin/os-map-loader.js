@@ -7885,54 +7885,20 @@ function initTopbarMenus() {
   }
 }
 
-const DEPLOY_POLL_MS = 60_000;
-let deployPollTimer = null;
-
 async function refreshDeployDot() {
-  const dot = document.getElementById('topbar-deploy-dot');
-  if (!dot) return;
-  try {
-    const res = await fetch('/api/admin/deploy-status', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok || !data.ok || !data.deploy) {
-      dot.hidden = true;
-      return;
-    }
-    const { tone, tooltip } = data.deploy;
-    dot.hidden = false;
-    dot.className = `topbar-deploy-dot topbar-deploy-dot--${tone || 'alert'} tt-left`;
-    dot.dataset.tooltip = tooltip || 'Deploy status unavailable';
-    dot.setAttribute('aria-label', tooltip || 'Deploy status');
-  } catch {
-    dot.hidden = false;
-    dot.className = 'topbar-deploy-dot topbar-deploy-dot--alert tt-left';
-    dot.dataset.tooltip = 'Could not check deploy status';
-    dot.setAttribute('aria-label', 'Could not check deploy status');
-  }
+  return window.DeployIndicator?.refresh?.();
 }
 
 function startDeployPoll() {
-  stopDeployPoll();
-  void refreshDeployDot();
-  deployPollTimer = setInterval(() => void refreshDeployDot(), DEPLOY_POLL_MS);
+  window.DeployIndicator?.startPoll?.();
 }
 
 function stopDeployPoll() {
-  if (deployPollTimer) {
-    clearInterval(deployPollTimer);
-    deployPollTimer = null;
-  }
+  window.DeployIndicator?.stopPoll?.();
 }
 
 function initDeployIndicator() {
-  const dot = document.getElementById('topbar-deploy-dot');
-  if (!dot || dot.dataset.deployBound) return;
-  dot.dataset.deployBound = '1';
-  dot.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    dot.classList.toggle('tooltip-open');
-  });
-  startDeployPoll();
+  window.DeployIndicator?.init?.();
 }
 
 document.addEventListener('click', () => closeTabDropdowns());
