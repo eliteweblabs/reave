@@ -309,6 +309,11 @@ export function companyOgImageUrl(company: CompanyConfig): string {
   return `${BRANDING_OG_PATH}?v=${encodeURIComponent(version)}`;
 }
 
+/** Inline SVG for the homepage hero — icon SVG first, then logo SVG. */
+export function companyHeroIconSvg(company: CompanyConfig): string {
+  return trim(company.iconSvg) || trim(company.logoSvg);
+}
+
 /** Admin-uploaded header logo image (not inline SVG). */
 export function hasCompanyHeaderLogoImage(company: CompanyConfig): boolean {
   return company.logoSource === 'admin' && Boolean(trim(company.logoPath));

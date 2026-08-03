@@ -1,7 +1,11 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
+import {
+  brandIconUrl,
+  companyBrandingVersion,
+  companyHeroIconSvg,
+} from '../lib/companyConfig';
 import InlineBrandSvg from './InlineBrandSvg.astro';
-import ReaveIconAnimated from './ReaveIconAnimated.astro';
 
 export interface Props {
   company: CompanyConfig;
@@ -9,18 +13,27 @@ export interface Props {
 }
 
 const { company, variant = 'front' } = Astro.props;
-const customSvg = company.iconSvg?.trim() ?? '';
+const customSvg = companyHeroIconSvg(company);
 const isGlow = variant === 'glow';
 const className = isGlow
   ? 'home-hero-icon-glow-svg reave-icon-svg'
   : 'home-hero-icon reave-icon-svg';
 const idPrefix = isGlow ? 'hero-icon-glow' : 'hero-icon';
+const rasterFallbackUrl = brandIconUrl(512, companyBrandingVersion(company));
 ---
 
 {
   customSvg ? (
     <InlineBrandSvg svg={customSvg} class={className} idPrefix={idPrefix} />
   ) : (
-    <ReaveIconAnimated class={className} idSuffix={isGlow ? 'glow' : 'front'} />
+    <img
+      src={rasterFallbackUrl}
+      alt=""
+      class={className}
+      width="512"
+      height="512"
+      decoding="async"
+      aria-hidden="true"
+    />
   )
 }
