@@ -1,4 +1,5 @@
-/* Admin PWA service worker — Web Push for inbox summaries + app icon badge. */
+/* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
+   v20260803 — skip document navigations (see fetch handler). */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -145,7 +146,7 @@ self.addEventListener('activate', (event) => {
    in installed PWAs when the shell URL changed (tab params, auth, etc.). */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  if (event.request.mode === 'navigate') return;
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
   const { pathname } = new URL(event.request.url);
   if (pathname.startsWith('/api/')) return;
   event.respondWith(

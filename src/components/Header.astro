@@ -61,7 +61,7 @@ const signInRedirect =
         : Astro.url.pathname + Astro.url.search;
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
-const showHomeAdminEntry = homeAdminEntry && !showMarketingNav;
+const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
 const showHeaderSignIn = !userId && !adminShell && !showMarketingNav;
 const showHeaderProfile = userId && !showMarketingNav;
 ---
@@ -176,7 +176,7 @@ const showHeaderProfile = userId && !showMarketingNav;
       ) : showHomeAdminEntry ? (
         <div class="topbar-profile-hit">
           <a
-            href="/admin/"
+            href="/admin/?tab=home"
             class="app-header-admin-entry"
             aria-label="Administration"
             title="Administration"
