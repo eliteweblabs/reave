@@ -39,8 +39,8 @@ function measureText(layer: HTMLElement, text: string): number {
   return width;
 }
 
-function setClipInsetLeft(el: HTMLElement, leftPct: number) {
-  const clip = `inset(0 0 0 ${leftPct}%)`;
+function setClip(el: HTMLElement, leftPct: number, rightPct: number) {
+  const clip = `inset(0 ${rightPct}% 0 ${leftPct}%)`;
   el.style.clipPath = clip;
   el.style.webkitClipPath = clip;
 }
@@ -50,16 +50,14 @@ function clearClip(el: HTMLElement) {
   el.style.webkitClipPath = '';
 }
 
-/** Animate clip-path inset from left (0 = fully visible, 100 = fully hidden). */
-function animateClipInsetLeft(
-  el: HTMLElement,
-  fromLeftPct: number,
-  toLeftPct: number,
-  durationMs: number,
-): Promise<void> {
-  return animate(durationMs, (eased) => {
-    setClipInsetLeft(el, fromLeftPct + (toLeftPct - fromLeftPct) * eased);
-  });
+/** Erase left→right: the leading edge cuts in from the left until nothing is left. */
+function animateWipeOut(el: HTMLElement, durationMs: number): Promise<void> {
+  return animate(durationMs, (eased) => setClip(el, eased * 100, 0));
+}
+
+/** Reveal left→right: the trailing edge retreats to the right, uncovering the word. */
+function animateWipeIn(el: HTMLElement, durationMs: number): Promise<void> {
+  return animate(durationMs, (eased) => setClip(el, 0, (1 - eased) * 100));
 }
 
 export function initHeroIndustryRotate(root: HTMLElement) {
@@ -148,7 +146,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
 
     // Step 1 — wipe out at the outgoing word width.
     clearClip(current);
-    await animateClipInsetLeft(current, 0, 100, WIPE_MS);
+    await animateWipeOut(current, WIPE_MS);
 
     current.textContent = '';
     current.hidden = true;
@@ -158,10 +156,10 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     // of the viewport glide to their new centered position instead of snapping.
     await animateViewportWidth(outgoingWidth, incomingWidth);
 
-    // Step 3 — wipe reveal.
+    // Step 3 — wipe reveal, travelling the same direction as the erase.
     next.hidden = false;
-    setClipInsetLeft(next, 100);
-    await animateClipInsetLeft(next, 100, 0, WIPE_MS);
+    setClip(next, 0, 100);
+    await animateWipeIn(next, WIPE_MS);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming, incomingWidth);
