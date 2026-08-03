@@ -1,21 +1,23 @@
 ---
 /**
- * Tiled REΛVE chevron background pattern.
- * Always scales uniformly — override --reave-bg-pattern-tile (one length) only.
+ * Full REΛVE chevron pattern artwork (not a CSS tile repeat).
+ * Inline SVG keeps every path in the DOM for per-element styling/animation.
+ * Scales uniformly via preserveAspectRatio — never stretch x/y independently.
  */
+import { renderReaveBgPatternSvg, type ReaveBgPatternFit } from '../lib/reaveBgPatternSvg';
+
 interface Props {
   class?: string;
-  /** Uniform tile size, e.g. "512px" or "clamp(280px, 36vw, 512px)". */
-  tileSize?: string;
   opacity?: number;
+  /** contain = full pattern visible; cover = fill the box uniformly (may crop). */
+  fit?: ReaveBgPatternFit;
 }
 
-const { class: className = '', tileSize, opacity } = Astro.props;
-
-const styleParts: string[] = [];
-if (tileSize) styleParts.push(`--reave-bg-pattern-tile: ${tileSize}`);
-if (opacity != null) styleParts.push(`opacity: ${opacity}`);
-const style = styleParts.length > 0 ? styleParts.join('; ') : undefined;
+const { class: className = '', opacity, fit = 'contain' } = Astro.props;
+const style = opacity != null ? `opacity: ${opacity}` : undefined;
+const svg = renderReaveBgPatternSvg(fit);
 ---
 
-<div class:list={['reave-bg-pattern', className]} aria-hidden="true" style={style}></div>
+<div class:list={['reave-bg-pattern', className]} style={style} aria-hidden="true">
+  <Fragment set:html={svg} />
+</div>
