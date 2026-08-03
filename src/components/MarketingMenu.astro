@@ -2,6 +2,7 @@
 /**
  * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
+import DeployStatusDot from "./DeployStatusDot.astro";
 import { ArrowRight, X } from "lucide-astro";
 import {
   MARKETING_NAV_GROUPS,
@@ -17,6 +18,7 @@ const { pathname, signedIn } = Astro.props;
 ---
 
 <div class="marketing-nav" data-marketing-nav>
+  <DeployStatusDot />
   {
     !signedIn ? (
       <button
