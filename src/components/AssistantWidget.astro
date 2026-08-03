@@ -119,9 +119,10 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-root { position: relative; }
 
   .aw-fab {
+    --aw-fab-inset: 20px;
     position: fixed;
-    right: max(18px, env(safe-area-inset-right));
-    bottom: calc(env(safe-area-inset-bottom) + 20px);
+    right: calc(env(safe-area-inset-right, 0px) + var(--aw-fab-inset));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--aw-fab-inset));
     z-index: 70;
     width: 58px;
     height: 58px;
