@@ -255,7 +255,11 @@ const showHeaderProfile = userId && !showMarketingNav;
 </header>
 
 {(!userId || showMarketingNav) && (!adminShell || !userId) && (
-  <SignInSheet fallbackRedirectUrl={signInRedirect} autoOpen={signInAutoOpen && !showMarketingNav} />
+  <SignInSheet
+    fallbackRedirectUrl={signInRedirect}
+    autoOpen={signInAutoOpen && !showMarketingNav}
+    authPath={Astro.url.pathname + Astro.url.search}
+  />
 )}
 
 {userId && (

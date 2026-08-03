@@ -1,5 +1,5 @@
 ---
-import { SignIn } from '@clerk/astro/components';
+import { SignIn, SignUp } from '@clerk/astro/components';
 import IosBottomSheet from './IosBottomSheet.astro';
 
 interface Props {
@@ -8,12 +8,15 @@ interface Props {
   allowSignUp?: boolean;
   /** Open automatically once the page loads (e.g. signed-out /admin visit). */
   autoOpen?: boolean;
+  /** Current page path+query — Clerk hash routing keeps sign-in/sign-up in the sheet. */
+  authPath?: string;
 }
 
 const {
   fallbackRedirectUrl = '/admin/',
   allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === '1',
   autoOpen = false,
+  authPath = '/sign-in',
 } = Astro.props;
 
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
@@ -65,13 +68,23 @@ const clerkAppearance = {
 };
 ---
 
-<IosBottomSheet id="sign-in-sheet" title="Sign in" dismissible={true} class="sign-in-sheet">
+<IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={true} class="sign-in-sheet">
   <SignIn
     routing="hash"
-    signUpUrl={allowSignUp ? '/sign-up' : '/sign-in'}
+    signUpUrl={authPath}
+    signInUrl={authPath}
     fallbackRedirectUrl={fallbackRedirectUrl}
     appearance={clerkAppearance}
   />
+  {allowSignUp && (
+    <SignUp
+      routing="hash"
+      signUpUrl={authPath}
+      signInUrl={authPath}
+      fallbackRedirectUrl={fallbackRedirectUrl}
+      appearance={clerkAppearance}
+    />
+  )}
 </IosBottomSheet>
 
 <script src="/ios-sheet.js" defer></script>
