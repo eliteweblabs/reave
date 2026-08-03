@@ -11,17 +11,14 @@ import {
   storeEmailInboxDigest,
   storeListEmailInbox,
 } from '../../../lib/emailInboxStore';
-import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
+import { listReviewNotifications } from '../../../lib/emailAutomation';
 import {
-  countProjectCommentNotifications,
   listProjectCommentNotifications,
 } from '../../../lib/workCommentNotifications';
 import {
-  countEngagementNotifications,
   listEngagementNotifications,
 } from '../../../lib/engagementNotifications';
 import {
-  countPushAlertNotifications,
   listPushAlertNotifications,
 } from '../../../lib/pushAlertNotifications';
 import { getDeployStatus } from '../../../lib/deployStatus';
@@ -41,6 +38,10 @@ import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import {
+  healStaleWorkNotificationSlugs,
+  partitionNotificationsByExistingWork,
+} from '../../../lib/notificationWorkLinks';
 
 export const prerender = false;
 
@@ -122,27 +123,27 @@ export async function GET(context: APIContext): Promise<Response> {
     commentNotifications,
     engagementNotifications,
     pushAlertNotifications,
-    commentReviewsPending,
-    engagementReviewsPending,
-    pushAlertsPending,
   ] = await Promise.all([
     Promise.resolve(listReviewNotifications(events)),
     listProjectCommentNotifications(),
     listEngagementNotifications(),
     listPushAlertNotifications(),
-    countProjectCommentNotifications(),
-    countEngagementNotifications(),
-    countPushAlertNotifications(),
   ]);
-  const automationNotifications = [
+  const validWorkSlugs = new Set(jobs.map((j) => j.slug));
+  const mergedNotifications = [
     ...emailNotifications,
     ...commentNotifications,
     ...engagementNotifications,
     ...pushAlertNotifications,
   ].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-  const emailReviewsPending = countReviewNotifications(events);
-  const reviewsPending =
-    emailReviewsPending + commentReviewsPending + engagementReviewsPending + pushAlertsPending;
+  const { kept: automationNotifications, staleSlugs } = partitionNotificationsByExistingWork(
+    mergedNotifications,
+    validWorkSlugs,
+  );
+  if (staleSlugs.size > 0) {
+    void healStaleWorkNotificationSlugs(staleSlugs);
+  }
+  const reviewsPending = automationNotifications.length;
 
   const projectsPending = jobs.filter((j) => j.status === 'inquiry' || j.status === 'active').length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;

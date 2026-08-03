@@ -9,6 +9,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getPgPool } from './pgPool';
+import { workSlugFromAdminUrl } from './notificationFormat';
 
 export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement';
 
@@ -308,6 +309,46 @@ export async function storeAckPushAlertByTag(tag: string): Promise<number> {
   for (const alert of alerts) {
     if (alert.tag !== trimmed || alert.staffAckAt) continue;
     if (new Date(alert.createdAt).getTime() < new Date(cutoff).getTime()) continue;
+    alert.staffAckAt = now;
+    acked += 1;
+  }
+  if (acked > 0) writeFileAlerts(alerts);
+  return acked;
+}
+
+/** Dismiss pending push alerts whose deep link targets a work project slug. */
+export async function storeAckPushAlertsForWorkSlug(jobSlug: string): Promise<number> {
+  const slug = jobSlug.trim();
+  if (!slug) return 0;
+
+  const now = new Date().toISOString();
+  const cutoff = cutoffIso(DEFAULT_MAX_AGE_DAYS);
+  const slugNeedle = `%slug=${slug}%`;
+  const slugNeedleEnc = `%slug=${encodeURIComponent(slug)}%`;
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rowCount } = await pool.query(
+        `UPDATE admin_push_alerts
+         SET staff_ack_at = COALESCE(staff_ack_at, $2::timestamptz)
+         WHERE staff_ack_at IS NULL
+           AND created_at >= $3::timestamptz
+           AND (url LIKE $4 OR url LIKE $5)`,
+        [slug, now, cutoff, slugNeedle, slugNeedleEnc],
+      );
+      return rowCount ?? 0;
+    }
+  } catch (e) {
+    console.warn('[push-alerts] postgres ack-for-work-slug failed', e);
+  }
+
+  const cutoffMs = new Date(cutoff).getTime();
+  const alerts = readFileAlerts();
+  let acked = 0;
+  for (const alert of alerts) {
+    if (alert.staffAckAt || new Date(alert.createdAt).getTime() < cutoffMs) continue;
+    if (workSlugFromAdminUrl(alert.url) !== slug) continue;
     alert.staffAckAt = now;
     acked += 1;
   }

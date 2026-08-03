@@ -241,6 +241,35 @@ export async function storeCountPendingEngagementEvents(opts?: {
   return (await storeListPendingEngagementEvents({ limit: 500, maxAgeDays: opts?.maxAgeDays })).length;
 }
 
+/** Dismiss pending engagement banners linked to a deleted project. */
+export async function storeAckEngagementEventsForJobSlug(jobSlug: string): Promise<number> {
+  const slug = jobSlug.trim();
+  if (!slug) return 0;
+
+  const now = new Date().toISOString();
+
+  const pool = await ensureSchema();
+  if (pool) {
+    const res = await pool.query(
+      `UPDATE engagement_events
+       SET staff_ack_at = COALESCE(staff_ack_at, $2::timestamptz)
+       WHERE job_slug = $1 AND staff_ack_at IS NULL`,
+      [slug, now],
+    );
+    return res.rowCount ?? 0;
+  }
+
+  const events = readFileEvents();
+  let acked = 0;
+  for (const event of events) {
+    if (event.jobSlug !== slug || event.staffAckAt) continue;
+    event.staffAckAt = now;
+    acked += 1;
+  }
+  if (acked > 0) writeFileEvents(events);
+  return acked;
+}
+
 export async function storeAckEngagementEvent(
   id: string,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {

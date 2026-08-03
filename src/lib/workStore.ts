@@ -614,22 +614,35 @@ export async function storeWriteWork(
 }
 
 export async function storeDeleteWork(slug: string): Promise<boolean> {
+  let deleted = false;
   if (isWorkDbConfigured()) {
     const { dbDeleteWork } = await import('./pgJobs');
     const result = await dbDeleteWork(slug);
-    return result.ok;
+    deleted = result.ok;
+  } else {
+    deleted = fileDeleteWork(slug);
   }
-  return fileDeleteWork(slug);
+  if (deleted) {
+    const { storeAckNotificationsForDeletedWork } = await import('./notificationWorkLinks');
+    await storeAckNotificationsForDeletedWork(slug).catch((e) => {
+      console.warn('[work] notification cleanup failed', e);
+    });
+  }
+  return deleted;
 }
 
 export async function storeDeleteWorkByClientUid(clientUid: string): Promise<number> {
   const uid = clientUid.trim();
   if (!uid) return 0;
+  const jobs = await storeListWork({ contact_uid: uid });
+  const { storeAckNotificationsForDeletedWork } = await import('./notificationWorkLinks');
+  for (const job of jobs) {
+    await storeAckNotificationsForDeletedWork(job.slug).catch(() => undefined);
+  }
   if (isWorkDbConfigured()) {
     const { dbDeleteWorkByClientUid } = await import('./pgJobs');
     return dbDeleteWorkByClientUid(uid);
   }
-  const jobs = await storeListWork({ contact_uid: uid });
   let deleted = 0;
   for (const job of jobs ?? []) {
     if (fileDeleteWork(job.slug)) deleted++;

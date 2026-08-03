@@ -3717,18 +3717,45 @@ async function resolveAuditPushAlertWorkSlug(item) {
   return matchWorkSlugByAuditLabel(jobs, label);
 }
 
+async function workProjectExists(slug) {
+  if (!slug) return false;
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function navigateToWorkIfExists(slug, opts = {}) {
+  if (!(await workProjectExists(slug))) return false;
+  navigateToWork(slug, opts);
+  return true;
+}
+
+async function handleMissingWorkNotification(item) {
+  await dismissReviewNotification(item);
+  await osAlert({
+    title: 'Project not found',
+    bodyHtml: 'This project was deleted. The notification has been archived.',
+  });
+  if (MAP.type === 'home') await loadHomeDashboard();
+}
+
 async function openReviewNotificationTarget(item) {
   if (item.type === 'push_alert') {
     if (isAuditPushAlert(item)) {
       const slug = await resolveAuditPushAlertWorkSlug(item);
       if (slug) {
-        navigateToWork(slug);
+        if (!(await navigateToWorkIfExists(slug))) await handleMissingWorkNotification(item);
         return;
       }
     }
     const slug = workSlugFromPushAlertUrl(item.url);
     if (slug) {
-      navigateToWork(slug);
+      if (!(await navigateToWorkIfExists(slug))) await handleMissingWorkNotification(item);
       return;
     }
     if (item.url) {
@@ -3745,7 +3772,11 @@ async function openReviewNotificationTarget(item) {
       item.type === 'contact_form') &&
     item.jobSlug
   ) {
-    navigateToWork(item.jobSlug, { fromEmailId: item.emailId || null });
+    if (
+      !(await navigateToWorkIfExists(item.jobSlug, { fromEmailId: item.emailId || null }))
+    ) {
+      await handleMissingWorkNotification(item);
+    }
     return;
   }
   if ((item.type === 'vault_entry' || item.type === 'deck_view') && item.contactUid) {
