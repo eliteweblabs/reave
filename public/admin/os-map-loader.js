@@ -4888,14 +4888,15 @@ async function loadHomeDashboard(opts = {}) {
     }
 
     try {
-      const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const res = await adminFetch('/api/admin/dashboard');
+      const data = await readAdminJson(res, 'dashboard');
+      if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDashboardFooterBadges(data.stats);
       renderHomeDashboard(data);
       homeDashboardLastLoadAt = Date.now();
       void initFleetLocationReporter();
     } catch (e) {
+      if (e.message === 'Session expired') return;
       root.innerHTML =
         `<div class="home-dashboard-scroll">` +
           `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
@@ -4918,9 +4919,9 @@ async function refreshHomeReviewBannersQuiet() {
   if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton')) return;
 
   try {
-    const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) return;
+    const res = await adminFetch('/api/admin/dashboard');
+    const data = await readAdminJson(res, 'dashboard');
+    if (!data.ok) return;
     syncDashboardFooterBadges(data.stats);
 
     scroll.querySelector('.dash-review-alerts')?.remove();
@@ -8591,8 +8592,8 @@ async function syncInboxAppBadge(events, reviewsPending) {
 async function refreshFooterBadgesQuiet() {
   try {
     const [dashRes, inboxRes] = await Promise.all([
-      fetch('/api/admin/dashboard', { cache: 'no-store' }),
-      fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
+      adminFetch('/api/admin/dashboard'),
+      adminFetch('/api/email/inbox?limit=100'),
     ]);
 
     const inboxOk = inboxRes.ok;
