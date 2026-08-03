@@ -1,0 +1,2010 @@
+---
+/**
+ * Sales-deck-style tour of the whole platform — used on /features and embedded on the homepage.
+ * Accordion sections, dark brand theme, plugins called out separately at the end.
+ */
+import BrandLogoGrid from "../BrandLogoGrid.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { INSTALLATION_TIERS, formatInstallUsd } from "../../lib/installationTiers";
+import {
+  Users,
+  PanelsTopLeft,
+  Briefcase,
+  Wallet,
+  Mail,
+  CalendarClock,
+  Sparkles,
+  Mic,
+  BookOpen,
+  Palette,
+  Smartphone,
+  MessageSquare,
+  TrendingUp,
+  Car,
+  Truck,
+  FileSignature,
+  PhoneCall,
+  Contact,
+  Send,
+  Puzzle,
+  ArrowRight,
+  ChevronDown,
+  Monitor,
+  Clock,
+  GitBranch,
+  Globe,
+} from "lucide-astro";
+
+interface Props {
+  /** Show the static replaced-apps logo grid (homepage already has the marquee). */
+  showLogoStack?: boolean;
+  /** Tighter padding when nested inside the homepage scroll container. */
+  embedded?: boolean;
+}
+
+const { showLogoStack = true, embedded = false } = Astro.props;
+
+const company = await getCompanyConfig(Astro.request);
+const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
+
+const SIMPLE_ICONS_CDN = (slug: string) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
+/** Production stack — shown in the "Built with" footer on /features. */
+type StackTech = { slug: string; name: string; color: string; role: string };
+
+const builtWithStack: StackTech[] = [
+  { slug: "astro", name: "Astro", color: "#BC52EE", role: "App & API" },
+  { slug: "react", name: "React", color: "#61DAFB", role: "Admin UI" },
+  { slug: "typescript", name: "TypeScript", color: "#3178C6", role: "Language" },
+  { slug: "nodedotjs", name: "Node.js", color: "#5FA04E", role: "Runtime" },
+  { slug: "railway", name: "Railway", color: "#FFFFFF", role: "Hosting & deploy" },
+  { slug: "postgresql", name: "PostgreSQL", color: "#4169E1", role: "App database" },
+  { slug: "supabase", name: "Supabase", color: "#3FCF8E", role: "Postgres & migrations" },
+  { slug: "clerk", name: "Clerk", color: "#6C47FF", role: "Admin auth" },
+  { slug: "resend", name: "Resend", color: "#FFFFFF", role: "Email in + out" },
+  { slug: "anthropic", name: "Anthropic", color: "#D4A574", role: "AI agent" },
+  { slug: "telnyx", name: "Telnyx", color: "#00E3AA", role: "SMS & voice" },
+  { slug: "github", name: "GitHub", color: "#FFFFFF", role: "Source control" },
+  { slug: "cloudflare", name: "Cloudflare", color: "#F38020", role: "DNS & edge" },
+  { slug: "caldotcom", name: "Cal.com", color: "#FFFFFF", role: "Scheduling" },
+  { slug: "plausibleanalytics", name: "Plausible", color: "#5850EC", role: "Web analytics" },
+  { slug: "uptimerobot", name: "UptimeRobot", color: "#3BD671", role: "Uptime monitoring" },
+];
+
+const deployModes = [
+  {
+    title: "Full website package",
+    desc: "Public marketing site — homepage, deck, forms, booking — on your domain, fully wired into the OS underneath.",
+  },
+  {
+    title: "Standalone app",
+    desc: "Admin dashboard and client portal only. Skip the public frontend if you already have a site elsewhere.",
+  },
+  {
+    title: "Both",
+    desc: "The usual setup: a branded front door for prospects plus the operating system behind it, all on one domain.",
+  },
+];
+
+type IconComponent = typeof Users;
+
+type Section = {
+  id: string;
+  icon: IconComponent;
+  title: string;
+  teaser: string;
+  body: string[];
+  bullets: string[];
+};
+
+const before: Section[] = [
+  {
+    id: "contacts",
+    icon: Users,
+    title: "One client list. Every channel already knows it.",
+    teaser:
+      "Every call, text, invoice, and portal visit ties back to the same record — stop pretending three spreadsheets are a CRM.",
+    body: [
+      "Contacts are the spine of the whole OS. Add someone once and they show up everywhere they're needed — billing, projects, the inbox, the portal — without a single copy-paste.",
+      "Fuzzy matching finds the right person even from a nickname, an old email address, or a company name typed three different ways, so duplicates never pile up.",
+    ],
+    bullets: [
+      "Matches by name, email, phone, notes, or company before it ever creates a duplicate",
+      "Every contact keeps its history — notes, aliases, past projects, past invoices",
+      "Syncs straight to iPhone Contacts over CardDAV — no Google or iCloud detour",
+      "Export a vCard from any client record in one tap",
+    ],
+  },
+];
+
+const after: Section[] = [
+  {
+    id: "projects",
+    icon: Briefcase,
+    title: "Delivery you — and your client — can actually see",
+    teaser:
+      "Quote, active, complete, paused: every project gets a real status, and it's the same status your client sees on their portal.",
+    body: [
+      "Projects replace the sticky notes and the \"let me check.\" Checklists, comments, and files live on the job, and anything you flip visible shows up for the client in real time.",
+    ],
+    bullets: [
+      "Statuses from inquiry through archived — filter and report on any of them",
+      "Priorities from low to urgent so nothing quietly slips",
+      "Link an email thread or chat straight to the project it belongs to",
+      "Attach files, checklists, and comments — everything stays on the job",
+      "Optional time log with hours, notes, and invoice suggestions when billing is on",
+    ],
+  },
+  {
+    id: "billing",
+    icon: Wallet,
+    title: "Invoices that send themselves, chase themselves",
+    teaser:
+      "Billing lives in the same dashboard as everything else — create an invoice in chat and it's already on the client's portal.",
+    body: [
+      "No separate billing login for you or your client. Outstanding, upcoming, and paid invoices are grouped automatically and matched to the right contact by email.",
+    ],
+    bullets: [
+      "One-tap Pay links on every outstanding invoice",
+      "Recurring invoices for retainers and ongoing service plans",
+      '"Send Acme $450 for the June retainer" — the agent builds and sends it',
+      "Payment history shows on the client's own Billing tab, not buried in your inbox",
+    ],
+  },
+  {
+    id: "email",
+    icon: Mail,
+    title: "Your inbox, triaged before you open it",
+    teaser:
+      "Forward or BCC your real mail in — it gets read, filed against the right project, and only surfaces if it actually needs you.",
+    body: [
+      "Keep using Gmail or Proton. A copy lands in the smart inbox, gets classified in seconds, and either files itself quietly or lands in front of you with a push notification.",
+      "When you send back out — portal links, project updates, agent-drafted replies — every message uses the same branded HTML template and delivers from your domain via Resend.",
+    ],
+    bullets: [
+      "Sorted into client, alert, internal, review, or junk automatically",
+      "Attachments show up with one-tap download — no digging through threads",
+      "Automated alert emails land in a dedicated System Alerts thread — not mixed with client mail",
+      "Branded HTML outbound mail — logo, CTA button, dark-mode friendly — sent server-side through Resend",
+      "Install to your Home Screen and get pushed the moment something needs a reply",
+    ],
+  },
+  {
+    id: "scheduling",
+    icon: CalendarClock,
+    title: "Booked, not \"let me check my calendar\"",
+    teaser:
+      "Real booking lives wherever clients find you — prospects grab a real slot, you get a real meeting, no back-and-forth.",
+    body: [
+      "Availability, confirmations, and reschedules are handled the moment someone picks a time — and the same booking flow is one voice command away for you.",
+    ],
+    bullets: [
+      "Real-time availability, no double-booking, ever",
+      "Confirmation and reschedule/cancel links sent automatically",
+      "Bookable straight from the AI agent or a Siri Shortcut",
+      "Meetings show up next to the client's other project activity",
+    ],
+  },
+  {
+    id: "ai-assistant",
+    icon: Sparkles,
+    title: "The agent that actually runs the business with you",
+    teaser:
+      "One chat. Every tool. Contacts, invoices, projects, scheduling — described in plain English, executed for real.",
+    body: [
+      "This isn't a chatbot demo bolted onto a sidebar. The admin agent holds the same tools you'd use by hand — it creates the invoice, files the note, books the meeting, and tells you exactly what it did.",
+    ],
+    bullets: [
+      "Core tools are always on: contacts, projects, inbox, knowledge, to-dos",
+      "Every plugin you enable adds its own tools automatically — no extra setup",
+      "Plain-English commands — no menus to hunt through",
+      "Flags its own alerts in a dedicated thread when something needs your attention",
+    ],
+  },
+  {
+    id: "siri",
+    icon: Mic,
+    title: '"Hey Siri, who\'s Tony Vello?"',
+    teaser:
+      "Your business, answerable out loud from the lock screen — no app to open, no dashboard to load.",
+    body: [
+      "A handful of Siri Shortcuts turn your voice into the same actions the dashboard can do — hands-free, from the car, from a job site, from bed.",
+    ],
+    bullets: [
+      "List or create clients and projects by voice",
+      "Book a meeting or send a quick SMS without touching a keyboard",
+      "Look up any client by name from the lock screen",
+      "Set up once with a copy-paste JSON payload — no code required",
+    ],
+  },
+  {
+    id: "learning",
+    icon: BookOpen,
+    title: "Teach it once. It remembers forever.",
+    teaser:
+      "Playbooks, SOPs, and this-client-is-different quirks live in a knowledge base the agent reads before it ever answers.",
+    body: [
+      "Every install ships with core knowledge, and every plugin you enable brings its own — the agent only loads what's relevant, so it never confuses one client's process for another's.",
+    ],
+    bullets: [
+      "Editable in plain markdown, versioned like real code",
+      "Keeps new hires — and future-you — aligned without a training doc nobody reads",
+      "Plugin-scoped, so dealership knowledge never loads on a plumbing install",
+      "The agent works from what it read, not a guess",
+    ],
+  },
+  {
+    id: "white-label",
+    icon: Palette,
+    title: "Your brand on everything — not ours",
+    teaser:
+      "Company name, logo, domain, colors, and voice — every surface a client touches looks like you built it from scratch.",
+    body: [
+      "Each install is fully white-labeled. The client portal, outbound emails, voice agent greeting, and even the iPhone Contacts card all carry your company identity — no \"Powered by\" badge anywhere.",
+    ],
+    bullets: [
+      "Set name, logo, domain, and support contact once in admin → Company",
+      "Client portals open on your domain with your branding baked in",
+      "Voice agent and email templates use your company name automatically",
+      "Enable only the plugins this business needs — one config file, no forked codebase",
+    ],
+  },
+  {
+    id: "mobile",
+    icon: Smartphone,
+    title: "On your phone like a real app",
+    teaser:
+      "Add it to your Home Screen once — push notifications, offline-ready pages, and tap-to-call from anywhere.",
+    body: [
+      "The dashboard and client portal are both progressive web apps. Install to your Home Screen and they behave like native apps: full-screen, fast, and wired for push the moment something needs you.",
+    ],
+    bullets: [
+      "Push notifications when a client replies, an invoice is paid, or an alert fires",
+      "Client portals are one tap away — no App Store, no login screen",
+      "Works on iPhone and Android from the same URL",
+      "Revoke a portal link and it disappears from their phone instantly",
+    ],
+  },
+  {
+    id: "sms",
+    icon: MessageSquare,
+    title: "Text clients without leaving the dashboard",
+    teaser:
+      "Send and receive SMS tied to the contact record — from chat, from Siri, or straight from a client's portal page.",
+    body: [
+      "Every text thread lives on the client, not in a separate app. Reply from the inbox, trigger a message from the AI agent, or fire one off by voice — and the full history stays attached to that person.",
+    ],
+    bullets: [
+      "Two-way SMS threaded against the contact who sent it",
+      "Send a quick text from Siri without opening anything",
+      "Clients can tap-to-text your business straight from their portal",
+      "Agent can draft and send messages when you describe who and what",
+    ],
+  },
+  {
+    id: "growth",
+    icon: TrendingUp,
+    title: "Newsletters, social metrics, analytics — and read receipts",
+    teaser:
+      "Lifecycle email, a social dashboard, web traffic stats, and little signals — link viewed, portal opened, deck watched — that tell you when to follow up.",
+    body: [
+      "Growth tools belong in the same OS as delivery, not in three more subscriptions. Lifecycle emails render as branded HTML on the server — your logo, purple CTA, CAN-SPAM footer — and deliver through Resend from your own domain. Pair that with social follower trends, live site analytics, and read-receipt-style signals when a client opens what you sent.",
+      "Those little details sound small until you're deciding whether to nudge a prospect or let a hot lead go cold.",
+    ],
+    bullets: [
+      "Branded HTML email templates — table layout for Gmail, Outlook, and Apple Mail, with dark-mode support",
+      "Server delivery via Resend — newsletters, portal shares, and agent outbound all send from your domain",
+      "Newsletter tab — welcome, follow-up, project-complete, and review-request automations plus one-click broadcasts",
+      "Social tab — follower counts, posts, mentions, reactions, and engagement rate per platform",
+      "Analytics tab — visitors, pageviews, bounce rate, top pages, top sources, and realtime traffic (Plausible)",
+      "Tracked share links — \"Link sent\" becomes \"Viewed\" when the client opens a portal or project URL",
+      "Engagement push when someone opens a shared link, views the sales deck, submits vault info, or dwells on a project",
+    ],
+  },
+];
+
+type Plugin = {
+  id: string;
+  icon: IconComponent;
+  title: string;
+  teaser: string;
+  body: string;
+  bullets?: string[];
+};
+
+const plugins: Plugin[] = [
+  {
+    id: "dealership",
+    icon: Car,
+    title: "Dealership Inventory Wizard",
+    teaser:
+      "Swipe-to-browse inventory, a 6-step lead wizard, and test-drive booking — built for one dealership, ready for the next.",
+    body: "Inventory syncs straight in. A caller asks for \"a red SUV under $25k,\" gets a magic link, and can finish a deal — vehicle, trade-in, credit, documents, deposit — without ever calling back.",
+    bullets: [
+      "Public inventory search by make, price, and condition",
+      "Magic-link deal flow: Vehicle → Contact → Trade-In → Credit → Documents → Deposit",
+      "Test-drive booking tied straight to the lead",
+      "Voice widget on the inventory page for hands-free browsing",
+    ],
+  },
+  {
+    id: "fleet",
+    icon: Truck,
+    title: "Fleet Tracking",
+    teaser:
+      "Live GPS for every van, truck, and field crew — on a map dispatch can actually use.",
+    body: "Built for businesses running delivery vans or service trucks. Assign a vehicle to a driver's sign-in and location pings start the moment they open the app — no extra hardware.",
+  },
+  {
+    id: "documents",
+    icon: FileSignature,
+    title: "Document Signing",
+    teaser:
+      "Proposals and contracts that get signed on the same portal the client already trusts.",
+    body: "Templates for the paperwork that actually needs a signature, surfaced right on the client's Documents tab — no separate e-sign tool to log into.",
+  },
+  {
+    id: "voice",
+    icon: PhoneCall,
+    title: "Voice & Call Routing",
+    teaser:
+      "A voice widget on your homepage, plus real call routing — answer, qualify, hand off, or book, without anyone picking up the phone.",
+    body: "One layer handles the conversation, another routes the actual call. Together they cover a caller from \"hello\" all the way to \"booked.\"",
+  },
+  {
+    id: "carddav",
+    icon: Contact,
+    title: "CardDAV Contact Sync",
+    teaser:
+      "The master client list, live in the iPhone Contacts app — no Google account, no iCloud detour.",
+    body: "One CardDAV account, set up once in iOS Settings, and every contact you add in the dashboard shows up on your phone exactly the way it always has.",
+  },
+  {
+    id: "newsletter",
+    icon: Send,
+    title: "Newsletter & Lifecycle Email",
+    teaser:
+      "Welcome emails, follow-ups, review requests, and win-back campaigns — sent automatically, on a schedule you set once.",
+    body: "Every lifecycle and broadcast email renders through a shared branded HTML wrapper — your logo, styled CTA, optional QR code — then sends server-side via Resend from your domain. Built-in templates cover welcome, check-in, thank-you, review request, and re-engagement without a separate ESP login.",
+    bullets: [
+      "HTML templates built for real inboxes — table layout, inline fallbacks, prefers-color-scheme dark mode",
+      "Resend API delivery from your domain (DKIM/SPF synced from admin) — not a no-reply@ vendor address",
+      "Automations fire on new contact, project complete, and timed follow-ups — no Zapier chain",
+      "Broadcast to all clients or a hand-picked list from the admin Newsletter tab",
+      "CAN-SPAM footer and one-click unsubscribe on every marketing send",
+      "Send log shows queued, sent, and skipped — with dedup so nobody gets spammed twice",
+    ],
+  },
+  {
+    id: "monitoring",
+    icon: Monitor,
+    title: "Site Monitoring & Audits",
+    teaser:
+      "Uptime checks, change detection, and Lighthouse-style audits — so you know before the client does.",
+    body: "Three layers watch client sites from the admin dashboard: UptimeRobot for downtime, ChangeDetection.io for content changes, and built-in audits for SSL, DNS, broken links, and Lighthouse scores. Alerts land in the smart inbox instead of a separate monitoring tab you'll forget to check.",
+    bullets: [
+      "UptimeRobot sync — auto-discover production domains and import monitors",
+      "Change detection watches key pages and diffs what changed",
+      "Site audits: Lighthouse performance, SSL expiry, DNS records, broken links",
+      "Agent tools can run audits and summarize results in chat",
+    ],
+  },
+  {
+    id: "time-tracking",
+    icon: Clock,
+    title: "Project Time Tracking",
+    teaser:
+      "Log hours and notes on any project — then bridge straight into invoicing.",
+    body: "Optional time log on each job: start/stop timers or manual entries with notes. When billing is enabled, the agent can suggest invoice line items from logged hours instead of reconstructing the week from memory.",
+    bullets: [
+      "Per-project time entries with hours and optional notes",
+      "Invoice suggestions pull unbilled hours into Crater line items",
+      "Enabled per install — off by default for businesses that don't bill hourly",
+    ],
+  },
+  {
+    id: "dev-infra",
+    icon: GitBranch,
+    title: "Dev & Deploy Infrastructure",
+    teaser:
+      "Git, Railway, Kinsta, and deploy status — for agency installs that ship code, not just configure.",
+    body: "Agency-facing tooling: inspect repos, trigger deploys, read Railway logs, and manage hosting from the same admin the client never sees. The agent can check deploy status and answer \"did my push go live?\" without opening four dashboards.",
+  },
+  {
+    id: "namecom-dns",
+    icon: Globe,
+    title: "DNS Record Management",
+    teaser:
+      "Add and edit Name.com DNS records from admin — no separate registrar login during launch week.",
+    body: "For agency installs managing client domains: list, create, and update DNS records through agent tools or admin flows. Credentials can come from the client vault when no global registrar token is configured.",
+  },
+];
+
+const portalTabs = [
+  {
+    name: "Overview",
+    desc: "Headline, notes, and any custom fields you want front and center.",
+  },
+  {
+    name: "Projects",
+    desc: "Live status on every job you're doing for them, synced from your dashboard.",
+  },
+  {
+    name: "Billing",
+    desc: "Outstanding, upcoming, and paid invoices with one-tap Pay links.",
+  },
+  {
+    name: "Vault",
+    desc: "Logins, credentials, and sensitive notes — masked, with reveal/copy on tap.",
+  },
+  {
+    name: "Documents",
+    desc: "Proposals and contracts, ready to review and sign.",
+  },
+];
+
+type PromptExample = { text: string; note?: string };
+
+/** Day-one questions the agent and Siri can answer from core data + knowledge. */
+const defaultPrompts: PromptExample[] = [
+  { text: "Hey Siri, how many hours did we bill last week?" },
+  { text: "What job is Sean currently at?" },
+  { text: "Who still owes us from March?" },
+  { text: "Summarize everything open on the Henderson project." },
+];
+
+/** Bespoke requests wired up in the custom 10% — plugins, tools, and one-off flows. */
+const customPrompts: PromptExample[] = [
+  {
+    text: "How much would it cost to remodel the house in this image to a craftsman style?",
+    note: "Vision + your pricing playbook + materials lookup",
+  },
+  {
+    text: "Pull every open permit for this address and draft a bid outline.",
+    note: "Municipal API + your estimate template",
+  },
+  {
+    text: "Which fleet truck is closest to the Johnson job site right now?",
+    note: "Live GPS + dispatch rules",
+  },
+  {
+    text: "Compare this trade-in VIN against our lot and text the customer three matches.",
+    note: "Dealership inventory wizard + SMS",
+  },
+];
+---
+
+<div class:list={["fx-page", embedded && "fx-page--embedded"]} data-features-content>
+    <section class="fx-hero scroll-fade-in">
+      <p class="fx-kicker">The Business OS</p>
+      <h1 class="fx-h1">
+        Runs the whole business — not a pile of separate apps.
+      </h1>
+      <p class="fx-lead">
+        Contacts, billing, projects, inbox, scheduling, newsletters, social metrics,
+        Siri, and white-label branding — one login, one AI agent, and a client portal
+        that's already open on their phone. Add industry plugins for the business
+        you're actually in.
+      </p>
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--primary" href="/demo">
+          Demo now
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a class="fx-btn fx-btn--ghost" href={quoteHref}>Get a quote</a>
+      </div>
+      <div class="fx-chips">
+        <span class="fx-chip">Always-on AI agent</span>
+        <span class="fx-chip">Siri-ready</span>
+        <span class="fx-chip">White labeled</span>
+        <span class="fx-chip">Read receipts & engagement</span>
+        <span class="fx-chip">Plug in only what you need</span>
+        <a class="fx-chip fx-chip--link" href="#plan">Installation tiers &amp; pricing</a>
+      </div>
+    </section>
+
+    {
+      showLogoStack && (
+        <section class="fx-stack scroll-fade-in" aria-label="Apps this platform replaces">
+          <p class="fx-stack-kicker">Replace the stack</p>
+          <h2 class="fx-stack-h2">
+            One platform instead of a dozen monthly subscriptions.
+          </h2>
+          <p class="fx-stack-lead">
+            Most small businesses pay separately for email, CRM, invoicing, scheduling,
+            AI, file storage, e-sign, and project tools. {company.name} is built to
+            absorb that whole layer — so your clients stop juggling logins and line items.
+          </p>
+          <BrandLogoGrid folder="replaced-apps" />
+          <p class="fx-stack-note">
+            Keep Gmail or Outlook for personal mail if you want — the OS handles CRM,
+            billing, projects, scheduling, AI, and the client portal that used to
+            require all of the above.
+          </p>
+        </section>
+      )
+    }
+
+    <section
+      class="fx-pricing scroll-fade-in"
+      aria-label="Installation plan and pricing"
+      id="plan"
+    >
+      <span id="pricing" hidden aria-hidden="true"></span>
+      <p class="fx-pricing-kicker">Installation plan</p>
+      <h2 class="fx-pricing-h2">Four tiers — mapped to the features below.</h2>
+      <p class="fx-pricing-lead">
+        Every install starts at full tier price for month one. Each month after
+        that, the fee drops by half until month four — then it holds steady for
+        as long as you run the platform. Higher tiers include everything in the
+        tiers below, plus the modules listed for that tier.
+      </p>
+
+      <div class="fx-pricing-table-wrap">
+        <table class="fx-pricing-table">
+          <thead>
+            <tr>
+              <th scope="col">Tier</th>
+              <th scope="col">Plan</th>
+              <th scope="col">Month 1</th>
+              <th scope="col">Month 2</th>
+              <th scope="col">Month 3</th>
+              <th scope="col">Month 4+</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              [...INSTALLATION_TIERS].reverse().map((t) => (
+                <tr>
+                  <th scope="row">Tier {t.tier}</th>
+                  <td class="fx-pricing-plan-name">{t.name}</td>
+                  <td>{formatInstallUsd(t.month1)}</td>
+                  <td>{formatInstallUsd(t.month2)}</td>
+                  <td>{formatInstallUsd(t.month3)}</td>
+                  <td>{formatInstallUsd(t.month4Plus)}/mo</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="fx-tier-grid">
+        {
+          [...INSTALLATION_TIERS].reverse().map((t) => (
+            <article class="fx-tier-card">
+              <header class="fx-tier-card-head">
+                <p class="fx-tier-card-kicker">Tier {t.tier}</p>
+                <h3 class="fx-tier-card-title">{t.name}</h3>
+                <p class="fx-tier-card-summary">{t.summary}</p>
+                <p class="fx-tier-card-price">
+                  {formatInstallUsd(t.month1)} → {formatInstallUsd(t.month4Plus)}/mo
+                </p>
+              </header>
+              <ul class="fx-tier-feature-list">
+                {
+                  t.features.map((f) => (
+                    <li>
+                      {
+                        f.href ? (
+                          <a href={f.href}>{f.label}</a>
+                        ) : (
+                          f.label
+                        )
+                      }
+                    </li>
+                  ))
+                }
+              </ul>
+            </article>
+          ))
+        }
+      </div>
+
+      <p class="fx-pricing-note">
+        Example: Tier 1 (Full platform) is {formatInstallUsd(5000)} the first month,
+        {formatInstallUsd(2500)} the second, {formatInstallUsd(1250)} the third, then{" "}
+        {formatInstallUsd(625)} every month after that. Tier 4 (Core OS) starts at{" "}
+        {formatInstallUsd(2000)} — same 50% step-down each month. Industry plugins
+        and agency tools are Tier 1; most service businesses land on Tier 2 or 3.
+      </p>
+
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--ghost" href={quoteHref}>Get a quote for your tier</a>
+      </div>
+    </section>
+
+    <section class="fx-list scroll-fade-in" aria-label="Core features">
+      <h2 class="fx-list-h2">Baseline baked in</h2>
+      <p class="fx-list-lead">
+        {company.name} comes with 90% of what you need on day zero — including a virtual
+        assistant and a learning layer that picks up your playbooks as you go. We customize
+        the other 10% to bridge the gaps in a spaghetti network of services — giving you
+        a truly unified, all-in-one business operating system.
+      </p>
+
+      <div class="acc-list" data-acc-list>
+        <div class="acc-item acc-item--ninety scroll-fade-in" data-acc-item id="feature-ninety">
+          <button type="button" class="acc-trigger" aria-expanded="true">
+            <span class="acc-icon acc-icon--ninety"><Puzzle size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+            <span class="acc-heading">
+              <span class="acc-title">
+                A 90% app — everything you need to run the business
+                <span class="acc-badge">90%</span>
+              </span>
+              <span class="acc-teaser">
+                Day one: CRM, portal, billing, inbox, scheduling, AI, and mobile — live.
+                The last 10% is whatever makes this client uniquely theirs, and it bolts on
+                without a rewrite.
+              </span>
+            </span>
+            <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+          </button>
+          <div class="acc-panel">
+            <div class="acc-panel-inner">
+              <div class="ninety-meter" role="img" aria-label="90 percent core platform, 10 percent custom additions">
+                <div class="ninety-meter-track">
+                  <div class="ninety-meter-core">
+                    <span class="ninety-meter-label">90%</span>
+                    <span class="ninety-meter-name">Core OS</span>
+                  </div>
+                  <div class="ninety-meter-custom">
+                    <span class="ninety-meter-label">+10%</span>
+                    <span class="ninety-meter-name">Bolt-ons</span>
+                  </div>
+                </div>
+              </div>
+              <p>
+                Most platforms hand you a blank canvas and a monthly bill. {company.name}
+                ships the opposite: a complete operating system for running a service
+                business — contacts, projects, client portal, billing, smart inbox,
+                scheduling, AI agent, newsletters, social & web metrics, read receipts,
+                Siri, white-label branding, and mobile push — all wired together on install.
+              </p>
+              <p>
+                That covers what nearly every client actually needs to operate. The
+                remaining slice is industry-specific or client-specific: a dealership
+                inventory wizard, fleet GPS, a custom intake flow, a one-off integration.
+                Those pieces snap onto the same core instead of replacing it.
+              </p>
+              <ul class="acc-bullets">
+                <li>Go live with the full core stack — not a phased rollout of "phase two features"</li>
+                <li>Enable industry plugins in one config line when this business needs them</li>
+                <li>Custom workflows and integrations build on the same APIs, agent tools, and knowledge base</li>
+                <li>No forked codebase — your 10% ships as plugins and config, not a separate product</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {
+          before.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div class="acc-item scroll-fade-in" data-acc-item id={`feature-${s.id}`}>
+                <button type="button" class="acc-trigger" aria-expanded="true">
+                  <span class="acc-icon"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+                  <span class="acc-heading">
+                    <span class="acc-title">{s.title}</span>
+                    <span class="acc-teaser">{s.teaser}</span>
+                  </span>
+                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+                </button>
+                <div class="acc-panel">
+                  <div class="acc-panel-inner">
+                    {s.body.map((p) => <p>{p}</p>)}
+                    <ul class="acc-bullets">
+                      {s.bullets.map((b) => <li>{b}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+
+        <div class="acc-item scroll-fade-in" data-acc-item id="feature-portal">
+          <button type="button" class="acc-trigger" aria-expanded="true">
+            <span class="acc-icon"><PanelsTopLeft size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+            <span class="acc-heading">
+              <span class="acc-title">A branded home base for every client — zero setup</span>
+              <span class="acc-teaser">
+                The moment you add a contact, they have a private page that looks and feels like part of your brand.
+              </span>
+            </span>
+            <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+          </button>
+          <div class="acc-panel">
+            <div class="acc-panel-inner">
+              <p>
+                No account to create, no password to reset — the link itself is the
+                key. Add it to their Home Screen and it behaves like a real app with
+                their name on it.
+              </p>
+              <p>Five tabs show up automatically, only when there's something to show:</p>
+              <div class="portal-tabs">
+                {portalTabs.map((t) => (
+                  <div class="portal-tab">
+                    <span class="portal-tab-name">{t.name}</span>
+                    <span class="portal-tab-desc">{t.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <ul class="acc-bullets">
+                <li>Tap-to-call, text, or email your business straight from the page</li>
+                <li>A speed-dial help chat answers "what do I owe" and "what's my login" without a call to you</li>
+                <li>Revoke access anytime — the page just disappears</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {
+          after.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div class="acc-item scroll-fade-in" data-acc-item id={`feature-${s.id}`}>
+                <button type="button" class="acc-trigger" aria-expanded="true">
+                  <span class="acc-icon"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+                  <span class="acc-heading">
+                    <span class="acc-title">{s.title}</span>
+                    <span class="acc-teaser">{s.teaser}</span>
+                  </span>
+                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+                </button>
+                <div class="acc-panel">
+                  <div class="acc-panel-inner">
+                    {s.body.map((p) => <p>{p}</p>)}
+                    <ul class="acc-bullets">
+                      {s.bullets.map((b) => <li>{b}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
+    </section>
+
+    <section class="fx-examples scroll-fade-in" aria-label="Example questions out of the box">
+      <p class="fx-examples-kicker">Out of the box</p>
+      <h2 class="fx-examples-h2">{company.name} learns by default.</h2>
+      <p class="fx-examples-lead">
+        Every install ships with core knowledge, plugin playbooks, and live data from
+        your contacts, projects, time logs, and billing — so the agent and Siri can
+        answer real operational questions on day one. No custom build required.
+      </p>
+      <ul class="fx-prompt-grid">
+        {
+          defaultPrompts.map((p) => (
+            <li class="fx-prompt-card fx-prompt-card--default">
+              <Mic size={16} strokeWidth={2} aria-hidden="true" class="fx-prompt-icon" />
+              <blockquote class="fx-prompt-text">&ldquo;{p.text}&rdquo;</blockquote>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="fx-custom scroll-fade-in" aria-label="Custom wired-up requests">
+      <p class="fx-custom-kicker">The bespoke 10%</p>
+      <h2 class="fx-custom-h2">Requests we wire up for you.</h2>
+      <p class="fx-custom-lead">
+        The last slice is where your business gets weird — in a good way. We bolt on
+        custom tools, APIs, and workflows so the same agent can handle one-off asks
+        that no generic SaaS stack would ever understand.
+      </p>
+      <ul class="fx-prompt-grid">
+        {
+          customPrompts.map((p) => (
+            <li class="fx-prompt-card fx-prompt-card--custom">
+              <Sparkles size={16} strokeWidth={2} aria-hidden="true" class="fx-prompt-icon" />
+              <blockquote class="fx-prompt-text">&ldquo;{p.text}&rdquo;</blockquote>
+              {p.note && <p class="fx-prompt-note">{p.note}</p>}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="fx-plugins scroll-fade-in" aria-label="Plugins">
+      <p class="fx-plugins-kicker">The last 10%</p>
+      <h2 class="fx-plugins-h2">Bolt on what makes this client 100%.</h2>
+      <p class="fx-plugins-lead">
+        The core OS above is the 90% — it ships everywhere. Everything below is
+        opt-in: flipped on per install, per client, in one config line. Dealership
+        inventory, fleet tracking, e-sign, voice routing — built once, reused on the
+        next install that needs it.
+      </p>
+
+      <div class="acc-list acc-list--plugins" data-acc-list>
+        {
+          plugins.map((p) => {
+            const Icon = p.icon;
+            return (
+              <div class="acc-item acc-item--plugin scroll-fade-in" data-acc-item id={`plugin-${p.id}`}>
+                <button type="button" class="acc-trigger" aria-expanded="true">
+                  <span class="acc-icon acc-icon--plugin"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+                  <span class="acc-heading">
+                    <span class="acc-title">{p.title}</span>
+                    <span class="acc-teaser">{p.teaser}</span>
+                  </span>
+                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+                </button>
+                <div class="acc-panel">
+                  <div class="acc-panel-inner">
+                    <p>{p.body}</p>
+                    {p.bullets && (
+                      <ul class="acc-bullets">
+                        {p.bullets.map((b) => <li>{b}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
+    </section>
+
+    <section class="fx-built-with scroll-fade-in" aria-label="Technology stack and deployment options">
+      <p class="fx-built-with-kicker">Under the hood</p>
+      <h2 class="fx-built-with-h2">Built with a modern, production-grade stack.</h2>
+      <p class="fx-built-with-lead">
+        Not a no-code wrapper — a real codebase on Railway, Postgres, and the
+        services below. Ship it as a complete website package with a public frontend
+        and integrations, as a standalone admin + portal app, or both on the same
+        domain.
+      </p>
+
+      <div class="fx-deploy-modes">
+        {
+          deployModes.map((mode) => (
+            <div class="fx-deploy-mode">
+              <h3 class="fx-deploy-mode-title">{mode.title}</h3>
+              <p class="fx-deploy-mode-desc">{mode.desc}</p>
+            </div>
+          ))
+        }
+      </div>
+
+      <p class="fx-built-with-sub">This app is built with</p>
+      <ul class="fx-built-grid">
+        {
+          builtWithStack.map((tech) => (
+            <li class="fx-built-item">
+              <span
+                class="fx-built-logo fx-built-logo--pending"
+                data-initial={tech.name.charAt(0)}
+                style={`--brand-color: ${tech.color}`}
+                aria-hidden="true"
+              >
+                <img
+                  class="fx-built-logo-probe"
+                  src={SIMPLE_ICONS_CDN(tech.slug)}
+                  alt=""
+                  decoding="async"
+                  onload="const el=this.parentElement;if(!el)return;el.classList.remove('fx-built-logo--pending');el.style.setProperty('--brand-icon','url('+JSON.stringify(this.src)+')')"
+                  onerror="this.parentElement?.classList.add('fx-built-logo--fallback')"
+                />
+              </span>
+              <span class="fx-built-name">{tech.name}</span>
+              <span class="fx-built-role">{tech.role}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="fx-closing scroll-fade-in">
+      <h2 class="fx-closing-h2">Ready to see it running?</h2>
+      <p class="fx-closing-lead">
+        Every one of these is live in the product — not a mockup, not a roadmap slide.
+      </p>
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--primary" href="/demo">
+          Demo now
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a class="fx-btn fx-btn--ghost" href={quoteHref}>Talk to us</a>
+      </div>
+    </section>
+</div>
+
+<script>
+  (function () {
+    const items = document.querySelectorAll<HTMLElement>("[data-acc-item]");
+    if (!items.length) return;
+
+    function setOpen(item: HTMLElement, open: boolean, animate: boolean) {
+      const trigger = item.querySelector<HTMLButtonElement>(".acc-trigger");
+      const panel = item.querySelector<HTMLElement>(".acc-panel");
+      if (!trigger || !panel) return;
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      item.classList.toggle("open", open);
+      if (!animate) {
+        panel.style.transition = "none";
+        panel.style.maxHeight = open ? panel.scrollHeight + "px" : "0px";
+        // Re-enable transitions on the next frame.
+        requestAnimationFrame(() => {
+          panel.style.transition = "";
+        });
+        return;
+      }
+      panel.style.maxHeight = open ? panel.scrollHeight + "px" : "0px";
+    }
+
+    // Progressive enhancement: content is visible without JS (for crawlers +
+    // no-JS clients); once JS runs, collapse everything except the first item.
+    items.forEach((item, idx) => {
+      setOpen(item, idx === 0, false);
+
+      const trigger = item.querySelector<HTMLButtonElement>(".acc-trigger");
+      trigger?.addEventListener("click", () => {
+        const isOpen = item.classList.contains("open");
+        setOpen(item, !isOpen, true);
+      });
+    });
+
+    // Deep-link support: /features#feature-billing opens that section.
+    if (location.hash) {
+      const target = document.querySelector<HTMLElement>(location.hash);
+      if (target && target.hasAttribute("data-acc-item")) {
+        setOpen(target, true, false);
+        target.scrollIntoView({ block: "start" });
+      }
+    }
+
+    window.addEventListener("resize", () => {
+      document.querySelectorAll<HTMLElement>("[data-acc-item].open").forEach((item) => {
+        const panel = item.querySelector<HTMLElement>(".acc-panel");
+        if (panel) panel.style.maxHeight = panel.scrollHeight + "px";
+      });
+    });
+  })();
+</script>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  .fx-page {
+    min-height: 100vh;
+    padding: calc(64px + 40px) 20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .fx-page--embedded {
+    min-height: 0;
+    padding: 48px 20px 64px;
+  }
+
+  .fx-hero,
+  .fx-stack,
+  .fx-pricing,
+  .fx-list,
+  .fx-examples,
+  .fx-custom,
+  .fx-plugins,
+  .fx-built-with,
+  .fx-closing {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .fx-stack,
+  .fx-built-with,
+  .fx-pricing {
+    max-width: 920px;
+  }
+
+  /* ---------- Hero ---------- */
+
+  .fx-hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .fx-kicker,
+  .fx-stack-kicker,
+  .fx-pricing-kicker,
+  .fx-tier-card-kicker,
+  .fx-examples-kicker,
+  .fx-custom-kicker,
+  .fx-plugins-kicker,
+  .fx-built-with-kicker {
+    font-family: var(--font-secondary);
+  }
+
+  .fx-lead,
+  .fx-stack-lead,
+  .fx-pricing-lead,
+  .fx-examples-lead,
+  .fx-custom-lead,
+  .fx-plugins-lead,
+  .fx-built-with-lead,
+  .fx-closing-lead {
+    font-family: var(--font-content);
+  }
+
+  .fx-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 14px;
+  }
+
+  .fx-h1 {
+    margin: 0 0 16px;
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .fx-lead {
+    margin: 0 auto 28px;
+    max-width: 560px;
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .fx-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .fx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .fx-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .fx-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .fx-btn--ghost {
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .fx-btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .fx-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .fx-chip {
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.55);
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .fx-chip--link {
+    text-decoration: none;
+    color: rgba(187, 247, 208, 0.85);
+    border-color: rgba(74, 222, 128, 0.22);
+    background: rgba(74, 222, 128, 0.08);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .fx-chip--link:hover {
+    background: rgba(74, 222, 128, 0.14);
+    border-color: rgba(74, 222, 128, 0.36);
+  }
+
+  /* ---------- Replaced-app logo wall ---------- */
+
+  .fx-stack {
+    text-align: center;
+    margin-bottom: 56px;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-stack-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin: 0 0 12px;
+  }
+
+  .fx-stack-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-stack-lead {
+    margin: 0 auto 24px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-stack :global(.blg-grid) {
+    margin-bottom: 20px;
+  }
+
+  .fx-stack-note {
+    margin: 0 auto;
+    max-width: 580px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  /* ---------- Installation pricing ---------- */
+
+  .fx-pricing {
+    text-align: center;
+    margin-bottom: 56px;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-pricing-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin: 0 0 12px;
+  }
+
+  .fx-pricing-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-pricing-lead {
+    margin: 0 auto 24px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-pricing-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.22);
+  }
+
+  .fx-pricing-table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: center;
+  }
+
+  .fx-pricing-table th,
+  .fx-pricing-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .fx-pricing-table thead th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.48);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .fx-pricing-table tbody th {
+    font-weight: 700;
+    color: #bbf7d0;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .fx-pricing-table tbody td {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fx-pricing-table tbody tr:last-child th,
+  .fx-pricing-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .fx-pricing-note {
+    margin: 0 auto 20px;
+    max-width: 620px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .fx-pricing-plan-name {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .fx-tier-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+
+  .fx-tier-card {
+    padding: 18px 18px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .fx-tier-card-kicker {
+    margin: 0 0 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(74, 222, 128, 0.82);
+  }
+
+  .fx-tier-card-title {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .fx-tier-card-summary {
+    margin: 0 0 10px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .fx-tier-card-price {
+    margin: 0 0 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #bbf7d0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fx-tier-feature-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .fx-tier-feature-list li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .fx-tier-feature-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.75);
+  }
+
+  .fx-tier-feature-list a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.22);
+    text-underline-offset: 2px;
+  }
+
+  .fx-tier-feature-list a:hover {
+    color: #fff;
+    text-decoration-color: rgba(255, 255, 255, 0.45);
+  }
+
+  @media (max-width: 720px) {
+    .fx-tier-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ---------- Section intros ---------- */
+
+  .fx-list-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+    text-align: center;
+  }
+
+  .fx-list-lead {
+    margin: 0 auto 28px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+    text-align: center;
+    font-family: var(--font-content);
+  }
+
+  /* ---------- Example prompts ---------- */
+
+  .fx-examples,
+  .fx-custom {
+    margin-top: 56px;
+    text-align: center;
+  }
+
+  .fx-examples-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c4b5fd;
+    margin: 0 0 12px;
+  }
+
+  .fx-examples-h2,
+  .fx-custom-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-examples-lead,
+  .fx-custom-lead {
+    margin: 0 auto 24px;
+    max-width: 580px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.58);
+  }
+
+  .fx-custom-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #f472b6;
+    margin: 0 0 10px;
+  }
+
+  .fx-prompt-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .fx-prompt-card {
+    position: relative;
+    padding: 16px 18px 16px 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-prompt-card--default {
+    border-color: rgba(168, 85, 247, 0.18);
+    background:
+      radial-gradient(ellipse 80% 100% at 0% 50%, rgba(168, 85, 247, 0.08), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-prompt-card--custom {
+    border-color: rgba(244, 114, 182, 0.2);
+    background:
+      radial-gradient(ellipse 80% 100% at 0% 50%, rgba(244, 114, 182, 0.08), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-prompt-icon {
+    position: absolute;
+    left: 16px;
+    top: 18px;
+    color: #d8b4fe;
+  }
+
+  .fx-prompt-card--custom .fx-prompt-icon {
+    color: #f9a8d4;
+  }
+
+  .fx-prompt-text {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.88);
+    font-style: normal;
+  }
+
+  .fx-prompt-note {
+    margin: 8px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  /* ---------- Accordion ---------- */
+
+  .acc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .acc-item {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .acc-item.open {
+    border-color: rgba(192, 38, 211, 0.28);
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .acc-item--ninety {
+    border-color: rgba(56, 189, 248, 0.22);
+    background:
+      radial-gradient(ellipse 90% 80% at 0% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+      rgba(255, 255, 255, 0.03);
+  }
+
+  .acc-item--ninety.open {
+    border-color: rgba(56, 189, 248, 0.42);
+    background:
+      radial-gradient(ellipse 90% 80% at 0% 0%, rgba(56, 189, 248, 0.12), transparent 60%),
+      rgba(255, 255, 255, 0.04);
+  }
+
+  .acc-icon--ninety {
+    background: rgba(56, 189, 248, 0.16);
+    color: #7dd3fc;
+  }
+
+  .acc-item--ninety.open .acc-chev {
+    color: #7dd3fc;
+  }
+
+  .acc-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+    color: #0c4a6e;
+    background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  }
+
+  .ninety-meter {
+    margin-bottom: 18px;
+  }
+
+  .ninety-meter-track {
+    display: flex;
+    height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .ninety-meter-core,
+  .ninety-meter-custom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 6px;
+    text-align: center;
+  }
+
+  .ninety-meter-core {
+    flex: 9;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(99, 102, 241, 0.45) 100%);
+    border-right: 1px dashed rgba(255, 255, 255, 0.2);
+  }
+
+  .ninety-meter-custom {
+    flex: 1;
+    min-width: 72px;
+    background: rgba(56, 189, 248, 0.12);
+  }
+
+  .ninety-meter-label {
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .ninety-meter-name {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .acc-item--ninety .acc-teaser {
+    color: rgba(255, 255, 255, 0.58);
+  }
+
+  .acc-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 18px;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .acc-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: rgba(168, 85, 247, 0.14);
+    color: #d8b4fe;
+  }
+
+  .acc-heading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .acc-title {
+    font-family: var(--font-primary);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .acc-teaser {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.52);
+    line-height: 1.45;
+  }
+
+  .acc-chev {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 255, 255, 0.32);
+    transition: transform 0.25s ease, color 0.25s ease;
+  }
+
+  .acc-item.open .acc-chev {
+    transform: rotate(180deg);
+    color: #d8b4fe;
+  }
+
+  .acc-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .acc-panel-inner {
+    padding: 0 18px 22px 72px;
+  }
+
+  .acc-panel-inner p {
+    margin: 0 0 12px;
+    font-size: 0.93rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .acc-bullets {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .acc-bullets li {
+    position: relative;
+    padding-left: 20px;
+    font-size: 0.87rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.64);
+  }
+
+  .acc-bullets li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f472b6, #6366f1);
+  }
+
+  @media (max-width: 560px) {
+    .acc-panel-inner {
+      padding-left: 18px;
+    }
+  }
+
+  /* ---------- Portal tabs grid ---------- */
+
+  .portal-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin: 6px 0 16px;
+  }
+
+  .portal-tab {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .portal-tab-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f3e8ff;
+    letter-spacing: 0.01em;
+  }
+
+  .portal-tab-desc {
+    font-size: 0.76rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* ---------- Plugins ---------- */
+
+  .fx-plugins {
+    margin-top: 56px;
+    padding: 32px clamp(16px, 4vw, 32px);
+    border: 1px dashed rgba(56, 189, 248, 0.32);
+    border-radius: 24px;
+    background: radial-gradient(
+        ellipse 120% 100% at 50% -10%,
+        rgba(56, 189, 248, 0.08) 0%,
+        transparent 60%
+      ),
+      rgba(255, 255, 255, 0.015);
+  }
+
+  .fx-plugins-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin: 0 0 10px;
+    text-align: center;
+  }
+
+  .fx-plugins-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+    text-align: center;
+  }
+
+  .fx-plugins-lead {
+    margin: 0 auto 26px;
+    max-width: 560px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.58);
+    text-align: center;
+  }
+
+  .acc-item--plugin .acc-icon--plugin {
+    background: rgba(56, 189, 248, 0.14);
+    color: #7dd3fc;
+  }
+
+  .acc-item--plugin.open {
+    border-color: rgba(56, 189, 248, 0.32);
+  }
+
+  .acc-item--plugin.open .acc-chev {
+    color: #7dd3fc;
+  }
+
+  /* ---------- Built-with stack ---------- */
+
+  .fx-built-with {
+    margin-top: 56px;
+    margin-bottom: 48px;
+    text-align: center;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 100%, rgba(99, 102, 241, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-built-with-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a78bfa;
+    margin: 0 0 12px;
+  }
+
+  .fx-built-with-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-built-with-lead {
+    margin: 0 auto 24px;
+    max-width: 640px;
+    font-size: 0.94rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-deploy-modes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+    text-align: left;
+  }
+
+  .fx-deploy-mode {
+    padding: 14px 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .fx-deploy-mode-title {
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-deploy-mode-desc {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .fx-built-with-sub {
+    margin: 0 0 14px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  .fx-built-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .fx-built-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-built-logo {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    background-color: var(--brand-color);
+    mask: var(--brand-icon, none) center / contain no-repeat;
+    -webkit-mask: var(--brand-icon, none) center / contain no-repeat;
+  }
+
+  .fx-built-logo-probe {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .fx-built-logo--pending,
+  .fx-built-logo--fallback {
+    mask: none;
+    -webkit-mask: none;
+    background-color: color-mix(in srgb, var(--brand-color) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-color) 42%, transparent);
+    border-radius: 6px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--brand-color);
+    display: grid;
+    place-items: center;
+  }
+
+  .fx-built-logo--pending::before,
+  .fx-built-logo--fallback::before {
+    content: attr(data-initial);
+  }
+
+  .fx-built-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+  }
+
+  .fx-built-role {
+    font-size: 0.58rem;
+    font-weight: 500;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .fx-deploy-modes {
+      grid-template-columns: 1fr;
+    }
+
+    .fx-built-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .fx-built-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* ---------- Closing ---------- */
+
+  .fx-closing {
+    margin-top: 56px;
+    text-align: center;
+  }
+
+  .fx-closing-h2 {
+    margin: 0 0 10px;
+    font-size: clamp(1.4rem, 3.6vw, 1.9rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-closing-lead {
+    margin: 0 0 24px;
+    font-size: 0.96rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+</style>
