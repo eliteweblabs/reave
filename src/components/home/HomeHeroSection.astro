@@ -200,11 +200,6 @@ const heroIconSrc =
     height: 1.35em;
     overflow: hidden;
     background: #050505;
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .home-hero-industry-viewport.is-wiping {
-    transition: none;
   }
 
   .home-hero-industry-layer {
@@ -290,14 +285,6 @@ const heroIconSrc =
   @media (prefers-reduced-motion: reduce) {
     .home-hero-icon-wrap {
       will-change: auto;
-    }
-
-    .home-hero-industry-viewport {
-      transition: none;
-    }
-
-    .home-hero-industry-wipe {
-      display: none;
     }
   }
 </style>

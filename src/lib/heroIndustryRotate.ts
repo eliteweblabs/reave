@@ -2,21 +2,39 @@
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
  * Text layers stay fixed; clip-path hides/reveals each word (overlay wipes fail on iOS
  * Safari because -webkit-background-clip:text paints above sibling z-index layers).
- * Viewport width matches each word; it resizes under the mask between wipe steps,
- * then CSS transitions width afterward so the tagline recenters smoothly.
+ * Viewport width matches each word and is eased from the outgoing to the incoming width
+ * while both layers are blank, so the centered tagline glides instead of snapping.
  */
 
 const WIPE_MS = 520;
+const WIDTH_MS = 260;
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function animate(durationMs: number, onFrame: (eased: number) => void): Promise<void> {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+
+    const frame = (now: number) => {
+      const t = Math.min(1, (now - t0) / durationMs);
+      onFrame(easeInOutCubic(t));
+
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve();
+    };
+
+    requestAnimationFrame(frame);
+  });
 }
 
 function measureText(layer: HTMLElement, text: string): number {
   const wasHidden = layer.hidden;
   if (wasHidden) layer.hidden = false;
   layer.textContent = text;
-  const width = layer.offsetWidth;
+  // Fractional width: rounding to offsetWidth leaves a visible 1px hop mid-wipe.
+  const width = layer.getBoundingClientRect().width;
   if (wasHidden) layer.hidden = true;
   return width;
 }
@@ -39,19 +57,8 @@ function animateClipInsetLeft(
   toLeftPct: number,
   durationMs: number,
 ): Promise<void> {
-  return new Promise((resolve) => {
-    const t0 = performance.now();
-
-    const frame = (now: number) => {
-      const t = Math.min(1, (now - t0) / durationMs);
-      const left = fromLeftPct + (toLeftPct - fromLeftPct) * easeInOutCubic(t);
-      setClipInsetLeft(el, left);
-
-      if (t < 1) requestAnimationFrame(frame);
-      else resolve();
-    };
-
-    requestAnimationFrame(frame);
+  return animate(durationMs, (eased) => {
+    setClipInsetLeft(el, fromLeftPct + (toLeftPct - fromLeftPct) * eased);
   });
 }
 
@@ -86,16 +93,15 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let swapping = false;
 
-  const setViewportWidth = (widthPx: number, instant = false) => {
-    if (instant) viewport.classList.add('is-wiping');
+  const setViewportWidth = (widthPx: number) => {
     viewport.style.width = `${widthPx}px`;
-    if (instant) void viewport.offsetWidth;
   };
 
-  const recenterViewport = (widthPx: number) => {
-    viewport.classList.remove('is-wiping');
-    void viewport.offsetWidth;
-    viewport.style.width = `${widthPx}px`;
+  const animateViewportWidth = (fromPx: number, toPx: number): Promise<void> => {
+    if (Math.abs(toPx - fromPx) < 0.5) return Promise.resolve();
+    return animate(WIDTH_MS, (eased) => {
+      setViewportWidth(fromPx + (toPx - fromPx) * eased);
+    });
   };
 
   const resetLayers = (label: string, widthPx?: number) => {
@@ -106,13 +112,14 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     clearClip(current);
     clearClip(next);
     root.dataset.heroIndustryLabel = label;
-    if (widthPx != null) setViewportWidth(widthPx, true);
+    if (widthPx != null) setViewportWidth(widthPx);
   };
 
   const initialLabel = industries[index]!;
-  const initialWidth = labelWidth(initialLabel);
-  resetLayers(initialLabel, initialWidth);
-  viewport.classList.remove('is-wiping');
+  resetLayers(initialLabel, labelWidth(initialLabel));
+  // The server-rendered min-width only reserves space pre-hydration; leaving it in
+  // place would clamp the measured widths for shorter labels.
+  viewport.style.minWidth = '0px';
 
   if (industries.length <= 1) return;
 
@@ -137,7 +144,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     current.hidden = false;
     next.textContent = incoming;
     next.hidden = true;
-    setViewportWidth(outgoingWidth, true);
+    setViewportWidth(outgoingWidth);
 
     // Step 1 — wipe out at the outgoing word width.
     clearClip(current);
@@ -147,25 +154,17 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     current.hidden = true;
     clearClip(current);
 
-    // Widen under the mask only when the incoming word is longer.
-    if (incomingWidth > outgoingWidth) {
-      setViewportWidth(incomingWidth, true);
-    }
+    // Step 2 — resize while both layers are blank, so the words on either side
+    // of the viewport glide to their new centered position instead of snapping.
+    await animateViewportWidth(outgoingWidth, incomingWidth);
 
-    // Step 2 — wipe reveal.
+    // Step 3 — wipe reveal.
     next.hidden = false;
     setClipInsetLeft(next, 100);
     await animateClipInsetLeft(next, 100, 0, WIPE_MS);
 
     index = (index + 1) % industries.length;
-    resetLayers(incoming);
-
-    // Ease to the incoming word width so the tagline recenters after reveal.
-    if (incomingWidth < outgoingWidth) {
-      recenterViewport(incomingWidth);
-    } else {
-      viewport.classList.remove('is-wiping');
-    }
+    resetLayers(incoming, incomingWidth);
     swapping = false;
     schedule();
   };
@@ -190,6 +189,14 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stop();
     else if (!swapping) schedule();
+  });
+
+  // The tagline font-size is viewport-relative, so the pinned pixel width goes
+  // stale on resize.
+  window.addEventListener('resize', () => {
+    if (swapping) return;
+    const label = root.dataset.heroIndustryLabel;
+    if (label) setViewportWidth(labelWidth(label));
   });
 }
 
