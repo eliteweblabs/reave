@@ -1,21 +1,15 @@
 ---
 /**
- * Homepage hero — brand icon, headline, and rotating example voice commands.
+ * Homepage hero — brand icon, scripted demo conversation, headline, and CTAs.
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveBgPattern from "../../components/ReaveBgPattern.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
-import { HERO_EXAMPLE_COMMANDS } from "../../lib/heroExampleCommands";
+import { HERO_DEMO_EXCHANGES } from "../../lib/heroDemoConversation";
 
 const company = await getCompanyConfig(Astro.request);
-const exampleCommands = [...HERO_EXAMPLE_COMMANDS];
-
-const startIndex =
-  exampleCommands.length > 0
-    ? Math.floor(Math.random() * exampleCommands.length)
-    : 0;
-const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
+const demoExchanges = HERO_DEMO_EXCHANGES;
 ---
 
 <section
@@ -27,48 +21,23 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
   <div class="home-hero-mesh" aria-hidden="true"></div>
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
-  <div class="home-hero-icon-wrap">
-    <BrandIconInline company={company} />
-  </div>
+  <div class="home-hero-center">
+    <div class="home-hero-icon-wrap">
+      <BrandIconInline company={company} />
+    </div>
 
-  <div class="home-hero-inner">
+    <div
+      class="home-hero-demo"
+      data-hero-demo
+      data-exchanges={JSON.stringify(demoExchanges)}
+      aria-live="polite"
+      aria-atomic="false"
+    >
+      <div class="home-hero-demo-stack" data-hero-demo-stack></div>
+    </div>
+
     <div class="home-hero-copy">
       <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
-      <p class="home-hero-tagline">
-        <span
-          class="home-hero-command"
-          data-hero-industry
-          data-industries={JSON.stringify(exampleCommands)}
-          data-interval-ms="4200"
-        >
-          <span
-            class="home-hero-command-viewport"
-            data-hero-industry-viewport
-            aria-live="polite"
-            style={`min-width: ${firstCommand.length}ch`}
-          >
-            <span
-              class="home-hero-command-layer home-hero-command-next"
-              data-hero-industry-next
-              hidden
-            >
-              <span class="home-hero-command-clip" data-hero-industry-clip>
-                <span class="home-hero-command-text" data-hero-industry-text></span>
-              </span>
-            </span>
-            <span
-              class="home-hero-command-layer home-hero-command-current"
-              data-hero-industry-current
-            >
-              <span class="home-hero-command-clip" data-hero-industry-clip>
-                <span class="home-hero-command-text" data-hero-industry-text>
-                  {firstCommand}
-                </span>
-              </span>
-            </span>
-          </span>
-        </span>
-      </p>
       <div class="home-hero-cta">
         <a class="home-hero-btn home-hero-btn--ghost" href="/#plan">
           See pricing
@@ -83,7 +52,7 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
 </section>
 
 <script>
-  import "../../lib/heroIndustryRotate.ts";
+  import "../../lib/heroDemoLoop.ts";
 </script>
 
 <style>
@@ -126,8 +95,6 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
   .home-hero-pattern {
     z-index: 1;
     mix-blend-mode: soft-light;
-    /* iOS Safari fails to repaint a masked + blended layer when a descendant's
-       opacity changes via JS unless the layer is eagerly composited. */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     -webkit-mask-image: linear-gradient(
@@ -146,34 +113,32 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
     );
   }
 
-  .home-hero-inner {
+  .home-hero-center {
     position: absolute;
     z-index: 2;
     left: 50%;
-    top: calc(50% + clamp(90px, 17.5vw, 140px) + 28px);
-    transform: translateX(-50%);
-    width: min(100%, 920px);
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(100%, 720px);
     padding: 0 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
+    gap: clamp(14px, 3vw, 22px);
     text-align: center;
     pointer-events: none;
   }
 
-  .home-hero-inner :is(a, button) {
+  .home-hero-center :is(a, button) {
     pointer-events: auto;
   }
 
   .home-hero-icon-wrap {
-    position: absolute;
+    position: relative;
     z-index: 1;
-    left: 50%;
-    top: 50%;
     width: clamp(180px, 35vw, 280px);
     height: clamp(180px, 35vw, 280px);
-    transform: translate(-50%, -50%);
+    flex-shrink: 0;
   }
 
   .home-hero-icon-wrap :global(svg),
@@ -182,6 +147,27 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
     width: 100%;
     height: 100%;
     filter: var(--brand-glow-filter);
+  }
+
+  .home-hero-demo {
+    width: 100%;
+    min-height: 4.5em;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .home-hero-demo[hidden] {
+    display: none;
+  }
+
+  .home-hero-demo-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 560px;
   }
 
   .home-hero-copy {
@@ -203,87 +189,12 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
     text-wrap: balance;
   }
 
-  .home-hero-tagline {
-    margin: 0;
-    width: 100%;
-    font-family: var(--font-content);
-    font-size: clamp(0.98rem, 2.5vw, 1.22rem);
-    line-height: 1.45;
-    color: rgba(255, 255, 255, 0.68);
-  }
-
-  .home-hero-command {
-    display: block;
-    width: 100%;
-    text-align: center;
-  }
-
-  .home-hero-command-viewport {
-    position: relative;
-    display: inline-block;
-    vertical-align: bottom;
-    max-width: 100%;
-    height: 1.45em;
-    overflow: hidden;
-    background: #050505;
-  }
-
-  .home-hero-command-layer {
-    position: absolute;
-    left: 0;
-    top: 0;
-  }
-
-  .home-hero-command-clip {
-    display: inline-block;
-    overflow: hidden;
-    vertical-align: bottom;
-    height: 1.45em;
-    max-width: 100%;
-    will-change: width;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-  }
-
-  .home-hero-command-text {
-    display: inline-block;
-    white-space: nowrap;
-    font-family: var(--font-primary);
-    font-style: italic;
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    line-height: 1.45;
-    color: #fff;
-    background: var(--brand-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    /* Without its own compositing layer, iOS Safari leaves the newly-uncovered
-       portion of background-clip:text unpainted when the clip rail's width
-       changes via JS instead of a CSS transition. */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-  }
-
-  .home-hero-command-current {
-    z-index: 1;
-  }
-
-  .home-hero-command-next {
-    z-index: 2;
-  }
-
-  .home-hero-command-next[hidden],
-  .home-hero-command-current[hidden] {
-    display: none;
-  }
-
   .home-hero-cta {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
-    margin-top: 8px;
+    margin-top: 4px;
   }
 
   .home-hero-btn {
@@ -327,5 +238,78 @@ const firstCommand = exampleCommands[startIndex] ?? exampleCommands[0] ?? "";
     border-color: rgba(255, 255, 255, 0.38);
     transform: translateY(-1px);
     text-decoration: none;
+  }
+</style>
+
+<style is:global>
+  .home-hero-demo-line {
+    margin: 0;
+    max-width: 100%;
+    font-family: var(--font-content);
+    font-size: clamp(0.88rem, 2.2vw, 1.05rem);
+    line-height: 1.45;
+    text-wrap: balance;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  .home-hero-demo-line--user {
+    font-family: var(--font-primary);
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: #fff;
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .home-hero-demo-line--slash {
+    font-style: normal;
+    font-weight: 600;
+    font-size: clamp(0.84rem, 2vw, 0.98rem);
+  }
+
+  .home-hero-demo-line--assistant {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: clamp(0.82rem, 2vw, 0.96rem);
+  }
+
+  .home-hero-demo-line--enter {
+    animation: heroDemoEnter 0.45s ease-out both;
+  }
+
+  .home-hero-demo-line--exit {
+    animation: heroDemoExit 0.65s ease-in forwards;
+  }
+
+  @keyframes heroDemoEnter {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes heroDemoExit {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-22px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-demo-line--enter,
+    .home-hero-demo-line--exit {
+      animation: none;
+    }
   }
 </style>
