@@ -477,6 +477,10 @@ const showHeaderProfile = userId && !showMarketingNav;
     max-width: min(42vw, 280px);
   }
 
+  .app-header-logo-clip :global(svg) {
+    filter: var(--brand-glow-filter);
+  }
+
   .app-header-logo-img {
     display: block;
     height: var(--app-header-logo-h);
@@ -510,33 +514,6 @@ const showHeaderProfile = userId && !showMarketingNav;
     display: block;
     height: var(--app-header-logo-h);
     width: calc(var(--app-header-logo-h) * (926.878 / 262.015));
-  }
-
-  /*
-   * Legacy PNG mask fallback — kept for reference if a raster-only portal brand is needed later.
-   */
-  .app-header-logo-mark {
-    display: block;
-    height: var(--app-header-logo-h);
-    width: calc(var(--app-header-logo-h) * (1014 / 329));
-    max-width: none;
-    pointer-events: none;
-    background: var(
-      --portal-brand-gradient,
-      var(
-        --brand-gradient,
-        linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%)
-      )
-    );
-    /* PNG alpha mask — SVG mask-image is unreliable in WebKit/Chromium. */
-    -webkit-mask-image: url("/reave-logo-mask.png");
-    mask-image: url("/reave-logo-mask.png");
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
   }
 
   .app-header--portal-brand .topbar-profile-btn--admin {

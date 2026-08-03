@@ -26,6 +26,9 @@
   --brand-gradient-shadow:
     0 2px 16px rgba(192, 38, 211, 0.35),
     0 0 0 1px rgba(255, 255, 255, 0.4);
+  --brand-glow-filter:
+    drop-shadow(0 8px 28px rgba(192, 38, 211, 0.38))
+    drop-shadow(0 0 26px rgba(192, 38, 211, 0.22));
   --create-fab-bg: var(--brand-gradient);
   --create-fab-shadow: var(--brand-gradient-shadow);
 }

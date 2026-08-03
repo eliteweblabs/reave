@@ -6198,9 +6198,9 @@ function renderCompanyPanel(company, fontCatalog) {
               `</div>` +
             `</div>` +
           `</div>` +
-          `<div class="prof-field"><label for="company-logoSvg">Logo SVG (inline, animated)</label>` +
+          `<div class="prof-field"><label for="company-logoSvg">Logo SVG</label>` +
           `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the header when no logo PNG is uploaded. Leave blank to use the logo PNG or company name.">${escHtml(c.logoSvg || '')}</textarea></div>` +
-          `<div class="prof-field"><label for="company-iconSvg">Icon SVG (homepage hero)</label>` +
+          `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
           `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the homepage hero. Falls back to Logo SVG, then the rasterized icon mark.">${escHtml(c.iconSvg || '')}</textarea></div>` +
           `<span class="prof-hint prof-hint--block">Logo PNG or SVG powers the header (PNG → SVG → company name). Icon PNG or SVG is rasterized for favicons, OG, PWA, and avatars. Homepage hero uses Icon SVG, then Logo SVG, then the rasterized mark.</span>` +
           `<div class="prof-field prof-field--font-heading">` +
