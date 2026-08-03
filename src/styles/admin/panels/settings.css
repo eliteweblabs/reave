@@ -428,8 +428,8 @@
   padding: 0.55rem;
   border-radius: var(--radius-input);
   border: 1px solid var(--card-border);
-  background: var(--surface-muted);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  background: var(--dropdown-bg);
+  box-shadow: var(--dropdown-shadow);
 }
 .prof-font-picker-search {
   width: 100%;
