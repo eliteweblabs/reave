@@ -63,7 +63,7 @@ const signInRedirect =
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
 const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
-const showHeaderSignIn = !userId && !adminShell && !showMarketingNav;
+const showHeaderSignIn = !userId && !showMarketingNav;
 const showHeaderProfile = userId && !showMarketingNav;
 ---
 
@@ -254,7 +254,7 @@ const showHeaderProfile = userId && !showMarketingNav;
   )}
 </header>
 
-{(!userId || showMarketingNav) && !adminShell && (
+{(!userId || showMarketingNav) && (!adminShell || !userId) && (
   <SignInSheet fallbackRedirectUrl={signInRedirect} autoOpen={signInAutoOpen && !showMarketingNav} />
 )}
 

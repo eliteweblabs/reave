@@ -15,7 +15,8 @@ export async function adminFetch(url, opts = {}) {
   });
   if (res.status === 401) {
     const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
-    if (window.IosSheet?.open) {
+    const signInSheet = document.getElementById('sign-in-sheet');
+    if (signInSheet && window.IosSheet?.open) {
       window.IosSheet.open('sign-in-sheet');
     } else {
       window.location.assign(`/admin/?auth=sign-in&returnTo=${returnTo}`);
