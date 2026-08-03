@@ -80,7 +80,7 @@ export const GET: APIRoute = async ({ params }) => {
   p.hint { color: #52525b; font-size: 14px; margin: 0 0 20px; }
   .card { background: #ffffff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
   #sig-copy-source { display: inline-block; }
-  button#copy-btn { appearance: none; border: none; border-radius: 8px; background: ${esc(primary)}; color: #ffffff; font-size: 14px; font-weight: 600; padding: 10px 18px; cursor: pointer; }
+  button#copy-btn { appearance: none; border: none; border-radius: 8px; background: ${esc(primary)}; color: #ffffff; font-size: 14px; font-weight: 600; padding: 10px 18px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-width: 10.5rem; }
   button#copy-btn:active { opacity: 0.85; }
   ol { color: #3f3f46; font-size: 14px; line-height: 1.6; padding-left: 20px; margin: 12px 0 0; }
   #copy-status { margin-top: 10px; font-size: 13px; color: #16a34a; min-height: 16px; }
@@ -107,11 +107,26 @@ export const GET: APIRoute = async ({ params }) => {
       var btn = document.getElementById('copy-btn');
       var status = document.getElementById('copy-status');
       var source = document.getElementById('sig-copy-source');
+      var iconCheck = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
       btn.addEventListener('click', function () {
         var html = source.innerHTML;
         var text = source.innerText || source.textContent || '';
+        function showCopied() {
+          var prev = btn.innerHTML;
+          btn.innerHTML = iconCheck;
+          btn.setAttribute('aria-label', 'Copied');
+          setTimeout(function () {
+            btn.innerHTML = prev;
+            btn.removeAttribute('aria-label');
+          }, 1000);
+        }
         function done(ok) {
-          status.textContent = ok ? 'Copied! Paste it into your signature settings.' : 'Could not copy automatically — select the box above and copy manually (Cmd/Ctrl+C).';
+          if (ok) {
+            showCopied();
+            status.textContent = 'Copied! Paste it into your signature settings.';
+          } else {
+            status.textContent = 'Could not copy automatically — select the box above and copy manually (Cmd/Ctrl+C).';
+          }
         }
         if (navigator.clipboard && window.ClipboardItem) {
           try {

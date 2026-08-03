@@ -9,6 +9,8 @@ export const IOS_ICONS = {
   'chevron-right':
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
   copy: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  check:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
   link: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
   download:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
@@ -78,6 +80,47 @@ export function createIosIconBtn(opts = {}) {
     });
   }
   return btn;
+}
+
+/** Vercel-style copy feedback — swap button content to a checkmark briefly. */
+export const COPY_FEEDBACK_MS = 1000;
+
+/** @type {WeakMap<HTMLElement, number>} */
+const copyFeedbackTimers = new WeakMap();
+
+export function showCopyButtonFeedback(btn, opts = {}) {
+  if (!btn) return;
+  const duration = opts.duration ?? COPY_FEEDBACK_MS;
+  const existing = copyFeedbackTimers.get(btn);
+  if (existing) clearTimeout(existing);
+
+  if (!btn.dataset.copyFeedbackOrig) {
+    btn.dataset.copyFeedbackOrig = btn.innerHTML;
+    if (btn.hasAttribute('aria-label')) {
+      btn.dataset.copyFeedbackAria = btn.getAttribute('aria-label');
+    }
+    if (btn.title) btn.dataset.copyFeedbackTitle = btn.title;
+  }
+
+  btn.innerHTML = IOS_ICONS.check;
+  btn.setAttribute('aria-label', 'Copied');
+  if (btn.title) btn.title = 'Copied';
+  btn.classList.add('is-copy-success');
+
+  const timer = window.setTimeout(() => {
+    btn.innerHTML = btn.dataset.copyFeedbackOrig || '';
+    const prevAria = btn.dataset.copyFeedbackAria;
+    if (prevAria) btn.setAttribute('aria-label', prevAria);
+    else btn.removeAttribute('aria-label');
+    if (btn.dataset.copyFeedbackTitle) btn.title = btn.dataset.copyFeedbackTitle;
+    btn.classList.remove('is-copy-success');
+    delete btn.dataset.copyFeedbackOrig;
+    delete btn.dataset.copyFeedbackAria;
+    delete btn.dataset.copyFeedbackTitle;
+    copyFeedbackTimers.delete(btn);
+  }, duration);
+
+  copyFeedbackTimers.set(btn, timer);
 }
 
 // ---- Two-step delete confirm (trash → 3s timer ring → tap again) ----

@@ -27,7 +27,8 @@ import {
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
-} from './admin-ui.js?v=20260728i';
+  showCopyButtonFeedback,
+} from './admin-ui.js?v=20260803b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
 
@@ -484,10 +485,10 @@ function renderWorkChecklistPanel(mountEl, opts) {
       iconKey: 'copy',
       label: 'Copy line descriptions',
       className: 'ios-icon-btn wk-billable-copy',
-      onClick: () => {
+      onClick: (btn) => {
         const lines = doneItems.map((i) => i.text).join('\n');
         navigator.clipboard.writeText(lines).then(
-          () => shell.osAlert({ title: 'Copied', bodyHtml: '<p>Completed item descriptions copied — paste into invoice line items or ask the agent to invoice.</p>' }),
+          () => showCopyButtonFeedback(btn),
           () => shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
         );
       },
@@ -680,7 +681,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
         iconKey: 'copy',
         label: 'Copy time for invoice',
         className: 'ios-icon-btn wk-billable-copy',
-        onClick: () => {
+        onClick: (btn) => {
           const lines = billable
             .map((e) => {
               const note = (e.note || '').trim() || 'Time worked';
@@ -688,12 +689,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
             })
             .join('\n');
           navigator.clipboard.writeText(lines).then(
-            () =>
-              shell.osAlert({
-                title: 'Copied',
-                bodyHtml:
-                  '<p>Time entries copied — paste into Crater line items (quantity = hours) or ask the agent to invoice.</p>',
-              }),
+            () => showCopyButtonFeedback(btn),
             () => shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
           );
         },

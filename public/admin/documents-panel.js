@@ -35,7 +35,8 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260728i';
+  showCopyButtonFeedback,
+} from './admin-ui.js?v=20260803b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260728m';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260730c';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
@@ -312,10 +313,11 @@ function renderDocEditor() {
         item.title = sc.description;
         item.innerHTML = `<code class="de-sc-token">${escHtml(sc.token)}</code><span class="de-sc-lbl">${escHtml(sc.label)}</span>`;
         // Click-to-copy
-        item.addEventListener('click', () => {
-          navigator.clipboard?.writeText(sc.token).catch(() => {});
-          item.classList.add('de-sc-copied');
-          setTimeout(() => item.classList.remove('de-sc-copied'), 1200);
+        item.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(sc.token);
+            showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
+          } catch {}
         });
         scBody.appendChild(item);
       }
