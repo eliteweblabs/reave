@@ -6,13 +6,13 @@
     </clipPath>
 
     <filter id="reave-icon-lava-blur" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="32"/>
+      <feGaussianBlur stdDeviation="28"/>
     </filter>
 
-    <linearGradient id="reave-icon-lava-base" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#312e81"/>
-      <stop offset="45%" stop-color="#4c1d95"/>
-      <stop offset="100%" stop-color="#701a75"/>
+    <linearGradient id="reave-icon-lava-base" x1="64" y1="448" x2="448" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="52%" stop-color="#c026d3"/>
+      <stop offset="100%" stop-color="#f472b6"/>
     </linearGradient>
 
     <style>
@@ -74,19 +74,19 @@
 
     <g filter="url(#reave-icon-lava-blur)">
       <g class="reave-lava-blob reave-lava-blob-1">
-        <circle cx="190" cy="240" r="110" fill="#6366f1" opacity="0.48"/>
+        <circle cx="190" cy="240" r="110" fill="#a855f7" opacity="0.58"/>
       </g>
       <g class="reave-lava-blob reave-lava-blob-2">
-        <circle cx="280" cy="210" r="100" fill="#a855f7" opacity="0.42"/>
+        <circle cx="280" cy="210" r="100" fill="#d946ef" opacity="0.55"/>
       </g>
       <g class="reave-lava-blob reave-lava-blob-3">
-        <circle cx="320" cy="290" r="105" fill="#c026d3" opacity="0.4"/>
+        <circle cx="320" cy="290" r="105" fill="#c026d3" opacity="0.62"/>
       </g>
       <g class="reave-lava-blob reave-lava-blob-4">
-        <circle cx="240" cy="180" r="95" fill="#ec4899" opacity="0.36"/>
+        <circle cx="240" cy="180" r="95" fill="#f472b6" opacity="0.6"/>
       </g>
       <g class="reave-lava-blob reave-lava-blob-5">
-        <circle cx="260" cy="320" r="90" fill="#7c3aed" opacity="0.34"/>
+        <circle cx="260" cy="320" r="90" fill="#ec4899" opacity="0.52"/>
       </g>
     </g>
   </g>
