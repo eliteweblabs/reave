@@ -154,7 +154,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260728l';
+} from './schedule-panel.js?v=20260804b';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -5710,7 +5710,7 @@ function bindCompanyForm(root, company, fontCatalog) {
     );
 
     addressInput.addEventListener('input', () => {
-      companyPendingGeo = null;
+      if (!addressInput.dataset.autocompletePick) companyPendingGeo = null;
       if (!addressInput.value.trim()) {
         clearTimeout(companyGeocodeTimer);
         companyMapController?.setLocation(null, null, '');

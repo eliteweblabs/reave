@@ -946,10 +946,16 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
     }
   }
 
-  function pick(description) {
+  async function pick(description) {
     addressInput.value = formatScheduleAddressLabel(description);
     setDropdownOpen(false);
-    if (typeof onPick === 'function') void onPick(addressInput.value);
+    addressInput.dataset.autocompletePick = '1';
+    try {
+      if (typeof onPick === 'function') await onPick(addressInput.value);
+    } finally {
+      addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+      delete addressInput.dataset.autocompletePick;
+    }
   }
 
   function renderDropdown(predictions, query) {
@@ -968,7 +974,9 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
       btn.className = 'sched-guest-option';
       btn.textContent = formatScheduleAddressLabel(p.description);
       btn.addEventListener('mousedown', (ev) => ev.preventDefault());
-      btn.addEventListener('click', () => pick(p.description));
+      btn.addEventListener('click', () => {
+        void pick(p.description);
+      });
       dropdown.appendChild(btn);
     }
     setDropdownOpen(true);
@@ -1005,7 +1013,10 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
     schedAddressSearchTimer = setTimeout(runSearch, 300);
   }
 
-  const onInput = () => scheduleSearch();
+  const onInput = () => {
+    if (addressInput.dataset.autocompletePick) return;
+    scheduleSearch();
+  };
   const onBlur = () => {
     setTimeout(() => {
       if (!dropdown.contains(document.activeElement)) setDropdownOpen(false);

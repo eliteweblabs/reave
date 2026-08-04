@@ -49,7 +49,7 @@ import {
   mountClientVaultSection,
   flushClientVaultSave,
 } from './work-panel.js?v=20260728l';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260728l';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
 import { createClientMap } from '/admin/client-map.js?v=20260804a';
 
@@ -1469,7 +1469,7 @@ function renderEditClientForm(pane) {
       ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
-          if (el === addressInput) clientPendingGeo = null;
+          if (el === addressInput && !addressInput.dataset.autocompletePick) clientPendingGeo = null;
           queueAutosave();
         });
         el.addEventListener('blur', () => {
