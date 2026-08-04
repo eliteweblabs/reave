@@ -24,35 +24,35 @@ export type HeroDemoScene = {
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",
-    holdMs: 3200,
+    holdMs: 4800,
     turns: [
       { role: "user", text: "Is Pete at the Pine Street job?", kind: "voice" },
       {
         role: "assistant",
         text: "Checking GPS for Pete Lawson…",
-        pauseMs: 400,
+        pauseMs: 700,
       },
       {
         role: "assistant",
         text: "Pete checked in at Pine Street at 8:42 AM. On site now.",
-        pauseMs: 1100,
+        pauseMs: 1600,
       },
       {
         role: "user",
         text: "Text the crew lead he's clear to start rough-in.",
         kind: "voice",
-        pauseMs: 900,
+        pauseMs: 1400,
       },
       {
         role: "assistant",
         text: "Sent to Mike Torres — delivered.",
-        pauseMs: 800,
+        pauseMs: 1200,
       },
     ],
   },
   {
     id: "henderson-billing",
-    holdMs: 3800,
+    holdMs: 5200,
     turns: [
       {
         role: "user",
@@ -62,30 +62,30 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       {
         role: "assistant",
         text: "Found 12 billable line items totaling $4,280.",
-        pauseMs: 900,
+        pauseMs: 1400,
       },
       {
         role: "assistant",
         text: "Draft invoice INV-0042 is ready for review.",
-        pauseMs: 1000,
+        pauseMs: 1700,
         actions: [{ label: "Review draft", variant: "primary" }],
       },
       {
         role: "user",
         text: "Send it to Sarah for approval.",
         kind: "voice",
-        pauseMs: 1400,
+        pauseMs: 2000,
       },
       {
         role: "assistant",
         text: "Approval request sent to Sarah Chen.",
-        pauseMs: 800,
+        pauseMs: 1300,
       },
     ],
   },
   {
     id: "nda-signing",
-    holdMs: 3600,
+    holdMs: 5000,
     turns: [
       {
         role: "user",
@@ -95,30 +95,30 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       {
         role: "assistant",
         text: "NDA sent to Parker Marketing — Sarah Chen, sarah@parkermktg.com.",
-        pauseMs: 1000,
+        pauseMs: 1500,
       },
       {
         role: "assistant",
         text: "Sarah opened the envelope 2 minutes ago.",
-        pauseMs: 900,
+        pauseMs: 1500,
         actions: [{ label: "View signing status", variant: "secondary" }],
       },
       {
         role: "user",
         text: "Remind me if it's not signed by Friday.",
         kind: "voice",
-        pauseMs: 1500,
+        pauseMs: 1900,
       },
       {
         role: "assistant",
         text: "Reminder set for Friday at 9 AM.",
-        pauseMs: 700,
+        pauseMs: 1200,
       },
     ],
   },
   {
     id: "inventory-channels",
-    holdMs: 3400,
+    holdMs: 4800,
     turns: [
       {
         role: "user",
@@ -128,24 +128,24 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       {
         role: "assistant",
         text: "Shopify 94 · WooCommerce 31 · Square POS 17 — 142 total in stock.",
-        pauseMs: 950,
+        pauseMs: 1500,
       },
       {
         role: "assistant",
         text: "28 on backorder. You're below the reorder point of 50.",
-        pauseMs: 900,
+        pauseMs: 1500,
         actions: [{ label: "Create reorder PO", variant: "primary" }],
       },
       {
         role: "user",
         text: "Yes, draft that.",
         kind: "voice",
-        pauseMs: 1300,
+        pauseMs: 1800,
       },
       {
         role: "assistant",
         text: "PO draft #8841 created — 120 units from primary supplier.",
-        pauseMs: 800,
+        pauseMs: 1200,
       },
     ],
   },

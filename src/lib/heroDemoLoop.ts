@@ -6,11 +6,13 @@
 import type { HeroDemoAction, HeroDemoScene, HeroDemoTurn } from "./heroDemoConversation";
 
 const ENGAGED_KEY = "hero-demo-engaged";
-const DEFAULT_THINK_MS = 850;
-const DEFAULT_HOLD_MS = 3400;
-const SCENE_GAP_MS = 900;
+const DEFAULT_THINK_MS = 1500;
+const DEFAULT_USER_PAUSE_MS = 1300;
+const DEFAULT_HOLD_MS = 5200;
+const SCENE_GAP_MS = 1400;
 const SCENE_EXIT_MS = 900;
-const ACTION_PRESS_MS = 700;
+const TYPING_MS = 1200;
+const ACTION_PRESS_MS = 900;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -37,6 +39,29 @@ function cloneAvatar(role: "user" | "assistant", root: HTMLElement): HTMLElement
   fallback.className = `home-hero-demo-avatar home-hero-demo-avatar--${role === "assistant" ? "agent" : "user"}`;
   fallback.setAttribute("aria-hidden", "true");
   return fallback;
+}
+
+function createTypingIndicator(root: HTMLElement): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--typing";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-label", "Agent is typing");
+
+  const avatar = cloneAvatar("assistant", root);
+  const bubble = document.createElement("div");
+  bubble.className = "home-hero-demo-bubble home-hero-demo-bubble--typing";
+  bubble.setAttribute("aria-hidden", "true");
+
+  const dots = document.createElement("span");
+  dots.className = "home-hero-demo-typing";
+  for (let i = 0; i < 3; i++) {
+    dots.appendChild(document.createElement("span"));
+  }
+  bubble.appendChild(dots);
+
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  return row;
 }
 
 function renderActions(actions: HeroDemoAction[]): HTMLElement {
@@ -92,13 +117,16 @@ function createMessage(turn: HeroDemoTurn, root: HTMLElement): HTMLElement {
 }
 
 function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
-  const msgs = [...stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")];
+  const msgs = [...stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg:not(.home-hero-demo-msg--typing)")];
   const count = msgs.length;
 
   msgs.forEach((msg, index) => {
     const depth = count - 1 - index;
     msg.dataset.depth = String(depth);
   });
+
+  const typing = stack.querySelector<HTMLElement>(".home-hero-demo-msg--typing");
+  if (typing) typing.dataset.depth = "0";
 
   const overflow = Math.max(0, stack.scrollHeight - viewport.clientHeight);
   stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
@@ -177,10 +205,22 @@ export function initHeroDemoLoop(root: HTMLElement) {
     for (let i = 0; i < scene.turns.length; i++) {
       const turn = scene.turns[i]!;
       if (i > 0 || turn.pauseMs != null) {
-        const pause = turn.pauseMs ?? (turn.role === "assistant" ? DEFAULT_THINK_MS : 650);
+        const pause =
+          turn.pauseMs ??
+          (turn.role === "assistant" ? DEFAULT_THINK_MS : DEFAULT_USER_PAUSE_MS);
         await wait(pause);
       }
       if (!running) return;
+
+      if (turn.role === "assistant" && !reducedMotion) {
+        const typing = createTypingIndicator(root);
+        typing.classList.add("home-hero-demo-msg--enter");
+        sceneEl.appendChild(typing);
+        refreshStackLayout(viewport, stack);
+        await wait(TYPING_MS);
+        if (!running) return;
+        typing.remove();
+      }
 
       const row = createMessage(turn, root);
       if (!reducedMotion) row.classList.add("home-hero-demo-msg--enter");
@@ -188,7 +228,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
       refreshStackLayout(viewport, stack);
 
       if (turn.role === "assistant" && turn.actions?.length) {
-        await wait(ACTION_PRESS_MS + 200);
+        await wait(ACTION_PRESS_MS + 400);
         if (!running) return;
         await simulateActionPress(row);
       }
