@@ -589,8 +589,11 @@ button.de-placeholder-action:active {
   color: var(--muted);
   font-weight: 600;
 }
+/* Inputs sit inside `.de-label` (semibold) but use `font: inherit`, so values
+   and placeholders were picking up 600. Keep field copy regular weight. */
 .de-input {
   font: inherit;
+  font-weight: 400;
   font-size: max(16px, 0.84rem);
   color: var(--fg);
   background: var(--card);
@@ -616,12 +619,14 @@ button.de-placeholder-action:active {
 }
 .de-input::placeholder {
   font: inherit;
+  font-weight: 400;
   font-size: inherit;
   opacity: 1;
   color: var(--muted);
 }
 .de-input::-webkit-input-placeholder {
   font: inherit;
+  font-weight: 400;
   font-size: inherit;
   color: var(--muted);
 }
@@ -661,6 +666,7 @@ button.de-placeholder-action:active {
   resize: none;
   margin: 0.6rem 1rem;
   padding: 0.7rem 0.9rem;
+  font-weight: 400;
   font-size: max(16px, 0.83rem);
   line-height: 1.6;
   font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
@@ -1540,6 +1546,7 @@ button.de-placeholder-action:active {
   width: 100%;
   min-height: 4.5rem;
   font: inherit;
+  font-weight: 400;
   font-size: max(16px, 0.84rem);
   color: var(--fg);
   background: var(--card);
