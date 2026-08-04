@@ -78,10 +78,31 @@ export function createClientMap(container, opts = {}) {
   metaEl.className = 'cl-map-meta';
   metaEl.hidden = true;
 
+  const mapShell = document.createElement('div');
+  mapShell.className = 'cl-map-shell';
+
   const mapEl = document.createElement('div');
   mapEl.className = 'cl-map-canvas';
   mapEl.setAttribute('role', 'img');
   mapEl.setAttribute('aria-label', 'Client location map');
+
+  const centerBtn = document.createElement('button');
+  centerBtn.type = 'button';
+  centerBtn.className = 'cl-map-center-btn';
+  centerBtn.title = 'Center on location';
+  centerBtn.setAttribute('aria-label', 'Center on location');
+  centerBtn.disabled = true;
+  centerBtn.innerHTML =
+    '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+    '<circle cx="8" cy="8" r="2.25" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+    '</svg>';
+
+  mapShell.appendChild(mapEl);
+  mapShell.appendChild(centerBtn);
+
+  // Keep wheel/trackpad from zooming the map or scrolling the editor panel.
+  mapShell.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cl-map-empty';
@@ -107,7 +128,7 @@ export function createClientMap(container, opts = {}) {
   actions.appendChild(openMapsBtn);
 
   container.classList.add('cl-map-wrap');
-  container.replaceChildren(metaEl, mapEl, emptyEl, actions);
+  container.replaceChildren(metaEl, mapShell, emptyEl, actions);
 
   if (opts.showDirections === false) {
     directionsBtn.hidden = true;
@@ -119,6 +140,7 @@ export function createClientMap(container, opts = {}) {
     mapEl.hidden = !hasGeo || mapLoadFailed;
     directionsBtn.disabled = !hasGeo || mapEngine !== 'mapbox';
     openMapsBtn.hidden = !hasGeo;
+    centerBtn.disabled = !hasGeo || !mapReady;
 
     if (mapWorking || (hasGeo && !mapLoadFailed)) {
       emptyEl.hidden = true;
@@ -143,18 +165,35 @@ export function createClientMap(container, opts = {}) {
     }
   }
 
+  function recenterMap() {
+    if (!currentGeo || !map) return;
+    if (mapEngine === 'leaflet') {
+      map.setView([currentGeo.lat, currentGeo.lng], 14);
+    } else {
+      map.flyTo({ center: [currentGeo.lng, currentGeo.lat], zoom: 14, duration: 500 });
+    }
+  }
+
   async function ensureLeafletMap() {
     try {
       const L = await loadLeaflet();
       if (destroyed) return null;
 
       if (!map) {
-        map = L.map(mapEl, { zoomControl: true, attributionControl: true });
+        map = L.map(mapEl, {
+          zoomControl: true,
+          attributionControl: true,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+        });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap contributors',
           maxZoom: 19,
         }).addTo(map);
         mapEngine = 'leaflet';
+        mapShell.classList.add('cl-map-shell--leaflet');
         metaEl.hidden = false;
         metaEl.textContent =
           'OpenStreetMap preview — set MAPBOX_ACCESS_TOKEN for Mapbox tiles and driving directions.';
@@ -184,8 +223,13 @@ export function createClientMap(container, opts = {}) {
           center: [-71.0589, 42.3601],
           zoom: 11,
           attributionControl: true,
+          scrollZoom: false,
+          doubleClickZoom: false,
+          touchZoomRotate: false,
+          boxZoom: false,
         });
         map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+        mapShell.classList.add('cl-map-shell--mapbox');
         await new Promise((resolve) => {
           if (map.isStyleLoaded()) resolve();
           else map.once('load', resolve);
@@ -342,6 +386,10 @@ export function createClientMap(container, opts = {}) {
 
   directionsBtn.addEventListener('click', () => {
     void showDirections();
+  });
+
+  centerBtn.addEventListener('click', () => {
+    recenterMap();
   });
 
   if (opts.lat != null && opts.lng != null) {

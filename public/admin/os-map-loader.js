@@ -1,5 +1,5 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
-import { createClientMap } from '/admin/client-map.js?v=20260802c';
+import { createClientMap } from '/admin/client-map.js?v=20260804a';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 
 function companyBrand() {
