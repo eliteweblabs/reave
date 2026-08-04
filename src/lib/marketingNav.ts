@@ -21,7 +21,7 @@ export type MarketingNavGroup = {
 
 /** Forward-facing pages — desktop bar + flattened mobile list. */
 export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
-  { href: '/features', label: 'Platform' },
+  { href: '/platform', label: 'Platform' },
   { href: '/compare', label: 'Compare' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/modules', label: 'Modules' },
@@ -43,7 +43,8 @@ export const MARKETING_NAV_GROUPS: MarketingNavGroup[] = [
     id: 'product',
     label: 'Product',
     links: [
-      { href: '/features', label: 'Platform' },
+      { href: '/platform', label: 'Platform' },
+      { href: '/features', label: 'Features' },
       { href: '/compare', label: 'Compare' },
       { href: '/pricing', label: 'Pricing' },
       { href: '/modules', label: 'Modules' },
@@ -79,6 +80,7 @@ export function isMarketingPagePath(pathname: string): boolean {
   const path = pathname.replace(/\/$/, '') || '/';
   if (path === '/') return true;
   return (
+    path === '/platform' ||
     path === '/features' ||
     path === '/compare' ||
     path === '/pricing' ||

@@ -1,0 +1,238 @@
+---
+/**
+ * Technology stack and deployment modes — the fx-built-with block, canonical on /platform.
+ */
+import {
+  PLATFORM_DEPLOY_MODES,
+  PLATFORM_STACK,
+  SIMPLE_ICONS_CDN,
+} from '../../lib/platformStack';
+---
+
+<section
+  class="fx-built-with scroll-fade-in"
+  aria-label="Technology stack and deployment options"
+  id="stack"
+>
+  <p class="fx-built-with-kicker">Under the hood</p>
+  <h2 class="fx-built-with-h2">Built with a modern, production-grade stack.</h2>
+  <p class="fx-built-with-lead">
+    Not a no-code wrapper — a real codebase on Railway, Postgres, and the services below.
+    Ship it as a complete website package with a public frontend and integrations, as a
+    standalone admin + portal app, or both on the same domain.
+  </p>
+
+  <div class="fx-deploy-modes">
+    {
+      PLATFORM_DEPLOY_MODES.map((mode) => (
+        <div class="fx-deploy-mode">
+          <h3 class="fx-deploy-mode-title">{mode.title}</h3>
+          <p class="fx-deploy-mode-desc">{mode.desc}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <p class="fx-built-with-sub">This app is built with</p>
+  <ul class="fx-built-grid">
+    {
+      PLATFORM_STACK.map((tech) => (
+        <li class="fx-built-item">
+          <span
+            class:list={['fx-built-logo', !tech.iconSrc && 'fx-built-logo--pending']}
+            data-initial={tech.name.charAt(0)}
+            style={`--brand-color: ${tech.color}${tech.iconSrc ? `;--brand-icon:url(${JSON.stringify(tech.iconSrc)})` : ''}`}
+            aria-hidden="true"
+          >
+            {
+              !tech.iconSrc && (
+                <img
+                  class="fx-built-logo-probe"
+                  src={SIMPLE_ICONS_CDN(tech.slug)}
+                  alt=""
+                  decoding="async"
+                  onload="const el=this.parentElement;if(!el)return;el.classList.remove('fx-built-logo--pending');el.style.setProperty('--brand-icon','url('+JSON.stringify(this.src)+')')"
+                  onerror="this.parentElement?.classList.add('fx-built-logo--fallback')"
+                />
+              )
+            }
+          </span>
+          <span class="fx-built-name">{tech.name}</span>
+          <span class="fx-built-role">{tech.role}</span>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .fx-built-with {
+    width: 100%;
+    max-width: 920px;
+    margin-top: 8px;
+    margin-bottom: 48px;
+    text-align: center;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 100%, rgba(99, 102, 241, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-built-with-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a78bfa;
+    margin: 0 0 12px;
+  }
+
+  .fx-built-with-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-built-with-lead {
+    margin: 0 auto 24px;
+    max-width: 640px;
+    font-family: var(--font-content);
+    font-size: 0.94rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-deploy-modes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+    text-align: left;
+  }
+
+  .fx-deploy-mode {
+    padding: 14px 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .fx-deploy-mode-title {
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-deploy-mode-desc {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .fx-built-with-sub {
+    margin: 0 0 14px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  .fx-built-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .fx-built-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-built-logo {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    background-color: var(--brand-color);
+    mask: var(--brand-icon, none) center / contain no-repeat;
+    -webkit-mask: var(--brand-icon, none) center / contain no-repeat;
+  }
+
+  .fx-built-logo-probe {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .fx-built-logo--pending,
+  .fx-built-logo--fallback {
+    mask: none;
+    -webkit-mask: none;
+    background-color: color-mix(in srgb, var(--brand-color) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-color) 42%, transparent);
+    border-radius: 6px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--brand-color);
+    display: grid;
+    place-items: center;
+  }
+
+  .fx-built-logo--pending::before,
+  .fx-built-logo--fallback::before {
+    content: attr(data-initial);
+  }
+
+  .fx-built-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+  }
+
+  .fx-built-role {
+    font-size: 0.58rem;
+    font-weight: 500;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .fx-deploy-modes {
+      grid-template-columns: 1fr;
+    }
+
+    .fx-built-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .fx-built-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>
