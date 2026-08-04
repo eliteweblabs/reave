@@ -1782,7 +1782,7 @@ function AgentChatThreadBody({
                   focusComposerRef.current = focus;
                 }}
               />
-              <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check important info.</p>
+              <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>
             </div>
           </div>
         </div>
