@@ -264,7 +264,21 @@ async function handle_brave_search(args: Record<string, unknown>, _ctx: ToolCont
   const query = String(args.query ?? '').trim();
   if (!query) return JSON.stringify({ error: 'missing query' });
   const result = await braveSearch(query);
-  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  if (!result.ok) {
+    // Hard-fail so the error is never silently woven into an audit body.
+    // The agent receives this as the tool result and must treat it as a failure,
+    // not as content to quote or paraphrase.
+    const isRateLimit = (result as { rateLimited?: boolean }).rateLimited === true;
+    const prefix = isRateLimit
+      ? '⚠️ BRAVE_SEARCH_RATE_LIMITED — Search quota exceeded.'
+      : '⚠️ BRAVE_SEARCH_FAILED';
+    return (
+      `${prefix} HTTP ${result.status ?? 'N/A'}: ${result.error}\n\n` +
+      `INSTRUCTIONS: Do NOT quote or paraphrase this error in any audit, report, or project note. ` +
+      `For the Online Presence section write exactly: "Online Presence: unavailable — search quota exceeded. Run a fresh audit once the limit resets." ` +
+      `Do not write "api limit", "rate limit", "quota", or any API error text into the project body.`
+    );
+  }
   return formatBraveResults(result);
 }
 

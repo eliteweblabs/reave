@@ -10,7 +10,7 @@ export type BraveSearchResult = {
 
 export type BraveSearchResponse =
   | { ok: true; query: string; results: BraveSearchResult[] }
-  | { ok: false; error: string; status?: number };
+  | { ok: false; error: string; status?: number; rateLimited?: boolean };
 
 export function isBraveConfigured(): boolean {
   return Boolean(serverEnv('BRAVE_API_KEY')?.trim());
@@ -40,11 +40,18 @@ export async function braveSearch(query: string, limit = 5): Promise<BraveSearch
     });
 
     const text = await res.text();
+
     if (!res.ok) {
+      // 429 = rate-limited / monthly quota hit — flag separately so callers can hard-fail
+      const rateLimited = res.status === 429 || res.status === 422;
+      const friendlyMsg = rateLimited
+        ? `Brave Search rate limit hit (HTTP ${res.status}). Do NOT include this section in any audit or report — skip the Online Presence section entirely and note "Online Presence: data unavailable (search quota exceeded)".`
+        : `Brave Search returned HTTP ${res.status}: ${text.slice(0, 200) || res.statusText}`;
       return {
         ok: false,
         status: res.status,
-        error: text.slice(0, 300) || res.statusText,
+        error: friendlyMsg,
+        rateLimited,
       };
     }
 

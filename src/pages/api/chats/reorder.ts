@@ -41,7 +41,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const threads = await storeListChatThreadsForOwner(userId);
   const orderMap = await storeGetSidebarOrder('chats');
   const sorted = sortBySidebarOrder(
-    threads,
+    threads.threads,
     orderMap,
     (t) => t.id,
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),

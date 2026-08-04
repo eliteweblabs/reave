@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { chatStorageBackend, storeCreateChatThread, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeUpdateChatTitle } from '../../../lib/chatStore';
 import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { enrichChatThreadsWithAuthors } from '../../../lib/chatThreadAuthors';
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
@@ -40,7 +40,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const archivedOnly = context.url.searchParams.get('archived') === '1';
-  const threads = await storeListChatThreadsForOwner(userId, { archivedOnly });
+  const { threads, consolidated } = await storeListChatThreadsForOwner(userId, { archivedOnly });
   const orderMap = await storeGetSidebarOrder('chats');
   const sorted = sortBySidebarOrder(
     threads,
@@ -50,7 +50,12 @@ export async function GET(context: APIContext): Promise<Response> {
   );
   const enriched = await enrichThreadsWithLinks(sorted);
   const withAuthors = await enrichChatThreadsWithAuthors(enriched);
-  return json({ ok: true, threads: withAuthors, storage: chatStorageBackend() });
+  return json({
+    ok: true,
+    threads: withAuthors,
+    storage: chatStorageBackend(),
+    ...(consolidated > 0 ? { consolidated } : {}),
+  });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
