@@ -3,7 +3,7 @@
  * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
 import DeployStatusDot from "./DeployStatusDot.astro";
-import { ArrowRight, X } from "lucide-astro";
+import { ArrowRight, LayoutDashboard, X } from "lucide-astro";
 import {
   MARKETING_NAV_GROUPS,
   marketingNavActivePath,
@@ -127,20 +127,6 @@ const navGroups = signedIn
         ))
       }
 
-      {
-        signedIn && (
-          <section class="marketing-menu-group" aria-labelledby="menu-account">
-            <h2 id="menu-account" class="marketing-menu-group-label">Account</h2>
-            <ul class="marketing-menu-list">
-              <li>
-                <a href="/admin/?tab=home" class="marketing-menu-link" data-marketing-menu-link>
-                  Administration
-                </a>
-              </li>
-            </ul>
-          </section>
-        )
-      }
     </div>
 
     <footer class="marketing-menu-footer">
@@ -155,13 +141,39 @@ const navGroups = signedIn
         }
         {
           signedIn && (
-            <button
-              type="button"
-              class="marketing-menu-footer-signout"
-              data-marketing-sign-out
-            >
-              Sign out
-            </button>
+            <nav class="marketing-menu-footer-actions" aria-label="Account actions">
+              <a
+                href="/admin/profile"
+                class="marketing-menu-action"
+                data-marketing-menu-link
+              >
+                Profile
+              </a>
+              <button
+                type="button"
+                class="marketing-menu-action marketing-menu-action--danger"
+                data-marketing-sign-out
+              >
+                Sign out
+              </button>
+              <button
+                type="button"
+                class="marketing-menu-action"
+                disabled
+                aria-disabled="true"
+                title="Settings coming soon"
+              >
+                Settings
+              </button>
+              <a
+                href="/admin/?tab=home"
+                class="marketing-menu-action marketing-menu-action--icon"
+                aria-label="Dashboard"
+                data-marketing-menu-link
+              >
+                <LayoutDashboard size={18} strokeWidth={1.75} aria-hidden="true" />
+              </a>
+            </nav>
           )
         }
       </div>
@@ -558,25 +570,67 @@ const navGroups = signedIn
     gap: 12px;
   }
 
-  .marketing-menu-footer-signout {
-    margin-left: auto;
-    padding: 0.75rem 0.2rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    font-family: var(--font-secondary);
-    font-size: 0.92rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    color: rgba(255, 255, 255, 0.62);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s ease, background 0.15s ease;
+  .marketing-menu-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
   }
 
-  .marketing-menu-footer-signout:hover {
-    color: rgba(255, 255, 255, 0.92);
+  .marketing-menu-action {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.55rem 0.45rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.04);
+    font-family: var(--font-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    color: rgba(255, 255, 255, 0.82);
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .marketing-menu-action:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+    text-decoration: none;
+  }
+
+  .marketing-menu-action--danger {
+    color: rgba(248, 113, 113, 0.92);
+  }
+
+  .marketing-menu-action--danger:hover:not(:disabled) {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(248, 113, 113, 0.28);
+  }
+
+  .marketing-menu-action:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+  }
+
+  .marketing-menu-action--icon {
+    flex: 0 0 auto;
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .marketing-menu-action--icon :global(svg) {
+    display: block;
   }
 
   .marketing-menu-footer-cta {
