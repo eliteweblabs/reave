@@ -5,8 +5,10 @@
 import DeployStatusDot from "./DeployStatusDot.astro";
 import { ArrowRight, LayoutDashboard, X } from "lucide-astro";
 import {
-  MARKETING_NAV_GROUPS,
+  MARKETING_NAV_DEMO,
   marketingNavActivePath,
+  marketingNavGroupsForUser,
+  marketingNavLinksForUser,
 } from "../lib/marketingNav";
 
 interface Props {
@@ -19,58 +21,73 @@ interface Props {
 const { pathname, signedIn, hideAccountNav = false } = Astro.props;
 const showAccountNav = signedIn && !hideAccountNav;
 
-const navGroups = signedIn
-  ? MARKETING_NAV_GROUPS.map((group) => ({
-      ...group,
-      links: group.links.filter((link) => link.href !== "/demo"),
-    }))
-  : MARKETING_NAV_GROUPS;
+const navLinks = marketingNavLinksForUser(signedIn);
+const navGroups = marketingNavGroupsForUser(signedIn);
+const showDemoCta = !signedIn;
 ---
 
 <div class="marketing-nav" data-marketing-nav>
-  <DeployStatusDot />
-  {
-    !signedIn ? (
-      <button
-        type="button"
-        class="marketing-nav-signin"
-        data-ios-sheet-open="sign-in-sheet"
-      >
-        Sign in
-      </button>
-    ) : showAccountNav ? (
-      <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
-        <a href="/admin/?tab=home" class="marketing-nav-link">
-          Administration
+  <nav class="marketing-nav-desktop" aria-label="Site">
+    {
+      navLinks.map((link) => (
+        <a
+          href={link.href}
+          class:list={[
+            "marketing-nav-link",
+            marketingNavActivePath(pathname, link.href) && "is-active",
+          ]}
+          data-hide-below={link.hideBelow ?? undefined}
+        >
+          {link.label}
         </a>
+      ))
+    }
+  </nav>
+
+  <div class="marketing-nav-actions">
+    <DeployStatusDot />
+    {
+      !signedIn ? (
         <button
           type="button"
-          class="marketing-nav-link marketing-nav-link--button"
-          data-marketing-sign-out-inline
+          class="marketing-nav-signin"
+          data-ios-sheet-open="sign-in-sheet"
         >
-          Sign out
+          Sign in
         </button>
-      </nav>
-    ) : null
-  }
+      ) : showAccountNav ? (
+        <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
+          <a href="/admin/?tab=home" class="marketing-nav-link">
+            Administration
+          </a>
+          <button
+            type="button"
+            class="marketing-nav-link marketing-nav-link--button"
+            data-marketing-sign-out-inline
+          >
+            Sign out
+          </button>
+        </nav>
+      ) : null
+    }
 
-  {
-    !signedIn && (
-      <a class="marketing-nav-cta" href="/demo">
-        Demo now
-        <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-      </a>
-    )
-  }
+    {
+      showDemoCta && (
+        <a class="marketing-nav-cta" href={MARKETING_NAV_DEMO.href}>
+          Demo now
+          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+        </a>
+      )
+    }
 
-  <button
-    type="button"
-    class="marketing-nav-toggle"
-    data-marketing-menu-toggle
-    aria-label="Open menu"
-    aria-expanded="false"
-    aria-controls="marketing-menu-panel"
-  >
+    <button
+      type="button"
+      class="marketing-nav-toggle"
+      data-marketing-menu-toggle
+      aria-label="Open menu"
+      aria-expanded="false"
+      aria-controls="marketing-menu-panel"
+    >
     <svg
       class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open"
       xmlns="http://www.w3.org/2000/svg"
@@ -89,6 +106,7 @@ const navGroups = signedIn
     </svg>
     <X class="marketing-nav-toggle-icon marketing-nav-toggle-icon--close" size={20} strokeWidth={1.75} aria-hidden="true" />
   </button>
+  </div>
 </div>
 
 <div class="marketing-menu" data-marketing-menu hidden>
@@ -276,9 +294,27 @@ const navGroups = signedIn
   .marketing-nav {
     display: flex;
     align-items: center;
+    flex: 1 1 auto;
+    gap: 0.5rem;
+    margin-left: 0.5rem;
+    min-width: 0;
+  }
+
+  .marketing-nav-desktop {
+    display: none;
+    align-items: center;
+    flex: 1 1 auto;
+    gap: 0.05rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .marketing-nav-actions {
+    display: flex;
+    align-items: center;
     gap: 0.35rem;
-    margin-left: auto;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   .marketing-nav-signin {
@@ -337,7 +373,7 @@ const navGroups = signedIn
   }
 
   .marketing-nav-cta {
-    display: none; /* hidden for now — keep markup for easy restore */
+    display: none;
     align-items: center;
     gap: 6px;
     padding: 0.45rem 0.9rem;
@@ -406,12 +442,38 @@ const navGroups = signedIn
   }
 
   @media (min-width: 900px) {
+    .marketing-nav-desktop {
+      display: flex;
+    }
+
     .marketing-nav-inline--signed-in {
       display: flex;
     }
 
+    .marketing-nav-cta {
+      display: inline-flex;
+    }
+
     .marketing-nav-toggle {
       display: none;
+    }
+  }
+
+  @media (min-width: 900px) and (max-width: 1079px) {
+    .marketing-nav-link[data-hide-below="1080"] {
+      display: none;
+    }
+  }
+
+  @media (min-width: 900px) and (max-width: 1023px) {
+    .marketing-nav-link {
+      padding: 0.35rem 0.5rem;
+      font-size: 0.76rem;
+    }
+
+    .marketing-nav-cta {
+      padding: 0.38rem 0.72rem;
+      font-size: 0.76rem;
     }
   }
 
