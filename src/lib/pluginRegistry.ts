@@ -25,6 +25,7 @@ import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
 import { demoPlugin } from '../../plugins/demo/manifest';
 import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
 import { inventoryPlugin } from '../../plugins/inventory/manifest';
+import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -44,6 +45,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   demoPlugin,
   realEstateDataPlugin,
   inventoryPlugin,
+  onlineReviewsPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -136,6 +138,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['real-estate-data'];
     case 'inventory':
       return ['inventory-sync'];
+    case 'online-reviews':
+      return ['online-reviews'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':

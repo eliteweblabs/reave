@@ -226,6 +226,10 @@ import {
   initNewsletterPanel,
   loadNewsletterTab,
 } from './newsletter-panel.js?v=20260728q';
+import {
+  initOnlineReviewsPanel,
+  loadOnlineReviewsTab,
+} from './online-reviews-panel.js?v=20260803a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -280,6 +284,7 @@ const MAP_ICON_KEYS = {
   schedule: 'calendar',
   clients: 'users',
   social: 'trending-up',
+  reviews: 'star',
   analytics: 'bar-chart-2',
   fleet: 'truck',
   finance: 'wallet',
@@ -880,6 +885,8 @@ function activateMapPanel(opts = {}) {
     loadClientsTab({ clientUid: opts.clientUid });
   } else if (MAP.type === 'social') {
     loadSocialTab();
+  } else if (MAP.type === 'reviews') {
+    loadOnlineReviewsTab();
   } else if (MAP.type === 'analytics') {
     loadAnalyticsTab();
   } else if (MAP.type === 'fleet') {
@@ -916,6 +923,7 @@ function isPanelTab() {
     MAP.type === 'schedule' ||
     MAP.type === 'clients' ||
     MAP.type === 'social' ||
+    MAP.type === 'reviews' ||
     MAP.type === 'analytics' ||
     MAP.type === 'fleet' ||
     MAP.type === 'chats' ||
@@ -944,6 +952,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('schedule-panel', MAP.type === 'schedule' ? 'flex' : 'none');
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
   setPanelDisplay('social-panel', MAP.type === 'social' ? 'flex' : 'none');
+  setPanelDisplay('online-reviews-panel', MAP.type === 'reviews' ? 'flex' : 'none');
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
@@ -8990,6 +8999,8 @@ initRulesPanel({
 });
 
 initNewsletterPanel({});
+
+initOnlineReviewsPanel({});
 
 initTodoPanel({
   setActiveMap,

@@ -1,0 +1,225 @@
+/* ── Online reviews inbox ── */
+#online-reviews-panel {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  display: none;
+  flex-direction: column;
+  background: var(--bg);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.or-panel {
+  flex: 1;
+  min-height: 0;
+  padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
+}
+
+.or-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-bottom: var(--footer-scroll-pad);
+}
+
+.or-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.or-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.or-toolbar-btns {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.or-settings {
+  margin: 0 0.25rem;
+}
+
+.or-settings-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+}
+
+.or-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.or-filters {
+  padding: 0 0.25rem;
+}
+
+.or-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.or-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.or-row--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.or-row-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.or-row-author {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.or-row-snippet {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.or-row-date {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.or-empty {
+  margin: 1rem 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.or-platform {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--panel-border);
+}
+
+.or-platform--google { color: #4285f4; }
+.or-platform--yelp { color: #d32323; }
+.or-platform--facebook { color: #1877f2; }
+
+.or-status {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+}
+
+.or-status--new { color: #f59e0b; background: rgba(245, 158, 11, 0.12); }
+.or-status--todo { color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
+.or-status--responded { color: #22c55e; background: rgba(34, 197, 94, 0.12); }
+.or-status--dismissed { color: var(--muted); background: var(--surface-muted); }
+
+.or-stars {
+  color: #f59e0b;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.or-main {
+  overflow-y: auto;
+  padding: 0 1rem var(--footer-scroll-pad);
+}
+
+.or-detail-empty {
+  padding: 2rem 0.5rem;
+  color: var(--muted);
+}
+
+.or-detail-header {
+  margin-bottom: 1rem;
+}
+
+.or-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.or-detail-author {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.or-detail-date {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.or-detail-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.or-detail-body {
+  white-space: pre-wrap;
+  line-height: 1.55;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--panel-border);
+}
+
+.or-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.or-draft-field .prof-hint {
+  font-weight: 400;
+}
+
+.or-detail-save {
+  margin-top: 0.75rem;
+}
+
+.or-add-dialog {
+  max-width: 28rem;
+}

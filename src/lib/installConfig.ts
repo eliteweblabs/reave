@@ -33,6 +33,7 @@ const FEATURE_IDS_LIST = [
   'demo',
   'real_estate_data',
   'inventory_sync',
+  'online_reviews',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
@@ -65,6 +66,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'vapi',
   'lead-scanner',
   'fleet',
+  'reviews',
 ] as const;
 
 export type FooterNavMapKey = (typeof FOOTER_NAV_MAP_KEYS)[number];
