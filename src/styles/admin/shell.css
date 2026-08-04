@@ -414,6 +414,10 @@ select,
   border-color: rgba(248, 113, 113, 0.35);
   background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(248, 113, 113, 0.1));
 }
+.admin-setup-alert--otp {
+  border-color: rgba(251, 191, 36, 0.55);
+  background: color-mix(in srgb, var(--overlay-bg) 82%, rgba(251, 191, 36, 0.18));
+}
 .admin-setup-alert-icons {
   display: flex;
   flex-direction: column;
@@ -475,6 +479,10 @@ select,
   color: #fcd34d;
   background: rgba(252, 211, 77, 0.14);
 }
+.admin-setup-alert-icon[data-type='push_alert'][data-kind='otp'] {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.16);
+}
 .admin-setup-alert-copy {
   flex: 1;
   min-width: 0;
@@ -491,6 +499,26 @@ select,
   font-size: 0.76rem;
   line-height: 1.4;
   color: var(--muted);
+}
+.admin-otp-code-display {
+  margin: 0.35rem 0 0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  color: #fef3c7;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.admin-otp-sender,
+.admin-otp-expiry {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.admin-otp-countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #fcd34d;
 }
 .admin-setup-alert-error {
   margin: 0.35rem 0 0;

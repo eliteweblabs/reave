@@ -1,6 +1,7 @@
 ---
 /**
- * Homepage hero — brand icon, scripted demo conversation, headline, and CTAs.
+ * Homepage hero — fixed viewport layout: icon mid-upper, chat scrolls up under it,
+ * headline + CTAs pinned to the bottom. Nothing shifts while the demo runs.
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
@@ -22,54 +23,52 @@ const demoScenes = HERO_DEMO_SCENES;
   <div class="home-hero-mesh" aria-hidden="true"></div>
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
-  <div class="home-hero-center">
-    <div class="home-hero-icon-wrap">
-      <BrandIconInline company={company} />
-    </div>
+  <div class="home-hero-icon-wrap" data-hero-icon>
+    <BrandIconInline company={company} />
+  </div>
 
-    <div
-      class="home-hero-demo"
-      data-hero-demo
-      data-scenes={JSON.stringify(demoScenes)}
-      aria-live="polite"
-      aria-atomic="false"
-    >
-        <template id="hero-demo-agent-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-            <ReaveIcon class="home-hero-demo-avatar-icon" />
-          </span>
-        </template>
-        <template id="hero-demo-user-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
-            <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#64748b"/>
-                  <stop offset="100%" stop-color="#334155"/>
-                </linearGradient>
-              </defs>
-              <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
-              <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
-              <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
-            </svg>
-          </span>
-        </template>
-        <div class="home-hero-demo-viewport" data-hero-demo-viewport>
-          <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
-        </div>
+  <div
+    class="home-hero-demo"
+    data-hero-demo
+    data-scenes={JSON.stringify(demoScenes)}
+    aria-live="polite"
+    aria-atomic="false"
+  >
+    <template id="hero-demo-agent-avatar">
+      <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
+        <ReaveIcon class="home-hero-demo-avatar-icon" />
+      </span>
+    </template>
+    <template id="hero-demo-user-avatar">
+      <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
+        <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#64748b"/>
+              <stop offset="100%" stop-color="#334155"/>
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
+          <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
+          <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
+        </svg>
+      </span>
+    </template>
+    <div class="home-hero-demo-viewport" data-hero-demo-viewport>
+      <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
     </div>
+  </div>
 
-    <div class="home-hero-copy">
-      <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
-      <div class="home-hero-cta">
-        <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/#plan">
-          See pricing
-        </a>
-        <a class="home-hero-btn home-hero-btn--primary" href="/demo">
-          Demo now
-          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-        </a>
-      </div>
+  <div class="home-hero-copy" data-hero-copy>
+      <h1 id="home-hero-title" class="home-hero-title">Small Business,<br />Smaller Workday</h1>
+    <div class="home-hero-cta">
+      <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/#plan">
+        See pricing
+      </a>
+      <a class="home-hero-btn home-hero-btn--primary" href="/demo">
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
     </div>
   </div>
 </section>
@@ -80,14 +79,15 @@ const demoScenes = HERO_DEMO_SCENES;
 
 <style>
   .home-hero {
+    --home-hero-copy-h: 168px;
     position: relative;
     z-index: 0;
     width: 100%;
-    min-height: 100vh;
+    height: 100svh;
+    height: 100dvh;
     min-height: 100svh;
-    padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 24px) 20px 64px;
-    scroll-margin-top: 0;
     overflow: hidden;
+    scroll-margin-top: 0;
   }
 
   .home-hero-mesh {
@@ -96,58 +96,26 @@ const demoScenes = HERO_DEMO_SCENES;
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 80% 55% at 15% 20%, rgba(244, 114, 182, 0.2) 0%, transparent 62%),
+      radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.18) 0%, transparent 62%),
       radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
       radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 58%,
-      rgba(0, 0, 0, 0.55) 78%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 58%,
-      rgba(0, 0, 0, 0.55) 78%,
-      transparent 100%
-    );
   }
 
   .home-hero-pattern {
     z-index: 1;
-    /* soft-light is safe here — only CSS mask-image on this wrapper broke iOS path repaints. */
     mix-blend-mode: soft-light;
   }
 
-  .home-hero-center {
-    position: absolute;
-    z-index: 2;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(100%, 720px);
-    padding: 0 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0;
-    text-align: center;
-    pointer-events: none;
-  }
-
-  .home-hero-center :is(a, button) {
-    pointer-events: auto;
-  }
-
+  /* Icon — highest layer, ~⅓ down from the top of the hero */
   .home-hero-icon-wrap {
-    position: relative;
-    z-index: 3;
-    width: clamp(180px, 35vw, 260px);
-    height: clamp(180px, 35vw, 260px);
-    flex-shrink: 0;
-    margin-bottom: clamp(-52px, -10vw, -36px);
+    position: absolute;
+    z-index: 10;
+    left: 50%;
+    top: 30%;
+    transform: translate(-50%, -50%);
+    width: clamp(150px, 32vw, 240px);
+    height: clamp(150px, 32vw, 240px);
+    pointer-events: none;
   }
 
   .home-hero-icon-wrap :global(svg),
@@ -158,83 +126,41 @@ const demoScenes = HERO_DEMO_SCENES;
     filter: var(--brand-glow-filter);
   }
 
-  .home-hero-demo {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: 540px;
-    margin-bottom: clamp(28px, 6vw, 52px);
-    pointer-events: none;
-    transition: opacity 0.85s ease;
-  }
-
-  .home-hero-demo[hidden] {
-    display: none;
-  }
-
-  .home-hero-demo--stopped {
-    opacity: 0;
-  }
-
-  .home-hero-demo-viewport {
-    position: relative;
-    width: 100%;
-    height: clamp(168px, 24vw, 210px);
-    overflow: hidden;
-  }
-
-  /*
-   * Fade chat under the icon. Mask the stack itself — not the viewport wrapper.
-   * WebKit iOS hides descendants when mask-image is on a parent with overflow:hidden;
-   * masking the content element avoids that and skips a dark ::before overlay (solid black on iOS).
-   */
-  .home-hero-demo-stack {
+  /* Headline + CTAs — pinned to viewport bottom */
+  .home-hero-copy {
     position: absolute;
+    z-index: 5;
     left: 0;
     right: 0;
     bottom: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    gap: 0;
-    width: 100%;
-    text-align: left;
-    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.45) 16%,
-      rgba(0, 0, 0, 0.85) 34%,
-      #000 50%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.45) 16%,
-      rgba(0, 0, 0, 0.85) 34%,
-      #000 50%
-    );
-  }
-
-  .home-hero-copy {
-    display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 18px;
-    width: 100%;
-    margin-top: clamp(8px, 2vw, 16px);
+    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .home-hero-copy :is(a, button) {
+    pointer-events: auto;
   }
 
   .home-hero-title {
     margin: 0;
     font-family: var(--font-primary);
-    font-size: clamp(2.1rem, 6vw, 3.5rem);
+    font-size: clamp(1.39rem, 3.9vw, 2.625rem);
     font-weight: 700;
     letter-spacing: -0.04em;
-    line-height: 1.05;
-    color: #fff;
+    line-height: 1.08;
+    color: rgba(255, 255, 255, 0.65);
     text-wrap: balance;
+  }
+
+  @media (max-width: 480px) {
+    .home-hero-title {
+      font-size: clamp(1.24rem, 5.625vw, 1.61rem);
+    }
   }
 
   .home-hero-cta {
@@ -278,6 +204,52 @@ const demoScenes = HERO_DEMO_SCENES;
   .home-hero-btn--ghost:hover {
     transform: translateY(-1px);
   }
+
+  /* Chat — between icon and copy; recedes under the icon (z-index below icon) */
+  .home-hero-demo {
+    position: absolute;
+    z-index: 8;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100%, 540px);
+    padding: 0 20px;
+    top: 38%;
+    bottom: calc(var(--home-hero-copy-h, 168px) + 16px);
+    min-height: 140px;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .home-hero-demo[hidden] {
+    display: none;
+  }
+
+  .home-hero-demo--stopped {
+    opacity: 0;
+    transition: opacity 1.13s ease;
+  }
+
+  .home-hero-demo-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .home-hero-demo-stack {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0;
+    width: 100%;
+    text-align: left;
+    overflow: visible;
+    will-change: transform;
+  }
 </style>
 
 <style is:global>
@@ -287,12 +259,12 @@ const demoScenes = HERO_DEMO_SCENES;
     flex-direction: column;
     gap: 18px;
     padding-bottom: 2px;
-    transition: opacity 0.85s ease, transform 0.85s ease;
+    transition: opacity 0.67s ease;
   }
 
   .home-hero-demo-scene--exit {
     opacity: 0;
-    transform: translateY(-12px);
+    transition: opacity 0.67s ease;
   }
 
   .home-hero-demo-msg {
@@ -302,17 +274,15 @@ const demoScenes = HERO_DEMO_SCENES;
     width: 100%;
     margin: 0;
     padding: 0;
-    transition: opacity 0.45s ease;
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+    transition:
+      opacity 0.53s ease,
+      transform 0.53s ease,
+      filter 0.53s ease;
+    will-change: opacity, transform, filter;
   }
-
-  .home-hero-demo-msg[data-depth="0"] { opacity: 1; }
-  .home-hero-demo-msg[data-depth="1"] { opacity: 0.78; }
-  .home-hero-demo-msg[data-depth="2"] { opacity: 0.58; }
-  .home-hero-demo-msg[data-depth="3"] { opacity: 0.4; }
-  .home-hero-demo-msg[data-depth="4"] { opacity: 0.26; }
-  .home-hero-demo-msg[data-depth="5"],
-  .home-hero-demo-msg[data-depth="6"],
-  .home-hero-demo-msg[data-depth="7"] { opacity: 0.14; }
 
   .home-hero-demo-msg--user {
     position: relative;
@@ -371,15 +341,39 @@ const demoScenes = HERO_DEMO_SCENES;
     margin: 0;
   }
 
+  .home-hero-demo-ellipsis {
+    display: inline-block;
+    width: 1.15em;
+    text-align: left;
+    vertical-align: baseline;
+  }
+
+  .home-hero-demo-ellipsis::after {
+    content: "…";
+    animation: heroDemoEllipsis 1.35s steps(4, end) infinite;
+  }
+
+  @keyframes heroDemoEllipsis {
+    0%, 20% { content: ""; }
+    40% { content: "."; }
+    60% { content: ".."; }
+    80%, 100% { content: "…"; }
+  }
+
+  .home-hero-demo-msg--composing .home-hero-demo-bubble {
+    min-width: 2.6rem;
+    min-height: 1.45rem;
+  }
+
   .home-hero-demo-bubble-text--cursor::after {
     content: "";
     display: inline-block;
-    width: 1.5px;
+    width: 2px;
     height: 0.95em;
-    margin-left: 1px;
+    margin-left: 2px;
     vertical-align: text-bottom;
-    background: rgba(255, 255, 255, 0.88);
-    animation: heroDemoCursor 1s step-end infinite;
+    background: rgba(255, 255, 255, 0.92);
+    animation: heroDemoCursor 1.13s step-end infinite;
   }
 
   @keyframes heroDemoCursor {
@@ -402,8 +396,8 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: translateY(8px) scale(0.98);
     transform-origin: bottom right;
     transition:
-      opacity 0.28s ease,
-      transform 0.28s ease;
+      opacity 0.37s ease,
+      transform 0.37s ease;
     pointer-events: none;
   }
 
@@ -473,7 +467,7 @@ const demoScenes = HERO_DEMO_SCENES;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.9);
-    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
   }
 
   .home-hero-demo-action--primary {
@@ -531,15 +525,15 @@ const demoScenes = HERO_DEMO_SCENES;
     height: 0.34rem;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.55);
-    animation: heroDemoTyping 1.1s ease-in-out infinite;
+    animation: heroDemoTyping 1.46s ease-in-out infinite;
   }
 
   .home-hero-demo-typing span:nth-child(2) {
-    animation-delay: 0.15s;
+    animation-delay: 0.2s;
   }
 
   .home-hero-demo-typing span:nth-child(3) {
-    animation-delay: 0.3s;
+    animation-delay: 0.4s;
   }
 
   @keyframes heroDemoTyping {
@@ -557,18 +551,20 @@ const demoScenes = HERO_DEMO_SCENES;
     opacity: 1 !important;
   }
 
+  .home-hero-demo-msg--status {
+    opacity: 1 !important;
+  }
+
   .home-hero-demo-msg--enter {
-    animation: heroDemoEnter 0.42s ease-out both;
+    animation: heroDemoEnter 0.56s ease-out both;
   }
 
   @keyframes heroDemoEnter {
     from {
       opacity: 0;
-      transform: translateY(6px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
     }
   }
 
@@ -583,12 +579,14 @@ const demoScenes = HERO_DEMO_SCENES;
       transition: none;
     }
 
-    .home-hero-demo-bubble-text--cursor::after {
-      animation: none;
-    }
-
+    /* Keep the user compose cursor — it's the typing affordance for the demo. */
     .home-hero-demo-slash-picker {
       transition: none;
+    }
+
+    .home-hero-demo-ellipsis::after {
+      animation: none;
+      content: "…";
     }
   }
 </style>

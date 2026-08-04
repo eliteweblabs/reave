@@ -31,8 +31,6 @@ export const IOS_ICONS = {
   plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
   sparkles:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>',
-  agent:
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18a2 2 0 0 0-4 0"/><path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/><path d="M2 11h20"/><circle cx="17" cy="18" r="3"/><circle cx="7" cy="18" r="3"/></svg>',
   archive:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
   receipt:
@@ -50,6 +48,33 @@ export const IOS_ICONS = {
   refresh:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
 };
+
+let _agentIconClipSeq = 0;
+
+/** Hat-glasses agent icon; right eye winks via clipped lid rects (see .agent-icon CSS). */
+export function agentIconSvg(size = 20) {
+  const clipId = `agent-eye-clip-${++_agentIconClipSeq}`;
+  const winkDelay = ((_agentIconClipSeq - 1) % 5) * 1.85;
+  return (
+    `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="--agent-wink-delay:${winkDelay}s">` +
+    `<defs><clipPath id="${clipId}"><circle cx="17" cy="18" r="3"/></clipPath></defs>` +
+    '<path d="M14 18a2 2 0 0 0-4 0"/>' +
+    '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +
+    '<path d="M2 11h20"/>' +
+    '<circle cx="7" cy="18" r="3"/>' +
+    '<circle cx="17" cy="18" r="3"/>' +
+    `<g clip-path="url(#${clipId})">` +
+    '<rect class="agent-eye-lid agent-eye-lid-top" x="14" y="15" width="6" height="3" fill="currentColor" stroke="none"/>' +
+    '<rect class="agent-eye-lid agent-eye-lid-bottom" x="14" y="18" width="6" height="3" fill="currentColor" stroke="none"/>' +
+    '</g></svg>'
+  );
+}
+
+Object.defineProperty(IOS_ICONS, 'agent', {
+  get: () => agentIconSvg(20),
+  enumerable: true,
+  configurable: true,
+});
 
 /** Branded agent control (Lucide hat-glasses / fedora + glasses, gradient background). */
 export function createAgentBtn(opts = {}) {

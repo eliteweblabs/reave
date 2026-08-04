@@ -41,7 +41,16 @@ import {
   normalizeEmailAttachments,
 } from './emailAttachments';
 
-export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project';
+/** ISO timestamp for OTP auto-delete, or null when disabled. Default 5 minutes (`EMAIL_OTP_TTL_MINUTES`). */
+export function verificationCodeDeleteAfterAt(): string | null {
+  const raw = serverEnv('EMAIL_OTP_TTL_MINUTES');
+  const min = raw == null || raw === '' ? 5 : Number(raw);
+  if (!Number.isFinite(min) || min <= 0) return null;
+  const clamped = Math.max(1, Math.min(min, 1440));
+  return new Date(Date.now() + clamped * 60_000).toISOString();
+}
+
+export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project' | 'otp';
 
 export interface ProcessedEmailResult {
   ok: boolean;
@@ -249,6 +258,8 @@ export function shouldSendInboxPush(opts: {
 
   if (opts.category === 'junk' || action === 'junk') return false;
   if (opts.category === 'receipt') return false;
+  if (opts.action === 'verification_code') return false;
+  if (isVerificationCodeRuleStatus(opts.ruleStatus)) return false;
   if (!opts.ruleNotify) return false;
   if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
   // Auto-sorted to a job — visible under Routed, no ping needed (except urgent project replies).
@@ -305,6 +316,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const attachments = normalizeEmailAttachments(email.attachments);
   const verificationCode =
     extractVerificationCodeFromEmail({
+      from,
       subject: email.subject,
       text: bodyText,
       html: email.html,
@@ -395,9 +407,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let isProjectReply = false;
 
   if (isVerificationCode) {
-    category = 'review';
+    category = 'otp';
     action = 'verification_code';
-    routeNote = routeNote || 'Verification code — tap to copy in Email tab';
+    routeNote = routeNote || 'Verification code — tap to copy; auto-deletes in 5 min';
   } else if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
     const ai = await runAiTriage(email, jobs, contactName);
     if (ai) {
@@ -729,6 +741,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     bookingStart,
     automationKind,
     verificationCode,
+    deleteAfterAt: isVerificationCode ? verificationCodeDeleteAfterAt() : null,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
     return null;
@@ -907,9 +920,22 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   if (inboxRecord && verificationCode) {
     sendInboxPushNotification({
       title: 'Verification code ready',
-      body: 'Open and tap the code to copy, then paste in Safari',
+      body: verificationCode
+        ? `Code ${verificationCode} — tap Copy code, then paste in Safari`
+        : 'Open and tap the code to copy, then paste in Safari',
       tag: `otp-${inboxRecord.id}`,
       emailId: inboxRecord.id,
+      kind: 'otp',
+      urgent: true,
+    }).catch((e) => console.warn('[email] otp push failed', e));
+  } else if (inboxRecord && isVerificationCode) {
+    sendInboxPushNotification({
+      title: 'Verification code ready',
+      body: 'Open the Email tab to copy your code — auto-deletes in 5 min',
+      tag: `otp-${inboxRecord.id}`,
+      emailId: inboxRecord.id,
+      kind: 'otp',
+      urgent: true,
     }).catch((e) => console.warn('[email] otp push failed', e));
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply

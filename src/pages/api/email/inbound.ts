@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { serverEnv } from '../../../lib/serverEnv';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
+import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
 
 export const prerender = false;
@@ -136,6 +137,7 @@ export const POST: APIRoute = async ({ request }) => {
       resendEmailId,
       attachments,
     });
+    ensureEmailCleanupScheduler();
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

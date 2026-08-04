@@ -762,6 +762,32 @@
 .de-new-btn.em-agent-btn svg {
   display: block;
 }
+
+/* Agent icon — occasional right-eye wink (lid rects clip to the eye circle). */
+@keyframes agent-eye-wink-top {
+  0%, 93%, 100% { transform: translateY(-3px); }
+  95.5% { transform: translateY(0); }
+  97.5% { transform: translateY(-3px); }
+}
+@keyframes agent-eye-wink-bottom {
+  0%, 93%, 100% { transform: translateY(3px); }
+  95.5% { transform: translateY(0); }
+  97.5% { transform: translateY(3px); }
+}
+.agent-icon .agent-eye-lid-top {
+  animation: agent-eye-wink-top 9s ease-in-out infinite;
+  animation-delay: var(--agent-wink-delay, 0s);
+}
+.agent-icon .agent-eye-lid-bottom {
+  animation: agent-eye-wink-bottom 9s ease-in-out infinite;
+  animation-delay: var(--agent-wink-delay, 0s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-icon .agent-eye-lid-top,
+  .agent-icon .agent-eye-lid-bottom {
+    animation: none;
+  }
+}
 .em-btn-group-segment.em-agent-btn {
   padding: 0.42rem 0.65rem;
 }
@@ -1423,6 +1449,15 @@
   background: rgba(251, 191, 36, 0.12);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+.em-cat-otp {
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.14);
+}
+.em-otp-countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #fbbf24;
 }
 .em-otp-card {
   margin: 0 0 1rem;

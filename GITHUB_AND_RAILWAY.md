@@ -56,6 +56,20 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
 
   **Important:** This repo’s Railway CLI may be linked to **Reave Demo** (`reave-production.up.railway.app`) — a separate project with empty databases. Production lives on **Reave App** (`reave.app`). Always run `npm run sync:env` so `.env` targets Reave App’s public Postgres proxy, not Demo.
 
+## Backups (pre-production / contingency)
+
+Production data lives in **multiple Postgres services** on Railway (`reave-postgres`, `contact-postgres`, Crater, Cal.com, fleet-api). GitHub only holds application code.
+
+Before a sale or major launch, walk through **[docs/pre-production-contingency-audit.md](docs/pre-production-contingency-audit.md)** — enable Railway volume backups + PITR, schedule offsite `pg_dump`, and run a restore drill.
+
+Manual dump of the app database (after `npm run sync:env`):
+
+```sh
+npm run backup:postgres
+```
+
+Output goes to `backups/` (gitignored). For `contact-postgres`, pull `DATABASE_PUBLIC_URL` from that service in Railway and run `BACKUP_LABEL=contact-postgres DATABASE_URL='…' npm run backup:postgres`.
+
 ## Other repos on the same Railway project
 
 The **Reave App** Railway project also deploys separate services (e.g. Crater at `ap.reave.app`) from **their own** GitHub repos. If you need to change that software, clone that repo from GitHub the same way — not from Railway.
