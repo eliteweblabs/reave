@@ -8325,7 +8325,7 @@ function applyEmailInboxFilterForEvent(ev) {
   else if (isEmailBookable(ev)) emailState.inboxFilter = 'book';
   else if (isEmailProject(ev)) emailState.inboxFilter = 'project';
   else if (isEmailRouted(ev)) emailState.inboxFilter = 'routed';
-  else if (ev.category === 'review') emailState.inboxFilter = 'review';
+  else if (ev.category === 'review' || ev.category === 'otp') emailState.inboxFilter = 'review';
   else emailState.inboxFilter = 'all';
 }
 
@@ -8518,7 +8518,9 @@ function inboxTabCounts() {
   return {
     all: all.filter(active).length,
     alert: all.filter((e) => e.category === 'alert' && !isEmailRouted(e)).length,
-    review: all.filter((e) => e.category === 'review' && !isEmailRouted(e)).length,
+    review: all.filter(
+      (e) => (e.category === 'review' || e.category === 'otp') && !isEmailRouted(e),
+    ).length,
     book: all.filter((e) => isEmailBookable(e) && !isEmailRouted(e)).length,
     project: all.filter(isEmailProject).length,
     routed: all.filter(isEmailRouted).length,
@@ -10906,6 +10908,7 @@ async function switchEmailInboxFilter(nextFilter) {
   emailState.centerInboxFilterTab = emailFilterShouldCenter(nextFilter);
   emailState.activeId = null;
   getEmailPanel()?.classList.remove('em-pane-active');
+  if (MAP?.type === 'email') syncAdminTabUrl('email');
   if (nextFilter === 'sent') await loadEmailSentEvents(true);
   if (nextFilter === 'draft') await loadEmailDraftEvents(true);
   renderEmailPanel();
@@ -10938,8 +10941,9 @@ async function loadEmailTab(quiet) {
   }
   if (!quiet) inboxSessionDotIds.clear();
   seedInboxSessionDots();
-  const deepLinkId = pendingEmailDeepLinkId || parseEmailDeepLinkFromUrl();
+  const explicitDeepLink = pendingEmailDeepLinkId;
   pendingEmailDeepLinkId = null;
+  const deepLinkId = explicitDeepLink || (!quiet ? parseEmailDeepLinkFromUrl() : null);
   let openedFromDeepLink = false;
   if (deepLinkId) {
     openedFromDeepLink = await openEmailFromDeepLink(deepLinkId);
