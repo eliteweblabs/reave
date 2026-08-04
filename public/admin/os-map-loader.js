@@ -98,7 +98,7 @@ import {
   showCopyButtonFeedback,
 } from './admin-ui.js?v=20260803b';
 import { showAdminConfirmBanner, installPwaNavGuard } from './push-client.js?v=20260804a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260803a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync } from './shared.js?v=20260804a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -4912,6 +4912,7 @@ let homeDashboardLastLoadAt = 0;
 const HOME_DASHBOARD_MIN_RELOAD_MS = 1500;
 
 async function loadHomeDashboard(opts = {}) {
+  if (!userId) return;
   const quiet = opts.quiet === true;
   const root = document.getElementById('home-dashboard');
   if (!root) return;
@@ -8725,10 +8726,9 @@ function stopInboxBadgePoll() {
 
 function syncInboxBadgePoll() {
   stopInboxBadgePoll();
-  if (!document.hidden) {
-    refreshInboxBadgeQuiet();
-    inboxBadgeTimer = setInterval(refreshInboxBadgeQuiet, 60000);
-  }
+  if (!userId || document.hidden) return;
+  refreshInboxBadgeQuiet();
+  inboxBadgeTimer = setInterval(refreshInboxBadgeQuiet, 60000);
 }
 
 function emailCategoryClass(cat) {
@@ -12454,12 +12454,19 @@ async function boot() {
   initSidebarLayout();
   initModelSelector();
   syncCanvasVisibility();
-  activateMapPanel();
+  if (userId) {
+    activateMapPanel();
+  } else {
+    bindClerkSsrSessionSync();
+  }
   syncAdminTabUrl(activeKey);
   installPwaNavGuard();
   syncHealthLifecycle();
-  syncEmailPoll();
-  syncInboxBadgePoll();
+  if (userId) {
+    syncEmailPoll();
+    syncInboxBadgePoll();
+    startDeployPoll();
+  }
   syncChatRunningPoll();
   syncFooterNav();
   syncProfileMenuActive();

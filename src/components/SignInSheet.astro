@@ -126,9 +126,8 @@ const clerkAppearance = {
 </style>
 
 {autoOpen && (
-  <script is:inline>
-    document.addEventListener('DOMContentLoaded', function () {
-      window.IosSheet?.open('sign-in-sheet');
-    });
+  <script type="module">
+    import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260804a';
+    bindClerkSsrSessionSync({ autoOpenSignIn: true });
   </script>
 )}

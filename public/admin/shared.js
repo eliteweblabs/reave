@@ -2,6 +2,82 @@
  * Shared admin client utilities — imported by os-map-loader.js and panel modules.
  */
 
+const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
+const AUTH_SYNC_MAX = 2;
+
+/** Strip sign-in redirect params so return URLs cannot loop on auth=sign-in. */
+export function cleanAdminReturnUrl(pathname, search = '') {
+  try {
+    const url = new URL(pathname + search, window.location.origin);
+    url.searchParams.delete('auth');
+    url.searchParams.delete('returnTo');
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return '/admin/';
+  }
+}
+
+function clerkClientHasSession() {
+  return Boolean(window.Clerk?.user?.id);
+}
+
+function serverHasStaffSession() {
+  return Boolean(document.body?.dataset?.userId?.trim());
+}
+
+/** Clerk client signed in but SSR/API cookies missing — reload once (Safari after sign-in). */
+export function syncSsrAfterClerkSignIn() {
+  if (serverHasStaffSession()) {
+    try {
+      sessionStorage.removeItem(AUTH_SYNC_KEY);
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+  if (!clerkClientHasSession()) return false;
+
+  let attempts = 0;
+  try {
+    attempts = Number(sessionStorage.getItem(AUTH_SYNC_KEY) || '0');
+  } catch {
+    /* ignore */
+  }
+  if (attempts >= AUTH_SYNC_MAX) return false;
+
+  try {
+    sessionStorage.setItem(AUTH_SYNC_KEY, String(attempts + 1));
+  } catch {
+    /* ignore */
+  }
+
+  window.location.replace(cleanAdminReturnUrl(window.location.pathname, window.location.search));
+  return true;
+}
+
+/**
+ * After Clerk sign-in on iOS, client session can lead SSR by a beat. Reload once
+ * instead of reopening sign-in or redirecting with auth=sign-in (refresh loop).
+ */
+export function bindClerkSsrSessionSync(opts = {}) {
+  const { autoOpenSignIn = false } = opts;
+
+  function run() {
+    if (syncSsrAfterClerkSignIn()) return;
+    if (autoOpenSignIn && !serverHasStaffSession() && !clerkClientHasSession()) {
+      window.IosSheet?.open('sign-in-sheet');
+    }
+  }
+
+  window.addEventListener('clerk-loaded', run);
+  if (window.Clerk?.loaded) run();
+  else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.Clerk?.loaded) run();
+    });
+  }
+}
+
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
 export async function adminFetch(url, opts = {}) {
   const res = await fetch(url, {
@@ -14,7 +90,13 @@ export async function adminFetch(url, opts = {}) {
     },
   });
   if (res.status === 401) {
-    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    if (syncSsrAfterClerkSignIn()) {
+      throw new Error('Session expired');
+    }
+
+    const returnTo = encodeURIComponent(
+      cleanAdminReturnUrl(window.location.pathname, window.location.search),
+    );
     const signInSheet = document.getElementById('sign-in-sheet');
     if (signInSheet && window.IosSheet?.open) {
       window.IosSheet.open('sign-in-sheet');
