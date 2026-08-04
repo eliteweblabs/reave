@@ -132,11 +132,13 @@ const graphData = {
   </footer>
 </div>
 
-<script define:vars={{ graphData }}>
+<script id="cg-graph-data" type="application/json" set:html={JSON.stringify(graphData)} />
+<script>
   import { initCompareGraphs } from "../../scripts/compare-graphs.ts";
 
   const root = document.getElementById("compare-graphs");
-  if (root) initCompareGraphs(root, graphData);
+  const raw = document.getElementById("cg-graph-data")?.textContent;
+  if (root && raw) initCompareGraphs(root, JSON.parse(raw));
 </script>
 
 <style>

@@ -514,11 +514,14 @@ const flowData = {
   </footer>
 </div>
 
-<script define:vars={{ flowData }}>
+<script id="cmp-flow-data" type="application/json" set:html={JSON.stringify(flowData)} />
+<script>
   import { initCompareFlow, enrichCostScenarios } from "../../scripts/compare-flow.ts";
 
   const root = document.getElementById("compare-flow");
-  if (root) {
+  const raw = document.getElementById("cmp-flow-data")?.textContent;
+  if (root && raw) {
+    const flowData = JSON.parse(raw);
     initCompareFlow(root, {
       ...flowData,
       costScenarios: enrichCostScenarios(flowData.costScenarios),
