@@ -8,6 +8,8 @@ import {
 import { syncContactToCrater } from '../../../lib/contactCraterSync';
 import { serverEnv } from '../../../lib/serverEnv';
 import { secretMatches } from '../../../lib/secretCompare';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -17,11 +19,30 @@ function isDashboardAuthed(request: Request): boolean {
   return secretMatches(request.headers.get('x-dashboard-key'), expected);
 }
 
+function rateLimited(request: Request): Response | null {
+  const rate = checkInMemoryRateLimit(`contacts:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return new Response(JSON.stringify({ ok: false, error: 'Too many requests. Please try again later.' }), {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': String(rate.retryAfterSeconds),
+      },
+    });
+  }
+  return null;
+}
+
 const json = (body: object, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 export const GET: APIRoute = async ({ request, params, url }) => {
   if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const limited = rateLimited(request);
+  if (limited) return limited;
   if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
 
   const uid = params.uid?.trim();
@@ -38,6 +59,8 @@ export const GET: APIRoute = async ({ request, params, url }) => {
 
 export const PATCH: APIRoute = async ({ request, params }) => {
   if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const limited = rateLimited(request);
+  if (limited) return limited;
   if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
 
   const uid = params.uid?.trim();
@@ -77,6 +100,8 @@ export const PATCH: APIRoute = async ({ request, params }) => {
 
 export const DELETE: APIRoute = async ({ request, params, url }) => {
   if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const limited = rateLimited(request);
+  if (limited) return limited;
   if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
 
   const uid = params.uid?.trim();

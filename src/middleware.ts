@@ -68,9 +68,8 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
 };
 
 const appMiddleware = clerkMiddleware(async (auth, context, next) => {
-  maybePruneRateLimitStore();
   const url = new URL(context.request.url);
-  const { pathname } = url;
+  const { pathname, search } = url;
 
   // Canonical host: www → apex when COMPANY_DOMAIN / PUBLIC_SITE_DOMAIN is set.
   const host = (context.request.headers.get("host") || url.host).split(":")[0];
@@ -137,7 +136,7 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
   if (isProtectedAdminPage(context.request) && !isPublicAdminAsset(context.request)) {
     const { userId } = auth();
     if (!userId) {
-      const returnTo = encodeURIComponent(pathname + new URL(context.request.url).search);
+      const returnTo = encodeURIComponent(pathname + search);
       return applySecurityHeaders(
         context.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`),
       );
@@ -152,6 +151,7 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
 });
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
+  maybePruneRateLimitStore();
   if (isHealthLiveProbe(new URL(context.request.url).pathname)) {
     const response = await next();
     return applySecurityHeaders(response);

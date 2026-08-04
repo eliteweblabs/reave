@@ -35,8 +35,7 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const GET: APIRoute = async () =>
-  json({ ok: true, endpoint: 'uptimerobot webhook', configured: Boolean(uptimeWebhookSecret()) });
+export const GET: APIRoute = async () => new Response('Not found', { status: 404 });
 
 export const POST: APIRoute = async ({ request, url }) => {
   if (!hasFeature('uptime_monitoring')) {
