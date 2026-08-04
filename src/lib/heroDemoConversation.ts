@@ -58,6 +58,12 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         text: "Sent to Mike Torres — delivered.",
         pauseMs: 1200,
       },
+      {
+        role: "assistant",
+        text: "Susie from Susie's Cookies just opened your Digital Marketing Strategy proposal.",
+        pauseMs: 1400,
+        actions: [{ label: "View activity", variant: "secondary" }],
+      },
     ],
   },
   {
@@ -79,6 +85,12 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         text: "Draft invoice INV-0042 is ready for review.",
         pauseMs: 1700,
         actions: [{ label: "Review draft", variant: "primary" }],
+      },
+      {
+        role: "assistant",
+        text: "Susie from Susie's Cookies opened the Digital Marketing Strategy proposal — 4 minutes ago.",
+        pauseMs: 1300,
+        actions: [{ label: "View proposal", variant: "secondary" }],
       },
       {
         role: "user",
