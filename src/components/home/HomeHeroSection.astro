@@ -117,23 +117,8 @@ const demoScenes = HERO_DEMO_SCENES;
 
   .home-hero-pattern {
     z-index: 1;
-    mix-blend-mode: soft-light;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 62%,
-      rgba(0, 0, 0, 0.45) 82%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 62%,
-      rgba(0, 0, 0, 0.45) 82%,
-      transparent 100%
-    );
+    /* No CSS mask/blend here — iOS Safari won't repaint SVG path opacity under them.
+       Vignette lives in the SVG; soft-light is approximated via path fill in brand.css. */
   }
 
   .home-hero-center {

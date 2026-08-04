@@ -21,6 +21,18 @@ function shuffle<T>(items: T[]): T[] {
   return copy;
 }
 
+function setPathVisible(path: SVGPathElement, visible: boolean, fadeMs: number): void {
+  path.classList.remove('reave-bg-pattern__path--in', 'reave-bg-pattern__path--out');
+  path.style.opacity = visible ? '1' : '0';
+  path.style.transition = '';
+  path.style.transitionDelay = '';
+
+  if (prefersReducedMotion()) return;
+
+  path.style.setProperty('--reave-fade-ms', `${fadeMs}ms`);
+  path.classList.add(visible ? 'reave-bg-pattern__path--in' : 'reave-bg-pattern__path--out');
+}
+
 export function initReaveBgPatternReveal(root: ParentNode = document): number {
   const patterns = root.querySelectorAll<HTMLElement>('.reave-bg-pattern[data-reveal="true"]');
   let started = 0;
@@ -37,6 +49,9 @@ export function initReaveBgPatternReveal(root: ParentNode = document): number {
 
     started += 1;
 
+    const fadeMs = readMs(wrap.dataset.revealFadeMs, DEFAULT_FADE_MS);
+    wrap.style.setProperty('--reave-fade-ms', `${fadeMs}ms`);
+
     if (prefersReducedMotion()) {
       paths.forEach((path) => {
         path.style.opacity = '1';
@@ -44,7 +59,6 @@ export function initReaveBgPatternReveal(root: ParentNode = document): number {
       return;
     }
 
-    const fadeMs = readMs(wrap.dataset.revealFadeMs, DEFAULT_FADE_MS);
     const windowMs = readMs(wrap.dataset.revealWindowMs, DEFAULT_REVEAL_WINDOW_MS);
     const intervalMs = windowMs / paths.length;
     const threshold = Math.max(1, Math.round(paths.length * VISIBLE_THRESHOLD_RATIO));
@@ -54,19 +68,17 @@ export function initReaveBgPatternReveal(root: ParentNode = document): number {
 
     paths.forEach((path) => {
       path.style.opacity = '0';
-      path.style.transition = `opacity ${fadeMs}ms ease`;
-      path.style.transitionDelay = '0ms';
     });
 
     const tick = () => {
       const pathToReveal = order[step % order.length];
-      pathToReveal.style.opacity = '1';
+      setPathVisible(pathToReveal, true, fadeMs);
       visibleQueue.push(pathToReveal);
 
       if (step >= threshold) {
         const toHide = visibleQueue.shift();
         if (toHide) {
-          toHide.style.opacity = '0';
+          setPathVisible(toHide, false, fadeMs);
         }
       }
 
