@@ -230,7 +230,7 @@ const demoScenes = HERO_DEMO_SCENES;
   .home-hero-demo-scene {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
     padding-bottom: 2px;
     transition: opacity 0.85s ease, transform 0.85s ease;
   }
@@ -318,6 +318,8 @@ const demoScenes = HERO_DEMO_SCENES;
     align-items: flex-end;
     gap: 0.55rem;
     width: 100%;
+    margin: 0;
+    padding: 0;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     transition: opacity 0.45s ease;
@@ -499,11 +501,11 @@ const demoScenes = HERO_DEMO_SCENES;
   @keyframes heroDemoEnter {
     from {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(6px) translateZ(0);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) translateZ(0);
     }
   }
 
