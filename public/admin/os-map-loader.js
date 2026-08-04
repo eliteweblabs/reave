@@ -55,6 +55,7 @@ function applyCompanyBrandingToMaps() {
 applyCompanyBrandingToMaps();
 import {
   IOS_ICONS,
+  agentIconSvg,
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
@@ -394,15 +395,10 @@ const NAV_ICON_PATHS = {
   user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
-  agent:
-    '<path d="M14 18a2 2 0 0 0-4 0"/>' +
-    '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +
-    '<path d="M2 11h20"/>' +
-    '<circle cx="17" cy="18" r="3"/>' +
-    '<circle cx="7" cy="18" r="3"/>',
 };
 
 export function navIcon(name, size = 20) {
+  if (name === 'agent') return agentIconSvg(size);
   const paths = NAV_ICON_PATHS[name];
   if (!paths) return '';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
