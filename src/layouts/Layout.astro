@@ -4,6 +4,7 @@ import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
+import SiteBackground from "../components/SiteBackground.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
@@ -107,6 +108,7 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname);
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body>
+		<SiteBackground />
 		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} />
 		<main id="main-content">
 			<h1 class="sr-only">{company.name}</h1>

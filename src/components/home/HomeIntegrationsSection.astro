@@ -104,7 +104,7 @@ const bottomLoop = loopRow(bottomRow);
     position: relative;
     z-index: 1;
     width: 100%;
-    padding: 40px 0;
+    padding: var(--home-section-padding-y) 0;
     overflow: hidden;
   }
 
@@ -259,10 +259,6 @@ const bottomLoop = loopRow(bottomRow);
   }
 
   @media (min-width: 768px) {
-    .home-integrations {
-      padding: 56px 0;
-    }
-
     .home-integrations-inner {
       padding: 0 32px;
     }
@@ -274,10 +270,6 @@ const bottomLoop = loopRow(bottomRow);
   }
 
   @media (min-width: 1280px) {
-    .home-integrations {
-      padding: 80px 0;
-    }
-
     .home-integrations-inner {
       flex-direction: row;
       align-items: flex-start;

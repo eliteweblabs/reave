@@ -1,0 +1,10 @@
+---
+/**
+ * Fixed viewport background — gradient mesh + brand chevron pattern.
+ * Lives in Layout.astro so every public page shares the same backdrop.
+ */
+import ReaveBgPattern from "./ReaveBgPattern.astro";
+---
+
+<div class="site-bg-mesh" aria-hidden="true"></div>
+<ReaveBgPattern class="site-bg-pattern" fit="cover" opacity={0.085} />
