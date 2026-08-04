@@ -9,6 +9,7 @@
 @import './panels/social-analytics-fleet.css';
 @import './panels/online-reviews.css';
 @import './panels/settings.css';
+@import './panels/media.css';
 @import './panels/search.css';
 /* Skeleton shimmer — imported last so it wins over panel loading stubs */
 @import './skeleton.css';

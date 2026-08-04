@@ -67,6 +67,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'lead-scanner',
   'fleet',
   'reviews',
+  'media',
 ] as const;
 
 export type FooterNavMapKey = (typeof FOOTER_NAV_MAP_KEYS)[number];

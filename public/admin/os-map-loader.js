@@ -231,6 +231,15 @@ import {
   initOnlineReviewsPanel,
   loadOnlineReviewsTab,
 } from './online-reviews-panel.js?v=20260803a';
+import {
+  initMediaPanel,
+  loadMediaTab,
+} from './media-panel.js?v=20260804c';
+import {
+  openMediaPicker,
+  brandingMediaFilter,
+  applyMediaToTarget,
+} from './media-picker.js?v=20260804c';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -286,6 +295,7 @@ const MAP_ICON_KEYS = {
   clients: 'users',
   social: 'trending-up',
   reviews: 'star',
+  media: 'image',
   analytics: 'bar-chart-2',
   fleet: 'truck',
   finance: 'wallet',
@@ -838,6 +848,8 @@ function isPanelMapKey(key) {
     t === 'work' ||
     t === 'clients' ||
     t === 'social' ||
+    t === 'reviews' ||
+    t === 'media' ||
     t === 'analytics' ||
     t === 'fleet' ||
     t === 'chats' ||
@@ -883,6 +895,8 @@ function activateMapPanel(opts = {}) {
     loadSocialTab();
   } else if (MAP.type === 'reviews') {
     loadOnlineReviewsTab();
+  } else if (MAP.type === 'media') {
+    loadMediaTab();
   } else if (MAP.type === 'analytics') {
     loadAnalyticsTab();
   } else if (MAP.type === 'fleet') {
@@ -920,6 +934,7 @@ function isPanelTab() {
     MAP.type === 'clients' ||
     MAP.type === 'social' ||
     MAP.type === 'reviews' ||
+    MAP.type === 'media' ||
     MAP.type === 'analytics' ||
     MAP.type === 'fleet' ||
     MAP.type === 'chats' ||
@@ -949,6 +964,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
   setPanelDisplay('social-panel', MAP.type === 'social' ? 'flex' : 'none');
   setPanelDisplay('online-reviews-panel', MAP.type === 'reviews' ? 'flex' : 'none');
+  setPanelDisplay('media-panel', MAP.type === 'media' ? 'flex' : 'none');
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
@@ -5509,6 +5525,18 @@ function bindCompanyLogoUpload(root, companyAlert) {
       removeBtn.disabled = false;
     }
   });
+
+  root.querySelector('#company-logo-library')?.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Choose logo',
+      filter: brandingMediaFilter,
+      onPick: async (item) => {
+        const json = await applyMediaToTarget(item.id, 'company-logo');
+        if (json.company) refreshPreview(json.company);
+        showProfileAlert(companyAlert, 'Logo updated from library.', 'success');
+      },
+    });
+  });
 }
 
 function bindCompanyIconUpload(root, companyAlert, initialCompany) {
@@ -5607,6 +5635,18 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
   });
 
   if (initialCompany) refreshPreview(initialCompany);
+
+  root.querySelector('#company-icon-library')?.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Choose icon',
+      filter: brandingMediaFilter,
+      onPick: async (item) => {
+        const json = await applyMediaToTarget(item.id, 'company-icon');
+        if (json.company) refreshPreview(json.company);
+        showProfileAlert(companyAlert, 'Icon updated from library.', 'success');
+      },
+    });
+  });
 
   return { refreshPreview };
 }
@@ -6312,6 +6352,7 @@ function renderCompanyPanel(company, fontCatalog) {
                 `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng ? ' hidden' : ''}>` +
                   `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
+                `<button type="button" id="company-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
               `</div>` +
             `</div>` +
             `<div class="prof-branding-upload-item">` +
@@ -6325,6 +6366,7 @@ function renderCompanyPanel(company, fontCatalog) {
                 `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng ? ' hidden' : ''}>` +
                   `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
+                `<button type="button" id="company-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
               `</div>` +
             `</div>` +
           `</div>` +
@@ -7162,7 +7204,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #search-overlay';
+  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
   '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
@@ -9129,6 +9171,7 @@ initRulesPanel({
 initNewsletterPanel({});
 
 initOnlineReviewsPanel({});
+initMediaPanel({});
 
 initTodoPanel({
   setActiveMap,

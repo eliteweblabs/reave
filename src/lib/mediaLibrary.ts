@@ -1,0 +1,432 @@
+/**
+ * Admin media library — shared images and files for branding and content.
+ * Postgres when DATABASE_URL is set; otherwise JSON + base64 under src/knowledge/.media/.
+ */
+
+import { randomUUID } from 'crypto';
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import pg from 'pg';
+import { databaseUrl, getPgPool } from './pgPool';
+import {
+  filenameForMediaType,
+  projectFileResponseHeaders,
+} from './projectFiles';
+import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from './companyLogo';
+import { workDir } from './workStore';
+
+export interface MediaLibrarySummary {
+  id: string;
+  filename: string;
+  mediaType: string;
+  sizeBytes: number;
+  altText: string | null;
+  uploadedBy: string | null;
+  createdAt: string;
+  url: string;
+  thumbnailUrl: string;
+}
+
+export interface MediaLibraryRecord extends MediaLibrarySummary {
+  dataBase64: string;
+}
+
+export const MEDIA_LIBRARY_MAX_BYTES = 10 * 1024 * 1024;
+
+export const MEDIA_LIBRARY_MEDIA_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+]);
+
+const IMAGE_MEDIA_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+]);
+
+export function isMediaLibraryMediaType(mediaType: string): boolean {
+  return MEDIA_LIBRARY_MEDIA_TYPES.has(mediaType.trim().toLowerCase());
+}
+
+export function isMediaLibraryImageType(mediaType: string): boolean {
+  return IMAGE_MEDIA_TYPES.has(mediaType.trim().toLowerCase());
+}
+
+export function isBrandingApplyMediaType(mediaType: string): boolean {
+  return isLogoUploadMediaType(mediaType);
+}
+
+export function mediaLibraryUrl(id: string): string {
+  return `/api/admin/media/${encodeURIComponent(id.trim())}`;
+}
+
+export function mediaLibraryThumbnailUrl(id: string): string {
+  return `${mediaLibraryUrl(id)}?thumb=1`;
+}
+
+export { projectFileResponseHeaders };
+
+const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS media_library (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  filename      TEXT NOT NULL,
+  media_type    TEXT NOT NULL,
+  size_bytes    BIGINT NOT NULL,
+  data_base64   TEXT NOT NULL,
+  alt_text      TEXT,
+  uploaded_by   TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS media_library_created_idx ON media_library (created_at DESC);
+`;
+
+let _schemaReady: Promise<void> | null = null;
+
+async function ensureSchema(): Promise<pg.Pool | null> {
+  const pool = getPgPool();
+  if (!pool) return null;
+  if (!_schemaReady) {
+    _schemaReady = pool
+      .query(SCHEMA_SQL)
+      .then(() => undefined)
+      .catch((e) => {
+        _schemaReady = null;
+        throw e;
+      });
+  }
+  await _schemaReady;
+  return pool;
+}
+
+export function isMediaLibraryDbConfigured(): boolean {
+  return !!databaseUrl();
+}
+
+function mediaDir(): string {
+  const dir = join(workDir(), '..', '.media');
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function mediaRecordPath(id: string): string {
+  return join(mediaDir(), `${id.trim()}.json`);
+}
+
+function normalizeSummary(raw: Record<string, unknown>): MediaLibrarySummary | null {
+  const id = String(raw.id ?? '').trim();
+  const filename = String(raw.filename ?? '').trim();
+  const mediaType = String(raw.mediaType ?? raw.media_type ?? '').trim().toLowerCase();
+  if (!id || !filename || !mediaType) return null;
+  const sizeBytes = Number(raw.sizeBytes ?? raw.size_bytes ?? 0);
+  return {
+    id,
+    filename,
+    mediaType,
+    sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
+    altText:
+      raw.altText != null
+        ? String(raw.altText)
+        : raw.alt_text != null
+          ? String(raw.alt_text)
+          : null,
+    uploadedBy:
+      raw.uploadedBy != null
+        ? String(raw.uploadedBy)
+        : raw.uploaded_by != null
+          ? String(raw.uploaded_by)
+          : null,
+    createdAt:
+      String(raw.createdAt ?? raw.created_at ?? '').trim() || new Date().toISOString(),
+    url: mediaLibraryUrl(id),
+    thumbnailUrl: mediaLibraryThumbnailUrl(id),
+  };
+}
+
+function fileListMedia(): MediaLibrarySummary[] {
+  const dir = mediaDir();
+  const out: MediaLibrarySummary[] = [];
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.json')) continue;
+    try {
+      const parsed = JSON.parse(readFileSync(join(dir, name), 'utf8')) as Record<string, unknown>;
+      const summary = normalizeSummary(parsed);
+      if (summary) out.push(summary);
+    } catch {
+      /* skip corrupt */
+    }
+  }
+  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function fileGetMedia(id: string): MediaLibraryRecord | null {
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  const path = mediaRecordPath(trimmed);
+  if (!existsSync(path)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    const summary = normalizeSummary(parsed);
+    const dataBase64 = String(parsed.dataBase64 ?? parsed.data_base64 ?? '').trim();
+    if (!summary || !dataBase64) return null;
+    return { ...summary, dataBase64 };
+  } catch {
+    return null;
+  }
+}
+
+function fileAddMedia(input: {
+  filename?: string;
+  mediaType: string;
+  dataBase64: string;
+  altText?: string | null;
+  uploadedBy?: string | null;
+}): { ok: true; item: MediaLibrarySummary } | { ok: false; error: string } {
+  const mediaType = input.mediaType.trim().toLowerCase();
+  if (!isMediaLibraryMediaType(mediaType)) {
+    return { ok: false, error: 'Unsupported file type' };
+  }
+  const dataBase64 = input.dataBase64.replace(/^data:[^;]+;base64,/, '').trim();
+  if (!dataBase64) return { ok: false, error: 'Empty file data' };
+  const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
+  if (sizeBytes < 1 || sizeBytes > MEDIA_LIBRARY_MAX_BYTES) {
+    return {
+      ok: false,
+      error: `File too large (max ${MEDIA_LIBRARY_MAX_BYTES / (1024 * 1024)} MB)`,
+    };
+  }
+
+  const id = randomUUID();
+  const filename = input.filename?.trim() || filenameForMediaType(mediaType);
+  const record: MediaLibraryRecord = {
+    id,
+    filename,
+    mediaType,
+    sizeBytes,
+    altText: input.altText?.trim() || null,
+    uploadedBy: input.uploadedBy?.trim() || null,
+    createdAt: new Date().toISOString(),
+    url: mediaLibraryUrl(id),
+    thumbnailUrl: mediaLibraryThumbnailUrl(id),
+    dataBase64,
+  };
+  writeFileSync(mediaRecordPath(id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  const { dataBase64: _d, ...summary } = record;
+  return { ok: true, item: summary };
+}
+
+function fileDeleteMedia(id: string): boolean {
+  const trimmed = id.trim();
+  if (!trimmed) return false;
+  const path = mediaRecordPath(trimmed);
+  if (!existsSync(path)) return false;
+  try {
+    unlinkSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function dbListMedia(limit = 200): Promise<MediaLibrarySummary[] | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const capped = Math.min(Math.max(1, limit), 500);
+    const { rows } = await pool.query<{
+      id: string;
+      filename: string;
+      media_type: string;
+      size_bytes: string;
+      alt_text: string | null;
+      uploaded_by: string | null;
+      created_at: string;
+    }>(
+      `SELECT id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at
+       FROM media_library ORDER BY created_at DESC LIMIT $1`,
+      [capped],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      filename: row.filename,
+      mediaType: row.media_type,
+      sizeBytes: Number(row.size_bytes),
+      altText: row.alt_text,
+      uploadedBy: row.uploaded_by,
+      createdAt: row.created_at,
+      url: mediaLibraryUrl(row.id),
+      thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+    }));
+  } catch (e) {
+    console.error('[media-library] list failed', e);
+    return null;
+  }
+}
+
+async function dbGetMedia(id: string): Promise<MediaLibraryRecord | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{
+      id: string;
+      filename: string;
+      media_type: string;
+      size_bytes: string;
+      data_base64: string;
+      alt_text: string | null;
+      uploaded_by: string | null;
+      created_at: string;
+    }>(
+      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at
+       FROM media_library WHERE id = $1`,
+      [id.trim()],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      filename: row.filename,
+      mediaType: row.media_type,
+      sizeBytes: Number(row.size_bytes),
+      altText: row.alt_text,
+      uploadedBy: row.uploaded_by,
+      createdAt: row.created_at,
+      url: mediaLibraryUrl(row.id),
+      thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+      dataBase64: row.data_base64,
+    };
+  } catch (e) {
+    console.error('[media-library] get failed', e);
+    return null;
+  }
+}
+
+async function dbAddMedia(input: {
+  filename?: string;
+  mediaType: string;
+  dataBase64: string;
+  altText?: string | null;
+  uploadedBy?: string | null;
+}): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string } | null> {
+  const mediaType = input.mediaType.trim().toLowerCase();
+  if (!isMediaLibraryMediaType(mediaType)) {
+    return { ok: false, error: 'Unsupported file type' };
+  }
+  const dataBase64 = input.dataBase64.replace(/^data:[^;]+;base64,/, '').trim();
+  if (!dataBase64) return { ok: false, error: 'Empty file data' };
+  const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
+  if (sizeBytes < 1 || sizeBytes > MEDIA_LIBRARY_MAX_BYTES) {
+    return {
+      ok: false,
+      error: `File too large (max ${MEDIA_LIBRARY_MAX_BYTES / (1024 * 1024)} MB)`,
+    };
+  }
+
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const filename = input.filename?.trim() || filenameForMediaType(mediaType);
+    const { rows } = await pool.query<{ id: string; created_at: string }>(
+      `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, created_at`,
+      [
+        filename,
+        mediaType,
+        sizeBytes,
+        dataBase64,
+        input.altText?.trim() || null,
+        input.uploadedBy?.trim() || null,
+      ],
+    );
+    const row = rows[0];
+    if (!row) return { ok: false, error: 'Failed to save file' };
+    return {
+      ok: true,
+      item: {
+        id: row.id,
+        filename,
+        mediaType,
+        sizeBytes,
+        altText: input.altText?.trim() || null,
+        uploadedBy: input.uploadedBy?.trim() || null,
+        createdAt: row.created_at,
+        url: mediaLibraryUrl(row.id),
+        thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+      },
+    };
+  } catch (e) {
+    console.error('[media-library] add failed', e);
+    return { ok: false, error: 'Failed to save file' };
+  }
+}
+
+async function dbDeleteMedia(id: string): Promise<boolean | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const result = await pool.query(`DELETE FROM media_library WHERE id = $1`, [id.trim()]);
+    return (result.rowCount ?? 0) > 0;
+  } catch (e) {
+    console.error('[media-library] delete failed', e);
+    return false;
+  }
+}
+
+export async function storeListMedia(limit = 200): Promise<MediaLibrarySummary[]> {
+  if (isMediaLibraryDbConfigured()) {
+    const rows = await dbListMedia(limit);
+    if (rows) return rows;
+  }
+  return fileListMedia().slice(0, limit);
+}
+
+export async function storeGetMedia(id: string): Promise<MediaLibraryRecord | null> {
+  if (!id.trim()) return null;
+  if (isMediaLibraryDbConfigured()) {
+    const row = await dbGetMedia(id);
+    if (row) return row;
+  }
+  return fileGetMedia(id);
+}
+
+export async function storeAddMedia(input: {
+  filename?: string;
+  mediaType: string;
+  dataBase64: string;
+  altText?: string | null;
+  uploadedBy?: string | null;
+}): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
+  if (isMediaLibraryDbConfigured()) {
+    const result = await dbAddMedia(input);
+    if (result) return result;
+  }
+  return fileAddMedia(input);
+}
+
+export async function storeDeleteMedia(id: string): Promise<boolean> {
+  if (!id.trim()) return false;
+  if (isMediaLibraryDbConfigured()) {
+    const result = await dbDeleteMedia(id);
+    if (result !== null) return result;
+  }
+  return fileDeleteMedia(id);
+}
+
+/** Branding uploads cap at 2 MB even when the library allows larger files. */
+export function brandingBlobFromMedia(
+  record: MediaLibraryRecord,
+): { ok: true; dataBase64: string; mediaType: string } | { ok: false; error: string } {
+  if (!isBrandingApplyMediaType(record.mediaType)) {
+    return { ok: false, error: 'Only PNG, JPEG, or WebP images can be used for branding' };
+  }
+  if (record.sizeBytes > LOGO_UPLOAD_MAX_BYTES) {
+    return { ok: false, error: 'Image too large for branding (max 2 MB)' };
+  }
+  return { ok: true, dataBase64: record.dataBase64, mediaType: record.mediaType };
+}

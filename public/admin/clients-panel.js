@@ -41,6 +41,11 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
+  openMediaPicker,
+  brandingMediaFilter,
+  applyMediaToTarget,
+} from './media-picker.js?v=20260804c';
+import {
   navigateToWork,
   mountClientWorkSection,
   mountClientDetailTabs,
@@ -853,6 +858,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
         `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !disabled ? ' hidden' : ''}>` +
           `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
         `</div>` +
+        `<button type="button" id="cl-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn"${disabled ? ' hidden' : ''}>Library</button>` +
       `</div>` +
     `</div>` +
     `<div class="prof-branding-upload-item">` +
@@ -866,6 +872,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
         `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !disabled ? ' hidden' : ''}>` +
           `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
         `</div>` +
+        `<button type="button" id="cl-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn"${disabled ? ' hidden' : ''}>Library</button>` +
       `</div>` +
     `</div>`;
 
@@ -1038,6 +1045,30 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
     } finally {
       iconRemove.disabled = false;
     }
+  });
+
+  root.querySelector('#cl-logo-library')?.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Choose client logo',
+      filter: brandingMediaFilter,
+      onPick: async (item) => {
+        const json = await applyMediaToTarget(item.id, 'client-logo', uid);
+        refreshLogo(json.logoUrl || '', 'upload');
+        onUpdate({ logoUrl: json.logoUrl || '', logoSource: 'upload' });
+      },
+    });
+  });
+
+  root.querySelector('#cl-icon-library')?.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Choose client icon',
+      filter: brandingMediaFilter,
+      onPick: async (item) => {
+        const json = await applyMediaToTarget(item.id, 'client-icon', uid);
+        refreshIcon(json.iconUrl || '', 'upload');
+        onUpdate({ iconUrl: json.iconUrl || '', iconSource: 'upload' });
+      },
+    });
   });
 
   return { refreshLogo, refreshIcon };
