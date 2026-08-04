@@ -1272,6 +1272,7 @@ async function loadWorkTab(opts = {}) {
   shell.clearEditorFooterSave();
   if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
   renderWorkEditor();
+  activateWorkPaneOnMobile();
 }
 
 function beginNewProjectDrawer() {
@@ -2455,9 +2456,65 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
     });
 }
 
+function workEditBackHandler(slug) {
+  return async () => {
+    await flushWorkAutosave();
+    const returnEmailId = workState.returnToEmailId;
+    const returnTodoId = workState.returnToTodoId;
+    if (returnEmailId) {
+      workState.returnToEmailId = null;
+      workState.activeSlug = null;
+      workState.draft = null;
+      shell.navigateToEmail(returnEmailId);
+      return;
+    }
+    if (returnTodoId) {
+      workState.returnToTodoId = null;
+      workState.activeSlug = null;
+      workState.draft = null;
+      getWorkEditor()?.classList.remove('de-pane-active');
+      shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
+      return;
+    }
+    workState.activeSlug = null;
+    workState.draft = null;
+    getWorkEditor()?.classList.remove('de-pane-active');
+    renderWorkEditor();
+  };
+}
+
 function renderEditWorkForm(pane) {
   const slug = workState.activeSlug;
-  pane.innerHTML = skeletonHtml('list', 'Loading…');
+  const listJob = workState.jobs.find((j) => j.slug === slug);
+  const returnEmailId = workState.returnToEmailId;
+  const returnTodoId = workState.returnToTodoId;
+  pane.innerHTML = '';
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+
+  const { header, titleInput } = createPaneSubheader({
+    back: {
+      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to projects',
+      onClick: workEditBackHandler(slug),
+    },
+    editableTitle: {
+      value: workState.draft?.title || listJob?.title || '',
+      placeholder: 'Project title',
+      ariaLabel: 'Project title',
+    },
+  });
+  header.appendChild(headerActions);
+  pane.appendChild(header);
+
+  mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+    workState.detailTab = tabId;
+    showWorkDetailPanel(pane, tabId);
+  });
+
+  const scroll = createWorkFormScroll(pane);
+  scroll.innerHTML = skeletonHtml('list', 'Loading…');
+  activateWorkPaneOnMobile();
 
   fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
     .then((r) => readApiJson(r))
@@ -2477,10 +2534,7 @@ function renderEditWorkForm(pane) {
         contact_phone: data.contact_phone || '',
       };
       workState.dirty = false;
-      pane.innerHTML = '';
-
-      const returnEmailId = workState.returnToEmailId;
-      const returnTodoId = workState.returnToTodoId;
+      titleInput.value = workState.draft.title;
 
       const linkTrackEl = document.createElement('div');
       linkTrackEl.className = 'wk-link-track';
@@ -2497,7 +2551,8 @@ function renderEditWorkForm(pane) {
       agentBtn.innerHTML = IOS_ICONS.agent.replace(/width="\d+" height="\d+"/, 'width="16" height="16"');
       agentBtn.addEventListener('click', () => askAgentAboutWork({ slug, title: data.title, ...data }));
 
-      const icons = [];
+      headerActions.innerHTML = '';
+      headerActions.appendChild(agentBtn);
       const shareBtn = data.contact_uid
         ? shell.createPortalShareBtn(data.contact_uid, {
             tab: 'work',
@@ -2514,8 +2569,8 @@ function renderEditWorkForm(pane) {
             },
           })
         : null;
-      if (shareBtn) icons.push(shareBtn);
-      icons.push(
+      if (shareBtn) headerActions.appendChild(shareBtn);
+      headerActions.appendChild(
         createIosIconBtn({
           iconKey: 'archive',
           label: data.status === 'archived' ? 'Unarchive project' : 'Archive project',
@@ -2523,55 +2578,14 @@ function renderEditWorkForm(pane) {
           onClick: () => void archiveWork(slug),
         }),
       );
-      icons.push(
+      headerActions.appendChild(
         paneDeleteIcon({
           label: 'Delete project',
           onClick: () => deleteWork(slug),
         }),
       );
 
-      const { header, titleInput } = createPaneSubheader({
-        back: {
-          label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to projects',
-          onClick: async () => {
-            await flushWorkAutosave();
-            if (returnEmailId) {
-              workState.returnToEmailId = null;
-              workState.activeSlug = null;
-              workState.draft = null;
-              shell.navigateToEmail(returnEmailId);
-              return;
-            }
-            if (returnTodoId) {
-              workState.returnToTodoId = null;
-              workState.activeSlug = null;
-              workState.draft = null;
-              getWorkEditor()?.classList.remove('de-pane-active');
-              shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
-              return;
-            }
-            workState.activeSlug = null;
-            workState.draft = null;
-            getWorkEditor()?.classList.remove('de-pane-active');
-            renderWorkEditor();
-          },
-        },
-        editableTitle: {
-          value: workState.draft.title,
-          placeholder: 'Project title',
-          ariaLabel: 'Project title',
-        },
-        beforeIcons: [agentBtn],
-        icons,
-      });
-      pane.appendChild(header);
-
-      mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
-        workState.detailTab = tabId;
-        showWorkDetailPanel(pane, tabId);
-      });
-
-      const scroll = createWorkFormScroll(pane);
+      scroll.innerHTML = '';
       const activeTab = workState.detailTab;
 
       const projectPanel = createWorkDetailPanel('project', activeTab);
@@ -2705,8 +2719,12 @@ function renderEditWorkForm(pane) {
       getWorkEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
-      pane.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+      scroll.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     });
+}
+
+function activateWorkPaneOnMobile() {
+  if (shell.isMobileTabs?.()) getWorkEditor()?.classList.add('de-pane-active');
 }
 
 async function openWork(slug) {
@@ -2716,6 +2734,7 @@ async function openWork(slug) {
   workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
+  activateWorkPaneOnMobile();
   renderWorkEditor();
 }
 

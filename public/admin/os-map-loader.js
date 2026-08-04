@@ -9308,6 +9308,7 @@ initWorkPanel({
   isCreateDrawerOpen,
   showChatToast,
   copyChatText,
+  isMobileTabs,
 });
 
 function buildAgentContentPrompt(intro, metaLines, body) {
