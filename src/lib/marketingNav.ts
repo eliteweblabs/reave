@@ -23,6 +23,7 @@ export const MARKETING_NAV_GROUPS: MarketingNavGroup[] = [
     label: "Product",
     links: [
       { href: "/features", label: "Platform" },
+      { href: "/modules", label: "Modules" },
       { href: "/demo", label: "Demo", primary: true },
       { href: "/deck", label: "Walkthrough" },
     ],
@@ -47,6 +48,7 @@ export function isMarketingPagePath(pathname: string): boolean {
     path === "/demo" ||
     path === "/about" ||
     path === "/services" ||
+    path === "/modules" ||
     path === "/privacy" ||
     path === "/terms" ||
     path.startsWith("/form/")

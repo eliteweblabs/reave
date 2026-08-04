@@ -5,7 +5,6 @@ import SiteLegalLinks from "../components/SiteLegalLinks.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
-import HomeAddonsSection from "../components/home/HomeAddonsSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
@@ -23,7 +22,6 @@ const showSiteAssistant =
 
     <HomeIntegrationsSection />
     <FeaturesPageContent embedded showLogoStack={false} />
-    <HomeAddonsSection />
     <HomeContactSection />
     <SiteLegalLinks />
   </div>

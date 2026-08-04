@@ -130,6 +130,15 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
     );
   }
 
+  if (pathname.replace(/\/$/, "") === "" && url.searchParams.get("section") === "addons") {
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: new URL("/modules", url.origin).toString() },
+      }),
+    );
+  }
+
   if (isFeatureBlockedPath(pathname)) {
     return featureBlockedResponse();
   }
