@@ -1,7 +1,7 @@
 /**
  * Sync online reviews from external APIs (Google Places today; manual for others).
  */
-import { serverEnv } from './serverEnv';
+import { getGoogleMapsApiKey } from './googleMapsApiKey';
 import {
   getOnlineReviewsConfig,
   recordSyncResult,
@@ -23,7 +23,7 @@ type GooglePlaceResponse = {
 };
 
 export function isGooglePlacesConfigured(): boolean {
-  return !!serverEnv('GOOGLE_PLACES_API_KEY')?.trim();
+  return !!getGoogleMapsApiKey();
 }
 
 /** Extract Place ID from a Google Maps / Business profile URL when possible. */
@@ -46,8 +46,8 @@ export function extractGooglePlaceId(raw: string | null | undefined): string | n
 }
 
 async function fetchGoogleReviews(placeId: string): Promise<GoogleReview[]> {
-  const apiKey = serverEnv('GOOGLE_PLACES_API_KEY')?.trim();
-  if (!apiKey) throw new Error('GOOGLE_PLACES_API_KEY not configured');
+  const apiKey = getGoogleMapsApiKey();
+  if (!apiKey) throw new Error('GOOGLE_MAPS_API_KEY not configured');
 
   const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
     headers: {
@@ -79,7 +79,7 @@ export async function syncGoogleReviews(options?: {
   const result: SyncResult = { platform: 'google', fetched: 0, upserted: 0, errors: [] };
 
   if (!isGooglePlacesConfigured()) {
-    result.errors.push('Set GOOGLE_PLACES_API_KEY to sync Google reviews.');
+    result.errors.push('Set GOOGLE_MAPS_API_KEY (or GOOGLE_PLACES_API_KEY) to sync Google reviews.');
     await recordSyncResult(result.errors.join(' '));
     return result;
   }

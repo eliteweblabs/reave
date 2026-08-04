@@ -84,7 +84,7 @@ function renderSettingsBlock() {
   const cfg = state.config || {};
   const syncHint = state.googlePlacesConfigured
     ? `<p class="prof-hint prof-hint--block">Google Places API is configured. Sync pulls up to five recent reviews.</p>`
-    : `<p class="prof-hint prof-hint--block">Set <code>GOOGLE_PLACES_API_KEY</code> on the server to enable Google sync.</p>`;
+    : `<p class="prof-hint prof-hint--block">Set <code>GOOGLE_MAPS_API_KEY</code> on the server to enable Google sync.</p>`;
 
   const lastSync = cfg.lastSyncAt
     ? `Last sync: ${formatDate(cfg.lastSyncAt)}${cfg.lastSyncError ? ` — ${escHtml(cfg.lastSyncError)}` : ''}`

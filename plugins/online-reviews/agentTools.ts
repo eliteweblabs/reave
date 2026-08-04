@@ -113,7 +113,7 @@ export const onlineReviewsAgentTools: AgentToolModule = {
         type: 'function',
         function: {
           name: 'sync_google_reviews',
-          description: 'Fetch latest Google reviews via Places API (requires GOOGLE_PLACES_API_KEY).',
+          description: 'Fetch latest Google reviews via Places API (requires GOOGLE_MAPS_API_KEY).',
           parameters: {
             type: 'object',
             properties: {},

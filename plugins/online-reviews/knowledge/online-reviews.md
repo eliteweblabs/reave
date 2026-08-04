@@ -6,7 +6,7 @@ Track company reviews from Google, Yelp, and other platforms. Reviews land in an
 
 1. Enable **online_reviews** in install config (`config/config-{slug}.json`).
 2. Add the **Reviews** tab to `footerNav`.
-3. For Google sync, set `GOOGLE_PLACES_API_KEY` and configure a **Google Place ID** in Reviews settings (or paste your Google Business profile URL under Admin → Socials — Reave extracts the Place ID when possible).
+3. For Google sync, set `GOOGLE_MAPS_API_KEY` (alias: `GOOGLE_PLACES_API_KEY`) and configure a **Google Place ID** in Reviews settings (or paste your Google Business profile URL under Admin → Socials — Reave extracts the Place ID when possible).
 4. Yelp, Facebook, and other reviews can be added manually until direct API sync is wired.
 
 ## Workflow

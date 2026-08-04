@@ -28,7 +28,7 @@ const SYSTEM_NODES = [
 
   // App hub (Railway / hosting)
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · project_files · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
   { id: 'contacts_dash', title: 'Clients editor', sub: '/admin/ · Clients tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
@@ -58,7 +58,7 @@ const SYSTEM_NODES = [
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
   { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
-  { id: 'google_places', title: 'Google Places', sub: 'review sync · GOOGLE_PLACES_API_KEY (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
+  { id: 'google_places', title: 'Google Places', sub: 'review sync · GOOGLE_MAPS_API_KEY (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
 ];
 
 const SYSTEM_EDGES = [
@@ -244,6 +244,7 @@ export const MAPS = {
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   social:    { id: 'social',    title: 'Social',     icon: '📣',  type: 'social',        nodes: [],             edges: [],             groups: [] },
   reviews:   { id: 'reviews',   title: 'Reviews',    icon: '⭐',  type: 'reviews',       nodes: [],             edges: [],             groups: [] },
+  media:     { id: 'media',     title: 'Media',      icon: '🖼️', type: 'media',         nodes: [],             edges: [],             groups: [] },
   analytics: { id: 'analytics', title: 'Analytics',  icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },
   fleet:     { id: 'fleet',     title: 'Fleet',      icon: '🚚',  type: 'fleet',         nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
