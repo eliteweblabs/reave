@@ -7,20 +7,23 @@ import type { APIRoute } from 'astro';
 import { verifyUnsubscribeToken } from '../../../lib/newsletterUnsubscribe';
 import { addUnsubscribe } from '../../../lib/newsletterStore';
 import { getCompanyConfig } from '../../../lib/companyConfig';
+import { escHtml } from '../../../lib/escHtml';
 
 export const prerender = false;
 
 function page(title: string, message: string): Response {
+  const safeTitle = escHtml(title);
+  const safeMessage = escHtml(message);
   const html = `<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${title}</title>
+<title>${safeTitle}</title>
 <style>
   body{margin:0;background:#0a0a0b;color:#e5e5e7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
   .card{max-width:420px;text-align:center;background:#151517;border:1px solid #2a2a2e;border-radius:16px;padding:40px 32px}
   h1{font-size:20px;margin:0 0 12px}
   p{color:#a1a1aa;font-size:15px;line-height:1.6;margin:0}
 </style></head><body>
-<div class="card"><h1>${title}</h1><p>${message}</p></div>
+<div class="card"><h1>${safeTitle}</h1><p>${safeMessage}</p></div>
 </body></html>`;
   return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }

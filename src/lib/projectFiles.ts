@@ -74,10 +74,18 @@ export function isAllowedProjectFileMediaType(
   return false;
 }
 
+/** Strip control chars and quotes from filenames used in Content-Disposition headers. */
+export function sanitizeContentDispositionFilename(filename: string): string {
+  const trimmed = filename.trim();
+  if (!trimmed) return 'download';
+  const safe = trimmed.replace(/[\x00-\x1f\x7f"\\]/g, '').replace(/[/\\]/g, '_');
+  return safe.slice(0, 200) || 'download';
+}
+
 /** SVG can embed scripts — never serve inline in the browser. */
 export function projectFileContentDisposition(mediaType: string, filename: string): string {
   const normalized = mediaType.trim().toLowerCase();
-  const safeName = filename.replace(/"/g, '');
+  const safeName = sanitizeContentDispositionFilename(filename);
   if (normalized === 'image/svg+xml') {
     return `attachment; filename="${safeName}"`;
   }
