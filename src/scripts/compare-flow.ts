@@ -183,7 +183,7 @@ function drawCostBars(host: HTMLElement, scenarios: CompareFlowData["costScenari
       .opacity(0.35)
       .stroke({ color, width: 1, opacity: 0.6 });
 
-    bar.animate(600, "-", 80 * i).size(barW, 28).move(padL, y + 6);
+    bar.animate(600, 80 * i, "now").size(barW, 28).move(padL, y + 6);
 
     draw
       .text(s.year3)

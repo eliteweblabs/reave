@@ -227,7 +227,7 @@ function drawRadialSpectrum(
       .line(cx, cy, cx, cy)
       .stroke({ color: item.color, width: 10, linecap: "round" })
       .opacity(0.85);
-    bar.animate(500, "-", i * 60).plot(cx, cy, x2, y2);
+    bar.animate(500, i * 60, "now").plot(cx, cy, x2, y2);
 
     const lx = cx + (maxR + 14) * Math.cos(rad);
     const ly = cy + (maxR + 14) * Math.sin(rad);
@@ -323,7 +323,7 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement)
           dasharray: panel.hub ? undefined : "4 3",
           opacity: panel.hub ? 0.7 : 0.35,
         });
-      edge.animate(400, "-", i * 30).plot(ox, oy, nx, ny);
+      edge.animate(400, i * 30, "now").plot(ox, oy, nx, ny);
 
       const node = draw.circle(16).center(nx, ny).fill("rgba(255,255,255,0.06)").stroke({ color: panel.color, width: 1 });
       draw.text(label).font({ size: 6, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.7)").center(nx, ny);
@@ -408,7 +408,7 @@ function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement)
       .fill(path.color)
       .opacity(0.12)
       .stroke({ color: path.color, width: 2, linejoin: "round" });
-    poly.animate(600, "-", pi * 80).opacity(0.12);
+    poly.animate(600, pi * 80, "now").opacity(0.12);
 
     poly.on("mouseenter", () => {
       poly.opacity(0.28).stroke({ width: 3 });
@@ -464,7 +464,7 @@ function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTM
         .radius(4)
         .fill(p.color)
         .opacity(0.25 + s * 0.2);
-      bar.animate(400, "-", i * 20).size(barW, bh).move(x, y + rowH - 4 - bh);
+      bar.animate(400, i * 20, "now").size(barW, bh).move(x, y + rowH - 4 - bh);
 
       bar.css({ cursor: "pointer" }).on("mouseenter", () => {
         bar.opacity(0.95);
