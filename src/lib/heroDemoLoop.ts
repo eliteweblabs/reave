@@ -115,6 +115,67 @@ function stripStatusEllipsis(text: string): string {
   return text;
 }
 
+/** One rect per rendered line box of the bubble's text. */
+function bubbleLineRects(textEl: HTMLElement): DOMRect[] {
+  const range = document.createRange();
+  range.selectNodeContents(textEl);
+  return Array.from(range.getClientRects());
+}
+
+/**
+ * Collapse a wrapped bubble onto its longest line, so a turn whose last line is
+ * short hugs its own side instead of filling the lane. Runs twice because
+ * capping the width lets `text-wrap: pretty` rebreak the lines — but backs off
+ * rather than buy the tighter box with an extra line.
+ */
+function fitBubble(bubble: HTMLElement, textEl: HTMLElement): void {
+  bubble.style.maxWidth = "";
+  const baseline = bubbleLineRects(textEl).length;
+  if (baseline < 2) return;
+
+  for (let pass = 0; pass < 2; pass++) {
+    const previous = bubble.style.maxWidth;
+
+    let widest = 0;
+    for (const line of bubbleLineRects(textEl)) widest = Math.max(widest, line.width);
+    // Never squash an action chip to fit the text.
+    for (const chip of bubble.querySelectorAll<HTMLElement>(".home-hero-demo-action")) {
+      widest = Math.max(widest, chip.getBoundingClientRect().width);
+    }
+
+    const inset = bubble.getBoundingClientRect().width - textEl.getBoundingClientRect().width;
+    bubble.style.maxWidth = `${Math.ceil(widest + inset)}px`;
+
+    if (bubbleLineRects(textEl).length > baseline) {
+      bubble.style.maxWidth = previous;
+      return;
+    }
+  }
+}
+
+/** Collapse an already-rendered bubble onto its longest line. */
+function fitBubbleToRenderedText(bubble: HTMLElement): void {
+  const textEl = bubble.querySelector<HTMLElement>(".home-hero-demo-bubble-text");
+  if (textEl) fitBubble(bubble, textEl);
+}
+
+/**
+ * Cap a bubble at the width its *final* text will need, before that text is
+ * typed. The bubble then grows into its finished size instead of filling the
+ * lane and snapping narrower once typing stops.
+ */
+function fitBubbleToFinalText(row: HTMLElement, finalText: string): void {
+  const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
+  const textEl = bubble?.querySelector<HTMLElement>(".home-hero-demo-bubble-text");
+  if (!bubble || !textEl) return;
+
+  // Measured and restored synchronously, so the full text never paints.
+  const typed = textEl.textContent;
+  textEl.textContent = finalText;
+  fitBubble(bubble, textEl);
+  textEl.textContent = typed;
+}
+
 function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: boolean): void {
   row.classList.remove("home-hero-demo-msg--typing");
   row.removeAttribute("aria-label");
@@ -145,6 +206,8 @@ function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: bo
   if (turn.actions?.length) {
     bubble.appendChild(renderActions(turn.actions));
   }
+
+  fitBubbleToRenderedText(bubble);
 }
 
 function morphStatusToReply(row: HTMLElement, turn: HeroDemoTurn): void {
@@ -164,6 +227,8 @@ function morphStatusToReply(row: HTMLElement, turn: HeroDemoTurn): void {
   if (turn.actions?.length) {
     bubble.appendChild(renderActions(turn.actions));
   }
+
+  fitBubbleToRenderedText(bubble);
 }
 
 function renderActions(actions: HeroDemoAction[]): HTMLElement {
@@ -399,6 +464,7 @@ async function playUserTurn(
   const row = createUserComposingShell(root, kind, userAvatarUrl);
   row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
+  fitBubbleToFinalText(row, turn.text);
   relayout(true);
 
   // Empty bubble + blinking cursor before characters appear.

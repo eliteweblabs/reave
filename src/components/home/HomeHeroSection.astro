@@ -283,6 +283,12 @@ const demoScenes = HERO_DEMO_SCENES;
   }
 
   .home-hero-demo-msg {
+    /*
+     * Gutter on the side a turn is *not* coming from. A bubble that fills its
+     * max width still stops short of the far edge, so the stack reads as a
+     * back-and-forth instead of one column of same-width blocks.
+     */
+    --demo-gutter: clamp(1.5rem, 18%, 4.5rem);
     display: flex;
     align-items: flex-end;
     gap: 0.55rem;
@@ -303,11 +309,13 @@ const demoScenes = HERO_DEMO_SCENES;
     position: relative;
     flex-direction: row;
     justify-content: flex-end;
+    padding-inline-start: var(--demo-gutter);
   }
 
   .home-hero-demo-msg--assistant {
     flex-direction: row;
     justify-content: flex-start;
+    padding-inline-end: var(--demo-gutter);
   }
 
   .home-hero-demo-avatar {
@@ -342,7 +350,7 @@ const demoScenes = HERO_DEMO_SCENES;
   }
 
   .home-hero-demo-bubble {
-    max-width: min(78%, 22rem);
+    max-width: min(100%, 22rem);
     padding: 0.55rem 0.78rem;
     border-radius: 1rem;
     font-family: var(--font-content);
