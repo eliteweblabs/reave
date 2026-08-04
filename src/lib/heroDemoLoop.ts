@@ -317,6 +317,45 @@ async function playUserTurn(
   relayout();
 }
 
+async function playAssistantTurn(
+  turn: HeroDemoTurn,
+  turnIndex: number,
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  viewport: HTMLElement,
+  stack: HTMLElement,
+  iconEl: HTMLElement | null,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+
+  const thinkMs =
+    turnIndex > 0 || turn.pauseMs != null
+      ? (turn.pauseMs ?? DEFAULT_THINK_MS)
+      : DEFAULT_THINK_MS;
+  const typingMs = reducedMotion ? Math.max(480, thinkMs * 0.55) : Math.max(TYPING_MS, thinkMs);
+
+  const typing = createTypingIndicator(root);
+  typing.classList.add("home-hero-demo-msg--enter");
+  sceneEl.appendChild(typing);
+  relayout();
+  await wait(typingMs);
+  if (!isAlive()) return;
+  typing.remove();
+
+  const row = createMessage(turn, root);
+  if (!reducedMotion) row.classList.add("home-hero-demo-msg--enter");
+  sceneEl.appendChild(row);
+  relayout();
+
+  if (turn.actions?.length) {
+    await wait(ACTION_PRESS_MS + 400);
+    if (!isAlive()) return;
+    await simulateActionPress(row);
+  }
+}
+
 async function simulateActionPress(row: HTMLElement): Promise<void> {
   const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
   const target = primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
@@ -419,15 +458,14 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
     for (let i = 0; i < scene.turns.length; i++) {
       const turn = scene.turns[i]!;
-      if (i > 0 || turn.pauseMs != null) {
-        const pause =
-          turn.pauseMs ??
-          (turn.role === "assistant" ? DEFAULT_THINK_MS : DEFAULT_USER_PAUSE_MS);
-        await wait(pause);
-      }
       if (!running) return;
 
       if (turn.role === "user") {
+        if (i > 0 || turn.pauseMs != null) {
+          const pause = turn.pauseMs ?? DEFAULT_USER_PAUSE_MS;
+          await wait(pause);
+        }
+        if (!running) return;
         await playUserTurn(
           turn,
           root,
@@ -441,26 +479,17 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
-      if (!reducedMotion) {
-        const typing = createTypingIndicator(root);
-        typing.classList.add("home-hero-demo-msg--enter");
-        sceneEl.appendChild(typing);
-        relayout();
-        await wait(TYPING_MS);
-        if (!running) return;
-        typing.remove();
-      }
-
-      const row = createMessage(turn, root);
-      if (!reducedMotion) row.classList.add("home-hero-demo-msg--enter");
-      sceneEl.appendChild(row);
-      relayout();
-
-      if (turn.actions?.length) {
-        await wait(ACTION_PRESS_MS + 400);
-        if (!running) return;
-        await simulateActionPress(row);
-      }
+      await playAssistantTurn(
+        turn,
+        i,
+        root,
+        sceneEl,
+        viewport,
+        stack,
+        iconEl,
+        reducedMotion,
+        () => running,
+      );
     }
 
     await wait(scene.holdMs ?? DEFAULT_HOLD_MS);
