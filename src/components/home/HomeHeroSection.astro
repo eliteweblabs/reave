@@ -342,6 +342,25 @@ const demoScenes = HERO_DEMO_SCENES;
     margin: 0;
   }
 
+  .home-hero-demo-ellipsis {
+    display: inline-block;
+    width: 1.15em;
+    text-align: left;
+    vertical-align: baseline;
+  }
+
+  .home-hero-demo-ellipsis::after {
+    content: "…";
+    animation: heroDemoEllipsis 1.35s steps(4, end) infinite;
+  }
+
+  @keyframes heroDemoEllipsis {
+    0%, 20% { content: ""; }
+    40% { content: "."; }
+    60% { content: ".."; }
+    80%, 100% { content: "…"; }
+  }
+
   .home-hero-demo-msg--composing .home-hero-demo-bubble {
     min-width: 2.6rem;
     min-height: 1.45rem;
@@ -533,6 +552,10 @@ const demoScenes = HERO_DEMO_SCENES;
     opacity: 1 !important;
   }
 
+  .home-hero-demo-msg--status {
+    opacity: 1 !important;
+  }
+
   .home-hero-demo-msg--enter {
     animation: heroDemoEnter 0.56s ease-out both;
   }
@@ -560,6 +583,11 @@ const demoScenes = HERO_DEMO_SCENES;
     /* Keep the user compose cursor — it's the typing affordance for the demo. */
     .home-hero-demo-slash-picker {
       transition: none;
+    }
+
+    .home-hero-demo-ellipsis::after {
+      animation: none;
+      content: "…";
     }
   }
 </style>

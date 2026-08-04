@@ -23,7 +23,6 @@ const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 const SCENE_EXIT_MS = 500;
-const TYPING_MS = 1200;
 const ACTION_PRESS_MS = 900;
 const SLASH_PICKER_SHOW_MS = 1100;
 const SLASH_PICKER_HIDE_MS = 280;
@@ -31,6 +30,14 @@ const USER_COMPOSE_MS = 520;
 const USER_CHAR_MS = 42;
 const USER_CHAR_MS_FAST = 14;
 const SLASH_CHAR_MS = 38;
+/** Beat after the user finishes before the agent starts responding. */
+const ASSISTANT_RESPONSE_DELAY_MS = 420;
+/** Short generic typing dots — not the full "thinking" duration. */
+const TYPING_DOTS_MS = 480;
+/** Gap between dots disappearing and the reply appearing. */
+const MESSAGE_REVEAL_PAUSE_MS = 320;
+/** How long in-progress status lines show animated ellipsis. */
+const STATUS_HOLD_MS = 950;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, scaleMs(ms)));
@@ -79,6 +86,31 @@ function createTypingIndicator(root: HTMLElement): HTMLElement {
 
   row.appendChild(avatar);
   row.appendChild(bubble);
+  return row;
+}
+
+function isStatusMessage(text: string): boolean {
+  return text.endsWith("…") || text.endsWith("...");
+}
+
+function stripStatusEllipsis(text: string): string {
+  if (text.endsWith("…")) return text.slice(0, -1);
+  if (text.endsWith("...")) return text.slice(0, -3);
+  return text;
+}
+
+function createStatusMessage(turn: HeroDemoTurn, root: HTMLElement): HTMLElement {
+  const row = createMessage({ ...turn, text: stripStatusEllipsis(turn.text) }, root);
+  row.classList.add("home-hero-demo-msg--status");
+
+  const textEl = row.querySelector<HTMLElement>(".home-hero-demo-bubble-text");
+  if (textEl) {
+    const ellipsis = document.createElement("span");
+    ellipsis.className = "home-hero-demo-ellipsis";
+    ellipsis.setAttribute("aria-hidden", "true");
+    textEl.appendChild(ellipsis);
+  }
+
   return row;
 }
 
@@ -245,7 +277,8 @@ function refreshStackLayout(
   for (const msg of stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")) {
     if (
       msg.classList.contains("home-hero-demo-msg--typing") ||
-      msg.classList.contains("home-hero-demo-msg--composing")
+      msg.classList.contains("home-hero-demo-msg--composing") ||
+      msg.classList.contains("home-hero-demo-msg--status")
     ) {
       msg.style.transformOrigin = msg.classList.contains("home-hero-demo-msg--user")
         ? "bottom right"
@@ -326,7 +359,6 @@ async function playUserTurn(
 
 async function playAssistantTurn(
   turn: HeroDemoTurn,
-  turnIndex: number,
   root: HTMLElement,
   sceneEl: HTMLElement,
   viewport: HTMLElement,
@@ -336,25 +368,40 @@ async function playAssistantTurn(
   isAlive: () => boolean,
 ): Promise<void> {
   const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+  const isStatus = isStatusMessage(turn.text);
+  const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
 
-  const thinkMs =
-    turnIndex > 0 || turn.pauseMs != null
-      ? (turn.pauseMs ?? DEFAULT_THINK_MS)
-      : DEFAULT_THINK_MS;
-  const typingMs = reducedMotion ? Math.max(480, thinkMs * 0.55) : Math.max(TYPING_MS, thinkMs);
+  await wait(ASSISTANT_RESPONSE_DELAY_MS);
+  if (!isAlive()) return;
+
+  const dotsMs = isStatus
+    ? TYPING_DOTS_MS
+    : reducedMotion
+      ? Math.max(320, thinkMs * 0.45)
+      : Math.max(TYPING_DOTS_MS, thinkMs);
 
   const typing = createTypingIndicator(root);
   typing.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(typing);
   relayout();
-  await wait(typingMs);
+  await wait(dotsMs);
   if (!isAlive()) return;
   typing.remove();
 
-  const row = createMessage(turn, root);
+  await wait(MESSAGE_REVEAL_PAUSE_MS);
+  if (!isAlive()) return;
+
+  const row = isStatus ? createStatusMessage(turn, root) : createMessage(turn, root);
   if (!reducedMotion) row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
   relayout();
+
+  if (isStatus) {
+    await wait(turn.pauseMs ?? STATUS_HOLD_MS);
+    if (!isAlive()) return;
+    row.classList.remove("home-hero-demo-msg--status");
+    relayout();
+  }
 
   if (turn.actions?.length) {
     await wait(ACTION_PRESS_MS + 400);
@@ -486,9 +533,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
-      await playAssistantTurn(
+  await playAssistantTurn(
         turn,
-        i,
         root,
         sceneEl,
         viewport,
