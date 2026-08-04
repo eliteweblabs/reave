@@ -18,9 +18,10 @@
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
   --brand-gradient: linear-gradient(
-    145deg,
+    135deg,
     var(--brand-pink) 0%,
-    var(--brand-magenta) 52%,
+    var(--brand-magenta) 44%,
+    var(--brand-magenta) 76%,
     var(--brand-indigo) 100%
   );
   --brand-gradient-shadow:
