@@ -18,7 +18,7 @@ Admin → **Lead Scanner** configures:
 
 Cron: `GET /api/lead-scanner/poll?key=LEAD_SCANNER_POLL_SECRET`
 
-New leads become **inquiry projects** tagged `lead-scanner` with owner contact resolved from assessor data.
+New leads become **inquiry projects** tagged `lead-scanner` with owner contact resolved from assessor data. Import is manual from the Lead Scanner UI — it does **not** post to System alerts or open agent chats.
 
 ## Disclaimers
 Informational only — not legal advice. Per-floor sqft may be estimated. Insurance claims are not public data.

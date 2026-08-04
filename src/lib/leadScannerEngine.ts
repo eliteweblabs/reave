@@ -4,7 +4,6 @@
 import { runRadiusScan, normalizeTradeSlugs, type ScanCandidate, type ScanCenterLocation } from '@reave/plugin-real-estate-data';
 import { getCompanyConfig } from './companyConfig';
 import { getDeploymentOwnerTimezone } from './deploymentOwner';
-import { recordContactFormEngagement } from './engagementNotifications';
 import { hasFeature } from './features';
 import {
   getLeadScannerConfig,
@@ -164,14 +163,6 @@ async function intakeLead(
   if (!write.ok) {
     return { ok: false, error: write.error ?? 'Failed to create project' };
   }
-
-  await recordContactFormEngagement({
-    contactUid: contact.uid,
-    contactName,
-    jobSlug: slug,
-    jobTitle: title,
-    messagePreview: candidate.leadReasons.slice(0, 3).join(' · '),
-  }).catch((e) => log.warn('engagement record failed', e));
 
   return { ok: true, contactUid: contact.uid, jobSlug: slug };
 }
