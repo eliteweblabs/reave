@@ -50,7 +50,25 @@ function parseScenes(raw: string | undefined): HeroDemoScene[] {
   }
 }
 
-function cloneAvatar(role: "user" | "assistant", root: HTMLElement): HTMLElement {
+function cloneAvatar(
+  role: "user" | "assistant",
+  root: HTMLElement,
+  userAvatarUrl?: string,
+): HTMLElement {
+  if (role === "user" && userAvatarUrl) {
+    const span = document.createElement("span");
+    span.className = "home-hero-demo-avatar home-hero-demo-avatar--user";
+    span.setAttribute("aria-hidden", "true");
+    const img = document.createElement("img");
+    img.className = "home-hero-demo-avatar-photo";
+    img.src = userAvatarUrl;
+    img.alt = "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    span.appendChild(img);
+    return span;
+  }
+
   const templateId = role === "assistant" ? "hero-demo-agent-avatar" : "hero-demo-user-avatar";
   const tpl = root.querySelector<HTMLTemplateElement>(`#${templateId}`);
   if (tpl?.content.firstElementChild) {
@@ -163,7 +181,11 @@ function renderActions(actions: HeroDemoAction[]): HTMLElement {
   return wrap;
 }
 
-function createUserComposingShell(root: HTMLElement, kind: "voice" | "slash"): HTMLElement {
+function createUserComposingShell(
+  root: HTMLElement,
+  kind: "voice" | "slash",
+  userAvatarUrl?: string,
+): HTMLElement {
   const row = document.createElement("div");
   row.className = "home-hero-demo-msg home-hero-demo-msg--user home-hero-demo-msg--composing";
   row.setAttribute("role", "listitem");
@@ -177,7 +199,7 @@ function createUserComposingShell(root: HTMLElement, kind: "voice" | "slash"): H
   text.textContent = "";
   bubble.appendChild(text);
 
-  const avatar = cloneAvatar("user", root);
+  const avatar = cloneAvatar("user", root, userAvatarUrl);
   row.appendChild(bubble);
   row.appendChild(avatar);
   return row;
@@ -334,12 +356,13 @@ async function playUserTurn(
   iconEl: HTMLElement | null,
   reducedMotion: boolean,
   isAlive: () => boolean,
+  userAvatarUrl?: string,
 ): Promise<void> {
   const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
   const charMs = reducedMotion ? USER_CHAR_MS_FAST : USER_CHAR_MS;
 
   const kind = turn.kind ?? "voice";
-  const row = createUserComposingShell(root, kind);
+  const row = createUserComposingShell(root, kind, userAvatarUrl);
   row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
   relayout(true);
@@ -482,6 +505,13 @@ function syncHeroCopyHeight(hero: HTMLElement, copy: HTMLElement | null) {
   hero.style.setProperty("--home-hero-copy-h", `${copy.offsetHeight}px`);
 }
 
+function syncHeroBrandBottom(hero: HTMLElement, brand: HTMLElement | null) {
+  if (!brand) return;
+  const heroRect = hero.getBoundingClientRect();
+  const brandRect = brand.getBoundingClientRect();
+  hero.style.setProperty("--home-hero-brand-bottom", `${brandRect.bottom - heroRect.top}px`);
+}
+
 export function initHeroDemoLoop(root: HTMLElement) {
   if (root.dataset.heroDemoBound === "1") return;
   root.dataset.heroDemoBound = "1";
@@ -493,13 +523,20 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const viewport = root.querySelector<HTMLElement>("[data-hero-demo-viewport]");
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
+  const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
+  const focusEl = brandEl ?? iconEl;
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 
-  const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
-  syncHeroCopyHeight(hero, copyEl);
+  const relayout = (flush = false) => {
+    syncHeroCopyHeight(hero, copyEl);
+    syncHeroBrandBottom(hero, brandEl);
+    relayoutStack(viewport, stack, focusEl, flush);
+  };
+  relayout(true);
   if (copyEl) new ResizeObserver(() => relayout()).observe(copyEl);
-  if (iconEl) new ResizeObserver(() => relayout()).observe(iconEl);
+  if (brandEl) new ResizeObserver(() => relayout()).observe(brandEl);
+  else if (iconEl) new ResizeObserver(() => relayout()).observe(iconEl);
   new ResizeObserver(() => relayout()).observe(viewport);
   window.addEventListener("resize", () => relayout(), { passive: true });
   document.fonts?.ready?.then(() => relayout(true));
@@ -574,9 +611,10 @@ export function initHeroDemoLoop(root: HTMLElement) {
           sceneEl,
           viewport,
           stack,
-          iconEl,
+          focusEl,
           reducedMotion,
           () => running,
+          scene.userAvatar,
         );
         continue;
       }
@@ -587,7 +625,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         sceneEl,
         viewport,
         stack,
-        iconEl,
+        focusEl,
         reducedMotion,
         () => running,
         lastAssistantRow,

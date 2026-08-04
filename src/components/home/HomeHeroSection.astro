@@ -1,7 +1,7 @@
 ---
 /**
- * Homepage hero — fixed viewport layout: icon mid-upper, chat scrolls up under it,
- * headline + CTAs pinned to the bottom. Nothing shifts while the demo runs.
+ * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
+ * under them, CTAs pinned to the bottom. Nothing shifts while the demo runs.
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
@@ -23,8 +23,11 @@ const demoScenes = HERO_DEMO_SCENES;
   <div class="home-hero-mesh" aria-hidden="true"></div>
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
-  <div class="home-hero-icon-wrap" data-hero-icon>
-    <BrandIconInline company={company} />
+  <div class="home-hero-brand" data-hero-brand>
+    <div class="home-hero-icon-wrap" data-hero-icon>
+      <BrandIconInline company={company} />
+    </div>
+    <h1 id="home-hero-title" class="home-hero-title">Small Business,<br />Smaller Workday</h1>
   </div>
 
   <div
@@ -60,7 +63,6 @@ const demoScenes = HERO_DEMO_SCENES;
   </div>
 
   <div class="home-hero-copy" data-hero-copy>
-      <h1 id="home-hero-title" class="home-hero-title">Small Business,<br />Smaller Workday</h1>
     <div class="home-hero-cta">
       <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/#plan">
         See pricing
@@ -79,7 +81,8 @@ const demoScenes = HERO_DEMO_SCENES;
 
 <style>
   .home-hero {
-    --home-hero-copy-h: 168px;
+    --home-hero-copy-h: 88px;
+    --home-hero-brand-bottom: 42%;
     position: relative;
     z-index: 0;
     width: 100%;
@@ -106,13 +109,24 @@ const demoScenes = HERO_DEMO_SCENES;
     mix-blend-mode: soft-light;
   }
 
-  /* Icon — highest layer, ~⅓ down from the top of the hero */
-  .home-hero-icon-wrap {
+  /* Icon + headline — highest layer, upper third of the hero */
+  .home-hero-brand {
     position: absolute;
     z-index: 10;
     left: 50%;
-    top: 30%;
-    transform: translate(-50%, -50%);
+    top: clamp(72px, 14vh, 120px);
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(10px, 2vh, 16px);
+    width: min(100%, 540px);
+    padding: 0 20px;
+    pointer-events: none;
+  }
+
+  .home-hero-icon-wrap {
+    flex: none;
     width: clamp(150px, 32vw, 240px);
     height: clamp(150px, 32vw, 240px);
     pointer-events: none;
@@ -126,7 +140,7 @@ const demoScenes = HERO_DEMO_SCENES;
     filter: var(--brand-glow-filter);
   }
 
-  /* Headline + CTAs — pinned to viewport bottom */
+  /* CTAs — pinned to viewport bottom */
   .home-hero-copy {
     position: absolute;
     z-index: 5;
@@ -205,7 +219,7 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: translateY(-1px);
   }
 
-  /* Chat — between icon and copy; recedes under the icon (z-index below icon) */
+  /* Chat — between headline and CTAs; recedes under the brand block */
   .home-hero-demo {
     position: absolute;
     z-index: 8;
@@ -213,8 +227,8 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: translateX(-50%);
     width: min(100%, 540px);
     padding: 0 20px;
-    top: 38%;
-    bottom: calc(var(--home-hero-copy-h, 168px) + 16px);
+    top: calc(var(--home-hero-brand-bottom, 42%) + 12px);
+    bottom: calc(var(--home-hero-copy-h, 88px) + 16px);
     min-height: 140px;
     overflow: visible;
     pointer-events: none;
@@ -318,6 +332,7 @@ const demoScenes = HERO_DEMO_SCENES;
     display: block;
     width: 100%;
     height: 100%;
+    object-fit: cover;
   }
 
   .home-hero-demo-bubble {
