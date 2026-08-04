@@ -6,7 +6,7 @@ export interface AgentRunContext {
   userId?: string;
   threadId?: string;
   emailId?: string;
-  /** Automated System alerts thread — do not replay chat history or "wait for instructions". */
+  /** Automated system alert — do not replay chat history or "wait for instructions". */
   systemAlert?: boolean;
   /** Images (including SVGs) attached to the current user message (for filing to projects). */
   messageImages?: ChatImageAttachment[];

@@ -238,7 +238,7 @@ async function runInvestigation(opts: {
       baseMessage: opts.message,
     });
 
-    const { agentReply } = await postToSystemAlertsThread({
+    const { agentReply, threadId } = await postToSystemAlertsThread({
       message: alertText,
       emailId: opts.emailId,
       model: RAILWAY_ALERT_MODEL,
@@ -294,7 +294,9 @@ async function runInvestigation(opts: {
         title: `🚨 Deploy: ${opts.subject?.slice(0, 50) || opts.target.repo}`,
         body: agentReply.slice(0, 200),
         tag: `deploy-incident-${incidentId}`,
-        url: '/admin?tab=chats',
+        url: threadId
+          ? `/admin?tab=chats&chat=${encodeURIComponent(threadId)}`
+          : '/admin?tab=chats',
         urgent: true,
       }).catch((e) => log.warn('push failed', e));
     }

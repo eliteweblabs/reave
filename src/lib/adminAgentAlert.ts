@@ -1,5 +1,5 @@
 /**
- * Post operational alerts into the admin agent "System alerts" chat thread.
+ * Post operational alerts into isolated admin agent chat threads (one per event).
  */
 
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';

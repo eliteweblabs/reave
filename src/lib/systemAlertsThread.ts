@@ -1,14 +1,14 @@
 /**
- * System alerts chat thread — posts messages and optional auto-investigation.
+ * System alerts — each event opens its own chat thread (no shared inbox).
  * Extracted from adminAgentAlert to avoid circular imports with deployIncidentHandler.
  */
 import { serverEnv } from './serverEnv';
 import {
   storeAppendChatMessages,
   storeCreateChatThread,
-  storeListChatThreads,
   storeUpdateChatTitle,
 } from './chatStore';
+import { titleFromMessage } from './chatTypes';
 import { runKnowledgeAgent } from './agentRunner';
 import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
@@ -17,25 +17,31 @@ import { createLogger } from './logger';
 
 const log = createLogger('system-alerts');
 
-const ALERT_THREAD_TITLE = 'System alerts';
-
 export function agentAlertUserId(): string | null {
   return serverEnv('AGENT_ALERT_USER_ID')?.trim() || null;
 }
 
-async function getOrCreateAlertThread(userId: string): Promise<string | null> {
-  const threads = await storeListChatThreads(userId);
-  const existing = threads.find((t) => t.title === ALERT_THREAD_TITLE);
-  if (existing) return existing.id;
+function alertThreadTitle(opts: { message: string; push?: { title: string } }): string {
+  const fromPush = opts.push?.title?.trim();
+  if (fromPush) return titleFromMessage(fromPush);
+  const firstLine =
+    opts.message
+      .split('\n')
+      .map((line) => line.trim())
+      .find(Boolean) ?? '';
+  return titleFromMessage(firstLine || 'System alert');
+}
 
+/** One isolated chat per alert — event threads never append to an existing alert. */
+async function createAlertThread(userId: string, title: string): Promise<string | null> {
   const created = await storeCreateChatThread(userId);
   if (!created) return null;
-  await storeUpdateChatTitle(userId, created.id, ALERT_THREAD_TITLE);
+  await storeUpdateChatTitle(userId, created.id, title);
   return created.id;
 }
 
 /**
- * Posts a message to the System alerts thread, optionally running the agent.
+ * Opens a new alert chat for this event, optionally running the agent once.
  * Returns the agent reply when autoRun is true.
  */
 export async function postToSystemAlertsThread(opts: {
@@ -44,7 +50,7 @@ export async function postToSystemAlertsThread(opts: {
   emailId?: string;
   model?: string;
   push?: { title: string; body: string; tag?: string; url?: string };
-}): Promise<{ agentReply?: string }> {
+}): Promise<{ threadId?: string; agentReply?: string }> {
   const userId = agentAlertUserId();
   if (!userId) return {};
 
@@ -54,14 +60,18 @@ export async function postToSystemAlertsThread(opts: {
   }
 
   try {
-    const threadId = await getOrCreateAlertThread(userId);
+    const title = alertThreadTitle(opts);
+    const threadId = await createAlertThread(userId, title);
     if (!threadId) {
-      log.warn('could not open System alerts thread');
+      log.warn('could not create alert chat thread');
       return {};
     }
 
     const priorTurns: { role: 'user' | 'assistant'; content: string }[] = [];
     const autoRun = opts.autoRun !== false && serverEnv('AGENT_ALERT_AUTO_RUN') !== '0';
+    const agentContext = opts.emailId
+      ? { userId, threadId, emailId: opts.emailId, systemAlert: true }
+      : { userId, threadId, systemAlert: true };
 
     let agentReply: string | undefined;
 
@@ -70,9 +80,7 @@ export async function postToSystemAlertsThread(opts: {
         userText: opts.message,
         priorTurns,
         model: opts.model ?? null,
-        context: opts.emailId
-          ? { userId, emailId: opts.emailId, systemAlert: true }
-          : { userId, systemAlert: true },
+        context: agentContext,
       });
       reply = await prependDeployBanner(reply, { userText: opts.message });
       await storeAppendChatMessages(userId, threadId, [
@@ -88,13 +96,13 @@ export async function postToSystemAlertsThread(opts: {
       sendPushNotification({
         title: opts.push.title,
         body: opts.push.body,
-        tag: opts.push.tag ?? 'system-alert',
-        url: opts.push.url ?? '/admin?tab=chats',
+        tag: opts.push.tag ?? `system-alert-${threadId}`,
+        url: opts.push.url ?? `/admin?tab=chats&chat=${encodeURIComponent(threadId)}`,
       }).catch((e) => log.warn('push failed', e));
     }
 
-    log.info('alert posted', { threadId });
-    return { agentReply };
+    log.info('alert posted', { threadId, title });
+    return { threadId, agentReply };
   } catch (e) {
     log.warn('notify failed', e);
     return {};
