@@ -27,7 +27,7 @@ const demoScenes = HERO_DEMO_SCENES;
     <div class="home-hero-icon-wrap" data-hero-icon>
       <BrandIconInline company={company} />
     </div>
-    <h1 id="home-hero-title" class="home-hero-title">Small Business,<br />Smaller Workday</h1>
+    <h1 id="home-hero-title" class="home-hero-title">Small Business,<br class="home-hero-title-break" />Smaller Workday.</h1>
   </div>
 
   <div
@@ -168,7 +168,19 @@ const demoScenes = HERO_DEMO_SCENES;
     letter-spacing: -0.04em;
     line-height: 1.08;
     color: rgba(255, 255, 255, 0.65);
+    text-align: center;
     text-wrap: balance;
+  }
+
+  /* One line once there's room; forced break only on narrow screens. */
+  .home-hero-title-break {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    .home-hero-title-break {
+      display: inline;
+    }
   }
 
   @media (max-width: 480px) {
@@ -250,20 +262,29 @@ const demoScenes = HERO_DEMO_SCENES;
     overflow: visible;
   }
 
+  /*
+   * Top-anchored on purpose: a single JS-owned translateY is the whole scroll
+   * position (it parks the newest turn on the lane's bottom edge), so the
+   * transition below animates every shift instead of only the overflow.
+   */
   .home-hero-demo-stack {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 0;
+    top: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
     gap: 0;
     width: 100%;
     text-align: left;
     overflow: visible;
     transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
+  }
+
+  /* Scene resets jump back to the start rather than gliding in from below. */
+  .home-hero-demo-stack--instant {
+    transition: none;
   }
 </style>
 
@@ -572,16 +593,13 @@ const demoScenes = HERO_DEMO_SCENES;
     }
   }
 
-  .home-hero-demo-msg--typing {
-    opacity: 1 !important;
-  }
-
-  .home-hero-demo-msg--status {
-    opacity: 1 !important;
-  }
-
+  /*
+   * `backwards`, not `both`. A filled-forwards animation outranks inline styles
+   * for the whole life of the message, which silently discarded every opacity
+   * the depth pass wrote — the fade never rendered at all.
+   */
   .home-hero-demo-msg--enter {
-    animation: heroDemoEnter 0.56s ease-out both;
+    animation: heroDemoEnter 0.56s ease-out backwards;
   }
 
   @keyframes heroDemoEnter {

@@ -356,11 +356,25 @@ function smoothstep(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
-/** 0 = foreground (below icon), 1 = fully under the icon (top). */
-function messageDepth(msgCenterY: number, iconBottom: number): number {
-  if (iconBottom <= 0) return 0;
-  if (msgCenterY >= iconBottom) return 0;
-  return 1 - smoothstep(msgCenterY / iconBottom);
+/**
+ * How far above the brand block a turn travels before it has dissolved
+ * completely. Kept proportional to the space that's actually available, but
+ * short enough that the fade reads as "sliding under the headline" rather than
+ * "dimming on the way to the top of the page".
+ */
+const DEPTH_BAND_MIN_PX = 90;
+const DEPTH_BAND_MAX_PX = 170;
+
+const STACK_INSTANT_CLASS = "home-hero-demo-stack--instant";
+
+function depthBandFor(depthBottom: number): number {
+  return Math.max(DEPTH_BAND_MIN_PX, Math.min(DEPTH_BAND_MAX_PX, depthBottom * 0.5));
+}
+
+/** 0 = crisp, below the brand block. 1 = fully dissolved into it. */
+function messageDepth(msgCenterY: number, depthBottom: number, band: number): number {
+  if (band <= 0) return 0;
+  return smoothstep((depthBottom - msgCenterY) / band);
 }
 
 function applyMessageFocus(msg: HTMLElement) {
@@ -375,14 +389,19 @@ function applyMessageFocus(msg: HTMLElement) {
 function applyMessageDepth(msg: HTMLElement, depth: number) {
   const isUser = msg.classList.contains("home-hero-demo-msg--user");
   const origin = isUser ? "bottom right" : "bottom left";
-  const scale = 1 - depth * 0.054;
-  const opacity = 1 - depth * 0.55;
-  const blur = depth * 1.88;
 
   msg.style.transformOrigin = origin;
-  msg.style.transform = `scale(${scale.toFixed(3)})`;
-  msg.style.opacity = opacity.toFixed(3);
-  msg.style.filter = blur > 0.12 ? `blur(${blur.toFixed(2)}px)` : "none";
+  msg.style.transform = `scale(${(1 - depth * 0.06).toFixed(3)})`;
+  msg.style.opacity = (1 - depth).toFixed(3);
+  msg.style.filter = `blur(${(depth * 2.4).toFixed(2)}px)`;
+}
+
+function isLiveTurn(msg: HTMLElement): boolean {
+  return (
+    msg.classList.contains("home-hero-demo-msg--typing") ||
+    msg.classList.contains("home-hero-demo-msg--composing") ||
+    msg.classList.contains("home-hero-demo-msg--status")
+  );
 }
 
 function refreshStackLayout(
@@ -394,41 +413,50 @@ function refreshStackLayout(
   const vRect = viewport.getBoundingClientRect();
   if (vRect.height < 8) return;
 
-  const overflow = Math.max(0, stack.scrollHeight - vRect.height);
-  stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
-
   const heroRect = hero.getBoundingClientRect();
   const depthRect = depthEl?.getBoundingClientRect();
-  // Hero-relative: chat viewport sits below the brand block, so viewport coords
-  // make depthBottom negative and skip blur/fade entirely.
-  const depthBottom = depthRect
-    ? depthRect.bottom - heroRect.top
-    : vRect.top - heroRect.top;
+  // Hero-relative: the chat lane sits below the brand block, so viewport coords
+  // would make depthBottom negative and skip blur/fade entirely.
+  const depthBottom = depthRect ? depthRect.bottom - heroRect.top : vRect.top - heroRect.top;
+  const band = depthBandFor(depthBottom);
 
-  const messages = stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg");
-  const lastMessage = messages[messages.length - 1] ?? null;
+  /*
+   * The stack is top-anchored, so this single transform is the whole scroll
+   * position: it parks the newest turn on the lane's bottom edge and carries
+   * older turns up out of it. Depth is then derived from each turn's *layout*
+   * offset plus that target translate, never from a live rect — otherwise every
+   * pass would sample the transform mid-transition and rewrite itself.
+   */
+  const targetY = vRect.height - stack.scrollHeight;
+  const laneTop = vRect.top - heroRect.top;
 
-  for (const msg of messages) {
-    const isActive =
-      msg.classList.contains("home-hero-demo-msg--typing") ||
-      msg.classList.contains("home-hero-demo-msg--composing") ||
-      msg.classList.contains("home-hero-demo-msg--status");
+  const messages = Array.from(stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
+  const depths = messages.map((msg) => {
+    if (isLiveTurn(msg)) return 0;
+    const center = laneTop + targetY + msg.offsetTop + msg.offsetHeight / 2;
+    return messageDepth(center, depthBottom, band);
+  });
 
-    const rect = msg.getBoundingClientRect();
-    const msgCenterY = (rect.top + rect.bottom) / 2 - heroRect.top;
+  stack.style.transform = `translateY(${targetY.toFixed(2)}px)`;
+  messages.forEach((msg, i) => {
+    const depth = depths[i] ?? 0;
+    if (depth <= 0.004) applyMessageFocus(msg);
+    else applyMessageDepth(msg, depth);
+  });
 
-    // Newest + in-progress turns stay crisp; readable area below the brand stays crisp too.
-    if (msg === lastMessage || isActive || msgCenterY >= depthBottom - 6) {
-      applyMessageFocus(msg);
-      continue;
-    }
-
-    const depth = messageDepth(msgCenterY, depthBottom);
-    applyMessageDepth(msg, depth);
+  if (stack.classList.contains(STACK_INSTANT_CLASS)) {
+    void stack.offsetHeight;
+    stack.classList.remove(STACK_INSTANT_CLASS);
   }
 }
 
-/** Run layout now and again after paint (avoids stale geometry). */
+/** Clear the stack and place the next scene without gliding it in. */
+function resetStack(stack: HTMLElement) {
+  stack.replaceChildren();
+  stack.classList.add(STACK_INSTANT_CLASS);
+}
+
+/** Run layout now, then once more after paint to pick up settled geometry. */
 function relayoutStack(
   viewport: HTMLElement,
   stack: HTMLElement,
@@ -438,10 +466,7 @@ function relayoutStack(
 ) {
   refreshStackLayout(viewport, stack, hero, depthEl);
   if (flush) {
-    requestAnimationFrame(() => {
-      refreshStackLayout(viewport, stack, hero, depthEl);
-      requestAnimationFrame(() => refreshStackLayout(viewport, stack, hero, depthEl));
-    });
+    requestAnimationFrame(() => refreshStackLayout(viewport, stack, hero, depthEl));
   }
 }
 
@@ -667,8 +692,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
     window.clearTimeout(pauseTimer);
     root.hidden = false;
     root.classList.remove("home-hero-demo--stopped");
-    stack.replaceChildren();
-    stack.style.transform = "";
+    resetStack(stack);
     running = true;
     void loop();
   };
@@ -685,8 +709,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const playScene = async (scene: HeroDemoScene): Promise<void> => {
     if (!running) return;
 
-    stack.replaceChildren();
-    stack.style.transform = "";
+    resetStack(stack);
 
     const sceneEl = document.createElement("div");
     sceneEl.className = "home-hero-demo-scene";
@@ -741,8 +764,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
     await animateSceneExit(sceneEl);
     if (!running) return;
 
-    stack.replaceChildren();
-    stack.style.transform = "";
+    resetStack(stack);
   };
 
   const loop = async () => {
