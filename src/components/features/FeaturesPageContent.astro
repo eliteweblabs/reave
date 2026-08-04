@@ -1,7 +1,7 @@
 ---
 /**
  * Sales-deck-style tour of the whole platform — used on /features and embedded on the homepage.
- * Accordion sections, dark brand theme, plugins called out separately at the end.
+ * Accordion sections, dark brand theme; optional modules live on /modules.
  */
 import BrandLogoGrid from "../BrandLogoGrid.astro";
 import FeaturesPricingSection from "./FeaturesPricingSection.astro";
@@ -20,20 +20,9 @@ import {
   Smartphone,
   MessageSquare,
   TrendingUp,
-  Car,
-  Truck,
-  ShoppingBag,
-  FileSignature,
-  PhoneCall,
-  Contact,
-  Send,
   Puzzle,
   ArrowRight,
   ChevronDown,
-  Monitor,
-  Clock,
-  GitBranch,
-  Globe,
 } from "lucide-astro";
 
 interface Props {
@@ -308,137 +297,6 @@ const after: Section[] = [
   },
 ];
 
-type Plugin = {
-  id: string;
-  icon: IconComponent;
-  title: string;
-  teaser: string;
-  body: string;
-  bullets?: string[];
-};
-
-const plugins: Plugin[] = [
-  {
-    id: "dealership",
-    icon: Car,
-    title: "Dealership Inventory Wizard",
-    teaser:
-      "Swipe-to-browse inventory, a 6-step lead wizard, and test-drive booking — built for one dealership, ready for the next.",
-    body: "Inventory syncs straight in. A caller asks for \"a red SUV under $25k,\" gets a magic link, and can finish a deal — vehicle, trade-in, credit, documents, deposit — without ever calling back.",
-    bullets: [
-      "Public inventory search by make, price, and condition",
-      "Magic-link deal flow: Vehicle → Contact → Trade-In → Credit → Documents → Deposit",
-      "Test-drive booking tied straight to the lead",
-      "Voice widget on the inventory page for hands-free browsing",
-    ],
-  },
-  {
-    id: "fleet",
-    icon: Truck,
-    title: "Fleet Tracking",
-    teaser:
-      "Live GPS for every van, truck, and field crew — on a map dispatch can actually use.",
-    body: "Built for businesses running delivery vans or service trucks. Assign a vehicle to a driver's sign-in and location pings start the moment they open the app — no extra hardware.",
-  },
-  {
-    id: "inventory",
-    icon: ShoppingBag,
-    title: "Multi-Channel Inventory Sync",
-    teaser:
-      "One stock view across Shopify, WooCommerce, Square, and the platforms you already sell on — query from admin or the agent.",
-    body: "Retailers and brands often run a Shopify storefront, a WooCommerce wholesale site, and Square at the counter. inventory-api normalizes SKU, price, and quantity into one shape the agent can search — then map into Crater quotes when billing is on.",
-    bullets: [
-      "Shopify, WooCommerce, and Square provider slots (live sync when a client prioritizes it)",
-      "Mock multi-channel catalog for demos and sales conversations today",
-      "Agent tools: search_inventory, get_inventory_product, list_inventory_channels",
-      "Separate inventory-api microservice on Railway — same pattern as materials-api",
-    ],
-  },
-  {
-    id: "documents",
-    icon: FileSignature,
-    title: "Document Signing",
-    teaser:
-      "Proposals and contracts that get signed on the same portal the client already trusts.",
-    body: "Templates for the paperwork that actually needs a signature, surfaced right on the client's Documents tab — no separate e-sign tool to log into.",
-  },
-  {
-    id: "voice",
-    icon: PhoneCall,
-    title: "Voice & Call Routing",
-    teaser:
-      "A voice widget on your homepage, plus real call routing — answer, qualify, hand off, or book, without anyone picking up the phone.",
-    body: "One layer handles the conversation, another routes the actual call. Together they cover a caller from \"hello\" all the way to \"booked.\"",
-  },
-  {
-    id: "carddav",
-    icon: Contact,
-    title: "CardDAV Contact Sync",
-    teaser:
-      "The master client list, live in the iPhone Contacts app — no Google account, no iCloud detour.",
-    body: "One CardDAV account, set up once in iOS Settings, and every contact you add in the dashboard shows up on your phone exactly the way it always has.",
-  },
-  {
-    id: "newsletter",
-    icon: Send,
-    title: "Newsletter & Lifecycle Email",
-    teaser:
-      "Welcome emails, follow-ups, review requests, and win-back campaigns — sent automatically, on a schedule you set once.",
-    body: "Every lifecycle and broadcast email renders through a shared branded HTML wrapper — your logo, styled CTA, optional QR code — then sends server-side via Resend from your domain. Built-in templates cover welcome, check-in, thank-you, review request, and re-engagement without a separate ESP login.",
-    bullets: [
-      "HTML templates built for real inboxes — table layout, inline fallbacks, prefers-color-scheme dark mode",
-      "Resend API delivery from your domain (DKIM/SPF synced from admin) — not a no-reply@ vendor address",
-      "Automations fire on new contact, project complete, and timed follow-ups — no Zapier chain",
-      "Broadcast to all clients or a hand-picked list from the admin Newsletter tab",
-      "CAN-SPAM footer and one-click unsubscribe on every marketing send",
-      "Send log shows queued, sent, and skipped — with dedup so nobody gets spammed twice",
-    ],
-  },
-  {
-    id: "monitoring",
-    icon: Monitor,
-    title: "Site Monitoring & Audits",
-    teaser:
-      "Uptime checks, change detection, and Lighthouse-style audits — so you know before the client does.",
-    body: "Three layers watch client sites from the admin dashboard: UptimeRobot for downtime, ChangeDetection.io for content changes, and built-in audits for SSL, DNS, broken links, and Lighthouse scores. Alerts land in the smart inbox instead of a separate monitoring tab you'll forget to check.",
-    bullets: [
-      "UptimeRobot sync — auto-discover production domains and import monitors",
-      "Change detection watches key pages and diffs what changed",
-      "Site audits: Lighthouse performance, SSL expiry, DNS records, broken links",
-      "Agent tools can run audits and summarize results in chat",
-    ],
-  },
-  {
-    id: "time-tracking",
-    icon: Clock,
-    title: "Project Time Tracking",
-    teaser:
-      "Log hours and notes on any project — then bridge straight into invoicing.",
-    body: "Optional time log on each job: start/stop timers or manual entries with notes. When billing is enabled, the agent can suggest invoice line items from logged hours instead of reconstructing the week from memory.",
-    bullets: [
-      "Per-project time entries with hours and optional notes",
-      "Invoice suggestions pull unbilled hours into Crater line items",
-      "Enabled per install — off by default for businesses that don't bill hourly",
-    ],
-  },
-  {
-    id: "dev-infra",
-    icon: GitBranch,
-    title: "Dev & Deploy Infrastructure",
-    teaser:
-      "Git, Railway, Kinsta, and deploy status — for agency installs that ship code, not just configure.",
-    body: "Agency-facing tooling: inspect repos, trigger deploys, read Railway logs, and manage hosting from the same admin the client never sees. The agent can check deploy status and answer \"did my push go live?\" without opening four dashboards.",
-  },
-  {
-    id: "namecom-dns",
-    icon: Globe,
-    title: "DNS Record Management",
-    teaser:
-      "Add and edit Name.com DNS records from admin — no separate registrar login during launch week.",
-    body: "For agency installs managing client domains: list, create, and update DNS records through agent tools or admin flows. Credentials can come from the client vault when no global registrar token is configured.",
-  },
-];
-
 const portalTabs = [
   {
     name: "Overview",
@@ -523,6 +381,7 @@ const customPrompts: PromptExample[] = [
         <span class="fx-chip">Read receipts & engagement</span>
         <span class="fx-chip">Plug in only what you need</span>
         <a class="fx-chip fx-chip--link" href="/pricing">Installation tiers &amp; pricing</a>
+        <a class="fx-chip fx-chip--link" href="/modules">Optional modules</a>
       </div>
     </section>
 
@@ -744,46 +603,8 @@ const customPrompts: PromptExample[] = [
           ))
         }
       </ul>
-    </section>
-
-    <section class="fx-plugins scroll-fade-in" aria-label="Plugins">
-      <p class="fx-plugins-kicker">The last 10%</p>
-      <h2 class="fx-plugins-h2">Bolt on what makes this client 100%.</h2>
-      <p class="fx-plugins-lead">
-        The core OS above is the 90% — it ships everywhere. Everything below is
-        opt-in: flipped on per install, per client, in one config line. Dealership
-        inventory, fleet tracking, e-sign, voice routing — built once, reused on the
-        next install that needs it.
-      </p>
-
-      <div class="acc-list acc-list--plugins" data-acc-list>
-        {
-          plugins.map((p) => {
-            const Icon = p.icon;
-            return (
-              <div class="acc-item acc-item--plugin scroll-fade-in" data-acc-item id={`plugin-${p.id}`}>
-                <button type="button" class="acc-trigger" aria-expanded="true">
-                  <span class="acc-icon acc-icon--plugin"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
-                  <span class="acc-heading">
-                    <span class="acc-title">{p.title}</span>
-                    <span class="acc-teaser">{p.teaser}</span>
-                  </span>
-                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
-                </button>
-                <div class="acc-panel">
-                  <div class="acc-panel-inner">
-                    <p>{p.body}</p>
-                    {p.bullets && (
-                      <ul class="acc-bullets">
-                        {p.bullets.map((b) => <li>{b}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        }
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--ghost brand-btn-glass" href="/modules">Browse optional modules</a>
       </div>
     </section>
 
@@ -931,7 +752,6 @@ const customPrompts: PromptExample[] = [
   .fx-list,
   .fx-examples,
   .fx-custom,
-  .fx-plugins,
   .fx-built-with,
   .fx-closing {
     width: 100%;
@@ -954,7 +774,6 @@ const customPrompts: PromptExample[] = [
   .fx-stack-kicker,
   .fx-examples-kicker,
   .fx-custom-kicker,
-  .fx-plugins-kicker,
   .fx-built-with-kicker {
     font-family: var(--font-secondary);
   }
@@ -963,7 +782,6 @@ const customPrompts: PromptExample[] = [
   .fx-stack-lead,
   .fx-examples-lead,
   .fx-custom-lead,
-  .fx-plugins-lead,
   .fx-built-with-lead,
   .fx-closing-lead {
     font-family: var(--font-content);
@@ -1494,62 +1312,6 @@ const customPrompts: PromptExample[] = [
     font-size: 0.76rem;
     line-height: 1.4;
     color: rgba(255, 255, 255, 0.5);
-  }
-
-  /* ---------- Plugins ---------- */
-
-  .fx-plugins {
-    margin-top: 56px;
-    padding: 32px clamp(16px, 4vw, 32px);
-    border: 1px dashed rgba(56, 189, 248, 0.32);
-    border-radius: 24px;
-    background: radial-gradient(
-        ellipse 120% 100% at 50% -10%,
-        rgba(56, 189, 248, 0.08) 0%,
-        transparent 60%
-      ),
-      rgba(255, 255, 255, 0.015);
-  }
-
-  .fx-plugins-kicker {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #38bdf8;
-    margin: 0 0 10px;
-    text-align: center;
-  }
-
-  .fx-plugins-h2 {
-    margin: 0 0 12px;
-    font-size: clamp(1.3rem, 3.4vw, 1.7rem);
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: #fff;
-    text-align: center;
-  }
-
-  .fx-plugins-lead {
-    margin: 0 auto 26px;
-    max-width: 560px;
-    font-size: 0.92rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.58);
-    text-align: center;
-  }
-
-  .acc-item--plugin .acc-icon--plugin {
-    background: rgba(56, 189, 248, 0.14);
-    color: #7dd3fc;
-  }
-
-  .acc-item--plugin.open {
-    border-color: rgba(56, 189, 248, 0.32);
-  }
-
-  .acc-item--plugin.open .acc-chev {
-    color: #7dd3fc;
   }
 
   /* ---------- Built-with stack ---------- */

@@ -1,10 +1,10 @@
 /**
  * Installation tier pricing + feature allocation for /pricing (and /features when embedded).
- * Feature labels and anchors stay aligned with accordion ids on the features page.
+ * Feature labels and anchors deep-link to /features or /modules.
  */
 export type TierFeatureRef = {
   label: string;
-  /** Deep-link anchor on /features — e.g. #feature-contacts */
+  /** Deep-link — e.g. /features#feature-contacts or /modules#plugin-fleet */
   href?: string;
 };
 
@@ -31,14 +31,14 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month3: 500,
     month4Plus: 250,
     features: [
-      { label: 'Contacts & CRM', href: '#feature-contacts' },
-      { label: 'Client portal', href: '#feature-portal' },
-      { label: 'Projects & checklists', href: '#feature-projects' },
-      { label: 'Smart inbox & email triage', href: '#feature-email' },
-      { label: 'AI admin agent', href: '#feature-ai-assistant' },
-      { label: 'Knowledge base', href: '#feature-learning' },
-      { label: 'White-label branding', href: '#feature-white-label' },
-      { label: 'Mobile PWA & push alerts', href: '#feature-mobile' },
+      { label: 'Contacts & CRM', href: '/features#feature-contacts' },
+      { label: 'Client portal', href: '/features#feature-portal' },
+      { label: 'Projects & checklists', href: '/features#feature-projects' },
+      { label: 'Smart inbox & email triage', href: '/features#feature-email' },
+      { label: 'AI admin agent', href: '/features#feature-ai-assistant' },
+      { label: 'Knowledge base', href: '/features#feature-learning' },
+      { label: 'White-label branding', href: '/features#feature-white-label' },
+      { label: 'Mobile PWA & push alerts', href: '/features#feature-mobile' },
     ],
   },
   {
@@ -52,12 +52,12 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month4Plus: 375,
     features: [
       { label: 'Everything in Tier 4' },
-      { label: 'Billing & invoicing', href: '#feature-billing' },
-      { label: 'Scheduling & booking', href: '#feature-scheduling' },
-      { label: 'Two-way SMS', href: '#feature-sms' },
-      { label: 'Siri shortcuts', href: '#feature-siri' },
-      { label: 'CardDAV contact sync', href: '#plugin-carddav' },
-      { label: 'Project time tracking', href: '#plugin-time-tracking' },
+      { label: 'Billing & invoicing', href: '/features#feature-billing' },
+      { label: 'Scheduling & booking', href: '/features#feature-scheduling' },
+      { label: 'Two-way SMS', href: '/features#feature-sms' },
+      { label: 'Siri shortcuts', href: '/features#feature-siri' },
+      { label: 'CardDAV contact sync', href: '/modules#plugin-carddav' },
+      { label: 'Project time tracking', href: '/modules#plugin-time-tracking' },
     ],
   },
   {
@@ -71,12 +71,12 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month4Plus: 500,
     features: [
       { label: 'Everything in Tier 3' },
-      { label: 'Branded public website', href: '#feature-white-label' },
-      { label: 'Voice & call routing', href: '#plugin-voice' },
-      { label: 'Document signing', href: '#plugin-documents' },
-      { label: 'Newsletters, social & analytics', href: '#feature-growth' },
-      { label: 'Read receipts & engagement', href: '#feature-growth' },
-      { label: 'Site audits, uptime & change monitoring', href: '#plugin-monitoring' },
+      { label: 'Branded public website', href: '/features#feature-white-label' },
+      { label: 'Voice & call routing', href: '/modules#plugin-voice' },
+      { label: 'Document signing', href: '/modules#plugin-documents' },
+      { label: 'Newsletters, social & analytics', href: '/features#feature-growth' },
+      { label: 'Read receipts & engagement', href: '/features#feature-growth' },
+      { label: 'Site audits, uptime & change monitoring', href: '/modules#plugin-monitoring' },
     ],
   },
   {
@@ -90,11 +90,11 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month4Plus: 625,
     features: [
       { label: 'Everything in Tier 2' },
-      { label: 'Dealership inventory wizard', href: '#plugin-dealership' },
-      { label: 'Fleet GPS tracking', href: '#plugin-fleet' },
-      { label: 'Dev & deploy infrastructure', href: '#plugin-dev-infra' },
-      { label: 'DNS record management', href: '#plugin-namecom-dns' },
-      { label: 'Any remaining optional plugins', href: '#feature-ninety' },
+      { label: 'Dealership inventory wizard', href: '/modules#plugin-dealership' },
+      { label: 'Fleet GPS tracking', href: '/modules#plugin-fleet' },
+      { label: 'Dev & deploy infrastructure', href: '/modules#plugin-dev-infra' },
+      { label: 'DNS record management', href: '/modules#plugin-namecom-dns' },
+      { label: 'Any remaining optional plugins', href: '/modules' },
     ],
   },
 ];
