@@ -97,8 +97,9 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   showCopyButtonFeedback,
+  bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260803b';
-import { showAdminConfirmBanner, installPwaNavGuard } from './push-client.js?v=20260804a';
+import { installPwaNavGuard } from './push-client.js?v=20260804a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync } from './shared.js?v=20260804b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
@@ -10606,27 +10607,11 @@ async function deleteEmail(ev) {
   }
 }
 
-function bulkDeleteBannerBody(tab, count) {
-  const label = tab.label.toLowerCase();
-  if (tab.id === 'junk') {
-    return `<p>${count} junk message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`;
-  }
-  return `<p>${count} ${escHtml(label)} message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`;
-}
-
 async function bulkDeleteInboxCategory(tab) {
   closeOpenSwipeRow();
   const events = inboxEventsForFilter();
   const count = events.length;
   if (count === 0 || tab.id === 'all') return;
-
-  const ok = await showAdminConfirmBanner({
-    title: `Delete all ${tab.label.toLowerCase()}?`,
-    bodyHtml: bulkDeleteBannerBody(tab, count),
-    confirmLabel: 'Delete all',
-    danger: true,
-  });
-  if (!ok) return;
 
   const ids = events.map((ev) => ev.id);
   const idSet = new Set(ids);
@@ -11024,7 +11009,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
         `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
       btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
       btn.title = `Delete all ${tab.label.toLowerCase()} messages`;
-      btn.addEventListener('click', () => bulkDeleteInboxCategory(tab));
+      bindConfirmDeleteButton(btn, () => bulkDeleteInboxCategory(tab), { ringSize: 44 });
     } else if (isAllRefresh) {
       btn.innerHTML =
         `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +

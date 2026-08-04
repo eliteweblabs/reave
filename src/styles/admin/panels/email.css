@@ -135,6 +135,12 @@
   width: 14px;
   height: 14px;
 }
+.em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] {
+  color: #f87171;
+}
+.em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] .em-filter-tab-label {
+  opacity: 0.72;
+}
 .em-filter-tab--refresh .em-filter-refresh-icon {
   display: inline-flex;
   align-items: center;
