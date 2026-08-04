@@ -33,8 +33,6 @@ const SLASH_CHAR_MS = 38;
 const ASSISTANT_RESPONSE_DELAY_MS = 420;
 /** Short generic typing dots — not the full "thinking" duration. */
 const TYPING_DOTS_MS = 480;
-/** Gap between dots disappearing and the reply appearing. */
-const MESSAGE_REVEAL_PAUSE_MS = 320;
 /** How long in-progress status lines show animated ellipsis. */
 const STATUS_HOLD_MS = 950;
 
@@ -98,19 +96,55 @@ function stripStatusEllipsis(text: string): string {
   return text;
 }
 
-function createStatusMessage(turn: HeroDemoTurn, root: HTMLElement): HTMLElement {
-  const row = createMessage({ ...turn, text: stripStatusEllipsis(turn.text) }, root);
-  row.classList.add("home-hero-demo-msg--status");
+function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: boolean): void {
+  row.classList.remove("home-hero-demo-msg--typing");
+  row.removeAttribute("aria-label");
 
-  const textEl = row.querySelector<HTMLElement>(".home-hero-demo-bubble-text");
-  if (textEl) {
+  const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
+  if (!bubble) return;
+
+  bubble.classList.remove("home-hero-demo-bubble--typing");
+  bubble.removeAttribute("aria-hidden");
+  bubble.replaceChildren();
+
+  const text = document.createElement("p");
+  text.className = "home-hero-demo-bubble-text";
+
+  if (isStatus) {
+    text.textContent = stripStatusEllipsis(turn.text);
     const ellipsis = document.createElement("span");
     ellipsis.className = "home-hero-demo-ellipsis";
     ellipsis.setAttribute("aria-hidden", "true");
-    textEl.appendChild(ellipsis);
+    text.appendChild(ellipsis);
+    row.classList.add("home-hero-demo-msg--status");
+  } else {
+    text.textContent = turn.text;
   }
 
-  return row;
+  bubble.appendChild(text);
+
+  if (turn.actions?.length) {
+    bubble.appendChild(renderActions(turn.actions));
+  }
+}
+
+function morphStatusToReply(row: HTMLElement, turn: HeroDemoTurn): void {
+  row.classList.remove("home-hero-demo-msg--status");
+  delete row.dataset.heroAwaitingReply;
+
+  const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
+  if (!bubble) return;
+
+  bubble.replaceChildren();
+
+  const text = document.createElement("p");
+  text.className = "home-hero-demo-bubble-text";
+  text.textContent = turn.text;
+  bubble.appendChild(text);
+
+  if (turn.actions?.length) {
+    bubble.appendChild(renderActions(turn.actions));
+  }
 }
 
 function renderActions(actions: HeroDemoAction[]): HTMLElement {
@@ -127,42 +161,6 @@ function renderActions(actions: HeroDemoAction[]): HTMLElement {
   }
 
   return wrap;
-}
-
-function createMessage(turn: HeroDemoTurn, root: HTMLElement): HTMLElement {
-  const role = turn.role;
-  const kind = turn.kind ?? "voice";
-
-  const row = document.createElement("div");
-  row.className = `home-hero-demo-msg home-hero-demo-msg--${role}`;
-  row.setAttribute("role", "listitem");
-
-  const bubble = document.createElement("div");
-  bubble.className = "home-hero-demo-bubble";
-  if (kind === "slash" && role === "user") {
-    bubble.classList.add("home-hero-demo-bubble--slash");
-  }
-
-  const text = document.createElement("p");
-  text.className = "home-hero-demo-bubble-text";
-  text.textContent = turn.text;
-  bubble.appendChild(text);
-
-  if (role === "assistant" && turn.actions?.length) {
-    bubble.appendChild(renderActions(turn.actions));
-  }
-
-  const avatar = cloneAvatar(role, root);
-
-  if (role === "user") {
-    row.appendChild(bubble);
-    row.appendChild(avatar);
-  } else {
-    row.appendChild(avatar);
-    row.appendChild(bubble);
-  }
-
-  return row;
 }
 
 function createUserComposingShell(root: HTMLElement, kind: "voice" | "slash"): HTMLElement {
@@ -365,13 +363,30 @@ async function playAssistantTurn(
   iconEl: HTMLElement | null,
   reducedMotion: boolean,
   isAlive: () => boolean,
-): Promise<void> {
+  priorAssistantRow: HTMLElement | null,
+): Promise<HTMLElement | null> {
   const relayout = () => refreshStackLayout(viewport, stack, iconEl);
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
 
+  // Status line → reply in the same bubble (no second bubble).
+  if (!isStatus && priorAssistantRow?.dataset.heroAwaitingReply === "1") {
+    await wait(ASSISTANT_RESPONSE_DELAY_MS);
+    if (!isAlive()) return priorAssistantRow;
+    morphStatusToReply(priorAssistantRow, turn);
+    relayout();
+
+    if (turn.actions?.length) {
+      await wait(ACTION_PRESS_MS + 400);
+      if (!isAlive()) return priorAssistantRow;
+      await simulateActionPress(priorAssistantRow);
+    }
+
+    return priorAssistantRow;
+  }
+
   await wait(ASSISTANT_RESPONSE_DELAY_MS);
-  if (!isAlive()) return;
+  if (!isAlive()) return null;
 
   const dotsMs = isStatus
     ? TYPING_DOTS_MS
@@ -384,29 +399,25 @@ async function playAssistantTurn(
   sceneEl.appendChild(typing);
   relayout();
   await wait(dotsMs);
-  if (!isAlive()) return;
-  typing.remove();
+  if (!isAlive()) return null;
 
-  await wait(MESSAGE_REVEAL_PAUSE_MS);
-  if (!isAlive()) return;
-
-  const row = isStatus ? createStatusMessage(turn, root) : createMessage(turn, root);
-  if (!reducedMotion) row.classList.add("home-hero-demo-msg--enter");
-  sceneEl.appendChild(row);
+  morphTypingToMessage(typing, turn, isStatus);
   relayout();
 
   if (isStatus) {
+    typing.dataset.heroAwaitingReply = "1";
     await wait(turn.pauseMs ?? STATUS_HOLD_MS);
-    if (!isAlive()) return;
-    row.classList.remove("home-hero-demo-msg--status");
+    if (!isAlive()) return typing;
     relayout();
   }
 
   if (turn.actions?.length) {
     await wait(ACTION_PRESS_MS + 400);
-    if (!isAlive()) return;
-    await simulateActionPress(row);
+    if (!isAlive()) return typing;
+    await simulateActionPress(typing);
   }
+
+  return typing;
 }
 
 async function simulateActionPress(row: HTMLElement): Promise<void> {
@@ -513,11 +524,14 @@ export function initHeroDemoLoop(root: HTMLElement) {
     sceneEl.dataset.sceneId = scene.id;
     stack.appendChild(sceneEl);
 
+    let lastAssistantRow: HTMLElement | null = null;
+
     for (let i = 0; i < scene.turns.length; i++) {
       const turn = scene.turns[i]!;
       if (!running) return;
 
       if (turn.role === "user") {
+        lastAssistantRow = null;
         if (i > 0 || turn.pauseMs != null) {
           const pause = turn.pauseMs ?? DEFAULT_USER_PAUSE_MS;
           await wait(pause);
@@ -536,7 +550,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
-      await playAssistantTurn(
+      lastAssistantRow = await playAssistantTurn(
         turn,
         root,
         sceneEl,
@@ -545,6 +559,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         iconEl,
         reducedMotion,
         () => running,
+        lastAssistantRow,
       );
     }
 
