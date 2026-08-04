@@ -358,7 +358,7 @@ async function typeText(
  * reads the same whether or not the lane has started to overflow, and a layout
  * pass costs no per-message geometry at all.
  */
-const DEPTH_PER_MESSAGE = 0.05;
+const DEPTH_PER_MESSAGE = 0.025;
 
 const STACK_INSTANT_CLASS = "home-hero-demo-stack--instant";
 
