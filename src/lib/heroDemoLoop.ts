@@ -10,7 +10,7 @@ import {
   type HeroDemoTurn,
 } from "./heroDemoConversation";
 
-const ENGAGED_KEY = "hero-demo-engaged-v2";
+const ENGAGED_KEY = "hero-demo-engaged-v3";
 const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 5200;
@@ -321,13 +321,24 @@ export function initHeroDemoLoop(root: HTMLElement) {
     }, SCENE_EXIT_MS);
   };
 
-  document.addEventListener("pointerdown", stop, { once: true, passive: true });
-  document.addEventListener("keydown", stop, { once: true });
-
-  // iOS fires scroll on load (address bar, layout) — ignore until armed and past a real offset.
+  // iOS fires scroll/pointer noise on load (address bar, layout) — ignore until armed.
   window.setTimeout(() => {
     engageArmed = true;
   }, 2500);
+
+  const onEngagePointer = () => {
+    if (!engageArmed || !running) return;
+    document.removeEventListener("pointerdown", onEngagePointer);
+    stop();
+  };
+  document.addEventListener("pointerdown", onEngagePointer, { passive: true });
+
+  const onEngageKey = () => {
+    if (!engageArmed || !running) return;
+    document.removeEventListener("keydown", onEngageKey);
+    stop();
+  };
+  document.addEventListener("keydown", onEngageKey);
 
   const onScroll = () => {
     if (!engageArmed || !running) return;

@@ -183,11 +183,6 @@ const demoScenes = HERO_DEMO_SCENES;
     overflow: hidden;
   }
 
-  /*
-   * Fade chat under the icon. Mask the stack itself — not the viewport wrapper.
-   * WebKit iOS hides descendants when mask-image is on a parent with overflow:hidden;
-   * masking the content element avoids that and skips a dark ::before overlay (solid black on iOS).
-   */
   .home-hero-demo-stack {
     position: absolute;
     left: 0;
@@ -201,20 +196,32 @@ const demoScenes = HERO_DEMO_SCENES;
     text-align: left;
     transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.45) 16%,
-      rgba(0, 0, 0, 0.85) 34%,
-      #000 50%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.45) 16%,
-      rgba(0, 0, 0, 0.85) 34%,
-      #000 50%
-    );
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /*
+   * Fade chat under the icon on desktop only. mask-image and dark viewport overlays
+   * both break on iOS Safari (invisible messages or a solid black box) — touch
+   * devices rely on icon z-index + per-message depth opacity instead.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .home-hero-demo-stack {
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.45) 16%,
+        rgba(0, 0, 0, 0.85) 34%,
+        #000 50%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.45) 16%,
+        rgba(0, 0, 0, 0.85) 34%,
+        #000 50%
+      );
+    }
   }
 
   .home-hero-copy {
