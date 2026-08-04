@@ -208,9 +208,9 @@ function messageDepth(msgCenterY: number, depthTop: number, depthBottom: number)
 function applyMessageDepth(msg: HTMLElement, depth: number) {
   const isUser = msg.classList.contains("home-hero-demo-msg--user");
   const origin = isUser ? "bottom right" : "bottom left";
-  const scale = 1 - depth * 0.08;
-  const opacity = 1 - depth * 0.82;
-  const blur = depth * 2.8;
+  const scale = 1 - depth * 0.054;
+  const opacity = 1 - depth * 0.55;
+  const blur = depth * 1.88;
 
   msg.style.transformOrigin = origin;
   msg.style.transform = `scale(${scale.toFixed(3)})`;
