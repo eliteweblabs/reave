@@ -10,7 +10,7 @@ import {
   type HeroDemoTurn,
 } from "./heroDemoConversation";
 
-const ENGAGED_KEY = "hero-demo-engaged-v4";
+const ENGAGED_KEY = "hero-demo-engaged-v5";
 const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 5200;
@@ -202,14 +202,18 @@ function refreshStackLayout(
   stack: HTMLElement,
   iconEl: HTMLElement | null,
 ) {
-  const overflow = Math.max(0, stack.scrollHeight - viewport.clientHeight);
+  const vRect = viewport.getBoundingClientRect();
+  if (vRect.height < 8) return;
+
+  const overflow = Math.max(0, stack.scrollHeight - vRect.height);
   stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
 
-  const viewportRect = viewport.getBoundingClientRect();
   const iconRect = iconEl?.getBoundingClientRect();
-  const fadeEnd = iconRect ? iconRect.bottom + 16 : viewportRect.top + viewportRect.height * 0.5;
-  const fadeStart = viewportRect.top - 32;
-  const fadeSpan = Math.max(1, fadeEnd - fadeStart);
+  // Fade zone in viewport-local coordinates — avoids iOS svh/dvh rect mismatches.
+  const fadeEndY = iconRect
+    ? Math.min(vRect.height, Math.max(0, iconRect.bottom - vRect.top + 24))
+    : vRect.height * 0.38;
+  const fadeSpan = Math.max(48, fadeEndY);
 
   for (const msg of stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")) {
     if (msg.classList.contains("home-hero-demo-msg--typing")) {
@@ -218,9 +222,13 @@ function refreshStackLayout(
     }
 
     const rect = msg.getBoundingClientRect();
-    const msgCenter = (rect.top + rect.bottom) / 2;
-    const t = (msgCenter - fadeStart) / fadeSpan;
-    msg.style.opacity = String(smoothstep(t));
+    const msgCenterY = (rect.top + rect.bottom) / 2 - vRect.top;
+
+    if (msgCenterY >= fadeEndY) {
+      msg.style.opacity = "1";
+    } else {
+      msg.style.opacity = String(smoothstep(msgCenterY / fadeSpan));
+    }
   }
 }
 
@@ -340,7 +348,12 @@ export function initHeroDemoLoop(root: HTMLElement) {
   syncHeroCopyHeight(hero, copyEl);
   if (copyEl) new ResizeObserver(() => syncHeroCopyHeight(hero, copyEl)).observe(copyEl);
   if (iconEl) new ResizeObserver(relayout).observe(iconEl);
+  new ResizeObserver(relayout).observe(viewport);
   window.addEventListener("resize", relayout, { passive: true });
+  document.fonts?.ready?.then(relayout);
+  requestAnimationFrame(relayout);
+  window.setTimeout(relayout, 150);
+  window.setTimeout(relayout, 600);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let sceneIndex = Math.floor(Math.random() * scenes.length);
@@ -356,11 +369,11 @@ export function initHeroDemoLoop(root: HTMLElement) {
     }, SCENE_EXIT_MS);
   };
 
-  // Only stop when the visitor scrolls past the hero — not on taps or iOS layout noise.
+  // Only stop after deliberate scroll well past the hero — ignore iOS address-bar jitter.
   const onScroll = () => {
-    if (!running) return;
+    if (!running || window.scrollY < 120) return;
     const rect = hero.getBoundingClientRect();
-    if (rect.bottom > window.innerHeight * 0.4) return;
+    if (rect.top > -rect.height * 0.35) return;
     window.removeEventListener("scroll", onScroll);
     stop();
   };

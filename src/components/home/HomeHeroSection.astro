@@ -106,15 +106,12 @@ const demoScenes = HERO_DEMO_SCENES;
     mix-blend-mode: soft-light;
   }
 
-  /* Icon — highest layer, ~⅓ down from header */
+  /* Icon — highest layer, ~⅓ down from the top of the hero */
   .home-hero-icon-wrap {
     position: absolute;
     z-index: 10;
     left: 50%;
-    top: calc(
-      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))
-      + (100svh - var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))) * 0.28
-    );
+    top: 30%;
     transform: translate(-50%, -50%);
     width: clamp(150px, 32vw, 240px);
     height: clamp(150px, 32vw, 240px);
@@ -202,24 +199,22 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: translateY(-1px);
   }
 
-  /* Chat — fills space between icon and copy; content scrolls up inside */
+  /* Chat — between icon and copy; above headline so bubbles stay visible on iOS */
   .home-hero-demo {
     position: absolute;
-    z-index: 3;
+    z-index: 8;
     left: 50%;
     transform: translateX(-50%);
     width: min(100%, 540px);
     padding: 0 20px;
-    top: calc(
-      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))
-      + (100svh - var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))) * 0.44
-    );
-    bottom: calc(var(--home-hero-copy-h) + 12px);
+    top: 46%;
+    bottom: calc(var(--home-hero-copy-h, 168px) + 16px);
+    min-height: 140px;
     pointer-events: none;
   }
 
   .home-hero-demo[hidden] {
-    visibility: hidden;
+    display: none;
   }
 
   .home-hero-demo--stopped {
@@ -271,6 +266,7 @@ const demoScenes = HERO_DEMO_SCENES;
     width: 100%;
     margin: 0;
     padding: 0;
+    opacity: 1;
     transition: opacity 0.35s ease;
   }
 
