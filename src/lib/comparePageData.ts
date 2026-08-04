@@ -1,5 +1,18 @@
 /** Infographic / compare page content — cited industry stats + three-way positioning. */
 
+/** Top-down flow sections on /compare (order matters). */
+export const COMPARE_FLOW_STEPS = [
+  { id: 'waste', label: 'Overspending' },
+  { id: 'utilization', label: 'Under-utilization' },
+  { id: 'spectrum', label: 'Waste spectrum' },
+  { id: 'paths', label: 'Three paths' },
+  { id: 'model', label: '90 / 10 model' },
+  { id: 'matrix', label: 'Feature matrix' },
+  { id: 'cost', label: 'Cost comparison' },
+] as const;
+
+export type CompareFlowStepId = (typeof COMPARE_FLOW_STEPS)[number]['id'];
+
 export type SpectrumTier = {
   id: string;
   severity: 'Mild' | 'Moderate' | 'Serious' | 'Severe' | 'Critical';
