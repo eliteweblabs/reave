@@ -7,10 +7,10 @@ import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveBgPattern from "../../components/ReaveBgPattern.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
-import { HERO_DEMO_EXCHANGES } from "../../lib/heroDemoConversation";
+import { HERO_DEMO_SCENES } from "../../lib/heroDemoConversation";
 
 const company = await getCompanyConfig(Astro.request);
-const demoExchanges = HERO_DEMO_EXCHANGES;
+const demoScenes = HERO_DEMO_SCENES;
 ---
 
 <section
@@ -23,38 +23,42 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
   <div class="home-hero-center">
-    <div class="home-hero-icon-wrap">
-      <BrandIconInline company={company} />
-    </div>
+    <div class="home-hero-chat-stage">
+      <div class="home-hero-icon-wrap">
+        <BrandIconInline company={company} />
+      </div>
 
-    <div
-      class="home-hero-demo"
-      data-hero-demo
-      data-exchanges={JSON.stringify(demoExchanges)}
-      aria-live="polite"
-      aria-atomic="false"
-    >
-      <template id="hero-demo-agent-avatar">
-        <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-          <ReaveIcon class="home-hero-demo-avatar-icon" />
-        </span>
-      </template>
-      <template id="hero-demo-user-avatar">
-        <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
-          <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <defs>
-              <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#64748b"/>
-                <stop offset="100%" stop-color="#334155"/>
-              </linearGradient>
-            </defs>
-            <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
-            <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
-            <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
-          </svg>
-        </span>
-      </template>
-      <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
+      <div
+        class="home-hero-demo"
+        data-hero-demo
+        data-scenes={JSON.stringify(demoScenes)}
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        <template id="hero-demo-agent-avatar">
+          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
+            <ReaveIcon class="home-hero-demo-avatar-icon" />
+          </span>
+        </template>
+        <template id="hero-demo-user-avatar">
+          <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
+            <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#64748b"/>
+                  <stop offset="100%" stop-color="#334155"/>
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
+              <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
+              <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
+            </svg>
+          </span>
+        </template>
+        <div class="home-hero-demo-viewport" data-hero-demo-viewport>
+          <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
+        </div>
+      </div>
     </div>
 
     <div class="home-hero-copy">
@@ -154,12 +158,33 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
     pointer-events: auto;
   }
 
-  .home-hero-icon-wrap {
+  .home-hero-chat-stage {
     position: relative;
-    z-index: 1;
-    width: clamp(180px, 35vw, 280px);
-    height: clamp(180px, 35vw, 280px);
+    width: 100%;
+    max-width: 540px;
+    min-height: clamp(220px, 34vw, 300px);
     flex-shrink: 0;
+  }
+
+  .home-hero-icon-wrap {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    top: 0;
+    width: clamp(150px, 30vw, 240px);
+    height: clamp(150px, 30vw, 240px);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .home-hero-icon-wrap::after {
+    content: "";
+    position: absolute;
+    inset: -18%;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(5, 5, 8, 0.94) 42%, rgba(5, 5, 8, 0.55) 62%, transparent 78%);
+    pointer-events: none;
   }
 
   .home-hero-icon-wrap :global(svg),
@@ -171,24 +196,71 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
   }
 
   .home-hero-demo {
-    width: 100%;
-    min-height: 7.5rem;
-    display: flex;
-    justify-content: center;
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: clamp(72px, 16vw, 118px);
     pointer-events: none;
+    transition: opacity 0.85s ease;
   }
 
   .home-hero-demo[hidden] {
     display: none;
   }
 
+  .home-hero-demo--stopped {
+    opacity: 0;
+  }
+
+  .home-hero-demo-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.25) 14%,
+      rgba(0, 0, 0, 0.72) 32%,
+      #000 48%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.25) 14%,
+      rgba(0, 0, 0, 0.72) 32%,
+      #000 48%
+    );
+  }
+
   .home-hero-demo-stack {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    justify-content: flex-end;
+    gap: 0;
     width: 100%;
-    max-width: 520px;
     text-align: left;
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  .home-hero-demo-scene {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 2px;
+    transition: opacity 0.85s ease, transform 0.85s ease;
+  }
+
+  .home-hero-demo-scene--exit {
+    opacity: 0;
+    transform: translateY(-12px);
   }
 
   .home-hero-copy {
@@ -270,7 +342,17 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
     width: 100%;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
+    transition: opacity 0.45s ease;
   }
+
+  .home-hero-demo-msg[data-depth="0"] { opacity: 1; }
+  .home-hero-demo-msg[data-depth="1"] { opacity: 0.78; }
+  .home-hero-demo-msg[data-depth="2"] { opacity: 0.58; }
+  .home-hero-demo-msg[data-depth="3"] { opacity: 0.4; }
+  .home-hero-demo-msg[data-depth="4"] { opacity: 0.26; }
+  .home-hero-demo-msg[data-depth="5"],
+  .home-hero-demo-msg[data-depth="6"],
+  .home-hero-demo-msg[data-depth="7"] { opacity: 0.14; }
 
   .home-hero-demo-msg--user {
     flex-direction: row;
@@ -324,6 +406,48 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
     text-wrap: pretty;
   }
 
+  .home-hero-demo-bubble-text {
+    margin: 0;
+  }
+
+  .home-hero-demo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+  }
+
+  .home-hero-demo-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.32rem 0.62rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .home-hero-demo-action--primary {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+
+  .home-hero-demo-action--secondary {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .home-hero-demo-action--pressed {
+    transform: scale(0.96);
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.38);
+  }
+
   .home-hero-demo-msg--user .home-hero-demo-bubble {
     color: rgba(255, 255, 255, 0.95);
     background: rgba(255, 255, 255, 0.12);
@@ -348,10 +472,6 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
     animation: heroDemoEnter 0.42s ease-out both;
   }
 
-  .home-hero-demo-msg--exit {
-    animation: heroDemoExit 0.65s ease-in forwards;
-  }
-
   @keyframes heroDemoEnter {
     from {
       opacity: 0;
@@ -363,21 +483,15 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
     }
   }
 
-  @keyframes heroDemoExit {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-18px);
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .home-hero-demo-msg--enter,
-    .home-hero-demo-msg--exit {
+    .home-hero-demo-scene--exit {
       animation: none;
+      transition: none;
+    }
+
+    .home-hero-demo-stack {
+      transition: none;
     }
   }
 </style>
