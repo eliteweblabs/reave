@@ -82,6 +82,16 @@
     transform 0.38s cubic-bezier(0.32, 0.72, 0, 1),
     bottom 0.25s ease;
 }
+@media (min-width: 768px) {
+  .de-pane--drawer {
+    max-width: 720px;
+  }
+}
+@media (min-width: 1024px) {
+  .de-pane--drawer {
+    max-width: 800px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .de-pane--drawer {
     transition: none;
@@ -164,9 +174,28 @@
 .de-pane--drawer .re-form-scroll {
   padding-bottom: 1rem;
 }
-.de-pane--drawer .de-header-title-input {
+.de-pane--drawer .de-header-title-input,
+.de-pane--drawer .cl-title-input {
   font-size: max(16px, 1.05rem);
   font-weight: 700;
+}
+/* Labels sit on `.de-label` (semibold); inputs use `font: inherit`, so
+   placeholders and values were picking up 600. Keep form copy regular —
+   only the sheet title and record title field stay bold. */
+.de-pane--drawer .de-label,
+.de-pane--drawer .sliding-pill-btn,
+.de-pane--drawer .de-input,
+.de-pane--drawer .de-textarea,
+.de-pane--drawer .wk-md-surface,
+.de-pane--drawer .wk-client-selected span {
+  font-weight: 400;
+}
+.de-pane--drawer .de-input::placeholder,
+.de-pane--drawer .de-textarea::placeholder,
+.de-pane--drawer .de-header-title-input::placeholder,
+.de-pane--drawer .cl-title-input::placeholder,
+.de-pane--drawer .wk-md-surface:empty::before {
+  font-weight: 400;
 }
 
 /* Reave share sheet */
