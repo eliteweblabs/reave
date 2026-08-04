@@ -1145,7 +1145,7 @@ button.de-placeholder-action:active {
   padding:
     0.35rem
     max(1rem, env(safe-area-inset-right, 0px))
-    0.55rem
+    0
     max(1rem, env(safe-area-inset-left, 0px));
   border-bottom: 1px solid var(--panel-border);
   flex: 0 0 auto;
