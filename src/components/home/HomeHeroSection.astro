@@ -314,13 +314,6 @@ const demoScenes = HERO_DEMO_SCENES;
 </style>
 
 <style is:global>
-  /* Animatable depth — one transition drives opacity, scale, and blur. */
-  @property --msg-depth {
-    syntax: "<number>";
-    initial-value: 0;
-    inherits: false;
-  }
-
   /* Scene + messages are built in JS — must be global (scoped CSS never matches). */
   .home-hero-demo-scene {
     display: flex;
@@ -342,29 +335,26 @@ const demoScenes = HERO_DEMO_SCENES;
      * back-and-forth instead of one column of same-width blocks.
      */
     --demo-gutter: clamp(1.5rem, 18%, 4.5rem);
-    --msg-depth: 0;
-    /* px blur per unit depth — halved on WebKit (Safari renders blur heavier). */
-    --msg-blur-strength: 6;
     display: flex;
     align-items: flex-end;
     gap: 0.55rem;
     width: 100%;
     margin: 0;
     padding: 0;
-    opacity: calc(1 - var(--msg-depth));
-    transform: scale(calc(1 - var(--msg-depth) * 0.24));
-    filter: blur(calc(var(--msg-depth) * var(--msg-blur-strength) * 1px));
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
     transition:
-      --msg-depth 0.53s ease,
       opacity 0.53s ease,
       transform 0.53s ease,
       filter 0.53s ease;
   }
 
-  @supports (-webkit-touch-callout: none) {
-    .home-hero-demo-msg {
-      --msg-blur-strength: 3;
-    }
+  /* Safari: opacity + scale only — blur is skipped in JS and filter breaks easing. */
+  .home-hero-demo--safari .home-hero-demo-msg {
+    transition:
+      opacity 0.53s ease,
+      transform 0.53s ease;
   }
 
   .home-hero-demo-msg--user {

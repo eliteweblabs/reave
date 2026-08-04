@@ -359,6 +359,17 @@ async function typeText(
  * pass costs no per-message geometry at all.
  */
 const DEPTH_PER_MESSAGE = 0.05;
+const DEPTH_SCALE = 0.24;
+const DEPTH_BLUR_PX = 6;
+
+/** Desktop + iOS Safari (not Chrome, Edge, Firefox, or in-app WebViews). */
+function isSafariBrowser(): boolean {
+  const ua = navigator.userAgent;
+  return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|FxiOS|Android/i.test(ua);
+}
+
+/** Blur reads ~2× heavier in Safari and its filter transitions snap; skip it there. */
+let depthBlurEnabled = true;
 
 const STACK_INSTANT_CLASS = "home-hero-demo-stack--instant";
 
@@ -368,11 +379,17 @@ function messageDepth(turnsBehindNewest: number): number {
 }
 
 function applyMessageFocus(msg: HTMLElement) {
-  msg.style.setProperty("--msg-depth", "0");
+  msg.style.opacity = "1";
+  msg.style.transform = "scale(1)";
+  if (depthBlurEnabled) msg.style.filter = "blur(0px)";
 }
 
 function applyMessageDepth(msg: HTMLElement, depth: number) {
-  msg.style.setProperty("--msg-depth", depth.toFixed(4));
+  msg.style.opacity = (1 - depth).toFixed(3);
+  msg.style.transform = `scale(${(1 - depth * DEPTH_SCALE).toFixed(3)})`;
+  if (depthBlurEnabled) {
+    msg.style.filter = `blur(${(depth * DEPTH_BLUR_PX).toFixed(2)}px)`;
+  }
 }
 
 function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
@@ -592,6 +609,9 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
+
+  depthBlurEnabled = !isSafariBrowser();
+  if (!depthBlurEnabled) root.classList.add("home-hero-demo--safari");
 
   const relayout: Relayout = (flush = false) => {
     syncHeroCopyHeight(hero, copyEl);
