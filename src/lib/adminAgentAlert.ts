@@ -129,12 +129,26 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
     excerpt: summary,
   });
 
-  await sendPushNotification({
-    title,
-    body: detail,
-    tag: `siri-proposal-${slug ?? opts.label}`,
-    url: deepLinkUrl,
-  }).catch((e) => log.warn('push failed', e));
+  const tierLabel = opts.tier === 'full' ? 'Full audit' : 'Audit';
+  const message = [
+    `${tierLabel} complete (Siri shortcut)`,
+    '',
+    `Prospect: ${opts.label}`,
+    slug ? `Project: ${slug}` : 'Project: see Work tab',
+    '',
+    summary || 'Research finished — open the project for the full audit.',
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    autoRun: false,
+    push: {
+      title,
+      body: detail,
+      tag: `siri-proposal-${slug ?? opts.label}`,
+      url: deepLinkUrl,
+    },
+  }).catch((e) => log.warn('system alerts post failed', e));
 }
 
 function extractProposalSummary(reply: string, slug?: string | null): string {

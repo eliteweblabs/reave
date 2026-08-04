@@ -3,7 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeAckPushAlert, storeAckPushAlertByTag } from '../../../../lib/pushAlertStore';
+import { storeAckPushAlert } from '../../../../lib/pushAlertStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -22,14 +22,7 @@ async function ackAlert(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim() ?? '';
   if (!id) return json({ ok: false, error: 'Invalid alert id' }, 400);
 
-  let result = await storeAckPushAlert(id);
-  if (!result.ok) {
-    const tag = context.url.searchParams.get('tag')?.trim();
-    if (tag) {
-      const acked = await storeAckPushAlertByTag(tag);
-      if (acked > 0) return json({ ok: true, alertId: id });
-    }
-  }
+  const result = await storeAckPushAlert(id);
   if (!result.ok) return json({ ok: false, error: result.error }, 404);
   return json({ ok: true, alertId: result.id });
 }

@@ -4,7 +4,8 @@
  */
 
 import type { APIContext } from 'astro';
-import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { chatStorageBackend, storeCreateChatThread, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { enrichChatThreadsWithAuthors } from '../../../lib/chatThreadAuthors';
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
@@ -39,7 +40,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const archivedOnly = context.url.searchParams.get('archived') === '1';
-  const threads = await storeListChatThreads(userId, { archivedOnly });
+  const threads = await storeListChatThreadsForOwner(userId, { archivedOnly });
   const orderMap = await storeGetSidebarOrder('chats');
   const sorted = sortBySidebarOrder(
     threads,

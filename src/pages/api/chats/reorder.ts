@@ -3,7 +3,8 @@
  */
 
 import type { APIContext } from 'astro';
-import { chatStorageBackend, storeListChatThreads } from '../../../lib/chatStore';
+import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
+import { chatStorageBackend } from '../../../lib/chatStore';
 import { storeGetSidebarOrder, storeReorderSidebarList, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
@@ -37,7 +38,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const result = await storeReorderSidebarList('chats', ids);
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
-  const threads = await storeListChatThreads(userId);
+  const threads = await storeListChatThreadsForOwner(userId);
   const orderMap = await storeGetSidebarOrder('chats');
   const sorted = sortBySidebarOrder(
     threads,

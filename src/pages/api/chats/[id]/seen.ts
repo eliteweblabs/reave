@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeMarkChatSeen } from '../../../../lib/chatStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
@@ -37,6 +38,9 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const lastSeenAt = await storeMarkChatSeen(userId, id, seenAt);
+  const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
+  if (!ownerUserId) return json({ ok: false, error: 'Session not found' }, 404);
+
+  const lastSeenAt = await storeMarkChatSeen(ownerUserId, id, seenAt);
   return json({ ok: true, id, last_seen_at: lastSeenAt });
 }

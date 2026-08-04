@@ -18,6 +18,10 @@ import {
   titleFromMessage,
 } from '../../../lib/chatTypes';
 import {
+  resolveChatThreadOwnerUserId,
+  storeGetChatThreadForOwner,
+} from '../../../lib/chatOwnerAccess';
+import {
   storeAppendChatMessages,
   storeDeleteChatThread,
   storeEnsureChatTitle,
@@ -215,6 +219,14 @@ async function persistAssistantReply(
   return { ok: false, assistantMessage };
 }
 
+async function loadOwnerChatThread(signedInUserId: string, threadId: string) {
+  const ownerUserId = await resolveChatThreadOwnerUserId(signedInUserId, threadId);
+  if (!ownerUserId) return null;
+  const thread = await storeGetChatThread(ownerUserId, threadId);
+  if (!thread) return null;
+  return { ownerUserId, thread };
+}
+
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
@@ -223,7 +235,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
 
-  const thread = await storeGetChatThread(userId, id);
+  const thread = await storeGetChatThreadForOwner(userId, id);
   if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
   const linked_jobs = await listJobsForItem('chat', id);
   const [withAuthor] = await enrichChatThreadsWithAuthors([{ ...thread, linked_jobs }]);
@@ -254,8 +266,9 @@ export async function POST(context: APIContext): Promise<Response> {
   const modelOverride =
     body.model == null || body.model === '' ? undefined : String(body.model);
 
-  const thread = await storeGetChatThread(userId, id);
-  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
+  const loaded = await loadOwnerChatThread(userId, id);
+  if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
+  const { ownerUserId, thread } = loaded;
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images, docs);
@@ -291,7 +304,7 @@ export async function POST(context: APIContext): Promise<Response> {
   let userMessage = { role: 'user' as const, content: userContent };
   try {
     const persistedUser = await persistUserMessage(
-      userId,
+      ownerUserId,
       id,
       thread,
       message,
@@ -341,9 +354,9 @@ export async function POST(context: APIContext): Promise<Response> {
         if (settled) return;
         settled = true;
         const text = reply.trim() || interruptedReplyText(userId, id, { cancelled: false });
-        const persisted = await persistAssistantReply(userId, id, text);
+        const persisted = await persistAssistantReply(ownerUserId, id, text);
         try {
-          const ensuredTitle = await storeEnsureChatTitle(userId, id);
+          const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
           if (ensuredTitle) title = ensuredTitle;
         } catch {
           /* title is cosmetic — never block the reply on it */
@@ -463,9 +476,9 @@ export async function POST(context: APIContext): Promise<Response> {
     clearAgentRun(userId, id);
   }
 
-  const persisted = await persistAssistantReply(userId, id, reply);
+  const persisted = await persistAssistantReply(ownerUserId, id, reply);
   try {
-    const ensuredTitle = await storeEnsureChatTitle(userId, id);
+    const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
     if (ensuredTitle) title = ensuredTitle;
   } catch {
     /* title is cosmetic */
@@ -506,8 +519,9 @@ export async function PATCH(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'title, archived, linkJobSlug, or finalizeTitle is required' }, 400);
   }
 
-  const thread = await storeGetChatThread(userId, id);
-  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
+  const loaded = await loadOwnerChatThread(userId, id);
+  if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
+  const { ownerUserId, thread } = loaded;
 
   if (linkJobSlug) {
     const linked = await linkProjectItem(linkJobSlug, 'chat', id);
@@ -519,18 +533,18 @@ export async function PATCH(context: APIContext): Promise<Response> {
   let currentTitle = thread.title;
 
   if (hasFinalizeTitle) {
-    const ensured = await storeEnsureChatTitle(userId, id);
+    const ensured = await storeEnsureChatTitle(ownerUserId, id);
     if (ensured) currentTitle = ensured;
   }
 
   if (hasArchived) {
-    const updated = await storeSetChatArchived(userId, id, body.archived as boolean);
+    const updated = await storeSetChatArchived(ownerUserId, id, body.archived as boolean);
     if (!updated) return json({ ok: false, error: 'Failed to update chat' }, 500);
     return json({ ok: true, id, archived: body.archived, title: currentTitle });
   }
 
   if (title) {
-    const updated = await storeUpdateChatTitle(userId, id, title);
+    const updated = await storeUpdateChatTitle(ownerUserId, id, title);
     if (!updated) return json({ ok: false, error: 'Failed to update title' }, 500);
     return json({ ok: true, id, title });
   }
@@ -546,7 +560,10 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
 
-  const deleted = await storeDeleteChatThread(userId, id);
+  const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
+  if (!ownerUserId) return json({ ok: false, error: 'Session not found' }, 404);
+
+  const deleted = await storeDeleteChatThread(ownerUserId, id);
   if (!deleted) return json({ ok: false, error: 'Session not found' }, 404);
   return json({ ok: true, id });
 }
