@@ -14,6 +14,7 @@
 import type { APIContext } from 'astro';
 import { getAgentProgress } from '../../../../lib/agentProgress';
 import { isAgentRunActive } from '../../../../lib/agentRunControl';
+import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/chatStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
@@ -45,7 +46,10 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: true, reconciled: false, reason: 'run_active' });
   }
 
-  const thread = await storeGetChatThread(userId, id);
+  const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
+  if (!ownerUserId) return json({ ok: false, error: 'Session not found' }, 404);
+
+  const thread = await storeGetChatThread(ownerUserId, id);
   if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
 
   const last = thread.messages[thread.messages.length - 1];
@@ -53,7 +57,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: true, reconciled: false, reason: 'already_answered' });
   }
 
-  const saved = await storeAppendChatMessages(userId, id, [
+  const saved = await storeAppendChatMessages(ownerUserId, id, [
     { role: 'assistant', content: INTERRUPTED_NOTE },
   ]);
   if (!saved) return json({ ok: false, error: 'Failed to save note' }, 500);

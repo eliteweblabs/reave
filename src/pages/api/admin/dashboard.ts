@@ -3,7 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeListChatThreads } from '../../../lib/chatStore';
+import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
   computeInboxDigest,
@@ -113,7 +113,7 @@ export async function GET(context: APIContext): Promise<Response> {
     storeListEmailInbox(100, { hideJunk: true }),
     storeEmailInboxDigest(true),
     storeListWork(),
-    storeListChatThreads(userId, { archivedOnly: false }),
+    storeListChatThreadsForOwner(userId, { archivedOnly: false }),
     getDeployStatus().catch(() => null),
   ]);
 
