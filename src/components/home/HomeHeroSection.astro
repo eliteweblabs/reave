@@ -226,7 +226,7 @@ const demoScenes = HERO_DEMO_SCENES;
 
   .home-hero-demo--stopped {
     opacity: 0;
-    transition: opacity 0.85s ease;
+    transition: opacity 1.13s ease;
   }
 
   .home-hero-demo-viewport {
@@ -248,7 +248,7 @@ const demoScenes = HERO_DEMO_SCENES;
     width: 100%;
     text-align: left;
     overflow: visible;
-    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.87s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
   }
 </style>
@@ -260,12 +260,12 @@ const demoScenes = HERO_DEMO_SCENES;
     flex-direction: column;
     gap: 18px;
     padding-bottom: 2px;
-    transition: opacity 0.5s ease;
+    transition: opacity 0.67s ease;
   }
 
   .home-hero-demo-scene--exit {
     opacity: 0;
-    transition: opacity 0.5s ease;
+    transition: opacity 0.67s ease;
   }
 
   .home-hero-demo-msg {
@@ -279,9 +279,9 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: scale(1);
     filter: none;
     transition:
-      opacity 0.4s ease,
-      transform 0.4s ease,
-      filter 0.4s ease;
+      opacity 0.53s ease,
+      transform 0.53s ease,
+      filter 0.53s ease;
     will-change: opacity, transform, filter;
   }
 
@@ -355,7 +355,7 @@ const demoScenes = HERO_DEMO_SCENES;
     margin-left: 2px;
     vertical-align: text-bottom;
     background: rgba(255, 255, 255, 0.92);
-    animation: heroDemoCursor 0.85s step-end infinite;
+    animation: heroDemoCursor 1.13s step-end infinite;
   }
 
   @keyframes heroDemoCursor {
@@ -378,8 +378,8 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: translateY(8px) scale(0.98);
     transform-origin: bottom right;
     transition:
-      opacity 0.28s ease,
-      transform 0.28s ease;
+      opacity 0.37s ease,
+      transform 0.37s ease;
     pointer-events: none;
   }
 
@@ -449,7 +449,7 @@ const demoScenes = HERO_DEMO_SCENES;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.9);
-    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
   }
 
   .home-hero-demo-action--primary {
@@ -507,15 +507,15 @@ const demoScenes = HERO_DEMO_SCENES;
     height: 0.34rem;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.55);
-    animation: heroDemoTyping 1.1s ease-in-out infinite;
+    animation: heroDemoTyping 1.46s ease-in-out infinite;
   }
 
   .home-hero-demo-typing span:nth-child(2) {
-    animation-delay: 0.15s;
+    animation-delay: 0.2s;
   }
 
   .home-hero-demo-typing span:nth-child(3) {
-    animation-delay: 0.3s;
+    animation-delay: 0.4s;
   }
 
   @keyframes heroDemoTyping {
@@ -534,7 +534,7 @@ const demoScenes = HERO_DEMO_SCENES;
   }
 
   .home-hero-demo-msg--enter {
-    animation: heroDemoEnter 0.42s ease-out both;
+    animation: heroDemoEnter 0.56s ease-out both;
   }
 
   @keyframes heroDemoEnter {

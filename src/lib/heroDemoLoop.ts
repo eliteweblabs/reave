@@ -11,6 +11,13 @@ import {
 } from "./heroDemoConversation";
 
 const ENGAGED_KEY = "hero-demo-engaged-v5";
+/** Demo pacing (~33% slower than baseline). Applied in wait() and exit timeouts. */
+const TIMING_SCALE = 1.33;
+
+function scaleMs(ms: number): number {
+  return Math.round(ms * TIMING_SCALE);
+}
+
 const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 900;
@@ -26,7 +33,7 @@ const USER_CHAR_MS_FAST = 14;
 const SLASH_CHAR_MS = 38;
 
 function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, scaleMs(ms)));
 }
 
 function parseScenes(raw: string | undefined): HeroDemoScene[] {
@@ -377,7 +384,7 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
     window.setTimeout(() => {
       sceneEl.remove();
       resolve();
-    }, SCENE_EXIT_MS);
+    }, scaleMs(SCENE_EXIT_MS));
   });
 }
 
@@ -427,7 +434,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
     root.classList.add("home-hero-demo--stopped");
     window.setTimeout(() => {
       root.hidden = true;
-    }, SCENE_EXIT_MS);
+    }, scaleMs(SCENE_EXIT_MS));
   };
 
   // Only stop after deliberate scroll well past the hero — ignore iOS address-bar jitter.
