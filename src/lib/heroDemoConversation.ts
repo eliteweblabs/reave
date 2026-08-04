@@ -171,4 +171,37 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
     ],
   },
+  {
+    id: "materials-paint-pricing",
+    holdMs: 1000,
+    turns: [
+      {
+        role: "user",
+        text: "What's the square footage for 15 gallons of interior paint?",
+        kind: "voice",
+      },
+      {
+        role: "assistant",
+        text: "At 350 sq ft per gallon (one coat), 15 gallons covers about 5,250 sq ft. For two coats, plan on ~2,625 sq ft.",
+        pauseMs: 1500,
+      },
+      {
+        role: "user",
+        text: "OK, can you give me prices on some options?",
+        kind: "voice",
+        pauseMs: 1400,
+      },
+      {
+        role: "assistant",
+        text: "Pulling live Home Depot prices…",
+        pauseMs: 700,
+      },
+      {
+        role: "assistant",
+        text: "BEHR Premium Plus 1 gal — $34.98 · BEHR Dynasty 1 gal — $52.98 · Valspar Signature 5 gal — $124.98. All in stock at 02108.",
+        pauseMs: 1600,
+        actions: [{ label: "Add to quote", variant: "primary" }],
+      },
+    ],
+  },
 ];
