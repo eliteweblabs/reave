@@ -199,6 +199,25 @@ function smoothstep(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
+/** 0 = foreground (bottom), 1 = receding under the icon (top). */
+function messageDepth(msgCenterY: number, depthTop: number, depthBottom: number): number {
+  const span = Math.max(1, depthBottom - depthTop);
+  return 1 - smoothstep((msgCenterY - depthTop) / span);
+}
+
+function applyMessageDepth(msg: HTMLElement, depth: number) {
+  const isUser = msg.classList.contains("home-hero-demo-msg--user");
+  const origin = isUser ? "bottom right" : "bottom left";
+  const scale = 1 - depth * 0.08;
+  const opacity = 1 - depth * 0.82;
+  const blur = depth * 2.8;
+
+  msg.style.transformOrigin = origin;
+  msg.style.transform = `scale(${scale.toFixed(3)})`;
+  msg.style.opacity = opacity.toFixed(3);
+  msg.style.filter = blur > 0.12 ? `blur(${blur.toFixed(2)}px)` : "none";
+}
+
 function refreshStackLayout(
   viewport: HTMLElement,
   stack: HTMLElement,
@@ -211,29 +230,29 @@ function refreshStackLayout(
   stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
 
   const iconRect = iconEl?.getBoundingClientRect();
-  // Fade zone in viewport-local coordinates — avoids iOS svh/dvh rect mismatches.
-  const fadeEndY = iconRect
-    ? Math.min(vRect.height, Math.max(0, iconRect.bottom - vRect.top + 24))
-    : vRect.height * 0.38;
-  const fadeSpan = Math.max(48, fadeEndY);
+  const depthTop = iconRect
+    ? Math.max(-24, iconRect.bottom - vRect.top - 12)
+    : vRect.height * 0.32;
+  const depthBottom = vRect.height + 8;
 
   for (const msg of stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")) {
     if (
       msg.classList.contains("home-hero-demo-msg--typing") ||
       msg.classList.contains("home-hero-demo-msg--composing")
     ) {
+      msg.style.transformOrigin = msg.classList.contains("home-hero-demo-msg--user")
+        ? "bottom right"
+        : "bottom left";
+      msg.style.transform = "scale(1)";
       msg.style.opacity = "1";
+      msg.style.filter = "none";
       continue;
     }
 
     const rect = msg.getBoundingClientRect();
     const msgCenterY = (rect.top + rect.bottom) / 2 - vRect.top;
-
-    if (msgCenterY >= fadeEndY) {
-      msg.style.opacity = "1";
-    } else {
-      msg.style.opacity = String(smoothstep(msgCenterY / fadeSpan));
-    }
+    const depth = messageDepth(msgCenterY, depthTop, depthBottom);
+    applyMessageDepth(msg, depth);
   }
 }
 
