@@ -60,7 +60,7 @@ const demoScenes = HERO_DEMO_SCENES;
   </div>
 
   <div class="home-hero-copy" data-hero-copy>
-    <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
+      <h1 id="home-hero-title" class="home-hero-title">Small Biz, Smaller Workday.</h1>
     <div class="home-hero-cta">
       <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/#plan">
         See pricing
@@ -149,12 +149,18 @@ const demoScenes = HERO_DEMO_SCENES;
   .home-hero-title {
     margin: 0;
     font-family: var(--font-primary);
-    font-size: clamp(2.1rem, 6vw, 3.5rem);
+    font-size: clamp(1.85rem, 5.2vw, 3.5rem);
     font-weight: 700;
     letter-spacing: -0.04em;
-    line-height: 1.05;
-    color: #fff;
+    line-height: 1.08;
+    color: rgba(255, 255, 255, 0.8);
     text-wrap: balance;
+  }
+
+  @media (max-width: 480px) {
+    .home-hero-title {
+      font-size: clamp(1.65rem, 7.5vw, 2.15rem);
+    }
   }
 
   .home-hero-cta {
