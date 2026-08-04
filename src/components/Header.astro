@@ -389,11 +389,12 @@ const showHeaderProfile = userId && !showMarketingNav;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
+    --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
       env(safe-area-inset-top, 0px)
-      max(0.5rem, env(safe-area-inset-right, 0px))
+      var(--app-header-inline-pad)
       0
-      max(0.5rem, env(safe-area-inset-left, 0px));
+      var(--app-header-inline-pad);
     pointer-events: none;
     -webkit-user-select: none;
     user-select: none;
@@ -578,6 +579,11 @@ const showHeaderProfile = userId && !showMarketingNav;
 
   .app-header-row:has(.marketing-nav) .topbar-end {
     margin-left: 0;
+  }
+
+  /* Empty topbar-end after marketing-nav adds a spurious flex gap on the right. */
+  .app-header-row:has(.marketing-nav) .topbar-end:empty {
+    display: none;
   }
 
   .topbar-auth-cluster {
