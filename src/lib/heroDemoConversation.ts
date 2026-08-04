@@ -34,7 +34,7 @@ export const HERO_DEMO_SLASH_PICKER = [
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",
-    holdMs: 4800,
+    holdMs: 1000,
     turns: [
       { role: "user", text: "Is Pete at the Pine Street job?", kind: "voice" },
       {
@@ -68,7 +68,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "henderson-billing",
-    holdMs: 5200,
+    holdMs: 1100,
     turns: [
       {
         role: "user",
@@ -107,7 +107,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "nda-signing",
-    holdMs: 5000,
+    holdMs: 1000,
     turns: [
       {
         role: "user",
@@ -140,7 +140,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "inventory-channels",
-    holdMs: 4800,
+    holdMs: 1000,
     turns: [
       {
         role: "user",

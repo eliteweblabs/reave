@@ -13,9 +13,9 @@ import {
 const ENGAGED_KEY = "hero-demo-engaged-v5";
 const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
-const DEFAULT_HOLD_MS = 5200;
-const SCENE_GAP_MS = 1400;
-const SCENE_EXIT_MS = 900;
+const DEFAULT_HOLD_MS = 900;
+const SCENE_GAP_MS = 350;
+const SCENE_EXIT_MS = 500;
 const TYPING_MS = 1200;
 const ACTION_PRESS_MS = 900;
 const SLASH_PICKER_SHOW_MS = 1100;
