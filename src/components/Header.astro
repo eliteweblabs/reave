@@ -16,7 +16,7 @@ interface Props {
   adminShell?: boolean;
   /** Vercel-style inline nav + hamburger on public marketing pages */
   marketingNav?: boolean;
-  /** Homepage — single user icon links to admin instead of tools/profile menus */
+  /** Homepage — signed-in avatar account menu in the header end cluster. */
   homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
   staffPreview?: boolean;
@@ -82,7 +82,11 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 const showMarketingNav = marketingNav && !adminShell;
 const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
 const showHeaderSignIn = !userId && !showMarketingNav;
+/** Signed-in profile control in the header end cluster (admin shell or public pages). */
 const showHeaderProfile = userId && !showMarketingNav;
+/** Homepage is a marketing page but still shows the avatar account menu on the right. */
+const showHeaderHomeProfile = showHomeAdminEntry && showMarketingNav;
+const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 ---
 
 <header
@@ -109,7 +113,11 @@ const showHeaderProfile = userId && !showMarketingNav;
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
   {showMarketingNav && (
-    <MarketingMenu pathname={path} signedIn={Boolean(userId)} />
+    <MarketingMenu
+      pathname={path}
+      signedIn={Boolean(userId)}
+      hideAccountNav={showHeaderHomeProfile}
+    />
   )}
 
   <div class="app-header-end topbar-end">
@@ -128,7 +136,7 @@ const showHeaderProfile = userId && !showMarketingNav;
       </div>
     )}
 
-    {showHeaderProfile && (adminShell ? (
+    {showHeaderAccountMenu && (adminShell ? (
         <>
           <button
             type="button"
@@ -180,28 +188,6 @@ const showHeaderProfile = userId && !showMarketingNav;
             </div>
           </div>
         </>
-      ) : showHomeAdminEntry ? (
-        <div class="topbar-profile-cluster">
-          <DeployStatusDot />
-          <div class="topbar-profile-hit">
-            <a
-              href="/admin/?tab=home"
-              class="app-header-admin-entry"
-              aria-label="Administration"
-              title="Administration"
-            >
-              <img
-                src={profileIconSrc}
-                alt=""
-                class="topbar-profile-icon-img topbar-profile-icon-img--round"
-                aria-hidden="true"
-                loading="eager"
-                decoding="async"
-              />
-            </a>
-            <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
-          </div>
-        </div>
       ) : (
         <div class="topbar-profile-cluster">
           <DeployStatusDot />
@@ -1041,7 +1027,7 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 </style>
 
-{!adminShell && !homeAdminEntry && (
+{!adminShell && (
   <script>
     function closeHeaderMenus(exceptMenu?: HTMLElement | null) {
       for (const menu of document.querySelectorAll(".topbar-dropdown")) {
@@ -1061,31 +1047,43 @@ const showHeaderProfile = userId && !showMarketingNav;
       }
     }
 
-    const profileToggle = document.getElementById("topbar-profile-toggle");
-    const profileMenu = document.getElementById("topbar-profile-menu");
-    profileToggle?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      toggleHeaderMenu(profileMenu, profileToggle);
-    });
-
-    document.getElementById("topbar-sign-out")?.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      closeHeaderMenus(null);
-      const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
-      if (Clerk) {
-        await Clerk.signOut();
-        window.location.href = "/";
-      } else {
-        window.location.href = "/sign-out";
+    function bindHeaderProfileMenu() {
+      const profileToggle = document.getElementById("topbar-profile-toggle");
+      const profileMenu = document.getElementById("topbar-profile-menu");
+      if (profileToggle && profileMenu && !profileToggle.dataset.bound) {
+        profileToggle.dataset.bound = "1";
+        profileToggle.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          toggleHeaderMenu(profileMenu, profileToggle);
+        });
       }
-    });
 
-    if (!document.documentElement.dataset.headerMenuBound) {
-      document.documentElement.dataset.headerMenuBound = "1";
-      document.addEventListener("click", () => closeHeaderMenus(null));
-      document.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape") closeHeaderMenus(null);
-      });
+      const signOutBtn = document.getElementById("topbar-sign-out");
+      if (signOutBtn && !signOutBtn.dataset.bound) {
+        signOutBtn.dataset.bound = "1";
+        signOutBtn.addEventListener("click", async (ev) => {
+          ev.preventDefault();
+          closeHeaderMenus(null);
+          const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
+          if (Clerk) {
+            await Clerk.signOut();
+            window.location.href = "/";
+          } else {
+            window.location.href = "/sign-out";
+          }
+        });
+      }
+
+      if (!document.documentElement.dataset.headerMenuBound) {
+        document.documentElement.dataset.headerMenuBound = "1";
+        document.addEventListener("click", () => closeHeaderMenus(null));
+        document.addEventListener("keydown", (ev) => {
+          if (ev.key === "Escape") closeHeaderMenus(null);
+        });
+      }
     }
+
+    bindHeaderProfileMenu();
+    document.addEventListener("astro:page-load", bindHeaderProfileMenu);
   </script>
 )}

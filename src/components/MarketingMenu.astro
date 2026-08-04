@@ -12,9 +12,12 @@ import {
 interface Props {
   pathname: string;
   signedIn: boolean;
+  /** When the signed-in avatar menu lives in the header end cluster (homepage). */
+  hideAccountNav?: boolean;
 }
 
-const { pathname, signedIn } = Astro.props;
+const { pathname, signedIn, hideAccountNav = false } = Astro.props;
+const showAccountNav = signedIn && !hideAccountNav;
 ---
 
 <div class="marketing-nav" data-marketing-nav>
@@ -28,7 +31,7 @@ const { pathname, signedIn } = Astro.props;
       >
         Sign in
       </button>
-    ) : (
+    ) : showAccountNav ? (
       <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
         <a href="/admin/?tab=home" class="marketing-nav-link">
           Administration
@@ -41,7 +44,7 @@ const { pathname, signedIn } = Astro.props;
           Sign out
         </button>
       </nav>
-    )
+    ) : null
   }
 
   <a class="marketing-nav-cta" href="/demo">
@@ -117,7 +120,7 @@ const { pathname, signedIn } = Astro.props;
       }
 
       {
-        signedIn && (
+        signedIn && showAccountNav && (
           <section class="marketing-menu-group" aria-labelledby="menu-account">
             <h2 id="menu-account" class="marketing-menu-group-label">Account</h2>
             <ul class="marketing-menu-list">
