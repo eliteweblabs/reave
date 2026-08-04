@@ -87,6 +87,7 @@
   --sidebar-w: 260px;
   --sidebar-min-w: 200px;
   --sidebar-max-w: 520px;
+  --sidebar-inset: 0.65rem;
   /* Dashboard tile grids — sm (<640px) */
   --dash-stat-cols: 2;
   --dash-stat-gap: 0.55rem;

@@ -16,7 +16,7 @@
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  margin: 0 0.7rem 0.35rem;
+  margin: 0 var(--sidebar-inset) 0.35rem;
   flex: 0 0 auto;
   width: 100%;
   min-width: 0;
@@ -24,28 +24,28 @@
 }
 /* Search + category tabs stay pinned above the scrolling inbox list (same as Projects). */
 #email-panel .ch-sidebar .panel-list-subheader {
-  margin-left: 0;
-  margin-right: 0;
   margin-bottom: 0.35rem;
-  width: 100%;
   flex: 0 0 auto;
-}
-#email-panel .ch-sidebar .panel-list-subheader--stacked .em-filter-tabs-wrap {
-  margin-left: 0;
-  margin-right: 0;
-  width: 100%;
-  max-width: 100%;
 }
 .em-filter-tabs-wrap {
   position: relative;
   display: flex;
   align-items: stretch;
-  margin: 0 0.7rem 0.35rem;
+  margin: 0 var(--sidebar-inset) 0.35rem;
   flex: 0 0 auto;
   min-width: 0;
-  width: calc(100% - 1.4rem);
-  max-width: calc(100% - 1.4rem);
   overflow: visible;
+}
+.em-filter-tabs-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
 }
 .em-filter-tabs--scroll {
   flex: 1;
@@ -53,6 +53,7 @@
   margin: 0;
   width: auto;
   max-width: none;
+  padding-left: var(--sidebar-inset);
   /* Reserve space so the last scroll tab clears the pinned Sent tab */
   padding-right: calc(var(--em-filter-fixed-tab-width, 4.75rem) + 0.35rem);
   box-sizing: border-box;

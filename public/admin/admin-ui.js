@@ -926,35 +926,42 @@ export function createPaneSubheader(opts = {}) {
   const header = document.createElement('div');
   header.className = 'de-header' + (opts.className ? ` ${opts.className}` : '');
 
+  const start = document.createElement('div');
+  start.className = 'de-header-start';
+  const center = document.createElement('div');
+  center.className = 'de-header-center';
+  const end = document.createElement('div');
+  end.className = 'de-header-end';
+
   if (opts.back) {
-    header.appendChild(createPanelBackBtn(opts.back));
+    start.appendChild(createPanelBackBtn(opts.back));
   }
 
   let titleInput = null;
   if (opts.editableTitle) {
     const created = createEditableHeaderTitleInput(opts.editableTitle);
     titleInput = created.input;
-    header.appendChild(created.el);
+    center.appendChild(created.el);
   } else if (opts.titleNode) {
-    header.appendChild(opts.titleNode);
+    center.appendChild(opts.titleNode);
     const found = opts.titleNode.querySelector?.('.de-header-title-input, .cl-title-input');
     if (found instanceof HTMLInputElement) titleInput = found;
   } else if (opts.title != null && opts.title !== '') {
     const titleEl = document.createElement('span');
     titleEl.className = 'de-doc-name' + (opts.titleClass ? ` ${opts.titleClass}` : '');
     titleEl.textContent = opts.title;
-    header.appendChild(titleEl);
+    center.appendChild(titleEl);
   }
 
   if (opts.subtitle != null && opts.subtitle !== '') {
     const subEl = document.createElement('span');
     subEl.className = 'de-doc-slug';
     subEl.textContent = opts.subtitle;
-    header.appendChild(subEl);
+    center.appendChild(subEl);
   }
 
   for (const node of [].concat(opts.afterTitle || []).filter(Boolean)) {
-    header.appendChild(node);
+    end.appendChild(node);
   }
 
   const beforeIcons = [].concat(opts.beforeIcons || []).filter(Boolean);
@@ -964,8 +971,12 @@ export function createPaneSubheader(opts = {}) {
     actions.className = 'de-header-actions';
     for (const node of beforeIcons) actions.appendChild(node);
     for (const node of icons) actions.appendChild(node);
-    header.appendChild(actions);
+    end.appendChild(actions);
   }
+
+  header.appendChild(start);
+  header.appendChild(center);
+  header.appendChild(end);
 
   return { header, titleInput };
 }
