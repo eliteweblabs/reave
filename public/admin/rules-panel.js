@@ -477,7 +477,7 @@ function renderRuleEditPane(pane) {
     expiresCb,
     expiresAtIn,
   };
-  bindRuleAutosave(rule, ruleInputs);
+  bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
   shell.clearEditorFooterSave();
 }
 
@@ -524,7 +524,7 @@ function syncRuleListItem(id, payload, savedRule) {
   item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
 }
 
-function bindRuleAutosave(rule, inputs) {
+function bindRuleAutosave(rule, inputs, opts = {}) {
   let baseline = serializeRulePayload(collectRulePayload(inputs));
   let activeEl = null;
   let saving = false;
@@ -612,6 +612,9 @@ function bindRuleAutosave(rule, inputs) {
     ruleAutosaveTimer = setTimeout(flush, shell.AUTOSAVE_DEBOUNCE_MS);
   };
 
+  ruleAutosaveFlush = flush;
+  if (opts.defer) return;
+
   for (const el of allFields()) {
     const handler = () => schedule(el);
     el.addEventListener('input', handler);
@@ -628,8 +631,6 @@ function bindRuleAutosave(rule, inputs) {
       if (!el.classList.contains(shell.FORM_FIELD_INVALID)) shell.setFormFieldState(el, null);
     });
   }
-
-  ruleAutosaveFlush = flush;
 }
 
 async function flushRuleAutosave() {
@@ -748,6 +749,15 @@ async function startNewRule() {
       title: 'New Rule',
       submitLabel: 'Add',
       onSubmit: async () => {
+        const pane = shell.getCreateDrawerPane();
+        const titleIn = pane?.querySelector('.re-form-scroll > label.de-label .de-input');
+        if (!titleIn?.value.trim()) {
+          if (titleIn) {
+            shell.setFormFieldState(titleIn, 'invalid');
+            titleIn.focus({ preventScroll: true });
+          }
+          return;
+        }
         await flushRuleAutosave();
         shell.finishCreateDrawer();
         getRuleEditor()?.classList.add('de-pane-active');

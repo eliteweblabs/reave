@@ -130,12 +130,12 @@ import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260803f';
+} from './documents-panel.js?v=20260803g';
 import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260803a';
+} from './knowledge-panel.js?v=20260803g';
 import {
   initSchedulePanel,
   scheduleState,
@@ -165,7 +165,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260803a';
+} from './clients-panel.js?v=20260803g';
 import {
   initChatPanel,
   chatState,
@@ -221,7 +221,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
-} from './rules-panel.js?v=20260803e';
+} from './rules-panel.js?v=20260803g';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -8977,6 +8977,7 @@ initRulesPanel({
   clearEditorFooterSave,
   appendEmptyDetailPane,
   isCreateDrawerOpen,
+  getCreateDrawerPane,
   navIcon,
   formatChatDate,
   setFormFieldState,
@@ -9015,7 +9016,9 @@ initDocumentsPanel({
   syncFooterNav,
   beginCreateDrawer,
   finishCreateDrawer,
+  flagCreateDrawerTitleMissing,
   isCreateDrawerOpen,
+  getCreateDrawerPane,
   mountCreateDrawerChrome,
   captureSidebarListScroll,
   finishSidebarListScroll,
@@ -9034,11 +9037,21 @@ initKnowledgePanel({
   setActiveMap,
   osAlert,
   syncFooterNav,
+  beginCreateDrawer,
+  finishCreateDrawer,
+  flagCreateDrawerTitleMissing,
+  isCreateDrawerOpen,
+  getCreateDrawerPane,
+  mountCreateDrawerChrome,
   captureSidebarListScroll,
   finishSidebarListScroll,
   captureFilterTabsScroll,
   mountFilterTabsScroll,
   appendEmptyDetailPane,
+  clearEditorFooterSave,
+  setEditorFooterSave,
+  setFormFieldState,
+  flashFormFieldSaved,
   askAgentWithPrompt,
   titleFromKnowledgeMarkdown,
   SIDEBAR_LIST_GRIP,
@@ -9067,7 +9080,9 @@ initClientsPanel({
   syncFooterNav,
   beginCreateDrawer,
   finishCreateDrawer,
+  flagCreateDrawerTitleMissing,
   isCreateDrawerOpen,
+  getCreateDrawerPane,
   mountCreateDrawerChrome,
   captureSidebarListScroll,
   finishSidebarListScroll,

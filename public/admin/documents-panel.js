@@ -355,31 +355,20 @@ function renderDocEditor() {
 
 function renderNewForm(pane) {
   pane.innerHTML = '';
-  if (!shell.isCreateDrawerOpen('documents')) {
-    pane.appendChild(
-      createPaneSubheader({
-        back: { label: 'Back to documents', onClick: () => backToList() },
-        title: 'New Document',
-      }).header,
-    );
-  }
-
-  const fields = document.createElement('div');
-  fields.className = 'de-fields';
-
-  const slugLabel = document.createElement('label');
-  slugLabel.className = 'de-label';
-  slugLabel.textContent = 'Filename (slug)';
-  const slugInput = document.createElement('input');
-  slugInput.className = 'de-input';
-  slugInput.type = 'text';
-  slugInput.placeholder = 'e.g. service-agreement';
-  slugInput.pattern = '[a-zA-Z0-9_-]+';
-  slugInput.id = 'de-new-slug';
-  slugLabel.appendChild(slugInput);
-  fields.appendChild(slugLabel);
-  pane.appendChild(fields);
+  const inDrawer = shell.isCreateDrawerOpen('documents');
+  const { header, titleInput: slugInput } = createPaneSubheader({
+    back: inDrawer ? null : { label: 'Back to documents', onClick: () => backToList() },
+    editableTitle: {
+      value: '',
+      placeholder: 'e.g. service-agreement',
+      ariaLabel: 'Filename (slug)',
+    },
+  });
+  pane.appendChild(header);
   requestTitleFocus('documents', slugInput);
+
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll';
 
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
@@ -388,9 +377,14 @@ function renderNewForm(pane) {
   ta.placeholder = '---\ntitle: My Document\n---\n\n# Title\n\nBody…';
   attachShortcodePopover(ta);
   attachDocTextareaPinchZoom(ta);
-  pane.appendChild(ta);
+  scroll.appendChild(ta);
+  pane.appendChild(scroll);
 
-  shell.setEditorFooterSave(() => createDocument(slugInput.value.trim(), ta.value));
+  shell.clearEditorFooterSave();
+  if (!inDrawer) {
+    shell.setEditorFooterSave(() => createDocument(slugInput.value.trim(), ta.value));
+    getDocEditor()?.classList.add('de-pane-active');
+  }
 }
 
 function renderEditForm(pane) {
@@ -579,7 +573,17 @@ async function startNewDocument() {
   shell.beginCreateDrawer({
     key: 'documents',
     title: 'New Document',
-    submitLabel: 'Create',
+    submitLabel: 'Add',
+    onSubmit: async () => {
+      const pane = shell.getCreateDrawerPane();
+      const slugInput = pane?.querySelector('.de-header-title-input');
+      const ta = pane?.querySelector('.de-textarea');
+      if (!slugInput?.value.trim()) {
+        shell.flagCreateDrawerTitleMissing();
+        return;
+      }
+      await createDocument(slugInput.value.trim(), ta?.value || '');
+    },
     onDismiss: () => {
       docState.activeSlug = null;
       docState.dirty = false;

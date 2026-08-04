@@ -539,13 +539,28 @@ function refreshClientsSidebarList() {
   fillClientsSidebarList(list);
 }
 
+let newClientFormGetPayload = null;
+
 function startNewClient() {
   armTitleFocus('clients');
   shell.beginCreateDrawer({
     key: 'clients',
     title: 'New Client',
     submitLabel: 'Add',
+    onSubmit: async () => {
+      const payload = newClientFormGetPayload?.();
+      if (!payload) {
+        const titleInput = shell.getCreateDrawerPane()?.querySelector('.cl-title-input');
+        if (titleInput) {
+          shell.setFormFieldState(titleInput, 'invalid');
+          titleInput.focus({ preventScroll: true });
+        }
+        return;
+      }
+      await createClient(payload);
+    },
     onDismiss: () => {
+      newClientFormGetPayload = null;
       void closeClientEditor(false);
     },
   });
@@ -1168,12 +1183,12 @@ function renderNewClientForm(pane) {
   registerClientField(companyInput, () => !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value));
   registerClientField(notesTa, () => true);
 
-  shell.setEditorFooterSave(() => {
+  newClientFormGetPayload = () => {
     refreshAllClientFields();
     const name = joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value);
-    if (!name) return;
-    if (!isValidClientEmail(emailInput.value) || !isValidClientPhone(phoneInput.value)) return;
-    return createClient({
+    if (!name) return null;
+    if (!isValidClientEmail(emailInput.value) || !isValidClientPhone(phoneInput.value)) return null;
+    return {
       name,
       email: emailInput.value.trim(),
       phone: phoneToStorage(phoneInput.value),
@@ -1181,9 +1196,18 @@ function renderNewClientForm(pane) {
       website: websiteInput.value.trim(),
       notes: notesTa.value.trim(),
       kind: kindPill.getValue(),
+    };
+  };
+
+  shell.clearEditorFooterSave();
+  if (!inDrawer) {
+    shell.setEditorFooterSave(async () => {
+      const payload = newClientFormGetPayload?.();
+      if (!payload) return;
+      return createClient(payload);
     });
-  });
-  if (!inDrawer) getClientsEditor()?.classList.add('de-pane-active');
+    getClientsEditor()?.classList.add('de-pane-active');
+  }
 }
 
 function renderEditClientForm(pane) {

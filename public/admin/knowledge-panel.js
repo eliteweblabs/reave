@@ -354,7 +354,17 @@ function startNewKnowledge() {
   shell.beginCreateDrawer({
     key: 'knowledge',
     title: 'New Knowledge Doc',
-    submitLabel: 'Create',
+    submitLabel: 'Add',
+    onSubmit: async () => {
+      const pane = shell.getCreateDrawerPane();
+      const slugInput = pane?.querySelector('.de-header-title-input');
+      const ta = pane?.querySelector('.de-textarea');
+      if (!slugInput?.value.trim()) {
+        shell.flagCreateDrawerTitleMissing();
+        return;
+      }
+      await createKnowledge(slugInput.value.trim(), ta?.value || '');
+    },
     onDismiss: () => {
       knowledgeState.activeSlug = null;
       knowledgeState.dirty = false;
@@ -372,10 +382,10 @@ function startNewKnowledge() {
 function renderNewKnowledgeForm(pane) {
   pane.innerHTML = '';
   const inDrawer = shell.isCreateDrawerOpen('knowledge');
-  if (!inDrawer) {
-    pane.appendChild(
-      createPaneSubheader({
-        back: {
+  const { header, titleInput: slugInput } = createPaneSubheader({
+    back: inDrawer
+      ? null
+      : {
           label: 'Back to knowledge',
           onClick: () => {
             knowledgeState.activeSlug = null;
@@ -384,32 +394,30 @@ function renderNewKnowledgeForm(pane) {
             renderKnowledgePane();
           },
         },
-        title: 'New knowledge doc',
-      }).header,
-    );
-  }
-
-  const fields = document.createElement('div');
-  fields.className = 'de-fields';
-  const slugLabel = document.createElement('label');
-  slugLabel.className = 'de-label';
-  slugLabel.textContent = 'Slug (filename)';
-  const slugInput = document.createElement('input');
-  slugInput.className = 'de-input';
-  slugInput.placeholder = 'e.g. billing-notes';
-  slugLabel.appendChild(slugInput);
-  fields.appendChild(slugLabel);
-  pane.appendChild(fields);
+    editableTitle: {
+      value: '',
+      placeholder: 'e.g. billing-notes',
+      ariaLabel: 'Slug (filename)',
+    },
+  });
+  pane.appendChild(header);
   requestTitleFocus('knowledge', slugInput);
+
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll';
 
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
   ta.spellcheck = false;
   ta.placeholder = '# Title\n\nMarkdown content for the admin agent…';
-  pane.appendChild(ta);
+  scroll.appendChild(ta);
+  pane.appendChild(scroll);
 
-  shell.setEditorFooterSave(() => createKnowledge(slugInput.value.trim(), ta.value));
-  if (!inDrawer) getKnowledgeEditor()?.classList.add('de-pane-active');
+  shell.clearEditorFooterSave();
+  if (!inDrawer) {
+    shell.setEditorFooterSave(() => createKnowledge(slugInput.value.trim(), ta.value));
+    getKnowledgeEditor()?.classList.add('de-pane-active');
+  }
 }
 
 function renderEditKnowledgeForm(pane) {

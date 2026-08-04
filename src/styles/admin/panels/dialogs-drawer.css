@@ -174,6 +174,13 @@
 .de-pane--drawer .re-form-scroll {
   padding-bottom: 1rem;
 }
+.de-pane--drawer .re-form-scroll .de-textarea,
+.de-pane--drawer .re-form-scroll > .de-textarea {
+  margin: 0;
+  max-width: none;
+  flex: 1 1 auto;
+  min-height: 12rem;
+}
 .de-pane--drawer .de-header-title-input,
 .de-pane--drawer .cl-title-input {
   font-size: max(16px, 1.05rem);
@@ -186,12 +193,15 @@
 .de-pane--drawer .sliding-pill-btn,
 .de-pane--drawer .de-input,
 .de-pane--drawer .de-textarea,
+.de-pane--drawer .re-textarea,
+.de-pane--drawer .re-check,
 .de-pane--drawer .wk-md-surface,
 .de-pane--drawer .wk-client-selected span {
   font-weight: 400;
 }
 .de-pane--drawer .de-input::placeholder,
 .de-pane--drawer .de-textarea::placeholder,
+.de-pane--drawer .re-textarea::placeholder,
 .de-pane--drawer .de-header-title-input::placeholder,
 .de-pane--drawer .cl-title-input::placeholder,
 .de-pane--drawer .wk-md-surface:empty::before {
