@@ -21,6 +21,16 @@ export type HeroDemoScene = {
   holdMs?: number;
 };
 
+/** Slash commands shown in the hero demo picker when the user types "/". */
+export const HERO_DEMO_SLASH_PICKER = [
+  { slash: "/invoice", summary: "List recent invoices" },
+  { slash: "/document", summary: "Send a document for signing" },
+  { slash: "/work", summary: "List open jobs" },
+  { slash: "/contact", summary: "Look up a client" },
+  { slash: "/meeting", summary: "Today's calendar" },
+  { slash: "/send", summary: "Send an email" },
+] as const;
+
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",

@@ -335,6 +335,7 @@ const demoScenes = HERO_DEMO_SCENES;
   .home-hero-demo-msg[data-depth="7"] { opacity: 0.14; }
 
   .home-hero-demo-msg--user {
+    position: relative;
     flex-direction: row;
     justify-content: flex-end;
   }
@@ -388,6 +389,88 @@ const demoScenes = HERO_DEMO_SCENES;
 
   .home-hero-demo-bubble-text {
     margin: 0;
+  }
+
+  .home-hero-demo-bubble-text--cursor::after {
+    content: "";
+    display: inline-block;
+    width: 1.5px;
+    height: 0.95em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background: rgba(255, 255, 255, 0.88);
+    animation: heroDemoCursor 1s step-end infinite;
+  }
+
+  @keyframes heroDemoCursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .home-hero-demo-slash-picker {
+    position: absolute;
+    right: calc(1.85rem + 0.55rem);
+    bottom: calc(100% + 10px);
+    z-index: 5;
+    width: min(16.5rem, calc(100vw - 3rem));
+    padding: 0.28rem 0;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(12, 12, 16, 0.96);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    transform-origin: bottom right;
+    transition:
+      opacity 0.28s ease,
+      transform 0.28s ease;
+    pointer-events: none;
+  }
+
+  .home-hero-demo-slash-picker--visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .home-hero-demo-slash-picker--exit {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+
+  .home-hero-demo-slash-picker-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .home-hero-demo-slash-option {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    padding: 0.38rem 0.65rem;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .home-hero-demo-slash-option.active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .home-hero-demo-slash-option-cmd {
+    flex: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .home-hero-demo-slash-option-summary {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgba(255, 255, 255, 0.48);
   }
 
   .home-hero-demo-actions {
@@ -517,6 +600,14 @@ const demoScenes = HERO_DEMO_SCENES;
     }
 
     .home-hero-demo-stack {
+      transition: none;
+    }
+
+    .home-hero-demo-bubble-text--cursor::after {
+      animation: none;
+    }
+
+    .home-hero-demo-slash-picker {
       transition: none;
     }
   }

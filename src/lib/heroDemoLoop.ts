@@ -3,7 +3,12 @@
  * Stops when the visitor engages (scroll, click, key).
  */
 
-import type { HeroDemoAction, HeroDemoScene, HeroDemoTurn } from "./heroDemoConversation";
+import {
+  HERO_DEMO_SLASH_PICKER,
+  type HeroDemoAction,
+  type HeroDemoScene,
+  type HeroDemoTurn,
+} from "./heroDemoConversation";
 
 const ENGAGED_KEY = "hero-demo-engaged";
 const DEFAULT_THINK_MS = 1500;
@@ -13,6 +18,10 @@ const SCENE_GAP_MS = 1400;
 const SCENE_EXIT_MS = 900;
 const TYPING_MS = 1200;
 const ACTION_PRESS_MS = 900;
+const SLASH_PICKER_SHOW_MS = 1100;
+const SLASH_PICKER_HIDE_MS = 280;
+const USER_CHAR_MS = 32;
+const SLASH_CHAR_MS = 38;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -116,6 +125,130 @@ function createMessage(turn: HeroDemoTurn, root: HTMLElement): HTMLElement {
   return row;
 }
 
+function createUserComposingShell(root: HTMLElement, kind: "voice" | "slash"): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "home-hero-demo-msg home-hero-demo-msg--user home-hero-demo-msg--composing";
+  row.setAttribute("role", "listitem");
+
+  const bubble = document.createElement("div");
+  bubble.className = "home-hero-demo-bubble";
+  if (kind === "slash") bubble.classList.add("home-hero-demo-bubble--slash");
+
+  const text = document.createElement("p");
+  text.className = "home-hero-demo-bubble-text home-hero-demo-bubble-text--cursor";
+  text.textContent = "";
+  bubble.appendChild(text);
+
+  const avatar = cloneAvatar("user", root);
+  row.appendChild(bubble);
+  row.appendChild(avatar);
+  return row;
+}
+
+function buildSlashPicker(activeSlash: string): HTMLElement {
+  const panel = document.createElement("div");
+  panel.className = "home-hero-demo-slash-picker";
+  panel.setAttribute("role", "listbox");
+  panel.setAttribute("aria-label", "Slash commands");
+
+  const list = document.createElement("ul");
+  list.className = "home-hero-demo-slash-picker-list";
+
+  for (const option of HERO_DEMO_SLASH_PICKER) {
+    const item = document.createElement("li");
+    item.className = "home-hero-demo-slash-option";
+    if (option.slash === activeSlash) item.classList.add("active");
+
+    const slash = document.createElement("span");
+    slash.className = "home-hero-demo-slash-option-cmd";
+    slash.textContent = option.slash;
+
+    const summary = document.createElement("span");
+    summary.className = "home-hero-demo-slash-option-summary";
+    summary.textContent = option.summary;
+
+    item.appendChild(slash);
+    item.appendChild(summary);
+    list.appendChild(item);
+  }
+
+  panel.appendChild(list);
+  return panel;
+}
+
+async function typeText(
+  el: HTMLElement,
+  chunk: string,
+  msPerChar: number,
+  isAlive: () => boolean,
+): Promise<void> {
+  for (const ch of chunk) {
+    if (!isAlive()) return;
+    el.textContent += ch;
+    await wait(msPerChar);
+  }
+}
+
+async function playUserTurn(
+  turn: HeroDemoTurn,
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  viewport: HTMLElement,
+  stack: HTMLElement,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  if (reducedMotion) {
+    const row = createMessage(turn, root);
+    sceneEl.appendChild(row);
+    refreshStackLayout(viewport, stack);
+    return;
+  }
+
+  const kind = turn.kind ?? "voice";
+  const row = createUserComposingShell(root, kind);
+  row.classList.add("home-hero-demo-msg--enter");
+  sceneEl.appendChild(row);
+  refreshStackLayout(viewport, stack);
+
+  const textEl = row.querySelector<HTMLElement>(".home-hero-demo-bubble-text")!;
+  const full = turn.text;
+
+  if (kind === "slash") {
+    const activeSlash = full.trim().split(/\s/)[0] ?? "/document";
+
+    await typeText(textEl, "/", SLASH_CHAR_MS, isAlive);
+    if (!isAlive()) return;
+    refreshStackLayout(viewport, stack);
+
+    const picker = buildSlashPicker(activeSlash);
+    row.appendChild(picker);
+    requestAnimationFrame(() => {
+      picker.classList.add("home-hero-demo-slash-picker--visible");
+    });
+    refreshStackLayout(viewport, stack);
+    await wait(SLASH_PICKER_SHOW_MS);
+    if (!isAlive()) return;
+
+    picker.classList.remove("home-hero-demo-slash-picker--visible");
+    picker.classList.add("home-hero-demo-slash-picker--exit");
+    await wait(SLASH_PICKER_HIDE_MS);
+    picker.remove();
+
+    const slashBody = activeSlash.slice(1);
+    await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive);
+    const rest = full.slice(activeSlash.length);
+    if (rest) await typeText(textEl, rest, USER_CHAR_MS, isAlive);
+  } else {
+    await typeText(textEl, full, USER_CHAR_MS, isAlive);
+  }
+
+  if (!isAlive()) return;
+  textEl.classList.remove("home-hero-demo-bubble-text--cursor");
+  row.classList.remove("home-hero-demo-msg--composing");
+  refreshStackLayout(viewport, stack);
+}
+
 function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
   const msgs = [...stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg:not(.home-hero-demo-msg--typing)")];
   const count = msgs.length;
@@ -212,7 +345,12 @@ export function initHeroDemoLoop(root: HTMLElement) {
       }
       if (!running) return;
 
-      if (turn.role === "assistant" && !reducedMotion) {
+      if (turn.role === "user") {
+        await playUserTurn(turn, root, sceneEl, viewport, stack, reducedMotion, () => running);
+        continue;
+      }
+
+      if (!reducedMotion) {
         const typing = createTypingIndicator(root);
         typing.classList.add("home-hero-demo-msg--enter");
         sceneEl.appendChild(typing);
@@ -227,7 +365,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
       sceneEl.appendChild(row);
       refreshStackLayout(viewport, stack);
 
-      if (turn.role === "assistant" && turn.actions?.length) {
+      if (turn.actions?.length) {
         await wait(ACTION_PRESS_MS + 400);
         if (!running) return;
         await simulateActionPress(row);
