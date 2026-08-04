@@ -368,22 +368,11 @@ function messageDepth(turnsBehindNewest: number): number {
 }
 
 function applyMessageFocus(msg: HTMLElement) {
-  msg.style.transformOrigin = msg.classList.contains("home-hero-demo-msg--user")
-    ? "bottom right"
-    : "bottom left";
-  msg.style.transform = "scale(1)";
-  msg.style.opacity = "1";
-  msg.style.filter = "none";
+  msg.style.setProperty("--msg-depth", "0");
 }
 
 function applyMessageDepth(msg: HTMLElement, depth: number) {
-  const isUser = msg.classList.contains("home-hero-demo-msg--user");
-  const origin = isUser ? "bottom right" : "bottom left";
-
-  msg.style.transformOrigin = origin;
-  msg.style.transform = `scale(${(1 - depth * 0.24).toFixed(3)})`;
-  msg.style.opacity = (1 - depth).toFixed(3);
-  msg.style.filter = `blur(${(depth * 6).toFixed(2)}px)`;
+  msg.style.setProperty("--msg-depth", depth.toFixed(4));
 }
 
 function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {

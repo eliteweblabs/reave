@@ -314,6 +314,13 @@ const demoScenes = HERO_DEMO_SCENES;
 </style>
 
 <style is:global>
+  /* Animatable depth — one transition drives opacity + scale (Safari snaps on filter). */
+  @property --msg-depth {
+    syntax: "<number>";
+    initial-value: 0;
+    inherits: false;
+  }
+
   /* Scene + messages are built in JS — must be global (scoped CSS never matches). */
   .home-hero-demo-scene {
     display: flex;
@@ -335,19 +342,19 @@ const demoScenes = HERO_DEMO_SCENES;
      * back-and-forth instead of one column of same-width blocks.
      */
     --demo-gutter: clamp(1.5rem, 18%, 4.5rem);
+    --msg-depth: 0;
     display: flex;
     align-items: flex-end;
     gap: 0.55rem;
     width: 100%;
     margin: 0;
     padding: 0;
-    opacity: 1;
-    transform: scale(1);
-    filter: none;
+    opacity: calc(1 - var(--msg-depth));
+    transform: scale(calc(1 - var(--msg-depth) * 0.24));
     transition:
+      --msg-depth 0.53s ease,
       opacity 0.53s ease,
-      transform 0.53s ease,
-      filter 0.53s ease;
+      transform 0.53s ease;
   }
 
   .home-hero-demo-msg--user {
@@ -355,12 +362,14 @@ const demoScenes = HERO_DEMO_SCENES;
     flex-direction: row;
     justify-content: flex-end;
     padding-inline-start: var(--demo-gutter);
+    transform-origin: bottom right;
   }
 
   .home-hero-demo-msg--assistant {
     flex-direction: row;
     justify-content: flex-start;
     padding-inline-end: var(--demo-gutter);
+    transform-origin: bottom left;
   }
 
   .home-hero-demo-avatar {
