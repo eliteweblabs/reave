@@ -1424,6 +1424,15 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
+.em-cat-otp {
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.14);
+}
+.em-otp-countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #fbbf24;
+}
 .em-otp-card {
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;

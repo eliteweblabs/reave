@@ -267,6 +267,7 @@ function fieldValue(email: InboundEmail, field: RuleField): string {
 function matchesVerificationCodeRule(rule: EmailRule, email: InboundEmail): boolean {
   if (!rule.enabled || !isVerificationCodeRuleStatus(rule.status)) return false;
   return isVerificationCodeEmail({
+    from: email.from,
     subject: email.subject,
     text: email.text,
     html: email.html,

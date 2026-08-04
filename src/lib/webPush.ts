@@ -6,7 +6,7 @@ import webpush from 'web-push';
 import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
 import { getReviewsPendingCount } from './reviewsPendingCount';
 import { formatNotificationPayload } from './notificationFormat';
-import { inferPushAlertKind, storeCreatePushAlert } from './pushAlertStore';
+import { inferPushAlertKind, storeCreatePushAlert, type PushAlertKind } from './pushAlertStore';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
 import { isPushQuietHoursActive } from './pushQuietHours';
@@ -51,6 +51,7 @@ export async function sendPushNotification(payload: {
   bypassQuietHours?: boolean;
   /** Client reply and other high-priority alerts — may still deliver if allowUrgentDuringSleep. */
   urgent?: boolean;
+  kind?: PushAlertKind;
 }): Promise<void> {
   const tag = payload.tag ?? 'inbox';
   const url = payload.url ?? '/admin?tab=email';
@@ -67,7 +68,7 @@ export async function sendPushNotification(payload: {
   if (!payload.skipDashboardAlert) {
     const alert = await storeCreatePushAlert({
       tag,
-      kind: inferPushAlertKind(tag, url),
+      kind: payload.kind ?? inferPushAlertKind(tag, url),
       title: pushTitle,
       detail: pushBody,
       url,
@@ -125,10 +126,11 @@ export async function sendInboxPushNotification(payload: {
   /** Inbox record id — opens that message when the notification is tapped. */
   emailId?: string;
   urgent?: boolean;
+  kind?: PushAlertKind;
 }): Promise<void> {
   const url = payload.emailId
     ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
     : '/admin?tab=email';
-  const { emailId: _emailId, ...rest } = payload;
-  return sendPushNotification({ ...rest, url });
+  const { emailId: _emailId, kind, ...rest } = payload;
+  return sendPushNotification({ ...rest, url, kind });
 }

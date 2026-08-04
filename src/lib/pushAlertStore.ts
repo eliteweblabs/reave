@@ -11,7 +11,7 @@ import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { workSlugFromAdminUrl } from './notificationFormat';
 
-export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement';
+export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement' | 'otp';
 
 export type PushAlert = {
   id: string;
@@ -117,6 +117,7 @@ function cutoffIso(maxAgeDays: number): string {
 export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
   const t = tag.toLowerCase();
   const u = url.toLowerCase();
+  if (t.startsWith('otp-')) return 'otp';
   if (t.startsWith('uptime-') || t.startsWith('watch-')) return 'uptime';
   if (t.startsWith('project-comment-')) return 'comment';
   if (t.startsWith('vault-') || t.startsWith('share-open-') || t.startsWith('deck-view-')) {

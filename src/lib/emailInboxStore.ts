@@ -200,7 +200,7 @@ const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
               automation_ack_at, automation_triage_at, automation_triage_action, automation_triage_rule_id,
-              automation_kind, verification_code, attachments_json`;
+              automation_kind, verification_code, delete_after_at, attachments_json`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -290,7 +290,8 @@ function normalizeCategory(raw: string | undefined): EmailCategory {
     c === 'internal' ||
     c === 'review' ||
     c === 'receipt' ||
-    c === 'project'
+    c === 'project' ||
+    c === 'otp'
   ) {
     return c;
   }
@@ -468,7 +469,7 @@ export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean
     }
     visible++;
     if (e.category === 'client') client++;
-    else if (e.category === 'review') review++;
+    else if (e.category === 'review' || e.category === 'otp') review++;
     else if (e.category === 'alert') alert++;
     if (e.action === 'filed') filed++;
   }

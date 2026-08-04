@@ -17,7 +17,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **Ingest:** Resend webhook at `/api/email/inbound` (copy mail here; keep reading in Proton).
 - **Cutoff:** Mail whose `Date` header is before go-live is dropped (not triaged, not stored). Cutoff auto-sets to the first webhook time; override with `EMAIL_INBOUND_SINCE`.
 - **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`). Rules are indefinite by default; optional `expires_at` stops matching after that time (admin Rules toggle, or chat when creating a rule).
-- **Verification codes (global):** Built-in rule `VERIFICATION_CODE` matches OTP / login-code mail via regex (`verification code`, `access code`, `otp`, 4–8 digit codes, etc.) on **every installation** — always evaluated before other rules. Parsed code is stored on the inbox row; Email tab shows copy / delete / close actions and a dedicated push notification. **Auto-delete:** verification-code mail and its dashboard notification are removed **5 minutes** after arrival (override with `EMAIL_OTP_TTL_MINUTES`; set `0` to disable).
+- **Verification codes (global):** Built-in rule `VERIFICATION_CODE` matches OTP / login-code mail via regex **and known OTP sender addresses** (noreply@, accounts.google.com, id.apple.com, etc.; extend with `EMAIL_OTP_SENDERS`). Parsed code is stored on the inbox row; category is **`otp`**; Email tab shows copy / delete / close actions and a dedicated push notification with **Copy code · Delete · ✕** (not generic View/Archive). **Auto-delete:** verification-code mail and its dashboard notification are removed **5 minutes** after arrival (override with `EMAIL_OTP_TTL_MINUTES`; set `0` to disable).
 - **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Attachments:** Resend attachment metadata is stored on the inbox row and shown in the Email detail pane with download links (`/api/email/inbox/:id/attachments/:attachmentId`). Attachment-only mail (signature + files, no body) is summarized by filename — not treated as blank. Linking an email to a project still imports files into that project's file grid.
@@ -35,7 +35,8 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `alert` | Uptime, security, monitoring |
 | `internal` | Admin/personal, not client work |
 | `review` | Needs your decision |
-| `VERIFICATION_CODE` | OTP / login code — copy in Email tab (status label; category is `review`) |
+| `otp` | One-time verification / login code — copy in Email tab or dashboard banner |
+| `VERIFICATION_CODE` | OTP status label (category is `otp`) |
 
 ## Environment
 
@@ -47,6 +48,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `EMAIL_INBOUND_SINCE` | Optional ISO date — ignore mail sent before this (overrides DB cutoff) |
 | `EMAIL_INBOUND_FILTER` | Set `0` to disable the send-date cutoff (process all forwarded mail) |
 | `EMAIL_OTP_TTL_MINUTES` | Minutes before verification-code mail + dashboard alert auto-delete (default **5**; `0` disables) |
+| `EMAIL_OTP_SENDERS` | Extra OTP sender domains or full addresses (comma-separated), merged with built-in list |
 | `EMAIL_CLEANUP_POLL_SECONDS` | How often the expiry cleanup job runs (default **60**) |
 | `CONTACT_API_BASE_URL` | Resolve sender → client |
 | `DATABASE_URL` | Inbox log + jobs + push subscriptions |

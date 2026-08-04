@@ -2688,6 +2688,76 @@ function senderLabelForReviewAlert(from, contactName) {
   return String(from || '').trim();
 }
 
+function isOtpReviewAlert(item) {
+  if (!item) return false;
+  if (item.alertKind === 'otp') return true;
+  if (String(item.tag || '').toLowerCase().startsWith('otp-')) return true;
+  if (item.verificationCode) return true;
+  if (item.deleteAfterAt && /verification code/i.test(String(item.title || ''))) return true;
+  if (/verification code ready/i.test(String(item.title || ''))) return true;
+  return false;
+}
+
+function formatOtpCountdown(remainingMs) {
+  if (remainingMs <= 0) return '0:00';
+  const sec = Math.ceil(remainingMs / 1000);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+let otpCountdownTimer = null;
+
+function tickOtpCountdowns() {
+  const now = Date.now();
+  document.querySelectorAll('[data-otp-expires]').forEach((el) => {
+    const iso = el.getAttribute('data-otp-expires');
+    if (!iso) return;
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return;
+    const remaining = ms - now;
+    el.textContent = formatOtpCountdown(remaining);
+    if (remaining <= 0) {
+      el.closest('.admin-setup-alert--otp')?.remove();
+    }
+  });
+}
+
+function syncOtpCountdownTimers() {
+  tickOtpCountdowns();
+  if (otpCountdownTimer) return;
+  otpCountdownTimer = setInterval(tickOtpCountdowns, 1000);
+}
+
+async function copyOtpFromReviewAlert(item, btn) {
+  let code = String(item?.verificationCode || '').trim();
+  if (!code && item?.emailId) {
+    const ev = emailState.allEvents.find((e) => e.id === item.emailId);
+    code = String(ev?.verificationCode || '').trim();
+  }
+  if (!code) {
+    if (item?.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+    return;
+  }
+  await copyEmailVerificationCode(code, btn);
+}
+
+async function deleteOtpFromReviewAlert(item, btn) {
+  const emailId = String(item?.emailId || '').trim();
+  if (!emailId) {
+    await dismissReviewNotification(item, btn);
+    return;
+  }
+  let ev = emailState.allEvents.find((e) => e.id === emailId);
+  if (!ev) ev = { id: emailId, verificationCode: item.verificationCode };
+  if (btn) btn.disabled = true;
+  try {
+    await deleteEmail(ev);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function reviewAlertCopyIsDuplicated(title, detail) {
   const t = String(title || '')
     .trim()
@@ -2722,6 +2792,20 @@ function reviewAlertDisplayCopy(item) {
 }
 
 function reviewAlertCopyHtml(item) {
+  if (isOtpReviewAlert(item)) {
+    const when = formatReviewAlertWhen(item.receivedAt);
+    const code = String(item.verificationCode || '').trim();
+    const sender = item.from ? senderLabelForReviewAlert(item.from, item.contactName) : '';
+    const headline = when ? `${escHtml(when)} · Verification code` : 'Verification code';
+    const codeHtml = code
+      ? `<p class="admin-otp-code-display">${escHtml(code)}</p>`
+      : `<p>${escHtml(item.detail || 'Tap Copy code')}</p>`;
+    const countdownHtml = item.deleteAfterAt
+      ? `<p class="admin-otp-expiry"><span class="admin-otp-countdown" data-otp-expires="${escHtml(item.deleteAfterAt)}">—</span> until auto-delete</p>`
+      : '';
+    const senderHtml = sender ? `<p class="admin-otp-sender">${escHtml(sender)}</p>` : '';
+    return `<strong>${headline}</strong>${codeHtml}${senderHtml}${countdownHtml}`;
+  }
   const when = formatReviewAlertWhen(item.receivedAt);
   const { headline, body } = reviewAlertDisplayCopy(item);
   const headlineLine = when
@@ -3568,7 +3652,8 @@ function isAuditPushAlert(item) {
   return /^(?:Full )?audit ready(?:\s*>:|\s*:)/i.test(String(item.title || '').trim());
 }
 
-function reviewAlertVariant(type) {
+function reviewAlertVariant(type, item) {
+  if (item && isOtpReviewAlert(item)) return 'otp';
   if (type === 'push_alert') return 'confirm';
   if (type === 'meeting_conflict') return 'confirm';
   if (
@@ -3588,8 +3673,11 @@ function reviewAlertVariant(type) {
 function reviewAlertIconName(item) {
   const type = item?.type;
   if (type === 'push_alert') {
+    if (isOtpReviewAlert(item)) return 'key';
     if (isAuditPushAlert(item)) return 'file-text';
     switch (item.alertKind) {
+      case 'otp':
+        return 'key';
       case 'email':
         return 'mail';
       case 'uptime':
@@ -3795,7 +3883,7 @@ async function openReviewNotificationTarget(item) {
 
 function buildReviewAlertBanner(item) {
   const alert = document.createElement('div');
-  alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type)}`;
+  alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type, item)}`;
   alert.setAttribute('role', 'status');
   if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
   if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
@@ -3836,7 +3924,6 @@ function buildReviewAlertBanner(item) {
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
   copy.innerHTML = reviewAlertCopyHtml(item);
-  copy.addEventListener('click', () => openReviewNotificationTarget(item));
 
   const actions = document.createElement('div');
   actions.className = 'admin-setup-alert-actions';
@@ -3852,13 +3939,39 @@ function buildReviewAlertBanner(item) {
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
   const isPushAlert = item.type === 'push_alert';
+  const isOtp = isOtpReviewAlert(item);
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
+
+  if (isOtp && item.verificationCode) {
+    copy.addEventListener('click', () => void copyOtpFromReviewAlert(item, null));
+  } else {
+    copy.addEventListener('click', () => openReviewNotificationTarget(item));
+  }
 
   if (emailAwaitingTriage) {
     alert.classList.add('admin-setup-alert--triage');
   }
 
-  if (isPushAlert) {
+  if (isOtp) {
+    alert.classList.add('admin-setup-alert--otp');
+    if (item.verificationCode) {
+      appendReviewAlertAction(actions, {
+        label: 'Copy code',
+        primary: true,
+        onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
+      });
+    } else {
+      appendReviewAlertAction(actions, {
+        label: 'View',
+        primary: true,
+        onClick: () => openReviewNotificationTarget(item),
+      });
+    }
+    appendReviewAlertAction(actions, {
+      label: 'Delete',
+      onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
+    });
+  } else if (isPushAlert) {
     appendReviewAlertAction(actions, {
       label: 'View',
       primary: true,
@@ -4344,6 +4457,7 @@ function buildReviewAlertBanners(notifications) {
   for (const item of notifications) {
     wrap.appendChild(buildReviewAlertBanner(item));
   }
+  syncOtpCountdownTimers();
   return wrap;
 }
 
@@ -8373,7 +8487,11 @@ function inboxEventsForFilter() {
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
   if (f === 'receipt') return all.filter((e) => e.category === 'receipt' && !isEmailRouted(e));
   if (f === 'alert') return all.filter((e) => e.category === 'alert' && !isEmailRouted(e));
-  if (f === 'review') return all.filter((e) => e.category === 'review' && !isEmailRouted(e));
+  if (f === 'review') {
+    return all.filter(
+      (e) => (e.category === 'review' || e.category === 'otp') && !isEmailRouted(e),
+    );
+  }
   if (f === 'book') return all.filter((e) => isEmailBookable(e) && !isEmailRouted(e));
   if (f === 'project') return all.filter(isEmailProject);
   if (f === 'routed') return all.filter(isEmailRouted);
@@ -8742,7 +8860,7 @@ function syncInboxBadgePoll() {
 
 function emailCategoryClass(cat) {
   const key = String(cat || 'review').toLowerCase();
-  const known = new Set(['junk', 'client', 'alert', 'internal', 'review', 'receipt', 'project']);
+  const known = new Set(['junk', 'client', 'alert', 'internal', 'review', 'receipt', 'project', 'otp']);
   return known.has(key) ? `em-cat-${key}` : 'em-cat-review';
 }
 
@@ -8771,7 +8889,11 @@ function emailShowsReceiptAction(ev) {
 }
 
 function isVerificationCodeEmail(ev) {
-  return Boolean(ev?.verificationCode) || String(ev?.status || '').toUpperCase() === 'VERIFICATION_CODE';
+  if (!ev) return false;
+  if (Boolean(ev.verificationCode)) return true;
+  if (String(ev.category || '').toLowerCase() === 'otp') return true;
+  if (String(ev.action || '').toLowerCase() === 'verification_code') return true;
+  return String(ev.status || '').toUpperCase() === 'VERIFICATION_CODE';
 }
 
 function closeEmailDetail() {
@@ -8840,7 +8962,7 @@ function buildEmailDetailHeaderIcons(ev) {
       icons.push(
         createIosIconBtn({
           iconKey: 'copy',
-          label: 'Copy verification code',
+          label: 'Copy code',
           className: 'ios-icon-btn em-copy-code-btn',
           onClick: (btn) => void copyEmailVerificationCode(ev.verificationCode, btn),
         }),
@@ -10575,7 +10697,7 @@ function createEmailListItem(ev) {
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       (isProjectReplyEmail(ev)
         ? '<span class="em-status em-project-reply">Client reply</span>'
-        : `<span class="em-status ${emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
+        : `<span class="em-status ${isVerificationCodeEmail(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
       (emailMonetaryAmount(ev) && ev.category !== 'receipt'
         ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
         : '') +
@@ -12229,12 +12351,16 @@ function renderEmailPanel(opts = {}) {
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
   if (ev.verificationCode) {
+    const expiryHtml = ev.deleteAfterAt
+      ? `Auto-deletes in <span class="admin-otp-countdown em-otp-countdown" data-otp-expires="${escHtml(ev.deleteAfterAt)}">—</span> · `
+      : '';
     detailHtml +=
       `<div class="em-otp-card" data-otp-card>` +
         `<div class="em-otp-card-title">Verification code</div>` +
         `<button type="button" class="em-otp-code-btn" data-otp-code data-code="${escHtml(ev.verificationCode)}">${escHtml(ev.verificationCode)}</button>` +
-        `<p class="em-otp-hint">Tap the code to copy — switch back to your browser and tap <strong>Paste</strong> above the keyboard.</p>` +
+        `<p class="em-otp-hint">${expiryHtml}Tap the code to copy — switch back to your browser and tap <strong>Paste</strong> above the keyboard.</p>` +
       `</div>`;
+    syncOtpCountdownTimers();
   }
   if (isEmailBookable(ev)) {
     const whenLabel =
