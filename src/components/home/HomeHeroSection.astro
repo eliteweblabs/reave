@@ -1,6 +1,7 @@
 ---
 /**
- * Homepage hero — brand icon, scripted demo conversation, headline, and CTAs.
+ * Homepage hero — fixed viewport layout: icon mid-upper, chat scrolls up under it,
+ * headline + CTAs pinned to the bottom. Nothing shifts while the demo runs.
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
@@ -22,54 +23,52 @@ const demoScenes = HERO_DEMO_SCENES;
   <div class="home-hero-mesh" aria-hidden="true"></div>
   <ReaveBgPattern class="home-hero-pattern" fit="cover" opacity={0.085} reveal />
 
-  <div class="home-hero-center">
-    <div class="home-hero-icon-wrap">
-      <BrandIconInline company={company} />
-    </div>
+  <div class="home-hero-icon-wrap" data-hero-icon>
+    <BrandIconInline company={company} />
+  </div>
 
-    <div
-      class="home-hero-demo"
-      data-hero-demo
-      data-scenes={JSON.stringify(demoScenes)}
-      aria-live="polite"
-      aria-atomic="false"
-    >
-        <template id="hero-demo-agent-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-            <ReaveIcon class="home-hero-demo-avatar-icon" />
-          </span>
-        </template>
-        <template id="hero-demo-user-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
-            <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#64748b"/>
-                  <stop offset="100%" stop-color="#334155"/>
-                </linearGradient>
-              </defs>
-              <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
-              <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
-              <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
-            </svg>
-          </span>
-        </template>
-        <div class="home-hero-demo-viewport" data-hero-demo-viewport>
-          <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
-        </div>
+  <div
+    class="home-hero-demo"
+    data-hero-demo
+    data-scenes={JSON.stringify(demoScenes)}
+    aria-live="polite"
+    aria-atomic="false"
+  >
+    <template id="hero-demo-agent-avatar">
+      <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
+        <ReaveIcon class="home-hero-demo-avatar-icon" />
+      </span>
+    </template>
+    <template id="hero-demo-user-avatar">
+      <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
+        <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#64748b"/>
+              <stop offset="100%" stop-color="#334155"/>
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
+          <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
+          <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
+        </svg>
+      </span>
+    </template>
+    <div class="home-hero-demo-viewport" data-hero-demo-viewport>
+      <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
     </div>
+  </div>
 
-    <div class="home-hero-copy">
-      <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
-      <div class="home-hero-cta">
-        <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/#plan">
-          See pricing
-        </a>
-        <a class="home-hero-btn home-hero-btn--primary" href="/demo">
-          Demo now
-          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-        </a>
-      </div>
+  <div class="home-hero-copy" data-hero-copy>
+    <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
+    <div class="home-hero-cta">
+      <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/#plan">
+        See pricing
+      </a>
+      <a class="home-hero-btn home-hero-btn--primary" href="/demo">
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
     </div>
   </div>
 </section>
@@ -80,14 +79,15 @@ const demoScenes = HERO_DEMO_SCENES;
 
 <style>
   .home-hero {
+    --home-hero-copy-h: 168px;
     position: relative;
     z-index: 0;
     width: 100%;
-    min-height: 100vh;
+    height: 100svh;
+    height: 100dvh;
     min-height: 100svh;
-    padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 24px) 20px 64px;
-    scroll-margin-top: 0;
     overflow: hidden;
+    scroll-margin-top: 0;
   }
 
   .home-hero-mesh {
@@ -99,55 +99,26 @@ const demoScenes = HERO_DEMO_SCENES;
       radial-gradient(ellipse 80% 55% at 15% 20%, rgba(244, 114, 182, 0.2) 0%, transparent 62%),
       radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
       radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 58%,
-      rgba(0, 0, 0, 0.55) 78%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 58%,
-      rgba(0, 0, 0, 0.55) 78%,
-      transparent 100%
-    );
   }
 
   .home-hero-pattern {
     z-index: 1;
-    /* soft-light is safe here — only CSS mask-image on this wrapper broke iOS path repaints. */
     mix-blend-mode: soft-light;
   }
 
-  .home-hero-center {
-    position: absolute;
-    z-index: 2;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(100%, 720px);
-    padding: 0 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0;
-    text-align: center;
-    pointer-events: none;
-  }
-
-  .home-hero-center :is(a, button) {
-    pointer-events: auto;
-  }
-
+  /* Icon — highest layer, ~⅓ down from header */
   .home-hero-icon-wrap {
-    position: relative;
-    z-index: 3;
-    width: clamp(180px, 35vw, 260px);
-    height: clamp(180px, 35vw, 260px);
-    flex-shrink: 0;
-    margin-bottom: clamp(-52px, -10vw, -36px);
+    position: absolute;
+    z-index: 10;
+    left: 50%;
+    top: calc(
+      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))
+      + (100svh - var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))) * 0.28
+    );
+    transform: translate(-50%, -50%);
+    width: clamp(150px, 32vw, 240px);
+    height: clamp(150px, 32vw, 240px);
+    pointer-events: none;
   }
 
   .home-hero-icon-wrap :global(svg),
@@ -158,79 +129,24 @@ const demoScenes = HERO_DEMO_SCENES;
     filter: var(--brand-glow-filter);
   }
 
-  .home-hero-demo {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: 540px;
-    margin-bottom: clamp(28px, 6vw, 52px);
-    pointer-events: none;
-    transition: opacity 0.85s ease;
-  }
-
-  .home-hero-demo[hidden] {
-    display: none;
-  }
-
-  .home-hero-demo--stopped {
-    opacity: 0;
-  }
-
-  .home-hero-demo-viewport {
-    position: relative;
-    width: 100%;
-    height: clamp(168px, 24vw, 210px);
-    overflow: hidden;
-  }
-
-  .home-hero-demo-stack {
+  /* Headline + CTAs — pinned to viewport bottom */
+  .home-hero-copy {
     position: absolute;
+    z-index: 5;
     left: 0;
     right: 0;
     bottom: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    gap: 0;
-    width: 100%;
-    text-align: left;
-    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-  }
-
-  /*
-   * Fade chat under the icon on desktop only. mask-image and dark viewport overlays
-   * both break on iOS Safari (invisible messages or a solid black box) — touch
-   * devices rely on icon z-index + per-message depth opacity instead.
-   */
-  @media (hover: hover) and (pointer: fine) {
-    .home-hero-demo-stack {
-      -webkit-mask-image: linear-gradient(
-        to bottom,
-        transparent 0%,
-        rgba(0, 0, 0, 0.45) 16%,
-        rgba(0, 0, 0, 0.85) 34%,
-        #000 50%
-      );
-      mask-image: linear-gradient(
-        to bottom,
-        transparent 0%,
-        rgba(0, 0, 0, 0.45) 16%,
-        rgba(0, 0, 0, 0.85) 34%,
-        #000 50%
-      );
-    }
-  }
-
-  .home-hero-copy {
-    display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 18px;
-    width: 100%;
-    margin-top: clamp(8px, 2vw, 16px);
+    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .home-hero-copy :is(a, button) {
+    pointer-events: auto;
   }
 
   .home-hero-title {
@@ -285,6 +201,53 @@ const demoScenes = HERO_DEMO_SCENES;
   .home-hero-btn--ghost:hover {
     transform: translateY(-1px);
   }
+
+  /* Chat — fills space between icon and copy; content scrolls up inside */
+  .home-hero-demo {
+    position: absolute;
+    z-index: 3;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100%, 540px);
+    padding: 0 20px;
+    top: calc(
+      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))
+      + (100svh - var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px)))) * 0.44
+    );
+    bottom: calc(var(--home-hero-copy-h) + 12px);
+    pointer-events: none;
+  }
+
+  .home-hero-demo[hidden] {
+    visibility: hidden;
+  }
+
+  .home-hero-demo--stopped {
+    opacity: 0;
+    transition: opacity 0.85s ease;
+  }
+
+  .home-hero-demo-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .home-hero-demo-stack {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0;
+    width: 100%;
+    text-align: left;
+    transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
 </style>
 
 <style is:global>
@@ -294,12 +257,11 @@ const demoScenes = HERO_DEMO_SCENES;
     flex-direction: column;
     gap: 18px;
     padding-bottom: 2px;
-    transition: opacity 0.85s ease, transform 0.85s ease;
+    transition: opacity 0.85s ease;
   }
 
   .home-hero-demo-scene--exit {
     opacity: 0;
-    transform: translateY(-12px);
   }
 
   .home-hero-demo-msg {
@@ -309,17 +271,8 @@ const demoScenes = HERO_DEMO_SCENES;
     width: 100%;
     margin: 0;
     padding: 0;
-    transition: opacity 0.45s ease;
+    transition: opacity 0.35s ease;
   }
-
-  .home-hero-demo-msg[data-depth="0"] { opacity: 1; }
-  .home-hero-demo-msg[data-depth="1"] { opacity: 0.78; }
-  .home-hero-demo-msg[data-depth="2"] { opacity: 0.58; }
-  .home-hero-demo-msg[data-depth="3"] { opacity: 0.4; }
-  .home-hero-demo-msg[data-depth="4"] { opacity: 0.26; }
-  .home-hero-demo-msg[data-depth="5"],
-  .home-hero-demo-msg[data-depth="6"],
-  .home-hero-demo-msg[data-depth="7"] { opacity: 0.14; }
 
   .home-hero-demo-msg--user {
     position: relative;

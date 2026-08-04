@@ -1,6 +1,6 @@
 /**
- * Homepage hero idle demo — multi-turn scenes that stack, fade, and scroll under the icon.
- * Stops when the visitor engages (scroll, click, key).
+ * Homepage hero idle demo — scenes loop indefinitely; chat scrolls up from the
+ * bottom and fades gradually under the icon. Stops when the visitor leaves the hero.
  */
 
 import {
@@ -10,7 +10,7 @@ import {
   type HeroDemoTurn,
 } from "./heroDemoConversation";
 
-const ENGAGED_KEY = "hero-demo-engaged-v3";
+const ENGAGED_KEY = "hero-demo-engaged-v4";
 const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 5200;
@@ -181,11 +181,46 @@ async function typeText(
   chunk: string,
   msPerChar: number,
   isAlive: () => boolean,
+  onTick?: () => void,
 ): Promise<void> {
   for (const ch of chunk) {
     if (!isAlive()) return;
     el.textContent += ch;
+    onTick?.();
     await wait(msPerChar);
+  }
+}
+
+/** Smoothstep 0–1. */
+function smoothstep(t: number): number {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * (3 - 2 * x);
+}
+
+function refreshStackLayout(
+  viewport: HTMLElement,
+  stack: HTMLElement,
+  iconEl: HTMLElement | null,
+) {
+  const overflow = Math.max(0, stack.scrollHeight - viewport.clientHeight);
+  stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
+
+  const viewportRect = viewport.getBoundingClientRect();
+  const iconRect = iconEl?.getBoundingClientRect();
+  const fadeEnd = iconRect ? iconRect.bottom + 16 : viewportRect.top + viewportRect.height * 0.5;
+  const fadeStart = viewportRect.top - 32;
+  const fadeSpan = Math.max(1, fadeEnd - fadeStart);
+
+  for (const msg of stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")) {
+    if (msg.classList.contains("home-hero-demo-msg--typing")) {
+      msg.style.opacity = "1";
+      continue;
+    }
+
+    const rect = msg.getBoundingClientRect();
+    const msgCenter = (rect.top + rect.bottom) / 2;
+    const t = (msgCenter - fadeStart) / fadeSpan;
+    msg.style.opacity = String(smoothstep(t));
   }
 }
 
@@ -195,13 +230,16 @@ async function playUserTurn(
   sceneEl: HTMLElement,
   viewport: HTMLElement,
   stack: HTMLElement,
+  iconEl: HTMLElement | null,
   reducedMotion: boolean,
   isAlive: () => boolean,
 ): Promise<void> {
+  const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+
   if (reducedMotion) {
     const row = createMessage(turn, root);
     sceneEl.appendChild(row);
-    refreshStackLayout(viewport, stack);
+    relayout();
     return;
   }
 
@@ -209,7 +247,7 @@ async function playUserTurn(
   const row = createUserComposingShell(root, kind);
   row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
-  refreshStackLayout(viewport, stack);
+  relayout();
 
   const textEl = row.querySelector<HTMLElement>(".home-hero-demo-bubble-text")!;
   const full = turn.text;
@@ -217,16 +255,16 @@ async function playUserTurn(
   if (kind === "slash") {
     const activeSlash = full.trim().split(/\s/)[0] ?? "/document";
 
-    await typeText(textEl, "/", SLASH_CHAR_MS, isAlive);
+    await typeText(textEl, "/", SLASH_CHAR_MS, isAlive, relayout);
     if (!isAlive()) return;
-    refreshStackLayout(viewport, stack);
+    relayout();
 
     const picker = buildSlashPicker(activeSlash);
     row.appendChild(picker);
     requestAnimationFrame(() => {
       picker.classList.add("home-hero-demo-slash-picker--visible");
     });
-    refreshStackLayout(viewport, stack);
+    relayout();
     await wait(SLASH_PICKER_SHOW_MS);
     if (!isAlive()) return;
 
@@ -236,33 +274,17 @@ async function playUserTurn(
     picker.remove();
 
     const slashBody = activeSlash.slice(1);
-    await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive);
+    await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive, relayout);
     const rest = full.slice(activeSlash.length);
-    if (rest) await typeText(textEl, rest, USER_CHAR_MS, isAlive);
+    if (rest) await typeText(textEl, rest, USER_CHAR_MS, isAlive, relayout);
   } else {
-    await typeText(textEl, full, USER_CHAR_MS, isAlive);
+    await typeText(textEl, full, USER_CHAR_MS, isAlive, relayout);
   }
 
   if (!isAlive()) return;
   textEl.classList.remove("home-hero-demo-bubble-text--cursor");
   row.classList.remove("home-hero-demo-msg--composing");
-  refreshStackLayout(viewport, stack);
-}
-
-function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
-  const msgs = [...stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg:not(.home-hero-demo-msg--typing)")];
-  const count = msgs.length;
-
-  msgs.forEach((msg, index) => {
-    const depth = count - 1 - index;
-    msg.dataset.depth = String(depth);
-  });
-
-  const typing = stack.querySelector<HTMLElement>(".home-hero-demo-msg--typing");
-  if (typing) typing.dataset.depth = "0";
-
-  const overflow = Math.max(0, stack.scrollHeight - viewport.clientHeight);
-  stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
+  relayout();
 }
 
 async function simulateActionPress(row: HTMLElement): Promise<void> {
@@ -290,6 +312,11 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
   });
 }
 
+function syncHeroCopyHeight(hero: HTMLElement, copy: HTMLElement | null) {
+  if (!copy) return;
+  hero.style.setProperty("--home-hero-copy-h", `${copy.offsetHeight}px`);
+}
+
 export function initHeroDemoLoop(root: HTMLElement) {
   if (root.dataset.heroDemoBound === "1") return;
   root.dataset.heroDemoBound = "1";
@@ -297,19 +324,27 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const scenes = parseScenes(root.dataset.scenes);
   if (!scenes.length) return;
 
+  const hero = root.closest<HTMLElement>(".home-hero");
   const viewport = root.querySelector<HTMLElement>("[data-hero-demo-viewport]");
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
-  if (!viewport || !stack) return;
+  const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
+  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
+  if (!viewport || !stack || !hero) return;
 
   if (sessionStorage.getItem(ENGAGED_KEY) === "1") {
     root.hidden = true;
     return;
   }
 
+  const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+  syncHeroCopyHeight(hero, copyEl);
+  if (copyEl) new ResizeObserver(() => syncHeroCopyHeight(hero, copyEl)).observe(copyEl);
+  if (iconEl) new ResizeObserver(relayout).observe(iconEl);
+  window.addEventListener("resize", relayout, { passive: true });
+
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let sceneIndex = Math.floor(Math.random() * scenes.length);
   let running = true;
-  let engageArmed = false;
 
   const stop = () => {
     if (!running) return;
@@ -321,32 +356,20 @@ export function initHeroDemoLoop(root: HTMLElement) {
     }, SCENE_EXIT_MS);
   };
 
-  // iOS fires scroll/pointer noise on load (address bar, layout) — ignore until armed.
-  window.setTimeout(() => {
-    engageArmed = true;
-  }, 2500);
-
-  const onEngagePointer = () => {
-    if (!engageArmed || !running) return;
-    document.removeEventListener("pointerdown", onEngagePointer);
-    stop();
-  };
-  document.addEventListener("pointerdown", onEngagePointer, { passive: true });
-
-  const onEngageKey = () => {
-    if (!engageArmed || !running) return;
-    document.removeEventListener("keydown", onEngageKey);
-    stop();
-  };
-  document.addEventListener("keydown", onEngageKey);
-
+  // Only stop when the visitor scrolls past the hero — not on taps or iOS layout noise.
   const onScroll = () => {
-    if (!engageArmed || !running) return;
-    if (window.scrollY < 48) return;
+    if (!running) return;
+    const rect = hero.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight * 0.4) return;
     window.removeEventListener("scroll", onScroll);
     stop();
   };
   window.addEventListener("scroll", onScroll, { passive: true });
+
+  // CTA clicks dismiss the demo without blocking scene cycling beforehand.
+  copyEl?.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => stop(), { once: true });
+  });
 
   const playScene = async (scene: HeroDemoScene): Promise<void> => {
     if (!running) return;
@@ -370,7 +393,16 @@ export function initHeroDemoLoop(root: HTMLElement) {
       if (!running) return;
 
       if (turn.role === "user") {
-        await playUserTurn(turn, root, sceneEl, viewport, stack, reducedMotion, () => running);
+        await playUserTurn(
+          turn,
+          root,
+          sceneEl,
+          viewport,
+          stack,
+          iconEl,
+          reducedMotion,
+          () => running,
+        );
         continue;
       }
 
@@ -378,7 +410,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         const typing = createTypingIndicator(root);
         typing.classList.add("home-hero-demo-msg--enter");
         sceneEl.appendChild(typing);
-        refreshStackLayout(viewport, stack);
+        relayout();
         await wait(TYPING_MS);
         if (!running) return;
         typing.remove();
@@ -387,7 +419,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
       const row = createMessage(turn, root);
       if (!reducedMotion) row.classList.add("home-hero-demo-msg--enter");
       sceneEl.appendChild(row);
-      refreshStackLayout(viewport, stack);
+      relayout();
 
       if (turn.actions?.length) {
         await wait(ACTION_PRESS_MS + 400);
