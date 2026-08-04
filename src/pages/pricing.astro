@@ -1,0 +1,130 @@
+---
+import Layout from "../layouts/Layout.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import FeaturesPricingSection from "../components/features/FeaturesPricingSection.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
+import { ArrowRight } from "lucide-astro";
+
+const company = await getCompanyConfig(Astro.request);
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+---
+
+<Layout
+  title="Pricing"
+  description={`${company.name} installation tiers — Core OS, Operations, Growth, and Full platform. Month-one ramp, flat monthly fee from month four.`}
+>
+  <div class="pricing-page">
+    <section class="pricing-hero scroll-fade-in" aria-labelledby="pricing-title">
+      <p class="pricing-kicker">Installation plan</p>
+      <h1 id="pricing-title" class="pricing-h1">Pricing</h1>
+      <p class="pricing-lead">
+        Four tiers mapped to how much of the Business OS you need on day one. Every tier
+        includes the 90% core — CRM, portal, billing, inbox, AI, and mobile — with higher
+        tiers adding operations, growth, and industry plugins.
+      </p>
+      <div class="pricing-cta-row">
+        <a class="pricing-btn pricing-btn--primary" href="/demo">
+          Demo now
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a class="pricing-btn pricing-btn--ghost brand-btn-glass" href="/features">Platform tour</a>
+      </div>
+    </section>
+
+    <FeaturesPricingSection variant="standalone" featureHrefPrefix="/features" />
+  </div>
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+      />
+    )
+  }
+</Layout>
+
+<style>
+  .pricing-page {
+    min-height: 100vh;
+    padding: calc(64px + 40px) 20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pricing-hero {
+    width: 100%;
+    max-width: 760px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .pricing-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin: 0 0 14px;
+  }
+
+  .pricing-h1 {
+    margin: 0 0 16px;
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .pricing-lead {
+    margin: 0 auto 28px;
+    max-width: 580px;
+    font-family: var(--font-content);
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .pricing-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .pricing-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .pricing-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .pricing-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .pricing-btn--ghost:hover {
+    transform: translateY(-1px);
+  }
+</style>

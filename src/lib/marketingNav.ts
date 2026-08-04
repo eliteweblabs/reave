@@ -23,6 +23,7 @@ export type MarketingNavGroup = {
 export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
   { href: '/features', label: 'Platform' },
   { href: '/compare', label: 'Compare' },
+  { href: '/pricing', label: 'Pricing' },
   { href: '/modules', label: 'Modules' },
   { href: '/deck', label: 'Walkthrough', hideBelow: 1080 },
   { href: '/about', label: 'About' },
@@ -44,6 +45,7 @@ export const MARKETING_NAV_GROUPS: MarketingNavGroup[] = [
     links: [
       { href: '/features', label: 'Platform' },
       { href: '/compare', label: 'Compare' },
+      { href: '/pricing', label: 'Pricing' },
       { href: '/modules', label: 'Modules' },
       { href: '/demo', label: 'Demo', primary: true },
       { href: '/deck', label: 'Walkthrough' },
@@ -79,6 +81,7 @@ export function isMarketingPagePath(pathname: string): boolean {
   return (
     path === '/features' ||
     path === '/compare' ||
+    path === '/pricing' ||
     path === '/demo' ||
     path === '/deck' ||
     path === '/about' ||

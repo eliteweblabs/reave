@@ -1,5 +1,5 @@
 /**
- * Installation tier pricing + feature allocation for /features#plan (and #pricing).
+ * Installation tier pricing + feature allocation for /pricing (and /features when embedded).
  * Feature labels and anchors stay aligned with accordion ids on the features page.
  */
 export type TierFeatureRef = {
