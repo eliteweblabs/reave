@@ -1463,7 +1463,7 @@ function isChatProject(t) {
 function chatThreadsForCategoryFilter(threads = chatState.threads) {
   const f = chatState.categoryFilter;
   if (f === 'archive') return threads.filter((t) => t.archived);
-  if (f === 'waiting') return threads.filter((t) => !t.archived && isChatUnread(t));
+  if (f === 'review') return threads.filter((t) => !t.archived && isChatUnread(t));
   if (f === 'working') return threads.filter((t) => chatState.runningIds.has(t.id));
   if (f === 'project') return threads.filter((t) => isChatProject(t));
   return threads.filter((t) => !t.archived);
@@ -1473,7 +1473,7 @@ function chatTabCounts() {
   const all = chatState.threads;
   return {
     all: all.filter((t) => !t.archived).length,
-    waiting: all.filter((t) => !t.archived && isChatUnread(t)).length,
+    review: all.filter((t) => !t.archived && isChatUnread(t)).length,
     working: all.filter((t) => chatState.runningIds.has(t.id)).length,
     project: all.filter((t) => isChatProject(t)).length,
     archive: all.filter((t) => t.archived).length,
@@ -1493,7 +1493,7 @@ function chatSidebarEmptyText() {
   if (chatState.search.trim()) return 'No matches.';
   const labels = {
     all: 'No sessions yet.',
-    waiting: 'No sessions waiting for you.',
+    review: 'No sessions to review.',
     working: 'No sessions in progress.',
     project: 'No project sessions.',
     archive: 'No archived sessions.',
@@ -1536,7 +1536,7 @@ function renderChatFilterTabs(savedScrollLeft = 0) {
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
-    { id: 'waiting', label: 'Waiting', count: counts.waiting },
+    { id: 'review', label: 'Review', count: counts.review },
     { id: 'working', label: 'Working', count: counts.working },
     { id: 'project', label: 'Project', count: counts.project },
     { id: 'archive', label: 'Archive', count: counts.archive },
