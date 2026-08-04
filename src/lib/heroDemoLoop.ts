@@ -20,7 +20,9 @@ const TYPING_MS = 1200;
 const ACTION_PRESS_MS = 900;
 const SLASH_PICKER_SHOW_MS = 1100;
 const SLASH_PICKER_HIDE_MS = 280;
-const USER_CHAR_MS = 32;
+const USER_COMPOSE_MS = 520;
+const USER_CHAR_MS = 42;
+const USER_CHAR_MS_FAST = 14;
 const SLASH_CHAR_MS = 38;
 
 function wait(ms: number): Promise<void> {
@@ -216,7 +218,10 @@ function refreshStackLayout(
   const fadeSpan = Math.max(48, fadeEndY);
 
   for (const msg of stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")) {
-    if (msg.classList.contains("home-hero-demo-msg--typing")) {
+    if (
+      msg.classList.contains("home-hero-demo-msg--typing") ||
+      msg.classList.contains("home-hero-demo-msg--composing")
+    ) {
       msg.style.opacity = "1";
       continue;
     }
@@ -243,19 +248,17 @@ async function playUserTurn(
   isAlive: () => boolean,
 ): Promise<void> {
   const relayout = () => refreshStackLayout(viewport, stack, iconEl);
-
-  if (reducedMotion) {
-    const row = createMessage(turn, root);
-    sceneEl.appendChild(row);
-    relayout();
-    return;
-  }
+  const charMs = reducedMotion ? USER_CHAR_MS_FAST : USER_CHAR_MS;
 
   const kind = turn.kind ?? "voice";
   const row = createUserComposingShell(root, kind);
   row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
   relayout();
+
+  // Empty bubble + blinking cursor before characters appear.
+  await wait(reducedMotion ? 180 : USER_COMPOSE_MS);
+  if (!isAlive()) return;
 
   const textEl = row.querySelector<HTMLElement>(".home-hero-demo-bubble-text")!;
   const full = turn.text;
@@ -284,9 +287,9 @@ async function playUserTurn(
     const slashBody = activeSlash.slice(1);
     await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive, relayout);
     const rest = full.slice(activeSlash.length);
-    if (rest) await typeText(textEl, rest, USER_CHAR_MS, isAlive, relayout);
+    if (rest) await typeText(textEl, rest, charMs, isAlive, relayout);
   } else {
-    await typeText(textEl, full, USER_CHAR_MS, isAlive, relayout);
+    await typeText(textEl, full, charMs, isAlive, relayout);
   }
 
   if (!isAlive()) return;

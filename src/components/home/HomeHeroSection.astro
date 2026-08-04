@@ -327,15 +327,20 @@ const demoScenes = HERO_DEMO_SCENES;
     margin: 0;
   }
 
+  .home-hero-demo-msg--composing .home-hero-demo-bubble {
+    min-width: 2.6rem;
+    min-height: 1.45rem;
+  }
+
   .home-hero-demo-bubble-text--cursor::after {
     content: "";
     display: inline-block;
-    width: 1.5px;
+    width: 2px;
     height: 0.95em;
-    margin-left: 1px;
+    margin-left: 2px;
     vertical-align: text-bottom;
-    background: rgba(255, 255, 255, 0.88);
-    animation: heroDemoCursor 1s step-end infinite;
+    background: rgba(255, 255, 255, 0.92);
+    animation: heroDemoCursor 0.85s step-end infinite;
   }
 
   @keyframes heroDemoCursor {
@@ -539,10 +544,7 @@ const demoScenes = HERO_DEMO_SCENES;
       transition: none;
     }
 
-    .home-hero-demo-bubble-text--cursor::after {
-      animation: none;
-    }
-
+    /* Keep the user compose cursor — it's the typing affordance for the demo. */
     .home-hero-demo-slash-picker {
       transition: none;
     }
