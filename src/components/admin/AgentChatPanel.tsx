@@ -1,1 +1,1854 @@
+import type { CSSProperties, FocusEvent, KeyboardEvent, RefObject } from 'react';
+import {
+  AssistantRuntimeProvider,
+  AttachmentPrimitive,
+  AuiIf,
+  ComposerPrimitive,
+  CompositeAttachmentAdapter,
+  MessagePrimitive,
+  ThreadPrimitive,
+  generateId,
+  useAuiEvent,
+  useComposerRuntime,
+  useLocalRuntime,
+  useAuiState,
+  useThreadViewport,
+  type AttachmentAdapter,
+  type ChatModelAdapter,
+  type CompleteAttachment,
+  type PendingAttachment,
+  type ThreadMessage,
+  type ThreadMessageLike,
+} from '@assistant-ui/react';
+import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import remarkGfm from 'remark-gfm';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  filterHelperCommands,
+  matchHelperCommand,
+  type AgentHelperCommand,
+} from '../../lib/agentHelperCommands';
+import {
+  parseStoredChatContent,
+  storedChatPlainText,
+  userMessageDisplayText,
+  type StoredChatDoc,
+  type StoredChatImage,
+} from '../../lib/chatMessageFormat';
+import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
+import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
+import { useChatRenderer } from '../../hooks/useChatRenderer';
+import { ChatButton } from '../ChatButton';
+import './agent-chat.css';
 
+/** Match API limits in `src/pages/api/chats/[id].ts`. */
+const MAX_CHAT_IMAGES = 5;
+const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
+const CHAT_IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.jpg,.jpeg,.png,.gif,.webp,.svg';
+
+const MAX_CHAT_DOCS = 3;
+const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
+const PPTX_MEDIA_TYPE =
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
+
+function normalizeChatImageMediaType(file: File): string {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'image/jpg' || type === 'image/jpeg') return 'image/jpeg';
+  if (
+    type === 'image/png' ||
+    type === 'image/gif' ||
+    type === 'image/webp' ||
+    type === 'image/svg+xml'
+  )
+    return type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'svg') return 'image/svg+xml';
+  return type || 'image/png';
+}
+
+function normalizeChatDocMediaType(file: File): string {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'application/pdf' || type === PPTX_MEDIA_TYPE) return type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'pptx') return PPTX_MEDIA_TYPE;
+  return type || 'application/octet-stream';
+}
+
+function fileLabelForMimeType(mimeType?: string): string {
+  if (mimeType === 'application/pdf') return 'PDF';
+  if (mimeType === PPTX_MEDIA_TYPE) return 'PowerPoint file';
+  return 'File';
+}
+
+function fileToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Image adapter with unique attachment ids.
+ * `SimpleImageAttachmentAdapter` uses `file.name` as id, so a second paste/upload
+ * named `image.png` upserts over the first instead of appending.
+ */
+class ChatImageAttachmentAdapter implements AttachmentAdapter {
+  public accept = CHAT_IMAGE_ACCEPT;
+
+  public async add(state: { file: File }): Promise<PendingAttachment> {
+    if (state.file.size > MAX_CHAT_IMAGE_BYTES) {
+      throw new Error('Image must be 5 MB or smaller');
+    }
+    const mediaType = normalizeChatImageMediaType(state.file);
+    const file =
+      state.file.type === mediaType
+        ? state.file
+        : new File([state.file], state.file.name || `image.${mediaType.split('/')[1] || 'png'}`, {
+            type: mediaType,
+          });
+    return {
+      id: generateId(),
+      type: 'image',
+      name: file.name,
+      contentType: mediaType,
+      file,
+      status: { type: 'requires-action', reason: 'composer-send' },
+    };
+  }
+
+  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    return {
+      ...attachment,
+      status: { type: 'complete' },
+      content: [{ type: 'image', image: await fileToDataURL(attachment.file) }],
+    };
+  }
+
+  public async remove() {
+    // noop
+  }
+}
+
+/** PDF / PowerPoint (pptx) adapter — sent to the model as a `file` part (base64 data URL). */
+class ChatDocAttachmentAdapter implements AttachmentAdapter {
+  public accept = CHAT_DOC_ACCEPT;
+
+  public async add(state: { file: File }): Promise<PendingAttachment> {
+    if (state.file.size > MAX_CHAT_DOC_BYTES) {
+      throw new Error('File must be 10 MB or smaller');
+    }
+    const mediaType = normalizeChatDocMediaType(state.file);
+    return {
+      id: generateId(),
+      type: 'file',
+      name: state.file.name,
+      contentType: mediaType,
+      file: state.file,
+      status: { type: 'requires-action', reason: 'composer-send' },
+    };
+  }
+
+  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    return {
+      ...attachment,
+      status: { type: 'complete' },
+      content: [
+        {
+          type: 'file',
+          data: await fileToDataURL(attachment.file),
+          mimeType: attachment.contentType || 'application/octet-stream',
+          filename: attachment.name,
+        },
+      ],
+    };
+  }
+
+  public async remove() {
+    // noop
+  }
+}
+
+function useCapComposerAttachments(max = MAX_CHAT_IMAGES + MAX_CHAT_DOCS) {
+  const composer = useComposerRuntime();
+  useAuiEvent('composer.attachmentAdd', () => {
+    const { attachments } = composer.getState();
+    if (attachments.length <= max) return;
+    // Drop oldest first so the newest selection/paste/drop is kept.
+    const toRemove = attachments.slice(0, attachments.length - max);
+    for (const att of toRemove) {
+      const idx = composer.getState().attachments.findIndex((a) => a.id === att.id);
+      if (idx >= 0) void composer.getAttachmentByIndex(idx).remove();
+    }
+  });
+}
+
+type AgentProgressPhase = 'thinking' | 'tool' | 'complete';
+
+type AgentProgress = {
+  phase: AgentProgressPhase;
+  tool?: string;
+  toolLabel?: string;
+  round?: number;
+  concurrent?: number;
+  startedAt: number;
+  updatedAt: number;
+  partialText?: string;
+};
+
+function formatElapsed(ms: number): string {
+  const seconds = Math.max(1, Math.floor(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rem = seconds % 60;
+  return rem ? `${minutes}m ${rem}s` : `${minutes}m`;
+}
+
+function statusLabelFromProgress(progress: AgentProgress | null): string {
+  if (progress?.phase === 'tool' && progress.toolLabel) {
+    return progress.toolLabel;
+  }
+  if ((progress?.round ?? 0) > 1) {
+    return 'Analyzing results';
+  }
+  return 'Thinking';
+}
+
+function useAgentRunStatus(
+  threadId: string,
+  externalProgress: AgentProgress | null,
+  useExternalProgress: boolean,
+  streamedProgress: AgentProgress | null,
+) {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const [polledProgress, setPolledProgress] = useState<AgentProgress | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
+
+  const activeProgress = useExternalProgress
+    ? externalProgress
+    : streamedProgress ?? polledProgress;
+
+  useEffect(() => {
+    if (!isRunning || useExternalProgress) {
+      if (!useExternalProgress) {
+        startedAtRef.current = null;
+        setPolledProgress(null);
+        setElapsedMs(0);
+      }
+      return;
+    }
+
+    if (!streamedProgress && !startedAtRef.current) {
+      startedAtRef.current = Date.now();
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      if (streamedProgress) return;
+      try {
+        const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
+          cache: 'no-store',
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { progress?: AgentProgress | null };
+        if (!cancelled && !streamedProgress) setPolledProgress(data.progress ?? null);
+      } catch {
+        /* ignore transient poll errors */
+      }
+    };
+
+    void poll();
+    const pollTimer = window.setInterval(() => void poll(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollTimer);
+    };
+  }, [isRunning, threadId, useExternalProgress, streamedProgress]);
+
+  useEffect(() => {
+    const started =
+      activeProgress?.startedAt ??
+      (isRunning && !useExternalProgress ? startedAtRef.current : null);
+    if (started) startedAtRef.current = started;
+    if (!started) {
+      setElapsedMs(0);
+      return;
+    }
+    setElapsedMs(Date.now() - started);
+    const elapsedTimer = window.setInterval(() => {
+      setElapsedMs(Date.now() - started);
+    }, 1000);
+    return () => window.clearInterval(elapsedTimer);
+  }, [activeProgress, isRunning, useExternalProgress]);
+
+  const showRunning = isRunning || useExternalProgress;
+  const label = statusLabelFromProgress(activeProgress);
+  const elapsed = formatElapsed(elapsedMs);
+  const concurrent = activeProgress?.concurrent ?? 0;
+  const detailText =
+    activeProgress?.phase === 'tool' && activeProgress.tool
+      ? concurrent > 1
+        ? `Running ${concurrent} checks at once`
+        : `Running ${activeProgress.tool.replace(/_/g, ' ')}`
+      : activeProgress?.round && activeProgress.round > 1
+        ? `Step ${activeProgress.round}`
+        : 'Working on your request';
+
+  return { isRunning: showRunning, label, elapsed, detailText, progress: activeProgress };
+}
+
+function AgentRunStatusCopy({
+  label,
+  elapsed,
+  detailText,
+}: {
+  label: string;
+  elapsed: string;
+  detailText: string;
+}) {
+  return (
+    <span className="aui-run-status-copy">
+      <span className="aui-run-status-primary">
+        {label}
+        <span className="aui-run-status-ellipsis" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        {' · '}
+        {elapsed}
+      </span>
+      <span className="aui-run-status-detail">{detailText}</span>
+    </span>
+  );
+}
+
+function AgentRunStatus({
+  threadId,
+  externalProgress,
+  useExternalProgress,
+  streamedProgress,
+}: {
+  threadId: string;
+  externalProgress: AgentProgress | null;
+  useExternalProgress: boolean;
+  streamedProgress: AgentProgress | null;
+}) {
+  const { label, elapsed, detailText } = useAgentRunStatus(
+    threadId,
+    externalProgress,
+    useExternalProgress,
+    streamedProgress,
+  );
+
+  return (
+    <div className="aui-run-status">
+      <AgentRunStatusCopy label={label} elapsed={elapsed} detailText={detailText} />
+    </div>
+  );
+}
+
+function InThreadRunStatus({
+  threadId,
+  externalProgress,
+  useExternalProgress,
+  streamedProgress,
+}: {
+  threadId: string;
+  externalProgress: AgentProgress | null;
+  useExternalProgress: boolean;
+  streamedProgress: AgentProgress | null;
+}) {
+  const { label, elapsed, detailText } = useAgentRunStatus(
+    threadId,
+    externalProgress,
+    useExternalProgress,
+    streamedProgress,
+  );
+
+  return (
+    <div className="aui-msg-row aui-msg-row-assistant aui-msg-row-thinking" aria-live="polite">
+      <div className="aui-msg-wrap aui-msg-wrap-assistant">
+        <div className="aui-msg aui-msg-assistant aui-msg-thinking">
+          <AgentRunStatusCopy label={label} elapsed={elapsed} detailText={detailText} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function readCompanyBrandName(fallback = 'Assistant'): string {
+  if (typeof window === 'undefined') return fallback;
+  const name = (window as Window & { __companyBrand?: { name?: string } }).__companyBrand?.name?.trim();
+  return name || fallback;
+}
+
+export type StoredChatMessage = { role: 'user' | 'assistant'; content: string };
+
+export type AgentChatPanelProps = {
+  threadId: string;
+  companyName?: string;
+  initialMessages: StoredChatMessage[];
+  pendingDraft?: string | null;
+  pendingAutoSend?: boolean;
+  /** `focus` — minimal full-screen skin at `/focus` (no footer nav padding). */
+  variant?: 'default' | 'focus';
+  getModel?: () => string | undefined;
+  onComposeFocus?: (focused: boolean) => void;
+  onComposeDirty?: (dirty: boolean) => void;
+  onAgentRunChange?: (running: boolean) => void;
+  onAgentProgress?: (progress: AgentProgress | null) => void;
+  onRefreshMessages?: () => void | Promise<void>;
+  onMessagesPersist?: (userContent: string, assistantContent: string) => void;
+  onTitleUpdate?: (title: string) => void;
+  onLinkedJobsRefresh?: () => void;
+};
+
+type SendResult = {
+  ok?: boolean;
+  error?: string;
+  title?: string;
+  userMessage?: StoredChatMessage;
+  assistantMessage?: StoredChatMessage;
+};
+
+function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
+  if (message.role === 'assistant') {
+    return {
+      role: 'assistant',
+      content: [{ type: 'text', text: storedChatPlainText(message.content) }],
+    };
+  }
+  const { text, images, docs } = parseStoredChatContent(message.content);
+  const displayText = message.role === 'user' ? userMessageDisplayText(text) : text;
+  const content: Extract<ThreadMessageLike['content'], readonly unknown[]>[number][] = [];
+  if (displayText) content.push({ type: 'text', text: displayText });
+  for (const img of images) {
+    content.push({
+      type: 'image',
+      image: `data:${img.mediaType};base64,${img.data}`,
+    });
+  }
+  for (const doc of docs) {
+    content.push({
+      type: 'file',
+      data: `data:${doc.mediaType};base64,${doc.data}`,
+      mimeType: doc.mediaType,
+      filename: doc.filename,
+    });
+  }
+  if (!content.length) content.push({ type: 'text', text: '' });
+  return { role: 'user', content };
+}
+
+function imageDataFromSrc(src: string): StoredChatImage | null {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(src);
+  if (!match) return null;
+  return { mediaType: match[1], data: match[2] };
+}
+
+function extractImagesFromUserMessage(message: ThreadMessage): StoredChatImage[] {
+  const images: StoredChatImage[] = [];
+  const scan = (parts: readonly { type: string; image?: string }[]) => {
+    for (const part of parts) {
+      if (part.type !== 'image') continue;
+      const src = typeof part.image === 'string' ? part.image : '';
+      const parsed = imageDataFromSrc(src);
+      if (parsed) images.push(parsed);
+    }
+  };
+  scan(message.content ?? []);
+  if (message.role === 'user') {
+    for (const att of message.attachments ?? []) {
+      scan(att.content ?? []);
+    }
+  }
+  return images;
+}
+
+function extractDocsFromUserMessage(message: ThreadMessage): StoredChatDoc[] {
+  const docs: StoredChatDoc[] = [];
+  const scan = (
+    parts: readonly { type: string; data?: string; mimeType?: string; filename?: string }[],
+  ) => {
+    for (const part of parts) {
+      if (part.type !== 'file') continue;
+      const src = typeof part.data === 'string' ? part.data : '';
+      const match = /^data:([^;]+);base64,(.+)$/.exec(src);
+      if (!match) continue;
+      docs.push({
+        mediaType: part.mimeType || match[1],
+        filename: part.filename || 'attachment',
+        data: match[2],
+      });
+    }
+  };
+  scan(message.content ?? []);
+  if (message.role === 'user') {
+    for (const att of message.attachments ?? []) {
+      scan(att.content ?? []);
+    }
+  }
+  return docs;
+}
+
+/**
+ * The server heartbeats every 10s while a run is alive, so silence for this long
+ * means the connection is gone — not that the agent is thinking hard.
+ */
+const STREAM_IDLE_TIMEOUT_MS = 40_000;
+/** How long to keep following a run from the server after the stream dies. */
+const RECOVERY_MAX_MS = 15 * 60_000;
+const RECOVERY_POLL_MS = 1_500;
+
+const CONNECTION_LOST_NOTE =
+  'The connection to the server dropped and I could not recover this reply. The work may ' +
+  'have finished server-side — reopen this session to check, or send the message again.';
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+}
+
+function isAbortError(err: unknown): boolean {
+  return (err as { name?: string })?.name === 'AbortError';
+}
+
+async function fetchRunProgress(
+  threadId: string,
+): Promise<{ running: boolean; progress: AgentProgress | null } | null> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { running?: boolean; progress?: AgentProgress | null };
+    return { running: Boolean(data.running), progress: data.progress ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The reply the server actually persisted for this turn, or null if the thread
+ * still ends on the user's message (the run died without writing anything).
+ */
+async function fetchPersistedReply(threadId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      thread?: { messages?: { role: string; content: string }[] };
+    };
+    const messages = data.thread?.messages ?? [];
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'assistant') return null;
+    return storedChatPlainText(last.content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Take over a turn whose SSE stream died, and always end with something to show.
+ *
+ * The run itself is deliberately not tied to the HTTP connection, so it is
+ * almost certainly still going. We follow it via the progress API (surfacing its
+ * partial text and tool status as it goes), then read the reply it persisted.
+ * Yields the text to display, most recent last.
+ */
+async function* recoverTurnFromServer(
+  threadId: string,
+  streamedText: string,
+  emitProgress: (update: Omit<AgentProgress, 'startedAt' | 'updatedAt'>) => void,
+  onRecovered: () => void,
+  signal?: AbortSignal,
+): AsyncGenerator<string, void> {
+  const giveUpAt = Date.now() + RECOVERY_MAX_MS;
+  let shown = streamedText;
+
+  while (Date.now() < giveUpAt) {
+    throwIfAborted(signal);
+    const status = await fetchRunProgress(threadId);
+    if (!status || (!status.running && !status.progress)) break;
+
+    if (status.progress) {
+      emitProgress({
+        phase: status.progress.phase === 'tool' ? 'tool' : 'thinking',
+        tool: status.progress.tool,
+        toolLabel: status.progress.toolLabel,
+        round: status.progress.round,
+        concurrent: status.progress.concurrent,
+      });
+      const partial = status.progress.partialText ?? '';
+      if (partial.length > shown.length) {
+        shown = partial;
+        yield shown;
+      }
+    }
+    await sleep(RECOVERY_POLL_MS);
+  }
+
+  throwIfAborted(signal);
+
+  const persisted = await fetchPersistedReply(threadId);
+  if (persisted?.trim()) {
+    onRecovered();
+    yield persisted;
+    return;
+  }
+
+  // Nothing persisted and nothing running: the run died without writing a reply
+  // (typically a container restart mid-run). Have the server record that, so the
+  // thread is not left permanently unanswered.
+  const note = await reconcileDeadTurn(threadId);
+  if (note?.trim()) {
+    onRecovered();
+    yield note;
+    return;
+  }
+
+  yield shown.trim() ? `${shown}\n\n_(${CONNECTION_LOST_NOTE})_` : `_(${CONNECTION_LOST_NOTE})_`;
+}
+
+/** Ask the server to close out a turn whose run vanished (e.g. a deploy restart). */
+async function reconcileDeadTurn(threadId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/reconcile`, {
+      method: 'POST',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      reconciled?: boolean;
+      assistantMessage?: { content?: string };
+    };
+    const content = data.assistantMessage?.content;
+    return content ? storedChatPlainText(content) : null;
+  } catch {
+    return null;
+  }
+}
+
+function createChatAdapter(
+  threadId: string,
+  propsRef: RefObject<AgentChatPanelProps>,
+  onStreamedProgress: (progress: AgentProgress | null) => void,
+): ChatModelAdapter {
+  return {
+    async *run(options) {
+      const lastUser = [...options.messages].reverse().find((m) => m.role === 'user');
+      if (!lastUser) throw new Error('No user message');
+
+      const text = (lastUser.content ?? [])
+        .filter((part) => part.type === 'text')
+        .map((part) => ('text' in part ? part.text : ''))
+        .join('\n')
+        .trim();
+
+      const images = extractImagesFromUserMessage(lastUser);
+      const docs = extractDocsFromUserMessage(lastUser);
+      const model = propsRef.current?.getModel?.();
+      const runStartedAt = Date.now();
+
+      const emitProgress = (update: Omit<AgentProgress, 'startedAt' | 'updatedAt'>) => {
+        const progress: AgentProgress = {
+          ...update,
+          startedAt: runStartedAt,
+          updatedAt: Date.now(),
+        };
+        onStreamedProgress(progress);
+        propsRef.current?.onAgentProgress?.(progress);
+      };
+
+      propsRef.current?.onAgentRunChange?.(true);
+      emitProgress({ phase: 'thinking', round: 1 });
+      try {
+        const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
+          },
+          body: JSON.stringify({
+            message: text,
+            images,
+            docs,
+            stream: true,
+            ...(model ? { model } : {}),
+          }),
+          signal: options.abortSignal,
+        });
+
+        const contentType = res.headers.get('Content-Type') ?? '';
+        if (contentType.includes('text/event-stream') && res.body) {
+          let streamedText = '';
+          let resolved = false;
+
+          try {
+            for await (const { event, data } of readSseStream(res.body, options.abortSignal, {
+              idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
+            })) {
+              if (event === 'progress') {
+                emitProgress({
+                  phase: data.phase === 'tool' ? 'tool' : 'thinking',
+                  tool: typeof data.tool === 'string' ? data.tool : undefined,
+                  toolLabel: typeof data.toolLabel === 'string' ? data.toolLabel : undefined,
+                  round: typeof data.round === 'number' ? data.round : undefined,
+                  concurrent: typeof data.concurrent === 'number' ? data.concurrent : undefined,
+                });
+              } else if (event === 'text' && typeof data.text === 'string') {
+                // Ignore shrinking updates (e.g. a new Anthropic round starting with "").
+                if (data.text.length >= streamedText.length) {
+                  streamedText = data.text;
+                  yield { content: [{ type: 'text', text: streamedText }] };
+                }
+              } else if (event === 'done') {
+                if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
+                propsRef.current?.onLinkedJobsRefresh?.();
+                const userMsg = data.userMessage as { content?: string } | undefined;
+                const assistantMsg = data.assistantMessage as { content?: string } | undefined;
+                if (userMsg?.content && assistantMsg?.content) {
+                  propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
+                }
+                const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
+                if (assistantText && assistantText !== streamedText) {
+                  streamedText = assistantText;
+                  yield { content: [{ type: 'text', text: assistantText }] };
+                }
+                resolved = Boolean(assistantText.trim());
+                break;
+              }
+              // An `error` event (or a stream that just ends) is not the end of
+              // the turn: the run may well have finished and persisted its reply
+              // on the server. Fall through to recovery rather than dead-ending.
+            }
+          } catch (err) {
+            if (isAbortError(err) && options.abortSignal?.aborted) throw err;
+            if (!isSseStalledError(err) && !(err instanceof TypeError)) throw err;
+            // Stalled or network-level failure: the server is still working.
+          }
+
+          if (resolved) return;
+
+          // The stream ended without delivering a reply. Follow the run through
+          // the progress API and read whatever it persists, so a dropped socket
+          // costs the user a few seconds instead of the whole answer.
+          for await (const text of recoverTurnFromServer(
+            threadId,
+            streamedText,
+            emitProgress,
+            () => void propsRef.current?.onRefreshMessages?.(),
+            options.abortSignal,
+          )) {
+            yield { content: [{ type: 'text', text }] };
+          }
+          return;
+        }
+
+        let data: SendResult = {};
+        try {
+          data = await res.json();
+        } catch {
+          data = {};
+        }
+
+        if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
+        propsRef.current?.onLinkedJobsRefresh?.();
+        if (data.userMessage?.content && data.assistantMessage?.content) {
+          propsRef.current?.onMessagesPersist?.(
+            data.userMessage.content,
+            data.assistantMessage.content,
+          );
+        }
+
+        const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
+        if (assistantText.trim()) {
+          yield { content: [{ type: 'text', text: assistantText }] };
+          return;
+        }
+
+        // No usable reply in the JSON response either — same recovery path as a
+        // broken stream, so the turn still ends with something on screen.
+        for await (const recovered of recoverTurnFromServer(
+          threadId,
+          '',
+          emitProgress,
+          () => void propsRef.current?.onRefreshMessages?.(),
+          options.abortSignal,
+        )) {
+          yield { content: [{ type: 'text', text: recovered }] };
+        }
+      } catch (err) {
+        if (isAbortError(err) && options.abortSignal?.aborted) throw err;
+        // A thrown error puts assistant-ui into its error state, which reads as a
+        // dead chat. Try the server one more time, and failing that say what
+        // happened in the message itself.
+        try {
+          let recoveredAny = false;
+          for await (const recovered of recoverTurnFromServer(
+            threadId,
+            '',
+            emitProgress,
+            () => void propsRef.current?.onRefreshMessages?.(),
+            options.abortSignal,
+          )) {
+            recoveredAny = true;
+            yield { content: [{ type: 'text', text: recovered }] };
+          }
+          if (recoveredAny) return;
+        } catch {
+          /* fall through to the plain message below */
+        }
+        const detail = err instanceof Error ? err.message : String(err);
+        yield {
+          content: [
+            {
+              type: 'text',
+              text: `_(That message failed to send: ${detail}. Nothing was lost — try again.)_`,
+            },
+          ],
+        };
+      } finally {
+        onStreamedProgress(null);
+        propsRef.current?.onAgentProgress?.(null);
+        propsRef.current?.onAgentRunChange?.(false);
+      }
+    },
+  };
+}
+
+function PendingDraftBoot({
+  draft,
+  autoSend,
+}: {
+  draft?: string | null;
+  autoSend?: boolean;
+}) {
+  const composer = useComposerRuntime();
+  const ran = useRef(false);
+  useEffect(() => {
+    if (ran.current || !draft) return;
+    ran.current = true;
+    composer.setText(draft);
+    if (autoSend) void composer.send();
+  }, [autoSend, composer, draft]);
+  return null;
+}
+
+function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
+  const isStreaming = props.status?.type === 'running';
+  const { text, buttons } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
+
+  if (isStreaming) {
+    return text ? <span className="aui-text aui-text-streaming">{text}</span> : null;
+  }
+
+  return (
+    <>
+      {text ? (
+        <MarkdownTextPrimitive
+          remarkPlugins={[remarkGfm]}
+          className="aui-md"
+          preprocess={(raw) => parseAssistantChatButtons(raw).text}
+        />
+      ) : null}
+      {buttons.length > 0 ? (
+        <div className="aui-chat-buttons">
+          {buttons.map((button, idx) => (
+            <ChatButton key={`${button.href}-${idx}`} {...getButtonProps(button)} />
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function UserTextPart(props: { text?: string }) {
+  return <span className="aui-text">{props.text}</span>;
+}
+
+function ChatImageLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="aui-chat-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        className="aui-chat-lightbox-close"
+        onClick={onClose}
+        aria-label="Close image preview"
+      >
+        ×
+      </button>
+      <img
+        className="aui-chat-lightbox-img"
+        src={src}
+        alt={alt}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>,
+    document.body,
+  );
+}
+
+function ChatImagePreview({
+  src,
+  alt,
+  className,
+  thumb = false,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  thumb?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = alt || 'Attached image';
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`aui-chat-img-btn${thumb ? ' aui-chat-img-btn--thumb' : ''}`}
+        onClick={() => setOpen(true)}
+        aria-label={`View full size: ${label}`}
+      >
+        <img className={className} src={src} alt={label} loading="lazy" />
+      </button>
+      {open ? <ChatImageLightbox src={src} alt={label} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
+function UserImagePart(props: { image?: string; alt?: string }) {
+  if (!props.image) return null;
+  return (
+    <ChatImagePreview
+      src={props.image}
+      alt={props.alt || 'Attached image'}
+      className="aui-msg-img"
+    />
+  );
+}
+
+function UserMessageImageAttachment() {
+  const attachment = useAuiState((s) => s.attachment);
+  const imagePart = attachment?.content?.find((part) => part.type === 'image');
+  if (!imagePart || imagePart.type !== 'image') return null;
+  return <UserImagePart image={imagePart.image} alt={attachment?.name} />;
+}
+
+function FileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M6 2h7.17a2 2 0 0 1 1.41.59l3.83 3.83A2 2 0 0 1 19 7.83V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V7h3.5L13 3.5ZM6 3.5a.5.5 0 0 0-.5.5v16a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V8.5h-4a1 1 0 0 1-1-1v-4H6Z"
+      />
+    </svg>
+  );
+}
+
+function UserFileChip(props: { filename?: string; mimeType?: string }) {
+  return (
+    <div className="aui-file-chip">
+      <FileIcon />
+      <div className="aui-file-chip-meta">
+        <span className="aui-file-chip-name">{props.filename || 'Attachment'}</span>
+        <span className="aui-file-chip-type">{fileLabelForMimeType(props.mimeType)}</span>
+      </div>
+    </div>
+  );
+}
+
+function UserFilePart(props: { filename?: string; mimeType?: string }) {
+  return <UserFileChip filename={props.filename} mimeType={props.mimeType} />;
+}
+
+function UserMessageFileAttachment() {
+  const attachment = useAuiState((s) => s.attachment);
+  const filePart = attachment?.content?.find((part) => part.type === 'file');
+  if (!filePart || filePart.type !== 'file') return null;
+  return <UserFileChip filename={attachment?.name} mimeType={filePart.mimeType} />;
+}
+
+function ComposerFileAttachmentPreview() {
+  const attachment = useAuiState((s) => s.attachment);
+  return (
+    <div className="aui-composer-attachment aui-composer-attachment-file">
+      <FileIcon />
+      <span className="aui-composer-attachment-file-name">{attachment?.name}</span>
+      <AttachmentPrimitive.Remove
+        className="aui-composer-attachment-remove"
+        aria-label="Remove attachment"
+      >
+        ×
+      </AttachmentPrimitive.Remove>
+    </div>
+  );
+}
+
+function ComposerAttachmentPreview() {
+  const attachment = useAuiState((s) => s.attachment);
+  const file = attachment?.file;
+  const previewSrc = useMemo(
+    () => (file instanceof File ? URL.createObjectURL(file) : null),
+    [file],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewSrc) URL.revokeObjectURL(previewSrc);
+    };
+  }, [previewSrc]);
+
+  if (!previewSrc) return null;
+
+  const alt = attachment?.name || 'Attached image';
+
+  return (
+    <div className="aui-composer-attachment">
+      <ChatImagePreview src={previewSrc} alt={alt} className="aui-composer-attachment-thumb" thumb />
+      <AttachmentPrimitive.Remove
+        className="aui-composer-attachment-remove"
+        aria-label="Remove attachment"
+      >
+        ×
+      </AttachmentPrimitive.Remove>
+    </div>
+  );
+}
+
+function HelperCommandsPanel({
+  commands,
+  onPick,
+  activeIdx = -1,
+}: {
+  commands: AgentHelperCommand[];
+  onPick: (command: AgentHelperCommand) => void;
+  activeIdx?: number;
+}) {
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
+  return (
+    <div className="aui-helper-panel" onPointerDown={(e) => e.preventDefault()}>
+      <ul className="aui-helper-list" role="listbox" aria-label="Helper commands">
+        {commands.map((command, i) => (
+          <li key={command.slash}>
+            <button
+              type="button"
+              className={`aui-helper-item${i === activeIdx ? ' active' : ''}`}
+              role="option"
+              aria-selected={i === activeIdx}
+              ref={i === activeIdx ? activeRef : undefined}
+              onClick={() => onPick(command)}
+            >
+              <span className="aui-helper-item-slash">{command.slash}</span>
+              <span className="aui-helper-item-summary">{command.summary}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const COMPOSER_FOCUS_SELECTOR = '.aui-composer-shell, .aui-composer-card, .aui-helper-panel';
+
+function isComposerFocusTarget(el: Element | null | undefined): boolean {
+  return el instanceof HTMLElement && Boolean(el.closest(COMPOSER_FOCUS_SELECTOR));
+}
+
+function useSlashHelpers(
+  propsRef: RefObject<AgentChatPanelProps>,
+  commands: AgentHelperCommand[],
+) {
+  const composer = useComposerRuntime();
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [composeText, setComposeText] = useState('');
+  const [helpersOpen, setHelpersOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  const filtered = filterHelperCommands(composeText, commands);
+  const showHelpers = helpersOpen && filtered.length > 0;
+
+  useEffect(() => {
+    setActiveIdx(-1);
+  }, [composeText, helpersOpen]);
+
+  const clearBlurTimer = () => {
+    if (blurTimer.current) {
+      clearTimeout(blurTimer.current);
+      blurTimer.current = null;
+    }
+  };
+
+  const openHelpers = () => {
+    clearBlurTimer();
+    setHelpersOpen(true);
+  };
+
+  const scheduleBlurSideEffects = () => {
+    clearBlurTimer();
+    blurTimer.current = setTimeout(() => {
+      blurTimer.current = null;
+      if (isComposerFocusTarget(document.activeElement)) return;
+      setHelpersOpen(false);
+      propsRef.current?.onComposeFocus?.(false);
+    }, 120);
+  };
+
+  const focusInput = useCallback(() => {
+    const el = inputRef.current ?? document.querySelector('#chat-panel .aui-input');
+    if (el instanceof HTMLTextAreaElement) el.focus();
+  }, []);
+
+  const applyCommand = (command: AgentHelperCommand) => {
+    composer.setText(command.template);
+    setComposeText(command.template);
+    clearBlurTimer();
+    setHelpersOpen(false);
+    focusInput();
+  };
+
+  useEffect(() => () => clearBlurTimer(), []);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    setHelpersOpen(false);
+    setComposeText('');
+    propsRef.current?.onComposeDirty?.(false);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (!helpersOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('.aui-helper-panel, .aui-composer-shell, .aui-composer-card')) return;
+      setHelpersOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [helpersOpen]);
+
+  const onFocus = () => {
+    clearBlurTimer();
+    if (composeText.startsWith('/')) openHelpers();
+    propsRef.current?.onComposeFocus?.(true);
+  };
+
+  const onBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+    if (isComposerFocusTarget(e.relatedTarget)) return;
+    scheduleBlurSideEffects();
+  };
+
+  const onInput = (value: string) => {
+    setComposeText(value);
+    propsRef.current?.onComposeDirty?.(value.trim().length > 0);
+    if (value.startsWith('/')) {
+      openHelpers();
+      return;
+    }
+    setHelpersOpen(false);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showHelpers && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      const n = filtered.length;
+      setActiveIdx((idx) => {
+        if (n === 0) return -1;
+        if (e.key === 'ArrowDown') return idx < 0 ? 0 : (idx + 1) % n;
+        return idx <= 0 ? n - 1 : idx - 1;
+      });
+      return;
+    }
+    if (showHelpers && e.key === 'Escape') {
+      e.preventDefault();
+      setHelpersOpen(false);
+      return;
+    }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (composer.getState().canSend) void composer.send();
+      return;
+    }
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    if (showHelpers && activeIdx >= 0 && filtered[activeIdx]) {
+      e.preventDefault();
+      applyCommand(filtered[activeIdx]);
+      return;
+    }
+    e.preventDefault();
+    const matched = matchHelperCommand(composeText, commands);
+    if (matched && composeText.trim().toLowerCase() === matched.slash) {
+      composer.setText(matched.template);
+      void composer.send();
+      return;
+    }
+    if (composer.getState().canSend) void composer.send();
+  };
+
+  return {
+    inputRef,
+    filtered,
+    showHelpers,
+    activeIdx,
+    applyCommand,
+    onFocus,
+    onBlur,
+    onInput,
+    onKeyDown,
+    focusInput,
+  };
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 3.5 10.8 5l5.4 5.4H3v1.2h13.2L10.8 17l1.2 1.5L21 12 12 3.5Z"
+        transform="rotate(-90 12 12)"
+      />
+    </svg>
+  );
+}
+
+function AttachIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M16.5 6.5v9.25a4.25 4.25 0 1 1-8.5 0V7.75a2.75 2.75 0 1 1 5.5 0v8.5a1.25 1.25 0 1 1-2.5 0V8h-1.5v8.25a2.75 2.75 0 1 0 5.5 0V7.75a4.25 4.25 0 1 0-8.5 0v8.25a5.75 5.75 0 1 0 11.5 0V6.5h-1.5Z"
+      />
+    </svg>
+  );
+}
+
+function ClaudeComposer({
+  propsRef,
+  commands,
+  onFocusInputReady,
+  centered = false,
+  threadId,
+  externalProgress,
+  useExternalProgress,
+  streamedProgress,
+  onStopExternal,
+}: {
+  propsRef: RefObject<AgentChatPanelProps>;
+  commands: AgentHelperCommand[];
+  onFocusInputReady?: (focus: () => void) => void;
+  centered?: boolean;
+  threadId: string;
+  externalProgress?: AgentProgress | null;
+  useExternalProgress?: boolean;
+  streamedProgress?: AgentProgress | null;
+  onStopExternal?: () => void;
+}) {
+  const helpers = useSlashHelpers(propsRef, commands);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const showRunning = isRunning || useExternalProgress;
+  useCapComposerAttachments();
+
+  useEffect(() => {
+    onFocusInputReady?.(helpers.focusInput);
+  }, [helpers.focusInput, onFocusInputReady]);
+
+  if (showRunning) {
+    return (
+      <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+        <ComposerPrimitive.Root className="aui-composer-card aui-composer-card-running">
+          <div className="aui-composer-toolbar aui-composer-toolbar-running">
+            {/* The in-thread run status renders the live progress inside the message
+                flow, so only the centered empty-state composer (which has no thread
+                status above it) repeats the copy here. Otherwise show just Stop. */}
+            {centered ? (
+              <AgentRunStatus
+                threadId={threadId}
+                externalProgress={externalProgress ?? null}
+                useExternalProgress={Boolean(useExternalProgress)}
+                streamedProgress={streamedProgress ?? null}
+              />
+            ) : null}
+            {useExternalProgress ? (
+              <button
+                type="button"
+                className="aui-composer-stop"
+                aria-label="Stop generating"
+                onClick={() => onStopExternal?.()}
+              >
+                Stop
+              </button>
+            ) : (
+              <ComposerPrimitive.Cancel
+                className="aui-composer-stop"
+                aria-label="Stop generating"
+                // Cancelling only ends the local stream; without this the run keeps
+                // working server-side and the thread later gains a reply the user
+                // already told us to abandon.
+                onClick={() => {
+                  void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, {
+                    method: 'POST',
+                  }).catch(() => {});
+                }}
+              >
+                Stop
+              </ComposerPrimitive.Cancel>
+            )}
+          </div>
+        </ComposerPrimitive.Root>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+      {helpers.showHelpers ? (
+        <HelperCommandsPanel
+          commands={helpers.filtered}
+          onPick={helpers.applyCommand}
+          activeIdx={helpers.activeIdx}
+        />
+      ) : null}
+      <ComposerPrimitive.AttachmentDropzone className="aui-composer-dropzone">
+        <ComposerPrimitive.Root className="aui-composer-card">
+          <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+            <div className="aui-composer-attachments">
+              <ComposerPrimitive.Attachments
+                components={{ Image: ComposerAttachmentPreview, File: ComposerFileAttachmentPreview }}
+              />
+            </div>
+          </AuiIf>
+          <ComposerPrimitive.Input
+            ref={helpers.inputRef}
+            className="aui-input"
+            placeholder="How can I help you today?"
+            rows={1}
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            addAttachmentOnPaste
+            onFocus={helpers.onFocus}
+            onBlur={helpers.onBlur}
+            onInput={(e) => helpers.onInput(e.currentTarget.value)}
+            onKeyDown={helpers.onKeyDown}
+          />
+          <div className="aui-composer-toolbar">
+            <ComposerPrimitive.AddAttachment
+              className="aui-composer-attach"
+              aria-label="Attach images, SVGs, PDFs, or PowerPoint files"
+              multiple
+            >
+              <AttachIcon />
+            </ComposerPrimitive.AddAttachment>
+            <span className="aui-composer-hint">
+              Type / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files
+            </span>
+            <ComposerPrimitive.Send
+              className="aui-composer-send"
+              aria-label="Send message"
+              // iOS Safari fires `blur` on the composer textarea before `click` on
+              // whatever was tapped. Without this, the first tap on Send just closes
+              // the keyboard (and can shift the layout enough to eat the tap), so a
+              // second tap is needed to actually send. Preventing the default action
+              // of mousedown/pointerdown stops the browser from moving focus off the
+              // textarea, so the keyboard stays open and the tap sends immediately.
+              // Both handlers are needed: iOS's pointer-event support has been
+              // inconsistent about suppressing the compatibility mousedown it's
+              // supposed to when pointerdown is cancelled.
+              onPointerDown={(e) => e.preventDefault()}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <SendIcon />
+            </ComposerPrimitive.Send>
+          </div>
+        </ComposerPrimitive.Root>
+      </ComposerPrimitive.AttachmentDropzone>
+    </div>
+  );
+}
+
+function ChatMessages() {
+  return (
+    <>
+      <ThreadPrimitive.Messages
+        components={{
+          UserMessage: () => (
+            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user group/message">
+              <div className="aui-msg-wrap aui-msg-wrap-user">
+                <div className="aui-msg aui-msg-user">
+                  <MessagePrimitive.Parts
+                    components={{
+                      Text: UserTextPart,
+                      Image: UserImagePart,
+                      File: UserFilePart,
+                    }}
+                  />
+                  <MessagePrimitive.Attachments
+                    components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
+                  />
+                </div>
+                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
+                    behavior caused layout jumpiness on non-mobile devices. */}
+              </div>
+            </MessagePrimitive.Root>
+          ),
+          AssistantMessage: () => (
+            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant group/message">
+              <div className="aui-msg-wrap aui-msg-wrap-assistant">
+                <div className="aui-msg aui-msg-assistant">
+                  <MessagePrimitive.Parts
+                    components={{
+                      Text: AssistantTextPart,
+                    }}
+                  />
+                </div>
+                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
+                    behavior caused layout jumpiness on non-mobile devices. */}
+              </div>
+            </MessagePrimitive.Root>
+          ),
+        }}
+      />
+    </>
+  );
+}
+
+/** Poll cadence while following a server-side run vs. while idle. */
+const RECOVERY_ACTIVE_POLL_MS = 900;
+const RECOVERY_IDLE_POLL_MS = 5_000;
+
+/**
+ * Adopt a run that this tab is not streaming.
+ *
+ * Covers the cases where the browser is not the one holding the stream: the chat
+ * was reopened while a run is still going, the SSE connection was killed by the
+ * OS or a proxy, or the process that owned the run died. Polling continues for as
+ * long as the panel is mounted (slowly when idle) so a turn that loses its stream
+ * gets picked back up instead of sitting on a spinner, and a turn whose run
+ * disappeared entirely gets closed out with a note.
+ */
+function useRecoverInFlightRun(
+  threadId: string,
+  propsRef: RefObject<AgentChatPanelProps>,
+  localRunning: boolean,
+) {
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryProgress, setRecoveryProgress] = useState<AgentProgress | null>(null);
+  const [recoveryText, setRecoveryText] = useState('');
+  const recoveringRef = useRef(false);
+  const localRunningRef = useRef(localRunning);
+  localRunningRef.current = localRunning;
+
+  const stopRecovery = useCallback(async () => {
+    try {
+      await fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, { method: 'POST' });
+    } catch {
+      /* ignore */
+    }
+    recoveringRef.current = false;
+    setRecovering(false);
+    setRecoveryProgress(null);
+    setRecoveryText('');
+    propsRef.current?.onAgentRunChange?.(false);
+    await propsRef.current?.onRefreshMessages?.();
+  }, [propsRef, threadId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let checkedForOrphanedTurn = false;
+
+    const schedule = (delay: number) => {
+      if (cancelled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void poll(), delay);
+    };
+
+    /**
+     * Heal a thread that was already broken when we opened it: a question with no
+     * answer and no run behind it, left by a crash, a deploy, or a send that
+     * failed while offline. Checked once, since it needs to read the thread.
+     */
+    const healOrphanedTurn = async () => {
+      if (checkedForOrphanedTurn) return;
+      checkedForOrphanedTurn = true;
+      const reply = await fetchPersistedReply(threadId);
+      if (cancelled || reply?.trim()) return;
+      const note = await reconcileDeadTurn(threadId);
+      if (cancelled || !note) return;
+      await propsRef.current?.onRefreshMessages?.();
+    };
+
+    const finishRecovery = async () => {
+      recoveringRef.current = false;
+      setRecovering(false);
+      setRecoveryProgress(null);
+      setRecoveryText('');
+      propsRef.current?.onAgentRunChange?.(false);
+      await propsRef.current?.onRefreshMessages?.();
+    };
+
+    const poll = async () => {
+      // While this tab is streaming the run itself, the adapter owns the UI (and
+      // has its own recovery); a second spinner here would just duplicate it.
+      if (localRunningRef.current) {
+        schedule(RECOVERY_IDLE_POLL_MS);
+        return;
+      }
+
+      const status = await fetchRunProgress(threadId);
+      if (cancelled) return;
+
+      const active = Boolean(status && (status.running || status.progress));
+      if (active && status) {
+        checkedForOrphanedTurn = true;
+        recoveringRef.current = true;
+        setRecovering(true);
+        propsRef.current?.onAgentRunChange?.(true);
+        if (status.progress) {
+          setRecoveryProgress(status.progress);
+          if (status.progress.partialText) setRecoveryText(status.progress.partialText);
+        }
+        schedule(RECOVERY_ACTIVE_POLL_MS);
+        return;
+      }
+
+      if (recoveringRef.current) {
+        // The run we were following ended: pull its persisted reply in, and if it
+        // left none, have the server close the turn out.
+        const persisted = await fetchPersistedReply(threadId);
+        if (!persisted?.trim()) await reconcileDeadTurn(threadId);
+        if (cancelled) return;
+        await finishRecovery();
+      } else {
+        await healOrphanedTurn();
+        if (cancelled) return;
+      }
+      schedule(RECOVERY_IDLE_POLL_MS);
+    };
+
+    void poll();
+
+    // Returning to a backgrounded tab is exactly when a stream has usually died.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') schedule(0);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [propsRef, threadId]);
+
+  return { recovering, recoveryProgress, recoveryText, stopRecovery };
+}
+
+function lastAssistantMessageText(
+  messages: ReadonlyArray<{ role: string; content?: ReadonlyArray<{ type: string; text?: string }> }>,
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.role !== 'assistant') continue;
+    return (message.content ?? [])
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text ?? '')
+      .join('');
+  }
+  return '';
+}
+
+function scrollAnchorIntoView(anchor: HTMLElement | null) {
+  if (!anchor) return;
+  const viewport = anchor.closest('.aui-viewport');
+  if (viewport instanceof HTMLElement) {
+    viewport.scrollTop = viewport.scrollHeight;
+    return;
+  }
+  anchor.scrollIntoView({ block: 'end' });
+}
+
+/** Keep the viewport pinned to the latest content while the agent streams. */
+function ChatFollowBottom({
+  followActive,
+  recoveryText,
+}: {
+  followActive: boolean;
+  recoveryText: string;
+}) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const isAtBottom = useThreadViewport((s) => s.isAtBottom);
+  const lastAssistantText = useAuiState((s) => lastAssistantMessageText(s.thread.messages));
+  const messageCount = useAuiState((s) => s.thread.messages.length);
+  const wasFollowingRef = useRef(followActive);
+
+  useLayoutEffect(() => {
+    const shouldFollow = followActive || isAtBottom || wasFollowingRef.current;
+    if (!shouldFollow) return;
+    scrollAnchorIntoView(anchorRef.current);
+    wasFollowingRef.current = followActive;
+  }, [followActive, isAtBottom, lastAssistantText, messageCount, recoveryText]);
+
+  useEffect(() => {
+    const viewport = anchorRef.current?.closest('.aui-viewport');
+    if (!viewport || !followActive) return;
+
+    let frame: number | null = null;
+    const schedule = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => scrollAnchorIntoView(anchorRef.current));
+    };
+
+    const observer = new ResizeObserver(schedule);
+    observer.observe(viewport);
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [followActive, lastAssistantText]);
+
+  return <div ref={anchorRef} className="aui-scroll-anchor" aria-hidden="true" />;
+}
+
+function InFlightRecoveryMessage({ text }: { text: string }) {
+  return (
+    <div className="aui-msg-row aui-msg-row-assistant">
+      <div className="aui-msg-wrap aui-msg-wrap-assistant">
+        <div className="aui-msg aui-msg-assistant aui-msg-recovering">
+          {text.trim() ? (
+            <span className="aui-text aui-recovery-text">{text}</span>
+          ) : (
+            <span className="aui-text aui-text-muted">Waiting for response…</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentChatThreadBody({
+  propsRef,
+  threadId,
+  streamedProgress,
+}: {
+  propsRef: RefObject<AgentChatPanelProps>;
+  threadId: string;
+  streamedProgress: AgentProgress | null;
+}) {
+  const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
+  const focusComposerRef = useRef<(() => void) | null>(null);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const { recovering, recoveryProgress, recoveryText, stopRecovery } = useRecoverInFlightRun(
+    threadId,
+    propsRef,
+    isRunning,
+  );
+  const showThreadStatus = isRunning || recovering;
+  const inFlightAssistantText = useAuiState((s) =>
+    s.thread.isRunning ? lastAssistantMessageText(s.thread.messages) : '',
+  );
+  const showInThreadStatus = showThreadStatus && !recoveryText.trim() && !inFlightAssistantText.trim();
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/chats/commands', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { commands?: { slash: string; summary: string; template: string }[] } | null) => {
+        if (cancelled || !data?.commands) return;
+        setCommands(
+          data.commands.map((cmd) => ({
+            slash: cmd.slash,
+            summary: cmd.summary,
+            template: cmd.template,
+            label: cmd.slash.replace(/^\//, ''),
+            steps: [],
+            example: cmd.template,
+            feature: 'core' as const,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCommands([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <ThreadPrimitive.Root className="aui-thread">
+      <AuiIf condition={(s) => s.thread.messages.length === 0}>
+        <div className="aui-empty-state">
+          <h1 className="aui-empty-heading">How can I help you today?</h1>
+          <ClaudeComposer
+            centered
+            threadId={threadId}
+            propsRef={propsRef}
+            commands={commands}
+            externalProgress={recoveryProgress}
+            useExternalProgress={recovering}
+            streamedProgress={streamedProgress}
+            onStopExternal={() => void stopRecovery()}
+            onFocusInputReady={(focus) => {
+              focusComposerRef.current = focus;
+            }}
+          />
+        </div>
+      </AuiIf>
+
+      <AuiIf condition={(s) => s.thread.messages.length > 0}>
+        <div className="aui-thread-body">
+          <ThreadPrimitive.Viewport
+            className="aui-viewport"
+            autoScroll
+            scrollToBottomOnRunStart
+          >
+            <div className="aui-thread-column">
+              <ChatMessages />
+              {showInThreadStatus ? (
+                <InThreadRunStatus
+                  threadId={threadId}
+                  externalProgress={recoveryProgress}
+                  useExternalProgress={recovering}
+                  streamedProgress={streamedProgress}
+                />
+              ) : null}
+              {recovering && recoveryText.trim() ? (
+                <InFlightRecoveryMessage text={recoveryText} />
+              ) : null}
+              <ChatFollowBottom followActive={showThreadStatus} recoveryText={recoveryText} />
+            </div>
+          </ThreadPrimitive.Viewport>
+          <div className="aui-compose-footer">
+            <div className="aui-thread-column">
+              <ClaudeComposer
+                threadId={threadId}
+                propsRef={propsRef}
+                commands={commands}
+                externalProgress={recoveryProgress}
+                useExternalProgress={recovering}
+                streamedProgress={streamedProgress}
+                onStopExternal={() => void stopRecovery()}
+                onFocusInputReady={(focus) => {
+                  focusComposerRef.current = focus;
+                }}
+              />
+              <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>
+            </div>
+          </div>
+        </div>
+      </AuiIf>
+    </ThreadPrimitive.Root>
+  );
+}
+
+function AgentChatThread({
+  threadId,
+  propsRef,
+  pendingDraft,
+  pendingAutoSend,
+}: {
+  threadId: string;
+  propsRef: RefObject<AgentChatPanelProps>;
+  pendingDraft?: string | null;
+  pendingAutoSend?: boolean;
+}) {
+  const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
+  const adapter = useMemo(
+    () => createChatAdapter(threadId, propsRef, setStreamedProgress),
+    [threadId, propsRef],
+  );
+
+  const attachmentAdapter = useMemo(
+    () => new CompositeAttachmentAdapter([new ChatImageAttachmentAdapter(), new ChatDocAttachmentAdapter()]),
+    [],
+  );
+
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
+    adapters: { attachments: attachmentAdapter },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
+      <AgentChatThreadBody
+        propsRef={propsRef}
+        threadId={threadId}
+        streamedProgress={streamedProgress}
+      />
+    </AssistantRuntimeProvider>
+  );
+}
+
+export function AgentChatPanel(props: AgentChatPanelProps) {
+  const propsRef = useRef(props);
+  propsRef.current = props;
+
+  const isFocus = props.variant === 'focus';
+  const style = {
+    '--aui-composer-stack': '6.25rem',
+    ...(isFocus ? { '--footer-nav-h': '0px' } : {}),
+  } as CSSProperties;
+
+  return (
+    <div className={isFocus ? 'aui-root aui-root--focus' : 'aui-root'} style={style}>
+      <AgentChatThread
+        key={props.threadId}
+        threadId={props.threadId}
+        propsRef={propsRef}
+        pendingDraft={props.pendingDraft}
+        pendingAutoSend={props.pendingAutoSend}
+      />
+    </div>
+  );
+}
