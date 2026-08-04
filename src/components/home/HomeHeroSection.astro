@@ -314,7 +314,7 @@ const demoScenes = HERO_DEMO_SCENES;
 </style>
 
 <style is:global>
-  /* Animatable depth — one transition drives opacity + scale (Safari snaps on filter). */
+  /* Animatable depth — one transition drives opacity, scale, and blur. */
   @property --msg-depth {
     syntax: "<number>";
     initial-value: 0;
@@ -343,6 +343,8 @@ const demoScenes = HERO_DEMO_SCENES;
      */
     --demo-gutter: clamp(1.5rem, 18%, 4.5rem);
     --msg-depth: 0;
+    /* px blur per unit depth — halved on WebKit (Safari renders blur heavier). */
+    --msg-blur-strength: 6;
     display: flex;
     align-items: flex-end;
     gap: 0.55rem;
@@ -351,10 +353,18 @@ const demoScenes = HERO_DEMO_SCENES;
     padding: 0;
     opacity: calc(1 - var(--msg-depth));
     transform: scale(calc(1 - var(--msg-depth) * 0.24));
+    filter: blur(calc(var(--msg-depth) * var(--msg-blur-strength) * 1px));
     transition:
       --msg-depth 0.53s ease,
       opacity 0.53s ease,
-      transform 0.53s ease;
+      transform 0.53s ease,
+      filter 0.53s ease;
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    .home-hero-demo-msg {
+      --msg-blur-strength: 3;
+    }
   }
 
   .home-hero-demo-msg--user {
