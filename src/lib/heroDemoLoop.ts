@@ -235,10 +235,20 @@ function smoothstep(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
-/** 0 = foreground (bottom), 1 = receding under the icon (top). */
-function messageDepth(msgCenterY: number, depthTop: number, depthBottom: number): number {
-  const span = Math.max(1, depthBottom - depthTop);
-  return 1 - smoothstep((msgCenterY - depthTop) / span);
+/** 0 = foreground (below icon), 1 = fully under the icon (top). */
+function messageDepth(msgCenterY: number, iconBottom: number): number {
+  if (iconBottom <= 0) return 0;
+  if (msgCenterY >= iconBottom) return 0;
+  return 1 - smoothstep(msgCenterY / iconBottom);
+}
+
+function applyMessageFocus(msg: HTMLElement) {
+  msg.style.transformOrigin = msg.classList.contains("home-hero-demo-msg--user")
+    ? "bottom right"
+    : "bottom left";
+  msg.style.transform = "scale(1)";
+  msg.style.opacity = "1";
+  msg.style.filter = "none";
 }
 
 function applyMessageDepth(msg: HTMLElement, depth: number) {
@@ -272,39 +282,34 @@ function refreshStackLayout(
   void stack.offsetHeight;
 
   const iconRect = iconEl?.getBoundingClientRect();
-  const depthTop = iconRect
-    ? Math.max(-24, iconRect.bottom - vRect.top - 12)
-    : vRect.height * 0.32;
-  const depthBottom = vRect.height + 8;
+  const iconBottom = iconRect
+    ? iconRect.bottom - vRect.top
+    : vRect.height * 0.35;
 
   const messages = stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg");
   const lastMessage = messages[messages.length - 1] ?? null;
 
   for (const msg of messages) {
-    const isFocused =
-      msg === lastMessage ||
+    const isActive =
       msg.classList.contains("home-hero-demo-msg--typing") ||
       msg.classList.contains("home-hero-demo-msg--composing") ||
       msg.classList.contains("home-hero-demo-msg--status");
 
-    if (isFocused) {
-      msg.style.transformOrigin = msg.classList.contains("home-hero-demo-msg--user")
-        ? "bottom right"
-        : "bottom left";
-      msg.style.transform = "scale(1)";
-      msg.style.opacity = "1";
-      msg.style.filter = "none";
+    const rect = msg.getBoundingClientRect();
+    const msgCenterY = (rect.top + rect.bottom) / 2 - vRect.top;
+
+    // Newest + in-progress turns stay crisp; readable area below the icon stays crisp too.
+    if (msg === lastMessage || isActive || msgCenterY >= iconBottom - 6) {
+      applyMessageFocus(msg);
       continue;
     }
 
-    const rect = msg.getBoundingClientRect();
-    const msgCenterY = (rect.top + rect.bottom) / 2 - vRect.top;
-    const depth = messageDepth(msgCenterY, depthTop, depthBottom);
+    const depth = messageDepth(msgCenterY, iconBottom);
     applyMessageDepth(msg, depth);
   }
 }
 
-/** Run layout now and once more after the browser paints (avoids stale geometry). */
+/** Run layout now and again after paint (avoids stale geometry). */
 function relayoutStack(
   viewport: HTMLElement,
   stack: HTMLElement,
@@ -313,7 +318,10 @@ function relayoutStack(
 ) {
   refreshStackLayout(viewport, stack, iconEl);
   if (flush) {
-    requestAnimationFrame(() => refreshStackLayout(viewport, stack, iconEl));
+    requestAnimationFrame(() => {
+      refreshStackLayout(viewport, stack, iconEl);
+      requestAnimationFrame(() => refreshStackLayout(viewport, stack, iconEl));
+    });
   }
 }
 
