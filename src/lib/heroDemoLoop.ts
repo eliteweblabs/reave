@@ -263,7 +263,13 @@ function refreshStackLayout(
   if (vRect.height < 8) return;
 
   const overflow = Math.max(0, stack.scrollHeight - vRect.height);
-  stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
+  const nextTransform = overflow > 0 ? `translateY(${-overflow}px)` : "";
+
+  // Snap instantly — the stack's CSS transition was leaving new messages mid-scroll
+  // so depth blur was applied before they settled on the bottom edge.
+  stack.style.transition = "none";
+  stack.style.transform = nextTransform;
+  void stack.offsetHeight;
 
   const iconRect = iconEl?.getBoundingClientRect();
   const depthTop = iconRect
@@ -271,12 +277,17 @@ function refreshStackLayout(
     : vRect.height * 0.32;
   const depthBottom = vRect.height + 8;
 
-  for (const msg of stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")) {
-    if (
+  const messages = stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg");
+  const lastMessage = messages[messages.length - 1] ?? null;
+
+  for (const msg of messages) {
+    const isFocused =
+      msg === lastMessage ||
       msg.classList.contains("home-hero-demo-msg--typing") ||
       msg.classList.contains("home-hero-demo-msg--composing") ||
-      msg.classList.contains("home-hero-demo-msg--status")
-    ) {
+      msg.classList.contains("home-hero-demo-msg--status");
+
+    if (isFocused) {
       msg.style.transformOrigin = msg.classList.contains("home-hero-demo-msg--user")
         ? "bottom right"
         : "bottom left";
@@ -293,6 +304,19 @@ function refreshStackLayout(
   }
 }
 
+/** Run layout now and once more after the browser paints (avoids stale geometry). */
+function relayoutStack(
+  viewport: HTMLElement,
+  stack: HTMLElement,
+  iconEl: HTMLElement | null,
+  flush = false,
+) {
+  refreshStackLayout(viewport, stack, iconEl);
+  if (flush) {
+    requestAnimationFrame(() => refreshStackLayout(viewport, stack, iconEl));
+  }
+}
+
 async function playUserTurn(
   turn: HeroDemoTurn,
   root: HTMLElement,
@@ -303,14 +327,14 @@ async function playUserTurn(
   reducedMotion: boolean,
   isAlive: () => boolean,
 ): Promise<void> {
-  const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+  const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
   const charMs = reducedMotion ? USER_CHAR_MS_FAST : USER_CHAR_MS;
 
   const kind = turn.kind ?? "voice";
   const row = createUserComposingShell(root, kind);
   row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
-  relayout();
+  relayout(true);
 
   // Empty bubble + blinking cursor before characters appear.
   await wait(reducedMotion ? 180 : USER_COMPOSE_MS);
@@ -351,7 +375,7 @@ async function playUserTurn(
   if (!isAlive()) return;
   textEl.classList.remove("home-hero-demo-bubble-text--cursor");
   row.classList.remove("home-hero-demo-msg--composing");
-  relayout();
+  relayout(true);
 }
 
 async function playAssistantTurn(
@@ -365,7 +389,7 @@ async function playAssistantTurn(
   isAlive: () => boolean,
   priorAssistantRow: HTMLElement | null,
 ): Promise<HTMLElement | null> {
-  const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+  const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
 
@@ -374,7 +398,7 @@ async function playAssistantTurn(
     await wait(ASSISTANT_RESPONSE_DELAY_MS);
     if (!isAlive()) return priorAssistantRow;
     morphStatusToReply(priorAssistantRow, turn);
-    relayout();
+    relayout(true);
 
     if (turn.actions?.length) {
       await wait(ACTION_PRESS_MS + 400);
@@ -397,12 +421,12 @@ async function playAssistantTurn(
   const typing = createTypingIndicator(root);
   typing.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(typing);
-  relayout();
+  relayout(true);
   await wait(dotsMs);
   if (!isAlive()) return null;
 
   morphTypingToMessage(typing, turn, isStatus);
-  relayout();
+  relayout(true);
 
   if (isStatus) {
     typing.dataset.heroAwaitingReply = "1";
@@ -464,16 +488,15 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 
-  const relayout = () => refreshStackLayout(viewport, stack, iconEl);
+  const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
   syncHeroCopyHeight(hero, copyEl);
-  if (copyEl) new ResizeObserver(() => syncHeroCopyHeight(hero, copyEl)).observe(copyEl);
-  if (iconEl) new ResizeObserver(relayout).observe(iconEl);
-  new ResizeObserver(relayout).observe(viewport);
-  window.addEventListener("resize", relayout, { passive: true });
-  document.fonts?.ready?.then(relayout);
-  requestAnimationFrame(relayout);
-  window.setTimeout(relayout, 150);
-  window.setTimeout(relayout, 600);
+  if (copyEl) new ResizeObserver(() => relayout()).observe(copyEl);
+  if (iconEl) new ResizeObserver(() => relayout()).observe(iconEl);
+  new ResizeObserver(() => relayout()).observe(viewport);
+  window.addEventListener("resize", () => relayout(), { passive: true });
+  document.fonts?.ready?.then(() => relayout(true));
+  requestAnimationFrame(() => relayout(true));
+  window.setTimeout(() => relayout(true), 150);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let sceneIndex = Math.floor(Math.random() * scenes.length);
