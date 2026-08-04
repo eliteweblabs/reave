@@ -1,0 +1,29 @@
+---
+import Layout from "../layouts/Layout.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import Compare2PageContent from "../components/compare/Compare2PageContent.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
+
+const company = await getCompanyConfig(Astro.request);
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+---
+
+<Layout
+  title="Compare Graphs"
+  description={`Interactive graph visualizations — SaaS waste, stack topology, feature radar, and cumulative TCO for ${company.name} vs box-stock SaaS vs bespoke development.`}
+>
+  <Compare2PageContent />
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+      />
+    )
+  }
+</Layout>

@@ -83,6 +83,7 @@ export function isMarketingPagePath(pathname: string): boolean {
     path === '/platform' ||
     path === '/features' ||
     path === '/compare' ||
+    path === '/compare-2' ||
     path === '/pricing' ||
     path === '/demo' ||
     path === '/deck' ||

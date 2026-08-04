@@ -301,3 +301,55 @@ export const COMPARE_SOURCES = [
   'VendorBenchmark SaaS Sprawl (500 enterprises)',
   'Lokalise tool fatigue survey (1,000 knowledge workers)',
 ];
+
+/** Radar chart axes — subset of the feature matrix. */
+export const COMPARE_RADAR_DIMENSIONS = [
+  'Time to go live',
+  'Everything integrated',
+  'Data syncs everywhere',
+  'License utilization',
+  'AI knows your business',
+  'Industry-specific flows',
+  'Maintenance burden',
+  'Shadow IT sprawl',
+] as const;
+
+export function indicatorScore(ind: CompareIndicator): number {
+  if (ind === 'strong') return 3;
+  if (ind === 'mixed') return 2;
+  return 1;
+}
+
+/** Quarterly cumulative spend ($K) for TCO line chart — illustrative model. */
+export const TCO_CUMULATIVE_K = {
+  labels: ['Q1 Y1', 'Q2', 'Q3', 'Q4', 'Q1 Y2', 'Q2', 'Q3', 'Q4', 'Q1 Y3', 'Q2', 'Q3', 'Q4'],
+  series: [
+    {
+      id: 'saas',
+      label: 'Box SaaS',
+      color: '#f87171',
+      values: [5.3, 10.5, 15.8, 21, 26.3, 31.5, 36.8, 42, 47.3, 52.5, 57.8, 63],
+    },
+    {
+      id: 'reave',
+      label: 'REΛVE',
+      color: '#a855f7',
+      values: [4.1, 5.3, 6.4, 7.5, 8.6, 9.8, 10.9, 12, 13.1, 14.3, 15.4, 19],
+    },
+    {
+      id: 'custom',
+      label: 'Custom dev',
+      color: '#fb923c',
+      values: [37.5, 75, 78.8, 82.5, 86.3, 90, 93.8, 97.5, 101.3, 105, 108.8, 120],
+    },
+  ],
+} as const;
+
+/** Radial bar magnitudes for waste spectrum (relative severity). */
+export const SPECTRUM_RADIAL = WASTE_SPECTRUM.map((tier, i) => ({
+  id: tier.id,
+  label: tier.theme,
+  value: 20 + i * 18,
+  color: ['#4ade80', '#a3e635', '#fbbf24', '#fb923c', '#f87171'][i] ?? '#f87171',
+  stat: tier.stat,
+}));

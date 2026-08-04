@@ -11,8 +11,12 @@
 }
 
 :root {
-  --font-primary: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-secondary: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-primary:
+    "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-secondary:
+    "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
   --font-content: "Mozilla Text", Georgia, "Times New Roman", serif;
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
@@ -24,10 +28,8 @@
     var(--brand-indigo) 100%
   );
   --brand-gradient-shadow:
-    0 2px 16px rgba(192, 38, 211, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.4);
-  --brand-glow-filter:
-    drop-shadow(0 8px 28px rgba(192, 38, 211, 0.38))
+    0 2px 16px rgba(192, 38, 211, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4);
+  --brand-glow-filter: drop-shadow(0 8px 28px rgba(192, 38, 211, 0.38))
     drop-shadow(0 0 26px rgba(192, 38, 211, 0.22));
   --create-fab-bg: var(--brand-gradient);
   --create-fab-shadow: var(--brand-gradient-shadow);
@@ -37,11 +39,9 @@
   --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4);
   --brand-glass-blur: blur(16px) saturate(1.35);
   --brand-glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 4px 20px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 20px rgba(0, 0, 0, 0.18);
   --brand-glass-shadow-hover:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 6px 28px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 28px rgba(0, 0, 0, 0.22);
 }
 
 /** Frosted outline pill buttons on dark marketing surfaces. */
@@ -73,7 +73,7 @@
  * One inline SVG instance — uniform scale only (preserveAspectRatio meet/slice).
  */
 .reave-bg-pattern {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -91,8 +91,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --brand-gradient-shadow:
-      0 2px 16px rgba(192, 38, 211, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.16);
+      0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
     --create-fab-shadow: var(--brand-gradient-shadow);
   }
 }
@@ -109,7 +108,9 @@
 
 /** Footer: invert badge on the gradient-highlighted (active) tab */
 .footer-nav-btn.active .footer-nav-badge,
-.admin-footer-nav.footer-nav-collapsed #footer-nav-home .footer-nav-badge:not([hidden]) {
+.admin-footer-nav.footer-nav-collapsed
+  #footer-nav-home
+  .footer-nav-badge:not([hidden]) {
   background: #fff;
   color: var(--brand-magenta);
   -webkit-text-fill-color: var(--brand-magenta);

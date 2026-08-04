@@ -1,0 +1,340 @@
+---
+/**
+ * Compare-2 — graph-first dashboard powered by SVG.js.
+ */
+import { ArrowRight } from "lucide-astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import {
+  COMPARE_MATRIX,
+  COMPARE_RADAR_DIMENSIONS,
+  COMPARE_SOURCES,
+  LICENSE_BREAKDOWN,
+  SPECTRUM_RADIAL,
+  TCO_CUMULATIVE_K,
+  WASTE_SPECTRUM,
+} from "../../lib/comparePageData";
+
+const company = await getCompanyConfig(Astro.request);
+
+const graphData = {
+  companyName: company.name,
+  licenseBreakdown: LICENSE_BREAKDOWN,
+  wasteSpectrum: WASTE_SPECTRUM,
+  compareMatrix: COMPARE_MATRIX,
+  radarDimensions: COMPARE_RADAR_DIMENSIONS,
+  spectrumRadial: SPECTRUM_RADIAL,
+  tcoCumulative: TCO_CUMULATIVE_K,
+};
+---
+
+<div id="compare-graphs" class="cg-page">
+  <header class="cg-hero scroll-fade-in">
+    <p class="cg-kicker">Compare · Graphs</p>
+    <h1 class="cg-h1">See the stack. See the waste. See the math.</h1>
+    <p class="cg-lead">
+      Interactive SVG visualizations — cumulative cost curves, license utilization, topology
+      sprawl, and feature scores. Same story as{" "}
+      <a class="cg-link" href="/compare">/compare</a>, told as graphs.
+    </p>
+    <div class="cg-cta-row">
+      <a class="cg-btn cg-btn--primary" href="/demo">
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
+      <a class="cg-btn cg-btn--ghost brand-btn-glass" href="/compare">Step-by-step view</a>
+    </div>
+  </header>
+
+  <div class="cg-grid scroll-fade-in">
+    <article class="cg-card cg-card--wide">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">Cost</p>
+        <h2 class="cg-card-title">Cumulative total cost of ownership</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--tall" data-cg-tco role="img" aria-label="Three-year cumulative cost line chart"></div>
+      <p class="cg-caption" data-cg-caption="tco">
+        Hover points or toggle legend lines. Illustrative quarterly model — SaaS linear spend vs. REΛVE flat curve vs. custom build spike.
+      </p>
+    </article>
+
+    <article class="cg-card">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">Utilization</p>
+        <h2 class="cg-card-title">License breakdown</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--square" data-cg-util role="img" aria-label="License utilization donut chart"></div>
+      <p class="cg-caption" data-cg-caption="util">
+        35% active · 51% underutilized · 14% shelfware. Vertice Q2 2026.
+      </p>
+    </article>
+
+    <article class="cg-card">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">Spectrum</p>
+        <h2 class="cg-card-title">Waste severity radial</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--square" data-cg-spectrum role="img" aria-label="Waste spectrum radial chart"></div>
+      <p class="cg-caption" data-cg-caption="spectrum">
+        From shelfware to app-switching fatigue — hover bars for stats.
+      </p>
+    </article>
+
+    <article class="cg-card cg-card--wide">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">Topology</p>
+        <h2 class="cg-card-title">Integration graph — sprawl vs. hub vs. monolith</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--topology" data-cg-topology role="img" aria-label="Stack topology network graphs"></div>
+      <p class="cg-caption" data-cg-caption="topology">
+        Box SaaS: disconnected satellites. {company.name}: one hub. Custom: single monolith after months of build.
+      </p>
+    </article>
+
+    <article class="cg-card">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">Features</p>
+        <h2 class="cg-card-title">Radar comparison</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--radar" data-cg-radar role="img" aria-label="Feature radar chart"></div>
+      <p class="cg-caption" data-cg-caption="radar">
+        Eight key dimensions scored weak / mixed / strong. {company.name} fills the center.
+      </p>
+    </article>
+
+    <article class="cg-card">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">90 / 10</p>
+        <h2 class="cg-card-title">Core vs. bolt-ons</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--gauge" data-cg-gauge role="img" aria-label="Ninety ten arc gauge"></div>
+      <p class="cg-caption" data-cg-caption="gauge">
+        Complete OS on day one — industry weirdness bolted on, not rebuilt.
+      </p>
+    </article>
+
+    <article class="cg-card cg-card--wide">
+      <div class="cg-card-head">
+        <p class="cg-card-kicker">Matrix</p>
+        <h2 class="cg-card-title">Feature heatmap — all dimensions</h2>
+      </div>
+      <div class="cg-canvas cg-canvas--heatmap" data-cg-heatmap role="img" aria-label="Feature comparison heatmap"></div>
+      <p class="cg-caption" data-cg-caption="heatmap">
+        Bar height = score (weak → strong). Hover any cell for the note behind it.
+      </p>
+    </article>
+  </div>
+
+  <footer class="cg-sources scroll-fade-in" aria-label="Data sources">
+    <p class="cg-sources-title">Sources</p>
+    <ul class="cg-sources-list">
+      {COMPARE_SOURCES.map((s) => <li>{s}</li>)}
+    </ul>
+  </footer>
+</div>
+
+<script define:vars={{ graphData }}>
+  import { initCompareGraphs } from "../../scripts/compare-graphs.ts";
+
+  const root = document.getElementById("compare-graphs");
+  if (root) initCompareGraphs(root, graphData);
+</script>
+
+<style>
+  .cg-page {
+    min-height: 100vh;
+    padding: calc(64px + 40px) 20px 96px;
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .cg-hero {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .cg-kicker,
+  .cg-card-kicker,
+  .cg-sources-title {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 10px;
+  }
+
+  .cg-h1 {
+    margin: 0 0 14px;
+    font-size: clamp(1.75rem, 5vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .cg-lead {
+    margin: 0 auto 24px;
+    max-width: 560px;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .cg-link {
+    color: #c084fc;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .cg-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .cg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .cg-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .cg-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .cg-btn--ghost:hover {
+    transform: translateY(-1px);
+  }
+
+  .cg-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .cg-card {
+    padding: 20px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .cg-card--wide {
+    grid-column: 1 / -1;
+  }
+
+  .cg-card-head {
+    margin-bottom: 12px;
+  }
+
+  .cg-card-kicker {
+    color: #38bdf8;
+    margin-bottom: 6px;
+  }
+
+  .cg-card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+
+  .cg-canvas {
+    width: 100%;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+  }
+
+  .cg-canvas--tall {
+    height: 280px;
+  }
+
+  .cg-canvas--square {
+    height: 260px;
+  }
+
+  .cg-canvas--topology {
+    height: 240px;
+  }
+
+  .cg-canvas--radar {
+    height: 300px;
+  }
+
+  .cg-canvas--gauge {
+    height: 180px;
+  }
+
+  .cg-canvas--heatmap {
+    min-height: 340px;
+  }
+
+  .cg-caption {
+    margin: 12px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.52);
+    min-height: 2.4em;
+  }
+
+  .cg-caption :global(strong) {
+    color: rgba(255, 255, 255, 0.88);
+    font-weight: 700;
+  }
+
+  .cg-sources {
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cg-sources-title {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .cg-sources-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+
+  .cg-sources-list li {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  @media (max-width: 768px) {
+    .cg-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cg-card--wide {
+      grid-column: auto;
+    }
+  }
+</style>
