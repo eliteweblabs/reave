@@ -1125,6 +1125,75 @@ button.de-placeholder-action:active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+#work-editor .wk-detail-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.35rem 1rem 0.55rem;
+  border-bottom: 1px solid var(--panel-border);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+#work-editor .wk-detail-tabs::-webkit-scrollbar { display: none; }
+#work-editor .wk-detail-tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#work-editor .wk-detail-tab:hover { color: var(--fg); }
+#work-editor .wk-detail-tab.active {
+  color: var(--fg);
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
+}
+#work-editor .wk-detail-panel[hidden] { display: none !important; }
+#work-editor .wk-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+#work-editor .wk-detail-panel .wk-client-picker {
+  margin-bottom: 0;
+}
+#work-editor .wk-detail-panel .wk-client-picker.wk-client-picker--readonly {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  background: var(--bg);
+}
+#work-editor .re-form-scroll.wk-form-scroll:has(.wk-detail-panel > .wk-client-picker--readonly) {
+  padding-top: 0;
+}
+#work-editor .wk-detail-panel .wk-related-section,
+#work-editor .wk-detail-panel .wk-todos-section,
+#work-editor .wk-detail-panel .wk-files-section,
+#work-editor .wk-detail-panel .wk-comments-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+#work-editor .wk-detail-panel[data-work-tab="markup"] .wk-md-surface {
+  min-height: 18rem;
+}
 #work-editor .re-form-scroll.wk-form-scroll > .wk-client-picker {
   margin-bottom: 0;
 }
@@ -1286,9 +1355,9 @@ button.de-placeholder-action:active {
   object-fit: contain;
 }
 #work-editor .re-form-scroll.wk-form-scroll .wk-comments-section {
-  margin-top: 0.25rem;
-  padding: 0.85rem 0 0;
-  border-top: 1px solid var(--panel-border);
+  margin-top: 0;
+  padding: 0;
+  border-top: none;
 }
 .wk-checklist-mount:empty,
 .wk-checklist-mount[hidden] {
@@ -1592,11 +1661,11 @@ button.de-placeholder-action:active {
   padding: 0.4rem 0.1rem;
 }
 .wk-client-name-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  position: relative;
+  display: inline-block;
+  max-width: calc(100% - 7.5rem);
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   padding: 0;
   border: none;
   background: none;
@@ -1604,6 +1673,7 @@ button.de-placeholder-action:active {
   color: inherit;
   cursor: pointer;
   text-align: left;
+  vertical-align: middle;
 }
 .wk-client-name-link:disabled {
   cursor: default;
@@ -1616,15 +1686,26 @@ button.de-placeholder-action:active {
   color: var(--accent);
 }
 .wk-client-name-arrow {
-  flex: none;
+  display: none;
   width: 1rem;
   height: 1rem;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--muted) 35%, var(--panel-border));
   color: var(--muted);
+}
+@media (pointer: coarse) {
+  .wk-client-name-link:not(:disabled) {
+    padding-right: 1.2rem;
+  }
+  .wk-client-name-arrow {
+    display: inline-flex;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
 }
 .wk-client-name-arrow svg {
   width: 0.55rem;
@@ -1632,9 +1713,12 @@ button.de-placeholder-action:active {
   display: block;
 }
 .wk-client-readonly-bar .wk-client-name {
-  flex: 1 1 auto;
+  display: block;
   min-width: 0;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wk-client-readonly-actions {
   display: flex;

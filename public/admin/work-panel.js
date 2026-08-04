@@ -76,6 +76,7 @@ let workState = {
   draft: null,
   returnToEmailId: null,
   returnToTodoId: null,
+  detailTab: 'project',
 };
 
 let workAutosaveTimer = null;
@@ -396,7 +397,12 @@ function renderWorkChecklistPanel(mountEl, opts) {
   const items = parseWorkChecklistFromBody(getBody());
   mountEl.innerHTML = '';
   if (!items.length) {
-    mountEl.hidden = true;
+    mountEl.hidden = false;
+    mountEl.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No action items yet. Add checklist lines in Markup (- [ ] item).';
+    mountEl.appendChild(empty);
     return;
   }
   mountEl.hidden = false;
@@ -842,6 +848,67 @@ const CLIENT_DETAIL_TABS = [
   { id: 'vault', label: 'Vault' },
 ];
 
+const WORK_DETAIL_TABS = [
+  { id: 'project', label: 'Project' },
+  { id: 'markup', label: 'Markup' },
+  { id: 'action-items', label: 'Action Items' },
+  { id: 'time', label: 'Time', feature: 'time_tracking' },
+  { id: 'files', label: 'Files' },
+  { id: 'todo', label: 'To-Do' },
+  { id: 'comments', label: 'Comments' },
+];
+
+function workDetailTabs(isNew = false) {
+  const tabs = WORK_DETAIL_TABS.filter((t) => !t.feature || hasInstallFeature(t.feature));
+  if (isNew) return tabs.filter((t) => t.id === 'project' || t.id === 'markup');
+  return tabs;
+}
+
+function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
+  const nav = document.createElement('div');
+  nav.className = 'wk-detail-tabs';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Project sections');
+
+  for (const tab of workDetailTabs(opts.isNew)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = activeTab === tab.id;
+    btn.className = 'wk-detail-tab' + (isActive ? ' active' : '');
+    btn.dataset.workTab = tab.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.textContent = tab.label;
+    btn.addEventListener('click', () => {
+      if (workState.detailTab === tab.id) return;
+      onSelect(tab.id);
+    });
+    nav.appendChild(btn);
+  }
+
+  pane.appendChild(nav);
+  return nav;
+}
+
+function showWorkDetailPanel(pane, tabId) {
+  pane.querySelectorAll('.wk-detail-tab').forEach((btn) => {
+    const active = btn.dataset.workTab === tabId;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  pane.querySelectorAll('.wk-detail-panel').forEach((panel) => {
+    panel.hidden = panel.dataset.workTab !== tabId;
+  });
+}
+
+function createWorkDetailPanel(tabId, activeTab) {
+  const panel = document.createElement('div');
+  panel.className = 'wk-detail-panel';
+  panel.dataset.workTab = tabId;
+  panel.hidden = activeTab !== tabId;
+  return panel;
+}
+
 function mountClientDetailTabs(pane, activeTab, onSelect) {
   const nav = document.createElement('div');
   nav.className = 'cl-detail-tabs';
@@ -1250,6 +1317,7 @@ function startNewProject() {
   beginNewProjectDrawer();
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
+  workState.detailTab = 'project';
   workState.activeSlug = '__new__';
   workState.dirty = false;
   workState.draft = {
@@ -2144,8 +2212,15 @@ function renderNewWorkForm(pane) {
   pane.appendChild(header);
   requestTitleFocus('work', titleInput);
 
-  const scroll = createWorkFormScroll(pane);
+  mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+    workState.detailTab = tabId;
+    showWorkDetailPanel(pane, tabId);
+  }, { isNew: true });
 
+  const scroll = createWorkFormScroll(pane);
+  const activeTab = workState.detailTab;
+
+  const projectPanel = createWorkDetailPanel('project', activeTab);
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
@@ -2245,8 +2320,12 @@ function renderNewWorkForm(pane) {
     });
   }
 
-  scroll.appendChild(fields);
-  scroll.appendChild(bodyEditor.wrap);
+  projectPanel.appendChild(fields);
+  scroll.appendChild(projectPanel);
+
+  const markupPanel = createWorkDetailPanel('markup', activeTab);
+  markupPanel.appendChild(bodyEditor.wrap);
+  scroll.appendChild(markupPanel);
 
   shell.clearEditorFooterSave();
   if (!inDrawer) getWorkEditor()?.classList.add('de-pane-active');
@@ -2487,8 +2566,15 @@ function renderEditWorkForm(pane) {
       });
       pane.appendChild(header);
 
-      const scroll = createWorkFormScroll(pane);
+      mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+        workState.detailTab = tabId;
+        showWorkDetailPanel(pane, tabId);
+      });
 
+      const scroll = createWorkFormScroll(pane);
+      const activeTab = workState.detailTab;
+
+      const projectPanel = createWorkDetailPanel('project', activeTab);
       const fields = document.createElement('div');
       fields.className = 'de-fields';
 
@@ -2534,7 +2620,7 @@ function renderEditWorkForm(pane) {
         workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
         return autosaveWorkQuiet(payloadFn, workActiveEl);
       };
-      clientPicker = mountWorkClientPicker(scroll, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
+      clientPicker = mountWorkClientPicker(projectPanel, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
       fields.insertBefore(linkTrackEl, fields.firstChild);
       renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links, slug);
 
@@ -2580,19 +2666,40 @@ function renderEditWorkForm(pane) {
         el.addEventListener('blur', () => { workActiveEl = el; void flushWorkField(); });
       }
 
-      scroll.appendChild(fields);
-      scroll.appendChild(checklistMount);
-      scroll.appendChild(bodyEditor.wrap);
+      projectPanel.appendChild(fields);
+      mountWorkRelatedSection(projectPanel, data.related, data.source_chat_id);
+      mountWorkShareLogSection(projectPanel, shareLogEl, data.tracked_links, slug);
+      scroll.appendChild(projectPanel);
+
+      const markupPanel = createWorkDetailPanel('markup', activeTab);
+      markupPanel.appendChild(bodyEditor.wrap);
+      scroll.appendChild(markupPanel);
+
+      const actionPanel = createWorkDetailPanel('action-items', activeTab);
+      actionPanel.appendChild(checklistMount);
+      scroll.appendChild(actionPanel);
       renderWorkChecklistPanel(checklistMount, checklistOpts);
-      mountWorkTimeSection(scroll, slug, {
-        title: workState.draft.title,
-        clientName: workState.draft.contact_name,
-      });
-      mountWorkCommentsSection(scroll, slug, data.contact_uid);
-      mountWorkFilesSection(scroll, slug, data.files);
-      mountWorkTodosSection(scroll, slug);
-      mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
-      mountWorkShareLogSection(scroll, shareLogEl, data.tracked_links, slug);
+
+      if (hasInstallFeature('time_tracking')) {
+        const timePanel = createWorkDetailPanel('time', activeTab);
+        mountWorkTimeSection(timePanel, slug, {
+          title: workState.draft.title,
+          clientName: workState.draft.contact_name,
+        });
+        scroll.appendChild(timePanel);
+      }
+
+      const filesPanel = createWorkDetailPanel('files', activeTab);
+      mountWorkFilesSection(filesPanel, slug, data.files);
+      scroll.appendChild(filesPanel);
+
+      const todoPanel = createWorkDetailPanel('todo', activeTab);
+      mountWorkTodosSection(todoPanel, slug);
+      scroll.appendChild(todoPanel);
+
+      const commentsPanel = createWorkDetailPanel('comments', activeTab);
+      mountWorkCommentsSection(commentsPanel, slug, data.contact_uid);
+      scroll.appendChild(commentsPanel);
 
       shell.clearEditorFooterSave();
       getWorkEditor()?.classList.add('de-pane-active');
@@ -2606,6 +2713,7 @@ async function openWork(slug) {
   await flushWorkAutosave();
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
+  workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
   renderWorkEditor();
@@ -2965,6 +3073,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
   beginNewProjectDrawer();
   workState.returnToEmailId = null;
   workState.returnToTodoId = todoId;
+  workState.detailTab = 'project';
   workState.activeSlug = '__new__';
   workState.dirty = false;
   workState.draft = {

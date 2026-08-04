@@ -112,7 +112,7 @@ import {
   queueWorkDeepLink,
   workStatusLabel,
   workClientSubline,
-} from './work-panel.js?v=20260803b';
+} from './work-panel.js?v=20260803c';
 import {
   initTodoPanel,
   todoState,
