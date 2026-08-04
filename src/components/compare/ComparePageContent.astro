@@ -1,0 +1,1223 @@
+---
+/**
+ * Compare page — SaaS waste spectrum + three-way positioning (SaaS vs REΛVE vs custom dev).
+ */
+import { ArrowRight, Check, Minus, X } from "lucide-astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import {
+  COMPARE_MATRIX,
+  COMPARE_SOURCES,
+  COST_SCENARIOS,
+  CUSTOM_PAIN,
+  LICENSE_BREAKDOWN,
+  MONEY_STATS,
+  PROBLEM_HEADLINES,
+  REAVE_WINS,
+  SAAS_PAIN,
+  SOLUTION_HEADLINES,
+  WASTE_SPECTRUM,
+  type CompareIndicator,
+} from "../../lib/comparePageData";
+
+const company = await getCompanyConfig(Astro.request);
+const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
+
+function indicatorIcon(ind: CompareIndicator) {
+  if (ind === "strong") return Check;
+  if (ind === "mixed") return Minus;
+  return X;
+}
+
+function indicatorLabel(ind: CompareIndicator): string {
+  if (ind === "strong") return "Strong";
+  if (ind === "mixed") return "Mixed";
+  return "Weak";
+}
+---
+
+<div class="cmp-page">
+  <section class="cmp-hero scroll-fade-in" aria-labelledby="compare-title">
+    <p class="cmp-kicker">Compare</p>
+    <h1 id="compare-title" class="cmp-h1">
+      Box-stock SaaS. Bespoke builds. There's a third way.
+    </h1>
+    <p class="cmp-lead">
+      Most businesses land on one of two bad options: a pile of disconnected subscriptions
+      nobody fully uses, or a six-figure custom build that takes months to ship.{" "}
+      {company.name} is the operating system in the middle — complete on day one, tailored
+      where it counts.
+    </p>
+    <div class="cmp-cta-row">
+      <a class="cmp-btn cmp-btn--primary" href="/demo">
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
+      <a class="cmp-btn cmp-btn--ghost brand-btn-glass" href="/features#plan">See pricing</a>
+    </div>
+  </section>
+
+  <section class="cmp-callout scroll-fade-in" aria-label="Headline waste statistic">
+    <p class="cmp-callout-stat">65%</p>
+    <p class="cmp-callout-text">
+      of SaaS licenses are unused or underutilized — and waste is growing fastest at
+      the largest companies.
+    </p>
+    <p class="cmp-callout-source">Vertice Q2 2026 · $75B+ processed spend</p>
+  </section>
+
+  <section class="cmp-section scroll-fade-in" aria-labelledby="spectrum-title">
+    <p class="cmp-section-kicker cmp-section-kicker--warn">The waste spectrum</p>
+    <h2 id="spectrum-title" class="cmp-h2">The problem gets worse as you scale.</h2>
+    <p class="cmp-section-lead">
+      Industry research consistently shows the same pattern: more apps, more seats, more
+      spend — and less of it actually driving value.
+    </p>
+
+    <ol class="cmp-spectrum">
+      {
+        WASTE_SPECTRUM.map((tier) => (
+          <li class={`cmp-spectrum-item cmp-spectrum-item--${tier.severity.toLowerCase()}`}>
+            <div class="cmp-spectrum-meta">
+              <span class="cmp-spectrum-severity">{tier.severity}</span>
+              <span class="cmp-spectrum-theme">{tier.theme}</span>
+            </div>
+            <p class="cmp-spectrum-headline">{tier.headline}</p>
+            <p class="cmp-spectrum-stat">{tier.stat}</p>
+            <p class="cmp-spectrum-detail">{tier.detail}</p>
+            <p class="cmp-spectrum-source">{tier.source}</p>
+          </li>
+        ))
+      }
+    </ol>
+
+    <div class="cmp-money-grid">
+      {
+        MONEY_STATS.map((s) => (
+          <div class="cmp-money-card">
+            <p class="cmp-money-value">{s.value}</p>
+            <p class="cmp-money-label">{s.label}</p>
+            <p class="cmp-money-source">{s.source}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="cmp-section scroll-fade-in" aria-labelledby="utilization-title">
+    <p class="cmp-section-kicker">License utilization</p>
+    <h2 id="utilization-title" class="cmp-h2">Where your subscription dollars go.</h2>
+    <p class="cmp-section-lead">
+      Vertice tracks shelfware separately from underutilization — tools that are active
+      but paying for far more seats than anyone uses.
+    </p>
+
+    <div
+      class="cmp-util-bar"
+      role="img"
+      aria-label="35% actively used, 51% underutilized, 14% shelfware"
+    >
+      {
+        LICENSE_BREAKDOWN.map((seg) => (
+          <div
+            class={`cmp-util-seg cmp-util-seg--${seg.tone}`}
+            style={`flex: ${seg.pct}`}
+          >
+            <span class="cmp-util-pct">{seg.pct}%</span>
+            <span class="cmp-util-label">{seg.label}</span>
+          </div>
+        ))
+      }
+    </div>
+    <p class="cmp-note">Vertice Q2 2026 · 65% total waste (51% under + 14% shelf)</p>
+  </section>
+
+  <section class="cmp-section cmp-section--wide scroll-fade-in" aria-labelledby="three-way-title">
+    <p class="cmp-section-kicker cmp-section-kicker--center">Left · center · right</p>
+    <h2 id="three-way-title" class="cmp-h2 cmp-h2--center">Three paths. One sweet spot.</h2>
+    <p class="cmp-section-lead cmp-section-lead--center">
+      Sign up fast and pay forever. Build from scratch and wait half a year. Or ship a
+      complete Business OS and bolt on the last 10%.
+    </p>
+
+    <div class="cmp-three-col">
+      <article class="cmp-col cmp-col--saas">
+        <header class="cmp-col-head">
+          <p class="cmp-col-tag">Left</p>
+          <h3 class="cmp-col-title">Box-stock SaaS</h3>
+          <p class="cmp-col-sub">The stack</p>
+        </header>
+        <p class="cmp-col-desc">
+          HubSpot, QuickBooks, Calendly, Slack, DocuSign, Mailchimp — a dozen logins,
+          none of them talking to each other.
+        </p>
+        <dl class="cmp-col-stats">
+          <div>
+            <dt>Typical monthly</dt>
+            <dd>$500–2K+</dd>
+          </div>
+          <div>
+            <dt>Apps per org</dt>
+            <dd>101 avg.</dd>
+          </div>
+        </dl>
+        <ul class="cmp-pain-list">
+          {
+            SAAS_PAIN.map((p) => (
+              <li>
+                <span class="cmp-pain-key">{p.label}</span>
+                <span class="cmp-pain-val">{p.value}</span>
+              </li>
+            ))
+          }
+        </ul>
+        <p class="cmp-col-tagline">Sign up fast. Pay forever. Nothing syncs.</p>
+      </article>
+
+      <article class="cmp-col cmp-col--reave">
+        <header class="cmp-col-head">
+          <p class="cmp-col-tag cmp-col-tag--highlight">Center</p>
+          <h3 class="cmp-col-title">{company.name}</h3>
+          <p class="cmp-col-sub">The Business OS</p>
+        </header>
+        <p class="cmp-col-desc">
+          90% of what you need on day zero. The last 10% is whatever makes this client
+          uniquely theirs — bolted on, not rebuilt.
+        </p>
+        <dl class="cmp-col-stats">
+          <div>
+            <dt>Steady state</dt>
+            <dd>$250–625/mo</dd>
+          </div>
+          <div>
+            <dt>Install ramp</dt>
+            <dd>$2K–5K mo 1</dd>
+          </div>
+        </dl>
+        <ul class="cmp-win-list">
+          {
+            REAVE_WINS.map((w) => (
+              <li>
+                <Check size={14} strokeWidth={2.5} aria-hidden="true" />
+                {w}
+              </li>
+            ))
+          }
+        </ul>
+        <p class="cmp-col-tagline">Not a blank canvas. Not a $100K build.</p>
+      </article>
+
+      <article class="cmp-col cmp-col--custom">
+        <header class="cmp-col-head">
+          <p class="cmp-col-tag">Right</p>
+          <h3 class="cmp-col-title">Bespoke development</h3>
+          <p class="cmp-col-sub">The agency build</p>
+        </header>
+        <p class="cmp-col-desc">
+          Custom CRM, portal, and integrations from scratch — perfect fit, long timeline,
+          unpredictable maintenance.
+        </p>
+        <dl class="cmp-col-stats">
+          <div>
+            <dt>Typical build</dt>
+            <dd>$40K–100K</dd>
+          </div>
+          <div>
+            <dt>Timeline</dt>
+            <dd>3–6 months</dd>
+          </div>
+        </dl>
+        <ul class="cmp-pain-list">
+          {
+            CUSTOM_PAIN.map((p) => (
+              <li>
+                <span class="cmp-pain-key">{p.label}</span>
+                <span class="cmp-pain-val">{p.value}</span>
+              </li>
+            ))
+          }
+        </ul>
+        <p class="cmp-col-tagline">Built for you. Billed like you'd expect.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="cmp-section scroll-fade-in" aria-labelledby="ninety-title">
+    <p class="cmp-section-kicker">90 / 10</p>
+    <h2 id="ninety-title" class="cmp-h2">Complete on day one. Custom where it counts.</h2>
+    <p class="cmp-section-lead">
+      Most platforms hand you a blank canvas and a monthly bill. {company.name} ships a
+      complete operating system — contacts, portal, billing, inbox, AI, mobile — and snaps
+      industry-specific pieces onto the same core.
+    </p>
+
+    <div
+      class="cmp-ninety-meter"
+      role="img"
+      aria-label="90 percent core platform, 10 percent custom bolt-ons"
+    >
+      <div class="cmp-ninety-core">
+        <span class="cmp-ninety-pct">90%</span>
+        <span class="cmp-ninety-name">Core OS</span>
+        <span class="cmp-ninety-detail">CRM · Portal · Billing · Inbox · AI · Mobile</span>
+      </div>
+      <div class="cmp-ninety-custom">
+        <span class="cmp-ninety-pct">+10%</span>
+        <span class="cmp-ninety-name">Bolt-ons</span>
+        <span class="cmp-ninety-detail">Industry plugins · Custom flows</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="cmp-section cmp-section--wide scroll-fade-in" aria-labelledby="matrix-title">
+    <p class="cmp-section-kicker">Feature matrix</p>
+    <h2 id="matrix-title" class="cmp-h2">Side by side.</h2>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th scope="col">Dimension</th>
+            <th scope="col">Box SaaS</th>
+            <th scope="col">{company.name}</th>
+            <th scope="col">Custom dev</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            COMPARE_MATRIX.map((row) => {
+              const saasIcon = indicatorIcon(row.saas);
+              const reaveIcon = indicatorIcon(row.reave);
+              const customIcon = indicatorIcon(row.custom);
+              const SaasIcon = saasIcon;
+              const ReaveIcon = reaveIcon;
+              const CustomIcon = customIcon;
+              return (
+                <tr>
+                  <th scope="row">{row.dimension}</th>
+                  <td>
+                    <span class={`cmp-ind cmp-ind--${row.saas}`}>
+                      <SaasIcon size={12} strokeWidth={2.5} aria-hidden="true" />
+                      <span class="sr-only">{indicatorLabel(row.saas)}</span>
+                    </span>
+                    {row.saasNote}
+                  </td>
+                  <td class="cmp-table-reave">
+                    <span class={`cmp-ind cmp-ind--${row.reave}`}>
+                      <ReaveIcon size={12} strokeWidth={2.5} aria-hidden="true" />
+                      <span class="sr-only">{indicatorLabel(row.reave)}</span>
+                    </span>
+                    {row.reaveNote}
+                  </td>
+                  <td>
+                    <span class={`cmp-ind cmp-ind--${row.custom}`}>
+                      <CustomIcon size={12} strokeWidth={2.5} aria-hidden="true" />
+                      <span class="sr-only">{indicatorLabel(row.custom)}</span>
+                    </span>
+                    {row.customNote}
+                  </td>
+                </tr>
+              );
+            })
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cmp-section scroll-fade-in" aria-labelledby="cost-title">
+    <p class="cmp-section-kicker cmp-section-kicker--cost">Total cost of ownership</p>
+    <h2 id="cost-title" class="cmp-h2">Three-year math (typical small business).</h2>
+    <p class="cmp-section-lead">
+      SaaS looks cheap until you multiply by headcount, duplicates, and waste. Custom
+      looks perfect until maintenance invoices arrive. REΛVE flattens the curve.
+    </p>
+
+    <div class="cmp-cost-grid">
+      {
+        COST_SCENARIOS.map((s) => (
+          <article class={`cmp-cost-card cmp-cost-card--${s.tone}`}>
+            <h3 class="cmp-cost-label">{s.label}</h3>
+            <dl class="cmp-cost-numbers">
+              <div>
+                <dt>Year 1</dt>
+                <dd>{s.year1}</dd>
+              </div>
+              <div>
+                <dt>3-year total</dt>
+                <dd>{s.year3}</dd>
+              </div>
+            </dl>
+            <p class="cmp-cost-note">{s.note}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="cmp-section scroll-fade-in" aria-labelledby="headlines-title">
+    <p class="cmp-section-kicker">Copy-ready</p>
+    <h2 id="headlines-title" class="cmp-h2">Headlines for decks and ads.</h2>
+
+    <div class="cmp-headline-grid">
+      <div class="cmp-headline-col">
+        <h3 class="cmp-h3">The problem</h3>
+        <ul class="cmp-headline-list">
+          {PROBLEM_HEADLINES.map((h) => <li>&ldquo;{h}&rdquo;</li>)}
+        </ul>
+      </div>
+      <div class="cmp-headline-col cmp-headline-col--solution">
+        <h3 class="cmp-h3">The answer</h3>
+        <ul class="cmp-headline-list">
+          {SOLUTION_HEADLINES.map((h) => <li>&ldquo;{h}&rdquo;</li>)}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="cmp-closing scroll-fade-in" aria-label="Next steps">
+    <h2 class="cmp-h2 cmp-h2--center">See the OS in action.</h2>
+    <p class="cmp-closing-lead">
+      Walk through contacts, portal, billing, and the AI agent on a live demo — or book
+      a call to map your install tier.
+    </p>
+    <div class="cmp-cta-row">
+      <a class="cmp-btn cmp-btn--primary" href="/demo">
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
+      <a class="cmp-btn cmp-btn--ghost brand-btn-glass" href={quoteHref}>Get a quote</a>
+      <a class="cmp-btn cmp-btn--ghost brand-btn-glass" href="/features">Full platform tour</a>
+    </div>
+  </section>
+
+  <footer class="cmp-sources scroll-fade-in" aria-label="Data sources">
+    <p class="cmp-sources-title">Sources</p>
+    <ul class="cmp-sources-list">
+      {COMPARE_SOURCES.map((s) => <li>{s}</li>)}
+    </ul>
+    <p class="cmp-note">
+      Figures vary by methodology (unused vs. underutilized vs. shadow spend). Prefer
+      ranges over false precision in external materials.
+    </p>
+  </footer>
+</div>
+
+<style>
+  .cmp-page {
+    min-height: 100vh;
+    padding: calc(64px + 40px) 20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .cmp-hero,
+  .cmp-callout,
+  .cmp-section,
+  .cmp-closing,
+  .cmp-sources {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .cmp-section--wide {
+    max-width: 1080px;
+  }
+
+  .cmp-hero {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .cmp-kicker,
+  .cmp-section-kicker,
+  .cmp-col-tag,
+  .cmp-sources-title {
+    font-family: var(--font-secondary);
+  }
+
+  .cmp-lead,
+  .cmp-section-lead,
+  .cmp-col-desc,
+  .cmp-closing-lead {
+    font-family: var(--font-content);
+  }
+
+  .cmp-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 14px;
+  }
+
+  .cmp-h1 {
+    margin: 0 0 16px;
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .cmp-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .cmp-h2--center {
+    text-align: center;
+  }
+
+  .cmp-h3 {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .cmp-lead,
+  .cmp-section-lead {
+    margin: 0 0 28px;
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .cmp-lead {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 580px;
+  }
+
+  .cmp-section-lead--center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 620px;
+  }
+
+  .cmp-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .cmp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .cmp-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .cmp-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .cmp-btn--ghost:hover {
+    transform: translateY(-1px);
+  }
+
+  .cmp-callout {
+    text-align: center;
+    margin-bottom: 56px;
+    padding: 32px 24px;
+    border-radius: 20px;
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(248, 113, 113, 0.12), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .cmp-callout-stat {
+    margin: 0 0 8px;
+    font-size: clamp(3rem, 12vw, 4.5rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: #fca5a5;
+  }
+
+  .cmp-callout-text {
+    margin: 0 auto 8px;
+    max-width: 480px;
+    font-size: 1.05rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .cmp-callout-source {
+    margin: 0;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .cmp-section {
+    margin-bottom: 56px;
+  }
+
+  .cmp-section-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin: 0 0 12px;
+  }
+
+  .cmp-section-kicker--warn {
+    color: #fb923c;
+  }
+
+  .cmp-section-kicker--center {
+    color: #a855f7;
+    text-align: center;
+  }
+
+  .cmp-section-kicker--cost {
+    color: #4ade80;
+  }
+
+  .cmp-spectrum {
+    list-style: none;
+    margin: 0 0 24px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cmp-spectrum-item {
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .cmp-spectrum-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .cmp-spectrum-severity {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .cmp-spectrum-item--critical .cmp-spectrum-severity {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+  }
+
+  .cmp-spectrum-item--severe .cmp-spectrum-severity {
+    background: rgba(251, 146, 60, 0.18);
+    color: #fdba74;
+  }
+
+  .cmp-spectrum-theme {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .cmp-spectrum-headline {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .cmp-spectrum-stat {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #e9d5ff;
+  }
+
+  .cmp-spectrum-detail {
+    margin: 0 0 6px;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .cmp-spectrum-source {
+    margin: 0;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  .cmp-money-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .cmp-money-card {
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    text-align: center;
+  }
+
+  .cmp-money-value {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .cmp-money-label {
+    margin: 0 0 4px;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .cmp-money-source {
+    margin: 0;
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  .cmp-util-bar {
+    display: flex;
+    height: 64px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+  }
+
+  .cmp-util-seg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 4px;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .cmp-util-seg--active {
+    background: rgba(74, 222, 128, 0.22);
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .cmp-util-seg--under {
+    background: rgba(251, 146, 60, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .cmp-util-seg--shelf {
+    background: rgba(248, 113, 113, 0.2);
+  }
+
+  .cmp-util-pct {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .cmp-util-label {
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .cmp-three-col {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .cmp-col {
+    display: flex;
+    flex-direction: column;
+    padding: 20px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .cmp-col--reave {
+    border-color: rgba(168, 85, 247, 0.45);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(168, 85, 247, 0.14), transparent 70%),
+      rgba(255, 255, 255, 0.03);
+    transform: scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .cmp-col--saas {
+    border-color: rgba(248, 113, 113, 0.2);
+  }
+
+  .cmp-col--custom {
+    border-color: rgba(251, 146, 60, 0.2);
+  }
+
+  .cmp-col-head {
+    margin-bottom: 12px;
+  }
+
+  .cmp-col-tag {
+    margin: 0 0 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .cmp-col-tag--highlight {
+    color: #c084fc;
+  }
+
+  .cmp-col-title {
+    margin: 0 0 4px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .cmp-col-sub {
+    margin: 0;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .cmp-col-desc {
+    margin: 0 0 14px;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .cmp-col-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 0;
+  }
+
+  .cmp-col-stats div {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .cmp-col-stats dt {
+    margin: 0 0 2px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .cmp-col-stats dd {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .cmp-pain-list,
+  .cmp-win-list {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cmp-pain-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .cmp-pain-key {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .cmp-pain-val {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .cmp-win-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .cmp-win-list :global(svg) {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #4ade80;
+  }
+
+  .cmp-col-tagline {
+    margin: auto 0 0;
+    padding-top: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.48);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cmp-ninety-meter {
+    display: flex;
+    height: 72px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .cmp-ninety-core,
+  .cmp-ninety-custom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .cmp-ninety-core {
+    flex: 9;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(99, 102, 241, 0.45) 100%);
+    border-right: 1px dashed rgba(255, 255, 255, 0.2);
+  }
+
+  .cmp-ninety-custom {
+    flex: 1;
+    min-width: 88px;
+    background: rgba(56, 189, 248, 0.12);
+  }
+
+  .cmp-ninety-pct {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .cmp-ninety-name {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .cmp-ninety-detail {
+    font-size: 0.58rem;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+  }
+
+  .cmp-table-wrap {
+    overflow-x: auto;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cmp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+
+  .cmp-table th,
+  .cmp-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    vertical-align: middle;
+  }
+
+  .cmp-table thead th {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.25);
+  }
+
+  .cmp-table tbody th {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+    white-space: nowrap;
+  }
+
+  .cmp-table tbody td {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .cmp-table-reave {
+    background: rgba(168, 85, 247, 0.06);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  .cmp-ind {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .cmp-ind--strong {
+    background: rgba(74, 222, 128, 0.18);
+    color: #4ade80;
+  }
+
+  .cmp-ind--mixed {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fbbf24;
+  }
+
+  .cmp-ind--weak {
+    background: rgba(248, 113, 113, 0.18);
+    color: #f87171;
+  }
+
+  .cmp-cost-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .cmp-cost-card {
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .cmp-cost-card--reave {
+    border-color: rgba(74, 222, 128, 0.35);
+    background: rgba(74, 222, 128, 0.06);
+  }
+
+  .cmp-cost-label {
+    margin: 0 0 12px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .cmp-cost-numbers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 0;
+  }
+
+  .cmp-cost-numbers dt {
+    margin: 0 0 2px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .cmp-cost-numbers dd {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .cmp-cost-note {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .cmp-headline-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .cmp-headline-col {
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .cmp-headline-col--solution {
+    border-color: rgba(168, 85, 247, 0.25);
+    background: rgba(168, 85, 247, 0.06);
+  }
+
+  .cmp-headline-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cmp-headline-list li {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .cmp-closing {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 32px 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .cmp-closing-lead {
+    margin: 0 auto 20px;
+    max-width: 480px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .cmp-sources {
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cmp-sources-title {
+    margin: 0 0 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .cmp-sources-list {
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+
+  .cmp-sources-list li {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .cmp-note {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 900px) {
+    .cmp-three-col,
+    .cmp-cost-grid,
+    .cmp-money-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cmp-col--reave {
+      transform: none;
+      order: -1;
+    }
+
+    .cmp-headline-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .cmp-util-label {
+      display: none;
+    }
+
+    .cmp-ninety-detail {
+      display: none;
+    }
+  }
+</style>
