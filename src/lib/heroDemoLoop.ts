@@ -289,24 +289,22 @@ function applyMessageDepth(msg: HTMLElement, depth: number) {
 function refreshStackLayout(
   viewport: HTMLElement,
   stack: HTMLElement,
-  iconEl: HTMLElement | null,
+  hero: HTMLElement,
+  depthEl: HTMLElement | null,
 ) {
   const vRect = viewport.getBoundingClientRect();
   if (vRect.height < 8) return;
 
   const overflow = Math.max(0, stack.scrollHeight - vRect.height);
-  const nextTransform = overflow > 0 ? `translateY(${-overflow}px)` : "";
+  stack.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : "";
 
-  // Snap instantly — the stack's CSS transition was leaving new messages mid-scroll
-  // so depth blur was applied before they settled on the bottom edge.
-  stack.style.transition = "none";
-  stack.style.transform = nextTransform;
-  void stack.offsetHeight;
-
-  const iconRect = iconEl?.getBoundingClientRect();
-  const iconBottom = iconRect
-    ? iconRect.bottom - vRect.top
-    : vRect.height * 0.35;
+  const heroRect = hero.getBoundingClientRect();
+  const depthRect = depthEl?.getBoundingClientRect();
+  // Hero-relative: chat viewport sits below the brand block, so viewport coords
+  // make depthBottom negative and skip blur/fade entirely.
+  const depthBottom = depthRect
+    ? depthRect.bottom - heroRect.top
+    : vRect.top - heroRect.top;
 
   const messages = stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg");
   const lastMessage = messages[messages.length - 1] ?? null;
@@ -318,15 +316,15 @@ function refreshStackLayout(
       msg.classList.contains("home-hero-demo-msg--status");
 
     const rect = msg.getBoundingClientRect();
-    const msgCenterY = (rect.top + rect.bottom) / 2 - vRect.top;
+    const msgCenterY = (rect.top + rect.bottom) / 2 - heroRect.top;
 
-    // Newest + in-progress turns stay crisp; readable area below the icon stays crisp too.
-    if (msg === lastMessage || isActive || msgCenterY >= iconBottom - 6) {
+    // Newest + in-progress turns stay crisp; readable area below the brand stays crisp too.
+    if (msg === lastMessage || isActive || msgCenterY >= depthBottom - 6) {
       applyMessageFocus(msg);
       continue;
     }
 
-    const depth = messageDepth(msgCenterY, iconBottom);
+    const depth = messageDepth(msgCenterY, depthBottom);
     applyMessageDepth(msg, depth);
   }
 }
@@ -335,14 +333,15 @@ function refreshStackLayout(
 function relayoutStack(
   viewport: HTMLElement,
   stack: HTMLElement,
-  iconEl: HTMLElement | null,
+  hero: HTMLElement,
+  depthEl: HTMLElement | null,
   flush = false,
 ) {
-  refreshStackLayout(viewport, stack, iconEl);
+  refreshStackLayout(viewport, stack, hero, depthEl);
   if (flush) {
     requestAnimationFrame(() => {
-      refreshStackLayout(viewport, stack, iconEl);
-      requestAnimationFrame(() => refreshStackLayout(viewport, stack, iconEl));
+      refreshStackLayout(viewport, stack, hero, depthEl);
+      requestAnimationFrame(() => refreshStackLayout(viewport, stack, hero, depthEl));
     });
   }
 }
@@ -353,12 +352,13 @@ async function playUserTurn(
   sceneEl: HTMLElement,
   viewport: HTMLElement,
   stack: HTMLElement,
-  iconEl: HTMLElement | null,
+  hero: HTMLElement,
+  depthEl: HTMLElement | null,
   reducedMotion: boolean,
   isAlive: () => boolean,
   userAvatarUrl?: string,
 ): Promise<void> {
-  const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
+  const relayout = (flush = false) => relayoutStack(viewport, stack, hero, depthEl, flush);
   const charMs = reducedMotion ? USER_CHAR_MS_FAST : USER_CHAR_MS;
 
   const kind = turn.kind ?? "voice";
@@ -415,12 +415,13 @@ async function playAssistantTurn(
   sceneEl: HTMLElement,
   viewport: HTMLElement,
   stack: HTMLElement,
-  iconEl: HTMLElement | null,
+  hero: HTMLElement,
+  depthEl: HTMLElement | null,
   reducedMotion: boolean,
   isAlive: () => boolean,
   priorAssistantRow: HTMLElement | null,
 ): Promise<HTMLElement | null> {
-  const relayout = (flush = false) => relayoutStack(viewport, stack, iconEl, flush);
+  const relayout = (flush = false) => relayoutStack(viewport, stack, hero, depthEl, flush);
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
 
@@ -531,7 +532,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const relayout = (flush = false) => {
     syncHeroCopyHeight(hero, copyEl);
     syncHeroBrandBottom(hero, brandEl);
-    relayoutStack(viewport, stack, focusEl, flush);
+    relayoutStack(viewport, stack, hero, focusEl, flush);
   };
   relayout(true);
   if (copyEl) new ResizeObserver(() => relayout()).observe(copyEl);
@@ -611,6 +612,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
           sceneEl,
           viewport,
           stack,
+          hero,
           focusEl,
           reducedMotion,
           () => running,
@@ -625,6 +627,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         sceneEl,
         viewport,
         stack,
+        hero,
         focusEl,
         reducedMotion,
         () => running,
