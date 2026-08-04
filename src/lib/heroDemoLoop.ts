@@ -23,8 +23,9 @@ const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 const SCENE_EXIT_MS = 500;
 const ACTION_PRESS_MS = 900;
-const SLASH_PICKER_SHOW_MS = 1100;
-const SLASH_PICKER_HIDE_MS = 280;
+const SLASH_PICKER_ARROW_MS = 380;
+const SLASH_PICKER_SELECT_HOLD_MS = 520;
+const SLASH_PICKER_OPEN_MS = 200;
 const USER_COMPOSE_MS = 520;
 const USER_CHAR_MS = 42;
 const USER_CHAR_MS_FAST = 14;
@@ -205,7 +206,7 @@ function createUserComposingShell(
   return row;
 }
 
-function buildSlashPicker(activeSlash: string): HTMLElement {
+function buildSlashPicker(): HTMLElement {
   const panel = document.createElement("div");
   panel.className = "home-hero-demo-slash-picker";
   panel.setAttribute("role", "listbox");
@@ -217,7 +218,6 @@ function buildSlashPicker(activeSlash: string): HTMLElement {
   for (const option of HERO_DEMO_SLASH_PICKER) {
     const item = document.createElement("li");
     item.className = "home-hero-demo-slash-option";
-    if (option.slash === activeSlash) item.classList.add("active");
 
     const slash = document.createElement("span");
     slash.className = "home-hero-demo-slash-option-cmd";
@@ -234,6 +234,40 @@ function buildSlashPicker(activeSlash: string): HTMLElement {
 
   panel.appendChild(list);
   return panel;
+}
+
+function setSlashPickerHighlight(picker: HTMLElement, index: number) {
+  picker.querySelectorAll<HTMLElement>(".home-hero-demo-slash-option").forEach((item, i) => {
+    item.classList.toggle("active", i === index);
+    if (i === index) item.setAttribute("aria-selected", "true");
+    else item.removeAttribute("aria-selected");
+  });
+}
+
+/** Simulate ArrowDown until the intended slash command is highlighted. */
+async function animateSlashPickerToTarget(
+  picker: HTMLElement,
+  targetSlash: string,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const targetIndex = HERO_DEMO_SLASH_PICKER.findIndex((option) => option.slash === targetSlash);
+  if (targetIndex < 0) {
+    await wait(reducedMotion ? 280 : SLASH_PICKER_SELECT_HOLD_MS);
+    return;
+  }
+
+  const arrowMs = reducedMotion ? 110 : SLASH_PICKER_ARROW_MS;
+  const holdMs = reducedMotion ? 220 : SLASH_PICKER_SELECT_HOLD_MS;
+
+  await wait(reducedMotion ? 80 : SLASH_PICKER_OPEN_MS);
+  if (!isAlive()) return;
+
+  for (let i = 0; i <= targetIndex; i++) {
+    setSlashPickerHighlight(picker, i);
+    await wait(i === targetIndex ? holdMs : arrowMs);
+    if (!isAlive()) return;
+  }
 }
 
 async function typeText(
@@ -381,18 +415,18 @@ async function playUserTurn(
     if (!isAlive()) return;
     relayout();
 
-    const picker = buildSlashPicker(activeSlash);
+    const picker = buildSlashPicker();
     row.appendChild(picker);
     requestAnimationFrame(() => {
       picker.classList.add("home-hero-demo-slash-picker--visible");
     });
     relayout();
-    await wait(SLASH_PICKER_SHOW_MS);
+    await animateSlashPickerToTarget(picker, activeSlash, reducedMotion, isAlive);
     if (!isAlive()) return;
 
     picker.classList.remove("home-hero-demo-slash-picker--visible");
     picker.classList.add("home-hero-demo-slash-picker--exit");
-    await wait(SLASH_PICKER_HIDE_MS);
+    await wait(280);
     picker.remove();
 
     const slashBody = activeSlash.slice(1);
