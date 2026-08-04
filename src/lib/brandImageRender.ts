@@ -108,9 +108,9 @@ function buildLetterSvg(letter: string, size: number, transparent: boolean): str
   ${background}
   <defs>
     <linearGradient id="brand-letter" x1="0" y1="${size}" x2="${size}" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f472b6"/>
+      <stop offset="0%" stop-color="#6366f1"/>
       <stop offset="52%" stop-color="#c026d3"/>
-      <stop offset="100%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#f472b6"/>
     </linearGradient>
   </defs>
   <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" fill="url(#brand-letter)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="${fontSize}" font-weight="700">${safe}</text>
@@ -123,9 +123,9 @@ function buildLetterOgSvg(letter: string): string {
   <rect width="${PORTAL_OG_WIDTH}" height="${PORTAL_OG_HEIGHT}" fill="#0a0a0a"/>
   <defs>
     <linearGradient id="brand-letter-og" x1="0" y1="${PORTAL_OG_HEIGHT}" x2="${PORTAL_OG_WIDTH}" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f472b6"/>
+      <stop offset="0%" stop-color="#6366f1"/>
       <stop offset="52%" stop-color="#c026d3"/>
-      <stop offset="100%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#f472b6"/>
     </linearGradient>
   </defs>
   <text x="600" y="340" text-anchor="middle" dominant-baseline="middle" fill="url(#brand-letter-og)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="280" font-weight="700">${safe}</text>
