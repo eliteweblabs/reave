@@ -227,19 +227,6 @@ const demoScenes = HERO_DEMO_SCENES;
     will-change: transform;
   }
 
-  .home-hero-demo-scene {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding-bottom: 2px;
-    transition: opacity 0.85s ease, transform 0.85s ease;
-  }
-
-  .home-hero-demo-scene--exit {
-    opacity: 0;
-    transform: translateY(-12px);
-  }
-
   .home-hero-copy {
     display: flex;
     flex-direction: column;
@@ -313,6 +300,20 @@ const demoScenes = HERO_DEMO_SCENES;
 </style>
 
 <style is:global>
+  /* Scene + messages are built in JS — must be global (scoped CSS never matches). */
+  .home-hero-demo-scene {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 2px;
+    transition: opacity 0.85s ease, transform 0.85s ease;
+  }
+
+  .home-hero-demo-scene--exit {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+
   .home-hero-demo-msg {
     display: flex;
     align-items: flex-end;
