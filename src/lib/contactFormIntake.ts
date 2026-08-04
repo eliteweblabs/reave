@@ -29,7 +29,7 @@ export type ContactFormIntakeInput = {
   smsOptIn?: boolean | null;
   message?: string | null;
   subject?: string | null;
-  /** Company inbox override from the form (homepage passes support email). */
+  /** @deprecated Ignored — company notify recipient is resolved server-side from config. */
   to?: string | null;
 };
 
@@ -118,9 +118,7 @@ async function applyContactFormDetails(
   }
 }
 
-async function resolveCompanyRecipient(explicitTo?: string | null): Promise<string> {
-  const fromForm = String(explicitTo || '').trim();
-  if (fromForm.includes('@')) return fromForm;
+async function resolveCompanyRecipient(): Promise<string> {
   const company = await getCompanyConfig();
   const support = company.supportEmail?.trim();
   if (support?.includes('@')) return support;
@@ -345,7 +343,7 @@ export async function processContactFormIntake(
     }
   }
 
-  const companyTo = await resolveCompanyRecipient(input.to);
+  const companyTo = await resolveCompanyRecipient();
   let companyEmailSent = false;
   if (companyTo) {
     companyEmailSent = await sendCompanyNotify({

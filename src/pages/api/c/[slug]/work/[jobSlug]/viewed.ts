@@ -9,6 +9,8 @@ import { recordProjectShareView } from '../../../../../../lib/linkTracking';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
 import { isLinkPreviewRequest, isOwnerPreviewRequest, isStaffSession } from '../../../../../../lib/staffSession';
 import { storeReadWork } from '../../../../../../lib/workStore';
+import { checkInMemoryRateLimit } from '../../../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -20,6 +22,14 @@ function json(body: unknown, status = 200): Response {
 }
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
+  const rate = checkInMemoryRateLimit(`portal-viewed:${clientIp(request)}`, {
+    windowMs: 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
+  }
+
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
   if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
