@@ -17,6 +17,8 @@ export type HeroDemoTurn = {
 export type HeroDemoScene = {
   id: string;
   turns: HeroDemoTurn[];
+  /** Headshot for the business owner in this scene's user messages. */
+  userAvatar?: string;
   /** Pause after the last turn before the scene fades (ms). */
   holdMs?: number;
 };
@@ -34,6 +36,7 @@ export const HERO_DEMO_SLASH_PICKER = [
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",
+    userAvatar: "/images/hero-demo/field-checkin.png",
     holdMs: 1000,
     turns: [
       { role: "user", text: "Is Pete at the Pine Street job?", kind: "voice" },
@@ -68,6 +71,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "henderson-billing",
+    userAvatar: "/images/hero-demo/henderson-billing.png",
     holdMs: 1100,
     turns: [
       {
@@ -107,6 +111,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "nda-signing",
+    userAvatar: "/images/hero-demo/nda-signing.png",
     holdMs: 1000,
     turns: [
       {
@@ -121,7 +126,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Sarah opened the envelope 2 minutes ago.",
+        text: "Sarah viewed the proposal 2 minutes ago.",
         pauseMs: 1500,
         actions: [{ label: "View signing status", variant: "secondary" }],
       },
@@ -140,6 +145,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "inventory-channels",
+    userAvatar: "/images/hero-demo/inventory-channels.png",
     holdMs: 1000,
     turns: [
       {
@@ -173,6 +179,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "materials-paint-pricing",
+    userAvatar: "/images/hero-demo/materials-paint-pricing.png",
     holdMs: 1000,
     turns: [
       {

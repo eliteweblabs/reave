@@ -9207,7 +9207,6 @@ initSchedulePanel({
   osAlert,
   syncFooterNav,
   navigateToClient,
-  attachAutosuggestKeyboardNav,
   appendEmptyDetailPane,
   MAP,
   activeKey,

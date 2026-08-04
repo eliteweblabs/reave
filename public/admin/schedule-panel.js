@@ -1029,7 +1029,7 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
   addressInput.setAttribute('aria-expanded', 'false');
   addressInput.addEventListener('input', onInput);
   addressInput.addEventListener('blur', onBlur);
-  const detachKeyNav = shell.attachAutosuggestKeyboardNav(addressInput, dropdown, {
+  const detachKeyNav = attachAutosuggestKeyboardNav(addressInput, dropdown, {
     optionSelector: '.sched-guest-option',
     onClose: () => setDropdownOpen(false),
   });
@@ -1151,7 +1151,7 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
   nameInput.setAttribute('aria-expanded', 'false');
   nameInput.addEventListener('input', onInput);
   nameInput.addEventListener('blur', onBlur);
-  const detachKeyNav = shell.attachAutosuggestKeyboardNav(nameInput, dropdown, {
+  const detachKeyNav = attachAutosuggestKeyboardNav(nameInput, dropdown, {
     optionSelector: '.sched-guest-option',
     onClose: () => setDropdownOpen(false),
   });
