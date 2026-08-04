@@ -8,6 +8,7 @@
     "dev:railway": "railway run -- npm run dev",
     "railway:vars": "railway variable list -k > .env.railway",
     "sync:env": "bash scripts/sync-local-env.sh",
+    "backup:postgres": "bash scripts/backup-postgres.sh",
     "sync:resend-dns": "node --experimental-strip-types scripts/sync-resend-dns.ts",
     "sync:vapi": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "seed:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-demo.ts",

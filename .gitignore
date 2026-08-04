@@ -6,6 +6,7 @@ dist/
 .env.local
 .env.railway
 .env.railway.postgres
+backups/
 
 # Astro
 .astro/
