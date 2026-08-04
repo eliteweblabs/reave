@@ -200,7 +200,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260803b';
+} from './chat-panel.js?v=20260804b';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -9293,6 +9293,8 @@ initChatPanel({
   appendEmptyDetailPane,
   captureSidebarListScroll,
   finishSidebarListScroll,
+  captureFilterTabsScroll,
+  mountFilterTabsScroll,
   askAgentWithPrompt,
   setChatComposeFocused,
   syncTopbarPanelContext,

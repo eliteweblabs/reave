@@ -37,6 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   showCopyButtonFeedback,
+  bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260803b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
@@ -938,6 +939,8 @@ function bindChatMessageContextMenu(row, message, composeInput, onEdit) {
 let chatState = {
   threads: [],
   search: '',
+  categoryFilter: 'all',
+  listRefreshing: false,
   activeId: null,
   messages: [],
   title: '',
@@ -1438,6 +1441,7 @@ function applyChatRunningIndicators() {
   root.querySelectorAll('.ch-sidebar .ch-list-item[data-id]').forEach((el) => {
     el.classList.toggle('ch-list-item--running', chatState.runningIds.has(el.dataset.id));
   });
+  updateChatFilterTabCounts(root);
 }
 
 function createChatSwipeRow(t) {
@@ -1452,8 +1456,162 @@ function createChatSwipeRow(t) {
   ]);
 }
 
+function isChatProject(t) {
+  return Boolean(t?.linked_jobs?.length);
+}
+
+function chatThreadsForCategoryFilter(threads = chatState.threads) {
+  const f = chatState.categoryFilter;
+  if (f === 'archive') return threads.filter((t) => t.archived);
+  if (f === 'review') return threads.filter((t) => !t.archived && isChatUnread(t));
+  if (f === 'working') return threads.filter((t) => chatState.runningIds.has(t.id));
+  if (f === 'project') return threads.filter((t) => isChatProject(t));
+  return threads.filter((t) => !t.archived);
+}
+
+function chatTabCounts() {
+  const all = chatState.threads;
+  return {
+    all: all.filter((t) => !t.archived).length,
+    review: all.filter((t) => !t.archived && isChatUnread(t)).length,
+    working: all.filter((t) => chatState.runningIds.has(t.id)).length,
+    project: all.filter((t) => isChatProject(t)).length,
+    archive: all.filter((t) => t.archived).length,
+  };
+}
+
+function chatCountForActiveTab() {
+  return chatThreadsForCategoryFilter().length;
+}
+
+function chatSearchPlaceholder(count) {
+  const n = Number.isFinite(count) ? count : chatCountForActiveTab();
+  return `Search ${n} ${n === 1 ? 'Session' : 'Sessions'}`;
+}
+
+function chatSidebarEmptyText() {
+  if (chatState.search.trim()) return 'No matches.';
+  const labels = {
+    all: 'No sessions yet.',
+    review: 'No sessions to review.',
+    working: 'No sessions in progress.',
+    project: 'No project sessions.',
+    archive: 'No archived sessions.',
+  };
+  return labels[chatState.categoryFilter] || labels.all;
+}
+
+function switchChatCategoryFilter(id) {
+  if (chatState.categoryFilter === id) return;
+  chatState.categoryFilter = id;
+  const visible = chatThreadsForCategoryFilter().filter((t) =>
+    matchesListSearch(chatState.search, t.title, t.id),
+  );
+  const clearedActive = chatState.activeId && !visible.some((t) => t.id === chatState.activeId);
+  if (clearedActive) {
+    chatState.activeId = null;
+    chatState.messages = [];
+    chatState.title = '';
+    clearChatLastActiveId();
+    getChatPanel()?.classList.remove('ch-pane-active');
+    renderChatPanel();
+    return;
+  }
+  refreshChatSidebarList();
+}
+
+async function bulkDeleteChatCategory(tab) {
+  closeOpenSwipeRow();
+  const threads = chatThreadsForCategoryFilter();
+  if (threads.length === 0 || tab.id === 'all') return;
+  await bulkDeleteChats(threads.map((t) => t.id));
+}
+
+function renderChatFilterTabs(savedScrollLeft = 0) {
+  const counts = chatTabCounts();
+  const nav = document.createElement('div');
+  nav.className = 'em-filter-tabs em-filter-tabs--scroll';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Session filters');
+
+  const tabs = [
+    { id: 'all', label: 'All', count: counts.all },
+    { id: 'review', label: 'Review', count: counts.review },
+    { id: 'working', label: 'Working', count: counts.working },
+    { id: 'project', label: 'Project', count: counts.project },
+    { id: 'archive', label: 'Archive', count: counts.archive },
+  ];
+
+  for (const tab of tabs) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = chatState.categoryFilter === tab.id;
+    const canBulkDelete = isActive && tab.id !== 'all' && tab.count > 0;
+    const isAllRefresh = isActive && tab.id === 'all';
+    btn.className =
+      'em-filter-tab' +
+      (isActive ? ' active' : '') +
+      (canBulkDelete ? ' em-filter-tab--purge' : '') +
+      (isAllRefresh ? ' em-filter-tab--refresh' : '') +
+      (isAllRefresh && chatState.listRefreshing ? ' em-filter-tab--refreshing' : '');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.dataset.filter = tab.id;
+
+    if (canBulkDelete) {
+      btn.innerHTML =
+        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
+        `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
+      btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} sessions`);
+      btn.title = `Delete all ${tab.label.toLowerCase()} sessions`;
+      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab), { ringSize: 44 });
+    } else if (isAllRefresh) {
+      btn.innerHTML =
+        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
+        `<span class="em-filter-refresh-icon">${IOS_ICONS.refresh}</span>`;
+      btn.setAttribute('aria-label', 'Refresh sessions');
+      btn.title = 'Refresh sessions';
+      btn.addEventListener('click', () => {
+        if (chatState.listRefreshing) return;
+        chatState.listRefreshing = true;
+        refreshChatFilterTabsUi();
+        void refreshChatsListQuiet().finally(() => {
+          chatState.listRefreshing = false;
+          refreshChatFilterTabsUi();
+        });
+      });
+    } else {
+      btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
+      btn.addEventListener('click', () => switchChatCategoryFilter(tab.id));
+    }
+
+    nav.appendChild(btn);
+  }
+
+  shell.mountFilterTabsScroll?.(nav, savedScrollLeft);
+  return nav;
+}
+
+function updateChatFilterTabCounts(root) {
+  const counts = chatTabCounts();
+  root.querySelectorAll('.em-filter-tab[data-filter]').forEach((btn) => {
+    const id = btn.dataset.filter;
+    if (!id) return;
+    if (id === 'all' && chatState.categoryFilter === 'all') return;
+    const countEl = btn.querySelector('.em-filter-count');
+    if (!countEl) return;
+    countEl.textContent = String(counts[id] ?? 0);
+  });
+}
+
+function refreshChatFilterTabsUi() {
+  const root = getChatPanel();
+  const tabs = root?.querySelector('.em-filter-tabs');
+  if (tabs) tabs.replaceWith(renderChatFilterTabs(tabs.scrollLeft));
+}
+
 function visibleChatThreads() {
-  return chatState.threads.filter((t) =>
+  return chatThreadsForCategoryFilter().filter((t) =>
     matchesListSearch(chatState.search, t.title, t.id),
   );
 }
@@ -1469,7 +1627,7 @@ function fillChatSidebarList(list) {
   if (visibleThreads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = chatState.search.trim() ? 'No matches.' : 'No sessions yet.';
+    empty.textContent = chatSidebarEmptyText();
     target.appendChild(empty);
   }
   // Drag-to-reorder disabled — re-enable via attachSidebarListReorder in todo-panel.js.
@@ -1539,26 +1697,28 @@ function refreshChatSidebarList() {
   }
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
-    const count = chatState.threads.length;
-    searchInput.placeholder = `Search ${count} ${count === 1 ? 'Session' : 'Sessions'}`;
+    searchInput.placeholder = chatSearchPlaceholder(chatCountForActiveTab());
   }
+  refreshChatFilterTabsUi();
   fillChatSidebarList(list);
 }
 
-function renderChatSidebar() {
+function renderChatSidebar(savedFilterScroll = 0) {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
+  const countForTab = chatCountForActiveTab();
   const subheader = listSearchSubheader({
-    itemCount: chatState.threads.length,
+    itemCount: countForTab,
     search: {
       value: chatState.search,
-      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'Session' : 'Sessions'}`,
+      placeholder: chatSearchPlaceholder(countForTab),
       onInput: (value) => {
         chatState.search = value;
         refreshChatSidebarList();
       },
     },
+    below: renderChatFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -1764,10 +1924,11 @@ function renderChatPanel() {
   const root = getChatPanel();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
+  const savedFilterScroll = shell.captureFilterTabsScroll?.(root) ?? 0;
   unmountChatThreadRoot(root);
   root.innerHTML = '';
 
-  root.appendChild(renderChatSidebar());
+  root.appendChild(renderChatSidebar(savedFilterScroll));
 
   const pane = document.createElement('div');
   pane.className = 'ch-pane';
