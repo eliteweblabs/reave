@@ -1580,12 +1580,16 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
   const searchWrap = document.createElement('div');
   searchWrap.className = 'wk-client-search-wrap';
+  const searchLabel = document.createElement('label');
+  searchLabel.className = 'de-label';
+  searchLabel.textContent = 'Search.';
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search Clients…';
+  searchInput.placeholder = 'Clients…';
   searchInput.autocomplete = 'off';
-  searchWrap.appendChild(searchInput);
+  searchLabel.appendChild(searchInput);
+  searchWrap.appendChild(searchLabel);
   const dropdown = document.createElement('div');
   dropdown.className = 'wk-client-dropdown';
   dropdown.style.display = 'none';
