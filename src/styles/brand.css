@@ -53,10 +53,6 @@
   display: block;
 }
 
-.reave-bg-pattern__svg path {
-  fill: #fff;
-}
-
 .reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path {
   opacity: 0;
 }

@@ -117,8 +117,8 @@ const demoScenes = HERO_DEMO_SCENES;
 
   .home-hero-pattern {
     z-index: 1;
-    /* No CSS mask/blend here — iOS Safari won't repaint SVG path opacity under them.
-       Vignette lives in the SVG; soft-light is approximated via path fill in brand.css. */
+    /* soft-light is safe here — only CSS mask-image on this wrapper broke iOS path repaints. */
+    mix-blend-mode: soft-light;
   }
 
   .home-hero-center {
