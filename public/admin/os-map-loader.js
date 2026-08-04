@@ -113,7 +113,7 @@ import {
   queueWorkDeepLink,
   workStatusLabel,
   workClientSubline,
-} from './work-panel.js?v=20260803c';
+} from './work-panel.js?v=20260804d';
 import {
   initTodoPanel,
   todoState,
@@ -166,7 +166,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260804c';
+} from './clients-panel.js?v=20260804d';
 import {
   initChatPanel,
   chatState,

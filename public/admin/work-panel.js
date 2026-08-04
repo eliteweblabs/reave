@@ -30,7 +30,7 @@ import {
   showCopyButtonFeedback,
 } from './admin-ui.js?v=20260803b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
+import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -925,7 +925,7 @@ function mountClientDetailTabs(pane, activeTab, onSelect) {
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     btn.textContent = tab.label;
     btn.addEventListener('click', () => {
-      if (clientState.detailTab === tab.id) return;
+      if (btn.classList.contains('active')) return;
       onSelect(tab.id);
     });
     nav.appendChild(btn);
