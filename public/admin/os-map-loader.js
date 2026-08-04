@@ -5368,6 +5368,14 @@ function hasLegacyCompanyIconPath(company) {
   );
 }
 
+function hasRemovableCompanyIcon(company) {
+  return (
+    hasUploadedCompanyIconPng(company) ||
+    hasLegacyCompanyIconPath(company) ||
+    !!(company?.iconSvg?.trim())
+  );
+}
+
 function hasCompanyIconMark(company) {
   return (
     hasUploadedCompanyIconPng(company) ||
@@ -5518,7 +5526,7 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
     iconCompany = company || null;
     const hasIcon = hasCustomCompanyIcon(company);
     const hasPng = hasUploadedCompanyIconPng(company);
-    const hasRemovableIcon = hasPng || hasLegacyCompanyIconPath(company);
+    const hasRemovableIcon = hasRemovableCompanyIcon(company);
     const url = hasIcon ? companyIconPreviewUrl(company) : '';
     const avatarUrl = companyStaffAvatarPreviewUrl(company);
 
@@ -5584,6 +5592,8 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
       const res = await fetch('/api/admin/company/icon', { method: 'DELETE' });
       const json = await res.json();
       if (res.ok && json.company) {
+        const iconSvgField = root.querySelector('#company-iconSvg');
+        if (iconSvgField instanceof HTMLTextAreaElement) iconSvgField.value = '';
         refreshPreview(json.company);
         showProfileAlert(companyAlert, 'Icon removed — using site default.', 'success');
       } else {
@@ -6269,7 +6279,7 @@ function renderCompanyPanel(company, fontCatalog) {
   const iconUrl = companyIconPreviewUrl(c);
   const hasIcon = hasCustomCompanyIcon(c);
   const hasIconPng = hasUploadedCompanyIconPng(c);
-  const hasRemovableIcon = hasIconPng || hasLegacyCompanyIconPath(c);
+  const hasRemovableIcon = hasRemovableCompanyIcon(c);
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
