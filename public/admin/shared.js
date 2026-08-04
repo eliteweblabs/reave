@@ -69,7 +69,8 @@ export function bindClerkSsrSessionSync(opts = {}) {
     }
   }
 
-  window.addEventListener('clerk-loaded', run);
+  // Capture phase — beat Clerk SignIn's post-auth redirect when SSR cookies lag (Safari).
+  window.addEventListener('clerk-loaded', run, true);
   if (window.Clerk?.loaded) run();
   else {
     document.addEventListener('DOMContentLoaded', () => {

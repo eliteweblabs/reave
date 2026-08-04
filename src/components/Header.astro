@@ -268,7 +268,7 @@ const showHeaderProfile = userId && !showMarketingNav;
   )}
 </header>
 
-{(!userId || showMarketingNav) && (!adminShell || !userId) && (
+{!userId && (
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
     autoOpen={signInAutoOpen && !showMarketingNav}

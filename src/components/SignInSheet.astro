@@ -125,9 +125,7 @@ const clerkAppearance = {
   }
 </style>
 
-{autoOpen && (
-  <script type="module">
-    import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260804a';
-    bindClerkSsrSessionSync({ autoOpenSignIn: true });
-  </script>
-)}
+<script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
+  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260804b';
+  bindClerkSsrSessionSync({ autoOpenSignIn });
+</script>
