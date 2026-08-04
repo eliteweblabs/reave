@@ -10,7 +10,6 @@ import {
   type HeroDemoTurn,
 } from "./heroDemoConversation";
 
-const ENGAGED_KEY = "hero-demo-engaged-v5";
 /** Demo pacing (~33% slower than baseline). Applied in wait() and exit timeouts. */
 const TIMING_SCALE = 1.33;
 
@@ -454,11 +453,6 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 
-  if (sessionStorage.getItem(ENGAGED_KEY) === "1") {
-    root.hidden = true;
-    return;
-  }
-
   const relayout = () => refreshStackLayout(viewport, stack, iconEl);
   syncHeroCopyHeight(hero, copyEl);
   if (copyEl) new ResizeObserver(() => syncHeroCopyHeight(hero, copyEl)).observe(copyEl);
@@ -472,32 +466,41 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let sceneIndex = Math.floor(Math.random() * scenes.length);
-  let running = true;
+  let running = false;
+  let paused = true;
+  let pauseTimer = 0;
 
-  const stop = () => {
-    if (!running) return;
+  const pauseDemo = () => {
+    if (paused) return;
+    paused = true;
     running = false;
-    sessionStorage.setItem(ENGAGED_KEY, "1");
     root.classList.add("home-hero-demo--stopped");
-    window.setTimeout(() => {
+    window.clearTimeout(pauseTimer);
+    pauseTimer = window.setTimeout(() => {
       root.hidden = true;
     }, scaleMs(SCENE_EXIT_MS));
   };
 
-  // Only stop after deliberate scroll well past the hero — ignore iOS address-bar jitter.
-  const onScroll = () => {
-    if (!running || window.scrollY < 120) return;
-    const rect = hero.getBoundingClientRect();
-    if (rect.top > -rect.height * 0.35) return;
-    window.removeEventListener("scroll", onScroll);
-    stop();
+  const resumeDemo = () => {
+    if (!paused) return;
+    paused = false;
+    window.clearTimeout(pauseTimer);
+    root.hidden = false;
+    root.classList.remove("home-hero-demo--stopped");
+    stack.replaceChildren();
+    stack.style.transform = "";
+    running = true;
+    void loop();
   };
-  window.addEventListener("scroll", onScroll, { passive: true });
 
-  // CTA clicks dismiss the demo without blocking scene cycling beforehand.
-  copyEl?.querySelectorAll("a").forEach((link) => {
-    link.addEventListener("click", () => stop(), { once: true });
-  });
+  const heroObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (entry?.isIntersecting) resumeDemo();
+      else pauseDemo();
+    },
+    { threshold: 0.22, rootMargin: "0px 0px -12% 0px" },
+  );
+  heroObserver.observe(hero);
 
   const playScene = async (scene: HeroDemoScene): Promise<void> => {
     if (!running) return;
@@ -533,7 +536,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
-  await playAssistantTurn(
+      await playAssistantTurn(
         turn,
         root,
         sceneEl,
@@ -564,8 +567,6 @@ export function initHeroDemoLoop(root: HTMLElement) {
       await wait(SCENE_GAP_MS);
     }
   };
-
-  void loop();
 }
 
 export function bootHeroDemoLoop() {
