@@ -27,7 +27,7 @@ const demoScenes = HERO_DEMO_SCENES;
     <div class="home-hero-icon-wrap" data-hero-icon>
       <BrandIconInline company={company} />
     </div>
-    <h1 id="home-hero-title" class="home-hero-title">Small Business,<br class="home-hero-title-break" />Smaller Workday.</h1>
+    <h1 id="home-hero-title" class="home-hero-title">Small Business, <br class="home-hero-title-break" />Smaller Workday.</h1>
   </div>
 
   <div
@@ -83,6 +83,14 @@ const demoScenes = HERO_DEMO_SCENES;
   .home-hero {
     --home-hero-copy-h: 88px;
     --home-hero-brand-bottom: 42%;
+    /*
+     * With the brand block centred there is no room for the chat below it, so
+     * the lane runs up behind it: --rise is how far past the headline a turn
+     * may travel, --fade how long the mask takes to reach full opacity under
+     * it. A turn is gone by the time it clears the headline.
+     */
+    --home-hero-demo-rise: clamp(120px, 18vh, 190px);
+    --home-hero-demo-fade: calc(var(--home-hero-demo-rise) + clamp(90px, 13vh, 140px));
     position: relative;
     z-index: 0;
     width: 100%;
@@ -109,13 +117,13 @@ const demoScenes = HERO_DEMO_SCENES;
     mix-blend-mode: soft-light;
   }
 
-  /* Icon + headline — highest layer, upper third of the hero */
+  /* Icon + headline — highest layer, dead centre of the viewport */
   .home-hero-brand {
     position: absolute;
     z-index: 10;
     left: 50%;
-    top: clamp(72px, 14vh, 120px);
-    transform: translateX(-50%);
+    top: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -239,11 +247,28 @@ const demoScenes = HERO_DEMO_SCENES;
     transform: translateX(-50%);
     width: min(100%, 540px);
     padding: 0 20px;
-    top: calc(var(--home-hero-brand-bottom, 42%) + 12px);
+    top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
     bottom: calc(var(--home-hero-copy-h, 88px) + 16px);
     min-height: 140px;
     overflow: visible;
     pointer-events: none;
+    /*
+     * Holds near-transparent across the headline before ramping up, so turns
+     * are already gone by the time they reach it rather than half-visible
+     * behind it. Also clips the stack's overflow past the lane top.
+     */
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #0000 0,
+      #0002 calc(var(--home-hero-demo-fade) * 0.45),
+      #000 var(--home-hero-demo-fade)
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #0000 0,
+      #0002 calc(var(--home-hero-demo-fade) * 0.45),
+      #000 var(--home-hero-demo-fade)
+    );
   }
 
   .home-hero-demo[hidden] {
