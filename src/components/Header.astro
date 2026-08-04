@@ -270,9 +270,11 @@ const showHeaderProfile = userId && !showMarketingNav;
     document.documentElement.dataset.appHeaderVvPin = "1";
 
     const sync = () => {
+      const offsetTop = window.visualViewport?.offsetTop ?? 0;
+      // Negative offsetTop during iOS top rubber-band pulls fixed chrome under the status bar.
       document.documentElement.style.setProperty(
         "--app-header-vv-top",
-        `${window.visualViewport?.offsetTop ?? 0}px`,
+        `${Math.max(0, offsetTop)}px`,
       );
     };
 
@@ -282,8 +284,26 @@ const showHeaderProfile = userId && !showMarketingNav;
     sync();
   }
 
+  /** iOS can report 0 for env(safe-area-inset-top) on fixed shells — probe and pin px when needed. */
+  function syncAppHeaderSafeArea() {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
+    document.documentElement.appendChild(probe);
+    const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+    probe.remove();
+    if (insetTop > 0) {
+      document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    }
+  }
+
+  syncAppHeaderSafeArea();
   bindAppHeaderViewportPin();
-  document.addEventListener("astro:page-load", bindAppHeaderViewportPin);
+  document.addEventListener("astro:page-load", () => {
+    syncAppHeaderSafeArea();
+    bindAppHeaderViewportPin();
+  });
+  window.visualViewport?.addEventListener("resize", syncAppHeaderSafeArea, { passive: true });
 </script>
 
 <style is:global>
@@ -348,7 +368,11 @@ const showHeaderProfile = userId && !showMarketingNav;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    padding: 0;
+    padding:
+      env(safe-area-inset-top, 0px)
+      max(0.5rem, env(safe-area-inset-right, 0px))
+      0
+      max(0.5rem, env(safe-area-inset-left, 0px));
     pointer-events: none;
     -webkit-user-select: none;
     user-select: none;
@@ -356,7 +380,7 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 
   .app-header:not(.app-header--admin) {
-    top: var(--app-header-vv-top, 0px);
+    top: max(0px, var(--app-header-vv-top, 0px));
   }
 
   .app-header--admin {
@@ -366,21 +390,16 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 
   /*
-   * Safe-area padding lives on the row, not the outer shell — iOS Safari can
-   * ignore inset padding on fixed headers when an inner wrapper uses
-   * display:contents (the old marketing layout).
+   * Safe-area padding lives on the fixed shell (above). The row only sizes the
+   * interactive chrome band below the notch / Dynamic Island.
    */
   .app-header-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    min-height: var(--app-header-offset);
-    padding:
-      var(--safe-top)
-      max(0.5rem, env(safe-area-inset-right, 0px))
-      0
-      max(0.5rem, env(safe-area-inset-left, 0px));
+    min-height: var(--app-header-h);
+    padding: 0;
     position: relative;
     overflow: visible;
   }
