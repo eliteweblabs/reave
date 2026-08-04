@@ -350,31 +350,21 @@ async function typeText(
   }
 }
 
-/** Smoothstep 0–1. */
-function smoothstep(t: number): number {
-  const x = Math.max(0, Math.min(1, t));
-  return x * x * (3 - 2 * x);
-}
-
 /**
- * How far above the brand block a turn travels before it has dissolved
- * completely. Kept proportional to the space that's actually available, but
- * short enough that the fade reads as "sliding under the headline" rather than
- * "dimming on the way to the top of the page".
+ * How much further each turn recedes behind the one in front of it. The newest
+ * turn is fully present, the one before it is one step back, and so on.
+ *
+ * Depth is counted in turns rather than measured in pixels: the recession then
+ * reads the same whether or not the lane has started to overflow, and a layout
+ * pass costs no per-message geometry at all.
  */
-const DEPTH_BAND_MIN_PX = 90;
-const DEPTH_BAND_MAX_PX = 170;
+const DEPTH_PER_MESSAGE = 0.05;
 
 const STACK_INSTANT_CLASS = "home-hero-demo-stack--instant";
 
-function depthBandFor(depthBottom: number): number {
-  return Math.max(DEPTH_BAND_MIN_PX, Math.min(DEPTH_BAND_MAX_PX, depthBottom * 0.5));
-}
-
-/** 0 = crisp, below the brand block. 1 = fully dissolved into it. */
-function messageDepth(msgCenterY: number, depthBottom: number, band: number): number {
-  if (band <= 0) return 0;
-  return smoothstep((depthBottom - msgCenterY) / band);
+/** 0 = the current turn. 1 = fully dissolved. */
+function messageDepth(turnsBehindNewest: number): number {
+  return Math.min(1, Math.max(0, turnsBehindNewest) * DEPTH_PER_MESSAGE);
 }
 
 function applyMessageFocus(msg: HTMLElement) {
@@ -391,56 +381,29 @@ function applyMessageDepth(msg: HTMLElement, depth: number) {
   const origin = isUser ? "bottom right" : "bottom left";
 
   msg.style.transformOrigin = origin;
-  msg.style.transform = `scale(${(1 - depth * 0.06).toFixed(3)})`;
+  msg.style.transform = `scale(${(1 - depth * 0.24).toFixed(3)})`;
   msg.style.opacity = (1 - depth).toFixed(3);
-  msg.style.filter = `blur(${(depth * 2.4).toFixed(2)}px)`;
+  msg.style.filter = `blur(${(depth * 6).toFixed(2)}px)`;
 }
 
-function isLiveTurn(msg: HTMLElement): boolean {
-  return (
-    msg.classList.contains("home-hero-demo-msg--typing") ||
-    msg.classList.contains("home-hero-demo-msg--composing") ||
-    msg.classList.contains("home-hero-demo-msg--status")
-  );
-}
-
-function refreshStackLayout(
-  viewport: HTMLElement,
-  stack: HTMLElement,
-  hero: HTMLElement,
-  depthEl: HTMLElement | null,
-) {
+function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
   const vRect = viewport.getBoundingClientRect();
   if (vRect.height < 8) return;
-
-  const heroRect = hero.getBoundingClientRect();
-  const depthRect = depthEl?.getBoundingClientRect();
-  // Hero-relative: the chat lane sits below the brand block, so viewport coords
-  // would make depthBottom negative and skip blur/fade entirely.
-  const depthBottom = depthRect ? depthRect.bottom - heroRect.top : vRect.top - heroRect.top;
-  const band = depthBandFor(depthBottom);
 
   /*
    * The stack is top-anchored, so this single transform is the whole scroll
    * position: it parks the newest turn on the lane's bottom edge and carries
-   * older turns up out of it. Depth is then derived from each turn's *layout*
-   * offset plus that target translate, never from a live rect — otherwise every
-   * pass would sample the transform mid-transition and rewrite itself.
+   * older turns up out of it.
    */
   const targetY = vRect.height - stack.scrollHeight;
-  const laneTop = vRect.top - heroRect.top;
 
   const messages = Array.from(stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
-  const depths = messages.map((msg) => {
-    if (isLiveTurn(msg)) return 0;
-    const center = laneTop + targetY + msg.offsetTop + msg.offsetHeight / 2;
-    return messageDepth(center, depthBottom, band);
-  });
+  const newest = messages.length - 1;
 
   stack.style.transform = `translateY(${targetY.toFixed(2)}px)`;
   messages.forEach((msg, i) => {
-    const depth = depths[i] ?? 0;
-    if (depth <= 0.004) applyMessageFocus(msg);
+    const depth = messageDepth(newest - i);
+    if (depth <= 0) applyMessageFocus(msg);
     else applyMessageDepth(msg, depth);
   });
 
@@ -456,17 +419,13 @@ function resetStack(stack: HTMLElement) {
   stack.classList.add(STACK_INSTANT_CLASS);
 }
 
+type Relayout = (flush?: boolean) => void;
+
 /** Run layout now, then once more after paint to pick up settled geometry. */
-function relayoutStack(
-  viewport: HTMLElement,
-  stack: HTMLElement,
-  hero: HTMLElement,
-  depthEl: HTMLElement | null,
-  flush = false,
-) {
-  refreshStackLayout(viewport, stack, hero, depthEl);
+function relayoutStack(viewport: HTMLElement, stack: HTMLElement, flush = false) {
+  refreshStackLayout(viewport, stack);
   if (flush) {
-    requestAnimationFrame(() => refreshStackLayout(viewport, stack, hero, depthEl));
+    requestAnimationFrame(() => refreshStackLayout(viewport, stack));
   }
 }
 
@@ -474,15 +433,11 @@ async function playUserTurn(
   turn: HeroDemoTurn,
   root: HTMLElement,
   sceneEl: HTMLElement,
-  viewport: HTMLElement,
-  stack: HTMLElement,
-  hero: HTMLElement,
-  depthEl: HTMLElement | null,
+  relayout: Relayout,
   reducedMotion: boolean,
   isAlive: () => boolean,
   userAvatarUrl?: string,
 ): Promise<void> {
-  const relayout = (flush = false) => relayoutStack(viewport, stack, hero, depthEl, flush);
   const charMs = reducedMotion ? USER_CHAR_MS_FAST : USER_CHAR_MS;
 
   const kind = turn.kind ?? "voice";
@@ -538,15 +493,11 @@ async function playAssistantTurn(
   turn: HeroDemoTurn,
   root: HTMLElement,
   sceneEl: HTMLElement,
-  viewport: HTMLElement,
-  stack: HTMLElement,
-  hero: HTMLElement,
-  depthEl: HTMLElement | null,
+  relayout: Relayout,
   reducedMotion: boolean,
   isAlive: () => boolean,
   priorAssistantRow: HTMLElement | null,
 ): Promise<HTMLElement | null> {
-  const relayout = (flush = false) => relayoutStack(viewport, stack, hero, depthEl, flush);
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
 
@@ -650,14 +601,13 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  const focusEl = brandEl ?? iconEl;
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 
-  const relayout = (flush = false) => {
+  const relayout: Relayout = (flush = false) => {
     syncHeroCopyHeight(hero, copyEl);
     syncHeroBrandBottom(hero, brandEl);
-    relayoutStack(viewport, stack, hero, focusEl, flush);
+    relayoutStack(viewport, stack, flush);
   };
   relayout(true);
   if (copyEl) new ResizeObserver(() => relayout()).observe(copyEl);
@@ -733,10 +683,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
           turn,
           root,
           sceneEl,
-          viewport,
-          stack,
-          hero,
-          focusEl,
+          relayout,
           reducedMotion,
           () => running,
           scene.userAvatar,
@@ -748,10 +695,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         turn,
         root,
         sceneEl,
-        viewport,
-        stack,
-        hero,
-        focusEl,
+        relayout,
         reducedMotion,
         () => running,
         lastAssistantRow,
