@@ -1,26 +1,16 @@
 ---
 import CardTitle from "../CardTitle.astro";
-
-interface Props {
-  /** When true, render as a standalone page (h1, no homepage scroll attrs). */
-  standalone?: boolean;
-}
-
-const { standalone = false } = Astro.props;
-const TitleTag = standalone ? "h1" : "h2";
-const contactHref = standalone ? "/#contact" : "#contact";
 ---
 
 <section
   id="services"
-  class:list={["home-section", standalone && "services-page-main"]}
-  data-home-section={standalone ? undefined : "services"}
+  class="home-section services-page-main"
   aria-labelledby="services-title"
 >
   <div class="home-section-inner">
     <header class="home-section-hero">
       <p class="marketing-label">What We Do</p>
-      <TitleTag id="services-title">Services</TitleTag>
+      <h1 id="services-title">Services</h1>
       <p class="marketing-lead">
         Digital consulting, app &amp; workflow development, full stack branding, managed hosting,
         and one-on-one training. 20+ years of real-world experience.
@@ -31,7 +21,7 @@ const contactHref = standalone ? "/#contact" : "#contact";
       <h2>Proven products and tactics that coalesce into results</h2>
       <p>
         Every engagement is tailored. Most clients come to us for a combination of the areas below.
-        <a href={contactHref}>Tell us what you need</a> and we'll figure out the rest.
+        <a href="/#contact">Tell us what you need</a> and we'll figure out the rest.
       </p>
     </section>
 

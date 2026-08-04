@@ -78,8 +78,3 @@ export function smoothScrollToHomepageSection(
   activeScrollCancel = animateScrollTo(targetY);
   return true;
 }
-
-export function cancelHomepageSmoothScroll() {
-  activeScrollCancel?.();
-  activeScrollCancel = null;
-}

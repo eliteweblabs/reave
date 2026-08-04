@@ -21,6 +21,12 @@ export interface Props {
   variant?: 'site' | 'portal';
   /** Slide the FAB in a few seconds after the user engages (marketing site). */
   revealFabOnEngagement?: boolean;
+  /** Hide the FAB while key page sections are at least 20% in view (marketing site). */
+  hideFabForHero?: boolean;
+  /** Hero element selector — first match in document order is observed. */
+  heroSelector?: string;
+  /** Contact section selector — first match is observed when present. */
+  contactSelector?: string;
 }
 
 const {
@@ -36,6 +42,9 @@ const {
   supportEmail = '',
   variant = 'site',
   revealFabOnEngagement = false,
+  hideFabForHero = false,
+  heroSelector = '.home-hero, .fx-hero, .demo-hero',
+  contactSelector = '#contact, [data-home-section="contact"]',
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
@@ -54,6 +63,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-storage-key={storageKey}
   data-sheet-id={sheetId}
   data-reveal-fab={revealFabOnEngagement ? 'true' : undefined}
+  data-hide-fab-for-hero={hideFabForHero ? 'true' : undefined}
+  data-hero-selector={hideFabForHero ? heroSelector : undefined}
+  data-contact-selector={hideFabForHero ? contactSelector : undefined}
 >
   <button
     class="aw-fab"
@@ -163,6 +175,18 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.4s ease,
       visibility 0s linear 0s;
+  }
+
+  .aw-root--site .aw-fab.is-hero-occluding,
+  .aw-root--site .aw-fab.is-visible.is-hero-occluding {
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
   }
 
   .aw-fab:active { transform: scale(0.93); }
@@ -429,6 +453,38 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     return out.replace(/\n/g, '<br />');
   }
 
+  const FAB_SECTION_HIDE_RATIO = 0.2;
+  const FAB_SECTION_OBSERVER_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i * 0.05);
+
+  function initFabSectionHide(fab: HTMLElement, ...selectorGroups: string[]) {
+    const elements = selectorGroups
+      .map((selector) => document.querySelector(selector))
+      .filter((el): el is Element => !!el);
+    if (!elements.length || !('IntersectionObserver' in window)) return;
+
+    const ratios = new Map<Element, number>();
+
+    const sync = () => {
+      const occluding = [...ratios.values()].some((ratio) => ratio >= FAB_SECTION_HIDE_RATIO);
+      fab.classList.toggle('is-hero-occluding', occluding);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          ratios.set(entry.target, entry.intersectionRatio);
+        }
+        sync();
+      },
+      { threshold: FAB_SECTION_OBSERVER_THRESHOLDS },
+    );
+
+    for (const el of elements) {
+      ratios.set(el, 0);
+      observer.observe(el);
+    }
+  }
+
   function initFabReveal(fab: HTMLElement) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       fab.classList.add('is-visible');
@@ -469,6 +525,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     const storageKey = root.dataset.storageKey || '';
     const sheetId = root.dataset.sheetId || '';
     const revealFab = root.dataset.revealFab === 'true';
+    const hideFabForHero = root.dataset.hideFabForHero === 'true';
+    const heroSelector = root.dataset.heroSelector || '.home-hero, .fx-hero, .demo-hero';
+    const contactSelector = root.dataset.contactSelector || '#contact, [data-home-section="contact"]';
 
     const fab = root.querySelector<HTMLButtonElement>('.aw-fab');
     const sheet = sheetId ? document.getElementById(sheetId) : null;
@@ -480,6 +539,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn || !endpoint || !storageKey) return;
 
     if (revealFab) initFabReveal(fab);
+    if (hideFabForHero) initFabSectionHide(fab, heroSelector, contactSelector);
 
     let history: Turn[] = [];
     try {

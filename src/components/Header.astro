@@ -332,14 +332,11 @@ const showHeaderProfile = userId && !showMarketingNav;
   }
 
   /*
-   * Public/marketing headers scroll with the document. iOS rubber-band overscroll
-   * moves layout-viewport-fixed chrome; --app-header-vv-top (set from
-   * visualViewport in the script below) keeps the bar pinned to the screen top.
+   * Public/marketing headers are fixed. iOS rubber-band overscroll moves
+   * layout-viewport-fixed chrome; --app-header-vv-top (synced from visualViewport
+   * above) keeps the bar pinned to the screen top without blocking native
+   * overscroll or pull-to-refresh.
    */
-  html:has(body > .app-header:not(.app-header--admin)),
-  html:has(body > .app-header:not(.app-header--admin)) body {
-    overscroll-behavior-y: none;
-  }
 
   .app-header {
     position: fixed;
@@ -485,28 +482,6 @@ const showHeaderProfile = userId && !showMarketingNav;
     height: var(--app-header-logo-h);
     width: auto;
     max-width: 100%;
-  }
-
-  .app-header-logo-text {
-    display: block;
-    font-family: var(--font-primary);
-    font-size: calc(var(--app-header-logo-h) * 0.72);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    pointer-events: none;
-    background: var(
-      --portal-brand-gradient,
-      var(--brand-gradient, linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%))
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: #fff;
   }
 
   .app-header-logo-svg {
