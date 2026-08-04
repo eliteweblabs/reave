@@ -152,9 +152,7 @@ export async function clearClientPortalIcon(
   delete next.iconData;
   delete next.iconMediaType;
   delete next.iconSource;
-  if (next.iconUrl === clientIconServePath(uid) || next.iconUrl?.startsWith(`${clientIconServePath(uid)}?`)) {
-    delete next.iconUrl;
-  }
+  delete next.iconUrl;
 
   const saved = await setContactPortal(uid, next);
   if (!saved.ok) return { ok: false, error: saved.error };

@@ -646,6 +646,7 @@ export async function clearStoredCompanyIcon(): Promise<boolean> {
     iconData: null,
     iconMediaType: null,
     iconPath: null,
+    iconSvg: null,
   });
 }
 

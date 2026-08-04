@@ -537,6 +537,7 @@
 }
 .prof-logo-remove {
   position: absolute;
+  z-index: 1;
   top: -0.35rem;
   right: -0.35rem;
   width: 1.35rem;
