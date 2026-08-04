@@ -118,16 +118,22 @@ export const GET: APIRoute = async (context) => {
   const healthUserAgent = `${safeBrand}-health-probe/1.0`;
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
   const materialsBase = trimBase(serverEnv('MATERIALS_API_BASE_URL'));
+  const inventoryBase = trimBase(serverEnv('INVENTORY_API_BASE_URL'));
   const fleetBase = trimBase(serverEnv('FLEET_API_BASE_URL'));
   const paulinoWizardBase = trimBase(serverEnv('PAULINO_WIZARD_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, materialsProbe, fleetProbe, paulinoWizardProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
+  const [contactProbe, materialsProbe, inventoryProbe, fleetProbe, paulinoWizardProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
     await Promise.all([
     contactBase ? reach(contactBase, healthUserAgent) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
     materialsBase ? reach(`${materialsBase}/health`, healthUserAgent) : Promise.resolve(unconfigured('MATERIALS_API_BASE_URL not set')),
+    hasFeature('inventory_sync')
+      ? inventoryBase
+        ? reach(`${inventoryBase}/health`, healthUserAgent)
+        : Promise.resolve(unconfigured('INVENTORY_API_BASE_URL not set'))
+      : Promise.resolve(unconfigured('inventory_sync not in FEATURES')),
     hasFeature('fleet_tracking')
       ? fleetBase
         ? reach(`${fleetBase}/health`, healthUserAgent)
@@ -186,6 +192,7 @@ export const GET: APIRoute = async (context) => {
     contact_api: contactProbe,
     contact_pg: contactPg,
     materials_api: materialsProbe,
+    inventory_api: inventoryProbe,
     fleet_api: fleetProbe,
     paulino_wizard: paulinoWizardProbe,
     crater: craterProbe,

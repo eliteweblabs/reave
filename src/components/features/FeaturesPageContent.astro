@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Car,
   Truck,
+  ShoppingBag,
   FileSignature,
   PhoneCall,
   Contact,
@@ -338,6 +339,20 @@ const plugins: Plugin[] = [
     body: "Built for businesses running delivery vans or service trucks. Assign a vehicle to a driver's sign-in and location pings start the moment they open the app — no extra hardware.",
   },
   {
+    id: "inventory",
+    icon: ShoppingBag,
+    title: "Multi-Channel Inventory Sync",
+    teaser:
+      "One stock view across Shopify, WooCommerce, Square, and the platforms you already sell on — query from admin or the agent.",
+    body: "Retailers and brands often run a Shopify storefront, a WooCommerce wholesale site, and Square at the counter. inventory-api normalizes SKU, price, and quantity into one shape the agent can search — then map into Crater quotes when billing is on.",
+    bullets: [
+      "Shopify, WooCommerce, and Square provider slots (live sync when a client prioritizes it)",
+      "Mock multi-channel catalog for demos and sales conversations today",
+      "Agent tools: search_inventory, get_inventory_product, list_inventory_channels",
+      "Separate inventory-api microservice on Railway — same pattern as materials-api",
+    ],
+  },
+  {
     id: "documents",
     icon: FileSignature,
     title: "Document Signing",
@@ -472,6 +487,10 @@ const customPrompts: PromptExample[] = [
   {
     text: "Compare this trade-in VIN against our lot and text the customer three matches.",
     note: "Dealership inventory wizard + SMS",
+  },
+  {
+    text: "How many gray hoodies do we have in large across Shopify and WooCommerce?",
+    note: "Multi-channel inventory sync",
   },
 ];
 ---

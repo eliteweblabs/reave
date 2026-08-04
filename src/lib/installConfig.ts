@@ -32,6 +32,7 @@ const FEATURE_IDS_LIST = [
   'time_tracking',
   'demo',
   'real_estate_data',
+  'inventory_sync',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

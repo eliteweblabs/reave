@@ -38,6 +38,7 @@ const SYSTEM_NODES = [
   { id: 'engagement', title: 'Engagement alerts', sub: 'vault · share opens · deck views · contact form · home banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
+  { id: 'inventory_api', title: 'inventory-api', sub: 'Shopify · Woo · Square stock (FEATURES: inventory_sync)', icon: '📦', brand: 'shopify', hue: 96, status: true, group: 'reave', x: 880, y: 624 },
   { id: 'fleet_api', title: 'fleet-api', sub: 'multi-vehicle GPS · location history (FEATURES: fleet_tracking)', icon: '🚚', hue: 55, status: true, group: 'reave', x: 880, y: 696 },
   { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
   { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
@@ -90,6 +91,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'kinsta_api', label: 'agent · Kinsta WP' },
   { from: 'astro', to: 'crater', label: 'billing · time → invoice' },
   { from: 'astro', to: 'materials_api', label: 'materials pricing', dashed: true },
+  { from: 'astro', to: 'inventory_api', label: 'inventory sync', dashed: true },
   { from: 'astro', to: 'fleet_api', label: 'fleet GPS · map', dashed: true },
   { from: 'dev', to: 'astro', label: 'location ping (signed in)', dashed: true },
   { from: 'astro', to: 'resend', label: 'outbound send' },
@@ -119,7 +121,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible'] },
 ];
 

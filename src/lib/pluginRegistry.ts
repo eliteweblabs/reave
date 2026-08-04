@@ -24,6 +24,7 @@ import { fleetPlugin } from '../../plugins/fleet/manifest';
 import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
 import { demoPlugin } from '../../plugins/demo/manifest';
 import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
+import { inventoryPlugin } from '../../plugins/inventory/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -42,6 +43,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   paulinoWizardPlugin,
   demoPlugin,
   realEstateDataPlugin,
+  inventoryPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -94,6 +96,7 @@ export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'contact-api-reference',
   'git-workflow',
   'materials-api-reference',
+  'inventory-api-reference',
   'paulino-wizard-reference',
   'contact-import',
   'email-rules',
@@ -131,6 +134,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['demo-setup'];
     case 'real-estate-data':
       return ['real-estate-data'];
+    case 'inventory':
+      return ['inventory-sync'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':

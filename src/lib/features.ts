@@ -32,6 +32,7 @@ export const FEATURE_IDS = [
   'time_tracking',
   'demo',
   'real_estate_data',
+  'inventory_sync',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -107,6 +108,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   time_tracking: 'Project time log (hours + notes → invoicing)',
   demo: 'Demo mode (seed script, quick-start wizard, Railway testing installs)',
   real_estate_data: 'Real estate data & lead scanner (property facts, compliance, daily geofence scan)',
+  inventory_sync: 'Multi-channel inventory sync (Shopify, WooCommerce, Square via inventory-api)',
 };
 
 export const CORE_FEATURE_NOTE =

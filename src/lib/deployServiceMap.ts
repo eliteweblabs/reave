@@ -53,6 +53,14 @@ export function resolveDeployTarget(opts: {
     };
   }
 
+  if (svc.includes('inventory-api') || svc.includes('inventory_api') || blob.includes('inventory-api')) {
+    const base = serverEnv('INVENTORY_API_BASE_URL')?.trim();
+    return {
+      repo: 'eliteweblabs/inventory-api',
+      healthUrl: base ? base.replace(/\/?$/, '/') + 'health' : undefined,
+    };
+  }
+
   if (svc.includes('contact-api') || svc.includes('contact_api') || blob.includes('contact-api')) {
     const base = serverEnv('CONTACT_API_BASE_URL')?.trim();
     return {
