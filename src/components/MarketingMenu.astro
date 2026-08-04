@@ -15,6 +15,13 @@ interface Props {
 }
 
 const { pathname, signedIn } = Astro.props;
+
+const navGroups = signedIn
+  ? MARKETING_NAV_GROUPS.map((group) => ({
+      ...group,
+      links: group.links.filter((link) => link.href !== "/demo"),
+    }))
+  : MARKETING_NAV_GROUPS;
 ---
 
 <div class="marketing-nav" data-marketing-nav>
@@ -44,10 +51,14 @@ const { pathname, signedIn } = Astro.props;
     )
   }
 
-  <a class="marketing-nav-cta" href="/demo">
-    Demo now
-    <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-  </a>
+  {
+    !signedIn && (
+      <a class="marketing-nav-cta" href="/demo">
+        Demo now
+        <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+      </a>
+    )
+  }
 
   <button
     type="button"
@@ -88,7 +99,7 @@ const { pathname, signedIn } = Astro.props;
   >
     <div class="marketing-menu-scroll">
       {
-        MARKETING_NAV_GROUPS.map((group) => (
+        navGroups.map((group) => (
           <section class="marketing-menu-group" aria-labelledby={`menu-${group.id}`}>
             <h2 id={`menu-${group.id}`} class="marketing-menu-group-label">
               {group.label}
@@ -126,11 +137,6 @@ const { pathname, signedIn } = Astro.props;
                   Administration
                 </a>
               </li>
-              <li>
-                <button type="button" class="marketing-menu-link marketing-menu-link--button" data-marketing-sign-out>
-                  Sign out
-                </button>
-              </li>
             </ul>
           </section>
         )
@@ -138,10 +144,27 @@ const { pathname, signedIn } = Astro.props;
     </div>
 
     <footer class="marketing-menu-footer">
-      <a class="marketing-menu-footer-cta" href="/demo" data-marketing-menu-link>
-        Demo now
-        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-      </a>
+      <div class="marketing-menu-footer-row">
+        {
+          !signedIn && (
+            <a class="marketing-menu-footer-cta" href="/demo" data-marketing-menu-link>
+              Demo now
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            </a>
+          )
+        }
+        {
+          signedIn && (
+            <button
+              type="button"
+              class="marketing-menu-footer-signout"
+              data-marketing-sign-out
+            >
+              Sign out
+            </button>
+          )
+        }
+      </div>
     </footer>
   </div>
 </div>
@@ -526,6 +549,34 @@ const { pathname, signedIn } = Astro.props;
       16px 28px
       calc(16px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .marketing-menu-footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .marketing-menu-footer-signout {
+    margin-left: auto;
+    padding: 0.75rem 0.2rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-family: var(--font-secondary);
+    font-size: 0.92rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.62);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .marketing-menu-footer-signout:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .marketing-menu-footer-cta {
