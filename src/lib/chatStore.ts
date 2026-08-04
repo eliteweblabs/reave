@@ -5,10 +5,12 @@
 import type { ChatTurn } from './chatTypes';
 import {
   fileAppendChatMessages,
+  fileConsolidateOrphanedChatThreads,
   fileCreateChatThread,
   fileDeleteChatThread,
   fileGetChatSummaryById,
   fileGetChatThread,
+  fileGetChatThreadOwnerUserId,
   fileListChatThreads,
   fileMarkChatSeen,
   fileSetChatArchived,
@@ -21,6 +23,7 @@ import {
   pgDeleteChatThread,
   pgGetChatSummaryById,
   pgGetChatThread,
+  pgGetChatThreadOwnerUserId,
   pgListChatThreadOwners,
   pgListChatThreads,
   pgMarkChatSeen,
@@ -152,4 +155,42 @@ export async function storeReassignChatThreads(
 ): Promise<number | null> {
   if (chatStorageBackend() === 'postgres') return pgReassignChatThreads(fromUserId, toUserId);
   return null;
+}
+
+/** Clerk user id that owns a thread (ignores the signed-in id filter). */
+export async function storeGetChatThreadOwnerUserId(threadId: string): Promise<string | null> {
+  const id = threadId.trim();
+  if (!id) return null;
+  if (chatStorageBackend() === 'postgres') return pgGetChatThreadOwnerUserId(id);
+  return fileGetChatThreadOwnerUserId(id);
+}
+
+/**
+ * Move chat threads orphaned under previous Clerk user ids onto the current
+ * deployment owner. Safe on every list — no-ops when everything already matches.
+ */
+export async function storeConsolidateOrphanedChatThreads(toUserId: string): Promise<number> {
+  const to = toUserId.trim();
+  if (!to) return 0;
+
+  if (chatStorageBackend() === 'postgres') {
+    const owners = await pgListChatThreadOwners();
+    if (!owners?.length) return 0;
+    let moved = 0;
+    for (const owner of owners) {
+      if (owner.userId === to) continue;
+      const count = await pgReassignChatThreads(owner.userId, to);
+      if (count) moved += count;
+    }
+    if (moved > 0) {
+      console.info('[chats] consolidated orphaned threads', { toUserId: to, moved });
+    }
+    return moved;
+  }
+
+  const moved = fileConsolidateOrphanedChatThreads(to);
+  if (moved > 0) {
+    console.info('[chats] consolidated orphaned file threads', { toUserId: to, moved });
+  }
+  return moved;
 }

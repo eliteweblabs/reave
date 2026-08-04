@@ -89,6 +89,11 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const action = String(body.action ?? 'reassign').trim();
+  if (action === 'reassign_all') {
+    const { storeConsolidateOrphanedChatThreads } = await import('../../../lib/chatStore');
+    const moved = await storeConsolidateOrphanedChatThreads(auth.userId);
+    return json({ ok: true, moved, to: auth.userId });
+  }
   if (action !== 'reassign') {
     return json({ ok: false, error: `Unknown action: ${action}` }, 400);
   }

@@ -157,6 +157,22 @@ export async function pgGetChatThread(
   }
 }
 
+/** Owner of a thread by id alone — used when Clerk user ids have changed. */
+export async function pgGetChatThreadOwnerUserId(threadId: string): Promise<string | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{ user_id: string }>(
+      `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+      [threadId],
+    );
+    return rows[0]?.user_id?.trim() || null;
+  } catch (e) {
+    console.error('[chats:pg] owner lookup error:', e);
+    return null;
+  }
+}
+
 export async function pgGetChatSummaryById(
   threadId: string,
 ): Promise<{ id: string; title: string; updatedAt: string } | null> {

@@ -176,6 +176,35 @@ export function fileCreateChatThread(userId: string): ChatThreadSummary {
   return { id, title: 'New session', created_at: now, updated_at: now, archived: false };
 }
 
+export function fileGetChatThreadOwnerUserId(threadId: string): string | null {
+  const path = threadPath(threadId);
+  if (!existsSync(path)) return null;
+  const parsed = parseThreadFile(readFileSync(path, 'utf8'));
+  return parsed?.meta.user?.trim() || null;
+}
+
+/** Move every thread file not owned by `toUserId` onto that user (Clerk id recovery). */
+export function fileConsolidateOrphanedChatThreads(toUserId: string): number {
+  const to = toUserId.trim();
+  if (!to) return 0;
+  const dir = chatsDir();
+  const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
+  let moved = 0;
+  for (const file of files) {
+    const path = join(dir, file);
+    try {
+      const parsed = parseThreadFile(readFileSync(path, 'utf8'));
+      if (!parsed || parsed.meta.user === to) continue;
+      const meta = { ...parsed.meta, user: to };
+      writeFileSync(path, serializeThread(meta, parsed.title, parsed.messages), 'utf8');
+      moved += 1;
+    } catch (e) {
+      console.error('[chats:file] consolidate error:', file, e);
+    }
+  }
+  return moved;
+}
+
 export function fileGetChatSummaryById(
   threadId: string,
 ): { id: string; title: string; updatedAt: string } | null {

@@ -109,14 +109,13 @@ export async function GET(context: APIContext): Promise<Response> {
   ensureEmailCleanupScheduler();
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
-  const [events, inboxDigest, jobs, threads, deploy] = await Promise.all([
+  const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([
+    storeListChatThreadsForOwner(userId, { archivedOnly: false }),
     storeListEmailInbox(100, { hideJunk: true }),
     storeEmailInboxDigest(true),
     storeListWork(),
-    storeListChatThreadsForOwner(userId, { archivedOnly: false }),
     getDeployStatus().catch(() => null),
   ]);
-
   const digest = computeInboxDigest(events, true);
   const emailsTotal = inboxDigest.visible;
   const projectsTotal = jobs.length;
