@@ -64,6 +64,8 @@ export interface EmailInboxRecord {
   automationKind: string | null;
   /** Parsed one-time verification code for copy-to-clipboard UX. */
   verificationCode: string | null;
+  /** When set, row is auto-deleted (and linked notifications dismissed) after this time. */
+  deleteAfterAt: string | null;
 }
 
 export interface EmailInboxInput {
@@ -96,6 +98,7 @@ export interface EmailInboxInput {
   bookingStart?: string | null;
   automationKind?: string | null;
   verificationCode?: string | null;
+  deleteAfterAt?: string | null;
 }
 
 /** List API shape — omits full body/headers to keep payloads small. */
@@ -182,6 +185,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS resend_email_id TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS verification_code TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS attachments_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS delete_after_at TIMESTAMPTZ`,
 ];
 
 const INDEX_SQL = [
@@ -189,6 +193,7 @@ const INDEX_SQL = [
   `CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category)`,
   `CREATE INDEX IF NOT EXISTS email_inbox_job_slug_idx ON email_inbox (job_slug) WHERE job_slug IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS email_inbox_message_id_idx ON email_inbox (message_id) WHERE message_id <> ''`,
+  `CREATE INDEX IF NOT EXISTS email_inbox_delete_after_idx ON email_inbox (delete_after_at) WHERE delete_after_at IS NOT NULL`,
 ];
 
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
@@ -273,6 +278,7 @@ type InboxRow = {
   automation_triage_rule_id?: string | null;
   automation_kind?: string | null;
   verification_code?: string | null;
+  delete_after_at?: Date | string | null;
 };
 
 function normalizeCategory(raw: string | undefined): EmailCategory {
@@ -347,6 +353,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     automationTriageRuleId: row.automation_triage_rule_id ?? null,
     automationKind: row.automation_kind ?? null,
     verificationCode: row.verification_code ?? null,
+    deleteAfterAt: row.delete_after_at ? new Date(row.delete_after_at).toISOString() : null,
   };
 }
 
@@ -391,6 +398,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       automationTriageRuleId: e.automationTriageRuleId ?? null,
       automationKind: e.automationKind ?? null,
       verificationCode: e.verificationCode ?? null,
+      deleteAfterAt: e.deleteAfterAt ?? null,
     }));
   } catch {
     return [];
@@ -566,6 +574,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     automationTriageRuleId: null,
     automationKind: input.automationKind ?? null,
     verificationCode: input.verificationCode ?? null,
+    deleteAfterAt: input.deleteAfterAt ?? null,
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
   if (!writeFileEvents(next)) return null;
@@ -617,9 +626,9 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
          reply_to_addrs, headers_json, message_id, resend_email_id, attachments_json,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
          route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
-         verification_code)
+         verification_code, delete_after_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14::jsonb,
-               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
@@ -652,6 +661,7 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         input.bookingStart ?? null,
         input.automationKind ?? null,
         input.verificationCode ?? null,
+        input.deleteAfterAt ?? null,
       ],
     );
     return rows[0] ? rowToRecord(rows[0]) : null;
@@ -1062,6 +1072,45 @@ export async function storeDeleteEmailInboxMany(ids: string[]): Promise<number> 
   if (!unique.length) return 0;
   if (databaseUrl()) return deleteManyFromPg(unique);
   return deleteManyFromFile(unique);
+}
+
+async function listExpiredFromPg(limit: number): Promise<EmailInboxRecord[]> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return [];
+    const { rows } = await pool.query(
+      `SELECT ${INBOX_SELECT}
+       FROM email_inbox
+       WHERE delete_after_at IS NOT NULL AND delete_after_at <= now()
+       ORDER BY delete_after_at ASC
+       LIMIT $1`,
+      [limit],
+    );
+    return rows.map(rowToRecord);
+  } catch (e) {
+    console.error('[email-inbox] pg list expired failed', e);
+    return [];
+  }
+}
+
+function listExpiredFromFile(limit: number): EmailInboxRecord[] {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return [];
+  const now = Date.now();
+  return parseFileEvents(readFileSync(path, 'utf8'))
+    .filter((e) => e.deleteAfterAt && new Date(e.deleteAfterAt).getTime() <= now)
+    .sort(
+      (a, b) =>
+        new Date(a.deleteAfterAt!).getTime() - new Date(b.deleteAfterAt!).getTime(),
+    )
+    .slice(0, limit);
+}
+
+/** Inbox rows whose delete_after_at has passed — for scheduled cleanup. */
+export async function storeListExpiredEmailInbox(limit = 50): Promise<EmailInboxRecord[]> {
+  const capped = Math.max(1, Math.min(limit, 200));
+  if (databaseUrl()) return listExpiredFromPg(capped);
+  return listExpiredFromFile(capped);
 }
 
 async function markSeenManyInFile(ids: string[]): Promise<number> {

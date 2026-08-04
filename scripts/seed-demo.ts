@@ -323,6 +323,7 @@ async function ensureEmailSchema(pool: pg.Pool): Promise<void> {
     `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS attachments_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
     `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_kind TEXT`,
     `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS verification_code TEXT`,
+    `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS delete_after_at TIMESTAMPTZ`,
   ];
   for (const sql of cols) await pool.query(sql);
 }

@@ -41,6 +41,15 @@ import {
   normalizeEmailAttachments,
 } from './emailAttachments';
 
+/** ISO timestamp for OTP auto-delete, or null when disabled. Default 5 minutes (`EMAIL_OTP_TTL_MINUTES`). */
+export function verificationCodeDeleteAfterAt(): string | null {
+  const raw = serverEnv('EMAIL_OTP_TTL_MINUTES');
+  const min = raw == null || raw === '' ? 5 : Number(raw);
+  if (!Number.isFinite(min) || min <= 0) return null;
+  const clamped = Math.max(1, Math.min(min, 1440));
+  return new Date(Date.now() + clamped * 60_000).toISOString();
+}
+
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project';
 
 export interface ProcessedEmailResult {
@@ -729,6 +738,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     bookingStart,
     automationKind,
     verificationCode,
+    deleteAfterAt: isVerificationCode ? verificationCodeDeleteAfterAt() : null,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
     return null;

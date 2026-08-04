@@ -102,7 +102,7 @@ export const DEFAULT_RULES: EmailRule[] = [
   {
     status: VERIFICATION_CODE_STATUS,
     description:
-      'One-time passwords and login codes — regex match on subject/body (OTP, verification code, access code, 4–8 digit codes). Copy-to-clipboard UX in the Email tab; not overridden by junk or security-alert rules.',
+      'One-time passwords and login codes — regex match on subject/body (OTP, verification code, access code, 4–8 digit codes). Copy-to-clipboard UX in the Email tab; auto-deleted after 5 minutes; not overridden by junk or security-alert rules.',
     phrases: [
       'verification code',
       'one-time password',
