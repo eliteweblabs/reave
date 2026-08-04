@@ -88,45 +88,6 @@
   display: block;
 }
 
-.reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path {
-  opacity: 0;
-}
-
-@keyframes reave-bg-path-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes reave-bg-path-out {
-  from {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
-.reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path.reave-bg-pattern__path--in {
-  animation: reave-bg-path-in var(--reave-fade-ms, 250ms) ease forwards;
-}
-
-.reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path.reave-bg-pattern__path--out {
-  animation: reave-bg-path-out var(--reave-fade-ms, 250ms) ease forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path.reave-bg-pattern__path--in,
-  .reave-bg-pattern[data-reveal='true'] .reave-bg-pattern__svg path.reave-bg-pattern__path--out {
-    animation: none;
-  }
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --brand-gradient-shadow:

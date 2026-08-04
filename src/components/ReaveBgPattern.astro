@@ -11,27 +11,12 @@ interface Props {
   opacity?: number;
   /** contain = full pattern visible; cover = fill the box uniformly (may crop). */
   fit?: ReaveBgPatternFit;
-  /** Stagger each path from opacity 0 → 1 on load. */
-  reveal?: boolean;
-  /** Steady-state ms between one-on / one-off swaps (after bootstrap). */
-  revealSwapMs?: number;
-  /** Per-path fade duration (ms). */
-  revealFadeMs?: number;
-  /** Fraction of paths to reveal in the bootstrap phase (0–1). */
-  revealBootstrapRatio?: number;
-  /** Bootstrap phase duration (ms) — reach bootstrap ratio in this window. */
-  revealBootstrapMs?: number;
 }
 
 const {
   class: className = '',
   opacity,
   fit = 'contain',
-  reveal = false,
-  revealSwapMs = 150,
-  revealFadeMs = 250,
-  revealBootstrapRatio = 0.66,
-  revealBootstrapMs = 1500,
 } = Astro.props;
 
 const style = opacity != null ? `opacity: ${opacity}` : undefined;
@@ -42,17 +27,6 @@ const svg = renderReaveBgPatternSvg(fit);
   class:list={['reave-bg-pattern', className]}
   style={style}
   aria-hidden="true"
-  data-reveal={reveal ? 'true' : undefined}
-  data-reveal-swap-ms={reveal ? String(revealSwapMs) : undefined}
-  data-reveal-fade-ms={reveal ? String(revealFadeMs) : undefined}
-  data-reveal-bootstrap-ratio={reveal ? String(revealBootstrapRatio) : undefined}
-  data-reveal-bootstrap-ms={reveal ? String(revealBootstrapMs) : undefined}
 >
   <Fragment set:html={svg} />
 </div>
-
-{reveal && (
-  <script>
-    import '../lib/reaveBgPatternReveal.ts';
-  </script>
-)}
