@@ -1,17 +1,21 @@
 ---
-description: Git workflow — no PRs; commit and push to main after every successful chat, build, or code change
+description: Git workflow — commit and push after every change; no PRs; ship directly to main
 alwaysApply: true
 ---
 
 # Git Workflow
 
+## Commit and push after every change
+
+**Always commit and push after every successful code change.** Do not leave uncommitted work for the user. Do not batch multiple changes into one push at the end of a long session — one commit and push per change.
+
+This applies before ending a chat turn whenever files were changed, a build was fixed, or any task touched the repo.
+
 This project does **not** use pull requests. **NEVER create PRs** (not even drafts). Do not use the ManagePullRequest tool or `gh pr create`. Ship work directly to `main`.
 
 **Work directly on main unless explicitly instructed otherwise.**
 
-## Auto commit and push
-
-**Always commit and push before ending a chat turn** when you changed files, fixed a build, or completed any task that touched the repo. Do not leave uncommitted work for the user to push later. Do not batch multiple changes into one push at the end of a long session — commit and push after **every** successful change.
+## Auto commit and push workflow
 
 For each change:
 
