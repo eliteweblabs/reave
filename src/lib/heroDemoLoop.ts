@@ -10,7 +10,7 @@ import {
   type HeroDemoTurn,
 } from "./heroDemoConversation";
 
-const ENGAGED_KEY = "hero-demo-engaged";
+const ENGAGED_KEY = "hero-demo-engaged-v2";
 const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 5200;
@@ -309,6 +309,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let sceneIndex = Math.floor(Math.random() * scenes.length);
   let running = true;
+  let engageArmed = false;
 
   const stop = () => {
     if (!running) return;
@@ -322,7 +323,19 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
   document.addEventListener("pointerdown", stop, { once: true, passive: true });
   document.addEventListener("keydown", stop, { once: true });
-  document.addEventListener("scroll", stop, { once: true, passive: true });
+
+  // iOS fires scroll on load (address bar, layout) — ignore until armed and past a real offset.
+  window.setTimeout(() => {
+    engageArmed = true;
+  }, 2500);
+
+  const onScroll = () => {
+    if (!engageArmed || !running) return;
+    if (window.scrollY < 48) return;
+    window.removeEventListener("scroll", onScroll);
+    stop();
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
 
   const playScene = async (scene: HeroDemoScene): Promise<void> => {
     if (!running) return;

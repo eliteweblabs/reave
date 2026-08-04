@@ -181,24 +181,31 @@ const demoScenes = HERO_DEMO_SCENES;
     width: 100%;
     height: clamp(168px, 24vw, 210px);
     overflow: hidden;
-    -webkit-mask-image: linear-gradient(
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /* Fade under the icon without CSS mask-image — WebKit can hide all masked descendants. */
+  .home-hero-demo-viewport::before {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 52%;
+    pointer-events: none;
+    background: linear-gradient(
       to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.45) 16%,
-      rgba(0, 0, 0, 0.85) 34%,
-      #000 50%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.45) 16%,
-      rgba(0, 0, 0, 0.85) 34%,
-      #000 50%
+      rgba(5, 5, 8, 0.92) 0%,
+      rgba(5, 5, 8, 0.55) 38%,
+      transparent 100%
     );
   }
 
   .home-hero-demo-stack {
     position: absolute;
+    z-index: 1;
     left: 0;
     right: 0;
     bottom: 0;
@@ -210,6 +217,8 @@ const demoScenes = HERO_DEMO_SCENES;
     text-align: left;
     transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .home-hero-copy {
