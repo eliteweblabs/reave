@@ -1,5 +1,5 @@
 /**
- * Homepage hero idle demo — scripted Q&A under the brand icon.
+ * Homepage hero idle demo — scripted chat under the brand icon.
  * Stops when the visitor engages (scroll, click, key).
  */
 
@@ -25,29 +25,62 @@ function parseExchanges(raw: string | undefined): HeroDemoExchange[] {
   }
 }
 
-function createLine(text: string, role: "user" | "assistant", kind: HeroDemoExchange["kind"]): HTMLElement {
-  const line = document.createElement("p");
-  line.className = `home-hero-demo-line home-hero-demo-line--${role}`;
-  if (kind === "slash" && role === "user") {
-    line.classList.add("home-hero-demo-line--slash");
+function cloneAvatar(role: "user" | "assistant", root: HTMLElement): HTMLElement {
+  const templateId = role === "assistant" ? "hero-demo-agent-avatar" : "hero-demo-user-avatar";
+  const tpl = root.querySelector<HTMLTemplateElement>(`#${templateId}`);
+  if (tpl?.content.firstElementChild) {
+    return tpl.content.firstElementChild.cloneNode(true) as HTMLElement;
   }
-  line.textContent = text;
-  return line;
+
+  const fallback = document.createElement("span");
+  fallback.className = `home-hero-demo-avatar home-hero-demo-avatar--${role === "assistant" ? "agent" : "user"}`;
+  fallback.setAttribute("aria-hidden", "true");
+  return fallback;
 }
 
-function animateExit(lines: HTMLElement[]): Promise<void> {
-  if (!lines.length) return Promise.resolve();
+function createMessage(
+  text: string,
+  role: "user" | "assistant",
+  kind: HeroDemoExchange["kind"],
+  root: HTMLElement,
+): HTMLElement {
+  const row = document.createElement("div");
+  row.className = `home-hero-demo-msg home-hero-demo-msg--${role}`;
+  row.setAttribute("role", "listitem");
+
+  const bubble = document.createElement("div");
+  bubble.className = "home-hero-demo-bubble";
+  if (kind === "slash" && role === "user") {
+    bubble.classList.add("home-hero-demo-bubble--slash");
+  }
+  bubble.textContent = text;
+
+  const avatar = cloneAvatar(role, root);
+
+  if (role === "user") {
+    row.appendChild(bubble);
+    row.appendChild(avatar);
+  } else {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+  }
+
+  return row;
+}
+
+function animateExit(rows: HTMLElement[]): Promise<void> {
+  if (!rows.length) return Promise.resolve();
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduced) {
-    lines.forEach((line) => line.remove());
+    rows.forEach((row) => row.remove());
     return Promise.resolve();
   }
 
-  lines.forEach((line) => line.classList.add("home-hero-demo-line--exit"));
+  rows.forEach((row) => row.classList.add("home-hero-demo-msg--exit"));
 
   return new Promise((resolve) => {
     window.setTimeout(() => {
-      lines.forEach((line) => line.remove());
+      rows.forEach((row) => row.remove());
       resolve();
     }, EXIT_MS);
   });
@@ -76,7 +109,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
     if (!running) return;
     running = false;
     sessionStorage.setItem(ENGAGED_KEY, "1");
-    void animateExit([...stack.querySelectorAll<HTMLElement>(".home-hero-demo-line")]).then(() => {
+    void animateExit([...stack.querySelectorAll<HTMLElement>(".home-hero-demo-msg")]).then(() => {
       root.hidden = true;
     });
   };
@@ -95,21 +128,21 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
     stack.replaceChildren();
 
-    const promptLine = createLine(exchange.prompt, "user", exchange.kind);
-    if (!reducedMotion) promptLine.classList.add("home-hero-demo-line--enter");
-    stack.appendChild(promptLine);
+    const promptRow = createMessage(exchange.prompt, "user", exchange.kind, root);
+    if (!reducedMotion) promptRow.classList.add("home-hero-demo-msg--enter");
+    stack.appendChild(promptRow);
 
     await wait(THINK_MS);
     if (!running) return;
 
-    const answerLine = createLine(exchange.answer, "assistant", exchange.kind);
-    if (!reducedMotion) answerLine.classList.add("home-hero-demo-line--enter");
-    stack.appendChild(answerLine);
+    const answerRow = createMessage(exchange.answer, "assistant", exchange.kind, root);
+    if (!reducedMotion) answerRow.classList.add("home-hero-demo-msg--enter");
+    stack.appendChild(answerRow);
 
     await wait(HOLD_MS);
     if (!running) return;
 
-    await animateExit([promptLine, answerLine]);
+    await animateExit([promptRow, answerRow]);
     if (!running) return;
 
     await wait(GAP_MS);

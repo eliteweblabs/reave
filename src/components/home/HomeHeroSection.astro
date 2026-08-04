@@ -5,6 +5,7 @@
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveBgPattern from "../../components/ReaveBgPattern.astro";
+import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { HERO_DEMO_EXCHANGES } from "../../lib/heroDemoConversation";
 
@@ -33,7 +34,27 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
       aria-live="polite"
       aria-atomic="false"
     >
-      <div class="home-hero-demo-stack" data-hero-demo-stack></div>
+      <template id="hero-demo-agent-avatar">
+        <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
+          <ReaveIcon class="home-hero-demo-avatar-icon" />
+        </span>
+      </template>
+      <template id="hero-demo-user-avatar">
+        <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
+          <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#64748b"/>
+                <stop offset="100%" stop-color="#334155"/>
+              </linearGradient>
+            </defs>
+            <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
+            <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
+            <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
+          </svg>
+        </span>
+      </template>
+      <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
     </div>
 
     <div class="home-hero-copy">
@@ -151,7 +172,7 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
 
   .home-hero-demo {
     width: 100%;
-    min-height: 4.5em;
+    min-height: 7.5rem;
     display: flex;
     justify-content: center;
     pointer-events: none;
@@ -164,10 +185,10 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
   .home-hero-demo-stack {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    max-width: 560px;
+    max-width: 520px;
+    text-align: left;
   }
 
   .home-hero-copy {
@@ -242,52 +263,99 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
 </style>
 
 <style is:global>
-  .home-hero-demo-line {
-    margin: 0;
-    max-width: 100%;
-    font-family: var(--font-content);
-    font-size: clamp(0.88rem, 2.2vw, 1.05rem);
-    line-height: 1.45;
-    text-wrap: balance;
+  .home-hero-demo-msg {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.55rem;
+    width: 100%;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
   }
 
-  .home-hero-demo-line--user {
-    font-family: var(--font-primary);
-    font-style: italic;
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    color: #fff;
-    background: var(--brand-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+  .home-hero-demo-msg--user {
+    flex-direction: row;
+    justify-content: flex-end;
   }
 
-  .home-hero-demo-line--slash {
-    font-style: normal;
-    font-weight: 600;
-    font-size: clamp(0.84rem, 2vw, 0.98rem);
+  .home-hero-demo-msg--assistant {
+    flex-direction: row;
+    justify-content: flex-start;
   }
 
-  .home-hero-demo-line--assistant {
-    color: rgba(255, 255, 255, 0.72);
-    font-size: clamp(0.82rem, 2vw, 0.96rem);
+  .home-hero-demo-avatar {
+    flex: none;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(15, 15, 20, 0.85);
   }
 
-  .home-hero-demo-line--enter {
-    animation: heroDemoEnter 0.45s ease-out both;
+  .home-hero-demo-avatar--agent {
+    padding: 0.28rem;
+    background: rgba(8, 8, 12, 0.92);
   }
 
-  .home-hero-demo-line--exit {
+  .home-hero-demo-avatar-icon {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home-hero-demo-avatar-photo {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home-hero-demo-bubble {
+    max-width: min(78%, 22rem);
+    padding: 0.55rem 0.78rem;
+    border-radius: 1rem;
+    font-family: var(--font-content);
+    font-size: clamp(0.8rem, 2vw, 0.92rem);
+    line-height: 1.45;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+  }
+
+  .home-hero-demo-msg--user .home-hero-demo-bubble {
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-bottom-right-radius: 0.28rem;
+  }
+
+  .home-hero-demo-msg--assistant .home-hero-demo-bubble {
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom-left-radius: 0.28rem;
+  }
+
+  .home-hero-demo-bubble--slash {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: clamp(0.74rem, 1.85vw, 0.86rem);
+    letter-spacing: -0.01em;
+  }
+
+  .home-hero-demo-msg--enter {
+    animation: heroDemoEnter 0.42s ease-out both;
+  }
+
+  .home-hero-demo-msg--exit {
     animation: heroDemoExit 0.65s ease-in forwards;
   }
 
   @keyframes heroDemoEnter {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -302,13 +370,13 @@ const demoExchanges = HERO_DEMO_EXCHANGES;
     }
     to {
       opacity: 0;
-      transform: translateY(-22px);
+      transform: translateY(-18px);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .home-hero-demo-line--enter,
-    .home-hero-demo-line--exit {
+    .home-hero-demo-msg--enter,
+    .home-hero-demo-msg--exit {
       animation: none;
     }
   }
