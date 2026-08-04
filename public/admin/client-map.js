@@ -101,8 +101,15 @@ export function createClientMap(container, opts = {}) {
   mapShell.appendChild(mapEl);
   mapShell.appendChild(centerBtn);
 
-  // Keep wheel/trackpad from zooming the map or scrolling the editor panel.
-  mapShell.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+  // Block panel scroll over an active map only — scrollWheelZoom is off, but the
+  // canvas still sits in a scrollable form; skip when the map is not shown.
+  mapShell.addEventListener(
+    'wheel',
+    (e) => {
+      if (!mapEl.hidden) e.preventDefault();
+    },
+    { passive: false },
+  );
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cl-map-empty';
@@ -137,7 +144,9 @@ export function createClientMap(container, opts = {}) {
   function syncEmptyState() {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
     const mapWorking = hasGeo && mapReady;
-    mapEl.hidden = !hasGeo || mapLoadFailed;
+    const showMap = hasGeo && !mapLoadFailed;
+    mapEl.hidden = !showMap;
+    mapShell.hidden = !showMap;
     directionsBtn.disabled = !hasGeo || mapEngine !== 'mapbox';
     openMapsBtn.hidden = !hasGeo;
     centerBtn.disabled = !hasGeo || !mapReady;

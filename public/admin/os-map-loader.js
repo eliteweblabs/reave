@@ -1,5 +1,5 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
-import { createClientMap } from '/admin/client-map.js?v=20260804a';
+import { createClientMap } from '/admin/client-map.js?v=20260804b';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 
 function companyBrand() {
@@ -166,7 +166,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260803g';
+} from './clients-panel.js?v=20260804c';
 import {
   initChatPanel,
   chatState,

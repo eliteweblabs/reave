@@ -2,7 +2,7 @@
  * Lead Scanner admin — geofence settings + slide-in scan session.
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260728m';
-import { createClientMap } from './client-map.js?v=20260804a';
+import { createClientMap } from './client-map.js?v=20260804b';
 import { getLeadScannerRunSession } from './lead-scanner-run.js?v=20260802f';
 
 let mapController = null;

@@ -56,7 +56,7 @@ import {
 } from './work-panel.js?v=20260728l';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
-import { createClientMap } from '/admin/client-map.js?v=20260804a';
+import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
 /** Injected by os-map-loader via initClientsPanel(). */
 let shell = {};
@@ -650,11 +650,21 @@ function syncClTitleInputWidth(input) {
 }
 
 function splitClientNameParts(contact) {
+  const full = (contact.name || '').trim();
+  const company = (contact.company || '').trim();
+
+  // Business-only: stored name mirrors the company title — leave contact blank even
+  // when contact-api derived first/last by splitting the business name.
+  if (company && full && full.toLowerCase() === company.toLowerCase()) {
+    return { firstName: '', lastName: '' };
+  }
+
   const first = (contact.firstName || '').trim();
   const last = (contact.lastName || '').trim();
   if (first || last) return { firstName: first, lastName: last };
-  const full = (contact.name || '').trim();
+
   if (!full) return { firstName: '', lastName: '' };
+
   const parts = full.split(/\s+/);
   if (parts.length === 1) return { firstName: parts[0], lastName: '' };
   return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
@@ -1666,6 +1676,7 @@ async function autosaveClient(uid, payload) {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const nameParts = splitClientNameParts({
       name: payload.name,
+      company: payload.company,
       firstName: data.firstName,
       lastName: data.lastName,
     });

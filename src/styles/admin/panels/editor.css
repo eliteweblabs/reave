@@ -2104,7 +2104,8 @@ button.de-placeholder-action:active {
   text-align: center;
 }
 .cl-map-empty[hidden],
-.cl-map-canvas[hidden] {
+.cl-map-canvas[hidden],
+.cl-map-shell[hidden] {
   display: none !important;
 }
 .cl-map-meta {
