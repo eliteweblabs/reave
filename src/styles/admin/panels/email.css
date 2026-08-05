@@ -95,8 +95,8 @@
 .em-filter-tab--draft.active,
 .em-filter-tab--sent.active {
   color: var(--fg);
-  background: var(--surface-hover-strong);
-  border-color: var(--panel-border);
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
 }
 .em-filter-tabs-fixed .em-filter-tab + .em-filter-tab {
   margin-left: 0;
@@ -129,8 +129,8 @@
 .em-filter-tab:hover { color: var(--fg); background: var(--surface-hover); }
 .em-filter-tab.active {
   color: var(--fg);
-  background: var(--surface-hover-strong);
-  border-color: var(--panel-border);
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
 }
 .em-filter-tab--purge {
   color: #f87171;

@@ -56,25 +56,27 @@
 }
 .soc-range {
   display: inline-flex;
-  gap: 0.15rem;
-  padding: 0.2rem;
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  background: var(--surface-muted);
+  gap: 0.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 .soc-range-btn {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.3rem 0.7rem;
-  border-radius: 7px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
   cursor: pointer;
 }
+.soc-range-btn:hover:not(.active) { color: var(--fg); }
 .soc-range-btn.active {
-  color: #fff;
-  background: var(--brand-gradient);
+  color: var(--fg);
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
 }
 .soc-totals {
   margin: 0;

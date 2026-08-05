@@ -780,8 +780,8 @@ select,
 .tab-item:hover { color: var(--fg); }
 .tab-item.active {
   color: var(--fg);
-  background: var(--tab-active-bg);
-  border-color: var(--panel-border);
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
 }
 .tab-item.tab-dragging { opacity: 0.55; }
 .tab-item.tab-drop-before { box-shadow: inset 2px 0 0 #58a6ff; }
