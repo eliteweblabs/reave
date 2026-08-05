@@ -242,9 +242,18 @@
   pointer-events: none;
 }
 .swipe-row.swipe-open .swipe-actions,
-.swipe-row.swipe-dragging .swipe-actions {
+.swipe-row.swipe-dragging .swipe-actions,
+.swipe-row.swipe-hint-active .swipe-actions {
   clip-path: none;
   pointer-events: auto;
+}
+.swipe-row.swipe-hint-active .swipe-actions {
+  pointer-events: none;
+}
+.ch-list.swipe-hint-cascade,
+.de-list.swipe-hint-cascade,
+.em-list.swipe-hint-cascade {
+  pointer-events: none;
 }
 .swipe-act {
   flex: none;
