@@ -616,12 +616,11 @@ function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
   const onClose = typeof options.onClose === 'function' ? options.onClose : null;
 
   function isOpen() {
-    return dropdown.style.display !== 'none' && dropdown.offsetParent !== null;
+    // Fixed-position dropdowns have offsetParent === null; display is the source of truth.
+    return dropdown.style.display !== 'none';
   }
   function getOptions() {
-    return [...dropdown.querySelectorAll(optionSelector)].filter(
-      (el) => !el.disabled && el.offsetParent !== null,
-    );
+    return [...dropdown.querySelectorAll(optionSelector)].filter((el) => !el.disabled);
   }
   function setActive(opts, idx) {
     opts.forEach((el, i) => el.classList.toggle('active', i === idx));
