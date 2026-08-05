@@ -102,6 +102,28 @@
 .prof-field-row--fonts {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.prof-field-row--colors {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.prof-color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.prof-color-input-row input[type='color'] {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+.prof-color-input-row input[type='text'] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .prof-field--font-heading {
   margin-bottom: -0.35rem;
 }

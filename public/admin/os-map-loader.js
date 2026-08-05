@@ -5795,7 +5795,59 @@ function bindCompanyForm(root, company, fontCatalog) {
   });
   companyFontPickers = mountCompanyBrandFontPickers(root, fontCatalog);
   bindCompanyFontPreview(root, fontCatalog);
+  bindCompanyBrandColors(root);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
+}
+
+function bindCompanyBrandColors(root) {
+  const pairs = [
+    ['#company-brandPrimary-swatch', '#company-brandPrimary'],
+    ['#company-brandSecondary-swatch', '#company-brandSecondary'],
+  ];
+
+  for (const [swatchSel, textSel] of pairs) {
+    const swatch = root.querySelector(swatchSel);
+    const text = root.querySelector(textSel);
+    if (!(swatch instanceof HTMLInputElement) || !(text instanceof HTMLInputElement)) continue;
+
+    const syncFromText = () => {
+      const normalized = normalizeHexColor(text.value);
+      if (normalized) {
+        swatch.value = normalized;
+        applyCompanyBrandPreview(root);
+      }
+    };
+
+    swatch.addEventListener('input', () => {
+      text.value = swatch.value;
+      applyCompanyBrandPreview(root);
+      text.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    text.addEventListener('change', syncFromText);
+    text.addEventListener('blur', syncFromText);
+  }
+}
+
+function normalizeHexColor(raw) {
+  const t = (raw || '').trim();
+  if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(t)) return '';
+  if (t.length === 4) {
+    return `#${t[1]}${t[1]}${t[2]}${t[2]}${t[3]}${t[3]}`.toLowerCase();
+  }
+  return t.toLowerCase();
+}
+
+function applyCompanyBrandPreview(root) {
+  const primary = root.querySelector('#company-brandPrimary');
+  const secondary = root.querySelector('#company-brandSecondary');
+  if (!(primary instanceof HTMLInputElement) || !(secondary instanceof HTMLInputElement)) return;
+  const p = normalizeHexColor(primary.value) || '#f472b6';
+  const s = normalizeHexColor(secondary.value) || '#c026d3';
+  document.documentElement.style.setProperty('--brand-pink', p);
+  document.documentElement.style.setProperty('--brand-magenta', s);
+  document.documentElement.style.setProperty('--brand-indigo', s);
+  document.documentElement.style.setProperty('--brand-gradient', `linear-gradient(135deg, ${p}, ${s})`);
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -6405,6 +6457,19 @@ function renderCompanyPanel(company, fontCatalog) {
             `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
           `</div>` +
           `<span id="company-font-hint" class="prof-hint prof-hint--block">Primary = headlines. Secondary = labels and UI accents. Content = body copy. Saved as global <code>--font-primary</code>, <code>--font-secondary</code>, and <code>--font-content</code>. Uses the website domain below — same idea as fetching logos from the source site.</span>` +
+          `<div class="prof-field-row prof-field-row--colors">` +
+            `<div class="prof-field"><label for="company-brandPrimary">Primary color</label>` +
+            `<div class="prof-color-input-row">` +
+              `<input type="color" id="company-brandPrimary-swatch" value="${escHtml(c.brandPrimary || '#f472b6')}" aria-label="Primary color swatch" />` +
+              `<input id="company-brandPrimary" name="brandPrimary" type="text" value="${escHtml(c.brandPrimary || '')}" placeholder="#f472b6" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+            `</div></div>` +
+            `<div class="prof-field"><label for="company-brandSecondary">Secondary color</label>` +
+            `<div class="prof-color-input-row">` +
+              `<input type="color" id="company-brandSecondary-swatch" value="${escHtml(c.brandSecondary || '#c026d3')}" aria-label="Secondary color swatch" />` +
+              `<input id="company-brandSecondary" name="brandSecondary" type="text" value="${escHtml(c.brandSecondary || '')}" placeholder="#c026d3" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+            `</div></div>` +
+          `</div>` +
+          `<span class="prof-hint prof-hint--block">Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, buttons, and glow effects on marketing pages and admin.</span>` +
           `<div class="prof-field"><label for="company-domain">Website domain</label>` +
           `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
           `<span class="prof-hint prof-hint--block">Hostname only — used in link previews, emails, and legal pages. Leave blank to use this deployment's domain.</span></div>` +

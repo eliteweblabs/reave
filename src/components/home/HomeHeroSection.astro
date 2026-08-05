@@ -7,10 +7,20 @@ import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
 import { HERO_DEMO_SCENES } from "../../lib/heroDemoConversation";
 
+interface Props {
+  siteContent?: SiteContentConfig;
+}
+
+const { siteContent: siteContentProp } = Astro.props;
+const siteContent = siteContentProp ?? getSiteContent();
 const company = await getCompanyConfig(Astro.request);
 const demoScenes = HERO_DEMO_SCENES;
+const homepage = siteContent.homepage;
+const ctas = homepage.ctas ?? [];
+const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 ---
 
 <section
@@ -23,57 +33,74 @@ const demoScenes = HERO_DEMO_SCENES;
     <div class="home-hero-icon-wrap" data-hero-icon>
       <BrandIconInline company={company} />
     </div>
-    <h1 id="home-hero-title" class="home-hero-title">Small Business, <br class="home-hero-title-break" />Smaller Workday.</h1>
+    <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
   </div>
 
-  <div
-    class="home-hero-demo"
-    data-hero-demo
-    data-scenes={JSON.stringify(demoScenes)}
-    aria-live="polite"
-    aria-atomic="false"
-  >
-    <template id="hero-demo-agent-avatar">
-      <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-        <ReaveIcon class="home-hero-demo-avatar-icon" />
-      </span>
-    </template>
-    <template id="hero-demo-user-avatar">
-      <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
-        <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <defs>
-            <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#64748b"/>
-              <stop offset="100%" stop-color="#334155"/>
-            </linearGradient>
-          </defs>
-          <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
-          <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
-          <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
-        </svg>
-      </span>
-    </template>
-    <div class="home-hero-demo-viewport" data-hero-demo-viewport>
-      <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
-    </div>
-  </div>
+  {
+    showHeroDemo && (
+      <div
+        class="home-hero-demo"
+        data-hero-demo
+        data-scenes={JSON.stringify(demoScenes)}
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        <template id="hero-demo-agent-avatar">
+          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
+            <ReaveIcon class="home-hero-demo-avatar-icon" />
+          </span>
+        </template>
+        <template id="hero-demo-user-avatar">
+          <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
+            <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#64748b"/>
+                  <stop offset="100%" stop-color="#334155"/>
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
+              <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
+              <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
+            </svg>
+          </span>
+        </template>
+        <div class="home-hero-demo-viewport" data-hero-demo-viewport>
+          <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
+        </div>
+      </div>
+    )
+  }
 
   <div class="home-hero-copy" data-hero-copy>
     <div class="home-hero-cta">
-      <a class="home-hero-btn home-hero-btn--ghost brand-btn-glass" href="/features">
-        How's it Work?
-      </a>
-      <a class="home-hero-btn home-hero-btn--primary" href="/demo">
-        Demo
-        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-      </a>
+      {
+        ctas.map((cta) => (
+          <a
+            class:list={[
+              "home-hero-btn",
+              cta.variant === "primary" ? "home-hero-btn--primary" : "home-hero-btn--ghost brand-btn-glass",
+            ]}
+            href={cta.href}
+          >
+            {cta.label}
+            {cta.variant === "primary" && (
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            )}
+          </a>
+        ))
+      }
     </div>
   </div>
 </section>
 
-<script>
-  import "../../lib/heroDemoLoop.ts";
-</script>
+{
+  showHeroDemo && (
+    <script>
+      import "../../lib/heroDemoLoop.ts";
+    </script>
+  )
+}
 
 <style>
   .home-hero {
@@ -205,7 +232,7 @@ const demoScenes = HERO_DEMO_SCENES;
 
   .home-hero-btn--primary {
     color: #0b0512;
-    background: linear-gradient(145deg, #ff00ff 0%, #c026d3 52%, #6366f1 100%);
+    background: var(--brand-gradient);
     box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
   }
 

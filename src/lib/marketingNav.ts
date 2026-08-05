@@ -1,100 +1,26 @@
 /**
  * Marketing site navigation — desktop bar + mobile drawer.
+ * Content is driven by config/sites/{key}-config.json via siteContent.ts.
  */
+export type { SiteHeroCta, SiteNavGroup, SiteNavLink } from './siteContent';
+export {
+  getSiteContent,
+  isMarketingPagePath,
+  isSitePageAllowed,
+  siteDemoCta,
+  siteNavGroupsForUser,
+  siteNavLinksForUser,
+  siteShowDemoCta,
+} from './siteContent';
 
-export type MarketingNavLink = {
-  href: string;
-  label: string;
-  /** Highlight as primary action (Demo CTA). */
-  primary?: boolean;
-  /** Open in a new tab (external demo sandbox). */
-  external?: boolean;
-  /** Omit from the compact desktop bar below this breakpoint (px). */
-  hideBelow?: number;
-};
+/** @deprecated Use siteNavLinksForUser — kept for imports that expect the old name. */
+export { siteNavLinksForUser as marketingNavLinksForUser } from './siteContent';
 
-export type MarketingNavGroup = {
-  id: string;
-  label: string;
-  links: MarketingNavLink[];
-};
+/** @deprecated Use siteNavGroupsForUser */
+export { siteNavGroupsForUser as marketingNavGroupsForUser } from './siteContent';
 
-/** Forward-facing pages — desktop bar + flattened mobile list. */
-export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
-  { href: '/platform', label: 'Platform' },
-  { href: '/compare', label: 'Compare' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/modules', label: 'Modules' },
-  { href: '/deck', label: 'Walkthrough', hideBelow: 1080 },
-  { href: '/about', label: 'About' },
-  { href: '/services', label: 'Services' },
-  { href: '/#contact', label: 'Contact' },
-];
-
-export const MARKETING_NAV_DEMO: MarketingNavLink = {
-  href: '/demo',
-  label: 'Demo',
-  primary: true,
-};
-
-/** Mobile drawer — grouped for scanability. */
-export const MARKETING_NAV_GROUPS: MarketingNavGroup[] = [
-  {
-    id: 'product',
-    label: 'Product',
-    links: [
-      { href: '/platform', label: 'Platform' },
-      { href: '/features', label: 'Features' },
-      { href: '/compare', label: 'Compare' },
-      { href: '/pricing', label: 'Pricing' },
-      { href: '/modules', label: 'Modules' },
-      { href: '/demo', label: 'Demo', primary: true },
-      { href: '/deck', label: 'Walkthrough' },
-    ],
-  },
-  {
-    id: 'company',
-    label: 'Company',
-    links: [
-      { href: '/about', label: 'About' },
-      { href: '/services', label: 'Services' },
-      { href: '/about#portfolio', label: 'Portfolio' },
-      { href: '/#contact', label: 'Contact' },
-    ],
-  },
-];
-
-export function marketingNavLinksForUser(_signedIn: boolean): MarketingNavLink[] {
-  return MARKETING_NAV_LINKS;
-}
-
-export function marketingNavGroupsForUser(signedIn: boolean): MarketingNavGroup[] {
-  if (!signedIn) return MARKETING_NAV_GROUPS;
-  return MARKETING_NAV_GROUPS.map((group) => ({
-    ...group,
-    links: group.links.filter((link) => link.href !== '/demo'),
-  }));
-}
-
-export function isMarketingPagePath(pathname: string): boolean {
-  const path = pathname.replace(/\/$/, '') || '/';
-  if (path === '/') return true;
-  return (
-    path === '/platform' ||
-    path === '/features' ||
-    path === '/compare' ||
-    path === '/compare-2' ||
-    path === '/pricing' ||
-    path === '/demo' ||
-    path === '/deck' ||
-    path === '/about' ||
-    path === '/services' ||
-    path === '/modules' ||
-    path === '/privacy' ||
-    path === '/terms' ||
-    path.startsWith('/form/')
-  );
-}
+/** @deprecated Use siteDemoCta */
+export { siteDemoCta as MARKETING_NAV_DEMO_FALLBACK } from './siteContent';
 
 export function marketingNavActivePath(pathname: string, href: string): boolean {
   const path = pathname.replace(/\/$/, '') || '/';

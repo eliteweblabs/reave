@@ -13,6 +13,7 @@ import {
 import { BRAND_ICON_SIZES } from './brandIconRaster';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
+import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 
@@ -172,6 +173,10 @@ export type CompanyConfig = {
   socialHiddenPlatforms: string[];
   /** Resolved typography from admin Company branding. */
   fonts: ResolvedBrandFonts;
+  /** Admin-selected primary brand color (hex), empty = site default. */
+  brandPrimary: string;
+  /** Admin-selected secondary brand color (hex), empty = site default. */
+  brandSecondary: string;
 };
 
 function trim(s: string | null | undefined): string {
@@ -378,6 +383,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
   const geo = resolveCompanyGeo(stored);
   const fonts = resolveBrandFonts(stored);
+  const brandColors = resolveCompanyBrandColors(stored?.brandPrimary, stored?.brandSecondary);
   const vapiAssistantId = pick(
     stored?.vapiAssistantId,
     serverEnv('VAPI_ASSISTANT_ID'),
@@ -418,6 +424,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     socialGoogleBusiness: trim(stored?.socialGoogleBusiness),
     socialHiddenPlatforms: parseHiddenSocialPlatforms(stored?.socialHiddenPlatforms),
     fonts,
+    brandPrimary: brandColors.primary,
+    brandSecondary: brandColors.secondary,
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     ...logo,
@@ -487,6 +495,8 @@ export type CompanyConfigInput = {
   fontPrimary?: string;
   fontSecondary?: string;
   fontContent?: string;
+  brandPrimary?: string;
+  brandSecondary?: string;
   /** Paste full <svg>…</svg> for animated header wordmark. */
   logoSvg?: string;
   /** Paste full <svg>…</svg> for animated homepage hero icon. */
@@ -551,6 +561,12 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   }
   if (input.fontContent !== undefined) {
     out.fontContent = normalizeBrandFontInput(input.fontContent, 'content');
+  }
+  if (input.brandPrimary !== undefined) {
+    out.brandPrimary = normalizeBrandColorHex(input.brandPrimary);
+  }
+  if (input.brandSecondary !== undefined) {
+    out.brandSecondary = normalizeBrandColorHex(input.brandSecondary);
   }
   if (input.logoSvg !== undefined) {
     const t = input.logoSvg.trim();

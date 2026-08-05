@@ -9,21 +9,28 @@ import HomeContactSection from "../components/home/HomeContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
+import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
 
 const company = await getCompanyConfig(Astro.request);
+const siteContent = getSiteContent();
+const homepage = siteContent.homepage;
 const showSiteAssistant =
   hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout>
   <div class="home-scroll">
-    <HomeHeroSection />
+    <HomeHeroSection siteContent={siteContent} />
 
-    <HomeIntegrationsSection />
-    <FeaturesPageContent embedded showLogoStack={false} />
-    <HomeContactSection />
-    <SiteLegalLinks />
+    {homepage.showIntegrations && <HomeIntegrationsSection />}
+    {
+      homepage.showFeatures && (
+        <FeaturesPageContent embedded showLogoStack={false} />
+      )
+    }
+    {homepage.showContact && <HomeContactSection />}
+    {homepage.showLegalLinks !== false && <SiteLegalLinks />}
   </div>
 
   {

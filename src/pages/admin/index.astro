@@ -14,8 +14,8 @@ import AdminSearchOverlay from "../../components/admin/AdminSearchOverlay.astro"
 import AdminDialogs from "../../components/admin/AdminDialogs.astro";
 import AdminBootScripts from "../../components/admin/AdminBootScripts.astro";
 import DeployStatusBanner from "../../components/DeployStatusBanner.astro";
+import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from "../../lib/companyConfig";
-import { brandFontCssVars } from "../../lib/brandFonts";
 import { getInstallConfigClient } from "../../lib/installConfig";
 import { enabledFeatures } from "../../lib/features";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
@@ -44,7 +44,7 @@ const githubRepo = githubRepoSlug();
 ---
 
 <!doctype html>
-<html lang="en" style={brandFontCssVars(company.fonts)}>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
   <AdminHead companyName={company.name} fonts={company.fonts} />
   <body data-user-id={userId ?? ""} data-is-owner={isOwner ? "1" : ""}>
     <DeployStatusBanner />

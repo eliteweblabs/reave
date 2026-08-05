@@ -1,0 +1,25 @@
+{
+  "key": "demo-general",
+  "pages": ["/", "/privacy", "/terms"],
+  "nav": {
+    "links": [{ "href": "/admin", "label": "Dashboard" }],
+    "groups": [
+      {
+        "id": "app",
+        "label": "Demo",
+        "links": [{ "href": "/admin", "label": "Open dashboard", "primary": true }]
+      }
+    ],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "heroHeadlineHtml": "Demo environment.<br class=\"home-hero-title-break\" />Explore the admin.",
+    "showHeroDemo": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true,
+    "ctas": [{ "href": "/admin", "label": "Open dashboard", "variant": "primary" }]
+  }
+}

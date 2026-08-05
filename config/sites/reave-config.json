@@ -1,0 +1,71 @@
+{
+  "key": "reave",
+  "pages": [
+    "/",
+    "/platform",
+    "/features",
+    "/compare",
+    "/compare-2",
+    "/pricing",
+    "/modules",
+    "/demo",
+    "/deck",
+    "/about",
+    "/services",
+    "/privacy",
+    "/terms",
+    "/form/"
+  ],
+  "nav": {
+    "links": [
+      { "href": "/platform", "label": "Platform" },
+      { "href": "/compare", "label": "Compare" },
+      { "href": "/pricing", "label": "Pricing" },
+      { "href": "/modules", "label": "Modules" },
+      { "href": "/deck", "label": "Walkthrough", "hideBelow": 1080 },
+      { "href": "/about", "label": "About" },
+      { "href": "/services", "label": "Services" },
+      { "href": "/#contact", "label": "Contact" }
+    ],
+    "groups": [
+      {
+        "id": "product",
+        "label": "Product",
+        "links": [
+          { "href": "/platform", "label": "Platform" },
+          { "href": "/features", "label": "Features" },
+          { "href": "/compare", "label": "Compare" },
+          { "href": "/pricing", "label": "Pricing" },
+          { "href": "/modules", "label": "Modules" },
+          { "href": "/demo", "label": "Demo", "primary": true },
+          { "href": "/deck", "label": "Walkthrough" }
+        ]
+      },
+      {
+        "id": "company",
+        "label": "Company",
+        "links": [
+          { "href": "/about", "label": "About" },
+          { "href": "/services", "label": "Services" },
+          { "href": "/about#portfolio", "label": "Portfolio" },
+          { "href": "/#contact", "label": "Contact" }
+        ]
+      }
+    ],
+    "demoCta": { "href": "/demo", "label": "Demo" },
+    "showDemoCta": true,
+    "showSignIn": true
+  },
+  "homepage": {
+    "heroHeadlineHtml": "Small Business, <br class=\"home-hero-title-break\" />Smaller Workday.",
+    "showHeroDemo": true,
+    "showIntegrations": true,
+    "showFeatures": true,
+    "showContact": true,
+    "showLegalLinks": true,
+    "ctas": [
+      { "href": "/features", "label": "How's it Work?", "variant": "ghost" },
+      { "href": "/demo", "label": "Demo", "variant": "primary" }
+    ]
+  }
+}

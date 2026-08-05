@@ -9,8 +9,8 @@
 import Favicon from '../components/Favicon.astro';
 import BrandFontHead from '../components/BrandFontHead.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
+import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from '../lib/companyConfig';
-import { brandFontCssVars } from '../lib/brandFonts';
 import { isChatFocusSkinEnabled } from '../lib/chatFocusSkin';
 import '../styles/brand.css';
 
@@ -32,7 +32,7 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
 ---
 
 <!doctype html>
-<html lang="en" style={brandFontCssVars(company.fonts)}>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
   <head>
     <meta charset="utf-8" />
     <ViewportMeta />
