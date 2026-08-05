@@ -3724,7 +3724,6 @@ export {
   renderClientWorkSection,
   askAgentAboutWork,
   refreshWorkLinkTrackStatus,
-  refreshWorkLinkTrackStatus,
   getWorkEditor,
   workStatusLabel,
   workStatusClass,
