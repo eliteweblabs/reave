@@ -268,6 +268,7 @@ export function portalBrandCssVars(colors: PortalBrandColors): Record<string, st
     '--brand-magenta': colors.secondary,
     '--brand-indigo': colors.secondary,
     '--brand-gradient': gradient,
+    '--brand-glow-filter': `drop-shadow(0 8px 28px rgba(${colors.primaryRgb}, 0.38)) drop-shadow(0 0 26px rgba(${colors.primaryRgb}, 0.22))`,
   };
 }
 

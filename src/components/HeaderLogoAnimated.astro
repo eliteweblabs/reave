@@ -23,9 +23,9 @@ const paths = [
 >
   <defs>
     <linearGradient id="header-logo-brand" gradientUnits="userSpaceOnUse" x1="0" y1="131" x2="926.878" y2="131">
-      <stop offset="0%" stop-color="#f472b6" />
-      <stop offset="52%" stop-color="#c026d3" />
-      <stop offset="100%" stop-color="#6366f1" />
+      <stop offset="0%" stop-color="var(--brand-pink, #f472b6)" />
+      <stop offset="52%" stop-color="var(--brand-magenta, #c026d3)" />
+      <stop offset="100%" stop-color="var(--brand-indigo, #6366f1)" />
     </linearGradient>
   </defs>
   {paths.map((d) => <path d={d} fill="url(#header-logo-brand)" />)}
