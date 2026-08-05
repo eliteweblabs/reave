@@ -1,5 +1,7 @@
 FROM node:22-slim
 
+# safeCompare is bundled under ./lib (not ../lib) for isolated Docker context.
+
 WORKDIR /app
 
 COPY package*.json ./
