@@ -1134,7 +1134,7 @@ export function initSidebarLayout() {
   scanPanelSidebars();
 }
 
-// ---- Touch list multi-select (long-press on coarse pointers) ----
+// ---- List multi-select (icon click + long-press on touch) ----
 
 const LIST_LONG_PRESS_MS = 500;
 const LIST_LONG_PRESS_SLOP = 10;
@@ -1229,6 +1229,11 @@ function createListSelectionController(listEl, opts) {
       item.classList.toggle('ch-list-item--selected', on);
       item.classList.toggle('em-list-item--selected', on);
       item.setAttribute('aria-checked', on ? 'true' : 'false');
+      const selectIcon = item.querySelector('.list-select-icon');
+      if (selectIcon) {
+        selectIcon.classList.toggle('list-select-icon--selected', on);
+        selectIcon.setAttribute('aria-checked', on ? 'true' : 'false');
+      }
     });
   }
 
@@ -1242,7 +1247,6 @@ function createListSelectionController(listEl, opts) {
   }
 
   function enter(initialId) {
-    if (!usesSoftwareKeyboard()) return;
     closeOpenSwipeRow();
     if (!active) {
       active = true;
@@ -1295,9 +1299,30 @@ function createListSelectionController(listEl, opts) {
     exit();
   }
 
+  function rowSelectIcon(item) {
+    return item?.querySelector('.sidebar-list-author-icon, .cl-list-avatar-wrap') ?? null;
+  }
+
+  function handleSelectIconClick(row, ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const id = getSwipeRowItemId(row);
+    if (!id) return;
+    if (!active) enter(id);
+    else toggle(id);
+  }
+
   function bindRow(row, contentWrap, itemEl) {
     if (boundRows.has(row)) return;
     boundRows.add(row);
+
+    const selectIcon = rowSelectIcon(itemEl);
+    if (selectIcon) {
+      selectIcon.classList.add('list-select-icon');
+      selectIcon.setAttribute('role', 'checkbox');
+      selectIcon.setAttribute('aria-label', 'Select item');
+      selectIcon.addEventListener('click', (ev) => handleSelectIconClick(row, ev));
+    }
 
     let longPressTimer = null;
     let longPressFired = false;
@@ -1366,7 +1391,7 @@ function createListSelectionController(listEl, opts) {
   return { enter, exit, toggle, bindRow, isActive: () => active, getSelected: () => selected };
 }
 
-/** Enable long-press multi-select on touch lists. Call once per list element. */
+/** Enable icon-click and long-press multi-select on sidebar lists. Call once per list element. */
 export function bindListMultiSelect(listEl, opts = {}) {
   if (!listEl) return null;
   if (listEl.dataset.listMultiSelectBound === '1') {
