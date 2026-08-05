@@ -3,6 +3,8 @@
 export function isPrivateHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
+  if (h.endsWith('.internal')) return true;
+  if (h === 'metadata.google.internal' || h.endsWith('.metadata.google.internal')) return true;
   if (h === '0.0.0.0') return true;
 
   const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);

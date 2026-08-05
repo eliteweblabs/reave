@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   if (req.path === '/health' || req.path === '/api/health/live' || req.method === 'OPTIONS') return next();
-  const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
+  const provided = String(req.headers['x-api-key'] || req.headers.authorization?.replace(/^Bearer\s+/i, '') || '');
   if (!safeCompare(provided, API_KEY)) {
     return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
   }

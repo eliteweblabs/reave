@@ -171,7 +171,10 @@ async function fetchHtmlOnce(
       const location = res.headers.get('location');
       if (!location || hop >= MAX_REDIRECTS) return { ok: false };
       if (/clerk\.accounts\.dev/i.test(location)) return { ok: false };
-      current = new URL(location, current).toString();
+      const next = new URL(location, current).toString();
+      const validated = normalizePublicUrl(next, true);
+      if (!validated) return { ok: false };
+      current = validated.toString();
       continue;
     }
 
