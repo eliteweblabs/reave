@@ -623,7 +623,19 @@ export function initHeroDemoLoop(root: HTMLElement) {
   if (brandEl) new ResizeObserver(() => relayout()).observe(brandEl);
   else if (iconEl) new ResizeObserver(() => relayout()).observe(iconEl);
   new ResizeObserver(() => relayout()).observe(viewport);
-  window.addEventListener("resize", () => relayout(), { passive: true });
+
+  /*
+   * iOS Safari fires visualViewport/window resize while the URL bar animates.
+   * Debounce so stack translate transitions are not restarted every frame —
+   * that reads as the chat racing ahead on mobile Safari.
+   */
+  let resizeRelayoutTimer = 0;
+  const scheduleResizeRelayout = () => {
+    window.clearTimeout(resizeRelayoutTimer);
+    resizeRelayoutTimer = window.setTimeout(() => relayout(), 120);
+  };
+  window.addEventListener("resize", scheduleResizeRelayout, { passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleResizeRelayout, { passive: true });
   document.fonts?.ready?.then(() => relayout(true));
   requestAnimationFrame(() => relayout(true));
   window.setTimeout(() => relayout(true), 150);
