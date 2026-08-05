@@ -5,25 +5,31 @@
 import DeployStatusDot from "./DeployStatusDot.astro";
 import { ArrowRight, LayoutDashboard, X } from "lucide-astro";
 import {
-  MARKETING_NAV_DEMO,
   marketingNavActivePath,
-  marketingNavGroupsForUser,
-  marketingNavLinksForUser,
+  siteDemoCta,
+  siteNavGroupsForUser,
+  siteNavLinksForUser,
+  siteShowDemoCta,
 } from "../lib/marketingNav";
+import { getSiteContent, type SiteContentConfig } from "../lib/siteContent";
 
 interface Props {
   pathname: string;
   signedIn: boolean;
   /** When the signed-in avatar menu lives in the header end cluster (homepage). */
   hideAccountNav?: boolean;
+  siteContent?: SiteContentConfig;
 }
 
-const { pathname, signedIn, hideAccountNav = false } = Astro.props;
+const { pathname, signedIn, hideAccountNav = false, siteContent: siteContentProp } = Astro.props;
 const showAccountNav = signedIn && !hideAccountNav;
 
-const navLinks = marketingNavLinksForUser(signedIn);
-const navGroups = marketingNavGroupsForUser(signedIn);
-const showDemoCta = !signedIn;
+const siteContent = siteContentProp ?? getSiteContent();
+const navLinks = siteNavLinksForUser(signedIn, siteContent);
+const navGroups = siteNavGroupsForUser(signedIn, siteContent);
+const demoCta = siteDemoCta(siteContent);
+const showDemoCta = siteShowDemoCta(signedIn, siteContent);
+const showSignIn = siteContent.nav.showSignIn !== false;
 ---
 
 <div class="marketing-nav" data-marketing-nav>
@@ -47,7 +53,7 @@ const showDemoCta = !signedIn;
   <div class="marketing-nav-actions">
     <DeployStatusDot />
     {
-      !signedIn ? (
+      !signedIn && showSignIn ? (
         <button
           type="button"
           class="marketing-nav-signin"
@@ -72,8 +78,8 @@ const showDemoCta = !signedIn;
     }
 
     {
-      showDemoCta && (
-        <a class="marketing-nav-cta" href={MARKETING_NAV_DEMO.href}>
+      showDemoCta && demoCta && (
+        <a class="marketing-nav-cta" href={demoCta.href}>
           Demo now
           <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
         </a>
@@ -153,8 +159,8 @@ const showDemoCta = !signedIn;
     <footer class="marketing-menu-footer">
       <div class="marketing-menu-footer-row">
         {
-          !signedIn && (
-            <a class="marketing-menu-footer-cta" href="/demo" data-marketing-menu-link>
+          !signedIn && showDemoCta && demoCta && (
+            <a class="marketing-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
               Demo now
               <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </a>
@@ -613,7 +619,7 @@ const showDemoCta = !signedIn;
   }
 
   .marketing-menu-link--primary {
-    color: #f472b6;
+    color: var(--brand-pink);
   }
 
   .marketing-menu-link--button {

@@ -8,9 +8,9 @@ import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
-import { brandFontCssVars } from "../lib/brandFonts";
-import { isMarketingPagePath } from "../lib/marketingNav";
+import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import "../styles/brand.css";
@@ -49,6 +49,7 @@ const {
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
+const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
 const ogImage = ogImageProp ?? companyOgImageUrl(company);
 /** Browser tab title — "Page | Company | Tagline" (tagline from admin → Company → description). */
@@ -74,11 +75,11 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
-const marketingNav = isMarketingPagePath(Astro.url.pathname);
+const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 ---
 
 <!doctype html>
-<html lang="en" style={brandFontCssVars(company.fonts)}>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
 	<head>
 		<meta charset="UTF-8" />
 		<ViewportMeta />
@@ -112,7 +113,7 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname);
 	<body>
 		<DeployStatusBanner />
 		<SiteBackground />
-		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} />
+		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} siteContent={siteContent} />
 		<main id="main-content">
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />

@@ -47,5 +47,6 @@
     "lead-scanner"
   ],
   "homepageVoice": false,
-  "chatFocusSkin": true
+  "chatFocusSkin": true,
+  "siteContentKey": "reave"
 }

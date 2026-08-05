@@ -464,6 +464,8 @@ async function seedCompanyConfig(pool: pg.Pool): Promise<void> {
       support_email = $4,
       support_phone = $5,
       address = $6,
+      brand_primary = $7,
+      brand_secondary = $8,
       updated_at = now()
      WHERE id = 1`,
     [
@@ -473,6 +475,8 @@ async function seedCompanyConfig(pool: pg.Pool): Promise<void> {
       FIXTURES.company.supportEmail ?? env('DEMO_REAL_CONTACT_EMAIL') ?? 'hello@demo.reave.app',
       '+1 (617) 555-0100',
       '177 Huntington Ave, Boston, MA 02115',
+      FIXTURES.company.brandPrimary ?? null,
+      FIXTURES.company.brandSecondary ?? null,
     ],
   );
 }

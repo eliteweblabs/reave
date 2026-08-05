@@ -7,6 +7,8 @@ export const PLUMBING_COMPANY = {
   name: 'Bay State Plumbing Co.',
   tagline: 'Licensed master plumbers — Boston & suburbs',
   supportEmail: 'service@baystateplumbing.demo',
+  brandPrimary: '#2563eb',
+  brandSecondary: '#0ea5e9',
 };
 
 export const PLUMBING_CONTACTS: DemoContactDef[] = [

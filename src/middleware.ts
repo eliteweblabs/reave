@@ -14,6 +14,7 @@ import { runWithDemoSuite } from "./lib/demoSuiteContext";
 import { isDemoMode } from "./lib/demoMode";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
+import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
 
@@ -174,6 +175,23 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
 
   if (isFeatureBlockedPath(pathname)) {
     return featureBlockedResponse();
+  }
+
+  const siteKey = resolveSiteContentKey(
+    isDemoMode() ? parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value)?.industry : undefined,
+  );
+  const siteContent = loadSiteContentByKey(siteKey);
+  if (!isSitePageAllowed(normalizedPath, siteContent) && normalizedPath !== "/sign-in" && normalizedPath !== "/sign-up") {
+    const isMarketingLike =
+      normalizedPath !== "/admin" &&
+      !normalizedPath.startsWith("/admin/") &&
+      !normalizedPath.startsWith("/api/") &&
+      !normalizedPath.startsWith("/c/") &&
+      !normalizedPath.startsWith("/doc/") &&
+      !normalizedPath.startsWith("/focus");
+    if (isMarketingLike) {
+      return featureBlockedResponse();
+    }
   }
 
   if (isProtectedAdminPage(context.request) && !isPublicAdminAsset(context.request)) {

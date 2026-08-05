@@ -102,6 +102,8 @@ export type InstallConfig = {
   homepageVoice?: boolean;
   /** Minimal full-screen chat skin at `/focus` (speed-dial FAB, project-first new chats). */
   chatFocusSkin?: boolean;
+  /** Public site content key — config/sites/{key}-config.json (default: install slug or reave). */
+  siteContentKey?: string;
   /** Per-install module deployment status (see plugin DEPLOY.md playbooks). */
   moduleStatus?: Partial<Record<InstallFeatureId, ModuleDeployStatus>>;
 };
@@ -282,6 +284,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     profileMenu: normalizeProfileMenu(o.profileMenu),
     homepageVoice: typeof o.homepageVoice === 'boolean' ? o.homepageVoice : undefined,
     chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
+    siteContentKey: typeof o.siteContentKey === 'string' && o.siteContentKey.trim() ? o.siteContentKey.trim().toLowerCase() : undefined,
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
   };
 }

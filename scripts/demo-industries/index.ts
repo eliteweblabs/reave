@@ -30,6 +30,8 @@ export type DemoIndustryCompany = {
   name: string;
   description: string;
   supportEmail?: string;
+  brandPrimary?: string;
+  brandSecondary?: string;
 };
 
 export type DemoIndustryFixtures = {
@@ -47,6 +49,8 @@ export type DemoIndustryFixtures = {
 const DEFAULT_COMPANY: DemoIndustryCompany = {
   name: 'Reave Demo Co.',
   description: 'Full-service design, build, and ops for Boston-area clients.',
+  brandPrimary: '#6366f1',
+  brandSecondary: '#8b5cf6',
 };
 
 function defaultFixtures(): DemoIndustryFixtures {
@@ -101,6 +105,8 @@ export function getDemoIndustryFixtures(industry?: string | null): DemoIndustryF
         name: PLUMBING_COMPANY.name,
         description: PLUMBING_COMPANY.tagline,
         supportEmail: PLUMBING_COMPANY.supportEmail,
+        brandPrimary: PLUMBING_COMPANY.brandPrimary,
+        brandSecondary: PLUMBING_COMPANY.brandSecondary,
       },
     };
   }

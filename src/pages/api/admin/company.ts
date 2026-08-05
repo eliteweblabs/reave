@@ -6,6 +6,7 @@ import {
   type CompanyConfigInput,
 } from '../../../lib/companyConfig';
 import { sanitizeInlineSvg } from '../../../lib/brandSvg';
+import { normalizeBrandColorHex } from '../../../lib/companyBrandColors';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
@@ -53,6 +54,12 @@ export async function POST(context: APIContext): Promise<Response> {
     if (t && !sanitizeInlineSvg(t)) {
       return json({ error: 'Icon SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
     }
+  }
+  if (body.brandPrimary !== undefined && body.brandPrimary.trim() && !normalizeBrandColorHex(body.brandPrimary)) {
+    return json({ error: 'Primary color must be a valid hex value (e.g. #f472b6).' }, 400);
+  }
+  if (body.brandSecondary !== undefined && body.brandSecondary.trim() && !normalizeBrandColorHex(body.brandSecondary)) {
+    return json({ error: 'Secondary color must be a valid hex value (e.g. #c026d3).' }, 400);
   }
 
   const stored = normalizeCompanyInput(body);

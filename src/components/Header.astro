@@ -6,6 +6,7 @@ import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
+import type { SiteContentConfig } from "../lib/siteContent";
 import {
   Shield,
   LayoutDashboard,
@@ -26,6 +27,8 @@ interface Props {
   signInAutoOpen?: boolean;
   /** Client portal brand colors — tints the REAVE logo and header accents. */
   portalBrand?: PortalBrandColors | null;
+  /** Public site content config (nav, homepage). */
+  siteContent?: SiteContentConfig;
 }
 
 const {
@@ -36,6 +39,7 @@ const {
   profileMenu = [],
   signInAutoOpen: signInAutoOpenProp = false,
   portalBrand = null,
+  siteContent,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -117,6 +121,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
       pathname={path}
       signedIn={Boolean(userId)}
       hideAccountNav={showHeaderHomeProfile}
+      siteContent={siteContent}
     />
   )}
 
