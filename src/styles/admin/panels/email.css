@@ -42,7 +42,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 10px;
+  width: var(--filter-tab-fade-w);
   background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
   pointer-events: none;
   z-index: 2;
@@ -53,7 +53,6 @@
   margin: 0;
   width: auto;
   max-width: none;
-  padding-left: var(--sidebar-inset);
   /* Reserve space so the last scroll tab clears the pinned Sent tab */
   padding-right: calc(var(--em-filter-fixed-tab-width, 4.75rem) + 0.35rem);
   box-sizing: border-box;
@@ -77,7 +76,7 @@
   right: 100%;
   top: 0;
   bottom: 0;
-  width: 10px;
+  width: var(--filter-tab-fade-w);
   background: linear-gradient(to right, transparent 0%, var(--bg) 100%);
   pointer-events: none;
 }
