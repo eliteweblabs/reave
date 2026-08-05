@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  if (req.path === '/health' || req.method === 'OPTIONS') return next();
+  if (req.path === '/health' || req.path === '/api/health/live' || req.method === 'OPTIONS') return next();
   const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
   if (!safeCompare(provided, API_KEY)) {
     return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
@@ -49,7 +49,7 @@ function handleError(res, err) {
   return json(res, status, { ok: false, error: err.message || 'Internal error' });
 }
 
-app.get('/health', async (_req, res) => {
+async function healthHandler(_req, res) {
   const pool = db.getPool();
   let dbOk = false;
   if (pool) {
@@ -66,7 +66,11 @@ app.get('/health', async (_req, res) => {
     database: dbOk ? 'connected' : pool === false ? 'not configured' : 'error',
     checkedAt: new Date().toISOString(),
   });
-});
+}
+
+app.get('/health', healthHandler);
+// Root railway.json healthcheck path — keep alias so Railway deploy succeeds.
+app.get('/api/health/live', healthHandler);
 
 app.get('/api/vehicles', async (req, res) => {
   try {
