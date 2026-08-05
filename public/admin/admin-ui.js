@@ -167,11 +167,17 @@ function stopwatchIconMarkup(size = 18) {
   );
 }
 
-function deleteConfirmRingMarkup(size = 36) {
+function deleteConfirmRingCircumference(radius) {
+  return (2 * Math.PI * radius).toFixed(1);
+}
+
+function deleteConfirmRingMarkup(size = 36, radius = 18) {
+  const circ = deleteConfirmRingCircumference(radius);
   return (
     `<svg class="delete-confirm-ring" width="${size}" height="${size}" viewBox="0 0 44 44" fill="none" aria-hidden="true">` +
-    `<circle class="delete-confirm-ring-circle" cx="22" cy="22" r="18" fill="none" stroke="currentColor" ` +
-    `stroke-width="3" stroke-dasharray="113.1" stroke-dashoffset="113.1" transform="rotate(-90 22 22)"/>` +
+    `<circle class="delete-confirm-ring-track" cx="22" cy="22" r="${radius}" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.35"/>` +
+    `<circle class="delete-confirm-ring-circle" cx="22" cy="22" r="${radius}" fill="none" stroke="currentColor" ` +
+    `stroke-width="2.5" stroke-dasharray="${circ}" stroke-dashoffset="${circ}" transform="rotate(-90 22 22)"/>` +
     `</svg>`
   );
 }
@@ -184,7 +190,7 @@ function clearDeleteConfirmTimeout(btn) {
   }
 }
 
-function ensureDeleteConfirmChrome(btn, ringSize = 36) {
+function ensureDeleteConfirmChrome(btn, ringSize = 36, ringRadius = 18) {
   if (btn.dataset.deleteConfirmReady === '1') return;
   btn.dataset.deleteConfirmReady = '1';
   btn.classList.add('delete-confirm-btn');
@@ -197,7 +203,7 @@ function ensureDeleteConfirmChrome(btn, ringSize = 36) {
   const holder = document.createElement('span');
   holder.className = 'delete-confirm-ring-holder';
   holder.setAttribute('aria-hidden', 'true');
-  holder.innerHTML = deleteConfirmRingMarkup(ringSize);
+  holder.innerHTML = deleteConfirmRingMarkup(ringSize, ringRadius);
   btn.appendChild(holder);
 }
 
@@ -227,6 +233,7 @@ function armDeleteConfirm(btn, timeout) {
   btn.style.setProperty('--delete-confirm-ms', `${timeout}ms`);
   const circle = btn.querySelector('.delete-confirm-ring-circle');
   if (circle) {
+    circle.style.setProperty('--delete-ring-circ', circle.getAttribute('stroke-dasharray') || '113.1');
     circle.style.animation = 'none';
     void circle.getBoundingClientRect();
     circle.style.removeProperty('animation');
@@ -259,8 +266,11 @@ function armDeleteConfirm(btn, timeout) {
  */
 export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
-  const ringSize = opts.ringSize ?? (btn.classList.contains('swipe-act') ? 40 : 36);
-  ensureDeleteConfirmChrome(btn, ringSize);
+  const isSwipe = btn.classList.contains('swipe-act');
+  const isIosIcon = btn.classList.contains('ios-icon-btn');
+  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : 36);
+  const ringRadius = opts.ringRadius ?? (isIosIcon ? 20 : 18);
+  ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();

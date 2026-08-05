@@ -271,7 +271,7 @@
 
 /* Two-step delete confirm (trash → stopwatch + ring countdown) */
 @keyframes delete-confirm-draw-ring {
-  from { stroke-dashoffset: 113.1; }
+  from { stroke-dashoffset: var(--delete-ring-circ, 113.1); }
   to { stroke-dashoffset: 0; }
 }
 .delete-confirm-btn {
@@ -302,7 +302,14 @@
   color: #fff;
 }
 .ios-icon-btn.delete-confirm-btn[data-state="confirm"] {
-  color: #f87171;
+  color: #fff;
+}
+.ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
+  inset: -4px;
+}
+.ios-icon-btn.delete-confirm-btn[data-state="confirm"] .delete-confirm-icon {
+  position: relative;
+  z-index: 2;
 }
 .delete-confirm-btn:disabled {
   opacity: 0.55;

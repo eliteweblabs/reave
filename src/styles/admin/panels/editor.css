@@ -1376,6 +1376,7 @@ button.de-placeholder-action:active {
     z-index: 6;
     background: var(--bg);
     flex-shrink: 0;
+    overflow: visible;
   }
   #work-editor.de-pane-active .wk-detail-tabs {
     position: sticky;
@@ -2208,10 +2209,16 @@ button.de-placeholder-action:active {
 .ios-icon-btn:active {
   opacity: 0.55;
 }
-.ios-icon-btn svg {
+.ios-icon-btn svg:not(.delete-confirm-ring) {
   display: block;
   width: 1.25rem;
   height: 1.25rem;
+}
+.ios-icon-btn .delete-confirm-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex-shrink: 0;
 }
 /* Back/forward nav chevrons — 80% black, full black on hover */
 .ios-icon-btn.nav-chevron-btn {
