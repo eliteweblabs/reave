@@ -40,6 +40,7 @@ import {
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260805a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
+import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260805h';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
@@ -474,7 +475,7 @@ function setReaveShareStatus(msg, kind) {
 }
 
 function reaveShareKindLabel(kind) {
-  if (kind === 'work') return 'Project link';
+  if (kind === 'work') return `${postTitle(1)} link`;
   if (kind === 'booking') return 'Meeting details';
   if (kind === 'document') return 'Document to sign';
   return 'Client portal link';
@@ -1242,7 +1243,7 @@ async function loadChatsTab(opts = {}) {
 
 function formatLinkedJobsSub(jobs) {
   if (!jobs?.length) return '';
-  return jobs.length === 1 ? jobs[0].title || jobs[0].slug : `${jobs.length} projects`;
+  return jobs.length === 1 ? jobs[0].title || jobs[0].slug : `${jobs.length} ${postLower(2)}`;
 }
 
 function createSidebarChatTitle(title) {
@@ -1511,7 +1512,7 @@ function chatSidebarEmptyText() {
     all: 'No sessions yet.',
     review: 'No sessions to review.',
     working: 'No sessions in progress.',
-    project: 'No project sessions.',
+    project: `No ${postLower(1)} sessions.`,
     archive: 'No archived sessions.',
   };
   return labels[chatState.categoryFilter] || labels.all;
@@ -1554,7 +1555,7 @@ function renderChatFilterTabs(savedScrollLeft = 0) {
     { id: 'all', label: 'All', count: counts.all },
     { id: 'review', label: 'Review', count: counts.review },
     { id: 'working', label: 'Working', count: counts.working },
-    { id: 'project', label: 'Project', count: counts.project },
+    { id: 'project', label: postTitle(1), count: counts.project },
     { id: 'archive', label: 'Archive', count: counts.archive },
   ];
 

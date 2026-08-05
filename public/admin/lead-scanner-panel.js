@@ -2,6 +2,7 @@
  * Lead Scanner admin — geofence settings + slide-in scan session.
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260728m';
+import { postLower, postTitle } from './post-alias.js?v=20260805a';
 import { createClientMap } from './client-map.js?v=20260804b';
 import { getLeadScannerRunSession } from './lead-scanner-run.js?v=20260802f';
 
@@ -82,7 +83,7 @@ export function renderLeadScannerPanel(data) {
     `<div class="profile-panel-scroll">` +
     `<div class="prof-card">` +
     `<h1 class="prof-title">Lead Scanner</h1>` +
-    `<p class="prof-subtitle">Scan your service radius, watch the agent log properties as they're found, then cherry-pick leads to import as projects.</p>` +
+    `<p class="prof-subtitle">Scan your service radius, watch the agent log properties as they're found, then cherry-pick leads to import as ${postLower(2)}.</p>` +
     providerHint +
     violationHint +
     `<div id="lead-scanner-alert" class="prof-alert" hidden></div>` +
@@ -92,7 +93,7 @@ export function renderLeadScannerPanel(data) {
     `<input id="lead-scanner-enabled" name="enabled" type="checkbox"${cfg.enabled ? ' checked' : ''} />` +
     `<span>Enable daily lead scanner</span>` +
     `</label>` +
-    `<span class="prof-hint prof-hint--block">Scheduled scans save results for review — nothing becomes a project until you import it.</span>` +
+    `<span class="prof-hint prof-hint--block">Scheduled scans save results for review — nothing becomes a ${postLower(1)} until you import it.</span>` +
     `</div>` +
     `<div class="prof-field">` +
     `<label class="prof-check-row">` +

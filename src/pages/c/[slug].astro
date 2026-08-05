@@ -21,6 +21,7 @@ import {
   type PortalDocument,
 } from '../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel, companyStaffAvatarUrl } from '../../lib/companyConfig';
+import { getPostAlias } from '../../lib/postAlias';
 import { hasFeature } from '../../lib/features';
 import { isCraterConfigured, craterGetClientBilling, craterGetClientPayments, buildPortalBillingView, type ClientBilling, type ClientPayments, type PortalBillingInvoiceGroup } from '../../lib/craterClient';
 import { isBookingConfigured, publicBookingPageUrl } from '../../lib/bookingClient';
@@ -292,9 +293,10 @@ const hasBilling = Boolean(portalBillingView);
 const hasData = dataEntries.length > 0;
 const hasDocs = portalDocs.length > 0;
 const hasWork = clientJobs.length > 0;
+const postAlias = getPostAlias();
 const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
-if (hasWork) tabs.push({ id: 'work', label: 'Projects' });
+if (hasWork) tabs.push({ id: 'work', label: postAlias.pluralTitle });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
 if (hasData) tabs.push({ id: 'vault', label: 'Vault' });
 if (hasDocs) tabs.push({ id: 'documents', label: 'Documents' });
@@ -502,7 +504,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               </div>
             )}
             {!hasOverview && !hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
-            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the Projects tab for your active projects.</p>}
+            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the {postAlias.pluralTitle} tab for your active {postAlias.plural}.</p>}
             {hasUptime && (
               <div class="uptime-block">
                 <h3 class="group-title">Site uptime</h3>
@@ -696,7 +698,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           {/* Data (web-design handoff) */}
           {hasData && (
             <section class={`panel ${initialTab === 'vault' ? 'active' : ''}`} data-tab-panel="vault">
-              <p class="data-note">Account details &amp; credentials for your project. Keep this link private.</p>
+              <p class="data-note">Account details &amp; credentials for your {postAlias.singular}. Keep this link private.</p>
               {dataEntries.map((e) => (
                 <details class="data-card">
                   <summary class="data-label"><span class="data-label-text">{e.label}</span></summary>

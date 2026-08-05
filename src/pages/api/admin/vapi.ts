@@ -54,7 +54,7 @@ export async function GET(context: APIContext): Promise<Response> {
     firstMessageTemplate: vapiFirstMessageTemplate(templates),
     systemPromptTemplate: vapiSystemPromptTemplate(templates),
     note:
-      'Admin Vapi plugin syncs assistant name/prompt from Admin → Vapi and Company details. The public homepage voice widget is a separate installation setting (PUBLIC_INSTALL_HOMEPAGE_VOICE).',
+      'Admin Vapi plugin syncs assistant name/prompt from Admin → Vapi and Company details. The public Live Speak Agent Widget is a separate installation setting (PUBLIC_INSTALL_HOMEPAGE_VOICE).',
   });
 }
 

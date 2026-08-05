@@ -81,13 +81,13 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     body: 'One layer handles the conversation, another routes the actual call. Together they cover a caller from "hello" all the way to "booked."',
     bullets: [
       'Inbound call routing and IVR-style flows',
-      'Works alongside the homepage voice widget',
+      'Works alongside the Live Speak Agent Widget',
       'Conversation layer through to booked appointment',
     ],
   },
   {
     id: 'vapi',
-    title: 'Homepage Voice Widget',
+    title: 'Live Speak Agent Widget',
     teaser:
       'A Vapi-powered voice assistant on your homepage — callers browse inventory, ask questions, or start a deal hands-free.',
     body: 'Optional upsell add-on (off by default). Syncs with admin for prompt and tool updates, and pairs with dealership inventory and lead flows when those modules are on.',

@@ -1,6 +1,7 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
+import { postTitle, postLower, postNew, postSave, postTitleLabel, postAlias, postCountLabel } from '/admin/post-alias.js?v=20260805a';
 
 function companyBrand() {
   return (
@@ -44,6 +45,9 @@ function applyCompanyBrandingToMaps() {
           .replace(/^Railway — App$/, `Railway — ${projectLabel}`);
       }
     }
+  }
+  if (MAPS.work) {
+    MAPS.work.title = postTitle(2);
   }
   if (MAPS.finance) {
     const crater = window.__craterFinanceUrl?.trim().replace(/\/$/, '');
@@ -3281,26 +3285,26 @@ function meetingConfirmProjectPanelHtml(prep) {
   const name = prep.linked ? prep.jobTitle : prep.proposedTitle;
   const meta = prep.linked
     ? 'Already linked to this meeting email'
-    : 'A new project will be created with this title';
+    : `A new ${postLower(1)} will be created with this title`;
   return (
     `<div class="meeting-confirm-project">` +
-      `<div class="meeting-confirm-project-name">${escHtml(name || 'Project')}</div>` +
+      `<div class="meeting-confirm-project-name">${escHtml(name || postTitle(1))}</div>` +
       `<div class="meeting-confirm-project-meta">${escHtml(meta)}</div>` +
       `<div class="meeting-confirm-project-actions">` +
         `<button type="button" class="os-dialog-btn os-dialog-btn--primary meeting-confirm-project-use">` +
-          `${prep.linked ? 'Use this project' : 'Create &amp; use this project'}` +
+          `${prep.linked ? `Use this ${postLower(1)}` : `Create &amp; use this ${postLower(1)}`}` +
         `</button>` +
         `<button type="button" class="os-dialog-btn os-dialog-btn--ghost meeting-confirm-project-pick">Choose existing…</button>` +
         `<button type="button" class="os-dialog-btn os-dialog-btn--ghost meeting-confirm-project-new">Create new…</button>` +
       `</div>` +
       `<div class="meeting-confirm-project-picker" hidden>` +
-        `<div class="meeting-confirm-project-picker-label">Open projects for this client</div>` +
+        `<div class="meeting-confirm-project-picker-label">Open ${postLower(2)} for this client</div>` +
         `<div class="meeting-confirm-project-picker-list"></div>` +
       `</div>` +
       `<div class="meeting-confirm-project-create" hidden>` +
-        `<label class="meeting-confirm-project-create-label">Project title</label>` +
+        `<label class="meeting-confirm-project-create-label">${escHtml(postTitleLabel())}</label>` +
         `<input type="text" class="meeting-confirm-project-create-input" value="${escHtml(prep.proposedTitle || '')}" />` +
-        `<button type="button" class="os-dialog-btn os-dialog-btn--primary meeting-confirm-project-create-btn">Create project</button>` +
+        `<button type="button" class="os-dialog-btn os-dialog-btn--primary meeting-confirm-project-create-btn">Create ${postLower(1)}</button>` +
       `</div>` +
       `<p class="meeting-confirm-project-error" hidden></p>` +
     `</div>`
@@ -3310,7 +3314,7 @@ function meetingConfirmProjectPanelHtml(prep) {
 function mountMeetingConfirmProjectPicker(listEl, suggestions, onPick) {
   listEl.innerHTML = '';
   if (!suggestions.length) {
-    listEl.innerHTML = '<div class="meeting-confirm-project-picker-empty">No open projects for this client</div>';
+    listEl.innerHTML = `<div class="meeting-confirm-project-picker-empty">No open ${postLower(2)} for this client</div>`;
     return;
   }
   for (const job of suggestions) {
@@ -3377,14 +3381,14 @@ function waitForMeetingProjectChoice(bodyEl, item, prep) {
     function updateProjectDisplay(jobSlug, jobTitle, linked) {
       const nameEl = panel.querySelector('.meeting-confirm-project-name');
       const metaEl = panel.querySelector('.meeting-confirm-project-meta');
-      if (nameEl) nameEl.textContent = jobTitle || jobSlug || 'Project';
+      if (nameEl) nameEl.textContent = jobTitle || jobSlug || postTitle(1);
       if (metaEl) {
         metaEl.textContent = linked
           ? 'Linked to this meeting email'
           : 'Selected for this meeting';
       }
       if (useBtn) {
-        useBtn.textContent = linked ? 'Use this project' : 'Create & use this project';
+        useBtn.textContent = linked ? `Use this ${postLower(1)}` : `Create & use this ${postLower(1)}`;
       }
       prep.linked = Boolean(linked && jobSlug);
       prep.jobSlug = jobSlug;
@@ -3446,7 +3450,7 @@ function waitForMeetingProjectChoice(bodyEl, item, prep) {
     createBtn?.addEventListener('click', async () => {
       const title = String(createInput?.value || '').trim();
       if (!title) {
-        showError('Enter a project title');
+        showError(`Enter a ${postLower(1)} title`);
         createInput?.focus();
         return;
       }
@@ -3493,7 +3497,7 @@ async function runMeetingConfirmChecklist(item) {
 
     titleEl.textContent = 'Confirming meeting';
     bodyEl.innerHTML =
-      `<p class="meeting-confirm-lead">Work through the checklist — confirm the project before sending the confirmation email.</p>` +
+      `<p class="meeting-confirm-lead">Work through the checklist — confirm the ${postLower(1)} before sending the confirmation email.</p>` +
       `<ul class="meeting-confirm-steps">` +
         `<li class="meeting-confirm-step meeting-confirm-step--done" data-step="calendar" data-state="done">` +
           `<span class="meeting-confirm-step-icon" aria-hidden="true">✓</span>` +
@@ -3505,8 +3509,8 @@ async function runMeetingConfirmChecklist(item) {
         `<li class="meeting-confirm-step meeting-confirm-step--active" data-step="project" data-state="active">` +
           `<span class="meeting-confirm-step-icon" aria-hidden="true">…</span>` +
           `<div class="meeting-confirm-step-copy">` +
-            `<div class="meeting-confirm-step-title">Link to a project</div>` +
-            `<div class="meeting-confirm-step-detail">Confirm or choose the project for this meeting</div>` +
+            `<div class="meeting-confirm-step-title">Link to a ${postLower(1)}</div>` +
+            `<div class="meeting-confirm-step-detail">Confirm or choose the ${postLower(1)} for this meeting</div>` +
           `</div>` +
         `</li>` +
         `<li class="meeting-confirm-step meeting-confirm-step--pending" data-step="email" data-state="pending">` +
@@ -3542,7 +3546,7 @@ async function runMeetingConfirmChecklist(item) {
           bodyEl,
           'project',
           'done',
-          prep.linked ? 'Project linked' : 'Project confirmed',
+          prep.linked ? `${postTitle(1)} linked` : `${postTitle(1)} confirmed`,
           project.jobTitle || project.jobSlug,
         );
         await sleepMs(300);
@@ -3597,7 +3601,7 @@ async function runMeetingConfirmChecklist(item) {
           const viewBtn = document.createElement('button');
           viewBtn.type = 'button';
           viewBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
-          viewBtn.textContent = 'View project';
+          viewBtn.textContent = `View ${postLower(1)}`;
           viewBtn.addEventListener('click', () => {
             finish({ ok: true, data, project, openProject: true });
             navigateToWork(project.jobSlug, { fromEmailId: item.emailId });
@@ -3616,7 +3620,7 @@ async function runMeetingConfirmChecklist(item) {
             bodyEl,
             'project',
             'error',
-            'Project link required',
+            `${postTitle(1)} link required`,
             e.message || String(e),
           );
           setMeetingConfirmStep(bodyEl, 'email', 'pending', 'Send confirmation email', 'Waiting…');
@@ -3826,7 +3830,7 @@ async function resolveAuditPushAlertWorkSlug(item) {
   if (!jobs.length) {
     try {
       const res = await adminFetch('/api/work');
-      const data = await readAdminJson(res, 'Projects');
+      const data = await readAdminJson(res, postTitle(2));
       if (res.ok) jobs = data.jobs || [];
     } catch {
       return null;
@@ -3857,8 +3861,8 @@ async function navigateToWorkIfExists(slug, opts = {}) {
 async function handleMissingWorkNotification(item) {
   await dismissReviewNotification(item);
   await osAlert({
-    title: 'Project not found',
-    bodyHtml: 'This project was deleted. The notification has been archived.',
+    title: `${postTitle(1)} not found`,
+    bodyHtml: `This ${postLower(1)} was deleted. The notification has been archived.`,
   });
   if (MAP.type === 'home') await loadHomeDashboard();
 }
@@ -4009,7 +4013,7 @@ function buildReviewAlertBanner(item) {
     }
   } else if (isProjectComment || isShareOpen || isContactForm) {
     appendReviewAlertAction(actions, {
-      label: 'View project',
+      label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -4037,7 +4041,7 @@ function buildReviewAlertBanner(item) {
     });
   } else if (isProject) {
     appendReviewAlertAction(actions, {
-      label: 'View project',
+      label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -4639,7 +4643,7 @@ function renderHomeDashboard(data) {
 
   statsEl.appendChild(buildDashStat({
     value: stats.projectsPending ?? 0,
-    label: 'Projects pending',
+    label: `${postTitle(2)} pending`,
     hint: stats.projectsActive ? `${stats.projectsActive} active` : 'none active',
     onClick: () => setActiveMap('work', { force: activeKey === 'work' }),
   }));
@@ -7171,9 +7175,9 @@ function syncFooterWorkNav() {
     create,
     save,
     icon: 'briefcase',
-    label: 'Projects',
-    title: 'New project',
-    saveLabel: 'Save project',
+    label: postTitle(2),
+    title: postNew(),
+    saveLabel: postSave(),
   });
 }
 
@@ -8089,7 +8093,7 @@ function syncFooterNavCountTooltips() {
     { id: 'footer-nav-chat', key: 'chats', singular: 'session', plural: 'sessions' },
     { id: 'footer-nav-inbox', key: 'emails', singular: 'email', plural: 'emails' },
     { id: 'footer-nav-schedule', key: 'meetings', singular: 'meeting', plural: 'meetings' },
-    { id: 'footer-nav-work', key: 'projects', singular: 'project', plural: 'projects' },
+    { id: 'footer-nav-work', key: 'projects', singular: postAlias().singular, plural: postAlias().plural },
     { id: 'footer-nav-todo', key: 'todos', singular: 'to-do', plural: 'to-dos' },
     { id: 'footer-nav-clients', key: 'clients', singular: 'client', plural: 'clients' },
   ];
@@ -8994,9 +8998,9 @@ function emailCategoryClass(cat) {
 function formatEmailCategoryLabel(ev) {
   if (isVerificationCodeEmail(ev)) return 'Verification code';
   if (isProjectReplyEmail(ev)) return 'Client reply';
-  if (isEmailProject(ev)) return 'Projects';
+  if (isEmailProject(ev)) return postTitle(2);
   const cat = String(ev.category || 'review').toLowerCase();
-  if (cat === 'project') return 'Projects';
+  if (cat === 'project') return postTitle(2);
   return ev.category || 'review';
 }
 
@@ -10028,8 +10032,8 @@ async function populateEmailProjectMenu(ev, menu) {
       const empty = document.createElement('div');
       empty.className = 'em-project-menu-empty';
       empty.textContent = ev.contactUid
-        ? 'No open projects for this client'
-        : 'No open projects yet';
+        ? `No open ${postLower(2)} for this client`
+        : `No open ${postLower(2)} yet`;
       menu.appendChild(empty);
       return;
     }
@@ -11063,7 +11067,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     { id: 'alert', label: 'Alerts', count: counts.alert },
     { id: 'review', label: 'Review', count: counts.review },
     { id: 'book', label: 'Book', count: counts.book },
-    { id: 'project', label: 'Projects', count: counts.project },
+    { id: 'project', label: postTitle(2), count: counts.project },
     { id: 'routed', label: 'Archive', count: counts.routed },
     { id: 'receipt', label: 'Receipts', count: counts.receipt },
     { id: 'junk', label: 'Junk', count: counts.junk },

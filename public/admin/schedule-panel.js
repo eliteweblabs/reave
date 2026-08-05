@@ -36,6 +36,7 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260805a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
+import { postLower } from './post-alias.js?v=20260805a';
 import {
   registerOsDialogDropdownRepositioner,
   scheduleOsDialogFieldFocus,
@@ -731,7 +732,7 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
 
     titleEl.textContent = 'Meeting address';
     bodyEl.innerHTML =
-      '<p class="em-book-dialog-lead">Enter the project site or meeting location so the booking can be placed on the map.</p>' +
+      `<p class="em-book-dialog-lead">Enter the ${postLower(1)} site or meeting location so the booking can be placed on the map.</p>` +
       '<label class="de-label sched-create-field em-book-address-field">' +
         '<span>Address</span>' +
         '<div class="control-field">' +

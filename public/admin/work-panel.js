@@ -30,6 +30,7 @@ import {
   showCopyButtonFeedback,
 } from './admin-ui.js?v=20260805a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
+import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
 
 /** Injected by os-map-loader via initWorkPanel(). */
@@ -191,7 +192,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
         body: JSON.stringify({ slug, ...payload }),
       });
       data = await res.json();
-      if (res.status === 409) throw new Error('A project with that title already exists.');
+      if (res.status === 409) throw new Error(`A ${postLower(1)} with that title already exists.`);
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       workState.activeSlug = slug;
       const jobEntry = {
@@ -313,7 +314,7 @@ function workCountForActiveStatusFilter() {
 
 function workSearchPlaceholder(count) {
   const n = Number.isFinite(count) ? count : workCountForActiveStatusFilter();
-  return `Search ${n} ${n === 1 ? 'Project' : 'Projects'}`;
+  return `Search ${n} ${postTitle(n === 1 ? 1 : 2)}`;
 }
 
 function renderWorkFilterTabs(savedScrollLeft = 0) {
@@ -321,7 +322,7 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
   const nav = document.createElement('div');
   nav.className = 'em-filter-tabs';
   nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Project status filters');
+  nav.setAttribute('aria-label', `${postTitle(1)} status filters`);
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
@@ -856,12 +857,12 @@ const CLIENT_DETAIL_TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'branding', label: 'Branding' },
   { id: 'notes', label: 'Notes' },
-  { id: 'projects', label: 'Projects' },
+  { id: 'projects', label: postTitle(2) },
   { id: 'vault', label: 'Vault' },
 ];
 
 const WORK_DETAIL_TABS = [
-  { id: 'project', label: 'Project' },
+  { id: 'project', label: postTitle(1) },
   { id: 'markup', label: 'Markup' },
   { id: 'action-items', label: 'Action Items' },
   { id: 'time', label: 'Time', feature: 'time_tracking' },
@@ -887,7 +888,7 @@ function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
   const nav = document.createElement('div');
   nav.className = 'wk-detail-tabs';
   nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Project sections');
+  nav.setAttribute('aria-label', `${postTitle(1)} sections`);
 
   for (const tab of workDetailTabs(opts.isNew)) {
     const btn = document.createElement('button');
@@ -1227,12 +1228,12 @@ function renderClientWorkSection(jobsWrap, jobs) {
   jobsWrap.innerHTML = '';
   const jobsLabel = document.createElement('div');
   jobsLabel.className = 'de-label cl-jobs-label';
-  jobsLabel.textContent = `Projects (${jobs.length})`;
+  jobsLabel.textContent = `${postTitle(2)} (${jobs.length})`;
   jobsWrap.appendChild(jobsLabel);
   if (jobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty cl-jobs-empty';
-    empty.textContent = 'No active projects for this client.';
+    empty.textContent = `No active ${postLower(2)} for this client.`;
     jobsWrap.appendChild(empty);
     return;
   }
@@ -1247,7 +1248,7 @@ function renderClientWorkSection(jobsWrap, jobs) {
 function mountClientWorkSection(pane, uid) {
   const jobsWrap = document.createElement('div');
   jobsWrap.className = 'cl-jobs-section';
-  jobsWrap.innerHTML = skeletonHtml('list', 'Loading projects…');
+  jobsWrap.innerHTML = skeletonHtml('list', `Loading ${postLower(2)}…`);
   pane.appendChild(jobsWrap);
   fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json())
@@ -1291,7 +1292,7 @@ async function loadWorkTab(opts = {}) {
   }
   try {
     const res = await adminFetch('/api/work');
-    const data = await readAdminJson(res, 'Projects');
+    const data = await readAdminJson(res, postTitle(2));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     workState.jobs = sortWorkJobsForDisplay(data.jobs || []);
     workState.statuses = data.statuses || workState.statuses;
@@ -1326,7 +1327,7 @@ async function loadWorkTab(opts = {}) {
 function beginNewProjectDrawer() {
   shell.beginCreateDrawer({
     key: 'work',
-    title: 'New Project',
+    title: postNew(),
     submitLabel: 'Add',
     onSubmit: async () => {
       const pane = shell.getCreateDrawerPane();
@@ -1340,7 +1341,7 @@ function beginNewProjectDrawer() {
       if (!slug || slug === '__new__') {
         await shell.osAlert({
           title: 'Pick a client',
-          bodyHtml: 'A project needs a client before it can be created.',
+          bodyHtml: `A ${postLower(1)} needs a client before it can be created.`,
         });
         return;
       }
@@ -1396,7 +1397,7 @@ function fillWorkSidebarList(list) {
   if (visibleJobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
+    empty.textContent = search.trim() ? 'No matches.' : `No ${postLower(2)} yet.`;
     list.appendChild(empty);
   }
 }
@@ -1465,7 +1466,7 @@ function renderWorkEditor() {
     shell.appendEmptyDetailPane(pane, {
       mapKey: 'work',
       iconName: 'briefcase',
-      bodyHtml: '<p>Select a project to edit, or create a new one.</p>',
+      bodyHtml: `<p>Select a ${postLower(1)} to edit, or create a new one.</p>`,
       onCreate: () => startNewProject(),
     });
   }
@@ -2234,7 +2235,7 @@ function renderNewWorkForm(pane) {
     back: inDrawer
       ? null
       : {
-          label: returnTodoId ? 'Back to to‑do' : 'Back to projects',
+          label: returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
           onClick: async () => {
             await flushWorkAutosave();
             if (returnTodoId) {
@@ -2253,8 +2254,8 @@ function renderNewWorkForm(pane) {
         },
     editableTitle: {
       value: workState.draft?.title || '',
-      placeholder: 'New project',
-      ariaLabel: 'Project title',
+      placeholder: postNew(),
+      ariaLabel: postTitleLabel(),
     },
   });
   const chrome = createWorkDetailChrome(pane);
@@ -2543,13 +2544,13 @@ function renderEditWorkForm(pane) {
 
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to projects',
+      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
       onClick: workEditBackHandler(slug),
     },
     editableTitle: {
       value: workState.draft?.title || listJob?.title || '',
-      placeholder: 'Project title',
-      ariaLabel: 'Project title',
+      placeholder: postTitleLabel(),
+      ariaLabel: postTitleLabel(),
     },
   });
   header.appendChild(headerActions);
@@ -2620,7 +2621,7 @@ function renderEditWorkForm(pane) {
             jobSlug: slug,
             trackEl: linkTrackEl,
             shareLogEl,
-            title: `${data.contact_name || data.client || 'Client'} — Projects`,
+            title: `${data.contact_name || data.client || 'Client'} — ${postTitle(2)}`,
             qrDataUrl: data.qr_data_url,
             recipient: {
               contactUid: data.contact_uid,
@@ -2634,14 +2635,14 @@ function renderEditWorkForm(pane) {
       headerActions.appendChild(
         createIosIconBtn({
           iconKey: 'archive',
-          label: data.status === 'archived' ? 'Unarchive project' : 'Archive project',
+          label: data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
           className: 'ios-icon-btn wk-archive-btn',
           onClick: () => void archiveWork(slug),
         }),
       );
       headerActions.appendChild(
         paneDeleteIcon({
-          label: 'Delete project',
+          label: `Delete ${postLower(1)}`,
           onClick: () => deleteWork(slug),
         }),
       );
@@ -2781,7 +2782,7 @@ function renderEditWorkForm(pane) {
       } catch (err) {
         setWorkDetailScrollLoading(
           scroll,
-          `<div class="de-loading de-error">${escHtml(err.message || 'Failed to render project')}</div>`,
+          `<div class="de-loading de-error">${escHtml(err.message || `Failed to render ${postLower(1)}`)}</div>`,
         );
       }
     })
@@ -2836,7 +2837,7 @@ async function createWork(slug, payload) {
       body: JSON.stringify({ slug, ...payload }),
     });
     const data = await res.json();
-    if (res.status === 409) { alert('A project with that slug already exists.'); return; }
+    if (res.status === 409) { alert(`A ${postLower(1)} with that slug already exists.`); return; }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     await loadWorkTab();
     if (returnTodoId) {
@@ -2849,7 +2850,7 @@ async function createWork(slug, payload) {
         const linkData = await readApiJson(linkRes);
         if (!linkRes.ok) throw new Error(linkData.error || `HTTP ${linkRes.status}`);
       } catch (e) {
-        alert(`Project created, but could not link to-do: ${e.message}`);
+        alert(`${postTitle(1)} created, but could not link to-do: ${e.message}`);
       }
       workState.returnToTodoId = null;
       workState.activeSlug = null;
@@ -3070,7 +3071,7 @@ async function archiveWork(jobOrSlug) {
     renderWorkEditor();
   } catch (e) {
     shell.osAlert({
-      title: unarchive ? 'Could not restore project' : 'Could not archive project',
+      title: unarchive ? `Could not restore ${postLower(1)}` : `Could not archive ${postLower(1)}`,
       bodyHtml: escHtml(e.message),
     });
   }
@@ -3176,7 +3177,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
       shell.cancelTitleFocus();
       await shell.osAlert({
         title: 'Enter a to‑do title',
-        bodyHtml: 'Save the to‑do title before creating a project.',
+        bodyHtml: `Save the to‑do title before creating a ${postLower(1)}.`,
       });
       return;
     }
@@ -3185,7 +3186,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
       shell.cancelTitleFocus();
       await shell.osAlert({
         title: 'Could not save to‑do',
-        bodyHtml: 'Save the to‑do before creating a project.',
+        bodyHtml: `Save the to‑do before creating a ${postLower(1)}.`,
       });
       return;
     }
@@ -3314,7 +3315,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
 
   async function shareProjectFile(file) {
     const url = projectFileAbsoluteUrl(file);
-    await shell.sharePortalLink(url, file.filename || 'Project file');
+    await shell.sharePortalLink(url, file.filename || `${postTitle(1)} file`);
   }
 
   function renderFiles(files) {
@@ -3338,7 +3339,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
         const img = document.createElement('img');
         img.className = 'wk-file-thumb';
         img.src = file.url;
-        img.alt = file.filename || 'Project file';
+        img.alt = file.filename || `${postTitle(1)} file`;
         img.loading = 'lazy';
         card.appendChild(img);
       } else {
@@ -3648,7 +3649,7 @@ async function askAgentAboutWork(job) {
     ];
     if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
     if (job.status) lines.push(`Status: ${workStatusLabel(job.status)}`);
-    lines.push('', 'Please wait for instructions on how to work on this project.');
+    lines.push('', `Please wait for instructions on how to work on this ${postLower(1)}.`);
     await shell.askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });
   } catch (e) {
     shell.osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
@@ -3675,7 +3676,7 @@ async function refreshWorkAuditingIndicatorsQuiet() {
   try {
     const res = await adminFetch('/api/work/auditing');
     if (!res.ok) return;
-    const data = await readAdminJson(res, 'Auditing projects');
+    const data = await readAdminJson(res, `Auditing ${postLower(2)}`);
     const nextSlugs = new Set(
       (Array.isArray(data.auditing) ? data.auditing : []).map((row) => row.slug).filter(Boolean),
     );

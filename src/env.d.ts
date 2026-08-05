@@ -125,6 +125,8 @@ interface ImportMetaEnv {
    * '["client_portal","billing","site_audits","site_monitoring","web_handoff"]'
    */
   FEATURES?: string;
+  /** User-facing label for work records — singular lowercase, e.g. project, deal, lead, job (default: project). */
+  POST_ALIAS?: string;
   /** Install config slug — loads config/config-{slug}.json */
   INSTALL_CONFIG?: string;
   /** Absolute path to install config JSON (overrides slug lookup). */
@@ -205,11 +207,11 @@ interface ImportMetaEnv {
   VAPI_SYSTEM_PROMPT?: string;
   /** Vapi web SDK public key. */
   PUBLIC_VAPI_PUBLIC_KEY?: string;
-  /** Vapi assistant id for homepage voice widget. */
+  /** Vapi assistant id for Live Speak Agent Widget. */
   PUBLIC_VAPI_ASSISTANT_ID?: string;
   PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION?: string;
   PUBLIC_VAPI_VOICE_PROFILE_ID?: string;
-  /** Installation homepage voice widget — separate from admin `vapi` plugin. */
+  /** Installation Live Speak Agent Widget — separate from admin `vapi` plugin. */
   PUBLIC_INSTALL_HOMEPAGE_VOICE?: string;
 }
 

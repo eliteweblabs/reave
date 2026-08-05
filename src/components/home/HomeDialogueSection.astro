@@ -1,0 +1,637 @@
+---
+import { HOME_DIALOGUE, type HomeDialogueTurn } from "../../lib/homeDialogueContent";
+
+export type HomeDialogueVariant = "chat" | "letter" | "transcript" | "cards" | "split" | "editorial";
+
+interface Props {
+  variant?: HomeDialogueVariant;
+  /** Showcase label — e.g. "Look A · Chat" */
+  showcaseLabel?: string;
+  id?: string;
+}
+
+const { variant = "chat", showcaseLabel, id = "dialogue" } = Astro.props;
+const { eyebrow, title, turns, attribution } = HOME_DIALOGUE;
+const visitorTurn = turns.find((t) => t.role === "visitor");
+const founderTurns = turns.filter((t) => t.role === "founder");
+const uid = Astro.slug(`dialogue-${variant}-${id}`);
+---
+
+<section
+  id={id}
+  class:list={["home-dialogue", `home-dialogue--${variant}`]}
+  data-home-section="dialogue"
+  data-dialogue-variant={variant}
+  aria-labelledby={`${id}-title`}
+>
+  {
+    showcaseLabel && (
+      <div class="home-dialogue-showcase-label" aria-hidden="true">
+        {showcaseLabel}
+      </div>
+    )
+  }
+
+  <div class="home-dialogue-inner">
+    {
+      variant === "chat" && (
+        <>
+          <header class="home-dialogue-header">
+            <p class="home-dialogue-eyebrow">{eyebrow}</p>
+            <h2 id={`${id}-title`}>{title}</h2>
+          </header>
+          <div class="home-dialogue-thread" role="list">
+            {turns.map((turn: HomeDialogueTurn) => (
+              <article
+                class:list={[
+                  "home-dialogue-msg",
+                  turn.role === "visitor" ? "home-dialogue-msg--visitor" : "home-dialogue-msg--founder",
+                ]}
+                role="listitem"
+              >
+                {turn.role === "founder" ? (
+                  <span class="home-dialogue-avatar home-dialogue-avatar--founder" aria-hidden="true">TR</span>
+                ) : (
+                  <span class="home-dialogue-avatar home-dialogue-avatar--visitor" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <defs>
+                        <linearGradient id={`${uid}-visitor-bg`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stop-color="#64748b" />
+                          <stop offset="100%" stop-color="#334155" />
+                        </linearGradient>
+                      </defs>
+                      <rect width="64" height="64" rx="32" fill={`url(#${uid}-visitor-bg)`} />
+                      <circle cx="32" cy="24" r="11" fill="#e2e8f0" />
+                      <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0" />
+                    </svg>
+                  </span>
+                )}
+                <div class="home-dialogue-bubble">
+                  <p class="home-dialogue-text">{turn.text}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <p class="home-dialogue-attribution">{attribution}</p>
+        </>
+      )
+    }
+
+    {
+      variant === "letter" && (
+        <>
+          <header class="home-dialogue-header home-dialogue-header--letter">
+            <p class="home-dialogue-eyebrow">{eyebrow}</p>
+            <h2 id={`${id}-title`}>{title}</h2>
+          </header>
+          {visitorTurn && (
+            <blockquote class="home-dialogue-letter-prompt">
+              <p>{visitorTurn.text}</p>
+            </blockquote>
+          )}
+          <div class="home-dialogue-letter-body">
+            {founderTurns.map((turn) => (
+              <p>{turn.text}</p>
+            ))}
+          </div>
+          <footer class="home-dialogue-letter-sign">
+            <span class="home-dialogue-letter-sign-line" aria-hidden="true" />
+            <cite>{attribution}</cite>
+          </footer>
+        </>
+      )
+    }
+
+    {
+      variant === "transcript" && (
+        <>
+          <header class="home-dialogue-header home-dialogue-header--transcript">
+            <p class="home-dialogue-eyebrow">{eyebrow}</p>
+            <h2 id={`${id}-title`}>{title}</h2>
+          </header>
+          <div class="home-dialogue-transcript" role="list">
+            {turns.map((turn: HomeDialogueTurn) => (
+              <article class="home-dialogue-transcript-row" role="listitem">
+                <p class="home-dialogue-transcript-speaker">
+                  {turn.role === "visitor" ? "Visitor" : attribution}
+                </p>
+                <p class="home-dialogue-transcript-line">{turn.text}</p>
+              </article>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    {
+      variant === "cards" && (
+        <>
+          <header class="home-dialogue-header">
+            <p class="home-dialogue-eyebrow">{eyebrow}</p>
+            <h2 id={`${id}-title`}>{title}</h2>
+            {visitorTurn && <p class="home-dialogue-cards-prompt">{visitorTurn.text}</p>}
+          </header>
+          <div class="home-dialogue-cards">
+            {founderTurns.map((turn, i) => (
+              <article class="home-dialogue-card">
+                <span class="home-dialogue-card-index" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                <p>{turn.text}</p>
+              </article>
+            ))}
+          </div>
+          <p class="home-dialogue-attribution home-dialogue-attribution--center">{attribution}</p>
+        </>
+      )
+    }
+
+    {
+      variant === "split" && (
+        <div class="home-dialogue-split">
+          <aside class="home-dialogue-split-aside">
+            <p class="home-dialogue-eyebrow">{eyebrow}</p>
+            <h2 id={`${id}-title`}>{title}</h2>
+            {visitorTurn && <p class="home-dialogue-split-question">{visitorTurn.text}</p>}
+            <p class="home-dialogue-split-byline">{attribution}</p>
+          </aside>
+          <div class="home-dialogue-split-body">
+            {founderTurns.map((turn) => (
+              <p>{turn.text}</p>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    {
+      variant === "editorial" && (
+        <>
+          <header class="home-dialogue-header home-dialogue-header--editorial">
+            <p class="home-dialogue-eyebrow">{eyebrow}</p>
+            <h2 id={`${id}-title`}>{title}</h2>
+          </header>
+          {visitorTurn && (
+            <p class="home-dialogue-editorial-lede">{visitorTurn.text}</p>
+          )}
+          {founderTurns[0] && (
+            <blockquote class="home-dialogue-editorial-pull">
+              <p>{founderTurns[0].text}</p>
+            </blockquote>
+          )}
+          <div class="home-dialogue-editorial-body">
+            {founderTurns.slice(1).map((turn) => (
+              <p>{turn.text}</p>
+            ))}
+          </div>
+          <p class="home-dialogue-attribution home-dialogue-attribution--editorial">— {attribution}</p>
+        </>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .home-dialogue {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: var(--home-section-padding-y) 24px;
+    scroll-margin-top: calc(
+      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px
+    );
+  }
+
+  .home-dialogue-showcase-label {
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto 28px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px dashed rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.08);
+    font-family: var(--font-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .home-dialogue-inner {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .home-dialogue--split .home-dialogue-inner,
+  .home-dialogue--editorial .home-dialogue-inner {
+    max-width: 880px;
+  }
+
+  .home-dialogue-header {
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .home-dialogue-header--letter,
+  .home-dialogue-header--transcript,
+  .home-dialogue-header--editorial {
+    text-align: left;
+    margin-bottom: 24px;
+  }
+
+  .home-dialogue-eyebrow {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 12px;
+  }
+
+  .home-dialogue-header h2 {
+    font-family: var(--font-primary);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: #fff;
+    margin: 0;
+  }
+
+  /* ── Chat ── */
+  .home-dialogue-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .home-dialogue-msg {
+    --dialogue-gutter: clamp(1.25rem, 14%, 3.5rem);
+    display: flex;
+    align-items: flex-end;
+    gap: 0.55rem;
+    width: 100%;
+    margin: 0;
+  }
+
+  .home-dialogue-msg--visitor {
+    flex-direction: row;
+    justify-content: flex-end;
+    padding-inline-start: var(--dialogue-gutter);
+  }
+
+  .home-dialogue-msg--founder {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding-inline-end: var(--dialogue-gutter);
+  }
+
+  .home-dialogue-avatar {
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(15, 15, 20, 0.85);
+  }
+
+  .home-dialogue-avatar--founder {
+    font-family: var(--font-primary);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.92);
+    background: linear-gradient(145deg, rgba(168, 85, 247, 0.35), rgba(236, 72, 153, 0.22));
+  }
+
+  .home-dialogue-avatar--visitor svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home-dialogue-bubble {
+    max-width: min(100%, 28rem);
+    padding: 0.72rem 0.95rem;
+    border-radius: 1rem;
+    font-family: var(--font-content);
+    font-size: clamp(0.875rem, 2.2vw, 0.95rem);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  .home-dialogue-text {
+    margin: 0;
+  }
+
+  .home-dialogue-msg--visitor .home-dialogue-bubble {
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-bottom-right-radius: 0.28rem;
+  }
+
+  .home-dialogue-msg--founder .home-dialogue-bubble {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom-left-radius: 0.28rem;
+  }
+
+  .home-dialogue-attribution {
+    margin: 28px 0 0;
+    padding-left: calc(2rem + 0.55rem);
+    font-family: var(--font-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.48);
+  }
+
+  .home-dialogue-attribution--center {
+    padding-left: 0;
+    text-align: center;
+  }
+
+  /* ── Letter ── */
+  .home-dialogue-letter-prompt {
+    margin: 0 0 28px;
+    padding: 0 0 0 18px;
+    border-left: 2px solid rgba(168, 85, 247, 0.55);
+    font-family: var(--font-primary);
+    font-size: clamp(1.05rem, 2.8vw, 1.25rem);
+    font-weight: 600;
+    font-style: normal;
+    letter-spacing: -0.02em;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .home-dialogue-letter-prompt p {
+    margin: 0;
+  }
+
+  .home-dialogue-letter-body {
+    font-family: var(--font-content);
+    font-size: 15px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .home-dialogue-letter-body p {
+    margin: 0 0 16px;
+  }
+
+  .home-dialogue-letter-body p:last-child {
+    margin-bottom: 0;
+  }
+
+  .home-dialogue-letter-sign {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 36px;
+  }
+
+  .home-dialogue-letter-sign-line {
+    width: 120px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .home-dialogue-letter-sign cite {
+    font-family: var(--font-primary);
+    font-size: 0.95rem;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  /* ── Transcript ── */
+  .home-dialogue-transcript {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .home-dialogue-transcript-row {
+    margin: 0;
+  }
+
+  .home-dialogue-transcript-speaker {
+    margin: 0 0 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(168, 85, 247, 0.85);
+  }
+
+  .home-dialogue-transcript-line {
+    margin: 0;
+    font-family: var(--font-content);
+    font-size: 15px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.82);
+    text-wrap: pretty;
+  }
+
+  /* ── Cards ── */
+  .home-dialogue-cards-prompt {
+    margin: 16px 0 0;
+    font-family: var(--font-content);
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.55);
+    font-style: italic;
+  }
+
+  .home-dialogue-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .home-dialogue-card {
+    position: relative;
+    padding: 20px 20px 20px 52px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .home-dialogue-card-index {
+    position: absolute;
+    left: 18px;
+    top: 20px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: rgba(168, 85, 247, 0.7);
+  }
+
+  .home-dialogue-card p {
+    margin: 0;
+    font-family: var(--font-content);
+    font-size: 15px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.8);
+    text-wrap: pretty;
+  }
+
+  /* ── Split ── */
+  .home-dialogue-split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .home-dialogue-split-aside {
+    padding-top: 4px;
+  }
+
+  .home-dialogue-split-aside h2 {
+    font-family: var(--font-primary);
+    font-size: clamp(1.75rem, 4.5vw, 2.35rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    color: #fff;
+    margin: 0 0 20px;
+  }
+
+  .home-dialogue-split-question {
+    margin: 0 0 24px;
+    font-family: var(--font-primary);
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .home-dialogue-split-byline {
+    margin: 0;
+    font-family: var(--font-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .home-dialogue-split-body {
+    padding-left: 0;
+    border-left: none;
+    font-family: var(--font-content);
+    font-size: 15px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .home-dialogue-split-body p {
+    margin: 0 0 18px;
+  }
+
+  .home-dialogue-split-body p:last-child {
+    margin-bottom: 0;
+  }
+
+  @media (min-width: 768px) {
+    .home-dialogue-split {
+      grid-template-columns: minmax(200px, 280px) 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .home-dialogue-split-body {
+      padding-left: 28px;
+      border-left: 2px solid rgba(168, 85, 247, 0.35);
+    }
+  }
+
+  /* ── Editorial ── */
+  .home-dialogue-editorial-lede {
+    margin: 0 0 28px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.1rem, 3vw, 1.35rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .home-dialogue-editorial-pull {
+    margin: 0 0 32px;
+    padding: 0;
+    border: none;
+    font-family: var(--font-primary);
+    font-size: clamp(1.25rem, 3.5vw, 1.65rem);
+    font-weight: 600;
+    font-style: normal;
+    letter-spacing: -0.03em;
+    line-height: 1.35;
+    color: #fff;
+    text-wrap: balance;
+  }
+
+  .home-dialogue-editorial-pull p {
+    margin: 0;
+  }
+
+  .home-dialogue-editorial-body {
+    columns: 1;
+    font-family: var(--font-content);
+    font-size: 15px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .home-dialogue-editorial-body p {
+    margin: 0 0 16px;
+  }
+
+  .home-dialogue-attribution--editorial {
+    padding-left: 0;
+    margin-top: 32px;
+    text-align: right;
+    font-size: 0.9rem;
+  }
+
+  @media (min-width: 768px) {
+    .home-dialogue-editorial-body {
+      columns: 2;
+      column-gap: 40px;
+    }
+
+    .home-dialogue-editorial-body p {
+      break-inside: avoid;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .home-dialogue {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+
+    .home-dialogue-attribution:not(.home-dialogue-attribution--editorial) {
+      padding-left: 0;
+      text-align: center;
+    }
+  }
+</style>

@@ -52,6 +52,7 @@ export type SiteContentConfig = {
   homepage: {
     heroHeadlineHtml: string;
     showHeroDemo?: boolean;
+    showDialogue?: boolean;
     showIntegrations?: boolean;
     showFeatures?: boolean;
     showContact?: boolean;
@@ -116,6 +117,7 @@ function fallbackReaveConfig(): SiteContentConfig {
     homepage: {
       heroHeadlineHtml: 'Small Business, <br class="home-hero-title-break" />Smaller Workday.',
       showHeroDemo: true,
+      showDialogue: true,
       showIntegrations: true,
       showFeatures: true,
       showContact: true,
@@ -156,6 +158,7 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
       homepage: {
         heroHeadlineHtml: raw.homepage?.heroHeadlineHtml ?? '',
         showHeroDemo: raw.homepage?.showHeroDemo ?? false,
+        showDialogue: raw.homepage?.showDialogue ?? false,
         showIntegrations: raw.homepage?.showIntegrations ?? false,
         showFeatures: raw.homepage?.showFeatures ?? false,
         showContact: raw.homepage?.showContact ?? false,

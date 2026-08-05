@@ -7,7 +7,7 @@ Optional add-on for Reave — **not included in the default install**. Customers
 - Admin → **Vapi** settings (assistant ID, first message, system prompt)
 - Build-time + manual assistant sync from Company details
 - Agent tool: `sync_vapi_assistant` and slash command `/vapi-sync`
-- Optional **homepage voice widget** when `homepageVoice: true` in install config
+- Optional **Live Speak Agent Widget** when `homepageVoice: true` in install config
 
 Separate from the **`voice`** feature (Telnyx inbound phone agent).
 

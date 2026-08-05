@@ -1157,8 +1157,37 @@ function createListSelectionController(listEl, opts) {
     return sidebarEl()?.querySelector('.panel-list-subheader') ?? null;
   }
 
+  function rowIdsInList() {
+    const ids = new Set();
+    listEl.querySelectorAll('.swipe-row').forEach((row) => {
+      const id = getSwipeRowItemId(row);
+      if (id) ids.add(id);
+    });
+    return ids;
+  }
+
+  function pruneStaleSelection() {
+    const present = rowIdsInList();
+    for (const id of selected) {
+      if (!present.has(id)) selected.delete(id);
+    }
+  }
+
+  function removeOrphanSelectionBars(keep) {
+    sidebarEl()?.querySelectorAll('.list-selection-bar').forEach((el) => {
+      if (el !== keep) el.remove();
+    });
+  }
+
   function ensureToolbar() {
+    removeOrphanSelectionBars(toolbar);
     if (toolbar?.isConnected) return;
+
+    toolbar = null;
+    countEl = null;
+    archiveBtn = null;
+    deleteBtn = null;
+
     const subheader = subheaderEl();
 
     toolbar = document.createElement('div');
@@ -1210,6 +1239,13 @@ function createListSelectionController(listEl, opts) {
   }
 
   function syncRowSelectedClasses() {
+    if (active) {
+      pruneStaleSelection();
+      if (selected.size === 0) {
+        exit();
+        return;
+      }
+    }
     listEl.querySelectorAll('.swipe-row').forEach((row) => {
       const id = getSwipeRowItemId(row);
       const item = row.querySelector('.ch-list-item, .em-list-item');
@@ -1228,7 +1264,12 @@ function createListSelectionController(listEl, opts) {
 
   function updateUI() {
     ensureToolbar();
+    pruneStaleSelection();
     const n = selected.size;
+    if (active && n === 0) {
+      exit();
+      return;
+    }
     if (countEl) countEl.textContent = n === 1 ? '1 selected' : `${n} selected`;
     if (archiveBtn) archiveBtn.disabled = n === 0;
     if (deleteBtn) deleteBtn.disabled = n === 0;
@@ -1255,15 +1296,19 @@ function createListSelectionController(listEl, opts) {
   }
 
   function exit() {
-    if (!active) return;
+    const wasActive = active;
     active = false;
     selected.clear();
     listEl.classList.remove('list-selection-mode');
-    if (toolbar) toolbar.hidden = true;
+    if (toolbar) {
+      toolbar.hidden = true;
+      resetDeleteConfirmsIn(toolbar);
+    }
+    if (countEl) countEl.textContent = '';
     const subheader = subheaderEl();
     if (subheader) subheader.hidden = false;
     syncRowSelectedClasses();
-    opts.onSelectionChange?.(selected, active);
+    if (wasActive) opts.onSelectionChange?.(selected, active);
   }
 
   function toggle(id) {

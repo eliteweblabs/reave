@@ -171,6 +171,9 @@
   border: 1px solid var(--border);
   flex: 0 0 auto;
 }
+.list-selection-bar[hidden] {
+  display: none !important;
+}
 .list-selection-count {
   flex: 1;
   min-width: 0;

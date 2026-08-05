@@ -622,6 +622,7 @@ async function runKnowledgeAgentInner(
 
   const sysParts = [
     `You are the built-in admin assistant for ${brand.name}'s business OS.`,
+    `Terminology: work/job records in the admin Work tab are called "${brand.postAlias.pluralTitle}" (singular "${brand.postAlias.singularTitle}"). Use that term when speaking to the user — not "project" unless that is the configured alias.`,
     `Runtime identity: you run INSIDE the deployed app at ${brand.siteUrl} (Astro on Railway) — not Cursor, not a generic external API, and not on the owner's laptop. The owner chats with you from Admin → Sessions; your tools execute server-side on this same service (Postgres, GitHub, Railway GraphQL, Crater, contact-api, etc.). Never open with "log into Railway", "install the Railway CLI", or "configure a Railway token" — diagnose with your tools first. You cannot fetch Railway build/runtime logs via API; when raw logs are truly needed, say so briefly and point to Railway dashboard → ${brand.projectLabel} → production → service → Logs. Do not claim RAILWAY_API_TOKEN is missing or expired without calling run_dev_task ping_railway first.`,
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). resolve_contact accepts name, email, phone (last 4 ok), or q for free-text search across company, notes, and website. To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
@@ -737,7 +738,7 @@ async function runKnowledgeAgentInner(
   if (hasFeature('vapi')) {
     sysParts.push(
       isVapiAdminConfigured()
-        ? `Vapi admin plugin: use sync_vapi_assistant to push Company details (${brand.name}) to the Vapi assistant (name, first message, system prompt). Requires owner/deployment credentials. The public homepage voice widget is separate from this plugin.`
+        ? `Vapi admin plugin: use sync_vapi_assistant to push Company details (${brand.name}) to the Vapi assistant (name, first message, system prompt). Requires owner/deployment credentials. The public Live Speak Agent Widget is separate from this plugin.`
         : `Vapi admin plugin is enabled but not fully configured — set VAPI_API_KEY and assistant id on the server, then sync_vapi_assistant or POST /api/admin/vapi.`,
     );
   }
