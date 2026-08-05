@@ -432,6 +432,25 @@ export function sidebarAuthorIconHtml(opts = {}) {
   );
 }
 
+/** Email sidebar list row avatar — CRM contact, sender/recipient favicon, or company icon. */
+export function emailListAuthorIconHtml(ev = {}) {
+  const contactUid = String(ev.contactUid || '').trim();
+  if (contactUid) return sidebarAuthorIconHtml({ contactUid });
+
+  const firstRecipient = Array.isArray(ev.to) ? ev.to[0] : null;
+  const recipientUid =
+    firstRecipient && typeof firstRecipient === 'object'
+      ? String(firstRecipient.uid || '').trim()
+      : '';
+  if (recipientUid) return sidebarAuthorIconHtml({ contactUid: recipientUid });
+
+  const address = ev.from || ev.toEmail || firstRecipient?.email || '';
+  const favicon = address ? senderFaviconUrl(address) : null;
+  if (favicon) return sidebarAuthorIconHtml({ iconUrl: favicon });
+
+  return sidebarAuthorIconHtml();
+}
+
 function stringifyNotificationDebugValue(value) {
   if (value == null || value === '') return null;
   if (typeof value === 'boolean') return String(value);
