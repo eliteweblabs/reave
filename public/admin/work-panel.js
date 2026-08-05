@@ -60,6 +60,9 @@ const WK_SPINNER_SVG =
   '</svg>';
 
 let workAuditingPollTimer = null;
+/** Aborts stale project-detail fetches when the editor re-renders or the user switches projects. */
+let workDetailFetchCtrl = null;
+const WORK_DETAIL_FETCH_MS = 45000;
 
 const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
 
@@ -1272,11 +1275,18 @@ async function loadWorkTab(opts = {}) {
   if (!root) return;
   await ensureContactAuthorIconsReady();
   const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
+  const prevActiveSlug = workState.activeSlug;
   const preserveNew =
     workState.activeSlug === '__new__' &&
     workState.draft &&
     (opts.workSlug === '__new__' || pendingWorkDeepLinkSlug === '__new__');
-  if (!preserveNew) {
+  const keepDetailOpen =
+    !preserveNew &&
+    prevActiveSlug &&
+    prevActiveSlug !== '__new__' &&
+    deepSlug === prevActiveSlug &&
+    !!root.querySelector('.wk-detail-chrome');
+  if (!preserveNew && !keepDetailOpen) {
     mountPanelSkeleton(root, 'list', 'Loading work…', { contentSelector: '.ch-sidebar' });
   }
   try {
@@ -1288,7 +1298,10 @@ async function loadWorkTab(opts = {}) {
     workState.priorities = data.priorities || workState.priorities;
     if (workState.statusFilter === 'done') workState.statusFilter = 'archived';
   } catch (e) {
-    if (e.message === 'Session expired') return;
+    if (e.message === 'Session expired') {
+      root.innerHTML = `<div class="de-loading de-error">Session expired — sign in again to continue.</div>`;
+      return;
+    }
     if (!deepSlug) {
       root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
       return;
@@ -1301,6 +1314,11 @@ async function loadWorkTab(opts = {}) {
   if (!preserveNew) workState.draft = null;
   shell.clearEditorFooterSave();
   if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
+  if (keepDetailOpen && workState.activeSlug === prevActiveSlug) {
+    refreshWorkSidebarList();
+    applyWorkAuditingIndicators();
+    return;
+  }
   renderWorkEditor();
   activateWorkPaneOnMobile();
 }
@@ -2547,9 +2565,21 @@ function renderEditWorkForm(pane) {
   setWorkDetailScrollLoading(scroll, skeletonHtml('list', 'Loading…'));
   activateWorkPaneOnMobile();
 
-  fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+  if (workDetailFetchCtrl) workDetailFetchCtrl.abort();
+  workDetailFetchCtrl = new AbortController();
+  const fetchSlug = slug;
+  const { signal } = workDetailFetchCtrl;
+  let detailFetchTimedOut = false;
+  const detailFetchTimeoutId = setTimeout(() => {
+    detailFetchTimedOut = true;
+    workDetailFetchCtrl?.abort();
+  }, WORK_DETAIL_FETCH_MS);
+
+  adminFetch(`/api/work/${encodeURIComponent(fetchSlug)}`, { signal })
     .then((r) => readApiJson(r))
     .then((data) => {
+      if (workState.activeSlug !== fetchSlug || !scroll.isConnected) return;
+      try {
       workState.draft = {
         title: data.title,
         status: data.status || 'inquiry',
@@ -2748,15 +2778,33 @@ function renderEditWorkForm(pane) {
 
       shell.clearEditorFooterSave();
       getWorkEditor()?.classList.add('de-pane-active');
+      } catch (err) {
+        setWorkDetailScrollLoading(
+          scroll,
+          `<div class="de-loading de-error">${escHtml(err.message || 'Failed to render project')}</div>`,
+        );
+      }
     })
     .catch((e) => {
+      if (workState.activeSlug !== fetchSlug || !scroll.isConnected) return;
+      if (e.name === 'AbortError') {
+        if (detailFetchTimedOut) {
+          setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">Request timed out — try again.</div>`);
+        }
+        return;
+      }
+      if (e.message === 'Session expired') {
+        setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">Session expired — sign in again to continue.</div>`);
+        return;
+      }
       if (e.message === 'Not found') {
         closeWorkDetailPane();
         renderWorkEditor();
         return;
       }
       setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">${escHtml(e.message)}</div>`);
-    });
+    })
+    .finally(() => clearTimeout(detailFetchTimeoutId));
 }
 
 function activateWorkPaneOnMobile() {
