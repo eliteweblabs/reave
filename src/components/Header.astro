@@ -270,7 +270,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 {userId && (
   <script src="/review-badge.js?v=20260717a" defer></script>
 )}
-<script src="/deploy-indicator.js?v=20260804b" defer></script>
+<script src="/deploy-indicator.js?v=20260805a" defer></script>
 
 <script>
   /** Pin public headers to the visual viewport top during iOS overscroll bounce. */
@@ -308,11 +308,34 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     }
   }
 
+  /** Keep pane clearance aligned with the real fixed header box (safe area + row + alerts). */
+  function syncTopbarMeasuredHeight() {
+    const topbar = document.getElementById("topbar");
+    if (!topbar) return;
+    document.documentElement.style.setProperty(
+      "--topbar-measured-h",
+      `${Math.ceil(topbar.getBoundingClientRect().height)}px`,
+    );
+  }
+
+  function bindTopbarHeightObserver() {
+    const topbar = document.getElementById("topbar");
+    if (!topbar || topbar.dataset.topbarHeightObs === "1") return;
+    topbar.dataset.topbarHeightObs = "1";
+    syncTopbarMeasuredHeight();
+    const obs = new ResizeObserver(() => syncTopbarMeasuredHeight());
+    obs.observe(topbar);
+    window.visualViewport?.addEventListener("resize", syncTopbarMeasuredHeight, { passive: true });
+  }
+
   syncAppHeaderSafeArea();
   bindAppHeaderViewportPin();
+  bindTopbarHeightObserver();
   document.addEventListener("astro:page-load", () => {
     syncAppHeaderSafeArea();
     bindAppHeaderViewportPin();
+    bindTopbarHeightObserver();
+    syncTopbarMeasuredHeight();
   });
   window.visualViewport?.addEventListener("resize", syncAppHeaderSafeArea, { passive: true });
 </script>

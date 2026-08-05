@@ -1141,7 +1141,9 @@ button.de-placeholder-action:active {
   #work-editor.de-pane-active .wk-detail-chrome {
     grid-row: 1;
     position: sticky;
-    top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
+    top: calc(
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem
+    );
     z-index: 6;
   }
   #work-editor.de-pane-active .re-form-scroll.wk-form-scroll {
@@ -1395,13 +1397,30 @@ button.de-placeholder-action:active {
     top: auto;
     z-index: auto;
   }
+  #clients-editor.de-pane-active .de-pane,
+  #work-editor.de-pane-active .de-pane,
+  #knowledge-editor.de-pane-active .de-pane,
+  #todo-editor.de-pane-active .de-pane,
+  #rule-editor.de-pane-active .de-pane,
+  #doc-editor.de-pane-active .de-pane {
+    padding-top: calc(
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem
+    );
+  }
   #clients-editor.de-pane-active .de-header {
     position: sticky;
-    top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
+    top: calc(
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem
+    );
     z-index: 6;
     background: var(--bg);
     flex-shrink: 0;
     overflow: visible;
+    padding:
+      0.15rem
+      max(0.5rem, env(safe-area-inset-right, 0px))
+      0.2rem
+      max(0.5rem, env(safe-area-inset-left, 0px));
   }
   #work-editor.de-pane-active .de-pane {
     overflow: hidden;
@@ -1418,7 +1437,10 @@ button.de-placeholder-action:active {
   }
   #clients-editor.de-pane-active .cl-detail-tabs {
     position: sticky;
-    top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + var(--control-h));
+    top: calc(
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem +
+        var(--control-h)
+    );
     z-index: 5;
     flex-shrink: 0;
     background: var(--bg);

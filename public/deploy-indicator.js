@@ -7,7 +7,7 @@
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot) return;
     try {
-      const res = await fetch('/api/admin/deploy-status', { cache: 'no-store' });
+      const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok || !data.ok || !data.deploy) {
         dot.hidden = true;

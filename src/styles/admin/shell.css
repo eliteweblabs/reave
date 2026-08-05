@@ -87,7 +87,10 @@ body {
 #rule-editor > .de-pane,
 #rule-editor > .ch-sidebar,
 .de-pane {
-  padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
+  padding-top: var(
+    --topbar-measured-h,
+    calc(var(--topbar-h) + var(--setup-alert-h, 0px))
+  );
 }
 
 /* App panels — no browser zoom; canvas (#wrap) keeps custom pinch/pan. */
