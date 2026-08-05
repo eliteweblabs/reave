@@ -3,7 +3,7 @@ const { readFileSync, existsSync } = require('fs');
 const { join } = require('path');
 const { getProvider, listProviders, withDefaultZip } = require('./providers');
 const cache = require('./lib/cache');
-const { safeCompare } = require('../lib/safeCompare');
+const { safeCompare } = require('./lib/safeCompare');
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));

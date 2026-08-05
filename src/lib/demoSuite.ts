@@ -15,8 +15,8 @@ import type { FeatureId } from './featureCatalog';
 export const DEMO_SUITE_COOKIE = 'reave_demo_suite';
 export const DEMO_SUITE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
-/** Default module ids when no URL/cookie — client_portal, billing, site_monitoring, voice. */
-export const DEFAULT_DEMO_MODULE_IDS = ['001', '004', '006', '009'] as const;
+/** Default module ids when no URL/cookie — all catalog modules for full demo stack. */
+export const DEFAULT_DEMO_MODULE_IDS = catalogForChecklist().map((e) => e.id);
 
 export function buildDemoSuiteConfig(opts: {
   tier?: number;
