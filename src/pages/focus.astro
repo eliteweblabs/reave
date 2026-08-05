@@ -8,6 +8,7 @@
  */
 import Favicon from '../components/Favicon.astro';
 import BrandFontHead from '../components/BrandFontHead.astro';
+import ViewportMeta from '../components/ViewportMeta.astro';
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from '../lib/companyConfig';
 import { brandFontCssVars } from '../lib/brandFonts';
 import { isChatFocusSkinEnabled } from '../lib/chatFocusSkin';
@@ -34,7 +35,7 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
 <html lang="en" style={brandFontCssVars(company.fonts)}>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />

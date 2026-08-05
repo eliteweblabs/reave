@@ -16,6 +16,7 @@
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, contactStringField, contactTelHref } from '../../../lib/contactApi';
 import { resolvePortalBrandColors, DEFAULT_PORTAL_BRAND } from '../../../lib/portalBrandColors';
+import { MOBILE_VIEWPORT_CONTENT } from '../../../lib/mobileViewport';
 
 export const prerender = false;
 
@@ -69,12 +70,12 @@ export const GET: APIRoute = async ({ params }) => {
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}" />
 <meta name="robots" content="noindex" />
 <title>${esc(name)} — Email signature</title>
 <style>
   :root { color-scheme: light; }
-  body { margin: 0; padding: 32px 16px; background: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #18181b; }
+  body { margin: 0; padding: 32px 16px; background: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #18181b; touch-action: manipulation; }
   .wrap { max-width: 560px; margin: 0 auto; }
   h1 { font-size: 18px; margin: 0 0 4px; }
   p.hint { color: #52525b; font-size: 14px; margin: 0 0 20px; }

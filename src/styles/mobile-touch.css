@@ -1,0 +1,15 @@
+/**
+ * Global mobile touch defaults — disable browser double-tap zoom while keeping
+ * pan gestures. Pair with ViewportMeta (user-scalable=no) on every page.
+ */
+html,
+body {
+  touch-action: manipulation;
+}
+
+/* iOS still auto-zooms sub-16px inputs even with user-scalable=no. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
+}

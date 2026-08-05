@@ -43,7 +43,6 @@ body {
   inset: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: var(--fg);
-  touch-action: manipulation;
 }
 
 /* Pad scroll regions for the floating footer; panel shells stay edge-to-edge. */
@@ -112,13 +111,6 @@ body {
 #search-overlay,
 #os-dialog-backdrop {
   touch-action: manipulation;
-}
-
-/* iOS still auto-zooms sub-16px inputs even with user-scalable=no. */
-input,
-textarea,
-select {
-  font-size: max(16px, 1em);
 }
 
 /* Editor chrome — keep inputs/message bodies selectable */

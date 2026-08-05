@@ -1,6 +1,9 @@
 ---
 export const prerender = false;
 
+import ViewportMeta from "../../components/ViewportMeta.astro";
+import "../../styles/mobile-touch.css";
+
 const { userId } = Astro.locals.auth();
 if (!userId) {
   const returnTo = encodeURIComponent('/admin/import-contacts');
@@ -14,7 +17,7 @@ const companyBrand = { contactsLabel: 'Clients' };
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <ViewportMeta />
     <title>Import Contacts</title>
     <link rel="stylesheet" href="/admin-shell.css" />
     <style>

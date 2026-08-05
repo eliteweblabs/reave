@@ -4,6 +4,7 @@
  * Left: scene copy. Right (sm+): section nav controller.
  */
 import Favicon from '../components/Favicon.astro';
+import ViewportMeta from '../components/ViewportMeta.astro';
 import Header from '../components/Header.astro';
 import Preloader from '../components/Preloader.astro';
 import { assertDeckScript } from '../deck/validate';
@@ -94,7 +95,7 @@ const deckPayload = {
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <ViewportMeta />
     <title>{script.title} | {company.name}</title>
     <meta
       name="description"

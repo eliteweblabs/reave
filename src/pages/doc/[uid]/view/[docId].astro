@@ -15,6 +15,7 @@ import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig'
 import Header from '../../../../components/Header.astro';
 import FootBostonTag from '../../../../components/FootBostonTag.astro';
 import Favicon from '../../../../components/Favicon.astro';
+import ViewportMeta from '../../../../components/ViewportMeta.astro';
 import '../../../../styles/brand.css';
 
 const company = await getCompanyConfig(Astro.request);
@@ -77,7 +78,7 @@ const fmtDate = (iso: string) => {
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
     <title>{error ? 'Not found' : `${title} — Signed`}</title>
     <Favicon />

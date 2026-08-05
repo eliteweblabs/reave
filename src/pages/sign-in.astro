@@ -1,7 +1,9 @@
 ---
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
+import ViewportMeta from "../components/ViewportMeta.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import "../styles/mobile-touch.css";
 
 const company = await getCompanyConfig(Astro.request);
 ---
@@ -10,7 +12,7 @@ const company = await getCompanyConfig(Astro.request);
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <ViewportMeta />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
