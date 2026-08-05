@@ -2676,6 +2676,15 @@ function formatReviewAlertWhen(iso) {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
+    const diffMs = Date.now() - d.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    if (diffMs >= 0 && diffMs < dayMs) {
+      const minutes = Math.floor(diffMs / 60000);
+      const hours = Math.floor(minutes / 60);
+      if (minutes < 1) return 'just now';
+      if (minutes < 60) return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+      return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+    }
     return d.toLocaleString(undefined, {
       month: 'short',
       day: 'numeric',
