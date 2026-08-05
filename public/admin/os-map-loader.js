@@ -114,7 +114,9 @@ import {
   queueWorkDeepLink,
   workStatusLabel,
   workClientSubline,
-} from './work-panel.js?v=20260805b';
+  syncWorkAuditingPoll,
+  stopWorkAuditingPoll,
+} from './work-panel.js?v=20260805c';
 import {
   initTodoPanel,
   todoState,
@@ -809,6 +811,7 @@ function setActiveMap(key, opts = {}) {
   syncHealthLifecycle();
   syncEmailPoll();
   syncChatRunningPoll();
+  syncWorkAuditingPoll();
   syncFooterNav();
   syncProfileMenuActive();
   syncTopbarPanelContext();
@@ -12645,6 +12648,7 @@ async function boot() {
     startDeployPoll();
   }
   syncChatRunningPoll();
+  syncWorkAuditingPoll();
   syncFooterNav();
   syncProfileMenuActive();
   syncTopbarPanelContext();
@@ -12681,12 +12685,14 @@ document.addEventListener('visibilitychange', () => {
     stopEmailPoll();
     stopInboxBadgePoll();
     stopChatRunningPoll();
+    stopWorkAuditingPoll();
     stopDeployPoll();
   } else {
     syncHealthLifecycle();
     syncEmailPoll();
     syncInboxBadgePoll();
     syncChatRunningPoll();
+    syncWorkAuditingPoll();
     startDeployPoll();
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();

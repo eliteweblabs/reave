@@ -48,6 +48,13 @@ import { createLogger } from '../../../lib/logger';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 import { secretMatches } from '../../../lib/secretCompare';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { createSiriAuditStubProject } from '../../../lib/siriAuditIntake';
+import {
+  clearSiriAuditRun,
+  registerSiriAuditRun,
+  siriAuditThreadId,
+} from '../../../lib/siriAuditRuns';
+import { clearAgentProgress } from '../../../lib/agentProgress';
 
 const log = createLogger('siri-proposal');
 
@@ -523,19 +530,59 @@ async function handleAuditProposal(
 
   const label = business;
 
-  runProposalResearch({ url, business, phone, email, notes, label, tier }).catch((e) => {
+  const stub = await createSiriAuditStubProject({
+    business,
+    tier,
+    url: url || undefined,
+    phone: phone || undefined,
+    email: email || undefined,
+    notes: notes || undefined,
+  });
+  if (!stub.ok) {
+    return { ok: false, error: stub.error, text: stub.error };
+  }
+
+  const userId = agentAlertUserId();
+  if (userId) {
+    registerSiriAuditRun({
+      slug: stub.slug,
+      tier,
+      label,
+      userId,
+      startedAt: Date.now(),
+    });
+  }
+
+  runProposalResearch({
+    url,
+    business,
+    phone,
+    email,
+    notes,
+    label,
+    tier,
+    jobSlug: stub.slug,
+    userId,
+  }).catch((e) => {
     log.error('background research failed', e);
   });
 
   const ack =
     tier === 'full'
-      ? `Running full audit on ${label} now. You'll get an alert in Admin when the audit and project are ready.`
-      : `Auditing ${label} now. You'll get an alert in Admin when the audit and project are ready.`;
+      ? `Running full audit on ${label}. Watch the Work tab — project ${stub.slug} is in progress.`
+      : `Auditing ${label}. Watch the Work tab — project ${stub.slug} is in progress.`;
 
   return {
     ok: true,
     text: ack,
-    data: { started: true, tier, label, url: url || null, business: business || null },
+    data: {
+      started: true,
+      tier,
+      label,
+      slug: stub.slug,
+      url: url || null,
+      business: business || null,
+    },
   };
 }
 
@@ -547,6 +594,8 @@ async function runProposalResearch(input: {
   notes: string;
   label: string;
   tier: AuditTier;
+  jobSlug: string;
+  userId: string | null;
 }): Promise<void> {
   const givenLines = [
     input.business ? `Business name: ${input.business}` : null,
@@ -579,6 +628,9 @@ async function runProposalResearch(input: {
     'The business description may be just a name or include street, town, or other disambiguating details ' +
       '(e.g. "Joe\'s Pizza on Main Street in Portland"). Treat the full string as your search query.',
     '',
+    `An inquiry project already exists at slug **${input.jobSlug}** (stub body — audit in progress). ` +
+      'Do **not** call create_work. Use update_work on that slug with the full audit body and a new title.',
+    '',
     ...givenLines,
     '',
     `Follow the ${tierLabel.toLowerCase()} playbook (read_knowledge slug "${knowledgeSlug}" first):`,
@@ -590,34 +642,40 @@ async function runProposalResearch(input: {
       'exists but kindExplicit is false (never classified), update_contact with kind "proposed". Use the business ' +
       'name as the contact name when no personal name is known, and save whatever phone/email/company was given.',
     auditToolsStep,
-    '4. create_work with status "inquiry", contact_uid set, and a catchy finding-based title (5–12 words — ' +
+    `4. update_work slug "${input.jobSlug}" with status "inquiry", contact_uid set, and a catchy finding-based title (5–12 words — ` +
       'witty but professional, inspired by the top audit finding; do NOT include the business name because ' +
       'it already appears as the client name in the project list). Examples: "Antique shop, antique website — ' +
       'not in a good way", "Great reviews, terrible mobile score". Never use "Website Redesign — {Business Name}". ' +
-      'Include a complete markdown audit body following the required section structure — 1,200+ characters for ' +
-      'quick tier, 1,500+ for full tier, not a stub. If a quick-audit project already exists and this is a full ' +
-      'audit, use update_work instead of creating a duplicate.',
+      'Replace the stub body with a complete markdown audit following the required section structure — 1,200+ characters for ' +
+      'quick tier, 1,500+ for full tier, not a stub.',
     '5. End your final reply with a line formatted exactly like ' +
-      '`Project: <slug>` followed by 2-3 sentences summarizing the top findings and the recommended next step.',
+      `\`Project: ${input.jobSlug}\` followed by 2-3 sentences summarizing the top findings and the recommended next step.`,
   ].join('\n');
 
-  const userId = agentAlertUserId();
   const researchStartedAt = Date.now();
+  const threadId = siriAuditThreadId(input.jobSlug);
+  const agentContext = input.userId ? { userId: input.userId, threadId } : {};
 
   let reply: string;
   try {
     reply = await runKnowledgeAgent({
       userText,
-      context: userId ? { userId } : {},
+      context: agentContext,
     });
   } catch (e) {
     reply = `Research failed: ${e instanceof Error ? e.message : String(e)}`;
     log.error('runKnowledgeAgent threw', e instanceof Error ? e : new Error(String(e)));
+  } finally {
+    if (input.userId) {
+      clearAgentProgress(input.userId, threadId);
+      clearSiriAuditRun(input.jobSlug);
+    }
   }
 
   await notifyAdminAgentOfSiriProposalComplete({
     label: input.label,
     reply,
+    jobSlug: input.jobSlug,
     tier: input.tier,
     researchStartedAt,
   }).catch((e) => log.warn('proposal notify failed', e instanceof Error ? e : new Error(String(e))));

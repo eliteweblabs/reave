@@ -54,6 +54,13 @@ const WORK_PRIORITY_LABELS = {
   urgent: 'Urgent',
 };
 
+const WK_SPINNER_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="42" stroke-dashoffset="15" opacity="0.9"/>' +
+  '</svg>';
+
+let workAuditingPollTimer = null;
+
 const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
 
 const AUTOSAVE_DEBOUNCE_MS = 650;
@@ -77,6 +84,8 @@ let workState = {
   returnToEmailId: null,
   returnToTodoId: null,
   detailTab: 'project',
+  auditingSlugs: new Set(),
+  auditingProgress: new Map(),
 };
 
 let workAutosaveTimer = null;
@@ -3577,23 +3586,99 @@ async function askAgentAboutWork(job) {
 }
 
 // ---- extracted from os-map-loader.js:20162-20193 ----
+function applyWorkAuditingIndicators() {
+  const root = getWorkEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) return;
+  list.querySelectorAll('.ch-list-item[data-slug]').forEach((el) => {
+    const slug = el.dataset.slug;
+    const isAuditing = workState.auditingSlugs.has(slug);
+    el.classList.toggle('ch-list-item--running', isAuditing);
+    const statusEl = el.querySelector('.wk-status-auditing');
+    const defaultStatusEl = el.querySelector('.wk-meta-row .wk-status');
+    if (statusEl) statusEl.hidden = !isAuditing;
+    if (defaultStatusEl) defaultStatusEl.hidden = isAuditing;
+  });
+}
+
+async function refreshWorkAuditingIndicatorsQuiet() {
+  try {
+    const res = await adminFetch('/api/work/auditing');
+    if (!res.ok) return;
+    const data = await readAdminJson(res, 'Auditing projects');
+    const nextSlugs = new Set(
+      (Array.isArray(data.auditing) ? data.auditing : []).map((row) => row.slug).filter(Boolean),
+    );
+    let justFinished = false;
+    workState.auditingSlugs.forEach((slug) => {
+      if (!nextSlugs.has(slug)) justFinished = true;
+    });
+    workState.auditingSlugs = nextSlugs;
+    workState.auditingProgress = new Map(
+      (Array.isArray(data.auditing) ? data.auditing : []).map((row) => [row.slug, row.progress || null]),
+    );
+    applyWorkAuditingIndicators();
+    if (justFinished) void loadWorkTab({ workSlug: workState.activeSlug || undefined });
+  } catch {
+    /* ignore transient poll errors */
+  }
+}
+
+function stopWorkAuditingPoll() {
+  if (workAuditingPollTimer) {
+    clearInterval(workAuditingPollTimer);
+    workAuditingPollTimer = null;
+  }
+}
+
+function syncWorkAuditingPoll() {
+  stopWorkAuditingPoll();
+  if (shell.MAP?.type === 'work' && !document.hidden) {
+    void refreshWorkAuditingIndicatorsQuiet();
+    workAuditingPollTimer = setInterval(refreshWorkAuditingIndicatorsQuiet, 3000);
+  }
+}
+
 function createWorkListItem(job) {
+  const isAuditing = workState.auditingSlugs.has(job.slug);
+  const progress = workState.auditingProgress.get(job.slug);
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
     'ch-list-item' +
     (job.slug === workState.activeSlug ? ' active' : '') +
-    (isWorkArchivedStatus(job.status) ? ' ch-list-item--archived' : '');
+    (isWorkArchivedStatus(job.status) ? ' ch-list-item--archived' : '') +
+    (isAuditing ? ' ch-list-item--running' : '');
   item.dataset.slug = job.slug;
+  const statusIndicator =
+    `<span class="ch-item-status" aria-hidden="true">` +
+    `<span class="ch-item-status-spinner">${WK_SPINNER_SVG}</span>` +
+    `<span class="ch-item-status-dot"></span>` +
+    `</span>`;
+  const auditingStatus = `<span class="wk-status wk-status-auditing" hidden>Auditing</span>`;
+  const defaultStatus = `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status))}</span>`;
+  const progressHint =
+    isAuditing && progress?.toolLabel
+      ? `<span class="wk-audit-progress">${escHtml(progress.toolLabel)}</span>`
+      : '';
   item.innerHTML =
     sidebarAuthorIconHtml({ contactUid: job.contact_uid }) +
+    statusIndicator +
     `<span class="ch-list-content">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span>` +
     `<span class="ch-item-date">${escHtml(shell.formatChatDate(workJobLastEdited(job)))}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact wk-list-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
-    `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status))}</span>` +
+    auditingStatus +
+    defaultStatus +
+    progressHint +
     `</span></span>`;
+  if (isAuditing) {
+    const auditingEl = item.querySelector('.wk-status-auditing');
+    const defaultEl = item.querySelector('.wk-meta-row .wk-status:not(.wk-status-auditing)');
+    if (auditingEl) auditingEl.hidden = false;
+    if (defaultEl) defaultEl.hidden = true;
+  }
   item.addEventListener('click', () => openWork(job.slug));
   return item;
 }
@@ -3626,7 +3711,7 @@ export {
   mountClientWorkSection,
   renderClientWorkSection,
   askAgentAboutWork,
-  renderWorkLinkTrackStatus,
+  refreshWorkLinkTrackStatus,
   refreshWorkLinkTrackStatus,
   getWorkEditor,
   workStatusLabel,
@@ -3638,4 +3723,6 @@ export {
   createClientDetailPanel,
   mountClientVaultSection,
   flushClientVaultSave,
+  syncWorkAuditingPoll,
+  stopWorkAuditingPoll,
 };
