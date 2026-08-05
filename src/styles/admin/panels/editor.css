@@ -1201,32 +1201,37 @@ button.de-placeholder-action:active {
 }
 #work-editor .wk-detail-chrome {
   flex: 0 0 auto;
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  gap: 0;
   min-width: 0;
   background: var(--bg);
   border-bottom: 1px solid var(--panel-border);
 }
 #work-editor .wk-detail-chrome > .de-header {
   border-bottom: none;
+  min-height: 0;
+  padding:
+    0.2rem
+    max(0.5rem, env(safe-area-inset-right, 0px))
+    0
+    max(0.5rem, env(safe-area-inset-left, 0px));
 }
 #work-editor .wk-detail-tabs {
   display: flex;
+  align-items: center;
   gap: 0.25rem;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   padding:
-    0.35rem
+    0.15rem
     max(1rem, env(safe-area-inset-right, 0px))
-    0
+    0.35rem
     max(1rem, env(safe-area-inset-left, 0px));
   flex: 0 0 auto;
-  flex-shrink: 0;
   min-width: 0;
-  min-height: 2.25rem;
   background: var(--bg);
 }
 #work-editor .wk-detail-tabs::-webkit-scrollbar { display: none; }
@@ -1415,10 +1420,6 @@ button.de-placeholder-action:active {
   }
   #work-editor.de-pane-active .de-pane {
     overflow: hidden;
-  }
-  #work-editor .wk-detail-tab {
-    padding: 0.45rem 0.75rem;
-    font-size: 0.8125rem;
   }
   #work-editor .sliding-pill-select {
     gap: 0;
