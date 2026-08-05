@@ -1610,13 +1610,15 @@
   #chat-panel.ch-pane-active .ch-pane {
     display: flex;
     flex: 1 1 auto;
-    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - var(--pane-topbar-tuck, 0.85rem));
+    /* Full topbar clearance — other mobile panes tuck under the logo, but the back
+       chevron here must stay below the brand tap target. */
+    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.2rem);
   }
   #chat-panel.ch-pane-active .ch-pane-header {
     flex-shrink: 0;
     background: var(--bg);
     gap: 0.3rem;
-    padding: 0.15rem 0.45rem 0.2rem;
+    padding: 0.35rem 0.45rem 0.25rem;
   }
   #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn:not(.ch-delete-btn),
   #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
