@@ -873,6 +873,13 @@ function workDetailTabs(isNew = false) {
   return tabs;
 }
 
+function createWorkDetailChrome(pane) {
+  const chrome = document.createElement('div');
+  chrome.className = 'wk-detail-chrome';
+  pane.appendChild(chrome);
+  return chrome;
+}
+
 function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
   const nav = document.createElement('div');
   nav.className = 'wk-detail-tabs';
@@ -2219,10 +2226,11 @@ function renderNewWorkForm(pane) {
       ariaLabel: 'Project title',
     },
   });
-  pane.appendChild(header);
+  const chrome = createWorkDetailChrome(pane);
+  chrome.appendChild(header);
   requestTitleFocus('work', titleInput);
 
-  mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+  mountWorkDetailTabs(chrome, workState.detailTab, (tabId) => {
     workState.detailTab = tabId;
     showWorkDetailPanel(pane, tabId);
   }, { isNew: true });
@@ -2514,9 +2522,10 @@ function renderEditWorkForm(pane) {
     },
   });
   header.appendChild(headerActions);
-  pane.appendChild(header);
+  const chrome = createWorkDetailChrome(pane);
+  chrome.appendChild(header);
 
-  mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+  mountWorkDetailTabs(chrome, workState.detailTab, (tabId) => {
     workState.detailTab = tabId;
     showWorkDetailPanel(pane, tabId);
   });

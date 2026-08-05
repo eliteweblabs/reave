@@ -1129,11 +1129,25 @@ button.de-placeholder-action:active {
   #todo-editor.de-pane-active .de-sidebar,
   #todo-editor.de-pane-active .ch-sidebar { display: none; }
   #knowledge-editor.de-pane-active .de-pane,
-  #work-editor.de-pane-active .de-pane,
   #schedule-panel.de-pane-active .de-pane,
   #clients-editor.de-pane-active .de-pane,
   #rule-editor.de-pane-active .de-pane,
   #todo-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+  #work-editor.de-pane-active .de-pane {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    flex: 1 1 auto;
+  }
+  #work-editor.de-pane-active .wk-detail-chrome {
+    grid-row: 1;
+    position: sticky;
+    top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
+    z-index: 6;
+  }
+  #work-editor.de-pane-active .re-form-scroll.wk-form-scroll {
+    grid-row: 2;
+    min-height: 0;
+  }
 }
 .re-settings {
   padding: 0 0.65rem 0.65rem;
@@ -1183,6 +1197,18 @@ button.de-placeholder-action:active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+#work-editor .wk-detail-chrome {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+#work-editor .wk-detail-chrome > .de-header {
+  border-bottom: none;
+}
 #work-editor .wk-detail-tabs {
   display: flex;
   gap: 0.25rem;
@@ -1195,10 +1221,10 @@ button.de-placeholder-action:active {
     max(1rem, env(safe-area-inset-right, 0px))
     0
     max(1rem, env(safe-area-inset-left, 0px));
-  border-bottom: 1px solid var(--panel-border);
   flex: 0 0 auto;
   flex-shrink: 0;
   min-width: 0;
+  min-height: 2.25rem;
   background: var(--bg);
 }
 #work-editor .wk-detail-tabs::-webkit-scrollbar { display: none; }
@@ -1359,7 +1385,16 @@ button.de-placeholder-action:active {
   min-width: 0;
 }
 @media (max-width: 639px) {
-  #work-editor.de-pane-active .de-header,
+  #work-editor.de-pane-active .wk-detail-chrome > .de-header {
+    position: static;
+    top: auto;
+    overflow: visible;
+  }
+  #work-editor.de-pane-active .wk-detail-tabs {
+    position: static;
+    top: auto;
+    z-index: auto;
+  }
   #clients-editor.de-pane-active .de-header {
     position: sticky;
     top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
@@ -1367,12 +1402,6 @@ button.de-placeholder-action:active {
     background: var(--bg);
     flex-shrink: 0;
     overflow: visible;
-  }
-  #work-editor.de-pane-active .wk-detail-tabs {
-    position: sticky;
-    top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + var(--control-h));
-    z-index: 5;
-    flex-shrink: 0;
   }
   #work-editor .wk-detail-tab {
     padding: 0.45rem 0.75rem;
