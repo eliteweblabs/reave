@@ -7,19 +7,20 @@
  */
 
 @keyframes sk-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 :root {
   --sk-base:  rgba(0, 0, 0, 0.07);
   /* Bright overlay flash — must read lighter than --sk-base in light mode */
-  --sk-shine: rgba(255, 255, 255, 0.5);
+  --sk-shine: rgba(255, 255, 255, 0.55);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --sk-base:  rgba(255, 255, 255, 0.065);
-    --sk-shine: rgba(255, 255, 255, 0.14);
+    --sk-shine: rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -36,16 +37,23 @@
 }
 
 .sk-bone {
+  position: relative;
+  overflow: hidden;
   border-radius: 6px;
   background-color: var(--sk-base);
-  background-image: linear-gradient(
+}
+
+.sk-bone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
     90deg,
     transparent 0%,
     var(--sk-shine) 50%,
     transparent 100%
   );
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
+  transform: translateX(-100%);
   animation: sk-shimmer 1.4s ease-in-out infinite;
 }
 
@@ -322,7 +330,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sk-bone {
+  .sk-bone::after {
     animation: none;
   }
 }
