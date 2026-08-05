@@ -2600,6 +2600,37 @@ button.de-placeholder-action:active {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  flex: 0 0 auto;
+}
+.cl-job-card-bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+.cl-job-card-bullets li {
+  position: relative;
+  padding-left: 0.62rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cl-job-card-bullets li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
 }
 .cl-job-card-meta {
   display: flex;

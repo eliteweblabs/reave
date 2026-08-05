@@ -15,6 +15,7 @@ import {
   type WorkPriority,
   type WorkStatus,
 } from './workStore';
+import { extractWorkPreviewBullets } from './workChecklist';
 import { serverEnv } from './serverEnv';
 
 export interface JobRow {
@@ -111,6 +112,7 @@ let _schemaReady: Promise<void> | null = null;
 let _seedReady: Promise<void> | null = null;
 
 function rowToSummary(row: JobRow): WorkJobSummary {
+  const tags = row.tags ?? [];
   return {
     slug: row.slug,
     title: row.title,
@@ -121,12 +123,13 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     priority: normalizeWorkPriority(row.priority),
     due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
     value: row.value != null ? Number(row.value) : null,
-    tags: row.tags ?? [],
+    tags,
     source: row.source ?? '',
     record_origin: 'db',
     source_chat_id: row.source_chat_id?.trim() || undefined,
     created: pgTimestamp(row.created_at),
     updated: pgTimestamp(row.updated_at),
+    preview_bullets: extractWorkPreviewBullets(row.body ?? '', { tags }),
   };
 }
 

@@ -28,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260805a';
+} from './admin-ui.js?v=20260805b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
@@ -386,6 +386,19 @@ function formatWorkCardValue(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return String(value);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
+
+function createClientWorkCardBullets(job) {
+  const bullets = Array.isArray(job.preview_bullets) ? job.preview_bullets.filter(Boolean) : [];
+  if (!bullets.length) return null;
+  const list = document.createElement('ul');
+  list.className = 'cl-job-card-bullets';
+  for (const text of bullets.slice(0, 3)) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    list.appendChild(li);
+  }
+  return list;
 }
 
 const WORK_CHECKBOX_RE = /^- \[([ xX])\] (.+)$/;
@@ -846,6 +859,8 @@ function createClientWorkCard(job) {
   }
 
   card.appendChild(title);
+  const bullets = createClientWorkCardBullets(job);
+  if (bullets) card.appendChild(bullets);
   card.appendChild(meta);
   card.addEventListener('click', () => {
     navigateToWork(job.slug);

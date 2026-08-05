@@ -12,6 +12,60 @@ export type { MarkdownCheckboxItem };
 
 export { parseMarkdownCheckboxes, getCheckedCheckboxTexts };
 
+const PLAIN_BULLET_RE = /^[-*]\s+(?!\[[ xX]\])(.+)$/;
+const PREVIEW_BULLET_MAX_LEN = 72;
+
+function cleanPreviewLine(raw: string): string {
+  return raw
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .trim();
+}
+
+function truncatePreview(text: string, max = PREVIEW_BULLET_MAX_LEN): string {
+  const t = text.trim();
+  if (!t) return '';
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).trim()}…`;
+}
+
+/** Short bullet lines for compact project tiles (checkboxes, then plain bullets, then tags). */
+export function extractWorkPreviewBullets(
+  body: string,
+  opts?: { maxItems?: number; tags?: string[] },
+): string[] {
+  const max = opts?.maxItems ?? 3;
+  const lines: string[] = [];
+
+  for (const item of parseMarkdownCheckboxes(body)) {
+    if (lines.length >= max) break;
+    const text = truncatePreview(cleanPreviewLine(item.text));
+    if (text) lines.push(text);
+  }
+
+  if (lines.length < max) {
+    for (const line of body.split('\n')) {
+      if (lines.length >= max) break;
+      const match = line.match(PLAIN_BULLET_RE);
+      if (!match) continue;
+      const text = truncatePreview(cleanPreviewLine(match[1]));
+      if (text && !lines.includes(text)) lines.push(text);
+    }
+  }
+
+  if (lines.length < max && opts?.tags?.length) {
+    for (const tag of opts.tags) {
+      if (lines.length >= max) break;
+      const text = truncatePreview(String(tag));
+      if (text && !lines.includes(text)) lines.push(text);
+    }
+  }
+
+  return lines.slice(0, max);
+}
+
 export interface InvoiceLineSuggestion {
   /** Short line-item title for Crater (≤ ~60 chars). */
   name: string;
