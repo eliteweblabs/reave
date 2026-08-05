@@ -68,7 +68,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-contact-selector={hideFabForHero ? contactSelector : undefined}
 >
   <button
-    class="aw-fab"
+    class:list={['aw-fab', `aw-fab--${variant}`]}
     type="button"
     aria-haspopup="dialog"
     aria-expanded="false"
@@ -134,8 +134,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     --aw-fab-inset: 20px;
     position: fixed;
     right: calc(env(safe-area-inset-right, 0px) + var(--aw-fab-inset));
-    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--aw-fab-inset));
-    z-index: 70;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--aw-fab-inset) + var(--aw-vv-bottom, 0px));
+    z-index: 950;
     width: 58px;
     height: 58px;
     border-radius: 50%;
@@ -147,7 +147,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     -webkit-tap-highlight-color: transparent;
   }
 
-  .aw-root--site .aw-fab {
+  .aw-fab--site {
     background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
     border: 1px solid transparent;
     box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(168, 85, 247, 0.45)), 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -160,14 +160,14 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       visibility 0s linear 0.55s;
   }
 
-  .aw-root--portal .aw-fab {
+  .aw-fab--portal {
     background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
     border: 1px solid var(--portal-brand-fill-border, transparent);
     box-shadow: 0 8px 24px rgba(var(--portal-primary-rgb, 168, 85, 247), 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
     transition: transform 0.18s ease;
   }
 
-  .aw-root--site .aw-fab.is-visible {
+  .aw-fab--site.is-visible {
     transform: translateY(0);
     opacity: 1;
     visibility: visible;
@@ -177,8 +177,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       visibility 0s linear 0s;
   }
 
-  .aw-root--site .aw-fab.is-hero-occluding,
-  .aw-root--site .aw-fab.is-visible.is-hero-occluding {
+  .aw-fab--site.is-hero-occluding,
+  .aw-fab--site.is-visible.is-hero-occluding {
     transform: translateY(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
@@ -190,8 +190,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   }
 
   .aw-fab:active { transform: scale(0.93); }
-  .aw-root--site .aw-fab:active { transform: translateY(0) scale(0.93); }
-  .aw-root--site .aw-fab.is-visible:active { transform: translateY(0) scale(0.93); }
+  .aw-fab--site:active { transform: translateY(0) scale(0.93); }
+  .aw-fab--site.is-visible:active { transform: translateY(0) scale(0.93); }
   .aw-fab[aria-expanded='true'] {
     opacity: 0;
     visibility: hidden;
@@ -200,7 +200,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-fab-icon-close { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
-    .aw-root--site .aw-fab {
+    .aw-fab--site {
       transform: none;
       opacity: 1;
       visibility: visible;
@@ -520,6 +520,38 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     }
   }
 
+  function initFabViewportBottom(fab: HTMLElement) {
+    if (fab.dataset.vvBottomBound === '1') return;
+    fab.dataset.vvBottomBound = '1';
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    let probe: HTMLDivElement | null = null;
+
+    const sync = () => {
+      if (!probe) {
+        probe = document.createElement('div');
+        probe.style.cssText =
+          'position:fixed;bottom:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none';
+        document.body.appendChild(probe);
+      }
+
+      const offsetTop = vv.offsetTop ?? 0;
+      const visualBottom = offsetTop + vv.height;
+      const layoutBottom = probe.getBoundingClientRect().bottom;
+      // When fixed uses the layout viewport, lift the FAB by the browser chrome height.
+      const chrome = Math.max(0, Math.round(layoutBottom - visualBottom));
+      fab.style.setProperty('--aw-vv-bottom', chrome > 1 ? `${chrome}px` : '0px');
+    };
+
+    vv.addEventListener('resize', sync, { passive: true });
+    vv.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('orientationchange', sync, { passive: true });
+    sync();
+  }
+
   function initAssistantWidget(root: HTMLElement) {
     const endpoint = root.dataset.endpoint || '';
     const storageKey = root.dataset.storageKey || '';
@@ -537,6 +569,12 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     const input = root.querySelector<HTMLTextAreaElement>('.aw-input');
     const sendBtn = root.querySelector<HTMLButtonElement>('.aw-send');
     if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn || !endpoint || !storageKey) return;
+
+    // Keep the FAB on <body> so no ancestor transform/filter breaks position:fixed.
+    if (fab.parentElement !== document.body) {
+      document.body.appendChild(fab);
+    }
+    initFabViewportBottom(fab);
 
     if (revealFab) initFabReveal(fab);
     if (hideFabForHero) initFabSectionHide(fab, heroSelector, contactSelector);
