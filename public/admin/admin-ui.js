@@ -1368,6 +1368,8 @@ function createListSelectionController(listEl, opts) {
           longPressFired = false;
           return;
         }
+        // Icon clicks use handleSelectIconClick; skip here so capture doesn't toggle twice.
+        if (ev.target.closest('.list-select-icon')) return;
         if (!active) return;
         ev.preventDefault();
         ev.stopPropagation();
