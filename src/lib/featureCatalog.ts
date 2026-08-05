@@ -28,6 +28,7 @@ export const FEATURE_IDS = [
   'real_estate_data',
   'inventory_sync',
   'online_reviews',
+  'wayback_machine',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -57,6 +58,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   real_estate_data: 'Real estate data & lead scanner (property facts, compliance, daily geofence scan)',
   inventory_sync: 'Multi-channel inventory sync (Shopify, WooCommerce, Square via inventory-api)',
   online_reviews: 'Online reviews inbox — Google sync + response to-do workflow',
+  wayback_machine: 'Wayback Machine — browse archived website snapshots (Internet Archive)',
 };
 
 export const CORE_FEATURE_NOTE =

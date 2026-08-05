@@ -26,6 +26,7 @@ import { demoPlugin } from '../../plugins/demo/manifest';
 import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
 import { inventoryPlugin } from '../../plugins/inventory/manifest';
 import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
+import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -46,6 +47,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   realEstateDataPlugin,
   inventoryPlugin,
   onlineReviewsPlugin,
+  waybackMachinePlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -140,6 +142,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['inventory-sync'];
     case 'online-reviews':
       return ['online-reviews'];
+    case 'wayback-machine':
+      return ['wayback-machine'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':
