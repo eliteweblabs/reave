@@ -21,7 +21,7 @@ const {
   mapboxAccessToken,
   craterFinanceUrl,
   githubRepo,
-  osMapLoaderVersion = "20260805d",
+  osMapLoaderVersion = "20260805e",
 } = Astro.props;
 
 const deployStatusClient = getDeployStatusClientSummary();
@@ -63,7 +63,7 @@ const deployStatusClient = getDeployStatusClientSummary();
 <script>
   import '../../admin/agent-chat-mount.tsx';
 </script>
-<script is:inline type="module" src="/admin/push-client.js?v=20260804a"></script>
+<script is:inline type="module" src="/admin/push-client.js?v=20260805e"></script>
 <script src="/ios-sheet.js" defer></script>
 <script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient }}>
   window.__companyBrand = companyBrand;

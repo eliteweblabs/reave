@@ -99,7 +99,7 @@ import {
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260805a';
-import { installPwaNavGuard } from './push-client.js?v=20260804a';
+import { installPwaNavGuard } from './push-client.js?v=20260805e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync } from './shared.js?v=20260804b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
@@ -116,7 +116,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260805d';
+} from './work-panel.js?v=20260805e';
 import {
   initTodoPanel,
   todoState,
