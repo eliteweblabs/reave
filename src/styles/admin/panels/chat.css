@@ -269,11 +269,11 @@ body.sidebar-resize-active * {
   background: var(--bg);
 }
 .ch-pane-header-main {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  align-items: center;
 }
 .ch-pane-project-links {
   display: flex;
