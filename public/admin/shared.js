@@ -426,7 +426,7 @@ export function resolveContactAuthorIconUrl(contactUid, explicitIconUrl) {
 export function sidebarAuthorIconHtml(opts = {}) {
   const url = resolveContactAuthorIconUrl(opts.contactUid, opts.iconUrl);
   return (
-    `<span class="sidebar-list-author-icon" aria-hidden="true">` +
+    `<span class="sidebar-list-author-icon list-select-icon" role="checkbox" aria-label="Select item">` +
     `<img class="sidebar-list-author-icon-img" src="${escHtml(url)}" alt="" loading="lazy" decoding="async" />` +
     `</span>`
   );
