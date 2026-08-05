@@ -94,6 +94,32 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
   </div>
 </section>
 
+<script>
+  /** Pin hero height to the visible viewport — iOS Safari dvh alone can undershoot the fold. */
+  function syncHomeHeroViewportHeight() {
+    const hero = document.querySelector<HTMLElement>(".home-hero");
+    if (!hero) return;
+    const height = window.visualViewport?.height ?? window.innerHeight;
+    hero.style.setProperty("--home-hero-vh", `${Math.round(height)}px`);
+  }
+
+  function bindHomeHeroViewportHeight() {
+    if (document.documentElement.dataset.homeHeroVhBound === "1") return;
+    document.documentElement.dataset.homeHeroVhBound = "1";
+
+    const sync = () => syncHomeHeroViewportHeight();
+    window.visualViewport?.addEventListener("resize", sync, { passive: true });
+    window.addEventListener("resize", sync, { passive: true });
+    window.addEventListener("orientationchange", sync, { passive: true });
+    sync();
+    requestAnimationFrame(sync);
+    window.setTimeout(sync, 150);
+  }
+
+  bindHomeHeroViewportHeight();
+  document.addEventListener("astro:page-load", bindHomeHeroViewportHeight);
+</script>
+
 {
   showHeroDemo && (
     <script>
@@ -117,9 +143,15 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
     position: relative;
     z-index: 0;
     width: 100%;
+    /* Fallback chain, then JS --home-hero-vh from visualViewport on iOS Safari. */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    min-height: 100svh;
+    min-height: 100dvh;
+    min-height: var(--home-hero-vh, 100dvh);
     height: 100svh;
     height: 100dvh;
-    min-height: 100svh;
+    height: var(--home-hero-vh, 100dvh);
     overflow: hidden;
     scroll-margin-top: 0;
   }
