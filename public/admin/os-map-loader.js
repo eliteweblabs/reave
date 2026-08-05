@@ -100,7 +100,7 @@ import {
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260805a';
 import { installPwaNavGuard } from './push-client.js?v=20260805e';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync } from './shared.js?v=20260804b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805h';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -10799,6 +10799,8 @@ function createEmailListItem(ev) {
     (isProjectReplyEmail(ev) ? ' em-list-item-urgent' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
+    emailListAuthorIconHtml(ev) +
+    `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       (isProjectReplyEmail(ev)
@@ -10823,7 +10825,8 @@ function createEmailListItem(ev) {
       `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
       `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +
     `</span>` +
-    `<span class="em-item-summary">${escHtml(summary)}</span>`;
+    `<span class="em-item-summary">${escHtml(summary)}</span>` +
+    `</span>`;
   item.addEventListener('click', () => openEmailEvent(ev.id));
   return item;
 }
@@ -10978,6 +10981,7 @@ async function loadEmailTab(quiet) {
       adminFetch('/api/email/inbox?junk=1'),
       loadEmailSentEvents(true),
       loadEmailDraftEvents(true),
+      ensureContactAuthorIconsReady(),
     ]);
     const data = await readAdminJson(inboxRes, 'Inbox');
     if (!inboxRes.ok) throw new Error(data.error || `HTTP ${inboxRes.status}`);
@@ -11326,12 +11330,15 @@ function createSentListItem(ev) {
   item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
+    emailListAuthorIconHtml(ev) +
+    `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
       `<span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(ev.source))}</span>` +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.sentAt))}</span>` +
       `<span class="em-item-from">${escHtml(ev.toEmail || '(unknown)')}</span>` +
     `</span>` +
-    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>`;
+    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>` +
+    `</span>`;
   item.addEventListener('click', () => openSentEvent(ev.id));
   return item;
 }
@@ -11389,12 +11396,15 @@ function createDraftListItem(ev) {
   item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
+    emailListAuthorIconHtml(ev) +
+    `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
       `<span class="em-status em-status-sent">Draft</span>` +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.updatedAt || ev.createdAt))}</span>` +
       `<span class="em-item-from">${escHtml(draftRecipientSummary(ev))}</span>` +
     `</span>` +
-    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>`;
+    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>` +
+    `</span>`;
   item.addEventListener('click', () => openDraftEvent(ev.id));
   return item;
 }

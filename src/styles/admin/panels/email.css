@@ -197,6 +197,11 @@
   text-align: left;
   margin-bottom: 0.15rem;
 }
+.em-list-item:has(.sidebar-list-author-icon) {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.45rem;
+}
 .em-list-item:hover { color: var(--fg); background: var(--surface-hover); }
 .em-list-item.active {
   color: var(--fg);
