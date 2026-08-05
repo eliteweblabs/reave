@@ -175,7 +175,11 @@ export function isModuleRuntimeAllowed(feature: FeatureId): boolean {
 
 export function shouldShowDeployBanner(feature: FeatureId): boolean {
   if (!hasFeature(feature)) return false;
-  const status = getModuleDeployStatus(feature);
+  // Only installs that explicitly track moduleStatus (demo, new client rollouts) show the banner.
+  // Production configs like config-reave.json omit moduleStatus — modules are live or disabled via features[].
+  const raw = getInstallConfigSync().moduleStatus?.[feature];
+  if (raw === undefined) return false;
+  const status = normalizeStatus(raw, 'pending');
   return status !== 'deployed' && status !== 'rejected';
 }
 
