@@ -15,7 +15,6 @@ import { braveSearch } from './braveClient';
 import { guessClientWebsite } from './clientBrand';
 import { fetchUrl } from './fetchUrlClient';
 import {
-  contactStringField,
   extractPortal,
   getClientKind,
   getContact,
@@ -24,6 +23,7 @@ import {
   type ClientPortalField,
   type ContactRecord,
 } from './contactApi';
+import { enrichContactAddressFromPlaces } from './contactAddressFromPlaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -142,6 +142,9 @@ export async function triggerContactPortalEnrich(uid: string): Promise<void> {
 
     const res = await getContact(trimmed);
     if (!res.ok || res.data.archived) return;
+
+    await enrichContactAddressFromPlaces(trimmed);
+
     if (getClientKind(res.data) !== 'professional') return;
 
     const portal = extractPortal(res.data);

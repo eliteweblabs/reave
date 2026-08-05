@@ -405,6 +405,7 @@ export async function ensureWorkContact(opts: {
     ? preferredContactName(extracted)
     : deriveContactName(from, [opts.contact_name, opts.client]);
   const company = extracted?.company ?? null;
+  const businessName = opts.client?.trim() || opts.contact_name?.trim() || null;
 
   if (email.includes('@')) {
     const byEmail = await resolveContact({ email });
@@ -425,9 +426,15 @@ export async function ensureWorkContact(opts: {
   const created = await createContact({
     name: derivedName,
     email: email.includes('@') ? email : undefined,
-    company: company ?? undefined,
+    company: company ?? businessName ?? undefined,
   });
   if (!created.ok) return { ok: false, error: created.error };
+
+  void import('./contactAddressFromPlaces')
+    .then((m) => m.enrichContactAddressFromPlaces(created.data.uid))
+    .catch((e) =>
+      console.warn('[workStore] Places address lookup failed', e instanceof Error ? e.message : e),
+    );
 
   return { ok: true, uid: created.data.uid, name: created.data.name, company, created: true };
 }

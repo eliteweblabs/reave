@@ -24,6 +24,7 @@
 
 import type { APIContext } from 'astro';
 import { findClientStrictForSiri, searchClientsEnhanced } from '../../../lib/clientSearch';
+import { enrichContactAddressFromPlaces } from '../../../lib/contactAddressFromPlaces';
 import {
   contactSummary,
   createContact,
@@ -297,6 +298,8 @@ async function handleCreateClient(params: Record<string, unknown>): Promise<Siri
 
   if (!result.ok) return { ok: false, error: result.error };
 
+  await enrichContactAddressFromPlaces(result.data.uid);
+
   const summary = contactSummary(result.data);
   return {
     ok: true,
@@ -401,6 +404,8 @@ async function resolveClientForProject(
     company,
   });
   if (!created.ok) return { ok: false, error: created.error };
+
+  await enrichContactAddressFromPlaces(created.data.uid);
 
   return {
     ok: true,

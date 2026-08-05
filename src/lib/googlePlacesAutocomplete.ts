@@ -98,6 +98,12 @@ export async function autocompletePlaces(
 
 /** Best-effort address for a business or place name (first autocomplete match). */
 export async function lookupBusinessAddress(query: string): Promise<PlacePrediction | null> {
-  const predictions = await autocompletePlaces(query, { maxResults: 1 });
-  return predictions[0] ?? null;
+  const establishment = await autocompletePlaces(query, {
+    maxResults: 1,
+    types: 'establishment',
+  });
+  if (establishment[0]) return establishment[0];
+
+  const any = await autocompletePlaces(query, { maxResults: 1 });
+  return any[0] ?? null;
 }

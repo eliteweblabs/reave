@@ -11,8 +11,7 @@ import {
   searchClientsEnhanced,
 } from '../../../lib/clientSearch';
 import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
-import { setClientPortalAddress } from '../../../lib/clientBrand';
-import { lookupBusinessAddress } from '../../../lib/googlePlacesAutocomplete';
+import { enrichContactAddressFromPlaces } from '../../../lib/contactAddressFromPlaces';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   attachPortalLinksForList,
@@ -126,20 +125,9 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!flagged.ok) return json({ ok: false, error: flagged.error }, 502);
   }
 
-  // Best-effort address from Google Places when a business name is provided.
-  const company = String(body.company ?? '').trim();
-  if (kind === 'professional' && company) {
-    try {
-      const place = await lookupBusinessAddress(company);
-      if (place?.description) {
-        await setClientPortalAddress(result.data.uid, place.description);
-      }
-    } catch (e) {
-      console.warn(
-        '[clients] Places address lookup failed',
-        e instanceof Error ? e.message : e,
-      );
-    }
+  // Best-effort address from Google Places (company or contact name).
+  if (kind !== 'personal') {
+    await enrichContactAddressFromPlaces(result.data.uid);
   }
 
   // Fire the welcome/follow-up automations (non-blocking; skip personal/proposed contacts).
