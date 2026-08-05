@@ -2724,7 +2724,9 @@ function renderEditWorkForm(pane) {
 }
 
 function activateWorkPaneOnMobile() {
-  if (shell.isMobileTabs?.()) getWorkEditor()?.classList.add('de-pane-active');
+  if (workState.activeSlug && shell.isMobileTabs?.()) {
+    getWorkEditor()?.classList.add('de-pane-active');
+  }
 }
 
 async function openWork(slug) {
