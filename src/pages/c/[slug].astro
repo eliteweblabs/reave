@@ -43,6 +43,8 @@ import FootBostonTag from '../../components/FootBostonTag.astro';
 import SiteLegalLinks from '../../components/SiteLegalLinks.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
+import ViewportMeta from '../../components/ViewportMeta.astro';
+import '../../styles/mobile-touch.css';
 import SiteDismissAlert from '../../components/SiteDismissAlert.astro';
 
 const org = await getCompanyConfig(Astro.request);
@@ -357,7 +359,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
     <title>{notFound ? 'Not found' : pageTitle}</title>
     {!notFound && (

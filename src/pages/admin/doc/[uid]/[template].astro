@@ -12,6 +12,8 @@ import { getContact, extractPortal } from '../../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { getTemplate, fillAndRenderTemplate } from '../../../../lib/documentTemplates';
 import Favicon from '../../../../components/Favicon.astro';
+import ViewportMeta from '../../../../components/ViewportMeta.astro';
+import '../../../../styles/mobile-touch.css';
 
 export const prerender = false;
 
@@ -66,7 +68,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
     <title>{error ? 'Not found' : `Review — ${title}`}</title>
     <Favicon />

@@ -1,5 +1,7 @@
 ---
 import Favicon from "../components/Favicon.astro";
+import ViewportMeta from "../components/ViewportMeta.astro";
+import "../styles/mobile-touch.css";
 
 export const prerender = false;
 ---
@@ -8,6 +10,7 @@ export const prerender = false;
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <ViewportMeta />
     <title>Signing out…</title>
     <Favicon />
     <style>
