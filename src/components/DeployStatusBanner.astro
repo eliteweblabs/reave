@@ -1,0 +1,152 @@
+---
+/**
+ * Sticky banner when enabled modules are not fully deployed, or when a demo suite is pending seed.
+ */
+import { getDeployStatusClientSummary } from "../lib/deployModuleStatus";
+import { demoSuiteSummary, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from "../lib/demoSuite";
+import { isDemoMode } from "../lib/demoMode";
+
+const deployStatus = getDeployStatusClientSummary();
+const cookieRaw = Astro.cookies.get(DEMO_SUITE_COOKIE)?.value;
+const demoSuite = parseDemoSuiteCookie(cookieRaw);
+const showDemoSuite = isDemoMode() && demoSuite && Astro.url.searchParams.has("demoSuite");
+
+type BannerModule = { id: string; label: string; status: string };
+
+const modules: BannerModule[] = deployStatus.modules.map((m) => ({
+  id: m.id,
+  label: m.label,
+  status: m.status,
+}));
+
+const statusTone: Record<string, string> = {
+  pending: "#92400e",
+  development: "#854d0e",
+  request: "#1e3a8a",
+};
+
+const statusBg: Record<string, string> = {
+  pending: "#fef3c7",
+  development: "#fef9c3",
+  request: "#dbeafe",
+};
+
+const hasDeployBanner = deployStatus.hasBanner;
+const hasBanner = hasDeployBanner || showDemoSuite;
+---
+
+{
+  hasBanner && (
+    <div
+      id="deploy-status-banner"
+      role="alert"
+      class="deploy-status-banner"
+      data-demo-suite={showDemoSuite ? "1" : undefined}
+    >
+      {showDemoSuite && demoSuite && (
+        <p class="deploy-status-banner__lead">
+          <strong>Demo suite ready</strong> — {demoSuiteSummary(demoSuite)}.
+          Open <strong>Admin → Chats</strong> and ask to <em>run demo seed</em>, or use the demo panel.
+        </p>
+      )}
+      {hasDeployBanner && (
+        <p class="deploy-status-banner__lead">
+          <strong>Deployment in progress</strong> —{" "}
+          {modules.length === 1
+            ? `${modules[0]!.label} is ${modules[0]!.status}.`
+            : `${modules.length} modules need setup.`}
+        </p>
+      )}
+      {hasDeployBanner && (
+        <ul class="deploy-status-banner__list">
+          {modules.map((m) => (
+            <li>
+              <span
+                class="deploy-status-banner__pill"
+                style={`background:${statusBg[m.status] ?? "#fef3c7"};color:${statusTone[m.status] ?? "#92400e"}`}
+              >
+                {m.label} · {m.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" class="deploy-status-banner__dismiss" data-deploy-dismiss aria-label="Dismiss">
+        ×
+      </button>
+    </div>
+  )
+}
+
+<script is:inline>
+  (function () {
+    var banner = document.getElementById('deploy-status-banner');
+    if (!banner) return;
+    var key = 'reave_deploy_banner_dismiss';
+    if (sessionStorage.getItem(key) === '1') {
+      banner.remove();
+      return;
+    }
+    var btn = banner.querySelector('[data-deploy-dismiss]');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        sessionStorage.setItem(key, '1');
+        banner.remove();
+      });
+    }
+  })();
+</script>
+
+<style is:global>
+  .deploy-status-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99990;
+    padding: 0.65rem 2.5rem 0.65rem 1rem;
+    background: linear-gradient(180deg, #422006 0%, #292524 100%);
+    color: #fef3c7;
+    font: 500 0.82rem/1.45 ui-sans-serif, system-ui, sans-serif;
+    border-bottom: 1px solid #78350f;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .deploy-status-banner__lead {
+    margin: 0 0 0.35rem;
+  }
+
+  .deploy-status-banner__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .deploy-status-banner__pill {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .deploy-status-banner__dismiss {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+    border: none;
+    background: transparent;
+    color: #fde68a;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+  }
+
+  body:has(.deploy-status-banner) .app-header {
+    margin-top: 3.25rem;
+  }
+</style>

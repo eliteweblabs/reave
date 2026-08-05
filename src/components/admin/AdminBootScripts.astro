@@ -1,6 +1,7 @@
 ---
 import type { CompanyBrandContext } from "../../lib/companyConfig";
 import type { InstallConfigClient } from "../../lib/installConfig";
+import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
 
 interface Props {
   companyBrand: CompanyBrandContext;
@@ -22,6 +23,8 @@ const {
   githubRepo,
   osMapLoaderVersion = "20260804c",
 } = Astro.props;
+
+const deployStatusClient = getDeployStatusClientSummary();
 ---
 
 <script is:inline>
@@ -62,12 +65,13 @@ const {
 </script>
 <script is:inline type="module" src="/admin/push-client.js?v=20260804a"></script>
 <script src="/ios-sheet.js" defer></script>
-<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo }}>
+<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient }}>
   window.__companyBrand = companyBrand;
   window.__companyStaffAvatarUrl = staffAvatarUrl;
   window.__installConfig = installConfigClient;
   window.__mapboxAccessToken = mapboxAccessToken;
   window.__craterFinanceUrl = craterFinanceUrl;
   window.__githubRepo = githubRepo;
+  window.__deployStatus = deployStatusClient;
 </script>
 <script is:inline type="module" src={`/admin/os-map-loader.js?v=${osMapLoaderVersion}`}></script>

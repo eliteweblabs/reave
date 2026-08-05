@@ -13,6 +13,20 @@
     "dev_infra",
     "email_marketing"
   ],
+  "moduleStatus": {
+    "demo": "development",
+    "client_portal": "deployed",
+    "web_handoff": "pending",
+    "portal_assistant": "pending",
+    "site_audits": "pending",
+    "site_monitoring": "pending",
+    "uptime_monitoring": "pending",
+    "documents": "pending",
+    "carddav": "pending",
+    "scheduling": "pending",
+    "dev_infra": "pending",
+    "email_marketing": "pending"
+  },
   "footerNav": [
     "__system__",
     "home",

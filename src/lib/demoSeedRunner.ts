@@ -11,6 +11,9 @@ export type DemoSeedOptions = {
   forceCompany?: boolean;
   withBookings?: boolean;
   dryRun?: boolean;
+  industry?: string;
+  moduleIds?: string[];
+  tier?: number;
 };
 
 export type DemoSeedResult =
@@ -43,6 +46,15 @@ export function runDemoSeed(options: DemoSeedOptions = {}): DemoSeedResult {
   if (options.forceCompany) args.push('--force-company');
   if (options.withBookings) args.push('--with-bookings');
   if (options.dryRun) args.push('--dry-run');
+  if (options.industry?.trim()) {
+    args.push('--industry', options.industry.trim());
+  }
+  if (options.moduleIds?.length) {
+    args.push('--module-ids', options.moduleIds.join(','));
+  }
+  if (options.tier != null && options.tier > 0) {
+    args.push('--tier', String(options.tier));
+  }
 
   const child = spawnSync(process.execPath, args, {
     cwd: root,

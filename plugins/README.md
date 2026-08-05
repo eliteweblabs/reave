@@ -8,11 +8,16 @@ Reave core (`src/knowledge/`) holds **generic product mechanics only**. Plugin p
 
 ```
 plugins/{id}/
+├── DEPLOY.md         # deployment playbook (env vars, checklist, defaultStatus)
 ├── manifest.ts       # feature gate, configured(), agentTools export
 ├── knowledge/        # bundled markdown playbooks (?raw glob)
 │   └── installs/     # optional install-scoped docs
 └── agentTools.ts     # optional Admin → Chats tool module
 ```
+
+Core-only features (no plugin dir) use `config/modules/{feature}.DEPLOY.md`.
+
+Per-install deployment **status** (`deployed`, `development`, `pending`, `request`, `rejected`) lives in `config/config-{slug}.json` → `moduleStatus`. See [`docs/deployment-punch-list.md`](../docs/deployment-punch-list.md).
 
 ## Registered plugins
 

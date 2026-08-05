@@ -12,6 +12,7 @@
     "sync:resend-dns": "node --experimental-strip-types scripts/sync-resend-dns.ts",
     "sync:vapi": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "seed:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-demo.ts",
+    "deploy:checklist": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/generate-deploy-checklist.ts",
     "seed:bookings": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-bookings.ts",
     "push:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/send-demo-push.ts",
     "portfolio:optimize": "node scripts/optimize-portfolio-images.mjs",

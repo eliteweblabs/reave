@@ -38,6 +38,13 @@ async function handle_run_demo_seed(args: Record<string, unknown>, _ctx: ToolCon
     forceCompany: args.force_company === true || args.forceCompany === true,
     withBookings: args.with_bookings === true || args.withBookings === true,
     dryRun,
+    industry: typeof args.industry === 'string' ? args.industry : undefined,
+    moduleIds: Array.isArray(args.module_ids)
+      ? (args.module_ids as string[])
+      : Array.isArray(args.moduleIds)
+        ? (args.moduleIds as string[])
+        : undefined,
+    tier: typeof args.tier === 'number' ? args.tier : undefined,
   });
 
   if (!result.ok) {
@@ -95,6 +102,19 @@ export const demoModule: AgentToolModule = {
               dry_run: {
                 type: 'boolean',
                 description: 'Plan only — no database or API writes',
+              },
+              industry: {
+                type: 'string',
+                description: 'Industry slug for themed seed data (plumbing, general)',
+              },
+              module_ids: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Numeric module ids from demo URL, e.g. ["001","004"]',
+              },
+              tier: {
+                type: 'number',
+                description: 'Installation tier (default 1)',
               },
             },
             additionalProperties: false,

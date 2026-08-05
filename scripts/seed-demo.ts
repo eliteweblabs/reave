@@ -35,30 +35,62 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import pg from 'pg';
 import {
-  DEMO_CHATS,
-  DEMO_CONTACTS,
-  DEMO_EMAILS,
-  DEMO_ENGAGEMENT,
-  DEMO_JOB_COMMENTS,
-  DEMO_JOBS,
   DEMO_SEED_MARKER,
-  DEMO_TODOS,
   isDemoContactEmail,
   type DemoContactDef,
 } from './demo-data.ts';
+import { getDemoIndustryFixtures, type DemoIndustryFixtures } from './demo-industries/index.ts';
 
 const { Pool } = pg;
 
 const ROOT = dirname(fileURLToPath(new URL('.', import.meta.url)));
 const REPO_ROOT = join(ROOT, '..');
 
+function parseCliArg(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  if (idx >= 0 && process.argv[idx + 1] && !process.argv[idx + 1]!.startsWith('-')) {
+    return process.argv[idx + 1];
+  }
+  const prefixed = process.argv.find((a) => a.startsWith(`${flag}=`));
+  return prefixed?.slice(flag.length + 1);
+}
+
 const DRY_RUN = process.argv.includes('--dry-run');
 const FRESH = process.argv.includes('--fresh');
-const WITH_BOOKINGS = process.argv.includes('--with-bookings');
+const WITH_BOOKINGS_FLAG = process.argv.includes('--with-bookings');
 const SEND_PUSH = process.argv.includes('--push');
 const FORCE_COMPANY = process.argv.includes('--force-company') || process.env.DEMO_FORCE_COMPANY === '1';
 
 loadDotEnv();
+
+function env(name: string): string | undefined {
+  return process.env[name]?.trim() || undefined;
+}
+
+const DEMO_INDUSTRY = parseCliArg('--industry') ?? env('DEMO_INDUSTRY') ?? 'general';
+const DEMO_MODULE_IDS = (parseCliArg('--module-ids') ?? env('DEMO_MODULE_IDS') ?? '')
+  .split(/[,|\s]+/)
+  .map((s) => s.trim().padStart(3, '0'))
+  .filter(Boolean);
+const DEMO_TIER = parseCliArg('--tier') ?? env('DEMO_TIER') ?? '1';
+
+const FIXTURES: DemoIndustryFixtures = getDemoIndustryFixtures(DEMO_INDUSTRY);
+const DEMO_CONTACTS = FIXTURES.contacts;
+const DEMO_JOBS = FIXTURES.jobs;
+const DEMO_EMAILS = FIXTURES.emails;
+const DEMO_CHATS = FIXTURES.chats;
+const DEMO_TODOS = FIXTURES.todos;
+const DEMO_ENGAGEMENT = FIXTURES.engagement;
+const DEMO_JOB_COMMENTS = FIXTURES.jobComments;
+
+function hasDemoModule(id: string): boolean {
+  if (!DEMO_MODULE_IDS.length) return true;
+  return DEMO_MODULE_IDS.includes(id.padStart(3, '0'));
+}
+
+/** Scheduling module id 012 — auto-enable bookings seed when in suite. */
+const WITH_BOOKINGS =
+  WITH_BOOKINGS_FLAG || (hasDemoModule('012') && Boolean(env('CALCOM_DATABASE_URL')));
 
 type ContactRecord = {
   uid: string;
@@ -86,10 +118,6 @@ function loadDotEnv(): void {
     }
     process.env[m[1]] = v;
   }
-}
-
-function env(name: string): string | undefined {
-  return process.env[name]?.trim() || undefined;
 }
 
 function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
@@ -439,10 +467,10 @@ async function seedCompanyConfig(pool: pg.Pool): Promise<void> {
       updated_at = now()
      WHERE id = 1`,
     [
-      'Reave Demo Co.',
-      'Full-service design, build, and ops for Boston-area clients.',
+      FIXTURES.company.name,
+      FIXTURES.company.description,
       env('PUBLIC_SITE_DOMAIN') ?? 'demo.reave.app',
-      env('DEMO_REAL_CONTACT_EMAIL') ?? 'hello@demo.reave.app',
+      FIXTURES.company.supportEmail ?? env('DEMO_REAL_CONTACT_EMAIL') ?? 'hello@demo.reave.app',
       '+1 (617) 555-0100',
       '177 Huntington Ave, Boston, MA 02115',
     ],
@@ -825,9 +853,15 @@ async function sendDemoPush(): Promise<void> {
 
   await sendPushNotification({
     title: 'Demo environment ready',
-    body: 'Sarah Chen replied about the deck railing — tap to open the inbox.',
+    body:
+      FIXTURES.industry === 'plumbing'
+        ? 'Sarah Chen asked about the water heater install — tap to open the inbox.'
+        : 'Sarah Chen replied about the deck railing — tap to open the inbox.',
     tag: 'demo-seed',
-    url: '/admin?tab=email&email=demo-email-sarah-reply',
+    url:
+      FIXTURES.industry === 'plumbing'
+        ? '/admin?tab=email&email=demo-email-sarah-heater'
+        : '/admin?tab=email&email=demo-email-sarah-reply',
     badgeCount: 4,
   });
   log(`Push sent to ${subs.length} device(s). Lock your phone to see it.`);
@@ -835,6 +869,7 @@ async function sendDemoPush(): Promise<void> {
 
 function printSummary(contacts: Map<string, SeededContact>): void {
   console.log('\n── Demo seed summary ──');
+  console.log(`Industry: ${FIXTURES.industry}${DEMO_MODULE_IDS.length ? ` · modules: ${DEMO_MODULE_IDS.join(',')}` : ''}${DEMO_TIER ? ` · tier: ${DEMO_TIER}` : ''}`);
   console.log(`Fake contacts: ${DEMO_CONTACTS.length}`);
   console.log(`Projects: ${DEMO_JOBS.length}${contacts.has('real') ? ' + 1 real' : ''}`);
   console.log(`Inbox: ${DEMO_EMAILS.length} · Chats: ${DEMO_CHATS.length} · Todos: ${DEMO_TODOS.length}`);

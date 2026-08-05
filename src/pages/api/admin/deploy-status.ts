@@ -1,41 +1,39 @@
 /**
- * GET /api/admin/deploy-status — lightweight deploy snapshot for the topbar indicator.
- * Public (no auth) — dev convenience so deploy state is visible without signing in.
+ * GET /api/admin/deploy-status — module deployment catalog for this install (auth required).
  */
-
 import type { APIContext } from 'astro';
-import {
-  deployIndicatorTone,
-  deployTooltip,
-  formatDeployDateEastern,
-  getDeployStatus,
-} from '../../../lib/deployStatus';
+import { listAllDeployModules } from '../../../lib/deployModuleStatus';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
 }
 
-export async function GET(_context: APIContext): Promise<Response> {
-  const deploy = await getDeployStatus().catch(() => null);
-  if (!deploy) {
-    return json({ ok: true, deploy: null });
-  }
+export async function GET(context: APIContext): Promise<Response> {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const modules = listAllDeployModules().map((m) => ({
+    id: m.feature,
+    label: m.label,
+    enabled: m.enabled,
+    status: m.status,
+    configured: m.configured,
+    active: m.active,
+    runtimeAllowed: m.runtimeAllowed,
+    showBanner: m.showBanner,
+    stage: m.stage,
+    playbook: m.path || null,
+  }));
 
   return json({
     ok: true,
-    deploy: {
-      state: deploy.state,
-      tone: deployIndicatorTone(deploy.state),
-      tooltip: deployTooltip(deploy),
-      deployedShort: deploy.deployed_short,
-      deployedAt: deploy.deployed_at,
-      deployedAtEastern: formatDeployDateEastern(deploy.deployed_at),
-      upToDate: deploy.up_to_date,
-    },
+    modules,
+    undeployed: modules.filter((m) => m.enabled && m.showBanner),
   });
 }

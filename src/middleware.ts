@@ -1,6 +1,13 @@
 import type { MiddlewareHandler } from "astro";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
+import { isModuleRuntimeAllowed } from "./lib/deployModuleStatus";
+import {
+  DEMO_SUITE_COOKIE,
+  DEMO_SUITE_COOKIE_MAX_AGE,
+  parseDemoSuiteFromSearchParams,
+  serializeDemoSuite,
+} from "./lib/demoSuite";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { serverEnv } from "./lib/serverEnv";
@@ -39,11 +46,17 @@ function featureBlockedResponse(): Response {
   return applySecurityHeaders(new Response("Not found", { status: 404 }));
 }
 
+function isFeatureRuntimeBlocked(feature: Parameters<typeof hasFeature>[0]): boolean {
+  return hasFeature(feature) && !isModuleRuntimeAllowed(feature);
+}
+
 function isFeatureBlockedPath(pathname: string): boolean {
-  if (pathname.startsWith("/c/") && !hasFeature("client_portal")) return true;
+  if (pathname.startsWith("/c/") && (!hasFeature("client_portal") || isFeatureRuntimeBlocked("client_portal"))) {
+    return true;
+  }
   if (
     (pathname === "/carddav" || pathname.startsWith("/carddav/") || pathname === "/.well-known/carddav") &&
-    !hasFeature("carddav")
+    (!hasFeature("carddav") || isFeatureRuntimeBlocked("carddav"))
   ) {
     return true;
   }
@@ -52,7 +65,7 @@ function isFeatureBlockedPath(pathname: string): boolean {
       pathname.startsWith("/admin/doc/") ||
       pathname.startsWith("/api/doc/") ||
       pathname.startsWith("/api/admin/doc/")) &&
-    !hasFeature("documents")
+    (!hasFeature("documents") || isFeatureRuntimeBlocked("documents"))
   ) {
     return true;
   }
@@ -91,6 +104,22 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
   }
 
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
+
+  // Demo suite landing — ?demo=tier-1&modules=[001,004]&industry=plumbing
+  const demoParsed = parseDemoSuiteFromSearchParams(url.searchParams);
+  if (demoParsed?.ok && (normalizedPath === "/" || normalizedPath === "/admin")) {
+    context.cookies.set(DEMO_SUITE_COOKIE, serializeDemoSuite(demoParsed.suite), {
+      path: "/",
+      maxAge: DEMO_SUITE_COOKIE_MAX_AGE,
+      sameSite: "lax",
+      secure: url.protocol === "https:",
+      httpOnly: false,
+    });
+    const target = new URL("/admin/", url.origin);
+    target.searchParams.set("demoSuite", "1");
+    return applySecurityHeaders(context.redirect(target.toString()));
+  }
+
   if (normalizedPath === "/portfolio") {
     return applySecurityHeaders(
       new Response(null, {

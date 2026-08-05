@@ -73,6 +73,24 @@ export const FOOTER_NAV_MAP_KEYS = [
 export type FooterNavMapKey = (typeof FOOTER_NAV_MAP_KEYS)[number];
 export type FooterNavKey = FooterNavMapKey | FooterNavSlotKey;
 
+export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
+
+/** Per-module deployment lifecycle — overrides DEPLOY.md defaultStatus. */
+export type ModuleDeployStatus =
+  | 'deployed'
+  | 'development'
+  | 'pending'
+  | 'request'
+  | 'rejected';
+
+const MODULE_STATUS_SET = new Set<string>([
+  'deployed',
+  'development',
+  'pending',
+  'request',
+  'rejected',
+]);
+
 export type InstallConfig = {
   /** Enabled optional modules for this deployment. */
   features: InstallFeatureId[];
@@ -84,12 +102,19 @@ export type InstallConfig = {
   homepageVoice?: boolean;
   /** Minimal full-screen chat skin at `/focus` (speed-dial FAB, project-first new chats). */
   chatFocusSkin?: boolean;
+  /** Per-install module deployment status (see plugin DEPLOY.md playbooks). */
+  moduleStatus?: Partial<Record<InstallFeatureId, ModuleDeployStatus>>;
 };
 
 export type InstallConfigClient = Pick<
   InstallConfig,
   'features' | 'footerNav' | 'profileMenu' | 'homepageVoice' | 'chatFocusSkin'
->;
+> & {
+  deployStatus?: {
+    modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
+    hasBanner: boolean;
+  };
+};
 
 export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   profile: 'Profile',
@@ -235,6 +260,20 @@ function defaultProfileMenu(): ProfileMenuKey[] {
   return [...PROFILE_MENU_KEYS];
 }
 
+function normalizeModuleStatus(raw: unknown): Partial<Record<InstallFeatureId, ModuleDeployStatus>> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Partial<Record<InstallFeatureId, ModuleDeployStatus>> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!FEATURE_SET.has(key)) continue;
+    if (typeof value !== 'string') continue;
+    const status = value.trim().toLowerCase();
+    if (MODULE_STATUS_SET.has(status)) {
+      out[key as InstallFeatureId] = status as ModuleDeployStatus;
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function parseInstallConfig(raw: unknown): InstallConfig {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return {
@@ -243,6 +282,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     profileMenu: normalizeProfileMenu(o.profileMenu),
     homepageVoice: typeof o.homepageVoice === 'boolean' ? o.homepageVoice : undefined,
     chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
+    moduleStatus: normalizeModuleStatus(o.moduleStatus),
   };
 }
 

@@ -1,0 +1,363 @@
+/**
+ * Plumbing industry demo fixtures — contacts, jobs, emails themed for a plumber.
+ */
+import { DEMO_SEED_MARKER, type DemoChatDef, type DemoContactDef, type DemoEmailDef, type DemoJobDef, type DemoTodoDef } from '../demo-data.ts';
+
+export const PLUMBING_COMPANY = {
+  name: 'Bay State Plumbing Co.',
+  tagline: 'Licensed master plumbers — Boston & suburbs',
+  supportEmail: 'service@baystateplumbing.demo',
+};
+
+export const PLUMBING_CONTACTS: DemoContactDef[] = [
+  {
+    key: 'sarah',
+    name: 'Sarah Chen',
+    email: 'sarah.chen@demo.reave.app',
+    phone: '+16175550101',
+    company: 'Chen Residence',
+    notes: `${DEMO_SEED_MARKER} Water heater replacement — 40 gal gas`,
+    address: '123 Beacon Hill Rd, Boston, MA 02108',
+    lat: 42.3588,
+    lng: -71.0707,
+    portal: {
+      headline: 'Water heater replacement',
+      body: 'Your new Rheem unit is scheduled for install Thursday. Review warranty docs here.',
+      tagline: 'Hot water, handled right.',
+    },
+  },
+  {
+    key: 'mike',
+    name: 'Mike Rodriguez',
+    email: 'mike@greenplanet.demo',
+    phone: '+16175550102',
+    company: 'Green Planet Landscaping',
+    notes: `${DEMO_SEED_MARKER} Irrigation backflow test — annual`,
+    address: '45 Commonwealth Ave, Boston, MA 02116',
+    lat: 42.3523,
+    lng: -71.0745,
+  },
+  {
+    key: 'emma',
+    name: 'Emma Foster',
+    email: 'emma@phaseline.demo',
+    company: 'PhaseLine Interiors',
+    notes: `${DEMO_SEED_MARKER} Rough-in for kitchen remodel`,
+    address: '88 Summer St, Boston, MA 02110',
+    lat: 42.3539,
+    lng: -71.0577,
+  },
+  {
+    key: 'james',
+    name: 'James Park',
+    email: 'jpark@capco.demo',
+    phone: '+16175550104',
+    company: 'CapCo Development',
+    notes: `${DEMO_SEED_MARKER} 4-unit repipe — copper to PEX`,
+    address: '200 Boylston St, Boston, MA 02116',
+    lat: 42.3522,
+    lng: -71.0662,
+    portal: {
+      headline: 'Building repipe project',
+      body: 'Unit-by-unit shutoff schedule posted. Tenants notified for Tuesday access.',
+    },
+  },
+  {
+    key: 'lisa',
+    name: 'Lisa Nguyen',
+    email: 'lisa@rothco.demo',
+    company: 'Roth & Co. Restaurant Group',
+    notes: `${DEMO_SEED_MARKER} Grease trap pump-out + line jetting`,
+    address: '75 State St, Boston, MA 02109',
+    lat: 42.3587,
+    lng: -71.0567,
+  },
+  {
+    key: 'david',
+    name: 'David Walsh',
+    email: 'dwalsh@paulino.demo',
+    phone: '+16175550106',
+    company: 'Walsh Property Mgmt',
+    notes: `${DEMO_SEED_MARKER} Emergency leak — unit 3B`,
+    address: '1 Seaport Blvd, Boston, MA 02210',
+    lat: 42.3488,
+    lng: -71.0418,
+  },
+  {
+    key: 'rachel',
+    name: 'Rachel Brooks',
+    email: 'rachel@icfp.demo',
+    company: 'Brooks Dental',
+    notes: `${DEMO_SEED_MARKER} Dental chair water line flush`,
+    address: '100 Federal St, Boston, MA 02110',
+    lat: 42.3545,
+    lng: -71.0556,
+  },
+  {
+    key: 'tom',
+    name: 'Tom Bradley',
+    email: 'tom@allauto.demo',
+    phone: '+16175550108',
+    company: 'All Auto Service',
+    notes: `${DEMO_SEED_MARKER} Shop floor drain backup`,
+    address: '500 Boylston St, Boston, MA 02116',
+    lat: 42.3505,
+    lng: -71.0753,
+  },
+];
+
+export const PLUMBING_JOBS: DemoJobDef[] = [
+  {
+    slug: 'demo-sarah-water-heater',
+    title: 'Beacon Hill water heater swap',
+    contactKey: 'sarah',
+    status: 'active',
+    priority: 'high',
+    dueDate: '2026-09-04',
+    value: 3200,
+    tags: ['water-heater', 'permit'],
+    body: 'Rheem 40 gal gas. Permit pulled; old unit haul-away included.',
+  },
+  {
+    slug: 'demo-mike-backflow',
+    title: 'Backflow test — Green Planet',
+    contactKey: 'mike',
+    status: 'active',
+    priority: 'normal',
+    dueDate: '2026-08-28',
+    value: 185,
+    tags: ['commercial', 'backflow'],
+    body: 'Annual irrigation backflow certification for two zones.',
+  },
+  {
+    slug: 'demo-emma-kitchen-rough',
+    title: 'Kitchen rough-in — Summer St',
+    contactKey: 'emma',
+    status: 'inquiry',
+    priority: 'normal',
+    tags: ['rough-in'],
+    body: 'Coordinate with GC for sink relocation and dishwasher line.',
+  },
+  {
+    slug: 'demo-james-repipe',
+    title: 'CapCo 4-unit repipe',
+    contactKey: 'james',
+    status: 'active',
+    priority: 'urgent',
+    dueDate: '2026-10-15',
+    value: 42000,
+    tags: ['repipe', 'multi-unit'],
+    body: 'Copper to PEX per unit. Inspection slots booked with city.',
+  },
+  {
+    slug: 'demo-lisa-grease-trap',
+    title: 'Grease trap service — State St',
+    contactKey: 'lisa',
+    status: 'inquiry',
+    priority: 'high',
+    body: 'Pump-out + hydro-jet main line. After-hours window requested.',
+  },
+  {
+    slug: 'demo-david-emergency-leak',
+    title: 'Emergency leak — Seaport 3B',
+    contactKey: 'david',
+    status: 'archived',
+    priority: 'urgent',
+    value: 890,
+    tags: ['emergency'],
+    body: 'Supply line under sink — replaced angle stops same day.',
+  },
+  {
+    slug: 'demo-rachel-dental-lines',
+    title: 'Dental chair line flush',
+    contactKey: 'rachel',
+    status: 'archived',
+    priority: 'low',
+    value: 450,
+    body: 'Completed quarterly flush per health dept checklist.',
+  },
+  {
+    slug: 'demo-tom-floor-drain',
+    title: 'Floor drain backup — All Auto',
+    contactKey: 'tom',
+    status: 'inquiry',
+    priority: 'normal',
+    tags: ['drain'],
+    body: 'Snake and camera scope quote pending approval.',
+  },
+];
+
+export const PLUMBING_EMAILS: DemoEmailDef[] = [
+  {
+    id: 'demo-email-sarah-heater',
+    from: 'Sarah Chen <sarah.chen@demo.reave.app>',
+    subject: 'Water heater install date',
+    bodySnippet: 'Can we move the install to Friday? Plumber needs alley access for the dolly.',
+    bodyText:
+      'Hi — can we move the water heater install to Friday morning?\n\nThe alley gate is only open before 10 AM.\n\nThanks,\nSarah',
+    category: 'client',
+    status: 'MATCHED',
+    action: 'classified',
+    contactKey: 'sarah',
+    jobSlug: 'demo-sarah-water-heater',
+    summary: 'Reschedule water heater install for Friday AM — alley access.',
+    daysAgo: 0,
+  },
+  {
+    id: 'demo-email-james-inspection',
+    from: 'James Park <jpark@capco.demo>',
+    subject: 'Repipe inspection window',
+    bodySnippet: 'Inspector can come Thursday 9–11 or Friday 1–3 for unit 2 rough-in.',
+    bodyText:
+      'Team — inspector gave two windows for unit 2 rough-in:\n\n• Thu 9–11\n• Fri 1–3\n\nWhich should I confirm?\n\n— James',
+    category: 'project',
+    status: 'MATCHED',
+    action: 'classified',
+    contactKey: 'james',
+    jobSlug: 'demo-james-repipe',
+    summary: 'Pick rough-in inspection slot for CapCo repipe.',
+    daysAgo: 1,
+  },
+  {
+    id: 'demo-email-new-lead',
+    from: 'Olivia Grant <olivia@grantco.demo>',
+    subject: 'Sump pump backup?',
+    bodySnippet: 'Basement flooded last night — need emergency pump install or repair.',
+    bodyText:
+      'Hello,\n\nOur sump pump failed during last night\'s storm. Basement has standing water.\n\nCan someone come today?\n\nOlivia Grant\n33 Arch St',
+    category: 'review',
+    status: 'UNMATCHED',
+    action: 'classified',
+    summary: 'Emergency sump pump — flooded basement, Arch St.',
+    daysAgo: 0,
+  },
+  {
+    id: 'demo-email-supplier',
+    from: 'Ferguson <orders@ferguson.com>',
+    subject: 'Order #PL-882910 shipped',
+    bodySnippet: 'Rheem 40 gal + expansion tank — delivery tomorrow by 10 AM.',
+    bodyText: 'Your order #PL-882910 has shipped.\n\nRheem 40 gal water heater + expansion tank\nETA: tomorrow by 10 AM',
+    category: 'internal',
+    status: 'RECEIPT',
+    action: 'classified',
+    jobSlug: 'demo-sarah-water-heater',
+    summary: 'Water heater materials shipping for Sarah job.',
+    daysAgo: 1,
+  },
+  {
+    id: 'demo-email-lisa-grease',
+    from: 'Lisa Nguyen <lisa@rothco.demo>',
+    subject: 'Grease trap — after hours OK?',
+    bodySnippet: 'Can your crew come Sunday 6 AM before we open? Trap is backing up into prep line.',
+    bodyText:
+      'Hi — grease trap is backing up into our prep line.\n\nCan your crew come Sunday 6 AM before brunch service?\n\nLisa',
+    category: 'client',
+    status: 'MATCHED',
+    action: 'classified',
+    contactKey: 'lisa',
+    jobSlug: 'demo-lisa-grease-trap',
+    summary: 'Sunday AM grease trap service for Roth & Co.',
+    daysAgo: 0,
+  },
+  {
+    id: 'demo-email-railway',
+    from: 'Railway <deployments@railway.app>',
+    subject: '[Bay State Plumbing Demo] Deploy succeeded',
+    bodySnippet: 'Deployment finished successfully on production.',
+    bodyText: 'Deployment finished successfully on production.\n\nView logs in Railway dashboard.',
+    category: 'alert',
+    status: 'RAILWAY_DEPLOY_SUCCESS',
+    action: 'classified',
+    summary: 'Railway deploy succeeded (demo).',
+    daysAgo: 0,
+  },
+];
+
+export const PLUMBING_CHATS: DemoChatDef[] = [
+  {
+    title: '[Demo] Schedule Sarah water heater install',
+    messages: [
+      {
+        role: 'user',
+        content: 'Book the water heater install with Sarah Chen for Friday morning — alley access only before 10.',
+      },
+      {
+        role: 'assistant',
+        content:
+          'Sarah Chen (sarah.chen@demo.reave.app) — **Beacon Hill water heater swap** is active.\n\nFriday 8:00 AM works on your calendar with a 2-hour block. Want me to confirm with Sarah and add haul-away for the old unit?',
+      },
+    ],
+  },
+  {
+    title: '[Demo] Quote CapCo repipe inspection',
+    messages: [
+      {
+        role: 'user',
+        content: 'What inspections are still open on the CapCo repipe?',
+      },
+      {
+        role: 'assistant',
+        content:
+          'CapCo 4-unit repipe — units 1 and 3 passed rough-in. **Unit 2** needs inspection (James offered Thu 9–11 or Fri 1–3). Unit 4 not started yet.',
+      },
+    ],
+  },
+  {
+    title: '[Demo] Open emergency leads',
+    messages: [
+      {
+        role: 'user',
+        content: 'Any emergency calls waiting?',
+      },
+      {
+        role: 'assistant',
+        content:
+          'Two need attention:\n\n1. **Olivia Grant** — sump pump failure, flooded basement (unmatched contact)\n2. **Lisa Nguyen** — grease trap backup, requested Sunday 6 AM\n\nDavid Walsh emergency leak was closed yesterday — $890 same-day repair.',
+      },
+    ],
+  },
+];
+
+export const PLUMBING_TODOS: DemoTodoDef[] = [
+  {
+    title: 'Pull permit photos for Sarah water heater',
+    section: '[Demo] Today',
+    priority: 'high',
+    jobSlug: 'demo-sarah-water-heater',
+    daysUntilDue: 0,
+  },
+  {
+    title: 'Order backflow test tags for Mike',
+    section: '[Demo] This week',
+    priority: 'normal',
+    jobSlug: 'demo-mike-backflow',
+    daysUntilDue: 3,
+  },
+  {
+    title: 'Confirm CapCo unit 2 inspection slot',
+    section: '[Demo] Today',
+    priority: 'urgent',
+    jobSlug: 'demo-james-repipe',
+    daysUntilDue: 0,
+  },
+  {
+    title: 'Quote sump pump emergency — Olivia Grant',
+    section: '[Demo] Today',
+    priority: 'urgent',
+    daysUntilDue: 0,
+  },
+  {
+    title: 'Prep grease trap Sunday crew for Lisa',
+    section: '[Demo] This week',
+    priority: 'high',
+    jobSlug: 'demo-lisa-grease-trap',
+    daysUntilDue: 2,
+  },
+  {
+    title: 'Camera scope quote for Tom floor drain',
+    section: '[Demo] Backlog',
+    priority: 'normal',
+    jobSlug: 'demo-tom-floor-drain',
+    daysUntilDue: 5,
+  },
+];

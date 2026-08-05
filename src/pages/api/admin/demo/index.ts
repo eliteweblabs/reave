@@ -8,6 +8,12 @@ import { runDemoSeed } from '../../../../lib/demoSeedRunner';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { hasFeature } from '../../../../lib/features';
+import {
+  parseDemoSuiteCookie,
+  serializeDemoSuite,
+  type DemoSuiteConfig,
+} from '../../../../lib/demoSuite';
+import { DEMO_SUITE_COOKIE, DEMO_SUITE_COOKIE_MAX_AGE } from '../../../../lib/demoSuite';
 
 export const prerender = false;
 
@@ -31,7 +37,8 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   const status = await getDemoSetupStatus();
-  return json({ ok: true, enabled: true, ...status });
+  const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
+  return json({ ok: true, enabled: true, ...status, suite: cookieSuite });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -70,11 +77,18 @@ export async function POST(context: APIContext): Promise<Response> {
     }
   }
 
+  const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
+  const bodySuite = body.suite as DemoSuiteConfig | undefined;
+  const suite = bodySuite?.moduleIds?.length ? bodySuite : cookieSuite;
+
   const result = runDemoSeed({
     fresh: body.fresh === true,
     forceCompany: body.forceCompany === true || body.force_company === true,
     withBookings: body.withBookings === true || body.with_bookings === true,
     dryRun,
+    industry: (body.industry as string) ?? suite?.industry,
+    moduleIds: (body.moduleIds as string[]) ?? suite?.moduleIds,
+    tier: (body.tier as number) ?? suite?.tier,
   });
 
   if (!result.ok) {
