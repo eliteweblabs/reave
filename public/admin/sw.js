@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260803 — skip document navigations (see fetch handler). */
+   v20260805 — purge stale module caches on activate. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -138,7 +138,15 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(Promise.all([self.clients.claim(), restoreBadgeFromCache()]));
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      restoreBadgeFromCache(),
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((key) => key !== BADGE_CACHE).map((key) => caches.delete(key))),
+      ),
+    ]),
+  );
 });
 
 /* Network-first fetch handler — required for reliable Chromium install prompts.

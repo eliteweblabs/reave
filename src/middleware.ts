@@ -47,6 +47,12 @@ function isServiceWorkerScript(pathname: string): boolean {
   return pathname === "/admin/sw.js" || pathname === "/c/sw.js";
 }
 
+/** Admin shell + module scripts must not sit in HTTP cache (installed PWAs keep stale JS for hours). */
+function isAdminHotReloadAsset(pathname: string): boolean {
+  if (pathname === "/admin" || pathname === "/admin/") return true;
+  return pathname.startsWith("/admin/") && pathname.endsWith(".js");
+}
+
 function featureBlockedResponse(): Response {
   return applySecurityHeaders(new Response("Not found", { status: 404 }));
 }
@@ -205,8 +211,10 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
   }
 
   const response = await next();
-  if (isServiceWorkerScript(pathname)) {
+  if (isServiceWorkerScript(pathname) || isAdminHotReloadAsset(pathname)) {
     response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
   }
   return applySecurityHeaders(response);
 });

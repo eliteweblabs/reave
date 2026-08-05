@@ -1403,6 +1403,9 @@ button.de-placeholder-action:active {
     flex-shrink: 0;
     overflow: visible;
   }
+  #work-editor.de-pane-active .de-pane {
+    overflow: hidden;
+  }
   #work-editor .wk-detail-tab {
     padding: 0.45rem 0.75rem;
     font-size: 0.8125rem;

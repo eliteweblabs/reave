@@ -53,7 +53,7 @@ import {
   createClientDetailPanel,
   mountClientVaultSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260805b';
+} from './work-panel.js?v=20260805e';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';

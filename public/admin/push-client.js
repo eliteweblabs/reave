@@ -221,7 +221,9 @@ function dismissAlert(key) {
 export async function registerAdminServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    return await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+    const reg = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+    void reg.update();
+    return reg;
   } catch (e) {
     console.warn('[push] SW register failed', e);
     return null;
@@ -786,6 +788,13 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 if (typeof document !== 'undefined') {
   if (isStandalonePwa()) markAdminPwaInstalled();
   void registerAdminServiceWorker();
+
+  let reloadedForSwUpdate = false;
+  navigator.serviceWorker?.addEventListener('controllerchange', () => {
+    if (reloadedForSwUpdate) return;
+    reloadedForSwUpdate = true;
+    window.location.reload();
+  });
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
