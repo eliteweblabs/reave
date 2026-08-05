@@ -899,6 +899,18 @@ function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
   return nav;
 }
 
+function clearWorkDetailScrollBody(scroll) {
+  scroll.querySelectorAll('.wk-detail-panel, .wk-detail-loading, .de-loading').forEach((el) => el.remove());
+}
+
+function setWorkDetailScrollLoading(scroll, html) {
+  clearWorkDetailScrollBody(scroll);
+  const loading = document.createElement('div');
+  loading.className = 'wk-detail-loading';
+  loading.innerHTML = html;
+  scroll.appendChild(loading);
+}
+
 function showWorkDetailPanel(pane, tabId) {
   pane.querySelectorAll('.wk-detail-tab').forEach((btn) => {
     const active = btn.dataset.workTab === tabId;
@@ -908,6 +920,8 @@ function showWorkDetailPanel(pane, tabId) {
   pane.querySelectorAll('.wk-detail-panel').forEach((panel) => {
     panel.hidden = panel.dataset.workTab !== tabId;
   });
+  const scroll = pane.querySelector('.re-form-scroll.wk-form-scroll');
+  if (scroll) scroll.scrollTop = 0;
 }
 
 function createWorkDetailPanel(tabId, activeTab) {
@@ -2222,12 +2236,11 @@ function renderNewWorkForm(pane) {
   pane.appendChild(header);
   requestTitleFocus('work', titleInput);
 
-  mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+  const scroll = createWorkFormScroll(pane);
+  mountWorkDetailTabs(scroll, workState.detailTab, (tabId) => {
     workState.detailTab = tabId;
     showWorkDetailPanel(pane, tabId);
   }, { isNew: true });
-
-  const scroll = createWorkFormScroll(pane);
   const activeTab = workState.detailTab;
 
   const projectPanel = createWorkDetailPanel('project', activeTab);
@@ -2516,13 +2529,12 @@ function renderEditWorkForm(pane) {
   header.appendChild(headerActions);
   pane.appendChild(header);
 
-  mountWorkDetailTabs(pane, workState.detailTab, (tabId) => {
+  const scroll = createWorkFormScroll(pane);
+  mountWorkDetailTabs(scroll, workState.detailTab, (tabId) => {
     workState.detailTab = tabId;
     showWorkDetailPanel(pane, tabId);
   });
-
-  const scroll = createWorkFormScroll(pane);
-  scroll.innerHTML = skeletonHtml('list', 'Loading…');
+  setWorkDetailScrollLoading(scroll, skeletonHtml('list', 'Loading…'));
   activateWorkPaneOnMobile();
 
   fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
@@ -2594,7 +2606,7 @@ function renderEditWorkForm(pane) {
         }),
       );
 
-      scroll.innerHTML = '';
+      clearWorkDetailScrollBody(scroll);
       const activeTab = workState.detailTab;
 
       const projectPanel = createWorkDetailPanel('project', activeTab);
@@ -2733,7 +2745,7 @@ function renderEditWorkForm(pane) {
         renderWorkEditor();
         return;
       }
-      scroll.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+      setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">${escHtml(e.message)}</div>`);
     });
 }
 

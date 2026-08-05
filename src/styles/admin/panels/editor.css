@@ -1243,6 +1243,18 @@ button.de-placeholder-action:active {
   min-width: 0;
   background: var(--bg);
 }
+#work-editor .re-form-scroll.wk-form-scroll > .wk-detail-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin-top: -0.7rem;
+  margin-bottom: 0.35rem;
+  padding-top: calc(0.35rem + 0.7rem);
+  margin-left: calc(-1 * max(1rem, env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(1rem, env(safe-area-inset-right, 0px)));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
 #work-editor .wk-detail-tabs::-webkit-scrollbar { display: none; }
 #work-editor .wk-detail-tab {
   flex: 0 0 auto;
@@ -1410,11 +1422,8 @@ button.de-placeholder-action:active {
     flex-shrink: 0;
     overflow: visible;
   }
-  #work-editor.de-pane-active .wk-detail-tabs {
-    position: sticky;
-    top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + var(--control-h));
-    z-index: 5;
-    flex-shrink: 0;
+  #work-editor.de-pane-active .de-pane {
+    overflow: hidden;
   }
   #work-editor .wk-detail-tab {
     padding: 0.45rem 0.75rem;
