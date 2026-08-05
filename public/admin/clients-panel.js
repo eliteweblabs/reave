@@ -112,6 +112,7 @@ function clientKindTagHtml(c) {
 
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
+let clientAutosaveSeq = 0;
 let clientFieldRegistry = [];
 let clientMapController = null;
 let clientPendingGeo = null;
@@ -222,6 +223,19 @@ function registerClientField(el, validateFn) {
 
   clientFieldRegistry.push(ctrl);
   return ctrl;
+}
+
+function cancelClientAutosaveTimer() {
+  if (clientAutosaveTimer) {
+    clearTimeout(clientAutosaveTimer);
+    clientAutosaveTimer = null;
+  }
+}
+
+function clientGeoMatches(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a.lat === b.lat && a.lng === b.lng;
 }
 
 function refreshAllClientFields() {
@@ -1389,6 +1403,7 @@ function renderEditClientForm(pane) {
         queueAutosaveRef();
       });
       let queueAutosaveRef = () => {};
+      let saveNowRef = async () => {};
 
       const addressInput = mountClientAddressField(profileFields, clientState.draft.address || '');
       registerClientField(addressInput, () => true);
@@ -1396,6 +1411,8 @@ function renderEditClientForm(pane) {
         addressInput,
         getClientsEditor() || document.body,
         async (pickedAddress) => {
+          cancelClientAutosaveTimer();
+          clientActiveField = addressInput;
           clientPendingGeo = await geocodeClientAddressPreview(pickedAddress);
           if (clientPendingGeo && clientMapController) {
             clientMapController.setLocation(
@@ -1404,6 +1421,7 @@ function renderEditClientForm(pane) {
               pickedAddress,
             );
           }
+          await saveNowRef();
         },
       );
 
@@ -1498,6 +1516,7 @@ function renderEditClientForm(pane) {
         markDirty();
         await autosaveClient(uid, getPayload());
       };
+      saveNowRef = saveNow;
       for (const el of [
         companyInput,
         firstNameInput,
@@ -1622,7 +1641,7 @@ function syncClientListRow(uid) {
 }
 
 function scheduleClientAutosave(uid, getPayload) {
-  clearTimeout(clientAutosaveTimer);
+  cancelClientAutosaveTimer();
   clientAutosaveTimer = setTimeout(async () => {
     clientAutosaveTimer = null;
     await autosaveClient(uid, getPayload());
@@ -1631,10 +1650,7 @@ function scheduleClientAutosave(uid, getPayload) {
 
 async function flushClientAutosave() {
   await flushClientVaultSave();
-  if (clientAutosaveTimer) {
-    clearTimeout(clientAutosaveTimer);
-    clientAutosaveTimer = null;
-  }
+  cancelClientAutosaveTimer();
   const uid = clientState.activeUid;
   if (!uid || uid === '__new__' || !clientState.autosaveGetPayload) return;
   await autosaveClient(uid, clientState.autosaveGetPayload());
@@ -1648,6 +1664,8 @@ async function autosaveClient(uid, payload) {
   const draft = clientState.draft;
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
+  const geoUnchanged =
+    payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -1656,7 +1674,8 @@ async function autosaveClient(uid, payload) {
     payload.website === draft.website &&
     payload.address === draft.address &&
     payload.notes === draft.notes &&
-    normalizeClientKind(payload.kind) === wasKind;
+    normalizeClientKind(payload.kind) === wasKind &&
+    geoUnchanged;
   if (unchanged) {
     clientState.dirty = false;
     return true;
@@ -1665,6 +1684,7 @@ async function autosaveClient(uid, payload) {
     refreshAllClientFields();
     return false;
   }
+  const seq = ++clientAutosaveSeq;
   if (clientActiveField) shell.setFormFieldState(clientActiveField, 'saving');
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
@@ -1673,6 +1693,7 @@ async function autosaveClient(uid, payload) {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
+    if (seq !== clientAutosaveSeq) return false;
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const nameParts = splitClientNameParts({
       name: payload.name,
@@ -1739,6 +1760,7 @@ async function autosaveClient(uid, payload) {
     if (clientActiveField) shell.flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
+    if (seq !== clientAutosaveSeq) return false;
     console.warn('[clients] autosave failed', e);
     if (clientActiveField) shell.setFormFieldState(clientActiveField, 'invalid');
     refreshAllClientFields();
