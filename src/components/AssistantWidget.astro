@@ -48,6 +48,7 @@ const {
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
+const fabId = `aw-fab-${instanceId}`;
 
 const contactBits = [
   supportPhone ? `call/text ${supportPhone}` : '',
@@ -68,6 +69,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-contact-selector={hideFabForHero ? contactSelector : undefined}
 >
   <button
+    id={fabId}
     class:list={['aw-fab', `aw-fab--${variant}`]}
     type="button"
     aria-haspopup="dialog"
@@ -81,6 +83,13 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
     </svg>
   </button>
+
+  <script is:inline define:vars={{ fabId }}>
+    (function () {
+      var fab = document.getElementById(fabId);
+      if (fab && fab.parentElement !== document.body) document.body.appendChild(fab);
+    })();
+  </script>
 
   <IosBottomSheet id={sheetId} sheetOnly={true} dismissible={true} class="aw-sheet">
     <div class="aw-chat">
@@ -127,13 +136,13 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 
 <script src="/ios-sheet.js" defer></script>
 
-<style>
-  .aw-root { position: relative; }
-
+<style is:global>
   .aw-fab {
     position: fixed;
-    right: max(0.75rem, env(safe-area-inset-right, 0px));
-    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    top: auto;
+    left: auto;
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
     z-index: 950;
     width: 58px;
     height: 58px;
@@ -145,6 +154,10 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+</style>
+
+<style>
+  .aw-root { position: relative; }
 
   .aw-fab--site {
     background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
@@ -519,6 +532,47 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     }
   }
 
+  function initFabViewportPin(fab: HTMLElement) {
+    if (fab.dataset.vvPin === '1') return;
+    fab.dataset.vvPin = '1';
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const FAB_INSET_PX = 12;
+    let safeBottom = 0;
+    let safeRight = 0;
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;bottom:0;right:0;height:0;padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    const probeStyle = getComputedStyle(probe);
+    safeBottom = parseFloat(probeStyle.paddingBottom) || 0;
+    safeRight = parseFloat(probeStyle.paddingRight) || 0;
+    probe.remove();
+
+    const sync = () => {
+      const layoutBottom = window.innerHeight;
+      const visualBottom = (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? layoutBottom);
+      const chrome = Math.max(0, Math.round(layoutBottom - visualBottom));
+      const layoutRight = window.innerWidth;
+      const visualRight =
+        (window.visualViewport?.offsetLeft ?? 0) + (window.visualViewport?.width ?? layoutRight);
+      const sideChrome = Math.max(0, Math.round(layoutRight - visualRight));
+
+      fab.style.bottom = `${chrome + safeBottom + FAB_INSET_PX}px`;
+      fab.style.right = `${sideChrome + safeRight + FAB_INSET_PX}px`;
+    };
+
+    vv.addEventListener('resize', sync, { passive: true });
+    vv.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync, { passive: true });
+    window.addEventListener('orientationchange', sync, { passive: true });
+    sync();
+    requestAnimationFrame(sync);
+    window.setTimeout(sync, 150);
+  }
+
   function initAssistantWidget(root: HTMLElement) {
     const endpoint = root.dataset.endpoint || '';
     const storageKey = root.dataset.storageKey || '';
@@ -541,6 +595,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     if (fab.parentElement !== document.body) {
       document.body.appendChild(fab);
     }
+    initFabViewportPin(fab);
     if (revealFab) initFabReveal(fab);
     if (hideFabForHero) initFabSectionHide(fab, heroSelector, contactSelector);
 
