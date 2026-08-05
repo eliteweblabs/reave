@@ -1,5 +1,7 @@
 FROM node:22-slim
 
+# /api/health/live alias is required — Railway inherits root railway.json healthcheck.
+
 WORKDIR /app
 
 COPY package*.json ./
