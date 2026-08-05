@@ -10,7 +10,7 @@ import {
   resolveDemoModuleFeatures,
   type DemoModuleCatalogEntry,
 } from './demoModuleCatalog';
-import type { FeatureId } from './features';
+import type { FeatureId } from './featureCatalog';
 
 export const DEMO_SUITE_COOKIE = 'reave_demo_suite';
 export const DEMO_SUITE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days

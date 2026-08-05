@@ -2,7 +2,7 @@
  * Numeric module IDs for demo suite URLs (?modules=[001,004,006,009]).
  * IDs are stable — used in sales links and seed filtering.
  */
-import { FEATURE_IDS, FEATURE_LABELS, type FeatureId } from './features';
+import { FEATURE_IDS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
 
 export type DemoModuleCatalogEntry = {
   /** Zero-padded id, e.g. "001" */

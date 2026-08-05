@@ -3,7 +3,7 @@
  */
 import { getActiveDemoSuite } from './demoSuiteContext';
 import { DEFAULT_DEMO_SUITE } from './demoSuite';
-import type { FeatureId } from './features';
+import type { FeatureId } from './featureCatalog';
 import type { ModuleDeployStatus } from './installConfig';
 
 export function activeDemoSuite() {

@@ -6,41 +6,19 @@
 import { getInstallConfigSync } from './installConfig.ts';
 import { demoEnabledFeatures, demoHasFeature } from './demoFeatures.ts';
 import { isDemoMode } from './demoMode.ts';
+import {
+  CORE_FEATURE_NOTE,
+  FEATURE_ID_SET,
+  FEATURE_IDS,
+  FEATURE_LABELS,
+  type FeatureId,
+} from './featureCatalog.ts';
 import { serverEnv } from './serverEnv';
 import { createLogger } from './logger';
 
 const log = createLogger('features');
 
-/** Optional module ids — must match install config entries exactly. */
-export const FEATURE_IDS = [
-  'client_portal',
-  'web_handoff',
-  'portal_assistant',
-  'billing',
-  'site_audits',
-  'site_monitoring',
-  'uptime_monitoring',
-  'documents',
-  'voice',
-  'vapi',
-  'carddav',
-  'scheduling',
-  'dev_infra',
-  'code_dev',
-  'email_marketing',
-  'fleet_tracking',
-  'dealership_wizard',
-  'namecom_dns',
-  'time_tracking',
-  'demo',
-  'real_estate_data',
-  'inventory_sync',
-  'online_reviews',
-] as const;
-
-export type FeatureId = (typeof FEATURE_IDS)[number];
-
-const FEATURE_SET = new Set<string>(FEATURE_IDS);
+export { CORE_FEATURE_NOTE, FEATURE_IDS, FEATURE_LABELS, type FeatureId };
 
 let _cached: Set<FeatureId> | null = null;
 
@@ -58,7 +36,7 @@ function parseFeaturesEnv(): Set<FeatureId> {
     for (const item of parsed) {
       if (typeof item !== 'string') continue;
       const id = item.trim();
-      if (FEATURE_SET.has(id)) out.add(id as FeatureId);
+      if (FEATURE_ID_SET.has(id)) out.add(id as FeatureId);
     }
     return out;
   } catch {
@@ -89,33 +67,3 @@ export function hasFeature(id: FeatureId): boolean {
 export function clearFeatureCache(): void {
   _cached = null;
 }
-
-/** Human labels for health output and docs. */
-export const FEATURE_LABELS: Record<FeatureId, string> = {
-  client_portal: 'Client portal (/c/:uid)',
-  web_handoff: 'Portal Data tab (handoff creds)',
-  portal_assistant: 'Client portal help chat (speed-dial support assistant)',
-  billing: 'Crater billing & invoices',
-  site_audits: 'Site audits (Lighthouse, SSL, DNS, links)',
-  site_monitoring: 'Site change monitoring (ChangeDetection.io)',
-  uptime_monitoring: 'Uptime monitoring (UptimeRobot)',
-  documents: 'Document signing templates',
-  voice: 'Telnyx voice agent',
-  vapi: 'Vapi assistant (admin sync & branding)',
-  carddav: 'CardDAV (iOS Contacts sync)',
-  scheduling: 'Cal.com scheduling & meetings',
-  dev_infra: 'Dev & infrastructure (Git, Railway, Kinsta, deploy)',
-  code_dev: 'Local code tools (read/write/list/exec) — Reave install only',
-  email_marketing: 'Newsletter & email automation (welcome, follow-ups, review requests, broadcasts)',
-  fleet_tracking: 'Fleet tracking (multi-vehicle GPS via fleet-api)',
-  dealership_wizard: 'Dealership inventory & deal wizard (paulino-wizard)',
-  namecom_dns: 'DNS record management (Name.com) — agency/ops installs only',
-  time_tracking: 'Project time log (hours + notes → invoicing)',
-  demo: 'Demo mode (seed script, quick-start wizard, Railway testing installs)',
-  real_estate_data: 'Real estate data & lead scanner (property facts, compliance, daily geofence scan)',
-  inventory_sync: 'Multi-channel inventory sync (Shopify, WooCommerce, Square via inventory-api)',
-  online_reviews: 'Online reviews inbox — Google sync + response to-do workflow',
-};
-
-export const CORE_FEATURE_NOTE =
-  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, and chat are always on.';
