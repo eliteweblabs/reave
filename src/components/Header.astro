@@ -276,9 +276,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   /** Pin public headers to the visual viewport top during iOS overscroll bounce. */
   function bindAppHeaderViewportPin() {
     if (document.documentElement.dataset.appHeaderVvPin === "1") return;
-    const header = document.querySelector(".app-header:not(.app-header--admin)");
     const vv = window.visualViewport;
-    if (!header || !vv) return;
+    if (!vv) return;
     document.documentElement.dataset.appHeaderVvPin = "1";
 
     const sync = () => {
