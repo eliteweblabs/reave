@@ -1,4 +1,5 @@
 const pg = require('pg');
+const { randomUUID } = require('crypto');
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS fleet_vehicles (
@@ -111,7 +112,7 @@ async function getVehicle(id) {
 
 async function createVehicle(input) {
   const p = await ensureSchema();
-  const id = input.id || `veh_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = input.id || `veh_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
   const { rows } = await p.query(
     `INSERT INTO fleet_vehicles (id, name, plate, client_uid, assigned_user_id, status)
      VALUES ($1, $2, $3, $4, $5, $6)

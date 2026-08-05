@@ -4,6 +4,8 @@
  */
 import type { APIRoute } from 'astro';
 import { getContact } from '../../../../../../lib/contactApi';
+import { checkInMemoryRateLimit } from '../../../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../../../lib/clientIp';
 import { recordShareOpenEngagement } from '../../../../../../lib/engagementNotifications';
 import { recordProjectShareView } from '../../../../../../lib/linkTracking';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
@@ -23,6 +25,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
   if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+
+  const rate = checkInMemoryRateLimit(`portal-viewed:${contactUid}:${clientIp(request)}`, {
+    windowMs: 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
+  }
 
   const ctx = await loadPortalJob(contactUid, jobSlug);
   if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
