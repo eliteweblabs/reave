@@ -55,7 +55,7 @@ let _agentIconClipSeq = 0;
 export function agentIconSvg(size = 20) {
   const clipId = `agent-eye-clip-${++_agentIconClipSeq}`;
   const winkPeriod = 4 + Math.random() * 4;
-  const winkDelay = Math.random() * winkPeriod;
+  const winkDelay = -(Math.random() * winkPeriod);
   return (
     `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="--agent-wink-period:${winkPeriod.toFixed(2)}s;--agent-wink-delay:${winkDelay.toFixed(2)}s">` +
     `<defs><clipPath id="${clipId}"><circle cx="17" cy="18" r="3"/></clipPath></defs>` +

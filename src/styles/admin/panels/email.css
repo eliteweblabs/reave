@@ -787,20 +787,24 @@
 
 /* Agent icon — occasional right-eye wink (lid rects clip to the eye circle). */
 @keyframes agent-eye-wink-top {
-  0%, 98%, 100% { transform: translateY(-3px); }
-  99% { transform: translateY(0); }
+  0%, 97%, 100% { transform: translateY(-3px); }
+  98%, 99% { transform: translateY(0); }
 }
 @keyframes agent-eye-wink-bottom {
-  0%, 98%, 100% { transform: translateY(3px); }
-  99% { transform: translateY(0); }
+  0%, 97%, 100% { transform: translateY(3px); }
+  98%, 99% { transform: translateY(0); }
 }
 .agent-icon .agent-eye-lid-top {
+  transform: translateY(-3px);
   animation: agent-eye-wink-top var(--agent-wink-period, 6s) linear infinite;
   animation-delay: var(--agent-wink-delay, 0s);
+  animation-fill-mode: backwards;
 }
 .agent-icon .agent-eye-lid-bottom {
+  transform: translateY(3px);
   animation: agent-eye-wink-bottom var(--agent-wink-period, 6s) linear infinite;
   animation-delay: var(--agent-wink-delay, 0s);
+  animation-fill-mode: backwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-icon .agent-eye-lid-top,
