@@ -5,6 +5,8 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { demoModuleDeployStatus, demoShouldShowDeployBanner } from './demoFeatures.ts';
+import { isDemoMode } from './demoMode.ts';
 import { FEATURE_IDS, FEATURE_LABELS, hasFeature, type FeatureId } from './features.ts';
 import { getInstallConfigSync } from './installConfig.ts';
 import { getPlugin, isPluginActive, REAVE_PLUGINS } from './pluginRegistry.ts';
@@ -149,6 +151,7 @@ function playbookFor(feature: FeatureId): DeployModulePlaybook | undefined {
 }
 
 export function getModuleDeployStatus(feature: FeatureId): ModuleDeployStatus {
+  if (isDemoMode()) return demoModuleDeployStatus(feature);
   const override = installStatusOverride(feature);
   if (override) return override;
   const pb = playbookFor(feature);
@@ -175,7 +178,8 @@ export function isModuleRuntimeAllowed(feature: FeatureId): boolean {
 
 export function shouldShowDeployBanner(feature: FeatureId): boolean {
   if (!hasFeature(feature)) return false;
-  // Only installs that explicitly track moduleStatus (demo, new client rollouts) show the banner.
+  if (isDemoMode()) return demoShouldShowDeployBanner(feature);
+  // Only installs that explicitly track moduleStatus (new client rollouts) show the banner.
   // Production configs like config-reave.json omit moduleStatus — modules are live or disabled via features[].
   const raw = getInstallConfigSync().moduleStatus?.[feature];
   if (raw === undefined) return false;

@@ -9,7 +9,7 @@ npm run deploy:checklist -- --install demo --all
 
 Module **numeric ids** (for demo URLs) are listed in the module picker below. Full catalog: [`src/lib/demoModuleCatalog.ts`](../src/lib/demoModuleCatalog.ts).
 
-Per-module playbooks live in `plugins/*/DEPLOY.md` and `config/modules/*.DEPLOY.md`. Per-install **status** overrides go in `config/config-{slug}.json` → `moduleStatus`.
+Per-module playbooks live in `plugins/*/DEPLOY.md` and `config/modules/*.DEPLOY.md`. Per-install **status** overrides go in `config/config-{slug}.json` → `moduleStatus` (production clients). **Demo installs** derive enabled modules and status from URL params / cookie — see [`plugins/demo/knowledge/demo-module-ids.md`](../plugins/demo/knowledge/demo-module-ids.md).
 
 ---
 

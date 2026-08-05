@@ -17,6 +17,8 @@ import DeployStatusBanner from "../../components/DeployStatusBanner.astro";
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from "../../lib/companyConfig";
 import { brandFontCssVars } from "../../lib/brandFonts";
 import { getInstallConfigClient } from "../../lib/installConfig";
+import { enabledFeatures } from "../../lib/features";
+import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
@@ -30,7 +32,11 @@ const { userId } = Astro.locals.auth();
 const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
 const staffAvatarUrl = companyStaffAvatarUrl(company);
-const installConfigClient = getInstallConfigClient();
+const installConfigClient = {
+  ...getInstallConfigClient(),
+  features: [...enabledFeatures()],
+  deployStatus: getDeployStatusClientSummary(),
+};
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
 const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';

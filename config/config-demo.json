@@ -1,32 +1,5 @@
 {
-  "features": [
-    "demo",
-    "client_portal",
-    "web_handoff",
-    "portal_assistant",
-    "site_audits",
-    "site_monitoring",
-    "uptime_monitoring",
-    "documents",
-    "carddav",
-    "scheduling",
-    "dev_infra",
-    "email_marketing"
-  ],
-  "moduleStatus": {
-    "demo": "development",
-    "client_portal": "deployed",
-    "web_handoff": "pending",
-    "portal_assistant": "pending",
-    "site_audits": "pending",
-    "site_monitoring": "pending",
-    "uptime_monitoring": "pending",
-    "documents": "pending",
-    "carddav": "pending",
-    "scheduling": "pending",
-    "dev_infra": "pending",
-    "email_marketing": "pending"
-  },
+  "features": ["demo"],
   "footerNav": [
     "__system__",
     "home",

@@ -4,6 +4,8 @@
  * Legacy fallback: FEATURES env JSON array when install config has no features.
  */
 import { getInstallConfigSync } from './installConfig.ts';
+import { demoEnabledFeatures, demoHasFeature } from './demoFeatures.ts';
+import { isDemoMode } from './demoMode.ts';
 import { serverEnv } from './serverEnv';
 import { createLogger } from './logger';
 
@@ -73,11 +75,13 @@ function bootstrapEnabled(): Set<FeatureId> {
 
 /** Enabled optional modules for this deployment. */
 export function enabledFeatures(): ReadonlySet<FeatureId> {
+  if (isDemoMode()) return demoEnabledFeatures();
   if (!_cached) _cached = bootstrapEnabled();
   return _cached;
 }
 
 export function hasFeature(id: FeatureId): boolean {
+  if (isDemoMode()) return demoHasFeature(id);
   return enabledFeatures().has(id);
 }
 

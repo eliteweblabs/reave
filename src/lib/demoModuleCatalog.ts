@@ -53,3 +53,12 @@ export function resolveDemoModuleFeatures(ids: string[]): FeatureId[] {
 export function catalogForChecklist(): DemoModuleCatalogEntry[] {
   return [...DEMO_MODULE_CATALOG];
 }
+
+/** Markdown table of id → feature → label (for docs and agent knowledge). */
+export function formatDemoModuleCatalogMarkdown(): string {
+  const header = '| ID | Feature | Label |\n|----|---------|-------|';
+  const rows = DEMO_MODULE_CATALOG.map(
+    (e) => `| ${e.id} | \`${e.feature}\` | ${e.label.replace(/\|/g, '\\|')} |`,
+  );
+  return [header, ...rows].join('\n');
+}

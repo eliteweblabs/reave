@@ -15,6 +15,31 @@ import type { FeatureId } from './features';
 export const DEMO_SUITE_COOKIE = 'reave_demo_suite';
 export const DEMO_SUITE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
+/** Default module ids when no URL/cookie — client_portal, billing, site_monitoring, voice. */
+export const DEFAULT_DEMO_MODULE_IDS = ['001', '004', '006', '009'] as const;
+
+export function buildDemoSuiteConfig(opts: {
+  tier?: number;
+  moduleIds: readonly string[];
+  industry: string;
+}): DemoSuiteConfig {
+  const moduleIds = opts.moduleIds.map((id) => id.padStart(3, '0'));
+  return {
+    tier: opts.tier ?? 1,
+    moduleIds,
+    features: resolveDemoModuleFeatures(moduleIds),
+    industry: opts.industry.trim().toLowerCase() || 'general',
+    capturedAt: new Date().toISOString(),
+  };
+}
+
+/** Fallback suite for demo installs before a sales URL is opened. */
+export const DEFAULT_DEMO_SUITE: DemoSuiteConfig = buildDemoSuiteConfig({
+  moduleIds: DEFAULT_DEMO_MODULE_IDS,
+  industry: 'general',
+  tier: 1,
+});
+
 export type DemoSuiteConfig = {
   /** Installation tier — 1 = full platform (only tier supported for now). */
   tier: number;

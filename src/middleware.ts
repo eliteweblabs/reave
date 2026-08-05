@@ -3,11 +3,15 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
 import { isModuleRuntimeAllowed } from "./lib/deployModuleStatus";
 import {
+  DEFAULT_DEMO_SUITE,
   DEMO_SUITE_COOKIE,
   DEMO_SUITE_COOKIE_MAX_AGE,
   parseDemoSuiteFromSearchParams,
+  parseDemoSuiteCookie,
   serializeDemoSuite,
 } from "./lib/demoSuite";
+import { runWithDemoSuite } from "./lib/demoSuiteContext";
+import { isDemoMode } from "./lib/demoMode";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { serverEnv } from "./lib/serverEnv";
@@ -194,5 +198,13 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
     const response = await next();
     return applySecurityHeaders(response);
   }
-  return appMiddleware(context, next);
+
+  const run = () => appMiddleware(context, next);
+
+  if (isDemoMode()) {
+    const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
+    return runWithDemoSuite(cookieSuite ?? DEFAULT_DEMO_SUITE, run);
+  }
+
+  return run();
 };
