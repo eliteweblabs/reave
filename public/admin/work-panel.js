@@ -28,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260803b';
+} from './admin-ui.js?v=20260805a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
 
@@ -2719,6 +2719,11 @@ function renderEditWorkForm(pane) {
       getWorkEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
+      if (e.message === 'Not found') {
+        closeWorkDetailPane();
+        renderWorkEditor();
+        return;
+      }
       scroll.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     });
 }
@@ -2818,9 +2823,7 @@ async function bulkDeleteWork(slugs) {
     }
   }
   if (workState.activeSlug && slugSet.has(workState.activeSlug)) {
-    workState.activeSlug = null;
-    workState.dirty = false;
-    workState.draft = null;
+    closeWorkDetailPane();
   }
   await loadWorkTab();
 }
@@ -2888,9 +2891,7 @@ async function deleteWork(slug) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    workState.activeSlug = null;
-    workState.dirty = false;
-    workState.draft = null;
+    closeWorkDetailPane();
     await loadWorkTab();
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);
@@ -3048,6 +3049,26 @@ function parseWorkDeepLinkFromUrl() {
   } catch {
     return null;
   }
+}
+
+function syncWorkDeepLinkUrl(slug) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'work');
+    if (slug && slug !== '__new__') url.searchParams.set('slug', slug);
+    else url.searchParams.delete('slug');
+    history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch {
+    /* ignore */
+  }
+}
+
+function closeWorkDetailPane() {
+  workState.activeSlug = null;
+  workState.draft = null;
+  workState.dirty = false;
+  syncWorkDeepLinkUrl(null);
+  getWorkEditor()?.classList.remove('de-pane-active');
 }
 
 function navigateToWork(slug, opts = {}) {
