@@ -103,7 +103,7 @@ export async function resolveSiriProposalWorkSlug(opts: {
   return recent[0]?.slug ?? null;
 }
 
-/** Fire-and-forget — Siri audit/proposal finished (client + audit project filed). */
+/** Fire-and-forget — Siri audit/proposal finished (audit project updated). Push only — no alert chat. */
 export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   label: string;
   reply: string;
@@ -129,26 +129,12 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
     excerpt: summary,
   });
 
-  const tierLabel = opts.tier === 'full' ? 'Full audit' : 'Audit';
-  const message = [
-    `${tierLabel} complete (Siri shortcut)`,
-    '',
-    `Prospect: ${opts.label}`,
-    slug ? `Project: ${slug}` : 'Project: see Work tab',
-    '',
-    summary || 'Research finished — open the project for the full audit.',
-  ].join('\n');
-
-  await postToSystemAlertsThread({
-    message,
-    autoRun: false,
-    push: {
-      title,
-      body: detail,
-      tag: `siri-proposal-${slug ?? opts.label}`,
-      url: deepLinkUrl,
-    },
-  }).catch((e) => log.warn('system alerts post failed', e));
+  await sendPushNotification({
+    title,
+    body: detail,
+    tag: `siri-proposal-${slug ?? opts.label}`,
+    url: deepLinkUrl,
+  }).catch((e) => log.warn('siri audit push failed', e));
 }
 
 function extractProposalSummary(reply: string, slug?: string | null): string {
