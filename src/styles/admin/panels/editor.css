@@ -1851,7 +1851,9 @@ button.de-placeholder-action:active {
 }
 .wk-client-name-link {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
   max-width: calc(100% - 7.5rem);
   min-width: 0;
   flex: 0 1 auto;
@@ -1859,7 +1861,7 @@ button.de-placeholder-action:active {
   border: none;
   background: none;
   font: inherit;
-  color: inherit;
+  color: var(--fg);
   cursor: pointer;
   text-align: left;
   vertical-align: middle;
@@ -1867,38 +1869,24 @@ button.de-placeholder-action:active {
 .wk-client-name-link:disabled {
   cursor: default;
 }
-.wk-client-name-link:not(:disabled):hover .wk-client-name {
-  color: var(--accent);
-}
+.wk-client-name-link:not(:disabled):hover .wk-client-name,
 .wk-client-name-link:not(:disabled):hover .wk-client-name-arrow {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--panel-border));
   color: var(--accent);
 }
 .wk-client-name-arrow {
   display: none;
-  width: 1rem;
-  height: 1rem;
+  flex: none;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--muted) 35%, var(--panel-border));
-  color: var(--muted);
+  color: inherit;
 }
 @media (pointer: coarse) {
-  .wk-client-name-link:not(:disabled) {
-    padding-right: 1.2rem;
-  }
   .wk-client-name-arrow {
     display: inline-flex;
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
   }
 }
 .wk-client-name-arrow svg {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 1rem;
+  height: 1rem;
   display: block;
 }
 .wk-client-readonly-bar .wk-client-name {
