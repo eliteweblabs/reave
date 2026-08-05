@@ -8,7 +8,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260803a';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260803a';
 
 let state = {

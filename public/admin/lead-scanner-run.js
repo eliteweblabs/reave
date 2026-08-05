@@ -1,7 +1,7 @@
 /**
  * Lead Scanner — slide-in scan session with agent log + property cards.
  */
-import { escHtml, adminFetch } from './shared.js?v=20260728m';
+import { escHtml, adminFetch } from './shared.js?v=20260805j';
 import { postLower, postTitle } from './post-alias.js?v=20260805a';
 import { createPaneSubheader } from './admin-ui.js';
 

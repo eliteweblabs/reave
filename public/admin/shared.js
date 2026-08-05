@@ -153,13 +153,61 @@ export function escHtml(str) {
 
 /** Shimmer skeleton — `kind`: 'list' | 'home' | 'dashboard'. */
 const SK_LIST_WIDTHS = [
-  [45, 30],
-  [55, 38],
-  [50, 28],
-  [60, 40],
-  [48, 33],
-  [52, 35],
+  [72, 58],
+  [84, 46],
+  [64, 52],
+  [78, 44],
+  [68, 50],
+  [80, 42],
+  [74, 48],
+  [66, 54],
 ];
+
+function isMobileListPanelViewport() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
+}
+
+function listItemSkeletonRows(count = SK_LIST_WIDTHS.length) {
+  return SK_LIST_WIDTHS.slice(0, count)
+    .map(([titleW, subW], i) => {
+      const sub =
+        i % 3 !== 1
+          ? `<span class="sk-bone sk-list-sub" style="width:${subW}%"></span>`
+          : '';
+      return (
+        `<div class="ch-list-item sk-list-item">` +
+        `<div class="sk-bone sk-list-icon"></div>` +
+        `<span class="ch-list-content">` +
+        `<span class="ch-item-row">` +
+        `<span class="sk-bone sk-list-title" style="width:${titleW}%"></span>` +
+        `<span class="sk-bone sk-list-date"></span>` +
+        `</span>` +
+        sub +
+        `</span></div>`
+      );
+    })
+    .join('');
+}
+
+/** Full sidebar list shell — search, filter tabs, and card rows (mobile footer-nav tabs). */
+export function listPanelSkeletonHtml(label = 'Loading…') {
+  const safeLabel = escHtml(label);
+  const filters = Array(5)
+    .fill(`<span class="sk-bone sk-list-filter"></span>`)
+    .join('');
+  return (
+    `<div class="ch-sidebar sk-list-panel" role="status" aria-live="polite" aria-busy="true">` +
+    `<span class="sk-sr">${safeLabel}</span>` +
+    `<div class="panel-list-subheader panel-list-subheader--search-only panel-list-subheader--stacked">` +
+    `<div class="panel-list-search-field control-field sk-list-search-shell">` +
+    `<div class="sk-bone sk-list-search"></div>` +
+    `</div>` +
+    `<div class="em-filter-tabs sk-list-filters">${filters}</div>` +
+    `</div>` +
+    `<div class="ch-list">${listItemSkeletonRows(8)}</div>` +
+    `</div>`
+  );
+}
 
 export function skeletonHtml(kind = 'list', label = 'Loading…') {
   const safeLabel = escHtml(label);
@@ -220,19 +268,10 @@ export function skeletonHtml(kind = 'list', label = 'Loading…') {
       `</div>`
     );
   }
-  const rows = SK_LIST_WIDTHS.map(
-    ([w1, w2]) =>
-      `<div class="sk-row">` +
-      `<div class="sk-bone sk-avatar"></div>` +
-      `<div class="sk-lines">` +
-      `<div class="sk-bone sk-line" style="width:${w1}%"></div>` +
-      `<div class="sk-bone sk-line sk-line--short" style="width:${w2}%"></div>` +
-      `</div></div>`,
-  ).join('');
   return (
     `<div class="sk-list" role="status" aria-live="polite" aria-busy="true">` +
     `<span class="sk-sr">${safeLabel}</span>` +
-    rows +
+    listItemSkeletonRows() +
     `</div>`
   );
 }
@@ -240,7 +279,7 @@ export function skeletonHtml(kind = 'list', label = 'Loading…') {
 /** True when the panel is empty or already showing a skeleton (safe to swap in a new one). */
 export function panelNeedsSkeleton(root, contentSelector) {
   if (!root) return false;
-  if (root.querySelector('.sk-list, .sk-dashboard, .sk-home')) return false;
+  if (root.querySelector('.sk-list, .sk-list-panel, .sk-dashboard, .sk-home')) return false;
   if (contentSelector && root.querySelector(contentSelector)) return false;
   return true;
 }
@@ -249,7 +288,10 @@ export function panelNeedsSkeleton(root, contentSelector) {
 export function mountPanelSkeleton(root, kind, label, opts = {}) {
   if (!root || opts.quiet) return;
   if (!panelNeedsSkeleton(root, opts.contentSelector)) return;
-  const html = skeletonHtml(kind, label);
+  const html =
+    kind === 'list' && isMobileListPanelViewport()
+      ? listPanelSkeletonHtml(label)
+      : skeletonHtml(kind, label);
   root.innerHTML = typeof opts.wrapper === 'function' ? opts.wrapper(html) : html;
 }
 

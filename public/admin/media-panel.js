@@ -1,7 +1,7 @@
 /**
  * Admin media library — upload, browse, and delete shared assets.
  */
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260804c';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260804c';
 
 const MEDIA_API = '/api/admin/media';
@@ -210,7 +210,7 @@ export async function loadMediaTab() {
   const root = rootEl();
   if (!root) return;
   if (!state.items.length && !state.loading) {
-    mountPanelSkeleton(root, 'Media library');
+    mountPanelSkeleton(root, 'list', 'Loading media library…');
   }
   await fetchItems();
 }
