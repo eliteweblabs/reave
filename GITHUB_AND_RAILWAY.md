@@ -54,7 +54,28 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```
   Local dev uses `PUBLIC_BOOKING_API_URL` for Cal.com (not the Railway-private `BOOKING_API_URL`).
 
-  **Important:** This repo’s Railway CLI may be linked to **Reave Demo** (`reave-production.up.railway.app`) — a separate project with empty databases. Production lives on **Reave App** (`reave.app`). Always run `npm run sync:env` so `.env` targets Reave App’s public Postgres proxy, not Demo.
+  **Important:** Local dev should target **Reave App** production (`reave.app`), not the live demo install. Always run `npm run sync:env` so `.env` uses Reave App’s public Postgres proxy.
+
+## Reave Demo (live sandbox)
+
+Separate Railway project — **not** production. Do not point `npm run sync:env` at this project.
+
+| | Reave App (production) | Reave Demo (sandbox) |
+|---|---|---|
+| Project | **REΛVE Automation** `af65eb9a-b11c-4c1c-8030-66b4347dcf71` | **REΛVE App Demo** `350f3d35-6afc-47a4-bcf5-d9753abb78f2` |
+| Service | `reave` `0ef02496-5250-4314-a079-34a4c399f430` | `reave` `38902411-adf1-48ca-bff9-8346390897f9` |
+| Public URL | `https://reave.app` | `https://demo.reave.app` (custom) · `https://reave-production-e6ab.up.railway.app` (Railway) |
+| Config | `INSTALL_CONFIG=production` | `INSTALL_CONFIG=demo`, `DEMO_MODE=1` |
+
+CLI (must pass `--project` so you do not hit production):
+
+```sh
+railway domain demo.reave.app --service reave \
+  --project 350f3d35-6afc-47a4-bcf5-d9753abb78f2 \
+  --environment production
+```
+
+Custom domain `demo.reave.app` needs **both** a CNAME and a Railway TXT verification record in Cloudflare (`reave.app` zone). Copy exact values from Railway → REΛVE App Demo → `reave` → Settings → Networking → `demo.reave.app`. Until the TXT record verifies, the custom domain returns 404 even if the CNAME resolves.
 
 ## Backups (pre-production / contingency)
 
