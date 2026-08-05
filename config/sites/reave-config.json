@@ -20,6 +20,7 @@
     "links": [
       { "href": "/platform", "label": "Platform" },
       { "href": "/compare", "label": "Compare" },
+      { "href": "/compare-2", "label": "Compare 2" },
       { "href": "/pricing", "label": "Pricing" },
       { "href": "/modules", "label": "Modules" },
       { "href": "/deck", "label": "Walkthrough", "hideBelow": 1080 },
@@ -35,6 +36,7 @@
           { "href": "/platform", "label": "Platform" },
           { "href": "/features", "label": "Features" },
           { "href": "/compare", "label": "Compare" },
+          { "href": "/compare-2", "label": "Compare 2" },
           { "href": "/pricing", "label": "Pricing" },
           { "href": "/modules", "label": "Modules" },
           { "href": "/demo", "label": "Demo", "primary": true },
