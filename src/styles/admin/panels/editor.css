@@ -1142,7 +1142,7 @@ button.de-placeholder-action:active {
     grid-row: 1;
     position: sticky;
     top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem)
     );
     z-index: 6;
   }
@@ -1376,6 +1376,7 @@ button.de-placeholder-action:active {
     position: static;
     top: auto;
     overflow: visible;
+    padding-top: 0;
   }
   #work-editor.de-pane-active .wk-detail-tabs {
     position: static;
@@ -1389,13 +1390,13 @@ button.de-placeholder-action:active {
   #rule-editor.de-pane-active .de-pane,
   #doc-editor.de-pane-active .de-pane {
     padding-top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem)
     );
   }
   #clients-editor.de-pane-active .de-header {
     position: sticky;
     top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem)
     );
     z-index: 6;
     background: var(--bg);
@@ -1419,7 +1420,7 @@ button.de-placeholder-action:active {
   #clients-editor.de-pane-active .cl-detail-tabs {
     position: sticky;
     top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - 0.85rem +
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem) +
         var(--control-h)
     );
     z-index: 5;

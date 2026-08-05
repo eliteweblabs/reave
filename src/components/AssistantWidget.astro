@@ -131,10 +131,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-root { position: relative; }
 
   .aw-fab {
-    --aw-fab-inset: 20px;
     position: fixed;
-    right: calc(env(safe-area-inset-right, 0px) + var(--aw-fab-inset));
-    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--aw-fab-inset) + var(--aw-vv-bottom, 0px));
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
     z-index: 950;
     width: 58px;
     height: 58px;
@@ -520,38 +519,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     }
   }
 
-  function initFabViewportBottom(fab: HTMLElement) {
-    if (fab.dataset.vvBottomBound === '1') return;
-    fab.dataset.vvBottomBound = '1';
-
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    let probe: HTMLDivElement | null = null;
-
-    const sync = () => {
-      if (!probe) {
-        probe = document.createElement('div');
-        probe.style.cssText =
-          'position:fixed;bottom:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none';
-        document.body.appendChild(probe);
-      }
-
-      const offsetTop = vv.offsetTop ?? 0;
-      const visualBottom = offsetTop + vv.height;
-      const layoutBottom = probe.getBoundingClientRect().bottom;
-      // When fixed uses the layout viewport, lift the FAB by the browser chrome height.
-      const chrome = Math.max(0, Math.round(layoutBottom - visualBottom));
-      fab.style.setProperty('--aw-vv-bottom', chrome > 1 ? `${chrome}px` : '0px');
-    };
-
-    vv.addEventListener('resize', sync, { passive: true });
-    vv.addEventListener('scroll', sync, { passive: true });
-    window.addEventListener('scroll', sync, { passive: true });
-    window.addEventListener('orientationchange', sync, { passive: true });
-    sync();
-  }
-
   function initAssistantWidget(root: HTMLElement) {
     const endpoint = root.dataset.endpoint || '';
     const storageKey = root.dataset.storageKey || '';
@@ -574,8 +541,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     if (fab.parentElement !== document.body) {
       document.body.appendChild(fab);
     }
-    initFabViewportBottom(fab);
-
     if (revealFab) initFabReveal(fab);
     if (hideFabForHero) initFabSectionHide(fab, heroSelector, contactSelector);
 

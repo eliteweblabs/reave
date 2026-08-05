@@ -1610,7 +1610,7 @@
   #chat-panel.ch-pane-active .ch-pane {
     display: flex;
     flex: 1 1 auto;
-    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - 0.85rem);
+    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - var(--pane-topbar-tuck, 0.85rem));
   }
   #chat-panel.ch-pane-active .ch-pane-header {
     flex-shrink: 0;
@@ -1674,7 +1674,7 @@
     padding: 0.42rem 0.55rem;
   }
   #schedule-panel.de-pane-active .de-pane {
-    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - 0.85rem);
+    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - var(--pane-topbar-tuck, 0.85rem));
   }
   #schedule-panel.de-pane-active .de-header {
     flex-shrink: 0;

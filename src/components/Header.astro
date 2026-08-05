@@ -308,14 +308,21 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     }
   }
 
-  /** Keep pane clearance aligned with the real fixed header box (safe area + row + alerts). */
+  /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
   function syncTopbarMeasuredHeight() {
     const topbar = document.getElementById("topbar");
     if (!topbar) return;
-    document.documentElement.style.setProperty(
-      "--topbar-measured-h",
-      `${Math.ceil(topbar.getBoundingClientRect().height)}px`,
-    );
+    const alerts = document.getElementById("admin-setup-alerts");
+    let clearance = 0;
+    if (alerts && !alerts.hidden) {
+      clearance = Math.ceil(alerts.getBoundingClientRect().bottom);
+    } else {
+      const row = topbar.querySelector(".app-header-row");
+      clearance = row
+        ? Math.ceil(row.getBoundingClientRect().bottom)
+        : Math.ceil(topbar.getBoundingClientRect().bottom);
+    }
+    document.documentElement.style.setProperty("--topbar-measured-h", `${clearance}px`);
   }
 
   function bindTopbarHeightObserver() {

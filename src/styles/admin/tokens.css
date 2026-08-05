@@ -69,6 +69,8 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
+  /* Pull mobile detail panes up under the transparent admin top bar. */
+  --pane-topbar-tuck: 0.85rem;
   --footer-nav-pill-h: var(--control-h);
   --footer-nav-bottom-gap: 0px;
   --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom) + var(--footer-nav-bottom-gap));
@@ -172,6 +174,11 @@
     --dash-nav-icon-size: 2.35rem;
     --dash-nav-icon-svg: 1.4rem;
     --dash-nav-label-size: 0.84rem;
+  }
+}
+@media (max-width: 639px) {
+  :root {
+    --pane-topbar-tuck: 1.5rem;
   }
 }
 @media (prefers-color-scheme: dark) {
