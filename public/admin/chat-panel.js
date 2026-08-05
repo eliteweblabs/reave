@@ -218,10 +218,14 @@ async function shareChatText(text, role, btn) {
   return ok;
 }
 
-function clientPortalShareUrl(uid, tab) {
+function clientPortalShareUrl(uid, tab, project) {
   if (!uid) return '';
   const base = `${window.location.origin}/c/${encodeURIComponent(uid)}`;
-  return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
+  const params = new URLSearchParams();
+  if (tab) params.set('tab', tab);
+  if (project) params.set('project', project);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 async function sharePortalLink(url, title, btn) {
@@ -252,7 +256,7 @@ async function createTrackedProjectShareUrl(jobSlug, contactUid, tab) {
     return data.url || '';
   } catch (e) {
     showChatToast(e?.message || 'Could not create tracked link');
-    return clientPortalShareUrl(contactUid, tab);
+    return clientPortalShareUrl(contactUid, tab, jobSlug);
   }
 }
 
@@ -476,13 +480,25 @@ function reaveShareKindLabel(kind) {
   return 'Client portal link';
 }
 
-async function resolveReaveShareUrl(state) {
+async function resolveReaveShareUrl(state, opts = {}) {
   if (state.url) return state.url;
-  // Copy/preview/share use direct portal URLs — tracked links are created server-side
-  // on send only. Views are recorded on the portal after deep-link dwell or accordion expand.
-  if (state.recipient?.contactUid) {
-    return clientPortalShareUrl(state.recipient.contactUid, state.tab || (state.kind === 'work' ? 'work' : undefined));
+  const tab = state.tab || (state.kind === 'work' ? 'work' : undefined);
+  const jobSlug = state.jobSlug?.trim() || '';
+  const contactUid = state.recipient?.contactUid?.trim() || '';
+
+  // Project shares: Copy link / native share get a tracked /go URL so the Viewed pill works.
+  // Email/SMS still create tracked links server-side on send. Preview stays a direct URL.
+  if (opts.tracked && jobSlug && contactUid) {
+    if (state.trackedShareUrl) return state.trackedShareUrl;
+    const url = await createTrackedProjectShareUrl(jobSlug, contactUid, tab);
+    if (url) {
+      state.trackedShareUrl = url;
+      void refreshWorkLinkTrackStatus(state.trackEl, jobSlug, state.shareLogEl);
+      return url;
+    }
   }
+
+  if (contactUid) return clientPortalShareUrl(contactUid, tab, jobSlug || undefined);
   if (state.kind === 'booking') return scheduleShareBookingUrl(state.booking);
   return '';
 }
@@ -497,7 +513,7 @@ async function sendViaReaveShare(channel, state) {
   } else if (state.kind === 'booking') {
     url = state.url || scheduleShareBookingUrl(state.booking);
   } else if (!state.jobSlug && state.recipient?.contactUid) {
-    url = clientPortalShareUrl(state.recipient.contactUid, state.tab);
+    url = clientPortalShareUrl(state.recipient.contactUid, state.tab, undefined);
   } else if (state.url && !state.jobSlug) {
     url = state.url;
   }
@@ -598,7 +614,7 @@ function buildReaveShareActions(state, opts = {}) {
   );
   actionsEl.appendChild(
     mkBtn('Copy link', 'reave-share-btn--ghost', async (e) => {
-      const url = await resolveReaveShareUrl(state);
+      const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
       let text = url;
       if (state.kind === 'booking' && state.booking) {
         text = [formatScheduleRange(state.booking.startTime, state.booking.endTime), url]
@@ -611,7 +627,7 @@ function buildReaveShareActions(state, opts = {}) {
   if (navigator.share) {
     actionsEl.appendChild(
       mkBtn('More options…', 'reave-share-btn--ghost', async () => {
-        const url = await resolveReaveShareUrl(state);
+        const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
         const sharePayload = { title: opts.shareTitle || `Share with ${name}` };
         if (url) sharePayload.url = url;
         if (opts.shareText) sharePayload.text = opts.shareText;

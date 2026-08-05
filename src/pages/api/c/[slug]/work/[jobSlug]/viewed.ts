@@ -7,7 +7,7 @@ import { getContact } from '../../../../../../lib/contactApi';
 import { recordShareOpenEngagement } from '../../../../../../lib/engagementNotifications';
 import { recordProjectShareView } from '../../../../../../lib/linkTracking';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
-import { isLinkPreviewRequest, isOwnerPreviewRequest, isStaffSession } from '../../../../../../lib/staffSession';
+import { isStaffSession } from '../../../../../../lib/staffSession';
 import { storeReadWork } from '../../../../../../lib/workStore';
 
 export const prerender = false;
@@ -27,7 +27,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
   const ctx = await loadPortalJob(contactUid, jobSlug);
   if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
 
-  if (isStaffSession(locals) || isOwnerPreviewRequest(request) || isLinkPreviewRequest(request)) {
+  if (isStaffSession(locals)) {
     return json({ ok: true, recorded: false });
   }
 

@@ -202,7 +202,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260804b';
+} from './chat-panel.js?v=20260805h';
 import {
   initCreateDrawer,
   beginCreateDrawer,
