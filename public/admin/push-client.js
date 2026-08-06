@@ -647,9 +647,15 @@ async function patchSleepModeSettings(patch) {
   return saved;
 }
 
+function formatTopbarSleepLabel(data, enabled) {
+  const until = data?.quietEndLabel || '7:00 AM';
+  return enabled ? `Sleeping until ${until}` : `Awake until ${until}`;
+}
+
 function syncTopbarSleepToggle(data = sleepModeCache) {
   const wrap = document.getElementById('topbar-sleep-toggle');
   const btn = document.getElementById('topbar-sleep-toggle-btn');
+  const label = document.getElementById('topbar-sleep-toggle-label');
   const topbar = document.getElementById('topbar');
   if (!wrap || !btn) return;
 
@@ -659,12 +665,13 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
   if (!inWindow) return;
 
   const enabled = data?.settings?.sleepModeEnabled !== false;
+  if (label) label.textContent = formatTopbarSleepLabel(data, enabled);
   btn.setAttribute('aria-checked', enabled ? 'true' : 'false');
   btn.setAttribute(
     'aria-label',
     enabled
-      ? 'Sleep mode on — tap to allow AI and alerts tonight'
-      : 'Sleep mode off — tap to pause AI and alerts again',
+      ? `Sleep mode on until ${data?.quietEndLabel || 'quiet hours end'} — tap to allow AI and alerts tonight`
+      : `Sleep mode off until ${data?.quietEndLabel || 'quiet hours end'} — tap to pause AI and alerts again`,
   );
 }
 

@@ -116,20 +116,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
-  {adminShell && (
-    <div id="topbar-sleep-toggle" class="topbar-sleep-toggle" hidden>
-      <span class="topbar-sleep-toggle-label">Sleep</span>
-      <button
-        type="button"
-        id="topbar-sleep-toggle-btn"
-        class="topbar-sleep-toggle-switch"
-        role="switch"
-        aria-checked="true"
-        aria-label="Sleep mode"
-      ></button>
-    </div>
-  )}
-
   {showMarketingNav && (
     <MarketingMenu
       pathname={path}
@@ -267,6 +253,20 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     <time id="topbar-dash-date" class="topbar-dash-date" datetime="" hidden></time>
   )}
   </div>
+
+  {adminShell && (
+    <div id="topbar-sleep-toggle" class="topbar-sleep-toggle" hidden>
+      <span id="topbar-sleep-toggle-label" class="topbar-sleep-toggle-label">Sleeping until 7:00 AM</span>
+      <button
+        type="button"
+        id="topbar-sleep-toggle-btn"
+        class="topbar-sleep-toggle-switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Sleep mode"
+      ></button>
+    </div>
+  )}
 
   {adminShell && (
     <div id="admin-setup-alerts" class="admin-setup-alerts" hidden aria-live="polite"></div>
@@ -528,14 +528,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   .topbar-sleep-toggle {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: calc(var(--safe-top) + var(--app-header-h) / 2);
     transform: translate(-50%, -50%);
     z-index: 2;
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    max-width: min(46vw, 12rem);
-    padding: 0.2rem 0.55rem 0.2rem 0.65rem;
+    gap: 0.5rem;
+    max-width: min(78vw, 20rem);
+    padding: 0.22rem 0.55rem 0.22rem 0.75rem;
     border-radius: 999px;
     border: var(--footer-nav-glass-border, 1px solid rgba(255, 255, 255, 0.08));
     background: var(--footer-nav-glass-bg, rgba(18, 23, 34, 0.72));
@@ -549,9 +549,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   .topbar-sleep-toggle-label {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: -0.01em;
     color: var(--muted, rgba(255, 255, 255, 0.62));
     white-space: nowrap;
     user-select: none;

@@ -4,6 +4,7 @@
 
 import type { APIContext } from 'astro';
 import {
+  formatQuietEndLabel,
   formatQuietHoursLabel,
   getPushQuietHoursSettings,
   isWithinQuietWindow,
@@ -33,6 +34,7 @@ export async function GET(context: APIContext): Promise<Response> {
     settings,
     active,
     inQuietWindow,
+    quietEndLabel: formatQuietEndLabel(settings),
     label: formatQuietHoursLabel(settings),
   });
 }
@@ -92,6 +94,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     settings,
     active,
     inQuietWindow,
+    quietEndLabel: formatQuietEndLabel(settings),
     label: formatQuietHoursLabel(settings),
   });
 }

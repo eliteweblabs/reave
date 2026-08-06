@@ -341,3 +341,10 @@ export function formatQuietHoursLabel(settings: PushQuietHoursSettings): string 
   };
   return `${fmt(settings.quietStart)} – ${fmt(settings.quietEnd)}`;
 }
+
+/** Human-readable quiet-hours end time for sleep-mode UI ("Sleeping until 7:00 AM"). */
+export function formatQuietEndLabel(settings: Pick<PushQuietHoursSettings, 'quietEnd'>): string {
+  const [h, m] = settings.quietEnd.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
