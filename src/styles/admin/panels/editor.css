@@ -1393,6 +1393,20 @@ button.de-placeholder-action:active {
 #work-editor .sliding-pill-select {
   min-width: 0;
 }
+#work-editor .re-form-scroll.wk-form-scroll {
+  padding-top: 0.1rem;
+}
+#work-editor .wk-detail-tabs {
+  padding-bottom: 0.2rem;
+}
+#work-editor .wk-client-readonly-bar {
+  padding-top: 0.2rem;
+}
+#work-editor .sliding-pill {
+  background: var(--nav-indicator-bg);
+  border-radius: 8px;
+  padding: 0.15rem;
+}
 @media (max-width: 639px) {
   #work-editor.de-pane-active .wk-detail-chrome > .de-header {
     position: static;
