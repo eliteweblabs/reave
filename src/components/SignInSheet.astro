@@ -275,7 +275,11 @@ const clerkAppearance = {
     if (document.body?.dataset?.userId?.trim()) return false;
     if (!window.Clerk?.loaded) return false;
     if (!sheet.classList.contains('open')) return false;
-    return !sheet.querySelector('input[name="identifier"]');
+    // Identifier is absent on later hash steps (#/factor-one OTP, password, etc.).
+    // Only treat as stuck when there is truly nothing to type into.
+    return !sheet.querySelector(
+      'input[name="identifier"], input[name="password"], input[name="code"], input[autocomplete="one-time-code"], input[inputmode="numeric"], .cl-otpCodeFieldInputs input',
+    );
   }
 
   reset?.querySelector('button')?.addEventListener('click', async () => {
