@@ -479,12 +479,12 @@ export function isChatLockedForDeploy(snapshot: DeployStatusSnapshot | null | un
 export function chatDeployLockMessage(snapshot: DeployStatusSnapshot): string {
   if (snapshot.state === 'failed') {
     const reason = snapshot.failed_reason ?? 'Deploy failed';
-    return `${reason} — new messages are paused until the site is live again.`;
+    return `${reason} — new messages are paused until the website is live again.`;
   }
   if (snapshot.state === 'stale' && snapshot.latest_commit) {
     const min =
       snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
-    return `Deploy stale (${snapshot.latest_commit.short_sha} pushed ${min} min ago) — new messages are paused until the site is live again.`;
+    return `Deploy stale (${snapshot.latest_commit.short_sha} pushed ${min} min ago) — new messages are paused until the website is live again.`;
   }
   if (snapshot.state === 'deploying' && snapshot.latest_commit) {
     const msg = truncateMessage(snapshot.latest_commit.message, 48);

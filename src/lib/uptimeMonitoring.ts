@@ -231,7 +231,7 @@ async function notifyUptimeAlert(opts: {
   if (isUptimeAlertSuppressed(monitor.id, monitor.friendly_name, monitor.url)) return;
 
   const label = monitor.friendly_name || monitor.url || `Monitor ${monitor.id}`;
-  const detail = incident.message || (down ? 'Site is down' : 'Site recovered');
+  const detail = incident.message || (down ? 'Website is down' : 'Website recovered');
 
   await postToSystemAlertsThread({
     message: [
@@ -246,7 +246,7 @@ async function notifyUptimeAlert(opts: {
       '',
       down
         ? 'Check hosting, DNS, SSL, and recent deploys. Link a work record if client action is needed.'
-        : 'Confirm the site loads and close any open incident ticket.',
+        : 'Confirm the website loads and close any open incident ticket.',
     ]
       .filter(Boolean)
       .join('\n'),

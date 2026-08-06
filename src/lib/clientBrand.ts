@@ -1,5 +1,5 @@
 /**
- * Client portal branding — fetch logo and site metadata from a client's website
+ * Client portal branding — fetch logo and website metadata from a client's website
  * when a project is created (best-effort; never blocks work creation).
  */
 import * as cheerio from 'cheerio';
@@ -12,7 +12,7 @@ import {
   type ContactRecord,
 } from './contactApi';
 import { normalizePublicUrl } from './publicUrl';
-import { portalSiteUrl } from './siteMonitoring';
+import { isPortalWebsiteUrlFieldLabel, portalSiteUrl } from './siteMonitoring';
 import { refreshPortalBrandColors } from './portalBrandColors';
 
 /** Browser-like UA — avoids bot-detection redirect loops on some sites (incl. self-fetch). */
@@ -213,7 +213,7 @@ function websiteFromEmail(email: string): string | null {
   return `https://${domain}`;
 }
 
-/** Best-effort website URL for a contact (portal website, Site URL field, else email domain). */
+/** Best-effort website URL for a contact (portal website, Website URL field, else email domain). */
 export function guessClientWebsite(contact: ContactRecord, portal: ClientPortal | null): string | null {
   const direct = contactStringField(portal?.website);
   if (direct) return direct;
@@ -309,10 +309,10 @@ export async function setClientPortalWebsite(
   const portal = extractPortal(res.data) ?? {};
   const website = normalizeClientWebsiteInput(websiteInput);
   const fields = [...(portal.fields ?? [])];
-  const idx = fields.findIndex((f) => f.label.trim().toLowerCase() === 'site url');
+  const idx = fields.findIndex((f) => isPortalWebsiteUrlFieldLabel(f.label));
 
   if (website) {
-    const row = { label: 'Site URL', value: website };
+    const row = { label: 'Website URL', value: website };
     if (idx >= 0) fields[idx] = row;
     else fields.push(row);
   } else if (idx >= 0) {

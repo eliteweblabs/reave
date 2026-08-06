@@ -11,6 +11,7 @@
 
   let modules = [];
   let industries = [];
+  let baselineModuleIds = [];
   let selectedIds = new Set();
   let industry = 'general';
   let demoSiteUrl = null;
@@ -37,6 +38,7 @@
   function syncDefaults(data) {
     modules = data.modules || [];
     industries = data.industries || [];
+    baselineModuleIds = data.baselineModuleIds || [];
     demoSiteUrl = data.demoSiteUrl || null;
     const allowed = new Set(toggleableModules().map((m) => m.moduleId));
     if (data.suite?.moduleIds?.length) {
@@ -50,6 +52,12 @@
       selectedIds = new Set(data.defaultModuleIds || [...allowed]);
       industry = industries[0]?.slug || 'general';
     }
+  }
+
+  function launchModuleIds() {
+    const merged = new Set(baselineModuleIds);
+    for (const id of selectedIds) merged.add(id);
+    return [...merged].sort();
   }
 
   function selectedToggleableCount() {
@@ -117,7 +125,7 @@
   function render() {
     const toggleCount = toggleableModules().length;
     const selectedCount = selectedToggleableCount();
-    const canLaunch = Boolean(demoSiteUrl && selectedCount > 0);
+    const canLaunch = Boolean(demoSiteUrl);
 
     root.innerHTML =
       `<div class="dl-panel">` +
@@ -133,7 +141,7 @@
       (demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
       `</button>` +
       `</div>` +
-      `<p class="dl-meta">${selectedCount} of ${toggleCount} deployed modules selected · ${modules.length} modules shown</p>` +
+      `<p class="dl-meta">${selectedCount} optional module${selectedCount === 1 ? '' : 's'} selected · ${modules.length} add-on modules · baseline client portal always included</p>` +
       `</div>` +
       renderLegend() +
       `<div class="dl-grid">${modules.map(renderTile).join('')}</div>` +
@@ -184,8 +192,8 @@
     });
 
     root.querySelector('#dl-launch')?.addEventListener('click', () => {
-      if (!demoSiteUrl || !selectedToggleableCount()) return;
-      const ids = [...selectedIds].sort();
+      if (!demoSiteUrl) return;
+      const ids = launchModuleIds();
       const url = new URL('/', demoSiteUrl);
       url.searchParams.set('demo', 'tier-1');
       url.searchParams.set('modules', `[${ids.join(',')}]`);

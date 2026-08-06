@@ -1,15 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import HomeServicesSection from "../components/home/HomeServicesSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import "../styles/marketing-sections.css";
 
 const company = await getCompanyConfig(Astro.request);
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout
@@ -19,16 +14,6 @@ const showSiteAssistant =
   <div class="services-page">
     <HomeServicesSection />
   </div>
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>
 
 <style>

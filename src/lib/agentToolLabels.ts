@@ -86,9 +86,9 @@ const TOOL_LABELS: Record<string, string> = {
   get_client_portal: 'Reading client portal',
   get_client_submit_link: 'Getting submit link',
   send_client_portal: 'Sending client portal',
-  get_site_monitoring: 'Reading site monitoring',
-  set_site_monitoring: 'Updating site monitoring',
-  recheck_site_monitoring: 'Rechecking site monitoring',
+  get_site_monitoring: 'Reading website monitoring',
+  set_site_monitoring: 'Updating website monitoring',
+  recheck_site_monitoring: 'Rechecking website monitoring',
 };
 
 function titleCaseWords(value: string): string {

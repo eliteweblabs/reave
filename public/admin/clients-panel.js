@@ -928,7 +928,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
     ? 'Save the client first to upload logo and icon.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a site URL is saved, or use Fetch from website.';
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a website URL is saved, or use Fetch from website.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);

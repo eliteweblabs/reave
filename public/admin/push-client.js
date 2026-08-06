@@ -298,8 +298,8 @@ function renderSetupAlert(kind) {
   } else {
     const denied = Notification.permission === 'denied';
     copy.innerHTML = denied
-      ? '<strong>Notifications are blocked</strong><p>Enable notifications in your browser or device settings to get inbox alerts, bookings, and site monitoring.</p>'
-      : '<strong>Enable notifications</strong><p>Get inbox alerts, booking updates, and site monitoring even when the app is in the background.</p>';
+      ? '<strong>Notifications are blocked</strong><p>Enable notifications in your browser or device settings to get inbox alerts, bookings, and website monitoring.</p>'
+      : '<strong>Enable notifications</strong><p>Get inbox alerts, booking updates, and website monitoring even when the app is in the background.</p>';
   }
 
   const actions = document.createElement('div');

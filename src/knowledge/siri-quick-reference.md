@@ -124,7 +124,7 @@ Everything in the quick audit plus Playwright UX/UI, broken links, and tech stac
   "client": "Acme Corp",
   "status": "active",
   "priority": "high",
-  "body": "Full site redesign with modern stack",
+  "body": "Full website redesign with modern stack",
   "format": "text"
 }
 ```

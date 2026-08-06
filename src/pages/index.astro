@@ -1,23 +1,15 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
-import SiteLegalLinks from "../components/SiteLegalLinks.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
-import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
 
-const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const homepage = siteContent.homepage;
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout>
@@ -32,18 +24,7 @@ const showSiteAssistant =
       )
     }
     {homepage.showContact && <HomeContactSection />}
-    {homepage.showLegalLinks !== false && <SiteLegalLinks />}
   </div>
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>
 
 <style>

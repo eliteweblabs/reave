@@ -18,7 +18,7 @@ export const PLATFORM_DEPLOY_MODES = [
   },
   {
     title: 'Standalone app',
-    desc: 'Admin dashboard and client portal only. Skip the public frontend if you already have a site elsewhere.',
+    desc: 'Admin dashboard and client portal only. Skip the public frontend if you already have a website elsewhere.',
   },
   {
     title: 'Both',

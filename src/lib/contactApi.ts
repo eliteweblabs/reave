@@ -251,7 +251,7 @@ export type PortalDocument = {
 };
 
 export type SiteMonitoringMeta = {
-  /** When false, skip ChangeDetection watch even if Site URL is set. Default true. */
+  /** When false, skip ChangeDetection watch even if Website URL is set. Default true. */
   enabled?: boolean;
   watchUuid?: string;
   watchUrl?: string;

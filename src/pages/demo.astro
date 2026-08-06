@@ -4,11 +4,8 @@
  * PUBLIC_DEMO_URL is configured on the marketing install.
  */
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
 import { getPublicDemoOptions } from "../lib/publicDemo";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import {
   ArrowRight,
   ExternalLink,
@@ -22,8 +19,6 @@ const company = await getCompanyConfig(Astro.request);
 const demo = getPublicDemoOptions();
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const quoteHref = supportMail ? `mailto:${supportMail}` : demo.scheduleHref;
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 
 type DemoCard = {
   icon: typeof Video;
@@ -133,25 +128,7 @@ if (!demo.adminUrl) {
         })
       }
     </div>
-
-    <footer class="demo-footer">
-      <p>
-        Want someone to walk you through it live?
-        <a href={demo.scheduleHref}>Book a call</a>
-        {supportMail ? <> or <a href={quoteHref}>email {supportMail}</a></> : null}.
-      </p>
-    </footer>
   </div>
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>
 
 <style>
@@ -164,8 +141,7 @@ if (!demo.adminUrl) {
   }
 
   .demo-hero,
-  .demo-grid,
-  .demo-footer {
+  .demo-grid {
     width: 100%;
     max-width: 920px;
   }
@@ -303,18 +279,6 @@ if (!demo.adminUrl) {
     font-family: var(--font-secondary);
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.88);
-  }
-
-  .demo-footer {
-    margin-top: 48px;
-    text-align: center;
-    font-family: var(--font-content);
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.55);
-  }
-
-  .demo-footer a {
     color: rgba(255, 255, 255, 0.88);
   }
 </style>

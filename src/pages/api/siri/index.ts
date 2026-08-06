@@ -639,11 +639,11 @@ async function runProposalResearch(input: {
 
   const auditToolsStep =
     input.tier === 'full'
-      ? '3. Run the **full** audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, ' +
+      ? '3. Run the **full** audit tool sequence on the website: fetch_url, lighthouse_audit, ssl_check, ' +
         'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
         'playwright_audit (real-browser UX/UI on desktop + mobile), and detect_tech_stack. Run read-only ' +
         'tools in parallel when possible. Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry.'
-      : '3. Run the **quick** audit tool sequence on the site (street-speed — skip slow tools): fetch_url, ' +
+      : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, ' +
         'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
         '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
         'or detect_tech_stack — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +

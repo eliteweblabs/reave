@@ -27,7 +27,7 @@ client's name).
   "headline": "Your project", // short title at the top
   "body": "Free text…",       // newlines + URLs preserved/auto-linked
   "fields": [                  // optional labeled rows
-    { "label": "Site URL", "value": "https://acme.com" },
+    { "label": "Website URL", "value": "https://acme.com" },
     { "label": "Plan", "value": "Annual hosting" }
   ],
   "updatedAt": "2026-…"       // set automatically on save

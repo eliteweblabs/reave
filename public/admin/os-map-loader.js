@@ -3013,7 +3013,7 @@ async function showUptimeSyncResultDialog(result) {
 
   const httpOk = result?.ok !== false || (result?.created ?? 0) > 0 || (result?.skipped ?? 0) > 0;
   const manualItems = Array.isArray(result?.manualItems) ? result.manualItems : [];
-  titleEl.textContent = manualItems.length ? 'Site sync — manual setup needed' : 'Site sync complete';
+  titleEl.textContent = manualItems.length ? 'Website sync — manual setup needed' : 'Website sync complete';
   bodyEl.innerHTML = renderUptimeSyncResultHtml(result, httpOk);
   actionsEl.innerHTML = '';
 
@@ -3075,7 +3075,7 @@ async function refreshUptimeSyncButtonState() {
 function renderUptimeSyncResultHtml(data, httpOk) {
   if (data?.started) {
     return (
-      '<p class="em-book-dialog-lead">Site sync is running in the background. ' +
+      '<p class="em-book-dialog-lead">Website sync is running in the background. ' +
       'The <strong>Sync sites</strong> button shows progress — refresh the page if it still looks idle.</p>'
     );
   }
