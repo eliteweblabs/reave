@@ -39,7 +39,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   web_handoff: 'Portal Data tab (handoff creds)',
   portal_assistant: 'Client portal help chat (speed-dial support assistant)',
   billing: 'Crater billing & invoices',
-  site_audits: 'Site audits (Lighthouse, SSL, DNS, links)',
+  site_audits: 'Website Audit',
   site_monitoring: 'Site change monitoring (ChangeDetection.io)',
   uptime_monitoring: 'Uptime monitoring (UptimeRobot)',
   documents: 'Document signing templates',

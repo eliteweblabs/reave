@@ -18,7 +18,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 | 002 | `web_handoff` | Portal Data tab (handoff creds) |
 | 003 | `portal_assistant` | Client portal help chat (speed-dial support assistant) |
 | 004 | `billing` | Crater billing & invoices |
-| 005 | `site_audits` | Site audits (Lighthouse, SSL, DNS, links) |
+| 005 | `site_audits` | Website Audit |
 | 006 | `site_monitoring` | Site change monitoring (ChangeDetection.io) |
 | 007 | `uptime_monitoring` | Uptime monitoring (UptimeRobot) |
 | 008 | `documents` | Document signing templates |
