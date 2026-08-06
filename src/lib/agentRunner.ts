@@ -13,6 +13,7 @@ import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { prependDeployBanner } from './deployStatus';
 import { isRailwayConfigured } from './railwayClient';
+import { isCloudflareConfigured } from './cloudflareClient';
 import { isKinstaConfigured } from './kinstaClient';
 import { serverEnv } from './serverEnv';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
@@ -649,13 +650,18 @@ async function runKnowledgeAgentInner(
     sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
     if (isRailwayConfigured()) {
       sysParts.push(
-        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains via list_railway_domains (CNAME targets, *.up.railway.app domains, custom-domain TXT verification; defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Cloudflare DNS: use cloudflare_dns (verify / list_records / upsert_record) for any zone this token can reach — client SPF/DMARC/MX, not just the company domain. sync_resend_dns is Resend-only (needs the domain in Resend). run_dev_task ping_cloudflare checks the token. Public dns_check is read-only and can show stale NS during propagation — call cloudflare_dns when the user says DNS is in Cloudflare. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
+        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains via list_railway_domains (CNAME targets, *.up.railway.app domains, custom-domain TXT verification; defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
       );
     } else {
       sysParts.push(
         `Railway API token not set — list_railway_domains and ping_railway are unavailable, but you ARE running on Railway. Use check_deployment_status and get_git_status for deploy health; do not tell the owner to add a token just to read logs.`,
       );
     }
+    sysParts.push(
+      isCloudflareConfigured()
+        ? 'Cloudflare DNS: CLOUDFLARE_API_TOKEN is configured — you CAN read/write DNS on any zone the token reaches via cloudflare_dns (verify / list_records / upsert_record) — client SPF/DMARC/MX, not just the company domain. sync_resend_dns is a separate Resend-only helper. run_dev_task ping_cloudflare checks the token. NEVER say Cloudflare tools are "Resend-only" or that you lack a general DNS tool — call cloudflare_dns first and quote its result. Public dns_check is read-only and can show stale NS during propagation.'
+        : 'Cloudflare DNS unavailable (CLOUDFLARE_API_TOKEN not set). dns_check still works read-only via public resolvers.',
+    );
     sysParts.push(
       'Deploy failures / crash alerts: read_knowledge slug "railway-build-failure-triage" first. One active repair per GitHub repo — duplicate alerts are blocked. Call check_deployment_status and get_git_status (pass repo + health_url for sibling services). Distinguish rollout teardown vs real failure. On real failure: read changed files, fix via write_github_file(branch:"main") in the same turn — do NOT stop at diagnosis or ask the owner to fix. End with "✅ RESOLVED — …" or "🚨 UNRESOLVED — …".',
     );

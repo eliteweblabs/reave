@@ -147,7 +147,6 @@ import { sslCheck, formatSslCheckResults } from '../../src/lib/sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
 import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../src/lib/resendDnsSync';
-import { cloudflareDnsManage } from '../../src/lib/cloudflareDnsManage';
 import { hasFeature } from '../../src/lib/features';
 import { syncUptimeMonitorsFromApi } from '../../src/lib/uptimeMonitoring';
 import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
@@ -253,28 +252,6 @@ async function handle_sync_resend_dns(args: Record<string, unknown>, _ctx: ToolC
   const result = await syncResendDnsToCloudflare(domain);
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify({ ...result, ok: true });
-}
-
-async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  const actionRaw = String(args.action ?? '').trim();
-  if (!['verify', 'list_records', 'upsert_record'].includes(actionRaw)) {
-    return JSON.stringify({ error: 'action must be verify, list_records, or upsert_record' });
-  }
-  const domain = String(args.domain ?? '').trim();
-  if (!domain) return JSON.stringify({ error: 'domain is required' });
-
-  const result = await cloudflareDnsManage({
-    action: actionRaw as 'verify' | 'list_records' | 'upsert_record',
-    domain,
-    type: args.type != null ? String(args.type) : undefined,
-    name: args.name != null ? String(args.name) : undefined,
-    content: args.content != null ? String(args.content) : undefined,
-    priority: typeof args.priority === 'number' ? args.priority : undefined,
-  });
-  if (!result.ok) {
-    return JSON.stringify({ error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
-  }
-  return JSON.stringify({ ok: true, ...result });
 }
 
 export const siteAuditsModule: AgentToolModule = {
@@ -401,47 +378,6 @@ export const siteAuditsModule: AgentToolModule = {
                   additionalProperties: false,
                 },
               },
-            },
-            {
-              type: 'function',
-              function: {
-                name: 'cloudflare_dns',
-                description:
-                  'Read or write DNS records in Cloudflare for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access or the zone is in another account. Use upsert_record to create/update SPF, DMARC, MX, CNAME, etc. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit. Public dns_check is read-only and can lag behind Cloudflare when NS just changed — prefer this tool when the user says DNS is in Cloudflare.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    action: {
-                      type: 'string',
-                      enum: ['verify', 'list_records', 'upsert_record'],
-                      description:
-                        'verify = token + zone reachable; list_records = current Cloudflare DNS; upsert_record = create or update one record',
-                    },
-                    domain: {
-                      type: 'string',
-                      description: 'Zone apex or hostname, e.g. tonybarlettajr.com',
-                    },
-                    type: {
-                      type: 'string',
-                      description: 'Record type for list_records filter or upsert_record (TXT, MX, CNAME, A, …)',
-                    },
-                    name: {
-                      type: 'string',
-                      description: 'Record name relative to zone (@ for apex, _dmarc for DMARC). Default @.',
-                    },
-                    content: {
-                      type: 'string',
-                      description: 'Record content/value — required for upsert_record',
-                    },
-                    priority: {
-                      type: 'number',
-                      description: 'MX priority when type is MX',
-                    },
-                  },
-                  required: ['action', 'domain'],
-                  additionalProperties: false,
-                },
-              },
             }
     ];
   },
@@ -452,6 +388,5 @@ export const siteAuditsModule: AgentToolModule = {
     'check_links': handle_check_links,
     'dns_check': handle_dns_check,
     'sync_resend_dns': handle_sync_resend_dns,
-    'cloudflare_dns': handle_cloudflare_dns,
   },
 };
