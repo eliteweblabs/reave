@@ -72,6 +72,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     features: [
       { label: 'Everything in Tier 3' },
       { label: 'Branded public website', href: '/features#feature-white-label' },
+      { label: 'CMS-less site editing via agent', href: '/features#feature-site-editing' },
       { label: 'Voice & call routing', href: '/modules#plugin-voice' },
       { label: 'Document signing', href: '/modules#plugin-documents' },
       { label: 'Newsletters, social & analytics', href: '/features#feature-growth' },

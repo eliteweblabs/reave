@@ -178,6 +178,39 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     ],
   },
   {
+    id: "site-update",
+    userAvatar: "/images/hero-demo/henderson-billing.png",
+    holdMs: 1000,
+    turns: [
+      {
+        role: "user",
+        text: "Change the homepage headline to Your business, one app.",
+        kind: "voice",
+      },
+      {
+        role: "assistant",
+        text: "Homepage headline updated — deploying now.",
+        pauseMs: 1400,
+      },
+      {
+        role: "assistant",
+        text: "Live on your site. Want me to swap the hero image while we're at it?",
+        pauseMs: 1600,
+      },
+      {
+        role: "user",
+        text: "Yes — use the team photo from last month's shoot.",
+        kind: "voice",
+        pauseMs: 1400,
+      },
+      {
+        role: "assistant",
+        text: "Hero image swapped and deployed.",
+        pauseMs: 1200,
+      },
+    ],
+  },
+  {
     id: "materials-paint-pricing",
     userAvatar: "/images/hero-demo/materials-paint-pricing.png",
     holdMs: 1000,

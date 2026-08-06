@@ -33,7 +33,7 @@ export const HOME_DIALOGUE: HomeDialogueContent = {
     },
     {
       role: "founder",
-      text: "We have over 20 years of experience developing websites and applications. I use REΛVE every day, and I actually build the REΛVE app from within itself. I have since stopped using all other apps, and the decrease in noise has been absolutely phenomenal. I used to get well over 100 dings and beeps a day — and only maybe 5% of them were relevant. Now all I see is that 5%.",
+      text: "We have over 20 years of experience developing websites and applications. I use REΛVE every day, and I actually build the REΛVE app from within itself — change copy, swap a picture, ship an update, all by asking the agent. No CMS login, no page builder. I have since stopped using all other apps, and the decrease in noise has been absolutely phenomenal. I used to get well over 100 dings and beeps a day — and only maybe 5% of them were relevant. Now all I see is that 5%.",
     },
   ],
   attribution: "Thomas Reave",
