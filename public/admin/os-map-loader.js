@@ -8751,6 +8751,7 @@ export function buildChatPaneHeader() {
     className: 'ch-pane-header',
     back: { label: 'Back to sessions', onClick: () => closeActiveChat() },
     titleNode: main,
+    afterTitle: createChatModelSwitcher(),
     icons: [
       createIosIconBtn({
         iconKey: 'copy',
