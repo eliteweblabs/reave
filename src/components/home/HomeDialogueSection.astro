@@ -14,7 +14,8 @@ const { variant = "chat", showcaseLabel, id = "dialogue" } = Astro.props;
 const { eyebrow, title, turns, attribution } = HOME_DIALOGUE;
 const visitorTurn = turns.find((t) => t.role === "visitor");
 const founderTurns = turns.filter((t) => t.role === "founder");
-const uid = Astro.slug(`dialogue-${variant}-${id}`);
+/** Stable DOM id for inline SVG defs — must not call Astro.slug (not an Astro API). */
+const uid = `dialogue-${variant}-${id}`.replace(/[^a-zA-Z0-9_-]/g, "-");
 ---
 
 <section
