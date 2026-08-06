@@ -113,6 +113,7 @@ import {
   githubRepoSlug,
   githubWriteFile,
 } from '../../src/lib/githubClient';
+import { maybeDeferGithubWrite } from '../../src/lib/deferredDeploy';
 import { describeSafeShell, runSafeShellCommand } from '../../src/lib/safeShell';
 import {
   codeDevExecCommand,
@@ -423,14 +424,17 @@ async function handle_create_github_branch(args: Record<string, unknown>, _ctx: 
 }
 
 async function handle_write_github_file(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  const result = await githubWriteFile({
+  const writeArgs = {
     repo: typeof args.repo === 'string' ? args.repo : undefined,
     branch: String(args.branch ?? '').trim(),
     path: String(args.path ?? '').trim(),
     content: String(args.content ?? ''),
     message: String(args.message ?? '').trim(),
     append: args.append === true,
-  });
+  };
+  const deferred = maybeDeferGithubWrite(writeArgs);
+  if (deferred) return JSON.stringify(deferred);
+  const result = await githubWriteFile(writeArgs);
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }

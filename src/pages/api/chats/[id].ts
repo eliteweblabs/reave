@@ -60,6 +60,10 @@ import {
   getDeployStatus,
   isChatLockedForDeploy,
 } from '../../../lib/deployStatus';
+import {
+  flushDeferredDeploy,
+  formatFlushFailureNote,
+} from '../../../lib/deferredDeploy';
 
 export const prerender = false;
 
@@ -200,6 +204,25 @@ function interruptedReplyText(
     ? '_(This response was stopped before it finished.)_'
     : `_(This response did not finish — the run failed: ${opts.errorMessage || 'unknown error'}.)_`;
   return partial ? `${partial}\n\n${note}` : note;
+}
+
+/** Push queued GitHub commits / git pushes after the reply is saved. */
+async function finishTurnDeployFlush(
+  ownerUserId: string,
+  userId: string,
+  threadId: string,
+): Promise<void> {
+  const flush = await flushDeferredDeploy(userId, threadId);
+  if (!flush.ok) {
+    const note = formatFlushFailureNote(flush);
+    if (note) {
+      try {
+        await storeAppendChatMessages(ownerUserId, threadId, [{ role: 'assistant', content: note }]);
+      } catch {
+        /* best effort */
+      }
+    }
+  }
 }
 
 /**
@@ -465,6 +488,7 @@ export async function POST(context: APIContext): Promise<Response> {
         }
         clearAgentProgress(userId, id);
         clearAgentRun(userId, id);
+        await finishTurnDeployFlush(ownerUserId, userId, id);
       }
     });
   }
@@ -511,6 +535,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const persisted = await persistAssistantReply(ownerUserId, id, reply, agentUsage);
+  await finishTurnDeployFlush(ownerUserId, userId, id);
   try {
     const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
     if (ensuredTitle) title = ensuredTitle;

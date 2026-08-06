@@ -12,6 +12,7 @@ import { isUptimeRobotConfigured } from './uptimerobotClient';
 import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { prependDeployBanner } from './deployStatus';
+import { isDeferredDeployEnabled } from './deferredDeploy';
 import { isRailwayConfigured } from './railwayClient';
 import { isCloudflareConfigured } from './cloudflareClient';
 import { isKinstaConfigured } from './kinstaClient';
@@ -694,8 +695,12 @@ async function runKnowledgeAgentInner(
       'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Deploy banners (🚀 deploying, 🔴 stale after 10m, 🟢 live only when asked or right after a deploy lands) prepend agent replies automatically — do not use ✅ for deploy status. Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
     );
     if (isGithubConfigured()) {
+      const deployDefer =
+        isDeferredDeployEnabled()
+          ? ' Commits to main during this chat turn are queued and push to GitHub automatically when the turn finishes — do not expect check_deployment_status to show live until then.'
+          : ' Committing to main triggers a Railway deploy automatically.';
       sysParts.push(
-        'GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL. Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed. Committing to main triggers a Railway deploy automatically.',
+        `GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL (or deferred note when queued). Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed.${deployDefer}`,
       );
       sysParts.push(
         'GitHub scope: write_github_file / create_github_repo only touch source code repos (this app, or an explicitly named sibling service) — a commit is NOT a public URL by itself (no Pages/hosting is wired up) and a brand-new repo is not reachable until deployed. NEVER use these to "host" a one-off asset for a client (an email signature, a vCard/business card, a marketing PDF, etc.), and never invent/guess a path on the client\u2019s own live website — you have no tool that writes files there, so that URL will 404. If the client_portal feature is enabled and the ask is a vCard/business card or an email signature for a specific client to hand out, use get_client_vcard_link / get_client_signature_link instead — those return links this app actually serves. For anything else you cannot really host, say so plainly rather than fabricating a link.',
@@ -707,13 +712,16 @@ async function runKnowledgeAgentInner(
     }
   }
   if (hasFeature('code_dev')) {
+    const deferNote = isDeferredDeployEnabled()
+      ? ' Main-branch pushes are deferred until this chat turn finishes so a deploy cannot interrupt the run.'
+      : '';
     if (onRailway) {
       sysParts.push(
-        'Code development (Reave code_dev) — DEPLOYED CONTAINER: you are running on Railway from a built dist/ with NO git binary and NO .git checkout, so exec_command CANNOT run "git add/commit/push" (git is not in the container PATH). To persist code changes here you MUST use the GitHub REST API: call write_github_file with branch:"main" to commit each file directly to main (never a branch, never a PR). Do not attempt "git push" via exec_command and do not narrate discovering that git is missing — just use write_github_file. You may still use list_files / read_file / write_file / exec_command for reading, running builds/tests, and inspecting the running app, but they only touch the ephemeral container filesystem and are lost on the next deploy. Do not claim success unless tools succeed.',
+        `Code development (Reave code_dev) — DEPLOYED CONTAINER: you are running on Railway from a built dist/ with NO git binary and NO .git checkout, so exec_command CANNOT run "git add/commit/push" (git is not in the container PATH). To persist code changes here you MUST use the GitHub REST API: call write_github_file with branch:"main" to commit each file directly on main (never a branch, never a PR). Do not attempt "git push" via exec_command and do not narrate discovering that git is missing — just use write_github_file.${deferNote} You may still use list_files / read_file / write_file / exec_command for reading, running builds/tests, and inspecting the running app, but they only touch the ephemeral container filesystem and are lost on the next deploy. Do not claim success unless tools succeed.`,
       );
     } else {
       sysParts.push(
-        'Local code development (Reave code_dev): you CAN edit this repo on disk. Use grep_code to find symbols/paths, then read_file (with offset/limit for large files) / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add, commit, and push — invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
+        `Local code development (Reave code_dev): you CAN edit this repo on disk. Use grep_code to find symbols/paths, then read_file (with offset/limit for large files) / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add and git commit in this turn; git push runs automatically when the turn finishes.${deferNote} Invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.`,
       );
     }
   }
