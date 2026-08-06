@@ -1,0 +1,7 @@
+---
+export const prerender = false;
+
+const { userId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/admin/?auth=sign-in&tab=demo-loader");
+return Astro.redirect("/admin/?tab=demo-loader");
+---

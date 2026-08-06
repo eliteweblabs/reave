@@ -76,14 +76,12 @@ const signInRedirect = cleanInternalReturnPath(
       ? adminReturnFallback
       : Astro.url.pathname + Astro.url.search,
 );
-const clerkAuthPath = adminShell
-  ? "/admin/"
-  : (() => {
-      const u = new URL(Astro.url.pathname + Astro.url.search, Astro.url.origin);
-      u.searchParams.delete("auth");
-      u.searchParams.delete("returnTo");
-      return u.pathname + u.search;
-    })();
+const clerkAuthPath = (() => {
+  const u = new URL(Astro.url.pathname + Astro.url.search, Astro.url.origin);
+  u.searchParams.delete("auth");
+  u.searchParams.delete("returnTo");
+  return u.pathname + u.search;
+})();
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
 const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
@@ -286,7 +284,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 {userId && (
   <script src="/review-badge.js?v=20260717a" defer></script>
 )}
-<script src="/deploy-indicator.js?v=20260806a" defer></script>
+<script src="/deploy-indicator.js?v=20260805a" defer></script>
 
 <script>
   /** Pin public headers to the visual viewport top during iOS overscroll bounce. */

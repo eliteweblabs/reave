@@ -4,7 +4,6 @@
 
 const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
 const AUTH_SYNC_MAX = 2;
-const CLERK_JS_RESET_KEY = 'reave-clerk-js-reset';
 
 /** Strip sign-in redirect params so return URLs cannot loop on auth=sign-in. */
 export function cleanAdminReturnUrl(pathname, search = '') {
@@ -64,76 +63,6 @@ function authSyncAttempts() {
   }
 }
 
-/**
- * Stale clerk-js (cached 4.x / old 6.x) sends invalid __clerk_api_version=2024-05-12 → 400 on sign_ins.
- * Clear SW + caches once, then hard-reload so the pinned clerk-js@6.27.0 script loads.
- */
-export async function recoverStaleClerkClient() {
-  const src = document.querySelector('script[data-clerk-js-script]')?.getAttribute('src') || '';
-  const scriptMatch = src.match(/@clerk\/clerk-js@([\d.]+)/);
-  const scriptMajor = scriptMatch ? Number.parseInt(scriptMatch[1], 10) : 0;
-  const runningVer = window.Clerk?.version != null ? String(window.Clerk.version) : '';
-  const runningMajor = runningVer ? Number.parseInt(runningVer.split('.')[0], 10) : scriptMajor;
-
-  const stale =
-    (scriptMajor > 0 && scriptMajor < 6) ||
-    (runningMajor > 0 && runningMajor < 6) ||
-    runningVer.startsWith('4.') ||
-    runningVer.startsWith('5.');
-
-  if (!stale) return false;
-
-  let attempts = 0;
-  try {
-    attempts = Number(sessionStorage.getItem(CLERK_JS_RESET_KEY) || '0');
-  } catch {
-    /* ignore */
-  }
-  if (attempts >= 3) return false;
-
-  try {
-    sessionStorage.setItem(CLERK_JS_RESET_KEY, String(attempts + 1));
-  } catch {
-    /* ignore */
-  }
-
-  try {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((key) => caches.delete(key)));
-    }
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((reg) => reg.unregister()));
-    }
-  } catch {
-    /* ignore */
-  }
-
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.set('_cr', String(Date.now()));
-    window.location.replace(url.toString());
-  } catch {
-    window.location.reload();
-  }
-  return true;
-}
-
-/** Build primary-app sign-in URL when demo needs cross-host return (optional fallback). */
-export function buildPrimarySignInUrl(returnTo) {
-  const base = window.__primarySignInUrl || 'https://reave.app/sign-in';
-  const relative = returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
-  const target = relative.startsWith('http') ? relative : new URL(relative, window.location.origin).href;
-  const url = new URL(base);
-  url.searchParams.set('returnTo', target);
-  return url.toString();
-}
-
-export function redirectToPrimarySignIn(returnTo) {
-  window.location.assign(buildPrimarySignInUrl(returnTo));
-}
-
 /** Open the admin sign-in bottom sheet when the SSR session is missing. */
 export function openAdminSignInSheet() {
   const sheet = document.getElementById('sign-in-sheet');
@@ -175,7 +104,6 @@ export function bindClerkSsrSessionSync(opts = {}) {
   const { autoOpenSignIn = false } = opts;
 
   async function run() {
-    if (await recoverStaleClerkClient()) return;
     if (serverHasStaffSession()) return;
     if (syncSsrAfterClerkSignIn()) return;
     if (!autoOpenSignIn) return;

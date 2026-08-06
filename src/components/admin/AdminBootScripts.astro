@@ -2,7 +2,6 @@
 import type { CompanyBrandContext } from "../../lib/companyConfig";
 import type { InstallConfigClient } from "../../lib/installConfig";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
-import { serverEnv } from "../../lib/serverEnv";
 
 interface Props {
   companyBrand: CompanyBrandContext;
@@ -22,34 +21,12 @@ const {
   mapboxAccessToken,
   craterFinanceUrl,
   githubRepo,
-  osMapLoaderVersion = "20260806m",
+  osMapLoaderVersion = "20260806i",
 } = Astro.props;
 
 const deployStatusClient = getDeployStatusClientSummary();
-const clerkJsVersion = serverEnv("PUBLIC_CLERK_JS_VERSION")?.trim() || "6.27.0";
-const primarySignInUrl = serverEnv("PRIMARY_SIGN_IN_URL")?.trim() || "https://reave.app/sign-in";
 ---
 
-<script is:inline define:vars={{ clerkJsVersion }}>
-  (function () {
-    var expected = clerkJsVersion;
-    var resetKey = 'reave-clerk-src-reset';
-    function clerkScriptMatches() {
-      var s = document.querySelector('script[data-clerk-js-script]');
-      var src = (s && s.getAttribute('src')) || '';
-      return src.indexOf('@' + expected) !== -1;
-    }
-    if (document.querySelector('script[data-clerk-js-script]') && !clerkScriptMatches()) {
-      try {
-        if (!sessionStorage.getItem(resetKey)) {
-          sessionStorage.setItem(resetKey, '1');
-          location.reload();
-          return;
-        }
-      } catch (e) { /* ignore */ }
-    }
-  })();
-</script>
 <script is:inline>
   (function () {
     function showAdminLoadError(detail) {
@@ -86,9 +63,9 @@ const primarySignInUrl = serverEnv("PRIMARY_SIGN_IN_URL")?.trim() || "https://re
 <script>
   import '../../admin/agent-chat-mount.tsx';
 </script>
-<script is:inline type="module" src="/admin/push-client.js?v=20260806c"></script>
+<script is:inline type="module" src="/admin/push-client.js?v=20260806b"></script>
 <script src="/ios-sheet.js" defer></script>
-<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias, primarySignInUrl }}>
+<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias }}>
   window.__companyBrand = companyBrand;
   window.__postAlias = postAlias;
   window.__companyStaffAvatarUrl = staffAvatarUrl;
@@ -97,6 +74,5 @@ const primarySignInUrl = serverEnv("PRIMARY_SIGN_IN_URL")?.trim() || "https://re
   window.__craterFinanceUrl = craterFinanceUrl;
   window.__githubRepo = githubRepo;
   window.__deployStatus = deployStatusClient;
-  window.__primarySignInUrl = primarySignInUrl;
 </script>
 <script is:inline type="module" src={`/admin/os-map-loader.js?v=${osMapLoaderVersion}`}></script>

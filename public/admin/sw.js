@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260806 — never intercept cross-origin (Clerk CDN) fetches. */
+   v20260805 — purge stale module caches on activate. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -155,10 +155,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
-  const url = new URL(event.request.url);
-  /* Clerk scripts must always hit the network — stale cached clerk-js sends invalid API versions. */
-  if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/api/')) return;
+  const { pathname } = new URL(event.request.url);
+  if (pathname.startsWith('/api/')) return;
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);

@@ -26,7 +26,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   dealership_wizard: ['__system__'],
   namecom_dns: ['company'],
   time_tracking: ['work'],
-  demo: ['modules'],
+  demo: ['demo-loader', 'modules'],
   real_estate_data: ['lead-scanner'],
   inventory_sync: ['__system__'],
   online_reviews: ['reviews'],
@@ -61,6 +61,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
   modules: 'Modules',
+  'demo-loader': 'Demo loader',
 };
 
 export function footerNavKeysForFeature(feature: FeatureId): FooterNavKey[] {

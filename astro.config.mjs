@@ -1,15 +1,8 @@
 // @ts-check
-import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
 import react from '@astrojs/react';
 import clerk from '@clerk/astro';
-
-/** Inject before @clerk/astro so stale cached clerk-js is cleared before it runs. */
-const clerkClientGuard = readFileSync(
-  new URL('./public/clerk-client-guard.js', import.meta.url),
-  'utf8',
-);
 
 const usePolling = process.env.VITE_USE_POLLING === '1';
 
@@ -30,18 +23,7 @@ const usePolling = process.env.VITE_USE_POLLING === '1';
 const allowedDomains = [{ protocol: 'https' }];
 
 export default defineConfig({
-  integrations: [
-    {
-      name: 'reave-clerk-client-guard',
-      hooks: {
-        'astro:config:setup': ({ injectScript }) => {
-          injectScript('head-inline', clerkClientGuard);
-        },
-      },
-    },
-    clerk(),
-    react(),
-  ],
+  integrations: [clerk(), react()],
   output: 'server',
   security: {
     allowedDomains,

@@ -2,6 +2,7 @@
   "features": ["demo"],
   "footerNav": [
     "__system__",
+    "demo-loader",
     "modules",
     "home",
     "todo",
