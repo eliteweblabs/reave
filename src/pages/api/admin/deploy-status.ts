@@ -5,7 +5,7 @@ import type { APIContext } from 'astro';
 import { demoModuleIdForFeature } from '../../../lib/demoModuleCatalog';
 import { listAllDeployModules } from '../../../lib/deployModuleStatus';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import { getInstallConfigClient, getProductionInstallFeatures } from '../../../lib/installConfig';
+import { getInstallConfigClient } from '../../../lib/installConfig';
 import { isDemoMode } from '../../../lib/demoMode';
 import {
   DEMO_SUITE_COOKIE,
@@ -56,20 +56,16 @@ export async function GET(context: APIContext): Promise<Response> {
     ? parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value)
     : null;
 
-  const productionFeatures = getProductionInstallFeatures();
-
   const modules = listAllDeployModules().map((m) => {
     const navKeys = footerNavKeysForFeature(m.feature);
     const inFooterNav = isFeatureInFooterNav(m.feature, footerNav);
     const inDemoSuite =
       demoSuite != null ? demoSuite.features.includes(m.feature as FeatureId) : null;
-    const inProduction = productionFeatures.has(m.feature as FeatureId);
 
     return {
       moduleId: demoModuleIdForFeature(m.feature),
       feature: m.feature,
       label: m.label,
-      inProduction,
       enabled: m.enabled,
       status: m.status,
       configured: m.configured,
