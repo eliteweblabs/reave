@@ -37,7 +37,9 @@ import {
   downloadBrandingImage,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805b';
+  createInputClearAdornment,
+  syncInputClearAdornment,
+} from './admin-ui.js?v=20260806a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
@@ -741,13 +743,33 @@ async function geocodeClientAddressPreview(address) {
   }
 }
 
-function mountClientAddressField(parent, value) {
+function mountClientAddressField(parent, value, clearActions = null) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = 'Address';
+
+  const field = document.createElement('div');
+  field.className = 'control-field cl-address-field';
+
   const input = document.createElement('input');
   input.className = 'de-input cl-address-input';
   input.placeholder = 'Business or street address';
   input.value = value || '';
   input.autocomplete = 'street-address';
-  appendClientField(parent, 'Address', input);
+
+  const clearBtn = createInputClearAdornment(
+    input,
+    () => clearActions?.fn?.(),
+    'Clear address',
+  );
+  input.addEventListener('input', () => {
+    syncInputClearAdornment(input, clearBtn, 'Clear address');
+  });
+
+  field.appendChild(input);
+  field.appendChild(clearBtn);
+  wrap.appendChild(field);
+  parent.appendChild(wrap);
   return input;
 }
 
@@ -1412,8 +1434,13 @@ function renderEditClientForm(pane) {
       });
       let queueAutosaveRef = () => {};
       let saveNowRef = async () => {};
+      const addressClearActions = { fn: null };
 
-      const addressInput = mountClientAddressField(profileFields, clientState.draft.address || '');
+      const addressInput = mountClientAddressField(
+        profileFields,
+        clientState.draft.address || '',
+        addressClearActions,
+      );
       registerClientField(addressInput, () => true);
       destroyClientAddressAutocomplete = mountAddressAutocomplete(
         addressInput,
@@ -1525,6 +1552,11 @@ function renderEditClientForm(pane) {
         await autosaveClient(uid, getPayload());
       };
       saveNowRef = saveNow;
+      addressClearActions.fn = () => {
+        clientPendingGeo = null;
+        clientMapController?.setLocation(null, null, '');
+        void saveNowRef();
+      };
       for (const el of [
         companyInput,
         firstNameInput,
@@ -1537,7 +1569,12 @@ function renderEditClientForm(pane) {
       ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
-          if (el === addressInput && !addressInput.dataset.autocompletePick) clientPendingGeo = null;
+          if (el === addressInput && !addressInput.dataset.autocompletePick) {
+            clientPendingGeo = null;
+            if (!addressInput.value.trim()) {
+              clientMapController?.setLocation(null, null, '');
+            }
+          }
           queueAutosave();
         });
         el.addEventListener('blur', () => {

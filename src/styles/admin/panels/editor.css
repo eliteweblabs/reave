@@ -2240,6 +2240,10 @@ button.de-placeholder-action:active {
   font-size: 0.75rem;
   padding: 0.35rem 0.7rem;
 }
+.cl-address-field {
+  width: 100%;
+  max-width: 340px;
+}
 .cl-address-input {
   width: 100%;
 }
@@ -2457,7 +2461,8 @@ button.de-placeholder-action:active {
   align-self: flex-start;
 }
 #clients-editor .de-fields .de-input,
-#clients-editor .de-fields .cl-website-field {
+#clients-editor .de-fields .cl-website-field,
+#clients-editor .de-fields .cl-address-field {
   max-width: none;
   width: 100%;
 }

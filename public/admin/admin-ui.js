@@ -376,6 +376,38 @@ function createSearchFieldAdornment(input, onClear) {
   return btn;
 }
 
+/** Toggle a clear-only adornment — hidden when empty, X when the field has text. */
+export function syncInputClearAdornment(input, btn, label = 'Clear') {
+  if (!input || !btn) return;
+  const hasText = input.value.length > 0;
+  btn.hidden = !hasText;
+  if (hasText) {
+    btn.dataset.mode = 'clear';
+    btn.classList.add('is-clear');
+    btn.classList.remove('is-search');
+    btn.setAttribute('aria-label', label);
+    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON;
+  }
+}
+
+/** Clear button for editable fields (address, etc.) — same shell as search clear. */
+export function createInputClearAdornment(input, onClear, label = 'Clear') {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'panel-list-search-clear search-overlay-clear panel-list-search-adornment';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (btn.hidden) return;
+    input.value = '';
+    syncInputClearAdornment(input, btn, label);
+    onClear?.('');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  });
+  syncInputClearAdornment(input, btn, label);
+  return btn;
+}
+
 const LIST_EMPTY_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>';
 

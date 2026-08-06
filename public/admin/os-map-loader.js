@@ -173,7 +173,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260806a';
+} from './clients-panel.js?v=20260806b';
 import {
   initChatPanel,
   chatState,
