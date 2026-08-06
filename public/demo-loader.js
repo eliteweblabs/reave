@@ -160,7 +160,13 @@
     root.innerHTML = '<p class="dl-loading">Loading modules…</p>';
     try {
       const res = await fetch('/api/demo/loader', { cache: 'no-store' });
-      const data = await res.json();
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(res.ok ? 'Invalid response from server' : `Server error (${res.status})`);
+      }
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDefaults(data);
       render();

@@ -3,6 +3,7 @@
  */
 import { demoModuleIdForFeature } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
+import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
 
 export type DemoLoaderModule = {
   moduleId: string;
