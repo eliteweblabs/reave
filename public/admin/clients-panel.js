@@ -1326,6 +1326,14 @@ function renderEditClientForm(pane) {
       syncClTitleInputWidth(companyInput);
       companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
+      const agentBtn = document.createElement('button');
+      agentBtn.type = 'button';
+      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+      agentBtn.setAttribute('aria-label', 'Agent');
+      agentBtn.title = 'Send to Agent';
+      agentBtn.innerHTML = IOS_ICONS.agent.replace(/width="\d+" height="\d+"/, 'width="16" height="16"');
+      agentBtn.addEventListener('click', () => askAgentAboutClient(uid));
+
       const shareBtn = clientKindFromRecord(clientState.draft) === 'personal'
         ? null
         : createPortalShareBtn(uid, {
@@ -1345,6 +1353,7 @@ function renderEditClientForm(pane) {
         },
         titleNode: titleWrap,
         icons: [
+          agentBtn,
           shareBtn,
           paneDeleteIcon({
             label: 'Delete client',
@@ -1866,8 +1875,66 @@ function createClientListItem(c) {
   return item;
 }
 
+function buildClientAgentPrompt(client, uid) {
+  const label = clientDisplayLabel(client);
+  const lines = [`Client: ${label}`, `UID: ${uid}`];
+  const person = joinClientFullName(client.firstName, client.lastName, '');
+  if (person && person !== label) lines.push(`Name: ${person}`);
+  if (client.company?.trim()) lines.push(`Company: ${client.company.trim()}`);
+  if (client.email?.trim()) lines.push(`Email: ${client.email.trim()}`);
+  if (client.phone?.trim()) lines.push(`Phone: ${client.phone.trim()}`);
+  if (client.website?.trim()) lines.push(`Website: ${client.website.trim()}`);
+  if (client.address?.trim()) lines.push(`Address: ${client.address.trim()}`);
+  const kind = clientKindFromRecord(client);
+  lines.push(`Type: ${CLIENT_KIND_LABELS[kind] || kind}`);
+  const portal = client.portal_url?.trim();
+  if (portal) lines.push(`Portal: ${portal}`);
+  const notes = String(client.notes || '').trim();
+  if (notes) {
+    const excerpt = notes.length > 500 ? `${notes.slice(0, 500)}…` : notes;
+    lines.push('', excerpt);
+  }
+  lines.push('', 'Please wait for instructions on how to deal with this client.');
+  return lines.join('\n');
+}
+
+async function fetchClientRecordForAgent(uid) {
+  const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' });
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  const contact = data.contact || {};
+  const body = data.data || data;
+  const { firstName, lastName } = splitClientNameParts(contact);
+  return {
+    name: contact.name || '',
+    firstName,
+    lastName,
+    email: contact.email || '',
+    phone: contact.phone || '',
+    company: contact.company || '',
+    website: body.website || contact.website || '',
+    address: body.address || '',
+    notes: contact.notes || '',
+    kind: clientKindFromRecord({ kind: body.kind, personal: body.personal ?? contact.personal }),
+    portal_url: contact.portal_url ?? body.portal_url,
+  };
+}
+
+async function askAgentAboutClient(uid) {
+  try {
+    const client =
+      uid === clientState.activeUid && clientState.draft
+        ? clientState.draft
+        : await fetchClientRecordForAgent(uid);
+    await shell.askAgentWithPrompt(buildClientAgentPrompt(client, uid));
+  } catch (e) {
+    shell.osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
 function createClientSwipeRow(c) {
   return createSwipeRow(createClientListItem(c), [
+    swipeAgentAction(() => askAgentAboutClient(c.uid)),
     swipeDeleteAction({
       onClick: () => deleteClient(c.uid),
     }),
@@ -1920,6 +1987,7 @@ export {
   resumeClientDetailFromUrl,
   createClientListItem,
   createClientSwipeRow,
+  askAgentAboutClient,
   parseClientDeepLinkFromUrl,
   formatPhoneInput,
   geocodeClientAddressPreview,

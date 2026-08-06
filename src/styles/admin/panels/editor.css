@@ -1438,11 +1438,19 @@ button.de-placeholder-action:active {
     background: var(--bg);
     flex-shrink: 0;
     overflow: visible;
+    gap: 0.3rem;
     padding:
       0.15rem
       max(0.5rem, env(safe-area-inset-right, 0px))
       0.2rem
       max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+  #clients-editor.de-pane-active .de-header .ios-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  #clients-editor.de-pane-active .de-header-actions {
+    gap: 0.15rem;
   }
   #work-editor.de-pane-active .de-pane {
     overflow: hidden;

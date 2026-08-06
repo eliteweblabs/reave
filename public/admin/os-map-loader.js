@@ -173,7 +173,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260804d';
+} from './clients-panel.js?v=20260806a';
 import {
   initChatPanel,
   chatState,
@@ -9358,6 +9358,7 @@ initClientsPanel({
   setFormFieldState,
   flashFormFieldSaved,
   createPortalShareBtn,
+  askAgentWithPrompt,
   isMobileTabs,
   MAP,
   activeKey,
