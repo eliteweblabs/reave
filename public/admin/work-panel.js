@@ -32,6 +32,13 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
+import {
+  createDetailChrome,
+  createDetailFormScroll,
+  mountDetailTabs,
+  createDetailPanel,
+  showDetailPanel,
+} from './detail-tabs.js?v=20260806a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -893,36 +900,19 @@ function workDetailTabs(isNew = false) {
 }
 
 function createWorkDetailChrome(pane) {
-  const chrome = document.createElement('div');
-  chrome.className = 'wk-detail-chrome';
-  pane.appendChild(chrome);
-  return chrome;
+  return createDetailChrome(pane, 'wk-detail-chrome');
 }
 
 function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
-  const nav = document.createElement('div');
-  nav.className = 'wk-detail-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', `${postTitle(1)} sections`);
-
-  for (const tab of workDetailTabs(opts.isNew)) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = activeTab === tab.id;
-    btn.className = 'wk-detail-tab' + (isActive ? ' active' : '');
-    btn.dataset.workTab = tab.id;
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.textContent = tab.label;
-    btn.addEventListener('click', () => {
-      if (workState.detailTab === tab.id) return;
-      onSelect(tab.id);
-    });
-    nav.appendChild(btn);
-  }
-
-  pane.appendChild(nav);
-  return nav;
+  return mountDetailTabs(pane, {
+    tabs: workDetailTabs(opts.isNew),
+    activeTab,
+    onSelect,
+    ariaLabel: `${postTitle(1)} sections`,
+    tabClass: 'wk-detail-tab',
+    tabsClass: 'wk-detail-tabs',
+    dataAttr: 'workTab',
+  });
 }
 
 function clearWorkDetailScrollBody(scroll) {
@@ -938,28 +928,27 @@ function setWorkDetailScrollLoading(scroll, html) {
 }
 
 function showWorkDetailPanel(pane, tabId) {
-  pane.querySelectorAll('.wk-detail-tab').forEach((btn) => {
-    const active = btn.dataset.workTab === tabId;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  showDetailPanel(pane, {
+    tabId,
+    tabBtnSelector: '.wk-detail-tab',
+    panelSelector: '.wk-detail-panel',
+    tabDataAttr: 'workTab',
+    panelDataAttr: 'workTab',
+    scrollSelector: '.re-form-scroll.wk-form-scroll',
   });
-  pane.querySelectorAll('.wk-detail-panel').forEach((panel) => {
-    panel.hidden = panel.dataset.workTab !== tabId;
-  });
-  const scroll = pane.querySelector('.re-form-scroll.wk-form-scroll');
-  if (scroll) scroll.scrollTop = 0;
 }
 
 function createWorkDetailPanel(tabId, activeTab) {
-  const panel = document.createElement('div');
-  panel.className = 'wk-detail-panel';
-  panel.dataset.workTab = tabId;
-  panel.hidden = activeTab !== tabId;
-  return panel;
+  return createDetailPanel({
+    tabId,
+    activeTab,
+    panelClass: 'wk-detail-panel',
+    dataAttr: 'workTab',
+  });
 }
 
 function syncClientProjectsTabBadge(count) {
-  const btn = document.querySelector('#clients-editor .cl-detail-tab[data-client-tab="projects"]');
+  const btn = document.querySelector('#clients-editor .detail-tab[data-client-tab="projects"]');
   if (!btn) return;
   const badge = btn.querySelector('.cl-detail-tab-badge');
   if (!badge) return;
@@ -976,57 +965,49 @@ function syncClientProjectsTabBadge(count) {
 }
 
 function mountClientDetailTabs(pane, activeTab, onSelect) {
-  const nav = document.createElement('div');
-  nav.className = 'cl-detail-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Client sections');
-
-  for (const tab of CLIENT_DETAIL_TABS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = activeTab === tab.id;
-    btn.className = 'cl-detail-tab' + (isActive ? ' active' : '');
-    btn.dataset.clientTab = tab.id;
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    if (tab.id === 'projects') {
-      btn.innerHTML =
-        `${escHtml(tab.label)}` +
-        `<span class="footer-nav-badge cl-detail-tab-badge" hidden aria-hidden="true">0</span>`;
-    } else {
-      btn.textContent = tab.label;
-    }
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      onSelect(tab.id);
-    });
-    nav.appendChild(btn);
-  }
-
-  pane.appendChild(nav);
-  return nav;
+  return mountDetailTabs(pane, {
+    tabs: CLIENT_DETAIL_TABS,
+    activeTab,
+    onSelect,
+    ariaLabel: 'Client sections',
+    tabClass: 'cl-detail-tab',
+    tabsClass: 'cl-detail-tabs',
+    dataAttr: 'clientTab',
+    renderTab(btn, tab) {
+      if (tab.id === 'projects') {
+        btn.innerHTML =
+          `${escHtml(tab.label)}` +
+          `<span class="footer-nav-badge cl-detail-tab-badge" hidden aria-hidden="true">0</span>`;
+      } else {
+        btn.textContent = tab.label;
+      }
+    },
+  });
 }
 
 function showClientDetailPanel(pane, tabId) {
-  pane.querySelectorAll('.cl-detail-tab').forEach((btn) => {
-    const active = btn.dataset.clientTab === tabId;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  showDetailPanel(pane, {
+    tabId,
+    tabBtnSelector: '.cl-detail-tab',
+    panelSelector: '.cl-detail-panel',
+    tabDataAttr: 'clientTab',
+    panelDataAttr: 'clientTab',
+    resetScroll: false,
+    onShow(id) {
+      if (id === 'profile') {
+        setTimeout(() => clientMapController?.resize?.(), 60);
+      }
+    },
   });
-  pane.querySelectorAll('.cl-detail-panel').forEach((panel) => {
-    panel.hidden = panel.dataset.clientTab !== tabId;
-  });
-  if (tabId === 'profile') {
-    setTimeout(() => clientMapController?.resize?.(), 60);
-  }
 }
 
 function createClientDetailPanel(tabId, activeTab) {
-  const panel = document.createElement('div');
-  panel.className = 'cl-detail-panel';
-  panel.dataset.clientTab = tabId;
-  panel.hidden = activeTab !== tabId;
-  return panel;
+  return createDetailPanel({
+    tabId,
+    activeTab,
+    panelClass: 'cl-detail-panel',
+    dataAttr: 'clientTab',
+  });
 }
 
 let clientVaultSaveTimer = null;
@@ -2257,10 +2238,7 @@ function createWorkBodyEditor(opts = {}) {
 }
 
 function createWorkFormScroll(pane) {
-  const scroll = document.createElement('div');
-  scroll.className = 're-form-scroll wk-form-scroll';
-  pane.appendChild(scroll);
-  return scroll;
+  return createDetailFormScroll(pane, 'wk-form-scroll');
 }
 
 function renderNewWorkForm(pane) {

@@ -92,6 +92,11 @@
   --sidebar-inset: 0.65rem;
   --filter-tab-fade-w: 6px;
   --detail-tab-fade-w: 1rem;
+  --detail-pad-x: max(1rem, env(safe-area-inset-left, 0px));
+  --detail-pad-x-right: max(1rem, env(safe-area-inset-right, 0px));
+  --detail-tabs-pad-y: 0.45rem;
+  --detail-content-pad-top: 0.85rem;
+  --detail-header-pad-y: 0.15rem;
   /* Dashboard tile grids — sm (<640px) */
   --dash-stat-cols: 2;
   --dash-stat-gap: 0.55rem;
