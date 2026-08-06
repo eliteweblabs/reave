@@ -2,9 +2,13 @@
 import { SignUp } from "@clerk/astro/components";
 import { dark } from "@clerk/ui/themes";
 import Header from "../components/Header.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import "../styles/mobile-touch.css";
 
 const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === "1";
@@ -13,6 +17,8 @@ if (!allowSignUp) {
 }
 
 const company = await getCompanyConfig(Astro.request);
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <!doctype html>
@@ -37,6 +43,18 @@ const company = await getCompanyConfig(Astro.request);
         />
       </div>
     </div>
+    <div class="site-foot-wrap">
+      <SiteFooter company={company} />
+    </div>
+    {
+      showSiteAssistant && (
+        <SiteAssistantWidget
+          brandTitle={company.name}
+          supportPhone={company.supportPhone}
+          supportEmail={company.supportEmail}
+        />
+      )
+    }
   </body>
 </html>
 
@@ -67,5 +85,11 @@ const company = await getCompanyConfig(Astro.request);
   .card {
     width: 100%;
     max-width: 440px;
+  }
+
+  .site-foot-wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
   }
 </style>

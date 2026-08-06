@@ -1,14 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 
 const company = await getCompanyConfig(Astro.request);
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout
@@ -16,14 +11,4 @@ const showSiteAssistant =
   description={`${company.name} replaces the SaaS stack most businesses pay for separately — Gmail, QuickBooks, ChatGPT, Calendly, HubSpot, Mailchimp, and more — with one platform: contacts, portal, billing, AI, newsletters, social metrics, analytics, and plugins.`}
 >
   <FeaturesPageContent />
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>

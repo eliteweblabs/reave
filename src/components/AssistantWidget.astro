@@ -70,7 +70,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 >
   <button
     id={fabId}
-    class:list={['aw-fab', `aw-fab--${variant}`]}
+    class:list={['aw-fab', `aw-fab--${variant}`, { 'is-visible': variant === 'site' && !revealFabOnEngagement }]}
     type="button"
     aria-haspopup="dialog"
     aria-expanded="false"

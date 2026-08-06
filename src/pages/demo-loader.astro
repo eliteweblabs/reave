@@ -3,19 +3,14 @@
  * /demo-loader — public page to pick production modules + industry and launch the live demo.
  */
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
 import { getPublicDemoSiteUrl } from "../lib/publicDemo";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import "../styles/demo-loader.css";
 
 export const prerender = false;
 
 const company = await getCompanyConfig(Astro.request);
 const demoSiteUrl = getPublicDemoSiteUrl();
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout
@@ -43,26 +38,7 @@ const showSiteAssistant =
     <div id="demo-loader-app" class="dl-app" aria-live="polite">
       <p class="dl-loading">Loading modules…</p>
     </div>
-
-    <footer class="dl-footer">
-      <p>
-        Prefer a guided tour?
-        <a href="/deck">Walkthrough</a>
-        {" · "}
-        <a href="/demo">Demo hub</a>
-      </p>
-    </footer>
   </div>
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 
   <script is:inline src="/demo-loader.js?v=20260806g"></script>
 </Layout>

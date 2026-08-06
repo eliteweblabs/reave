@@ -1,14 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import ComparePageContent from "../components/compare/ComparePageContent.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 
 const company = await getCompanyConfig(Astro.request);
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout
@@ -16,14 +11,4 @@ const showSiteAssistant =
   description={`How ${company.name} compares to a box-stock SaaS stack and bespoke custom development — industry waste stats, total cost of ownership, and the 90/10 Business OS model.`}
 >
   <ComparePageContent />
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>

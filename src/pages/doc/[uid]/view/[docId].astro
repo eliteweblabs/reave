@@ -11,15 +11,17 @@
  * "Save as PDF" natively. Print CSS hides UI chrome so only the document prints.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
-import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
+import { getCompanyConfig } from '../../../../lib/companyConfig';
 import Header from '../../../../components/Header.astro';
-import FootBostonTag from '../../../../components/FootBostonTag.astro';
+import SiteFooter from '../../../../components/SiteFooter.astro';
+import PortalAssistantWidget from '../../../../components/PortalAssistantWidget.astro';
 import Favicon from '../../../../components/Favicon.astro';
 import ViewportMeta from '../../../../components/ViewportMeta.astro';
+import { hasFeature } from '../../../../lib/features';
+import { isPortalAssistantConfigured } from '../../../../lib/portalAssistant';
 import '../../../../styles/brand.css';
 
 const company = await getCompanyConfig(Astro.request);
-const poweredBy = poweredByLabel(company);
 
 const { uid, docId } = Astro.params;
 
@@ -72,6 +74,10 @@ const fmtDate = (iso: string) => {
     ? iso
     : d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
 };
+
+const showAssistant =
+  !error && uid && hasFeature('portal_assistant') && isPortalAssistantConfigured();
+const clientFirstName = contactName.split(/\s+/)[0] || '';
 ---
 
 <!doctype html>
@@ -156,15 +162,21 @@ const fmtDate = (iso: string) => {
           </div>
         )}
 
-        <footer class="doc-foot">
-          <span>Document ID: {docId}</span>
-          <span class="doc-foot-brand">
-            <span>{poweredBy}</span>
-            <FootBostonTag />
-          </span>
-        </footer>
+        <SiteFooter company={company} tone="light" leading={`Document ID: ${docId}`} />
       </main>
     )}
+
+    {
+      showAssistant && uid && (
+        <PortalAssistantWidget
+          contactUid={uid}
+          brandTitle={company.name}
+          clientFirstName={clientFirstName}
+          supportPhone={company.supportPhone}
+          supportEmail={company.supportEmail}
+        />
+      )
+    }
 
     <style is:global>
       *, *::before, *::after { box-sizing: border-box; }
@@ -329,16 +341,8 @@ const fmtDate = (iso: string) => {
       }
 
       /* ── Footer ── */
-      .doc-foot {
-        margin-top: 48px; padding-top: 16px; border-top: 1px solid #eee;
-        font-size: 11px; color: #bbb; display: flex; justify-content: space-between;
-        align-items: center; gap: 12px; flex-wrap: wrap;
-      }
-      .doc-foot-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
+      .site-foot {
+        page-break-inside: avoid;
       }
 
       /* ── Error ── */
@@ -363,7 +367,6 @@ const fmtDate = (iso: string) => {
         main { padding: 0; }
         .doc-header { margin-top: 16px; }
         .signature-block { page-break-inside: avoid; }
-        .doc-foot { page-break-inside: avoid; }
       }
 
       @media (max-width: 600px) {
@@ -375,7 +378,6 @@ const fmtDate = (iso: string) => {
         }
         .sig-row { flex-direction: column; align-items: flex-start; }
         .sig-stamp { transform: none; }
-        .doc-foot { flex-direction: column; align-items: flex-start; }
       }
     </style>
   </body>
