@@ -36,6 +36,8 @@ Use when the user asks to **check, fix, or audit DNS in Cloudflare** — includi
 - DMARC (TXT `_dmarc`): `v=DMARC1; p=none; rua=mailto:owner@domain.com`
 - DKIM: user enables in M365 admin → gives two CNAME selectors → upsert each via `cloudflare_dns`
 
+**Multiple TXT records at `@`:** Domains often have several apex TXT records (SPF + domain verification + MS=…). When upserting SPF, the tool finds the existing record whose content starts with `v=spf1` and updates only that one — other TXT records are left alone. If no SPF record exists yet, it adds a new TXT at `@`. Same pattern for DMARC (`v=DMARC1`) at `_dmarc`.
+
 **Resend sending (company domain):**
 
 - Use `sync_resend_dns` — not manual upsert unless sync fails with a specific error

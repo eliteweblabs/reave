@@ -863,8 +863,8 @@ export const devInfraModule: AgentToolModule = {
             type: 'function',
             function: {
               name: 'cloudflare_dns',
-              description:
-                'Read or write DNS records in Cloudflare for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Use upsert_record for SPF, DMARC, MX, CNAME, etc. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit. NOT Resend-only — sync_resend_dns is the separate Resend-specific tool.',
+                description:
+                  'Read or write DNS records in Cloudflare for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Use upsert_record for SPF, DMARC, MX, CNAME, etc. Multiple TXT at @ is OK — SPF upserts match the record starting with v=spf1 and leave verification TXT alone. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit. NOT Resend-only — sync_resend_dns is the separate Resend-specific tool.',
               parameters: {
                 type: 'object',
                 properties: {
