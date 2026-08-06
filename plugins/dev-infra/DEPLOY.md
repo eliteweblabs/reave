@@ -1,6 +1,6 @@
 ---
 feature: dev_infra
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

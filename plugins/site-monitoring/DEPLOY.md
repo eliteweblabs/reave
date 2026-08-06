@@ -1,6 +1,6 @@
 ---
 feature: site_monitoring
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

@@ -1,6 +1,6 @@
 ---
 feature: billing
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

@@ -89,7 +89,7 @@
       `<div class="dl-tile-foot">` +
       (canToggle ?
         renderSwitch(checked, m.moduleId)
-      : `<span class="dl-tile-hint">${m.inProduction ? 'Not deployed yet' : 'Preview only'}</span>`) +
+      : `<span class="dl-tile-hint">${m.status === 'pending' || m.status === 'request' ? 'Not ready yet' : 'Preview only'}</span>`) +
       `</div>` +
       `</article>`
     );
@@ -110,9 +110,9 @@
   function renderLegend() {
     return (
       `<div class="dl-legend">` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Live</span> toggle to include</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--pending">Pending</span> shown, no toggle</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--noprod">Not in prod</span> preview only</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Live</span> deployed — include in demo</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--pending">Pending</span> not ready yet</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--development">Dev</span> in development</span>` +
       `</div>`
     );
   }

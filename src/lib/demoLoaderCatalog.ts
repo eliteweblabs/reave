@@ -1,53 +1,35 @@
 /**
- * Public demo loader catalog — all modules; toggles only when deployed on production Reave.
+ * Public demo loader catalog — uses deploy-status feed; toggles only when status is deployed.
  */
 import { demoModuleIdForFeature } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
-import {
-  getProductionInstallConfig,
-  type InstallFeatureId,
-} from './installConfig';
+import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
 
 export type DemoLoaderModule = {
   moduleId: string;
   feature: InstallFeatureId;
   label: string;
-  /** Deploy status on production Reave (null when not on that install). */
-  status: ModuleDeployStatus | null;
+  status: ModuleDeployStatus;
   /** Enabled on production Reave (config-reave.json features[]). */
   inProduction: boolean;
-  /** Ready for demo — deployed and live on production Reave. */
+  /** Ready for demo — deploy playbook status is deployed. */
   toggleable: boolean;
 };
 
-function productionStatusForFeature(
-  feature: InstallFeatureId,
-  config: ReturnType<typeof getProductionInstallConfig>,
-): ModuleDeployStatus | null {
-  if (!config?.features.includes(feature)) return null;
-  const override = config.moduleStatus?.[feature];
-  if (override) return override;
-  // config-reave.json omits moduleStatus — enabled modules are live.
-  return 'deployed';
-}
-
 /** Full module list for the public demo loader UI. */
 export function listDemoLoaderModules(): DemoLoaderModule[] {
-  const productionConfig = getProductionInstallConfig();
-  const productionFeatures = productionConfig
-    ? new Set(productionConfig.features.filter((f) => f !== 'demo'))
-    : new Set<InstallFeatureId>();
+  const productionFeatures = getProductionInstallFeatures();
 
   return listAllDeployModules().map((m) => {
-    const prodStatus = productionStatusForFeature(m.feature, productionConfig);
-    const inProduction = productionFeatures.has(m.feature);
+    const moduleId = demoModuleIdForFeature(m.feature);
+    const deployed = m.status === 'deployed';
     return {
-      moduleId: demoModuleIdForFeature(m.feature),
+      moduleId,
       feature: m.feature,
       label: m.label,
-      status: prodStatus ?? m.status,
-      inProduction,
-      toggleable: prodStatus === 'deployed' && Boolean(demoModuleIdForFeature(m.feature)),
+      status: m.status,
+      inProduction: productionFeatures.has(m.feature),
+      toggleable: deployed && Boolean(moduleId),
     };
   });
 }
