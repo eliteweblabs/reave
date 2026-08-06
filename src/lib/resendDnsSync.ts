@@ -1,5 +1,6 @@
 /**
  * Ensure Resend domain DNS records exist in Cloudflare (check + create/update).
+ * Also exposes resendCreateDomain() to add a new domain to a Resend account.
  */
 import {
   cloudflareFindZone,
@@ -51,6 +52,17 @@ export type ResendDnsSyncResult =
     }
   | { ok: false; error: string };
 
+export type ResendCreateDomainResult =
+  | {
+      ok: true;
+      id: string;
+      name: string;
+      status: string;
+      records: ResendDnsRecord[];
+      summary: string;
+    }
+  | { ok: false; error: string };
+
 function resendApiKey(): string | undefined {
   return serverEnv('RESEND_API_KEY')?.trim();
 }
@@ -59,13 +71,28 @@ export function isResendDnsSyncConfigured(): boolean {
   return isCloudflareConfigured() && Boolean(resendApiKey());
 }
 
-async function resendFetch<T>(path: string): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+export function isResendConfigured(): boolean {
+  return Boolean(resendApiKey());
+}
+
+async function resendFetch<T>(
+  path: string,
+  options?: { method?: string; body?: unknown },
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   const key = resendApiKey();
   if (!key) return { ok: false, error: 'RESEND_API_KEY is not set' };
 
-  const res = await fetch(`https://api.resend.com${path}`, {
-    headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
-  });
+  const fetchOpts: RequestInit = {
+    method: options?.method ?? 'GET',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      Accept: 'application/json',
+      ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(options?.body ? { body: JSON.stringify(options.body) } : {}),
+  };
+
+  const res = await fetch(`https://api.resend.com${path}`, fetchOpts);
   const raw = await res.text();
   let body: unknown;
   try {
@@ -83,6 +110,51 @@ async function resendFetch<T>(path: string): Promise<{ ok: true; data: T } | { o
   }
 
   return { ok: true, data: body as T };
+}
+
+/**
+ * Add a new domain to the Resend account.
+ * Returns the domain id, status, and required DNS records.
+ * Region defaults to 'us-east-1'. Pass 'eu-west-1' for EU hosting.
+ */
+export async function resendCreateDomain(
+  domain: string,
+  region: 'us-east-1' | 'eu-west-1' = 'us-east-1',
+): Promise<ResendCreateDomainResult> {
+  const name = domain.trim().toLowerCase().replace(/\.$/, '');
+  if (!name) return { ok: false, error: 'domain is required' };
+
+  const res = await resendFetch<ResendDomainDetail>('/domains', {
+    method: 'POST',
+    body: { name, region },
+  });
+  if (!res.ok) return res;
+
+  const detail = res.data;
+
+  const lines = [
+    `Domain added to Resend: ${detail.name}`,
+    `Status: ${detail.status}`,
+    `ID: ${detail.id}`,
+    '',
+    'Required DNS records (add these to your DNS provider or call sync_resend_dns):',
+  ];
+  for (const r of detail.records ?? []) {
+    const pri = r.priority != null ? ` priority ${r.priority}` : '';
+    lines.push(`  ${r.type.padEnd(5)} ${r.name}${pri}`);
+    lines.push(`         → ${r.value}`);
+  }
+  lines.push('');
+  lines.push('Call sync_resend_dns to push these records to Cloudflare automatically.');
+
+  return {
+    ok: true,
+    id: detail.id,
+    name: detail.name,
+    status: detail.status,
+    records: detail.records ?? [],
+    summary: lines.join('\n'),
+  };
 }
 
 export async function resendGetDomainByName(domain: string): Promise<
