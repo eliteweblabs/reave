@@ -19,6 +19,18 @@ stage: 1
 - `DEMO_REAL_CONTACT_NAME` — display name for demo contact
 - `DEMO_REAL_CONTACT_PHONE` — optional phone for demo contact
 
+## Clerk (demo.reave.app)
+
+Use **production** Clerk keys (`pk_live_` / `sk_live_`) — same instance as `reave.app`. Do **not** use the development/test instance on a deployed custom domain; its dev-browser handshake fails on non-localhost origins.
+
+Also set on the demo Railway service:
+
+- `PUBLIC_CLERK_JS_VERSION=6.27.0` — pins clerk-js so the Frontend API uses a supported version (unpinned `@6` can serve stale JS that sends invalid `__clerk_api_version=2024-05-12` → 400 on `sign_ins`)
+- `CLERK_API_VERSION=2025-04-10` — backend API version aligned with clerk-js 6.x
+- Add `https://demo.reave.app` to the production Clerk instance **Allowed origins** (Clerk Dashboard or Backend API `PATCH /v1/instance`)
+
+Satellite domains are **not** required on the current plan; allowed origins is enough for sign-in from `demo.reave.app`.
+
 ## External setup
 
 - Create a separate Railway project from production Reave App
