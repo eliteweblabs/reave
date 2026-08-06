@@ -20,7 +20,7 @@ When Railway posts a **deployment failure** webhook to Reave **and** `RAILWAY_IN
 
 2. **Railway project webhook** (configure on **each** Railway project)
    - URL: `https://reave.app/api/railway/webhook?key=<RAILWAY_WEBHOOK_INGRESS_KEY>`
-   - Subscribe to deploy failure / crash events for the services you care about.
+   - Subscribe to **Building** and **Deploying** (instant header deploy dot) plus failure / crash events for the services you care about.
 
 3. **Optional:** Railway failure emails → Resend inbound still works via `RAILWAY_ALERT` rule, but duplicates are auto-suppressed when the repo lock is held.
 
