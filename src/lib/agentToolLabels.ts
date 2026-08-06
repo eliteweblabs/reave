@@ -39,7 +39,7 @@ const TOOL_LABELS: Record<string, string> = {
   run_dev_task: 'Running dev task',
   list_railway_domains: 'Checking Railway domains',
   sync_resend_dns: 'Syncing email DNS',
-  cloudflare_dns: 'Managing Cloudflare DNS',
+  cloudflare_dns: 'Managing Cloudflare DNS & SSL',
   get_git_status: 'Checking git status',
   get_recent_commits: 'Reading recent commits',
   check_deployment_status: 'Checking deployment',

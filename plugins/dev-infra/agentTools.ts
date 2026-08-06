@@ -449,19 +449,37 @@ async function handle_create_pull_request(args: Record<string, unknown>, _ctx: T
 
 async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const actionRaw = String(args.action ?? '').trim();
-  if (!['verify', 'list_records', 'upsert_record'].includes(actionRaw)) {
-    return JSON.stringify({ error: 'action must be verify, list_records, or upsert_record' });
+  const validActions = [
+    'verify',
+    'list_records',
+    'upsert_record',
+    'delete_record',
+    'get_ssl_mode',
+    'set_ssl_mode',
+  ];
+  if (!validActions.includes(actionRaw)) {
+    return JSON.stringify({
+      error: `action must be one of: ${validActions.join(', ')}`,
+    });
   }
   const domain = String(args.domain ?? '').trim();
   if (!domain) return JSON.stringify({ error: 'domain is required' });
 
   const result = await cloudflareDnsManage({
-    action: actionRaw as 'verify' | 'list_records' | 'upsert_record',
+    action: actionRaw as
+      | 'verify'
+      | 'list_records'
+      | 'upsert_record'
+      | 'delete_record'
+      | 'get_ssl_mode'
+      | 'set_ssl_mode',
     domain,
     type: args.type != null ? String(args.type) : undefined,
     name: args.name != null ? String(args.name) : undefined,
     content: args.content != null ? String(args.content) : undefined,
     priority: typeof args.priority === 'number' ? args.priority : undefined,
+    record_id: args.record_id != null ? String(args.record_id) : undefined,
+    ssl_mode: args.ssl_mode != null ? String(args.ssl_mode) : undefined,
   });
   if (!result.ok) {
     return JSON.stringify({ error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
@@ -864,15 +882,22 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'cloudflare_dns',
                 description:
-                  'Read or write DNS records in Cloudflare for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Use upsert_record for SPF, DMARC, MX, CNAME, etc. Multiple TXT at @ is OK — SPF upserts match the record starting with v=spf1 and leave verification TXT alone. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit. NOT Resend-only — sync_resend_dns is the separate Resend-specific tool.',
+                  'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Actions: upsert_record (SPF, DMARC, MX, CNAME), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
               parameters: {
                 type: 'object',
                 properties: {
                   action: {
                     type: 'string',
-                    enum: ['verify', 'list_records', 'upsert_record'],
+                    enum: [
+                      'verify',
+                      'list_records',
+                      'upsert_record',
+                      'delete_record',
+                      'get_ssl_mode',
+                      'set_ssl_mode',
+                    ],
                     description:
-                      'verify = token + zone reachable; list_records = current Cloudflare DNS; upsert_record = create or update one record',
+                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record; delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap)',
                   },
                   domain: {
                     type: 'string',
@@ -880,7 +905,7 @@ export const devInfraModule: AgentToolModule = {
                   },
                   type: {
                     type: 'string',
-                    description: 'Record type for list_records filter or upsert_record (TXT, MX, CNAME, A, …)',
+                    description: 'Record type for list_records filter, upsert_record, or delete_record (TXT, MX, CNAME, A, …)',
                   },
                   name: {
                     type: 'string',
@@ -888,11 +913,20 @@ export const devInfraModule: AgentToolModule = {
                   },
                   content: {
                     type: 'string',
-                    description: 'Record content/value — required for upsert_record',
+                    description: 'Record content/value — required for upsert_record; optional disambiguator for delete_record',
                   },
                   priority: {
                     type: 'number',
                     description: 'MX priority when type is MX',
+                  },
+                  record_id: {
+                    type: 'string',
+                    description: 'Cloudflare DNS record id from list_records — preferred for delete_record',
+                  },
+                  ssl_mode: {
+                    type: 'string',
+                    enum: ['off', 'flexible', 'full', 'strict'],
+                    description: 'SSL/TLS encryption mode — required for set_ssl_mode',
                   },
                 },
                 required: ['action', 'domain'],

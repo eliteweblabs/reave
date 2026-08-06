@@ -275,6 +275,46 @@ export async function cloudflareUpsertDnsRecord(
   return { ok: true, data: { action: 'created', record: out.data } };
 }
 
+export type CfSslMode = 'off' | 'flexible' | 'full' | 'strict';
+
+export type CfZoneSetting<T> = {
+  id: string;
+  value: T;
+  editable?: boolean;
+  modified_on?: string;
+};
+
+export async function cloudflareGetSslMode(
+  zoneId: string,
+): Promise<CfResult<CfZoneSetting<CfSslMode>>> {
+  const out = await cfFetch<CfZoneSetting<CfSslMode>>(`/zones/${zoneId}/settings/ssl`);
+  if (!out.ok) return out;
+  return { ok: true, data: out.data };
+}
+
+export async function cloudflareSetSslMode(
+  zoneId: string,
+  mode: CfSslMode,
+): Promise<CfResult<CfZoneSetting<CfSslMode>>> {
+  const out = await cfFetch<CfZoneSetting<CfSslMode>>(`/zones/${zoneId}/settings/ssl`, {
+    method: 'PATCH',
+    body: JSON.stringify({ value: mode }),
+  });
+  if (!out.ok) return out;
+  return { ok: true, data: out.data };
+}
+
+export async function cloudflareDeleteDnsRecord(
+  zoneId: string,
+  recordId: string,
+): Promise<CfResult<{ id: string }>> {
+  const out = await cfFetch<{ id: string }>(`/zones/${zoneId}/dns_records/${recordId}`, {
+    method: 'DELETE',
+  });
+  if (!out.ok) return out;
+  return { ok: true, data: out.data };
+}
+
 export async function cloudflareVerifyToken(): Promise<CfResult<{ id: string; status: string }>> {
   const userVerify = await cfFetch<{ id: string; status: string }>('/user/tokens/verify');
   if (userVerify.ok) return userVerify;
