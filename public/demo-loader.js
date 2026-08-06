@@ -1,13 +1,13 @@
 /**
- * Public demo loader — module toggles + industry select → launch live demo.
+ * Public demo loader — 6-column tile grid, production-only toggles.
  */
 (function () {
-  const STATUS_LABELS = {
-    deployed: 'Live',
-    pending: 'Pending',
-    development: 'Dev',
-    request: 'Requested',
-    rejected: 'Off',
+  const STATUS = {
+    deployed: { label: 'Live', badge: 'dl-badge--deployed' },
+    pending: { label: 'Pending', badge: 'dl-badge--pending' },
+    development: { label: 'Dev', badge: 'dl-badge--development' },
+    request: { label: 'Requested', badge: 'dl-badge--request' },
+    rejected: { label: 'Off', badge: 'dl-badge--rejected' },
   };
 
   let modules = [];
@@ -27,6 +27,10 @@
       .replace(/"/g, '&quot;');
   }
 
+  function shortLabel(label) {
+    return String(label).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  }
+
   function productionModules() {
     return modules.filter((m) => m.inProduction && m.moduleId);
   }
@@ -36,7 +40,11 @@
     industries = data.industries || [];
     demoSiteUrl = data.demoSiteUrl || null;
     if (data.suite?.moduleIds?.length) {
-      selectedIds = new Set(data.suite.moduleIds.map((id) => String(id).padStart(3, '0')));
+      selectedIds = new Set(
+        data.suite.moduleIds
+          .map((id) => String(id).padStart(3, '0'))
+          .filter((id) => productionModules().some((m) => m.moduleId === id)),
+      );
       industry = data.suite.industry || industry;
     } else {
       selectedIds = new Set(data.defaultModuleIds || productionModules().map((m) => m.moduleId));
@@ -49,30 +57,40 @@
     return [...selectedIds].filter((id) => prod.has(id)).length;
   }
 
-  function renderToggle(checked, moduleId) {
+  function statusMeta(m) {
+    if (!m.inProduction) {
+      return { label: 'Not in prod', badge: 'dl-badge--noprod' };
+    }
+    return STATUS[m.status] || { label: m.status, badge: 'dl-badge--pending' };
+  }
+
+  function renderSwitch(checked, moduleId) {
     return (
-      `<button type="button" class="dl-toggle" role="switch" aria-checked="${checked ? 'true' : 'false'}" ` +
-      `data-module-id="${esc(moduleId)}" aria-label="Include module"></button>`
+      `<button type="button" class="dl-switch" role="switch" ` +
+      `aria-checked="${checked ? 'true' : 'false'}" data-module-id="${esc(moduleId)}" ` +
+      `aria-label="Include in demo"></button>`
     );
   }
 
-  function renderModuleRow(m) {
+  function renderTile(m) {
     const checked = selectedIds.has(m.moduleId);
-    const status = STATUS_LABELS[m.status] || m.status;
+    const meta = statusMeta(m);
+    const canToggle = Boolean(m.inProduction && m.moduleId);
+
     return (
-      `<div class="dl-row${m.inProduction ? '' : ' dl-row--readonly'}">` +
-      `<div class="dl-row-main">` +
-      `<code class="dl-id">${esc(m.moduleId || '—')}</code>` +
-      `<div class="dl-text">` +
-      `<span class="dl-label">${esc(m.label)}</span>` +
-      `<span class="dl-feature">${esc(m.feature)}</span>` +
+      `<article class="dl-tile${checked && canToggle ? ' dl-tile--selected' : ''}${canToggle ? '' : ' dl-tile--readonly'}" ` +
+      `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
+      `<div class="dl-tile-top">` +
+      `<span class="dl-tile-id">${esc(m.moduleId || '—')}</span>` +
+      `<span class="dl-badge ${meta.badge}">${esc(meta.label)}</span>` +
       `</div>` +
+      `<h3 class="dl-tile-label">${esc(shortLabel(m.label))}</h3>` +
+      `<div class="dl-tile-foot">` +
+      (canToggle ?
+        renderSwitch(checked, m.moduleId)
+      : `<span class="dl-tile-hint">Preview only</span>`) +
       `</div>` +
-      `<div class="dl-row-end">` +
-      `<span class="dl-status">${esc(status)}</span>` +
-      (m.inProduction ? renderToggle(checked, m.moduleId) : `<span class="dl-dash" aria-hidden="true">—</span>`) +
-      `</div>` +
-      `</div>`
+      `</article>`
     );
   }
 
@@ -88,6 +106,16 @@
       .join('');
   }
 
+  function renderLegend() {
+    return (
+      `<div class="dl-legend">` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Live</span> deployed</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--pending">Pending</span> in rollout</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--noprod">Not in prod</span> no toggle</span>` +
+      `</div>`
+    );
+  }
+
   function render() {
     const prodCount = productionModules().length;
     const selectedCount = selectedProductionCount();
@@ -101,20 +129,28 @@
       `<select id="dl-industry" class="dl-select">${renderIndustryOptions()}</select>` +
       `</label>` +
       `<div class="dl-toolbar-actions">` +
-      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === prodCount ? ' disabled' : ''}>Select all</button>` +
+      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === prodCount ? ' disabled' : ''}>Select all production</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${canLaunch ? '' : ' disabled'}>` +
       (demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
       `</button>` +
       `</div>` +
-      `<p class="dl-meta">${selectedCount} of ${prodCount} production modules selected · ${modules.length} total</p>` +
+      `<p class="dl-meta">${selectedCount} of ${prodCount} production modules selected · ${modules.length} modules shown</p>` +
       `</div>` +
-      `<div class="dl-list-head"><span>Module</span><span>Status</span><span>Include</span></div>` +
-      `<div class="dl-list">${modules.map(renderModuleRow).join('')}</div>` +
+      renderLegend() +
+      `<div class="dl-grid">${modules.map(renderTile).join('')}</div>` +
       (!demoSiteUrl ?
         `<p class="dl-footnote">Live sandbox URL is not configured on this install. Book a call from the <a href="/demo">demo page</a> for hands-on access.</p>`
       : '') +
       `</div>`;
+  }
+
+  function toggleModule(id) {
+    if (!productionModules().some((m) => m.moduleId === id)) return;
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+    render();
+    bind();
   }
 
   function bind() {
@@ -134,14 +170,18 @@
       bind();
     });
 
-    root.querySelectorAll('.dl-toggle').forEach((btn) => {
-      btn.addEventListener('click', () => {
+    root.querySelectorAll('.dl-switch').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const id = btn.getAttribute('data-module-id');
-        if (!id) return;
-        if (selectedIds.has(id)) selectedIds.delete(id);
-        else selectedIds.add(id);
-        render();
-        bind();
+        if (id) toggleModule(id);
+      });
+    });
+
+    root.querySelectorAll('.dl-tile:not(.dl-tile--readonly)').forEach((tile) => {
+      tile.addEventListener('click', () => {
+        const id = tile.querySelector('.dl-switch')?.getAttribute('data-module-id');
+        if (id) toggleModule(id);
       });
     });
 
