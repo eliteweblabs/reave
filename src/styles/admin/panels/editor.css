@@ -2449,14 +2449,16 @@ button.de-placeholder-action:active {
 #clients-editor .cl-form-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  padding-top: 0.85rem;
+  padding:
+    0.85rem
+    max(1rem, env(safe-area-inset-right, 0px))
+    var(--footer-scroll-pad)
+    max(1rem, env(safe-area-inset-left, 0px));
 }
-#clients-editor .cl-detail-panel .de-fields,
+#clients-editor .cl-form-scroll .de-fields,
 #clients-editor .cl-detail-panel .cl-jobs-section,
 #clients-editor .cl-detail-panel .cl-vault-section {
-  padding-top: 0.85rem;
-  padding-left: 0;
-  padding-right: 0;
+  padding: 0.85rem 0 0;
 }
 #clients-editor .cl-branding-label {
   gap: 0.65rem;
