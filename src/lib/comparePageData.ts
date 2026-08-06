@@ -109,6 +109,7 @@ export const REAVE_WINS: string[] = [
   '10% bolt-ons for industry weirdness — no fork, no rewrite',
   'One login, one contact list, one AI agent across every channel',
   'White-labeled — no Powered by badge anywhere',
+  'No CMS — change copy and swap images by asking the agent',
   '$250–625/mo steady state (vs. $500–2K+ SaaS stack)',
   'Built by operators who ship this for real clients',
 ];
@@ -188,6 +189,15 @@ export const COMPARE_MATRIX: CompareRow[] = [
     reaveNote: 'Your brand only',
     custom: 'strong',
     customNote: 'Fully bespoke',
+  },
+  {
+    dimension: 'Website content updates',
+    saas: 'mixed',
+    saasNote: 'CMS login per tool',
+    reave: 'strong',
+    reaveNote: 'Ask the agent',
+    custom: 'weak',
+    customNote: 'Ticket to your dev',
   },
   {
     dimension: 'AI knows your business',

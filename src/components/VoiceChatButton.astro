@@ -1576,12 +1576,34 @@ const positionClasses = {
   }
 </script>
 
+<script>
+  import { initFloatingWidgetSectionHide } from '../lib/floatingWidgetSectionHide';
+
+  const container = document.getElementById('vapi-widget-container');
+  if (container) {
+    initFloatingWidgetSectionHide(
+      container,
+      'is-section-occluding',
+      '.home-hero',
+      '#contact',
+      '[data-home-section="contact"]',
+    );
+  }
+</script>
+
 <style>
   .vapi-widget-container {
     position: fixed;
     z-index: 9999;
     opacity: 0;
     animation: fadeIn 0.5s ease-in-out 1.5s forwards;
+  }
+
+  .vapi-widget-container.is-section-occluding {
+    opacity: 0 !important;
+    visibility: hidden;
+    pointer-events: none;
+    animation: none;
   }
 
   @keyframes fadeIn {

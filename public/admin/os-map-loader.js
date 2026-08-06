@@ -2381,14 +2381,16 @@ function buildHomeLinkTile(item) {
 }
 
 function buildDashStat(opts) {
-  const { value, label, hint, onClick, tone, muted } = opts;
+  const { value, label, hint, onClick, tone, muted, external } = opts;
   const el = document.createElement(muted ? 'div' : 'button');
   if (!muted) el.type = 'button';
-  el.className = `dash-stat${tone ? ` dash-stat--${tone}` : ''}${muted ? ' dash-stat--muted' : ''}`;
+  el.className = `dash-stat${tone ? ` dash-stat--${tone}` : ''}${muted ? ' dash-stat--muted' : ''}${external ? ' dash-stat--external' : ''}`;
   el.innerHTML =
+    (external ? `<span class="dash-stat-external" aria-hidden="true">${navIcon('external-link', 14)}</span>` : '') +
     `<span class="dash-stat-value">${escHtml(String(value))}</span>` +
     `<span class="dash-stat-label">${escHtml(label)}</span>` +
     (hint ? `<span class="dash-stat-hint">${escHtml(hint)}</span>` : '');
+  if (external && !muted) el.setAttribute('aria-label', `${label} (opens in new tab)`);
   if (!muted && onClick) el.addEventListener('click', onClick);
   return el;
 }
@@ -4683,6 +4685,7 @@ function renderHomeDashboard(data) {
             : 'all clear',
       tone: billingFailed ? 'failed' : totalDue > 0 ? (overdue > 0 ? 'failed' : 'stale') : 'live',
       muted: billingFailed,
+      external: !billingFailed,
       onClick: billingFailed ? null : openFinanceCrater,
     }));
 
@@ -4692,6 +4695,7 @@ function renderHomeDashboard(data) {
       hint: billingFailed ? 'check CRATER_API_*' : overdue ? 'past due in Crater' : 'none overdue',
       tone: billingFailed ? 'failed' : overdue > 0 ? 'failed' : 'live',
       muted: billingFailed,
+      external: !billingFailed,
       onClick: billingFailed ? null : openFinanceCrater,
     }));
   }

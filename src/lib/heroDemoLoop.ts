@@ -23,6 +23,8 @@ const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 const SCENE_EXIT_MS = 500;
 const ACTION_PRESS_MS = 900;
+/** Full hero background bright pulse after a simulated action click. */
+const SECTION_PULSE_MS = 1500;
 const SLASH_PICKER_ARROW_MS = 380;
 const SLASH_PICKER_SELECT_HOLD_MS = 520;
 const SLASH_PICKER_OPEN_MS = 200;
@@ -562,7 +564,19 @@ async function simulateActionPress(row: HTMLElement): Promise<void> {
   const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
   const target = primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
   if (!target) return;
+
+  const hero = row.closest<HTMLElement>(".home-hero");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   target.classList.add("home-hero-demo-action--pressed");
+
+  if (hero && !reducedMotion) {
+    hero.classList.remove("home-hero--action-pulse");
+    void hero.offsetWidth;
+    hero.classList.add("home-hero--action-pulse");
+    window.setTimeout(() => hero.classList.remove("home-hero--action-pulse"), SECTION_PULSE_MS);
+  }
+
   await wait(ACTION_PRESS_MS);
   target.classList.remove("home-hero-demo-action--pressed");
 }
