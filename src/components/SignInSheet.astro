@@ -19,6 +19,24 @@ const {
   authPath = '/sign-in',
 } = Astro.props;
 
+/**
+ * Clerk's hosted sign-in lives on the `accounts.` sibling of the Frontend API
+ * host, which is base64-encoded in the publishable key. Deriving it keeps the
+ * fallback correct per install instead of pinning one domain.
+ */
+const accountPortalSignInUrl = (() => {
+  const encoded = (import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').replace(/^pk_(test|live)_/, '');
+  if (!encoded) return '';
+  let host: string;
+  try {
+    host = atob(encoded).replace(/\$$/, '');
+  } catch {
+    return '';
+  }
+  if (!host.startsWith('clerk.')) return '';
+  return `https://accounts.${host.slice(6)}/sign-in`;
+})();
+
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
   options: {
@@ -112,8 +130,15 @@ const clerkAppearance = {
     />
   )}
   <div class="sign-in-reset" data-signin-reset hidden>
-    <p>This device is holding a stale sign-in. Start over to get the email and password form back.</p>
+    <p>
+      This step has no sign-in method available. Start over to get the email and password form
+      back, then fill in <strong>both</strong> fields before pressing Continue — submitting an email
+      on its own lands back here.
+    </p>
     <button type="button">Start over</button>
+    {accountPortalSignInUrl && (
+      <a href={accountPortalSignInUrl}>Use the secure sign-in page instead</a>
+    )}
   </div>
 </IosBottomSheet>
 
@@ -173,6 +198,11 @@ const clerkAppearance = {
     opacity: 0.75;
   }
 
+  #sign-in-sheet .sign-in-reset a {
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+
   #sign-in-sheet .sign-in-reset button {
     width: 100%;
     padding: 0.7rem 1rem;
@@ -205,11 +235,11 @@ const clerkAppearance = {
   const reset = sheet?.querySelector('[data-signin-reset]');
 
   /**
-   * Clerk persists the sign-in attempt on the client, so an attempt that ran out
-   * of usable first factors comes back on every load as a card with nothing to
-   * type into — and it refuses to mount <SignIn/> at all while a client session
-   * exists. Either way the sheet opens with no route forward, and the installed
-   * PWA has no /sign-out inside its /admin scope to clear it.
+   * Two states strand the sheet with nothing to type into. Clerk will not mount
+   * <SignIn/> while its client holds a session, and a sign-in attempt that ran
+   * out of first factors this device can complete renders as a bare list of
+   * social buttons. Both survive a reload because Clerk stores them on the
+   * client, and the installed PWA has no /sign-out inside its /admin scope.
    */
   function isStuck() {
     if (!sheet || !reset) return false;
@@ -235,7 +265,8 @@ const clerkAppearance = {
         /* ignore */
       }
     }
-    window.location.replace('/admin/?auth=sign-in');
+    /* /sign-in carries no tab or returnTo params for Clerk's router to hold on to. */
+    window.location.replace('/sign-in');
   });
 
   /* Give Clerk time to mount before calling a card missing — it renders async. */
