@@ -275,44 +275,53 @@ export async function cloudflareUpsertDnsRecord(
   return { ok: true, data: { action: 'created', record: out.data } };
 }
 
-export type CfSslMode = 'off' | 'flexible' | 'full' | 'strict';
+/** Delete a DNS record by ID. */
+export async function cloudflareDeleteDnsRecord(
+  zoneId: string,
+  recordId: string,
+): Promise<CfResult<{ id: string }>> {
+  return cfFetch<{ id: string }>(`/zones/${zoneId}/dns_records/${recordId}`, {
+    method: 'DELETE',
+  });
+}
 
-export type CfZoneSetting<T> = {
-  id: string;
-  value: T;
-  editable?: boolean;
-  modified_on?: string;
-};
+/** Read one zone setting (e.g. ssl). */
+export async function cloudflareGetZoneSetting(
+  zoneId: string,
+  settingId: string,
+): Promise<CfResult<{ id: string; value: unknown; modified_on?: string }>> {
+  return cfFetch(`/zones/${zoneId}/settings/${settingId}`);
+}
+
+/** Write one zone setting (e.g. ssl → "flexible"). */
+export async function cloudflareSetZoneSetting(
+  zoneId: string,
+  settingId: string,
+  value: unknown,
+): Promise<CfResult<{ id: string; value: unknown }>> {
+  return cfFetch(`/zones/${zoneId}/settings/${settingId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ value }),
+  });
+}
+
+export type CfSslMode = 'off' | 'flexible' | 'full' | 'strict';
 
 export async function cloudflareGetSslMode(
   zoneId: string,
-): Promise<CfResult<CfZoneSetting<CfSslMode>>> {
-  const out = await cfFetch<CfZoneSetting<CfSslMode>>(`/zones/${zoneId}/settings/ssl`);
+): Promise<CfResult<{ id: string; value: CfSslMode; modified_on?: string }>> {
+  const out = await cloudflareGetZoneSetting(zoneId, 'ssl');
   if (!out.ok) return out;
-  return { ok: true, data: out.data };
+  return { ok: true, data: { ...out.data, value: out.data.value as CfSslMode } };
 }
 
 export async function cloudflareSetSslMode(
   zoneId: string,
   mode: CfSslMode,
-): Promise<CfResult<CfZoneSetting<CfSslMode>>> {
-  const out = await cfFetch<CfZoneSetting<CfSslMode>>(`/zones/${zoneId}/settings/ssl`, {
-    method: 'PATCH',
-    body: JSON.stringify({ value: mode }),
-  });
+): Promise<CfResult<{ id: string; value: CfSslMode }>> {
+  const out = await cloudflareSetZoneSetting(zoneId, 'ssl', mode);
   if (!out.ok) return out;
-  return { ok: true, data: out.data };
-}
-
-export async function cloudflareDeleteDnsRecord(
-  zoneId: string,
-  recordId: string,
-): Promise<CfResult<{ id: string }>> {
-  const out = await cfFetch<{ id: string }>(`/zones/${zoneId}/dns_records/${recordId}`, {
-    method: 'DELETE',
-  });
-  if (!out.ok) return out;
-  return { ok: true, data: out.data };
+  return { ok: true, data: { ...out.data, value: out.data.value as CfSslMode } };
 }
 
 export async function cloudflareVerifyToken(): Promise<CfResult<{ id: string; status: string }>> {

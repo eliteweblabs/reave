@@ -6,8 +6,10 @@ import {
   cloudflareDeleteDnsRecord,
   cloudflareFindZone,
   cloudflareGetSslMode,
+  cloudflareGetZoneSetting,
   cloudflareListDnsRecords,
   cloudflareSetSslMode,
+  cloudflareSetZoneSetting,
   cloudflareUpsertDnsRecord,
   cloudflareVerifyToken,
   cloudflareZoneName,
@@ -39,6 +41,10 @@ export type CloudflareDnsActionResult =
       ssl_mode?: CfSslMode;
       previous_ssl_mode?: CfSslMode;
     }
+  | { ok: false; error: string; hint?: string };
+
+export type CloudflareZoneSettingResult =
+  | { ok: true; action: 'get_zone_setting' | 'set_zone_setting'; setting: string; value: unknown; summary: string }
   | { ok: false; error: string; hint?: string };
 
 const SSL_MODES: CfSslMode[] = ['off', 'flexible', 'full', 'strict'];
@@ -77,7 +83,7 @@ export async function cloudflareDnsManage(input: {
     return {
       ok: false,
       error: 'CLOUDFLARE_API_TOKEN is not set on this service',
-      hint: 'Set CLOUDFLARE_API_TOKEN on Railway with Zone → DNS → Read/Edit on the zones you manage.',
+      hint: 'Set CLOUDFLARE_API_TOKEN on Railway with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit on the zones you manage.',
     };
   }
 
@@ -278,5 +284,51 @@ export async function cloudflareDnsManage(input: {
     zone: zone.data,
     upsert: upsert.data,
     summary: `${upsert.data.action.toUpperCase()} ${type} ${fqdn}\n       ${content.slice(0, 160)}${content.length > 160 ? '…' : ''}`,
+  };
+}
+
+export async function cloudflareZoneSettingManage(input: {
+  action: 'get_zone_setting' | 'set_zone_setting';
+  domain: string;
+  setting: string;
+  value?: unknown;
+}): Promise<CloudflareZoneSettingResult> {
+  const domain = input.domain.trim().toLowerCase().replace(/\.$/, '');
+  if (!domain) return { ok: false, error: 'domain is required' };
+  if (!input.setting?.trim()) {
+    return { ok: false, error: 'setting is required (e.g. ssl, security_level, always_use_https)' };
+  }
+
+  if (!isCloudflareConfigured()) {
+    return { ok: false, error: 'CLOUDFLARE_API_TOKEN is not set on this service' };
+  }
+
+  const zoneName = cloudflareZoneName(domain);
+  const zone = await cloudflareFindZone(zoneName);
+  if (!zone.ok) {
+    return { ok: false, error: zone.error, hint: 'Domain may not be in this Cloudflare account or token lacks access.' };
+  }
+
+  if (input.action === 'get_zone_setting') {
+    const res = await cloudflareGetZoneSetting(zone.data.id, input.setting);
+    if (!res.ok) return { ok: false, error: res.error };
+    return {
+      ok: true,
+      action: 'get_zone_setting',
+      setting: input.setting,
+      value: res.data.value,
+      summary: `Zone ${zone.data.name} → ${input.setting} = ${JSON.stringify(res.data.value)}`,
+    };
+  }
+
+  if (input.value === undefined) return { ok: false, error: 'value is required for set_zone_setting' };
+  const res = await cloudflareSetZoneSetting(zone.data.id, input.setting, input.value);
+  if (!res.ok) return { ok: false, error: res.error };
+  return {
+    ok: true,
+    action: 'set_zone_setting',
+    setting: input.setting,
+    value: res.data.value,
+    summary: `SET zone ${zone.data.name} → ${input.setting} = ${JSON.stringify(res.data.value)}`,
   };
 }
