@@ -1,5 +1,5 @@
 /**
- * Public demo loader — 6-column tile grid, production-only toggles.
+ * Public demo loader — 6-column tile grid, toggles only on deployed modules.
  */
 (function () {
   const STATUS = {
@@ -31,30 +31,31 @@
     return String(label).replace(/\s*\([^)]*\)\s*$/, '').trim();
   }
 
-  function productionModules() {
-    return modules.filter((m) => m.inProduction && m.moduleId);
+  function toggleableModules() {
+    return modules.filter((m) => m.toggleable && m.moduleId);
   }
 
   function syncDefaults(data) {
     modules = data.modules || [];
     industries = data.industries || [];
     demoSiteUrl = data.demoSiteUrl || null;
+    const allowed = new Set(toggleableModules().map((m) => m.moduleId));
     if (data.suite?.moduleIds?.length) {
       selectedIds = new Set(
         data.suite.moduleIds
           .map((id) => String(id).padStart(3, '0'))
-          .filter((id) => productionModules().some((m) => m.moduleId === id)),
+          .filter((id) => allowed.has(id)),
       );
       industry = data.suite.industry || industry;
     } else {
-      selectedIds = new Set(data.defaultModuleIds || productionModules().map((m) => m.moduleId));
+      selectedIds = new Set(data.defaultModuleIds || [...allowed]);
       industry = industries[0]?.slug || 'general';
     }
   }
 
-  function selectedProductionCount() {
-    const prod = new Set(productionModules().map((m) => m.moduleId));
-    return [...selectedIds].filter((id) => prod.has(id)).length;
+  function selectedToggleableCount() {
+    const allowed = new Set(toggleableModules().map((m) => m.moduleId));
+    return [...selectedIds].filter((id) => allowed.has(id)).length;
   }
 
   function statusMeta(m) {
@@ -75,7 +76,7 @@
   function renderTile(m) {
     const checked = selectedIds.has(m.moduleId);
     const meta = statusMeta(m);
-    const canToggle = Boolean(m.inProduction && m.moduleId);
+    const canToggle = Boolean(m.toggleable && m.moduleId);
 
     return (
       `<article class="dl-tile${checked && canToggle ? ' dl-tile--selected' : ''}${canToggle ? '' : ' dl-tile--readonly'}" ` +
@@ -88,7 +89,7 @@
       `<div class="dl-tile-foot">` +
       (canToggle ?
         renderSwitch(checked, m.moduleId)
-      : `<span class="dl-tile-hint">Preview only</span>`) +
+      : `<span class="dl-tile-hint">${m.inProduction ? 'Not deployed yet' : 'Preview only'}</span>`) +
       `</div>` +
       `</article>`
     );
@@ -109,16 +110,16 @@
   function renderLegend() {
     return (
       `<div class="dl-legend">` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Live</span> deployed</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--pending">Pending</span> in rollout</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--noprod">Not in prod</span> no toggle</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Live</span> toggle to include</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--pending">Pending</span> shown, no toggle</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--noprod">Not in prod</span> preview only</span>` +
       `</div>`
     );
   }
 
   function render() {
-    const prodCount = productionModules().length;
-    const selectedCount = selectedProductionCount();
+    const toggleCount = toggleableModules().length;
+    const selectedCount = selectedToggleableCount();
     const canLaunch = Boolean(demoSiteUrl && selectedCount > 0);
 
     root.innerHTML =
@@ -129,13 +130,13 @@
       `<select id="dl-industry" class="dl-select">${renderIndustryOptions()}</select>` +
       `</label>` +
       `<div class="dl-toolbar-actions">` +
-      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === prodCount ? ' disabled' : ''}>Select all production</button>` +
+      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all deployed</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${canLaunch ? '' : ' disabled'}>` +
       (demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
       `</button>` +
       `</div>` +
-      `<p class="dl-meta">${selectedCount} of ${prodCount} production modules selected · ${modules.length} modules shown</p>` +
+      `<p class="dl-meta">${selectedCount} of ${toggleCount} deployed modules selected · ${modules.length} modules shown</p>` +
       `</div>` +
       renderLegend() +
       `<div class="dl-grid">${modules.map(renderTile).join('')}</div>` +
@@ -146,7 +147,7 @@
   }
 
   function toggleModule(id) {
-    if (!productionModules().some((m) => m.moduleId === id)) return;
+    if (!toggleableModules().some((m) => m.moduleId === id)) return;
     if (selectedIds.has(id)) selectedIds.delete(id);
     else selectedIds.add(id);
     render();
@@ -159,7 +160,7 @@
     });
 
     root.querySelector('#dl-select-all')?.addEventListener('click', () => {
-      selectedIds = new Set(productionModules().map((m) => m.moduleId));
+      selectedIds = new Set(toggleableModules().map((m) => m.moduleId));
       render();
       bind();
     });
@@ -186,7 +187,7 @@
     });
 
     root.querySelector('#dl-launch')?.addEventListener('click', () => {
-      if (!demoSiteUrl || !selectedProductionCount()) return;
+      if (!demoSiteUrl || !selectedToggleableCount()) return;
       const ids = [...selectedIds].sort();
       const url = new URL('/', demoSiteUrl);
       url.searchParams.set('demo', 'tier-1');

@@ -347,20 +347,28 @@ export function clearInstallConfigCache(): void {
 }
 
 let _productionFeatures: ReadonlySet<InstallFeatureId> | null = null;
+let _productionConfig: InstallConfig | null | undefined;
 
-/** Optional modules enabled on the production Reave install (config-reave.json). */
-export function getProductionInstallFeatures(): ReadonlySet<InstallFeatureId> {
-  if (_productionFeatures) return _productionFeatures;
+/** Parsed config-reave.json — production Reave install. */
+export function getProductionInstallConfig(): InstallConfig | null {
+  if (_productionConfig !== undefined) return _productionConfig;
   const path = configPathForSlug('reave');
   if (existsSync(path)) {
     try {
-      const config = parseInstallConfig(JSON.parse(readFileSync(path, 'utf8')));
-      _productionFeatures = new Set(config.features.filter((f) => f !== 'demo'));
-      return _productionFeatures;
+      _productionConfig = parseInstallConfig(JSON.parse(readFileSync(path, 'utf8')));
+      return _productionConfig;
     } catch {
       /* fall through */
     }
   }
-  _productionFeatures = new Set();
+  _productionConfig = null;
+  return null;
+}
+
+/** Optional modules enabled on the production Reave install (config-reave.json). */
+export function getProductionInstallFeatures(): ReadonlySet<InstallFeatureId> {
+  if (_productionFeatures) return _productionFeatures;
+  const config = getProductionInstallConfig();
+  _productionFeatures = new Set(config?.features.filter((f) => f !== 'demo') ?? []);
   return _productionFeatures;
 }
