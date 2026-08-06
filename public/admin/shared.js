@@ -103,8 +103,8 @@ export async function recoverStaleClerkClient() {
       await Promise.all(keys.map((key) => caches.delete(key)));
     }
     if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration('/admin/');
-      await reg?.unregister();
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((reg) => reg.unregister()));
     }
   } catch {
     /* ignore */
@@ -114,11 +114,11 @@ export async function recoverStaleClerkClient() {
   return true;
 }
 
-/** Build primary-app sign-in URL (demo installs redirect to reave.app for Google OAuth). */
+/** Build primary-app sign-in URL when demo needs cross-host return (optional fallback). */
 export function buildPrimarySignInUrl(returnTo) {
   const base = window.__primarySignInUrl || 'https://reave.app/sign-in';
-  const target =
-    returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  const relative = returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  const target = relative.startsWith('http') ? relative : new URL(relative, window.location.origin).href;
   const url = new URL(base);
   url.searchParams.set('returnTo', target);
   return url.toString();
@@ -130,10 +130,6 @@ export function redirectToPrimarySignIn(returnTo) {
 
 /** Open the admin sign-in bottom sheet when the SSR session is missing. */
 export function openAdminSignInSheet() {
-  if (window.__demoPrimarySignIn) {
-    redirectToPrimarySignIn();
-    return true;
-  }
   const sheet = document.getElementById('sign-in-sheet');
   if (!sheet || sheet.classList.contains('open')) return true;
   if (!window.IosSheet?.open) return false;

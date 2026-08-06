@@ -22,12 +22,11 @@ const {
   mapboxAccessToken,
   craterFinanceUrl,
   githubRepo,
-  osMapLoaderVersion = "20260806k",
+  osMapLoaderVersion = "20260806l",
 } = Astro.props;
 
 const deployStatusClient = getDeployStatusClientSummary();
 const clerkJsVersion = serverEnv("PUBLIC_CLERK_JS_VERSION")?.trim() || "6.27.0";
-const demoPrimarySignIn = serverEnv("DEMO_MODE") === "1" || serverEnv("INSTALL_CONFIG")?.trim().toLowerCase() === "demo";
 const primarySignInUrl = serverEnv("PRIMARY_SIGN_IN_URL")?.trim() || "https://reave.app/sign-in";
 ---
 
@@ -89,7 +88,7 @@ const primarySignInUrl = serverEnv("PRIMARY_SIGN_IN_URL")?.trim() || "https://re
 </script>
 <script is:inline type="module" src="/admin/push-client.js?v=20260806c"></script>
 <script src="/ios-sheet.js" defer></script>
-<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias, demoPrimarySignIn, primarySignInUrl }}>
+<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias, primarySignInUrl }}>
   window.__companyBrand = companyBrand;
   window.__postAlias = postAlias;
   window.__companyStaffAvatarUrl = staffAvatarUrl;
@@ -98,7 +97,6 @@ const primarySignInUrl = serverEnv("PRIMARY_SIGN_IN_URL")?.trim() || "https://re
   window.__craterFinanceUrl = craterFinanceUrl;
   window.__githubRepo = githubRepo;
   window.__deployStatus = deployStatusClient;
-  window.__demoPrimarySignIn = demoPrimarySignIn;
   window.__primarySignInUrl = primarySignInUrl;
 </script>
 <script is:inline type="module" src={`/admin/os-map-loader.js?v=${osMapLoaderVersion}`}></script>

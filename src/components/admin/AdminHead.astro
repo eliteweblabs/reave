@@ -14,46 +14,6 @@ const appName = companyName || "Business OS";
 ---
 
 <head>
-  <script is:inline>
-    (function () {
-      if (window.__reaveClerkFetchGuard) return;
-      window.__reaveClerkFetchGuard = 1;
-      var resetKey = 'reave-clerk-js-reset';
-      var nativeFetch = window.fetch.bind(window);
-      window.fetch = function (input, init) {
-        var url = typeof input === 'string' ? input : (input && input.url) || '';
-        if (url.indexOf('/v1/client/sign_ins') !== -1 && url.indexOf('2024-05-12') !== -1) {
-          try {
-            if (!sessionStorage.getItem(resetKey)) {
-              sessionStorage.setItem(resetKey, '1');
-              var reload = function () {
-                window.location.reload();
-              };
-              var clearAndReload = function () {
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistration('/admin/').then(function (reg) {
-                    return reg && reg.unregister();
-                  }).finally(reload);
-                } else {
-                  reload();
-                }
-              };
-              if ('caches' in window) {
-                caches.keys().then(function (keys) {
-                  return Promise.all(keys.map(function (key) {
-                    return caches.delete(key);
-                  }));
-                }).then(clearAndReload).catch(clearAndReload);
-              } else {
-                clearAndReload();
-              }
-            }
-          } catch (e) { /* ignore */ }
-        }
-        return nativeFetch(input, init);
-      };
-    })();
-  </script>
   <meta charset="utf-8" />
   <ViewportMeta />
   <meta name="robots" content="noindex, nofollow" />

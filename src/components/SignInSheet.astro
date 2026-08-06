@@ -1,8 +1,6 @@
 ---
 import { SignIn, SignUp } from '@clerk/astro/components';
 import IosBottomSheet from './IosBottomSheet.astro';
-import { isDemoMode } from '../lib/demoMode';
-import { serverEnv } from '../lib/serverEnv';
 
 interface Props {
   /** Where to send the user after a successful sign-in. */
@@ -20,15 +18,6 @@ const {
   autoOpen = false,
   authPath = '/sign-in',
 } = Astro.props;
-
-const demoPrimarySignIn = isDemoMode();
-const primarySignInBase =
-  serverEnv('PRIMARY_SIGN_IN_URL')?.trim() || 'https://reave.app/sign-in';
-const primarySignInHref = (() => {
-  const url = new URL(primarySignInBase);
-  url.searchParams.set('returnTo', fallbackRedirectUrl);
-  return url.toString();
-})();
 
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
@@ -80,35 +69,21 @@ const clerkAppearance = {
 ---
 
 <IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={true} class="sign-in-sheet">
-  {demoPrimarySignIn ? (
-    <div class="demo-sign-in-panel">
-      <p class="demo-sign-in-lead">
-        This demo uses the same sign-in as <strong>reave.app</strong>. Continue there to authenticate with Google, then you&apos;ll return here automatically.
-      </p>
-      <a class="demo-sign-in-btn" href={primarySignInHref}>
-        Continue to sign in
-      </a>
-      <p class="demo-sign-in-note">Password sign-in is not enabled on this Clerk instance — use Google.</p>
-    </div>
-  ) : (
-    <>
-      <SignIn
-        routing="hash"
-        signUpUrl={authPath}
-        signInUrl={authPath}
-        fallbackRedirectUrl={fallbackRedirectUrl}
-        appearance={clerkAppearance}
-      />
-      {allowSignUp && (
-        <SignUp
-          routing="hash"
-          signUpUrl={authPath}
-          signInUrl={authPath}
-          fallbackRedirectUrl={fallbackRedirectUrl}
-          appearance={clerkAppearance}
-        />
-      )}
-    </>
+  <SignIn
+    routing="hash"
+    signUpUrl={authPath}
+    signInUrl={authPath}
+    fallbackRedirectUrl={fallbackRedirectUrl}
+    appearance={clerkAppearance}
+  />
+  {allowSignUp && (
+    <SignUp
+      routing="hash"
+      signUpUrl={authPath}
+      signInUrl={authPath}
+      fallbackRedirectUrl={fallbackRedirectUrl}
+      appearance={clerkAppearance}
+    />
   )}
 </IosBottomSheet>
 
@@ -148,43 +123,9 @@ const clerkAppearance = {
     background: transparent;
     box-shadow: none;
   }
-
-  #sign-in-sheet .demo-sign-in-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-    padding: 0.25rem 0 0.5rem;
-  }
-
-  #sign-in-sheet .demo-sign-in-lead {
-    margin: 0;
-    font-size: 0.92rem;
-    line-height: 1.45;
-    color: var(--text-secondary, #64748b);
-  }
-
-  #sign-in-sheet .demo-sign-in-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 2.75rem;
-    padding: 0.65rem 1rem;
-    border-radius: 999px;
-    background: var(--brand-indigo, #6366f1);
-    color: #fff;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  #sign-in-sheet .demo-sign-in-note {
-    margin: 0;
-    font-size: 0.82rem;
-    line-height: 1.4;
-    color: var(--text-secondary, #64748b);
-  }
 </style>
 
 <script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
-  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260806k';
+  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260806l';
   bindClerkSsrSessionSync({ autoOpenSignIn });
 </script>
