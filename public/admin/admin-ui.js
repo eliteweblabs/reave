@@ -1458,7 +1458,30 @@ function createListSelectionController(listEl, opts) {
     );
   }
 
-  return { enter, exit, toggle, bindRow, isActive: () => active, getSelected: () => selected };
+  function resyncAfterListRebuild() {
+    if (!active) return;
+    pruneStaleSelection();
+    if (selected.size === 0) {
+      exit();
+      return;
+    }
+    listEl.classList.add('list-selection-mode');
+    const subheader = subheaderEl();
+    if (subheader) subheader.hidden = true;
+    ensureToolbar();
+    if (toolbar) toolbar.hidden = false;
+    updateUI();
+  }
+
+  return {
+    enter,
+    exit,
+    toggle,
+    bindRow,
+    isActive: () => active,
+    getSelected: () => selected,
+    resyncAfterListRebuild,
+  };
 }
 
 /** Enable icon-click and long-press multi-select on sidebar lists. Call once per list element. */
@@ -1479,6 +1502,11 @@ export function exitListMultiSelect(listEl) {
 
 export function isListInSelectionMode(listEl) {
   return listSelectionControllers.get(listEl)?.isActive() ?? false;
+}
+
+/** Re-apply multi-select UI after a list DOM rebuild (rows replaced in place). */
+export function resyncListMultiSelect(listEl) {
+  listSelectionControllers.get(listEl)?.resyncAfterListRebuild();
 }
 
 // ---- Swipe row actions (shared across inbox, chats, docs, etc.) ----
@@ -2027,14 +2055,13 @@ export function createSwipeRow(contentEl, actions) {
 
   bindSwipeRowContextMenu(row, content, actions);
 
-  const list = row.closest('.ch-list, .de-list, .em-list');
-  const ctrl = list ? listSelectionControllers.get(list) : null;
-  if (ctrl) ctrl.bindRow(row, content, contentEl);
-
   requestAnimationFrame(() => {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
     attachSwipeRow(row, content, revealPx);
     maybeScheduleSwipeHint(row);
+    const list = row.closest('.ch-list, .de-list, .em-list');
+    const ctrl = list ? listSelectionControllers.get(list) : null;
+    if (ctrl) ctrl.bindRow(row, content, contentEl);
   });
   return row;
 }
