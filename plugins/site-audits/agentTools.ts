@@ -194,6 +194,19 @@ async function handle_fetch_url(args: Record<string, unknown>, _ctx: ToolContext
 async function handle_lighthouse_audit(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const url = String(args.url ?? '').trim();
   if (!url) return JSON.stringify({ error: 'url is required' });
+
+  const agentCtx = getAgentContext();
+  if (!agentCtx._toolOnce) agentCtx._toolOnce = {};
+  if (agentCtx._toolOnce.lighthouse_audit) {
+    return (
+      '⚠️ LIGHTHOUSE_ALREADY_CALLED — lighthouse_audit was already run this turn.\n\n' +
+      'INSTRUCTIONS: Do NOT call lighthouse_audit again — it wastes the tool-round budget. ' +
+      'Proceed to update_work now using whatever scores you already have, or write ' +
+      '"Scores unavailable — run a fresh audit later" in Performance/Accessibility/SEO sections.'
+    );
+  }
+  agentCtx._toolOnce.lighthouse_audit = true;
+
   const categoryRaw = String(args.category ?? '').trim();
   const strategyRaw = String(args.strategy ?? 'both').trim();
   const result = await lighthouseAudit({
@@ -206,7 +219,20 @@ async function handle_lighthouse_audit(args: Record<string, unknown>, _ctx: Tool
         ? strategyRaw
         : 'both',
   });
-  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  if (!result.ok) {
+    const isRateLimit =
+      result.rateLimited === true || /quota|rate limit|429|too many/i.test(result.error);
+    const prefix = isRateLimit
+      ? '⚠️ LIGHTHOUSE_RATE_LIMITED — PageSpeed Insights quota exceeded.'
+      : '⚠️ LIGHTHOUSE_FAILED';
+    return (
+      `${prefix} HTTP ${result.status ?? 'N/A'}: ${result.error}\n\n` +
+      'INSTRUCTIONS: Do NOT retry lighthouse_audit — it will fail again and burn the run budget. ' +
+      'Proceed to update_work NOW. For Performance, Accessibility, and SEO sections write exactly: ' +
+      '"Scores unavailable — run a fresh audit later" (or use fetch_url observations only). ' +
+      'Do NOT quote this error, "rate limit", "quota", or any API failure text in the project body.'
+    );
+  }
   return JSON.stringify({
     summary: formatLighthouseResults(result),
     url: result.url,
@@ -287,7 +313,7 @@ export const siteAuditsModule: AgentToolModule = {
               function: {
                 name: 'lighthouse_audit',
                 description:
-                  'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default.',
+                  'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default. Call at most once per audit; if it fails, proceed without retrying. Quick/street audits: pass category "performance" only to save PSI quota.',
                 parameters: {
                   type: 'object',
                   properties: {

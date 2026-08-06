@@ -14,7 +14,8 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 
 - Do **not** call `playwright_audit` or `check_links` in the quick tier — those belong in the full audit
 - Do **not** skip `lighthouse_audit`, `ssl_check`, `dns_check`, or `brave_search` — they are the core of the quick audit
-- Do **not** guess Lighthouse scores — run `lighthouse_audit` or explain why it failed
+- Do **not** guess Lighthouse scores — run `lighthouse_audit` once or write "Scores unavailable"
+- Do **not** retry `lighthouse_audit` if it fails — proceed to `update_work` (retries burn the run budget)
 - Do **not** use `create_work` for personal to-dos (use todo tools)
 
 ## Required workflow (in order)
@@ -40,7 +41,7 @@ Run these in parallel when possible:
 | Tool | Use for |
 |------|---------|
 | `fetch_url` | Title, meta description, visible text, page structure, password/coming-soon pages |
-| `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
+| `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
 | `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts |
@@ -49,7 +50,7 @@ Run these in parallel when possible:
 
 **Password-protected sites:** Still run `ssl_check`, `dns_check`, and `fetch_url`. Note that Lighthouse scores are N/A until launch.
 
-**If `lighthouse_audit` fails:** Say so in Performance and rely on `fetch_url` — do not invent scores.
+**If `lighthouse_audit` fails:** Call it once only. Write "Scores unavailable — run a fresh audit later" in Performance (and Accessibility/SEO if needed). Use `fetch_url` observations — do not invent scores and do not retry the tool.
 
 ### 4. Create or update the project
 

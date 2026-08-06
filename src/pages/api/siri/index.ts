@@ -619,11 +619,12 @@ async function runProposalResearch(input: {
       ? '3. Run the **full** audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, ' +
         'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
         'playwright_audit (real-browser UX/UI on desktop + mobile), and detect_tech_stack. Run read-only ' +
-        'tools in parallel when possible.'
+        'tools in parallel when possible. Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry.'
       : '3. Run the **quick** audit tool sequence on the site (street-speed — skip slow tools): fetch_url, ' +
-        'lighthouse_audit, ssl_check, dns_check, and brave_search (Google Business Profile, Yelp, ' +
-        'reviews/reputation, social). Do **not** run playwright_audit, check_links, or detect_tech_stack — ' +
-        'those belong in the full audit tier. Run read-only tools in parallel when possible.';
+        'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
+        '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
+        'or detect_tech_stack — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
+        'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry.';
 
   const userText = [
     `Siri shortcut "${tierLabel}" was triggered with only the raw information below — there is no one ` +

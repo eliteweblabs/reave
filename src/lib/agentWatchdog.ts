@@ -241,11 +241,15 @@ export async function guardToolCall(
     return await withDeadline(dispatch(), timeoutMs, `Tool ${name}`);
   } catch (err) {
     if (isAgentTimeoutError(err)) {
+      const hint =
+        name === 'lighthouse_audit'
+          ? 'Do NOT retry lighthouse_audit — proceed to update_work with "Scores unavailable — run a fresh audit later" in Performance/Accessibility/SEO sections.'
+          : 'The upstream service did not respond. Report this to the user and continue with the other steps — do not retry the same call more than once.';
       return JSON.stringify({
         error: `${name} timed out after ${formatSeconds(timeoutMs)} and was abandoned`,
         timed_out: true,
         tool: name,
-        hint: 'The upstream service did not respond. Report this to the user and continue with the other steps — do not retry the same call more than once.',
+        hint,
       });
     }
     if (isAbortError(err)) throw err;

@@ -55,7 +55,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 
 **Password-protected or pre-launch sites (e.g. Shopify password page):** Still run `ssl_check`, `dns_check`, and `fetch_url` on the password page and any public policy URLs. Note in the audit that public Lighthouse scores are N/A until the store launches.
 
-**If `lighthouse_audit` fails (quota / missing `GOOGLE_PAGESPEED_API_KEY`):** Say so in the Performance section and rely on `fetch_url` + platform notes — do not invent scores.
+**If `lighthouse_audit` fails (quota / missing `GOOGLE_PAGESPEED_API_KEY`):** Call it once only. Write "Scores unavailable — run a fresh audit later" in affected sections and rely on `fetch_url` + platform notes — do not invent scores and do not retry the tool.
 
 ### 4. Create or update the project
 
