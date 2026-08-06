@@ -1080,6 +1080,39 @@ export async function craterBillingDashboardStats(): Promise<CraterResult<Billin
   };
 }
 
+export type CreateExpenseInput = {
+  amount: number;
+  expenseDate?: string;
+  categoryName?: string;
+  notes?: string;
+};
+
+export type CreatedExpense = {
+  success: boolean;
+  expense_id: number;
+  amount: number;
+  expense_date: string;
+  category: string;
+  admin_url?: string;
+};
+
+export async function craterCreateExpense(
+  input: CreateExpenseInput,
+): Promise<CraterResult<CreatedExpense>> {
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    return { ok: false, error: 'amount must be a positive number' };
+  }
+  return craterFetch<CreatedExpense>('/api/custom/create-expense', {
+    method: 'POST',
+    body: {
+      amount: input.amount,
+      expense_date: input.expenseDate,
+      category_name: input.categoryName,
+      notes: input.notes,
+    },
+  });
+}
+
 /** Format a created invoice for display/API response. */
 export function formatCreatedInvoice(inv: CreatedInvoice): string {
   const lines = [

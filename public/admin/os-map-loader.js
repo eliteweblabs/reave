@@ -412,6 +412,8 @@ const NAV_ICON_PATHS = {
   phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
   user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  receipt:
+    '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
 };
 
@@ -3125,6 +3127,98 @@ async function runReviewScheduleAction(item, action, btn) {
   if (MAP.type === 'home') await loadHomeDashboard();
 }
 
+async function logReceiptExpenseFromAlert(item, btn) {
+  const emailId = String(item?.emailId || '').trim();
+  if (!emailId) return;
+  const prevLabel = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    if (prevLabel) btn.textContent = 'Logging…';
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(emailId)}/expense`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === emailId);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    removeReviewAlertBanner(emailId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+    if (emailState.activeId === emailId) renderEmailPanel();
+    if (MAP.type === 'home') await loadHomeDashboard();
+
+    const amount =
+      data.expense?.amount != null
+        ? formatEmailUsd(Number(data.expense.amount))
+        : item.amount != null
+          ? formatEmailUsd(item.amount)
+          : '';
+    await osAlert({
+      title: 'Expense logged',
+      bodyHtml:
+        `<p>Added to Crater${amount ? ` for ${escHtml(amount)}` : ''}.</p>` +
+        (data.expense?.admin_url
+          ? `<p><a href="${escHtml(data.expense.admin_url)}" target="_blank" rel="noopener">Open in Finance</a></p>`
+          : ''),
+    });
+  } catch (e) {
+    await osAlert({ title: 'Could not log expense', bodyHtml: escHtml(e.message || String(e)) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.textContent = prevLabel;
+    }
+  }
+}
+
+async function archiveReceiptFromAlert(item, btn) {
+  const emailId = String(item?.emailId || '').trim();
+  if (!emailId) return;
+  const ev = emailState.allEvents.find((e) => e.id === emailId);
+  const prevLabel = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    if (prevLabel) btn.textContent = 'Archiving…';
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(emailId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'filed', status: 'FILED', markAutomationAck: true }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === emailId);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    } else if (ev) {
+      applyEmailPatchResult(emailId, {
+        ...ev,
+        action: 'filed',
+        status: 'FILED',
+        automationAckAt: new Date().toISOString(),
+      });
+    }
+    removeReviewAlertBanner(emailId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+    if (emailState.activeId === emailId) renderEmailPanel();
+    if (MAP.type === 'home') await loadHomeDashboard();
+  } catch (e) {
+    await osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message || String(e)) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.textContent = prevLabel;
+    }
+  }
+}
+
 async function dismissReviewNotification(item, btn) {
   if (item?.alertId) {
     const prevLabel = btn?.textContent;
@@ -3687,6 +3781,7 @@ function isAuditPushAlert(item) {
 function reviewAlertVariant(type, item) {
   if (item && isOtpReviewAlert(item)) return 'otp';
   if (type === 'push_alert') return 'confirm';
+  if (type === 'receipt_expense') return 'confirm';
   if (type === 'meeting_conflict') return 'confirm';
   if (
     type === 'project' ||
@@ -3725,6 +3820,8 @@ function reviewAlertIconName(item) {
     }
   }
   switch (type) {
+    case 'receipt_expense':
+      return 'receipt';
     case 'meeting_conflict':
       return 'alert-triangle';
     case 'meeting_request':
@@ -3970,6 +4067,7 @@ function buildReviewAlertBanner(item) {
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
+  const isReceiptExpense = item.type === 'receipt_expense';
   const isPushAlert = item.type === 'push_alert';
   const isOtp = isOtpReviewAlert(item);
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
@@ -4096,6 +4194,16 @@ function buildReviewAlertBanner(item) {
     appendReviewAlertAction(actions, {
       label: 'Reschedule',
       onClick: () => rescheduleScheduledMeeting(item),
+    });
+  } else if (isReceiptExpense) {
+    appendReviewAlertAction(actions, {
+      label: 'Expense',
+      primary: true,
+      onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
+    });
+    appendReviewAlertAction(actions, {
+      label: 'Archive',
+      onClick: (btn) => void archiveReceiptFromAlert(item, btn),
     });
   }
 
