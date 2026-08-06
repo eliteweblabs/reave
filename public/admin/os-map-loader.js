@@ -10847,8 +10847,8 @@ function createEmailListItem(ev) {
     `</span>` +
     `<span class="em-item-summary">${escHtml(summary)}</span>` +
     `</span>`;
-  item.addEventListener('click', (ev) => {
-    if (ev.target.closest('.sidebar-list-author-icon, .list-select-icon')) return;
+  item.addEventListener('click', (e) => {
+    if (e.target.closest('.sidebar-list-author-icon, .list-select-icon')) return;
     const list = item.closest('.ch-list');
     if (list && isListInSelectionMode(list)) return;
     openEmailEvent(ev.id);
