@@ -1,4 +1,4 @@
-/** Railway deploy status bulb in the page header (public dev indicator). */
+/** Railway deploy status bulb in the page header (owner session; see DEPLOY_STATUS_PUBLIC). */
 (function () {
   const DEPLOY_POLL_MS_LIVE = 15_000;
   const DEPLOY_POLL_MS_ACTIVE = 5_000;

@@ -66,6 +66,9 @@ export function codeDevReadFile(
 ): CodeDevResult {
   const resolved = resolveSafePath(path);
   if (!resolved.ok) return resolved;
+  if (isEnvLikePath(resolved.rel)) {
+    return { ok: false, error: 'reading .env files is blocked' };
+  }
   if (!existsSync(resolved.abs)) return { ok: false, error: `not found: ${resolved.rel}` };
   const st = statSync(resolved.abs);
   if (!st.isFile()) return { ok: false, error: `not a file: ${resolved.rel}` };
@@ -186,6 +189,7 @@ export function codeDevListFiles(path: string, recursive = false): CodeDevResult
     for (const name of names) {
       if (entries.length >= MAX_LIST_ENTRIES) break;
       if (name === 'node_modules' || name === '.git' || name === 'dist' || name === '.astro') continue;
+      if (isEnvLikePath(name)) continue;
       const abs = join(dirAbs, name);
       let childSt;
       try {
@@ -238,6 +242,8 @@ export async function codeDevGrep(
     '--glob=!node_modules/**',
     '--glob=!dist/**',
     '--glob=!.astro/**',
+    '--glob=!.env',
+    '--glob=!.env.*',
   ];
   if (opts.ignoreCase) rgArgs.push('-i');
   if (opts.glob?.trim()) rgArgs.push(`--glob=${opts.glob.trim()}`);
@@ -302,6 +308,9 @@ export async function codeDevExecCommand(command: string): Promise<CodeDevResult
   const cmd = command.trim();
   if (!cmd) return { ok: false, error: 'command is required' };
   if (cmd.length > 2000) return { ok: false, error: 'command too long' };
+  if (/\b\.env(?:\.|$|\s)/.test(cmd)) {
+    return { ok: false, error: 'commands that reference .env files are blocked' };
+  }
 
   const deferred = await maybeDeferExecCommand(cmd);
   if (deferred) {

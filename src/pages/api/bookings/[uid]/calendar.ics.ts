@@ -7,7 +7,6 @@ import type { APIRoute } from 'astro';
 import { buildBookingIcs } from '../../../../lib/calendarLinks';
 import { bookingGet, bookingManageUrl, isBookingConfigured } from '../../../../lib/bookingClient';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
-import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 

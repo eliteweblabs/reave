@@ -1,5 +1,5 @@
 /**
- * GET /api/push/vapid-public-key — public VAPID key for Web Push subscribe.
+ * GET /api/push/vapid-public-key — VAPID public key for Web Push subscribe (owner session).
  */
 
 import type { APIContext } from 'astro';
