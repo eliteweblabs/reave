@@ -3,7 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import SiteLegalLinks from "../components/SiteLegalLinks.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
-import HomeDialogueShowcase from "../components/home/HomeDialogueShowcase.astro";
+import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
@@ -24,7 +24,7 @@ const showSiteAssistant =
   <div class="home-scroll">
     <HomeHeroSection siteContent={siteContent} />
 
-    {homepage.showDialogue && <HomeDialogueShowcase />}
+    {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
     {homepage.showIntegrations && <HomeIntegrationsSection />}
     {
       homepage.showFeatures && (
