@@ -4,6 +4,7 @@
 
 import type { APIContext } from 'astro';
 import {
+  formatAwakeSinceLabel,
   formatQuietEndLabel,
   formatQuietHoursLabel,
   getPushQuietHoursSettings,
@@ -22,21 +23,27 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function sleepSettingsPayload(settings: Awaited<ReturnType<typeof getPushQuietHoursSettings>>) {
+  const inQuietWindow = isWithinQuietWindow(settings);
+  const active = settings.sleepModeEnabled && inQuietWindow;
+  return {
+    ok: true as const,
+    settings,
+    active,
+    inQuietWindow,
+    quietEndLabel: formatQuietEndLabel(settings),
+    awakeSinceLabel:
+      !settings.sleepModeEnabled && inQuietWindow ? formatAwakeSinceLabel(settings) : null,
+    label: formatQuietHoursLabel(settings),
+  };
+}
+
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const settings = await getPushQuietHoursSettings();
-  const inQuietWindow = isWithinQuietWindow(settings);
-  const active = settings.sleepModeEnabled && inQuietWindow;
-  return json({
-    ok: true,
-    settings,
-    active,
-    inQuietWindow,
-    quietEndLabel: formatQuietEndLabel(settings),
-    label: formatQuietHoursLabel(settings),
-  });
+  return json(sleepSettingsPayload(settings));
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
@@ -87,14 +94,5 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const settings = await savePushQuietHoursSettings(patch);
   if (!settings) return json({ ok: false, error: 'Save failed' }, 500);
 
-  const inQuietWindow = isWithinQuietWindow(settings);
-  const active = settings.sleepModeEnabled && inQuietWindow;
-  return json({
-    ok: true,
-    settings,
-    active,
-    inQuietWindow,
-    quietEndLabel: formatQuietEndLabel(settings),
-    label: formatQuietHoursLabel(settings),
-  });
+  return json(sleepSettingsPayload(settings));
 }

@@ -649,7 +649,9 @@ async function patchSleepModeSettings(patch) {
 
 function formatTopbarSleepLabel(data, enabled) {
   const until = data?.quietEndLabel || '7:00 AM';
-  return enabled ? `Sleeping until ${until}` : `Awake until ${until}`;
+  if (enabled) return `Sleeping until ${until}`;
+  const since = data?.awakeSinceLabel || until;
+  return `Awake since ${since}`;
 }
 
 function syncTopbarSleepToggle(data = sleepModeCache) {
@@ -671,7 +673,7 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
     'aria-label',
     enabled
       ? `Sleep mode on until ${data?.quietEndLabel || 'quiet hours end'} — tap to allow AI and alerts tonight`
-      : `Sleep mode off until ${data?.quietEndLabel || 'quiet hours end'} — tap to pause AI and alerts again`,
+      : `Sleep mode off since ${data?.awakeSinceLabel || 'you opted out'} — tap to pause AI and alerts again`,
   );
 }
 
