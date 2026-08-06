@@ -146,7 +146,12 @@ import { formatLighthouseResults, lighthouseAudit } from '../../src/lib/lighthou
 import { sslCheck, formatSslCheckResults } from '../../src/lib/sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
-import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../src/lib/resendDnsSync';
+import {
+  syncAllResendDnsToCloudflare,
+  syncResendDnsToCloudflare,
+  resendCreateDomain,
+  isResendConfigured,
+} from '../../src/lib/resendDnsSync';
 import { hasFeature } from '../../src/lib/features';
 import { syncUptimeMonitorsFromApi } from '../../src/lib/uptimeMonitoring';
 import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
@@ -280,6 +285,21 @@ async function handle_sync_resend_dns(args: Record<string, unknown>, _ctx: ToolC
   return JSON.stringify({ ...result, ok: true });
 }
 
+async function handle_create_resend_domain(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!isResendConfigured()) {
+    return JSON.stringify({ error: 'RESEND_API_KEY is not set' });
+  }
+  const domain = String(args.domain ?? '').trim();
+  if (!domain) return JSON.stringify({ error: 'domain is required' });
+
+  const regionRaw = String(args.region ?? 'us-east-1').trim();
+  const region = regionRaw === 'eu-west-1' ? 'eu-west-1' : 'us-east-1';
+
+  const result = await resendCreateDomain(domain, region);
+  if (!result.ok) return JSON.stringify({ error: result.error });
+  return JSON.stringify({ ok: true, ...result });
+}
+
 export const siteAuditsModule: AgentToolModule = {
   id: 'siteAudits',
   enabled: (ctx) => hasFeature('site_audits'),
@@ -404,7 +424,31 @@ export const siteAuditsModule: AgentToolModule = {
                   additionalProperties: false,
                 },
               },
-            }
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'create_resend_domain',
+                description:
+                  'Add a new sending domain to the Resend account (POST /domains). Returns the domain id, status, and required DNS records. After calling this, call sync_resend_dns to push the DNS records to Cloudflare automatically. Use when the user asks to add a domain to Resend.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    domain: {
+                      type: 'string',
+                      description: 'Full domain name to add, e.g. mail.example.com or example.com',
+                    },
+                    region: {
+                      type: 'string',
+                      enum: ['us-east-1', 'eu-west-1'],
+                      description: 'Resend sending region. Default us-east-1. Use eu-west-1 for EU data residency.',
+                    },
+                  },
+                  required: ['domain'],
+                  additionalProperties: false,
+                },
+              },
+            },
     ];
   },
   handlers: {
@@ -414,5 +458,6 @@ export const siteAuditsModule: AgentToolModule = {
     'check_links': handle_check_links,
     'dns_check': handle_dns_check,
     'sync_resend_dns': handle_sync_resend_dns,
+    'create_resend_domain': handle_create_resend_domain,
   },
 };
