@@ -204,7 +204,8 @@ function ensureDeleteConfirmChrome(btn, ringSize = 36, ringRadius = 18) {
   holder.className = 'delete-confirm-ring-holder';
   holder.setAttribute('aria-hidden', 'true');
   holder.innerHTML = deleteConfirmRingMarkup(ringSize, ringRadius);
-  btn.appendChild(holder);
+  const ringAnchor = btn.querySelector('.em-filter-purge-icon') || btn;
+  ringAnchor.appendChild(holder);
 }
 
 export function resetDeleteConfirmButton(btn) {
@@ -268,7 +269,8 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
   const isSwipe = btn.classList.contains('swipe-act');
   const isIosIcon = btn.classList.contains('ios-icon-btn');
-  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : 36);
+  const isFilterPurge = btn.classList.contains('em-filter-tab--purge');
+  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : isFilterPurge ? 22 : 36);
   const ringRadius = opts.ringRadius ?? (isIosIcon ? 20 : 18);
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 

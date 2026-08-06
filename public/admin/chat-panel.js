@@ -1589,7 +1589,7 @@ function renderChatFilterTabs(savedScrollLeft = 0) {
         `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
       btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} sessions`);
       btn.title = `Delete all ${tab.label.toLowerCase()} sessions`;
-      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab), { ringSize: 44 });
+      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab));
     } else if (isAllRefresh) {
       btn.innerHTML =
         `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
@@ -1915,10 +1915,15 @@ function mountChatThreadRoot(threadHost) {
         chatState.disposableChatId = null;
       }
     },
-    onMessagesPersist: (userContent, assistantContent) => {
+    onMessagesPersist: (userContent, assistant) => {
       const now = new Date().toISOString();
       chatState.messages.push({ role: 'user', content: userContent, created_at: now });
-      chatState.messages.push({ role: 'assistant', content: assistantContent, created_at: now });
+      chatState.messages.push({
+        role: 'assistant',
+        content: assistant.content,
+        created_at: now,
+        ...(assistant.agent_usage ? { agent_usage: assistant.agent_usage } : {}),
+      });
       chatState.composeDirty = false;
       if (chatState.activeId === chatState.disposableChatId) {
         chatState.disposableChatId = null;

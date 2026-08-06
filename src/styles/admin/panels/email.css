@@ -142,6 +142,7 @@
   background: rgba(248, 113, 113, 0.14);
 }
 .em-filter-tab--purge .em-filter-purge-icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -151,11 +152,23 @@
   width: 14px;
   height: 14px;
 }
+.em-filter-tab--purge .em-filter-purge-icon .delete-confirm-ring-holder {
+  inset: -5px;
+}
+.em-filter-tab--purge .em-filter-purge-icon .delete-confirm-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] {
   color: #f87171;
 }
 .em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] .em-filter-tab-label {
   opacity: 0.72;
+}
+.em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] .em-filter-purge-icon svg {
+  position: relative;
+  z-index: 2;
 }
 .em-filter-tab--refresh .em-filter-refresh-icon {
   display: inline-flex;

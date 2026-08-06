@@ -11101,7 +11101,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
         `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
       btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
       btn.title = `Delete all ${tab.label.toLowerCase()} messages`;
-      bindConfirmDeleteButton(btn, () => bulkDeleteInboxCategory(tab), { ringSize: 44 });
+      bindConfirmDeleteButton(btn, () => bulkDeleteInboxCategory(tab));
     } else if (isAllRefresh) {
       btn.innerHTML =
         `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
