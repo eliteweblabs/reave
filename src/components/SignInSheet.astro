@@ -68,6 +68,32 @@ const clerkAppearance = {
 };
 ---
 
+<script is:inline>
+  /**
+   * Clerk hash routing writes the current step into the URL, and that hash
+   * outlives the attempt — reopening `#/factor-one` restores a step the card
+   * cannot render. Steps Clerk *lands* on from outside the page (`/sso-callback`
+   * after OAuth, `/continue` and the `/verify-*` sign-up steps) must survive.
+   */
+  (function () {
+    var STALE_STEPS = [
+      '#/factor-one',
+      '#/factor-two',
+      '#/reset-password',
+      '#/reset-password-success',
+      '#/forgot-password',
+      '#/alternative-methods',
+      '#/choose-strategy',
+    ];
+    if (STALE_STEPS.indexOf(window.location.hash) === -1) return;
+    try {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch {
+      window.location.hash = '';
+    }
+  })();
+</script>
+
 <IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={true} class="sign-in-sheet">
   <SignIn
     routing="hash"
@@ -86,8 +112,8 @@ const clerkAppearance = {
     />
   )}
   <div class="sign-in-reset" data-signin-reset hidden>
-    <p>This device still holds an old session, so the sign-in form can’t load.</p>
-    <button type="button">Reset sign-in</button>
+    <p>This device is holding a stale sign-in. Start over to get the email and password form back.</p>
+    <button type="button">Start over</button>
   </div>
 </IosBottomSheet>
 
@@ -161,7 +187,65 @@ const clerkAppearance = {
 </style>
 
 <script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
-  import { bindClerkSsrSessionSync, bindStuckSignInRecovery } from '/admin/shared.js?v=20260806m';
-  bindClerkSsrSessionSync({ autoOpenSignIn });
-  bindStuckSignInRecovery();
+  /**
+   * `/admin/*.js` is served straight off disk by the node adapter's static
+   * handler, so the middleware never sees it and it ships as public,
+   * max-age=14400. A browser can therefore hold a four-hour-old shared.js. A
+   * static import of a name that file does not have yet is a SyntaxError that
+   * takes this whole script down with it, so load it at arm's length: the sheet
+   * has to keep working even when shared.js is stale or missing entirely.
+   */
+  const sharedUrl = '/admin/shared.js?v=20260805j';
+  import(/* @vite-ignore */ sharedUrl)
+    .then((shared) => shared.bindClerkSsrSessionSync?.({ autoOpenSignIn }))
+    .catch((err) => console.warn('[sign-in] shared.js unavailable', err));
+
+  const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
+  const sheet = document.getElementById('sign-in-sheet');
+  const reset = sheet?.querySelector('[data-signin-reset]');
+
+  /**
+   * Clerk persists the sign-in attempt on the client, so an attempt that ran out
+   * of usable first factors comes back on every load as a card with nothing to
+   * type into — and it refuses to mount <SignIn/> at all while a client session
+   * exists. Either way the sheet opens with no route forward, and the installed
+   * PWA has no /sign-out inside its /admin scope to clear it.
+   */
+  function isStuck() {
+    if (!sheet || !reset) return false;
+    if (document.body?.dataset?.userId?.trim()) return false;
+    if (!window.Clerk?.loaded) return false;
+    if (!sheet.classList.contains('open')) return false;
+    return !sheet.querySelector('input[name="identifier"]');
+  }
+
+  reset?.querySelector('button')?.addEventListener('click', async () => {
+    try {
+      sessionStorage.removeItem(AUTH_SYNC_KEY);
+    } catch {
+      /* ignore */
+    }
+    // DELETE /v1/client — drops the stored sessions and the stuck attempt together.
+    try {
+      await window.Clerk?.client?.destroy?.();
+    } catch {
+      try {
+        await window.Clerk?.signOut?.();
+      } catch {
+        /* ignore */
+      }
+    }
+    window.location.replace('/admin/?auth=sign-in');
+  });
+
+  /* Give Clerk time to mount before calling a card missing — it renders async. */
+  if (reset) {
+    let waited = 0;
+    const poll = setInterval(() => {
+      waited += 500;
+      if (isStuck()) reset.hidden = false;
+      else if (waited > 4000) reset.hidden = true;
+      if (waited >= 20000) clearInterval(poll);
+    }, 500);
+  }
 </script>
