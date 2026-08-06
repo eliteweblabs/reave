@@ -114,8 +114,26 @@ export async function recoverStaleClerkClient() {
   return true;
 }
 
+/** Build primary-app sign-in URL (demo installs redirect to reave.app for Google OAuth). */
+export function buildPrimarySignInUrl(returnTo) {
+  const base = window.__primarySignInUrl || 'https://reave.app/sign-in';
+  const target =
+    returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  const url = new URL(base);
+  url.searchParams.set('returnTo', target);
+  return url.toString();
+}
+
+export function redirectToPrimarySignIn(returnTo) {
+  window.location.assign(buildPrimarySignInUrl(returnTo));
+}
+
 /** Open the admin sign-in bottom sheet when the SSR session is missing. */
 export function openAdminSignInSheet() {
+  if (window.__demoPrimarySignIn) {
+    redirectToPrimarySignIn();
+    return true;
+  }
   const sheet = document.getElementById('sign-in-sheet');
   if (!sheet || sheet.classList.contains('open')) return true;
   if (!window.IosSheet?.open) return false;

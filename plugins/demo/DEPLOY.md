@@ -31,6 +31,8 @@ Also set on the demo Railway service:
 
 Satellite domains are **not** required on the current plan; allowed origins is enough for sign-in from `demo.reave.app`.
 
+**Sign-in flow:** This Clerk instance uses **Google OAuth only** (password is disabled). The demo admin redirects to `https://reave.app/sign-in` with a `returnTo` back to demo — do not embed the Clerk form on demo directly.
+
 ## External setup
 
 - Create a separate Railway project from production Reave App
