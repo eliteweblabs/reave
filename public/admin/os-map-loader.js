@@ -244,6 +244,11 @@ import {
   loadMediaTab,
 } from './media-panel.js?v=20260804c';
 import {
+  initModulesPanel,
+  loadModulesTab,
+  teardownModulesPanel,
+} from './modules-panel.js?v=20260806a';
+import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
@@ -306,6 +311,7 @@ const MAP_ICON_KEYS = {
   media: 'image',
   analytics: 'bar-chart-2',
   fleet: 'truck',
+  modules: 'puzzle',
   finance: 'wallet',
   profile: 'user',
   company: 'building-2',
@@ -415,6 +421,8 @@ const NAV_ICON_PATHS = {
   receipt:
     '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  puzzle:
+    '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
 };
 
 export function navIcon(name, size = 20) {
@@ -814,6 +822,9 @@ function setActiveMap(key, opts = {}) {
   if (prevType === 'fleet' && MAP.type !== 'fleet') {
     teardownFleetMap();
   }
+  if (prevType === 'modules' && MAP.type !== 'modules') {
+    teardownModulesPanel();
+  }
   activateMapPanel(opts);
   syncHealthLifecycle();
   syncEmailPoll();
@@ -863,6 +874,7 @@ function isPanelMapKey(key) {
     t === 'media' ||
     t === 'analytics' ||
     t === 'fleet' ||
+    t === 'modules' ||
     t === 'chats' ||
     t === 'email' ||
     t === 'todo' ||
@@ -912,6 +924,8 @@ function activateMapPanel(opts = {}) {
     loadAnalyticsTab();
   } else if (MAP.type === 'fleet') {
     loadFleetTab();
+  } else if (MAP.type === 'modules') {
+    loadModulesTab();
   } else if (MAP.type === 'chats') {
     if (opts.chatId) queueChatDeepLink(opts.chatId);
     loadChatsTab({ keepSession: opts.keepChatSession === true });
@@ -948,6 +962,7 @@ function isPanelTab() {
     MAP.type === 'media' ||
     MAP.type === 'analytics' ||
     MAP.type === 'fleet' ||
+    MAP.type === 'modules' ||
     MAP.type === 'chats' ||
     MAP.type === 'email' ||
     MAP.type === 'rules' ||
@@ -978,6 +993,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('media-panel', MAP.type === 'media' ? 'flex' : 'none');
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
+  setPanelDisplay('modules-panel', MAP.type === 'modules' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
@@ -7382,10 +7398,10 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #search-overlay';
+  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #modules-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
-  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
+  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
@@ -9353,6 +9369,7 @@ initNewsletterPanel({});
 
 initOnlineReviewsPanel({});
 initMediaPanel({});
+initModulesPanel({ getMap: () => MAP, MAP });
 
 initTodoPanel({
   setActiveMap,

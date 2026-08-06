@@ -23,6 +23,7 @@
   ],
   "footerNav": [
     "__system__",
+    "modules",
     "home",
     "todo",
     "documents",
