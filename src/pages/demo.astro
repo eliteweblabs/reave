@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Monitor,
   Smartphone,
+  SlidersHorizontal,
   Video,
 } from "lucide-astro";
 
@@ -34,6 +35,13 @@ type DemoCard = {
 };
 
 const cards: DemoCard[] = [
+  {
+    icon: SlidersHorizontal,
+    title: "Build your demo",
+    body: "Pick the modules you care about and an industry preset, then launch the live sandbox with your configuration — no sales call required.",
+    href: "/demo-loader",
+    cta: "Configure demo",
+  },
   {
     icon: Video,
     title: "Interactive walkthrough",
