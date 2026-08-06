@@ -89,7 +89,7 @@ export async function recoverStaleClerkClient() {
   } catch {
     /* ignore */
   }
-  if (attempts >= 1) return false;
+  if (attempts >= 3) return false;
 
   try {
     sessionStorage.setItem(CLERK_JS_RESET_KEY, String(attempts + 1));
@@ -110,7 +110,13 @@ export async function recoverStaleClerkClient() {
     /* ignore */
   }
 
-  window.location.reload();
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('_cr', String(Date.now()));
+    window.location.replace(url.toString());
+  } catch {
+    window.location.reload();
+  }
   return true;
 }
 
