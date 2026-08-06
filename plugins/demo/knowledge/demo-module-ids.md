@@ -27,7 +27,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 | 011 | `carddav` | CardDAV (iOS Contacts sync) |
 | 012 | `scheduling` | Cal.com scheduling & meetings |
 | 013 | `dev_infra` | Dev & infrastructure (Git, Railway, Kinsta, deploy) |
-| 014 | `code_dev` | Local code tools (read/write/list/exec) — Reave install only |
+| 014 | `code_dev` | Local code tools (read/write/list/exec) |
 | 015 | `email_marketing` | Newsletter & email automation |
 | 016 | `fleet_tracking` | Fleet tracking (multi-vehicle GPS via fleet-api) |
 | 017 | `dealership_wizard` | Dealership inventory & deal wizard (paulino-wizard) |
