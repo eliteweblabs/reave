@@ -2506,6 +2506,7 @@ button.de-placeholder-action:active {
 }
 #clients-editor .cl-detail-tabs::-webkit-scrollbar { display: none; }
 #clients-editor .cl-detail-tab {
+  position: relative;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -2520,6 +2521,27 @@ button.de-placeholder-action:active {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  overflow: visible;
+}
+#clients-editor .cl-detail-tab .cl-detail-tab-badge {
+  position: absolute;
+  top: -0.12rem;
+  right: -0.12rem;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+}
+#clients-editor .cl-detail-tab .cl-detail-tab-badge[hidden] {
+  display: none !important;
 }
 #clients-editor .cl-detail-tab:hover { color: var(--fg); }
 #clients-editor .cl-detail-tab.active {
@@ -2614,13 +2636,11 @@ button.de-placeholder-action:active {
   color: var(--muted);
   font-size: 0.8125rem;
 }
-.cl-jobs-label { margin-bottom: 0; }
 .cl-jobs-empty { padding: 0.5rem 0; }
 .cl-jobs-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
-  margin-top: 0.45rem;
 }
 @media (min-width: 640px) {
   .cl-jobs-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

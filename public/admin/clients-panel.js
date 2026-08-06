@@ -37,7 +37,7 @@ import {
   downloadBrandingImage,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805a';
+} from './admin-ui.js?v=20260805b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {

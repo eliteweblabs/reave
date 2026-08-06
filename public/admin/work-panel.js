@@ -958,6 +958,23 @@ function createWorkDetailPanel(tabId, activeTab) {
   return panel;
 }
 
+function syncClientProjectsTabBadge(count) {
+  const btn = document.querySelector('#clients-editor .cl-detail-tab[data-client-tab="projects"]');
+  if (!btn) return;
+  const badge = btn.querySelector('.cl-detail-tab-badge');
+  if (!badge) return;
+  const n = Math.max(0, Number(count) || 0);
+  if (n > 0) {
+    badge.hidden = false;
+    badge.removeAttribute('aria-hidden');
+    badge.textContent = n > 99 ? '99+' : String(n);
+  } else {
+    badge.hidden = true;
+    badge.setAttribute('aria-hidden', 'true');
+    badge.textContent = '0';
+  }
+}
+
 function mountClientDetailTabs(pane, activeTab, onSelect) {
   const nav = document.createElement('div');
   nav.className = 'cl-detail-tabs';
@@ -972,7 +989,13 @@ function mountClientDetailTabs(pane, activeTab, onSelect) {
     btn.dataset.clientTab = tab.id;
     btn.setAttribute('role', 'tab');
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.textContent = tab.label;
+    if (tab.id === 'projects') {
+      btn.innerHTML =
+        `${escHtml(tab.label)}` +
+        `<span class="footer-nav-badge cl-detail-tab-badge" hidden aria-hidden="true">0</span>`;
+    } else {
+      btn.textContent = tab.label;
+    }
     btn.addEventListener('click', () => {
       if (btn.classList.contains('active')) return;
       onSelect(tab.id);
@@ -1241,10 +1264,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
 
 function renderClientWorkSection(jobsWrap, jobs) {
   jobsWrap.innerHTML = '';
-  const jobsLabel = document.createElement('div');
-  jobsLabel.className = 'de-label cl-jobs-label';
-  jobsLabel.textContent = `${postTitle(2)} (${jobs.length})`;
-  jobsWrap.appendChild(jobsLabel);
+  syncClientProjectsTabBadge(jobs.length);
   if (jobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty cl-jobs-empty';
@@ -1265,6 +1285,7 @@ function mountClientWorkSection(pane, uid) {
   jobsWrap.className = 'cl-jobs-section';
   jobsWrap.innerHTML = skeletonHtml('list', `Loading ${postLower(2)}…`);
   pane.appendChild(jobsWrap);
+  syncClientProjectsTabBadge(0);
   fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json())
     .then((jobData) => {
