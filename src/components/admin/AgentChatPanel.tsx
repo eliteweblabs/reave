@@ -1,4 +1,4 @@
-import type { CSSProperties, FocusEvent, KeyboardEvent, RefObject } from 'react';
+import type { CSSProperties, FocusEvent, KeyboardEvent, ReactNode, RefObject } from 'react';
 import {
   AssistantRuntimeProvider,
   AttachmentPrimitive,
@@ -395,7 +395,73 @@ function readCompanyBrandName(fallback = 'Assistant'): string {
   return name || fallback;
 }
 
-export type StoredChatMessage = { role: 'user' | 'assistant'; content: string };
+export type StoredChatMessage = { role: 'user' | 'assistant'; content: string; created_at?: string };
+
+function sameCalendarDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
+}
+
+/** iOS-style day pill: Today, Yesterday, weekday, or calendar date. */
+function formatChatDayLabel(date: Date, now = new Date()): string {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round(
+    (startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000,
+  );
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays >= 2 && diffDays <= 6) {
+    return date.toLocaleDateString([], { weekday: 'long' });
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'long', day: 'numeric' });
+  }
+  return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatChatMessageTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function ChatMessageDaySeparator({ label }: { label: string }) {
+  return (
+    <div className="aui-msg-day" role="separator" aria-label={label}>
+      <span className="aui-msg-day-label">{label}</span>
+    </div>
+  );
+}
+
+function ChatMessageShell({
+  align,
+  bubbleClassName,
+  children,
+}: {
+  align: 'user' | 'assistant';
+  bubbleClassName: string;
+  children: ReactNode;
+}) {
+  const createdAt = useAuiState((s) => s.message.createdAt);
+  const showDaySeparator = useAuiState((s) => {
+    const idx = s.message.index;
+    if (idx <= 0) return true;
+    const prev = s.thread.messages[idx - 1]?.createdAt;
+    if (!prev) return true;
+    return !sameCalendarDay(prev, createdAt);
+  });
+
+  return (
+    <>
+      {showDaySeparator ? <ChatMessageDaySeparator label={formatChatDayLabel(createdAt)} /> : null}
+      <MessagePrimitive.Root className={`aui-msg-row aui-msg-row-${align} group/message`}>
+        <div className={`aui-msg-wrap aui-msg-wrap-${align}`}>
+          <div className={bubbleClassName}>{children}</div>
+          <time className={`aui-msg-time aui-msg-time--${align}`} dateTime={createdAt.toISOString()}>
+            {formatChatMessageTime(createdAt)}
+          </time>
+        </div>
+      </MessagePrimitive.Root>
+    </>
+  );
+}
 
 export type AgentChatPanelProps = {
   threadId: string;
@@ -425,9 +491,11 @@ type SendResult = {
 };
 
 function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
+  const createdAt = message.created_at ? new Date(message.created_at) : new Date();
   if (message.role === 'assistant') {
     return {
       role: 'assistant',
+      createdAt,
       content: [{ type: 'text', text: storedChatPlainText(message.content) }],
     };
   }
@@ -450,7 +518,7 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     });
   }
   if (!content.length) content.push({ type: 'text', text: '' });
-  return { role: 'user', content };
+  return { role: 'user', createdAt, content };
 }
 
 function imageDataFromSrc(src: string): StoredChatImage | null {
@@ -1500,39 +1568,27 @@ function ChatMessages() {
       <ThreadPrimitive.Messages
         components={{
           UserMessage: () => (
-            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user group/message">
-              <div className="aui-msg-wrap aui-msg-wrap-user">
-                <div className="aui-msg aui-msg-user">
-                  <MessagePrimitive.Parts
-                    components={{
-                      Text: UserTextPart,
-                      Image: UserImagePart,
-                      File: UserFilePart,
-                    }}
-                  />
-                  <MessagePrimitive.Attachments
-                    components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
-                  />
-                </div>
-                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
-                    behavior caused layout jumpiness on non-mobile devices. */}
-              </div>
-            </MessagePrimitive.Root>
+            <ChatMessageShell align="user" bubbleClassName="aui-msg aui-msg-user">
+              <MessagePrimitive.Parts
+                components={{
+                  Text: UserTextPart,
+                  Image: UserImagePart,
+                  File: UserFilePart,
+                }}
+              />
+              <MessagePrimitive.Attachments
+                components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
+              />
+            </ChatMessageShell>
           ),
           AssistantMessage: () => (
-            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant group/message">
-              <div className="aui-msg-wrap aui-msg-wrap-assistant">
-                <div className="aui-msg aui-msg-assistant">
-                  <MessagePrimitive.Parts
-                    components={{
-                      Text: AssistantTextPart,
-                    }}
-                  />
-                </div>
-                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
-                    behavior caused layout jumpiness on non-mobile devices. */}
-              </div>
-            </MessagePrimitive.Root>
+            <ChatMessageShell align="assistant" bubbleClassName="aui-msg aui-msg-assistant">
+              <MessagePrimitive.Parts
+                components={{
+                  Text: AssistantTextPart,
+                }}
+              />
+            </ChatMessageShell>
           ),
         }}
       />

@@ -1916,8 +1916,9 @@ function mountChatThreadRoot(threadHost) {
       }
     },
     onMessagesPersist: (userContent, assistantContent) => {
-      chatState.messages.push({ role: 'user', content: userContent });
-      chatState.messages.push({ role: 'assistant', content: assistantContent });
+      const now = new Date().toISOString();
+      chatState.messages.push({ role: 'user', content: userContent, created_at: now });
+      chatState.messages.push({ role: 'assistant', content: assistantContent, created_at: now });
       chatState.composeDirty = false;
       if (chatState.activeId === chatState.disposableChatId) {
         chatState.disposableChatId = null;

@@ -156,8 +156,9 @@
         syncRecentList();
       },
       onMessagesPersist: (userContent, assistantContent) => {
-        state.messages.push({ role: 'user', content: userContent });
-        state.messages.push({ role: 'assistant', content: assistantContent });
+        const now = new Date().toISOString();
+        state.messages.push({ role: 'user', content: userContent, created_at: now });
+        state.messages.push({ role: 'assistant', content: assistantContent, created_at: now });
       },
       onLinkedJobsRefresh: () => {
         void refreshLinkedJobs();
