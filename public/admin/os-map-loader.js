@@ -84,8 +84,8 @@ import {
   closeOpenSwipeRow,
   bindSwipeListScroll,
   bindListMultiSelect,
+  exitListMultiSelect,
   isListInSelectionMode,
-  resyncListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -103,7 +103,7 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260806b';
+} from './admin-ui.js?v=20260806c';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
@@ -10847,7 +10847,12 @@ function createEmailListItem(ev) {
     `</span>` +
     `<span class="em-item-summary">${escHtml(summary)}</span>` +
     `</span>`;
-  item.addEventListener('click', () => openEmailEvent(ev.id));
+  item.addEventListener('click', (ev) => {
+    if (ev.target.closest('.sidebar-list-author-icon, .list-select-icon')) return;
+    const list = item.closest('.ch-list');
+    if (list && isListInSelectionMode(list)) return;
+    openEmailEvent(ev.id);
+  });
   return item;
 }
 
@@ -11040,12 +11045,7 @@ async function loadEmailTab(quiet) {
     getEmailPanel()?.classList.remove('em-pane-active');
   }
   if (quiet && root.querySelector('.ch-sidebar .ch-list')) {
-    const list = root.querySelector('.ch-sidebar .ch-list');
-    if (!isListInSelectionMode(list)) {
-      refreshEmailSidebarList();
-    } else {
-      updateEmailFilterTabCounts(root);
-    }
+    refreshEmailSidebarList();
     const stillVisible =
       !emailState.activeId ||
       (emailState.inboxFilter === 'sent'
@@ -11217,6 +11217,7 @@ function emailSidebarEmptyInnerHtml() {
 }
 
 function fillEmailSidebarList(list) {
+  exitListMultiSelect(list);
   const target = pullRefreshContentRoot(list);
   const isSent = emailState.inboxFilter === 'sent';
   const isDraft = emailState.inboxFilter === 'draft';
@@ -11235,7 +11236,6 @@ function fillEmailSidebarList(list) {
     target.appendChild(createCenteredListEmpty({ innerHtml: emailSidebarEmptyInnerHtml() }));
   }
   if (!isSent && !isDraft) bindEmailListSeenObserver(list);
-  resyncListMultiSelect(list);
 }
 
 function updateEmailFilterTabCounts(root) {
@@ -11281,6 +11281,10 @@ function refreshEmailSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput instanceof HTMLInputElement) {
     searchInput.placeholder = `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`;
+  }
+  if (isListInSelectionMode(list)) {
+    updateEmailFilterTabCounts(root);
+    return;
   }
   fillEmailSidebarList(list);
   updateEmailFilterTabCounts(root);
@@ -12339,8 +12343,7 @@ function renderEmailPanel(opts = {}) {
   const savedFilterScroll = captureFilterTabsScroll(root);
 
   if (opts.preserveSidebar) {
-    const list = root.querySelector('.ch-sidebar .ch-list');
-    if (!list || !isListInSelectionMode(list)) refreshEmailSidebarList();
+    refreshEmailSidebarList();
   } else {
     root.innerHTML = '';
     root.appendChild(renderEmailSidebar(savedFilterScroll));
