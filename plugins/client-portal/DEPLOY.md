@@ -1,6 +1,6 @@
 ---
 feature: client_portal
-defaultStatus: pending
+defaultStatus: deployed
 stage: 1
 ---
 

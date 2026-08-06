@@ -1,6 +1,6 @@
 ---
 feature: web_handoff
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 

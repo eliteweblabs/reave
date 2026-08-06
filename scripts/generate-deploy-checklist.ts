@@ -135,7 +135,7 @@ function scanPlaybooks(installCfg: ReturnType<typeof loadInstallConfig>): Playbo
   return FEATURE_IDS.map((feature) => {
     const pb = byFeature.get(feature);
     const enabled = installCfg.features.includes(feature);
-    const status = installCfg.moduleStatus[feature] ?? 'pending';
+    const status = installCfg.moduleStatus[feature] ?? 'development';
     return {
       feature,
       label: FEATURE_LABELS[feature]!,

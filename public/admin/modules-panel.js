@@ -15,15 +15,13 @@ let shell = {};
 
 const STATUS_LABELS = {
   deployed: 'Deployed',
-  pending: 'Pending',
   development: 'Development',
   request: 'Requested',
-  rejected: 'Off',
+  rejected: 'Rejected',
 };
 
 const STATUS_CLASS = {
   deployed: 'mod-status--deployed',
-  pending: 'mod-status--pending',
   development: 'mod-status--development',
   request: 'mod-status--request',
   rejected: 'mod-status--rejected',
@@ -79,7 +77,7 @@ function renderFlag(on, label) {
 }
 
 function renderRow(m) {
-  const statusCls = STATUS_CLASS[m.status] || 'mod-status--pending';
+  const statusCls = STATUS_CLASS[m.status] || 'mod-status--development';
   const nav =
     m.footerNavLabels?.length ?
       m.footerNavLabels.map((l) => `<span class="mod-nav-pill">${escHtml(l)}</span>`).join('')

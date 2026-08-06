@@ -1,6 +1,6 @@
 ---
 feature: online_reviews
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

@@ -1,6 +1,6 @@
 ---
 feature: code_dev
-defaultStatus: request
+defaultStatus: deployed
 stage: 3
 ---
 

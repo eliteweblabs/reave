@@ -103,7 +103,7 @@ export async function GET(context: APIContext): Promise<Response> {
       total: modules.length,
       enabled: enabled.length,
       deployed: enabled.filter((m) => m.status === 'deployed').length,
-      pending: enabled.filter((m) => m.status === 'pending').length,
+      development: enabled.filter((m) => m.status === 'development').length,
       needsAttention: needsAttention.length,
     },
     modules,

@@ -27,8 +27,10 @@ const showSiteAssistant =
       <p class="dl-kicker">Try it yourself</p>
       <h1 class="dl-h1">Build your demo</h1>
       <p class="dl-lead">
-        Every module is shown below. Toggle switches appear only on modules live in
-        production — the rest are preview-only with a status badge.
+        Every module is shown with its deploy status: <strong>Deployed</strong>,
+        <strong>Development</strong>, <strong>Requested</strong>, or
+        <strong>Rejected</strong>. Only deployed modules can be toggled on for
+        your demo.
       </p>
       {demoSiteUrl && (
         <p class="dl-sandbox-note">
@@ -61,5 +63,5 @@ const showSiteAssistant =
     )
   }
 
-  <script is:inline src="/demo-loader.js?v=20260806c"></script>
+  <script is:inline src="/demo-loader.js?v=20260806f"></script>
 </Layout>

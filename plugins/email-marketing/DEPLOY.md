@@ -1,6 +1,6 @@
 ---
 feature: email_marketing
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

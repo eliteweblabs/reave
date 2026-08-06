@@ -1,5 +1,5 @@
 /**
- * Public demo loader catalog — all modules with production toggle eligibility.
+ * Public demo loader catalog — uses deploy-status feed; toggles only when status is deployed.
  */
 import { demoModuleIdForFeature } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
@@ -10,21 +10,30 @@ export type DemoLoaderModule = {
   feature: InstallFeatureId;
   label: string;
   status: ModuleDeployStatus;
+  /** Enabled on production Reave (config-reave.json features[]). */
   inProduction: boolean;
+  /** Ready for demo — deploy playbook status is deployed. */
+  toggleable: boolean;
 };
 
 /** Full module list for the public demo loader UI. */
 export function listDemoLoaderModules(): DemoLoaderModule[] {
-  const production = getProductionInstallFeatures();
-  return listAllDeployModules().map((m) => ({
-    moduleId: demoModuleIdForFeature(m.feature),
-    feature: m.feature,
-    label: m.label,
-    status: m.status,
-    inProduction: production.has(m.feature),
-  }));
+  const productionFeatures = getProductionInstallFeatures();
+
+  return listAllDeployModules().map((m) => {
+    const moduleId = demoModuleIdForFeature(m.feature);
+    const deployed = m.status === 'deployed';
+    return {
+      moduleId,
+      feature: m.feature,
+      label: m.label,
+      status: m.status,
+      inProduction: productionFeatures.has(m.feature),
+      toggleable: deployed && Boolean(moduleId),
+    };
+  });
 }
 
 export function defaultDemoLoaderModuleIds(modules: readonly DemoLoaderModule[]): string[] {
-  return modules.filter((m) => m.inProduction && m.moduleId).map((m) => m.moduleId);
+  return modules.filter((m) => m.toggleable && m.moduleId).map((m) => m.moduleId);
 }
