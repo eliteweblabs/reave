@@ -30,14 +30,24 @@ function isReceiptArchived(record: Pick<EmailInboxRecord, 'action' | 'status'>):
 export function isReceiptPendingExpenseReview(
   record: Pick<
     EmailInboxRecord,
-    'category' | 'action' | 'status' | 'automationAckAt' | 'automationKind'
+    'category' | 'action' | 'status' | 'automationAckAt' | 'automationKind' | 'subject' | 'summary'
   >,
 ): boolean {
   if (record.category !== 'receipt') return false;
   if (record.automationAckAt) return false;
   if (record.automationKind === 'expense_created') return false;
   if (isReceiptArchived(record)) return false;
+  if (looksLikeMisfiledReceipt(record)) return false;
   return true;
+}
+
+/** Alerts/deploy mail mis-tagged as receipt — skip dashboard banner when no dollar amount. */
+function looksLikeMisfiledReceipt(
+  record: Pick<EmailInboxRecord, 'subject' | 'summary'>,
+): boolean {
+  if (extractMonetaryAmountFromEmail(record) != null) return false;
+  const blob = [record.subject, record.summary].join(' ').toLowerCase();
+  return /\b(build failed|deploy failed|deployment failed|railway|ci failed)\b/.test(blob);
 }
 
 export function receiptVendorLabel(record: Pick<EmailInboxRecord, 'from' | 'subject'>): string {
@@ -84,8 +94,8 @@ export function listReceiptExpenseNotifications(
   events: EmailInboxRecord[],
   opts?: { limit?: number; maxAgeDays?: number },
 ): ReceiptExpenseReviewNotification[] {
-  const limit = opts?.limit ?? 20;
-  const maxAgeMs = (opts?.maxAgeDays ?? 30) * 24 * 60 * 60 * 1000;
+  const limit = opts?.limit ?? 8;
+  const maxAgeMs = (opts?.maxAgeDays ?? 7) * 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - maxAgeMs;
 
   return events

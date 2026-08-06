@@ -3780,6 +3780,7 @@ function isAuditPushAlert(item) {
 
 function reviewAlertVariant(type, item) {
   if (item && isOtpReviewAlert(item)) return 'otp';
+  if (item && isReceiptExpenseNotification(item)) return 'confirm';
   if (type === 'push_alert') return 'confirm';
   if (type === 'receipt_expense') return 'confirm';
   if (type === 'meeting_conflict') return 'confirm';
@@ -3799,6 +3800,7 @@ function reviewAlertVariant(type, item) {
 
 function reviewAlertIconName(item) {
   const type = item?.type;
+  if (isReceiptExpenseNotification(item)) return 'receipt';
   if (type === 'push_alert') {
     if (isOtpReviewAlert(item)) return 'key';
     if (isAuditPushAlert(item)) return 'file-text';
@@ -3820,8 +3822,6 @@ function reviewAlertIconName(item) {
     }
   }
   switch (type) {
-    case 'receipt_expense':
-      return 'receipt';
     case 'meeting_conflict':
       return 'alert-triangle';
     case 'meeting_request':
@@ -3969,6 +3969,10 @@ async function handleMissingWorkNotification(item) {
 }
 
 async function openReviewNotificationTarget(item) {
+  if (isReceiptExpenseNotification(item) && item.emailId) {
+    setActiveMap('email', { force: true, emailId: item.emailId });
+    return;
+  }
   if (item.type === 'push_alert') {
     if (isAuditPushAlert(item)) {
       const slug = await resolveAuditPushAlertWorkSlug(item);
@@ -4008,6 +4012,13 @@ async function openReviewNotificationTarget(item) {
     return;
   }
   if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+}
+
+function isReceiptExpenseNotification(item) {
+  return (
+    item?.type === 'receipt_expense' ||
+    (Boolean(item?.emailId) && /^Tax receipt/i.test(String(item?.title || '').trim()))
+  );
 }
 
 function buildReviewAlertBanner(item) {
@@ -4067,7 +4078,7 @@ function buildReviewAlertBanner(item) {
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
-  const isReceiptExpense = item.type === 'receipt_expense';
+  const isReceiptExpense = isReceiptExpenseNotification(item);
   const isPushAlert = item.type === 'push_alert';
   const isOtp = isOtpReviewAlert(item);
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
@@ -4080,6 +4091,9 @@ function buildReviewAlertBanner(item) {
 
   if (emailAwaitingTriage) {
     alert.classList.add('admin-setup-alert--triage');
+  }
+  if (isReceiptExpense) {
+    alert.classList.add('admin-setup-alert--receipt-expense');
   }
 
   if (isOtp) {
@@ -4195,16 +4209,6 @@ function buildReviewAlertBanner(item) {
       label: 'Reschedule',
       onClick: () => rescheduleScheduledMeeting(item),
     });
-  } else if (isReceiptExpense) {
-    appendReviewAlertAction(actions, {
-      label: 'Expense',
-      primary: true,
-      onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
-    });
-    appendReviewAlertAction(actions, {
-      label: 'Archive',
-      onClick: (btn) => void archiveReceiptFromAlert(item, btn),
-    });
   }
 
   if (isEmailAutomationReview(item)) {
@@ -4234,6 +4238,26 @@ function buildReviewAlertBanner(item) {
   actions.appendChild(dismissBtn);
 
   alert.append(iconsCol, copy, actions);
+
+  if (isReceiptExpense) {
+    const receiptActions = document.createElement('div');
+    receiptActions.className = 'admin-setup-alert-receipt-actions';
+    const expenseBtn = appendReviewAlertAction(receiptActions, {
+      label: 'Expense',
+      primary: true,
+      onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
+    });
+    if (item.amount == null) {
+      expenseBtn.disabled = true;
+      expenseBtn.title = 'No dollar amount detected on this email';
+    }
+    appendReviewAlertAction(receiptActions, {
+      label: 'Archive',
+      onClick: (btn) => void archiveReceiptFromAlert(item, btn),
+    });
+    alert.appendChild(receiptActions);
+  }
+
   bindReviewAlertSwipe(alert, item);
   return alert;
 }
