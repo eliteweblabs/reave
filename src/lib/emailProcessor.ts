@@ -33,7 +33,11 @@ import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './e
 import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectReply';
 import { isSuggestedProjectMatch } from './emailAutomation';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
-import { extractVerificationCodeFromEmail } from './emailOtpParser';
+import {
+  describeOtpPurpose,
+  extractVerificationCodeFromEmail,
+  formatOtpPushNotification,
+} from './emailOtpParser';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
 import {
   attachmentSummaryFallback,
@@ -328,6 +332,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const isVerificationCode =
     verificationCode != null || isVerificationCodeRuleStatus(ruleResult.status);
 
+  let otpPurpose: string | null = null;
+  if (isVerificationCode) {
+    const company = await getCompanyConfig().catch(() => null);
+    otpPurpose = describeOtpPurpose(
+      { from, subject: email.subject, text: bodyText, html: email.html },
+      company?.name,
+    );
+  }
+
   const forwardTo = ruleResult.matched?.forwardTo?.trim();
   if (forwardTo) {
     const { forwardEmail } = await import('./emailForward');
@@ -350,7 +363,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     email.subject ||
     '(no subject)';
   if (isVerificationCode && verificationCode) {
-    summary = `Code: ${verificationCode} — tap to copy`;
+    summary = otpPurpose
+      ? `${otpPurpose}: ${verificationCode} — tap to copy`
+      : `Code: ${verificationCode} — tap to copy`;
   }
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
@@ -917,21 +932,14 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
   }
 
-  if (inboxRecord && verificationCode) {
+  if (inboxRecord && (verificationCode || isVerificationCode)) {
+    const otpPush = formatOtpPushNotification({
+      code: verificationCode,
+      purpose: otpPurpose ?? 'Verification code',
+    });
     sendInboxPushNotification({
-      title: 'Verification code ready',
-      body: verificationCode
-        ? `Code ${verificationCode} — tap Copy code, then paste in Safari`
-        : 'Open and tap the code to copy, then paste in Safari',
-      tag: `otp-${inboxRecord.id}`,
-      emailId: inboxRecord.id,
-      kind: 'otp',
-      urgent: true,
-    }).catch((e) => console.warn('[email] otp push failed', e));
-  } else if (inboxRecord && isVerificationCode) {
-    sendInboxPushNotification({
-      title: 'Verification code ready',
-      body: 'Open the Email tab to copy your code — auto-deletes in 5 min',
+      title: otpPush.title,
+      body: otpPush.body,
       tag: `otp-${inboxRecord.id}`,
       emailId: inboxRecord.id,
       kind: 'otp',

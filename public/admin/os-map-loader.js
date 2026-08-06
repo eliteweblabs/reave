@@ -2729,6 +2729,7 @@ function isOtpReviewAlert(item) {
   if (item.verificationCode) return true;
   if (item.deleteAfterAt && /verification code/i.test(String(item.title || ''))) return true;
   if (/verification code ready/i.test(String(item.title || ''))) return true;
+  if (/code ready/i.test(String(item.title || ''))) return true;
   return false;
 }
 
@@ -2825,12 +2826,25 @@ function reviewAlertDisplayCopy(item) {
   return { headline: title, body: detail };
 }
 
+function otpPurposeLabel(item) {
+  const title = String(item?.title || '').trim();
+  if (title) {
+    const stripped = title.replace(/\s*[—-]\s*code ready\s*$/i, '').trim();
+    if (stripped) return stripped;
+  }
+  const summary = String(item?.summary || item?.detail || '').trim();
+  const fromSummary = summary.match(/^([^:]+):\s*\d/);
+  if (fromSummary?.[1]) return fromSummary[1].trim();
+  return 'Verification code';
+}
+
 function reviewAlertCopyHtml(item) {
   if (isOtpReviewAlert(item)) {
     const when = formatReviewAlertWhen(item.receivedAt);
+    const purpose = otpPurposeLabel(item);
     const code = String(item.verificationCode || '').trim();
     const sender = item.from ? senderLabelForReviewAlert(item.from, item.contactName) : '';
-    const headline = when ? `${escHtml(when)} · Verification code` : 'Verification code';
+    const headline = when ? `${escHtml(when)} · ${escHtml(purpose)}` : escHtml(purpose);
     const codeHtml = code
       ? `<p class="admin-otp-code-display">${escHtml(code)}</p>`
       : `<p>${escHtml(item.detail || 'Tap Copy code')}</p>`;
@@ -12577,9 +12591,15 @@ function renderEmailPanel(opts = {}) {
     const expiryHtml = ev.deleteAfterAt
       ? `Auto-deletes in <span class="admin-otp-countdown em-otp-countdown" data-otp-expires="${escHtml(ev.deleteAfterAt)}">—</span> · `
       : '';
+    const otpTitle = (() => {
+      const summary = String(ev.summary || '').trim();
+      const fromSummary = summary.match(/^([^:]+):\s*\d/);
+      if (fromSummary?.[1]) return fromSummary[1].trim();
+      return 'Verification code';
+    })();
     detailHtml +=
       `<div class="em-otp-card" data-otp-card>` +
-        `<div class="em-otp-card-title">Verification code</div>` +
+        `<div class="em-otp-card-title">${escHtml(otpTitle)}</div>` +
         `<button type="button" class="em-otp-code-btn" data-otp-code data-code="${escHtml(ev.verificationCode)}">${escHtml(ev.verificationCode)}</button>` +
         `<p class="em-otp-hint">${expiryHtml}Tap the code to copy — switch back to your browser and tap <strong>Paste</strong> above the keyboard.</p>` +
       `</div>`;
