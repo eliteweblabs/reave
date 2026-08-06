@@ -604,20 +604,12 @@ async function openSleepModeDialog() {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/push/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? true,
-          quietStart: document.getElementById('sleep-mode-start')?.value || '23:00',
-          quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
-          timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
-        }),
+      const saved = await patchSleepModeSettings({
+        sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? true,
+        quietStart: document.getElementById('sleep-mode-start')?.value || '23:00',
+        quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
+        timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
       });
-      const saved = await res.json().catch(() => ({}));
-      if (!res.ok || !saved.ok) throw new Error(saved.error || `HTTP ${res.status}`);
-      sleepModeCache = saved;
-      updateSleepModeMenuItem(saved);
       releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
     } catch (e) {
@@ -639,6 +631,76 @@ function updateSleepModeMenuItem(data) {
   if (!btn) return;
   btn.textContent = formatSleepMenuLabel(data || sleepModeCache);
   btn.classList.toggle('topbar-dropdown-item--active', Boolean(data?.active));
+}
+
+async function patchSleepModeSettings(patch) {
+  const res = await fetch('/api/push/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  const saved = await res.json().catch(() => ({}));
+  if (!res.ok || !saved.ok) throw new Error(saved.error || `HTTP ${res.status}`);
+  sleepModeCache = saved;
+  updateSleepModeMenuItem(saved);
+  syncTopbarSleepToggle(saved);
+  return saved;
+}
+
+function syncTopbarSleepToggle(data = sleepModeCache) {
+  const wrap = document.getElementById('topbar-sleep-toggle');
+  const btn = document.getElementById('topbar-sleep-toggle-btn');
+  const topbar = document.getElementById('topbar');
+  if (!wrap || !btn) return;
+
+  const inWindow = Boolean(data?.inQuietWindow);
+  wrap.hidden = !inWindow;
+  topbar?.classList.toggle('topbar-has-sleep-toggle', inWindow);
+  if (!inWindow) return;
+
+  const enabled = data?.settings?.sleepModeEnabled !== false;
+  btn.setAttribute('aria-checked', enabled ? 'true' : 'false');
+  btn.setAttribute(
+    'aria-label',
+    enabled
+      ? 'Sleep mode on — tap to allow AI and alerts tonight'
+      : 'Sleep mode off — tap to pause AI and alerts again',
+  );
+}
+
+async function refreshTopbarSleepToggle() {
+  try {
+    const data = await fetchSleepModeSettings();
+    syncTopbarSleepToggle(data);
+  } catch {
+    /* ignore — menu item fetch already logs via dialog path */
+  }
+}
+
+function initTopbarSleepToggle() {
+  const btn = document.getElementById('topbar-sleep-toggle-btn');
+  if (!btn || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    const nextEnabled = btn.getAttribute('aria-checked') !== 'true';
+    btn.disabled = true;
+    try {
+      await patchSleepModeSettings({ sleepModeEnabled: nextEnabled });
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  void refreshTopbarSleepToggle();
+  if (!window.__topbarSleepToggleTimer) {
+    window.__topbarSleepToggleTimer = setInterval(() => {
+      void refreshTopbarSleepToggle();
+    }, 60_000);
+  }
 }
 
 function ensureSleepModeMenuItem() {
@@ -666,7 +728,10 @@ function ensureSleepModeMenuItem() {
   }
 
   void fetchSleepModeSettings()
-    .then(updateSleepModeMenuItem)
+    .then((data) => {
+      updateSleepModeMenuItem(data);
+      syncTopbarSleepToggle(data);
+    })
     .catch(() => {});
 }
 
@@ -811,7 +876,10 @@ if (typeof document !== 'undefined') {
     void syncAdminPushButton();
   });
 
-  document.addEventListener('DOMContentLoaded', () => initAdminPushButton());
+  document.addEventListener('DOMContentLoaded', () => {
+    initAdminPushButton();
+    initTopbarSleepToggle();
+  });
   window.addEventListener('pageshow', () => syncAdminPushButton());
   window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => syncAdminPushButton());
 }

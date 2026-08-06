@@ -6,7 +6,6 @@ import type { APIContext } from 'astro';
 import {
   formatQuietHoursLabel,
   getPushQuietHoursSettings,
-  isPushQuietHoursActive,
   isWithinQuietWindow,
   normalizeHm,
   savePushQuietHoursSettings,
@@ -27,11 +26,13 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const settings = await getPushQuietHoursSettings();
-  const active = settings.sleepModeEnabled && isWithinQuietWindow(settings);
+  const inQuietWindow = isWithinQuietWindow(settings);
+  const active = settings.sleepModeEnabled && inQuietWindow;
   return json({
     ok: true,
     settings,
     active,
+    inQuietWindow,
     label: formatQuietHoursLabel(settings),
   });
 }
@@ -84,11 +85,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const settings = await savePushQuietHoursSettings(patch);
   if (!settings) return json({ ok: false, error: 'Save failed' }, 500);
 
-  const active = await isPushQuietHoursActive();
+  const inQuietWindow = isWithinQuietWindow(settings);
+  const active = settings.sleepModeEnabled && inQuietWindow;
   return json({
     ok: true,
     settings,
     active,
+    inQuietWindow,
     label: formatQuietHoursLabel(settings),
   });
 }

@@ -116,6 +116,20 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
+  {adminShell && (
+    <div id="topbar-sleep-toggle" class="topbar-sleep-toggle" hidden>
+      <span class="topbar-sleep-toggle-label">Sleep</span>
+      <button
+        type="button"
+        id="topbar-sleep-toggle-btn"
+        class="topbar-sleep-toggle-switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Sleep mode"
+      ></button>
+    </div>
+  )}
+
   {showMarketingNav && (
     <MarketingMenu
       pathname={path}
@@ -506,8 +520,79 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     height: var(--app-header-icon-btn-icon-h);
   }
 
-  .app-header--admin.topbar-has-panel-context .topbar-dash-date {
+  .app-header--admin.topbar-has-panel-context .topbar-dash-date,
+  .app-header--admin.topbar-has-panel-context .topbar-sleep-toggle {
     display: none !important;
+  }
+
+  .topbar-sleep-toggle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: min(46vw, 12rem);
+    padding: 0.2rem 0.55rem 0.2rem 0.65rem;
+    border-radius: 999px;
+    border: var(--footer-nav-glass-border, 1px solid rgba(255, 255, 255, 0.08));
+    background: var(--footer-nav-glass-bg, rgba(18, 23, 34, 0.72));
+    backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    -webkit-backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    pointer-events: auto;
+  }
+
+  .topbar-sleep-toggle[hidden] {
+    display: none !important;
+  }
+
+  .topbar-sleep-toggle-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--muted, rgba(255, 255, 255, 0.62));
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .topbar-sleep-toggle-switch {
+    flex-shrink: 0;
+    width: 2.35rem;
+    height: 1.35rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--panel-border, rgba(255, 255, 255, 0.18));
+    position: relative;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  .topbar-sleep-toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 0.12rem;
+    left: 0.12rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+
+  .topbar-sleep-toggle-switch[aria-checked='true'] {
+    background: #6366f1;
+  }
+
+  .topbar-sleep-toggle-switch[aria-checked='true']::after {
+    transform: translateX(1rem);
+  }
+
+  .topbar-sleep-toggle-switch:disabled {
+    opacity: 0.55;
+    cursor: wait;
   }
 
   .app-header--admin.topbar-has-panel-context .topbar-end {
