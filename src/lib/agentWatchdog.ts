@@ -44,6 +44,10 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   sync_uptimerobot: 90_000,
   backup_kinsta_site: 180_000,
   create_kinsta_site: 180_000,
+  get_railway_logs: 120_000,
+  get_railway_status: 120_000,
+  list_railway_deployments: 90_000,
+  list_railway_variables: 90_000,
 };
 
 /**
@@ -100,6 +104,16 @@ const READ_ONLY_TOOLS = new Set([
   'check_deployment_status',
   'list_open_branches',
   'list_railway_domains',
+  'list_railway_projects',
+  'list_railway_services',
+  'list_railway_variables',
+  'get_railway_service_config',
+  'get_railway_status',
+  'list_railway_deployments',
+  'get_railway_logs',
+  'railway_whoami',
+  'list_railway_workspaces',
+  'search_railway_docs',
   'list_kinsta_sites',
   'list_kinsta_backups',
   'get_kinsta_operation',

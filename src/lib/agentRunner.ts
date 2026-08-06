@@ -667,7 +667,7 @@ async function runKnowledgeAgentInner(
     sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
     if (isRailwayConfigured()) {
       sysParts.push(
-        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains via list_railway_domains (CNAME targets, *.up.railway.app domains, custom-domain TXT verification; defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
+        `Railway: RAILWAY_API_TOKEN is configured — full Railway API via list_railway_projects, list_railway_services, list_railway_variables, set_railway_variables, list_railway_domains, get_railway_status, list_railway_deployments, get_railway_logs, redeploy_railway_service, and related tools (defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Use list_railway_variables to compare env vars — never claim you cannot read Railway Variables without calling the tool first. Do not paste secret values in chat. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
       );
     } else {
       sysParts.push(
@@ -680,7 +680,7 @@ async function runKnowledgeAgentInner(
         : 'Cloudflare unavailable (CLOUDFLARE_API_TOKEN not set). dns_check still works read-only via public resolvers.',
     );
     sysParts.push(
-      'Deploy failures / crash alerts: read_knowledge slug "railway-build-failure-triage" first. One active repair per GitHub repo — duplicate alerts are blocked. Call check_deployment_status and get_git_status (pass repo + health_url for sibling services). Distinguish rollout teardown vs real failure. On real failure: read changed files, fix via write_github_file(branch:"main") in the same turn — do NOT stop at diagnosis or ask the owner to fix. End with "✅ RESOLVED — …" or "🚨 UNRESOLVED — …".',
+      'Deploy failures / crash alerts: read_knowledge slug "railway-build-failure-triage" first. One active repair per GitHub repo — duplicate alerts are blocked. Call check_deployment_status, get_railway_status, get_railway_logs, and list_railway_deployments (pass repo + health_url for sibling services). Distinguish rollout teardown vs real failure. On real failure: read changed files, fix via write_github_file(branch:"main") or set missing vars via set_railway_variables in the same turn — do NOT stop at diagnosis or ask the owner to fix manually. End with "✅ RESOLVED — …" or "🚨 UNRESOLVED — …".',
     );
     if (isKinstaConfigured()) {
       sysParts.push(

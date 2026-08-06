@@ -13,7 +13,7 @@ When a deploy failure alert fires (webhook or email), follow this playbook **in 
 | Reave App / crater | `eliteweblabs/crater-invoicing` | `https://ap.reave.app/` |
 | Paulino Wizard project | `eliteweblabs/paulino-wizard` | `$PAULINO_WIZARD_API_BASE_URL` |
 
-Always pass `repo` (and `health_url` when known) to `check_deployment_status` and `get_git_status`.
+Always pass `repo` (and `health_url` when known) to `check_deployment_status` and `get_git_status`. Use `get_railway_status`, `list_railway_deployments`, and `get_railway_logs` for Railway-side detail (see read_knowledge slug `railway-agent-tools`).
 
 ## Step 1 — Status check (always first)
 
@@ -21,6 +21,9 @@ Always pass `repo` (and `health_url` when known) to `check_deployment_status` an
 check_deployment_status(repo:"<owner/repo>", health_url:"<url>")
 get_git_status(repo:"<owner/repo>")
 get_recent_commits(repo:"<owner/repo>", with_files:true, limit:3)
+get_railway_status()
+list_railway_deployments(service:"<service>", limit:3)
+get_railway_logs(service:"<service>", types:["build","deploy"], limit:80)
 ```
 
 ## Step 2 — Classify
@@ -53,10 +56,11 @@ Signals:
 - Health check **fails** (unreachable or 5xx)
 
 Action:
-1. Read startup code, recent commit diff
-2. Check for missing env vars (you cannot set Railway vars — tell owner exactly which var)
-3. Fix code if possible via `write_github_file`
-4. If not code-fixable → **`🚨 UNRESOLVED`**
+1. `get_railway_logs` for the failing service (build + deploy streams)
+2. Read startup code, recent commit diff
+3. `list_railway_variables` — if a required var is missing and the owner approves, `set_railway_variables`
+4. Fix code if possible via `write_github_file`
+5. If not fixable → **`🚨 UNRESOLVED`**
 
 ### D. Not auto-fixable
 
@@ -89,9 +93,8 @@ The system uses these markers to:
 
 ## What you cannot do
 
-- Fetch Railway build logs via API — infer from GitHub commits + health ping
-- Set Railway environment variables — document what's missing
 - Run parallel repairs for the same repo — blocked by incident lock
+- Delete Railway projects/services via API (not exposed in agent tools)
 
 ## Multi-location note
 
