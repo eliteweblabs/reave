@@ -6,6 +6,9 @@ import {
   cloudflareFindZone,
   cloudflareListDnsRecords,
   cloudflareUpsertDnsRecord,
+  cloudflareDeleteDnsRecord,
+  cloudflareGetZoneSetting,
+  cloudflareSetZoneSetting,
   cloudflareVerifyToken,
   cloudflareZoneName,
   fqdnRecordName,
@@ -16,13 +19,18 @@ import {
 export type CloudflareDnsActionResult =
   | {
       ok: true;
-      action: 'verify' | 'list_records' | 'upsert_record';
+      action: 'verify' | 'list_records' | 'upsert_record' | 'delete_record';
       domain: string;
       zone: { id: string; name: string };
       summary: string;
       records?: CfDnsRecord[];
       upsert?: { action: 'unchanged' | 'created' | 'updated'; record: CfDnsRecord };
+      deleted?: { id: string };
     }
+  | { ok: false; error: string; hint?: string };
+
+export type CloudflareZoneSettingResult =
+  | { ok: true; action: 'get_zone_setting' | 'set_zone_setting'; setting: string; value: unknown; summary: string }
   | { ok: false; error: string; hint?: string };
 
 function zoneFqdn(zone: string, recordName: string): string {
@@ -36,12 +44,13 @@ export function isCloudflareDnsManageConfigured(): boolean {
 }
 
 export async function cloudflareDnsManage(input: {
-  action: 'verify' | 'list_records' | 'upsert_record';
+  action: 'verify' | 'list_records' | 'upsert_record' | 'delete_record';
   domain: string;
   type?: string;
   name?: string;
   content?: string;
   priority?: number;
+  record_id?: string;
 }): Promise<CloudflareDnsActionResult> {
   const domain = input.domain.trim().toLowerCase().replace(/\.$/, '');
   if (!domain) return { ok: false, error: 'domain is required' };
@@ -101,6 +110,21 @@ export async function cloudflareDnsManage(input: {
     };
   }
 
+  if (input.action === 'delete_record') {
+    const recordId = input.record_id?.trim();
+    if (!recordId) return { ok: false, error: 'record_id is required for delete_record — call list_records first to find the id' };
+    const del = await cloudflareDeleteDnsRecord(zone.data.id, recordId);
+    if (!del.ok) return { ok: false, error: del.error };
+    return {
+      ok: true,
+      action: 'delete_record',
+      domain,
+      zone: zone.data,
+      deleted: del.data,
+      summary: `DELETED DNS record ${recordId} from zone ${zone.data.name}.`,
+    };
+  }
+
   const type = String(input.type ?? '').trim().toUpperCase();
   const nameArg = String(input.name ?? '@').trim();
   const content = String(input.content ?? '').trim();
@@ -131,5 +155,49 @@ export async function cloudflareDnsManage(input: {
     zone: zone.data,
     upsert: upsert.data,
     summary: `${upsert.data.action.toUpperCase()} ${type} ${fqdn}\n       ${content.slice(0, 160)}${content.length > 160 ? '…' : ''}`,
+  };
+}
+
+export async function cloudflareZoneSettingManage(input: {
+  action: 'get_zone_setting' | 'set_zone_setting';
+  domain: string;
+  setting: string;
+  value?: unknown;
+}): Promise<CloudflareZoneSettingResult> {
+  const domain = input.domain.trim().toLowerCase().replace(/\.$/, '');
+  if (!domain) return { ok: false, error: 'domain is required' };
+  if (!input.setting?.trim()) return { ok: false, error: 'setting is required (e.g. ssl, security_level, always_use_https)' };
+
+  if (!isCloudflareConfigured()) {
+    return { ok: false, error: 'CLOUDFLARE_API_TOKEN is not set on this service' };
+  }
+
+  const zoneName = cloudflareZoneName(domain);
+  const zone = await cloudflareFindZone(zoneName);
+  if (!zone.ok) {
+    return { ok: false, error: zone.error, hint: 'Domain may not be in this Cloudflare account or token lacks access.' };
+  }
+
+  if (input.action === 'get_zone_setting') {
+    const res = await cloudflareGetZoneSetting(zone.data.id, input.setting);
+    if (!res.ok) return { ok: false, error: res.error };
+    return {
+      ok: true,
+      action: 'get_zone_setting',
+      setting: input.setting,
+      value: res.data.value,
+      summary: `Zone ${zone.data.name} → ${input.setting} = ${JSON.stringify(res.data.value)}`,
+    };
+  }
+
+  if (input.value === undefined) return { ok: false, error: 'value is required for set_zone_setting' };
+  const res = await cloudflareSetZoneSetting(zone.data.id, input.setting, input.value);
+  if (!res.ok) return { ok: false, error: res.error };
+  return {
+    ok: true,
+    action: 'set_zone_setting',
+    setting: input.setting,
+    value: res.data.value,
+    summary: `SET zone ${zone.data.name} → ${input.setting} = ${JSON.stringify(res.data.value)}`,
   };
 }
