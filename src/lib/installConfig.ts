@@ -82,14 +82,12 @@ export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
 export type ModuleDeployStatus =
   | 'deployed'
   | 'development'
-  | 'pending'
   | 'request'
   | 'rejected';
 
 const MODULE_STATUS_SET = new Set<string>([
   'deployed',
   'development',
-  'pending',
   'request',
   'rejected',
 ]);
@@ -272,8 +270,10 @@ function normalizeModuleStatus(raw: unknown): Partial<Record<InstallFeatureId, M
     if (!FEATURE_SET.has(key)) continue;
     if (typeof value !== 'string') continue;
     const status = value.trim().toLowerCase();
-    if (MODULE_STATUS_SET.has(status)) {
-      out[key as InstallFeatureId] = status as ModuleDeployStatus;
+    const normalized =
+      status === 'pending' ? 'development' : status === 'requested' ? 'request' : status;
+    if (MODULE_STATUS_SET.has(normalized)) {
+      out[key as InstallFeatureId] = normalized as ModuleDeployStatus;
     }
   }
   return Object.keys(out).length ? out : undefined;

@@ -3,11 +3,10 @@
  */
 (function () {
   const STATUS = {
-    deployed: { label: 'Live', badge: 'dl-badge--deployed' },
-    pending: { label: 'Pending', badge: 'dl-badge--pending' },
-    development: { label: 'Dev', badge: 'dl-badge--development' },
+    deployed: { label: 'Deployed', badge: 'dl-badge--deployed' },
+    development: { label: 'Development', badge: 'dl-badge--development' },
     request: { label: 'Requested', badge: 'dl-badge--request' },
-    rejected: { label: 'Off', badge: 'dl-badge--rejected' },
+    rejected: { label: 'Rejected', badge: 'dl-badge--rejected' },
   };
 
   let modules = [];
@@ -59,10 +58,7 @@
   }
 
   function statusMeta(m) {
-    if (!m.inProduction) {
-      return { label: 'Not in prod', badge: 'dl-badge--noprod' };
-    }
-    return STATUS[m.status] || { label: m.status, badge: 'dl-badge--pending' };
+    return STATUS[m.status] || STATUS.development;
   }
 
   function renderSwitch(checked, moduleId) {
@@ -89,7 +85,7 @@
       `<div class="dl-tile-foot">` +
       (canToggle ?
         renderSwitch(checked, m.moduleId)
-      : `<span class="dl-tile-hint">${m.status === 'pending' || m.status === 'request' ? 'Not ready yet' : 'Preview only'}</span>`) +
+      : `<span class="dl-tile-hint">${m.status === 'development' ? 'In development' : m.status === 'request' ? 'Requested' : m.status === 'rejected' ? 'Rejected' : 'Preview only'}</span>`) +
       `</div>` +
       `</article>`
     );
@@ -110,9 +106,10 @@
   function renderLegend() {
     return (
       `<div class="dl-legend">` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Live</span> deployed — include in demo</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--pending">Pending</span> not ready yet</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--development">Dev</span> in development</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready — include in demo</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--development">Development</span> in progress</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--request">Requested</span> not built yet</span>` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--rejected">Rejected</span> off</span>` +
       `</div>`
     );
   }

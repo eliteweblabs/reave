@@ -1,6 +1,6 @@
 ---
 feature: fleet_tracking
-defaultStatus: pending
+defaultStatus: development
 stage: 3
 ---
 
