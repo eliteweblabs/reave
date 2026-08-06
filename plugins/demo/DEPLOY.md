@@ -25,13 +25,13 @@ Use **production** Clerk keys (`pk_live_` / `sk_live_`) — same instance as `re
 
 Also set on the demo Railway service:
 
-- `PUBLIC_CLERK_JS_VERSION=6.27.0` — pins clerk-js so the Frontend API uses a supported version (unpinned `@6` can serve stale JS that sends invalid `__clerk_api_version=2024-05-12` → 400 on `sign_ins`)
-- `CLERK_API_VERSION=2025-04-10` — backend API version aligned with clerk-js 6.x
 - Add `https://demo.reave.app` to the production Clerk instance **Allowed origins** (Clerk Dashboard or Backend API `PATCH /v1/instance`)
 
 Satellite domains are **not** required on the current plan; allowed origins is enough for sign-in from `demo.reave.app`.
 
-Use the same username/password as production. Enter **both** fields and click **Continue** (pressing Enter after username alone can stall the Clerk hash router on `?tab=` URLs).
+Use the same username/password as production. Enter **both** fields and click **Continue** — submitting the identifier alone sends Clerk to its `#/factor-one` step, which on this instance only offers Google.
+
+`PUBLIC_CLERK_JS_VERSION` / `CLERK_API_VERSION` do **not** need to be set. They were added chasing a "stale clerk-js sends an invalid `__clerk_api_version`" theory that does not hold up: clerk-js 6.27.0 sends `2026-05-12` and the Frontend API answers `200` with `clerk-api-version: 2026-05-12`. A version pin only guarantees the deploy falls behind the `@clerk/astro` in `package.json`. When sign-in breaks, triage it for real — see `read_knowledge slug "clerk-sign-in-triage"`.
 
 ## External setup
 
