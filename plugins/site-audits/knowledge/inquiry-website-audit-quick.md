@@ -117,3 +117,12 @@ The project list shows **title** on line 1 and the **client name** on line 2 —
 ## Full audit follow-up
 
 If the user later runs Siri **"full audit"** on the same business, read `inquiry-website-audit` and **update_work** on the existing project with Playwright UX findings, broken links, and tech stack — do not create a duplicate project.
+
+## Completion buttons (admin chat)
+
+When finishing an audit in admin chat, append structured button blocks using URLs from the **update_work** tool result — never guess:
+
+- **Client profile:** `profile_url` (opens Clients tab for that contact)
+- **Audit on client portal:** `project_portal_url` (contact uid in `/c/…`, not the job slug)
+
+Wrong `/c/{job-slug}` or `/c/{business-name}` links 404 — only the contact **uid** works in portal paths.

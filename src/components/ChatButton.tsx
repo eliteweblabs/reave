@@ -1,4 +1,6 @@
+import type { MouseEvent } from 'react';
 import type { ChatButtonResponse } from '../lib/chatResponseRenderer';
+import { classifyChatButtonHref, openChatButtonHref } from '../lib/chatResponseRenderer';
 
 export type ChatButtonProps = {
   label: string;
@@ -30,15 +32,30 @@ export function ChatButton({
     .filter(Boolean)
     .join(' ');
 
+  const { kind } =
+    typeof window !== 'undefined'
+      ? classifyChatButtonHref(href, window.location.origin)
+      : { kind: 'external' as const };
+  const internal = kind === 'admin' || kind === 'portal';
+  const resolvedTarget = internal ? '_self' : target;
+  const showExternalIcon = !internal && resolvedTarget === '_blank';
+
+  const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!internal) return;
+    event.preventDefault();
+    openChatButtonHref(href);
+  };
+
   return (
     <a
       href={href}
-      target={target}
-      rel={target === '_blank' ? 'noopener noreferrer' : undefined}
+      target={resolvedTarget}
+      rel={resolvedTarget === '_blank' ? 'noopener noreferrer' : undefined}
       className={classes}
+      onClick={onClick}
     >
       <span className="aui-chat-btn-label">{label}</span>
-      {target === '_blank' ? <span className="aui-chat-btn-icon">{EXTERNAL_ICON}</span> : null}
+      {showExternalIcon ? <span className="aui-chat-btn-icon">{EXTERNAL_ICON}</span> : null}
     </a>
   );
 }

@@ -168,6 +168,15 @@ When the user gives a list of businesses (e.g. local street scan):
 3. One `create_work` per business with full `body`
 4. Link all to the same chat if the conversation covers the whole list
 
+## Completion buttons (admin chat)
+
+When finishing an audit in admin chat, append structured button blocks using URLs from the **update_work** tool result:
+
+- **Client profile:** `profile_url`
+- **Audit on client portal:** `project_portal_url`
+
+Never put a job slug or business name in `/c/…` — only the contact **uid** works.
+
 ## Related tools
 
 - Work/jobs: `create_work`, `update_work`, `read_work`, `link_to_work`
