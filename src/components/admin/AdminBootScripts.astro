@@ -2,6 +2,7 @@
 import type { CompanyBrandContext } from "../../lib/companyConfig";
 import type { InstallConfigClient } from "../../lib/installConfig";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
+import { serverEnv } from "../../lib/serverEnv";
 
 interface Props {
   companyBrand: CompanyBrandContext;
@@ -21,12 +22,33 @@ const {
   mapboxAccessToken,
   craterFinanceUrl,
   githubRepo,
-  osMapLoaderVersion = "20260806i",
+  osMapLoaderVersion = "20260806j",
 } = Astro.props;
 
 const deployStatusClient = getDeployStatusClientSummary();
+const clerkJsVersion = serverEnv("PUBLIC_CLERK_JS_VERSION")?.trim() || "6.27.0";
 ---
 
+<script is:inline define:vars={{ clerkJsVersion }}>
+  (function () {
+    var expected = clerkJsVersion;
+    var resetKey = 'reave-clerk-src-reset';
+    function clerkScriptMatches() {
+      var s = document.querySelector('script[data-clerk-js-script]');
+      var src = (s && s.getAttribute('src')) || '';
+      return src.indexOf('@' + expected) !== -1;
+    }
+    if (document.querySelector('script[data-clerk-js-script]') && !clerkScriptMatches()) {
+      try {
+        if (!sessionStorage.getItem(resetKey)) {
+          sessionStorage.setItem(resetKey, '1');
+          location.reload();
+          return;
+        }
+      } catch (e) { /* ignore */ }
+    }
+  })();
+</script>
 <script is:inline>
   (function () {
     function showAdminLoadError(detail) {
@@ -63,7 +85,7 @@ const deployStatusClient = getDeployStatusClientSummary();
 <script>
   import '../../admin/agent-chat-mount.tsx';
 </script>
-<script is:inline type="module" src="/admin/push-client.js?v=20260806b"></script>
+<script is:inline type="module" src="/admin/push-client.js?v=20260806c"></script>
 <script src="/ios-sheet.js" defer></script>
 <script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias }}>
   window.__companyBrand = companyBrand;
