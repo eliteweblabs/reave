@@ -127,7 +127,73 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 4: "My Active Work"
+## Example 4: "Start Time Tracking"
+
+**What it does**: Asks which project (speaks the most recent), listens for "yes" or a project name like "Cooper Website", then starts a timer. Creates a new project when the client exists but the project does not.
+
+**Requires**: `time_tracking` enabled in install config.
+
+**Siri phrase**: "start time tracking"
+
+**Shortcut steps**:
+
+1. **Get Contents of URL** (prompt)
+   - URL: `https://reave.app/api/siri`
+   - Method: POST
+   - Headers: `X-Siri-Key` + `Content-Type: application/json`
+   - Request Body:
+     ```json
+     {
+       "action": "start_time_tracking",
+       "format": "json"
+     }
+     ```
+
+2. **Get Dictionary Value** — key `text` (spoken prompt)
+
+3. **Speak Text** — Dictionary Value from step 2
+
+4. **Dictate Text** (or **Ask for Input**)
+   - Prompt: "Which project?"
+   - Variable: `ProjectAnswer`
+
+5. **Get Dictionary Value** from step 1 — key `data`, then key `suggested`, then key `slug`
+   - Variable: `SuggestedSlug` (may be empty if no recent project)
+
+6. **Text** (build JSON — use variable pills for `ProjectAnswer` and `SuggestedSlug`)
+   ```json
+   {
+     "action": "start_time_tracking",
+     "query": 
+   ```
+   *(ProjectAnswer pill)*
+   ```json
+   ,
+     "suggested_slug": 
+   ```
+   *(SuggestedSlug pill — omit the key entirely in Shortcuts if empty, or pass empty string)*
+   ```json
+   ,
+     "format": "text"
+   }
+   ```
+
+7. **Get Contents of URL** — same headers as step 1, body from step 6
+
+8. **Speak Text** — response (e.g. "Tracking time on Cooper Website for Cooper Corp.")
+
+**Companion shortcut — "Stop Time Tracking"**:
+
+```json
+{
+  "action": "stop_time_tracking",
+  "format": "text"
+}
+```
+
+---
+
+## Example 5: "My Active Work"
 
 **What it does**: Shows all active work items.
 
@@ -152,7 +218,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 5: "Create Work Item"
+## Example 6: "Create Work Item"
 
 **What it does**: Prompts for title and client, creates a new work item.
 
@@ -194,7 +260,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 6: "Create Reave Project"
+## Example 7: "Create Reave Project"
 
 **What it does**: Finds an existing client or creates a new one, then starts a project. Prompts for missing details via Siri.
 
@@ -265,7 +331,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 6b: "Audit" (quick street audit)
+## Example 7b: "Audit" (quick street audit)
 
 **What it does**: Say a business name — add street or town if needed — and it kicks off the research agent in the background: finds the business and website, resolves/creates the client, runs a **fast audit** (Lighthouse, HTML, SSL, DNS, Google/social/reputation search — no Playwright or link crawl), and files a project with a write-up. Siri gets an immediate "auditing now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
 
@@ -307,7 +373,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 6c: "Full Audit" (comprehensive)
+## Example 7c: "Full Audit" (comprehensive)
 
 **What it does**: Same as the quick audit, plus Playwright UX/UI (real browser), broken link crawl, and tech stack detection. Use when you have time — not optimized for on-the-street speed.
 
@@ -317,7 +383,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 7: "Send Client SMS"
+## Example 8: "Send Client SMS"
 
 **What it does**: Sends a text message via Telnyx.
 
@@ -354,7 +420,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 8: "Morning Briefing" (Automation)
+## Example 9: "Morning Briefing" (Automation)
 
 **What it does**: Runs every weekday at 9am, speaks your active work and status.
 
@@ -401,7 +467,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 9: "Reave Status" (Widget/Lock Screen)
+## Example 10: "Reave Status" (Widget/Lock Screen)
 
 **What it does**: Quick health check you can run from Lock Screen widget.
 
