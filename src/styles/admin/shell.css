@@ -387,8 +387,9 @@ select,
 }
 .admin-setup-alert {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
   max-width: 52rem;
   margin: 0 auto;
   padding: 0.65rem 0.75rem;
@@ -396,6 +397,51 @@ select,
   border: 1px solid var(--panel-border);
   background: var(--overlay-bg);
   box-shadow: var(--shadow-lg);
+}
+.admin-setup-alert:has(.admin-setup-alert-head) {
+  position: relative;
+}
+.admin-setup-alert-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+  padding-right: 2rem;
+}
+.admin-setup-alert-brand {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.admin-setup-alert--receipt {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(52, 211, 153, 0.12));
+}
+.admin-setup-alert--otp {
+  border-color: rgba(251, 191, 36, 0.55);
+  background: color-mix(in srgb, var(--overlay-bg) 82%, rgba(251, 191, 36, 0.18));
+}
+.admin-setup-alert--meeting {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(96, 165, 250, 0.12));
+}
+.admin-setup-alert--meeting-conflict {
+  border-color: rgba(251, 146, 60, 0.5);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(251, 146, 60, 0.12));
+}
+.admin-setup-alert--project {
+  border-color: rgba(94, 234, 212, 0.4);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(94, 234, 212, 0.14));
+}
+.admin-setup-alert--client {
+  border-color: rgba(167, 139, 250, 0.45);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(167, 139, 250, 0.12));
+}
+.admin-setup-alert--alert {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(248, 113, 113, 0.1));
 }
 .admin-setup-alert--pwa {
   border-color: rgba(94, 234, 212, 0.35);
@@ -409,74 +455,28 @@ select,
   border-color: rgba(248, 113, 113, 0.35);
   background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(248, 113, 113, 0.1));
 }
-.admin-setup-alert--otp {
-  border-color: rgba(251, 191, 36, 0.55);
-  background: color-mix(in srgb, var(--overlay-bg) 82%, rgba(251, 191, 36, 0.18));
+.admin-setup-alert-toolbar {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.admin-setup-alert-icons {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  flex-shrink: 0;
-  margin-top: 0.05rem;
+.admin-setup-alert-toolbar[data-action-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
 }
-.admin-setup-alert-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  margin-top: 0.05rem;
-  border-radius: 8px;
-  background: var(--accent-select-bg);
-  color: var(--muted);
+.admin-setup-alert-toolbar[data-action-count='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.admin-setup-alert-icon--brand {
-  padding: 0;
-  background: transparent;
-  object-fit: cover;
+.admin-setup-alert-toolbar .admin-setup-alert-btn {
+  width: 100%;
+  min-height: 2.25rem;
+  text-align: center;
 }
-.admin-setup-alert-icon[data-type='meeting_request'] {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.14);
-}
-.admin-setup-alert-icon[data-type='meeting_conflict'] {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
-}
-.admin-setup-alert-icon[data-type='meeting'] {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.12);
-}
-.admin-setup-alert-icon[data-type='meeting_followup'] {
-  color: #a78bfa;
-  background: rgba(167, 139, 250, 0.12);
-}
-.admin-setup-alert-icon[data-type='project'] {
-  color: #5eead4;
-  background: rgba(94, 234, 212, 0.14);
-}
-.admin-setup-alert-icon[data-type='push_alert'][data-kind='email'] {
-  color: #93c5fd;
-  background: rgba(147, 197, 253, 0.14);
-}
-.admin-setup-alert-icon[data-type='push_alert'][data-kind='uptime'] {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
-}
-.admin-setup-alert-icon[data-type='push_alert'][data-kind='comment'] {
-  color: #c4b5fd;
-  background: rgba(196, 181, 253, 0.14);
-}
-.admin-setup-alert-icon[data-type='push_alert'][data-kind='engagement'] {
-  color: #fcd34d;
-  background: rgba(252, 211, 77, 0.14);
-}
-.admin-setup-alert-icon[data-type='push_alert'][data-kind='otp'] {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.16);
+.admin-setup-alert:has(.admin-setup-alert-head) .admin-setup-alert-dismiss {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  z-index: 1;
 }
 .admin-setup-alert-copy {
   flex: 1;
@@ -653,12 +653,37 @@ select,
   background: var(--surface-hover);
   color: var(--fg);
 }
-@media (max-width: 639px) {
-  .admin-setup-alert {
+@media (min-width: 640px) {
+  .admin-setup-alert:has(.admin-setup-alert-head) {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+  .admin-setup-alert-head {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 0;
+  }
+  .admin-setup-alert-toolbar {
+    width: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
+    align-self: center;
+    gap: 0.35rem;
+  }
+  .admin-setup-alert-toolbar .admin-setup-alert-btn {
+    width: auto;
+    min-height: 0;
+  }
+  .admin-setup-alert:has(.admin-setup-alert-head) .admin-setup-alert-dismiss {
+    position: static;
+  }
+  .admin-setup-alert:not(:has(.admin-setup-alert-head)) {
     flex-wrap: wrap;
   }
-  .admin-setup-alert-actions {
-    width: 100%;
+  .admin-setup-alert:not(:has(.admin-setup-alert-head)) .admin-setup-alert-actions {
+    width: auto;
     justify-content: flex-end;
   }
 }

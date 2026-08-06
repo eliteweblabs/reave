@@ -3778,75 +3778,29 @@ function isAuditPushAlert(item) {
   return /^(?:Full )?audit ready(?:\s*>:|\s*:)/i.test(String(item.title || '').trim());
 }
 
-function reviewAlertVariant(type, item) {
-  if (item && isOtpReviewAlert(item)) return 'otp';
-  if (item && isReceiptExpenseNotification(item)) return 'confirm';
-  if (type === 'push_alert') return 'confirm';
-  if (type === 'receipt_expense') return 'confirm';
-  if (type === 'meeting_conflict') return 'confirm';
+function reviewAlertTone(item) {
+  if (isReceiptExpenseNotification(item)) return 'receipt';
+  if (isOtpReviewAlert(item)) return 'otp';
+  const type = item?.type;
+  if (type === 'meeting_conflict') return 'meeting-conflict';
+  if (type === 'meeting' || type === 'meeting_request' || type === 'meeting_followup') return 'meeting';
   if (
     type === 'project' ||
     type === 'project_match' ||
     type === 'project_comment' ||
-    type === 'vault_entry' ||
     type === 'share_open' ||
-    type === 'deck_view' ||
     type === 'contact_form'
   ) {
-    return 'pwa';
+    return 'project';
   }
-  return 'push';
+  if (type === 'vault_entry' || type === 'deck_view') return 'client';
+  if (type === 'push_alert' && item.alertKind === 'engagement') return 'client';
+  return 'alert';
 }
 
-function reviewAlertIconName(item) {
-  const type = item?.type;
-  if (isReceiptExpenseNotification(item)) return 'receipt';
-  if (type === 'push_alert') {
-    if (isOtpReviewAlert(item)) return 'key';
-    if (isAuditPushAlert(item)) return 'file-text';
-    switch (item.alertKind) {
-      case 'otp':
-        return 'key';
-      case 'email':
-        return 'mail';
-      case 'uptime':
-        return 'monitor';
-      case 'comment':
-        return 'message-circle';
-      case 'engagement':
-        return 'eye';
-      case 'system':
-        return 'bell';
-      default:
-        return 'bell';
-    }
-  }
-  switch (type) {
-    case 'meeting_conflict':
-      return 'alert-triangle';
-    case 'meeting_request':
-      return 'calendar';
-    case 'meeting':
-      return 'calendar-check';
-    case 'meeting_followup':
-      return 'mail';
-    case 'project':
-      return 'briefcase';
-    case 'project_match':
-      return 'external-link';
-    case 'project_comment':
-      return 'message-circle';
-    case 'vault_entry':
-      return 'key';
-    case 'share_open':
-      return 'eye';
-    case 'deck_view':
-      return 'monitor';
-    case 'contact_form':
-      return 'mail';
-    default:
-      return 'bell';
-  }
+/** @deprecated use reviewAlertTone */
+function reviewAlertVariant(type, item) {
+  return reviewAlertTone(item ?? { type });
 }
 
 function appendReviewAlertAction(actions, { label, primary, onClick }) {
@@ -4023,7 +3977,7 @@ function isReceiptExpenseNotification(item) {
 
 function buildReviewAlertBanner(item) {
   const alert = document.createElement('div');
-  alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type, item)}`;
+  alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertTone(item)}`;
   alert.setAttribute('role', 'status');
   if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
   if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
@@ -4031,11 +3985,11 @@ function buildReviewAlertBanner(item) {
   if (item.alertId) alert.setAttribute('data-review-alert-id', item.alertId);
   if (item.tag) alert.setAttribute('data-review-alert-tag', item.tag);
 
-  const iconsCol = document.createElement('div');
-  iconsCol.className = 'admin-setup-alert-icons';
+  const head = document.createElement('div');
+  head.className = 'admin-setup-alert-head';
 
   const brandIcon = document.createElement('img');
-  brandIcon.className = 'admin-setup-alert-icon admin-setup-alert-icon--brand';
+  brandIcon.className = 'admin-setup-alert-brand';
   const fallbackIconUrl = companyStaffAvatarUrl();
   brandIcon.src = resolveReviewAlertIconUrl(item);
   brandIcon.alt = '';
@@ -4051,22 +4005,12 @@ function buildReviewAlertBanner(item) {
     );
   }
 
-  const typeIcon = document.createElement('div');
-  typeIcon.className = 'admin-setup-alert-icon';
-  typeIcon.dataset.type = item.type;
-  if (item.alertKind) typeIcon.dataset.kind = item.alertKind;
-  typeIcon.setAttribute('aria-hidden', 'true');
-  typeIcon.innerHTML = navIcon(reviewAlertIconName(item), 18);
-
-  iconsCol.appendChild(brandIcon);
-  iconsCol.appendChild(typeIcon);
-
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
   copy.innerHTML = reviewAlertCopyHtml(item);
 
-  const actions = document.createElement('div');
-  actions.className = 'admin-setup-alert-actions';
+  const toolbar = document.createElement('div');
+  toolbar.className = 'admin-setup-alert-toolbar';
 
   const isProject = item.type === 'project';
   const isProjectMatch = item.type === 'project_match';
@@ -4094,79 +4038,78 @@ function buildReviewAlertBanner(item) {
   }
 
   if (isOtp) {
-    alert.classList.add('admin-setup-alert--otp');
     if (item.verificationCode) {
-      appendReviewAlertAction(actions, {
+      appendReviewAlertAction(toolbar, {
         label: 'Copy code',
         primary: true,
         onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
       });
     } else {
-      appendReviewAlertAction(actions, {
+      appendReviewAlertAction(toolbar, {
         label: 'View',
         primary: true,
         onClick: () => openReviewNotificationTarget(item),
       });
     }
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Delete',
       onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
     });
   } else if (isPushAlert) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'View',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
     if (!isAuditPushAlert(item)) {
-      appendReviewAlertAction(actions, {
+      appendReviewAlertAction(toolbar, {
         label: 'Archive',
         onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
       });
     }
   } else if (isProjectComment || isShareOpen || isContactForm) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isVaultEntry) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'View vault',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isDeckView && item.contactUid) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'View client',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isProjectMatch) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Add to project',
       primary: true,
       onClick: (btn) => void confirmSuggestedProjectMatch(item, btn),
     });
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Not this project',
       onClick: (btn) => void rejectSuggestedProjectMatch(item, btn),
     });
   } else if (isProject) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isMeetingFollowup) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'View email',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isMeetingRequest) {
     const scheduleOnly = !item.proposedMeetingStart;
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: scheduleOnly
         ? 'Send scheduling link'
         : item.type === 'meeting_conflict'
@@ -4184,7 +4127,7 @@ function buildReviewAlertBanner(item) {
           btn,
         ),
     });
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: item.type === 'meeting_conflict' ? 'Suggest alternate' : 'View email',
       onClick: () => {
         if (item.type === 'meeting_conflict' && item.emailId) {
@@ -4197,17 +4140,17 @@ function buildReviewAlertBanner(item) {
       },
     });
   } else if (isAutoBookedMeeting) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Confirm',
       primary: true,
       onClick: (btn) => void confirmScheduledMeeting(item, btn),
     });
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Reschedule',
       onClick: () => rescheduleScheduledMeeting(item),
     });
   } else if (isReceiptExpense) {
-    const expenseBtn = appendReviewAlertAction(actions, {
+    const expenseBtn = appendReviewAlertAction(toolbar, {
       label: 'Expense',
       primary: true,
       onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
@@ -4216,17 +4159,22 @@ function buildReviewAlertBanner(item) {
       expenseBtn.disabled = true;
       expenseBtn.title = 'No dollar amount detected on this email';
     }
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Archive',
       onClick: (btn) => void archiveReceiptFromAlert(item, btn),
     });
   }
 
   if (isEmailAutomationReview(item)) {
-    appendReviewAlertAction(actions, {
+    appendReviewAlertAction(toolbar, {
       label: 'Triage',
       onClick: () => void openNotificationTriageDialog(item),
     });
+  }
+
+  const actionBtnCount = toolbar.querySelectorAll('.admin-setup-alert-btn').length;
+  if (actionBtnCount > 0) {
+    toolbar.dataset.actionCount = String(Math.min(actionBtnCount, 3));
   }
 
   const dismissBtn = document.createElement('button');
@@ -4246,9 +4194,15 @@ function buildReviewAlertBanner(item) {
       dismissBtn.disabled = false;
     });
   });
-  actions.appendChild(dismissBtn);
 
-  alert.append(iconsCol, copy, actions);
+  head.append(brandIcon, copy);
+  alert.append(head);
+  if (actionBtnCount > 0) {
+    toolbar.appendChild(dismissBtn);
+    alert.appendChild(toolbar);
+  } else {
+    head.appendChild(dismissBtn);
+  }
   bindReviewAlertSwipe(alert, item);
   return alert;
 }
