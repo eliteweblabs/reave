@@ -106,9 +106,25 @@
   background: color-mix(in srgb, var(--card) 72%, transparent);
 }
 
-.aui-msg-time {
-  display: block;
+.aui-msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   margin-top: 0.32rem;
+  min-width: 0;
+}
+
+.aui-msg-meta--user {
+  justify-content: flex-end;
+  padding-right: 0.2rem;
+}
+
+.aui-msg-meta--assistant {
+  justify-content: flex-start;
+  padding-left: 0.05rem;
+}
+
+.aui-msg-time {
   font-size: 0.68rem;
   line-height: 1.2;
   color: var(--muted);
@@ -117,12 +133,49 @@
 
 .aui-msg-time--user {
   text-align: right;
-  padding-right: 0.2rem;
 }
 
 .aui-msg-time--assistant {
   text-align: left;
-  padding-left: 0.05rem;
+}
+
+.aui-msg-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.group\/message:hover .aui-msg-copy,
+.group\/message:focus-within .aui-msg-copy {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.aui-msg-copy:hover:not(:disabled) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.aui-msg-copy:disabled {
+  cursor: default;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.aui-msg-copy.is-copy-success {
+  color: var(--fg);
 }
 
 .aui-msg-usage {
@@ -824,6 +877,11 @@
 
 @media (hover: none) {
   .aui-msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .aui-msg-copy:not(:disabled) {
     opacity: 1;
     pointer-events: auto;
   }

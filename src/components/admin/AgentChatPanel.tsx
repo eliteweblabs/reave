@@ -1,4 +1,11 @@
-import type { CSSProperties, FocusEvent, KeyboardEvent, ReactNode, RefObject } from 'react';
+import type {
+  CSSProperties,
+  FocusEvent,
+  KeyboardEvent,
+  MouseEvent,
+  ReactNode,
+  RefObject,
+} from 'react';
 import {
   AssistantRuntimeProvider,
   AttachmentPrimitive,
@@ -428,6 +435,113 @@ function formatChatMessageTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+const COPY_FEEDBACK_MS = 1000;
+
+type MessageContentPart = {
+  type: string;
+  text?: string;
+  filename?: string;
+};
+
+function messageTextForCopy(
+  content: ReadonlyArray<MessageContentPart> | undefined,
+): string {
+  if (!content?.length) return '';
+  const textParts: string[] = [];
+  const attachments: string[] = [];
+  for (const part of content) {
+    if (part.type === 'text') textParts.push(part.text ?? '');
+    else if (part.type === 'image') attachments.push('image');
+    else if (part.type === 'file') attachments.push(part.filename || 'file');
+  }
+  const text = textParts.join('');
+  if (!attachments.length) return text;
+  const summary = attachments.join(', ');
+  if (!text.trim()) return `[${summary}]`;
+  return `${text}\n[${summary} attached]`;
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+      <rect
+        x="9"
+        y="9"
+        width="13"
+        height="13"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+      <path
+        d="M20 6 9 17l-5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChatMessageCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  const disabled = !text.trim();
+
+  const onCopy = useCallback(
+    async (e: MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      if (!text.trim()) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
+      } catch {
+        /* clipboard unavailable */
+      }
+    },
+    [text],
+  );
+
+  return (
+    <button
+      type="button"
+      className={`aui-msg-copy${copied ? ' is-copy-success' : ''}`}
+      aria-label={copied ? 'Copied' : 'Copy message'}
+      title={copied ? 'Copied' : 'Copy'}
+      disabled={disabled}
+      onClick={onCopy}
+    >
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </button>
+  );
+}
+
 function ChatMessageDaySeparator({ label }: { label: string }) {
   return (
     <div className="aui-msg-day" role="separator" aria-label={label}>
@@ -458,6 +572,7 @@ function ChatMessageShell({
     if (!prev) return true;
     return !sameCalendarDay(prev, createdAt);
   });
+  const plainText = useAuiState((s) => messageTextForCopy(s.message.content));
 
   return (
     <>
@@ -465,15 +580,18 @@ function ChatMessageShell({
       <MessagePrimitive.Root className={`aui-msg-row aui-msg-row-${align} group/message`}>
         <div className={`aui-msg-wrap aui-msg-wrap-${align}`}>
           <div className={bubbleClassName}>{children}</div>
-          <time className={`aui-msg-time aui-msg-time--${align}`} dateTime={createdAt.toISOString()}>
-            {formatChatMessageTime(createdAt)}
-            {agentUsage ? (
-              <span className="aui-msg-usage" title={`${agentUsage.model_label} · estimated API cost`}>
-                {' · '}
-                {formatAgentUsageLine(agentUsage)}
-              </span>
-            ) : null}
-          </time>
+          <div className={`aui-msg-meta aui-msg-meta--${align}`}>
+            <time className={`aui-msg-time aui-msg-time--${align}`} dateTime={createdAt.toISOString()}>
+              {formatChatMessageTime(createdAt)}
+              {agentUsage ? (
+                <span className="aui-msg-usage" title={`${agentUsage.model_label} · estimated API cost`}>
+                  {' · '}
+                  {formatAgentUsageLine(agentUsage)}
+                </span>
+              ) : null}
+            </time>
+            <ChatMessageCopyButton text={plainText} />
+          </div>
         </div>
       </MessagePrimitive.Root>
     </>
