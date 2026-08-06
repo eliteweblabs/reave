@@ -389,12 +389,20 @@ export async function setClientPortalAddress(
     geo = undefined;
   }
 
-  const saved = await setContactPortal(uid, {
+  const nextPortal: Record<string, unknown> = {
     ...portal,
-    address: address || undefined,
-    geo: address && geo ? geo : undefined,
     updatedAt: new Date().toISOString(),
-  });
+  };
+  if (address) {
+    nextPortal.address = address;
+    nextPortal.geo = geo ?? null;
+  } else {
+    // Explicit null — omitted/undefined keys may not clear on contact-api merge.
+    nextPortal.address = null;
+    nextPortal.geo = null;
+  }
+
+  const saved = await setContactPortal(uid, nextPortal as ClientPortal);
   if (!saved.ok) return { ok: false, error: saved.error };
 
   return { ok: true, address, geo: address ? geo : undefined };

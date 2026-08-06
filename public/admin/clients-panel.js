@@ -116,6 +116,7 @@ function clientKindTagHtml(c) {
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
 let clientAutosaveSeq = 0;
+let clientAutosaveAbort = null;
 let clientFieldRegistry = [];
 let clientMapController = null;
 let clientPendingGeo = null;
@@ -1526,6 +1527,7 @@ function renderEditClientForm(pane) {
           kind: kindPill.getValue(),
         };
         if (clientPendingGeo) payload.geo = clientPendingGeo;
+        else if (!payload.address) payload.geo = null;
         return payload;
       };
       clientState.autosaveGetPayload = getPayload;
@@ -1548,11 +1550,13 @@ function renderEditClientForm(pane) {
       };
       queueAutosaveRef = queueAutosave;
       const saveNow = async () => {
+        cancelClientAutosaveTimer();
         markDirty();
         await autosaveClient(uid, getPayload());
       };
       saveNowRef = saveNow;
       addressClearActions.fn = () => {
+        cancelClientAutosaveTimer();
         clientPendingGeo = null;
         clientMapController?.setLocation(null, null, '');
         void saveNowRef();
@@ -1710,7 +1714,9 @@ async function autosaveClient(uid, payload) {
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
   const geoUnchanged =
-    payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
+    payload.geo === null
+      ? !draft.geo
+      : payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -1730,12 +1736,16 @@ async function autosaveClient(uid, payload) {
     return false;
   }
   const seq = ++clientAutosaveSeq;
+  if (clientAutosaveAbort) clientAutosaveAbort.abort();
+  clientAutosaveAbort = new AbortController();
+  const { signal } = clientAutosaveAbort;
   if (clientActiveField) shell.setFormFieldState(clientActiveField, 'saving');
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal,
     });
     const data = await res.json();
     if (seq !== clientAutosaveSeq) return false;
@@ -1755,7 +1765,9 @@ async function autosaveClient(uid, payload) {
       company: payload.company,
       website: payload.website,
       address: data.address ?? payload.address,
-      geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
+      geo: payload.address
+        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
+        : (data.geo ?? null),
       notes: payload.notes,
       kind: normalizeClientKind(payload.kind),
       personal: normalizeClientKind(payload.kind) === 'personal',
@@ -1805,6 +1817,7 @@ async function autosaveClient(uid, payload) {
     if (clientActiveField) shell.flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
+    if (e?.name === 'AbortError') return false;
     if (seq !== clientAutosaveSeq) return false;
     console.warn('[clients] autosave failed', e);
     if (clientActiveField) shell.setFormFieldState(clientActiveField, 'invalid');
