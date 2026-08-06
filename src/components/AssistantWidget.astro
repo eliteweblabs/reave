@@ -434,6 +434,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 </style>
 
 <script>
+  import { initFloatingWidgetSectionHide } from '../lib/floatingWidgetSectionHide';
+
   type Turn = { role: 'user' | 'assistant'; content: string };
 
   declare global {
@@ -463,38 +465,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     });
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     return out.replace(/\n/g, '<br />');
-  }
-
-  const FAB_SECTION_HIDE_RATIO = 0.2;
-  const FAB_SECTION_OBSERVER_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i * 0.05);
-
-  function initFabSectionHide(fab: HTMLElement, ...selectorGroups: string[]) {
-    const elements = selectorGroups
-      .map((selector) => document.querySelector(selector))
-      .filter((el): el is Element => !!el);
-    if (!elements.length || !('IntersectionObserver' in window)) return;
-
-    const ratios = new Map<Element, number>();
-
-    const sync = () => {
-      const occluding = [...ratios.values()].some((ratio) => ratio >= FAB_SECTION_HIDE_RATIO);
-      fab.classList.toggle('is-hero-occluding', occluding);
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          ratios.set(entry.target, entry.intersectionRatio);
-        }
-        sync();
-      },
-      { threshold: FAB_SECTION_OBSERVER_THRESHOLDS },
-    );
-
-    for (const el of elements) {
-      ratios.set(el, 0);
-      observer.observe(el);
-    }
   }
 
   function initFabReveal(fab: HTMLElement) {
@@ -597,7 +567,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     }
     initFabViewportPin(fab);
     if (revealFab) initFabReveal(fab);
-    if (hideFabForHero) initFabSectionHide(fab, heroSelector, contactSelector);
+    if (hideFabForHero) {
+      initFloatingWidgetSectionHide(fab, 'is-hero-occluding', heroSelector, contactSelector);
+    }
 
     let history: Turn[] = [];
     try {
