@@ -11,6 +11,20 @@
   overflow: hidden;
 }
 
+.mod-auth-gate {
+  max-width: 28rem;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.mod-auth-gate .prof-subtitle {
+  margin-bottom: 1rem;
+}
+
+.mod-auth-sign-in {
+  margin: 0 auto;
+}
+
 .modules-panel-scroll {
   flex: 1 1 auto;
   min-height: 0;

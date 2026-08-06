@@ -678,6 +678,7 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
 }
 
 async function refreshTopbarSleepToggle() {
+  if (!document.body?.dataset?.userId?.trim()) return;
   try {
     const data = await fetchSleepModeSettings();
     syncTopbarSleepToggle(data);

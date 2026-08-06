@@ -179,9 +179,35 @@ async function fetchStatus() {
   return data;
 }
 
+function renderSignedOutGate(title) {
+  return (
+    `<div class="modules-panel-scroll">` +
+    `<div class="mod-auth-gate prof-card">` +
+    `<h1 class="prof-title">${escHtml(title)}</h1>` +
+    `<p class="prof-subtitle">Sign in to view module status and deployment health for this install.</p>` +
+    `<button type="button" class="de-btn de-btn-primary mod-auth-sign-in">Sign in</button>` +
+    `</div>` +
+    `</div>`
+  );
+}
+
+function bindSignedOutGate(root) {
+  root.querySelector('.mod-auth-sign-in')?.addEventListener('click', () => {
+    if (window.IosSheet?.open) window.IosSheet.open('sign-in-sheet');
+    else window.location.assign('/admin/?auth=sign-in');
+  });
+}
+
 export async function loadModulesTab(opts = {}) {
   const root = rootEl();
   if (!root) return;
+
+  if (!document.body?.dataset?.userId?.trim()) {
+    root.innerHTML = renderSignedOutGate('Modules');
+    bindSignedOutGate(root);
+    stopPoll();
+    return;
+  }
 
   const quiet = opts.quiet === true;
 

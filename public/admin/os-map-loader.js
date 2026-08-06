@@ -247,7 +247,7 @@ import {
   initModulesPanel,
   loadModulesTab,
   teardownModulesPanel,
-} from './modules-panel.js?v=20260806a';
+} from './modules-panel.js?v=20260806b';
 import {
   openMediaPicker,
   brandingMediaFilter,
@@ -1008,6 +1008,10 @@ function syncHealthLifecycle() {
 }
 
 function startHealth() {
+  if (!userId || activeKey !== 'system') {
+    stopHealth();
+    return;
+  }
   stopHealth();
   pollHealth();
   healthTimer = setInterval(pollHealth, HEALTH_INTERVAL_MS);
@@ -1382,6 +1386,7 @@ function syncModelNodeLabels() {
 }
 
 async function loadAgentModel() {
+  if (!userId) return;
   agentModelState.loading = true;
   renderModelSelectOptions();
   try {
@@ -12851,10 +12856,9 @@ async function boot() {
   initSidebarLayout();
   initModelSelector();
   syncCanvasVisibility();
-  if (userId) {
-    activateMapPanel();
-  } else {
-    bindClerkSsrSessionSync();
+  activateMapPanel();
+  if (!userId) {
+    bindClerkSsrSessionSync({ autoOpenSignIn: true });
   }
   syncAdminTabUrl(activeKey);
   window.__reaveOpenDeepLink = handleNotificationOpen;
