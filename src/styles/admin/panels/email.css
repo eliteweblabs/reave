@@ -35,6 +35,9 @@
   flex: 0 0 auto;
   min-width: 0;
   overflow: visible;
+  padding: 0.15rem;
+  border-radius: 8px;
+  background: var(--btn-group-track-bg);
 }
 .em-filter-tabs-wrap::before {
   content: '';
@@ -43,7 +46,7 @@
   top: 0;
   bottom: 0;
   width: var(--filter-tab-fade-w);
-  background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+  background: linear-gradient(to right, var(--btn-group-track-bg) 0%, transparent 100%);
   pointer-events: none;
   z-index: 2;
 }
@@ -67,10 +70,10 @@
   align-items: center;
   gap: 0.15rem;
   z-index: 2;
-  padding: 0.15rem;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   pointer-events: none;
 }
 .em-filter-tabs-fixed::before {
@@ -80,7 +83,7 @@
   top: 0;
   bottom: 0;
   width: var(--filter-tab-fade-w);
-  background: linear-gradient(to right, transparent 0%, var(--panel) 100%);
+  background: linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%);
   pointer-events: none;
 }
 .em-filter-tabs-fixed .em-filter-tab {
@@ -741,8 +744,11 @@
   display: inline-flex;
   align-items: stretch;
   flex: 0 0 auto;
+  gap: 0.15rem;
+  padding: 0.15rem;
   border: 1px solid var(--msg-user-border);
-  border-radius: var(--radius-input);
+  border-radius: 8px;
+  background: var(--btn-group-track-bg);
   overflow: visible;
 }
 .em-btn-group-segment {
