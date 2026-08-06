@@ -194,7 +194,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Live on your site. Want me to swap the hero image while we're at it?",
+        text: "Live on your website. Want me to swap the hero image while we're at it?",
         pauseMs: 1600,
       },
       {

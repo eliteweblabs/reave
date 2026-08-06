@@ -7,7 +7,7 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 ## When this applies
 
 - Siri shortcut `audit` or `create_proposal` (quick tier)
-- User wants a fast site + online presence snapshot to send while still with the prospect
+- User wants a fast website + online presence snapshot to send while still with the prospect
 - Time budget: Lighthouse + parallel DNS/SSL/HTML/search — **no Playwright, no link crawl**
 
 ## Never do this
@@ -73,7 +73,7 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 ```markdown
 ## Website & Online Presence Audit — {Month Year}
 
-**Current Site:** {domain} ({platform})
+**Current Website:** {domain} ({platform})
 **Location:** {street, city, state zip}
 **Contact:** {owner, email, phone if known}
 **Audit tier:** Quick (street)
@@ -109,7 +109,7 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - [ ] {Specific fix 2}
 ```
 
-**Minimum length:** ~1,200+ characters when the site is publicly crawlable.
+**Minimum length:** ~1,200+ characters when the website is publicly crawlable.
 
 ## Title
 

@@ -8,6 +8,7 @@ import {
   listDemoLoaderModules,
 } from '../../../lib/demoLoaderCatalog';
 import { buildDemoSuiteUrl, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from '../../../lib/demoSuite';
+import { DEMO_BASELINE_MODULE_IDS, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
 import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
 
 export const prerender = false;
@@ -29,13 +30,14 @@ export async function GET(context: APIContext): Promise<Response> {
     return json({
       ok: true,
       modules,
+      baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
       industries: industries.map((i) => ({ slug: i.slug, label: i.label })),
       defaultModuleIds: defaultDemoLoaderModuleIds(modules),
       suite: cookieSuite,
       demoSiteUrl,
       exampleLaunchUrl: demoSiteUrl
         ? buildDemoSuiteUrl(demoSiteUrl, {
-            moduleIds: ['001', '004', '006', '009'],
+            moduleIds: mergeDemoModuleIds(['006', '009']),
             industry: industries[0]?.slug ?? 'general',
             tier: 1,
           })

@@ -507,7 +507,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the {postAlias.pluralTitle} tab for your active {postAlias.plural}.</p>}
             {hasUptime && (
               <div class="uptime-block">
-                <h3 class="group-title">Site uptime</h3>
+                <h3 class="group-title">Website uptime</h3>
                 {clientUptimeMonitors.length > 0 && (
                   <ul class="uptime-monitors">
                     {clientUptimeMonitors.map((m) => (

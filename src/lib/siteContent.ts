@@ -1,5 +1,5 @@
 /**
- * Per-install / per-industry public site content — nav, allowed pages, homepage copy.
+ * Per-install / per-industry public website content — nav, allowed pages, homepage copy.
  *
  * Files: config/sites/{key}-config.json
  * Reave prod: reave-config.json

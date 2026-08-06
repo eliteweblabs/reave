@@ -33,7 +33,7 @@ get_railway_logs(service:"<service>", types:["build","deploy"], limit:80)
 Signals:
 - Railway email says "Deployment crashed" but health is **200**
 - Deployed SHA **matches** latest GitHub commit
-- Site is reachable
+- Website is reachable
 
 Action: Reply with **`✅ RESOLVED — rollout teardown`** and stop. No fix needed.
 

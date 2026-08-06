@@ -1,5 +1,5 @@
 /**
- * Site change monitoring — syncs ChangeDetection watches to client portal Site URLs,
+ * Website change monitoring — syncs ChangeDetection watches to client portal website URLs,
  * handles deploy-aware alert suppression, and sends push notifications.
  */
 import {
@@ -16,10 +16,16 @@ import { hasFeature } from './features';
 import { sendPushNotification } from './webPush';
 import { serverEnv } from './serverEnv';
 
-export const SITE_URL_FIELD_LABEL = 'Site URL';
+export const SITE_URL_FIELD_LABEL = 'Website URL';
+
+const PORTAL_WEBSITE_URL_LABELS = new Set(['website url', 'site url']);
+
+export function isPortalWebsiteUrlFieldLabel(label: string): boolean {
+  return PORTAL_WEBSITE_URL_LABELS.has(label.trim().toLowerCase());
+}
 
 export type SiteMonitoringMeta = {
-  /** When false, skip watch even if Site URL is set. Default true. */
+  /** When false, skip watch even if Website URL is set. Default true. */
   enabled?: boolean;
   watchUuid?: string;
   watchUrl?: string;
@@ -54,7 +60,7 @@ export function portalSiteUrl(portal: ClientPortal | null | undefined): string |
   const fields = portal?.fields ?? [];
   for (const f of fields) {
     if (!f?.label || !f.value) continue;
-    if (f.label.trim().toLowerCase() === SITE_URL_FIELD_LABEL.toLowerCase()) {
+    if (isPortalWebsiteUrlFieldLabel(f.label)) {
       const v = f.value.trim();
       return v || null;
     }
@@ -74,7 +80,7 @@ function normalizeWatchUrl(url: string): string {
 }
 
 /**
- * After portal save: create/update/delete ChangeDetection watch for Site URL.
+ * After portal save: create/update/delete ChangeDetection watch for Website URL.
  * Mutates and returns portal.siteMonitoring for persistence.
  */
 export async function syncSiteWatchForPortal(opts: {
@@ -231,7 +237,7 @@ export async function handleSiteChangeAlert(payload: ChangeDetectionWebhookPaylo
     return { action: 'suppressed', reason: 'deploy in progress or post-deploy window' };
   }
 
-  const title = (payload.title ?? 'Site change detected').slice(0, 120);
+  const title = (payload.title ?? 'Website change detected').slice(0, 120);
   const body = (payload.message ?? payload.url ?? 'A monitored page changed').slice(0, 240);
 
   await sendPushNotification({

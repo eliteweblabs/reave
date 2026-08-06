@@ -43,7 +43,7 @@ loadDotEnv();
 const title = argValue('--title') ?? 'Demo notification';
 const message =
   argValue('--message') ??
-  'Push is working — you will get inbox alerts, bookings, and site monitoring here.';
+  'Push is working — you will get inbox alerts, bookings, and website monitoring here.';
 const url = argValue('--url') ?? '/admin?tab=home';
 
 const { isPushConfigured, sendPushNotification } = await import('../src/lib/webPush.ts');

@@ -10,8 +10,8 @@ Generated: 2026-08-05T00:20:53.084Z
 - [ ] **002** — Portal Data tab (handoff creds) (`web_handoff`)
 - [ ] **003** — Client portal help chat (`portal_assistant`)
 - [ ] **004** — Crater billing & invoices (`billing`)
-- [ ] **005** — Site audits (`site_audits`)
-- [ ] **006** — Site change monitoring (`site_monitoring`)
+- [ ] **005** — Website Audit (`site_audits`)
+- [ ] **006** — Website change monitoring (`site_monitoring`)
 - [ ] **007** — Uptime monitoring (`uptime_monitoring`)
 - [ ] **008** — Document signing templates (`documents`)
 - [ ] **009** — Telnyx voice agent (`voice`)
@@ -79,11 +79,11 @@ Status: **pending** · Playbook: `plugins/billing/DEPLOY.md`
 - [ ] Test create invoice via agent or UI
 - [ ] Set `moduleStatus.billing` → `deployed` in install config
 
-### Site change monitoring (`site_monitoring`)
+### Website change monitoring (`site_monitoring`)
 
 Status: **pending** · Playbook: `plugins/site-monitoring/DEPLOY.md`
 
-# Site monitoring deployment
+# Website monitoring deployment
 
 ## Sibling services
 

@@ -18,7 +18,7 @@ const FEATURE_LABELS: Record<string, string> = {
   portal_assistant: 'Client portal help chat',
   billing: 'Crater billing & invoices',
   site_audits: 'Website Audit',
-  site_monitoring: 'Site change monitoring',
+  site_monitoring: 'Website change monitoring',
   uptime_monitoring: 'Uptime monitoring',
   documents: 'Document signing templates',
   voice: 'Telnyx voice agent',

@@ -163,7 +163,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'DOWN',
-    description: 'Uptime/monitoring alerts — site or service down.',
+    description: 'Uptime/monitoring alerts — website or service down.',
     phrases: [
       'UptimeRobot',
       'is DOWN',

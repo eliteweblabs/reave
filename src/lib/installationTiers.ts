@@ -64,7 +64,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     tier: 2,
     name: 'Growth',
     summary:
-      'Everything in Operations, plus a branded public site, voice, documents, marketing automation, and site monitoring.',
+      'Everything in Operations, plus a branded public website, voice, documents, marketing automation, and website monitoring.',
     month1: 4000,
     month2: 2000,
     month3: 1000,
@@ -72,12 +72,12 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     features: [
       { label: 'Everything in Operations' },
       { label: 'Branded public website', href: '/features#feature-white-label' },
-      { label: 'CMS-less site editing via agent', href: '/features#feature-site-editing' },
+      { label: 'CMS-less website editing via agent', href: '/features#feature-site-editing' },
       { label: 'Voice & call routing', href: '/modules#plugin-voice' },
       { label: 'Document signing', href: '/modules#plugin-documents' },
       { label: 'Newsletters, social & analytics', href: '/features#feature-growth' },
       { label: 'Read receipts & engagement', href: '/features#feature-growth' },
-      { label: 'Site audits, uptime & change monitoring', href: '/modules#plugin-monitoring' },
+      { label: 'Website audits, uptime & change monitoring', href: '/modules#plugin-monitoring' },
     ],
   },
   {

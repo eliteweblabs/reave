@@ -88,7 +88,7 @@ export const waybackMachineAgentTools: AgentToolModule = {
           parameters: {
             type: 'object',
             properties: {
-              url: { type: 'string', description: 'Site URL or domain, e.g. https://example.com' },
+              url: { type: 'string', description: 'Website URL or domain, e.g. https://example.com' },
               timestamp: {
                 type: 'string',
                 description:
@@ -116,7 +116,7 @@ export const waybackMachineAgentTools: AgentToolModule = {
           parameters: {
             type: 'object',
             properties: {
-              url: { type: 'string', description: 'Site URL or domain' },
+              url: { type: 'string', description: 'Website URL or domain' },
               timestamp: {
                 type: 'string',
                 description:

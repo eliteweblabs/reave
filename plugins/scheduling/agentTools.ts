@@ -228,7 +228,7 @@ async function handle_get_booking_link(args: Record<string, unknown>, _ctx: Tool
     calcom_url: calUrl,
     form_url: '/form/schedule',
     event_types: eventTypes.map((e) => ({ slug: e.slug, title: e.title, length: e.length })),
-    hint: `Share calcom_url for direct booking or form_url for the conversational scheduler on ${_ctx.brand.domain || 'your site'}.`,
+    hint: `Share calcom_url for direct booking or form_url for the conversational scheduler on ${_ctx.brand.domain || 'your website'}.`,
   });
 }
 

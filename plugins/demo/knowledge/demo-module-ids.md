@@ -12,6 +12,8 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 
 ## Module picker
 
+Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistant`, `billing`) are always enabled on tier-1 demos and are **not shown** in the public `/demo-loader` picker.
+
 | ID | Feature | Label |
 |----|---------|-------|
 | 001 | `client_portal` | Client portal (/c/:uid) |
@@ -19,7 +21,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 | 003 | `portal_assistant` | Client portal help chat (speed-dial support assistant) |
 | 004 | `billing` | Crater billing & invoices |
 | 005 | `site_audits` | Website Audit |
-| 006 | `site_monitoring` | Site change monitoring (ChangeDetection.io) |
+| 006 | `site_monitoring` | Website change monitoring (ChangeDetection.io) |
 | 007 | `uptime_monitoring` | Uptime monitoring (UptimeRobot) |
 | 008 | `documents` | Document signing templates |
 | 009 | `voice` | Telnyx voice agent |

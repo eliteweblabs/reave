@@ -4,7 +4,7 @@ Go live with Telnyx SMS, the AI phone agent, and Siri Shortcuts integration. Add
 
 ## 10DLC campaign resubmission
 
-After a failed carrier review, fix the public site first, then resubmit in Telnyx with an updated message flow.
+After a failed carrier review, fix the public website first, then resubmit in Telnyx with an updated message flow.
 
 - [ ] Remove SEO / lead-gen service language from the marketing site (carriers flag SEO as lead generation)
 - [ ] Confirm the SMS opt-in form is live at **https://reave.app/form/sms-opt-in**

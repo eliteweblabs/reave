@@ -673,7 +673,7 @@ export const workModule: AgentToolModule = {
                   body: {
                     type: 'string',
                     description:
-                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run site audit tools, then write a full body (Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, Action Items; 1,200+ quick / 1,500+ full chars). Do not create short prospect stubs.',
+                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run website audit tools, then write a full body (Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, Action Items; 1,200+ quick / 1,500+ full chars). Do not create short prospect stubs.',
                   },
                   status: {
                     type: 'string',
