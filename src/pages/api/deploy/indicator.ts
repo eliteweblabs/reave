@@ -4,9 +4,11 @@
  */
 import type { APIContext } from 'astro';
 import {
+  chatDeployLockMessage,
   deployIndicatorTone,
   deployTooltip,
   getDeployStatus,
+  isChatLockedForDeploy,
 } from '../../../lib/deployStatus';
 
 export const prerender = false;
@@ -24,6 +26,8 @@ export async function GET(_context: APIContext): Promise<Response> {
     return json({ ok: true, deploy: null });
   }
 
+  const chatLocked = isChatLockedForDeploy(deploy);
+
   return json({
     ok: true,
     deploy: {
@@ -32,6 +36,8 @@ export async function GET(_context: APIContext): Promise<Response> {
       tooltip: deployTooltip(deploy),
       deployedShort: deploy.deployed_short,
       upToDate: deploy.up_to_date,
+      chatLocked,
+      chatLockMessage: chatLocked ? chatDeployLockMessage(deploy) : null,
     },
   });
 }

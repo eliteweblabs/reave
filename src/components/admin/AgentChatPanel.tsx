@@ -50,6 +50,7 @@ const CHAT_IMAGE_ACCEPT =
 
 const MAX_CHAT_DOCS = 3;
 const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
+const DEPLOY_INDICATOR_POLL_MS = 60_000;
 const PPTX_MEDIA_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
@@ -693,6 +694,21 @@ function createChatAdapter(
           signal: options.abortSignal,
         });
 
+        if (!res.ok) {
+          let errData: { deploy_locked?: boolean; error?: string } = {};
+          try {
+            errData = (await res.json()) as typeof errData;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(
+            errData.error ||
+              (errData.deploy_locked
+                ? 'Deploy in progress — try again when live.'
+                : `Request failed (${res.status})`),
+          );
+        }
+
         const contentType = res.headers.get('Content-Type') ?? '';
         if (contentType.includes('text/event-stream') && res.body) {
           let streamedText = '';
@@ -834,9 +850,11 @@ function createChatAdapter(
 function PendingDraftBoot({
   draft,
   autoSend,
+  deployChatLocked,
 }: {
   draft?: string | null;
   autoSend?: boolean;
+  deployChatLocked?: boolean;
 }) {
   const composer = useComposerRuntime();
   const ran = useRef(false);
@@ -844,9 +862,50 @@ function PendingDraftBoot({
     if (ran.current || !draft) return;
     ran.current = true;
     composer.setText(draft);
-    if (autoSend) void composer.send();
-  }, [autoSend, composer, draft]);
+    if (autoSend && !deployChatLocked) void composer.send();
+  }, [autoSend, composer, deployChatLocked, draft]);
   return null;
+}
+
+type DeployChatLockState = { locked: boolean; message: string | null };
+
+function useDeployChatLock(): DeployChatLockState {
+  const [state, setState] = useState<DeployChatLockState>({ locked: false, message: null });
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        deploy?: { chatLocked?: boolean; chatLockMessage?: string | null } | null;
+      };
+      if (!res.ok || !data.ok || !data.deploy) {
+        setState({ locked: false, message: null });
+        return;
+      }
+      setState({
+        locked: Boolean(data.deploy.chatLocked),
+        message: data.deploy.chatLockMessage ?? null,
+      });
+    } catch {
+      setState({ locked: false, message: null });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const timer = setInterval(() => void refresh(), DEPLOY_INDICATOR_POLL_MS);
+    const onVis = () => {
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [refresh]);
+
+  return state;
 }
 
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
@@ -1280,6 +1339,8 @@ function ClaudeComposer({
   useExternalProgress,
   streamedProgress,
   onStopExternal,
+  deployChatLocked = false,
+  deployChatLockMessage = null,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
@@ -1290,6 +1351,8 @@ function ClaudeComposer({
   useExternalProgress?: boolean;
   streamedProgress?: AgentProgress | null;
   onStopExternal?: () => void;
+  deployChatLocked?: boolean;
+  deployChatLockMessage?: string | null;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -1343,6 +1406,22 @@ function ClaudeComposer({
             )}
           </div>
         </ComposerPrimitive.Root>
+      </div>
+    );
+  }
+
+  if (deployChatLocked) {
+    return (
+      <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+        <div className="aui-composer-deploy-lock" role="status">
+          <span className="aui-composer-deploy-lock-icon" aria-hidden="true">
+            🚀
+          </span>
+          <p className="aui-composer-deploy-lock-text">
+            {deployChatLockMessage ||
+              'Deploy in progress — new messages are paused until the new version is live.'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -1679,10 +1758,12 @@ function AgentChatThreadBody({
   propsRef,
   threadId,
   streamedProgress,
+  deployChatLock,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   threadId: string;
   streamedProgress: AgentProgress | null;
+  deployChatLock: DeployChatLockState;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
@@ -1738,6 +1819,8 @@ function AgentChatThreadBody({
             useExternalProgress={recovering}
             streamedProgress={streamedProgress}
             onStopExternal={() => void stopRecovery()}
+            deployChatLocked={deployChatLock.locked}
+            deployChatLockMessage={deployChatLock.message}
             onFocusInputReady={(focus) => {
               focusComposerRef.current = focus;
             }}
@@ -1778,6 +1861,8 @@ function AgentChatThreadBody({
                 useExternalProgress={recovering}
                 streamedProgress={streamedProgress}
                 onStopExternal={() => void stopRecovery()}
+                deployChatLocked={deployChatLock.locked}
+                deployChatLockMessage={deployChatLock.message}
                 onFocusInputReady={(focus) => {
                   focusComposerRef.current = focus;
                 }}
@@ -1802,6 +1887,7 @@ function AgentChatThread({
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
 }) {
+  const deployChatLock = useDeployChatLock();
   const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
   const adapter = useMemo(
     () => createChatAdapter(threadId, propsRef, setStreamedProgress),
@@ -1820,11 +1906,16 @@ function AgentChatThread({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
+      <PendingDraftBoot
+        draft={pendingDraft}
+        autoSend={pendingAutoSend}
+        deployChatLocked={deployChatLock.locked}
+      />
       <AgentChatThreadBody
         propsRef={propsRef}
         threadId={threadId}
         streamedProgress={streamedProgress}
+        deployChatLock={deployChatLock}
       />
     </AssistantRuntimeProvider>
   );

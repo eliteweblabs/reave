@@ -349,6 +349,41 @@ function alreadyHasBanner(text: string): boolean {
   return BANNER_PREFIXES.some((p) => text.startsWith(p));
 }
 
+/** When true (default on Railway), block new admin chat sends while a deploy is in flight. */
+export function isDeployChatLockEnabled(): boolean {
+  const raw = serverEnv('DEPLOY_CHAT_LOCK')?.trim().toLowerCase();
+  if (raw === '0' || raw === 'false' || raw === 'off' || raw === 'no') return false;
+  if (raw === '1' || raw === 'true' || raw === 'on' || raw === 'yes') return true;
+  return Boolean(deployedSha());
+}
+
+const CHAT_LOCK_STATES = new Set<DeployState>(['deploying', 'stale', 'failed']);
+
+/** True when new user chat sends should be rejected until the deploy settles. */
+export function isChatLockedForDeploy(snapshot: DeployStatusSnapshot | null | undefined): boolean {
+  if (!snapshot || !isDeployChatLockEnabled()) return false;
+  return CHAT_LOCK_STATES.has(snapshot.state);
+}
+
+/** User-facing reason for the chat lock (API + composer banner). */
+export function chatDeployLockMessage(snapshot: DeployStatusSnapshot): string {
+  if (snapshot.state === 'failed') {
+    const reason = snapshot.failed_reason ?? 'Deploy failed';
+    return `${reason} — new messages are paused until the site is live again.`;
+  }
+  if (snapshot.state === 'stale' && snapshot.latest_commit) {
+    const min =
+      snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
+    return `Deploy stale (${snapshot.latest_commit.short_sha} pushed ${min} min ago) — new messages are paused until the site is live again.`;
+  }
+  if (snapshot.state === 'deploying' && snapshot.latest_commit) {
+    const msg = truncateMessage(snapshot.latest_commit.message, 48);
+    const bit = msg ? `: ${msg}` : '';
+    return `Deploying ${snapshot.latest_commit.short_sha}${bit} — new messages are paused until the new version is live.`;
+  }
+  return 'Deploy in progress — new messages are paused until the new version is live.';
+}
+
 /** Prepend deploy banner to an agent reply when deploying, stale, failed, or explicitly live. */
 export async function prependDeployBanner(
   text: string,

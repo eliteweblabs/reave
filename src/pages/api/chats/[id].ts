@@ -54,6 +54,11 @@ import {
   promoteChatDocsToLinkedProjects,
   promoteChatImagesToLinkedProjects,
 } from '../../../lib/projectFiles';
+import {
+  chatDeployLockMessage,
+  getDeployStatus,
+  isChatLockedForDeploy,
+} from '../../../lib/deployStatus';
 
 export const prerender = false;
 
@@ -269,6 +274,19 @@ export async function POST(context: APIContext): Promise<Response> {
   const loaded = await loadOwnerChatThread(userId, id);
   if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
   const { ownerUserId, thread } = loaded;
+
+  const deployStatus = await getDeployStatus();
+  if (isChatLockedForDeploy(deployStatus)) {
+    return json(
+      {
+        ok: false,
+        deploy_locked: true,
+        deploy_state: deployStatus!.state,
+        error: chatDeployLockMessage(deployStatus!),
+      },
+      503,
+    );
+  }
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images, docs);

@@ -77,6 +77,8 @@ interface ImportMetaEnv {
   GITHUB_DEFAULT_BRANCH?: string;
   /** Optional explicit health-check URL for check_deployment_status (default: RAILWAY_PUBLIC_DOMAIN or reave.app). */
   DEPLOY_HEALTH_URL?: string;
+  /** When 0/off, allow admin chat sends during Railway deploys. Default: on when RAILWAY_GIT_COMMIT_SHA is set. */
+  DEPLOY_CHAT_LOCK?: string;
   /** Injected by Railway at deploy time — the live commit SHA (used to verify deploy is current). */
   RAILWAY_GIT_COMMIT_SHA?: string;
   /** Injected by Railway — public domain of the service (used for the health ping). */
