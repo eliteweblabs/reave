@@ -55,47 +55,6 @@ export function syncSsrAfterClerkSignIn() {
   return true;
 }
 
-function authSyncAttempts() {
-  try {
-    return Number(sessionStorage.getItem(AUTH_SYNC_KEY) || '0');
-  } catch {
-    return 0;
-  }
-}
-
-/** Open the admin sign-in bottom sheet when the SSR session is missing. */
-export function openAdminSignInSheet() {
-  const sheet = document.getElementById('sign-in-sheet');
-  if (!sheet || sheet.classList.contains('open')) return true;
-  if (!window.IosSheet?.open) return false;
-  window.IosSheet.open('sign-in-sheet');
-  return true;
-}
-
-/**
- * Signed-out admin shell — open sign-in once boot assets are ready.
- * Retries briefly so clerk-loaded / deferred ios-sheet.js cannot be missed.
- */
-export function ensureAdminSignInSheetOpen() {
-  if (serverHasStaffSession()) return;
-
-  let tries = 0;
-  const retry = setInterval(() => {
-    tries += 1;
-    if (serverHasStaffSession()) {
-      clearInterval(retry);
-      return;
-    }
-    if (clerkClientHasSession() && authSyncAttempts() < AUTH_SYNC_MAX) {
-      if (tries >= 40) clearInterval(retry);
-      return;
-    }
-    if (openAdminSignInSheet() || tries >= 40) {
-      clearInterval(retry);
-    }
-  }, 50);
-}
-
 /**
  * After Clerk sign-in on iOS, client session can lead SSR by a beat. Reload once
  * instead of reopening sign-in or redirecting with auth=sign-in (refresh loop).
@@ -103,46 +62,19 @@ export function ensureAdminSignInSheetOpen() {
 export function bindClerkSsrSessionSync(opts = {}) {
   const { autoOpenSignIn = false } = opts;
 
-  async function run() {
-    if (serverHasStaffSession()) return;
+  function run() {
     if (syncSsrAfterClerkSignIn()) return;
-    if (!autoOpenSignIn) return;
-
-    if (clerkClientHasSession()) {
-      if (authSyncAttempts() >= AUTH_SYNC_MAX) {
-        try {
-          sessionStorage.removeItem(AUTH_SYNC_KEY);
-        } catch {
-          /* ignore */
-        }
-        try {
-          await window.Clerk?.signOut?.();
-        } catch {
-          /* ignore */
-        }
-        openAdminSignInSheet();
-      }
-      return;
+    if (autoOpenSignIn && !serverHasStaffSession() && !clerkClientHasSession()) {
+      window.IosSheet?.open('sign-in-sheet');
     }
-
-    openAdminSignInSheet();
   }
 
   // Capture phase — beat Clerk SignIn's post-auth redirect when SSR cookies lag (Safari).
-  window.addEventListener('clerk-loaded', () => {
-    void run();
-  }, true);
-  if (window.Clerk?.loaded) void run();
+  window.addEventListener('clerk-loaded', run, true);
+  if (window.Clerk?.loaded) run();
   else {
     document.addEventListener('DOMContentLoaded', () => {
-      if (window.Clerk?.loaded) void run();
-    });
-  }
-
-  if (autoOpenSignIn) {
-    ensureAdminSignInSheetOpen();
-    window.addEventListener('pageshow', () => {
-      if (!serverHasStaffSession()) void run();
+      if (window.Clerk?.loaded) run();
     });
   }
 }
@@ -166,7 +98,10 @@ export async function adminFetch(url, opts = {}) {
     const returnTo = encodeURIComponent(
       cleanAdminReturnUrl(window.location.pathname, window.location.search),
     );
-    if (!openAdminSignInSheet()) {
+    const signInSheet = document.getElementById('sign-in-sheet');
+    if (signInSheet && window.IosSheet?.open) {
+      window.IosSheet.open('sign-in-sheet');
+    } else {
       window.location.assign(`/admin/?auth=sign-in&returnTo=${returnTo}`);
     }
     throw new Error('Session expired');
