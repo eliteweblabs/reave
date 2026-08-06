@@ -32,6 +32,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS source_email_id TEXT`,
   `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`,
+  `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS agent_usage JSONB`,
 ];
 
 const INDEX_SQL = [
@@ -144,7 +145,7 @@ export async function pgGetChatThread(
     if (!thread) return null;
 
     const msgRes = await pool.query<ChatMessage>(
-      `SELECT id, role, content, created_at
+      `SELECT id, role, content, created_at, agent_usage
        FROM chat_messages WHERE thread_id = $1
        ORDER BY created_at ASC`,
       [threadId]
@@ -205,8 +206,13 @@ export async function pgAppendChatMessages(
       await client.query('BEGIN');
       for (const t of turns) {
         await client.query(
-          `INSERT INTO chat_messages (thread_id, role, content) VALUES ($1, $2, $3)`,
-          [threadId, t.role, t.content]
+          `INSERT INTO chat_messages (thread_id, role, content, agent_usage) VALUES ($1, $2, $3, $4)`,
+          [
+            threadId,
+            t.role,
+            t.content,
+            t.agent_usage ? JSON.stringify(t.agent_usage) : null,
+          ],
         );
       }
       await client.query(

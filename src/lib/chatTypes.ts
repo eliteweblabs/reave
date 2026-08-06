@@ -1,6 +1,9 @@
+import type { AgentUsageSummary } from './agentUsage';
+
 export type ChatTurn = {
   role: 'user' | 'assistant';
   content: string;
+  agent_usage?: AgentUsageSummary | null;
 };
 
 export type ChatImageMediaType =
@@ -88,6 +91,7 @@ export interface ChatMessage {
   role: ChatTurn['role'];
   content: string;
   created_at: string;
+  agent_usage?: AgentUsageSummary | null;
 }
 
 export interface ChatThreadDetail extends ChatThreadSummary {

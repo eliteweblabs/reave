@@ -125,6 +125,11 @@
   padding-left: 0.05rem;
 }
 
+.aui-msg-usage {
+  color: color-mix(in srgb, var(--muted) 88%, var(--accent, #888) 12%);
+  white-space: nowrap;
+}
+
 .aui-msg-row {
   display: flex;
   width: 100%;

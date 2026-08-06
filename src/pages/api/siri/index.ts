@@ -664,10 +664,10 @@ async function runProposalResearch(input: {
 
   let reply: string;
   try {
-    reply = await runKnowledgeAgent({
+    reply = (await runKnowledgeAgent({
       userText,
       context: agentContext,
-    });
+    })).text;
   } catch (e) {
     reply = `Research failed: ${e instanceof Error ? e.message : String(e)}`;
     log.error('runKnowledgeAgent threw', e instanceof Error ? e : new Error(String(e)));

@@ -45,6 +45,13 @@ import {
   type AgentDeadline,
 } from './agentWatchdog';
 import { labelForAgentTool } from './agentToolLabels';
+import {
+  addAnthropicUsage,
+  createAgentUsageAccumulator,
+  finalizeAgentUsage,
+  logAgentUsage,
+  type AgentUsageSummary,
+} from './agentUsage';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
 import { listJobsForItem } from './projectLinks';
@@ -467,6 +474,8 @@ async function linkedProjectContextLine(threadId: string): Promise<string | null
   return lines.join('\n\n');
 }
 
+export type AgentRunResult = { text: string; usage: AgentUsageSummary | null };
+
 /**
  * Minimal agent loop (Anthropic Messages API): the model may call
  * list_knowledge / read_knowledge / resolve_contact / create_invoice / etc.;
@@ -481,7 +490,7 @@ export async function runKnowledgeAgent(opts: {
   context?: AgentRunContext;
   signal?: AbortSignal;
   deadline?: AgentDeadline;
-}): Promise<string> {
+}): Promise<AgentRunResult> {
   return runWithAgentContext(opts.context ?? {}, () =>
     runKnowledgeAgentInner(
       {
@@ -534,13 +543,13 @@ type AgentStreamingOpts = {
 /** Stream agent progress + cumulative assistant text (for SSE chat UI). */
 export function runKnowledgeAgentStreaming(
   opts: AgentStreamingOpts,
-): AsyncGenerator<AgentStreamEvent, string> {
+): AsyncGenerator<AgentStreamEvent, AgentRunResult> {
   return runKnowledgeAgentStreamingBridge(opts);
 }
 
 async function* runKnowledgeAgentStreamingBridge(
   opts: AgentStreamingOpts,
-): AsyncGenerator<AgentStreamEvent, string> {
+): AsyncGenerator<AgentStreamEvent, AgentRunResult> {
   const events: AgentStreamEvent[] = [];
   let resolveWait: (() => void) | null = null;
   const emit = (event: AgentStreamEvent) => {
@@ -554,7 +563,7 @@ async function* runKnowledgeAgentStreamingBridge(
       else resolveWait = resolve;
     });
 
-  let finalText = '';
+  let finalResult: AgentRunResult = { text: '', usage: null };
   let runError: unknown;
   const runPromise = runWithAgentContext(opts.context ?? {}, () =>
     runKnowledgeAgentInner(
@@ -573,8 +582,8 @@ async function* runKnowledgeAgentStreamingBridge(
       },
     ),
   )
-    .then((text) => {
-      finalText = text;
+    .then((result) => {
+      finalResult = result;
     })
     .catch((err) => {
       runError = err;
@@ -591,7 +600,7 @@ async function* runKnowledgeAgentStreamingBridge(
     ]);
     if (settled === 'done') {
       while (events.length) yield events.shift()!;
-      return finalText;
+      return finalResult;
     }
   }
 }
@@ -606,18 +615,25 @@ async function runKnowledgeAgentInner(
     deadline?: AgentDeadline;
   },
   stream?: AgentStreamCallbacks,
-): Promise<string> {
+): Promise<AgentRunResult> {
   if (await isSleepModeActive()) {
-    return sleepModeBlockMessage();
+    return { text: sleepModeBlockMessage(), usage: null };
   }
 
   const { userText, images = [], docs = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    return 'LLM is not configured. Set ANTHROPIC_API_KEY.';
+    return { text: 'LLM is not configured. Set ANTHROPIC_API_KEY.', usage: null };
   }
 
   const model = await resolveAgentModel(modelOverride);
+  const usageAcc = createAgentUsageAccumulator(model);
+  const agentCtx = getAgentContext();
+  const finishRun = async (text: string): Promise<AgentRunResult> => {
+    const usage = finalizeAgentUsage(usageAcc);
+    if (usage) logAgentUsage(usage, { threadId: agentCtx.threadId, userTextPreview: userText });
+    return { text: await finalizeAgentReply(text, userText), usage };
+  };
   const brand = await getCompanyBrandContext();
   const tools = buildAnthropicTools(brand);
 
@@ -850,9 +866,9 @@ async function runKnowledgeAgentInner(
    * the next turn) exactly how far it got, so a stalled turn reads as a stalled
    * turn rather than as a completed one that quietly did nothing.
    */
-  const bailOut = (note: string, roundText = '') => {
+  const bailOut = async (note: string, roundText = ''): Promise<AgentRunResult> => {
     const said = partialSoFar() || roundText.trim();
-    return finalizeAgentReply(said ? `${said}\n\n${note}` : note, userText);
+    return finishRun(said ? `${said}\n\n${note}` : note);
   };
 
   for (let round = 0; round < maxRounds; round++) {
@@ -896,8 +912,9 @@ async function runKnowledgeAgentInner(
           'Model response',
         );
         if (!result.ok) {
-          return finalizeAgentReply(formatAnthropicApiError(result.status, result.text), userText);
+          return finishRun(formatAnthropicApiError(result.status, result.text));
         }
+        addAnthropicUsage(usageAcc, result.data.usage);
         stopReason = result.data.stop_reason;
         content = result.data.content as AnthropicContentBlock[];
       } else {
@@ -907,8 +924,9 @@ async function runKnowledgeAgentInner(
           'Model response',
         );
         if (!result.ok) {
-          return finalizeAgentReply(formatAnthropicApiError(result.status, result.text), userText);
+          return finishRun(formatAnthropicApiError(result.status, result.text));
         }
+        addAnthropicUsage(usageAcc, result.data.usage);
         const data = result.data as {
           stop_reason?: string;
           content?: AnthropicContentBlock[];
@@ -980,9 +998,8 @@ async function runKnowledgeAgentInner(
       }
 
       if (!toolResults.length) {
-        return finalizeAgentReply(
+        return finishRun(
           'The model requested a tool call but returned no usable tool blocks. Try sending your message again.',
-          userText,
         );
       }
       messages.push({ role: 'user', content: toolResults });
@@ -1027,7 +1044,7 @@ async function runKnowledgeAgentInner(
       return bailOut(stallExplanation({ truncated, blank, unfulfilled, cutOffTool }), text);
     }
 
-    return finalizeAgentReply(text, userText);
+    return finishRun(text);
   }
 
   return bailOut(

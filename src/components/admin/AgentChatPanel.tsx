@@ -38,6 +38,7 @@ import {
 } from '../../lib/chatMessageFormat';
 import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
 import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
+import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -395,7 +396,12 @@ function readCompanyBrandName(fallback = 'Assistant'): string {
   return name || fallback;
 }
 
-export type StoredChatMessage = { role: 'user' | 'assistant'; content: string; created_at?: string };
+export type StoredChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at?: string;
+  agent_usage?: AgentUsageSummary | null;
+};
 
 function sameCalendarDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
@@ -440,6 +446,11 @@ function ChatMessageShell({
   children: ReactNode;
 }) {
   const createdAt = useAuiState((s) => s.message.createdAt);
+  const agentUsage = useAuiState((s) => {
+    if (align !== 'assistant') return null;
+    const metadata = s.message.metadata as { agentUsage?: AgentUsageSummary } | undefined;
+    return metadata?.agentUsage ?? null;
+  });
   const showDaySeparator = useAuiState((s) => {
     const idx = s.message.index;
     if (idx <= 0) return true;
@@ -456,6 +467,12 @@ function ChatMessageShell({
           <div className={bubbleClassName}>{children}</div>
           <time className={`aui-msg-time aui-msg-time--${align}`} dateTime={createdAt.toISOString()}>
             {formatChatMessageTime(createdAt)}
+            {agentUsage ? (
+              <span className="aui-msg-usage" title={`${agentUsage.model_label} · estimated API cost`}>
+                {' · '}
+                {formatAgentUsageLine(agentUsage)}
+              </span>
+            ) : null}
           </time>
         </div>
       </MessagePrimitive.Root>
@@ -477,7 +494,10 @@ export type AgentChatPanelProps = {
   onAgentRunChange?: (running: boolean) => void;
   onAgentProgress?: (progress: AgentProgress | null) => void;
   onRefreshMessages?: () => void | Promise<void>;
-  onMessagesPersist?: (userContent: string, assistantContent: string) => void;
+  onMessagesPersist?: (
+    userContent: string,
+    assistant: { content: string; agent_usage?: AgentUsageSummary | null },
+  ) => void;
   onTitleUpdate?: (title: string) => void;
   onLinkedJobsRefresh?: () => void;
 };
@@ -488,6 +508,7 @@ type SendResult = {
   title?: string;
   userMessage?: StoredChatMessage;
   assistantMessage?: StoredChatMessage;
+  agent_usage?: AgentUsageSummary | null;
 };
 
 function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
@@ -496,6 +517,7 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     return {
       role: 'assistant',
       createdAt,
+      metadata: message.agent_usage ? { agentUsage: message.agent_usage } : undefined,
       content: [{ type: 'text', text: storedChatPlainText(message.content) }],
     };
   }
@@ -804,9 +826,18 @@ function createChatAdapter(
                 if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
                 propsRef.current?.onLinkedJobsRefresh?.();
                 const userMsg = data.userMessage as { content?: string } | undefined;
-                const assistantMsg = data.assistantMessage as { content?: string } | undefined;
+                const assistantMsg = data.assistantMessage as
+                  | { content?: string; agent_usage?: AgentUsageSummary | null }
+                  | undefined;
+                const agentUsage =
+                  (data.agent_usage as AgentUsageSummary | null | undefined) ??
+                  assistantMsg?.agent_usage ??
+                  null;
                 if (userMsg?.content && assistantMsg?.content) {
-                  propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
+                  propsRef.current?.onMessagesPersist?.(userMsg.content, {
+                    content: assistantMsg.content,
+                    agent_usage: agentUsage,
+                  });
                 }
                 const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
                 if (assistantText && assistantText !== streamedText) {
@@ -853,10 +884,10 @@ function createChatAdapter(
         if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
         propsRef.current?.onLinkedJobsRefresh?.();
         if (data.userMessage?.content && data.assistantMessage?.content) {
-          propsRef.current?.onMessagesPersist?.(
-            data.userMessage.content,
-            data.assistantMessage.content,
-          );
+          propsRef.current?.onMessagesPersist?.(data.userMessage.content, {
+            content: data.assistantMessage.content,
+            agent_usage: data.agent_usage ?? data.assistantMessage.agent_usage ?? null,
+          });
         }
 
         const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');

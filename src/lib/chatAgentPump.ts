@@ -27,7 +27,7 @@ export type PumpableAgentStream = {
 
 export type PumpOutcome =
   /** The run finished normally; `reply` is its answer. */
-  | { status: 'complete'; reply: string }
+  | { status: 'complete'; reply: string; usage?: import('./agentUsage').AgentUsageSummary | null }
   /** The run stopped responding and was abandoned. */
   | { status: 'timeout' }
   /** The run was cancelled (Stop). */
@@ -60,7 +60,12 @@ export async function pumpAgentStream(opts: {
     }
 
     if (next.done) {
-      return { status: 'complete', reply: typeof next.value === 'string' ? next.value : '' };
+      const value = next.value;
+      if (value && typeof value === 'object' && 'text' in value) {
+        const result = value as { text: string; usage?: import('./agentUsage').AgentUsageSummary | null };
+        return { status: 'complete', reply: result.text, usage: result.usage ?? null };
+      }
+      return { status: 'complete', reply: typeof value === 'string' ? value : '', usage: null };
     }
 
     const event = next.value;
