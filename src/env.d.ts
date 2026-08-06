@@ -223,3 +223,10 @@ interface ImportMetaEnv {
 interface Window {
   Vapi?: new (...args: unknown[]) => unknown;
 }
+
+/**
+ * Per-deploy cache-busting token for scripts served from `public/`, injected by
+ * `vite.define` in astro.config.mjs. See scripts/asset-version.mjs for why those
+ * files need one.
+ */
+declare const __PUBLIC_ASSET_VERSION__: string;

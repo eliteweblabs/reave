@@ -19,6 +19,9 @@ const {
   authPath = '/sign-in',
 } = Astro.props;
 
+/** public/ scripts bypass middleware, so the ?v= token is their only cache bust. */
+const assetVersion = __PUBLIC_ASSET_VERSION__;
+
 /**
  * Clerk's hosted sign-in lives on the `accounts.` sibling of the Frontend API
  * host, which is base64-encoded in the publishable key. Deriving it keeps the
@@ -142,7 +145,7 @@ const clerkAppearance = {
   </div>
 </IosBottomSheet>
 
-<script src="/ios-sheet.js" defer></script>
+<script is:inline src={`/ios-sheet.js?v=${assetVersion}`} defer></script>
 
 <style is:global>
   /* Match Clerk default theme to sheet light/dark (do not force theme: dark). */
@@ -216,7 +219,7 @@ const clerkAppearance = {
   }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
+<script type="module" define:vars={{ autoOpenSignIn: autoOpen, assetVersion }}>
   /**
    * `/admin/*.js` is served straight off disk by the node adapter's static
    * handler, so the middleware never sees it and it ships as public,
@@ -225,7 +228,7 @@ const clerkAppearance = {
    * takes this whole script down with it, so load it at arm's length: the sheet
    * has to keep working even when shared.js is stale or missing entirely.
    */
-  const sharedUrl = '/admin/shared.js?v=20260805j';
+  const sharedUrl = `/admin/shared.js?v=${assetVersion}`;
   import(/* @vite-ignore */ sharedUrl)
     .then((shared) => shared.bindClerkSsrSessionSync?.({ autoOpenSignIn }))
     .catch((err) => console.warn('[sign-in] shared.js unavailable', err));

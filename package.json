@@ -17,7 +17,7 @@
     "push:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/send-demo-push.ts",
     "portfolio:optimize": "node scripts/optimize-portfolio-images.mjs",
     "prebuild": "node --experimental-strip-types scripts/sync-vapi-assistant.ts && node scripts/optimize-portfolio-images.mjs",
-    "build": "astro build",
+    "build": "astro build && node scripts/version-public-assets.mjs",
     "check": "astro check",
     "check:chat": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-resilience.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
