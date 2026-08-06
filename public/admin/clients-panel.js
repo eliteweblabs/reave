@@ -53,7 +53,8 @@ import {
   createClientDetailPanel,
   mountClientVaultSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260805h';
+} from './work-panel.js?v=20260806a';
+import { createDetailChrome, createDetailFormScroll } from './detail-tabs.js?v=20260806a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
@@ -1137,10 +1138,7 @@ function bindClientBrandingScrape(btn, uid, getWebsite, onUpdate, refreshers) {
 }
 
 function createClientFormScroll(pane) {
-  const scroll = document.createElement('div');
-  scroll.className = 're-form-scroll cl-form-scroll';
-  pane.appendChild(scroll);
-  return scroll;
+  return createDetailFormScroll(pane, 'cl-form-scroll');
 }
 
 function renderNewClientForm(pane) {
@@ -1361,9 +1359,10 @@ function renderEditClientForm(pane) {
           }),
         ].filter(Boolean),
       });
-      pane.appendChild(header);
+      const chrome = createDetailChrome(pane, 'cl-detail-chrome');
+      chrome.appendChild(header);
 
-      mountClientDetailTabs(pane, clientState.detailTab, (tabId) => {
+      mountClientDetailTabs(chrome, clientState.detailTab, (tabId) => {
         clientState.detailTab = tabId;
         showClientDetailPanel(pane, tabId);
       });
