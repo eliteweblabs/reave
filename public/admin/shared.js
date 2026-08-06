@@ -56,6 +56,53 @@ export function syncSsrAfterClerkSignIn() {
 }
 
 /**
+ * Clerk refuses to mount <SignIn/> while its client holds a session, and this
+ * instance is single-session. So when the client keeps a session the server will
+ * not accept and the reload path above has already given up, the sheet opens
+ * empty. In a browser you can escape via /sign-out, but that is outside the
+ * installed PWA's /admin scope, so the app has no way back to a sign-in form.
+ *
+ * Offer the reset as a button rather than signing out automatically: a slow SSR
+ * cookie on a good sign-in looks identical for a beat, and guessing wrong there
+ * logs the user out of a session that was about to work.
+ */
+export function bindStuckSignInRecovery() {
+  const reset = document.querySelector('[data-signin-reset]');
+  if (!reset) return;
+
+  function isStuck() {
+    if (serverHasStaffSession() || !clerkClientHasSession()) return false;
+    try {
+      return Number(sessionStorage.getItem(AUTH_SYNC_KEY) || '0') >= AUTH_SYNC_MAX;
+    } catch {
+      return true;
+    }
+  }
+
+  function sync() {
+    reset.hidden = !isStuck();
+  }
+
+  reset.querySelector('button')?.addEventListener('click', async () => {
+    try {
+      sessionStorage.removeItem(AUTH_SYNC_KEY);
+    } catch {
+      /* ignore */
+    }
+    try {
+      await window.Clerk?.signOut?.();
+    } catch {
+      /* ignore */
+    }
+    window.location.replace('/admin/?auth=sign-in');
+  });
+
+  window.addEventListener('clerk-loaded', sync, true);
+  if (window.Clerk?.loaded) sync();
+  else document.addEventListener('DOMContentLoaded', sync);
+}
+
+/**
  * After Clerk sign-in on iOS, client session can lead SSR by a beat. Reload once
  * instead of reopening sign-in or redirecting with auth=sign-in (refresh loop).
  */
