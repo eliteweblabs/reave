@@ -164,28 +164,6 @@
   cursor: pointer;
 }
 
-.dash-review-alerts .admin-setup-alert--receipt-expense {
-  flex-wrap: wrap;
-}
-.admin-setup-alert-receipt-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  width: 100%;
-  padding-top: 0.55rem;
-  margin-top: 0.15rem;
-  border-top: 1px solid color-mix(in srgb, var(--panel-border) 70%, transparent);
-}
-.admin-setup-alert-receipt-actions .admin-setup-alert-btn {
-  flex: 1 1 6.5rem;
-  min-height: 2.25rem;
-  font-size: 0.8rem;
-  text-align: center;
-}
-.dash-review-alerts .admin-setup-alert--receipt-expense .admin-setup-alert-receipt-actions .admin-setup-alert-btn--primary {
-  flex: 1.4 1 8rem;
-}
-
 .meeting-confirm-lead {
   margin: 0 0 0.85rem;
   font-size: 0.84rem;

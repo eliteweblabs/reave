@@ -4092,9 +4092,6 @@ function buildReviewAlertBanner(item) {
   if (emailAwaitingTriage) {
     alert.classList.add('admin-setup-alert--triage');
   }
-  if (isReceiptExpense) {
-    alert.classList.add('admin-setup-alert--receipt-expense');
-  }
 
   if (isOtp) {
     alert.classList.add('admin-setup-alert--otp');
@@ -4209,6 +4206,20 @@ function buildReviewAlertBanner(item) {
       label: 'Reschedule',
       onClick: () => rescheduleScheduledMeeting(item),
     });
+  } else if (isReceiptExpense) {
+    const expenseBtn = appendReviewAlertAction(actions, {
+      label: 'Expense',
+      primary: true,
+      onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
+    });
+    if (item.amount == null) {
+      expenseBtn.disabled = true;
+      expenseBtn.title = 'No dollar amount detected on this email';
+    }
+    appendReviewAlertAction(actions, {
+      label: 'Archive',
+      onClick: (btn) => void archiveReceiptFromAlert(item, btn),
+    });
   }
 
   if (isEmailAutomationReview(item)) {
@@ -4238,26 +4249,6 @@ function buildReviewAlertBanner(item) {
   actions.appendChild(dismissBtn);
 
   alert.append(iconsCol, copy, actions);
-
-  if (isReceiptExpense) {
-    const receiptActions = document.createElement('div');
-    receiptActions.className = 'admin-setup-alert-receipt-actions';
-    const expenseBtn = appendReviewAlertAction(receiptActions, {
-      label: 'Expense',
-      primary: true,
-      onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
-    });
-    if (item.amount == null) {
-      expenseBtn.disabled = true;
-      expenseBtn.title = 'No dollar amount detected on this email';
-    }
-    appendReviewAlertAction(receiptActions, {
-      label: 'Archive',
-      onClick: (btn) => void archiveReceiptFromAlert(item, btn),
-    });
-    alert.appendChild(receiptActions);
-  }
-
   bindReviewAlertSwipe(alert, item);
   return alert;
 }
