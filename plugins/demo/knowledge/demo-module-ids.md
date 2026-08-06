@@ -18,7 +18,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 | 002 | `web_handoff` | Portal Data tab (handoff creds) |
 | 003 | `portal_assistant` | Client portal help chat (speed-dial support assistant) |
 | 004 | `billing` | Crater billing & invoices |
-| 005 | `site_audits` | Site audits (Lighthouse, SSL, DNS, links) |
+| 005 | `site_audits` | Website Audit |
 | 006 | `site_monitoring` | Site change monitoring (ChangeDetection.io) |
 | 007 | `uptime_monitoring` | Uptime monitoring (UptimeRobot) |
 | 008 | `documents` | Document signing templates |
@@ -27,7 +27,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 | 011 | `carddav` | CardDAV (iOS Contacts sync) |
 | 012 | `scheduling` | Cal.com scheduling & meetings |
 | 013 | `dev_infra` | Dev & infrastructure (Git, Railway, Kinsta, deploy) |
-| 014 | `code_dev` | Local code tools (read/write/list/exec) — Reave install only |
+| 014 | `code_dev` | Local code tools (read/write/list/exec) |
 | 015 | `email_marketing` | Newsletter & email automation |
 | 016 | `fleet_tracking` | Fleet tracking (multi-vehicle GPS via fleet-api) |
 | 017 | `dealership_wizard` | Dealership inventory & deal wizard (paulino-wizard) |

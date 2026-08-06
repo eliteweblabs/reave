@@ -279,12 +279,11 @@ Status: **pending** · Playbook: `plugins/code-dev/DEPLOY.md`
 
 ## External setup
 
-- Enable `code_dev` only in `config/config-reave.json` (Reave install)
+- Enable `code_dev` in install config `features[]` for web development agencies and similar installs
 - Grants agent `read_file`, `write_file`, `list_files`, `exec_command` on the repo
 
 ## Checklist
 
-- [ ] Confirm install is Reave internal (not a client deployment)
 - [ ] Add `code_dev` to install config `features[]`
 - [ ] Verify agent can read/write files locally
 - [ ] Set `moduleStatus.code_dev` → `deployed` in install config

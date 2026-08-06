@@ -1,6 +1,6 @@
 /**
  * Local filesystem + shell tools for the in-app coding agent.
- * Gated by the `code_dev` install feature (Reave only — not for other installs).
+ * Gated by the `code_dev` install feature (web dev agencies and internal installs).
  *
  * Paths are sandboxed to the project root. Shell runs with cwd = project root.
  */
