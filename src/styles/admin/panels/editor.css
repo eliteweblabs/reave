@@ -1221,6 +1221,7 @@ button.de-placeholder-action:active {
     max(0.5rem, env(safe-area-inset-left, 0px));
 }
 #work-editor .wk-detail-tabs {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -1236,6 +1237,24 @@ button.de-placeholder-action:active {
   flex: 0 0 auto;
   min-width: 0;
   background: var(--bg);
+}
+#work-editor .wk-detail-tabs::before,
+#work-editor .wk-detail-tabs::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--detail-tab-fade-w);
+  pointer-events: none;
+  z-index: 2;
+}
+#work-editor .wk-detail-tabs::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+}
+#work-editor .wk-detail-tabs::after {
+  right: 0;
+  background: linear-gradient(to right, transparent 0%, var(--bg) 100%);
 }
 #work-editor .wk-detail-tabs::-webkit-scrollbar { display: none; }
 #work-editor .wk-detail-tab {
@@ -1374,6 +1393,20 @@ button.de-placeholder-action:active {
 #work-editor .sliding-pill-select {
   min-width: 0;
 }
+#work-editor .re-form-scroll.wk-form-scroll {
+  padding-top: 0.1rem;
+}
+#work-editor .wk-detail-tabs {
+  padding-bottom: 0.2rem;
+}
+#work-editor .wk-client-readonly-bar {
+  padding-top: 0.2rem;
+}
+#work-editor .sliding-pill {
+  background: var(--nav-indicator-bg);
+  border-radius: 8px;
+  padding: 0.15rem;
+}
 @media (max-width: 639px) {
   #work-editor.de-pane-active .wk-detail-chrome > .de-header {
     position: static;
@@ -1405,11 +1438,19 @@ button.de-placeholder-action:active {
     background: var(--bg);
     flex-shrink: 0;
     overflow: visible;
+    gap: 0.3rem;
     padding:
       0.15rem
       max(0.5rem, env(safe-area-inset-right, 0px))
       0.2rem
       max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+  #clients-editor.de-pane-active .de-header .ios-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  #clients-editor.de-pane-active .de-header-actions {
+    gap: 0.15rem;
   }
   #work-editor.de-pane-active .de-pane {
     overflow: hidden;
@@ -2432,6 +2473,7 @@ button.de-placeholder-action:active {
   margin-top: 0.5rem;
 }
 #clients-editor .cl-detail-tabs {
+  position: relative;
   display: flex;
   gap: 0.25rem;
   overflow-x: auto;
@@ -2442,6 +2484,25 @@ button.de-placeholder-action:active {
   border-bottom: 1px solid var(--panel-border);
   flex: 0 0 auto;
   min-width: 0;
+  background: var(--bg);
+}
+#clients-editor .cl-detail-tabs::before,
+#clients-editor .cl-detail-tabs::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--detail-tab-fade-w);
+  pointer-events: none;
+  z-index: 2;
+}
+#clients-editor .cl-detail-tabs::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+}
+#clients-editor .cl-detail-tabs::after {
+  right: 0;
+  background: linear-gradient(to right, transparent 0%, var(--bg) 100%);
 }
 #clients-editor .cl-detail-tabs::-webkit-scrollbar { display: none; }
 #clients-editor .cl-detail-tab {
