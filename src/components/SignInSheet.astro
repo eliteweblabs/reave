@@ -233,6 +233,32 @@ const clerkAppearance = {
     .then((shared) => shared.bindClerkSsrSessionSync?.({ autoOpenSignIn }))
     .catch((err) => console.warn('[sign-in] shared.js unavailable', err));
 
+  /**
+   * Opening the sheet cannot depend on that import. shared.js only opens it from
+   * a `clerk-loaded` listener and a DOMContentLoaded listener, both of which it
+   * registers when it runs — and loading it asynchronously means it can register
+   * them after both events have already fired, leaving the sheet shut over a
+   * fully rendered Clerk form. /sign-in has no other trigger, so the page just
+   * looks empty. Drive it from here, where nothing can arrive too late.
+   */
+  if (autoOpenSignIn) {
+    let tries = 0;
+    const opener = setInterval(() => {
+      tries += 1;
+      const el = document.getElementById('sign-in-sheet');
+      const signedIn = document.body?.dataset?.userId?.trim();
+      if (!el || signedIn || el.classList.contains('open') || tries > 100) {
+        clearInterval(opener);
+        return;
+      }
+      // ios-sheet.js is deferred, so it may not have defined this yet.
+      if (window.IosSheet?.open) {
+        window.IosSheet.open('sign-in-sheet');
+        clearInterval(opener);
+      }
+    }, 50);
+  }
+
   const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
   const sheet = document.getElementById('sign-in-sheet');
   const reset = sheet?.querySelector('[data-signin-reset]');
