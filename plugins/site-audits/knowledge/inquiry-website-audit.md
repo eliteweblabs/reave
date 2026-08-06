@@ -45,7 +45,8 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
 | `ssl_check` | Certificate expiry, TLS, security headers (CSP, HSTS, X-Frame-Options, etc.) |
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
-| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
+| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS (public resolvers — can lag after NS changes) |
+| `cloudflare_dns` | When user says DNS is in Cloudflare: verify zone + list authoritative records before fixing SPF/DMARC |
 | `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
 | `playwright_audit` | Real-browser UX/UI: nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
@@ -119,6 +120,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 ### DNS & Email
 - {A records, host, MX provider}
 - {SPF/DKIM/DMARC status from dns_check}
+- If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
 
 ### Online Presence
 - {Google Business Profile, Yelp, Instagram, Facebook — from brave_search + fetch}

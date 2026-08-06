@@ -39,6 +39,7 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   create_github_repo: 90_000,
   write_github_file: 90_000,
   sync_resend_dns: 120_000,
+  cloudflare_dns: 90_000,
   sync_vapi_assistant: 90_000,
   sync_uptimerobot: 90_000,
   backup_kinsta_site: 180_000,
