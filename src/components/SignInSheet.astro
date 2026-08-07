@@ -19,27 +19,6 @@ const {
   authPath = '/sign-in',
 } = Astro.props;
 
-/** public/ scripts bypass middleware, so the ?v= token is their only cache bust. */
-const assetVersion = __PUBLIC_ASSET_VERSION__;
-
-/**
- * Clerk's hosted sign-in lives on the `accounts.` sibling of the Frontend API
- * host, which is base64-encoded in the publishable key. Deriving it keeps the
- * fallback correct per install instead of pinning one domain.
- */
-const accountPortalSignInUrl = (() => {
-  const encoded = (import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY ?? '').replace(/^pk_(test|live)_/, '');
-  if (!encoded) return '';
-  let host: string;
-  try {
-    host = atob(encoded).replace(/\$$/, '');
-  } catch {
-    return '';
-  }
-  if (!host.startsWith('clerk.')) return '';
-  return `https://accounts.${host.slice(6)}/sign-in`;
-})();
-
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
   options: {
@@ -89,32 +68,6 @@ const clerkAppearance = {
 };
 ---
 
-<script is:inline>
-  /**
-   * Clerk hash routing writes the current step into the URL, and that hash
-   * outlives the attempt — reopening `#/factor-one` restores a step the card
-   * cannot render. Steps Clerk *lands* on from outside the page (`/sso-callback`
-   * after OAuth, `/continue` and the `/verify-*` sign-up steps) must survive.
-   */
-  (function () {
-    var STALE_STEPS = [
-      '#/factor-one',
-      '#/factor-two',
-      '#/reset-password',
-      '#/reset-password-success',
-      '#/forgot-password',
-      '#/alternative-methods',
-      '#/choose-strategy',
-    ];
-    if (STALE_STEPS.indexOf(window.location.hash) === -1) return;
-    try {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    } catch {
-      window.location.hash = '';
-    }
-  })();
-</script>
-
 <IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={true} class="sign-in-sheet">
   <SignIn
     routing="hash"
@@ -132,20 +85,9 @@ const clerkAppearance = {
       appearance={clerkAppearance}
     />
   )}
-  <div class="sign-in-reset" data-signin-reset hidden>
-    <p>
-      This step has no sign-in method available. Start over to get the email and password form
-      back, then fill in <strong>both</strong> fields before pressing Continue — submitting an email
-      on its own lands back here.
-    </p>
-    <button type="button">Start over</button>
-    {accountPortalSignInUrl && (
-      <a href={accountPortalSignInUrl}>Use the secure sign-in page instead</a>
-    )}
-  </div>
 </IosBottomSheet>
 
-<script is:inline src={`/ios-sheet.js?v=${assetVersion}`} defer></script>
+<script src="/ios-sheet.js" defer></script>
 
 <style is:global>
   /* Match Clerk default theme to sheet light/dark (do not force theme: dark). */
@@ -181,131 +123,9 @@ const clerkAppearance = {
     background: transparent;
     box-shadow: none;
   }
-
-  #sign-in-sheet .sign-in-reset {
-    display: grid;
-    gap: 0.75rem;
-    justify-items: center;
-    padding: 0.5rem 0 0.25rem;
-    text-align: center;
-  }
-
-  #sign-in-sheet .sign-in-reset[hidden] {
-    display: none;
-  }
-
-  #sign-in-sheet .sign-in-reset p {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.45;
-    opacity: 0.75;
-  }
-
-  #sign-in-sheet .sign-in-reset a {
-    font-size: 0.85rem;
-    opacity: 0.8;
-  }
-
-  #sign-in-sheet .sign-in-reset button {
-    width: 100%;
-    padding: 0.7rem 1rem;
-    border: 1px solid currentColor;
-    border-radius: 0.5rem;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: autoOpen, assetVersion }}>
-  /**
-   * `/admin/*.js` is served straight off disk by the node adapter's static
-   * handler, so the middleware never sees it and it ships as public,
-   * max-age=14400. A browser can therefore hold a four-hour-old shared.js. A
-   * static import of a name that file does not have yet is a SyntaxError that
-   * takes this whole script down with it, so load it at arm's length: the sheet
-   * has to keep working even when shared.js is stale or missing entirely.
-   */
-  const sharedUrl = `/admin/shared.js?v=${assetVersion}`;
-  import(/* @vite-ignore */ sharedUrl)
-    .then((shared) => shared.bindClerkSsrSessionSync?.({ autoOpenSignIn }))
-    .catch((err) => console.warn('[sign-in] shared.js unavailable', err));
-
-  /**
-   * Opening the sheet cannot depend on that import. shared.js only opens it from
-   * a `clerk-loaded` listener and a DOMContentLoaded listener, both of which it
-   * registers when it runs — and loading it asynchronously means it can register
-   * them after both events have already fired, leaving the sheet shut over a
-   * fully rendered Clerk form. /sign-in has no other trigger, so the page just
-   * looks empty. Drive it from here, where nothing can arrive too late.
-   */
-  if (autoOpenSignIn) {
-    let tries = 0;
-    const opener = setInterval(() => {
-      tries += 1;
-      const el = document.getElementById('sign-in-sheet');
-      const signedIn = document.body?.dataset?.userId?.trim();
-      if (!el || signedIn || el.classList.contains('open') || tries > 100) {
-        clearInterval(opener);
-        return;
-      }
-      // ios-sheet.js is deferred, so it may not have defined this yet.
-      if (window.IosSheet?.open) {
-        window.IosSheet.open('sign-in-sheet');
-        clearInterval(opener);
-      }
-    }, 50);
-  }
-
-  const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
-  const sheet = document.getElementById('sign-in-sheet');
-  const reset = sheet?.querySelector('[data-signin-reset]');
-
-  /**
-   * Two states strand the sheet with nothing to type into. Clerk will not mount
-   * <SignIn/> while its client holds a session, and a sign-in attempt that ran
-   * out of first factors this device can complete renders as a bare list of
-   * social buttons. Both survive a reload because Clerk stores them on the
-   * client, and the installed PWA has no /sign-out inside its /admin scope.
-   */
-  function isStuck() {
-    if (!sheet || !reset) return false;
-    if (document.body?.dataset?.userId?.trim()) return false;
-    if (!window.Clerk?.loaded) return false;
-    if (!sheet.classList.contains('open')) return false;
-    return !sheet.querySelector('input[name="identifier"]');
-  }
-
-  reset?.querySelector('button')?.addEventListener('click', async () => {
-    try {
-      sessionStorage.removeItem(AUTH_SYNC_KEY);
-    } catch {
-      /* ignore */
-    }
-    // DELETE /v1/client — drops the stored sessions and the stuck attempt together.
-    try {
-      await window.Clerk?.client?.destroy?.();
-    } catch {
-      try {
-        await window.Clerk?.signOut?.();
-      } catch {
-        /* ignore */
-      }
-    }
-    /* /sign-in carries no tab or returnTo params for Clerk's router to hold on to. */
-    window.location.replace('/sign-in');
-  });
-
-  /* Give Clerk time to mount before calling a card missing — it renders async. */
-  if (reset) {
-    let waited = 0;
-    const poll = setInterval(() => {
-      waited += 500;
-      if (isStuck()) reset.hidden = false;
-      else if (waited > 4000) reset.hidden = true;
-      if (waited >= 20000) clearInterval(poll);
-    }, 500);
-  }
+<script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
+  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260805j';
+  bindClerkSsrSessionSync({ autoOpenSignIn });
 </script>
