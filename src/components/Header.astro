@@ -76,11 +76,13 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  <div class="app-header-scrim" aria-hidden="true">
-    <span class="app-header-scrim-blur"></span>
-    <span class="app-header-scrim-blur"></span>
-    <span class="app-header-scrim-blur"></span>
-  </div>
+  {!adminShell && (
+    <div class="app-header-scrim" aria-hidden="true">
+      <span class="app-header-scrim-blur"></span>
+      <span class="app-header-scrim-blur"></span>
+      <span class="app-header-scrim-blur"></span>
+    </div>
+  )}
 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
@@ -443,14 +445,12 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Fixed headers are transparent, so scrolling content shows through the logo
-   * row (and on admin, through notice cards). The scrim blurs whatever is behind
-   * the header: stacked backdrop-filter layers with masks that ramp blur toward
-   * the top. Each layer's backdrop includes the one below, so radii compound.
-   * Public pages use a fixed tail below the chrome band; admin grows with
-   * --topbar-measured-h so it covers the logo row and setup-alert stack.
+   * Public headers are fixed and transparent, so page content scrolls under the
+   * logo and nav. The scrim blurs it out: stacked backdrop-filter layers with
+   * masks that ramp blur toward the top (radii compound across layers). Admin
+   * is excluded — its panes pad below the bar and notice cards live in-header.
    */
-  .app-header > .app-header-scrim {
+  .app-header:not(.app-header--admin) > .app-header-scrim {
     position: absolute;
     top: calc(-1 * env(safe-area-inset-top, 0px));
     left: calc(-1 * var(--app-header-inline-pad));
@@ -458,13 +458,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     height: var(--app-header-scrim-h);
     z-index: 0;
     pointer-events: none;
-  }
-
-  .app-header--admin > .app-header-scrim {
-    height: var(
-      --topbar-measured-h,
-      calc(var(--safe-top) + var(--app-header-h))
-    );
   }
 
   .app-header-scrim-blur {
@@ -500,11 +493,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   .app-header--admin .app-header-row > * {
-    position: relative;
-    z-index: 1;
-  }
-
-  .app-header--admin .admin-setup-alerts {
     position: relative;
     z-index: 1;
   }
