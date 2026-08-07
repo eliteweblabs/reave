@@ -35,8 +35,8 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  if (req.path === '/health' || req.path === '/knowledge' || req.method === 'OPTIONS') return next();
-  const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
+  if (req.path === '/health' || req.method === 'OPTIONS') return next();
+  const provided = String(req.headers['x-api-key'] || req.headers.authorization?.replace(/^Bearer\s+/i, '') || '');
   if (!safeCompare(provided, API_KEY)) {
     return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
   }

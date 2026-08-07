@@ -3,12 +3,11 @@ import { smsConsentCheckboxLabel, smsConsentDisclaimer } from "../lib/smsConsent
 
 interface Props {
   brandName: string;
-  recipientEmail?: string;
   /** Show name/email/message fields or phone + SMS consent only (for Telnyx screenshot). */
   compact?: boolean;
 }
 
-const { brandName, recipientEmail = "", compact = false } = Astro.props;
+const { brandName, compact = false } = Astro.props;
 const checkboxLabel = smsConsentCheckboxLabel(brandName);
 const disclaimer = smsConsentDisclaimer(brandName);
 ---
@@ -222,7 +221,7 @@ const disclaimer = smsConsentDisclaimer(brandName);
   }
 </style>
 
-<script define:vars={{ recipientEmail, compact }}>
+<script define:vars={{ compact }}>
   const form = document.getElementById("sms-opt-in-form");
   const statusEl = document.getElementById("sms-form-status");
 
@@ -251,8 +250,6 @@ const disclaimer = smsConsentDisclaimer(brandName);
       sms_opt_in: data.get("sms_opt_in") === "yes" ? "yes" : "no",
       subject: "New contact form message",
     };
-
-    if (recipientEmail) payload.to = recipientEmail;
 
     if (!compact && (!payload.name || !payload.email || !payload.message)) {
       setStatus("Please fill in all required fields.", "error");
