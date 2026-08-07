@@ -60,6 +60,7 @@ const SYSTEM_NODES = [
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
   { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
   { id: 'google_places', title: 'Google Places', sub: 'review sync · GOOGLE_MAPS_API_KEY (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
+  { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
 ];
 
 const SYSTEM_EDGES = [
@@ -120,6 +121,7 @@ const SYSTEM_EDGES = [
   { from: 'online_reviews', to: 'app_pg', label: 'reviews inbox', dashed: true },
   { from: 'online_reviews', to: 'google_places', label: 'Places API sync', dashed: true },
   { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },
+  { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site · engagement' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
@@ -129,7 +131,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri'] },
   { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_places', 'pexels'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────

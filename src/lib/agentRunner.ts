@@ -1,5 +1,6 @@
 import { labelForAgentModel, resolveAgentModel } from './agentModel';
 import { isBraveConfigured } from './braveClient';
+import { isPexelsConfigured } from './pexelsClient';
 import { buildTools, runTool } from './agentTools';
 import { getCompanyBrandContext } from './companyConfig';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
@@ -783,6 +784,11 @@ async function runKnowledgeAgentInner(
   if (isBraveConfigured()) {
     sysParts.push(
       'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
+    );
+  }
+  if (isPexelsConfigured()) {
+    sysParts.push(
+      'Stock photos: use search_stock_photos to find royalty-free imagery for pages, decks, and newsletters. Pexels terms require crediting the photographer and linking back to the photo\'s Pexels page wherever the image is displayed.',
     );
   }
   if (hasFeature('site_audits')) {

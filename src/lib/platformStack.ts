@@ -48,6 +48,7 @@ export const PLATFORM_STACK: StackTech[] = [
   { slug: 'cloudflare', name: 'Cloudflare', color: '#F38020', role: 'DNS & edge' },
   { slug: 'caldotcom', name: 'Cal.com', color: '#FFFFFF', role: 'Scheduling' },
   { slug: 'plausibleanalytics', name: 'Plausible', color: '#5850EC', role: 'Web analytics' },
+  { slug: 'pexels', name: 'Pexels', color: '#05A081', role: 'Stock photos' },
   {
     slug: 'uptimerobot',
     name: 'UptimeRobot',
