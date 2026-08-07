@@ -1232,6 +1232,20 @@ button.de-placeholder-action:active {
   right: 0;
   background: linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%);
 }
+/* Projects: flat sub-nav — no track pill; slightly less bottom pad for optical balance */
+#work-editor .wk-detail-tabs {
+  background: none;
+  border-radius: 0;
+  padding:
+    var(--detail-tabs-pad-y)
+    var(--detail-pad-x-right)
+    calc(var(--detail-tabs-pad-y) - 0.1rem)
+    var(--detail-pad-x);
+}
+#work-editor .wk-detail-tabs::before,
+#work-editor .wk-detail-tabs::after {
+  content: none;
+}
 .detail-tabs::-webkit-scrollbar { display: none; }
 .detail-tab {
   position: relative;
