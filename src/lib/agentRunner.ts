@@ -619,7 +619,10 @@ async function runKnowledgeAgentInner(
   stream?: AgentStreamCallbacks,
 ): Promise<AgentRunResult> {
   if (await isSleepModeActive()) {
-    return { text: sleepModeBlockMessage(), usage: null };
+    // Must await — sleepModeBlockMessage is async; returning the Promise as
+    // `text` makes settle() throw on `.trim()` and the client reconciles the
+    // turn as a mysterious "interrupted" failure instead of the sleep notice.
+    return { text: await sleepModeBlockMessage(), usage: null };
   }
 
   const { userText, images = [], docs = [], priorTurns = [], model: modelOverride } = opts;
