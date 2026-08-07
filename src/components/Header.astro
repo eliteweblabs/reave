@@ -81,7 +81,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
       <span class="app-header-scrim-blur"></span>
       <span class="app-header-scrim-blur"></span>
       <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-tint"></span>
     </div>
   )}
 
@@ -350,7 +349,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     /* Chrome band plus the tail the scrim fades out over, below the bar. */
     --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 2.5rem);
-    --app-header-scrim-bg: var(--bg, #050505);
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
@@ -447,11 +445,13 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   /*
    * Public headers are fixed and transparent, so page content scrolls straight
-   * under the logo and nav. The scrim separates the two without a hard bar edge:
-   * stacked backdrop-filter layers whose masks ramp the blur up toward the top
-   * (each layer's backdrop includes the one below it, so the blur compounds),
-   * finished with a gradient in the page background color. The admin shell skips
-   * it — its panes already pad below the bar, so there is nothing to blur.
+   * under the logo and nav. The scrim blurs that content out instead of covering
+   * it: stacked backdrop-filter layers whose masks ramp the blur up toward the
+   * top, so it peaks behind the chrome and reaches zero at the scrim's bottom
+   * edge. Each layer's backdrop includes the one below it, so the radii compound
+   * (~14px at the top) — that is why three modest blurs beat one large one, and
+   * why they must stay in DOM order. The admin shell skips the scrim: its panes
+   * already pad below the bar, so there is never anything under it to blur.
    */
   .app-header > .app-header-scrim {
     position: absolute;
@@ -463,42 +463,29 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     pointer-events: none;
   }
 
-  .app-header-scrim > * {
+  .app-header-scrim-blur {
     position: absolute;
     inset: 0;
-  }
-
-  .app-header-scrim-blur {
     -webkit-mask-image: var(--app-header-scrim-mask);
     mask-image: var(--app-header-scrim-mask);
   }
 
   .app-header-scrim-blur:nth-child(1) {
     --app-header-scrim-mask: linear-gradient(to top, transparent 0%, #000 30%, #000 100%);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
   }
 
   .app-header-scrim-blur:nth-child(2) {
     --app-header-scrim-mask: linear-gradient(to top, transparent 22%, #000 52%, #000 100%);
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
   }
 
   .app-header-scrim-blur:nth-child(3) {
     --app-header-scrim-mask: linear-gradient(to top, transparent 48%, #000 78%, #000 100%);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-  }
-
-  .app-header-scrim-tint {
-    background: linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--app-header-scrim-bg) 70%, transparent) 0%,
-      color-mix(in srgb, var(--app-header-scrim-bg) 48%, transparent) 40%,
-      color-mix(in srgb, var(--app-header-scrim-bg) 18%, transparent) 75%,
-      transparent 100%
-    );
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 
   .app-header--admin::before {
