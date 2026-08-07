@@ -1,8 +1,7 @@
 /**
- * Agent tool module: search_stock_photos
+ * Agent tool module: search_stock_photos (Pexels).
  *
- * Searches Pexels for royalty-free photos. Only registered when PEXELS_API_KEY
- * is present so the tool never appears in definitions for unconfigured installs.
+ * Feature-gated via `stock_photos` + PEXELS_API_KEY (plugin `configured`).
  *
  * Attribution (Pexels API Terms):
  *   Always link results to pexels.com and credit the photographer when displaying images.
@@ -13,8 +12,8 @@ import {
   formatPexelsResults,
   isPexelsConfigured,
   pexelsSearchPhotos,
-} from '../../pexelsClient';
-import type { AgentToolDef, AgentToolModule, ToolContext } from '../types';
+} from '../../src/lib/pexelsClient';
+import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
 
 async function handle_search_stock_photos(
   args: Record<string, unknown>,
@@ -44,11 +43,10 @@ async function handle_search_stock_photos(
     return JSON.stringify({ error: result.error, status: result.status });
   }
 
-  // Return the formatted text summary (includes URLs + attribution reminder).
   return formatPexelsResults(result);
 }
 
-export const pexelsModule: AgentToolModule = {
+export const stockPhotosAgentTools: AgentToolModule = {
   id: 'pexels',
   enabled: () => isPexelsConfigured(),
   definitions(_ctx: ToolContext): AgentToolDef[] {

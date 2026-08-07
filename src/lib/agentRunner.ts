@@ -786,7 +786,7 @@ async function runKnowledgeAgentInner(
       'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
     );
   }
-  if (isPexelsConfigured()) {
+  if (hasFeature('stock_photos') && isPexelsConfigured()) {
     sysParts.push(
       'Stock photos: use search_stock_photos to find royalty-free imagery for pages, decks, and newsletters. Pexels terms require crediting the photographer and linking back to the photo\'s Pexels page wherever the image is displayed.',
     );

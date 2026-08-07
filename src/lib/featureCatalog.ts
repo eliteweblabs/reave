@@ -29,6 +29,7 @@ export const FEATURE_IDS = [
   'inventory_sync',
   'online_reviews',
   'wayback_machine',
+  'stock_photos',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -59,6 +60,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   inventory_sync: 'Multi-channel inventory sync (Shopify, WooCommerce, Square via inventory-api)',
   online_reviews: 'Online reviews inbox — Google sync + response to-do workflow',
   wayback_machine: 'Wayback Machine — browse archived website snapshots (Internet Archive)',
+  stock_photos: 'Pexels stock photos — royalty-free search for pages, decks, and newsletters',
 };
 
 export const CORE_FEATURE_NOTE =

@@ -60,7 +60,7 @@ const SYSTEM_NODES = [
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
   { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
   { id: 'google_places', title: 'Google Places', sub: 'review sync · GOOGLE_MAPS_API_KEY (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
-  { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
+  { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
 ];
 
 const SYSTEM_EDGES = [
