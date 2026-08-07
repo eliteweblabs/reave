@@ -6590,6 +6590,9 @@ function renderCompanyPanel(company, fontCatalog) {
           `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
           `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" /></div>` +
           `<span class="prof-hint prof-hint--block">Support email and phone appear as Call / Text / Email on client portal pages. Outbound email is used when <code>RESEND_FROM</code> is not set.</span>` +
+          `<div class="prof-field"><label for="company-portalOutreachNotice">Client portal outreach note</label>` +
+          `<textarea id="company-portalOutreachNotice" name="portalOutreachNotice" class="prof-svg-input" rows="6" spellcheck="true">${escHtml(c.portalOutreachNotice || '')}</textarea>` +
+          `<span class="prof-hint prof-hint--block">Shown in an auto-open bottom sheet when someone opens a client portal link. Separate paragraphs with a blank line. Clear the field to disable the sheet.</span></div>` +
         `</form>` +
       `</div>` +
     `</div>`

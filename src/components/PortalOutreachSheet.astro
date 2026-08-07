@@ -5,11 +5,17 @@ import IosBottomSheet from './IosBottomSheet.astro';
 export interface Props {
   /** Stable id for the localStorage dismiss key. */
   alertId?: string;
+  /** Sheet body copy; blank paragraphs separated by a blank line. */
+  content: string;
 }
 
-const { alertId = 'reave-automatic-outreach' } = Astro.props;
+const { alertId = 'reave-automatic-outreach', content } = Astro.props;
 const storageKey = `reave-site-alert-dismiss:${alertId}`;
 const sheetId = `portal-outreach-${alertId}`;
+const paragraphs = content
+  .split(/\n\n+/)
+  .map((p) => p.trim())
+  .filter(Boolean);
 ---
 
 <IosBottomSheet
@@ -19,12 +25,9 @@ const sheetId = `portal-outreach-${alertId}`;
   sheetOnly={true}
   class="portal-outreach-sheet"
 >
-  <p class="portal-outreach-copy">
-    This is not spam. I live/work in Beverly and have over 20 years of experience building websites and apps.
-  </p>
-  <p class="portal-outreach-copy">
-    Please leave a comment, schedule a consultation or call. This is not automated or random, I most likely have been to your establishment with my dog Rekko. 🐕 🙏
-  </p>
+  {paragraphs.map((paragraph) => (
+    <p class="portal-outreach-copy">{paragraph}</p>
+  ))}
 </IosBottomSheet>
 
 <script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
@@ -110,6 +113,7 @@ const sheetId = `portal-outreach-${alertId}`;
     font-size: 0.95rem;
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.88);
+    white-space: pre-line;
   }
 
   .portal-outreach-copy:last-child {

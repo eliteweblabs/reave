@@ -1344,8 +1344,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       )
     }
     {
-      !notFound && (
-        <PortalOutreachSheet alertId="reave-automatic-outreach" />
+      !notFound && org.portalOutreachNotice && (
+        <PortalOutreachSheet alertId="reave-automatic-outreach" content={org.portalOutreachNotice} />
       )
     }
   </body>

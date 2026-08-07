@@ -12,6 +12,11 @@ import {
 } from './companyLogo';
 import { BRAND_ICON_SIZES } from './brandIconRaster';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
+
+/** Default copy for the client portal outreach sheet (admin-editable in Company settings). */
+export const DEFAULT_PORTAL_OUTREACH_NOTICE = `This is not spam. I live/work in Beverly and have over 20 years of experience building websites and apps.
+
+Please leave a comment, schedule a consultation or call. This is not automated or random, I most likely have been to your establishment with my dog Rekko. 🐕 🙏`;
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
 import { serverEnv } from './serverEnv';
@@ -154,6 +159,8 @@ export type CompanyConfig = {
   vapiFirstMessage: string;
   /** System prompt synced to Vapi (supports {{companyName}}, etc.). */
   vapiSystemPrompt: string;
+  /** Auto-open outreach note on client portal pages; empty = hidden. */
+  portalOutreachNotice: string;
   socialTwitter: string;
   socialInstagram: string;
   socialLinkedin: string;
@@ -361,6 +368,13 @@ function resolveCompanyGeo(stored: StoredCompanyConfig | null): CompanyGeo | und
   };
 }
 
+function resolvePortalOutreachNotice(stored: StoredCompanyConfig | null): string {
+  if (stored?.portalOutreachNotice === '') return '';
+  const custom = stored?.portalOutreachNotice?.trim();
+  if (custom) return custom;
+  return DEFAULT_PORTAL_OUTREACH_NOTICE;
+}
+
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
   const domain = pick(stored?.domain, domainFromEnvOrRequest(request));
   const logo = resolveLogo(stored);
@@ -407,6 +421,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     vapiAssistantId,
     vapiFirstMessage: stored?.vapiFirstMessage?.trim() || '',
     vapiSystemPrompt: stored?.vapiSystemPrompt?.trim() || '',
+    portalOutreachNotice: resolvePortalOutreachNotice(stored),
     socialTwitter: trim(stored?.socialTwitter),
     socialInstagram: trim(stored?.socialInstagram),
     socialLinkedin: trim(stored?.socialLinkedin),
@@ -476,6 +491,7 @@ export type CompanyConfigInput = {
   vapiAssistantId?: string;
   vapiFirstMessage?: string;
   vapiSystemPrompt?: string;
+  portalOutreachNotice?: string;
   socialTwitter?: string;
   socialInstagram?: string;
   socialLinkedin?: string;
@@ -523,6 +539,9 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   }
   if (input.vapiSystemPrompt !== undefined) {
     out.vapiSystemPrompt = input.vapiSystemPrompt.trim() ? input.vapiSystemPrompt : null;
+  }
+  if (input.portalOutreachNotice !== undefined) {
+    out.portalOutreachNotice = input.portalOutreachNotice.trim() ? input.portalOutreachNotice : '';
   }
   if (input.socialTwitter !== undefined) out.socialTwitter = trim(input.socialTwitter) || null;
   if (input.socialInstagram !== undefined) out.socialInstagram = trim(input.socialInstagram) || null;
