@@ -1,37 +1,53 @@
 /**
- * Railway deploy vs GitHub latest — cached for deploy banners in agent replies.
+ * Railway deploy status — cached for the header bulb and agent reply banners.
+ * Source of truth: Railway webhooks + optional GraphQL (not GitHub).
  */
 
+import { isRailwayConfigured } from './railwayClient';
+import { railwayListDeployments, type RailwayDeploymentRow } from './railwayAgentApi';
 import { serverEnv } from './serverEnv';
-import {
-  githubGetCommit,
-  githubGetDefaultBranch,
-  githubListCommits,
-  isGithubConfigured,
-  type GithubCommit,
-} from './githubClient';
 
 export type DeployState = 'live' | 'deploying' | 'stale' | 'failed' | 'unknown';
+
+/** Commit-ish info for tooltips (from Railway env, webhook, or GraphQL meta). */
+export type DeployCommitInfo = {
+  sha: string;
+  short_sha: string;
+  message: string;
+  author: string;
+  date: string;
+  pushed_at: string;
+  url: string;
+};
 
 export type DeployStatusSnapshot = {
   on_railway: boolean;
   deployed_sha: string | null;
   deployed_short: string | null;
-  /** ISO timestamp when the deployed commit landed on GitHub (committer date). */
+  /** ISO timestamp for the running deploy / in-flight commit when known. */
   deployed_at: string | null;
-  latest_commit: GithubCommit | null;
+  latest_commit: DeployCommitInfo | null;
+  /** Always true when live on Railway (no GitHub compare). */
   up_to_date: boolean | null;
   state: DeployState;
   failed_reason: string | null;
-  /** Minutes since latest GitHub commit was pushed (when behind deploy). */
   minutes_since_push: number | null;
 };
 
 const CACHE_MS_LIVE = 15_000;
 const CACHE_MS_ACTIVE = 5_000;
-const CACHE_MS_GITHUB_ERROR = 5 * 60_000;
-const STALE_AFTER_MS = 10 * 60_000;
 const DEPLOYING_OVERRIDE_MS = 15 * 60_000;
+
+const IN_FLIGHT_STATUSES = new Set([
+  'BUILDING',
+  'DEPLOYING',
+  'INITIALIZING',
+  'QUEUED',
+  'WAITING',
+  'NEEDS_APPROVAL',
+]);
+const FAILED_STATUSES = new Set(['FAILED', 'CRASHED']);
+const SUCCESS_STATUSES = new Set(['SUCCESS']);
 
 let cache: { at: number; data: DeployStatusSnapshot | null } = { at: 0, data: null };
 let failedOverride: { reason: string; until: number; failed_sha: string | null } | null = null;
@@ -41,39 +57,19 @@ let deployingOverride: {
   started_at: string;
   until: number;
 } | null = null;
-/** Pause GitHub lookups when the API is rate-limited or otherwise failing. */
-let githubBackoffUntil = 0;
-let githubLastError: string | null = null;
 let previousState: DeployState | null = null;
 let showLiveBannerOnce = false;
 
-function isGithubRateLimitError(error: string | null | undefined): boolean {
-  return Boolean(error && /rate limit/i.test(error));
-}
-
-function noteGithubError(error: string | null | undefined): void {
-  if (!error) return;
-  githubLastError = error.trim() || null;
-  if (isGithubRateLimitError(error)) {
-    const match = error.match(/~(\d+)\s*m/i);
-    const minutes = match ? Number(match[1]) : 15;
-    const waitMs = Math.min(
-      60 * 60_000,
-      Math.max(CACHE_MS_GITHUB_ERROR, (Number.isFinite(minutes) ? minutes : 15) * 60_000),
-    );
-    githubBackoffUntil = Math.max(githubBackoffUntil, Date.now() + waitMs);
-  } else {
-    githubBackoffUntil = Math.max(githubBackoffUntil, Date.now() + CACHE_MS_GITHUB_ERROR);
-  }
-}
-
-function clearGithubError(): void {
-  githubLastError = null;
-  githubBackoffUntil = 0;
-}
-
 function deployedSha(): string | undefined {
   return serverEnv('RAILWAY_GIT_COMMIT_SHA')?.trim() || serverEnv('GIT_COMMIT_SHA')?.trim();
+}
+
+function deployedCommitMessage(): string {
+  return (
+    serverEnv('RAILWAY_GIT_COMMIT_MESSAGE')?.trim() ||
+    serverEnv('GIT_COMMIT_MESSAGE')?.trim() ||
+    ''
+  );
 }
 
 function truncateMessage(message: string | null | undefined, max = 60): string {
@@ -119,7 +115,7 @@ export function formatDeployDateEastern(iso: string | null | undefined): string 
   }).format(d);
 }
 
-function commitPushedAt(commit: GithubCommit | null | undefined): string | null {
+function commitPushedAt(commit: DeployCommitInfo | null | undefined): string | null {
   if (!commit) return null;
   return commit.pushed_at || commit.date || null;
 }
@@ -127,25 +123,14 @@ function commitPushedAt(commit: GithubCommit | null | undefined): string | null 
 function appendRelativeDeployLine(
   text: string,
   iso: string | null | undefined,
-  label: 'Deployed' | 'Pushed' = 'Deployed',
+  label: 'Deployed' | 'Started' = 'Deployed',
 ): string {
   const age = relativeAge(iso);
   return age ? `${text}\n${label} ${age}` : text;
 }
 
-async function resolveDeployedAt(
-  deployed: string | null,
-  latest: GithubCommit | null,
-): Promise<string | null> {
-  if (!deployed) return null;
-  if (latest && deployed === latest.sha) return commitPushedAt(latest);
-  if (!isGithubConfigured()) return null;
-  const commit = await githubGetCommit(deployed);
-  return commit.ok ? commitPushedAt(commit.data) : null;
-}
-
 function noteStateTransition(state: DeployState): void {
-  if ((previousState === 'deploying' || previousState === 'stale') && state === 'live') {
+  if ((previousState === 'deploying' || previousState === 'stale' || previousState === 'failed') && state === 'live') {
     showLiveBannerOnce = true;
     import('./features')
       .then(({ hasFeature }) => {
@@ -186,11 +171,11 @@ function expireDeployOverrides(): void {
   }
 }
 
-function commitFromWebhook(
+function commitInfo(
   hash: string,
   message?: string | null,
   timestamp?: string | null,
-): GithubCommit {
+): DeployCommitInfo {
   const sha = hash.trim();
   const iso = timestamp?.trim() || new Date().toISOString();
   return {
@@ -204,7 +189,26 @@ function commitFromWebhook(
   };
 }
 
-/** Called from Railway deploy-start webhook — instant yellow dot before GitHub/SHA drift is visible. */
+function metaString(meta: Record<string, unknown> | null | undefined, ...keys: string[]): string | null {
+  if (!meta) return null;
+  for (const key of keys) {
+    const v = meta[key];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+function commitFromDeployment(dep: RailwayDeploymentRow): DeployCommitInfo | null {
+  const hash = metaString(dep.meta, 'commitHash', 'commitSha', 'commit_sha');
+  if (!hash) return null;
+  return commitInfo(
+    hash,
+    metaString(dep.meta, 'commitMessage', 'commit_message', 'message'),
+    dep.created_at,
+  );
+}
+
+/** Called from Railway deploy-start webhook — instant yellow dot. */
 export function markDeployStarted(opts?: {
   commitHash?: string | null;
   commitMessage?: string | null;
@@ -223,6 +227,7 @@ export function markDeployStarted(opts?: {
 /** Called from Railway deploy-success webhook once the new version is live. */
 export function clearDeployStarted(): void {
   deployingOverride = null;
+  failedOverride = null;
   bustDeployCache();
 }
 
@@ -239,9 +244,7 @@ export function markDeployFailed(reason?: string, failedSha?: string | null): vo
 
 function cacheTtl(snapshot: DeployStatusSnapshot | null): number {
   if (deployingOverride) return 0;
-  if (Date.now() < githubBackoffUntil) return CACHE_MS_GITHUB_ERROR;
   if (!snapshot) return CACHE_MS_LIVE;
-  if (snapshot.state === 'unknown' && githubLastError) return CACHE_MS_GITHUB_ERROR;
   if (snapshot.state === 'live') return CACHE_MS_LIVE;
   return CACHE_MS_ACTIVE;
 }
@@ -261,13 +264,13 @@ function applyDeployingOverride(snapshot: DeployStatusSnapshot): DeployStatusSna
     return snapshot;
   }
 
-  if (snapshot.state === 'failed' || snapshot.state === 'stale') {
+  if (snapshot.state === 'failed') {
     return snapshot;
   }
 
   let latestCommit = snapshot.latest_commit;
   if (overrideCommit && latestSha !== overrideCommit) {
-    latestCommit = commitFromWebhook(
+    latestCommit = commitInfo(
       overrideCommit,
       deployingOverride.commit_message,
       deployingOverride.started_at,
@@ -283,6 +286,91 @@ function applyDeployingOverride(snapshot: DeployStatusSnapshot): DeployStatusSna
       ? minutesSince(commitPushedAt(latestCommit))
       : snapshot.minutes_since_push,
   };
+}
+
+function applyFailedOverride(snapshot: DeployStatusSnapshot): DeployStatusSnapshot {
+  if (!failedOverride) return snapshot;
+  // In-flight deploy wins; success path clears failedOverride before we get here.
+  if (snapshot.state === 'deploying') return snapshot;
+  return {
+    ...snapshot,
+    state: 'failed',
+    up_to_date: false,
+    failed_reason: failedOverride.reason,
+  };
+}
+
+async function railwayApiSnapshot(
+  deployed: string,
+): Promise<Partial<DeployStatusSnapshot> | null> {
+  if (!isRailwayConfigured()) return null;
+
+  const service =
+    serverEnv('RAILWAY_SERVICE_ID')?.trim() ||
+    serverEnv('RAILWAY_SERVICE_NAME')?.trim() ||
+    undefined;
+  const env =
+    serverEnv('RAILWAY_ENVIRONMENT_NAME')?.trim() ||
+    serverEnv('RAILWAY_ENVIRONMENT')?.trim() ||
+    'production';
+
+  const deps = await railwayListDeployments({
+    service,
+    environment: env,
+    limit: 10,
+  });
+  if (!deps.ok || deps.deployments.length === 0) return null;
+
+  const active = deps.deployments.filter((d) => d.status.toUpperCase() !== 'REMOVED');
+  const latest = active[0] ?? deps.deployments[0];
+  if (!latest) return null;
+
+  const status = latest.status.toUpperCase();
+  const commit = commitFromDeployment(latest);
+
+  if (IN_FLIGHT_STATUSES.has(status)) {
+    return {
+      state: 'deploying',
+      up_to_date: false,
+      latest_commit: commit,
+      deployed_at: latest.created_at,
+      minutes_since_push: minutesSince(latest.created_at),
+      failed_reason: null,
+    };
+  }
+
+  if (FAILED_STATUSES.has(status)) {
+    const svc = latest.service_name || 'service';
+    return {
+      state: 'failed',
+      up_to_date: false,
+      latest_commit: commit,
+      deployed_at: latest.created_at,
+      minutes_since_push: minutesSince(latest.created_at),
+      failed_reason: `Deploy failed — ${svc} (${status.toLowerCase()})`,
+    };
+  }
+
+  if (SUCCESS_STATUSES.has(status)) {
+    failedOverride = null;
+    deployingOverride = null;
+    const running =
+      commit && deployed && commit.sha.startsWith(deployed.slice(0, 7))
+        ? commit
+        : deployed
+          ? commitInfo(deployed, deployedCommitMessage(), latest.created_at)
+          : commit;
+    return {
+      state: 'live',
+      up_to_date: true,
+      latest_commit: running,
+      deployed_at: latest.created_at,
+      minutes_since_push: null,
+      failed_reason: null,
+    };
+  }
+
+  return null;
 }
 
 async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
@@ -305,122 +393,38 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
     };
   }
 
-  if (!isGithubConfigured()) {
-    const snap: DeployStatusSnapshot = {
-      on_railway: true,
-      deployed_sha: deployed,
-      deployed_short: deployed?.slice(0, 7) ?? null,
-      deployed_at: null,
-      latest_commit: null,
-      up_to_date: null,
-      state: failedOverride ? 'failed' : 'unknown',
-      failed_reason: failedOverride?.reason ?? 'GitHub not configured (GITHUB_TOKEN missing)',
-      minutes_since_push: null,
-    };
-    noteStateTransition(snap.state);
-    return snap;
-  }
-
-  if (Date.now() < githubBackoffUntil) {
-    const snap: DeployStatusSnapshot = {
-      on_railway: true,
-      deployed_sha: deployed,
-      deployed_short: deployed?.slice(0, 7) ?? null,
-      deployed_at: null,
-      latest_commit: null,
-      up_to_date: null,
-      state: 'unknown',
-      failed_reason: githubLastError ?? 'GitHub temporarily unavailable',
-      minutes_since_push: null,
-    };
-    noteStateTransition(snap.state);
-    return snap;
-  }
-
-  const defRes = await githubGetDefaultBranch();
-  if (!defRes.ok) {
-    noteGithubError(defRes.error);
-    const snap: DeployStatusSnapshot = {
-      on_railway: true,
-      deployed_sha: deployed,
-      deployed_short: deployed?.slice(0, 7) ?? null,
-      deployed_at: null,
-      latest_commit: null,
-      up_to_date: null,
-      state: 'unknown',
-      failed_reason: githubLastError,
-      minutes_since_push: null,
-    };
-    noteStateTransition(snap.state);
-    return snap;
-  }
-
-  const commitsRes = await githubListCommits({ branch: defRes.data, perPage: 1 });
-  if (!commitsRes.ok) {
-    noteGithubError(commitsRes.error);
-    const snap: DeployStatusSnapshot = {
-      on_railway: true,
-      deployed_sha: deployed,
-      deployed_short: deployed?.slice(0, 7) ?? null,
-      deployed_at: null,
-      latest_commit: null,
-      up_to_date: null,
-      state: 'unknown',
-      failed_reason: githubLastError,
-      minutes_since_push: null,
-    };
-    noteStateTransition(snap.state);
-    return snap;
-  }
-
-  clearGithubError();
-  const latest = commitsRes.data[0] ?? null;
-  const upToDate = latest && deployed ? deployed === latest.sha : null;
-  const minutesSincePush = !upToDate && latest ? minutesSince(commitPushedAt(latest)) : null;
-
-  let state: DeployState = 'unknown';
-  let failedReason: string | null = null;
-  if (upToDate) {
-    failedOverride = null;
-    deployingOverride = null;
-    state = 'live';
-  } else if (latest) {
-    const stale =
-      minutesSincePush != null && minutesSincePush * 60_000 >= STALE_AFTER_MS;
-    if (stale) {
-      state = 'stale';
-    } else {
-      const failedSha = failedOverride?.failed_sha ?? null;
-      if (failedOverride && failedSha && latest.sha === failedSha) {
-        state = 'failed';
-        failedReason = failedOverride.reason;
-      } else {
-        state = 'deploying';
-        if (failedOverride && failedSha && latest.sha !== failedSha) {
-          failedOverride = null;
-        }
-      }
-    }
-  } else if (failedOverride) {
-    state = 'failed';
-    failedReason = failedOverride.reason;
-  }
-
-  const deployedAt = await resolveDeployedAt(deployed, latest);
-
-  const snap: DeployStatusSnapshot = {
+  const baseCommit = commitInfo(deployed!, deployedCommitMessage());
+  let snap: DeployStatusSnapshot = {
     on_railway: true,
     deployed_sha: deployed,
-    deployed_short: deployed?.slice(0, 7) ?? null,
-    deployed_at: deployedAt,
-    latest_commit: latest,
-    up_to_date: upToDate,
-    state,
-    failed_reason: failedReason,
-    minutes_since_push: minutesSincePush,
+    deployed_short: deployed!.slice(0, 7),
+    deployed_at: null,
+    latest_commit: baseCommit,
+    up_to_date: true,
+    state: 'live',
+    failed_reason: null,
+    minutes_since_push: null,
   };
+
+  const api = await railwayApiSnapshot(deployed!).catch(() => null);
+  if (api) {
+    snap = {
+      ...snap,
+      ...api,
+      on_railway: true,
+      deployed_sha: deployed,
+      deployed_short: deployed!.slice(0, 7),
+      latest_commit: api.latest_commit ?? snap.latest_commit,
+    };
+  }
+
+  if (failedOverride) {
+    snap = applyFailedOverride(snap);
+  }
+
+  snap = applyDeployingOverride(snap);
   noteStateTransition(snap.state);
-  return applyDeployingOverride(snap);
+  return snap;
 }
 
 /** Cached deploy snapshot (15s live / 5s in-flight). Returns null when not running on Railway. */
@@ -446,21 +450,20 @@ export function deployBanner(
     return `🔴 ${snapshot.failed_reason ?? 'Deploy failed — check Railway logs'}`;
   }
 
-  if (snapshot.state === 'stale' && snapshot.latest_commit) {
-    const min =
-      snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
-    return `🔴 Deploy stale: ${snapshot.latest_commit.short_sha} pushed ${min} min ago — not yet live, check Railway logs`;
-  }
-
-  if (snapshot.state === 'deploying' && snapshot.latest_commit) {
-    const msg = truncateMessage(snapshot.latest_commit.message);
+  if (snapshot.state === 'deploying') {
+    const c = snapshot.latest_commit;
+    const short = c?.short_sha ?? snapshot.deployed_short ?? '';
+    const msg = truncateMessage(c?.message);
     const bit = msg ? ` "${msg}"` : '';
-    return `🚀 Deploying: ${snapshot.latest_commit.short_sha}${bit} — not yet live`;
+    const who = short ? `${short}${bit}` : 'new version';
+    return `🚀 Deploying: ${who} — not yet live`;
   }
 
   if (snapshot.state === 'live' && opts?.includeLive && snapshot.deployed_short) {
+    const msg = truncateMessage(snapshot.latest_commit?.message, 48);
+    const bit = msg ? ` — ${msg}` : '';
     return appendRelativeDeployLine(
-      `🟢 Live: ${snapshot.deployed_short} — up to date`,
+      `🟢 Live: ${snapshot.deployed_short}${bit}`,
       snapshot.deployed_at,
     );
   }
@@ -486,37 +489,30 @@ export function deployTooltip(snapshot: DeployStatusSnapshot): string {
     );
   }
 
-  if (snapshot.state === 'stale' && snapshot.latest_commit) {
-    const min =
-      snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
-    return appendRelativeDeployLine(
-      `Deploy stale — ${snapshot.latest_commit.short_sha} pushed ${min} min ago, not live yet. Check Railway logs.`,
-      snapshot.deployed_at,
-    );
-  }
-
-  if (snapshot.state === 'deploying' && snapshot.latest_commit) {
-    const msg = truncateMessage(snapshot.latest_commit.message, 48);
+  if (snapshot.state === 'deploying') {
+    const c = snapshot.latest_commit;
+    const short = c?.short_sha ?? snapshot.deployed_short ?? '';
+    const msg = truncateMessage(c?.message, 48);
     const bit = msg ? `: ${msg}` : '';
+    const who = short ? `${short}${bit}` : 'new version';
     return appendRelativeDeployLine(
-      `Deploying ${snapshot.latest_commit.short_sha}${bit} — not live yet`,
-      commitPushedAt(snapshot.latest_commit),
-      'Pushed',
+      `Deploying ${who} — not live yet`,
+      commitPushedAt(c) ?? snapshot.deployed_at,
+      'Started',
     );
   }
 
   if (snapshot.state === 'live' && snapshot.deployed_short) {
+    const msg = truncateMessage(snapshot.latest_commit?.message, 48);
+    const bit = msg ? ` — ${msg}` : '';
     return appendRelativeDeployLine(
-      `Live — ${snapshot.deployed_short} up to date`,
+      `Live — ${snapshot.deployed_short}${bit}`,
       snapshot.deployed_at,
     );
   }
 
   if (snapshot.state === 'unknown') {
-    if (snapshot.failed_reason) {
-      return appendRelativeDeployLine(snapshot.failed_reason, snapshot.deployed_at);
-    }
-    return 'Deploy status unknown — check Railway or GitHub connection';
+    return 'Deploy status unavailable — not running on Railway';
   }
 
   return 'Deploy status unavailable';
@@ -536,7 +532,7 @@ export function isDeployChatLockEnabled(): boolean {
   return Boolean(deployedSha());
 }
 
-const CHAT_LOCK_STATES = new Set<DeployState>(['deploying', 'stale', 'failed']);
+const CHAT_LOCK_STATES = new Set<DeployState>(['deploying', 'failed']);
 
 /** True when new user chat sends should be rejected until the deploy settles. */
 export function isChatLockedForDeploy(snapshot: DeployStatusSnapshot | null | undefined): boolean {
@@ -550,20 +546,18 @@ export function chatDeployLockMessage(snapshot: DeployStatusSnapshot): string {
     const reason = snapshot.failed_reason ?? 'Deploy failed';
     return `${reason} — new messages are paused until the website is live again.`;
   }
-  if (snapshot.state === 'stale' && snapshot.latest_commit) {
-    const min =
-      snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
-    return `Deploy stale (${snapshot.latest_commit.short_sha} pushed ${min} min ago) — new messages are paused until the website is live again.`;
-  }
-  if (snapshot.state === 'deploying' && snapshot.latest_commit) {
-    const msg = truncateMessage(snapshot.latest_commit.message, 48);
+  if (snapshot.state === 'deploying') {
+    const c = snapshot.latest_commit;
+    const short = c?.short_sha ?? snapshot.deployed_short ?? '';
+    const msg = truncateMessage(c?.message, 48);
     const bit = msg ? `: ${msg}` : '';
-    return `Deploying ${snapshot.latest_commit.short_sha}${bit} — new messages are paused until the new version is live.`;
+    const who = short ? `${short}${bit}` : 'new version';
+    return `Deploying ${who} — new messages are paused until the new version is live.`;
   }
   return 'Deploy in progress — new messages are paused until the new version is live.';
 }
 
-/** Prepend deploy banner to an agent reply when deploying, stale, failed, or explicitly live. */
+/** Prepend deploy banner to an agent reply when deploying, failed, or explicitly live. */
 export async function prependDeployBanner(
   text: string,
   opts?: { userText?: string },
