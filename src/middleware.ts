@@ -196,13 +196,17 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
     normalizedPath !== "/sign-in" &&
     normalizedPath !== "/sign-up"
   ) {
+    // App routes that are not marketing pages — keep them out of the site-content
+    // allowlist gate. /go/:token is especially important: share links land here and
+    // redirect to the portal; blocking them yields a bare-domain iMessage preview.
     const isMarketingLike =
       normalizedPath !== "/admin" &&
       !normalizedPath.startsWith("/admin/") &&
       !normalizedPath.startsWith("/api/") &&
       !normalizedPath.startsWith("/c/") &&
       !normalizedPath.startsWith("/doc/") &&
-      !normalizedPath.startsWith("/focus");
+      !normalizedPath.startsWith("/focus") &&
+      !normalizedPath.startsWith("/go/");
     if (isMarketingLike) {
       return featureBlockedResponse();
     }
