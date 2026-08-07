@@ -340,7 +340,7 @@ export async function sleepModeStatus(opts?: {
 /** User-facing explanation when automated work is blocked overnight. */
 export async function sleepModeBlockMessage(opts?: { now?: Date }): Promise<string> {
   const { label } = await sleepModeStatus(opts);
-  return `Sleep mode is active (${label}). Inbound mail, AI calls, and automated alerts resume when the quiet window ends. Adjust times in the admin menu → Sleep mode.`;
+  return `Sleep mode is active (${label}). Inbound mail, AI calls, and automated alerts resume when the quiet window ends. Adjust times in Administration → Settings → Sleep mode.`;
 }
 
 export async function isPushQuietHoursActive(opts?: {

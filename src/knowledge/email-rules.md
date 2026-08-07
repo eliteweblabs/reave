@@ -22,7 +22,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Attachments:** Resend attachment metadata is stored on the inbox row and shown in the Email detail pane with download links (`/api/email/inbox/:id/attachments/:attachmentId`). Attachment-only mail (signature + files, no body) is summarized by filename — not treated as blank. Linking an email to a project still imports files into that project's file grid.
 - **Push:** Install `/admin` to home screen → tap 🔔 → Web Push (`VAPID_*` env vars).
-- **Sleep mode:** Default **11 PM–7 AM** (timezone configurable). During quiet hours inbound mail is stored as **Sleep deferred** (no Claude triage, no agent alerts, no push). Catch-up triage runs automatically after the window ends. Adjust in admin menu → **Sleep mode**.
+- **Sleep mode:** Default **11 PM–7 AM** (timezone configurable). During quiet hours inbound mail is stored as **Sleep deferred** (no Claude triage, no agent alerts, no push). Catch-up triage runs automatically after the window ends. Adjust in Administration → **Settings** → Sleep mode.
 - **Railway crash emails:** Rule `RAILWAY_ALERT` matches “Deployment crashed” / “Build failed” / `railway.app` in subject/body. When `RAILWAY_INCIDENT_HANDLER=1`, routed through **deploy-incident handler** (repo lock + agent). **Default: off** — alerts queue in Email / System alerts without auto-investigation.
 - **Railway webhooks:** Direct deploy-failure webhooks → `/api/railway/webhook` → same handler when `RAILWAY_INCIDENT_HANDLER=1` (otherwise logged only). Configure on each Railway project. See `RAILWAY_WEBHOOK_INGRESS_KEY` + `AGENT_ALERT_USER_ID` + `DATABASE_URL`.
 

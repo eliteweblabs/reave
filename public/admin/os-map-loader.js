@@ -2356,10 +2356,38 @@ function dashboardTabKeys(order) {
   return out;
 }
 
+function resetTopbarDropdownMenu(menu) {
+  if (!menu) return;
+  menu.style.position = '';
+  menu.style.top = '';
+  menu.style.left = '';
+  menu.style.right = '';
+  menu.style.zIndex = '';
+}
+
+/** Escape the admin header stacking context (same approach as tab dropdowns). */
+function positionTopbarDropdownMenu(menuEl, toggleEl) {
+  if (!menuEl || !toggleEl) return;
+  requestAnimationFrame(() => {
+    const rect = toggleEl.getBoundingClientRect();
+    const menuWidth = menuEl.offsetWidth || 188;
+    const left = Math.min(
+      Math.max(8, rect.right - menuWidth),
+      window.innerWidth - menuWidth - 8,
+    );
+    menuEl.style.position = 'fixed';
+    menuEl.style.top = `${rect.bottom + 6}px`;
+    menuEl.style.left = `${left}px`;
+    menuEl.style.right = 'auto';
+    menuEl.style.zIndex = '10000';
+  });
+}
+
 function closeTopbarMenus(exceptMenu) {
   for (const menu of document.querySelectorAll('.topbar-dropdown')) {
     if (exceptMenu && menu === exceptMenu) continue;
     menu.classList.remove('open');
+    resetTopbarDropdownMenu(menu);
   }
   document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
   syncFooterNav();
@@ -2372,6 +2400,7 @@ function toggleTopbarMenu(menuEl, toggleEl) {
   if (willOpen) {
     menuEl.classList.add('open');
     toggleEl.setAttribute('aria-expanded', 'true');
+    positionTopbarDropdownMenu(menuEl, toggleEl);
   }
   syncFooterNav();
 }
@@ -5325,7 +5354,9 @@ const PROFILE_TIMEZONES = [
 ];
 
 function profileTimezoneOptions(selected) {
-  return PROFILE_TIMEZONES.map((tz) => {
+  const list = [...PROFILE_TIMEZONES];
+  if (selected && !list.includes(selected)) list.unshift(selected);
+  return list.map((tz) => {
     const label = tz.replace(/_/g, ' ');
     const sel = tz === selected ? ' selected' : '';
     return `<option value="${escHtml(tz)}"${sel}>${escHtml(label)}</option>`;
@@ -7042,9 +7073,24 @@ async function loadCompanyTab() {
   }
 }
 
-function renderAppSettingsPanel(settings) {
+function renderAppSettingsPanel(settings, sleepData) {
   const s = settings || {};
+  const sleep = sleepData?.settings || {};
   const ttl = Number.isFinite(Number(s.otpTtlMinutes)) ? Number(s.otpTtlMinutes) : 5;
+  const sleepEnabled = sleep.sleepModeEnabled !== false;
+  const quietStart = sleep.quietStart || '23:00';
+  const quietEnd = sleep.quietEnd || '07:00';
+  const tz =
+    sleep.timezone ||
+    (typeof Intl !== 'undefined'
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : null) ||
+    'America/New_York';
+  const sleepStatus = sleepData?.active
+    ? `<p class="prof-hint prof-hint--block">Sleep mode is active now (${escHtml(sleepData.label || `${quietStart} – ${quietEnd}`)}).</p>`
+    : sleepData?.inQuietWindow && !sleepEnabled
+      ? `<p class="prof-hint prof-hint--block">Quiet hours are in progress, but sleep mode is paused until the window ends.</p>`
+      : '';
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -7060,15 +7106,35 @@ function renderAppSettingsPanel(settings) {
             `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
           `</div>` +
         `</form>` +
+        `<form id="sleep-settings-form" class="prof-form">` +
+          `<h2 class="prof-title prof-title--section">Sleep mode</h2>` +
+          `<p class="prof-subtitle">During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Messages received overnight appear in Email as <strong>Sleep deferred</strong>.</p>` +
+          sleepStatus +
+          `<div class="prof-field">` +
+            `<label class="prof-check-row">` +
+              `<input id="settings-sleep-enabled" name="sleepModeEnabled" type="checkbox" value="1"${sleepEnabled ? ' checked' : ''} />` +
+              `<span>Enable sleep mode</span>` +
+            `</label>` +
+          `</div>` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="settings-sleep-start">From</label>` +
+            `<input id="settings-sleep-start" name="quietStart" type="time" value="${escHtml(quietStart)}" required /></div>` +
+            `<div class="prof-field"><label for="settings-sleep-end">Until</label>` +
+            `<input id="settings-sleep-end" name="quietEnd" type="time" value="${escHtml(quietEnd)}" required /></div>` +
+          `</div>` +
+          `<div class="prof-field"><label for="settings-sleep-tz">Timezone</label>` +
+          `<select id="settings-sleep-tz" name="timezone">${profileTimezoneOptions(tz)}</select></div>` +
+        `</form>` +
       `</div>` +
     `</div>`
   );
 }
 
 function bindAppSettingsForm(root) {
-  bindAutosaveForm(root, {
+  const alertEl = root.querySelector('#app-settings-alert');
+  const otpBind = bindAutosaveForm(root, {
     formSelector: '#app-settings-form',
-    alertEl: root.querySelector('#app-settings-alert'),
+    alertEl,
     validateField(el) {
       if (el.name !== 'otpTtlMinutes') return defaultFieldValidator(el);
       const n = Number(el.value);
@@ -7087,6 +7153,43 @@ function bindAppSettingsForm(root) {
       return { ok: res.ok && json.ok !== false, error: json.error };
     },
   });
+
+  const sleepForm = root.querySelector('#sleep-settings-form');
+  const sleepBind = bindAutosaveForm(root, {
+    formSelector: '#sleep-settings-form',
+    alertEl,
+    validateField(el) {
+      if (el.name === 'quietStart' || el.name === 'quietEnd') {
+        return /^\d{2}:\d{2}$/.test(String(el.value || '').trim());
+      }
+      if (el.name === 'timezone') return Boolean(String(el.value || '').trim());
+      return defaultFieldValidator(el);
+    },
+    async save() {
+      const enabled = sleepForm?.querySelector('#settings-sleep-enabled')?.checked === true;
+      const res = await fetch('/api/push/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sleepModeEnabled: enabled,
+          quietStart: sleepForm?.querySelector('#settings-sleep-start')?.value || '23:00',
+          quietEnd: sleepForm?.querySelector('#settings-sleep-end')?.value || '07:00',
+          timezone: sleepForm?.querySelector('#settings-sleep-tz')?.value?.trim() || 'America/New_York',
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok !== false) {
+        document.dispatchEvent(new CustomEvent('reave-sleep-settings-updated', { detail: json }));
+        if (enabled) document.dispatchEvent(new CustomEvent('reave-purge-expired-otps'));
+      }
+      return { ok: res.ok && json.ok !== false, error: json.error };
+    },
+  });
+
+  settingsAutosaveFlush = async () => {
+    await otpBind.flush();
+    await sleepBind.flush();
+  };
 }
 
 async function loadAppSettingsTab() {
@@ -7100,10 +7203,20 @@ async function loadAppSettingsTab() {
   prependSettingsBackHeader(root);
 
   try {
-    const res = await fetch('/api/admin/settings', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    root.innerHTML = renderAppSettingsPanel(data.settings);
+    const [appRes, sleepRes] = await Promise.all([
+      fetch('/api/admin/settings', { cache: 'no-store' }),
+      fetch('/api/push/settings', { cache: 'no-store' }),
+    ]);
+    const appData = await appRes.json();
+    if (!appRes.ok || !appData.ok) throw new Error(appData.error || `HTTP ${appRes.status}`);
+    let sleepData = null;
+    try {
+      const sleepJson = await sleepRes.json();
+      if (sleepRes.ok && sleepJson.ok) sleepData = sleepJson;
+    } catch {
+      /* sleep settings are best-effort so OTP prefs still load */
+    }
+    root.innerHTML = renderAppSettingsPanel(appData.settings, sleepData);
     prependSettingsBackHeader(root);
     bindAppSettingsForm(root);
   } catch (e) {
