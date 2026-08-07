@@ -63,6 +63,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-endpoint={endpoint}
   data-storage-key={storageKey}
   data-sheet-id={sheetId}
+  data-fab-id={fabId}
   data-reveal-fab={revealFabOnEngagement ? 'true' : undefined}
   data-hide-fab-for-hero={hideFabForHero ? 'true' : undefined}
   data-hero-selector={hideFabForHero ? heroSelector : undefined}
@@ -217,6 +218,13 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       opacity: 1;
       visibility: visible;
       transition: none;
+    }
+
+    .aw-fab--site.is-hero-occluding,
+    .aw-fab--site.is-visible.is-hero-occluding {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
   }
 
@@ -552,7 +560,11 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     const heroSelector = root.dataset.heroSelector || '.home-hero, .fx-hero, .demo-hero';
     const contactSelector = root.dataset.contactSelector || '#contact, [data-home-section="contact"]';
 
-    const fab = root.querySelector<HTMLButtonElement>('.aw-fab');
+    // Inline script may have already moved the FAB onto <body> for fixed positioning.
+    const fabId = root.dataset.fabId || '';
+    const fab =
+      root.querySelector<HTMLButtonElement>('.aw-fab') ||
+      (fabId ? (document.getElementById(fabId) as HTMLButtonElement | null) : null);
     const sheet = sheetId ? document.getElementById(sheetId) : null;
     const messagesEl = root.querySelector<HTMLDivElement>('.aw-messages');
     const typingEl = root.querySelector<HTMLDivElement>('.aw-typing');

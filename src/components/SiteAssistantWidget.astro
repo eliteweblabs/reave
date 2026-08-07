@@ -8,12 +8,19 @@ export interface Props {
   supportEmail?: string;
   /** Slide the FAB in a few seconds after the user engages (marketing site). */
   revealFabOnEngagement?: boolean;
+  /**
+   * Slide the FAB away while homepage hero / contact are in view.
+   * Defaults on for the marketing site so the button doesn't cover those sections.
+   */
+  hideFabForHero?: boolean;
 }
 
 const {
   brandTitle,
   supportPhone = '',
   supportEmail = '',
+  revealFabOnEngagement = false,
+  hideFabForHero = true,
 } = Astro.props;
 ---
 
@@ -29,4 +36,6 @@ const {
   supportPhone={supportPhone}
   supportEmail={supportEmail}
   variant="site"
+  revealFabOnEngagement={revealFabOnEngagement}
+  hideFabForHero={hideFabForHero}
 />
