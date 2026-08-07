@@ -11,16 +11,18 @@ function setDetailTabScrollLeft(nav, left) {
 }
 
 /** Scroll an active detail tab into view when clipped at the strip edge. */
-export function scrollDetailTabIntoViewIfNeeded(nav, tabEl) {
+export function scrollDetailTabIntoViewIfNeeded(nav, tabEl, edgePad = 6) {
   if (!nav || !tabEl) return;
   const navRect = nav.getBoundingClientRect();
   const tabRect = tabEl.getBoundingClientRect();
-  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
+  const leftBound = navRect.left + edgePad;
+  const rightBound = navRect.right - edgePad;
+  if (tabRect.left >= leftBound && tabRect.right <= rightBound) return;
   let delta = 0;
-  if (tabRect.left < navRect.left) {
-    delta = tabRect.left - navRect.left;
-  } else if (tabRect.right > navRect.right) {
-    delta = tabRect.right - navRect.right;
+  if (tabRect.left < leftBound) {
+    delta = tabRect.left - leftBound;
+  } else if (tabRect.right > rightBound) {
+    delta = tabRect.right - rightBound;
   }
   if (delta) setDetailTabScrollLeft(nav, nav.scrollLeft + delta);
 }
@@ -80,6 +82,9 @@ export function mountDetailTabs(parent, opts) {
     renderTab,
   } = opts;
 
+  const wrap = document.createElement('div');
+  wrap.className = 'detail-tabs-wrap';
+
   const nav = document.createElement('div');
   nav.className = ['detail-tabs', tabsClass].filter(Boolean).join(' ');
   nav.setAttribute('role', 'tablist');
@@ -105,7 +110,8 @@ export function mountDetailTabs(parent, opts) {
     nav.appendChild(btn);
   }
 
-  parent.appendChild(nav);
+  wrap.appendChild(nav);
+  parent.appendChild(wrap);
   mountDetailTabScroll(nav);
   return nav;
 }

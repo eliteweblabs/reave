@@ -484,6 +484,7 @@ export function createPanePlaceholder(opts = {}) {
  * @param {string} [opts.ariaLabel]
  * @param {(value: string) => void} [opts.onChange]
  * @param {string} [opts.className] — extra class on the pill track
+ * @param {boolean} [opts.scrollable] — horizontal scroll when labels don't fit (auto when 4+ options)
  * @returns {{ el: HTMLElement, getValue: () => string, setValue: (value: string) => void }}
  */
 export function createSlidingPillSelect(opts = {}) {
@@ -494,6 +495,7 @@ export function createSlidingPillSelect(opts = {}) {
     ariaLabel = '',
     onChange,
     className = '',
+    scrollable = options.length >= 4,
   } = opts;
 
   const wrap = document.createElement('div');
@@ -507,7 +509,13 @@ export function createSlidingPillSelect(opts = {}) {
   }
 
   const pill = document.createElement('div');
-  pill.className = `sliding-pill${className ? ` ${className}` : ''}`.trim();
+  pill.className = [
+    'sliding-pill',
+    scrollable ? 'sliding-pill--scroll' : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
   pill.setAttribute('role', 'tablist');
   if (ariaLabel) pill.setAttribute('aria-label', ariaLabel);
 
@@ -554,6 +562,7 @@ export function createSlidingPillSelect(opts = {}) {
       currentValue = opt.value;
       syncActive();
       syncIndicator(true);
+      if (scrollable) btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       onChange?.(currentValue);
     });
     pill.appendChild(btn);
@@ -567,7 +576,13 @@ export function createSlidingPillSelect(opts = {}) {
     ro.observe(pill);
   }
   window.addEventListener('resize', onResize);
-  requestAnimationFrame(() => syncIndicator(false));
+  requestAnimationFrame(() => {
+    syncIndicator(false);
+    if (scrollable) {
+      const activeBtn = pill.querySelector('.sliding-pill-btn.is-active');
+      activeBtn?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  });
 
   return {
     el: wrap,
