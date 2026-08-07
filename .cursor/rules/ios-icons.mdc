@@ -1,0 +1,33 @@
+---
+description: Always use IOS_ICONS from public/admin/admin-ui.js — never invent one-off SVG icons
+alwaysApply: true
+---
+
+# Standard icon pack (`IOS_ICONS`)
+
+The project's shared icon set lives in **`public/admin/admin-ui.js`** as `IOS_ICONS` (Lucide-style stroke SVGs, `currentColor`). Helpers: `createIosIconBtn`, `createAgentBtn`, `agentIconSvg`.
+
+## Always reuse — never invent
+
+Before adding any icon (toolbar button, header control, panel action, empty state, map node chrome, etc.):
+
+1. Check whether the key already exists on `IOS_ICONS`.
+2. If it does, use that SVG (or `createIosIconBtn({ iconKey })` in admin client JS).
+3. If it does not, **add the icon to `IOS_ICONS` first**, then consume it. Do not paste a one-off SVG elsewhere and leave the pack incomplete.
+4. Do not freestyle filled / alternate shapes when a pack glyph exists or belongs in the pack. Match the existing stroke style (`fill="none"`, `stroke="currentColor"`, `stroke-width="1.75"` unless neighbors differ).
+
+## Astro / SSR markup
+
+Astro components cannot import the admin client module. When an icon must appear in Astro markup (e.g. `Header.astro`):
+
+- Copy the **exact** SVG string from `IOS_ICONS.<key>`.
+- Leave an HTML comment pointing at the pack key (e.g. `<!-- IOS_ICONS.bell — keep in sync with public/admin/admin-ui.js -->`).
+- If you change the pack glyph, update every inlined copy in the same change.
+
+## Do not
+
+- Hand-draw or AI-generate a new bell / trash / share / etc. when the pack already has one (or should get one).
+- Introduce a second icon library (Heroicons, Phosphor, Material, emoji-as-UI) for chrome that `IOS_ICONS` covers.
+- Use filled solid variants that break visual consistency with the stroke set.
+
+Brand logos (Simple Icons / company SVG) and photographic assets are separate — this rule is for UI chrome icons.
