@@ -115,7 +115,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       showSignIn: true,
     },
     homepage: {
-      heroHeadlineHtml: 'Small Business, <br class="home-hero-title-break" />Smaller Workday.',
+      heroHeadlineHtml: 'Small Business, <br class="home-hero-title-break" />Smaller Workday',
       showHeroDemo: true,
       showDialogue: true,
       showIntegrations: true,
