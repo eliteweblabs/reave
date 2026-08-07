@@ -211,6 +211,48 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     ],
   },
   {
+    id: "labor-day-hours",
+    userAvatar: "/images/hero-demo/henderson-billing.png",
+    holdMs: 1100,
+    turns: [
+      {
+        role: "user",
+        text: "Put a banner on the website announcing that we are closed for Labor Day weekend and change the hours of operation to close at noon on Fridays.",
+        kind: "voice",
+      },
+      {
+        role: "assistant",
+        text: "Updating website banner and hours…",
+        pauseMs: 700,
+      },
+      {
+        role: "assistant",
+        text: "All set. Would you like me to also update your Google Business Profile to reflect?",
+        pauseMs: 1600,
+      },
+      {
+        role: "user",
+        text: "Yes.",
+        kind: "voice",
+        pauseMs: 1400,
+      },
+      {
+        role: "assistant",
+        text: "Updating Google Business Profile…",
+        pauseMs: 700,
+      },
+      {
+        role: "assistant",
+        text: "Done.",
+        pauseMs: 1300,
+        actions: [
+          { label: "Google Business Profile", variant: "primary" },
+          { label: "View website", variant: "secondary" },
+        ],
+      },
+    ],
+  },
+  {
     id: "materials-paint-pricing",
     userAvatar: "/images/hero-demo/materials-paint-pricing.png",
     holdMs: 1000,
