@@ -9,7 +9,12 @@ export const prerender = false;
 import ViewportMeta from "../../components/ViewportMeta.astro";
 import "../../styles/mobile-touch.css";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
-import { nextMondayIso, planInquiryVisits, type VisitPlan } from "../../lib/visitPlanner";
+import {
+  ASSUMED_HOURS_LABEL,
+  nextMondayIso,
+  planInquiryVisits,
+  type VisitPlan,
+} from "../../lib/visitPlanner";
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
@@ -511,7 +516,7 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
           <div class="vp-field">
             <label for="assume_hours">Unknown hours</label>
             <select id="assume_hours" name="assume_hours">
-              <option value="1" selected={assumeHours}>Assume 10am–4pm</option>
+              <option value="1" selected={assumeHours}>Assume {ASSUMED_HOURS_LABEL}</option>
               <option value="0" selected={!assumeHours}>Skip</option>
             </select>
           </div>

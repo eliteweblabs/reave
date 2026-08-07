@@ -13,6 +13,7 @@
 
 import {
   formatDayHours,
+  formatInterval,
   formatMinutes,
   hasAnyHours,
   openWindowsWithin,
@@ -181,6 +182,9 @@ const DEFAULTS = {
 
 /** Weekday window used when a business's real hours are unknown. */
 const ASSUMED_WINDOW: HoursInterval = { start: 10 * 60, end: 16 * 60 };
+
+/** "10am–4pm" — for UI copy that describes the fallback window. */
+export const ASSUMED_HOURS_LABEL = formatInterval(ASSUMED_WINDOW);
 
 /** Straight-line miles get inflated by this to approximate road distance. */
 const ROAD_DETOUR_FACTOR = 1.35;
@@ -663,7 +667,7 @@ function scheduleDay(
       travelMilesFromPrev: Math.round(bestMiles * 10) / 10,
       waitMinutes: wait,
       hoursLabel: candidate.hoursAssumed
-        ? 'Hours unknown — assumed 10am–4pm'
+        ? `Hours unknown — assumed ${formatInterval(ASSUMED_WINDOW)}`
         : formatDayHours(candidate.hours, day.weekday),
       hoursAssumed: candidate.hoursAssumed,
       priorityScore: candidate.priorityScore,
@@ -897,10 +901,12 @@ export function planVisitsFromCandidates(
     );
   }
   if (missingHours.length) {
-    warnings.push(
-      `${missingHours.length} ${missingHours.length === 1 ? 'inquiry has' : 'inquiries have'} no opening hours on file` +
-        (options.assumeHoursWhenUnknown ? ' and were scheduled against an assumed 10am–4pm window.' : ' and were skipped.'),
-    );
+    const one = missingHours.length === 1;
+    const subject = one ? '1 inquiry has' : `${missingHours.length} inquiries have`;
+    const treatment = options.assumeHoursWhenUnknown
+      ? `scheduled against an assumed ${formatInterval(ASSUMED_WINDOW)} window`
+      : 'skipped';
+    warnings.push(`${subject} no opening hours on file — ${one ? 'it was' : 'they were'} ${treatment}.`);
   }
 
   return {
