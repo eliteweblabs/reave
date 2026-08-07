@@ -774,11 +774,11 @@ body.admin-split-view #chat-panel .ch-compose {
   }
 }
 .ch-delete-btn {
-  color: #f87171;
+  color: #dc2626;
 }
 .ch-delete-btn:hover {
   background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  color: #b91c1c;
 }
 .ch-copy-chat-btn,
 .ch-share-chat-btn,
