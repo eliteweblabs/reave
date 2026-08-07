@@ -5,6 +5,7 @@
 export type { SiteHeroCta, SiteNavGroup, SiteNavLink } from './siteContent';
 export {
   getSiteContent,
+  isDemoEntryPath,
   isMarketingPagePath,
   isSitePageAllowed,
   siteDemoCta,

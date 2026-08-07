@@ -228,8 +228,19 @@ export function siteDemoCta(site?: SiteContentConfig): SiteNavLink | null {
   return config.nav.demoCta ?? null;
 }
 
-export function siteShowDemoCta(signedIn: boolean, site?: SiteContentConfig): boolean {
+/** Public demo entry paths — "Demo now" is redundant (and confusing) here. */
+export function isDemoEntryPath(pathname: string): boolean {
+  const path = normalizePagePath(pathname);
+  return path === '/demo' || path === '/demo-loader' || path === '/deck' || path.startsWith('/demo/');
+}
+
+export function siteShowDemoCta(
+  signedIn: boolean,
+  site?: SiteContentConfig,
+  pathname?: string,
+): boolean {
   if (signedIn) return false;
+  if (pathname && isDemoEntryPath(pathname)) return false;
   const config = site ?? getSiteContent();
   return config.nav.showDemoCta ?? false;
 }

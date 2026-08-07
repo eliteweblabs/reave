@@ -28,7 +28,7 @@ const siteContent = siteContentProp ?? getSiteContent();
 const navLinks = siteNavLinksForUser(signedIn, siteContent);
 const navGroups = siteNavGroupsForUser(signedIn, siteContent);
 const demoCta = siteDemoCta(siteContent);
-const showDemoCta = siteShowDemoCta(signedIn, siteContent);
+const showDemoCta = siteShowDemoCta(signedIn, siteContent, pathname);
 const showSignIn = siteContent.nav.showSignIn !== false;
 ---
 
@@ -53,6 +53,14 @@ const showSignIn = siteContent.nav.showSignIn !== false;
   <div class="marketing-nav-actions">
     <DeployStatusDot />
     {
+      showDemoCta && demoCta && (
+        <a class="marketing-nav-cta" href={demoCta.href}>
+          Demo now
+          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+        </a>
+      )
+    }
+    {
       !signedIn && showSignIn ? (
         <button
           type="button"
@@ -75,15 +83,6 @@ const showSignIn = siteContent.nav.showSignIn !== false;
           </button>
         </nav>
       ) : null
-    }
-
-    {
-      showDemoCta && demoCta && (
-        <a class="marketing-nav-cta" href={demoCta.href}>
-          Demo now
-          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-        </a>
-      )
     }
 
     <button
