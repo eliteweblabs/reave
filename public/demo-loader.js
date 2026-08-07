@@ -10,6 +10,7 @@
   };
 
   let modules = [];
+  let sections = [];
   let industries = [];
   let baselineModuleIds = [];
   let selectedIds = new Set();
@@ -37,6 +38,10 @@
 
   function syncDefaults(data) {
     modules = data.modules || [];
+    sections =
+      Array.isArray(data.sections) && data.sections.length ?
+        data.sections
+      : [{ id: 'ungrouped', title: null, modules }];
     industries = data.industries || [];
     baselineModuleIds = data.baselineModuleIds || [];
     demoSiteUrl = data.demoSiteUrl || null;
@@ -122,6 +127,19 @@
     );
   }
 
+  function renderSection(section) {
+    const title =
+      section.title ?
+        `<h2 class="dl-section-title">${esc(section.title)}</h2>`
+      : '';
+    return (
+      `<section class="dl-section"${section.id ? ` data-section="${esc(section.id)}"` : ''}>` +
+      title +
+      `<div class="dl-grid">${(section.modules || []).map(renderTile).join('')}</div>` +
+      `</section>`
+    );
+  }
+
   function render() {
     const toggleCount = toggleableModules().length;
     const selectedCount = selectedToggleableCount();
@@ -144,7 +162,7 @@
       `<p class="dl-meta">${selectedCount} optional module${selectedCount === 1 ? '' : 's'} selected · ${modules.length} add-on modules · baseline client portal always included</p>` +
       `</div>` +
       renderLegend() +
-      `<div class="dl-grid">${modules.map(renderTile).join('')}</div>` +
+      `<div class="dl-sections">${sections.map(renderSection).join('')}</div>` +
       (!demoSiteUrl ?
         `<p class="dl-footnote">Live sandbox URL is not configured on this install. Book a call from the <a href="/demo">demo page</a> for hands-on access.</p>`
       : '') +

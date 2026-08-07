@@ -6,6 +6,7 @@ import { listEnabledDeckIndustries } from '../../../lib/deckIndustriesStore';
 import {
   defaultDemoLoaderModuleIds,
   listDemoLoaderModules,
+  listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
 import { buildDemoSuiteUrl, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from '../../../lib/demoSuite';
 import { DEMO_BASELINE_MODULE_IDS, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
@@ -23,6 +24,7 @@ function json(data: unknown, status = 200): Response {
 export async function GET(context: APIContext): Promise<Response> {
   try {
     const modules = listDemoLoaderModules();
+    const sections = listDemoLoaderSections(modules);
     const industries = await listEnabledDeckIndustries();
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
     const demoSiteUrl = getPublicDemoSiteUrl();
@@ -30,6 +32,7 @@ export async function GET(context: APIContext): Promise<Response> {
     return json({
       ok: true,
       modules,
+      sections,
       baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
       industries: industries.map((i) => ({ slug: i.slug, label: i.label })),
       defaultModuleIds: defaultDemoLoaderModuleIds(modules),

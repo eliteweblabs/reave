@@ -179,6 +179,32 @@
   gap: 0.35rem;
 }
 
+.dl-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.dl-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dl-section-title {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  font-family: var(--font-secondary, inherit);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .dl-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
