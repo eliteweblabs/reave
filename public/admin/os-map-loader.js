@@ -3847,7 +3847,7 @@ function reviewAlertTone(item) {
   ) {
     return 'project';
   }
-  if (type === 'vault_entry' || type === 'deck_view') return 'client';
+  if (type === 'vault_entry' || type === 'deck_view' || type === 'demo_launch') return 'client';
   if (type === 'push_alert' && item.alertKind === 'engagement') return 'client';
   return 'alert';
 }
@@ -4007,7 +4007,7 @@ async function openReviewNotificationTarget(item) {
     }
     return;
   }
-  if ((item.type === 'vault_entry' || item.type === 'deck_view') && item.contactUid) {
+  if ((item.type === 'vault_entry' || item.type === 'deck_view' || item.type === 'demo_launch') && item.contactUid) {
     navigateToClient(item.contactUid);
     return;
   }
@@ -4028,6 +4028,7 @@ function buildReviewAlertBanner(item) {
   const isVaultEntry = item.type === 'vault_entry';
   const isShareOpen = item.type === 'share_open';
   const isDeckView = item.type === 'deck_view';
+  const isDemoLaunch = item.type === 'demo_launch';
   const isContactForm = item.type === 'contact_form';
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
@@ -4081,7 +4082,7 @@ function buildReviewAlertBanner(item) {
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
-  } else if (isDeckView && item.contactUid) {
+  } else if ((isDeckView || isDemoLaunch) && item.contactUid) {
     actions.push({
       label: 'View client',
       primary: true,
@@ -7035,39 +7036,57 @@ function renderAppSettingsPanel(settings, sleepData) {
         `<p class="prof-subtitle">Install-wide preferences for inbox automation and alerts.</p>` +
         `<div id="app-settings-alert" class="prof-alert" hidden></div>` +
         `<form id="app-settings-form" class="prof-form">` +
-          `<h2 class="prof-title prof-title--section">Verification codes</h2>` +
-          `<p class="prof-subtitle">One-time passwords and activation codes are triaged as high-priority notices, then auto-deleted after this window.</p>` +
-          `<div class="prof-field">` +
-            `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
-            `<input id="settings-otp-ttl" name="otpTtlMinutes" type="number" min="0" max="1440" step="1" value="${escHtml(String(ttl))}" required />` +
-            `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
-          `</div>` +
-          `<h2 class="prof-title prof-title--section">Recently viewed</h2>` +
-          `<p class="prof-subtitle">Projects opened within this window appear under the Recently Viewed filter in ${escHtml(postTitle(2))}.</p>` +
-          `<div class="prof-field">` +
-            `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
-            `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
-            `<span class="prof-hint">Default is 7 days. Applies to this browser’s view history.</span>` +
-          `</div>` +
+          `<section class="prof-section">` +
+            `<div class="prof-section-copy">` +
+              `<h2 class="prof-title prof-title--section">Verification codes</h2>` +
+              `<p class="prof-subtitle">One-time passwords and activation codes are triaged as high-priority notices, then auto-deleted after this window.</p>` +
+            `</div>` +
+            `<div class="prof-section-fields">` +
+              `<div class="prof-field">` +
+                `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
+                `<input id="settings-otp-ttl" name="otpTtlMinutes" type="number" min="0" max="1440" step="1" value="${escHtml(String(ttl))}" required />` +
+                `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
+              `</div>` +
+            `</div>` +
+          `</section>` +
+          `<section class="prof-section">` +
+            `<div class="prof-section-copy">` +
+              `<h2 class="prof-title prof-title--section">Recently viewed</h2>` +
+              `<p class="prof-subtitle">Projects opened within this window appear under the Recently Viewed filter in ${escHtml(postTitle(2))}.</p>` +
+            `</div>` +
+            `<div class="prof-section-fields">` +
+              `<div class="prof-field">` +
+                `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
+                `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
+                `<span class="prof-hint">Default is 7 days. Applies to this browser’s view history.</span>` +
+              `</div>` +
+            `</div>` +
+          `</section>` +
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
-          `<h2 class="prof-title prof-title--section">Sleep mode</h2>` +
-          `<p class="prof-subtitle">During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Messages received overnight appear in Email as <strong>Sleep deferred</strong>.</p>` +
-          sleepStatus +
-          `<div class="prof-field">` +
-            `<label class="prof-check-row">` +
-              `<input id="settings-sleep-enabled" name="sleepModeEnabled" type="checkbox" value="1"${sleepEnabled ? ' checked' : ''} />` +
-              `<span>Enable sleep mode</span>` +
-            `</label>` +
-          `</div>` +
-          `<div class="prof-field-row">` +
-            `<div class="prof-field"><label for="settings-sleep-start">From</label>` +
-            `<input id="settings-sleep-start" name="quietStart" type="time" value="${escHtml(quietStart)}" required /></div>` +
-            `<div class="prof-field"><label for="settings-sleep-end">Until</label>` +
-            `<input id="settings-sleep-end" name="quietEnd" type="time" value="${escHtml(quietEnd)}" required /></div>` +
-          `</div>` +
-          `<div class="prof-field"><label for="settings-sleep-tz">Timezone</label>` +
-          `<select id="settings-sleep-tz" name="timezone">${profileTimezoneOptions(tz)}</select></div>` +
+          `<section class="prof-section">` +
+            `<div class="prof-section-copy">` +
+              `<h2 class="prof-title prof-title--section">Sleep mode</h2>` +
+              `<p class="prof-subtitle">During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Messages received overnight appear in Email as <strong>Sleep deferred</strong>.</p>` +
+            `</div>` +
+            `<div class="prof-section-fields">` +
+              sleepStatus +
+              `<div class="prof-field">` +
+                `<label class="prof-check-row">` +
+                  `<input id="settings-sleep-enabled" name="sleepModeEnabled" type="checkbox" value="1"${sleepEnabled ? ' checked' : ''} />` +
+                  `<span>Enable sleep mode</span>` +
+                `</label>` +
+              `</div>` +
+              `<div class="prof-field-row">` +
+                `<div class="prof-field"><label for="settings-sleep-start">From</label>` +
+                `<input id="settings-sleep-start" name="quietStart" type="time" value="${escHtml(quietStart)}" required /></div>` +
+                `<div class="prof-field"><label for="settings-sleep-end">Until</label>` +
+                `<input id="settings-sleep-end" name="quietEnd" type="time" value="${escHtml(quietEnd)}" required /></div>` +
+              `</div>` +
+              `<div class="prof-field"><label for="settings-sleep-tz">Timezone</label>` +
+              `<select id="settings-sleep-tz" name="timezone">${profileTimezoneOptions(tz)}</select></div>` +
+            `</div>` +
+          `</section>` +
         `</form>` +
       `</div>` +
     `</div>`
