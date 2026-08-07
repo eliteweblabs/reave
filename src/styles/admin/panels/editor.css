@@ -1195,47 +1195,38 @@ button.de-placeholder-action:active {
     0
     var(--detail-pad-x);
 }
+/* Outer inset for detail tabs — keeps labels clear of screen edges when sticky. */
+.detail-tabs-wrap {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding:
+    0.14rem
+    var(--detail-pad-x-right)
+    calc(var(--detail-tabs-pad-y) + 0.1rem)
+    var(--detail-pad-x);
+  overflow: visible;
+}
 .detail-tabs {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.25rem;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  scroll-padding-inline: calc(var(--detail-pad-x) + 0.15rem);
-  padding:
-    calc(var(--detail-tabs-pad-y) + 0.15rem)
-    calc(var(--detail-pad-x-right) + 0.15rem)
-    calc(var(--detail-tabs-pad-y) + 0.15rem)
-    calc(var(--detail-pad-x) + 0.15rem);
+  scroll-padding-inline: 0.35rem;
+  padding: 0.15rem;
   flex: 0 0 auto;
   min-width: 0;
+  width: 100%;
   border-radius: 8px;
   background: var(--btn-group-track-bg);
-}
-.detail-tabs::before,
-.detail-tabs::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: var(--detail-tab-fade-w);
-  pointer-events: none;
-  z-index: 2;
-}
-.detail-tabs::before {
-  left: 0;
-  background: linear-gradient(to right, var(--btn-group-track-bg) 0%, transparent 100%);
-}
-.detail-tabs::after {
-  right: 0;
-  background: linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%);
 }
 .detail-tabs::-webkit-scrollbar { display: none; }
 .detail-tab {
   position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -1382,6 +1373,21 @@ button.de-placeholder-action:active {
   background: var(--btn-group-track-bg);
   overflow: visible;
 }
+.sliding-pill--scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 0.35rem;
+  flex-wrap: nowrap;
+}
+.sliding-pill--scroll::-webkit-scrollbar { display: none; }
+.sliding-pill--scroll .sliding-pill-btn {
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: unset;
+}
 .sliding-pill-indicator {
   display: none;
 }
@@ -1449,6 +1455,7 @@ button.de-placeholder-action:active {
       var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem)
     );
     z-index: 6;
+    overflow: visible;
   }
   #clients-editor.de-pane-active .detail-form-scroll,
   #work-editor.de-pane-active .detail-form-scroll {
@@ -2489,8 +2496,8 @@ button.de-placeholder-action:active {
 }
 #clients-editor .detail-tab .cl-detail-tab-badge {
   position: absolute;
-  top: -0.12rem;
-  right: -0.12rem;
+  top: -0.1rem;
+  right: -0.08rem;
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
@@ -2502,7 +2509,7 @@ button.de-placeholder-action:active {
   line-height: 1;
   text-align: center;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 #clients-editor .detail-tab .cl-detail-tab-badge[hidden] {
   display: none !important;
