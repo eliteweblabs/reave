@@ -4,6 +4,7 @@
  */
 import {
   IOS_ICONS,
+  iosIcon,
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
@@ -28,7 +29,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260805b';
+} from './admin-ui.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
@@ -2575,10 +2576,8 @@ function renderNewWorkForm(pane) {
 
 const WK_COMMENT_AVATAR_PLACEHOLDER =
   '<span class="wk-comment-avatar-fallback" aria-hidden="true">' +
-  '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>' +
-  '<circle cx="12" cy="7" r="4"/>' +
-  '</svg></span>';
+  iosIcon('user', 15) +
+  '</span>';
 
 function workCommentAvatarHtml(author, clientIconUrl) {
   const url = author === 'staff' ? (window.__companyStaffAvatarUrl || '') : (clientIconUrl || '');

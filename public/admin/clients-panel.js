@@ -3,6 +3,7 @@
  */
 import {
   IOS_ICONS,
+  iosIcon,
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
@@ -39,7 +40,7 @@ import {
   pullRefreshContentRoot,
   createInputClearAdornment,
   syncInputClearAdornment,
-} from './admin-ui.js?v=20260806a';
+} from './admin-ui.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
@@ -275,10 +276,8 @@ function clientListSubline(c) {
 
 const CLIENT_LIST_AVATAR_PLACEHOLDER =
   '<span class="cl-list-avatar cl-list-avatar--placeholder" aria-hidden="true">' +
-  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>' +
-  '<circle cx="12" cy="7" r="4"/>' +
-  '</svg></span>';
+  iosIcon('user', 18) +
+  '</span>';
 
 function bindClientAvatarFallback(img) {
   if (!(img instanceof HTMLImageElement)) return;

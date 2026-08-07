@@ -103,9 +103,10 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260806d';
+  iosIcon,
+} from './admin-ui.js?v=20260807e';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
-import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807a';
+import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
 import {
   captureFilterTabsScroll,
@@ -1044,10 +1045,8 @@ const modelDropdowns = new Set();
 let openModelDropdown = null;
 let modelDropdownGlobalBound = false;
 
-const MODEL_DD_CHEVRON =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
-const MODEL_DD_CHECK =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+const MODEL_DD_CHEVRON = iosIcon('chevron-down', 12);
+const MODEL_DD_CHECK = iosIcon('check', 14);
 
 function currentModelOption() {
   return (

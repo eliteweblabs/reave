@@ -59,11 +59,13 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
 
       <header id="focus-header" class="focus-header" hidden>
         <button id="focus-back" class="focus-icon-btn" type="button" aria-label="Back">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          <!-- IOS_ICONS.chevron-left — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div id="focus-project-chips" class="focus-project-chips"></div>
         <button id="focus-add-project" class="focus-icon-btn" type="button" aria-label="Add project reference">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          <!-- IOS_ICONS.plus — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         </button>
       </header>
 
@@ -117,8 +119,9 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
           <span class="focus-dial-action-label">Full dashboard</span>
         </button>
         <button id="focus-fab" class="focus-fab" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Session menu">
-          <svg class="focus-fab-icon-plus" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          <svg class="focus-fab-icon-close" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <!-- IOS_ICONS.plus / IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+          <svg class="focus-fab-icon-plus" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <svg class="focus-fab-icon-close" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
       </nav>
     </div>

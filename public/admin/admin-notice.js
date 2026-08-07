@@ -8,8 +8,9 @@
  * Styles live on `.admin-setup-alert*` in src/styles/admin/shell.css.
  */
 
-export const ADMIN_NOTICE_DISMISS_SVG =
-  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+import { iosIcon } from './admin-ui.js?v=20260807e';
+
+export const ADMIN_NOTICE_DISMISS_SVG = iosIcon('x', 16);
 
 /**
  * Append an action button to a notice toolbar.

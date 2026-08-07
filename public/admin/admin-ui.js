@@ -46,11 +46,31 @@ export const IOS_ICONS = {
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>',
   message:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
+  'message-square':
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>',
+  'eye-off':
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 13.058-4.076"/><path d="m2 2 20 20"/></svg>',
+  search:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  'chevron-down':
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+  ban: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>',
+  paperclip:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.586-8.414"/></svg>',
   more: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
   refresh:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
 };
+
+/** Resize an IOS_ICONS glyph (keeps paths; swaps width/height attrs). */
+export function iosIcon(key, size = 20) {
+  const svg = IOS_ICONS[key];
+  if (!svg) return '';
+  return String(svg)
+    .replace(/\bwidth="\d+"/, `width="${size}"`)
+    .replace(/\bheight="\d+"/, `height="${size}"`);
+}
 
 let _agentIconClipSeq = 0;
 
@@ -337,11 +357,8 @@ export function matchesListSearch(query, ...parts) {
   return hay.includes(q);
 }
 
-const SEARCH_FIELD_CLEAR_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-
-const SEARCH_FIELD_SEARCH_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+const SEARCH_FIELD_CLEAR_ICON = () => iosIcon('x', 18);
+const SEARCH_FIELD_SEARCH_ICON = () => iosIcon('search', 18);
 
 /** Toggle the right-side search adornment between magnifying glass (empty) and clear (has text). */
 export function syncSearchFieldAdornment(input, btn) {
@@ -352,13 +369,13 @@ export function syncSearchFieldAdornment(input, btn) {
     btn.classList.add('is-clear');
     btn.classList.remove('is-search');
     btn.setAttribute('aria-label', 'Clear search');
-    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON;
+    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON();
   } else {
     btn.dataset.mode = 'search';
     btn.classList.add('is-search');
     btn.classList.remove('is-clear');
     btn.setAttribute('aria-label', 'Search');
-    btn.innerHTML = SEARCH_FIELD_SEARCH_ICON;
+    btn.innerHTML = SEARCH_FIELD_SEARCH_ICON();
   }
 }
 
@@ -391,7 +408,7 @@ export function syncInputClearAdornment(input, btn, label = 'Clear') {
     btn.classList.add('is-clear');
     btn.classList.remove('is-search');
     btn.setAttribute('aria-label', label);
-    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON;
+    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON();
   }
 }
 
@@ -413,8 +430,7 @@ export function createInputClearAdornment(input, onClear, label = 'Clear') {
   return btn;
 }
 
-const LIST_EMPTY_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>';
+const LIST_EMPTY_ICON = () => iosIcon('ban', 36);
 
 /** Centered list empty state — icon + message, flex-filled in scroll lists. */
 export function createCenteredListEmpty(opts = {}) {
@@ -423,7 +439,7 @@ export function createCenteredListEmpty(opts = {}) {
   el.className = 'list-empty-state';
   const body = innerHtml != null ? innerHtml : (text || 'Nothing here yet.');
   el.innerHTML =
-    `<div class="list-empty-state-icon">${LIST_EMPTY_ICON}</div>` +
+    `<div class="list-empty-state-icon">${LIST_EMPTY_ICON()}</div>` +
     `<div class="list-empty-state-body">${body}</div>`;
   return el;
 }
