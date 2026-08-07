@@ -1,77 +1,62 @@
-# Website content management — agent playbook
+# Website content management — no CMS, use the agent
 
-Use these tools when the owner asks to **update their public website** — headline, navigation, page copy, images, or which pages are live. This module is end-user facing; keep language plain and confirm destructive changes.
+When the owner asks to **update their public website** — headline, navigation, page copy, or images — handle it in chat. There is no separate CMS admin. Changes commit to GitHub and go live after Railway deploys.
 
-## Prerequisites
+## Existing tools (no separate CMS product)
 
-| Requirement | Purpose |
-|-------------|---------|
-| `content_management` feature enabled | Gates the tools |
-| `GITHUB_TOKEN` with **Contents** write | Commits persist to GitHub |
-| `GITHUB_REPO` or Railway git vars | Target repo (usually this Astro app) |
-| `siteContentKey` in install config | Which `config/sites/{key}-config.json` to edit |
+| Need | Tool | Feature |
+|------|------|---------|
+| Read site config or page source | `read_file` | `code_dev` (local) or fetch via GitHub |
+| Commit config or page edits | `write_github_file` on `main` | `dev_infra` + `GITHUB_TOKEN` |
+| Stock photos | `search_stock_photos` | Pexels (core when configured) |
+| Verify deploy | `check_deployment_status` | `dev_infra` |
 
-Committing to **main** triggers a **Railway deploy** automatically. On production, there is no local git — all writes go through GitHub.
+## Where website content lives
 
-## Two layers of website content
+### Structured settings — `config/sites/{siteContentKey}-config.json`
 
-### 1. Structured config — `config/sites/{key}-config.json`
+Nav links, homepage headline (`heroHeadlineHtml`), section toggles, and the allowlist of public routes (`pages`). Read with `read_file`, update with `write_github_file`.
 
-Controls nav, homepage headline, section toggles, and the allowlist of public routes.
+### Page body — Astro source
 
-| Tool | Use |
-|------|-----|
-| `get_site_content` | Read current config before editing |
-| `update_site_content` | Change headline, nav links/groups, CTAs, show/hide homepage sections, allowed pages |
-
-Always call `get_site_content` first when the user asks "what does the homepage say?" or before changing nav.
-
-### 2. Page body — Astro source files
-
-Marketing copy, layouts, and components live under:
-
-- `src/pages/` — routes (e.g. `about.astro`, `services.astro`)
-- `src/components/` — sections reused across pages
+- `src/pages/` — routes (e.g. `about.astro`)
+- `src/components/` — reusable sections
 - `src/assets/` / `public/` — images and static files
 
-Use `write_website_file` for these. **Read before write** — use `read_file` (code_dev) or fetch from GitHub via `get_recent_commits` + prior content if needed.
-
-For long pages (400+ lines), write in **sections** with `append:true` on the same path — one oversized call gets cut off and nothing is saved.
-
-## Images
-
-- **Stock photos:** `search_stock_photos` (Pexels) — credit the photographer and link to Pexels wherever the image appears.
-- **Uploaded assets:** admin Media library or commit image files under `src/assets/` or `public/` via `write_website_file`.
+Always **read before write**. For long pages, use `write_github_file` with `append:true` in sections — one oversized call gets cut off.
 
 ## Typical flows
 
 ### Change homepage headline
 
-1. `get_site_content` — show current headline
-2. `update_site_content` with `hero_headline_html`
-3. Report commit URL; deploy banner will show when live
-
-### Add or reorder nav link
-
-1. `get_site_content`
-2. Build updated `nav_links` or `nav_groups` JSON array
-3. `update_site_content` with the new JSON
-4. If the page is new, also add its path to `pages` and create the `.astro` file with `write_website_file`
+1. `read_file` on `config/sites/{key}-config.json`
+2. Edit `homepage.heroHeadlineHtml`
+3. `write_github_file` with `branch:"main"` and a clear commit message
+4. Report commit URL; deploy banner shows when live
 
 ### Rewrite an About page
 
-1. `read_file` on `src/pages/about.astro` (or grep for the section)
-2. `write_website_file` with the updated markup
-3. One focused commit message, e.g. "Update About page copy"
+1. `read_file` on `src/pages/about.astro`
+2. `write_github_file` with updated markup
+3. One focused commit — never open a PR unless the user asks
 
-### WordPress on Kinsta (client sites)
+### Add a nav link to a new page
 
-This module edits **this Reave/Astro app repo**. For **Kinsta-hosted WordPress** client sites, content changes happen in wp-admin — you can `clear_kinsta_cache` after their team publishes (requires `dev_infra` + Kinsta env). Do not pretend `write_website_file` updates a client's WordPress theme.
+1. Update `config/sites/{key}-config.json` — add path to `pages`, add link to `nav.links` or a group
+2. Create `src/pages/new-page.astro` via `write_github_file`
+
+## Images
+
+- **Stock:** `search_stock_photos` — credit photographer + link to Pexels wherever displayed
+- **Uploads:** Media library in admin, or commit under `src/assets/` / `public/`
+
+## WordPress on Kinsta
+
+This playbook is for **this Reave/Astro app repo**. Kinsta WordPress client sites are edited in wp-admin; you can `clear_kinsta_cache` after they publish (`dev_infra` + Kinsta env).
 
 ## Rules
 
-- **Never open a PR** unless the user explicitly asks — commit straight to `main`.
-- **Never invent URLs** on sites you cannot write to.
-- Confirm before removing pages from the `pages` allowlist (middleware returns 404 for disallowed routes).
-- After tools succeed, tell the user the change is committed and will go live after deploy (~1–3 min on Railway).
-- Call `read_knowledge slug "content-management"` when unsure which tool to use.
+- **Never open a PR** — commit straight to `main` (see `github-dev-tools` knowledge)
+- **Never invent URLs** on sites you cannot write to
+- Confirm before removing paths from the `pages` allowlist (middleware 404s disallowed routes)
+- Do not claim the site is updated unless `write_github_file` succeeds

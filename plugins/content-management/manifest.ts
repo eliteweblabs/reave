@@ -1,10 +1,7 @@
-import { contentManagementModule } from './agentTools';
 import type { ReavePlugin } from '../_shared/types';
-import { isGithubConfigured } from '../../src/lib/githubClient';
 
+/** Marketing + agent playbook only — website edits use existing dev_infra / code_dev tools. */
 export const contentManagementPlugin: ReavePlugin = {
   id: 'content-management',
   feature: 'content_management',
-  configured: () => isGithubConfigured(),
-  agentTools: contentManagementModule,
 };

@@ -60,7 +60,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   inventory_sync: 'Multi-channel inventory sync (Shopify, WooCommerce, Square via inventory-api)',
   online_reviews: 'Online reviews inbox — Google sync + response to-do workflow',
   wayback_machine: 'Wayback Machine — browse archived website snapshots (Internet Archive)',
-  content_management: 'Website content management — update copy, nav, and pages via the agent (GitHub deploy)',
+  content_management: 'Website content management — update your site through the agent, no CMS',
 };
 
 export const CORE_FEATURE_NOTE =

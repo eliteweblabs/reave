@@ -44,7 +44,7 @@ const SYSTEM_NODES = [
   { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews inbox', sub: 'Google sync · response to-do (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
-  { id: 'content_mgmt', title: 'Content management', sub: 'site config + pages via GitHub (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
+  { id: 'content_mgmt', title: 'Content management', sub: 'agent edits site · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
@@ -124,7 +124,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },
   { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
-  { from: 'content_mgmt', to: 'github', label: 'write_website_file · update_site_content', dashed: true },
+  { from: 'content_mgmt', to: 'github', label: 'write_github_file', dashed: true },
   { from: 'content_mgmt', to: 'astro', label: 'config/sites · src/pages', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site · engagement' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },

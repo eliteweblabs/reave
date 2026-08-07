@@ -792,18 +792,9 @@ async function runKnowledgeAgentInner(
     );
   }
   if (hasFeature('content_management')) {
-    if (isGithubConfigured()) {
-      const deployDefer = isDeferredDeployEnabled()
-        ? ' Commits to main during this chat turn are queued and push when the turn finishes.'
-        : ' Committing to main triggers a Railway deploy automatically.';
-      sysParts.push(
-        `Website content management: the owner can update their public marketing site through you. Call get_site_content before changing nav, headline, or homepage section toggles; use update_site_content to commit config/sites/{key}-config.json. For page body copy and components, use write_website_file (paths under config/sites/, src/pages/, src/components/, src/assets/, public/ only). Never open a PR — commit straight to main.${deployDefer} Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for the full playbook. Do not claim the site is updated unless tools succeed.`,
-      );
-    } else {
-      sysParts.push(
-        'Website content management is enabled but GITHUB_TOKEN is not set — you can read get_site_content locally but cannot persist changes until GitHub write access is configured.',
-      );
-    }
+    sysParts.push(
+      'Website content (no CMS): when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or GitHub, then commit with write_github_file on main (dev_infra + GITHUB_TOKEN). Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
+    );
   }
   if (hasFeature('site_audits')) {
     sysParts.push(

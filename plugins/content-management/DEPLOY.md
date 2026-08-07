@@ -3,50 +3,39 @@
 **Feature id:** `content_management`  
 **Default status:** `request` (opt-in per install)
 
-## What it does
+## What it is
 
-Lets the business owner update their **public marketing website** through the admin agent — homepage headline, navigation, page copy, and assets — with changes committed to GitHub and deployed via Railway.
+A **front-end module label** for a capability that already ships in the platform: the owner updates their public website by asking the agent — no WordPress, no Webflow, no separate CMS login.
+
+This plugin adds marketing copy on `/modules`, an agent playbook, and optional install gating. It does **not** add new agent tools.
 
 ## Enable
 
-Add to `config/config-{slug}.json`:
-
 ```json
 {
-  "features": ["content_management", "..."],
+  "features": ["content_management", "dev_infra", "..."],
   "siteContentKey": "your-brand"
 }
 ```
 
+- `content_management` — surfaces the module and loads the playbook
+- `dev_infra` — provides `write_github_file` and deploy status (required to persist edits from Railway)
+- `code_dev` — optional; `read_file` / local edits when developing on a checkout
+
 Site content file: `config/sites/your-brand-config.json`
 
-## Required env (Reave Astro service)
+## Required env
 
 | Variable | Purpose |
 |----------|---------|
-| `GITHUB_TOKEN` | PAT with **Contents** read + write |
-| `GITHUB_REPO` | `owner/repo` (optional if Railway injects git vars) |
-| `GITHUB_DEFAULT_BRANCH` | Usually `main` |
+| `GITHUB_TOKEN` | PAT with **Contents** write (`write_github_file`) |
+| `GITHUB_REPO` | `owner/repo` (or Railway git vars) |
 
-Optional: `PEXELS_API_KEY` for stock photo search (core tool, not gated by this feature).
-
-## Agent tools (when enabled + token set)
-
-- `get_site_content` — read nav, headline, section toggles
-- `update_site_content` — commit structured config changes
-- `write_website_file` — commit pages/components/assets (content paths only)
-
-## Related features
-
-| Feature | Relationship |
-|---------|--------------|
-| `dev_infra` | Full GitHub/Railway/Kinsta ops — not required for basic content edits |
-| `code_dev` | Local read_file/write_file when developing on a checkout |
-| `site_monitoring` | Watch for unintended content changes after deploy |
+Optional: `PEXELS_API_KEY` for stock photos.
 
 ## Verify
 
-1. `run_dev_task` → `service_status` — `github_write.can_write_files: true`
-2. In admin chat: "What is our homepage headline?" → agent calls `get_site_content`
-3. "Change the headline to …" → `update_site_content` → commit SHA returned
-4. After deploy, confirm live site shows the new headline
+1. `/modules` shows **Website Content Management**
+2. `/features` core tour includes "Update your website by asking — no CMS"
+3. In admin chat: "Change our homepage headline to …" → agent uses `read_file` + `write_github_file`
+4. After deploy, live site reflects the change
