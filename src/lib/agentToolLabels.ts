@@ -6,6 +6,7 @@ const TOOL_LABELS: Record<string, string> = {
   playwright_audit: 'Running Playwright UX audit',
   detect_tech_stack: 'Detecting tech stack',
   dns_check: 'Checking DNS',
+  search_stock_photos: 'Searching stock photos',
   resolve_contact: 'Looking up client',
   list_contacts: 'Listing clients',
   create_contact: 'Creating client',

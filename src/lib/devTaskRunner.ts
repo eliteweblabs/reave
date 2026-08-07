@@ -13,6 +13,7 @@ import { cloudflareVerifyToken, isCloudflareConfigured } from './cloudflareClien
 import { isRailwayConfigured, railwayListProjectNetworking, railwayPing } from './railwayClient';
 import { isResendDnsSyncConfigured, syncResendDnsToCloudflare } from './resendDnsSync';
 import { isKinstaConfigured, kinstaListSites, kinstaPing } from './kinstaClient';
+import { isPexelsConfigured } from './pexelsClient';
 import { serverEnv } from './serverEnv';
 
 export const DEV_TASK_NAMES = [
@@ -54,6 +55,7 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           booking: isBookingConfigured(),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
           cloudflare: isCloudflareConfigured(),
+          pexels: isPexelsConfigured(),
           resend_dns_sync: isResendDnsSyncConfigured(),
           github_token: isGithubConfigured(),
           github_repo: githubRepoSlug(),

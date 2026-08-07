@@ -33,6 +33,7 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   ssl_check: 60_000,
   fetch_url: 45_000,
   brave_search: 45_000,
+  search_stock_photos: 45_000,
   exec_command: 180_000,
   run_terminal_command: 60_000,
   run_dev_task: 120_000,
@@ -70,6 +71,7 @@ const READ_ONLY_TOOLS = new Set([
   'detect_tech_stack',
   'dns_check',
   'brave_search',
+  'search_stock_photos',
   'get_site_monitoring',
   // Knowledge and project reads
   'list_knowledge',

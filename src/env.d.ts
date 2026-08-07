@@ -15,6 +15,8 @@ interface ImportMetaEnv {
   AGENT_MODEL_FILE?: string;
   /** Brave Search API key (web search tool for admin agent) */
   BRAVE_API_KEY?: string;
+  /** Pexels API key (royalty-free stock photo search for admin agent + /api/pexels/search) */
+  PEXELS_API_KEY?: string;
   /** Optional Google Cloud API key for PageSpeed Insights (higher quota than anonymous) */
   GOOGLE_PAGESPEED_API_KEY?: string;
   /** Google Maps / Places server key for address autocomplete (admin scheduling). */
