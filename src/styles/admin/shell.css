@@ -435,6 +435,7 @@ select,
 }
 .admin-setup-alert-brand {
   flex-shrink: 0;
+  align-self: flex-start;
   width: 2rem;
   height: 2rem;
   border-radius: 8px;

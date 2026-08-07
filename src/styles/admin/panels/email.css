@@ -218,7 +218,7 @@
 }
 .em-list-item:has(.sidebar-list-author-icon) {
   flex-direction: row;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 0.45rem;
 }
 .em-list-item:hover { color: var(--fg); background: var(--surface-hover); }
@@ -391,7 +391,7 @@
 }
 .em-item-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.4rem;
   width: 100%;
   min-width: 0;
@@ -403,6 +403,7 @@
   flex: 0 0 auto;
   width: 7px;
   height: 7px;
+  margin-top: 0.35rem;
   border-radius: 50%;
   background: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
@@ -1100,7 +1101,7 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 0.55rem;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   padding: 0.55rem 0.65rem;
   border-radius: 8px;
