@@ -133,6 +133,62 @@ Everything in the quick audit plus Playwright UX/UI, broken links, and tech stac
 
 ---
 
+## Add To-Do
+
+```json
+{
+  "action": "add_todo",
+  "title": "Call the accountant about Q2 taxes",
+  "due_date": "2026-08-15",
+  "priority": "high",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "create_todo"`. Title aliases: `todo`, `text`, `query`.
+
+---
+
+## List To-Dos
+
+```json
+{
+  "action": "list_todos",
+  "status": "open",
+  "format": "text"
+}
+```
+
+---
+
+## Complete To-Do
+
+```json
+{
+  "action": "complete_todo",
+  "title": "Call the accountant",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "done_todo"` or `"action": "mark_todo_done"`. Match by `id` or title.
+
+---
+
+## Delete To-Do
+
+```json
+{
+  "action": "delete_todo",
+  "title": "Call the accountant",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "clear_todo"`.
+
+---
+
 ## Send SMS
 
 ```json

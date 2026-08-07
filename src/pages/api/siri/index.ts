@@ -18,6 +18,11 @@
  *   everything in the quick audit plus Playwright UX, broken links, and tech stack detection.
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
+ * - add_todo / create_todo: { action: "add_todo", title: string, due_date?, priority? }
+ * - list_todos: { action: "list_todos", status?, priority?, limit? }
+ * - update_todo: { action: "update_todo", id? | title?, title?, due_date?, priority?, status? }
+ * - complete_todo / done_todo / mark_todo_done: { action: "complete_todo", id? | title? }
+ * - delete_todo / clear_todo: { action: "delete_todo", id? | title? }
  * - start_time_tracking: { action: "start_time_tracking", query?, project?, suggested_slug? }
  *   Prompts with the most recent project when query is omitted; accepts "yes" or a project name.
  *   Finds an existing project or searches for a client and creates one, then starts the timer.
@@ -70,6 +75,19 @@ import {
   stopTimeTrackingWithMessage,
 } from '../../../lib/timeTrackingSiri';
 import { formatElapsedDuration, getActiveTimer } from '../../../lib/activeTimers';
+import {
+  isTodoDbConfigured,
+  normalizeTodoPriority,
+  normalizeTodoStatus,
+  storeCreateTodo,
+  storeDeleteTodo,
+  storeListTodos,
+  storeMarkTodoDone,
+  storeUpdateTodo,
+  type TodoItem,
+  type TodoPriority,
+  type TodoStatus,
+} from '../../../lib/todoStore';
 
 const log = createLogger('siri-proposal');
 
@@ -166,6 +184,25 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'send_sms':
         result = await handleSendSms(body);
+        break;
+      case 'add_todo':
+      case 'create_todo':
+        result = await handleAddTodo(body);
+        break;
+      case 'list_todos':
+        result = await handleListTodos(body);
+        break;
+      case 'update_todo':
+        result = await handleUpdateTodo(body);
+        break;
+      case 'complete_todo':
+      case 'done_todo':
+      case 'mark_todo_done':
+        result = await handleCompleteTodo(body);
+        break;
+      case 'delete_todo':
+      case 'clear_todo':
+        result = await handleDeleteTodo(body);
         break;
       case 'status':
         result = await handleStatus();
@@ -755,6 +792,246 @@ async function handleSendSms(params: Record<string, unknown>): Promise<SiriRespo
     ok: true,
     text: `Sent SMS to ${to}`,
     data: { messageId: result.id },
+  };
+}
+
+function todosUnavailable(): SiriResponse {
+  return {
+    ok: false,
+    error: 'To-do list is not available — DATABASE_URL is not configured.',
+    text: 'To-do list is not available on this install.',
+  };
+}
+
+function todoTitleFromParams(params: Record<string, unknown>): string {
+  return String(params.title ?? params.todo ?? params.text ?? params.query ?? '').trim();
+}
+
+function formatTodoLine(todo: TodoItem): string {
+  const bits = [todo.title];
+  if (todo.priority && todo.priority !== 'normal') bits.push(`(${todo.priority})`);
+  if (todo.due_date) bits.push(`due ${todo.due_date.slice(0, 10)}`);
+  if (todo.status === 'done') bits.push('[done]');
+  return bits.join(' ');
+}
+
+async function resolveTodoFromParams(
+  params: Record<string, unknown>,
+  opts?: { preferOpen?: boolean },
+): Promise<{ todo: TodoItem } | { error: string; text: string; data?: unknown }> {
+  const idRaw = params.id;
+  const id = typeof idRaw === 'number' ? idRaw : Number(String(idRaw ?? '').trim());
+  const query = todoTitleFromParams(params);
+
+  const pool = await storeListTodos();
+
+  if (Number.isInteger(id) && id >= 1) {
+    const todo = pool.find((t) => t.id === id);
+    if (!todo) {
+      return {
+        error: `No to-do with id ${id}`,
+        text: `No to-do with id ${id}.`,
+      };
+    }
+    return { todo };
+  }
+
+  if (!query) {
+    return {
+      error: 'title or id is required',
+      text: 'Say the to-do title, or pass an id.',
+    };
+  }
+
+  const needle = query.toLowerCase();
+  const scoped = opts?.preferOpen ? pool.filter((t) => t.status === 'open') : pool;
+  const searchIn = (list: TodoItem[]) => {
+    const exact = list.filter((t) => t.title.toLowerCase() === needle);
+    if (exact.length === 1) return { todo: exact[0] } as const;
+    const partial = list.filter((t) => t.title.toLowerCase().includes(needle));
+    if (partial.length === 1) return { todo: partial[0] } as const;
+    if (partial.length > 1 || exact.length > 1) {
+      const candidates = (exact.length > 1 ? exact : partial).slice(0, 8);
+      const lines = candidates.map((t) => `#${t.id} ${formatTodoLine(t)}`);
+      return {
+        error: `Multiple to-dos match "${query}"`,
+        text: `Multiple to-dos match "${query}":\n\n${lines.join('\n')}\n\nPass id to pick one.`,
+        data: { candidates },
+      } as const;
+    }
+    return null;
+  };
+
+  const preferred = searchIn(scoped);
+  if (preferred) return preferred;
+
+  if (opts?.preferOpen && scoped.length !== pool.length) {
+    const fallback = searchIn(pool);
+    if (fallback) return fallback;
+  }
+
+  return {
+    error: `No to-do matching "${query}"`,
+    text: `No to-do matching "${query}".`,
+  };
+}
+
+async function handleAddTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isTodoDbConfigured()) return todosUnavailable();
+
+  const title = todoTitleFromParams(params);
+  if (!title) return { ok: false, error: 'title is required', text: 'What should I add to your to-do list?' };
+
+  const priorityRaw = String(params.priority ?? '').trim().toLowerCase();
+  const priority = priorityRaw
+    ? normalizeTodoPriority(priorityRaw)
+    : ('normal' as TodoPriority);
+  if (priorityRaw && !priority) {
+    return { ok: false, error: 'invalid priority', text: 'Priority must be low, normal, high, or urgent.' };
+  }
+
+  const dueRaw = params.due_date ?? params.due;
+  const due_date = dueRaw == null || dueRaw === '' ? null : String(dueRaw).trim();
+
+  const result = await storeCreateTodo({
+    title,
+    due_date,
+    priority,
+    section: params.section != null ? String(params.section).trim() || null : undefined,
+  });
+  if (!result.ok) return { ok: false, error: result.error, text: result.error };
+
+  const dueBit = result.todo.due_date ? ` · due ${result.todo.due_date.slice(0, 10)}` : '';
+  const priorityBit =
+    result.todo.priority && result.todo.priority !== 'normal' ? ` · ${result.todo.priority}` : '';
+
+  return {
+    ok: true,
+    text: `Added to-do: ${result.todo.title}${priorityBit}${dueBit}`,
+    data: { todo: result.todo },
+  };
+}
+
+async function handleListTodos(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isTodoDbConfigured()) return todosUnavailable();
+
+  const statusRaw = String(params.status ?? 'open').trim().toLowerCase();
+  const priorityRaw = String(params.priority ?? '').trim().toLowerCase();
+  const status = statusRaw === 'all' ? undefined : normalizeTodoStatus(statusRaw);
+  const priority = normalizeTodoPriority(priorityRaw);
+  if (statusRaw && statusRaw !== 'all' && !status) {
+    return { ok: false, error: 'invalid status', text: 'Status must be open, done, or all.' };
+  }
+  if (priorityRaw && !priority) {
+    return { ok: false, error: 'invalid priority', text: 'Priority must be low, normal, high, or urgent.' };
+  }
+
+  const limitRaw = Number(params.limit ?? 15);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 50) : 15;
+
+  const todos = (await storeListTodos({ status, priority })).slice(0, limit);
+  if (!todos.length) {
+    return {
+      ok: true,
+      text: status === 'done' ? 'No completed to-dos.' : 'No open to-dos.',
+      data: { todos: [], count: 0 },
+    };
+  }
+
+  const lines = todos.map((t) => `• ${formatTodoLine(t)}`);
+  const label = status === 'done' ? 'Completed' : status === 'open' || !statusRaw || statusRaw === 'open' ? 'Open' : 'Matching';
+  return {
+    ok: true,
+    text: `${label} to-dos (${todos.length}):\n\n${lines.join('\n')}`,
+    data: { todos, count: todos.length },
+  };
+}
+
+async function handleUpdateTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isTodoDbConfigured()) return todosUnavailable();
+
+  const resolved = await resolveTodoFromParams(params, { preferOpen: true });
+  if ('error' in resolved) return { ok: false, ...resolved };
+
+  const patch: {
+    title?: string;
+    due_date?: string | null;
+    priority?: TodoPriority;
+    status?: TodoStatus;
+  } = {};
+
+  if (params.new_title != null || (params.title != null && params.id != null)) {
+    const nextTitle = String(params.new_title ?? params.title ?? '').trim();
+    if (nextTitle) patch.title = nextTitle;
+  }
+  if (params.due_date !== undefined || params.due !== undefined) {
+    const dueRaw = params.due_date ?? params.due;
+    patch.due_date = dueRaw == null || dueRaw === '' ? null : String(dueRaw).trim();
+  }
+  if (params.priority != null) {
+    const priority = normalizeTodoPriority(params.priority);
+    if (!priority) {
+      return { ok: false, error: 'invalid priority', text: 'Priority must be low, normal, high, or urgent.' };
+    }
+    patch.priority = priority;
+  }
+  if (params.status != null) {
+    const status = normalizeTodoStatus(params.status);
+    if (!status) {
+      return { ok: false, error: 'invalid status', text: 'Status must be open or done.' };
+    }
+    patch.status = status;
+  }
+
+  if (!Object.keys(patch).length) {
+    return {
+      ok: false,
+      error: 'Nothing to update',
+      text: 'Pass new_title, due_date, priority, or status to update.',
+    };
+  }
+
+  const result = await storeUpdateTodo(resolved.todo.id, patch);
+  if (!result.ok) return { ok: false, error: result.error, text: result.error };
+
+  return {
+    ok: true,
+    text: `Updated to-do: ${formatTodoLine(result.todo)}`,
+    data: { todo: result.todo },
+  };
+}
+
+async function handleCompleteTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isTodoDbConfigured()) return todosUnavailable();
+
+  const resolved = await resolveTodoFromParams(params, { preferOpen: true });
+  if ('error' in resolved) return { ok: false, ...resolved };
+
+  const result = await storeMarkTodoDone(resolved.todo.id);
+  if (!result.ok) return { ok: false, error: result.error, text: result.error };
+
+  return {
+    ok: true,
+    text: `Completed to-do: ${result.todo.title}`,
+    data: { todo: result.todo },
+  };
+}
+
+async function handleDeleteTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isTodoDbConfigured()) return todosUnavailable();
+
+  const resolved = await resolveTodoFromParams(params);
+  if ('error' in resolved) return { ok: false, ...resolved };
+
+  const result = await storeDeleteTodo(resolved.todo.id);
+  if (!result.ok) {
+    return { ok: false, error: result.error ?? 'Failed to delete', text: result.error ?? 'Failed to delete to-do.' };
+  }
+
+  return {
+    ok: true,
+    text: `Deleted to-do: ${resolved.todo.title}`,
+    data: { id: resolved.todo.id, deleted: true, title: resolved.todo.title },
   };
 }
 

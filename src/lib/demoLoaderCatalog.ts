@@ -73,7 +73,7 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
   {
     id: 'dynamic-todos',
     label: 'Dynamic To-Dos',
-    blurb: 'Personal tasks that stay out of the job list — create, update, and clear with the agent.',
+    blurb: 'Dynamic alerts for personal or work — create, update, and clear with the agent or Siri.',
   },
   {
     id: 'email-inbox',

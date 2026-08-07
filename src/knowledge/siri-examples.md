@@ -260,6 +260,39 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
+## Example 6c: "Add a To-Do"
+
+**What it does**: Creates a personal/work to-do (not a client project) from a dictated title.
+
+**Siri phrase**: "add a to-do" or "new to-do"
+
+**Shortcut steps**:
+
+1. **Ask for Input**
+   - Prompt: "What's the to-do?"
+   - Variable: `Title`
+
+2. **Text**
+   ```json
+   {
+     "action": "add_todo",
+     "title": "Title",
+     "format": "text"
+   }
+   ```
+
+3. **Get Contents of URL**
+   - URL: `https://reave.app/api/siri`
+   - Method: POST
+   - Headers: `X-Siri-Key` + `Content-Type: application/json`
+   - Request Body: `Text`
+
+4. **Show Result**
+
+**Optional**: Add another Ask for Input for due date / priority, or a separate shortcut for `"action": "list_todos"` / `"action": "complete_todo"`.
+
+---
+
 ## Example 7: "Create Reave Project"
 
 **What it does**: Finds an existing client or creates a new one, then starts a project. Prompts for missing details via Siri.
