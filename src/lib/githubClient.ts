@@ -127,16 +127,40 @@ async function ghFetch<T>(
     const msg =
       (parsed as { message?: string })?.message ||
       (res.status === 401 ? 'Bad credentials (check GITHUB_TOKEN)' : `HTTP ${res.status}`);
-    const rate = res.headers.get('x-ratelimit-remaining');
-    const hint = res.status === 403 && rate === '0' ? ' (rate limited — set GITHUB_TOKEN)' : '';
+    const rateRemaining = res.headers.get('x-ratelimit-remaining');
+    const rateReset = res.headers.get('x-ratelimit-reset');
+    const retryAfter = res.headers.get('retry-after');
+    const rateLimited =
+      (res.status === 403 || res.status === 429) &&
+      (rateRemaining === '0' || /rate limit/i.test(msg));
+    let hint = '';
+    if (rateLimited) {
+      const resetSec = Number(rateReset);
+      const retrySec = Number(retryAfter);
+      const waitMin =
+        Number.isFinite(retrySec) && retrySec > 0
+          ? Math.max(1, Math.ceil(retrySec / 60))
+          : Number.isFinite(resetSec) && resetSec > 0
+            ? Math.max(1, Math.ceil((resetSec * 1000 - Date.now()) / 60_000))
+            : null;
+      hint = waitMin
+        ? ` GitHub API rate limited — retry in ~${waitMin}m`
+        : ' GitHub API rate limited — try again later';
+    } else if (res.status === 403 && rateRemaining === '0') {
+      hint = ' (rate limited)';
+    }
     const requiredPerms = res.headers.get('x-accepted-github-permissions');
     const permHint =
-      res.status === 403 && requiredPerms
+      res.status === 403 && !rateLimited && requiredPerms
         ? ` Required: ${requiredPerms}. For fine-grained PATs, set Repository access to this repo and grant Contents (read+write) + Pull requests (read+write).`
-        : res.status === 403 && /resource not accessible/i.test(msg)
+        : res.status === 403 && !rateLimited && /resource not accessible/i.test(msg)
           ? ' Fine-grained PAT likely missing repo access or Contents/Pull requests write on eliteweblabs/reave.'
           : '';
-    return { ok: false, error: `${msg}${hint}${permHint}`, status: res.status };
+    return {
+      ok: false,
+      error: rateLimited ? hint.trim() : `${msg}${hint}${permHint}`,
+      status: res.status,
+    };
   }
 
   return { ok: true, data: (parsed as T) ?? ([] as unknown as T) };

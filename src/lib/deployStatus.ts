@@ -29,6 +29,7 @@ export type DeployStatusSnapshot = {
 
 const CACHE_MS_LIVE = 15_000;
 const CACHE_MS_ACTIVE = 5_000;
+const CACHE_MS_GITHUB_ERROR = 5 * 60_000;
 const STALE_AFTER_MS = 10 * 60_000;
 const DEPLOYING_OVERRIDE_MS = 15 * 60_000;
 
@@ -40,8 +41,36 @@ let deployingOverride: {
   started_at: string;
   until: number;
 } | null = null;
+/** Pause GitHub lookups when the API is rate-limited or otherwise failing. */
+let githubBackoffUntil = 0;
+let githubLastError: string | null = null;
 let previousState: DeployState | null = null;
 let showLiveBannerOnce = false;
+
+function isGithubRateLimitError(error: string | null | undefined): boolean {
+  return Boolean(error && /rate limit/i.test(error));
+}
+
+function noteGithubError(error: string | null | undefined): void {
+  if (!error) return;
+  githubLastError = error.trim() || null;
+  if (isGithubRateLimitError(error)) {
+    const match = error.match(/~(\d+)\s*m/i);
+    const minutes = match ? Number(match[1]) : 15;
+    const waitMs = Math.min(
+      60 * 60_000,
+      Math.max(CACHE_MS_GITHUB_ERROR, (Number.isFinite(minutes) ? minutes : 15) * 60_000),
+    );
+    githubBackoffUntil = Math.max(githubBackoffUntil, Date.now() + waitMs);
+  } else {
+    githubBackoffUntil = Math.max(githubBackoffUntil, Date.now() + CACHE_MS_GITHUB_ERROR);
+  }
+}
+
+function clearGithubError(): void {
+  githubLastError = null;
+  githubBackoffUntil = 0;
+}
 
 function deployedSha(): string | undefined {
   return serverEnv('RAILWAY_GIT_COMMIT_SHA')?.trim() || serverEnv('GIT_COMMIT_SHA')?.trim();
@@ -210,7 +239,9 @@ export function markDeployFailed(reason?: string, failedSha?: string | null): vo
 
 function cacheTtl(snapshot: DeployStatusSnapshot | null): number {
   if (deployingOverride) return 0;
+  if (Date.now() < githubBackoffUntil) return CACHE_MS_GITHUB_ERROR;
   if (!snapshot) return CACHE_MS_LIVE;
+  if (snapshot.state === 'unknown' && githubLastError) return CACHE_MS_GITHUB_ERROR;
   if (snapshot.state === 'live') return CACHE_MS_LIVE;
   return CACHE_MS_ACTIVE;
 }
@@ -283,15 +314,14 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
       latest_commit: null,
       up_to_date: null,
       state: failedOverride ? 'failed' : 'unknown',
-      failed_reason: failedOverride?.reason ?? null,
+      failed_reason: failedOverride?.reason ?? 'GitHub not configured (GITHUB_TOKEN missing)',
       minutes_since_push: null,
     };
     noteStateTransition(snap.state);
     return snap;
   }
 
-  const defRes = await githubGetDefaultBranch();
-  if (!defRes.ok) {
+  if (Date.now() < githubBackoffUntil) {
     const snap: DeployStatusSnapshot = {
       on_railway: true,
       deployed_sha: deployed,
@@ -300,7 +330,25 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
       latest_commit: null,
       up_to_date: null,
       state: 'unknown',
-      failed_reason: null,
+      failed_reason: githubLastError ?? 'GitHub temporarily unavailable',
+      minutes_since_push: null,
+    };
+    noteStateTransition(snap.state);
+    return snap;
+  }
+
+  const defRes = await githubGetDefaultBranch();
+  if (!defRes.ok) {
+    noteGithubError(defRes.error);
+    const snap: DeployStatusSnapshot = {
+      on_railway: true,
+      deployed_sha: deployed,
+      deployed_short: deployed?.slice(0, 7) ?? null,
+      deployed_at: null,
+      latest_commit: null,
+      up_to_date: null,
+      state: 'unknown',
+      failed_reason: githubLastError,
       minutes_since_push: null,
     };
     noteStateTransition(snap.state);
@@ -308,7 +356,25 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
   }
 
   const commitsRes = await githubListCommits({ branch: defRes.data, perPage: 1 });
-  const latest = commitsRes.ok ? (commitsRes.data[0] ?? null) : null;
+  if (!commitsRes.ok) {
+    noteGithubError(commitsRes.error);
+    const snap: DeployStatusSnapshot = {
+      on_railway: true,
+      deployed_sha: deployed,
+      deployed_short: deployed?.slice(0, 7) ?? null,
+      deployed_at: null,
+      latest_commit: null,
+      up_to_date: null,
+      state: 'unknown',
+      failed_reason: githubLastError,
+      minutes_since_push: null,
+    };
+    noteStateTransition(snap.state);
+    return snap;
+  }
+
+  clearGithubError();
+  const latest = commitsRes.data[0] ?? null;
   const upToDate = latest && deployed ? deployed === latest.sha : null;
   const minutesSincePush = !upToDate && latest ? minutesSince(commitPushedAt(latest)) : null;
 
@@ -447,6 +513,9 @@ export function deployTooltip(snapshot: DeployStatusSnapshot): string {
   }
 
   if (snapshot.state === 'unknown') {
+    if (snapshot.failed_reason) {
+      return appendRelativeDeployLine(snapshot.failed_reason, snapshot.deployed_at);
+    }
     return 'Deploy status unknown — check Railway or GitHub connection';
   }
 

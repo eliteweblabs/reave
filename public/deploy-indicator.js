@@ -2,6 +2,7 @@
 (function () {
   const DEPLOY_POLL_MS_LIVE = 15_000;
   const DEPLOY_POLL_MS_ACTIVE = 5_000;
+  const DEPLOY_POLL_MS_ALERT = 60_000;
   let deployPollTimer = null;
   let deployPollMs = DEPLOY_POLL_MS_LIVE;
 
@@ -21,13 +22,18 @@
       dot.className = `topbar-deploy-dot topbar-deploy-dot--${tone || 'alert'} tt-left`;
       dot.dataset.tooltip = tooltip || 'Deploy status unavailable';
       dot.setAttribute('aria-label', tooltip || 'Deploy status');
-      deployPollMs = tone === 'deploying' ? DEPLOY_POLL_MS_ACTIVE : DEPLOY_POLL_MS_LIVE;
+      deployPollMs =
+        tone === 'deploying'
+          ? DEPLOY_POLL_MS_ACTIVE
+          : tone === 'alert'
+            ? DEPLOY_POLL_MS_ALERT
+            : DEPLOY_POLL_MS_LIVE;
     } catch {
       dot.hidden = false;
       dot.className = 'topbar-deploy-dot topbar-deploy-dot--alert tt-left';
       dot.dataset.tooltip = 'Could not check deploy status';
       dot.setAttribute('aria-label', 'Could not check deploy status');
-      deployPollMs = DEPLOY_POLL_MS_LIVE;
+      deployPollMs = DEPLOY_POLL_MS_ALERT;
     }
   }
 
