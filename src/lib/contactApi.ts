@@ -5,6 +5,7 @@
 import { serverEnv } from './serverEnv';
 import { siteBaseUrl } from './requestOrigin';
 import { hasFeature } from './features';
+import { parseStoredBusinessHours, type BusinessHours } from './businessHours';
 
 export { siteBaseUrl } from './requestOrigin';
 
@@ -289,6 +290,8 @@ export type ClientPortal = {
   address?: string;
   /** Geocoded coordinates for `address`. */
   geo?: ClientPortalGeo;
+  /** Normalized weekly opening hours (Google Places, or parsed from the Hours field). */
+  hours?: BusinessHours;
   fields?: ClientPortalField[];
   /** Web-design handoff data (passwords, DNS, hosting…) shown in the Data tab. */
   data?: ClientDataEntry[];
@@ -779,6 +782,7 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
             geocodedAt: contactStringField((raw.geo as ClientPortalGeo).geocodedAt) || undefined,
           }
         : undefined,
+    hours: parseStoredBusinessHours(raw.hours) ?? undefined,
     updatedAt: contactStringField(raw.updatedAt) || undefined,
     fields: Array.isArray(raw.fields)
       ? raw.fields

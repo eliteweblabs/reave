@@ -1,0 +1,799 @@
+---
+/**
+ * Field plan for visiting open inquiries — geographically clustered by day and
+ * scheduled against each business's opening hours. Built to be printed or
+ * carried on a phone, so the itinerary is server-rendered and works without JS.
+ */
+export const prerender = false;
+
+import ViewportMeta from "../../components/ViewportMeta.astro";
+import "../../styles/mobile-touch.css";
+import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import {
+  ASSUMED_HOURS_LABEL,
+  nextMondayIso,
+  planInquiryVisits,
+  type VisitPlan,
+} from "../../lib/visitPlanner";
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = encodeURIComponent(Astro.url.pathname + Astro.url.search);
+  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+}
+
+// The plan lists every prospect's address and phone, so match the owner-only
+// gate the backing API routes use.
+if (!(await isDeploymentOwner(Astro))) {
+  return new Response("Forbidden", { status: 403 });
+}
+
+const params = Astro.url.searchParams;
+
+function intParam(name: string, fallback: number): number {
+  const value = Number(params.get(name));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+/** "9:30" or "570" → minutes past midnight. */
+function timeParam(name: string, fallback: number): number {
+  const raw = params.get(name)?.trim();
+  if (!raw) return fallback;
+  const clock = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (clock) return Number(clock[1]) * 60 + Number(clock[2]);
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+/** minutes past midnight → "09:30" for <input type="time">. */
+function timeInputValue(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+const startRaw = params.get("start")?.trim() ?? "";
+const startDate = /^\d{4}-\d{2}-\d{2}$/.test(startRaw) ? startRaw : nextMondayIso();
+const dayCount = Math.min(intParam("days", 5), 14);
+const minutesPerDay = Math.min(intParam("minutes", 120), 600);
+const visitMinutes = Math.min(intParam("visit", 12), 120);
+const dayStartMinutes = timeParam("day_start", 9 * 60);
+const dayEndMinutes = timeParam("day_end", 17 * 60);
+const assumeHours = params.get("assume_hours") !== "0";
+
+let plan: VisitPlan | null = null;
+let planError = "";
+
+try {
+  plan = await planInquiryVisits({
+    startDate,
+    dayCount,
+    minutesPerDay,
+    visitMinutes,
+    dayStartMinutes,
+    dayEndMinutes,
+    assumeHoursWhenUnknown: assumeHours,
+  });
+} catch (e) {
+  planError = e instanceof Error ? e.message : String(e);
+}
+
+/** One Google Maps link that opens the whole day's route in order. */
+function dayRouteUrl(plan: VisitPlan, stops: VisitPlan["days"][number]["stops"]): string {
+  if (!stops.length) return "";
+  const coord = (s: { lat: number; lng: number }) => `${s.lat},${s.lng}`;
+  const url = new URL("https://www.google.com/maps/dir/");
+  url.searchParams.set("api", "1");
+  if (plan.origin) url.searchParams.set("origin", `${plan.origin.lat},${plan.origin.lng}`);
+  url.searchParams.set("destination", coord(stops[stops.length - 1]!));
+  const waypoints = stops.slice(0, -1);
+  if (waypoints.length) {
+    url.searchParams.set("waypoints", waypoints.map(coord).join("|"));
+  }
+  return url.toString();
+}
+
+function stopMapUrl(stop: { lat: number; lng: number; address: string }): string {
+  const url = new URL("https://www.google.com/maps/search/");
+  url.searchParams.set("api", "1");
+  url.searchParams.set("query", stop.address || `${stop.lat},${stop.lng}`);
+  return url.toString();
+}
+
+function minutesLabel(total: number): string {
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (!hours) return `${minutes}m`;
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <title>Inquiry visit plan</title>
+    <link rel="stylesheet" href="/admin-shell.css" />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --fg: #e9eef6;
+        --panel: #161b22;
+        --panel-border: #30363d;
+        --card: #1c2128;
+        --card-border: #30363d;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --surface-hover: rgba(177, 186, 196, 0.12);
+        --radius-input: 8px;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100vh;
+      }
+
+      .vp-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 4rem;
+      }
+
+      .vp-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        color: inherit;
+        text-decoration: none;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+      }
+
+      .vp-back:hover {
+        background: var(--surface-hover);
+      }
+
+      .vp-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 0.4rem;
+      }
+
+      .vp-subtitle {
+        font-size: 0.95rem;
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+        line-height: 1.5;
+      }
+
+      .vp-card {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .vp-section-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+      }
+
+      .vp-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.85rem;
+        align-items: end;
+      }
+
+      .vp-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .vp-field label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .vp-field input,
+      .vp-field select {
+        padding: 0.5rem 0.6rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+        color: var(--fg);
+        font-size: 0.9rem;
+        font-family: inherit;
+      }
+
+      .vp-btn {
+        padding: 0.6rem 1.1rem;
+        border: none;
+        border-radius: var(--radius-input);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      .vp-btn:hover:not(:disabled) {
+        filter: brightness(1.1);
+      }
+
+      .vp-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .vp-btn-secondary {
+        background: var(--card);
+        border: 1px solid var(--panel-border);
+        color: var(--fg);
+      }
+
+      .vp-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 1rem;
+      }
+
+      .vp-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      .vp-stat-label {
+        font-size: 0.75rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .vp-alert {
+        padding: 0.8rem 1rem;
+        border-radius: var(--radius-input);
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin-bottom: 0.75rem;
+      }
+
+      .vp-alert-warn {
+        background: rgba(234, 179, 8, 0.12);
+        border: 1px solid rgba(234, 179, 8, 0.3);
+        color: #fde047;
+      }
+
+      .vp-alert-error {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+      }
+
+      .vp-alert-success {
+        background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+      }
+
+      .vp-alert-info {
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #93c5fd;
+      }
+
+      .vp-day-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 0.9rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+
+      .vp-day-date {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .vp-day-area {
+        font-size: 0.9rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .vp-day-meta {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .vp-stop {
+        display: grid;
+        grid-template-columns: 4.5rem 1fr;
+        gap: 0.85rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+      }
+
+      .vp-stop:last-child {
+        border-bottom: none;
+      }
+
+      .vp-stop-time {
+        font-size: 0.92rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .vp-stop-drive {
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-weight: 400;
+        display: block;
+        margin-top: 0.15rem;
+      }
+
+      .vp-stop-name {
+        font-size: 0.98rem;
+        font-weight: 600;
+        margin: 0 0 0.2rem;
+      }
+
+      .vp-stop-line {
+        font-size: 0.83rem;
+        color: var(--muted);
+        margin: 0.15rem 0;
+        line-height: 1.45;
+      }
+
+      .vp-stop-line a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .vp-stop-line a:hover {
+        text-decoration: underline;
+      }
+
+      .vp-badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: rgba(234, 179, 8, 0.18);
+        color: #fde047;
+        margin-left: 0.35rem;
+      }
+
+      .vp-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .vp-list li {
+        padding: 0.4rem 0;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+        font-size: 0.86rem;
+      }
+
+      .vp-list li:last-child {
+        border-bottom: none;
+      }
+
+      .vp-list-name {
+        font-weight: 600;
+      }
+
+      .vp-list-note {
+        color: var(--muted);
+      }
+
+      .vp-empty {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0;
+      }
+
+      details.vp-card > summary {
+        cursor: pointer;
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+
+      details.vp-card[open] > summary {
+        margin-bottom: 0.85rem;
+      }
+
+      .vp-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+        margin-top: 0.85rem;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          color: #000;
+        }
+        .vp-no-print {
+          display: none !important;
+        }
+        .vp-card {
+          background: #fff;
+          border-color: #ccc;
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+        .vp-day-area {
+          color: #000;
+        }
+        .vp-stop-line,
+        .vp-day-meta,
+        .vp-stat-label {
+          color: #444;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="vp-container">
+      <a href="/admin/?tab=work" class="vp-back vp-no-print">&larr; Back to admin</a>
+      <h1 class="vp-title">Inquiry visit plan</h1>
+      <p class="vp-subtitle">
+        Open inquiries grouped into one tight area per day and scheduled inside each
+        business's opening hours.
+      </p>
+
+      {planError && (
+        <div class="vp-alert vp-alert-error">Could not build a plan: {planError}</div>
+      )}
+
+      <form class="vp-card vp-no-print" method="get">
+        <h2 class="vp-section-title">Plan settings</h2>
+        <div class="vp-controls">
+          <div class="vp-field">
+            <label for="start">Start date</label>
+            <input type="date" id="start" name="start" value={startDate} />
+          </div>
+          <div class="vp-field">
+            <label for="days">Days</label>
+            <input type="number" id="days" name="days" min="1" max="14" value={dayCount} />
+          </div>
+          <div class="vp-field">
+            <label for="minutes">Minutes / day</label>
+            <input
+              type="number"
+              id="minutes"
+              name="minutes"
+              min="30"
+              max="600"
+              step="15"
+              value={minutesPerDay}
+            />
+          </div>
+          <div class="vp-field">
+            <label for="visit">Minutes / stop</label>
+            <input type="number" id="visit" name="visit" min="3" max="120" value={visitMinutes} />
+          </div>
+          <div class="vp-field">
+            <label for="day_start">Earliest</label>
+            <input
+              type="time"
+              id="day_start"
+              name="day_start"
+              value={timeInputValue(dayStartMinutes)}
+            />
+          </div>
+          <div class="vp-field">
+            <label for="day_end">Latest</label>
+            <input type="time" id="day_end" name="day_end" value={timeInputValue(dayEndMinutes)} />
+          </div>
+          <div class="vp-field">
+            <label for="assume_hours">Unknown hours</label>
+            <select id="assume_hours" name="assume_hours">
+              <option value="1" selected={assumeHours}>Assume {ASSUMED_HOURS_LABEL}</option>
+              <option value="0" selected={!assumeHours}>Skip</option>
+            </select>
+          </div>
+          <div class="vp-field">
+            <button type="submit" class="vp-btn">Rebuild plan</button>
+          </div>
+        </div>
+      </form>
+
+      {plan && (
+        <>
+          <div class="vp-card">
+            <div class="vp-stats">
+              <div>
+                <div class="vp-stat-value">{plan.stats.scheduled}</div>
+                <div class="vp-stat-label">Visits planned</div>
+              </div>
+              <div>
+                <div class="vp-stat-value">{scheduledDays.length}</div>
+                <div class="vp-stat-label">Days out</div>
+              </div>
+              <div>
+                <div class="vp-stat-value">{plan.stats.totalTravelMiles}</div>
+                <div class="vp-stat-label">Miles driving</div>
+              </div>
+              <div>
+                <div class="vp-stat-value">{plan.stats.inquiriesConsidered}</div>
+                <div class="vp-stat-label">Open inquiries</div>
+              </div>
+              <div>
+                <div class="vp-stat-value">{plan.stats.unscheduled}</div>
+                <div class="vp-stat-label">Didn't fit</div>
+              </div>
+            </div>
+            {plan.origin?.label && (
+              <p class="vp-stop-line" style="margin-top:0.85rem">
+                Each day starts from {plan.origin.label}.
+              </p>
+            )}
+          </div>
+
+          {plan.warnings.map((warning) => (
+            <div class="vp-alert vp-alert-warn">{warning}</div>
+          ))}
+
+          {!scheduledDays.length && !planError && (
+            <div class="vp-card">
+              <p class="vp-empty">
+                Nothing could be scheduled yet. Inquiries need a geocoded address before they
+                can be routed — run the backfill below.
+              </p>
+            </div>
+          )}
+
+          {plan.days.map((day, index) => (
+            <div class="vp-card">
+              <div class="vp-day-head">
+                <div>
+                  <h2 class="vp-day-date">
+                    Day {index + 1} — {day.dateLabel}
+                  </h2>
+                  {day.areaLabel && <span class="vp-day-area">{day.areaLabel}</span>}
+                </div>
+                <div class="vp-day-meta">
+                  {day.stops.length
+                    ? `${day.stops.length} stop${day.stops.length === 1 ? "" : "s"} · ${day.startLabel}–${day.endLabel} · ${minutesLabel(day.travelMinutes)} driving · ${day.travelMiles} mi`
+                    : "No stops"}
+                </div>
+              </div>
+
+              {day.stops.length ? (
+                <>
+                  {day.stops.map((stop) => (
+                    <div class="vp-stop">
+                      <div class="vp-stop-time">
+                        {stop.arriveLabel}
+                        <span class="vp-stop-drive">
+                          {stop.travelMinutesFromPrev
+                            ? `${stop.travelMinutesFromPrev}m drive`
+                            : "start"}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 class="vp-stop-name">
+                          {stop.name}
+                          {stop.hoursAssumed && <span class="vp-badge">hours unknown</span>}
+                        </h3>
+                        <p class="vp-stop-line">
+                          {stop.address ? (
+                            <a href={stopMapUrl(stop)} target="_blank" rel="noopener">
+                              {stop.address}
+                            </a>
+                          ) : (
+                            "No address on file"
+                          )}
+                        </p>
+                        <p class="vp-stop-line">
+                          Open today: {stop.hoursLabel}
+                          {stop.waitMinutes > 0 && ` · ${stop.waitMinutes}m wait`}
+                        </p>
+                        <p class="vp-stop-line">
+                          {stop.phone && (
+                            <a href={`tel:${stop.phone.replace(/[^\d+]/g, "")}`}>{stop.phone}</a>
+                          )}
+                          {stop.phone && " · "}
+                          <a href={`/admin/?tab=work&job=${encodeURIComponent(stop.slug)}`}>
+                            Open audit
+                          </a>
+                          {stop.scoreReasons.length > 0 && ` · ${stop.scoreReasons.join(", ")}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <div class="vp-actions vp-no-print">
+                    <a
+                      class="vp-btn vp-btn-secondary"
+                      style="text-decoration:none"
+                      href={dayRouteUrl(plan, day.stops)}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Open this day's route in Maps
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <p class="vp-empty">
+                  Nothing open and in range on this day. Widen the time window or add hours data.
+                </p>
+              )}
+            </div>
+          ))}
+
+          {plan.unscheduled.length > 0 && (
+            <details class="vp-card">
+              <summary>Didn't fit this week ({plan.unscheduled.length}) — best leads first</summary>
+              <ul class="vp-list">
+                {plan.unscheduled.map((candidate) => (
+                  <li>
+                    <span class="vp-list-name">{candidate.name}</span>
+                    {candidate.area && <span class="vp-list-note"> · {candidate.area}</span>}
+                    {candidate.scoreReasons.length > 0 && (
+                      <span class="vp-list-note"> · {candidate.scoreReasons.join(", ")}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {(plan.missingLocation.length > 0 || plan.missingHours.length > 0) && (
+            <div class="vp-card">
+              <h2 class="vp-section-title">Missing data</h2>
+              <p class="vp-stop-line">
+                Hours and coordinates come from Google Places. Run the backfill to fill these
+                in — it saves them to each client's record, so this is a one-time cost per
+                business.
+              </p>
+              <div class="vp-actions vp-no-print">
+                <button type="button" class="vp-btn" id="vp-backfill">
+                  Fetch missing hours &amp; locations
+                </button>
+                <span class="vp-day-meta" id="vp-backfill-status"></span>
+              </div>
+              <div id="vp-backfill-alert"></div>
+
+              {plan.missingLocation.length > 0 && (
+                <details style="margin-top:1rem">
+                  <summary class="vp-day-meta">
+                    No coordinates ({plan.missingLocation.length}) — cannot be routed
+                  </summary>
+                  <ul class="vp-list">
+                    {plan.missingLocation.map((row) => (
+                      <li>
+                        <span class="vp-list-name">{row.name}</span>
+                        <span class="vp-list-note"> · {row.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {plan.missingHours.length > 0 && (
+                <details style="margin-top:0.75rem">
+                  <summary class="vp-day-meta">
+                    No opening hours ({plan.missingHours.length})
+                  </summary>
+                  <ul class="vp-list">
+                    {plan.missingHours.map((row) => (
+                      <li>
+                        <span class="vp-list-name">{row.name}</span>
+                        <span class="vp-list-note"> · {row.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+
+          <div class="vp-actions vp-no-print">
+            <button type="button" class="vp-btn vp-btn-secondary" id="vp-print">
+              Print plan
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+
+    <script>
+      const printBtn = document.getElementById("vp-print");
+      printBtn?.addEventListener("click", () => window.print());
+
+      const backfillBtn = document.getElementById("vp-backfill");
+      const statusEl = document.getElementById("vp-backfill-status");
+      const alertEl = document.getElementById("vp-backfill-alert");
+
+      function setAlert(kind: string, message: string) {
+        if (!alertEl) return;
+        alertEl.innerHTML = "";
+        const div = document.createElement("div");
+        div.className = `vp-alert vp-alert-${kind}`;
+        div.textContent = message;
+        div.style.marginTop = "0.85rem";
+        alertEl.appendChild(div);
+      }
+
+      backfillBtn?.addEventListener("click", async () => {
+        if (!(backfillBtn instanceof HTMLButtonElement)) return;
+        backfillBtn.disabled = true;
+        if (alertEl) alertEl.innerHTML = "";
+
+        let saved = 0;
+        let processed = 0;
+
+        try {
+          // Batched server-side; keep asking until nothing is left to look up.
+          for (let round = 0; round < 20; round += 1) {
+            if (statusEl) {
+              statusEl.textContent = processed
+                ? `Looked up ${processed}, saved ${saved}…`
+                : "Looking up…";
+            }
+
+            const res = await fetch("/api/work/inquiry-hours", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ limit: 15 }),
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.ok) {
+              throw new Error(data?.error || `Request failed (${res.status})`);
+            }
+
+            saved += data.saved ?? 0;
+            processed += data.processed ?? 0;
+
+            if (!data.processed || !data.remaining) break;
+          }
+
+          if (statusEl) statusEl.textContent = "";
+          setAlert(
+            saved ? "success" : "info",
+            saved
+              ? `Saved hours or coordinates for ${saved} of ${processed} businesses. Reloading the plan…`
+              : `Checked ${processed} businesses but Google had no hours for them. They will be scheduled against the assumed window.`,
+          );
+
+          if (saved) setTimeout(() => window.location.reload(), 1200);
+          else backfillBtn.disabled = false;
+        } catch (err) {
+          if (statusEl) statusEl.textContent = "";
+          setAlert("error", err instanceof Error ? err.message : String(err));
+          backfillBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

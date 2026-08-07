@@ -20,6 +20,7 @@
     "build": "astro build && node scripts/version-public-assets.mjs",
     "check": "astro check",
     "check:chat": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-resilience.ts",
+    "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "icons:generate": "node scripts/generate-brand-icons.mjs",
     "logos:replaced-apps": "node scripts/fetch-replaced-app-logos.mjs",

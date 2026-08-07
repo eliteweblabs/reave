@@ -436,6 +436,22 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
   });
 }
 
+/**
+ * Entry point to the field visit planner, shown only on the Inquiry filter
+ * since that is the only list it plans from.
+ */
+function renderVisitPlanLink() {
+  if (workState.statusFilter !== 'inquiry') return null;
+  const counts = workStatusTabCounts();
+  if (!counts.inquiry) return null;
+
+  const link = document.createElement('a');
+  link.href = '/admin/visit-plan';
+  link.className = 'wk-visit-plan-link';
+  link.textContent = `Plan visits to these ${counts.inquiry} inquiries`;
+  return link;
+}
+
 function getWorkEditor() { return document.getElementById('work-editor'); }
 
 function workStatusClass(status) {
@@ -1551,6 +1567,9 @@ function renderWorkEditor() {
     below: renderWorkFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
+
+  const visitPlanLink = renderVisitPlanLink();
+  if (visitPlanLink) sidebar.appendChild(visitPlanLink);
 
   const list = document.createElement('div');
   list.className = 'ch-list';

@@ -45,6 +45,7 @@ const SYSTEM_NODES = [
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews inbox', sub: 'Google sync · response to-do (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
   { id: 'content_mgmt', title: 'Content management', sub: 'agent edits site · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
+  { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
@@ -60,7 +61,7 @@ const SYSTEM_NODES = [
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
   { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
-  { id: 'google_places', title: 'Google Places', sub: 'review sync · GOOGLE_MAPS_API_KEY (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
+  { id: 'google_places', title: 'Google Places', sub: 'review sync · address autocomplete · Place Details opening hours · GOOGLE_MAPS_API_KEY', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
   { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
 ];
 
@@ -121,6 +122,10 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'online_reviews', label: '/api/admin/online-reviews', dashed: true },
   { from: 'online_reviews', to: 'app_pg', label: 'reviews inbox', dashed: true },
   { from: 'online_reviews', to: 'google_places', label: 'Places API sync', dashed: true },
+  { from: 'astro', to: 'visit_planner', label: '/admin/visit-plan · /api/work/visit-plan', dashed: true },
+  { from: 'visit_planner', to: 'app_pg', label: 'open inquiries (jobs)', dashed: true },
+  { from: 'visit_planner', to: 'contact_api', label: 'address · geo · hours', dashed: true },
+  { from: 'visit_planner', to: 'google_places', label: 'Place Details hours backfill', dashed: true },
   { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },
   { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
@@ -134,7 +139,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'content_mgmt'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'content_mgmt', 'visit_planner'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_places', 'pexels'] },
 ];
 

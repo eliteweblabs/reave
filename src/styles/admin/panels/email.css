@@ -789,11 +789,11 @@
   display: inline-flex;
   align-items: stretch;
   flex: 0 0 auto;
-  gap: 0.15rem;
-  padding: 0.15rem;
-  border: 1px solid var(--msg-user-border);
+  gap: 0;
+  padding: 0;
+  border: none;
   border-radius: 8px;
-  background: var(--btn-group-track-bg);
+  background: transparent;
   overflow: visible;
 }
 .em-btn-group-segment {
@@ -823,7 +823,7 @@
   border-radius: var(--radius-pill) 0 0 var(--radius-pill);
 }
 .em-btn-group > .em-project-dropdown:not(.em-agent-dropdown) .em-btn-group-segment {
-  border-left: 1px solid var(--msg-user-border);
+  border-left: none;
   border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
 }
 .em-btn-group > .em-project-dropdown.open .em-btn-group-segment {
