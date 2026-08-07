@@ -836,6 +836,7 @@ export type EmailInboxPatch = Partial<
     | 'automationKind'
     | 'notified'
     | 'verificationCode'
+    | 'deleteAfterAt'
     | 'attachments'
     | 'summary'
   >
@@ -874,6 +875,7 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.automationKind !== undefined ? { automationKind: patch.automationKind } : {}),
     ...(patch.notified !== undefined ? { notified: patch.notified } : {}),
     ...(patch.verificationCode !== undefined ? { verificationCode: patch.verificationCode } : {}),
+    ...(patch.deleteAfterAt !== undefined ? { deleteAfterAt: patch.deleteAfterAt } : {}),
     ...(patch.attachments !== undefined
       ? { attachments: normalizeEmailAttachments(patch.attachments) }
       : {}),
@@ -975,6 +977,10 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
       sets.push(`verification_code = $${i++}`);
       vals.push(patch.verificationCode);
     }
+    if (patch.deleteAfterAt !== undefined) {
+      sets.push(`delete_after_at = $${i++}`);
+      vals.push(patch.deleteAfterAt);
+    }
     if (patch.attachments !== undefined) {
       sets.push(`attachments_json = $${i++}::jsonb`);
       vals.push(JSON.stringify(normalizeEmailAttachments(patch.attachments)));
@@ -1034,8 +1040,17 @@ export async function storeUpdateEmailInbox(
   id: string,
   patch: EmailInboxPatch,
 ): Promise<EmailInboxRecord | null> {
-  if (databaseUrl()) return updateInPg(id, patch);
-  return updateInFile(id, patch);
+  // Leaving OTP classification — clear code UX + auto-delete timer so
+  // false positives don't stay stuck as "verification code" after junk/route.
+  const leavingOtp =
+    (patch.category != null && String(patch.category).toLowerCase() !== 'otp') ||
+    (patch.action != null && String(patch.action).toLowerCase() !== 'verification_code');
+  let nextPatch = patch;
+  if (leavingOtp && patch.verificationCode === undefined) {
+    nextPatch = { ...patch, verificationCode: null, deleteAfterAt: null };
+  }
+  if (databaseUrl()) return updateInPg(id, nextPatch);
+  return updateInFile(id, nextPatch);
 }
 
 export async function storeDeleteEmailInbox(id: string): Promise<boolean> {

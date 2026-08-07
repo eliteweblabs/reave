@@ -25,29 +25,31 @@ const OTP_SUBJECT =
 /** "482913 is your verification code" */
 const LEADING_CODE = /\b(\d[\d\s-]{2,12}\d)\s+is\s+your\b/i;
 
-/** "Your verification code is 482913" / "code: 482913" — single-line capture only. */
+/** "Your verification code is 482913" / "login code: 482913" — not bare "code:" (ZIP, tracking). */
 const CODE_AFTER_LABEL =
-  /\b(?:(?:verification|authentication|login|security|access)\s+code|one[-\s]?time(?:\s+password)?|passcode|otp|pin|code)\s*(?:is|:)\s*['"`]?([A-Z0-9][A-Z0-9 -]{1,12}[A-Z0-9])\b/i;
+  /\b(?:(?:verification|authentication|login|security|access|sign[-\s]?in)\s+code|one[-\s]?time(?:\s+password)?|passcode|otp|pin\s+code)\s*(?:is|:)\s*['"`]?([A-Z0-9][A-Z0-9 -]{1,12}[A-Z0-9])\b/i;
 
 /** Google-style G-123456 */
 const GOOGLE_CODE = /\b(G-\d{6})\b/i;
 
-/** Standalone digit groups in short OTP mail from known senders. */
+/** Standalone digit groups in short OTP mail from auth-only senders. */
 const LOOSE_DIGIT_CODE = /\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b/g;
 
 /**
  * Standalone / grouped digits near OTP wording (within ~120 chars).
  * Handles HTML that splits codes across spans ("931 348") and dashed forms.
+ * Requires real OTP phrases — bare "security"/"login" false-positive on social mail.
  */
 const NEAR_KEYWORD = new RegExp(
-  String.raw`(?:verification|one[-\s]?time|security|login|sign[-\s]?in|access\s+code|auth(?:entication)?|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)[\s\S]{0,120}?\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b`,
+  String.raw`(?:verification(?:\s+code)?|one[-\s]?time(?:\s+(?:code|password|passcode))?|security\s+code|login\s+code|sign[-\s]?in\s+code|access\s+code|auth(?:entication)?\s+code|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)[\s\S]{0,120}?\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b`,
   'i',
 );
 
-/** Local-part / domain heuristics for transactional OTP senders. */
-const BUILTIN_OTP_SENDER_RES: RegExp[] = [
-  /^no[-_.]?reply@/i,
-  /^do[-_.]?not[-_.]?reply@/i,
+/**
+ * Auth-only senders — short OTP mail may be just digits with little wording.
+ * Do NOT put social/notification domains here (facebookmail, linkedin, etc.).
+ */
+const STRICT_AUTH_OTP_SENDER_RES: RegExp[] = [
   /^verify@/i,
   /^verification@/i,
   /^security@/i,
@@ -56,18 +58,27 @@ const BUILTIN_OTP_SENDER_RES: RegExp[] = [
   /^account[-.]?security@/i,
   /^sign[-.]?in@/i,
   /^login@/i,
-  /^notify@/i,
-  /^notification@/i,
-  /^alert@/i,
   /@accounts\.google\.com$/i,
-  /@googlemail\.com$/i,
   /@id\.apple\.com$/i,
   /@appleid\.apple\.com$/i,
   /@accountprotection\.microsoft\.com$/i,
+  /@clerk\.com$/i,
+  /@clerk\.accounts\.dev$/i,
+];
+
+/**
+ * Senders that sometimes deliver OTPs amid other mail — only when OTP phrasing
+ * is present. Social notification domains are omitted on purpose.
+ */
+const CONTENT_GATED_OTP_SENDER_RES: RegExp[] = [
+  /^no[-_.]?reply@/i,
+  /^do[-_.]?not[-_.]?reply@/i,
+  /^notify@/i,
+  /^notification@/i,
+  /^alert@/i,
+  /@googlemail\.com$/i,
   /@microsoft\.com$/i,
   /@amazon\.com$/i,
-  /@facebookmail\.com$/i,
-  /@linkedin\.com$/i,
   /@github\.com$/i,
   /@slack\.com$/i,
   /@stripe\.com$/i,
@@ -83,10 +94,13 @@ const BUILTIN_OTP_SENDER_RES: RegExp[] = [
   /@vercel\.com$/i,
   /@railway\.app$/i,
   /@supabase\.com$/i,
-  /@clerk\.com$/i,
   /@resend\.dev$/i,
 ];
 
+const BUILTIN_OTP_SENDER_RES: RegExp[] = [
+  ...STRICT_AUTH_OTP_SENDER_RES,
+  ...CONTENT_GATED_OTP_SENDER_RES,
+];
 function plainBody(text?: string, html?: string): string {
   const t = (text ?? '').trim();
   if (t) return t;
@@ -109,12 +123,11 @@ function customOtpSenderPatterns(): string[] {
     .filter(Boolean);
 }
 
-/** Known transactional OTP sender (built-in heuristics + EMAIL_OTP_SENDERS). */
-export function isLikelyOtpSender(from?: string): boolean {
-  const email = parseSenderEmailAddress(from);
-  if (!email) return false;
-  if (/^mailer-daemon@/i.test(email)) return false;
+function matchesSenderPatterns(email: string, patterns: RegExp[]): boolean {
+  return patterns.some((re) => re.test(email));
+}
 
+function matchesCustomOtpSender(email: string): boolean {
   for (const pat of customOtpSenderPatterns()) {
     if (pat.includes('@')) {
       if (email === pat) return true;
@@ -122,8 +135,28 @@ export function isLikelyOtpSender(from?: string): boolean {
     }
     if (email === pat || email.endsWith(`@${pat}`) || email.endsWith(`.${pat}`)) return true;
   }
+  return false;
+}
 
-  return BUILTIN_OTP_SENDER_RES.some((re) => re.test(email));
+/** Known transactional OTP sender (built-in heuristics + EMAIL_OTP_SENDERS). */
+export function isLikelyOtpSender(from?: string): boolean {
+  const email = parseSenderEmailAddress(from);
+  if (!email) return false;
+  if (/^mailer-daemon@/i.test(email)) return false;
+  if (matchesCustomOtpSender(email)) return true;
+  return matchesSenderPatterns(email, BUILTIN_OTP_SENDER_RES);
+}
+
+/**
+ * Auth-only / verify@-style senders where a bare digit group is enough.
+ * Custom EMAIL_OTP_SENDERS are treated as strict (operator opted in).
+ */
+export function isStrictAuthOtpSender(from?: string): boolean {
+  const email = parseSenderEmailAddress(from);
+  if (!email) return false;
+  if (/^mailer-daemon@/i.test(email)) return false;
+  if (matchesCustomOtpSender(email)) return true;
+  return matchesSenderPatterns(email, STRICT_AUTH_OTP_SENDER_RES);
 }
 
 function normalizeCode(raw: string): string | null {
@@ -249,7 +282,9 @@ export function extractVerificationCodeFromEmail(opts: OtpEmailProbe): Verificat
   const fromSubject = tryPatterns(subject, minScore);
   if (fromSubject) return fromSubject;
 
-  if (senderLikelyOtp) {
+  // Loose digit grab only for auth-only senders — never for social/notification
+  // domains (e.g. facebookmail comment alerts with ZIP/tracking IDs).
+  if (isStrictAuthOtpSender(opts.from)) {
     return tryLooseSenderPatterns(body) ?? tryLooseSenderPatterns(subject);
   }
   return null;

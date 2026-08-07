@@ -11186,6 +11186,7 @@ function createEmailListItem(ev) {
 function buildEmailSwipeActions(ev) {
   if (isVerificationCodeEmail(ev)) {
     const actions = [];
+    actions.push(swipeAgentAction(() => askAgentAboutEmail(ev)));
     if (ev.verificationCode) {
       actions.push(
         swipeCopyAction({
@@ -12731,7 +12732,9 @@ function renderEmailPanel(opts = {}) {
   const beforeIcons = [];
   const linkedChat = chatState.threads.find((t) => t.source_email_id === ev.id);
   const alreadyInLinkedChat = linkedChat && chatState.activeId === linkedChat.id;
-  if (!isVerificationCodeEmail(ev) && !alreadyInLinkedChat) {
+  // Always offer triage — including false-positive "verification code" mail —
+  // so the user can junk/route/explain instead of being stuck with only Copy/Delete.
+  if (!alreadyInLinkedChat) {
     if (shouldShowEmailProjectActions(ev)) {
       const group = document.createElement('div');
       group.className = 'em-btn-group';
