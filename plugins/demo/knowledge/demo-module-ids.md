@@ -40,7 +40,8 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 022 | `inventory_sync` | Multi-channel inventory sync |
 | 023 | `online_reviews` | Online reviews inbox — Google sync + response workflow |
 | 024 | `wayback_machine` | Wayback Machine — browse archived website snapshots |
-| 025 | `stock_photos` | Pexels stock photos — royalty-free search |
+| 025 | `content_management` | Website content management — update your site through the agent |
+| 026 | `stock_photos` | Pexels stock photos — royalty-free search |
 
 ## Default suite (no URL)
 

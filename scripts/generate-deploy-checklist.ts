@@ -37,6 +37,7 @@ const FEATURE_LABELS: Record<string, string> = {
   inventory_sync: 'Multi-channel inventory sync',
   online_reviews: 'Online reviews inbox',
   wayback_machine: 'Wayback Machine',
+  content_management: 'Website content management',
   stock_photos: 'Pexels stock photos',
 };
 

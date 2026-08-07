@@ -30,7 +30,8 @@ Generated: 2026-08-05T00:20:53.084Z
 - [ ] **022** — Multi-channel inventory sync (`inventory_sync`)
 - [ ] **023** — Online reviews inbox (`online_reviews`)
 - [ ] **024** — Wayback Machine (`wayback_machine`)
-- [ ] **025** — Pexels stock photos (`stock_photos`)
+- [ ] **025** — Website content management (`content_management`)
+- [ ] **026** — Pexels stock photos (`stock_photos`)
 
 ## Step 1 — App core
 

@@ -35,6 +35,7 @@ const FEATURE_IDS_LIST = [
   'inventory_sync',
   'online_reviews',
   'wayback_machine',
+  'content_management',
   'stock_photos',
 ] as const;
 
