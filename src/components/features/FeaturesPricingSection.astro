@@ -34,7 +34,7 @@ const heading =
   <h2 class="fx-pricing-h2">{heading}</h2>
   <p class="fx-pricing-lead">
     Every install starts at full tier price for month one. Each month after that, the fee
-    drops by half until month four — then it holds steady for as long as you run the
+    drops by half until month five — then it holds steady for as long as you run the
     platform. Higher tiers include everything in the tiers below, plus the modules listed
     for that tier.
   </p>
@@ -47,7 +47,8 @@ const heading =
           <th scope="col">Month 1</th>
           <th scope="col">Month 2</th>
           <th scope="col">Month 3</th>
-          <th scope="col">Month 4+</th>
+          <th scope="col">Month 4</th>
+          <th scope="col">Month 5+</th>
         </tr>
       </thead>
       <tbody>
@@ -58,13 +59,18 @@ const heading =
               <td>{formatInstallUsd(t.month1)}</td>
               <td>{formatInstallUsd(t.month2)}</td>
               <td>{formatInstallUsd(t.month3)}</td>
-              <td>{formatInstallUsd(t.month4Plus)}/mo</td>
+              <td>{formatInstallUsd(t.month4)}</td>
+              <td>{formatInstallUsd(t.month5Plus)}/mo</td>
             </tr>
           ))
         }
       </tbody>
     </table>
   </div>
+
+  <p class="fx-pricing-disclaimer">
+    * AI API tokens not included — usage is billed separately at cost.
+  </p>
 
   <div class="fx-tier-grid">
     {
@@ -74,7 +80,7 @@ const heading =
             <h3 class="fx-tier-card-title">{t.name}</h3>
             <p class="fx-tier-card-summary">{t.summary}</p>
             <p class="fx-tier-card-price">
-              {formatInstallUsd(t.month1)} → {formatInstallUsd(t.month4Plus)}/mo
+              {formatInstallUsd(t.month1)} → {formatInstallUsd(t.month5Plus)}/mo
             </p>
           </header>
           <ul class="fx-tier-feature-list">
@@ -165,7 +171,7 @@ const heading =
 
   .fx-pricing-table {
     width: 100%;
-    min-width: 560px;
+    min-width: 680px;
     border-collapse: collapse;
     font-size: 0.88rem;
     text-align: center;
@@ -202,6 +208,14 @@ const heading =
   .fx-pricing-table tbody tr:last-child th,
   .fx-pricing-table tbody tr:last-child td {
     border-bottom: 0;
+  }
+
+  .fx-pricing-disclaimer {
+    margin: 0 0 20px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.45);
+    font-style: italic;
   }
 
   .fx-tier-grid {
