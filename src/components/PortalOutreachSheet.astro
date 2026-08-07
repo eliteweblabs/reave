@@ -1,0 +1,125 @@
+---
+/** Client portal outreach note — auto-opens as a swipeable bottom sheet on first visit. */
+import IosBottomSheet from './IosBottomSheet.astro';
+
+export interface Props {
+  /** Stable id for the localStorage dismiss key. */
+  alertId?: string;
+  /** Sheet body copy; blank paragraphs separated by a blank line. */
+  content: string;
+  /** First name, company, or other short greeting label for the sheet title. */
+  greetingName?: string;
+}
+
+const { alertId = 'reave-automatic-outreach', content, greetingName = '' } = Astro.props;
+const storageKey = `reave-site-alert-dismiss:${alertId}`;
+const sheetId = `portal-outreach-${alertId}`;
+const sheetTitle = greetingName.trim() ? `Hi there, ${greetingName.trim()}` : 'Hi there';
+const paragraphs = content
+  .split(/\n\n+/)
+  .map((p) => p.trim())
+  .filter(Boolean);
+---
+
+<IosBottomSheet
+  id={sheetId}
+  title={sheetTitle}
+  dismissible={true}
+  sheetOnly={true}
+  class="portal-outreach-sheet"
+>
+  {paragraphs.map((paragraph) => (
+    <p class="portal-outreach-copy">{paragraph}</p>
+  ))}
+</IosBottomSheet>
+
+<script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+
+<script define:vars={{ sheetId, storageKey }}>
+  function markDismissed() {
+    try {
+      localStorage.setItem(storageKey, '1');
+    } catch {
+      /* private browsing */
+    }
+  }
+
+  function wasDismissed() {
+    try {
+      return localStorage.getItem(storageKey) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function whenIosSheetReady(fn) {
+    if (window.IosSheet?.open) {
+      fn();
+      return;
+    }
+    const script = document.querySelector('script[src*="ios-sheet.js"]');
+    if (script && !script.dataset.outreachBound) {
+      script.dataset.outreachBound = '1';
+      script.addEventListener('load', fn, { once: true });
+      return;
+    }
+    requestAnimationFrame(() => whenIosSheetReady(fn));
+  }
+
+  function openOutreachSheet() {
+    if (wasDismissed()) return;
+
+    const sheet = document.getElementById(sheetId);
+    if (!sheet || sheet.dataset.opened === '1') return;
+    sheet.dataset.opened = '1';
+
+    whenIosSheetReady(() => {
+      window.IosSheet?.open(sheetId, { onClose: markDismissed });
+    });
+  }
+
+  function init() {
+    const sheet = document.getElementById(sheetId);
+    if (!sheet) return;
+    sheet.addEventListener('ios-sheet-close', markDismissed);
+    openOutreachSheet();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>
+
+<style is:global>
+  .portal-outreach-sheet {
+    --ios-sheet-bg: rgba(12, 12, 14, 0.98);
+    --ios-sheet-fg: rgba(255, 255, 255, 0.92);
+    --ios-sheet-muted: rgba(255, 255, 255, 0.55);
+    --ios-sheet-border: rgba(255, 255, 255, 0.1);
+    --ios-sheet-grabber: rgba(255, 255, 255, 0.28);
+    --ios-sheet-close-bg: rgba(255, 255, 255, 0.08);
+    --ios-sheet-close-hover: rgba(255, 255, 255, 0.14);
+    color-scheme: dark;
+  }
+
+  .portal-outreach-sheet .ios-sheet {
+    max-height: min(72dvh, 420px);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  .portal-outreach-copy {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-content, system-ui, sans-serif);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.88);
+    white-space: pre-line;
+  }
+
+  .portal-outreach-copy:last-child {
+    margin-bottom: 0;
+  }
+</style>
