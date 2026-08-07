@@ -76,13 +76,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  {!adminShell && (
-    <div class="app-header-scrim" aria-hidden="true">
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-    </div>
-  )}
+  <div class="app-header-scrim" aria-hidden="true">
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+  </div>
 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
@@ -441,17 +439,16 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     padding: 0;
     position: relative;
     overflow: visible;
+    z-index: 1;
   }
 
   /*
-   * Public headers are fixed and transparent, so page content scrolls straight
-   * under the logo and nav. The scrim blurs that content out instead of covering
-   * it: stacked backdrop-filter layers whose masks ramp the blur up toward the
-   * top, so it peaks behind the chrome and reaches zero at the scrim's bottom
-   * edge. Each layer's backdrop includes the one below it, so the radii compound
-   * (~14px at the top) — that is why three modest blurs beat one large one, and
-   * why they must stay in DOM order. The admin shell skips the scrim: its panes
-   * already pad below the bar, so there is never anything under it to blur.
+   * Fixed headers are transparent, so scrolling content shows through the logo
+   * row (and on admin, through notice cards). The scrim blurs whatever is behind
+   * the header: stacked backdrop-filter layers with masks that ramp blur toward
+   * the top. Each layer's backdrop includes the one below, so radii compound.
+   * Public pages use a fixed tail below the chrome band; admin grows with
+   * --topbar-measured-h so it covers the logo row and setup-alert stack.
    */
   .app-header > .app-header-scrim {
     position: absolute;
@@ -463,29 +460,39 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     pointer-events: none;
   }
 
+  .app-header--admin > .app-header-scrim {
+    height: var(
+      --topbar-measured-h,
+      calc(var(--safe-top) + var(--app-header-h))
+    );
+  }
+
   .app-header-scrim-blur {
     position: absolute;
     inset: 0;
+    /* Safari needs a painted surface before backdrop-filter composites. */
+    background: rgba(0, 0, 0, 0.001);
+    transform: translateZ(0);
     -webkit-mask-image: var(--app-header-scrim-mask);
     mask-image: var(--app-header-scrim-mask);
   }
 
   .app-header-scrim-blur:nth-child(1) {
-    --app-header-scrim-mask: linear-gradient(to top, transparent 0%, #000 30%, #000 100%);
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
+    --app-header-scrim-mask: linear-gradient(to top, transparent 0%, #000 28%, #000 100%);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
   }
 
   .app-header-scrim-blur:nth-child(2) {
-    --app-header-scrim-mask: linear-gradient(to top, transparent 22%, #000 52%, #000 100%);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
+    --app-header-scrim-mask: linear-gradient(to top, transparent 18%, #000 50%, #000 100%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 
   .app-header-scrim-blur:nth-child(3) {
-    --app-header-scrim-mask: linear-gradient(to top, transparent 48%, #000 78%, #000 100%);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+    --app-header-scrim-mask: linear-gradient(to top, transparent 42%, #000 76%, #000 100%);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
   }
 
   .app-header--admin::before {
@@ -493,6 +500,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   .app-header--admin .app-header-row > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .app-header--admin .admin-setup-alerts {
     position: relative;
     z-index: 1;
   }
