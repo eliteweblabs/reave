@@ -5,6 +5,7 @@ import type { APIContext } from 'astro';
 import { listEnabledDeckIndustries } from '../../../lib/deckIndustriesStore';
 import {
   defaultDemoLoaderModuleIds,
+  listDemoLoaderIncludedCards,
   listDemoLoaderModules,
   listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
@@ -25,6 +26,7 @@ export async function GET(context: APIContext): Promise<Response> {
   try {
     const modules = listDemoLoaderModules();
     const sections = listDemoLoaderSections(modules);
+    const included = listDemoLoaderIncludedCards();
     const industries = await listEnabledDeckIndustries();
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
     const demoSiteUrl = getPublicDemoSiteUrl();
@@ -33,6 +35,7 @@ export async function GET(context: APIContext): Promise<Response> {
       ok: true,
       modules,
       sections,
+      included,
       baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
       industries: industries.map((i) => ({ slug: i.slug, label: i.label })),
       defaultModuleIds: defaultDemoLoaderModuleIds(modules),

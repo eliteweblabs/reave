@@ -11,6 +11,7 @@
 
   let modules = [];
   let sections = [];
+  let included = [];
   let industries = [];
   let baselineModuleIds = [];
   let selectedIds = new Set();
@@ -38,10 +39,11 @@
 
   function syncDefaults(data) {
     modules = data.modules || [];
+    included = Array.isArray(data.included) ? data.included : [];
     sections =
       Array.isArray(data.sections) && data.sections.length ?
         data.sections
-      : [{ id: 'ungrouped', title: null, modules }];
+      : [{ id: 'optional', title: 'Optional Modules', modules }];
     industries = data.industries || [];
     baselineModuleIds = data.baselineModuleIds || [];
     demoSiteUrl = data.demoSiteUrl || null;
@@ -82,6 +84,21 @@
     );
   }
 
+  function renderIncludedTile(card) {
+    return (
+      `<article class="dl-tile dl-tile--included" data-included="${esc(card.id)}" aria-disabled="true">` +
+      `<div class="dl-tile-body">` +
+      `<span class="dl-badge dl-badge--included">Included</span>` +
+      `<h3 class="dl-tile-label">${esc(card.label)}</h3>` +
+      (card.blurb ? `<p class="dl-tile-blurb">${esc(card.blurb)}</p>` : '') +
+      `</div>` +
+      `<div class="dl-tile-foot">` +
+      `<span class="dl-tile-hint">Always on</span>` +
+      `</div>` +
+      `</article>`
+    );
+  }
+
   function renderTile(m) {
     const checked = selectedIds.has(m.moduleId);
     const meta = statusMeta(m);
@@ -118,6 +135,7 @@
   function renderLegend() {
     return (
       `<div class="dl-legend">` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--included">Included</span> always on</span>` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready — include in demo</span>` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--development">Development</span> in progress</span>` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--request">Requested</span> not built yet</span>` +
@@ -131,10 +149,24 @@
       section.title ?
         `<h2 class="dl-section-title">${esc(section.title)}</h2>`
       : '';
+    const grid =
+      (section.modules || []).length ?
+        `<div class="dl-grid">${(section.modules || []).map(renderTile).join('')}</div>`
+      : '';
     return (
       `<section class="dl-section"${section.id ? ` data-section="${esc(section.id)}"` : ''}>` +
       title +
-      `<div class="dl-grid">${(section.modules || []).map(renderTile).join('')}</div>` +
+      grid +
+      `</section>`
+    );
+  }
+
+  function renderIncludedSection() {
+    if (!included.length) return '';
+    return (
+      `<section class="dl-section" data-section="included">` +
+      `<h2 class="dl-section-title">Included modules</h2>` +
+      `<div class="dl-grid">${included.map(renderIncludedTile).join('')}</div>` +
       `</section>`
     );
   }
@@ -158,10 +190,13 @@
       (demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
       `</button>` +
       `</div>` +
-      `<p class="dl-meta">${selectedCount} optional module${selectedCount === 1 ? '' : 's'} selected · ${modules.length} add-on modules · baseline client portal always included</p>` +
+      `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
       `</div>` +
       renderLegend() +
-      `<div class="dl-sections">${sections.map(renderSection).join('')}</div>` +
+      `<div class="dl-sections">` +
+      renderIncludedSection() +
+      sections.map(renderSection).join('') +
+      `</div>` +
       (!demoSiteUrl ?
         `<p class="dl-footnote">Live sandbox URL is not configured on this install. Book a call from the <a href="/demo">demo page</a> for hands-on access.</p>`
       : '') +
@@ -201,7 +236,7 @@
       });
     });
 
-    root.querySelectorAll('.dl-tile:not(.dl-tile--readonly)').forEach((tile) => {
+    root.querySelectorAll('.dl-tile:not(.dl-tile--readonly):not(.dl-tile--included)').forEach((tile) => {
       tile.addEventListener('click', () => {
         const id = tile.querySelector('.dl-switch')?.getAttribute('data-module-id');
         if (id) toggleModule(id);
