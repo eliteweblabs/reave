@@ -90,11 +90,10 @@
     return (
       `<article class="dl-tile${checked && canToggle ? ' dl-tile--selected' : ''}${canToggle ? '' : ' dl-tile--readonly'}" ` +
       `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
-      `<div class="dl-tile-top">` +
-      `<span class="dl-tile-id">${esc(m.moduleId || '—')}</span>` +
+      `<div class="dl-tile-body">` +
       `<span class="dl-badge ${meta.badge}">${esc(meta.label)}</span>` +
-      `</div>` +
       `<h3 class="dl-tile-label">${esc(shortLabel(m.label))}</h3>` +
+      `</div>` +
       `<div class="dl-tile-foot">` +
       (canToggle ?
         renderSwitch(checked, m.moduleId)

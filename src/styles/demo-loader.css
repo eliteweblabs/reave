@@ -233,23 +233,20 @@
   opacity: 0.72;
 }
 
-.dl-tile-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.35rem;
+.dl-tile-body {
+  flex: 1;
+  min-width: 0;
 }
 
-.dl-tile-id {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.45);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.dl-tile-body::after {
+  content: '';
+  display: table;
+  clear: both;
 }
 
 .dl-badge {
-  flex-shrink: 0;
+  float: right;
+  margin: 0 0 0.35rem 0.5rem;
   padding: 0.12rem 0.4rem;
   border-radius: 999px;
   font-size: 0.62rem;
@@ -291,11 +288,11 @@
 
 .dl-tile-label {
   margin: 0;
+  display: block;
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.35;
   color: #fff;
-  flex: 1;
 }
 
 .dl-tile-foot {
