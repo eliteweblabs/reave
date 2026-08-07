@@ -1,10 +1,11 @@
 /**
- * Reusable media library picker — choose an image for branding fields.
+ * Reusable media library picker — choose an image/file for branding, editors, and uploads.
  */
 import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260805j';
 import { closeOsDialogBackdrop, openOsDialogBackdrop } from './os-dialog.js?v=20260804c';
 
 const MEDIA_API = '/api/admin/media';
+const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
 
 /**
  * @param {object} opts
@@ -16,7 +17,7 @@ const MEDIA_API = '/api/admin/media';
 export function openMediaPicker(opts) {
   const title = opts.title || 'Choose from library';
   const hint =
-    opts.hint || 'Only PNG, JPEG, or WebP images under 2 MB can be used for branding.';
+    opts.hint || 'Pick a file from the media library, or upload one from the Media tab first.';
   const filter = typeof opts.filter === 'function' ? opts.filter : () => true;
 
   const backdrop = document.getElementById('os-dialog-backdrop');
@@ -105,6 +106,38 @@ export function brandingMediaFilter(item) {
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(type)) return false;
   const size = Number(item.sizeBytes) || 0;
   return size > 0 && size <= 2 * 1024 * 1024;
+}
+
+/** Project notes / markdown — JPEG, PNG, GIF, WebP up to 10 MB. */
+export function imageMediaFilter(item) {
+  const type = String(item.mediaType || '').trim().toLowerCase();
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type)) return false;
+  const size = Number(item.sizeBytes) || 0;
+  return size > 0 && size <= MEDIA_MAX_BYTES;
+}
+
+/** Project file repository — images + PDF up to 10 MB. */
+export function projectFileMediaFilter(item) {
+  const type = String(item.mediaType || '').trim().toLowerCase();
+  if (
+    !['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'].includes(type)
+  ) {
+    return false;
+  }
+  const size = Number(item.sizeBytes) || 0;
+  return size > 0 && size <= MEDIA_MAX_BYTES;
+}
+
+/** Download a library item as a File for re-upload into project files / editors. */
+export async function fetchMediaAsFile(item) {
+  const url = String(item?.url || '').trim();
+  if (!url) throw new Error('Media URL missing');
+  const res = await adminFetch(url);
+  if (!res.ok) throw new Error(`Could not load media (HTTP ${res.status})`);
+  const blob = await res.blob();
+  const name = String(item.filename || 'file').trim() || 'file';
+  const type = String(item.mediaType || blob.type || 'application/octet-stream').trim();
+  return new File([blob], name, { type });
 }
 
 export async function applyMediaToTarget(mediaId, target, uid) {

@@ -129,7 +129,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260807c';
+} from './work-panel.js?v=20260807d';
 import {
   initTodoPanel,
   todoState,
@@ -182,7 +182,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260807b';
+} from './clients-panel.js?v=20260807c';
 import {
   initChatPanel,
   chatState,
@@ -260,7 +260,7 @@ import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
-} from './media-picker.js?v=20260804c';
+} from './media-picker.js?v=20260807a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -6526,7 +6526,7 @@ function renderCompanyPanel(company, fontCatalog) {
           `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the header when no logo PNG is uploaded. Leave blank to use the logo PNG or company name.">${escHtml(c.logoSvg || '')}</textarea></div>` +
           `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
           `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the homepage hero. Falls back to Logo SVG, then the rasterized icon mark.">${escHtml(c.iconSvg || '')}</textarea></div>` +
-          `<span class="prof-hint prof-hint--block">Logo PNG or SVG powers the header (PNG → SVG → company name). Icon PNG or SVG is rasterized for favicons, OG, PWA, and avatars. Homepage hero uses Icon SVG, then Logo SVG, then the rasterized mark.</span>` +
+          `<span class="prof-hint prof-hint--block">Logo PNG or SVG powers the header (PNG → SVG → company name). Icon PNG or SVG is rasterized for favicons, OG, PWA, and avatars. Homepage hero uses Icon SVG, then Logo SVG, then the rasterized mark. Upload a file or pick from the Media library.</span>` +
           `<div class="prof-field prof-field--font-heading">` +
             `<div class="prof-font-heading-row">` +
               `<label>Typography</label>` +

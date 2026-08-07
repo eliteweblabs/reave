@@ -46,7 +46,7 @@ import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
-} from './media-picker.js?v=20260804c';
+} from './media-picker.js?v=20260807a';
 import {
   navigateToWork,
   mountClientWorkSection,
@@ -914,7 +914,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
     ? 'Save the client first to upload logo and icon.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a website URL is saved, or use Fetch from website.';
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Upload a file, pick from the Media library, or fetch logos from the website URL.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);

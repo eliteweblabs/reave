@@ -1518,6 +1518,16 @@ button.de-placeholder-action:active {
   flex: none;
   margin: 0;
 }
+#work-editor .wk-md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem;
+}
+#work-editor .wk-md-file-input {
+  display: none;
+}
 #work-editor .wk-md-surface {
   flex: none;
   min-height: 12rem;

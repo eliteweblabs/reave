@@ -41,6 +41,12 @@ import {
   createDetailPanel,
   showDetailPanel,
 } from './detail-tabs.js?v=20260807b';
+import {
+  openMediaPicker,
+  imageMediaFilter,
+  projectFileMediaFilter,
+  fetchMediaAsFile,
+} from './media-picker.js?v=20260807a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -2211,6 +2217,31 @@ function createWorkBodyEditor(opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-md-editor';
 
+  const toolbar = document.createElement('div');
+  toolbar.className = 'wk-md-toolbar';
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/jpeg,image/png,image/gif,image/webp';
+  fileInput.multiple = true;
+  fileInput.className = 'wk-md-file-input';
+  fileInput.hidden = true;
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+  setDeBtnLabel(uploadBtn, 'Upload', 'share');
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  const libraryBtn = document.createElement('button');
+  libraryBtn.type = 'button';
+  libraryBtn.className = 'de-btn de-btn-secondary';
+  libraryBtn.textContent = 'Library';
+
+  toolbar.appendChild(fileInput);
+  toolbar.appendChild(uploadBtn);
+  toolbar.appendChild(libraryBtn);
+
   const surface = document.createElement('div');
   surface.className = 'wk-md-surface de-textarea';
   surface.contentEditable = 'true';
@@ -2247,7 +2278,7 @@ function createWorkBodyEditor(opts = {}) {
     let slug = opts.slug || null;
     if (!slug && opts.ensureSlug) slug = await opts.ensureSlug();
     if (!slug) {
-      showWorkEditorToast('Add a title and client before pasting images.');
+      showWorkEditorToast('Add a title and client before adding images.');
       return;
     }
 
@@ -2260,6 +2291,7 @@ function createWorkBodyEditor(opts = {}) {
       opts.onImageUploaded?.(uploaded);
     } catch (e) {
       showWorkEditorToast(e.message || 'Image upload failed');
+      throw e;
     } finally {
       uploading -= 1;
       if (uploading <= 0) {
@@ -2268,6 +2300,33 @@ function createWorkBodyEditor(opts = {}) {
       }
     }
   }
+
+  fileInput.addEventListener('change', () => {
+    const files = [...(fileInput.files || [])];
+    fileInput.value = '';
+    if (!files.length) return;
+    void (async () => {
+      for (const file of files) {
+        try {
+          await ingestImageFile(file);
+        } catch {
+          /* toast already shown */
+        }
+      }
+    })();
+  });
+
+  libraryBtn.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Insert from library',
+      hint: 'Choose an image to copy into this project and insert in the notes. JPEG, PNG, GIF, or WebP — max 10 MB.',
+      filter: imageMediaFilter,
+      onPick: async (item) => {
+        const file = await fetchMediaAsFile(item);
+        await ingestImageFile(file);
+      },
+    });
+  });
 
   surface.addEventListener('input', syncMarkdown);
 
@@ -2284,7 +2343,13 @@ function createWorkBodyEditor(opts = {}) {
     if (!imageFiles.length) return;
     e.preventDefault();
     void (async () => {
-      for (const file of imageFiles) await ingestImageFile(file);
+      for (const file of imageFiles) {
+        try {
+          await ingestImageFile(file);
+        } catch {
+          /* toast already shown */
+        }
+      }
     })();
   });
 
@@ -2301,10 +2366,17 @@ function createWorkBodyEditor(opts = {}) {
     if (!files.length) return;
     e.preventDefault();
     void (async () => {
-      for (const file of files) await ingestImageFile(file);
+      for (const file of files) {
+        try {
+          await ingestImageFile(file);
+        } catch {
+          /* toast already shown */
+        }
+      }
     })();
   });
 
+  wrap.appendChild(toolbar);
   wrap.appendChild(surface);
   wrap.appendChild(ta);
 
@@ -3397,9 +3469,14 @@ function mountWorkFilesSection(container, slug, initialFiles) {
   uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
   setDeBtnLabel(uploadBtn, 'Upload files', 'share');
   uploadBtn.addEventListener('click', () => uploadInput.click());
+  const libraryBtn = document.createElement('button');
+  libraryBtn.type = 'button';
+  libraryBtn.className = 'de-btn de-btn-secondary';
+  libraryBtn.textContent = 'Library';
   uploadRow.appendChild(downloadAllBtn);
   uploadRow.appendChild(uploadInput);
   uploadRow.appendChild(uploadBtn);
+  uploadRow.appendChild(libraryBtn);
   section.appendChild(uploadRow);
 
   let currentFiles = initialFiles || [];
@@ -3491,11 +3568,10 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     }
   }
 
-  uploadInput.addEventListener('change', async () => {
-    const files = [...uploadInput.files];
-    uploadInput.value = '';
-    if (!files.length) return;
+  async function uploadFilesToProject(files) {
+    if (!files?.length) return;
     uploadBtn.disabled = true;
+    libraryBtn.disabled = true;
     updateDeBtnLabel(uploadBtn, 'Uploading…');
     try {
       for (const file of files) {
@@ -3513,10 +3589,30 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       renderFiles(listData.files || []);
     } catch (e) {
       alert(`Upload failed: ${e.message}`);
+      throw e;
     } finally {
       uploadBtn.disabled = false;
+      libraryBtn.disabled = false;
       updateDeBtnLabel(uploadBtn, 'Upload files');
     }
+  }
+
+  uploadInput.addEventListener('change', () => {
+    const files = [...uploadInput.files];
+    uploadInput.value = '';
+    void uploadFilesToProject(files).catch(() => {});
+  });
+
+  libraryBtn.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Add from library',
+      hint: 'Choose an image or PDF to copy into this project’s file repository. Max 10 MB.',
+      filter: projectFileMediaFilter,
+      onPick: async (item) => {
+        const file = await fetchMediaAsFile(item);
+        await uploadFilesToProject([file]);
+      },
+    });
   });
 
   renderFiles(initialFiles || []);
