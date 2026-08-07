@@ -9,6 +9,7 @@ import {
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
 import { buildAdminNotice } from './admin-notice.js?v=20260807a';
+import { companyStaffAvatarUrl } from './shared.js?v=20260805j';
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -335,6 +336,7 @@ function renderSetupAlert(kind) {
   notice = buildAdminNotice({
     tone: kind,
     copyHtml,
+    iconUrl: companyStaffAvatarUrl(),
     actions,
     dismissLabel: 'Dismiss setup alert',
     onDismiss: () => {
