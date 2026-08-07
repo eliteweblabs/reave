@@ -134,18 +134,7 @@
 .dash-review-alerts .admin-setup-alert {
   touch-action: pan-y;
   will-change: transform, opacity;
-  max-width: none;
-  margin: 0;
   box-shadow: none;
-}
-.dash-review-alerts .admin-setup-alert-btn--primary {
-  border: none;
-  background: var(--brand-gradient);
-  color: #fff;
-}
-.dash-review-alerts .admin-setup-alert-btn--primary:hover {
-  filter: brightness(1.06);
-  background: var(--brand-gradient);
 }
 .dash-review-alerts .admin-setup-alert-copy {
   cursor: pointer;

@@ -62,15 +62,14 @@ const storageKey = `reave-site-alert-dismiss:${alertId}`;
 </script>
 
 <style>
+  /* Same dismiss chrome as admin notices: absolute X top-right. */
   .site-dismiss-alert {
     position: fixed;
     left: max(0.75rem, env(safe-area-inset-left, 0px));
     right: max(0.75rem, env(safe-area-inset-right, 0px));
     bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
     z-index: 1000;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.65rem;
+    display: block;
     max-width: 36rem;
     margin: 0 auto;
     padding: 0.85rem 0.9rem;
@@ -93,18 +92,20 @@ const storageKey = `reave-site-alert-dismiss:${alertId}`;
 
   .site-dismiss-alert-copy {
     margin: 0;
-    flex: 1;
+    padding-right: 2rem;
     min-width: 0;
   }
 
   .site-dismiss-alert-dismiss {
-    flex-shrink: 0;
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 1.75rem;
     height: 1.75rem;
-    margin: -0.15rem -0.1rem 0 0;
     padding: 0;
     border: none;
     border-radius: 8px;

@@ -105,6 +105,7 @@ import {
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260806d';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
+import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
@@ -3839,17 +3840,9 @@ function reviewAlertVariant(type, item) {
   return reviewAlertTone(item ?? { type });
 }
 
-function appendReviewAlertAction(actions, { label, primary, onClick }) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = `admin-setup-alert-btn${primary ? ' admin-setup-alert-btn--primary' : ''}`.trim();
-  btn.textContent = label;
-  btn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    onClick(btn);
-  });
-  actions.appendChild(btn);
-  return btn;
+/** @deprecated use appendAdminNoticeAction — kept for any lingering callers */
+function appendReviewAlertAction(actions, opts) {
+  return appendAdminNoticeAction(actions, opts);
 }
 
 function workSlugFromPushAlertUrl(url) {
@@ -4012,42 +4005,6 @@ function isReceiptExpenseNotification(item) {
 }
 
 function buildReviewAlertBanner(item) {
-  const alert = document.createElement('div');
-  alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertTone(item)}`;
-  alert.setAttribute('role', 'status');
-  if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
-  if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
-  if (item.engagementId) alert.setAttribute('data-review-engagement-id', item.engagementId);
-  if (item.alertId) alert.setAttribute('data-review-alert-id', item.alertId);
-  if (item.tag) alert.setAttribute('data-review-alert-tag', item.tag);
-
-  const head = document.createElement('div');
-  head.className = 'admin-setup-alert-head';
-
-  const brandIcon = document.createElement('img');
-  brandIcon.className = 'admin-setup-alert-brand';
-  const fallbackIconUrl = companyStaffAvatarUrl();
-  brandIcon.src = resolveReviewAlertIconUrl(item);
-  brandIcon.alt = '';
-  brandIcon.setAttribute('aria-hidden', 'true');
-  if (brandIcon.src !== fallbackIconUrl) {
-    brandIcon.addEventListener(
-      'error',
-      () => {
-        brandIcon.onerror = null;
-        brandIcon.src = fallbackIconUrl;
-      },
-      { once: true },
-    );
-  }
-
-  const copy = document.createElement('div');
-  copy.className = 'admin-setup-alert-copy';
-  copy.innerHTML = reviewAlertCopyHtml(item);
-
-  const toolbar = document.createElement('div');
-  toolbar.className = 'admin-setup-alert-toolbar';
-
   const isProject = item.type === 'project';
   const isProjectMatch = item.type === 'project_match';
   const isProjectComment = item.type === 'project_comment';
@@ -4063,89 +4020,81 @@ function buildReviewAlertBanner(item) {
   const isOtp = isOtpReviewAlert(item);
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
 
-  if (isOtp && item.verificationCode) {
-    copy.addEventListener('click', () => void copyOtpFromReviewAlert(item, null));
-  } else {
-    copy.addEventListener('click', () => openReviewNotificationTarget(item));
-  }
-
-  if (emailAwaitingTriage) {
-    alert.classList.add('admin-setup-alert--triage');
-  }
+  const actions = [];
 
   if (isOtp) {
     if (item.verificationCode) {
-      appendReviewAlertAction(toolbar, {
+      actions.push({
         label: 'Copy code',
         primary: true,
         onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
       });
     } else {
-      appendReviewAlertAction(toolbar, {
+      actions.push({
         label: 'View',
         primary: true,
         onClick: () => openReviewNotificationTarget(item),
       });
     }
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Delete',
       onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
     });
   } else if (isPushAlert) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'View',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
     if (!isAuditPushAlert(item)) {
-      appendReviewAlertAction(toolbar, {
+      actions.push({
         label: 'Archive',
         onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
       });
     }
   } else if (isProjectComment || isShareOpen || isContactForm) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isVaultEntry) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'View vault',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isDeckView && item.contactUid) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'View client',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isProjectMatch) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Add to project',
       primary: true,
       onClick: (btn) => void confirmSuggestedProjectMatch(item, btn),
     });
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Not this project',
       onClick: (btn) => void rejectSuggestedProjectMatch(item, btn),
     });
   } else if (isProject) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isMeetingFollowup) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'View email',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isMeetingRequest) {
     const scheduleOnly = !item.proposedMeetingStart;
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: scheduleOnly
         ? 'Send scheduling link'
         : item.type === 'meeting_conflict'
@@ -4163,7 +4112,7 @@ function buildReviewAlertBanner(item) {
           btn,
         ),
     });
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: item.type === 'meeting_conflict' ? 'Suggest alternate' : 'View email',
       onClick: () => {
         if (item.type === 'meeting_conflict' && item.emailId) {
@@ -4176,69 +4125,68 @@ function buildReviewAlertBanner(item) {
       },
     });
   } else if (isAutoBookedMeeting) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Confirm',
       primary: true,
       onClick: (btn) => void confirmScheduledMeeting(item, btn),
     });
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Reschedule',
       onClick: () => rescheduleScheduledMeeting(item),
     });
   } else if (isReceiptExpense) {
-    const expenseBtn = appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Expense',
       primary: true,
+      disabled: item.amount == null,
+      title: item.amount == null ? 'No dollar amount detected on this email' : undefined,
       onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
     });
-    if (item.amount == null) {
-      expenseBtn.disabled = true;
-      expenseBtn.title = 'No dollar amount detected on this email';
-    }
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Archive',
       onClick: (btn) => void archiveReceiptFromAlert(item, btn),
     });
   }
 
   if (isEmailAutomationReview(item)) {
-    appendReviewAlertAction(toolbar, {
+    actions.push({
       label: 'Triage',
       onClick: () => void openNotificationTriageDialog(item),
     });
   }
 
-  const actionBtnCount = toolbar.querySelectorAll('.admin-setup-alert-btn').length;
-  if (actionBtnCount > 0) {
-    toolbar.dataset.actionCount = String(Math.min(actionBtnCount, 3));
-  }
-
-  const dismissBtn = document.createElement('button');
-  dismissBtn.type = 'button';
-  dismissBtn.className = 'admin-setup-alert-dismiss';
-  dismissBtn.setAttribute('aria-label', 'Dismiss');
-  dismissBtn.innerHTML =
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-  dismissBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    if (emailAwaitingTriage) {
-      void openNotificationTriageDialog(item);
-      return;
-    }
-    dismissBtn.disabled = true;
-    void dismissReviewNotification(item).finally(() => {
-      dismissBtn.disabled = false;
-    });
+  const notice = buildAdminNotice({
+    tone: reviewAlertTone(item),
+    copyHtml: reviewAlertCopyHtml(item),
+    iconUrl: resolveReviewAlertIconUrl(item),
+    iconFallbackUrl: companyStaffAvatarUrl(),
+    modifiers: emailAwaitingTriage ? ['triage'] : [],
+    attrs: {
+      'data-review-email-id': item.emailId || null,
+      'data-review-comment-id': item.commentId || null,
+      'data-review-engagement-id': item.engagementId || null,
+      'data-review-alert-id': item.alertId || null,
+      'data-review-alert-tag': item.tag || null,
+    },
+    actions,
+    onCopyClick: () => {
+      if (isOtp && item.verificationCode) void copyOtpFromReviewAlert(item, null);
+      else openReviewNotificationTarget(item);
+    },
+    onDismiss: (dismissBtn) => {
+      if (emailAwaitingTriage) {
+        void openNotificationTriageDialog(item);
+        return;
+      }
+      dismissBtn.disabled = true;
+      void dismissReviewNotification(item).finally(() => {
+        dismissBtn.disabled = false;
+      });
+    },
   });
 
-  head.append(brandIcon, copy);
-  alert.append(head);
-  if (actionBtnCount > 0) {
-    alert.appendChild(toolbar);
-  }
-  alert.appendChild(dismissBtn);
-  bindReviewAlertSwipe(alert, item);
-  return alert;
+  bindReviewAlertSwipe(notice.root, item);
+  return notice.root;
 }
 
 function bindReviewAlertSwipe(alert, item) {

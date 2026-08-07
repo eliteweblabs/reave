@@ -376,7 +376,10 @@ select,
   50% { opacity: 1; }
 }
 
-/* ── Setup alerts (PWA install + push permission) ── */
+/* ── Admin notices (shared chrome for header + dashboard cards) ──
+ * Built only via public/admin/admin-notice.js → buildAdminNotice().
+ * Tone modifiers set --notice-accent (rgb triplet); wash strength is shared.
+ */
 .admin-setup-alerts {
   flex-shrink: 0;
   /* Cancel header inline pad so cards align with dashboard (1rem sides). */
@@ -409,6 +412,16 @@ select,
   border: 1px solid var(--panel-border);
   background: var(--overlay-bg);
   box-shadow: var(--shadow-lg);
+  /* Tone modifiers set --notice-accent (rgb triplet). Same wash strength for every notice. */
+  --notice-accent: 148, 163, 184;
+}
+.admin-setup-alert[class*='admin-setup-alert--'] {
+  border-color: rgba(var(--notice-accent), 0.55);
+  background: color-mix(
+    in srgb,
+    var(--overlay-bg) 74%,
+    rgba(var(--notice-accent), 0.28)
+  );
 }
 .admin-setup-alert-head {
   display: flex;
@@ -428,50 +441,40 @@ select,
   object-fit: cover;
 }
 .admin-setup-alert--receipt {
-  border-color: rgba(52, 211, 153, 0.55);
-  background: color-mix(in srgb, var(--overlay-bg) 72%, rgba(52, 211, 153, 0.32));
+  --notice-accent: 52, 211, 153;
 }
 .admin-setup-alert--otp {
-  border-color: rgba(251, 191, 36, 0.55);
-  background: color-mix(in srgb, var(--overlay-bg) 82%, rgba(251, 191, 36, 0.18));
+  --notice-accent: 251, 191, 36;
 }
 .admin-setup-alert--meeting {
-  border-color: rgba(96, 165, 250, 0.45);
-  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(96, 165, 250, 0.12));
+  --notice-accent: 96, 165, 250;
 }
 .admin-setup-alert--meeting-conflict {
-  border-color: rgba(251, 146, 60, 0.5);
-  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(251, 146, 60, 0.12));
+  --notice-accent: 251, 146, 60;
 }
 .admin-setup-alert--project {
-  border-color: rgba(94, 234, 212, 0.4);
-  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(94, 234, 212, 0.14));
+  --notice-accent: 94, 234, 212;
 }
 .admin-setup-alert--client {
-  border-color: rgba(167, 139, 250, 0.45);
-  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(167, 139, 250, 0.12));
+  --notice-accent: 167, 139, 250;
 }
 /* Site audits — informational indigo (not error red). */
 .admin-setup-alert--audit {
-  border-color: rgba(129, 140, 248, 0.55);
-  background: color-mix(in srgb, var(--overlay-bg) 78%, rgba(129, 140, 248, 0.26));
+  --notice-accent: 129, 140, 248;
 }
 /* Critical / error alerts only. */
 .admin-setup-alert--alert {
-  border-color: rgba(248, 113, 113, 0.55);
-  background: color-mix(in srgb, var(--overlay-bg) 78%, rgba(248, 113, 113, 0.24));
+  --notice-accent: 248, 113, 113;
 }
 .admin-setup-alert--pwa {
-  border-color: rgba(94, 234, 212, 0.45);
-  background: color-mix(in srgb, var(--overlay-bg) 80%, rgba(94, 234, 212, 0.22));
+  --notice-accent: 94, 234, 212;
 }
 .admin-setup-alert--push {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: color-mix(in srgb, var(--overlay-bg) 82%, rgba(251, 191, 36, 0.18));
+  --notice-accent: 251, 191, 36;
 }
+/* Legacy alias — prefer --push / --alert via the shared builder. */
 .admin-setup-alert--confirm {
-  border-color: rgba(248, 113, 113, 0.45);
-  background: color-mix(in srgb, var(--overlay-bg) 80%, rgba(248, 113, 113, 0.2));
+  --notice-accent: 251, 191, 36;
 }
 .admin-setup-alert-toolbar {
   display: grid;
@@ -532,11 +535,12 @@ select,
   font-size: 0.74rem;
   color: #f87171;
 }
+/* Legacy alias — all notices use .admin-setup-alert-toolbar via buildAdminNotice. */
 .admin-setup-alert-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  flex-shrink: 0;
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .admin-setup-alert-btn {
   font: inherit;
@@ -551,12 +555,13 @@ select,
   white-space: nowrap;
 }
 .admin-setup-alert-btn--primary {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: rgba(251, 191, 36, 0.14);
-  color: var(--fg);
+  border: none;
+  background: var(--brand-gradient);
+  color: #fff;
 }
 .admin-setup-alert-btn--primary:hover {
-  background: rgba(251, 191, 36, 0.22);
+  filter: brightness(1.06);
+  background: var(--brand-gradient);
 }
 .admin-setup-alert-btn--danger {
   border-color: rgba(248, 113, 113, 0.45);
@@ -585,8 +590,7 @@ select,
   cursor: pointer;
 }
 .admin-setup-alert--triage {
-  border-color: rgba(167, 139, 250, 0.45);
-  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(167, 139, 250, 0.12));
+  --notice-accent: 167, 139, 250;
 }
 .admin-setup-alert--triage-pulse {
   animation: admin-setup-alert-triage-pulse 0.8s ease 2;
@@ -670,16 +674,19 @@ select,
   color: var(--fg);
 }
 @media (min-width: 640px) {
-  .admin-setup-alert:has(.admin-setup-alert-head) {
+  .admin-setup-alert:has(.admin-setup-alert-head),
+  .admin-setup-alert:has(.admin-setup-alert-toolbar):not(:has(.admin-setup-alert-head)) {
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: flex-start;
   }
-  .admin-setup-alert-head {
+  .admin-setup-alert-head,
+  .admin-setup-alert:not(:has(.admin-setup-alert-head)) > .admin-setup-alert-copy {
     flex: 1 1 auto;
     min-width: 0;
   }
-  .admin-setup-alert-toolbar {
+  .admin-setup-alert-toolbar,
+  .admin-setup-alert-actions {
     width: auto;
     display: flex;
     flex-wrap: nowrap;
@@ -688,16 +695,10 @@ select,
     gap: 0.35rem;
     padding-right: 2rem;
   }
-  .admin-setup-alert-toolbar .admin-setup-alert-btn {
+  .admin-setup-alert-toolbar .admin-setup-alert-btn,
+  .admin-setup-alert-actions .admin-setup-alert-btn {
     width: auto;
     min-height: 0;
-  }
-  .admin-setup-alert:not(:has(.admin-setup-alert-head)) {
-    flex-wrap: wrap;
-  }
-  .admin-setup-alert:not(:has(.admin-setup-alert-head)) .admin-setup-alert-actions {
-    width: auto;
-    justify-content: flex-end;
   }
 }
 

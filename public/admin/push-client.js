@@ -8,6 +8,7 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
+import { buildAdminNotice } from './admin-notice.js?v=20260807a';
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -284,80 +285,69 @@ function renderSetupAlert(kind) {
   root.hidden = false;
   root.replaceChildren();
 
-  const alert = document.createElement('div');
-  alert.className = `admin-setup-alert admin-setup-alert--${kind}`;
-  alert.setAttribute('role', 'status');
-
-  const copy = document.createElement('div');
-  copy.className = 'admin-setup-alert-copy';
-
+  let copyHtml;
   if (kind === 'pwa') {
-    copy.innerHTML =
+    copyHtml =
       '<strong>Install the admin app</strong>' +
       `<p>${pwaInstallHint()}</p>`;
   } else {
     const denied = Notification.permission === 'denied';
-    copy.innerHTML = denied
+    copyHtml = denied
       ? '<strong>Notifications are blocked</strong><p>Enable notifications in your browser or device settings to get inbox alerts, bookings, and website monitoring.</p>'
       : '<strong>Enable notifications</strong><p>Get inbox alerts, booking updates, and website monitoring even when the app is in the background.</p>';
   }
 
-  const actions = document.createElement('div');
-  actions.className = 'admin-setup-alert-actions';
+  const actions = [];
+  /** @type {{ root: HTMLElement, copy: HTMLElement } | null} */
+  let notice = null;
 
   if (kind === 'pwa' && deferredInstallPrompt) {
-    const installBtn = document.createElement('button');
-    installBtn.type = 'button';
-    installBtn.className = 'admin-setup-alert-btn admin-setup-alert-btn--primary';
-    installBtn.textContent = 'Install app';
-    installBtn.addEventListener('click', async () => {
-      installBtn.disabled = true;
-      await promptPwaInstall();
+    actions.push({
+      label: 'Install app',
+      primary: true,
+      onClick: async (btn) => {
+        btn.disabled = true;
+        await promptPwaInstall();
+      },
     });
-    actions.appendChild(installBtn);
   }
-
   if (kind === 'push' && Notification.permission !== 'denied') {
-    const enableBtn = document.createElement('button');
-    enableBtn.type = 'button';
-    enableBtn.className = 'admin-setup-alert-btn admin-setup-alert-btn--primary';
-    enableBtn.textContent = 'Enable notifications';
-    enableBtn.addEventListener('click', async () => {
-      enableBtn.disabled = true;
-      try {
-        await subscribeAdminPush();
-        syncAdminSetupAlerts();
-        syncAdminPushButton();
-      } catch (e) {
-        enableBtn.disabled = false;
-        const err = document.createElement('p');
-        err.className = 'admin-setup-alert-error';
-        err.textContent = e.message || String(e);
-        copy.appendChild(err);
-      }
+    actions.push({
+      label: 'Enable notifications',
+      primary: true,
+      onClick: async (btn) => {
+        btn.disabled = true;
+        try {
+          await subscribeAdminPush();
+          syncAdminSetupAlerts();
+          syncAdminPushButton();
+        } catch (e) {
+          btn.disabled = false;
+          const err = document.createElement('p');
+          err.className = 'admin-setup-alert-error';
+          err.textContent = e.message || String(e);
+          notice?.copy.appendChild(err);
+        }
+      },
     });
-    actions.appendChild(enableBtn);
   }
 
-  const dismissBtn = document.createElement('button');
-  dismissBtn.type = 'button';
-  dismissBtn.className = 'admin-setup-alert-dismiss';
-  dismissBtn.setAttribute('aria-label', 'Dismiss setup alert');
-  dismissBtn.innerHTML =
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-  dismissBtn.addEventListener('click', () => {
-    dismissAlert(kind);
-    syncAdminSetupAlerts();
-    syncAdminPushButton();
+  notice = buildAdminNotice({
+    tone: kind,
+    copyHtml,
+    actions,
+    dismissLabel: 'Dismiss setup alert',
+    onDismiss: () => {
+      dismissAlert(kind);
+      syncAdminSetupAlerts();
+      syncAdminPushButton();
+    },
   });
 
-  alert.append(copy);
-  if (actions.childNodes.length) alert.appendChild(actions);
-  alert.appendChild(dismissBtn);
-  root.appendChild(alert);
+  root.appendChild(notice.root);
   bindSetupAlertResize();
   requestAnimationFrame(() => syncSetupAlertInset());
-  return alert;
+  return notice.root;
 }
 
 function clearSetupAlerts() {
@@ -412,7 +402,7 @@ export function clearAdminActionBanner(restoreSetup = true) {
   if (restoreSetup) void syncAdminSetupAlerts();
 }
 
-/** Header notification banner with confirm/cancel — same chrome as setup alerts. */
+/** Header notification banner with confirm/cancel — same chrome as all admin notices. */
 export function showAdminConfirmBanner(opts = {}) {
   return new Promise((resolve) => {
     clearAdminActionBanner(false);
@@ -437,53 +427,40 @@ export function showAdminConfirmBanner(opts = {}) {
     root.replaceChildren();
     root.dataset.actionBanner = '1';
 
-    const alert = document.createElement('div');
-    alert.className = 'admin-setup-alert admin-setup-alert--confirm';
-    alert.setAttribute('role', 'alertdialog');
-    alert.setAttribute('aria-modal', 'false');
-    alert.setAttribute('aria-labelledby', 'admin-action-banner-title');
-
-    const copy = document.createElement('div');
-    copy.className = 'admin-setup-alert-copy';
-    const title = opts.title ? `<strong id="admin-action-banner-title">${opts.title}</strong>` : '';
-    copy.innerHTML = `${title}${opts.bodyHtml || ''}`;
-
-    const actions = document.createElement('div');
-    actions.className = 'admin-setup-alert-actions';
-
+    const title = opts.title
+      ? `<strong id="admin-action-banner-title">${opts.title}</strong>`
+      : '';
+    const actions = [];
     if (opts.showCancel !== false) {
-      const cancelBtn = document.createElement('button');
-      cancelBtn.type = 'button';
-      cancelBtn.className = 'admin-setup-alert-btn';
-      cancelBtn.textContent = opts.cancelLabel || 'Cancel';
-      cancelBtn.addEventListener('click', () => finish(false));
-      actions.appendChild(cancelBtn);
+      actions.push({
+        label: opts.cancelLabel || 'Cancel',
+        onClick: () => finish(false),
+      });
     }
+    actions.push({
+      label: opts.confirmLabel || 'OK',
+      primary: !opts.danger,
+      danger: Boolean(opts.danger),
+      onClick: () => finish(true),
+    });
 
-    const confirmBtn = document.createElement('button');
-    confirmBtn.type = 'button';
-    confirmBtn.className = `admin-setup-alert-btn ${
-      opts.danger ? 'admin-setup-alert-btn--danger' : 'admin-setup-alert-btn--primary'
-    }`.trim();
-    confirmBtn.textContent = opts.confirmLabel || 'OK';
-    confirmBtn.addEventListener('click', () => finish(true));
-    actions.appendChild(confirmBtn);
+    const notice = buildAdminNotice({
+      // Red only for destructive confirms; otherwise use the push/info wash.
+      tone: opts.danger ? 'alert' : 'push',
+      role: 'alertdialog',
+      ariaModal: 'false',
+      ariaLabelledBy: opts.title ? 'admin-action-banner-title' : undefined,
+      copyHtml: `${title}${opts.bodyHtml || ''}`,
+      actions,
+      onDismiss: () => finish(false),
+    });
 
-    const dismissBtn = document.createElement('button');
-    dismissBtn.type = 'button';
-    dismissBtn.className = 'admin-setup-alert-dismiss';
-    dismissBtn.setAttribute('aria-label', 'Dismiss');
-    dismissBtn.innerHTML =
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-    dismissBtn.addEventListener('click', () => finish(false));
-
-    alert.append(copy);
-    if (actions.childNodes.length) alert.appendChild(actions);
-    alert.appendChild(dismissBtn);
-    root.appendChild(alert);
+    root.appendChild(notice.root);
     bindSetupAlertResize();
     requestAnimationFrame(() => syncSetupAlertInset());
-    confirmBtn.focus();
+    notice.toolbar
+      ?.querySelector('.admin-setup-alert-btn--primary, .admin-setup-alert-btn--danger')
+      ?.focus();
   });
 }
 
