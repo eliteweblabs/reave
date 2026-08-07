@@ -39,7 +39,15 @@ const FEATURE_IDS_LIST = [
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
 
-export const PROFILE_MENU_KEYS = ['profile', 'company', 'socials', 'industries', 'vapi', 'lead-scanner'] as const;
+export const PROFILE_MENU_KEYS = [
+  'profile',
+  'company',
+  'settings',
+  'socials',
+  'industries',
+  'vapi',
+  'lead-scanner',
+] as const;
 export type ProfileMenuKey = (typeof PROFILE_MENU_KEYS)[number];
 
 export const FOOTER_NAV_SLOT_KEYS = ['__system__', '__chat__'] as const;
@@ -64,6 +72,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'finance',
   'profile',
   'company',
+  'settings',
   'socials',
   'industries',
   'vapi',
@@ -122,6 +131,7 @@ export type InstallConfigClient = Pick<
 export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   profile: 'Profile',
   company: 'Company',
+  settings: 'Settings',
   socials: 'Socials',
   industries: 'Industries',
   vapi: 'Vapi',
@@ -253,6 +263,7 @@ export function defaultFooterNav(): FooterNavKey[] {
     'analytics',
     'profile',
     'company',
+    'settings',
     'socials',
     'industries',
     'finance',

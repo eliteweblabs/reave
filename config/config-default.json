@@ -25,6 +25,7 @@
   "profileMenu": [
     "profile",
     "company",
+    "settings",
     "socials",
     "industries"
   ]

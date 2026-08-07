@@ -316,6 +316,7 @@ const MAP_ICON_KEYS = {
   finance: 'wallet',
   profile: 'user',
   company: 'building-2',
+  settings: 'settings',
   socials: 'link-2',
   industries: 'target',
   vapi: 'mic',
@@ -323,7 +324,15 @@ const MAP_ICON_KEYS = {
 };
 
 /** Admin settings pages — one map tab per section. */
-const SETTINGS_MAP_TYPES = new Set(['profile', 'company', 'socials', 'industries', 'vapi', 'lead-scanner']);
+const SETTINGS_MAP_TYPES = new Set([
+  'profile',
+  'company',
+  'settings',
+  'socials',
+  'industries',
+  'vapi',
+  'lead-scanner',
+]);
 
 function installFooterNav() {
   const nav = window.__installConfig?.footerNav;
@@ -424,6 +433,8 @@ const NAV_ICON_PATHS = {
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
   puzzle:
     '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
+  settings:
+    '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
 };
 
 export function navIcon(name, size = 20) {
@@ -892,6 +903,8 @@ function activateMapPanel(opts = {}) {
     loadProfileTab();
   } else if (MAP.type === 'company') {
     loadCompanyTab();
+  } else if (MAP.type === 'settings') {
+    loadAppSettingsTab();
   } else if (MAP.type === 'socials') {
     loadSocialsTab();
   } else if (MAP.type === 'industries') {
@@ -2755,6 +2768,9 @@ function isOtpReviewAlert(item) {
   return false;
 }
 
+let otpCountdownTimer = null;
+let otpExpiryPurgeInFlight = false;
+
 function formatOtpCountdown(remainingMs) {
   if (remainingMs <= 0) return '0:00';
   const sec = Math.ceil(remainingMs / 1000);
@@ -2763,10 +2779,96 @@ function formatOtpCountdown(remainingMs) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-let otpCountdownTimer = null;
+function isExpiredOtpTimestamp(iso, now = Date.now()) {
+  if (!iso) return false;
+  const ms = new Date(iso).getTime();
+  return Number.isFinite(ms) && ms <= now;
+}
 
-function tickOtpCountdowns() {
+function collectExpiredOtpEmailIds(now = Date.now()) {
+  const ids = new Set();
+  for (const ev of emailState.allEvents || []) {
+    if (!ev?.id || !ev.deleteAfterAt) continue;
+    if (isExpiredOtpTimestamp(ev.deleteAfterAt, now)) ids.add(String(ev.id));
+  }
+  document.querySelectorAll('[data-otp-expires]').forEach((el) => {
+    const iso = el.getAttribute('data-otp-expires');
+    if (!isExpiredOtpTimestamp(iso, now)) return;
+    const banner = el.closest(
+      '[data-review-email-id], [data-review-alert-tag], .em-otp-card, .admin-setup-alert--otp',
+    );
+    const fromTag = String(banner?.getAttribute('data-review-alert-tag') || '');
+    const emailId =
+      banner?.getAttribute('data-review-email-id') ||
+      (fromTag.toLowerCase().startsWith('otp-') ? fromTag.slice(4) : '');
+    if (emailId) ids.add(String(emailId));
+  });
+  return [...ids];
+}
+
+async function closeOtpPushNotifications(emailIds) {
+  if (!('serviceWorker' in navigator) || !emailIds.length) return;
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) {
+      if (typeof reg.getNotifications !== 'function') continue;
+      for (const id of emailIds) {
+        const notes = await reg.getNotifications({ tag: `otp-${id}` });
+        for (const n of notes) n.close();
+      }
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Silently delete expired verification codes — no dialogs, no toast. */
+async function purgeExpiredOtpsQuietly() {
+  if (otpExpiryPurgeInFlight) return 0;
+  const ids = collectExpiredOtpEmailIds();
+  if (!ids.length) {
+    tickOtpCountdowns({ purge: false });
+    return 0;
+  }
+  otpExpiryPurgeInFlight = true;
+  let deleted = 0;
+  try {
+    await closeOtpPushNotifications(ids);
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/email/inbox/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        if (!res.ok) continue;
+        emailState.allEvents = (emailState.allEvents || []).filter((e) => e.id !== id);
+        if (emailState.activeId === id) emailState.activeId = null;
+        removeEmailRelatedAlertBanners(id);
+        deleted += 1;
+      } catch {
+        /* keep going */
+      }
+    }
+    if (deleted > 0) {
+      document.querySelectorAll('[data-otp-expires]').forEach((el) => {
+        const iso = el.getAttribute('data-otp-expires');
+        if (!isExpiredOtpTimestamp(iso)) return;
+        el.closest('.admin-setup-alert--otp, .em-otp-card, [data-review-email-id]')?.remove();
+      });
+      if (MAP?.type === 'email') renderEmailPanel();
+      syncInboxAppBadge(emailState.allEvents);
+      if (MAP?.type === 'home') void refreshHomeReviewBannersQuiet();
+    }
+    return deleted;
+  } finally {
+    otpExpiryPurgeInFlight = false;
+  }
+}
+
+function tickOtpCountdowns(opts = {}) {
   const now = Date.now();
+  let anyExpired = false;
   document.querySelectorAll('[data-otp-expires]').forEach((el) => {
     const iso = el.getAttribute('data-otp-expires');
     if (!iso) return;
@@ -2775,9 +2877,11 @@ function tickOtpCountdowns() {
     const remaining = ms - now;
     el.textContent = formatOtpCountdown(remaining);
     if (remaining <= 0) {
+      anyExpired = true;
       el.closest('.admin-setup-alert--otp')?.remove();
     }
   });
+  if (anyExpired && opts.purge !== false) void purgeExpiredOtpsQuietly();
 }
 
 function syncOtpCountdownTimers() {
@@ -6933,6 +7037,80 @@ async function loadCompanyTab() {
       `<div class="profile-panel-scroll">` +
         `<div class="prof-card"><h1 class="prof-title">Company</h1>` +
         `<p class="dash-empty">Could not load company details: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+    prependSettingsBackHeader(root);
+  }
+}
+
+function renderAppSettingsPanel(settings) {
+  const s = settings || {};
+  const ttl = Number.isFinite(Number(s.otpTtlMinutes)) ? Number(s.otpTtlMinutes) : 5;
+  return (
+    `<div class="profile-panel-scroll">` +
+      `<div class="prof-card">` +
+        `<h1 class="prof-title">Settings</h1>` +
+        `<p class="prof-subtitle">Install-wide preferences for inbox automation and alerts.</p>` +
+        `<div id="app-settings-alert" class="prof-alert" hidden></div>` +
+        `<form id="app-settings-form" class="prof-form">` +
+          `<h2 class="prof-title prof-title--section">Verification codes</h2>` +
+          `<p class="prof-subtitle">One-time passwords and activation codes are triaged as high-priority notices, then auto-deleted after this window.</p>` +
+          `<div class="prof-field">` +
+            `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
+            `<input id="settings-otp-ttl" name="otpTtlMinutes" type="number" min="0" max="1440" step="1" value="${escHtml(String(ttl))}" required />` +
+            `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
+          `</div>` +
+        `</form>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function bindAppSettingsForm(root) {
+  bindAutosaveForm(root, {
+    formSelector: '#app-settings-form',
+    alertEl: root.querySelector('#app-settings-alert'),
+    validateField(el) {
+      if (el.name !== 'otpTtlMinutes') return defaultFieldValidator(el);
+      const n = Number(el.value);
+      if (!Number.isFinite(n) || n < 0 || n > 1440) return false;
+      return true;
+    },
+    async save(payload) {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          otpTtlMinutes: Number(payload.otpTtlMinutes),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      return { ok: res.ok && json.ok !== false, error: json.error };
+    },
+  });
+}
+
+async function loadAppSettingsTab() {
+  await flushSettingsAutosave();
+  const root = settingsPanelRoot();
+  if (!root) return;
+  mountPanelSkeleton(root, 'dashboard', 'Loading settings…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
+  prependSettingsBackHeader(root);
+
+  try {
+    const res = await fetch('/api/admin/settings', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    root.innerHTML = renderAppSettingsPanel(data.settings);
+    prependSettingsBackHeader(root);
+    bindAppSettingsForm(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Settings</h1>` +
+        `<p class="dash-empty">Could not load settings: ${escHtml(e.message)}</p></div>` +
       `</div>`;
     prependSettingsBackHeader(root);
   }
@@ -12834,6 +13012,7 @@ window.addEventListener('pageshow', () => {
   resumeEmailDeepLinkFromUrl();
   resumeClientDeepLinkFromUrl();
   queueTriageEmailFromUrl();
+  void purgeExpiredOtpsQuietly();
 });
 
 if ('serviceWorker' in navigator) {
@@ -12858,6 +13037,7 @@ document.addEventListener('visibilitychange', () => {
     stopWorkAuditingPoll();
     stopDeployPoll();
   } else {
+    void purgeExpiredOtpsQuietly();
     syncHealthLifecycle();
     syncEmailPoll();
     syncInboxBadgePoll();
@@ -12867,4 +13047,8 @@ document.addEventListener('visibilitychange', () => {
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();
   }
+});
+
+document.addEventListener('reave-purge-expired-otps', () => {
+  void purgeExpiredOtpsQuietly();
 });

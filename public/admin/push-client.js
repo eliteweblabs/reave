@@ -591,6 +591,9 @@ async function openSleepModeDialog() {
         quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
         timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
       });
+      if (saved?.settings?.sleepModeEnabled !== false) {
+        document.dispatchEvent(new CustomEvent('reave-purge-expired-otps'));
+      }
       releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
     } catch (e) {
@@ -679,6 +682,9 @@ function initTopbarSleepToggle() {
     btn.disabled = true;
     try {
       await patchSleepModeSettings({ sleepModeEnabled: nextEnabled });
+      if (nextEnabled) {
+        document.dispatchEvent(new CustomEvent('reave-purge-expired-otps'));
+      }
     } catch (e) {
       alert(e.message || String(e));
     } finally {

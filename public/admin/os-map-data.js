@@ -21,7 +21,7 @@ const SYSTEM_NODES = [
   // Clients / entry points
   { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
-  { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
+  { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
   { id: 'vapi', title: 'Vapi', sub: 'Live Speak Agent Widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
   { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
@@ -254,6 +254,7 @@ export const MAPS = {
   modules:   { id: 'modules',   title: 'Modules',    icon: '🧩',  type: 'modules',       nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
+  settings:  { id: 'settings',  title: 'Settings',   icon: '⚙️',  type: 'settings',      nodes: [],             edges: [],             groups: [] },
   socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },
   industries:{ id: 'industries',title: 'Industries', icon: '🎯',  type: 'industries',    nodes: [],             edges: [],             groups: [] },
   vapi:      { id: 'vapi',      title: 'Vapi',       icon: '🎙️',  type: 'vapi',          nodes: [],             edges: [],             groups: [] },
