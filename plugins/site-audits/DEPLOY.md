@@ -1,10 +1,10 @@
 ---
 feature: site_audits
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 
-# Site audits deployment
+# Website audits deployment
 
 ## Sibling services
 

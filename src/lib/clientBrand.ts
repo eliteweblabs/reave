@@ -1,5 +1,5 @@
 /**
- * Client portal branding — fetch logo and site metadata from a client's website
+ * Client portal branding — fetch logo and website metadata from a client's website
  * when a project is created (best-effort; never blocks work creation).
  */
 import * as cheerio from 'cheerio';
@@ -12,7 +12,7 @@ import {
   type ContactRecord,
 } from './contactApi';
 import { normalizePublicUrl } from './publicUrl';
-import { portalSiteUrl } from './siteMonitoring';
+import { isPortalWebsiteUrlFieldLabel, portalSiteUrl } from './siteMonitoring';
 import { refreshPortalBrandColors } from './portalBrandColors';
 
 /** Browser-like UA — avoids bot-detection redirect loops on some sites (incl. self-fetch). */
@@ -213,7 +213,7 @@ function websiteFromEmail(email: string): string | null {
   return `https://${domain}`;
 }
 
-/** Best-effort website URL for a contact (portal website, Site URL field, else email domain). */
+/** Best-effort website URL for a contact (portal website, Website URL field, else email domain). */
 export function guessClientWebsite(contact: ContactRecord, portal: ClientPortal | null): string | null {
   const direct = contactStringField(portal?.website);
   if (direct) return direct;
@@ -309,10 +309,10 @@ export async function setClientPortalWebsite(
   const portal = extractPortal(res.data) ?? {};
   const website = normalizeClientWebsiteInput(websiteInput);
   const fields = [...(portal.fields ?? [])];
-  const idx = fields.findIndex((f) => f.label.trim().toLowerCase() === 'site url');
+  const idx = fields.findIndex((f) => isPortalWebsiteUrlFieldLabel(f.label));
 
   if (website) {
-    const row = { label: 'Site URL', value: website };
+    const row = { label: 'Website URL', value: website };
     if (idx >= 0) fields[idx] = row;
     else fields.push(row);
   } else if (idx >= 0) {
@@ -389,12 +389,20 @@ export async function setClientPortalAddress(
     geo = undefined;
   }
 
-  const saved = await setContactPortal(uid, {
+  const nextPortal: Record<string, unknown> = {
     ...portal,
-    address: address || undefined,
-    geo: address && geo ? geo : undefined,
     updatedAt: new Date().toISOString(),
-  });
+  };
+  if (address) {
+    nextPortal.address = address;
+    nextPortal.geo = geo ?? null;
+  } else {
+    // Explicit null — omitted/undefined keys may not clear on contact-api merge.
+    nextPortal.address = null;
+    nextPortal.geo = null;
+  }
+
+  const saved = await setContactPortal(uid, nextPortal as ClientPortal);
   if (!saved.ok) return { ok: false, error: saved.error };
 
   return { ok: true, address, geo: address ? geo : undefined };

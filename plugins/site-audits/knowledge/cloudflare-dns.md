@@ -13,7 +13,7 @@ Use when the user asks to **check, fix, or audit DNS or SSL in Cloudflare** — 
 | `cloudflare_dns` action `get_ssl_mode` | Read SSL/TLS encryption mode (off, flexible, full, strict) |
 | `cloudflare_dns` action `set_ssl_mode` | Change SSL/TLS mode — **fixes Error 525** when origin cert is broken (use `flexible` as stopgap) |
 | `dns_check` | Public resolver view — good for propagation checks; **can lag** minutes after NS changes |
-| `fetch_url` / `ssl_check` | Confirm the site is down (525) or back up after a fix |
+| `fetch_url` / `ssl_check` | Confirm the website is down (525) or back up after a fix |
 | `sync_resend_dns` | **Resend domains only** — pulls expected records from Resend API. Fails if domain is not in Resend. |
 | `run_dev_task` `ping_cloudflare` | Token connectivity only (no zone lookup) |
 
@@ -24,7 +24,7 @@ Use when the user asks to **check, fix, or audit DNS or SSL in Cloudflare** — 
 3. If verify succeeds → **`list_records`** and/or **`get_ssl_mode`** as needed
 4. Compare to what the user needs (M365 → `spf.protection.outlook.com`, DMARC at `_dmarc`, etc.)
 5. If user approved changes → **`upsert_record`**, **`delete_record`**, or **`set_ssl_mode`** — **in the same turn**, do not hand off to the dashboard unless the tool errors
-6. After SSL or DNS changes, **`fetch_url`** the site to confirm it loads
+6. After SSL or DNS changes, **`fetch_url`** the website to confirm it loads
 
 ## Error 525 — SSL handshake failed
 
@@ -32,7 +32,7 @@ When `fetch_url` or the browser shows **Cloudflare Error 525**:
 
 1. Call **`get_ssl_mode`** — mode is usually `full` or `strict` while the origin cert is expired/invalid
 2. When the user wants it fixed (they always do — they don't want to log into Cloudflare): call **`set_ssl_mode`** with `ssl_mode: flexible` immediately
-3. Wait a minute, then **`fetch_url`** again to confirm the site loads
+3. Wait a minute, then **`fetch_url`** again to confirm the website loads
 4. Note in the project/audit: flexible is a stopgap; proper fix is a valid origin cert then switch back to `full` or `strict`
 
 ## Never do this
@@ -67,6 +67,6 @@ Report the **exact tool error**. Typical causes:
 
 Only then suggest dashboard access, inviting a member, or a zone-scoped token — not before trying the tool.
 
-## Site audits
+## Website audits
 
-For inquiry audits, run **`dns_check`** for the public report (SPF/DMARC/MX/WHOIS) **and** **`cloudflare_dns list_records`** when the user says DNS is managed in Cloudflare or before recommending record changes. If the site is down, **`fetch_url`** first — don't report audit findings from stale data without checking the live URL.
+For inquiry audits, run **`dns_check`** for the public report (SPF/DMARC/MX/WHOIS) **and** **`cloudflare_dns list_records`** when the user says DNS is managed in Cloudflare or before recommending record changes. If the website is down, **`fetch_url`** first — don't report audit findings from stale data without checking the live URL.

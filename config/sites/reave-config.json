@@ -9,6 +9,7 @@
     "/pricing",
     "/modules",
     "/demo",
+    "/demo-loader",
     "/deck",
     "/about",
     "/services",
@@ -40,6 +41,7 @@
           { "href": "/pricing", "label": "Pricing" },
           { "href": "/modules", "label": "Modules" },
           { "href": "/demo", "label": "Demo", "primary": true },
+          { "href": "/demo-loader", "label": "Build demo" },
           { "href": "/deck", "label": "Walkthrough" }
         ]
       },

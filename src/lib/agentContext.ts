@@ -18,6 +18,11 @@ export interface AgentRunContext {
    * owner without prompting for a client name.
    */
   ownerContact?: OwnerContactRecord | null;
+  /**
+   * Per-run circuit breakers for tools that must not be retried (e.g. lighthouse_audit
+   * after a PSI quota/rate-limit failure — retries burn the whole tool-round budget).
+   */
+  _toolOnce?: Record<string, true>;
 }
 
 export const agentRunContext = new AsyncLocalStorage<AgentRunContext>();

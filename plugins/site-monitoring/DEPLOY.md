@@ -1,10 +1,10 @@
 ---
 feature: site_monitoring
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 
-# Site monitoring deployment
+# Website monitoring deployment
 
 ## Sibling services
 

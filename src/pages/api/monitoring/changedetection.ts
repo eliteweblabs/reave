@@ -20,7 +20,7 @@ function json(data: unknown, status = 200): Response {
  * ChangeDetection.io → Reave push bridge.
  *
  * Configure watches with Apprise notification URL (set automatically when a
- * client Site URL watch is created):
+ * client Website URL watch is created):
  *   jsons://<your-domain>/api/monitoring/changedetection?key=<SECRET>&watch=<uuid>
  *
  * Set CHANGEDETECTION_WEBHOOK_SECRET on both Reave and use the same value in ?key=.

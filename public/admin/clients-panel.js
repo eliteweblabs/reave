@@ -37,7 +37,9 @@ import {
   downloadBrandingImage,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805b';
+  createInputClearAdornment,
+  syncInputClearAdornment,
+} from './admin-ui.js?v=20260806a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
@@ -114,6 +116,7 @@ function clientKindTagHtml(c) {
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
 let clientAutosaveSeq = 0;
+let clientAutosaveAbort = null;
 let clientFieldRegistry = [];
 let clientMapController = null;
 let clientPendingGeo = null;
@@ -741,13 +744,33 @@ async function geocodeClientAddressPreview(address) {
   }
 }
 
-function mountClientAddressField(parent, value) {
+function mountClientAddressField(parent, value, clearActions = null) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = 'Address';
+
+  const field = document.createElement('div');
+  field.className = 'control-field cl-address-field';
+
   const input = document.createElement('input');
   input.className = 'de-input cl-address-input';
   input.placeholder = 'Business or street address';
   input.value = value || '';
   input.autocomplete = 'street-address';
-  appendClientField(parent, 'Address', input);
+
+  const clearBtn = createInputClearAdornment(
+    input,
+    () => clearActions?.fn?.(),
+    'Clear address',
+  );
+  input.addEventListener('input', () => {
+    syncInputClearAdornment(input, clearBtn, 'Clear address');
+  });
+
+  field.appendChild(input);
+  field.appendChild(clearBtn);
+  wrap.appendChild(field);
+  parent.appendChild(wrap);
   return input;
 }
 
@@ -905,7 +928,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
     ? 'Save the client first to upload logo and icon.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a site URL is saved, or use Fetch from website.';
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a website URL is saved, or use Fetch from website.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);
@@ -1412,8 +1435,13 @@ function renderEditClientForm(pane) {
       });
       let queueAutosaveRef = () => {};
       let saveNowRef = async () => {};
+      const addressClearActions = { fn: null };
 
-      const addressInput = mountClientAddressField(profileFields, clientState.draft.address || '');
+      const addressInput = mountClientAddressField(
+        profileFields,
+        clientState.draft.address || '',
+        addressClearActions,
+      );
       registerClientField(addressInput, () => true);
       destroyClientAddressAutocomplete = mountAddressAutocomplete(
         addressInput,
@@ -1499,6 +1527,7 @@ function renderEditClientForm(pane) {
           kind: kindPill.getValue(),
         };
         if (clientPendingGeo) payload.geo = clientPendingGeo;
+        else if (!payload.address) payload.geo = null;
         return payload;
       };
       clientState.autosaveGetPayload = getPayload;
@@ -1521,10 +1550,17 @@ function renderEditClientForm(pane) {
       };
       queueAutosaveRef = queueAutosave;
       const saveNow = async () => {
+        cancelClientAutosaveTimer();
         markDirty();
         await autosaveClient(uid, getPayload());
       };
       saveNowRef = saveNow;
+      addressClearActions.fn = () => {
+        cancelClientAutosaveTimer();
+        clientPendingGeo = null;
+        clientMapController?.setLocation(null, null, '');
+        void saveNowRef();
+      };
       for (const el of [
         companyInput,
         firstNameInput,
@@ -1537,7 +1573,12 @@ function renderEditClientForm(pane) {
       ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
-          if (el === addressInput && !addressInput.dataset.autocompletePick) clientPendingGeo = null;
+          if (el === addressInput && !addressInput.dataset.autocompletePick) {
+            clientPendingGeo = null;
+            if (!addressInput.value.trim()) {
+              clientMapController?.setLocation(null, null, '');
+            }
+          }
           queueAutosave();
         });
         el.addEventListener('blur', () => {
@@ -1673,7 +1714,9 @@ async function autosaveClient(uid, payload) {
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
   const geoUnchanged =
-    payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
+    payload.geo === null
+      ? !draft.geo
+      : payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -1693,12 +1736,16 @@ async function autosaveClient(uid, payload) {
     return false;
   }
   const seq = ++clientAutosaveSeq;
+  if (clientAutosaveAbort) clientAutosaveAbort.abort();
+  clientAutosaveAbort = new AbortController();
+  const { signal } = clientAutosaveAbort;
   if (clientActiveField) shell.setFormFieldState(clientActiveField, 'saving');
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal,
     });
     const data = await res.json();
     if (seq !== clientAutosaveSeq) return false;
@@ -1718,7 +1765,9 @@ async function autosaveClient(uid, payload) {
       company: payload.company,
       website: payload.website,
       address: data.address ?? payload.address,
-      geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
+      geo: payload.address
+        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
+        : (data.geo ?? null),
       notes: payload.notes,
       kind: normalizeClientKind(payload.kind),
       personal: normalizeClientKind(payload.kind) === 'personal',
@@ -1768,6 +1817,7 @@ async function autosaveClient(uid, payload) {
     if (clientActiveField) shell.flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
+    if (e?.name === 'AbortError') return false;
     if (seq !== clientAutosaveSeq) return false;
     console.warn('[clients] autosave failed', e);
     if (clientActiveField) shell.setFormFieldState(clientActiveField, 'invalid');

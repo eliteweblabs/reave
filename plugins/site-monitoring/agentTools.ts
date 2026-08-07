@@ -253,7 +253,7 @@ async function handle_recheck_site_monitoring(args: Record<string, unknown>, _ct
   const portal = extractPortal(current.data);
   const watchUuid = portal?.siteMonitoring?.watchUuid?.trim();
   if (!watchUuid) {
-    return JSON.stringify({ error: 'No ChangeDetection watch for this client (set a Site URL field first).' });
+    return JSON.stringify({ error: 'No ChangeDetection watch for this client (set a Website URL field first).' });
   }
   const recheck = await cdRecheckWatch(watchUuid);
   if (!recheck.ok) return JSON.stringify({ error: recheck.error });
@@ -291,7 +291,7 @@ export const siteMonitoringModule: AgentToolModule = {
               function: {
                 name: 'set_site_monitoring',
                 description:
-                  `Enable or disable automatic change monitoring for a client's Site URL. When enabled and a "${SITE_URL_FIELD_LABEL}" portal field is set, ${brand.name} creates a ChangeDetection watch and sends push alerts on unexpected changes (deploys are suppressed).`,
+                  `Enable or disable automatic change monitoring for a client's website URL. When enabled and a "${SITE_URL_FIELD_LABEL}" portal field is set, ${brand.name} creates a ChangeDetection watch and sends push alerts on unexpected changes (deploys are suppressed).`,
                 parameters: {
                   type: 'object',
                   properties: {
@@ -299,7 +299,7 @@ export const siteMonitoringModule: AgentToolModule = {
                     name: { type: 'string' },
                     enabled: {
                       type: 'boolean',
-                      description: 'false = pause monitoring for this client even if Site URL is set',
+                      description: 'false = pause monitoring for this client even if Website URL is set',
                     },
                   },
                   additionalProperties: false,

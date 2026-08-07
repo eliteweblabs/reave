@@ -1,6 +1,6 @@
 ---
 feature: voice
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

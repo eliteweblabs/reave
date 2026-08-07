@@ -540,9 +540,14 @@ Want more actions? Edit `/src/pages/api/siri/index.ts` and add a new case in the
 Example actions to add:
 
 - `list_invoices`: Show outstanding invoices (requires Crater integration)
-- `log_time`: Add time entry to a work item
 - `check_schedule`: Show today's bookings (requires Cal.com integration)
 - `add_todo`: Create a quick to-do item
+
+**Time tracking** (requires `time_tracking` feature):
+
+- `start_time_tracking`: Prompt with the most recent project, or start on `query` ("yes" or project name). Creates a project when the client exists but no matching project is found.
+- `stop_time_tracking`: Stop the active timer and append logged hours to the project time log.
+- `time_tracking_status`: Report the running timer or suggest the most recent project.
 
 ## Desktop Alternative
 

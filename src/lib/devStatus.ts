@@ -218,11 +218,11 @@ export async function checkDeploymentStatus(opts: {
   if (siblingRepo) {
     summary = `Sibling repo ${repo}: latest on ${def} is ${latest?.short_sha ?? 'unknown'}. Health ${url} is ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}). Deployed SHA not available from this Astro service — compare GitHub commits and health only.`;
   } else if (!deployed) {
-    summary = `Deployed commit unknown (RAILWAY_GIT_COMMIT_SHA not set). Site is ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
+    summary = `Deployed commit unknown (RAILWAY_GIT_COMMIT_SHA not set). Website is ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
   } else if (upToDate) {
-    summary = `Live at latest commit ${latest?.short_sha} on ${def}. Site ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
+    summary = `Live at latest commit ${latest?.short_sha} on ${def}. Website ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
   } else {
-    summary = `Deployed ${deployed.slice(0, 7)} is behind ${def} by ${behind ?? '?'} commit(s); latest is ${latest?.short_sha}. Site ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
+    summary = `Deployed ${deployed.slice(0, 7)} is behind ${def} by ${behind ?? '?'} commit(s); latest is ${latest?.short_sha}. Website ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
   }
 
   return {

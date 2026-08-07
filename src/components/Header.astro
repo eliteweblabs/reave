@@ -76,12 +76,6 @@ const signInRedirect = cleanInternalReturnPath(
       ? adminReturnFallback
       : Astro.url.pathname + Astro.url.search,
 );
-const clerkAuthPath = (() => {
-  const u = new URL(Astro.url.pathname + Astro.url.search, Astro.url.origin);
-  u.searchParams.delete("auth");
-  u.searchParams.delete("returnTo");
-  return u.pathname + u.search;
-})();
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
 const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
@@ -277,14 +271,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
     autoOpen={signInAutoOpen && !showMarketingNav}
-    authPath={clerkAuthPath}
+    authPath="/sign-in"
   />
 )}
 
 {userId && (
-  <script src="/review-badge.js?v=20260717a" defer></script>
+  <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
-<script src="/deploy-indicator.js?v=20260805a" defer></script>
+<script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <script>
   /** Pin public headers to the visual viewport top during iOS overscroll bounce. */

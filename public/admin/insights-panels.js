@@ -485,7 +485,7 @@ function renderAnalyticsDashboard(root, d) {
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
         `<h1 class="soc-title">Analytics</h1>` +
-        `<p class="soc-sub">${escHtml(siteId || 'Site analytics')} · ${escHtml(rangeLabel)}` +
+        `<p class="soc-sub">${escHtml(siteId || 'Website analytics')} · ${escHtml(rangeLabel)}` +
           (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
         `</p>` +
       `</div>` +

@@ -25,8 +25,21 @@ function serverHasStaffSession() {
   return Boolean(document.body?.dataset?.userId?.trim());
 }
 
+/** Routes where SSR session cookies must match the Clerk client (admin shell + auth pages). */
+function isAdminSsrSyncRoute() {
+  const path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
+  return (
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    path === '/sign-in' ||
+    path === '/sign-up'
+  );
+}
+
 /** Clerk client signed in but SSR/API cookies missing — reload once (Safari after sign-in). */
 export function syncSsrAfterClerkSignIn() {
+  if (!isAdminSsrSyncRoute()) return false;
+
   if (serverHasStaffSession()) {
     try {
       sessionStorage.removeItem(AUTH_SYNC_KEY);
@@ -51,7 +64,15 @@ export function syncSsrAfterClerkSignIn() {
     /* ignore */
   }
 
-  window.location.replace(cleanAdminReturnUrl(window.location.pathname, window.location.search));
+  // /sign-in and /sign-up never set body[data-user-id], so reloading them can
+  // never satisfy serverHasStaffSession and loops until AUTH_SYNC_MAX. Land on
+  // /admin/ where the SSR session marker exists.
+  const path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
+  const target =
+    path === '/sign-in' || path === '/sign-up'
+      ? '/admin/'
+      : cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  window.location.replace(target);
   return true;
 }
 

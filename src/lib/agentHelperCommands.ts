@@ -274,7 +274,7 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
   // Site monitoring (plugin)
   {
     slash: '/monitor',
-    summary: 'Site change monitoring status',
+    summary: 'Website change monitoring status',
     template: 'What is the change monitoring status for [url]?',
     example: 'What is the change monitoring status for https://acme.com?',
     feature: 'site_monitoring',

@@ -113,15 +113,15 @@ export function isRailwayConfigured(): boolean {
   return Boolean(serverEnv('RAILWAY_API_TOKEN')?.trim());
 }
 
-function defaultProjectRef(): string {
+export function railwayDefaultProjectRef(): string {
   return serverEnv('RAILWAY_PROJECT_ID')?.trim() || `${cachedCompanyBrandName()} App`;
 }
 
 type GqlEdge<T> = { node: T };
 type GqlConnection<T> = { edges: GqlEdge<T>[] };
 
-type RailwayService = { id: string; name: string; icon?: string | null };
-type RailwayEnvironment = { id: string; name: string };
+export type RailwayService = { id: string; name: string; icon?: string | null };
+export type RailwayEnvironment = { id: string; name: string };
 
 type ServiceDomain = {
   id: string;
@@ -166,7 +166,7 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
-async function railwayListProjectNames(): Promise<
+export async function railwayListProjects(): Promise<
   { ok: true; projects: { id: string; name: string }[] } | { ok: false; error: string }
 > {
   const result = await railwayGraphql<{
@@ -187,7 +187,7 @@ async function railwayListProjectNames(): Promise<
   return { ok: true, projects };
 }
 
-async function railwayResolveProject(projectRef: string): Promise<
+export async function railwayResolveProject(projectRef: string): Promise<
   | {
       ok: true;
       project: { id: string; name: string };
@@ -228,7 +228,7 @@ async function railwayResolveProject(projectRef: string): Promise<
     };
   }
 
-  const listed = await railwayListProjectNames();
+  const listed = await railwayListProjects();
   if (!listed.ok) return { ok: false, error: listed.error };
   const needle = ref.toLowerCase();
   const match =
@@ -242,6 +242,33 @@ async function railwayResolveProject(projectRef: string): Promise<
     };
   }
   return railwayResolveProject(match.id);
+}
+
+/** Resolve a service by UUID or name within a project. */
+export function railwayResolveService(
+  services: RailwayService[],
+  serviceRef?: string,
+): { ok: true; service: RailwayService } | { ok: false; error: string } {
+  const ref = serviceRef?.trim();
+  if (!ref) {
+    if (services.length === 1) return { ok: true, service: services[0]! };
+    const names = services.map((s) => s.name).join(', ') || '(none)';
+    return { ok: false, error: `service is required — project has: ${names}` };
+  }
+  if (isUuid(ref)) {
+    const match = services.find((s) => s.id === ref);
+    if (!match) return { ok: false, error: `Service not found: ${ref}` };
+    return { ok: true, service: match };
+  }
+  const needle = ref.toLowerCase();
+  const match =
+    services.find((s) => s.name.toLowerCase() === needle) ??
+    services.find((s) => s.name.toLowerCase().includes(needle));
+  if (!match) {
+    const names = services.map((s) => s.name).join(', ') || '(none)';
+    return { ok: false, error: `No service matching "${ref}". Available: ${names}` };
+  }
+  return { ok: true, service: match };
 }
 
 async function railwayGetServiceDomains(opts: {
@@ -282,7 +309,7 @@ async function railwayGetServiceDomains(opts: {
   };
 }
 
-function pickRailwayEnvironment(
+export function pickRailwayEnvironment(
   environments: RailwayEnvironment[],
   preferredName = 'production',
 ): RailwayEnvironment | null {
@@ -310,7 +337,7 @@ export async function railwayListProjectNetworking(opts: {
     return { ok: false, error: 'RAILWAY_API_TOKEN is not set on this service' };
   }
 
-  const projectRef = opts.project?.trim() || defaultProjectRef();
+  const projectRef = opts.project?.trim() || railwayDefaultProjectRef();
   const resolved = await railwayResolveProject(projectRef);
   if (!resolved.ok) return resolved;
 
@@ -373,7 +400,7 @@ export async function railwayPing(): Promise<
   if (!isRailwayConfigured()) {
     return { ok: false, error: 'RAILWAY_API_TOKEN is not set on this service' };
   }
-  const listed = await railwayListProjectNames();
+  const listed = await railwayListProjects();
   if (!listed.ok) return { ok: false, error: listed.error };
   return { ok: true, project_count: listed.projects.length, projects: listed.projects };
 }
@@ -422,7 +449,7 @@ export async function railwayCollectMonitorUrls(): Promise<
     return { ok: false, error: 'RAILWAY_API_TOKEN is not set' };
   }
 
-  const listed = await railwayListProjectNames();
+  const listed = await railwayListProjects();
   if (!listed.ok) return { ok: false, error: listed.error };
 
   const urls: Array<{ url: string; friendlyName: string }> = [];

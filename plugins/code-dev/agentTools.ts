@@ -241,7 +241,7 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'read_file',
                 description:
-                  'Read a file from the local project filesystem (path relative to repo root). Use before editing. For files over 512KB or very long files, pass offset (1-based line) and limit (max lines) instead of reading the whole file. Reave code_dev only.',
+                  'Read a file from the local project filesystem (path relative to repo root). Use before editing. For files over 512KB or very long files, pass offset (1-based line) and limit (max lines) instead of reading the whole file. Requires code_dev feature.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -268,7 +268,7 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'write_file',
                 description:
-                  'Write or update a file on the local project filesystem. Creates parent directories as needed. Read the file first when updating. Reave code_dev only. Commit and push after changes. For a long file (a full page, a big component), write it in sections: one call for the first chunk, then more calls with append:true — a single call carrying the whole body will be cut off by the output limit and nothing will be written.',
+                  'Write or update a file on the local project filesystem. Creates parent directories as needed. Read the file first when updating. Requires code_dev feature. Commit and push after changes. For a long file (a full page, a big component), write it in sections: one call for the first chunk, then more calls with append:true — a single call carrying the whole body will be cut off by the output limit and nothing will be written.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -297,7 +297,7 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'list_files',
                 description:
-                  'List directory contents in the local project (skips node_modules, .git, dist). Use to explore structure before editing. Reave code_dev only.',
+                  'List directory contents in the local project (skips node_modules, .git, dist). Use to explore structure before editing. Requires code_dev feature.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -319,7 +319,7 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'grep_code',
                 description:
-                  'Search the repo for a regex pattern (ripgrep/grep). Returns matching file:line:text rows. Use to find where CSS classes, functions, or strings live before read_file. Reave code_dev only.',
+                  'Search the repo for a regex pattern (ripgrep/grep). Returns matching file:line:text rows. Use to find where CSS classes, functions, or strings live before read_file. Requires code_dev feature.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -350,7 +350,7 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'exec_command',
                 description:
-                  'Execute a shell command in the project root (git, npm, node, etc.). Prefer this over run_terminal_command when you need writes, installs, or tests. Reave code_dev only. Commit and push after successful code changes.',
+                  'Execute a shell command in the project root (git, npm, node, etc.). Prefer this over run_terminal_command when you need writes, installs, or tests. Requires code_dev feature. Commit and push after successful code changes.',
                 parameters: {
                   type: 'object',
                   properties: {

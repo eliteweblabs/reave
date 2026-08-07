@@ -166,12 +166,10 @@ const uid = `dialogue-${variant}-${id}`.replace(/[^a-zA-Z0-9_-]/g, "-");
     {
       variant === "editorial" && (
         <>
-          <header class="home-dialogue-header home-dialogue-header--editorial">
-            <p class="home-dialogue-eyebrow">{eyebrow}</p>
-            <h2 id={`${id}-title`}>{title}</h2>
-          </header>
           {visitorTurn && (
-            <p class="home-dialogue-editorial-lede">{visitorTurn.text}</p>
+            <p class="home-dialogue-editorial-lede" id={`${id}-title`}>
+              {visitorTurn.text}
+            </p>
           )}
           {founderTurns[0] && (
             <blockquote class="home-dialogue-editorial-pull">

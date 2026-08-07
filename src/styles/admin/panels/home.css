@@ -52,6 +52,7 @@
 }
 
 .dash-stat {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -66,6 +67,18 @@
   font: inherit;
   transition: background 0.15s, transform 0.12s;
   min-height: var(--dash-stat-min-h);
+}
+.dash-stat-external {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  color: var(--muted);
+  opacity: 0.65;
+  line-height: 0;
+  pointer-events: none;
+}
+.dash-stat--external:hover .dash-stat-external {
+  opacity: 0.9;
 }
 /* Override global pill buttons — dashboard cards stay rounded-rect. */
 #home-dashboard button.dash-stat {
@@ -124,19 +137,6 @@
   max-width: none;
   margin: 0;
   box-shadow: none;
-  border: 1px solid transparent;
-  color: var(--fg);
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--brand-gradient) border-box;
-}
-.dash-review-alerts .admin-setup-alert--push,
-.dash-review-alerts .admin-setup-alert--pwa,
-.dash-review-alerts .admin-setup-alert--confirm {
-  border-color: transparent;
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--brand-gradient) border-box;
 }
 .dash-review-alerts .admin-setup-alert-btn--primary {
   border: none;

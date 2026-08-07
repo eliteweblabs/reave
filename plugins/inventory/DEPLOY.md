@@ -1,6 +1,6 @@
 ---
 feature: inventory_sync
-defaultStatus: pending
+defaultStatus: development
 stage: 3
 ---
 

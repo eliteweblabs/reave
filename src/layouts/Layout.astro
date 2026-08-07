@@ -3,6 +3,8 @@ import Header from "../components/Header.astro";
 import DeployStatusBanner from "../components/DeployStatusBanner.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
@@ -10,6 +12,8 @@ import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
@@ -76,6 +80,10 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
+const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
 <!doctype html>
@@ -110,16 +118,28 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
-	<body>
+	<body data-user-id={userId ?? ""}>
 		<DeployStatusBanner />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} siteContent={siteContent} />
 		<main id="main-content">
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />
+			<div class="site-foot-wrap">
+				<SiteFooter company={company} showLegalLinks={showLegalLinks} />
+			</div>
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
 		{marketingNav && <SiteVoiceWidget />}
+		{
+			showSiteAssistant && (
+				<SiteAssistantWidget
+					brandTitle={company.name}
+					supportPhone={company.supportPhone}
+					supportEmail={company.supportEmail}
+				/>
+			)
+		}
 	</body>
 </html>
 
@@ -199,5 +219,11 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 	[role="button"] svg {
 		-webkit-user-select: none;
 		user-select: none;
+	}
+
+	.site-foot-wrap {
+		max-width: 920px;
+		margin: 0 auto;
+		padding: 0 24px calc(24px + env(safe-area-inset-bottom, 0px));
 	}
 </style>

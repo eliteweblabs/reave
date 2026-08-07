@@ -47,6 +47,7 @@
   --nav-chevron: rgba(0, 0, 0, 0.8);
   --nav-chevron-hover: #000;
   --nav-indicator-bg: rgba(0, 0, 0, 0.05);
+  --btn-group-track-bg: var(--nav-indicator-bg);
   --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
   --footer-nav-glass-bg: transparent;
   --footer-nav-glass-blur: blur(18px) saturate(1.15);

@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { truncateChatTitle } from '../../../lib/chatTypes';
 import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { enrichChatThreadsWithAuthors } from '../../../lib/chatThreadAuthors';
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
@@ -88,7 +89,7 @@ export async function POST(context: APIContext): Promise<Response> {
     }
     const subject = email?.subject?.trim();
     if (subject) {
-      const title = subject.length > 60 ? `${subject.slice(0, 57)}…` : subject;
+      const title = truncateChatTitle(subject);
       await storeUpdateChatTitle(userId, thread.id, title);
       thread.title = title;
     }

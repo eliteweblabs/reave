@@ -13,6 +13,10 @@ if (!allowSignUp) {
 }
 
 const company = await getCompanyConfig(Astro.request);
+const { userId } = Astro.locals.auth();
+if (userId) {
+  return Astro.redirect("/admin/");
+}
 ---
 
 <!doctype html>
@@ -26,7 +30,7 @@ const company = await getCompanyConfig(Astro.request);
     <title>Sign Up — {company.name}</title>
     <Favicon />
   </head>
-  <body>
+  <body data-user-id="">
     <Header />
     <div class="page">
       <div class="card">

@@ -79,6 +79,8 @@ interface ImportMetaEnv {
   DEPLOY_HEALTH_URL?: string;
   /** When 0/off, allow admin chat sends during Railway deploys. Default: on when RAILWAY_GIT_COMMIT_SHA is set. */
   DEPLOY_CHAT_LOCK?: string;
+  /** Defer GitHub commits and git push until agent chat turn ends (default on Railway). */
+  DEFER_DEPLOY_UNTIL_TURN_END?: string;
   /** Injected by Railway at deploy time — the live commit SHA (used to verify deploy is current). */
   RAILWAY_GIT_COMMIT_SHA?: string;
   /** Injected by Railway — public domain of the service (used for the health ping). */
@@ -221,3 +223,10 @@ interface ImportMetaEnv {
 interface Window {
   Vapi?: new (...args: unknown[]) => unknown;
 }
+
+/**
+ * Per-deploy cache-busting token for scripts served from `public/`, injected by
+ * `vite.define` in astro.config.mjs. See scripts/asset-version.mjs for why those
+ * files need one.
+ */
+declare const __PUBLIC_ASSET_VERSION__: string;

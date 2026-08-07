@@ -26,6 +26,18 @@
               "text": "Homepage — phone in hand"
             }
           ]
+        },
+        {
+          "id": "homepage-editing",
+          "title": "No CMS — just ask",
+          "body": "Change copy or swap a picture by telling the agent. No WordPress admin, no page builder — describe the edit and it ships.",
+          "scrollHeight": 80,
+          "actions": [
+            {
+              "type": "stage.caption",
+              "text": "Website edits via the agent — no CMS login"
+            }
+          ]
         }
       ]
     },
@@ -275,7 +287,7 @@
     {
       "id": "monitoring",
       "title": "Monitoring",
-      "summary": "Uptime, site change detection, and audit tooling.",
+      "summary": "Uptime, website change detection, and audit tooling.",
       "optional": true,
       "quoteLabel": "Monitoring / uptime",
       "features": [

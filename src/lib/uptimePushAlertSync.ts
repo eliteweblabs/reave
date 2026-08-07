@@ -35,7 +35,7 @@ export async function syncRecentUptimeIncidentsToPushAlerts(): Promise<void> {
       tag,
       kind: 'uptime',
       title: down ? `DOWN: ${label}` : `UP: ${label}`,
-      detail: (inc.message || (down ? 'Site is down' : 'Site recovered')).slice(0, 240),
+      detail: (inc.message || (down ? 'Website is down' : 'Website recovered')).slice(0, 240),
       url: '/admin?tab=home',
       createdAt: inc.created_at,
     }).catch(() => undefined);

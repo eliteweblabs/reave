@@ -67,10 +67,10 @@ export async function runUptimePlatformSyncJob(): Promise<UptimePlatformSyncResu
       skipped: 0,
       pending: 0,
       warnings: [],
-      errors: ['Site sync already running'],
+      errors: ['Website sync already running'],
       createdItems: [],
       manualItems: [],
-      error: 'Site sync already running',
+      error: 'Website sync already running',
     };
   }
   return executeUptimePlatformSyncJob();

@@ -14,11 +14,11 @@ export const SIMPLE_ICONS_CDN = (slug: string) =>
 export const PLATFORM_DEPLOY_MODES = [
   {
     title: 'Full website package',
-    desc: 'Public marketing site — homepage, deck, forms, booking — on your domain, fully wired into the OS underneath.',
+    desc: 'Public marketing site — homepage, deck, forms, booking — on your domain, fully wired into the OS underneath. Update copy or swap images by asking the agent — no CMS.',
   },
   {
     title: 'Standalone app',
-    desc: 'Admin dashboard and client portal only. Skip the public frontend if you already have a site elsewhere.',
+    desc: 'Admin dashboard and client portal only. Skip the public frontend if you already have a website elsewhere.',
   },
   {
     title: 'Both',

@@ -87,11 +87,7 @@ import {
   sendSms,
 } from '../../src/lib/outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../src/lib/devTaskRunner';
-import {
-  formatRailwayNetworkingSummary,
-  isRailwayConfigured,
-  railwayListProjectNetworking,
-} from '../../src/lib/railwayClient';
+import { railwayAgentToolDefinitions, railwayAgentToolHandlers } from './railwayAgentTools';
 import {
   formatKinstaSitesSummary,
   isKinstaConfigured,
@@ -113,6 +109,7 @@ import {
   githubRepoSlug,
   githubWriteFile,
 } from '../../src/lib/githubClient';
+import { maybeDeferGithubWrite } from '../../src/lib/deferredDeploy';
 import { describeSafeShell, runSafeShellCommand } from '../../src/lib/safeShell';
 import {
   codeDevExecCommand,
@@ -197,23 +194,6 @@ async function handle_run_dev_task(args: Record<string, unknown>, _ctx: ToolCont
   const out = await runDevTask(task);
   if (!out.ok) return JSON.stringify({ error: out.error });
   return JSON.stringify(out);
-}
-
-async function handle_list_railway_domains(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  if (!isRailwayConfigured()) {
-    return JSON.stringify({ error: 'RAILWAY_API_TOKEN is not set on this service' });
-  }
-  const result = await railwayListProjectNetworking({
-    project: typeof args.project === 'string' ? args.project : undefined,
-    environment: typeof args.environment === 'string' ? args.environment : undefined,
-    service: typeof args.service === 'string' ? args.service : undefined,
-  });
-  if (!result.ok) return JSON.stringify({ error: result.error });
-  return JSON.stringify({
-    ok: true,
-    summary: formatRailwayNetworkingSummary(result.data),
-    data: result.data,
-  });
 }
 
 async function handle_list_kinsta_sites(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -423,14 +403,17 @@ async function handle_create_github_branch(args: Record<string, unknown>, _ctx: 
 }
 
 async function handle_write_github_file(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  const result = await githubWriteFile({
+  const writeArgs = {
     repo: typeof args.repo === 'string' ? args.repo : undefined,
     branch: String(args.branch ?? '').trim(),
     path: String(args.path ?? '').trim(),
     content: String(args.content ?? ''),
     message: String(args.message ?? '').trim(),
     append: args.append === true,
-  });
+  };
+  const deferred = maybeDeferGithubWrite(writeArgs);
+  if (deferred) return JSON.stringify(deferred);
+  const result = await githubWriteFile(writeArgs);
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }
@@ -508,33 +491,10 @@ export const devInfraModule: AgentToolModule = {
                     type: 'string',
                     enum: [...DEV_TASK_NAMES],
                     description:
-                      'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
+                      'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_* tools = Railway projects/services/variables/domains/deployments/logs; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
                   },
                 },
                 required: ['task'],
-                additionalProperties: false,
-              },
-            },
-          },
-          {
-            type: 'function',
-            function: {
-              name: 'list_railway_domains',
-              description:
-                `Read Railway networking for a project: *.up.railway.app domains, custom domains, CNAME targets (requiredValue), and verification TXT tokens. Use when the user asks for a CNAME target, custom domain DNS, or what domain a service is on. Requires RAILWAY_API_TOKEN. Defaults to project "${brand.projectLabel}" / environment production.`,
-              parameters: {
-                type: 'object',
-                properties: {
-                  project: {
-                    type: 'string',
-                    description: `Project name or UUID (default: RAILWAY_PROJECT_ID env or "${brand.projectLabel}")`,
-                  },
-                  environment: { type: 'string', description: 'Environment name (default: production)' },
-                  service: {
-                    type: 'string',
-                    description: 'Optional service name filter, e.g. "reave" or "contact-api"',
-                  },
-                },
                 additionalProperties: false,
               },
             },
@@ -933,12 +893,13 @@ export const devInfraModule: AgentToolModule = {
                 additionalProperties: false,
               },
             },
-          }
+          },
+          ...railwayAgentToolDefinitions(ctx),
     ];
   },
   handlers: {
     'run_dev_task': handle_run_dev_task,
-    'list_railway_domains': handle_list_railway_domains,
+    ...railwayAgentToolHandlers,
     'list_kinsta_sites': handle_list_kinsta_sites,
     'clear_kinsta_cache': handle_clear_kinsta_cache,
     'get_kinsta_operation': handle_get_kinsta_operation,

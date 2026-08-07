@@ -20,7 +20,7 @@ import {
   type ClientPortal,
   type PortalDocument,
 } from '../../lib/contactApi';
-import { getCompanyConfig, poweredByLabel, companyStaffAvatarUrl } from '../../lib/companyConfig';
+import { getCompanyConfig, companyStaffAvatarUrl } from '../../lib/companyConfig';
 import { getPostAlias } from '../../lib/postAlias';
 import { hasFeature } from '../../lib/features';
 import { isCraterConfigured, craterGetClientBilling, craterGetClientPayments, buildPortalBillingView, type ClientBilling, type ClientPayments, type PortalBillingInvoiceGroup } from '../../lib/craterClient';
@@ -40,8 +40,7 @@ import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl } from '../../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
-import FootBostonTag from '../../components/FootBostonTag.astro';
-import SiteLegalLinks from '../../components/SiteLegalLinks.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
 import ViewportMeta from '../../components/ViewportMeta.astro';
@@ -49,7 +48,6 @@ import '../../styles/mobile-touch.css';
 import SiteDismissAlert from '../../components/SiteDismissAlert.astro';
 
 const org = await getCompanyConfig(Astro.request);
-const poweredBy = poweredByLabel(org);
 
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
@@ -405,6 +403,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <h1>This page isn’t available</h1>
             <p>The link may be expired or incorrect. Please reach out and we’ll send you a fresh one.</p>
           </div>
+          <SiteFooter company={org} />
         </main>
       ) : submitMode ? (
         <main class="wrap">
@@ -431,13 +430,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             </div>
           </div>
 
-          <footer class="foot">
-            <span class="brand">{poweredBy}</span>
-            <div class="foot-meta">
-              <SiteLegalLinks />
-              <FootBostonTag />
-            </div>
-          </footer>
+          <SiteFooter company={org} />
         </main>
       ) : (
         <main class="wrap">
@@ -507,7 +500,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the {postAlias.pluralTitle} tab for your active {postAlias.plural}.</p>}
             {hasUptime && (
               <div class="uptime-block">
-                <h3 class="group-title">Site uptime</h3>
+                <h3 class="group-title">Website uptime</h3>
                 {clientUptimeMonitors.length > 0 && (
                   <ul class="uptime-monitors">
                     {clientUptimeMonitors.map((m) => (
@@ -755,13 +748,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             </section>
           )}
 
-          <footer class="foot">
-            <span class="brand">{poweredBy}</span>
-            <div class="foot-meta">
-              <SiteLegalLinks />
-              <FootBostonTag />
-            </div>
-          </footer>
+          <SiteFooter company={org} />
         </main>
       )
     }
@@ -1275,22 +1262,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .mini-icon svg { display: block; }
       .mini:active { background: rgba(255, 255, 255, 0.14); }
-
-      .foot {
-        margin-top: 36px; display: flex; justify-content: space-between; align-items: flex-end;
-        font-size: 12px; color: rgba(255, 255, 255, 0.35);
-      }
-      .brand { letter-spacing: 0.5px; }
-      .foot-meta {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 8px;
-      }
-      .foot-meta :global(.site-legal-links) {
-        padding: 0;
-        font-size: 12px;
-      }
 
       .empty { display: flex; min-height: 80vh; align-items: center; justify-content: center; text-align: center; }
       .empty .card h1 { font-size: 22px; margin: 18px 0 10px; }

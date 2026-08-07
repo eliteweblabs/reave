@@ -6,6 +6,10 @@ import { getCompanyConfig } from "../lib/companyConfig";
 import "../styles/mobile-touch.css";
 
 const company = await getCompanyConfig(Astro.request);
+const { userId } = Astro.locals.auth();
+if (userId) {
+  return Astro.redirect("/admin/");
+}
 ---
 
 <!doctype html>
@@ -19,8 +23,8 @@ const company = await getCompanyConfig(Astro.request);
     <title>Sign In — {company.name}</title>
     <Favicon />
   </head>
-  <body>
-    <Header signInAutoOpen={true} />
+  <body data-user-id={userId ?? ""}>
+    <Header signInAutoOpen={!userId} />
   </body>
 </html>
 

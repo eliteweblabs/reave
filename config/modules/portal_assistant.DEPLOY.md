@@ -1,6 +1,6 @@
 ---
 feature: portal_assistant
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 

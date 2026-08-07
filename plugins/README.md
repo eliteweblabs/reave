@@ -17,7 +17,7 @@ plugins/{id}/
 
 Core-only features (no plugin dir) use `config/modules/{feature}.DEPLOY.md`.
 
-Per-install deployment **status** (`deployed`, `development`, `pending`, `request`, `rejected`) lives in `config/config-{slug}.json` → `moduleStatus`. See [`docs/deployment-punch-list.md`](../docs/deployment-punch-list.md).
+Per-install deployment **status** (`deployed`, `development`, `request`, `rejected`) lives in `config/config-{slug}.json` → `moduleStatus`. See [`docs/deployment-punch-list.md`](../docs/deployment-punch-list.md).
 
 ## Registered plugins
 

@@ -1,6 +1,6 @@
 ---
 feature: time_tracking
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 

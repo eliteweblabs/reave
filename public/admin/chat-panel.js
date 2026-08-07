@@ -56,14 +56,22 @@ export function initChatPanel(deps) {
 
 export const DEFAULT_SESSION_TITLE = 'New session';
 const LEGACY_DEFAULT_SESSION_TITLE = 'New chat';
+/** Keep in sync with MAX_CHAT_TITLE_LENGTH in src/lib/chatTypes.ts */
+const MAX_CHAT_TITLE_LENGTH = 120;
 
 export function isDefaultSessionTitle(title) {
   const t = (title || '').trim();
   return !t || t === DEFAULT_SESSION_TITLE || t === LEGACY_DEFAULT_SESSION_TITLE;
 }
 
+function truncateChatTitle(title) {
+  const oneLine = (title || '').replace(/\s+/g, ' ').trim();
+  if (!oneLine || oneLine.length <= MAX_CHAT_TITLE_LENGTH) return oneLine;
+  return `${oneLine.slice(0, MAX_CHAT_TITLE_LENGTH - 1)}…`;
+}
+
 export function displaySessionTitle(title) {
-  return isDefaultSessionTitle(title) ? DEFAULT_SESSION_TITLE : (title || '').trim();
+  return isDefaultSessionTitle(title) ? DEFAULT_SESSION_TITLE : truncateChatTitle(title);
 }
 
 // ---- extracted from os-map-loader.js:14745-16533 ----
@@ -1261,7 +1269,7 @@ function syncSidebarChatTitle(threadId, title) {
 }
 
 async function saveChatTitle(threadId, title) {
-  const trimmed = (title || '').trim();
+  const trimmed = truncateChatTitle(title);
   if (!trimmed || !threadId) return false;
   const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
     method: 'PATCH',
@@ -1581,7 +1589,7 @@ function renderChatFilterTabs(savedScrollLeft = 0) {
         `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
       btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} sessions`);
       btn.title = `Delete all ${tab.label.toLowerCase()} sessions`;
-      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab), { ringSize: 44 });
+      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab));
     } else if (isAllRefresh) {
       btn.innerHTML =
         `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
@@ -1907,9 +1915,15 @@ function mountChatThreadRoot(threadHost) {
         chatState.disposableChatId = null;
       }
     },
-    onMessagesPersist: (userContent, assistantContent) => {
-      chatState.messages.push({ role: 'user', content: userContent });
-      chatState.messages.push({ role: 'assistant', content: assistantContent });
+    onMessagesPersist: (userContent, assistant) => {
+      const now = new Date().toISOString();
+      chatState.messages.push({ role: 'user', content: userContent, created_at: now });
+      chatState.messages.push({
+        role: 'assistant',
+        content: assistant.content,
+        created_at: now,
+        ...(assistant.agent_usage ? { agent_usage: assistant.agent_usage } : {}),
+      });
       chatState.composeDirty = false;
       if (chatState.activeId === chatState.disposableChatId) {
         chatState.disposableChatId = null;

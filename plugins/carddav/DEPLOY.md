@@ -1,6 +1,6 @@
 ---
 feature: carddav
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 

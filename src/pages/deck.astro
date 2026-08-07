@@ -7,9 +7,13 @@ import Favicon from '../components/Favicon.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import Header from '../components/Header.astro';
 import Preloader from '../components/Preloader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteAssistantWidget from '../components/SiteAssistantWidget.astro';
 import { assertDeckScript } from '../deck/validate';
 import type { DeckVideoEnter } from '../deck/types';
 import { getCompanyConfig, deckQuantumHeroMask, deckQuantumHeroLogo } from '../lib/companyConfig';
+import { hasFeature } from '../lib/features';
+import { isSiteAssistantConfigured } from '../lib/siteAssistant';
 import everythingRaw from '../deck/scripts/everything.json';
 import {
   Home,
@@ -31,6 +35,8 @@ export const prerender = false;
 
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
+const showSiteAssistant =
+  hasFeature('portal_assistant') && isSiteAssistantConfigured();
 const heroMask = deckQuantumHeroMask(company);
 const heroLogo = deckQuantumHeroLogo(company);
 
@@ -252,6 +258,20 @@ const deckPayload = {
         <div id="dock-quote-slot" class="deck-dock-slot"></div>
       </section>
     </main>
+
+    <div class="site-foot-wrap">
+      <SiteFooter company={company} />
+    </div>
+
+    {
+      showSiteAssistant && (
+        <SiteAssistantWidget
+          brandTitle={company.name}
+          supportPhone={company.supportPhone}
+          supportEmail={company.supportEmail}
+        />
+      )
+    }
 
     <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
 
@@ -857,6 +877,12 @@ const deckPayload = {
         .deck-video-placeholder {
           animation: none;
         }
+      }
+
+      .site-foot-wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 0 24px calc(24px + env(safe-area-inset-bottom, 0px));
       }
     </style>
 

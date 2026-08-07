@@ -46,7 +46,7 @@ Background polling runs every 5 minutes (override with `UPTIMEROBOT_POLL_MINUTES
 
 ## Client linking
 
-Monitors auto-link to clients when the monitor URL matches the portal **Site URL** or **website** field.
+Monitors auto-link to clients when the monitor URL matches the portal **Website URL** or **website** field.
 
 Manual override via Railway env:
 
@@ -54,7 +54,7 @@ Manual override via Railway env:
 UPTIMEROBOT_MONITOR_CLIENT_MAP='{"798092635":"<client-uid>","802724019":"<client-uid>"}'
 ```
 
-Linked clients see **Site uptime** status and recent incidents on `/c/:uid`.
+Linked clients see **Website uptime** status and recent incidents on `/c/:uid`.
 
 ## Notifications
 
@@ -70,7 +70,7 @@ UPTIMEROBOT_ALERT_SUPPRESS_URLS=allautofinancial.com
 
 ## Known monitors (Reave account)
 
-| Site | Monitor ID |
+| Website | Monitor ID |
 |------|------------|
 | allautofinancial.com | 798092635 |
 | mavsafe.com | 802724019 |
