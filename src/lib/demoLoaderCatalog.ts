@@ -91,6 +91,11 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
     blurb: 'Playbooks the agent actually follows — SOPs, install notes, and how-tos on demand.',
   },
   {
+    id: 'media-library',
+    label: 'Media Library',
+    blurb: 'Upload and reuse logos, photos, and PDFs for branding and content — pick once, use everywhere.',
+  },
+  {
     id: 'portal-assistant',
     label: 'Portal Assistant',
     blurb: 'Speed-dial help chat so clients get answers without ringing your phone.',

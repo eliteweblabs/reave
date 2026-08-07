@@ -195,4 +195,5 @@ export const CORE_PLATFORM_MODULES = [
   'Contacts & CRM',
   'Smart inbox',
   'AI admin agent',
+  'Media library',
 ];

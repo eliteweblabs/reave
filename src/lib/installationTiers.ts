@@ -39,6 +39,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
       { label: 'Smart inbox & email triage', href: '/features#feature-email' },
       { label: 'AI admin agent', href: '/features#feature-ai-assistant' },
       { label: 'Knowledge base', href: '/features#feature-learning' },
+      { label: 'Media library', href: '/features#feature-media' },
       { label: 'White-label branding', href: '/features#feature-white-label' },
       { label: 'Mobile PWA & push alerts', href: '/features#feature-mobile' },
     ],
