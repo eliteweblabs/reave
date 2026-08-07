@@ -16,7 +16,9 @@ import {
 } from '../src/lib/businessHours.ts';
 import {
   nextMondayIso,
+  normalizeTravelMode,
   planVisitsFromCandidates,
+  travelLegLabel,
   type VisitCandidate,
 } from '../src/lib/visitPlanner.ts';
 
@@ -435,6 +437,99 @@ await test('missing origin is a warning, not a failure', () => {
 await test('hasAnyHours distinguishes real hours from empty', () => {
   assert.equal(hasAnyHours(null), false);
   assert.equal(hasAnyHours(weekdayHours(9 * 60, 17 * 60)), true);
+});
+
+await test('normalizeTravelMode accepts common aliases', () => {
+  assert.equal(normalizeTravelMode('driving'), 'driving');
+  assert.equal(normalizeTravelMode('bike'), 'bicycling');
+  assert.equal(normalizeTravelMode('WALK'), 'walking');
+  assert.equal(normalizeTravelMode('hoverboard'), null);
+  assert.equal(travelLegLabel(0, 'driving'), 'start');
+  assert.equal(travelLegLabel(8, 'walking'), '8m walk');
+  assert.equal(travelLegLabel(5, 'bicycling'), '5m ride');
+});
+
+await test('walking between the same stops takes longer than driving', () => {
+  const candidates = cluster({ lat: 42.3876, lng: -71.0995 }, 6, 'Somerville, MA');
+  const driving = planVisitsFromCandidates(candidates, {
+    startDate: '2026-08-10',
+    dayCount: 1,
+    origin: ORIGIN,
+    travelMode: 'driving',
+  });
+  const walking = planVisitsFromCandidates(candidates, {
+    startDate: '2026-08-10',
+    dayCount: 1,
+    origin: ORIGIN,
+    travelMode: 'walking',
+    approachMode: 'walking',
+  });
+
+  assert.equal(driving.options.travelMode, 'driving');
+  assert.equal(walking.options.travelMode, 'walking');
+
+  const driveHops = driving.days[0]!.stops.slice(1);
+  const walkHops = walking.days[0]!.stops.slice(1);
+  assert.ok(driveHops.length && walkHops.length, 'both modes scheduled multi-stop days');
+  assert.ok(
+    walkHops[0]!.travelMinutesFromPrev > driveHops[0]!.travelMinutesFromPrev,
+    `walk hop ${walkHops[0]!.travelMinutesFromPrev}m should beat drive hop ${driveHops[0]!.travelMinutesFromPrev}m`,
+  );
+});
+
+await test('walking schedules fewer stops than driving when distance matters', () => {
+  // Spread businesses far enough that a walking day cannot cover as many.
+  const spread = [
+    candidate({ lat: 42.3876, lng: -71.0995, area: 'Somerville, MA' }),
+    candidate({ lat: 42.395, lng: -71.12, area: 'Somerville, MA' }),
+    candidate({ lat: 42.38, lng: -71.08, area: 'Somerville, MA' }),
+    candidate({ lat: 42.405, lng: -71.09, area: 'Somerville, MA' }),
+    candidate({ lat: 42.37, lng: -71.11, area: 'Somerville, MA' }),
+    candidate({ lat: 42.41, lng: -71.105, area: 'Somerville, MA' }),
+  ];
+
+  const driving = planVisitsFromCandidates(spread, {
+    startDate: '2026-08-10',
+    dayCount: 1,
+    minutesPerDay: 90,
+    origin: ORIGIN,
+    travelMode: 'driving',
+  });
+  const walking = planVisitsFromCandidates(spread, {
+    startDate: '2026-08-10',
+    dayCount: 1,
+    minutesPerDay: 90,
+    origin: ORIGIN,
+    travelMode: 'walking',
+    approachMode: 'driving',
+  });
+
+  assert.ok(
+    walking.stats.scheduled < driving.stats.scheduled,
+    `walking scheduled ${walking.stats.scheduled}, driving ${driving.stats.scheduled}`,
+  );
+});
+
+await test('approach mode labels the first leg separately from later hops', () => {
+  const plan = planVisitsFromCandidates(
+    cluster({ lat: 42.3876, lng: -71.0995 }, 4, 'Somerville, MA'),
+    {
+      startDate: '2026-08-10',
+      dayCount: 1,
+      origin: ORIGIN,
+      travelMode: 'walking',
+      approachMode: 'driving',
+    },
+  );
+
+  const stops = plan.days[0]!.stops;
+  assert.ok(stops.length >= 2);
+  assert.equal(stops[0]!.travelModeFromPrev, 'driving');
+  assert.match(stops[0]!.travelLabel, /drive$/);
+  assert.equal(stops[1]!.travelModeFromPrev, 'walking');
+  assert.match(stops[1]!.travelLabel, /walk$/);
+  assert.equal(plan.options.travelMode, 'walking');
+  assert.equal(plan.options.approachMode, 'driving');
 });
 
 console.log('\nverify-visit-planner\n');

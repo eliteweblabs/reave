@@ -2,12 +2,12 @@
  * GET /api/work/visit-plan — day-by-day door-knock plan for open inquiries.
  *
  * Query params (all optional): start=YYYY-MM-DD, days, minutes, visit,
- * day_start, day_end, max_wait, speed, assume_hours=0|1.
+ * day_start, day_end, max_wait, mode, approach, speed, assume_hours=0|1.
  */
 
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import { planInquiryVisits } from '../../../lib/visitPlanner';
+import { normalizeTravelMode, planInquiryVisits } from '../../../lib/visitPlanner';
 
 export const prerender = false;
 
@@ -65,6 +65,8 @@ export async function GET(context: APIContext): Promise<Response> {
       dayStartMinutes: timeParam(params, 'day_start'),
       dayEndMinutes: timeParam(params, 'day_end'),
       maxWaitMinutes: intParam(params, 'max_wait'),
+      travelMode: normalizeTravelMode(params.get('mode')) ?? undefined,
+      approachMode: normalizeTravelMode(params.get('approach')) ?? undefined,
       averageSpeedMph: intParam(params, 'speed'),
       assumeHoursWhenUnknown: boolParam(params, 'assume_hours'),
       skipWeekends: boolParam(params, 'skip_weekends'),

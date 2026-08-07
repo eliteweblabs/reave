@@ -11,8 +11,12 @@ import "../../styles/mobile-touch.css";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import {
   ASSUMED_HOURS_LABEL,
+  TRAVEL_MODES,
+  TRAVEL_PROFILES,
   nextMondayIso,
+  normalizeTravelMode,
   planInquiryVisits,
+  type TravelMode,
   type VisitPlan,
 } from "../../lib/visitPlanner";
 
@@ -60,6 +64,11 @@ const visitMinutes = Math.min(intParam("visit", 12), 120);
 const dayStartMinutes = timeParam("day_start", 9 * 60);
 const dayEndMinutes = timeParam("day_end", 17 * 60);
 const assumeHours = params.get("assume_hours") !== "0";
+const travelMode: TravelMode = normalizeTravelMode(params.get("mode")) ?? "driving";
+const approachMode: TravelMode = normalizeTravelMode(params.get("approach")) ?? "driving";
+const travelProfile = TRAVEL_PROFILES[travelMode];
+const approachProfile = TRAVEL_PROFILES[approachMode];
+const mixedModes = travelMode !== approachMode;
 
 let plan: VisitPlan | null = null;
 let planError = "";
@@ -72,23 +81,38 @@ try {
     visitMinutes,
     dayStartMinutes,
     dayEndMinutes,
+    travelMode,
+    approachMode,
     assumeHoursWhenUnknown: assumeHours,
   });
 } catch (e) {
   planError = e instanceof Error ? e.message : String(e);
 }
 
-/** One Google Maps link that opens the whole day's route in order. */
+/**
+ * One Google Maps link for the day's in-area loop.
+ *
+ * Maps only accepts one travelmode per URL, so when the approach differs
+ * (drive to the neighborhood, then walk) the link starts at the first stop
+ * rather than the office — the office leg is the one you already know how to
+ * make.
+ */
 function dayRouteUrl(plan: VisitPlan, stops: VisitPlan["days"][number]["stops"]): string {
   if (!stops.length) return "";
   const coord = (s: { lat: number; lng: number }) => `${s.lat},${s.lng}`;
   const url = new URL("https://www.google.com/maps/dir/");
   url.searchParams.set("api", "1");
-  if (plan.origin) url.searchParams.set("origin", `${plan.origin.lat},${plan.origin.lng}`);
-  url.searchParams.set("destination", coord(stops[stops.length - 1]!));
-  const waypoints = stops.slice(0, -1);
-  if (waypoints.length) {
-    url.searchParams.set("waypoints", waypoints.map(coord).join("|"));
+  url.searchParams.set("travelmode", travelProfile.googleMode);
+  if (!mixedModes && plan.origin) {
+    url.searchParams.set("origin", `${plan.origin.lat},${plan.origin.lng}`);
+    url.searchParams.set("destination", coord(stops[stops.length - 1]!));
+    const waypoints = stops.slice(0, -1);
+    if (waypoints.length) url.searchParams.set("waypoints", waypoints.map(coord).join("|"));
+  } else {
+    url.searchParams.set("origin", coord(stops[0]!));
+    url.searchParams.set("destination", coord(stops[stops.length - 1]!));
+    const waypoints = stops.slice(1, -1);
+    if (waypoints.length) url.searchParams.set("waypoints", waypoints.map(coord).join("|"));
   }
   return url.toString();
 }
@@ -514,6 +538,26 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
             <input type="time" id="day_end" name="day_end" value={timeInputValue(dayEndMinutes)} />
           </div>
           <div class="vp-field">
+            <label for="mode">Between stops</label>
+            <select id="mode" name="mode">
+              {TRAVEL_MODES.map((mode) => (
+                <option value={mode} selected={travelMode === mode}>
+                  {TRAVEL_PROFILES[mode].label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div class="vp-field">
+            <label for="approach">To the area</label>
+            <select id="approach" name="approach">
+              {TRAVEL_MODES.map((mode) => (
+                <option value={mode} selected={approachMode === mode}>
+                  {TRAVEL_PROFILES[mode].label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div class="vp-field">
             <label for="assume_hours">Unknown hours</label>
             <select id="assume_hours" name="assume_hours">
               <option value="1" selected={assumeHours}>Assume {ASSUMED_HOURS_LABEL}</option>
@@ -540,7 +584,7 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
               </div>
               <div>
                 <div class="vp-stat-value">{plan.stats.totalTravelMiles}</div>
-                <div class="vp-stat-label">Miles driving</div>
+                <div class="vp-stat-label">Miles {travelProfile.gerund}</div>
               </div>
               <div>
                 <div class="vp-stat-value">{plan.stats.inquiriesConsidered}</div>
@@ -553,7 +597,9 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
             </div>
             {plan.origin?.label && (
               <p class="vp-stop-line" style="margin-top:0.85rem">
-                Each day starts from {plan.origin.label}.
+                {mixedModes
+                  ? `${approachProfile.label} from ${plan.origin.label} to each day's first stop, then ${travelProfile.gerund} between them.`
+                  : `Each day starts from ${plan.origin.label} (${travelProfile.gerund}).`}
               </p>
             )}
           </div>
@@ -582,7 +628,7 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
                 </div>
                 <div class="vp-day-meta">
                   {day.stops.length
-                    ? `${day.stops.length} stop${day.stops.length === 1 ? "" : "s"} · ${day.startLabel}–${day.endLabel} · ${minutesLabel(day.travelMinutes)} driving · ${day.travelMiles} mi`
+                    ? `${day.stops.length} stop${day.stops.length === 1 ? "" : "s"} · ${day.startLabel}–${day.endLabel} · ${minutesLabel(day.travelMinutes)} ${travelProfile.gerund} · ${day.travelMiles} mi`
                     : "No stops"}
                 </div>
               </div>
@@ -594,9 +640,7 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
                       <div class="vp-stop-time">
                         {stop.arriveLabel}
                         <span class="vp-stop-drive">
-                          {stop.travelMinutesFromPrev
-                            ? `${stop.travelMinutesFromPrev}m drive`
-                            : "start"}
+                          {stop.travelLabel}
                         </span>
                       </div>
                       <div>
@@ -638,7 +682,7 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
                       target="_blank"
                       rel="noopener"
                     >
-                      Open this day's route in Maps
+                      Open this day's {travelProfile.gerund} route in Maps
                     </a>
                   </div>
                 </>
