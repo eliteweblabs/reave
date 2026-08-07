@@ -171,3 +171,71 @@ export async function enrichContactHours(
     businessStatus,
   };
 }
+
+export type HoursBackfillResult = {
+  /** Contacts behind open inquiries that still lack hours or coordinates. */
+  pending: number;
+  processed: number;
+  saved: number;
+  fromPlaces: number;
+  fromText: number;
+  geoFilled: number;
+  /** Still missing after this batch — the caller can run again. */
+  remaining: number;
+  outcomes: HoursEnrichOutcome[];
+};
+
+/**
+ * Fill in hours (and any missing coordinates) for the contacts behind open
+ * inquiries.
+ *
+ * Batched on purpose: each contact costs a Google Place Details call, so a
+ * ~70-inquiry backlog is chunked to keep any single request well inside a
+ * request timeout. Call repeatedly until `remaining` is 0.
+ */
+export async function backfillInquiryHours(
+  opts: { limit?: number; force?: boolean } = {},
+): Promise<HoursBackfillResult> {
+  const limit = Math.max(1, Math.min(Number(opts.limit ?? 20), 100));
+  const force = opts.force === true;
+
+  const { storeListWork } = await import('./workStore');
+  const { hasAnyHours: hasHours } = await import('./businessHours');
+
+  const jobs = await storeListWork({ status: 'inquiry' });
+  const uids = [...new Set(jobs.map((job) => String(job.contact_uid ?? '').trim()).filter(Boolean))];
+
+  // Decide who needs work before spending any Places calls.
+  const needsWork: string[] = [];
+  for (const uid of uids) {
+    if (force) {
+      needsWork.push(uid);
+      continue;
+    }
+    const res = await getContact(uid);
+    if (!res.ok || res.data.archived) continue;
+    const portal = extractPortal(res.data);
+    const hasCoords =
+      Number.isFinite(Number(portal?.geo?.lat)) && Number.isFinite(Number(portal?.geo?.lng));
+    if (!hasHours(portal?.hours) || !hasCoords) needsWork.push(uid);
+  }
+
+  const batch = needsWork.slice(0, limit);
+  const outcomes: HoursEnrichOutcome[] = [];
+  for (const uid of batch) {
+    outcomes.push(await enrichContactHours(uid, { force }));
+  }
+
+  const saved = outcomes.filter((o) => o.saved);
+
+  return {
+    pending: needsWork.length,
+    processed: outcomes.length,
+    saved: saved.length,
+    fromPlaces: saved.filter((o) => o.source === 'places').length,
+    fromText: saved.filter((o) => o.source === 'text').length,
+    geoFilled: saved.filter((o) => o.geoUpdated).length,
+    remaining: Math.max(0, needsWork.length - outcomes.length),
+    outcomes,
+  };
+}

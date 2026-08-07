@@ -1774,6 +1774,23 @@ button.de-placeholder-action:active {
   flex-shrink: 0;
 }
 .wk-status-inquiry { color: #79c0ff; background: rgba(121, 192, 255, 0.12); }
+.wk-visit-plan-link {
+  display: block;
+  flex-shrink: 0;
+  margin: 0.4rem 0.55rem 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(121, 192, 255, 0.32);
+  border-radius: var(--radius-input);
+  background: rgba(121, 192, 255, 0.08);
+  color: #79c0ff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.wk-visit-plan-link:hover {
+  background: rgba(121, 192, 255, 0.16);
+}
 .wk-status-auditing { color: #0a84ff; background: rgba(10, 132, 255, 0.14); }
 .wk-audit-progress {
   flex-shrink: 1;
