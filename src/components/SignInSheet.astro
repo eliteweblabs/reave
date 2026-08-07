@@ -76,8 +76,8 @@ const clerkAppearance = {
   <div id="sign-in-clerk-root"></div>
   <div id="sign-in-session-stuck" class="sign-in-session-stuck" hidden>
     <p>
-      This browser is signed in, but the server session cookie is missing. That
-      mismatch was causing the refresh loop.
+      This browser is signed in, but the server still does not see your session.
+      Sign out and try again — do not keep refreshing.
     </p>
     <button type="button" id="sign-in-stuck-sign-out" class="sign-in-stuck-btn">
       Sign out and try again
@@ -146,6 +146,8 @@ const clerkAppearance = {
   import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260806sync';
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
+  /** One SSR sync reload after client sign-in — never a loop. */
+  const SSR_SYNC_KEY = 'reave-clerk-ssr-sync-once';
 
   function serverHasStaffSession() {
     return Boolean(document.body?.dataset?.userId?.trim());
@@ -155,9 +157,58 @@ const clerkAppearance = {
     return window.location.pathname.startsWith('/admin');
   }
 
+  function hasSessionCookie() {
+    return document.cookie.split(';').some((part) => {
+      const name = part.trim().split('=')[0];
+      return name === '__session' || name.startsWith('__session_');
+    });
+  }
+
+  function ssrSyncAlreadyTried() {
+    try {
+      return sessionStorage.getItem(SSR_SYNC_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function markSsrSyncTried() {
+    try {
+      sessionStorage.setItem(SSR_SYNC_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function clearSsrSyncMark() {
+    try {
+      sessionStorage.removeItem(SSR_SYNC_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * After OTP, Clerk often sets __session while this page still has empty
+   * data-user-id. Session JWTs are ~60s — reload once immediately so SSR can
+   * see the cookie. Never reload again for the same tab session.
+   */
+  function reloadOnceForSsrCookie() {
+    if (serverHasStaffSession()) {
+      clearSsrSyncMark();
+      return false;
+    }
+    if (!hasSessionCookie()) return false;
+    if (ssrSyncAlreadyTried()) return false;
+    markSsrSyncTried();
+    console.info('[reave] syncing Clerk session cookie to SSR (one reload)');
+    window.location.reload();
+    return true;
+  }
+
   /**
    * Block /admin → /admin hard navigations while Clerk JS has a user but SSR
-   * does not. That is the refresh loop. Do not block sign-in → /admin.
+   * does not — except the single cookie-sync reload above.
    */
   function installHalfSessionRedirectGuard() {
     if (window.__reaveHalfSessionGuard) return;
@@ -181,6 +232,7 @@ const clerkAppearance = {
       if (typeof original !== 'function') continue;
       proto[method] = function patchedLocationNav(url) {
         if (shouldBlock(url)) {
+          if (reloadOnceForSsrCookie()) return;
           console.warn('[reave] blocked half-session admin redirect loop', url);
           showStuckSession();
           return;
@@ -202,6 +254,7 @@ const clerkAppearance = {
       btn.dataset.bound = '1';
       btn.addEventListener('click', async () => {
         btn.disabled = true;
+        clearSsrSyncMark();
         try {
           await window.Clerk?.signOut?.({ redirectUrl: '/sign-in' });
         } catch (err) {
@@ -220,16 +273,17 @@ const clerkAppearance = {
 
     installHalfSessionRedirectGuard();
 
-    // Client session without SSR cookie: never mount SignIn (it redirects to /admin).
-    if (clerk.user && !serverHasStaffSession()) {
+    if (clerk.user && serverHasStaffSession()) {
       window[AUTH_MOUNT_KEY] = true;
-      showStuckSession();
+      clearSsrSyncMark();
       return;
     }
 
-    // Fully signed-in on server — nothing to mount.
-    if (clerk.user && serverHasStaffSession()) {
+    // Client session without SSR userId: sync once, else stuck UI (never remount SignIn).
+    if (clerk.user && !serverHasStaffSession()) {
       window[AUTH_MOUNT_KEY] = true;
+      if (reloadOnceForSsrCookie()) return;
+      showStuckSession();
       return;
     }
 
@@ -258,6 +312,11 @@ const clerkAppearance = {
         appearance: clerkAppearance,
       });
     }
+
+    // After OTP inside the sheet, cookie appears before any navigation — sync once.
+    clerk.addListener?.(({ user }) => {
+      if (user && !serverHasStaffSession()) reloadOnceForSsrCookie();
+    });
   }
 
   function onClerkReady() {
