@@ -9,8 +9,10 @@
  * comes from the `portal` link metadata on the contact (see src/lib/contactApi).
  * Internal `notes` are intentionally NOT shown.
  *
- * Tabs: Overview (headline/body/fields), Billing (Crater invoices), Data
- * (web-design handoff: passwords/DNS/hosting). Tabs only appear when populated.
+ * Tabs: Overview (headline/body/fields), Billing (Crater invoices), Vault
+ * (web-design handoff: passwords/DNS/hosting). Vault shows when web_handoff is
+ * enabled even if empty so clients can add the first entry. Other tabs appear
+ * when populated.
  */
 import {
   getContact,
@@ -290,7 +292,7 @@ const hasOverview = Boolean(
   clientTagline || clientWebsite || showClientContact || headline || bodyHtml || fields.length > 0
 );
 const hasBilling = Boolean(portalBillingView);
-const hasData = dataEntries.length > 0;
+const hasVault = hasFeature('web_handoff');
 const hasDocs = portalDocs.length > 0;
 const hasWork = clientJobs.length > 0;
 const postAlias = getPostAlias();
@@ -298,7 +300,7 @@ const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
 if (hasWork) tabs.push({ id: 'work', label: postAlias.pluralTitle });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
-if (hasData) tabs.push({ id: 'vault', label: 'Vault' });
+if (hasVault) tabs.push({ id: 'vault', label: 'Vault' });
 if (hasDocs) tabs.push({ id: 'documents', label: 'Documents' });
 const showTabs = tabs.length > 1;
 
@@ -693,42 +695,49 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             </section>
           )}
 
-          {/* Data (web-design handoff) */}
-          {hasData && (
+          {/* Vault (web-design handoff) */}
+          {hasVault && (
             <section class={`panel ${initialTab === 'vault' ? 'active' : ''}`} data-tab-panel="vault">
               <p class="data-note">Account details &amp; credentials for your {postAlias.singular}. Keep this link private.</p>
-              {dataEntries.map((e) => (
-                <details class="data-card">
-                  <summary class="data-label"><span class="data-label-text">{e.label}</span></summary>
-                  <div class="data-card-body">
-                    {e.url && (
-                      <a class="data-url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>
-                    )}
-                    {e.username && (
-                      <div class="cred">
-                        <span class="cred-key">User</span>
-                        <code class="cred-val">{e.username}</code>
-                        <button class="mini mini-icon" data-copy type="button" aria-label="Copy username">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        </button>
-                      </div>
-                    )}
-                    {e.password && (
-                      <div class="cred">
-                        <span class="cred-key">Pass</span>
-                        <code class="cred-val secret">{e.password}</code>
-                        <button class="mini mini-icon" data-reveal type="button" aria-label="Show password">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                        </button>
-                        <button class="mini mini-icon" data-copy type="button" aria-label="Copy password">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        </button>
-                      </div>
-                    )}
-                    {e.value && <div class="data-value">{e.value}</div>}
-                  </div>
-                </details>
-              ))}
+              {dataEntries.length > 0 ? (
+                dataEntries.map((e) => (
+                  <details class="data-card">
+                    <summary class="data-label"><span class="data-label-text">{e.label}</span></summary>
+                    <div class="data-card-body">
+                      {e.url && (
+                        <a class="data-url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>
+                      )}
+                      {e.username && (
+                        <div class="cred">
+                          <span class="cred-key">User</span>
+                          <code class="cred-val">{e.username}</code>
+                          <button class="mini mini-icon" data-copy type="button" aria-label="Copy username">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                          </button>
+                        </div>
+                      )}
+                      {e.password && (
+                        <div class="cred">
+                          <span class="cred-key">Pass</span>
+                          <code class="cred-val secret">{e.password}</code>
+                          <button class="mini mini-icon" data-reveal type="button" aria-label="Show password">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                          </button>
+                          <button class="mini mini-icon" data-copy type="button" aria-label="Copy password">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                          </button>
+                        </div>
+                      )}
+                      {e.value && <div class="data-value">{e.value}</div>}
+                    </div>
+                  </details>
+                ))
+              ) : (
+                <div class="vault-empty">
+                  <p class="muted">No account details saved yet. Add hosting, login, or DNS info when you&apos;re ready.</p>
+                  <a class="vault-submit-link" href="?submit">Add account details</a>
+                </div>
+              )}
             </section>
           )}
 
@@ -1187,6 +1196,30 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .doc-card-arrow { font-size: 18px; color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.8); flex: none; }
 
       .data-note { color: rgba(255, 255, 255, 0.5); font-size: 13px; margin: 0 0 14px; }
+      .vault-empty {
+        text-align: center;
+        padding: 28px 20px;
+        border-radius: 14px;
+        border: 1px dashed rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .vault-empty .muted { margin: 0 0 16px; }
+      .vault-submit-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        max-width: 280px;
+        padding: 14px 20px;
+        border-radius: 14px;
+        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+        border: 1px solid var(--portal-brand-fill-border, transparent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .vault-submit-link:active { opacity: 0.85; }
       .data-card {
         margin-bottom: 12px; border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
