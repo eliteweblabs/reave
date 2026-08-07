@@ -31,6 +31,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   inventory_sync: ['__system__'],
   online_reviews: ['reviews'],
   wayback_machine: ['__system__'],
+  content_management: ['media', '__system__'],
 };
 
 /** Human labels for footerNav keys (monitor panel). */

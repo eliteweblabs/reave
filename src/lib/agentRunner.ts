@@ -791,6 +791,20 @@ async function runKnowledgeAgentInner(
       'Stock photos: use search_stock_photos to find royalty-free imagery for pages, decks, and newsletters. Pexels terms require crediting the photographer and linking back to the photo\'s Pexels page wherever the image is displayed.',
     );
   }
+  if (hasFeature('content_management')) {
+    if (isGithubConfigured()) {
+      const deployDefer = isDeferredDeployEnabled()
+        ? ' Commits to main during this chat turn are queued and push when the turn finishes.'
+        : ' Committing to main triggers a Railway deploy automatically.';
+      sysParts.push(
+        `Website content management: the owner can update their public marketing site through you. Call get_site_content before changing nav, headline, or homepage section toggles; use update_site_content to commit config/sites/{key}-config.json. For page body copy and components, use write_website_file (paths under config/sites/, src/pages/, src/components/, src/assets/, public/ only). Never open a PR — commit straight to main.${deployDefer} Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for the full playbook. Do not claim the site is updated unless tools succeed.`,
+      );
+    } else {
+      sysParts.push(
+        'Website content management is enabled but GITHUB_TOKEN is not set — you can read get_site_content locally but cannot persist changes until GitHub write access is configured.',
+      );
+    }
+  }
   if (hasFeature('site_audits')) {
     sysParts.push(
       'Website review: use fetch_url to read a client website (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Call lighthouse_audit at most once per audit — if it fails (timeout, slow website, PSI error), proceed to update_work immediately; do NOT retry (retries burn the tool-round budget and the run will fail). Quick/street audits: pass category "performance" only (2 PSI calls, not 8). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for public DNS, SPF/DKIM/DMARC, and WHOIS. When the user asks to check or fix Cloudflare DNS or SSL (or says nameservers are Cloudflare), call cloudflare_dns verify then list_records / get_ssl_mode before concluding — dns_check alone can lag after a recent NS change. If fetch_url or ssl_check shows Cloudflare Error 525 (SSL handshake failed), call get_ssl_mode then set_ssl_mode flexible when the user wants it fixed — do not ask them to log into Cloudflare. Use brave_search for Google Business Profile, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',

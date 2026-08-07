@@ -149,6 +149,19 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     ],
   },
   {
+    id: 'content-management',
+    title: 'Website Content Management',
+    teaser:
+      'Update headline, navigation, and page copy through chat — commits to GitHub and deploys automatically.',
+    body: 'The business owner describes what they want changed on their public site; the agent reads the current config, edits structured settings or Astro page files, and commits to main. No separate CMS login — changes go live after Railway deploys.',
+    bullets: [
+      'get_site_content / update_site_content for nav, headline, and homepage toggles',
+      'write_website_file for pages, components, and assets (content paths only)',
+      'Pairs with Pexels stock photo search for imagery',
+      'Requires GITHUB_TOKEN with Contents write on the site repo',
+    ],
+  },
+  {
     id: 'dev-infra',
     title: 'Dev & Deploy Infrastructure',
     teaser:

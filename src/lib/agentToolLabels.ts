@@ -90,6 +90,9 @@ const TOOL_LABELS: Record<string, string> = {
   get_site_monitoring: 'Reading website monitoring',
   set_site_monitoring: 'Updating website monitoring',
   recheck_site_monitoring: 'Rechecking website monitoring',
+  get_site_content: 'Reading site content',
+  update_site_content: 'Updating site content',
+  write_website_file: 'Updating website file',
 };
 
 function titleCaseWords(value: string): string {

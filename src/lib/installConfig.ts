@@ -35,6 +35,7 @@ const FEATURE_IDS_LIST = [
   'inventory_sync',
   'online_reviews',
   'wayback_machine',
+  'content_management',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

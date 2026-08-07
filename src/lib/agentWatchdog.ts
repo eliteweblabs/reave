@@ -39,6 +39,8 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   run_dev_task: 120_000,
   create_github_repo: 90_000,
   write_github_file: 90_000,
+  write_website_file: 90_000,
+  update_site_content: 90_000,
   sync_resend_dns: 120_000,
   cloudflare_dns: 90_000,
   sync_vapi_assistant: 90_000,
@@ -73,6 +75,7 @@ const READ_ONLY_TOOLS = new Set([
   'brave_search',
   'search_stock_photos',
   'get_site_monitoring',
+  'get_site_content',
   // Knowledge and project reads
   'list_knowledge',
   'read_knowledge',

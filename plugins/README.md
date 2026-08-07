@@ -38,6 +38,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
 | `inventory/` | `inventory_sync` | `inventory-sync.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
+| `content-management/` | `content_management` | `content-management.md` | yes |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
