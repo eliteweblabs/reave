@@ -6122,20 +6122,14 @@ function createIndustryRow(item, { onDelete, onToggle } = {}) {
   const enabled = item?.enabled !== false;
   const row = document.createElement('div');
   row.className = 'ind-row';
+  if (item?.slug) row.dataset.slug = item.slug;
 
   const labelInput = document.createElement('input');
   labelInput.className = 'ind-label';
   labelInput.type = 'text';
   labelInput.value = item?.label || '';
-  labelInput.placeholder = 'Label';
+  labelInput.placeholder = 'Industry';
   labelInput.setAttribute('aria-label', 'Industry label');
-
-  const slugInput = document.createElement('input');
-  slugInput.className = 'ind-slug';
-  slugInput.type = 'text';
-  slugInput.value = item?.slug || '';
-  slugInput.placeholder = item?.slug ? 'slug' : 'slug (auto)';
-  slugInput.setAttribute('aria-label', 'Industry slug');
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
@@ -6155,7 +6149,7 @@ function createIndustryRow(item, { onDelete, onToggle } = {}) {
     onClick: () => onDelete?.(row),
   });
 
-  row.append(labelInput, slugInput, toggle, removeBtn);
+  row.append(labelInput, toggle, removeBtn);
   return row;
 }
 
@@ -6175,9 +6169,9 @@ function collectIndustriesFromDom(root) {
   return Array.from(root.querySelectorAll('.ind-row'))
     .map((row, i) => {
       const label = row.querySelector('.ind-label')?.value?.trim() || '';
-      const slug = row.querySelector('.ind-slug')?.value?.trim() || '';
+      const slug = row.dataset.slug?.trim() || '';
       const enabled = row.querySelector('.ind-enabled-toggle')?.getAttribute('aria-checked') === 'true';
-      return { label, slug, enabled, sortOrder: i };
+      return { label, slug: slug || undefined, enabled, sortOrder: i };
     })
     .filter((r) => r.label);
 }
@@ -6203,10 +6197,10 @@ function syncIndustriesListFromServer(listEl, industries) {
     const row = rows[i];
     if (!row) return;
     const labelInput = row.querySelector('.ind-label');
-    const slugInput = row.querySelector('.ind-slug');
     const toggle = row.querySelector('.ind-enabled-toggle');
     if (labelInput && labelInput !== active) labelInput.value = item.label || '';
-    if (slugInput && slugInput !== active) slugInput.value = item.slug || '';
+    if (item.slug) row.dataset.slug = item.slug;
+    else delete row.dataset.slug;
     if (toggle) setIndustryEnabledToggle(toggle, item.enabled !== false);
   });
   if (active instanceof HTMLInputElement && listEl.contains(active)) {
@@ -6325,7 +6319,7 @@ function bindIndustriesEditor(root, industries) {
   );
 
   listEl.addEventListener('input', (e) => {
-    if (e.target?.matches?.('.ind-label, .ind-slug')) schedule(e.target);
+    if (e.target?.matches?.('.ind-label')) schedule(e.target);
   });
 
   addBtn?.addEventListener('click', () => {
@@ -6895,7 +6889,7 @@ function renderIndustriesPanel() {
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Industries</h1>` +
-        `<p class="prof-subtitle">Categories for <code>/deck?type=…</code> presets. Edit labels and slugs; turn Off to hide without deleting.</p>` +
+        `<p class="prof-subtitle">Categories for <code>/deck?type=…</code> presets. Edit names; turn Off to hide without deleting.</p>` +
         `<div id="industries-alert" class="prof-alert" hidden></div>` +
         `<div id="industries-list" class="ind-list"></div>` +
         `<div class="prof-actions ind-actions">` +

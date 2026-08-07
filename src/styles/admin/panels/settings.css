@@ -347,7 +347,7 @@
 }
 .ind-row {
   display: grid;
-  grid-template-columns: 1fr minmax(5.5rem, 7rem) auto auto;
+  grid-template-columns: 1fr auto auto;
   gap: 0.45rem;
   align-items: center;
 }
@@ -381,14 +381,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-@media (max-width: 640px) {
-  .ind-row {
-    grid-template-columns: 1fr auto auto;
-  }
-  .ind-row .ind-slug {
-    grid-column: 1 / -1;
-  }
 }
 .prof-logo-upload {
   display: flex;
