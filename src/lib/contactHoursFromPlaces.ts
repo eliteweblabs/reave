@@ -78,14 +78,19 @@ export async function enrichContactHours(
   const name = contactDisplayName(contact);
   const portal = extractPortal(contact) ?? {};
 
-  if (!opts.force && hasAnyHours(portal.hours)) {
+  const hasCoords =
+    Number.isFinite(Number(portal.geo?.lat)) && Number.isFinite(Number(portal.geo?.lng));
+
+  // Only skip when there is nothing left to resolve — hours alone are not
+  // enough, since an inquiry without coordinates cannot be routed.
+  if (!opts.force && hasAnyHours(portal.hours) && hasCoords) {
     return {
       uid: trimmedUid,
       name,
       source: portal.hours?.source ?? null,
       saved: false,
       geoUpdated: false,
-      reason: 'already has hours',
+      reason: 'already has hours and coordinates',
     };
   }
 
@@ -130,6 +135,23 @@ export async function enrichContactHours(
   if (!hours) {
     const fromText = parseHoursText(hoursFieldText(portal));
     if (hasAnyHours(fromText)) hours = fromText;
+  }
+
+  // Coordinates are what make an inquiry routable at all, so fall back to the
+  // plain geocoder when Places had no match for the business name.
+  const stillNoCoords = !Number.isFinite(geo?.lat) || !Number.isFinite(geo?.lng);
+  if (stillNoCoords && resolvedAddress) {
+    const { resolveAddressCoordinates } = await import('./mapbox');
+    const geocoded = await resolveAddressCoordinates(resolvedAddress);
+    if (geocoded) {
+      geo = {
+        lat: geocoded.lat,
+        lng: geocoded.lng,
+        placeId: geo?.placeId,
+        geocodedAt: geocoded.geocodedAt ?? new Date().toISOString(),
+      };
+      geoUpdated = true;
+    }
   }
 
   if (!hours && !geoUpdated) {
