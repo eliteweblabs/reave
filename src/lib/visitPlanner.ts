@@ -28,6 +28,86 @@ import type { WorkJobSummary } from './workStore';
 // the scheduling core stays free of I/O and can be exercised on its own.
 
 // ---------------------------------------------------------------------------
+// Travel modes
+// ---------------------------------------------------------------------------
+
+export const TRAVEL_MODES = ['driving', 'bicycling', 'walking'] as const;
+export type TravelMode = (typeof TRAVEL_MODES)[number];
+
+export type TravelProfile = {
+  mode: TravelMode;
+  /** Menu label: "Driving". */
+  label: string;
+  /** Noun for a single leg: "8m drive". */
+  legNoun: string;
+  /** Gerund for totals: "5.9 mi driving". */
+  gerund: string;
+  speedMph: number;
+  /** Straight-line miles inflated to approximate the real path. */
+  detourFactor: number;
+  /** Fixed cost per hop — parking, locking up, finding the door. */
+  overheadMinutes: number;
+  /** `travelmode` value for Google Maps directions URLs. */
+  googleMode: string;
+};
+
+/**
+ * Per-mode travel estimates.
+ *
+ * Walking and biking take straighter paths than a car (alleys, one-ways don't
+ * apply) and cost less per stop since there is nowhere to park, so each mode
+ * carries its own detour factor and overhead rather than just a speed.
+ */
+export const TRAVEL_PROFILES: Record<TravelMode, TravelProfile> = {
+  driving: {
+    mode: 'driving',
+    label: 'Driving',
+    legNoun: 'drive',
+    gerund: 'driving',
+    speedMph: 26,
+    detourFactor: 1.35,
+    overheadMinutes: 2,
+    googleMode: 'driving',
+  },
+  bicycling: {
+    mode: 'bicycling',
+    label: 'Biking',
+    legNoun: 'ride',
+    gerund: 'biking',
+    speedMph: 10,
+    detourFactor: 1.25,
+    overheadMinutes: 1,
+    googleMode: 'bicycling',
+  },
+  walking: {
+    mode: 'walking',
+    label: 'Walking',
+    legNoun: 'walk',
+    gerund: 'walking',
+    speedMph: 3.1,
+    detourFactor: 1.2,
+    overheadMinutes: 0,
+    googleMode: 'walking',
+  },
+};
+
+export function normalizeTravelMode(raw: unknown): TravelMode | null {
+  const value = String(raw ?? '').trim().toLowerCase();
+  if (value === 'driving' || value === 'drive' || value === 'car') return 'driving';
+  if (value === 'bicycling' || value === 'biking' || value === 'bike' || value === 'cycling') {
+    return 'bicycling';
+  }
+  if (value === 'walking' || value === 'walk' || value === 'foot') return 'walking';
+  return null;
+}
+
+/** "8m drive" / "12m walk", or "start" for the first stop of a day. */
+export function travelLegLabel(minutes: number, mode: TravelMode): string {
+  if (!minutes) return 'start';
+  return `${minutes}m ${TRAVEL_PROFILES[mode].legNoun}`;
+}
+
+// ---------------------------------------------------------------------------
 // Options + result types
 // ---------------------------------------------------------------------------
 
@@ -46,7 +126,15 @@ export type VisitPlanOptions = {
   dayEndMinutes?: number;
   /** Longest acceptable idle wait for a business to open, in minutes. Default 15. */
   maxWaitMinutes?: number;
-  /** Average driving speed for travel estimates, mph. Default 26. */
+  /** How you get between stops. Default driving. */
+  travelMode?: TravelMode;
+  /**
+   * How you reach the first stop of each day from the origin. Defaults to
+   * driving, so a walking or biking day means "drive to the area, then work it
+   * on foot" rather than walking miles from the office.
+   */
+  approachMode?: TravelMode;
+  /** Override the travel mode's assumed speed, mph. Defaults to the mode. */
   averageSpeedMph?: number;
   /** Skip weekend days when stepping through dates. Default true. */
   skipWeekends?: boolean;
@@ -95,6 +183,10 @@ export type VisitStop = {
   departLabel: string;
   travelMinutesFromPrev: number;
   travelMilesFromPrev: number;
+  /** Mode used to reach this stop — the approach leg can differ from the rest. */
+  travelModeFromPrev: TravelMode;
+  /** "8m drive" / "12m walk", or "start". */
+  travelLabel: string;
   waitMinutes: number;
   hoursLabel: string;
   hoursAssumed: boolean;
@@ -161,6 +253,8 @@ export type VisitPlan = {
       | 'dayStartMinutes'
       | 'dayEndMinutes'
       | 'maxWaitMinutes'
+      | 'travelMode'
+      | 'approachMode'
       | 'averageSpeedMph'
       | 'assumeHoursWhenUnknown'
       | 'skipWeekends'
@@ -175,7 +269,8 @@ const DEFAULTS = {
   dayStartMinutes: 9 * 60,
   dayEndMinutes: 17 * 60,
   maxWaitMinutes: 15,
-  averageSpeedMph: 26,
+  travelMode: 'driving',
+  approachMode: 'driving',
   assumeHoursWhenUnknown: true,
   skipWeekends: true,
 } as const;
@@ -185,9 +280,6 @@ const ASSUMED_WINDOW: HoursInterval = { start: 10 * 60, end: 16 * 60 };
 
 /** "10am–4pm" — for UI copy that describes the fallback window. */
 export const ASSUMED_HOURS_LABEL = formatInterval(ASSUMED_WINDOW);
-
-/** Straight-line miles get inflated by this to approximate road distance. */
-const ROAD_DETOUR_FACTOR = 1.35;
 
 // ---------------------------------------------------------------------------
 // Dates
@@ -253,8 +345,13 @@ export function haversineMiles(
   return 2 * EARTH_RADIUS_MILES * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-function roadMiles(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  return haversineMiles(a, b) * ROAD_DETOUR_FACTOR;
+/** Path miles for a mode — straight-line inflated by that mode's detour factor. */
+function pathMiles(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+  mode: TravelMode,
+): number {
+  return haversineMiles(a, b) * TRAVEL_PROFILES[mode].detourFactor;
 }
 
 /**
@@ -265,13 +362,15 @@ function roadMiles(a: { lat: number; lng: number }, b: { lat: number; lng: numbe
 function travelMinutes(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
-  speedMph: number,
+  mode: TravelMode,
+  speedOverrideMph?: number,
 ): number {
-  const miles = roadMiles(a, b);
-  if (miles < 0.15) return 1;
-  const minutes = (miles / Math.max(speedMph, 5)) * 60;
-  // Every hop costs some parking / walk-up overhead.
-  return Math.max(2, Math.round(minutes + 2));
+  const profile = TRAVEL_PROFILES[mode];
+  const miles = pathMiles(a, b, mode);
+  const speed = Math.max(speedOverrideMph ?? profile.speedMph, 0.5);
+  if (miles < 0.05) return Math.max(1, profile.overheadMinutes);
+  const minutes = (miles / speed) * 60 + profile.overheadMinutes;
+  return Math.max(1, Math.round(minutes));
 }
 
 // ---------------------------------------------------------------------------
@@ -567,28 +666,43 @@ type DayContext = {
 
 type ScheduleResult = { stops: VisitStop[]; used: Set<string> };
 
+type ScheduleOptions = Required<
+  Pick<
+    VisitPlanOptions,
+    | 'minutesPerDay'
+    | 'visitMinutes'
+    | 'maxWaitMinutes'
+    | 'travelMode'
+    | 'approachMode'
+    | 'averageSpeedMph'
+    | 'assumeHoursWhenUnknown'
+  >
+>;
+
 /**
  * Greedily build one day's route.
  *
- * At each step it picks the candidate that costs the least time to add (drive
+ * At each step it picks the candidate that costs the least time to add (travel
  * time plus any wait for the door to open), lightly discounted by how valuable
  * the inquiry is. Choosing by cost-to-add rather than pre-computing an order is
  * what lets opening hours steer the route instead of breaking it.
+ *
+ * The first leg uses `approachMode` (usually driving to the day's area); later
+ * legs use `travelMode` so a walking day means "drive there, then walk it".
  */
 function scheduleDay(
   candidates: Routable[],
   day: DayContext,
   origin: Point | null,
-  options: Required<
-    Pick<
-      VisitPlanOptions,
-      'minutesPerDay' | 'visitMinutes' | 'maxWaitMinutes' | 'averageSpeedMph' | 'assumeHoursWhenUnknown'
-    >
-  >,
+  options: ScheduleOptions,
 ): ScheduleResult {
   const stops: VisitStop[] = [];
   const used = new Set<string>();
   const remaining = [...candidates];
+  const hopSpeed =
+    options.averageSpeedMph === TRAVEL_PROFILES[options.travelMode].speedMph
+      ? undefined
+      : options.averageSpeedMph;
 
   let position: Point | null = origin;
   let clock = day.window.start;
@@ -599,16 +713,19 @@ function scheduleDay(
     let bestEntry = 0;
     let bestTravel = 0;
     let bestMiles = 0;
+    let bestMode: TravelMode = options.travelMode;
     let bestCost = Infinity;
 
     // Waiting for the first door to open just means the outing starts later, so
     // it is neither capped nor charged against the day's field-time budget.
     const isFirstStop = stops.length === 0;
+    const legMode = isFirstStop ? options.approachMode : options.travelMode;
+    const legSpeed = isFirstStop ? undefined : hopSpeed;
 
     for (let i = 0; i < remaining.length; i += 1) {
       const candidate = remaining[i]!;
-      const drive = position ? travelMinutes(position, candidate, options.averageSpeedMph) : 0;
-      const miles = position ? roadMiles(position, candidate) : 0;
+      const travel = position ? travelMinutes(position, candidate, legMode, legSpeed) : 0;
+      const miles = position ? pathMiles(position, candidate, legMode) : 0;
 
       const windows = windowsFor(
         candidate,
@@ -618,27 +735,28 @@ function scheduleDay(
       );
       if (!windows.length) continue;
 
-      const entry = earliestEntry(windows, clock + drive, options.visitMinutes);
+      const entry = earliestEntry(windows, clock + travel, options.visitMinutes);
       if (entry == null) continue;
 
-      const wait = entry - (clock + drive);
+      const wait = entry - (clock + travel);
       if (!isFirstStop && wait > options.maxWaitMinutes) continue;
       if (entry + options.visitMinutes > day.window.end) continue;
 
-      const added = drive + (isFirstStop ? 0 : wait) + options.visitMinutes;
+      const added = travel + (isFirstStop ? 0 : wait) + options.visitMinutes;
       if (spent + added > options.minutesPerDay) continue;
 
       // Prefer cheap-to-reach stops, but let a strong lead justify a short detour.
       // A late opener is only mildly discouraged as an opening stop, since that
       // just shifts the whole outing later.
       const cost =
-        drive + wait * (isFirstStop ? 0.15 : 1.5) - candidate.priorityScore * 0.12;
+        travel + wait * (isFirstStop ? 0.15 : 1.5) - candidate.priorityScore * 0.12;
       if (cost < bestCost) {
         bestCost = cost;
         bestIndex = i;
         bestEntry = entry;
-        bestTravel = drive;
+        bestTravel = travel;
         bestMiles = miles;
+        bestMode = legMode;
       }
     }
 
@@ -665,6 +783,8 @@ function scheduleDay(
       departLabel: formatMinutes(depart),
       travelMinutesFromPrev: bestTravel,
       travelMilesFromPrev: Math.round(bestMiles * 10) / 10,
+      travelModeFromPrev: bestMode,
+      travelLabel: travelLegLabel(bestTravel, bestMode),
       waitMinutes: wait,
       hoursLabel: candidate.hoursAssumed
         ? `Hours unknown — assumed ${formatInterval(ASSUMED_WINDOW)}`
@@ -756,6 +876,12 @@ export function planVisitsFromCandidates(
   candidates: VisitCandidate[],
   opts: VisitPlanOptions = {},
 ): VisitPlan {
+  const travelMode = normalizeTravelMode(opts.travelMode) ?? DEFAULTS.travelMode;
+  // Walk/bike days default to driving to the area, then switching modes —
+  // walking miles from the office is almost never what someone means.
+  const approachMode = normalizeTravelMode(opts.approachMode) ?? DEFAULTS.approachMode;
+
+  const defaultSpeed = TRAVEL_PROFILES[travelMode].speedMph;
   const options = {
     dayCount: Math.max(1, Math.min(Number(opts.dayCount ?? DEFAULTS.dayCount), 14)),
     minutesPerDay: Math.max(30, Math.min(Number(opts.minutesPerDay ?? DEFAULTS.minutesPerDay), 600)),
@@ -763,7 +889,12 @@ export function planVisitsFromCandidates(
     dayStartMinutes: Math.max(0, Math.min(Number(opts.dayStartMinutes ?? DEFAULTS.dayStartMinutes), 1439)),
     dayEndMinutes: Math.max(1, Math.min(Number(opts.dayEndMinutes ?? DEFAULTS.dayEndMinutes), 1440)),
     maxWaitMinutes: Math.max(0, Math.min(Number(opts.maxWaitMinutes ?? DEFAULTS.maxWaitMinutes), 120)),
-    averageSpeedMph: Math.max(5, Math.min(Number(opts.averageSpeedMph ?? DEFAULTS.averageSpeedMph), 80)),
+    travelMode,
+    approachMode,
+    averageSpeedMph: Math.max(
+      0.5,
+      Math.min(Number(opts.averageSpeedMph ?? defaultSpeed), 80),
+    ),
     assumeHoursWhenUnknown: opts.assumeHoursWhenUnknown ?? DEFAULTS.assumeHoursWhenUnknown,
     skipWeekends: opts.skipWeekends ?? DEFAULTS.skipWeekends,
   };
