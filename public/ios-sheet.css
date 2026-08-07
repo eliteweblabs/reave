@@ -15,15 +15,12 @@
   --ios-sheet-scrim: rgba(0, 0, 0, 0.3);
   --ios-sheet-scrim-blur: blur(10px) saturate(1.1);
   --ios-sheet-radius: 20px;
-  --ios-sheet-radius-desktop: 16px;
   --ios-sheet-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
-  --ios-sheet-shadow-desktop: 0 24px 64px rgba(0, 0, 0, 0.35);
   --ios-sheet-duration: 0.38s;
   --ios-sheet-easing: cubic-bezier(0.32, 0.72, 0, 1);
   --ios-sheet-fade-duration: 0.28s;
   --ios-sheet-max-width: 520px;
   --ios-sheet-max-height: min(92dvh, 720px);
-  --ios-sheet-max-height-desktop: min(86dvh, 640px);
   --ios-sheet-grabber-w: 36px;
   --ios-sheet-grabber-h: 5px;
 
@@ -178,30 +175,7 @@ html.ios-sheet-locked {
   }
 }
 
-@media (min-width: 768px) {
-  .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) {
-    align-items: center;
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
-  }
-
-  .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) .ios-sheet-grabber {
-    display: none;
-  }
-
-  .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) .ios-sheet {
-    border-radius: var(--ios-sheet-radius-desktop);
-    border-bottom: 1px solid var(--ios-sheet-border);
-    max-height: var(--ios-sheet-max-height-desktop);
-    transform: translateY(16px) scale(0.97);
-    opacity: 0;
-    box-shadow: var(--ios-sheet-shadow-desktop);
-  }
-
-  .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only).open .ios-sheet.ios-sheet--visible {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-}
+/* Every sheet is a bottom sheet on all viewports — no centered desktop modal fork. */
 
 @media (prefers-reduced-motion: reduce) {
   .ios-sheet {

@@ -8,7 +8,10 @@ interface Props {
   titleClass?: string;
   /** When false, tapping the backdrop does not dismiss (e.g. required sign-in). */
   dismissible?: boolean;
-  /** Always use bottom-sheet layout (skip centered desktop modal). */
+  /**
+   * @deprecated All sheets are bottom sheets on every viewport.
+   * Kept so existing callers compile; ignored.
+   */
   sheetOnly?: boolean;
   /** Show the circular close control (defaults to `dismissible`). */
   showClose?: boolean;
@@ -33,7 +36,6 @@ const {
   titleId = `${id}-title`,
   titleClass = '',
   dismissible = true,
-  sheetOnly = false,
   showClose = dismissible,
   closeHidden = false,
   closeVia = 'ios',
@@ -47,11 +49,7 @@ const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : 
 
 <div
   id={id}
-  class:list={[
-    'ios-sheet-backdrop',
-    { 'ios-sheet-backdrop--sheet-only': sheetOnly },
-    className,
-  ]}
+  class:list={['ios-sheet-backdrop', className]}
   role="presentation"
   aria-hidden="true"
   data-sheet-dismiss={dismissible ? 'true' : 'false'}

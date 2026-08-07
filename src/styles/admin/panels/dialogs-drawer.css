@@ -383,56 +383,23 @@
 }
 .reave-share-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-top: 0.15rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0 0.25rem;
 }
-.reave-share-btn {
-  width: 100%;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.72rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid var(--panel-border);
-  background: var(--tab-active-bg);
-  color: var(--fg);
-  cursor: pointer;
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
+.reave-share-actions .reave-share-icon {
+  color: #0a84ff;
 }
-.reave-share-btn:hover:not(:disabled) {
-  border-color: #4b5563;
-}
-.reave-share-btn:disabled {
-  opacity: 0.38;
+.reave-share-actions .reave-share-icon:disabled {
+  opacity: 0.35;
   cursor: default;
+  pointer-events: none;
 }
-.reave-share-btn--primary {
-  background: #0a84ff;
-  border-color: #0a84ff;
-  color: #fff;
-  text-align: center;
-}
-.reave-share-btn--primary:hover:not(:disabled) {
-  background: #0077e6;
-  border-color: #0077e6;
-}
-.reave-share-btn--ghost {
-  background: transparent;
-  color: var(--muted);
-  text-align: center;
-}
-.reave-share-btn--ghost:hover:not(:disabled) {
-  color: var(--fg);
-  background: var(--surface-hover);
-}
-.reave-share-btn small {
-  display: block;
-  font-size: 0.74rem;
-  font-weight: 500;
-  opacity: 0.82;
-  margin-top: 0.12rem;
+.reave-share-actions .reave-share-icon.is-copy-success {
+  color: #167c3e;
 }
 .reave-share-status {
   margin: 0;
