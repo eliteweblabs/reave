@@ -8,16 +8,18 @@
  * On success the page shows a confirmation and "View & Download PDF" link.
  */
 import { getContact, extractPortal } from '../../../lib/contactApi';
-import { getCompanyConfig, poweredByLabel } from '../../../lib/companyConfig';
+import { getCompanyConfig } from '../../../lib/companyConfig';
 import { getTemplate, fillAndRenderTemplate } from '../../../lib/documentTemplates';
 import Header from '../../../components/Header.astro';
-import FootBostonTag from '../../../components/FootBostonTag.astro';
+import SiteFooter from '../../../components/SiteFooter.astro';
+import PortalAssistantWidget from '../../../components/PortalAssistantWidget.astro';
 import Favicon from '../../../components/Favicon.astro';
 import ViewportMeta from '../../../components/ViewportMeta.astro';
+import { hasFeature } from '../../../lib/features';
+import { isPortalAssistantConfigured } from '../../../lib/portalAssistant';
 import '../../../styles/brand.css';
 
 const company = await getCompanyConfig(Astro.request);
-const poweredBy = poweredByLabel(company);
 
 const { uid, template: templateSlug } = Astro.params;
 
@@ -62,6 +64,9 @@ if (error) Astro.response.status = 404;
 
 const signEndpoint = `/api/doc/${encodeURIComponent(uid ?? '')}/sign`;
 const siteBase = Astro.url.origin;
+const showAssistant =
+  !error && uid && hasFeature('portal_assistant') && isPortalAssistantConfigured();
+const clientFirstName = contactName.split(/\s+/)[0] || '';
 ---
 
 <!doctype html>
@@ -150,12 +155,21 @@ const siteBase = Astro.url.origin;
           <a class="view-btn" id="view-link" href="#">View &amp; Download PDF →</a>
         </div>
 
-        <footer class="doc-foot">
-          <span>{poweredBy}</span>
-          <FootBostonTag />
-        </footer>
+        <SiteFooter company={company} tone="light" />
       </main>
     )}
+
+    {
+      showAssistant && uid && (
+        <PortalAssistantWidget
+          contactUid={uid}
+          brandTitle={company.name}
+          clientFirstName={clientFirstName}
+          supportPhone={company.supportPhone}
+          supportEmail={company.supportEmail}
+        />
+      )
+    }
 
     <script define:vars={{ signEndpoint, templateSlug }}>
       const nameInput    = document.getElementById('signer-name');
@@ -441,17 +455,8 @@ const siteBase = Astro.url.origin;
       .view-btn:hover { opacity: 0.8; }
 
       /* ── Footer ── */
-      .doc-foot {
+      .site-foot {
         margin-top: 64px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-        font-size: 12px;
-        color: #bbb;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
       }
 
       .print-only { display: none; }
@@ -471,7 +476,7 @@ const siteBase = Astro.url.origin;
 
       /* ── Print ── */
       @media print {
-        .sign-section, .doc-foot, .doc-header { display: none !important; }
+        .sign-section, .site-foot, .doc-header { display: none !important; }
         main { padding: 0; }
         .doc-body { margin-bottom: 0; }
         .success-section .view-btn { display: none; }
@@ -486,7 +491,6 @@ const siteBase = Astro.url.origin;
             calc(40px + env(safe-area-inset-bottom, 0px));
         }
         .doc-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-        .doc-foot { justify-content: center; text-align: center; }
       }
     </style>
   </body>

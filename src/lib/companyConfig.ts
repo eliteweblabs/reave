@@ -16,6 +16,7 @@ import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } f
 import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
+import { getPostAlias, type PostAliasLabels } from './postAlias.ts';
 
 /**
  * Make a string safe to use as an HTTP header value. `fetch` requires header
@@ -42,6 +43,8 @@ export type CompanyBrandContext = {
   contactsLabel: string;
   botUserAgent: string;
   projectLabel: string;
+  /** User-facing singular/plural labels for work records (POST_ALIAS env). */
+  postAlias: PostAliasLabels;
   inboundEmailExample: string;
 };
 
@@ -88,6 +91,7 @@ export function companyToBrandContext(company: CompanyBrandSource, request?: Req
     contactsLabel: `${name} Contacts`,
     botUserAgent: `${headerSafeName}Bot/1.0`,
     projectLabel: `${name} App`,
+    postAlias: getPostAlias(),
     inboundEmailExample: fromEmail || (domain ? `inbox@mail.${domain}` : 'inbox@mail.example.com'),
   };
 }

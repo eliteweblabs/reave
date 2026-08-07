@@ -48,6 +48,7 @@ const {
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
+const fabId = `aw-fab-${instanceId}`;
 
 const contactBits = [
   supportPhone ? `call/text ${supportPhone}` : '',
@@ -68,7 +69,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-contact-selector={hideFabForHero ? contactSelector : undefined}
 >
   <button
-    class:list={['aw-fab', `aw-fab--${variant}`]}
+    id={fabId}
+    class:list={['aw-fab', `aw-fab--${variant}`, { 'is-visible': variant === 'site' && !revealFabOnEngagement }]}
     type="button"
     aria-haspopup="dialog"
     aria-expanded="false"
@@ -81,6 +83,13 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
     </svg>
   </button>
+
+  <script is:inline define:vars={{ fabId }}>
+    (function () {
+      var fab = document.getElementById(fabId);
+      if (fab && fab.parentElement !== document.body) document.body.appendChild(fab);
+    })();
+  </script>
 
   <IosBottomSheet id={sheetId} sheetOnly={true} dismissible={true} class="aw-sheet">
     <div class="aw-chat">
@@ -125,16 +134,15 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   </IosBottomSheet>
 </div>
 
-<script src="/ios-sheet.js" defer></script>
+<script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
-<style>
-  .aw-root { position: relative; }
-
+<style is:global>
   .aw-fab {
-    --aw-fab-inset: 20px;
     position: fixed;
-    right: calc(env(safe-area-inset-right, 0px) + var(--aw-fab-inset));
-    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--aw-fab-inset) + var(--aw-vv-bottom, 0px));
+    top: auto;
+    left: auto;
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
     z-index: 950;
     width: 58px;
     height: 58px;
@@ -146,6 +154,10 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+</style>
+
+<style>
+  .aw-root { position: relative; }
 
   .aw-fab--site {
     background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
@@ -422,6 +434,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 </style>
 
 <script>
+  import { initFloatingWidgetSectionHide } from '../lib/floatingWidgetSectionHide';
+
   type Turn = { role: 'user' | 'assistant'; content: string };
 
   declare global {
@@ -451,38 +465,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     });
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     return out.replace(/\n/g, '<br />');
-  }
-
-  const FAB_SECTION_HIDE_RATIO = 0.2;
-  const FAB_SECTION_OBSERVER_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i * 0.05);
-
-  function initFabSectionHide(fab: HTMLElement, ...selectorGroups: string[]) {
-    const elements = selectorGroups
-      .map((selector) => document.querySelector(selector))
-      .filter((el): el is Element => !!el);
-    if (!elements.length || !('IntersectionObserver' in window)) return;
-
-    const ratios = new Map<Element, number>();
-
-    const sync = () => {
-      const occluding = [...ratios.values()].some((ratio) => ratio >= FAB_SECTION_HIDE_RATIO);
-      fab.classList.toggle('is-hero-occluding', occluding);
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          ratios.set(entry.target, entry.intersectionRatio);
-        }
-        sync();
-      },
-      { threshold: FAB_SECTION_OBSERVER_THRESHOLDS },
-    );
-
-    for (const el of elements) {
-      ratios.set(el, 0);
-      observer.observe(el);
-    }
   }
 
   function initFabReveal(fab: HTMLElement) {
@@ -520,36 +502,45 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     }
   }
 
-  function initFabViewportBottom(fab: HTMLElement) {
-    if (fab.dataset.vvBottomBound === '1') return;
-    fab.dataset.vvBottomBound = '1';
+  function initFabViewportPin(fab: HTMLElement) {
+    if (fab.dataset.vvPin === '1') return;
+    fab.dataset.vvPin = '1';
 
     const vv = window.visualViewport;
     if (!vv) return;
 
-    let probe: HTMLDivElement | null = null;
+    const FAB_INSET_PX = 12;
+    let safeBottom = 0;
+    let safeRight = 0;
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;bottom:0;right:0;height:0;padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    const probeStyle = getComputedStyle(probe);
+    safeBottom = parseFloat(probeStyle.paddingBottom) || 0;
+    safeRight = parseFloat(probeStyle.paddingRight) || 0;
+    probe.remove();
 
     const sync = () => {
-      if (!probe) {
-        probe = document.createElement('div');
-        probe.style.cssText =
-          'position:fixed;bottom:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none';
-        document.body.appendChild(probe);
-      }
-
-      const offsetTop = vv.offsetTop ?? 0;
-      const visualBottom = offsetTop + vv.height;
-      const layoutBottom = probe.getBoundingClientRect().bottom;
-      // When fixed uses the layout viewport, lift the FAB by the browser chrome height.
+      const layoutBottom = window.innerHeight;
+      const visualBottom = (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? layoutBottom);
       const chrome = Math.max(0, Math.round(layoutBottom - visualBottom));
-      fab.style.setProperty('--aw-vv-bottom', chrome > 1 ? `${chrome}px` : '0px');
+      const layoutRight = window.innerWidth;
+      const visualRight =
+        (window.visualViewport?.offsetLeft ?? 0) + (window.visualViewport?.width ?? layoutRight);
+      const sideChrome = Math.max(0, Math.round(layoutRight - visualRight));
+
+      fab.style.bottom = `${chrome + safeBottom + FAB_INSET_PX}px`;
+      fab.style.right = `${sideChrome + safeRight + FAB_INSET_PX}px`;
     };
 
     vv.addEventListener('resize', sync, { passive: true });
     vv.addEventListener('scroll', sync, { passive: true });
-    window.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync, { passive: true });
     window.addEventListener('orientationchange', sync, { passive: true });
     sync();
+    requestAnimationFrame(sync);
+    window.setTimeout(sync, 150);
   }
 
   function initAssistantWidget(root: HTMLElement) {
@@ -574,10 +565,11 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     if (fab.parentElement !== document.body) {
       document.body.appendChild(fab);
     }
-    initFabViewportBottom(fab);
-
+    initFabViewportPin(fab);
     if (revealFab) initFabReveal(fab);
-    if (hideFabForHero) initFabSectionHide(fab, heroSelector, contactSelector);
+    if (hideFabForHero) {
+      initFloatingWidgetSectionHide(fab, 'is-hero-occluding', heroSelector, contactSelector);
+    }
 
     let history: Turn[] = [];
     try {

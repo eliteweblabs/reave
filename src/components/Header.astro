@@ -76,12 +76,6 @@ const signInRedirect = cleanInternalReturnPath(
       ? adminReturnFallback
       : Astro.url.pathname + Astro.url.search,
 );
-const clerkAuthPath = (() => {
-  const u = new URL(Astro.url.pathname + Astro.url.search, Astro.url.origin);
-  u.searchParams.delete("auth");
-  u.searchParams.delete("returnTo");
-  return u.pathname + u.search;
-})();
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
 const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
@@ -255,6 +249,20 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   </div>
 
   {adminShell && (
+    <div id="topbar-sleep-toggle" class="topbar-sleep-toggle" hidden>
+      <span id="topbar-sleep-toggle-label" class="topbar-sleep-toggle-label">Sleeping until 7:00 AM</span>
+      <button
+        type="button"
+        id="topbar-sleep-toggle-btn"
+        class="topbar-sleep-toggle-switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Sleep mode"
+      ></button>
+    </div>
+  )}
+
+  {adminShell && (
     <div id="admin-setup-alerts" class="admin-setup-alerts" hidden aria-live="polite"></div>
   )}
 </header>
@@ -263,14 +271,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
     autoOpen={signInAutoOpen && !showMarketingNav}
-    authPath={clerkAuthPath}
+    authPath="/sign-in"
   />
 )}
 
 {userId && (
-  <script src="/review-badge.js?v=20260717a" defer></script>
+  <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
-<script src="/deploy-indicator.js?v=20260804b" defer></script>
+<script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <script>
   /** Pin public headers to the visual viewport top during iOS overscroll bounce. */
@@ -308,11 +316,41 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     }
   }
 
+  /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
+  function syncTopbarMeasuredHeight() {
+    const topbar = document.getElementById("topbar");
+    if (!topbar) return;
+    const alerts = document.getElementById("admin-setup-alerts");
+    let clearance = 0;
+    if (alerts && !alerts.hidden) {
+      clearance = Math.ceil(alerts.getBoundingClientRect().bottom);
+    } else {
+      const row = topbar.querySelector(".app-header-row");
+      clearance = row
+        ? Math.ceil(row.getBoundingClientRect().bottom)
+        : Math.ceil(topbar.getBoundingClientRect().bottom);
+    }
+    document.documentElement.style.setProperty("--topbar-measured-h", `${clearance}px`);
+  }
+
+  function bindTopbarHeightObserver() {
+    const topbar = document.getElementById("topbar");
+    if (!topbar || topbar.dataset.topbarHeightObs === "1") return;
+    topbar.dataset.topbarHeightObs = "1";
+    syncTopbarMeasuredHeight();
+    const obs = new ResizeObserver(() => syncTopbarMeasuredHeight());
+    obs.observe(topbar);
+    window.visualViewport?.addEventListener("resize", syncTopbarMeasuredHeight, { passive: true });
+  }
+
   syncAppHeaderSafeArea();
   bindAppHeaderViewportPin();
+  bindTopbarHeightObserver();
   document.addEventListener("astro:page-load", () => {
     syncAppHeaderSafeArea();
     bindAppHeaderViewportPin();
+    bindTopbarHeightObserver();
+    syncTopbarMeasuredHeight();
   });
   window.visualViewport?.addEventListener("resize", syncAppHeaderSafeArea, { passive: true });
 </script>
@@ -476,8 +514,79 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     height: var(--app-header-icon-btn-icon-h);
   }
 
-  .app-header--admin.topbar-has-panel-context .topbar-dash-date {
+  .app-header--admin.topbar-has-panel-context .topbar-dash-date,
+  .app-header--admin.topbar-has-panel-context .topbar-sleep-toggle {
     display: none !important;
+  }
+
+  .topbar-sleep-toggle {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--safe-top) + var(--app-header-h) / 2);
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: min(78vw, 20rem);
+    padding: 0.22rem 0.55rem 0.22rem 0.75rem;
+    border-radius: 999px;
+    border: var(--footer-nav-glass-border, 1px solid rgba(255, 255, 255, 0.08));
+    background: var(--footer-nav-glass-bg, rgba(18, 23, 34, 0.72));
+    backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    -webkit-backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    pointer-events: auto;
+  }
+
+  .topbar-sleep-toggle[hidden] {
+    display: none !important;
+  }
+
+  .topbar-sleep-toggle-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--muted, rgba(255, 255, 255, 0.62));
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .topbar-sleep-toggle-switch {
+    flex-shrink: 0;
+    width: 2.35rem;
+    height: 1.35rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--panel-border, rgba(255, 255, 255, 0.18));
+    position: relative;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  .topbar-sleep-toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 0.12rem;
+    left: 0.12rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+
+  .topbar-sleep-toggle-switch[aria-checked='true'] {
+    background: #6366f1;
+  }
+
+  .topbar-sleep-toggle-switch[aria-checked='true']::after {
+    transform: translateX(1rem);
+  }
+
+  .topbar-sleep-toggle-switch:disabled {
+    opacity: 0.55;
+    cursor: wait;
   }
 
   .app-header--admin.topbar-has-panel-context .topbar-end {

@@ -1,7 +1,7 @@
 /**
  * Reusable media library picker — choose an image for branding fields.
  */
-import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260804c';
+import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260805j';
 import { closeOsDialogBackdrop, openOsDialogBackdrop } from './os-dialog.js?v=20260804c';
 
 const MEDIA_API = '/api/admin/media';

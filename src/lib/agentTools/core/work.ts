@@ -57,6 +57,9 @@ import {
   setContactPortal,
   extractPortal,
   clientPortalUrl,
+  adminClientProfileUrl,
+  adminWorkProjectUrl,
+  projectPortalUrl,
   type ClientPortal,
   type ClientPortalField,
   type ClientDataEntry,
@@ -276,6 +279,7 @@ async function handle_create_work(args: Record<string, unknown>, _ctx: ToolConte
   if (!result.ok) return JSON.stringify({ error: result.error });
   const doc = result.doc;
   const linked = await linkWorkFromAgentContext(doc.slug);
+  const linkedUid = doc.contact_uid?.trim() || '';
   return JSON.stringify({
     ok: true,
     slug: doc.slug,
@@ -287,6 +291,14 @@ async function handle_create_work(args: Record<string, unknown>, _ctx: ToolConte
     client_match: resolution.match,
     linked_chat: threadId || null,
     linked: linked.chatLinked || !!threadId,
+    ...(linkedUid
+      ? {
+          profile_url: adminClientProfileUrl(linkedUid),
+          portal_url: clientPortalUrl(linkedUid),
+          project_portal_url: projectPortalUrl(linkedUid, doc.slug),
+          admin_project_url: adminWorkProjectUrl(doc.slug),
+        }
+      : {}),
   });
 }
 
@@ -460,6 +472,7 @@ async function handle_update_work(args: Record<string, unknown>, _ctx: ToolConte
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
   const doc = result.doc;
+  const contactUid = doc.contact_uid?.trim() || '';
   return JSON.stringify({
     ok: true,
     slug: doc.slug,
@@ -469,6 +482,14 @@ async function handle_update_work(args: Record<string, unknown>, _ctx: ToolConte
     contact_name: doc.contact_name,
     status: doc.status,
     updated: doc.updated,
+    ...(contactUid
+      ? {
+          profile_url: adminClientProfileUrl(contactUid),
+          portal_url: clientPortalUrl(contactUid),
+          project_portal_url: projectPortalUrl(contactUid, doc.slug),
+          admin_project_url: adminWorkProjectUrl(doc.slug),
+        }
+      : {}),
   });
 }
 
@@ -652,7 +673,7 @@ export const workModule: AgentToolModule = {
                   body: {
                     type: 'string',
                     description:
-                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run site audit tools, then write a full body (Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, Action Items; 1,200+ quick / 1,500+ full chars). Do not create short prospect stubs.',
+                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run website audit tools, then write a full body (Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, Action Items; 1,200+ quick / 1,500+ full chars). Do not create short prospect stubs.',
                   },
                   status: {
                     type: 'string',

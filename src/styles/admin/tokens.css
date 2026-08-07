@@ -47,6 +47,7 @@
   --nav-chevron: rgba(0, 0, 0, 0.8);
   --nav-chevron-hover: #000;
   --nav-indicator-bg: rgba(0, 0, 0, 0.05);
+  --btn-group-track-bg: var(--nav-indicator-bg);
   --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
   --footer-nav-glass-bg: transparent;
   --footer-nav-glass-blur: blur(18px) saturate(1.15);
@@ -69,6 +70,8 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
+  /* Pull mobile detail panes up under the transparent admin top bar. */
+  --pane-topbar-tuck: 0.85rem;
   --footer-nav-pill-h: var(--control-h);
   --footer-nav-bottom-gap: 0px;
   --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom) + var(--footer-nav-bottom-gap));
@@ -89,6 +92,12 @@
   --sidebar-max-w: 520px;
   --sidebar-inset: 0.65rem;
   --filter-tab-fade-w: 6px;
+  --detail-tab-fade-w: 1rem;
+  --detail-pad-x: max(1rem, env(safe-area-inset-left, 0px));
+  --detail-pad-x-right: max(1rem, env(safe-area-inset-right, 0px));
+  --detail-tabs-pad-y: 0.45rem;
+  --detail-content-pad-top: 0.85rem;
+  --detail-header-pad-y: 0.15rem;
   /* Dashboard tile grids — sm (<640px) */
   --dash-stat-cols: 2;
   --dash-stat-gap: 0.55rem;
@@ -172,6 +181,11 @@
     --dash-nav-icon-size: 2.35rem;
     --dash-nav-icon-svg: 1.4rem;
     --dash-nav-label-size: 0.84rem;
+  }
+}
+@media (max-width: 639px) {
+  :root {
+    --pane-topbar-tuck: 1.5rem;
   }
 }
 @media (prefers-color-scheme: dark) {

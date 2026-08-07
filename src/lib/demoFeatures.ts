@@ -28,7 +28,7 @@ export function demoHasFeature(id: FeatureId): boolean {
 export function demoModuleDeployStatus(feature: FeatureId): ModuleDeployStatus {
   if (feature === 'demo') return 'development';
   if (!demoHasFeature(feature)) return 'rejected';
-  return 'pending';
+  return 'development';
 }
 
 export function demoShouldShowDeployBanner(feature: FeatureId): boolean {

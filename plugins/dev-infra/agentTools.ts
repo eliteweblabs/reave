@@ -87,11 +87,7 @@ import {
   sendSms,
 } from '../../src/lib/outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../src/lib/devTaskRunner';
-import {
-  formatRailwayNetworkingSummary,
-  isRailwayConfigured,
-  railwayListProjectNetworking,
-} from '../../src/lib/railwayClient';
+import { railwayAgentToolDefinitions, railwayAgentToolHandlers } from './railwayAgentTools';
 import {
   formatKinstaSitesSummary,
   isKinstaConfigured,
@@ -113,6 +109,7 @@ import {
   githubRepoSlug,
   githubWriteFile,
 } from '../../src/lib/githubClient';
+import { maybeDeferGithubWrite } from '../../src/lib/deferredDeploy';
 import { describeSafeShell, runSafeShellCommand } from '../../src/lib/safeShell';
 import {
   codeDevExecCommand,
@@ -154,6 +151,7 @@ import { sslCheck, formatSslCheckResults } from '../../src/lib/sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
 import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../src/lib/resendDnsSync';
+import { cloudflareDnsManage } from '../../src/lib/cloudflareDnsManage';
 import { hasFeature } from '../../src/lib/features';
 import { syncUptimeMonitorsFromApi } from '../../src/lib/uptimeMonitoring';
 import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
@@ -196,23 +194,6 @@ async function handle_run_dev_task(args: Record<string, unknown>, _ctx: ToolCont
   const out = await runDevTask(task);
   if (!out.ok) return JSON.stringify({ error: out.error });
   return JSON.stringify(out);
-}
-
-async function handle_list_railway_domains(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  if (!isRailwayConfigured()) {
-    return JSON.stringify({ error: 'RAILWAY_API_TOKEN is not set on this service' });
-  }
-  const result = await railwayListProjectNetworking({
-    project: typeof args.project === 'string' ? args.project : undefined,
-    environment: typeof args.environment === 'string' ? args.environment : undefined,
-    service: typeof args.service === 'string' ? args.service : undefined,
-  });
-  if (!result.ok) return JSON.stringify({ error: result.error });
-  return JSON.stringify({
-    ok: true,
-    summary: formatRailwayNetworkingSummary(result.data),
-    data: result.data,
-  });
 }
 
 async function handle_list_kinsta_sites(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -422,14 +403,17 @@ async function handle_create_github_branch(args: Record<string, unknown>, _ctx: 
 }
 
 async function handle_write_github_file(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  const result = await githubWriteFile({
+  const writeArgs = {
     repo: typeof args.repo === 'string' ? args.repo : undefined,
     branch: String(args.branch ?? '').trim(),
     path: String(args.path ?? '').trim(),
     content: String(args.content ?? ''),
     message: String(args.message ?? '').trim(),
     append: args.append === true,
-  });
+  };
+  const deferred = maybeDeferGithubWrite(writeArgs);
+  if (deferred) return JSON.stringify(deferred);
+  const result = await githubWriteFile(writeArgs);
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }
@@ -444,6 +428,46 @@ async function handle_create_pull_request(args: Record<string, unknown>, _ctx: T
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
+}
+
+async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const actionRaw = String(args.action ?? '').trim();
+  const validActions = [
+    'verify',
+    'list_records',
+    'upsert_record',
+    'delete_record',
+    'get_ssl_mode',
+    'set_ssl_mode',
+  ];
+  if (!validActions.includes(actionRaw)) {
+    return JSON.stringify({
+      error: `action must be one of: ${validActions.join(', ')}`,
+    });
+  }
+  const domain = String(args.domain ?? '').trim();
+  if (!domain) return JSON.stringify({ error: 'domain is required' });
+
+  const result = await cloudflareDnsManage({
+    action: actionRaw as
+      | 'verify'
+      | 'list_records'
+      | 'upsert_record'
+      | 'delete_record'
+      | 'get_ssl_mode'
+      | 'set_ssl_mode',
+    domain,
+    type: args.type != null ? String(args.type) : undefined,
+    name: args.name != null ? String(args.name) : undefined,
+    content: args.content != null ? String(args.content) : undefined,
+    priority: typeof args.priority === 'number' ? args.priority : undefined,
+    record_id: args.record_id != null ? String(args.record_id) : undefined,
+    ssl_mode: args.ssl_mode != null ? String(args.ssl_mode) : undefined,
+  });
+  if (!result.ok) {
+    return JSON.stringify({ error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
+  }
+  return JSON.stringify({ ok: true, ...result });
 }
 
 export const devInfraModule: AgentToolModule = {
@@ -467,33 +491,10 @@ export const devInfraModule: AgentToolModule = {
                     type: 'string',
                     enum: [...DEV_TASK_NAMES],
                     description:
-                      'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
+                      'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_* tools = Railway projects/services/variables/domains/deployments/logs; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
                   },
                 },
                 required: ['task'],
-                additionalProperties: false,
-              },
-            },
-          },
-          {
-            type: 'function',
-            function: {
-              name: 'list_railway_domains',
-              description:
-                `Read Railway networking for a project: *.up.railway.app domains, custom domains, CNAME targets (requiredValue), and verification TXT tokens. Use when the user asks for a CNAME target, custom domain DNS, or what domain a service is on. Requires RAILWAY_API_TOKEN. Defaults to project "${brand.projectLabel}" / environment production.`,
-              parameters: {
-                type: 'object',
-                properties: {
-                  project: {
-                    type: 'string',
-                    description: `Project name or UUID (default: RAILWAY_PROJECT_ID env or "${brand.projectLabel}")`,
-                  },
-                  environment: { type: 'string', description: 'Environment name (default: production)' },
-                  service: {
-                    type: 'string',
-                    description: 'Optional service name filter, e.g. "reave" or "contact-api"',
-                  },
-                },
                 additionalProperties: false,
               },
             },
@@ -835,12 +836,70 @@ export const devInfraModule: AgentToolModule = {
                 additionalProperties: false,
               },
             },
-          }
+          },
+          {
+            type: 'function',
+            function: {
+              name: 'cloudflare_dns',
+                description:
+                  'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Actions: upsert_record (SPF, DMARC, MX, CNAME), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  action: {
+                    type: 'string',
+                    enum: [
+                      'verify',
+                      'list_records',
+                      'upsert_record',
+                      'delete_record',
+                      'get_ssl_mode',
+                      'set_ssl_mode',
+                    ],
+                    description:
+                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record; delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap)',
+                  },
+                  domain: {
+                    type: 'string',
+                    description: 'Zone apex or hostname, e.g. tonybarlettajr.com',
+                  },
+                  type: {
+                    type: 'string',
+                    description: 'Record type for list_records filter, upsert_record, or delete_record (TXT, MX, CNAME, A, …)',
+                  },
+                  name: {
+                    type: 'string',
+                    description: 'Record name relative to zone (@ for apex, _dmarc for DMARC). Default @.',
+                  },
+                  content: {
+                    type: 'string',
+                    description: 'Record content/value — required for upsert_record; optional disambiguator for delete_record',
+                  },
+                  priority: {
+                    type: 'number',
+                    description: 'MX priority when type is MX',
+                  },
+                  record_id: {
+                    type: 'string',
+                    description: 'Cloudflare DNS record id from list_records — preferred for delete_record',
+                  },
+                  ssl_mode: {
+                    type: 'string',
+                    enum: ['off', 'flexible', 'full', 'strict'],
+                    description: 'SSL/TLS encryption mode — required for set_ssl_mode',
+                  },
+                },
+                required: ['action', 'domain'],
+                additionalProperties: false,
+              },
+            },
+          },
+          ...railwayAgentToolDefinitions(ctx),
     ];
   },
   handlers: {
     'run_dev_task': handle_run_dev_task,
-    'list_railway_domains': handle_list_railway_domains,
+    ...railwayAgentToolHandlers,
     'list_kinsta_sites': handle_list_kinsta_sites,
     'clear_kinsta_cache': handle_clear_kinsta_cache,
     'get_kinsta_operation': handle_get_kinsta_operation,
@@ -857,5 +916,6 @@ export const devInfraModule: AgentToolModule = {
     'create_github_branch': handle_create_github_branch,
     'write_github_file': handle_write_github_file,
     'create_pull_request': handle_create_pull_request,
+    'cloudflare_dns': handle_cloudflare_dns,
   },
 };

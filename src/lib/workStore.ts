@@ -22,6 +22,7 @@ import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { extractContactFromInboundEmail, preferredContactName } from './emailContactExtract';
 import { serverEnv } from './serverEnv';
+import { extractWorkPreviewBullets } from './workChecklist';
 
 export const WORK_STATUSES = ['inquiry', 'active', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
@@ -54,6 +55,8 @@ export interface WorkJobSummary {
   source_chat_id?: string;
   created: string;
   updated: string;
+  /** Short lines for compact client project tiles. */
+  preview_bullets?: string[];
 }
 
 export interface WorkJobDoc extends WorkJobSummary {
@@ -243,6 +246,7 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   const { source, record_origin } = splitMetaSource(meta);
+  const tags = parseTags(meta.tags);
 
   return {
     slug,
@@ -254,12 +258,13 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     priority: normalizePriority(meta.priority),
     due_date: meta.due_date?.trim() || null,
     value: parseValue(meta.value),
-    tags: parseTags(meta.tags),
+    tags,
     source,
     record_origin: record_origin || 'manual',
     source_chat_id: meta.source_chat_id?.trim() || undefined,
     created: meta.created?.trim() || '',
     updated: meta.updated?.trim() || '',
+    preview_bullets: extractWorkPreviewBullets(body, { tags }),
   };
 }
 
@@ -405,6 +410,7 @@ export async function ensureWorkContact(opts: {
     ? preferredContactName(extracted)
     : deriveContactName(from, [opts.contact_name, opts.client]);
   const company = extracted?.company ?? null;
+  const businessName = opts.client?.trim() || opts.contact_name?.trim() || null;
 
   if (email.includes('@')) {
     const byEmail = await resolveContact({ email });
@@ -425,9 +431,15 @@ export async function ensureWorkContact(opts: {
   const created = await createContact({
     name: derivedName,
     email: email.includes('@') ? email : undefined,
-    company: company ?? undefined,
+    company: company ?? businessName ?? undefined,
   });
   if (!created.ok) return { ok: false, error: created.error };
+
+  void import('./contactAddressFromPlaces')
+    .then((m) => m.enrichContactAddressFromPlaces(created.data.uid))
+    .catch((e) =>
+      console.warn('[workStore] Places address lookup failed', e instanceof Error ? e.message : e),
+    );
 
   return { ok: true, uid: created.data.uid, name: created.data.name, company, created: true };
 }

@@ -39,8 +39,8 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260728q';
+} from './admin-ui.js?v=20260805b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { createFleetMap } from '/admin/fleet-map.js';
 
@@ -485,7 +485,7 @@ function renderAnalyticsDashboard(root, d) {
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
         `<h1 class="soc-title">Analytics</h1>` +
-        `<p class="soc-sub">${escHtml(siteId || 'Site analytics')} · ${escHtml(rangeLabel)}` +
+        `<p class="soc-sub">${escHtml(siteId || 'Website analytics')} · ${escHtml(rangeLabel)}` +
           (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
         `</p>` +
       `</div>` +

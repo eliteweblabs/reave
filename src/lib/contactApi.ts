@@ -44,6 +44,18 @@ export function projectPortalUrl(contactUid: string, jobSlug: string, opts?: { b
   return clientPortalUrl(contactUid, { tab: 'work', project: jobSlug, base: opts?.base });
 }
 
+/** Admin deep link to a client profile (Clients tab). */
+export function adminClientProfileUrl(uid: string, opts?: { base?: string }): string {
+  const origin = (opts?.base || siteBaseUrl()).replace(/\/+$/, '');
+  return `${origin}/admin?tab=clients&client=${encodeURIComponent(uid)}`;
+}
+
+/** Admin deep link to a work/project detail pane. */
+export function adminWorkProjectUrl(slug: string, opts?: { base?: string }): string {
+  const origin = (opts?.base || siteBaseUrl()).replace(/\/+$/, '');
+  return `${origin}/admin?tab=work&slug=${encodeURIComponent(slug)}`;
+}
+
 export type ResolveContactInput = {
   name?: string;
   email?: string;
@@ -239,7 +251,7 @@ export type PortalDocument = {
 };
 
 export type SiteMonitoringMeta = {
-  /** When false, skip ChangeDetection watch even if Site URL is set. Default true. */
+  /** When false, skip ChangeDetection watch even if Website URL is set. Default true. */
   enabled?: boolean;
   watchUuid?: string;
   watchUrl?: string;

@@ -101,16 +101,6 @@ export function createClientMap(container, opts = {}) {
   mapShell.appendChild(mapEl);
   mapShell.appendChild(centerBtn);
 
-  // Block panel scroll over an active map only — scrollWheelZoom is off, but the
-  // canvas still sits in a scrollable form; skip when the map is not shown.
-  mapShell.addEventListener(
-    'wheel',
-    (e) => {
-      if (!mapEl.hidden) e.preventDefault();
-    },
-    { passive: false },
-  );
-
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cl-map-empty';
   emptyEl.textContent = 'Enter an address to show the map.';

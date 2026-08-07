@@ -36,6 +36,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | PUT | `/api/custom/customer/{id}` | _(REΛVE contact → Crater sync on client edit)_ |
 | GET | `/api/custom/line-items?q=` | `search_line_items` |
 | POST | `/api/custom/record-payment` | `record_payment` |
+| POST | `/api/custom/create-expense` | _(dashboard receipt → expense; paste `crater-create-expense.route.php`)_ |
 | GET | `/api/custom/recurring-invoices` | `list_recurring_invoices` |
 | POST | `/api/custom/create-recurring-invoice` | `create_recurring_invoice` |
 | POST | `/api/custom/repair-invoice-numbers` | `repair_invoice_numbers` |

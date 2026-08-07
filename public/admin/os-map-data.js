@@ -23,7 +23,7 @@ const SYSTEM_NODES = [
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
-  { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
+  { id: 'vapi', title: 'Vapi', sub: 'Live Speak Agent Widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
   { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
 
   // App hub (Railway / hosting)
@@ -53,6 +53,7 @@ const SYSTEM_NODES = [
   { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound portal/forms/docs', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
   { id: 'github', title: 'GitHub', sub: 'owner/repo · REST · create repo · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
+  { id: 'wayback', title: 'Wayback Machine', sub: 'Internet Archive snapshots (FEATURES: wayback_machine)', icon: '🕰️', brand: 'internetarchive', hue: 42, status: true, group: 'external', x: 1160, y: 880 },
   { id: 'changedetection', title: 'ChangeDetection.io', sub: 'site watches (FEATURES: site_monitoring)', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 940 },
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
@@ -106,6 +107,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'github', label: 'status · commits · PR' },
   { from: 'astro', to: 'code_dev', label: 'agent FS · shell' },
   { from: 'code_dev', to: 'github', label: 'git commit · push', dashed: true },
+  { from: 'astro', to: 'wayback', label: 'wayback_list_snapshots · snapshot_at', dashed: true },
   { from: 'astro', to: 'changedetection', label: 'watch CRUD', dashed: true },
   { from: 'changedetection', to: 'astro', label: 'change webhook', dashed: true },
   { from: 'uptimerobot', to: 'astro', label: 'uptime webhook', dashed: true },
@@ -247,6 +249,7 @@ export const MAPS = {
   media:     { id: 'media',     title: 'Media',      icon: '🖼️', type: 'media',         nodes: [],             edges: [],             groups: [] },
   analytics: { id: 'analytics', title: 'Analytics',  icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },
   fleet:     { id: 'fleet',     title: 'Fleet',      icon: '🚚',  type: 'fleet',         nodes: [],             edges: [],             groups: [] },
+  modules:   { id: 'modules',   title: 'Modules',    icon: '🧩',  type: 'modules',       nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
   socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },

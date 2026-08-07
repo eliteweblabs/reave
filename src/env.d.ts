@@ -77,6 +77,10 @@ interface ImportMetaEnv {
   GITHUB_DEFAULT_BRANCH?: string;
   /** Optional explicit health-check URL for check_deployment_status (default: RAILWAY_PUBLIC_DOMAIN or reave.app). */
   DEPLOY_HEALTH_URL?: string;
+  /** When 0/off, allow admin chat sends during Railway deploys. Default: on when RAILWAY_GIT_COMMIT_SHA is set. */
+  DEPLOY_CHAT_LOCK?: string;
+  /** Defer GitHub commits and git push until agent chat turn ends (default on Railway). */
+  DEFER_DEPLOY_UNTIL_TURN_END?: string;
   /** Injected by Railway at deploy time — the live commit SHA (used to verify deploy is current). */
   RAILWAY_GIT_COMMIT_SHA?: string;
   /** Injected by Railway — public domain of the service (used for the health ping). */
@@ -89,7 +93,7 @@ interface ImportMetaEnv {
   RESEND_API_KEY?: string;
   /** Resend webhook signing secret (whsec_…) for verifying inbound events */
   RESEND_WEBHOOK_SECRET?: string;
-  /** Cloudflare API token — DNS edit on reave.app (Resend email records). Set on Railway reave service. */
+  /** Cloudflare API token — DNS read/edit on zones this token can access (all client domains in the account, not Resend-only). Set on Railway reave service. */
   CLOUDFLARE_API_TOKEN?: string;
   /** Optional Cloudflare zone UUID for reave.app (auto-detected if omitted) */
   CLOUDFLARE_ZONE_ID?: string;
@@ -125,6 +129,8 @@ interface ImportMetaEnv {
    * '["client_portal","billing","site_audits","site_monitoring","web_handoff"]'
    */
   FEATURES?: string;
+  /** User-facing label for work records — singular lowercase, e.g. project, deal, lead, job (default: project). */
+  POST_ALIAS?: string;
   /** Install config slug — loads config/config-{slug}.json */
   INSTALL_CONFIG?: string;
   /** Absolute path to install config JSON (overrides slug lookup). */
@@ -205,11 +211,11 @@ interface ImportMetaEnv {
   VAPI_SYSTEM_PROMPT?: string;
   /** Vapi web SDK public key. */
   PUBLIC_VAPI_PUBLIC_KEY?: string;
-  /** Vapi assistant id for homepage voice widget. */
+  /** Vapi assistant id for Live Speak Agent Widget. */
   PUBLIC_VAPI_ASSISTANT_ID?: string;
   PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION?: string;
   PUBLIC_VAPI_VOICE_PROFILE_ID?: string;
-  /** Installation homepage voice widget — separate from admin `vapi` plugin. */
+  /** Installation Live Speak Agent Widget — separate from admin `vapi` plugin. */
   PUBLIC_INSTALL_HOMEPAGE_VOICE?: string;
 }
 
@@ -217,3 +223,10 @@ interface ImportMetaEnv {
 interface Window {
   Vapi?: new (...args: unknown[]) => unknown;
 }
+
+/**
+ * Per-deploy cache-busting token for scripts served from `public/`, injected by
+ * `vite.define` in astro.config.mjs. See scripts/asset-version.mjs for why those
+ * files need one.
+ */
+declare const __PUBLIC_ASSET_VERSION__: string;

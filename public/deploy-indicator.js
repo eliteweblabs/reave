@@ -1,16 +1,19 @@
-/** Railway deploy status bulb in the site header (public dev indicator). */
+/** Railway deploy status bulb in the page header (public dev indicator). */
 (function () {
-  const DEPLOY_POLL_MS = 60_000;
+  const DEPLOY_POLL_MS_LIVE = 15_000;
+  const DEPLOY_POLL_MS_ACTIVE = 5_000;
   let deployPollTimer = null;
+  let deployPollMs = DEPLOY_POLL_MS_LIVE;
 
   async function refreshDeployDot() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot) return;
     try {
-      const res = await fetch('/api/admin/deploy-status', { cache: 'no-store' });
+      const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok || !data.ok || !data.deploy) {
         dot.hidden = true;
+        deployPollMs = DEPLOY_POLL_MS_LIVE;
         return;
       }
       const { tone, tooltip } = data.deploy;
@@ -18,24 +21,33 @@
       dot.className = `topbar-deploy-dot topbar-deploy-dot--${tone || 'alert'} tt-left`;
       dot.dataset.tooltip = tooltip || 'Deploy status unavailable';
       dot.setAttribute('aria-label', tooltip || 'Deploy status');
+      deployPollMs = tone === 'deploying' ? DEPLOY_POLL_MS_ACTIVE : DEPLOY_POLL_MS_LIVE;
     } catch {
       dot.hidden = false;
       dot.className = 'topbar-deploy-dot topbar-deploy-dot--alert tt-left';
       dot.dataset.tooltip = 'Could not check deploy status';
       dot.setAttribute('aria-label', 'Could not check deploy status');
+      deployPollMs = DEPLOY_POLL_MS_LIVE;
     }
+  }
+
+  async function pollDeployDot() {
+    if (document.hidden) return;
+    await refreshDeployDot();
+    deployPollTimer = setTimeout(() => {
+      void pollDeployDot();
+    }, deployPollMs);
   }
 
   function startDeployPoll() {
     stopDeployPoll();
     if (document.hidden) return;
-    void refreshDeployDot();
-    deployPollTimer = setInterval(() => void refreshDeployDot(), DEPLOY_POLL_MS);
+    void pollDeployDot();
   }
 
   function stopDeployPoll() {
     if (deployPollTimer) {
-      clearInterval(deployPollTimer);
+      clearTimeout(deployPollTimer);
       deployPollTimer = null;
     }
   }

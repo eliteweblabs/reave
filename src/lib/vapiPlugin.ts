@@ -1,5 +1,5 @@
 /**
- * Vapi upsell plugin — assistant sync, admin settings, and optional homepage voice widget.
+ * Vapi upsell plugin — assistant sync, admin settings, and optional Live Speak Agent Widget.
  *
  * Gated by the `vapi` feature in install config. Not part of the default Reave install;
  * enable only when the customer purchases the Vapi add-on.
@@ -48,7 +48,7 @@ export function isVapiAdminConfigured(company?: Pick<CompanyConfig, 'vapiAssista
 }
 
 /**
- * Homepage voice widget (Vapi web SDK). Requires the `vapi` upsell plugin.
+ * Live Speak Agent Widget (Vapi web SDK). Requires the `vapi` upsell plugin.
  * Set `homepageVoice: true` in install config when the customer opts in.
  */
 export function isHomepageVoiceWidgetEnabled(company?: Pick<CompanyConfig, 'vapiAssistantId'>): boolean {

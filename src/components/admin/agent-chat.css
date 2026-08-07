@@ -89,6 +89,100 @@
   color: var(--muted);
 }
 
+.aui-msg-day {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 0.15rem 0 0.85rem;
+}
+
+.aui-msg-day-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+}
+
+.aui-msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.32rem;
+  min-width: 0;
+}
+
+.aui-msg-meta--user {
+  justify-content: flex-end;
+  padding-right: 0.2rem;
+}
+
+.aui-msg-meta--assistant {
+  justify-content: flex-start;
+  padding-left: 0.05rem;
+}
+
+.aui-msg-time {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--muted);
+  user-select: none;
+}
+
+.aui-msg-time--user {
+  text-align: right;
+}
+
+.aui-msg-time--assistant {
+  text-align: left;
+}
+
+.aui-msg-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.group\/message:hover .aui-msg-copy,
+.group\/message:focus-within .aui-msg-copy {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.aui-msg-copy:hover:not(:disabled) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.aui-msg-copy:disabled {
+  cursor: default;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.aui-msg-copy.is-copy-success {
+  color: var(--fg);
+}
+
+.aui-msg-usage {
+  color: color-mix(in srgb, var(--muted) 88%, var(--accent, #888) 12%);
+  white-space: nowrap;
+}
+
 .aui-msg-row {
   display: flex;
   width: 100%;
@@ -666,6 +760,30 @@
   cursor: default;
 }
 
+.aui-composer-deploy-lock {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--brand, #6366f1) 35%, transparent);
+  background: color-mix(in srgb, var(--brand, #6366f1) 8%, var(--surface, #111));
+  color: var(--fg);
+}
+
+.aui-composer-deploy-lock-icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1.35;
+}
+
+.aui-composer-deploy-lock-text {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
 .aui-composer-stop {
   margin-left: auto;
   border: none;
@@ -759,6 +877,11 @@
 
 @media (hover: none) {
   .aui-msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .aui-msg-copy:not(:disabled) {
     opacity: 1;
     pointer-events: auto;
   }

@@ -23,6 +23,8 @@ const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 const SCENE_EXIT_MS = 500;
 const ACTION_PRESS_MS = 900;
+/** Full hero background bright pulse after a simulated action click. */
+const SECTION_PULSE_MS = 1000;
 const SLASH_PICKER_ARROW_MS = 380;
 const SLASH_PICKER_SELECT_HOLD_MS = 520;
 const SLASH_PICKER_OPEN_MS = 200;
@@ -562,7 +564,19 @@ async function simulateActionPress(row: HTMLElement): Promise<void> {
   const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
   const target = primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
   if (!target) return;
+
+  const hero = row.closest<HTMLElement>(".home-hero");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   target.classList.add("home-hero-demo-action--pressed");
+
+  if (hero && !reducedMotion) {
+    hero.classList.remove("home-hero--action-pulse");
+    void hero.offsetWidth;
+    hero.classList.add("home-hero--action-pulse");
+    window.setTimeout(() => hero.classList.remove("home-hero--action-pulse"), SECTION_PULSE_MS);
+  }
+
   await wait(ACTION_PRESS_MS);
   target.classList.remove("home-hero-demo-action--pressed");
 }
@@ -623,7 +637,19 @@ export function initHeroDemoLoop(root: HTMLElement) {
   if (brandEl) new ResizeObserver(() => relayout()).observe(brandEl);
   else if (iconEl) new ResizeObserver(() => relayout()).observe(iconEl);
   new ResizeObserver(() => relayout()).observe(viewport);
-  window.addEventListener("resize", () => relayout(), { passive: true });
+
+  /*
+   * iOS Safari fires visualViewport/window resize while the URL bar animates.
+   * Debounce so stack translate transitions are not restarted every frame —
+   * that reads as the chat racing ahead on mobile Safari.
+   */
+  let resizeRelayoutTimer = 0;
+  const scheduleResizeRelayout = () => {
+    window.clearTimeout(resizeRelayoutTimer);
+    resizeRelayoutTimer = window.setTimeout(() => relayout(), 120);
+  };
+  window.addEventListener("resize", scheduleResizeRelayout, { passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleResizeRelayout, { passive: true });
   document.fonts?.ready?.then(() => relayout(true));
   requestAnimationFrame(() => relayout(true));
   window.setTimeout(() => relayout(true), 150);

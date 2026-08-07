@@ -34,6 +34,7 @@ import {
 } from './pgChats';
 import {
   deriveChatTitleFromThread,
+  truncateChatTitle,
   titleFromMessage,
   type ChatThreadDetail,
   type ChatThreadSummary,
@@ -87,8 +88,9 @@ export async function storeUpdateChatTitle(
   threadId: string,
   title: string
 ): Promise<boolean> {
-  if (chatStorageBackend() === 'postgres') return pgUpdateChatTitle(threadId, title);
-  return fileUpdateChatTitle(userId, threadId, title);
+  const normalized = truncateChatTitle(title);
+  if (chatStorageBackend() === 'postgres') return pgUpdateChatTitle(threadId, normalized);
+  return fileUpdateChatTitle(userId, threadId, normalized);
 }
 
 /** Set a title from the first user (or assistant) message when still untitled. */

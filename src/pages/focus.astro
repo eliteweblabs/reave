@@ -482,6 +482,12 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
   .focus-recent-title {
     font-size: 0.95rem;
     font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
   }
 
   .focus-picker-sub,

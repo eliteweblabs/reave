@@ -81,13 +81,13 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     body: 'One layer handles the conversation, another routes the actual call. Together they cover a caller from "hello" all the way to "booked."',
     bullets: [
       'Inbound call routing and IVR-style flows',
-      'Works alongside the homepage voice widget',
+      'Works alongside the Live Speak Agent Widget',
       'Conversation layer through to booked appointment',
     ],
   },
   {
     id: 'vapi',
-    title: 'Homepage Voice Widget',
+    title: 'Live Speak Agent Widget',
     teaser:
       'A Vapi-powered voice assistant on your homepage — callers browse inventory, ask questions, or start a deal hands-free.',
     body: 'Optional upsell add-on (off by default). Syncs with admin for prompt and tool updates, and pairs with dealership inventory and lead flows when those modules are on.',
@@ -125,14 +125,14 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
   },
   {
     id: 'monitoring',
-    title: 'Site Monitoring & Audits',
+    title: 'Website Monitoring & Audits',
     teaser:
       'Uptime checks, change detection, and Lighthouse-style audits — so you know before the client does.',
     body: "Three layers watch client sites from the admin dashboard: UptimeRobot for downtime, ChangeDetection.io for content changes, and built-in audits for SSL, DNS, broken links, and Lighthouse scores. Alerts land in the smart inbox instead of a separate monitoring tab you'll forget to check.",
     bullets: [
       'UptimeRobot sync — auto-discover production domains and import monitors',
       'Change detection watches key pages and diffs what changed',
-      'Site audits: Lighthouse performance, SSL expiry, DNS records, broken links',
+      'Website audits: Lighthouse performance, SSL expiry, DNS records, broken links',
       'Agent tools can run audits and summarize results in chat',
     ],
   },

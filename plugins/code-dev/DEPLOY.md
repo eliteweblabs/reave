@@ -1,6 +1,6 @@
 ---
 feature: code_dev
-defaultStatus: request
+defaultStatus: deployed
 stage: 3
 ---
 
@@ -12,16 +12,15 @@ stage: 3
 
 ## Required env vars
 
-- None — local dev only; never enable on production client installs
+- None — optional module for installs where the agent should edit the repo and run shell commands locally
 
 ## External setup
 
-- Enable `code_dev` only in `config/config-reave.json` (Reave install)
+- Add `code_dev` to install config `features[]` (Reave, web development agencies, and similar installs)
 - Grants agent `read_file`, `write_file`, `list_files`, `exec_command` on the repo
 
 ## Checklist
 
-- [ ] Confirm install is Reave internal (not a client deployment)
 - [ ] Add `code_dev` to install config `features[]`
 - [ ] Verify agent can read/write files locally
 - [ ] Set `moduleStatus.code_dev` → `deployed` in install config

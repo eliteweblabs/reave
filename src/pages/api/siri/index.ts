@@ -18,12 +18,18 @@
  *   everything in the quick audit plus Playwright UX, broken links, and tech stack detection.
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
+ * - start_time_tracking: { action: "start_time_tracking", query?, project?, suggested_slug? }
+ *   Prompts with the most recent project when query is omitted; accepts "yes" or a project name.
+ *   Finds an existing project or searches for a client and creates one, then starts the timer.
+ * - stop_time_tracking: { action: "stop_time_tracking" } — stop timer and log hours
+ * - time_tracking_status: { action: "time_tracking_status" } — current timer or recent project prompt
  *
  * Authentication: Bearer token (Clerk session token) or X-Siri-Key header (SIRI_API_KEY env var).
  */
 
 import type { APIContext } from 'astro';
 import { findClientStrictForSiri, searchClientsEnhanced } from '../../../lib/clientSearch';
+import { enrichContactAddressFromPlaces } from '../../../lib/contactAddressFromPlaces';
 import {
   contactSummary,
   createContact,
@@ -55,6 +61,15 @@ import {
   siriAuditThreadId,
 } from '../../../lib/siriAuditRuns';
 import { clearAgentProgress } from '../../../lib/agentProgress';
+import { hasFeature } from '../../../lib/features';
+import {
+  getTimeTrackingPrompt,
+  projectVoiceLabel,
+  resolveProjectForTimeTracking,
+  startTimeTrackingOnProject,
+  stopTimeTrackingWithMessage,
+} from '../../../lib/timeTrackingSiri';
+import { formatElapsedDuration, getActiveTimer } from '../../../lib/activeTimers';
 
 const log = createLogger('siri-proposal');
 
@@ -154,6 +169,15 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'status':
         result = await handleStatus();
+        break;
+      case 'start_time_tracking':
+        result = await handleStartTimeTracking(body);
+        break;
+      case 'stop_time_tracking':
+        result = await handleStopTimeTracking();
+        break;
+      case 'time_tracking_status':
+        result = await handleTimeTrackingStatus();
         break;
       default:
         return json({ ok: false, error: `Unknown action: ${action}` }, 400);
@@ -297,6 +321,8 @@ async function handleCreateClient(params: Record<string, unknown>): Promise<Siri
 
   if (!result.ok) return { ok: false, error: result.error };
 
+  await enrichContactAddressFromPlaces(result.data.uid);
+
   const summary = contactSummary(result.data);
   return {
     ok: true,
@@ -401,6 +427,8 @@ async function resolveClientForProject(
     company,
   });
   if (!created.ok) return { ok: false, error: created.error };
+
+  await enrichContactAddressFromPlaces(created.data.uid);
 
   return {
     ok: true,
@@ -611,14 +639,15 @@ async function runProposalResearch(input: {
 
   const auditToolsStep =
     input.tier === 'full'
-      ? '3. Run the **full** audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, ' +
+      ? '3. Run the **full** audit tool sequence on the website: fetch_url, lighthouse_audit, ssl_check, ' +
         'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
         'playwright_audit (real-browser UX/UI on desktop + mobile), and detect_tech_stack. Run read-only ' +
-        'tools in parallel when possible.'
-      : '3. Run the **quick** audit tool sequence on the site (street-speed — skip slow tools): fetch_url, ' +
-        'lighthouse_audit, ssl_check, dns_check, and brave_search (Google Business Profile, Yelp, ' +
-        'reviews/reputation, social). Do **not** run playwright_audit, check_links, or detect_tech_stack — ' +
-        'those belong in the full audit tier. Run read-only tools in parallel when possible.';
+        'tools in parallel when possible. Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry.'
+      : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, ' +
+        'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
+        '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
+        'or detect_tech_stack — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
+        'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry.';
 
   const userText = [
     `Siri shortcut "${tierLabel}" was triggered with only the raw information below — there is no one ` +
@@ -658,10 +687,10 @@ async function runProposalResearch(input: {
 
   let reply: string;
   try {
-    reply = await runKnowledgeAgent({
+    reply = (await runKnowledgeAgent({
       userText,
       context: agentContext,
-    });
+    })).text;
   } catch (e) {
     reply = `Research failed: ${e instanceof Error ? e.message : String(e)}`;
     log.error('runKnowledgeAgent threw', e instanceof Error ? e : new Error(String(e)));
@@ -726,6 +755,136 @@ async function handleSendSms(params: Record<string, unknown>): Promise<SiriRespo
     ok: true,
     text: `Sent SMS to ${to}`,
     data: { messageId: result.id },
+  };
+}
+
+function timeTrackingDisabled(): SiriResponse {
+  return {
+    ok: false,
+    error: 'Time tracking is not enabled on this install',
+    text: 'Time tracking is not enabled on this install.',
+  };
+}
+
+async function handleStartTimeTracking(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabled();
+
+  const query = String(params.query ?? params.project ?? '').trim();
+  const suggestedSlug = String(params.suggested_slug ?? params.slug ?? '').trim() || undefined;
+
+  if (!query) {
+    const prompt = await getTimeTrackingPrompt();
+    return {
+      ok: true,
+      text: prompt.text,
+      data: {
+        needs_input: !prompt.running,
+        running: Boolean(prompt.running),
+        suggested: prompt.suggested
+          ? {
+              slug: prompt.suggested.slug,
+              title: prompt.suggested.title,
+              client: prompt.suggested.client,
+              label: projectVoiceLabel(prompt.suggested),
+            }
+          : null,
+        timer: prompt.running
+          ? {
+              job_slug: prompt.running.jobSlug,
+              started_at: prompt.running.startedAt,
+              elapsed: formatElapsedDuration(prompt.running.startedAt),
+            }
+          : null,
+      },
+    };
+  }
+
+  const resolved = await resolveProjectForTimeTracking(query, suggestedSlug);
+  if (!resolved.ok) {
+    return { ok: false, error: resolved.error, text: resolved.error };
+  }
+
+  const started = await startTimeTrackingOnProject(resolved.job);
+  if (!started.ok) {
+    return { ok: false, error: started.error, text: started.error };
+  }
+
+  const createdNote = resolved.created ? ' Created new project.' : '';
+  return {
+    ok: true,
+    text: `${started.text}${createdNote}`,
+    data: {
+      job: {
+        slug: resolved.job.slug,
+        title: resolved.job.title,
+        client: resolved.job.client,
+        created: resolved.created,
+      },
+      timer: started.timer,
+      switched: started.switched,
+    },
+  };
+}
+
+async function handleStopTimeTracking(): Promise<SiriResponse> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabled();
+
+  const result = await stopTimeTrackingWithMessage();
+  if (!result.ok) {
+    return { ok: false, error: result.error, text: result.text ?? result.error };
+  }
+
+  return {
+    ok: true,
+    text: result.text,
+    data: {
+      job_slug: result.jobSlug,
+      hours: result.hours,
+      logged: result.logged,
+    },
+  };
+}
+
+async function handleTimeTrackingStatus(): Promise<SiriResponse> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabled();
+
+  const active = await getActiveTimer();
+  if (active) {
+    const job = await storeReadWork(active.jobSlug);
+    const label = job ? projectVoiceLabel(job) : active.jobSlug;
+    const elapsed = formatElapsedDuration(active.startedAt);
+    return {
+      ok: true,
+      text: `Tracking ${label} — ${elapsed}.`,
+      data: {
+        running: true,
+        timer: {
+          job_slug: active.jobSlug,
+          started_at: active.startedAt,
+          elapsed,
+        },
+        job: job
+          ? { slug: job.slug, title: job.title, client: job.client, label: projectVoiceLabel(job) }
+          : null,
+      },
+    };
+  }
+
+  const prompt = await getTimeTrackingPrompt();
+  return {
+    ok: true,
+    text: prompt.text,
+    data: {
+      running: false,
+      suggested: prompt.suggested
+        ? {
+            slug: prompt.suggested.slug,
+            title: prompt.suggested.title,
+            client: prompt.suggested.client,
+            label: projectVoiceLabel(prompt.suggested),
+          }
+        : null,
+    },
   };
 }
 

@@ -12,7 +12,9 @@ import { isUptimeRobotConfigured } from './uptimerobotClient';
 import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { prependDeployBanner } from './deployStatus';
+import { isDeferredDeployEnabled } from './deferredDeploy';
 import { isRailwayConfigured } from './railwayClient';
+import { isCloudflareConfigured } from './cloudflareClient';
 import { isKinstaConfigured } from './kinstaClient';
 import { serverEnv } from './serverEnv';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
@@ -44,6 +46,13 @@ import {
   type AgentDeadline,
 } from './agentWatchdog';
 import { labelForAgentTool } from './agentToolLabels';
+import {
+  addAnthropicUsage,
+  createAgentUsageAccumulator,
+  finalizeAgentUsage,
+  logAgentUsage,
+  type AgentUsageSummary,
+} from './agentUsage';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
 import { listJobsForItem } from './projectLinks';
@@ -466,6 +475,8 @@ async function linkedProjectContextLine(threadId: string): Promise<string | null
   return lines.join('\n\n');
 }
 
+export type AgentRunResult = { text: string; usage: AgentUsageSummary | null };
+
 /**
  * Minimal agent loop (Anthropic Messages API): the model may call
  * list_knowledge / read_knowledge / resolve_contact / create_invoice / etc.;
@@ -480,7 +491,7 @@ export async function runKnowledgeAgent(opts: {
   context?: AgentRunContext;
   signal?: AbortSignal;
   deadline?: AgentDeadline;
-}): Promise<string> {
+}): Promise<AgentRunResult> {
   return runWithAgentContext(opts.context ?? {}, () =>
     runKnowledgeAgentInner(
       {
@@ -533,13 +544,13 @@ type AgentStreamingOpts = {
 /** Stream agent progress + cumulative assistant text (for SSE chat UI). */
 export function runKnowledgeAgentStreaming(
   opts: AgentStreamingOpts,
-): AsyncGenerator<AgentStreamEvent, string> {
+): AsyncGenerator<AgentStreamEvent, AgentRunResult> {
   return runKnowledgeAgentStreamingBridge(opts);
 }
 
 async function* runKnowledgeAgentStreamingBridge(
   opts: AgentStreamingOpts,
-): AsyncGenerator<AgentStreamEvent, string> {
+): AsyncGenerator<AgentStreamEvent, AgentRunResult> {
   const events: AgentStreamEvent[] = [];
   let resolveWait: (() => void) | null = null;
   const emit = (event: AgentStreamEvent) => {
@@ -553,7 +564,7 @@ async function* runKnowledgeAgentStreamingBridge(
       else resolveWait = resolve;
     });
 
-  let finalText = '';
+  let finalResult: AgentRunResult = { text: '', usage: null };
   let runError: unknown;
   const runPromise = runWithAgentContext(opts.context ?? {}, () =>
     runKnowledgeAgentInner(
@@ -572,8 +583,8 @@ async function* runKnowledgeAgentStreamingBridge(
       },
     ),
   )
-    .then((text) => {
-      finalText = text;
+    .then((result) => {
+      finalResult = result;
     })
     .catch((err) => {
       runError = err;
@@ -590,7 +601,7 @@ async function* runKnowledgeAgentStreamingBridge(
     ]);
     if (settled === 'done') {
       while (events.length) yield events.shift()!;
-      return finalText;
+      return finalResult;
     }
   }
 }
@@ -605,23 +616,31 @@ async function runKnowledgeAgentInner(
     deadline?: AgentDeadline;
   },
   stream?: AgentStreamCallbacks,
-): Promise<string> {
+): Promise<AgentRunResult> {
   if (await isSleepModeActive()) {
-    return sleepModeBlockMessage();
+    return { text: sleepModeBlockMessage(), usage: null };
   }
 
   const { userText, images = [], docs = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    return 'LLM is not configured. Set ANTHROPIC_API_KEY.';
+    return { text: 'LLM is not configured. Set ANTHROPIC_API_KEY.', usage: null };
   }
 
   const model = await resolveAgentModel(modelOverride);
+  const usageAcc = createAgentUsageAccumulator(model);
+  const agentCtx = getAgentContext();
+  const finishRun = async (text: string): Promise<AgentRunResult> => {
+    const usage = finalizeAgentUsage(usageAcc);
+    if (usage) logAgentUsage(usage, { threadId: agentCtx.threadId, userTextPreview: userText });
+    return { text: await finalizeAgentReply(text, userText), usage };
+  };
   const brand = await getCompanyBrandContext();
   const tools = buildAnthropicTools(brand);
 
   const sysParts = [
     `You are the built-in admin assistant for ${brand.name}'s business OS.`,
+    `Terminology: work/job records in the admin Work tab are called "${brand.postAlias.pluralTitle}" (singular "${brand.postAlias.singularTitle}"). Use that term when speaking to the user — not "project" unless that is the configured alias.`,
     `Runtime identity: you run INSIDE the deployed app at ${brand.siteUrl} (Astro on Railway) — not Cursor, not a generic external API, and not on the owner's laptop. The owner chats with you from Admin → Sessions; your tools execute server-side on this same service (Postgres, GitHub, Railway GraphQL, Crater, contact-api, etc.). Never open with "log into Railway", "install the Railway CLI", or "configure a Railway token" — diagnose with your tools first. You cannot fetch Railway build/runtime logs via API; when raw logs are truly needed, say so briefly and point to Railway dashboard → ${brand.projectLabel} → production → service → Logs. Do not claim RAILWAY_API_TOKEN is missing or expired without calling run_dev_task ping_railway first.`,
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). resolve_contact accepts name, email, phone (last 4 ok), or q for free-text search across company, notes, and website. To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
@@ -631,8 +650,9 @@ async function runKnowledgeAgentInner(
     'Project checklists: action items in job notes use markdown checkboxes (`- [ ]` / `- [x]`). Use toggle_work_item to check off completed work (by item_text or line_index). When invoicing for completed project work, call get_work_invoice_suggestions and use each item\'s description field on Crater line items (user provides price).',
     'Personal to-dos: separate from jobs (create_todo / list_todos / update_todo / mark_todo_done / delete_todo). When the user asks to add something to "the to-do list" or mentions a personal task, decide whether it is a client job (has a client), a project, or a personal task. Personal tasks use the to-do tools — never create_work for them. If to-do tools are unavailable (DATABASE_URL not set), say you do not have a to-do list tool yet and ask whether to build it or handle it manually — do not fake it with a job.',
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
-    'Structured buttons: you may append ```json { "type": "button", "label": "…", "href": "https://…" } ``` blocks for useful external/deep links (projects, billing, docs). Never link to Admin → Sessions or suggest "open session" / "ask the agent" — the owner is already in this session.',
+    'Structured buttons: you may append ```json { "type": "button", "label": "…", "href": "https://…" } ``` blocks for useful external/deep links (projects, billing, docs). Never link to Admin → Sessions or suggest "open session" / "ask the agent" — the owner is already in this session. After create_work or update_work, use the exact profile_url and project_portal_url fields from the tool result for client profile and portal buttons — never put a job slug or business name in /c/… (portal paths use the contact uid UUID only). list_contacts and resolve_contact also return portal_url.',
     'Never end your turn with future-tense promises ("Let me…", "I\'ll…", "I am going to…") without invoking the relevant tools in the same turn first. If you say you will edit, build, commit, push, deploy, send, or run something, call the tools immediately — do not stop and wait for the user to reply. If you cannot proceed (missing permission, ambiguous input, destructive action needing confirmation), say why and ask — do not imply work is in progress.',
+    'Verify before claiming you cannot: never tell the user a service is unavailable, a domain is in another account, or a tool is scoped away without calling the relevant tool first and reading its error. If the user corrects you ("yes it is", "I\'m looking at it right now"), re-run the check immediately — do not defend the earlier guess. When the user says they just changed DNS or hosting, re-run dns_check and/or cloudflare_dns before reporting nameserver or SPF conclusions. Prefer "tool returned X" over "I don\'t have access".',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks), and delete_email when they want it removed. Filter rules are indefinite by default; if the user mentions an expiration ("for 7 days", "until Friday", "expires next week"), pass expires_in_days or expires_at on create_email_filter_rule. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
   ];
   // Deployed Railway containers run from a built dist/ with no git binary and no
@@ -647,7 +667,7 @@ async function runKnowledgeAgentInner(
     sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
     if (isRailwayConfigured()) {
       sysParts.push(
-        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains via list_railway_domains (CNAME targets, *.up.railway.app domains, custom-domain TXT verification; defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs ${brand.domain || 'the configured company domain'}. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
+        `Railway: RAILWAY_API_TOKEN is configured — full Railway API via list_railway_projects, list_railway_services, list_railway_variables, set_railway_variables, list_railway_domains, get_railway_status, list_railway_deployments, get_railway_logs, redeploy_railway_service, and related tools (defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Use list_railway_variables to compare env vars — never claim you cannot read Railway Variables without calling the tool first. Do not paste secret values in chat. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
       );
     } else {
       sysParts.push(
@@ -655,7 +675,12 @@ async function runKnowledgeAgentInner(
       );
     }
     sysParts.push(
-      'Deploy failures / crash alerts: read_knowledge slug "railway-build-failure-triage" first. One active repair per GitHub repo — duplicate alerts are blocked. Call check_deployment_status and get_git_status (pass repo + health_url for sibling services). Distinguish rollout teardown vs real failure. On real failure: read changed files, fix via write_github_file(branch:"main") in the same turn — do NOT stop at diagnosis or ask the owner to fix. End with "✅ RESOLVED — …" or "🚨 UNRESOLVED — …".',
+      isCloudflareConfigured()
+        ? 'Cloudflare: CLOUDFLARE_API_TOKEN is configured — you CAN manage any zone the token reaches via cloudflare_dns: verify / list_records / upsert_record / delete_record / get_ssl_mode / set_ssl_mode. Use set_ssl_mode flexible to fix Error 525 (SSL handshake failed) when the origin cert is broken — do it in the same turn when the user approves; never tell them to log into Cloudflare unless the tool errors. sync_resend_dns is Resend-only. run_dev_task ping_cloudflare checks the token. NEVER say Cloudflare tools are "Resend-only" or that you lack DNS/SSL tools — call cloudflare_dns first and quote its result. Public dns_check is read-only and can show stale NS during propagation.'
+        : 'Cloudflare unavailable (CLOUDFLARE_API_TOKEN not set). dns_check still works read-only via public resolvers.',
+    );
+    sysParts.push(
+      'Deploy failures / crash alerts: read_knowledge slug "railway-build-failure-triage" first. One active repair per GitHub repo — duplicate alerts are blocked. Call check_deployment_status, get_railway_status, get_railway_logs, and list_railway_deployments (pass repo + health_url for sibling services). Distinguish rollout teardown vs real failure. On real failure: read changed files, fix via write_github_file(branch:"main") or set missing vars via set_railway_variables in the same turn — do NOT stop at diagnosis or ask the owner to fix manually. End with "✅ RESOLVED — …" or "🚨 UNRESOLVED — …".',
     );
     if (isKinstaConfigured()) {
       sysParts.push(
@@ -670,8 +695,12 @@ async function runKnowledgeAgentInner(
       'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Deploy banners (🚀 deploying, 🔴 stale after 10m, 🟢 live only when asked or right after a deploy lands) prepend agent replies automatically — do not use ✅ for deploy status. Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
     );
     if (isGithubConfigured()) {
+      const deployDefer =
+        isDeferredDeployEnabled()
+          ? ' Commits to main during this chat turn are queued and push to GitHub automatically when the turn finishes — do not expect check_deployment_status to show live until then.'
+          : ' Committing to main triggers a Railway deploy automatically.';
       sysParts.push(
-        'GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL. Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed. Committing to main triggers a Railway deploy automatically.',
+        `GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL (or deferred note when queued). Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed.${deployDefer}`,
       );
       sysParts.push(
         'GitHub scope: write_github_file / create_github_repo only touch source code repos (this app, or an explicitly named sibling service) — a commit is NOT a public URL by itself (no Pages/hosting is wired up) and a brand-new repo is not reachable until deployed. NEVER use these to "host" a one-off asset for a client (an email signature, a vCard/business card, a marketing PDF, etc.), and never invent/guess a path on the client\u2019s own live website — you have no tool that writes files there, so that URL will 404. If the client_portal feature is enabled and the ask is a vCard/business card or an email signature for a specific client to hand out, use get_client_vcard_link / get_client_signature_link instead — those return links this app actually serves. For anything else you cannot really host, say so plainly rather than fabricating a link.',
@@ -683,13 +712,16 @@ async function runKnowledgeAgentInner(
     }
   }
   if (hasFeature('code_dev')) {
+    const deferNote = isDeferredDeployEnabled()
+      ? ' Main-branch pushes are deferred until this chat turn finishes so a deploy cannot interrupt the run.'
+      : '';
     if (onRailway) {
       sysParts.push(
-        'Code development (Reave code_dev) — DEPLOYED CONTAINER: you are running on Railway from a built dist/ with NO git binary and NO .git checkout, so exec_command CANNOT run "git add/commit/push" (git is not in the container PATH). To persist code changes here you MUST use the GitHub REST API: call write_github_file with branch:"main" to commit each file directly to main (never a branch, never a PR). Do not attempt "git push" via exec_command and do not narrate discovering that git is missing — just use write_github_file. You may still use list_files / read_file / write_file / exec_command for reading, running builds/tests, and inspecting the running app, but they only touch the ephemeral container filesystem and are lost on the next deploy. Do not claim success unless tools succeed.',
+        `Code development (Reave code_dev) — DEPLOYED CONTAINER: you are running on Railway from a built dist/ with NO git binary and NO .git checkout, so exec_command CANNOT run "git add/commit/push" (git is not in the container PATH). To persist code changes here you MUST use the GitHub REST API: call write_github_file with branch:"main" to commit each file directly on main (never a branch, never a PR). Do not attempt "git push" via exec_command and do not narrate discovering that git is missing — just use write_github_file.${deferNote} You may still use list_files / read_file / write_file / exec_command for reading, running builds/tests, and inspecting the running app, but they only touch the ephemeral container filesystem and are lost on the next deploy. Do not claim success unless tools succeed.`,
       );
     } else {
       sysParts.push(
-        'Local code development (Reave code_dev): you CAN edit this repo on disk. Use grep_code to find symbols/paths, then read_file (with offset/limit for large files) / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add, commit, and push — invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
+        `Local code development (Reave code_dev): you CAN edit this repo on disk. Use grep_code to find symbols/paths, then read_file (with offset/limit for large files) / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add and git commit in this turn; git push runs automatically when the turn finishes.${deferNote} Invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.`,
       );
     }
   }
@@ -737,7 +769,7 @@ async function runKnowledgeAgentInner(
   if (hasFeature('vapi')) {
     sysParts.push(
       isVapiAdminConfigured()
-        ? `Vapi admin plugin: use sync_vapi_assistant to push Company details (${brand.name}) to the Vapi assistant (name, first message, system prompt). Requires owner/deployment credentials. The public homepage voice widget is separate from this plugin.`
+        ? `Vapi admin plugin: use sync_vapi_assistant to push Company details (${brand.name}) to the Vapi assistant (name, first message, system prompt). Requires owner/deployment credentials. The public Live Speak Agent Widget is separate from this plugin.`
         : `Vapi admin plugin is enabled but not fully configured — set VAPI_API_KEY and assistant id on the server, then sync_vapi_assistant or POST /api/admin/vapi.`,
     );
   }
@@ -755,8 +787,8 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('site_audits')) {
     sysParts.push(
-      'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. Use brave_search for Google Business Profile, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
-      'Inquiry projects from website/prospect audits: call read_knowledge before create_work or update_work. **Quick/street tier** (Siri "audit" / create_proposal): slug "inquiry-website-audit-quick" — fetch_url, lighthouse_audit, ssl_check, dns_check, brave_search only; skip playwright_audit, check_links, detect_tech_stack. **Full tier** (Siri "full audit"): slug "inquiry-website-audit" — add playwright_audit, check_links, and detect_tech_stack. Write a 1,200+ char body (quick) or 1,500+ char body (full) with Performance, SEO, Accessibility, SSL, Content, DNS, Online Presence, and Action Items — never a short prospect stub. If a stub project exists, update_work with the full audit. **Title:** catchy finding-based headline (5–12 words) — do NOT include the business name (it shows as the client name in the list). Never "Website Redesign — {Business Name}". Reference read_work slug "website-redesign-the-barber-s-edge" for audit body depth.',
+      'Website review: use fetch_url to read a client website (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Call lighthouse_audit at most once per audit — if it fails (timeout, slow website, PSI error), proceed to update_work immediately; do NOT retry (retries burn the tool-round budget and the run will fail). Quick/street audits: pass category "performance" only (2 PSI calls, not 8). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for public DNS, SPF/DKIM/DMARC, and WHOIS. When the user asks to check or fix Cloudflare DNS or SSL (or says nameservers are Cloudflare), call cloudflare_dns verify then list_records / get_ssl_mode before concluding — dns_check alone can lag after a recent NS change. If fetch_url or ssl_check shows Cloudflare Error 525 (SSL handshake failed), call get_ssl_mode then set_ssl_mode flexible when the user wants it fixed — do not ask them to log into Cloudflare. Use brave_search for Google Business Profile, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
+      'Inquiry projects from website/prospect audits: call read_knowledge before create_work or update_work. **Quick/street tier** (Siri "audit" / create_proposal): slug "inquiry-website-audit-quick" — fetch_url, lighthouse_audit (category performance only), ssl_check, dns_check, brave_search only; skip playwright_audit, check_links, detect_tech_stack. **Full tier** (Siri "full audit"): slug "inquiry-website-audit" — add playwright_audit, check_links, and detect_tech_stack. Run all read-only audit tools in one parallel batch, then update_work once — do not call read_work for reference during audits. Write a 1,200+ char body (quick) or 1,500+ char body (full) with Performance, SEO, Accessibility, SSL, Content, DNS, Online Presence, and Action Items — never a short prospect stub. If a stub project exists, update_work with the full audit. **Title:** catchy finding-based headline (5–12 words) — do NOT include the business name (it shows as the client name in the list). Never "Website Redesign — {Business Name}".',
     );
   }
 
@@ -842,9 +874,9 @@ async function runKnowledgeAgentInner(
    * the next turn) exactly how far it got, so a stalled turn reads as a stalled
    * turn rather than as a completed one that quietly did nothing.
    */
-  const bailOut = (note: string, roundText = '') => {
+  const bailOut = async (note: string, roundText = ''): Promise<AgentRunResult> => {
     const said = partialSoFar() || roundText.trim();
-    return finalizeAgentReply(said ? `${said}\n\n${note}` : note, userText);
+    return finishRun(said ? `${said}\n\n${note}` : note);
   };
 
   for (let round = 0; round < maxRounds; round++) {
@@ -888,8 +920,9 @@ async function runKnowledgeAgentInner(
           'Model response',
         );
         if (!result.ok) {
-          return finalizeAgentReply(formatAnthropicApiError(result.status, result.text), userText);
+          return finishRun(formatAnthropicApiError(result.status, result.text));
         }
+        addAnthropicUsage(usageAcc, result.data.usage);
         stopReason = result.data.stop_reason;
         content = result.data.content as AnthropicContentBlock[];
       } else {
@@ -899,8 +932,9 @@ async function runKnowledgeAgentInner(
           'Model response',
         );
         if (!result.ok) {
-          return finalizeAgentReply(formatAnthropicApiError(result.status, result.text), userText);
+          return finishRun(formatAnthropicApiError(result.status, result.text));
         }
+        addAnthropicUsage(usageAcc, result.data.usage);
         const data = result.data as {
           stop_reason?: string;
           content?: AnthropicContentBlock[];
@@ -972,9 +1006,8 @@ async function runKnowledgeAgentInner(
       }
 
       if (!toolResults.length) {
-        return finalizeAgentReply(
+        return finishRun(
           'The model requested a tool call but returned no usable tool blocks. Try sending your message again.',
-          userText,
         );
       }
       messages.push({ role: 'user', content: toolResults });
@@ -1019,7 +1052,7 @@ async function runKnowledgeAgentInner(
       return bailOut(stallExplanation({ truncated, blank, unfulfilled, cutOffTool }), text);
     }
 
-    return finalizeAgentReply(text, userText);
+    return finishRun(text);
   }
 
   return bailOut(

@@ -388,7 +388,7 @@ export const clientPortalModule: AgentToolModule = {
                     },
                     fields: {
                       type: 'array',
-                      description: 'Optional labeled key/value rows shown in Overview (e.g. "Site URL" → "https://…", "Plan" → "Annual").',
+                      description: 'Optional labeled key/value rows shown in Overview (e.g. "Website URL" → "https://…", "Plan" → "Annual").',
                       items: {
                         type: 'object',
                         properties: {

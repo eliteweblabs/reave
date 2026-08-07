@@ -146,7 +146,12 @@ import { formatLighthouseResults, lighthouseAudit } from '../../src/lib/lighthou
 import { sslCheck, formatSslCheckResults } from '../../src/lib/sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
-import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../src/lib/resendDnsSync';
+import {
+  syncAllResendDnsToCloudflare,
+  syncResendDnsToCloudflare,
+  resendCreateDomain,
+  isResendConfigured,
+} from '../../src/lib/resendDnsSync';
 import { hasFeature } from '../../src/lib/features';
 import { syncUptimeMonitorsFromApi } from '../../src/lib/uptimeMonitoring';
 import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
@@ -194,6 +199,19 @@ async function handle_fetch_url(args: Record<string, unknown>, _ctx: ToolContext
 async function handle_lighthouse_audit(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const url = String(args.url ?? '').trim();
   if (!url) return JSON.stringify({ error: 'url is required' });
+
+  const agentCtx = getAgentContext();
+  if (!agentCtx._toolOnce) agentCtx._toolOnce = {};
+  if (agentCtx._toolOnce.lighthouse_audit) {
+    return (
+      '⚠️ LIGHTHOUSE_ALREADY_CALLED — lighthouse_audit was already run this turn.\n\n' +
+      'INSTRUCTIONS: Do NOT call lighthouse_audit again — it wastes the tool-round budget. ' +
+      'Proceed to update_work now using whatever scores you already have, or write ' +
+      '"Scores unavailable — run a fresh audit later" in Performance/Accessibility/SEO sections.'
+    );
+  }
+  agentCtx._toolOnce.lighthouse_audit = true;
+
   const categoryRaw = String(args.category ?? '').trim();
   const strategyRaw = String(args.strategy ?? 'both').trim();
   const result = await lighthouseAudit({
@@ -206,7 +224,20 @@ async function handle_lighthouse_audit(args: Record<string, unknown>, _ctx: Tool
         ? strategyRaw
         : 'both',
   });
-  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  if (!result.ok) {
+    const isRateLimit =
+      result.rateLimited === true || /quota|rate limit|429|too many/i.test(result.error);
+    const prefix = isRateLimit
+      ? '⚠️ LIGHTHOUSE_RATE_LIMITED — PageSpeed Insights quota exceeded.'
+      : '⚠️ LIGHTHOUSE_FAILED';
+    return (
+      `${prefix} HTTP ${result.status ?? 'N/A'}: ${result.error}\n\n` +
+      'INSTRUCTIONS: Do NOT retry lighthouse_audit — it will fail again and burn the run budget. ' +
+      'Proceed to update_work NOW. For Performance, Accessibility, and SEO sections write exactly: ' +
+      '"Scores unavailable — run a fresh audit later" (or use fetch_url observations only). ' +
+      'Do NOT quote this error, "rate limit", "quota", or any API failure text in the project body.'
+    );
+  }
   return JSON.stringify({
     summary: formatLighthouseResults(result),
     url: result.url,
@@ -254,6 +285,21 @@ async function handle_sync_resend_dns(args: Record<string, unknown>, _ctx: ToolC
   return JSON.stringify({ ...result, ok: true });
 }
 
+async function handle_create_resend_domain(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!isResendConfigured()) {
+    return JSON.stringify({ error: 'RESEND_API_KEY is not set' });
+  }
+  const domain = String(args.domain ?? '').trim();
+  if (!domain) return JSON.stringify({ error: 'domain is required' });
+
+  const regionRaw = String(args.region ?? 'us-east-1').trim();
+  const region = regionRaw === 'eu-west-1' ? 'eu-west-1' : 'us-east-1';
+
+  const result = await resendCreateDomain(domain, region);
+  if (!result.ok) return JSON.stringify({ error: result.error });
+  return JSON.stringify({ ok: true, ...result });
+}
+
 export const siteAuditsModule: AgentToolModule = {
   id: 'siteAudits',
   enabled: (ctx) => hasFeature('site_audits'),
@@ -287,7 +333,7 @@ export const siteAuditsModule: AgentToolModule = {
               function: {
                 name: 'lighthouse_audit',
                 description:
-                  'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default.',
+                  'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default. Call at most once per audit; if it fails, proceed without retrying. Quick/street audits: pass category "performance" only to save PSI quota.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -365,7 +411,7 @@ export const siteAuditsModule: AgentToolModule = {
               function: {
                 name: 'sync_resend_dns',
                 description:
-                  'Ensure Resend domain DNS records (DKIM, SPF, MX, receiving) exist in Cloudflare — check and create/update as needed. Requires CLOUDFLARE_API_TOKEN + RESEND_API_KEY. Use when the user asks to verify or set Resend email DNS at Cloudflare.',
+                  'Resend-only: ensure Resend domain DNS records (DKIM, SPF, MX, receiving) exist in Cloudflare — check and create/update from Resend\'s expected values. Requires CLOUDFLARE_API_TOKEN + RESEND_API_KEY and the domain must exist in Resend. For client domains (M365, GoDaddy mail, etc.) use cloudflare_dns instead.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -378,7 +424,31 @@ export const siteAuditsModule: AgentToolModule = {
                   additionalProperties: false,
                 },
               },
-            }
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'create_resend_domain',
+                description:
+                  'Add a new sending domain to the Resend account (POST /domains). Returns the domain id, status, and required DNS records. After calling this, call sync_resend_dns to push the DNS records to Cloudflare automatically. Use when the user asks to add a domain to Resend.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    domain: {
+                      type: 'string',
+                      description: 'Full domain name to add, e.g. mail.example.com or example.com',
+                    },
+                    region: {
+                      type: 'string',
+                      enum: ['us-east-1', 'eu-west-1'],
+                      description: 'Resend sending region. Default us-east-1. Use eu-west-1 for EU data residency.',
+                    },
+                  },
+                  required: ['domain'],
+                  additionalProperties: false,
+                },
+              },
+            },
     ];
   },
   handlers: {
@@ -388,5 +458,6 @@ export const siteAuditsModule: AgentToolModule = {
     'check_links': handle_check_links,
     'dns_check': handle_dns_check,
     'sync_resend_dns': handle_sync_resend_dns,
+    'create_resend_domain': handle_create_resend_domain,
   },
 };

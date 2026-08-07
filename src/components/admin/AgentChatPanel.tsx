@@ -1,4 +1,11 @@
-import type { CSSProperties, FocusEvent, KeyboardEvent, RefObject } from 'react';
+import type {
+  CSSProperties,
+  FocusEvent,
+  KeyboardEvent,
+  MouseEvent,
+  ReactNode,
+  RefObject,
+} from 'react';
 import {
   AssistantRuntimeProvider,
   AttachmentPrimitive,
@@ -38,6 +45,7 @@ import {
 } from '../../lib/chatMessageFormat';
 import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
 import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
+import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -50,6 +58,7 @@ const CHAT_IMAGE_ACCEPT =
 
 const MAX_CHAT_DOCS = 3;
 const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
+const DEPLOY_INDICATOR_POLL_MS = 60_000;
 const PPTX_MEDIA_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
@@ -394,7 +403,200 @@ function readCompanyBrandName(fallback = 'Assistant'): string {
   return name || fallback;
 }
 
-export type StoredChatMessage = { role: 'user' | 'assistant'; content: string };
+export type StoredChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at?: string;
+  agent_usage?: AgentUsageSummary | null;
+};
+
+function sameCalendarDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
+}
+
+/** iOS-style day pill: Today, Yesterday, weekday, or calendar date. */
+function formatChatDayLabel(date: Date, now = new Date()): string {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round(
+    (startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000,
+  );
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays >= 2 && diffDays <= 6) {
+    return date.toLocaleDateString([], { weekday: 'long' });
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'long', day: 'numeric' });
+  }
+  return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatChatMessageTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+const COPY_FEEDBACK_MS = 1000;
+
+type MessageContentPart = {
+  type: string;
+  text?: string;
+  filename?: string;
+};
+
+function messageTextForCopy(
+  content: ReadonlyArray<MessageContentPart> | undefined,
+): string {
+  if (!content?.length) return '';
+  const textParts: string[] = [];
+  const attachments: string[] = [];
+  for (const part of content) {
+    if (part.type === 'text') textParts.push(part.text ?? '');
+    else if (part.type === 'image') attachments.push('image');
+    else if (part.type === 'file') attachments.push(part.filename || 'file');
+  }
+  const text = textParts.join('');
+  if (!attachments.length) return text;
+  const summary = attachments.join(', ');
+  if (!text.trim()) return `[${summary}]`;
+  return `${text}\n[${summary} attached]`;
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+      <rect
+        x="9"
+        y="9"
+        width="13"
+        height="13"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+      <path
+        d="M20 6 9 17l-5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChatMessageCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  const disabled = !text.trim();
+
+  const onCopy = useCallback(
+    async (e: MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      if (!text.trim()) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
+      } catch {
+        /* clipboard unavailable */
+      }
+    },
+    [text],
+  );
+
+  return (
+    <button
+      type="button"
+      className={`aui-msg-copy${copied ? ' is-copy-success' : ''}`}
+      aria-label={copied ? 'Copied' : 'Copy message'}
+      title={copied ? 'Copied' : 'Copy'}
+      disabled={disabled}
+      onClick={onCopy}
+    >
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </button>
+  );
+}
+
+function ChatMessageDaySeparator({ label }: { label: string }) {
+  return (
+    <div className="aui-msg-day" role="separator" aria-label={label}>
+      <span className="aui-msg-day-label">{label}</span>
+    </div>
+  );
+}
+
+function ChatMessageShell({
+  align,
+  bubbleClassName,
+  children,
+}: {
+  align: 'user' | 'assistant';
+  bubbleClassName: string;
+  children: ReactNode;
+}) {
+  const createdAt = useAuiState((s) => s.message.createdAt);
+  const agentUsage = useAuiState((s) => {
+    if (align !== 'assistant') return null;
+    const metadata = s.message.metadata as { agentUsage?: AgentUsageSummary } | undefined;
+    return metadata?.agentUsage ?? null;
+  });
+  const showDaySeparator = useAuiState((s) => {
+    const idx = s.message.index;
+    if (idx <= 0) return true;
+    const prev = s.thread.messages[idx - 1]?.createdAt;
+    if (!prev) return true;
+    return !sameCalendarDay(prev, createdAt);
+  });
+  const plainText = useAuiState((s) => messageTextForCopy(s.message.content));
+
+  return (
+    <>
+      {showDaySeparator ? <ChatMessageDaySeparator label={formatChatDayLabel(createdAt)} /> : null}
+      <MessagePrimitive.Root className={`aui-msg-row aui-msg-row-${align} group/message`}>
+        <div className={`aui-msg-wrap aui-msg-wrap-${align}`}>
+          <div className={bubbleClassName}>{children}</div>
+          <div className={`aui-msg-meta aui-msg-meta--${align}`}>
+            <time className={`aui-msg-time aui-msg-time--${align}`} dateTime={createdAt.toISOString()}>
+              {formatChatMessageTime(createdAt)}
+              {agentUsage ? (
+                <span className="aui-msg-usage" title={`${agentUsage.model_label} · estimated API cost`}>
+                  {' · '}
+                  {formatAgentUsageLine(agentUsage)}
+                </span>
+              ) : null}
+            </time>
+            <ChatMessageCopyButton text={plainText} />
+          </div>
+        </div>
+      </MessagePrimitive.Root>
+    </>
+  );
+}
 
 export type AgentChatPanelProps = {
   threadId: string;
@@ -410,7 +612,10 @@ export type AgentChatPanelProps = {
   onAgentRunChange?: (running: boolean) => void;
   onAgentProgress?: (progress: AgentProgress | null) => void;
   onRefreshMessages?: () => void | Promise<void>;
-  onMessagesPersist?: (userContent: string, assistantContent: string) => void;
+  onMessagesPersist?: (
+    userContent: string,
+    assistant: { content: string; agent_usage?: AgentUsageSummary | null },
+  ) => void;
   onTitleUpdate?: (title: string) => void;
   onLinkedJobsRefresh?: () => void;
 };
@@ -421,12 +626,16 @@ type SendResult = {
   title?: string;
   userMessage?: StoredChatMessage;
   assistantMessage?: StoredChatMessage;
+  agent_usage?: AgentUsageSummary | null;
 };
 
 function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
+  const createdAt = message.created_at ? new Date(message.created_at) : new Date();
   if (message.role === 'assistant') {
     return {
       role: 'assistant',
+      createdAt,
+      metadata: message.agent_usage ? { agentUsage: message.agent_usage } : undefined,
       content: [{ type: 'text', text: storedChatPlainText(message.content) }],
     };
   }
@@ -449,7 +658,7 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     });
   }
   if (!content.length) content.push({ type: 'text', text: '' });
-  return { role: 'user', content };
+  return { role: 'user', createdAt, content };
 }
 
 function imageDataFromSrc(src: string): StoredChatImage | null {
@@ -693,6 +902,21 @@ function createChatAdapter(
           signal: options.abortSignal,
         });
 
+        if (!res.ok) {
+          let errData: { deploy_locked?: boolean; error?: string } = {};
+          try {
+            errData = (await res.json()) as typeof errData;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(
+            errData.error ||
+              (errData.deploy_locked
+                ? 'Deploy in progress — try again when live.'
+                : `Request failed (${res.status})`),
+          );
+        }
+
         const contentType = res.headers.get('Content-Type') ?? '';
         if (contentType.includes('text/event-stream') && res.body) {
           let streamedText = '';
@@ -720,9 +944,18 @@ function createChatAdapter(
                 if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
                 propsRef.current?.onLinkedJobsRefresh?.();
                 const userMsg = data.userMessage as { content?: string } | undefined;
-                const assistantMsg = data.assistantMessage as { content?: string } | undefined;
+                const assistantMsg = data.assistantMessage as
+                  | { content?: string; agent_usage?: AgentUsageSummary | null }
+                  | undefined;
+                const agentUsage =
+                  (data.agent_usage as AgentUsageSummary | null | undefined) ??
+                  assistantMsg?.agent_usage ??
+                  null;
                 if (userMsg?.content && assistantMsg?.content) {
-                  propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
+                  propsRef.current?.onMessagesPersist?.(userMsg.content, {
+                    content: assistantMsg.content,
+                    agent_usage: agentUsage,
+                  });
                 }
                 const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
                 if (assistantText && assistantText !== streamedText) {
@@ -769,10 +1002,10 @@ function createChatAdapter(
         if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
         propsRef.current?.onLinkedJobsRefresh?.();
         if (data.userMessage?.content && data.assistantMessage?.content) {
-          propsRef.current?.onMessagesPersist?.(
-            data.userMessage.content,
-            data.assistantMessage.content,
-          );
+          propsRef.current?.onMessagesPersist?.(data.userMessage.content, {
+            content: data.assistantMessage.content,
+            agent_usage: data.agent_usage ?? data.assistantMessage.agent_usage ?? null,
+          });
         }
 
         const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
@@ -834,9 +1067,11 @@ function createChatAdapter(
 function PendingDraftBoot({
   draft,
   autoSend,
+  deployChatLocked,
 }: {
   draft?: string | null;
   autoSend?: boolean;
+  deployChatLocked?: boolean;
 }) {
   const composer = useComposerRuntime();
   const ran = useRef(false);
@@ -844,9 +1079,50 @@ function PendingDraftBoot({
     if (ran.current || !draft) return;
     ran.current = true;
     composer.setText(draft);
-    if (autoSend) void composer.send();
-  }, [autoSend, composer, draft]);
+    if (autoSend && !deployChatLocked) void composer.send();
+  }, [autoSend, composer, deployChatLocked, draft]);
   return null;
+}
+
+type DeployChatLockState = { locked: boolean; message: string | null };
+
+function useDeployChatLock(): DeployChatLockState {
+  const [state, setState] = useState<DeployChatLockState>({ locked: false, message: null });
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        deploy?: { chatLocked?: boolean; chatLockMessage?: string | null } | null;
+      };
+      if (!res.ok || !data.ok || !data.deploy) {
+        setState({ locked: false, message: null });
+        return;
+      }
+      setState({
+        locked: Boolean(data.deploy.chatLocked),
+        message: data.deploy.chatLockMessage ?? null,
+      });
+    } catch {
+      setState({ locked: false, message: null });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const timer = setInterval(() => void refresh(), DEPLOY_INDICATOR_POLL_MS);
+    const onVis = () => {
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [refresh]);
+
+  return state;
 }
 
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
@@ -1280,6 +1556,8 @@ function ClaudeComposer({
   useExternalProgress,
   streamedProgress,
   onStopExternal,
+  deployChatLocked = false,
+  deployChatLockMessage = null,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
@@ -1290,6 +1568,8 @@ function ClaudeComposer({
   useExternalProgress?: boolean;
   streamedProgress?: AgentProgress | null;
   onStopExternal?: () => void;
+  deployChatLocked?: boolean;
+  deployChatLockMessage?: string | null;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -1343,6 +1623,22 @@ function ClaudeComposer({
             )}
           </div>
         </ComposerPrimitive.Root>
+      </div>
+    );
+  }
+
+  if (deployChatLocked) {
+    return (
+      <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+        <div className="aui-composer-deploy-lock" role="status">
+          <span className="aui-composer-deploy-lock-icon" aria-hidden="true">
+            🚀
+          </span>
+          <p className="aui-composer-deploy-lock-text">
+            {deployChatLockMessage ||
+              'Deploy in progress — new messages are paused until the new version is live.'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -1421,39 +1717,27 @@ function ChatMessages() {
       <ThreadPrimitive.Messages
         components={{
           UserMessage: () => (
-            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user group/message">
-              <div className="aui-msg-wrap aui-msg-wrap-user">
-                <div className="aui-msg aui-msg-user">
-                  <MessagePrimitive.Parts
-                    components={{
-                      Text: UserTextPart,
-                      Image: UserImagePart,
-                      File: UserFilePart,
-                    }}
-                  />
-                  <MessagePrimitive.Attachments
-                    components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
-                  />
-                </div>
-                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
-                    behavior caused layout jumpiness on non-mobile devices. */}
-              </div>
-            </MessagePrimitive.Root>
+            <ChatMessageShell align="user" bubbleClassName="aui-msg aui-msg-user">
+              <MessagePrimitive.Parts
+                components={{
+                  Text: UserTextPart,
+                  Image: UserImagePart,
+                  File: UserFilePart,
+                }}
+              />
+              <MessagePrimitive.Attachments
+                components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
+              />
+            </ChatMessageShell>
           ),
           AssistantMessage: () => (
-            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant group/message">
-              <div className="aui-msg-wrap aui-msg-wrap-assistant">
-                <div className="aui-msg aui-msg-assistant">
-                  <MessagePrimitive.Parts
-                    components={{
-                      Text: AssistantTextPart,
-                    }}
-                  />
-                </div>
-                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
-                    behavior caused layout jumpiness on non-mobile devices. */}
-              </div>
-            </MessagePrimitive.Root>
+            <ChatMessageShell align="assistant" bubbleClassName="aui-msg aui-msg-assistant">
+              <MessagePrimitive.Parts
+                components={{
+                  Text: AssistantTextPart,
+                }}
+              />
+            </ChatMessageShell>
           ),
         }}
       />
@@ -1679,10 +1963,12 @@ function AgentChatThreadBody({
   propsRef,
   threadId,
   streamedProgress,
+  deployChatLock,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   threadId: string;
   streamedProgress: AgentProgress | null;
+  deployChatLock: DeployChatLockState;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
@@ -1738,6 +2024,8 @@ function AgentChatThreadBody({
             useExternalProgress={recovering}
             streamedProgress={streamedProgress}
             onStopExternal={() => void stopRecovery()}
+            deployChatLocked={deployChatLock.locked}
+            deployChatLockMessage={deployChatLock.message}
             onFocusInputReady={(focus) => {
               focusComposerRef.current = focus;
             }}
@@ -1778,6 +2066,8 @@ function AgentChatThreadBody({
                 useExternalProgress={recovering}
                 streamedProgress={streamedProgress}
                 onStopExternal={() => void stopRecovery()}
+                deployChatLocked={deployChatLock.locked}
+                deployChatLockMessage={deployChatLock.message}
                 onFocusInputReady={(focus) => {
                   focusComposerRef.current = focus;
                 }}
@@ -1802,6 +2092,7 @@ function AgentChatThread({
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
 }) {
+  const deployChatLock = useDeployChatLock();
   const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
   const adapter = useMemo(
     () => createChatAdapter(threadId, propsRef, setStreamedProgress),
@@ -1820,11 +2111,16 @@ function AgentChatThread({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
+      <PendingDraftBoot
+        draft={pendingDraft}
+        autoSend={pendingAutoSend}
+        deployChatLocked={deployChatLock.locked}
+      />
       <AgentChatThreadBody
         propsRef={propsRef}
         threadId={threadId}
         streamedProgress={streamedProgress}
+        deployChatLock={deployChatLock}
       />
     </AssistantRuntimeProvider>
   );

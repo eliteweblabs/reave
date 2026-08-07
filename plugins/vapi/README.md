@@ -7,7 +7,7 @@ Optional add-on for Reave — **not included in the default install**. Customers
 - Admin → **Vapi** settings (assistant ID, first message, system prompt)
 - Build-time + manual assistant sync from Company details
 - Agent tool: `sync_vapi_assistant` and slash command `/vapi-sync`
-- Optional **homepage voice widget** when `homepageVoice: true` in install config
+- Optional **Live Speak Agent Widget** when `homepageVoice: true` in install config
 
 Separate from the **`voice`** feature (Telnyx inbound phone agent).
 
@@ -15,7 +15,7 @@ Separate from the **`voice`** feature (Telnyx inbound phone agent).
 
 1. Add `"vapi"` to `features` in `config/config-{slug}.json`
 2. Add `"vapi"` to `profileMenu` if the settings tab should appear
-3. Set `"homepageVoice": true` only when the customer wants the public site widget
+3. Set `"homepageVoice": true` only when the customer wants the public website widget
 4. On Railway (build + runtime service):
    - `VAPI_API_KEY` — private key (build sync + admin API)
    - `PUBLIC_VAPI_PUBLIC_KEY` — client SDK key

@@ -221,7 +221,9 @@ function dismissAlert(key) {
 export async function registerAdminServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    return await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+    const reg = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+    void reg.update();
+    return reg;
   } catch (e) {
     console.warn('[push] SW register failed', e);
     return null;
@@ -296,8 +298,8 @@ function renderSetupAlert(kind) {
   } else {
     const denied = Notification.permission === 'denied';
     copy.innerHTML = denied
-      ? '<strong>Notifications are blocked</strong><p>Enable notifications in your browser or device settings to get inbox alerts, bookings, and site monitoring.</p>'
-      : '<strong>Enable notifications</strong><p>Get inbox alerts, booking updates, and site monitoring even when the app is in the background.</p>';
+      ? '<strong>Notifications are blocked</strong><p>Enable notifications in your browser or device settings to get inbox alerts, bookings, and website monitoring.</p>'
+      : '<strong>Enable notifications</strong><p>Get inbox alerts, booking updates, and website monitoring even when the app is in the background.</p>';
   }
 
   const actions = document.createElement('div');
@@ -602,20 +604,12 @@ async function openSleepModeDialog() {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/push/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? true,
-          quietStart: document.getElementById('sleep-mode-start')?.value || '23:00',
-          quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
-          timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
-        }),
+      const saved = await patchSleepModeSettings({
+        sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? true,
+        quietStart: document.getElementById('sleep-mode-start')?.value || '23:00',
+        quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
+        timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
       });
-      const saved = await res.json().catch(() => ({}));
-      if (!res.ok || !saved.ok) throw new Error(saved.error || `HTTP ${res.status}`);
-      sleepModeCache = saved;
-      updateSleepModeMenuItem(saved);
       releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
     } catch (e) {
@@ -637,6 +631,86 @@ function updateSleepModeMenuItem(data) {
   if (!btn) return;
   btn.textContent = formatSleepMenuLabel(data || sleepModeCache);
   btn.classList.toggle('topbar-dropdown-item--active', Boolean(data?.active));
+}
+
+async function patchSleepModeSettings(patch) {
+  const res = await fetch('/api/push/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  const saved = await res.json().catch(() => ({}));
+  if (!res.ok || !saved.ok) throw new Error(saved.error || `HTTP ${res.status}`);
+  sleepModeCache = saved;
+  updateSleepModeMenuItem(saved);
+  syncTopbarSleepToggle(saved);
+  return saved;
+}
+
+function formatTopbarSleepLabel(data, enabled) {
+  const until = data?.quietEndLabel || '7:00 AM';
+  if (enabled) return `Sleeping until ${until}`;
+  const since = data?.awakeSinceLabel || until;
+  return `Awake since ${since}`;
+}
+
+function syncTopbarSleepToggle(data = sleepModeCache) {
+  const wrap = document.getElementById('topbar-sleep-toggle');
+  const btn = document.getElementById('topbar-sleep-toggle-btn');
+  const label = document.getElementById('topbar-sleep-toggle-label');
+  const topbar = document.getElementById('topbar');
+  if (!wrap || !btn) return;
+
+  const inWindow = Boolean(data?.inQuietWindow);
+  wrap.hidden = !inWindow;
+  topbar?.classList.toggle('topbar-has-sleep-toggle', inWindow);
+  if (!inWindow) return;
+
+  const enabled = data?.settings?.sleepModeEnabled !== false;
+  if (label) label.textContent = formatTopbarSleepLabel(data, enabled);
+  btn.setAttribute('aria-checked', enabled ? 'true' : 'false');
+  btn.setAttribute(
+    'aria-label',
+    enabled
+      ? `Sleep mode on until ${data?.quietEndLabel || 'quiet hours end'} — tap to allow AI and alerts tonight`
+      : `Sleep mode off since ${data?.awakeSinceLabel || 'you opted out'} — tap to pause AI and alerts again`,
+  );
+}
+
+async function refreshTopbarSleepToggle() {
+  if (!document.body?.dataset?.userId?.trim()) return;
+  try {
+    const data = await fetchSleepModeSettings();
+    syncTopbarSleepToggle(data);
+  } catch {
+    /* ignore — menu item fetch already logs via dialog path */
+  }
+}
+
+function initTopbarSleepToggle() {
+  const btn = document.getElementById('topbar-sleep-toggle-btn');
+  if (!btn || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    const nextEnabled = btn.getAttribute('aria-checked') !== 'true';
+    btn.disabled = true;
+    try {
+      await patchSleepModeSettings({ sleepModeEnabled: nextEnabled });
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  void refreshTopbarSleepToggle();
+  if (!window.__topbarSleepToggleTimer) {
+    window.__topbarSleepToggleTimer = setInterval(() => {
+      void refreshTopbarSleepToggle();
+    }, 60_000);
+  }
 }
 
 function ensureSleepModeMenuItem() {
@@ -664,7 +738,10 @@ function ensureSleepModeMenuItem() {
   }
 
   void fetchSleepModeSettings()
-    .then(updateSleepModeMenuItem)
+    .then((data) => {
+      updateSleepModeMenuItem(data);
+      syncTopbarSleepToggle(data);
+    })
     .catch(() => {});
 }
 
@@ -787,6 +864,13 @@ if (typeof document !== 'undefined') {
   if (isStandalonePwa()) markAdminPwaInstalled();
   void registerAdminServiceWorker();
 
+  let reloadedForSwUpdate = false;
+  navigator.serviceWorker?.addEventListener('controllerchange', () => {
+    if (reloadedForSwUpdate) return;
+    reloadedForSwUpdate = true;
+    window.location.reload();
+  });
+
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferredInstallPrompt = event;
@@ -802,7 +886,10 @@ if (typeof document !== 'undefined') {
     void syncAdminPushButton();
   });
 
-  document.addEventListener('DOMContentLoaded', () => initAdminPushButton());
+  document.addEventListener('DOMContentLoaded', () => {
+    initAdminPushButton();
+    initTopbarSleepToggle();
+  });
   window.addEventListener('pageshow', () => syncAdminPushButton());
   window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => syncAdminPushButton());
 }

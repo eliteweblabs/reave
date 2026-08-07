@@ -1,6 +1,6 @@
 ---
 feature: dev_infra
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 
@@ -13,7 +13,7 @@ stage: 3
 ## Required env vars
 
 - `GITHUB_TOKEN` — repo status, commits, PRs (read/write scopes as needed)
-- `RAILWAY_API_TOKEN` — list domains, create projects
+- `RAILWAY_API_TOKEN` — projects, services, variables, domains, deployments, logs
 - `RAILWAY_WORKSPACE_ID` — optional; required if name-only create fails
 - `RAILWAY_WEBHOOK_INGRESS_KEY` — deploy failure alerts to admin
 - `KINSTA_API_KEY` — WordPress site management
@@ -29,5 +29,5 @@ stage: 3
 
 - [ ] Set `GITHUB_TOKEN` and `RAILWAY_*` vars
 - [ ] Set `KINSTA_*` if WordPress tools are needed
-- [ ] Test `list_railway_domains` agent tool
+- [ ] Test `list_railway_variables` and `get_railway_status` agent tools
 - [ ] Set `moduleStatus.dev_infra` → `deployed` in install config

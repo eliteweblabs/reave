@@ -262,10 +262,19 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     feature: 'site_audits',
   },
 
+  // Wayback Machine (plugin)
+  {
+    slash: '/wayback',
+    summary: 'View an archived website snapshot',
+    template: 'What did [url] look like in [month/year]?',
+    example: 'What did https://example.com look like in February 2018?',
+    feature: 'wayback_machine',
+  },
+
   // Site monitoring (plugin)
   {
     slash: '/monitor',
-    summary: 'Site change monitoring status',
+    summary: 'Website change monitoring status',
     template: 'What is the change monitoring status for [url]?',
     example: 'What is the change monitoring status for https://acme.com?',
     feature: 'site_monitoring',

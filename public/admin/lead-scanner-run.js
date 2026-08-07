@@ -1,7 +1,8 @@
 /**
  * Lead Scanner — slide-in scan session with agent log + property cards.
  */
-import { escHtml, adminFetch } from './shared.js?v=20260728m';
+import { escHtml, adminFetch } from './shared.js?v=20260805j';
+import { postLower, postTitle } from './post-alias.js?v=20260805a';
 import { createPaneSubheader } from './admin-ui.js';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -144,7 +145,7 @@ function ensureRunPanel() {
     `</div>` +
     `</div>` +
     `<footer class="ls-run-footer">` +
-    `<button type="button" id="ls-run-import" class="prof-btn-primary" disabled>Import selected as projects</button>` +
+    `<button type="button" id="ls-run-import" class="prof-btn-primary" disabled>Import selected as ${postLower(2)}</button>` +
     `</footer>`;
 
   const host = document.getElementById('settings-panel') || document.body;
@@ -272,14 +273,14 @@ export class LeadScannerRunSession {
     const n = this._selectedIds().length;
     this.importBtn.disabled = n === 0;
     this.importBtn.textContent =
-      n === 0 ? 'Import selected as projects' : `Import ${n} as project${n === 1 ? '' : 's'}`;
+      n === 0 ? `Import selected as ${postLower(2)}` : `Import ${n} as ${postLower(n === 1 ? 1 : 2)}`;
   }
 
   async _importSelected() {
     const propertyIds = this._selectedIds();
     if (!propertyIds.length || !this.runId) return;
     this.importBtn.disabled = true;
-    this.setStatus('Creating projects…');
+    this.setStatus(`Creating ${postLower(2)}…`);
     await this.logLine(`Importing ${propertyIds.length} selected lead${propertyIds.length === 1 ? '' : 's'}…`);
     try {
       const res = await adminFetch('/api/admin/lead-scanner?action=import', {
@@ -290,7 +291,7 @@ export class LeadScannerRunSession {
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || json.result?.errors?.[0] || `HTTP ${res.status}`);
       const r = json.result || {};
-      await this.logLine(`Created ${r.imported ?? 0} inquiry project${(r.imported ?? 0) === 1 ? '' : 's'}.`);
+      await this.logLine(`Created ${r.imported ?? 0} inquiry ${postLower((r.imported ?? 0) === 1 ? 1 : 2)}.`);
       if ((r.skipped ?? 0) > 0) await this.logLine(`${r.skipped} skipped (already imported).`);
       await this.loadRun(this.runId);
       this.setStatus(`${r.imported ?? 0} imported — review remaining cards or close.`);
@@ -384,7 +385,7 @@ export class LeadScannerRunSession {
       80,
     );
     await this.revealCandidates(candidates, {});
-    await this.logLine('Scan complete — cherry-pick the leads you want, then import as projects.', 0);
+    await this.logLine(`Scan complete — cherry-pick the leads you want, then import as ${postLower(2)}.`, 0);
     this.setStatus(`${candidates.length} propert${candidates.length === 1 ? 'y' : 'ies'} — select leads to import`);
     return r;
   }
@@ -399,7 +400,7 @@ export class LeadScannerRunSession {
       120,
     );
     if (n > 0) {
-      await this.logLine('Review the cards below and import the ones you want as inquiry projects.', 0);
+      await this.logLine(`Review the cards below and import the ones you want as inquiry ${postLower(2)}.`, 0);
     } else {
       await this.logLine('This scan did not return any matching properties.', 0);
     }

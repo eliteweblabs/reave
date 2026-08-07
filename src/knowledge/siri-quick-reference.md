@@ -124,7 +124,7 @@ Everything in the quick audit plus Playwright UX/UI, broken links, and tech stac
   "client": "Acme Corp",
   "status": "active",
   "priority": "high",
-  "body": "Full site redesign with modern stack",
+  "body": "Full website redesign with modern stack",
   "format": "text"
 }
 ```
@@ -235,6 +235,60 @@ Every Siri shortcut follows this pattern:
    - Headers: `X-Siri-Key` = `your-key`
    - Body: JSON (see above)
 3. **Show Result** or **Speak Text**
+
+---
+
+## Start Time Tracking
+
+**Requires** `time_tracking` in install config `features[]`.
+
+**Prompt** (no query — speaks the most recent project):
+
+```json
+{
+  "action": "start_time_tracking",
+  "format": "text"
+}
+```
+
+**Confirm recent project** (`suggested_slug` from the prompt response):
+
+```json
+{
+  "action": "start_time_tracking",
+  "query": "yes",
+  "suggested_slug": "cooper-website",
+  "format": "text"
+}
+```
+
+**Start on a named project** (finds existing project or creates one for a matching client):
+
+```json
+{
+  "action": "start_time_tracking",
+  "query": "cooper website",
+  "format": "text"
+}
+```
+
+**Stop and log hours**:
+
+```json
+{
+  "action": "stop_time_tracking",
+  "format": "text"
+}
+```
+
+**Current timer status**:
+
+```json
+{
+  "action": "time_tracking_status",
+  "format": "text"
+}
+```
 
 ---
 

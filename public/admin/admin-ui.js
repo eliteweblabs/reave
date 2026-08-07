@@ -46,7 +46,7 @@ export const IOS_ICONS = {
   message:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
   refresh:
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
 };
 
 let _agentIconClipSeq = 0;
@@ -204,7 +204,8 @@ function ensureDeleteConfirmChrome(btn, ringSize = 36, ringRadius = 18) {
   holder.className = 'delete-confirm-ring-holder';
   holder.setAttribute('aria-hidden', 'true');
   holder.innerHTML = deleteConfirmRingMarkup(ringSize, ringRadius);
-  btn.appendChild(holder);
+  const ringAnchor = btn.querySelector('.em-filter-purge-icon') || btn;
+  ringAnchor.appendChild(holder);
 }
 
 export function resetDeleteConfirmButton(btn) {
@@ -268,7 +269,8 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
   const isSwipe = btn.classList.contains('swipe-act');
   const isIosIcon = btn.classList.contains('ios-icon-btn');
-  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : 36);
+  const isFilterPurge = btn.classList.contains('em-filter-tab--purge');
+  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : isFilterPurge ? 22 : 36);
   const ringRadius = opts.ringRadius ?? (isIosIcon ? 20 : 18);
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 
@@ -373,6 +375,38 @@ function createSearchFieldAdornment(input, onClear) {
     }
   });
   syncSearchFieldAdornment(input, btn);
+  return btn;
+}
+
+/** Toggle a clear-only adornment — hidden when empty, X when the field has text. */
+export function syncInputClearAdornment(input, btn, label = 'Clear') {
+  if (!input || !btn) return;
+  const hasText = input.value.length > 0;
+  btn.hidden = !hasText;
+  if (hasText) {
+    btn.dataset.mode = 'clear';
+    btn.classList.add('is-clear');
+    btn.classList.remove('is-search');
+    btn.setAttribute('aria-label', label);
+    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON;
+  }
+}
+
+/** Clear button for editable fields (address, etc.) — same shell as search clear. */
+export function createInputClearAdornment(input, onClear, label = 'Clear') {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'panel-list-search-clear search-overlay-clear panel-list-search-adornment';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (btn.hidden) return;
+    input.value = '';
+    syncInputClearAdornment(input, btn, label);
+    onClear?.('');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  });
+  syncInputClearAdornment(input, btn, label);
   return btn;
 }
 
@@ -1157,8 +1191,37 @@ function createListSelectionController(listEl, opts) {
     return sidebarEl()?.querySelector('.panel-list-subheader') ?? null;
   }
 
+  function rowIdsInList() {
+    const ids = new Set();
+    listEl.querySelectorAll('.swipe-row').forEach((row) => {
+      const id = getSwipeRowItemId(row);
+      if (id) ids.add(id);
+    });
+    return ids;
+  }
+
+  function pruneStaleSelection() {
+    const present = rowIdsInList();
+    for (const id of selected) {
+      if (!present.has(id)) selected.delete(id);
+    }
+  }
+
+  function removeOrphanSelectionBars(keep) {
+    sidebarEl()?.querySelectorAll('.list-selection-bar').forEach((el) => {
+      if (el !== keep) el.remove();
+    });
+  }
+
   function ensureToolbar() {
+    removeOrphanSelectionBars(toolbar);
     if (toolbar?.isConnected) return;
+
+    toolbar = null;
+    countEl = null;
+    archiveBtn = null;
+    deleteBtn = null;
+
     const subheader = subheaderEl();
 
     toolbar = document.createElement('div');
@@ -1210,6 +1273,13 @@ function createListSelectionController(listEl, opts) {
   }
 
   function syncRowSelectedClasses() {
+    if (active) {
+      pruneStaleSelection();
+      if (selected.size === 0) {
+        exit();
+        return;
+      }
+    }
     listEl.querySelectorAll('.swipe-row').forEach((row) => {
       const id = getSwipeRowItemId(row);
       const item = row.querySelector('.ch-list-item, .em-list-item');
@@ -1228,7 +1298,12 @@ function createListSelectionController(listEl, opts) {
 
   function updateUI() {
     ensureToolbar();
+    pruneStaleSelection();
     const n = selected.size;
+    if (active && n === 0) {
+      exit();
+      return;
+    }
     if (countEl) countEl.textContent = n === 1 ? '1 selected' : `${n} selected`;
     if (archiveBtn) archiveBtn.disabled = n === 0;
     if (deleteBtn) deleteBtn.disabled = n === 0;
@@ -1255,15 +1330,19 @@ function createListSelectionController(listEl, opts) {
   }
 
   function exit() {
-    if (!active) return;
+    const wasActive = active;
     active = false;
     selected.clear();
     listEl.classList.remove('list-selection-mode');
-    if (toolbar) toolbar.hidden = true;
+    if (toolbar) {
+      toolbar.hidden = true;
+      resetDeleteConfirmsIn(toolbar);
+    }
+    if (countEl) countEl.textContent = '';
     const subheader = subheaderEl();
     if (subheader) subheader.hidden = false;
     syncRowSelectedClasses();
-    opts.onSelectionChange?.(selected, active);
+    if (wasActive) opts.onSelectionChange?.(selected, active);
   }
 
   function toggle(id) {
@@ -1368,6 +1447,8 @@ function createListSelectionController(listEl, opts) {
           longPressFired = false;
           return;
         }
+        // Icon clicks use handleSelectIconClick; skip here so capture doesn't toggle twice.
+        if (ev.target.closest('.list-select-icon')) return;
         if (!active) return;
         ev.preventDefault();
         ev.stopPropagation();
@@ -1377,7 +1458,30 @@ function createListSelectionController(listEl, opts) {
     );
   }
 
-  return { enter, exit, toggle, bindRow, isActive: () => active, getSelected: () => selected };
+  function resyncAfterListRebuild() {
+    if (!active) return;
+    pruneStaleSelection();
+    if (selected.size === 0) {
+      exit();
+      return;
+    }
+    listEl.classList.add('list-selection-mode');
+    const subheader = subheaderEl();
+    if (subheader) subheader.hidden = true;
+    ensureToolbar();
+    if (toolbar) toolbar.hidden = false;
+    updateUI();
+  }
+
+  return {
+    enter,
+    exit,
+    toggle,
+    bindRow,
+    isActive: () => active,
+    getSelected: () => selected,
+    resyncAfterListRebuild,
+  };
 }
 
 /** Enable icon-click and long-press multi-select on sidebar lists. Call once per list element. */
@@ -1398,6 +1502,11 @@ export function exitListMultiSelect(listEl) {
 
 export function isListInSelectionMode(listEl) {
   return listSelectionControllers.get(listEl)?.isActive() ?? false;
+}
+
+/** Re-apply multi-select UI after a list DOM rebuild (rows replaced in place). */
+export function resyncListMultiSelect(listEl) {
+  listSelectionControllers.get(listEl)?.resyncAfterListRebuild();
 }
 
 // ---- Swipe row actions (shared across inbox, chats, docs, etc.) ----
@@ -1455,11 +1564,15 @@ const SWIPE_VERTICAL_RATIO = 1.1;
 const SWIPE_CLOSE_HORIZONTAL_MIN = 14;
 const SWIPE_CLOSE_HORIZONTAL_RATIO = 2;
 const SWIPE_HINT_DELAY_MS = 450;
-const SWIPE_HINT_OPEN_MS = 250;
+const SWIPE_HINT_OPEN_MS = 280;
 const SWIPE_HINT_UNLOCK_MS = 230;
+const SWIPE_HINT_STAGGER_MS = 110;
+const SWIPE_HINT_MAX_ROWS = 6;
+const SWIPE_HINT_STORAGE_PREFIX = 'admin-swipe-hint:';
 
 let openSwipeRow = null;
 const swipeHintPlayedScopes = new WeakSet();
+const swipeRowApis = new WeakMap();
 
 function getSwipeHintScope(list) {
   return (
@@ -1481,7 +1594,59 @@ function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
-function maybeScheduleSwipeHint(row, api) {
+function getSwipeHintScopeKey(scope) {
+  if (!scope) return '';
+  if (scope.id) return scope.id;
+  if (scope.dataset?.swipeHintScope) return scope.dataset.swipeHintScope;
+  const cls = scope.className?.split(/\s+/).filter(Boolean)[0];
+  return cls || 'swipe-list';
+}
+
+function swipeHintAlreadySeen(scopeKey) {
+  if (!scopeKey) return true;
+  try {
+    return localStorage.getItem(`${SWIPE_HINT_STORAGE_PREFIX}${scopeKey}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markSwipeHintSeen(scopeKey) {
+  if (!scopeKey) return;
+  try {
+    localStorage.setItem(`${SWIPE_HINT_STORAGE_PREFIX}${scopeKey}`, '1');
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function isSwipeHintCascadeActive() {
+  return !!document.querySelector('.ch-list.swipe-hint-cascade, .de-list.swipe-hint-cascade, .em-list.swipe-hint-cascade');
+}
+
+async function playSwipeHintCascade(list) {
+  const rows = [...list.querySelectorAll(':scope > .swipe-row')].slice(0, SWIPE_HINT_MAX_ROWS);
+  if (!rows.length) return;
+
+  list.classList.add('swipe-hint-cascade');
+  try {
+    await Promise.all(
+      rows.map((row, index) => {
+        const api = swipeRowApis.get(row);
+        if (!api?.playHint) return Promise.resolve();
+        return new Promise((resolve) => {
+          window.setTimeout(() => {
+            api.playHint().then(resolve, resolve);
+          }, index * SWIPE_HINT_STAGGER_MS);
+        });
+      }),
+    );
+  } finally {
+    list.classList.remove('swipe-hint-cascade');
+  }
+}
+
+function maybeScheduleSwipeHint(row) {
   if (!usesSoftwareKeyboard()) return;
   if (prefersReducedMotion()) return;
   const list = row.closest('.ch-list, .de-list, .em-list');
@@ -1489,13 +1654,15 @@ function maybeScheduleSwipeHint(row, api) {
   if (list.querySelector(':scope > .swipe-row') !== row) return;
 
   const scope = getSwipeHintScope(list);
+  const scopeKey = getSwipeHintScopeKey(scope);
+  if (swipeHintAlreadySeen(scopeKey)) return;
   if (swipeHintPlayedScopes.has(scope)) return;
   swipeHintPlayedScopes.add(scope);
 
   window.setTimeout(() => {
-    if (!row.isConnected || !isSwipeListVisible(list)) return;
-    if (list.querySelector(':scope > .swipe-row') !== row) return;
-    api.playHint();
+    if (!isSwipeListVisible(list)) return;
+    if (!list.querySelector(':scope > .swipe-row')) return;
+    playSwipeHintCascade(list).then(() => markSwipeHintSeen(scopeKey));
   }, SWIPE_HINT_DELAY_MS);
 }
 
@@ -1683,28 +1850,35 @@ function attachSwipeRow(row, contentEl, revealPx) {
 
   function endHintLock() {
     hintLock = false;
-    row.classList.remove('swipe-hint-lock');
+    row.classList.remove('swipe-hint-lock', 'swipe-hint-active');
     row.style.pointerEvents = '';
   }
 
   function playHint() {
-    if (hintLock || !row.isConnected) return;
+    if (hintLock || !row.isConnected) return Promise.resolve();
     hintLock = true;
-    row.classList.add('swipe-hint-lock');
+    row.classList.add('swipe-hint-lock', 'swipe-hint-active');
     row.style.pointerEvents = 'none';
-    snap(true);
-    hintCloseTimer = window.setTimeout(() => {
-      hintCloseTimer = null;
-      if (!row.isConnected) {
-        endHintLock();
-        return;
-      }
-      snap(false);
-      hintUnlockTimer = window.setTimeout(() => {
-        hintUnlockTimer = null;
-        endHintLock();
-      }, SWIPE_HINT_UNLOCK_MS);
-    }, SWIPE_HINT_OPEN_MS);
+    // Hint uses direct translate so multiple rows can overlap (piano-key cascade).
+    setTranslate(-revealPx, true);
+
+    return new Promise((resolve) => {
+      hintCloseTimer = window.setTimeout(() => {
+        hintCloseTimer = null;
+        if (!row.isConnected) {
+          endHintLock();
+          resolve();
+          return;
+        }
+        setTranslate(0, true);
+        row.classList.remove('swipe-hint-active');
+        hintUnlockTimer = window.setTimeout(() => {
+          hintUnlockTimer = null;
+          endHintLock();
+          resolve();
+        }, SWIPE_HINT_UNLOCK_MS);
+      }, SWIPE_HINT_OPEN_MS);
+    });
   }
 
   function onStart(clientX, clientY) {
@@ -1836,6 +2010,7 @@ function attachSwipeRow(row, contentEl, revealPx) {
     playHint,
     isHinting: () => hintLock,
   };
+  swipeRowApis.set(row, api);
   return api;
 }
 
@@ -1882,8 +2057,8 @@ export function createSwipeRow(contentEl, actions) {
 
   requestAnimationFrame(() => {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
-    const api = attachSwipeRow(row, content, revealPx);
-    maybeScheduleSwipeHint(row, api);
+    attachSwipeRow(row, content, revealPx);
+    maybeScheduleSwipeHint(row);
     const list = row.closest('.ch-list, .de-list, .em-list');
     const ctrl = list ? listSelectionControllers.get(list) : null;
     if (ctrl) ctrl.bindRow(row, content, contentEl);
@@ -2011,7 +2186,7 @@ if (typeof document !== 'undefined' && !document.documentElement.dataset.swipeDi
   document.documentElement.dataset.swipeDismissBound = '1';
   document.addEventListener('click', (e) => {
     if (!openSwipeRow) return;
-    if (openSwipeRow.isHinting?.()) return;
+    if (openSwipeRow.isHinting?.() || isSwipeHintCascadeActive()) return;
     if (openSwipeRow.row.contains(e.target)) return;
     closeOpenSwipeRow();
   });

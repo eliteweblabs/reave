@@ -16,6 +16,7 @@ import { titleFromMessage } from './chatTypes';
 export { titleFromMessage };
 
 const META_RE = /^<!--\s*(id|user|created|updated|archived|last_seen):\s*(.+?)\s*-->$/;
+const MSG_USAGE_RE = /^<!--\s*agent_usage:\s*(.+?)\s*-->$/;
 const MSG_HEADING_RE = /^##\s+(user|assistant)\s*$/i;
 
 function projectRoot(): string {
@@ -89,12 +90,25 @@ function parseThreadFile(content: string): ParsedThread | null {
       }
       body.push(lines[i]);
     }
+    let agent_usage: ChatMessage['agent_usage'];
+    if (body.length && MSG_USAGE_RE.test(body[0].trim())) {
+      const usageMatch = body[0].trim().match(MSG_USAGE_RE);
+      if (usageMatch) {
+        try {
+          agent_usage = JSON.parse(usageMatch[1]) as ChatMessage['agent_usage'];
+        } catch {
+          agent_usage = undefined;
+        }
+      }
+      body.shift();
+    }
     const text = body.join('\n').trimEnd();
     messages.push({
       id: `${meta.id}-${messages.length}`,
       role,
       content: text,
       created_at: meta.updated,
+      ...(agent_usage ? { agent_usage } : {}),
     });
   }
 
@@ -128,7 +142,11 @@ function serializeThread(
   if (meta.last_seen) out.push(`<!-- last_seen: ${meta.last_seen} -->`);
   out.push('');
   for (const m of messages) {
-    out.push(`## ${m.role}`, m.content, '');
+    out.push(`## ${m.role}`);
+    if (m.agent_usage) {
+      out.push(`<!-- agent_usage: ${JSON.stringify(m.agent_usage)} -->`);
+    }
+    out.push(m.content, '');
   }
   return out.join('\n').trimEnd() + '\n';
 }

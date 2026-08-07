@@ -234,6 +234,8 @@ function drawSpine(host: HTMLElement, steps: StepId[], activeStep: StepId): () =
   return () => draw.remove();
 }
 
+let scrollSpyPausedUntil = 0;
+
 function setActiveStep(root: HTMLElement, stepId: StepId, steps: StepId[], scroll = true): void {
   root.querySelectorAll<HTMLElement>("[data-cmp-step]").forEach((el) => {
     el.classList.toggle("cmp-flow-step--active", el.dataset.cmpStep === stepId);
@@ -241,7 +243,12 @@ function setActiveStep(root: HTMLElement, stepId: StepId, steps: StepId[], scrol
   root.querySelectorAll<HTMLElement>("[data-cmp-nav]").forEach((btn) => {
     const on = btn.dataset.cmpNav === stepId;
     btn.classList.toggle("cmp-flow-nav__btn--active", on);
-    btn.setAttribute("aria-current", on ? "step" : "false");
+    if (on) {
+      btn.setAttribute("aria-current", "step");
+      btn.scrollIntoView({ block: "nearest", inline: "nearest" });
+    } else {
+      btn.removeAttribute("aria-current");
+    }
   });
   const spine = root.querySelector<HTMLElement>("[data-cmp-spine]");
   if (spine) {
@@ -254,6 +261,7 @@ function setActiveStep(root: HTMLElement, stepId: StepId, steps: StepId[], scrol
     );
   }
   if (scroll) {
+    scrollSpyPausedUntil = performance.now() + 900;
     const panel = root.querySelector<HTMLElement>(`#cmp-panel-${stepId}`);
     panel?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -362,20 +370,47 @@ function bindScrollSpy(root: HTMLElement, steps: StepId[]): () => void {
     .map((id) => root.querySelector<HTMLElement>(`#cmp-panel-${id}`))
     .filter(Boolean) as HTMLElement[];
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((e) => e.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (!visible?.target.id) return;
-      const stepId = visible.target.id.replace("cmp-panel-", "");
-      if (steps.includes(stepId)) setActiveStep(root, stepId, steps, false);
-    },
-    { rootMargin: "-20% 0px -55% 0px", threshold: [0.15, 0.4, 0.7] },
-  );
+  if (panels.length === 0) return () => {};
 
-  panels.forEach((p) => observer.observe(p));
-  return () => observer.disconnect();
+  // Align with sticky nav offset (header + cmp-flow-nav).
+  const activeLine = () => window.innerHeight * 0.25 + 72;
+
+  let current: StepId = steps[0];
+  let ticking = false;
+
+  const syncActiveFromScroll = () => {
+    ticking = false;
+    if (performance.now() < scrollSpyPausedUntil) return;
+
+    const line = activeLine();
+    let best: StepId = steps[0];
+
+    for (const panel of panels) {
+      const stepId = panel.id.replace("cmp-panel-", "") as StepId;
+      if (!steps.includes(stepId)) continue;
+      if (panel.getBoundingClientRect().top <= line) best = stepId;
+    }
+
+    if (best !== current) {
+      current = best;
+      setActiveStep(root, best, steps, false);
+    }
+  };
+
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(syncActiveFromScroll);
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll, { passive: true });
+  syncActiveFromScroll();
+
+  return () => {
+    window.removeEventListener("scroll", onScroll);
+    window.removeEventListener("resize", onScroll);
+  };
 }
 
 export function initCompareFlow(root: HTMLElement, data: CompareFlowData): () => void {

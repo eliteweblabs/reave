@@ -43,6 +43,7 @@ import {
 import { getContactDeleteBlockers, executeContactDelete } from '../../contactDeleteGuard';
 import { syncContactToCrater } from '../../contactCraterSync';
 import { setClientPortalWebsite } from '../../clientBrand';
+import { enrichContactAddressFromPlaces } from '../../contactAddressFromPlaces';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -266,6 +267,8 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     const saved = await setContactKind(uid, kind);
     if (!saved.ok) return JSON.stringify({ error: saved.error });
   }
+
+  await enrichContactAddressFromPlaces(uid);
 
   const website = typeof args.website === 'string' ? args.website.trim() : '';
   if (website) {

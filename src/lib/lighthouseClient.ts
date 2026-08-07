@@ -39,7 +39,7 @@ export type LighthouseStrategyResult = {
 
 export type LighthouseAuditResponse =
   | { ok: true; url: string; results: LighthouseStrategyResult[] }
-  | { ok: false; error: string; status?: number };
+  | { ok: false; error: string; status?: number; rateLimited?: boolean };
 
 type PsiAudit = {
   id?: string;
@@ -109,7 +109,7 @@ async function runOne(
   url: string,
   strategy: LighthouseStrategy,
   categories: LighthouseCategory[],
-): Promise<LighthouseStrategyResult | { error: string; status?: number }> {
+): Promise<LighthouseStrategyResult | { error: string; status?: number; rateLimited?: boolean }> {
   const apiUrl = new URL(PSI_ENDPOINT);
   apiUrl.searchParams.set('url', url);
   apiUrl.searchParams.set('strategy', strategy);
@@ -145,7 +145,18 @@ async function runOne(
     } catch {
       /* use raw slice */
     }
-    return { error: detail || res.statusText, status: res.status };
+    const rateLimited =
+      res.status === 429 ||
+      /quota exceeded|rate limit|too many requests|daily limit/i.test(detail);
+    console.warn('[lighthouse] PSI request failed', {
+      status: res.status,
+      rateLimited,
+      hasApiKey: Boolean(apiKey),
+      strategy,
+      url,
+      detail: detail.slice(0, 120),
+    });
+    return { error: detail || res.statusText, status: res.status, rateLimited };
   }
 
   let body: {
@@ -202,7 +213,12 @@ export async function lighthouseAudit(opts: {
   for (const strategy of strategies) {
     const out = await runOne(url, strategy, categories);
     if ('error' in out) {
-      return { ok: false, error: `${strategy}: ${out.error}`, status: out.status };
+      return {
+        ok: false,
+        error: `${strategy}: ${out.error}`,
+        status: out.status,
+        rateLimited: out.rateLimited,
+      };
     }
     results.push(out);
   }

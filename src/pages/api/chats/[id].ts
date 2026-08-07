@@ -29,6 +29,7 @@ import {
   storeSetChatArchived,
   storeUpdateChatTitle,
 } from '../../../lib/chatStore';
+import type { AgentUsageSummary } from '../../../lib/agentUsage';
 import { runKnowledgeAgent, runKnowledgeAgentStreaming } from '../../../lib/agentRunner';
 import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
 import {
@@ -54,6 +55,15 @@ import {
   promoteChatDocsToLinkedProjects,
   promoteChatImagesToLinkedProjects,
 } from '../../../lib/projectFiles';
+import {
+  chatDeployLockMessage,
+  getDeployStatus,
+  isChatLockedForDeploy,
+} from '../../../lib/deployStatus';
+import {
+  flushDeferredDeploy,
+  formatFlushFailureNote,
+} from '../../../lib/deferredDeploy';
 
 export const prerender = false;
 
@@ -196,6 +206,25 @@ function interruptedReplyText(
   return partial ? `${partial}\n\n${note}` : note;
 }
 
+/** Push queued GitHub commits / git pushes after the reply is saved. */
+async function finishTurnDeployFlush(
+  ownerUserId: string,
+  userId: string,
+  threadId: string,
+): Promise<void> {
+  const flush = await flushDeferredDeploy(userId, threadId);
+  if (!flush.ok) {
+    const note = formatFlushFailureNote(flush);
+    if (note) {
+      try {
+        await storeAppendChatMessages(ownerUserId, threadId, [{ role: 'assistant', content: note }]);
+      } catch {
+        /* best effort */
+      }
+    }
+  }
+}
+
 /**
  * Persist an assistant message, retrying once. A transient database blip on the
  * write is the one remaining way a completed answer could still vanish, and the
@@ -205,8 +234,16 @@ async function persistAssistantReply(
   userId: string,
   id: string,
   reply: string,
-): Promise<{ ok: boolean; assistantMessage: { role: 'assistant'; content: string } }> {
-  const assistantMessage = { role: 'assistant' as const, content: reply };
+  agentUsage?: AgentUsageSummary | null,
+): Promise<{
+  ok: boolean;
+  assistantMessage: { role: 'assistant'; content: string; agent_usage?: AgentUsageSummary | null };
+}> {
+  const assistantMessage = {
+    role: 'assistant' as const,
+    content: reply,
+    ...(agentUsage ? { agent_usage: agentUsage } : {}),
+  };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const saved = await storeAppendChatMessages(userId, id, [assistantMessage]);
@@ -269,6 +306,19 @@ export async function POST(context: APIContext): Promise<Response> {
   const loaded = await loadOwnerChatThread(userId, id);
   if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
   const { ownerUserId, thread } = loaded;
+
+  const deployStatus = await getDeployStatus();
+  if (isChatLockedForDeploy(deployStatus)) {
+    return json(
+      {
+        ok: false,
+        deploy_locked: true,
+        deploy_state: deployStatus!.state,
+        error: chatDeployLockMessage(deployStatus!),
+      },
+      503,
+    );
+  }
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images, docs);
@@ -350,11 +400,14 @@ export async function POST(context: APIContext): Promise<Response> {
       // Every exit path funnels through here, so the turn always ends with a
       // persisted assistant message AND a single `done` event carrying it.
       let settled = false;
-      const settle = async (reply: string, opts: { interrupted?: boolean } = {}) => {
+      const settle = async (
+        reply: string,
+        opts: { interrupted?: boolean; agentUsage?: AgentUsageSummary | null } = {},
+      ) => {
         if (settled) return;
         settled = true;
         const text = reply.trim() || interruptedReplyText(userId, id, { cancelled: false });
-        const persisted = await persistAssistantReply(ownerUserId, id, text);
+        const persisted = await persistAssistantReply(ownerUserId, id, text, opts.agentUsage);
         try {
           const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
           if (ensuredTitle) title = ensuredTitle;
@@ -367,6 +420,7 @@ export async function POST(context: APIContext): Promise<Response> {
           title,
           userMessage,
           assistantMessage: persisted.assistantMessage,
+          agent_usage: opts.agentUsage ?? persisted.assistantMessage.agent_usage ?? null,
           ...(opts.interrupted ? { interrupted: true } : {}),
           ...(persisted.ok ? {} : { error: 'Reply could not be saved to this thread.' }),
         });
@@ -390,7 +444,7 @@ export async function POST(context: APIContext): Promise<Response> {
         });
 
         if (outcome.status === 'complete') {
-          await settle(outcome.reply);
+          await settle(outcome.reply, { agentUsage: outcome.usage });
         } else if (outcome.status === 'timeout') {
           // Stop the wedged work so it cannot keep burning resources or write to
           // this thread after we have already answered for it.
@@ -434,6 +488,7 @@ export async function POST(context: APIContext): Promise<Response> {
         }
         clearAgentProgress(userId, id);
         clearAgentRun(userId, id);
+        await finishTurnDeployFlush(ownerUserId, userId, id);
       }
     });
   }
@@ -443,10 +498,11 @@ export async function POST(context: APIContext): Promise<Response> {
   // the caller goes away before the response comes back.
   const runSignal = registerAgentRun(userId, id);
   const deadline = createAgentDeadline();
-  let reply: string;
+  let reply = '';
+  let agentUsage: AgentUsageSummary | null = null;
   let interrupted = false;
   try {
-    reply = await withDeadline(
+    const result = await withDeadline(
       runKnowledgeAgent({
         userText: message,
         images,
@@ -460,6 +516,8 @@ export async function POST(context: APIContext): Promise<Response> {
       deadline.totalMs + 45_000,
       'Agent run',
     );
+    reply = result.text;
+    agentUsage = result.usage;
   } catch (err) {
     // The turn still gets an answer: a notice plus whatever streamed before the
     // failure, saved to the thread the same way a normal reply would be.
@@ -476,7 +534,8 @@ export async function POST(context: APIContext): Promise<Response> {
     clearAgentRun(userId, id);
   }
 
-  const persisted = await persistAssistantReply(ownerUserId, id, reply);
+  const persisted = await persistAssistantReply(ownerUserId, id, reply, agentUsage);
+  await finishTurnDeployFlush(ownerUserId, userId, id);
   try {
     const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
     if (ensuredTitle) title = ensuredTitle;
@@ -489,6 +548,7 @@ export async function POST(context: APIContext): Promise<Response> {
     title,
     userMessage,
     assistantMessage: persisted.assistantMessage,
+    agent_usage: agentUsage,
     ...(interrupted ? { interrupted: true } : {}),
     ...(persisted.ok ? {} : { save_error: 'Reply could not be saved to this thread.' }),
     promoted_files: Object.keys(promoted_files).length ? promoted_files : undefined,

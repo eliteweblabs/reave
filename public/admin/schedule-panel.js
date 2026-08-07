@@ -34,8 +34,9 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
+} from './admin-ui.js?v=20260805b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260805j';
+import { postLower } from './post-alias.js?v=20260805a';
 import {
   registerOsDialogDropdownRepositioner,
   scheduleOsDialogFieldFocus,
@@ -45,7 +46,7 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260805b';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260805h';
 import { navigateToClient } from './clients-panel.js?v=20260728p';
 import { openReaveShareSheet } from './chat-panel.js?v=20260730c';
 
@@ -731,7 +732,7 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
 
     titleEl.textContent = 'Meeting address';
     bodyEl.innerHTML =
-      '<p class="em-book-dialog-lead">Enter the project site or meeting location so the booking can be placed on the map.</p>' +
+      `<p class="em-book-dialog-lead">Enter the ${postLower(1)} site or meeting location so the booking can be placed on the map.</p>` +
       '<label class="de-label sched-create-field em-book-address-field">' +
         '<span>Address</span>' +
         '<div class="control-field">' +
@@ -788,12 +789,11 @@ function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
   const onClose = typeof options.onClose === 'function' ? options.onClose : null;
 
   function isOpen() {
-    return dropdown.style.display !== 'none' && dropdown.offsetParent !== null;
+    // Fixed-position dropdowns have offsetParent === null; display is the source of truth.
+    return dropdown.style.display !== 'none';
   }
   function getOptions() {
-    return [...dropdown.querySelectorAll(optionSelector)].filter(
-      (el) => !el.disabled && el.offsetParent !== null,
-    );
+    return [...dropdown.querySelectorAll(optionSelector)].filter((el) => !el.disabled);
   }
   function setActive(opts, idx) {
     opts.forEach((el, i) => el.classList.toggle('active', i === idx));

@@ -3,6 +3,7 @@
  */
 
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
+import { truncateChatTitle } from './chatTypes';
 import {
   bestWorkDisplayName,
   formatAuditReadyNotification,
@@ -13,6 +14,7 @@ import { formatEmailChatReferenceWithBody } from './emailAgentContext';
 import { hasFeature } from './features';
 import { createLogger } from './logger';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from './workStore';
+import { getPostAlias } from './postAlias';
 
 const log = createLogger('admin-agent');
 
@@ -47,6 +49,11 @@ export function extractWorkSlugFromAgentReply(reply: string): string | null {
     /Project:\s*`([a-z0-9._-]+)`/i,
     /Project:\s*([a-z0-9._-]+)/i,
   ];
+  const alias = getPostAlias();
+  patterns.push(
+    new RegExp(`${alias.singularTitle}:\\s*\`([a-z0-9._-]+)\``, 'i'),
+    new RegExp(`${alias.singularTitle}:\\s*([a-z0-9._-]+)`, 'i'),
+  );
   for (const re of patterns) {
     const match = trimmed.match(re);
     const slug = match?.[1]?.trim().toLowerCase();
@@ -211,14 +218,15 @@ export async function notifyAdminAgentOfEmailAutomation(opts: {
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
+  const post = getPostAlias();
   const kind = opts.automationKind.trim();
   const client = opts.contactName?.trim() || opts.from?.trim() || 'Client';
   const project = opts.jobTitle?.trim() || opts.jobSlug?.trim() || '';
   const when = opts.whenLabel?.trim() || '';
 
   const headers: Record<string, string> = {
-    project_created: '📁 New project created automatically',
-    project_match_suggested: '📎 Possible project match — review needed',
+    project_created: `📁 New ${post.singular} created automatically`,
+    project_match_suggested: `📎 Possible ${post.singular} match — review needed`,
     meeting_booked: '📅 Meeting auto-booked from email',
     meeting_request: '📅 Meeting request — review needed',
     meeting_conflict: '⚠️ Meeting time conflict',
@@ -228,24 +236,24 @@ export async function notifyAdminAgentOfEmailAutomation(opts: {
   const intro = headers[kind] ?? `📬 Email automation: ${kind}`;
   const messageLines = [intro, '', `Client: ${client}`];
 
-  if (project) messageLines.push(`Project: ${project}${opts.jobSlug ? ` (${opts.jobSlug})` : ''}`);
+  if (project) messageLines.push(`${post.singularTitle}: ${project}${opts.jobSlug ? ` (${opts.jobSlug})` : ''}`);
   if (when) messageLines.push(`When: ${when}`);
   if (opts.subject?.trim()) messageLines.push(`Subject: ${opts.subject.trim()}`);
 
   if (kind === 'project_created') {
     messageLines.push(
       '',
-      'A project was created automatically from this inbound email. Review it on the home dashboard or Email tab — a branded acknowledgment was sent to the client.',
+      `A ${post.singular} was created automatically from this inbound email. Review it on the home dashboard or Email tab — a branded acknowledgment was sent to the client.`,
     );
   } else if (kind === 'project_match_suggested') {
     messageLines.push(
       '',
-      'This inbound email may belong on an existing project. Open the home dashboard or Email tab to add the message content and any attachments, or dismiss if it is not a match.',
+      `This inbound email may belong on an existing ${post.singular}. Open the home dashboard or Email tab to add the message content and any attachments, or dismiss if it is not a match.`,
     );
   } else if (kind === 'meeting_booked') {
     messageLines.push(
       '',
-      'A calendar booking was created automatically. Confirm the project link and send the meeting confirmation from the home dashboard or Email tab.',
+      `A calendar booking was created automatically. Confirm the ${post.singular} link and send the meeting confirmation from the home dashboard or Email tab.`,
     );
   } else if (kind === 'meeting_request') {
     messageLines.push(
@@ -288,13 +296,14 @@ export async function notifyAdminAgentOfProjectReply(opts: {
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
+  const post = getPostAlias();
   const messageLines = [
-    '🚨 URGENT — Client replied on a project',
+    `🚨 URGENT — Client replied on a ${post.singular}`,
     '',
     `Client: ${opts.contactName}`,
-    `Project: ${opts.jobTitle}`,
+    `${post.singularTitle}: ${opts.jobTitle}`,
     '',
-    'This is new work that needs ASAP follow-up. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule), link to the project if needed, and do not ask what project they mean — the email body is below.',
+    `This is new work that needs ASAP follow-up. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule), link to the ${post.singular} if needed, and do not ask what ${post.singular} they mean — the email body is below.`,
   ];
 
   if (opts.emailId) {
@@ -332,15 +341,16 @@ export async function notifyAdminAgentOfProjectComment(opts: {
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
+  const post = getPostAlias();
   const message = [
-    '💬 Client commented on a project',
+    `💬 Client commented on a ${post.singular}`,
     '',
     `Client: ${opts.contactName}`,
-    `Project: ${opts.jobTitle}`,
+    `${post.singularTitle}: ${opts.jobTitle}`,
     '',
     opts.commentText.trim(),
     '',
-    'Reply from the project comments thread in admin when you follow up.',
+    `Reply from the ${post.singular} comments thread in admin when you follow up.`,
   ].join('\n');
 
   await postToSystemAlertsThread({
@@ -427,14 +437,15 @@ export async function notifyAdminAgentOfContactForm(opts: {
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
+  const post = getPostAlias();
   const message = [
     '📬 New website contact form inquiry',
     '',
     `Client: ${opts.contactName}`,
     opts.email ? `Email: ${opts.email}` : null,
-    `Project: ${opts.jobTitle}`,
+    `${post.singularTitle}: ${opts.jobTitle}`,
     '',
-    'A new inquiry project was created from the website contact form. Review it on the Work tab.',
+    `A new inquiry ${post.singular} was created from the website contact form. Review it on the Work tab.`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -535,7 +546,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
       emailId: opts.emailId,
       autoRun: false,
       push: {
-        title: `Railway: ${opts.summary.slice(0, 60)}`,
+        title: truncateChatTitle(`Railway: ${opts.summary}`),
         body: opts.summary,
         tag: opts.emailId ?? 'railway-alert',
         url: opts.emailId
@@ -553,7 +564,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
     emailId: opts.emailId,
     autoRun: !isAnthropicBillingAlertStatus(opts.status),
     push: {
-      title: `Alert: ${opts.summary.slice(0, 60)}`,
+      title: truncateChatTitle(`Alert: ${opts.summary}`),
       body: opts.summary,
       tag: opts.emailId ?? `email-${opts.status}`,
       url: opts.emailId

@@ -363,7 +363,7 @@ function buildFooterAddress(company: { name?: string; address?: string }): strin
   return parts.length ? parts.join(' · ') : undefined;
 }
 
-/** Absolute site URL helper for building CTA links in emails. */
+/** Absolute website URL helper for building CTA links in emails. */
 export function newsletterSiteUrl(path = ''): string {
   const base = siteBaseUrl().replace(/\/+$/, '');
   if (!path) return base;

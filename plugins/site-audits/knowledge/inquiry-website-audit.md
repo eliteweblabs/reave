@@ -8,7 +8,7 @@ For **fast street audits** (Siri **"audit"** / **"create proposal"**), use `inqu
 
 ## When this applies
 
-- User says: **full audit**, full website review, deep site audit, Playwright UX review
+- User says: **full audit**, full website review, deep website audit, Playwright UX review
 - Siri shortcut `full_audit` or `create_proposal_full`
 - Admin chat when the user wants everything — not the quick street tier
 - You recovered or summarized prospects from a list — still run tools on each URL before `create_work`
@@ -16,7 +16,7 @@ For **fast street audits** (Siri **"audit"** / **"create proposal"**), use `inqu
 ## Never do this
 
 - Do **not** call `create_work` with only address + "password locked" + 3 action items from memory
-- Do **not** skip audit tools because the site looks empty or password-protected — document what you *can* verify (DNS, SSL, redirects, platform)
+- Do **not** skip audit tools because the website looks empty or password-protected — document what you *can* verify (DNS, SSL, redirects, platform)
 - Do **not** guess Lighthouse scores — run `lighthouse_audit` or omit scores and explain why
 - Do **not** use `create_work` for personal to-dos (use todo tools)
 
@@ -45,7 +45,8 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
 | `ssl_check` | Certificate expiry, TLS, security headers (CSP, HSTS, X-Frame-Options, etc.) |
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
-| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
+| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS (public resolvers — can lag after NS changes) |
+| `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
 | `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
 | `playwright_audit` | Real-browser UX/UI: nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
@@ -54,7 +55,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 
 **Password-protected or pre-launch sites (e.g. Shopify password page):** Still run `ssl_check`, `dns_check`, and `fetch_url` on the password page and any public policy URLs. Note in the audit that public Lighthouse scores are N/A until the store launches.
 
-**If `lighthouse_audit` fails (quota / missing `GOOGLE_PAGESPEED_API_KEY`):** Say so in the Performance section and rely on `fetch_url` + platform notes — do not invent scores.
+**If `lighthouse_audit` fails (quota / missing `GOOGLE_PAGESPEED_API_KEY`):** Call it once only. Write "Scores unavailable — run a fresh audit later" in affected sections and rely on `fetch_url` + platform notes — do not invent scores and do not retry the tool.
 
 ### 4. Create or update the project
 
@@ -80,7 +81,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 ```markdown
 ## Full Website & Online Presence Audit — {Month Year}
 
-**Current Site:** {domain} ({platform}, {notes e.g. password-protected})
+**Current Website:** {domain} ({platform}, {notes e.g. password-protected})
 **Location:** {street, city, state zip}
 **Contact:** {owner, email, phone if known}
 
@@ -119,6 +120,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 ### DNS & Email
 - {A records, host, MX provider}
 - {SPF/DKIM/DMARC status from dns_check}
+- If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
 
 ### Online Presence
 - {Google Business Profile, Yelp, Instagram, Facebook — from brave_search + fetch}
@@ -133,7 +135,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - …
 ```
 
-**Minimum length:** Aim for **1,500+ characters** when the site is publicly crawlable. Stubs under ~800 characters mean you skipped tools.
+**Minimum length:** Aim for **1,500+ characters** when the website is publicly crawlable. Stubs under ~800 characters mean you skipped tools.
 
 ## Title & slug conventions
 
@@ -166,9 +168,18 @@ When the user gives a list of businesses (e.g. local street scan):
 3. One `create_work` per business with full `body`
 4. Link all to the same chat if the conversation covers the whole list
 
+## Completion buttons (admin chat)
+
+When finishing an audit in admin chat, append structured button blocks using URLs from the **update_work** tool result:
+
+- **Client profile:** `profile_url`
+- **Audit on client portal:** `project_portal_url`
+
+Never put a job slug or business name in `/c/…` — only the contact **uid** works.
+
 ## Related tools
 
 - Work/jobs: `create_work`, `update_work`, `read_work`, `link_to_work`
-- Site audits: `fetch_url`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`, `playwright_audit`, `detect_tech_stack`
+- Website audits: `fetch_url`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`, `playwright_audit`, `detect_tech_stack`
 - Research: `brave_search`, `resolve_contact`
 - Quick tier (Siri "audit"): see `inquiry-website-audit-quick`

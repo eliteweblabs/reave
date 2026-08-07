@@ -34,6 +34,7 @@ const FEATURE_IDS_LIST = [
   'real_estate_data',
   'inventory_sync',
   'online_reviews',
+  'wayback_machine',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
@@ -53,11 +54,13 @@ export const FOOTER_NAV_MAP_KEYS = [
   'chats',
   'email',
   'rules',
+  'newsletter',
   'work',
   'schedule',
   'clients',
   'social',
   'analytics',
+  'modules',
   'finance',
   'profile',
   'company',
@@ -79,14 +82,12 @@ export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
 export type ModuleDeployStatus =
   | 'deployed'
   | 'development'
-  | 'pending'
   | 'request'
   | 'rejected';
 
 const MODULE_STATUS_SET = new Set<string>([
   'deployed',
   'development',
-  'pending',
   'request',
   'rejected',
 ]);
@@ -269,8 +270,10 @@ function normalizeModuleStatus(raw: unknown): Partial<Record<InstallFeatureId, M
     if (!FEATURE_SET.has(key)) continue;
     if (typeof value !== 'string') continue;
     const status = value.trim().toLowerCase();
-    if (MODULE_STATUS_SET.has(status)) {
-      out[key as InstallFeatureId] = status as ModuleDeployStatus;
+    const normalized =
+      status === 'pending' ? 'development' : status === 'requested' ? 'request' : status;
+    if (MODULE_STATUS_SET.has(normalized)) {
+      out[key as InstallFeatureId] = normalized as ModuleDeployStatus;
     }
   }
   return Object.keys(out).length ? out : undefined;
@@ -341,4 +344,31 @@ export function installConfigPath(): string | null {
 
 export function clearInstallConfigCache(): void {
   _cached = null;
+}
+
+let _productionFeatures: ReadonlySet<InstallFeatureId> | null = null;
+let _productionConfig: InstallConfig | null | undefined;
+
+/** Parsed config-reave.json — production Reave install. */
+export function getProductionInstallConfig(): InstallConfig | null {
+  if (_productionConfig !== undefined) return _productionConfig;
+  const path = configPathForSlug('reave');
+  if (existsSync(path)) {
+    try {
+      _productionConfig = parseInstallConfig(JSON.parse(readFileSync(path, 'utf8')));
+      return _productionConfig;
+    } catch {
+      /* fall through */
+    }
+  }
+  _productionConfig = null;
+  return null;
+}
+
+/** Optional modules enabled on the production Reave install (config-reave.json). */
+export function getProductionInstallFeatures(): ReadonlySet<InstallFeatureId> {
+  if (_productionFeatures) return _productionFeatures;
+  const config = getProductionInstallConfig();
+  _productionFeatures = new Set(config?.features.filter((f) => f !== 'demo') ?? []);
+  return _productionFeatures;
 }

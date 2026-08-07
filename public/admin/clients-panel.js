@@ -37,8 +37,10 @@ import {
   downloadBrandingImage,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
+  createInputClearAdornment,
+  syncInputClearAdornment,
+} from './admin-ui.js?v=20260806a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   openMediaPicker,
@@ -53,7 +55,8 @@ import {
   createClientDetailPanel,
   mountClientVaultSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260805b';
+} from './work-panel.js?v=20260806a';
+import { createDetailChrome, createDetailFormScroll } from './detail-tabs.js?v=20260806a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
@@ -112,6 +115,8 @@ function clientKindTagHtml(c) {
 
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
+let clientAutosaveSeq = 0;
+let clientAutosaveAbort = null;
 let clientFieldRegistry = [];
 let clientMapController = null;
 let clientPendingGeo = null;
@@ -222,6 +227,19 @@ function registerClientField(el, validateFn) {
 
   clientFieldRegistry.push(ctrl);
   return ctrl;
+}
+
+function cancelClientAutosaveTimer() {
+  if (clientAutosaveTimer) {
+    clearTimeout(clientAutosaveTimer);
+    clientAutosaveTimer = null;
+  }
+}
+
+function clientGeoMatches(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a.lat === b.lat && a.lng === b.lng;
 }
 
 function refreshAllClientFields() {
@@ -726,13 +744,33 @@ async function geocodeClientAddressPreview(address) {
   }
 }
 
-function mountClientAddressField(parent, value) {
+function mountClientAddressField(parent, value, clearActions = null) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = 'Address';
+
+  const field = document.createElement('div');
+  field.className = 'control-field cl-address-field';
+
   const input = document.createElement('input');
   input.className = 'de-input cl-address-input';
   input.placeholder = 'Business or street address';
   input.value = value || '';
   input.autocomplete = 'street-address';
-  appendClientField(parent, 'Address', input);
+
+  const clearBtn = createInputClearAdornment(
+    input,
+    () => clearActions?.fn?.(),
+    'Clear address',
+  );
+  input.addEventListener('input', () => {
+    syncInputClearAdornment(input, clearBtn, 'Clear address');
+  });
+
+  field.appendChild(input);
+  field.appendChild(clearBtn);
+  wrap.appendChild(field);
+  parent.appendChild(wrap);
   return input;
 }
 
@@ -890,7 +928,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
     ? 'Save the client first to upload logo and icon.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a site URL is saved, or use Fetch from website.';
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a website URL is saved, or use Fetch from website.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);
@@ -1123,10 +1161,7 @@ function bindClientBrandingScrape(btn, uid, getWebsite, onUpdate, refreshers) {
 }
 
 function createClientFormScroll(pane) {
-  const scroll = document.createElement('div');
-  scroll.className = 're-form-scroll cl-form-scroll';
-  pane.appendChild(scroll);
-  return scroll;
+  return createDetailFormScroll(pane, 'cl-form-scroll');
 }
 
 function renderNewClientForm(pane) {
@@ -1312,6 +1347,14 @@ function renderEditClientForm(pane) {
       syncClTitleInputWidth(companyInput);
       companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
+      const agentBtn = document.createElement('button');
+      agentBtn.type = 'button';
+      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+      agentBtn.setAttribute('aria-label', 'Agent');
+      agentBtn.title = 'Send to Agent';
+      agentBtn.innerHTML = IOS_ICONS.agent.replace(/width="\d+" height="\d+"/, 'width="16" height="16"');
+      agentBtn.addEventListener('click', () => askAgentAboutClient(uid));
+
       const shareBtn = clientKindFromRecord(clientState.draft) === 'personal'
         ? null
         : createPortalShareBtn(uid, {
@@ -1331,6 +1374,7 @@ function renderEditClientForm(pane) {
         },
         titleNode: titleWrap,
         icons: [
+          agentBtn,
           shareBtn,
           paneDeleteIcon({
             label: 'Delete client',
@@ -1338,9 +1382,10 @@ function renderEditClientForm(pane) {
           }),
         ].filter(Boolean),
       });
-      pane.appendChild(header);
+      const chrome = createDetailChrome(pane, 'cl-detail-chrome');
+      chrome.appendChild(header);
 
-      mountClientDetailTabs(pane, clientState.detailTab, (tabId) => {
+      mountClientDetailTabs(chrome, clientState.detailTab, (tabId) => {
         clientState.detailTab = tabId;
         showClientDetailPanel(pane, tabId);
       });
@@ -1389,13 +1434,21 @@ function renderEditClientForm(pane) {
         queueAutosaveRef();
       });
       let queueAutosaveRef = () => {};
+      let saveNowRef = async () => {};
+      const addressClearActions = { fn: null };
 
-      const addressInput = mountClientAddressField(profileFields, clientState.draft.address || '');
+      const addressInput = mountClientAddressField(
+        profileFields,
+        clientState.draft.address || '',
+        addressClearActions,
+      );
       registerClientField(addressInput, () => true);
       destroyClientAddressAutocomplete = mountAddressAutocomplete(
         addressInput,
         getClientsEditor() || document.body,
         async (pickedAddress) => {
+          cancelClientAutosaveTimer();
+          clientActiveField = addressInput;
           clientPendingGeo = await geocodeClientAddressPreview(pickedAddress);
           if (clientPendingGeo && clientMapController) {
             clientMapController.setLocation(
@@ -1404,6 +1457,7 @@ function renderEditClientForm(pane) {
               pickedAddress,
             );
           }
+          await saveNowRef();
         },
       );
 
@@ -1473,6 +1527,7 @@ function renderEditClientForm(pane) {
           kind: kindPill.getValue(),
         };
         if (clientPendingGeo) payload.geo = clientPendingGeo;
+        else if (!payload.address) payload.geo = null;
         return payload;
       };
       clientState.autosaveGetPayload = getPayload;
@@ -1495,8 +1550,16 @@ function renderEditClientForm(pane) {
       };
       queueAutosaveRef = queueAutosave;
       const saveNow = async () => {
+        cancelClientAutosaveTimer();
         markDirty();
         await autosaveClient(uid, getPayload());
+      };
+      saveNowRef = saveNow;
+      addressClearActions.fn = () => {
+        cancelClientAutosaveTimer();
+        clientPendingGeo = null;
+        clientMapController?.setLocation(null, null, '');
+        void saveNowRef();
       };
       for (const el of [
         companyInput,
@@ -1510,7 +1573,12 @@ function renderEditClientForm(pane) {
       ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
-          if (el === addressInput && !addressInput.dataset.autocompletePick) clientPendingGeo = null;
+          if (el === addressInput && !addressInput.dataset.autocompletePick) {
+            clientPendingGeo = null;
+            if (!addressInput.value.trim()) {
+              clientMapController?.setLocation(null, null, '');
+            }
+          }
           queueAutosave();
         });
         el.addEventListener('blur', () => {
@@ -1622,7 +1690,7 @@ function syncClientListRow(uid) {
 }
 
 function scheduleClientAutosave(uid, getPayload) {
-  clearTimeout(clientAutosaveTimer);
+  cancelClientAutosaveTimer();
   clientAutosaveTimer = setTimeout(async () => {
     clientAutosaveTimer = null;
     await autosaveClient(uid, getPayload());
@@ -1631,10 +1699,7 @@ function scheduleClientAutosave(uid, getPayload) {
 
 async function flushClientAutosave() {
   await flushClientVaultSave();
-  if (clientAutosaveTimer) {
-    clearTimeout(clientAutosaveTimer);
-    clientAutosaveTimer = null;
-  }
+  cancelClientAutosaveTimer();
   const uid = clientState.activeUid;
   if (!uid || uid === '__new__' || !clientState.autosaveGetPayload) return;
   await autosaveClient(uid, clientState.autosaveGetPayload());
@@ -1648,6 +1713,10 @@ async function autosaveClient(uid, payload) {
   const draft = clientState.draft;
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
+  const geoUnchanged =
+    payload.geo === null
+      ? !draft.geo
+      : payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -1656,7 +1725,8 @@ async function autosaveClient(uid, payload) {
     payload.website === draft.website &&
     payload.address === draft.address &&
     payload.notes === draft.notes &&
-    normalizeClientKind(payload.kind) === wasKind;
+    normalizeClientKind(payload.kind) === wasKind &&
+    geoUnchanged;
   if (unchanged) {
     clientState.dirty = false;
     return true;
@@ -1665,14 +1735,20 @@ async function autosaveClient(uid, payload) {
     refreshAllClientFields();
     return false;
   }
+  const seq = ++clientAutosaveSeq;
+  if (clientAutosaveAbort) clientAutosaveAbort.abort();
+  clientAutosaveAbort = new AbortController();
+  const { signal } = clientAutosaveAbort;
   if (clientActiveField) shell.setFormFieldState(clientActiveField, 'saving');
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal,
     });
     const data = await res.json();
+    if (seq !== clientAutosaveSeq) return false;
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const nameParts = splitClientNameParts({
       name: payload.name,
@@ -1689,7 +1765,9 @@ async function autosaveClient(uid, payload) {
       company: payload.company,
       website: payload.website,
       address: data.address ?? payload.address,
-      geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
+      geo: payload.address
+        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
+        : (data.geo ?? null),
       notes: payload.notes,
       kind: normalizeClientKind(payload.kind),
       personal: normalizeClientKind(payload.kind) === 'personal',
@@ -1739,6 +1817,8 @@ async function autosaveClient(uid, payload) {
     if (clientActiveField) shell.flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
+    if (e?.name === 'AbortError') return false;
+    if (seq !== clientAutosaveSeq) return false;
     console.warn('[clients] autosave failed', e);
     if (clientActiveField) shell.setFormFieldState(clientActiveField, 'invalid');
     refreshAllClientFields();
@@ -1844,8 +1924,66 @@ function createClientListItem(c) {
   return item;
 }
 
+function buildClientAgentPrompt(client, uid) {
+  const label = clientDisplayLabel(client);
+  const lines = [`Client: ${label}`, `UID: ${uid}`];
+  const person = joinClientFullName(client.firstName, client.lastName, '');
+  if (person && person !== label) lines.push(`Name: ${person}`);
+  if (client.company?.trim()) lines.push(`Company: ${client.company.trim()}`);
+  if (client.email?.trim()) lines.push(`Email: ${client.email.trim()}`);
+  if (client.phone?.trim()) lines.push(`Phone: ${client.phone.trim()}`);
+  if (client.website?.trim()) lines.push(`Website: ${client.website.trim()}`);
+  if (client.address?.trim()) lines.push(`Address: ${client.address.trim()}`);
+  const kind = clientKindFromRecord(client);
+  lines.push(`Type: ${CLIENT_KIND_LABELS[kind] || kind}`);
+  const portal = client.portal_url?.trim();
+  if (portal) lines.push(`Portal: ${portal}`);
+  const notes = String(client.notes || '').trim();
+  if (notes) {
+    const excerpt = notes.length > 500 ? `${notes.slice(0, 500)}…` : notes;
+    lines.push('', excerpt);
+  }
+  lines.push('', 'Please wait for instructions on how to deal with this client.');
+  return lines.join('\n');
+}
+
+async function fetchClientRecordForAgent(uid) {
+  const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' });
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  const contact = data.contact || {};
+  const body = data.data || data;
+  const { firstName, lastName } = splitClientNameParts(contact);
+  return {
+    name: contact.name || '',
+    firstName,
+    lastName,
+    email: contact.email || '',
+    phone: contact.phone || '',
+    company: contact.company || '',
+    website: body.website || contact.website || '',
+    address: body.address || '',
+    notes: contact.notes || '',
+    kind: clientKindFromRecord({ kind: body.kind, personal: body.personal ?? contact.personal }),
+    portal_url: contact.portal_url ?? body.portal_url,
+  };
+}
+
+async function askAgentAboutClient(uid) {
+  try {
+    const client =
+      uid === clientState.activeUid && clientState.draft
+        ? clientState.draft
+        : await fetchClientRecordForAgent(uid);
+    await shell.askAgentWithPrompt(buildClientAgentPrompt(client, uid));
+  } catch (e) {
+    shell.osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
 function createClientSwipeRow(c) {
   return createSwipeRow(createClientListItem(c), [
+    swipeAgentAction(() => askAgentAboutClient(c.uid)),
     swipeDeleteAction({
       onClick: () => deleteClient(c.uid),
     }),
@@ -1898,6 +2036,7 @@ export {
   resumeClientDetailFromUrl,
   createClientListItem,
   createClientSwipeRow,
+  askAgentAboutClient,
   parseClientDeepLinkFromUrl,
   formatPhoneInput,
   geocodeClientAddressPreview,

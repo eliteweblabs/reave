@@ -39,8 +39,8 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260728q';
+} from './admin-ui.js?v=20260805b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 
 /** Injected by os-map-loader via initNewsletterPanel(). */

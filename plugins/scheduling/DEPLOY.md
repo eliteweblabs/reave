@@ -1,6 +1,6 @@
 ---
 feature: scheduling
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

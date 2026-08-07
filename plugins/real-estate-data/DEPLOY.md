@@ -1,6 +1,6 @@
 ---
 feature: real_estate_data
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

@@ -52,13 +52,68 @@ export function isButtonResponse(data: unknown): data is ChatButtonResponse {
   );
 }
 
+export type ChatButtonNavKind = 'external' | 'admin' | 'portal';
+
+const DEFAULT_CHAT_LINK_ORIGIN = 'https://reave.local';
+
+/** Classify agent chat button hrefs for in-app vs portal navigation. */
+export function classifyChatButtonHref(
+  href: string,
+  origin = DEFAULT_CHAT_LINK_ORIGIN,
+): { kind: ChatButtonNavKind; url: URL | null } {
+  const trimmed = href.trim();
+  if (!trimmed) return { kind: 'external', url: null };
+  try {
+    const url = new URL(trimmed, origin);
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/admin' || path.startsWith('/admin/')) return { kind: 'admin', url };
+    if (path.startsWith('/c/')) return { kind: 'portal', url };
+    return { kind: 'external', url };
+  } catch {
+    return { kind: 'external', url: null };
+  }
+}
+
+declare global {
+  interface Window {
+    __reaveOpenDeepLink?: (url: string) => void;
+  }
+}
+
+/** Route structured chat buttons without breaking out of the admin PWA incorrectly. */
+export function openChatButtonHref(href: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const { kind, url } = classifyChatButtonHref(href, window.location.origin);
+  if (!url) return false;
+
+  if (kind === 'admin') {
+    const deepLink = `${url.pathname}${url.search}${url.hash}`;
+    if (window.__reaveOpenDeepLink) {
+      window.__reaveOpenDeepLink(deepLink);
+      return true;
+    }
+    window.location.assign(url.href);
+    return true;
+  }
+
+  if (kind === 'portal') {
+    // Admin PWA scope is /admin — portal lives at /c/:uid and must load in a full navigation.
+    window.location.assign(url.href);
+    return true;
+  }
+
+  return false;
+}
+
 export function getButtonProps(response: ChatButtonResponse) {
+  const { kind } = classifyChatButtonHref(response.href);
+  const internal = kind === 'admin' || kind === 'portal';
   return {
     label: response.label,
     href: response.href,
     variant: response.variant || 'primary',
     size: response.size || 'md',
-    target: response.target || '_blank',
+    target: response.target || (internal ? '_self' : '_blank'),
   } as const;
 }
 

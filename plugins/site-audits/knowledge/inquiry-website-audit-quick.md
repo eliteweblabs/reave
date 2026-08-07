@@ -7,14 +7,15 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 ## When this applies
 
 - Siri shortcut `audit` or `create_proposal` (quick tier)
-- User wants a fast site + online presence snapshot to send while still with the prospect
+- User wants a fast website + online presence snapshot to send while still with the prospect
 - Time budget: Lighthouse + parallel DNS/SSL/HTML/search — **no Playwright, no link crawl**
 
 ## Never do this
 
 - Do **not** call `playwright_audit` or `check_links` in the quick tier — those belong in the full audit
 - Do **not** skip `lighthouse_audit`, `ssl_check`, `dns_check`, or `brave_search` — they are the core of the quick audit
-- Do **not** guess Lighthouse scores — run `lighthouse_audit` or explain why it failed
+- Do **not** guess Lighthouse scores — run `lighthouse_audit` once or write "Scores unavailable"
+- Do **not** retry `lighthouse_audit` if it fails — proceed to `update_work` (retries burn the run budget)
 - Do **not** use `create_work` for personal to-dos (use todo tools)
 
 ## Required workflow (in order)
@@ -40,7 +41,7 @@ Run these in parallel when possible:
 | Tool | Use for |
 |------|---------|
 | `fetch_url` | Title, meta description, visible text, page structure, password/coming-soon pages |
-| `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
+| `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
 | `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts |
@@ -49,7 +50,7 @@ Run these in parallel when possible:
 
 **Password-protected sites:** Still run `ssl_check`, `dns_check`, and `fetch_url`. Note that Lighthouse scores are N/A until launch.
 
-**If `lighthouse_audit` fails:** Say so in Performance and rely on `fetch_url` — do not invent scores.
+**If `lighthouse_audit` fails:** Call it once only. Write "Scores unavailable — run a fresh audit later" in Performance (and Accessibility/SEO if needed). Use `fetch_url` observations — do not invent scores and do not retry the tool.
 
 ### 4. Create or update the project
 
@@ -72,7 +73,7 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 ```markdown
 ## Website & Online Presence Audit — {Month Year}
 
-**Current Site:** {domain} ({platform})
+**Current Website:** {domain} ({platform})
 **Location:** {street, city, state zip}
 **Contact:** {owner, email, phone if known}
 **Audit tier:** Quick (street)
@@ -108,7 +109,7 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - [ ] {Specific fix 2}
 ```
 
-**Minimum length:** ~1,200+ characters when the site is publicly crawlable.
+**Minimum length:** ~1,200+ characters when the website is publicly crawlable.
 
 ## Title
 
@@ -117,3 +118,12 @@ The project list shows **title** on line 1 and the **client name** on line 2 —
 ## Full audit follow-up
 
 If the user later runs Siri **"full audit"** on the same business, read `inquiry-website-audit` and **update_work** on the existing project with Playwright UX findings, broken links, and tech stack — do not create a duplicate project.
+
+## Completion buttons (admin chat)
+
+When finishing an audit in admin chat, append structured button blocks using URLs from the **update_work** tool result — never guess:
+
+- **Client profile:** `profile_url` (opens Clients tab for that contact)
+- **Audit on client portal:** `project_portal_url` (contact uid in `/c/…`, not the job slug)
+
+Wrong `/c/{job-slug}` or `/c/{business-name}` links 404 — only the contact **uid** works in portal paths.

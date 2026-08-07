@@ -38,9 +38,10 @@ import {
   pullRefreshContentRoot,
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
-import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260805b';
+} from './admin-ui.js?v=20260805b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
+import { postTitle, postLower } from './post-alias.js?v=20260805a';
+import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260805h';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
@@ -55,14 +56,22 @@ export function initChatPanel(deps) {
 
 export const DEFAULT_SESSION_TITLE = 'New session';
 const LEGACY_DEFAULT_SESSION_TITLE = 'New chat';
+/** Keep in sync with MAX_CHAT_TITLE_LENGTH in src/lib/chatTypes.ts */
+const MAX_CHAT_TITLE_LENGTH = 120;
 
 export function isDefaultSessionTitle(title) {
   const t = (title || '').trim();
   return !t || t === DEFAULT_SESSION_TITLE || t === LEGACY_DEFAULT_SESSION_TITLE;
 }
 
+function truncateChatTitle(title) {
+  const oneLine = (title || '').replace(/\s+/g, ' ').trim();
+  if (!oneLine || oneLine.length <= MAX_CHAT_TITLE_LENGTH) return oneLine;
+  return `${oneLine.slice(0, MAX_CHAT_TITLE_LENGTH - 1)}…`;
+}
+
 export function displaySessionTitle(title) {
-  return isDefaultSessionTitle(title) ? DEFAULT_SESSION_TITLE : (title || '').trim();
+  return isDefaultSessionTitle(title) ? DEFAULT_SESSION_TITLE : truncateChatTitle(title);
 }
 
 // ---- extracted from os-map-loader.js:14745-16533 ----
@@ -218,10 +227,14 @@ async function shareChatText(text, role, btn) {
   return ok;
 }
 
-function clientPortalShareUrl(uid, tab) {
+function clientPortalShareUrl(uid, tab, project) {
   if (!uid) return '';
   const base = `${window.location.origin}/c/${encodeURIComponent(uid)}`;
-  return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
+  const params = new URLSearchParams();
+  if (tab) params.set('tab', tab);
+  if (project) params.set('project', project);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 async function sharePortalLink(url, title, btn) {
@@ -252,7 +265,7 @@ async function createTrackedProjectShareUrl(jobSlug, contactUid, tab) {
     return data.url || '';
   } catch (e) {
     showChatToast(e?.message || 'Could not create tracked link');
-    return clientPortalShareUrl(contactUid, tab);
+    return clientPortalShareUrl(contactUid, tab, jobSlug);
   }
 }
 
@@ -470,19 +483,31 @@ function setReaveShareStatus(msg, kind) {
 }
 
 function reaveShareKindLabel(kind) {
-  if (kind === 'work') return 'Project link';
+  if (kind === 'work') return `${postTitle(1)} link`;
   if (kind === 'booking') return 'Meeting details';
   if (kind === 'document') return 'Document to sign';
   return 'Client portal link';
 }
 
-async function resolveReaveShareUrl(state) {
+async function resolveReaveShareUrl(state, opts = {}) {
   if (state.url) return state.url;
-  // Copy/preview/share use direct portal URLs — tracked links are created server-side
-  // on send only. Views are recorded on the portal after deep-link dwell or accordion expand.
-  if (state.recipient?.contactUid) {
-    return clientPortalShareUrl(state.recipient.contactUid, state.tab || (state.kind === 'work' ? 'work' : undefined));
+  const tab = state.tab || (state.kind === 'work' ? 'work' : undefined);
+  const jobSlug = state.jobSlug?.trim() || '';
+  const contactUid = state.recipient?.contactUid?.trim() || '';
+
+  // Project shares: Copy link / native share get a tracked /go URL so the Viewed pill works.
+  // Email/SMS still create tracked links server-side on send. Preview stays a direct URL.
+  if (opts.tracked && jobSlug && contactUid) {
+    if (state.trackedShareUrl) return state.trackedShareUrl;
+    const url = await createTrackedProjectShareUrl(jobSlug, contactUid, tab);
+    if (url) {
+      state.trackedShareUrl = url;
+      void refreshWorkLinkTrackStatus(state.trackEl, jobSlug, state.shareLogEl);
+      return url;
+    }
   }
+
+  if (contactUid) return clientPortalShareUrl(contactUid, tab, jobSlug || undefined);
   if (state.kind === 'booking') return scheduleShareBookingUrl(state.booking);
   return '';
 }
@@ -497,7 +522,7 @@ async function sendViaReaveShare(channel, state) {
   } else if (state.kind === 'booking') {
     url = state.url || scheduleShareBookingUrl(state.booking);
   } else if (!state.jobSlug && state.recipient?.contactUid) {
-    url = clientPortalShareUrl(state.recipient.contactUid, state.tab);
+    url = clientPortalShareUrl(state.recipient.contactUid, state.tab, undefined);
   } else if (state.url && !state.jobSlug) {
     url = state.url;
   }
@@ -598,7 +623,7 @@ function buildReaveShareActions(state, opts = {}) {
   );
   actionsEl.appendChild(
     mkBtn('Copy link', 'reave-share-btn--ghost', async (e) => {
-      const url = await resolveReaveShareUrl(state);
+      const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
       let text = url;
       if (state.kind === 'booking' && state.booking) {
         text = [formatScheduleRange(state.booking.startTime, state.booking.endTime), url]
@@ -611,7 +636,7 @@ function buildReaveShareActions(state, opts = {}) {
   if (navigator.share) {
     actionsEl.appendChild(
       mkBtn('More options…', 'reave-share-btn--ghost', async () => {
-        const url = await resolveReaveShareUrl(state);
+        const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
         const sharePayload = { title: opts.shareTitle || `Share with ${name}` };
         if (url) sharePayload.url = url;
         if (opts.shareText) sharePayload.text = opts.shareText;
@@ -1226,7 +1251,7 @@ async function loadChatsTab(opts = {}) {
 
 function formatLinkedJobsSub(jobs) {
   if (!jobs?.length) return '';
-  return jobs.length === 1 ? jobs[0].title || jobs[0].slug : `${jobs.length} projects`;
+  return jobs.length === 1 ? jobs[0].title || jobs[0].slug : `${jobs.length} ${postLower(2)}`;
 }
 
 function createSidebarChatTitle(title) {
@@ -1244,7 +1269,7 @@ function syncSidebarChatTitle(threadId, title) {
 }
 
 async function saveChatTitle(threadId, title) {
-  const trimmed = (title || '').trim();
+  const trimmed = truncateChatTitle(title);
   if (!trimmed || !threadId) return false;
   const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
     method: 'PATCH',
@@ -1495,7 +1520,7 @@ function chatSidebarEmptyText() {
     all: 'No sessions yet.',
     review: 'No sessions to review.',
     working: 'No sessions in progress.',
-    project: 'No project sessions.',
+    project: `No ${postLower(1)} sessions.`,
     archive: 'No archived sessions.',
   };
   return labels[chatState.categoryFilter] || labels.all;
@@ -1538,7 +1563,7 @@ function renderChatFilterTabs(savedScrollLeft = 0) {
     { id: 'all', label: 'All', count: counts.all },
     { id: 'review', label: 'Review', count: counts.review },
     { id: 'working', label: 'Working', count: counts.working },
-    { id: 'project', label: 'Project', count: counts.project },
+    { id: 'project', label: postTitle(1), count: counts.project },
     { id: 'archive', label: 'Archive', count: counts.archive },
   ];
 
@@ -1564,7 +1589,7 @@ function renderChatFilterTabs(savedScrollLeft = 0) {
         `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
       btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} sessions`);
       btn.title = `Delete all ${tab.label.toLowerCase()} sessions`;
-      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab), { ringSize: 44 });
+      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab));
     } else if (isAllRefresh) {
       btn.innerHTML =
         `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
@@ -1890,9 +1915,15 @@ function mountChatThreadRoot(threadHost) {
         chatState.disposableChatId = null;
       }
     },
-    onMessagesPersist: (userContent, assistantContent) => {
-      chatState.messages.push({ role: 'user', content: userContent });
-      chatState.messages.push({ role: 'assistant', content: assistantContent });
+    onMessagesPersist: (userContent, assistant) => {
+      const now = new Date().toISOString();
+      chatState.messages.push({ role: 'user', content: userContent, created_at: now });
+      chatState.messages.push({
+        role: 'assistant',
+        content: assistant.content,
+        created_at: now,
+        ...(assistant.agent_usage ? { agent_usage: assistant.agent_usage } : {}),
+      });
       chatState.composeDirty = false;
       if (chatState.activeId === chatState.disposableChatId) {
         chatState.disposableChatId = null;

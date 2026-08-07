@@ -28,9 +28,17 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260803a';
+} from './admin-ui.js?v=20260805b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
+import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
+import {
+  createDetailChrome,
+  createDetailFormScroll,
+  mountDetailTabs,
+  createDetailPanel,
+  showDetailPanel,
+} from './detail-tabs.js?v=20260806a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -60,6 +68,9 @@ const WK_SPINNER_SVG =
   '</svg>';
 
 let workAuditingPollTimer = null;
+/** Aborts stale project-detail fetches when the editor re-renders or the user switches projects. */
+let workDetailFetchCtrl = null;
+const WORK_DETAIL_FETCH_MS = 45000;
 
 const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
 
@@ -188,7 +199,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
         body: JSON.stringify({ slug, ...payload }),
       });
       data = await res.json();
-      if (res.status === 409) throw new Error('A project with that title already exists.');
+      if (res.status === 409) throw new Error(`A ${postLower(1)} with that title already exists.`);
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       workState.activeSlug = slug;
       const jobEntry = {
@@ -310,7 +321,7 @@ function workCountForActiveStatusFilter() {
 
 function workSearchPlaceholder(count) {
   const n = Number.isFinite(count) ? count : workCountForActiveStatusFilter();
-  return `Search ${n} ${n === 1 ? 'Project' : 'Projects'}`;
+  return `Search ${n} ${postTitle(n === 1 ? 1 : 2)}`;
 }
 
 function renderWorkFilterTabs(savedScrollLeft = 0) {
@@ -318,7 +329,7 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
   const nav = document.createElement('div');
   nav.className = 'em-filter-tabs';
   nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Project status filters');
+  nav.setAttribute('aria-label', `${postTitle(1)} status filters`);
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
@@ -382,6 +393,19 @@ function formatWorkCardValue(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return String(value);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
+
+function createClientWorkCardBullets(job) {
+  const bullets = Array.isArray(job.preview_bullets) ? job.preview_bullets.filter(Boolean) : [];
+  if (!bullets.length) return null;
+  const list = document.createElement('ul');
+  list.className = 'cl-job-card-bullets';
+  for (const text of bullets.slice(0, 3)) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    list.appendChild(li);
+  }
+  return list;
 }
 
 const WORK_CHECKBOX_RE = /^- \[([ xX])\] (.+)$/;
@@ -842,6 +866,8 @@ function createClientWorkCard(job) {
   }
 
   card.appendChild(title);
+  const bullets = createClientWorkCardBullets(job);
+  if (bullets) card.appendChild(bullets);
   card.appendChild(meta);
   card.addEventListener('click', () => {
     navigateToWork(job.slug);
@@ -853,12 +879,12 @@ const CLIENT_DETAIL_TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'branding', label: 'Branding' },
   { id: 'notes', label: 'Notes' },
-  { id: 'projects', label: 'Projects' },
+  { id: 'projects', label: postTitle(2) },
   { id: 'vault', label: 'Vault' },
 ];
 
 const WORK_DETAIL_TABS = [
-  { id: 'project', label: 'Project' },
+  { id: 'project', label: postTitle(1) },
   { id: 'markup', label: 'Markup' },
   { id: 'action-items', label: 'Action Items' },
   { id: 'time', label: 'Time', feature: 'time_tracking' },
@@ -873,30 +899,20 @@ function workDetailTabs(isNew = false) {
   return tabs;
 }
 
+function createWorkDetailChrome(pane) {
+  return createDetailChrome(pane, 'wk-detail-chrome');
+}
+
 function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
-  const nav = document.createElement('div');
-  nav.className = 'wk-detail-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Project sections');
-
-  for (const tab of workDetailTabs(opts.isNew)) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = activeTab === tab.id;
-    btn.className = 'wk-detail-tab' + (isActive ? ' active' : '');
-    btn.dataset.workTab = tab.id;
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.textContent = tab.label;
-    btn.addEventListener('click', () => {
-      if (workState.detailTab === tab.id) return;
-      onSelect(tab.id);
-    });
-    nav.appendChild(btn);
-  }
-
-  pane.appendChild(nav);
-  return nav;
+  return mountDetailTabs(pane, {
+    tabs: workDetailTabs(opts.isNew),
+    activeTab,
+    onSelect,
+    ariaLabel: `${postTitle(1)} sections`,
+    tabClass: 'wk-detail-tab',
+    tabsClass: 'wk-detail-tabs',
+    dataAttr: 'workTab',
+  });
 }
 
 function clearWorkDetailScrollBody(scroll) {
@@ -912,72 +928,86 @@ function setWorkDetailScrollLoading(scroll, html) {
 }
 
 function showWorkDetailPanel(pane, tabId) {
-  pane.querySelectorAll('.wk-detail-tab').forEach((btn) => {
-    const active = btn.dataset.workTab === tabId;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  showDetailPanel(pane, {
+    tabId,
+    tabBtnSelector: '.wk-detail-tab',
+    panelSelector: '.wk-detail-panel',
+    tabDataAttr: 'workTab',
+    panelDataAttr: 'workTab',
+    scrollSelector: '.re-form-scroll.wk-form-scroll',
   });
-  pane.querySelectorAll('.wk-detail-panel').forEach((panel) => {
-    panel.hidden = panel.dataset.workTab !== tabId;
-  });
-  const scroll = pane.querySelector('.re-form-scroll.wk-form-scroll');
-  if (scroll) scroll.scrollTop = 0;
 }
 
 function createWorkDetailPanel(tabId, activeTab) {
-  const panel = document.createElement('div');
-  panel.className = 'wk-detail-panel';
-  panel.dataset.workTab = tabId;
-  panel.hidden = activeTab !== tabId;
-  return panel;
+  return createDetailPanel({
+    tabId,
+    activeTab,
+    panelClass: 'wk-detail-panel',
+    dataAttr: 'workTab',
+  });
+}
+
+function syncClientProjectsTabBadge(count) {
+  const btn = document.querySelector('#clients-editor .detail-tab[data-client-tab="projects"]');
+  if (!btn) return;
+  const badge = btn.querySelector('.cl-detail-tab-badge');
+  if (!badge) return;
+  const n = Math.max(0, Number(count) || 0);
+  if (n > 0) {
+    badge.hidden = false;
+    badge.removeAttribute('aria-hidden');
+    badge.textContent = n > 99 ? '99+' : String(n);
+  } else {
+    badge.hidden = true;
+    badge.setAttribute('aria-hidden', 'true');
+    badge.textContent = '0';
+  }
 }
 
 function mountClientDetailTabs(pane, activeTab, onSelect) {
-  const nav = document.createElement('div');
-  nav.className = 'cl-detail-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Client sections');
-
-  for (const tab of CLIENT_DETAIL_TABS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = activeTab === tab.id;
-    btn.className = 'cl-detail-tab' + (isActive ? ' active' : '');
-    btn.dataset.clientTab = tab.id;
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.textContent = tab.label;
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      onSelect(tab.id);
-    });
-    nav.appendChild(btn);
-  }
-
-  pane.appendChild(nav);
-  return nav;
+  return mountDetailTabs(pane, {
+    tabs: CLIENT_DETAIL_TABS,
+    activeTab,
+    onSelect,
+    ariaLabel: 'Client sections',
+    tabClass: 'cl-detail-tab',
+    tabsClass: 'cl-detail-tabs',
+    dataAttr: 'clientTab',
+    renderTab(btn, tab) {
+      if (tab.id === 'projects') {
+        btn.innerHTML =
+          `${escHtml(tab.label)}` +
+          `<span class="footer-nav-badge cl-detail-tab-badge" hidden aria-hidden="true">0</span>`;
+      } else {
+        btn.textContent = tab.label;
+      }
+    },
+  });
 }
 
 function showClientDetailPanel(pane, tabId) {
-  pane.querySelectorAll('.cl-detail-tab').forEach((btn) => {
-    const active = btn.dataset.clientTab === tabId;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  showDetailPanel(pane, {
+    tabId,
+    tabBtnSelector: '.cl-detail-tab',
+    panelSelector: '.cl-detail-panel',
+    tabDataAttr: 'clientTab',
+    panelDataAttr: 'clientTab',
+    resetScroll: false,
+    onShow(id) {
+      if (id === 'profile') {
+        setTimeout(() => clientMapController?.resize?.(), 60);
+      }
+    },
   });
-  pane.querySelectorAll('.cl-detail-panel').forEach((panel) => {
-    panel.hidden = panel.dataset.clientTab !== tabId;
-  });
-  if (tabId === 'profile') {
-    setTimeout(() => clientMapController?.resize?.(), 60);
-  }
 }
 
 function createClientDetailPanel(tabId, activeTab) {
-  const panel = document.createElement('div');
-  panel.className = 'cl-detail-panel';
-  panel.dataset.clientTab = tabId;
-  panel.hidden = activeTab !== tabId;
-  return panel;
+  return createDetailPanel({
+    tabId,
+    activeTab,
+    panelClass: 'cl-detail-panel',
+    dataAttr: 'clientTab',
+  });
 }
 
 let clientVaultSaveTimer = null;
@@ -1215,14 +1245,11 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
 
 function renderClientWorkSection(jobsWrap, jobs) {
   jobsWrap.innerHTML = '';
-  const jobsLabel = document.createElement('div');
-  jobsLabel.className = 'de-label cl-jobs-label';
-  jobsLabel.textContent = `Projects (${jobs.length})`;
-  jobsWrap.appendChild(jobsLabel);
+  syncClientProjectsTabBadge(jobs.length);
   if (jobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty cl-jobs-empty';
-    empty.textContent = 'No active projects for this client.';
+    empty.textContent = `No active ${postLower(2)} for this client.`;
     jobsWrap.appendChild(empty);
     return;
   }
@@ -1237,8 +1264,9 @@ function renderClientWorkSection(jobsWrap, jobs) {
 function mountClientWorkSection(pane, uid) {
   const jobsWrap = document.createElement('div');
   jobsWrap.className = 'cl-jobs-section';
-  jobsWrap.innerHTML = skeletonHtml('list', 'Loading projects…');
+  jobsWrap.innerHTML = skeletonHtml('list', `Loading ${postLower(2)}…`);
   pane.appendChild(jobsWrap);
+  syncClientProjectsTabBadge(0);
   fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json())
     .then((jobData) => {
@@ -1265,23 +1293,33 @@ async function loadWorkTab(opts = {}) {
   if (!root) return;
   await ensureContactAuthorIconsReady();
   const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
+  const prevActiveSlug = workState.activeSlug;
   const preserveNew =
     workState.activeSlug === '__new__' &&
     workState.draft &&
     (opts.workSlug === '__new__' || pendingWorkDeepLinkSlug === '__new__');
-  if (!preserveNew) {
+  const keepDetailOpen =
+    !preserveNew &&
+    prevActiveSlug &&
+    prevActiveSlug !== '__new__' &&
+    deepSlug === prevActiveSlug &&
+    !!root.querySelector('.wk-detail-chrome');
+  if (!preserveNew && !keepDetailOpen) {
     mountPanelSkeleton(root, 'list', 'Loading work…', { contentSelector: '.ch-sidebar' });
   }
   try {
     const res = await adminFetch('/api/work');
-    const data = await readAdminJson(res, 'Projects');
+    const data = await readAdminJson(res, postTitle(2));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     workState.jobs = sortWorkJobsForDisplay(data.jobs || []);
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
     if (workState.statusFilter === 'done') workState.statusFilter = 'archived';
   } catch (e) {
-    if (e.message === 'Session expired') return;
+    if (e.message === 'Session expired') {
+      root.innerHTML = `<div class="de-loading de-error">Session expired — sign in again to continue.</div>`;
+      return;
+    }
     if (!deepSlug) {
       root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
       return;
@@ -1294,6 +1332,11 @@ async function loadWorkTab(opts = {}) {
   if (!preserveNew) workState.draft = null;
   shell.clearEditorFooterSave();
   if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
+  if (keepDetailOpen && workState.activeSlug === prevActiveSlug) {
+    refreshWorkSidebarList();
+    applyWorkAuditingIndicators();
+    return;
+  }
   renderWorkEditor();
   activateWorkPaneOnMobile();
 }
@@ -1301,7 +1344,7 @@ async function loadWorkTab(opts = {}) {
 function beginNewProjectDrawer() {
   shell.beginCreateDrawer({
     key: 'work',
-    title: 'New Project',
+    title: postNew(),
     submitLabel: 'Add',
     onSubmit: async () => {
       const pane = shell.getCreateDrawerPane();
@@ -1315,7 +1358,7 @@ function beginNewProjectDrawer() {
       if (!slug || slug === '__new__') {
         await shell.osAlert({
           title: 'Pick a client',
-          bodyHtml: 'A project needs a client before it can be created.',
+          bodyHtml: `A ${postLower(1)} needs a client before it can be created.`,
         });
         return;
       }
@@ -1371,7 +1414,7 @@ function fillWorkSidebarList(list) {
   if (visibleJobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
+    empty.textContent = search.trim() ? 'No matches.' : `No ${postLower(2)} yet.`;
     list.appendChild(empty);
   }
 }
@@ -1440,7 +1483,7 @@ function renderWorkEditor() {
     shell.appendEmptyDetailPane(pane, {
       mapKey: 'work',
       iconName: 'briefcase',
-      bodyHtml: '<p>Select a project to edit, or create a new one.</p>',
+      bodyHtml: `<p>Select a ${postLower(1)} to edit, or create a new one.</p>`,
       onCreate: () => startNewProject(),
     });
   }
@@ -1617,8 +1660,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     const nameArrow = document.createElement('span');
     nameArrow.className = 'wk-client-name-arrow';
     nameArrow.setAttribute('aria-hidden', 'true');
-    nameArrow.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+    nameArrow.innerHTML = IOS_ICONS['chevron-right'];
     profileLink.appendChild(nameArrow);
 
     profileLink.addEventListener('click', () => {
@@ -2196,10 +2238,7 @@ function createWorkBodyEditor(opts = {}) {
 }
 
 function createWorkFormScroll(pane) {
-  const scroll = document.createElement('div');
-  scroll.className = 're-form-scroll wk-form-scroll';
-  pane.appendChild(scroll);
-  return scroll;
+  return createDetailFormScroll(pane, 'wk-form-scroll');
 }
 
 function renderNewWorkForm(pane) {
@@ -2210,7 +2249,7 @@ function renderNewWorkForm(pane) {
     back: inDrawer
       ? null
       : {
-          label: returnTodoId ? 'Back to to‑do' : 'Back to projects',
+          label: returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
           onClick: async () => {
             await flushWorkAutosave();
             if (returnTodoId) {
@@ -2229,18 +2268,20 @@ function renderNewWorkForm(pane) {
         },
     editableTitle: {
       value: workState.draft?.title || '',
-      placeholder: 'New project',
-      ariaLabel: 'Project title',
+      placeholder: postNew(),
+      ariaLabel: postTitleLabel(),
     },
   });
-  pane.appendChild(header);
+  const chrome = createWorkDetailChrome(pane);
+  chrome.appendChild(header);
   requestTitleFocus('work', titleInput);
 
-  const scroll = createWorkFormScroll(pane);
-  mountWorkDetailTabs(scroll, workState.detailTab, (tabId) => {
+  mountWorkDetailTabs(chrome, workState.detailTab, (tabId) => {
     workState.detailTab = tabId;
     showWorkDetailPanel(pane, tabId);
   }, { isNew: true });
+
+  const scroll = createWorkFormScroll(pane);
   const activeTab = workState.detailTab;
 
   const projectPanel = createWorkDetailPanel('project', activeTab);
@@ -2517,29 +2558,43 @@ function renderEditWorkForm(pane) {
 
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to projects',
+      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
       onClick: workEditBackHandler(slug),
     },
     editableTitle: {
       value: workState.draft?.title || listJob?.title || '',
-      placeholder: 'Project title',
-      ariaLabel: 'Project title',
+      placeholder: postTitleLabel(),
+      ariaLabel: postTitleLabel(),
     },
   });
   header.appendChild(headerActions);
-  pane.appendChild(header);
+  const chrome = createWorkDetailChrome(pane);
+  chrome.appendChild(header);
 
-  const scroll = createWorkFormScroll(pane);
-  mountWorkDetailTabs(scroll, workState.detailTab, (tabId) => {
+  mountWorkDetailTabs(chrome, workState.detailTab, (tabId) => {
     workState.detailTab = tabId;
     showWorkDetailPanel(pane, tabId);
   });
+
+  const scroll = createWorkFormScroll(pane);
   setWorkDetailScrollLoading(scroll, skeletonHtml('list', 'Loading…'));
   activateWorkPaneOnMobile();
 
-  fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+  if (workDetailFetchCtrl) workDetailFetchCtrl.abort();
+  workDetailFetchCtrl = new AbortController();
+  const fetchSlug = slug;
+  const { signal } = workDetailFetchCtrl;
+  let detailFetchTimedOut = false;
+  const detailFetchTimeoutId = setTimeout(() => {
+    detailFetchTimedOut = true;
+    workDetailFetchCtrl?.abort();
+  }, WORK_DETAIL_FETCH_MS);
+
+  adminFetch(`/api/work/${encodeURIComponent(fetchSlug)}`, { signal })
     .then((r) => readApiJson(r))
     .then((data) => {
+      if (workState.activeSlug !== fetchSlug || !scroll.isConnected) return;
+      try {
       workState.draft = {
         title: data.title,
         status: data.status || 'inquiry',
@@ -2580,7 +2635,7 @@ function renderEditWorkForm(pane) {
             jobSlug: slug,
             trackEl: linkTrackEl,
             shareLogEl,
-            title: `${data.contact_name || data.client || 'Client'} — Projects`,
+            title: `${data.contact_name || data.client || 'Client'} — ${postTitle(2)}`,
             qrDataUrl: data.qr_data_url,
             recipient: {
               contactUid: data.contact_uid,
@@ -2594,14 +2649,14 @@ function renderEditWorkForm(pane) {
       headerActions.appendChild(
         createIosIconBtn({
           iconKey: 'archive',
-          label: data.status === 'archived' ? 'Unarchive project' : 'Archive project',
+          label: data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
           className: 'ios-icon-btn wk-archive-btn',
           onClick: () => void archiveWork(slug),
         }),
       );
       headerActions.appendChild(
         paneDeleteIcon({
-          label: 'Delete project',
+          label: `Delete ${postLower(1)}`,
           onClick: () => deleteWork(slug),
         }),
       );
@@ -2738,15 +2793,33 @@ function renderEditWorkForm(pane) {
 
       shell.clearEditorFooterSave();
       getWorkEditor()?.classList.add('de-pane-active');
+      } catch (err) {
+        setWorkDetailScrollLoading(
+          scroll,
+          `<div class="de-loading de-error">${escHtml(err.message || `Failed to render ${postLower(1)}`)}</div>`,
+        );
+      }
     })
     .catch((e) => {
+      if (workState.activeSlug !== fetchSlug || !scroll.isConnected) return;
+      if (e.name === 'AbortError') {
+        if (detailFetchTimedOut) {
+          setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">Request timed out — try again.</div>`);
+        }
+        return;
+      }
+      if (e.message === 'Session expired') {
+        setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">Session expired — sign in again to continue.</div>`);
+        return;
+      }
       if (e.message === 'Not found') {
         closeWorkDetailPane();
         renderWorkEditor();
         return;
       }
       setWorkDetailScrollLoading(scroll, `<div class="de-loading de-error">${escHtml(e.message)}</div>`);
-    });
+    })
+    .finally(() => clearTimeout(detailFetchTimeoutId));
 }
 
 function activateWorkPaneOnMobile() {
@@ -2778,7 +2851,7 @@ async function createWork(slug, payload) {
       body: JSON.stringify({ slug, ...payload }),
     });
     const data = await res.json();
-    if (res.status === 409) { alert('A project with that slug already exists.'); return; }
+    if (res.status === 409) { alert(`A ${postLower(1)} with that slug already exists.`); return; }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     await loadWorkTab();
     if (returnTodoId) {
@@ -2791,7 +2864,7 @@ async function createWork(slug, payload) {
         const linkData = await readApiJson(linkRes);
         if (!linkRes.ok) throw new Error(linkData.error || `HTTP ${linkRes.status}`);
       } catch (e) {
-        alert(`Project created, but could not link to-do: ${e.message}`);
+        alert(`${postTitle(1)} created, but could not link to-do: ${e.message}`);
       }
       workState.returnToTodoId = null;
       workState.activeSlug = null;
@@ -3012,7 +3085,7 @@ async function archiveWork(jobOrSlug) {
     renderWorkEditor();
   } catch (e) {
     shell.osAlert({
-      title: unarchive ? 'Could not restore project' : 'Could not archive project',
+      title: unarchive ? `Could not restore ${postLower(1)}` : `Could not archive ${postLower(1)}`,
       bodyHtml: escHtml(e.message),
     });
   }
@@ -3118,7 +3191,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
       shell.cancelTitleFocus();
       await shell.osAlert({
         title: 'Enter a to‑do title',
-        bodyHtml: 'Save the to‑do title before creating a project.',
+        bodyHtml: `Save the to‑do title before creating a ${postLower(1)}.`,
       });
       return;
     }
@@ -3127,7 +3200,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
       shell.cancelTitleFocus();
       await shell.osAlert({
         title: 'Could not save to‑do',
-        bodyHtml: 'Save the to‑do before creating a project.',
+        bodyHtml: `Save the to‑do before creating a ${postLower(1)}.`,
       });
       return;
     }
@@ -3256,7 +3329,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
 
   async function shareProjectFile(file) {
     const url = projectFileAbsoluteUrl(file);
-    await shell.sharePortalLink(url, file.filename || 'Project file');
+    await shell.sharePortalLink(url, file.filename || `${postTitle(1)} file`);
   }
 
   function renderFiles(files) {
@@ -3280,7 +3353,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
         const img = document.createElement('img');
         img.className = 'wk-file-thumb';
         img.src = file.url;
-        img.alt = file.filename || 'Project file';
+        img.alt = file.filename || `${postTitle(1)} file`;
         img.loading = 'lazy';
         card.appendChild(img);
       } else {
@@ -3590,7 +3663,7 @@ async function askAgentAboutWork(job) {
     ];
     if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
     if (job.status) lines.push(`Status: ${workStatusLabel(job.status)}`);
-    lines.push('', 'Please wait for instructions on how to work on this project.');
+    lines.push('', `Please wait for instructions on how to work on this ${postLower(1)}.`);
     await shell.askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });
   } catch (e) {
     shell.osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
@@ -3617,7 +3690,7 @@ async function refreshWorkAuditingIndicatorsQuiet() {
   try {
     const res = await adminFetch('/api/work/auditing');
     if (!res.ok) return;
-    const data = await readAdminJson(res, 'Auditing projects');
+    const data = await readAdminJson(res, `Auditing ${postLower(2)}`);
     const nextSlugs = new Set(
       (Array.isArray(data.auditing) ? data.auditing : []).map((row) => row.slug).filter(Boolean),
     );
@@ -3723,7 +3796,6 @@ export {
   mountClientWorkSection,
   renderClientWorkSection,
   askAgentAboutWork,
-  refreshWorkLinkTrackStatus,
   refreshWorkLinkTrackStatus,
   getWorkEditor,
   workStatusLabel,

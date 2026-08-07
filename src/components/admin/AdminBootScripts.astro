@@ -10,8 +10,6 @@ interface Props {
   mapboxAccessToken: string;
   craterFinanceUrl: string;
   githubRepo: string;
-  /** Cache-bust query for public/admin/os-map-loader.js */
-  osMapLoaderVersion?: string;
 }
 
 const {
@@ -21,10 +19,11 @@ const {
   mapboxAccessToken,
   craterFinanceUrl,
   githubRepo,
-  osMapLoaderVersion = "20260804c",
 } = Astro.props;
 
 const deployStatusClient = getDeployStatusClientSummary();
+/** public/ scripts bypass middleware, so the ?v= token is their only cache bust. */
+const assetVersion = __PUBLIC_ASSET_VERSION__;
 ---
 
 <script is:inline>
@@ -63,10 +62,11 @@ const deployStatusClient = getDeployStatusClientSummary();
 <script>
   import '../../admin/agent-chat-mount.tsx';
 </script>
-<script is:inline type="module" src="/admin/push-client.js?v=20260804a"></script>
-<script src="/ios-sheet.js" defer></script>
-<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient }}>
+<script is:inline type="module" src={`/admin/push-client.js?v=${assetVersion}`}></script>
+<script is:inline src={`/ios-sheet.js?v=${assetVersion}`} defer></script>
+<script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias }}>
   window.__companyBrand = companyBrand;
+  window.__postAlias = postAlias;
   window.__companyStaffAvatarUrl = staffAvatarUrl;
   window.__installConfig = installConfigClient;
   window.__mapboxAccessToken = mapboxAccessToken;
@@ -74,4 +74,4 @@ const deployStatusClient = getDeployStatusClientSummary();
   window.__githubRepo = githubRepo;
   window.__deployStatus = deployStatusClient;
 </script>
-<script is:inline type="module" src={`/admin/os-map-loader.js?v=${osMapLoaderVersion}`}></script>
+<script is:inline type="module" src={`/admin/os-map-loader.js?v=${assetVersion}`}></script>

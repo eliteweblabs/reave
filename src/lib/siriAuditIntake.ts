@@ -36,7 +36,7 @@ function stubBody(input: SiriAuditStubInput, startedAt: string): string {
   if (input.notes?.trim()) lines.push(`- **Notes:** ${input.notes.trim()}`);
   lines.push(
     '',
-    'The research agent is locating the business, running site checks, and will replace this stub with the full audit.',
+    'The research agent is locating the business, running website checks, and will replace this stub with the full audit.',
     '',
     '_Created when the Siri shortcut fired — no chat thread is kept for the research prompt._',
   );

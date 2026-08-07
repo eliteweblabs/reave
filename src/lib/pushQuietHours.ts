@@ -21,6 +21,8 @@ export type PushQuietHoursSettings = {
   timezone: string;
   /** When true, urgent client-reply pushes still deliver during quiet hours. */
   allowUrgentDuringSleep: boolean;
+  /** Set when sleep is manually paused during a quiet window (header toggle off). */
+  sleepPausedAt: string | null;
   updatedAt: string | null;
 };
 
@@ -30,6 +32,7 @@ const DEFAULTS: PushQuietHoursSettings = {
   quietEnd: '07:00',
   timezone: 'America/New_York',
   allowUrgentDuringSleep: true,
+  sleepPausedAt: null,
   updatedAt: null,
 };
 
@@ -45,6 +48,7 @@ CREATE TABLE IF NOT EXISTS push_quiet_hours (
 );
 INSERT INTO push_quiet_hours (id) VALUES (1)
   ON CONFLICT (id) DO NOTHING;
+ALTER TABLE push_quiet_hours ADD COLUMN IF NOT EXISTS sleep_paused_at TIMESTAMPTZ;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -179,6 +183,8 @@ function normalizeSettings(raw: unknown): PushQuietHoursSettings {
     quietEnd: end ?? base.quietEnd,
     timezone: tz,
     allowUrgentDuringSleep: bool('allowUrgentDuringSleep', base.allowUrgentDuringSleep),
+    sleepPausedAt:
+      typeof o.sleepPausedAt === 'string' && o.sleepPausedAt.trim() ? o.sleepPausedAt.trim() : null,
     updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : null,
   };
 }
@@ -215,8 +221,9 @@ async function readPgSettings(): Promise<PushQuietHoursSettings | null> {
     quiet_end: string;
     timezone: string;
     allow_urgent_during_sleep: boolean;
+    sleep_paused_at: string | null;
     updated_at: string;
-  }>(`SELECT sleep_mode_enabled, quiet_start, quiet_end, timezone, allow_urgent_during_sleep, updated_at
+  }>(`SELECT sleep_mode_enabled, quiet_start, quiet_end, timezone, allow_urgent_during_sleep, sleep_paused_at, updated_at
       FROM push_quiet_hours WHERE id = 1`);
   const row = rows[0];
   if (!row) return null;
@@ -226,6 +233,7 @@ async function readPgSettings(): Promise<PushQuietHoursSettings | null> {
     quietEnd: row.quiet_end,
     timezone: row.timezone,
     allowUrgentDuringSleep: row.allow_urgent_during_sleep,
+    sleepPausedAt: row.sleep_paused_at,
     updatedAt: row.updated_at,
   });
 }
@@ -234,14 +242,15 @@ async function writePgSettings(settings: PushQuietHoursSettings): Promise<boolea
   const pool = await ensureSchema();
   if (!pool) return false;
   await pool.query(
-    `INSERT INTO push_quiet_hours (id, sleep_mode_enabled, quiet_start, quiet_end, timezone, allow_urgent_during_sleep, updated_at)
-     VALUES (1, $1, $2, $3, $4, $5, now())
+    `INSERT INTO push_quiet_hours (id, sleep_mode_enabled, quiet_start, quiet_end, timezone, allow_urgent_during_sleep, sleep_paused_at, updated_at)
+     VALUES (1, $1, $2, $3, $4, $5, $6, now())
      ON CONFLICT (id) DO UPDATE SET
        sleep_mode_enabled = EXCLUDED.sleep_mode_enabled,
        quiet_start = EXCLUDED.quiet_start,
        quiet_end = EXCLUDED.quiet_end,
        timezone = EXCLUDED.timezone,
        allow_urgent_during_sleep = EXCLUDED.allow_urgent_during_sleep,
+       sleep_paused_at = EXCLUDED.sleep_paused_at,
        updated_at = now()`,
     [
       settings.sleepModeEnabled,
@@ -249,6 +258,7 @@ async function writePgSettings(settings: PushQuietHoursSettings): Promise<boolea
       settings.quietEnd,
       settings.timezone,
       settings.allowUrgentDuringSleep,
+      settings.sleepPausedAt,
     ],
   );
   return true;
@@ -258,7 +268,10 @@ export async function getPushQuietHoursSettings(): Promise<PushQuietHoursSetting
   const now = Date.now();
   if (_cached && now - _cacheAt < CACHE_MS) return _cached;
   const fromPg = databaseUrl() ? await readPgSettings() : null;
-  const settings = fromPg ?? readFileSettings();
+  let settings = fromPg ?? readFileSettings();
+  if (settings.sleepPausedAt && !isWithinQuietWindow(settings)) {
+    settings = { ...settings, sleepPausedAt: null };
+  }
   _cached = settings;
   _cacheAt = now;
   return settings;
@@ -278,6 +291,11 @@ export async function savePushQuietHoursSettings(
   >,
 ): Promise<PushQuietHoursSettings | null> {
   const cur = await getPushQuietHoursSettings();
+  const nowIso = new Date().toISOString();
+  let sleepPausedAt = cur.sleepPausedAt;
+  if (patch.sleepModeEnabled !== undefined) {
+    sleepPausedAt = patch.sleepModeEnabled ? null : nowIso;
+  }
   const next: PushQuietHoursSettings = {
     ...cur,
     ...(patch.sleepModeEnabled !== undefined ? { sleepModeEnabled: patch.sleepModeEnabled } : {}),
@@ -293,7 +311,8 @@ export async function savePushQuietHoursSettings(
     ...(patch.allowUrgentDuringSleep !== undefined
       ? { allowUrgentDuringSleep: patch.allowUrgentDuringSleep }
       : {}),
-    updatedAt: new Date().toISOString(),
+    sleepPausedAt,
+    updatedAt: nowIso,
   };
 
   const ok = databaseUrl() ? await writePgSettings(next) : writeFileSettings(next);
@@ -340,4 +359,25 @@ export function formatQuietHoursLabel(settings: PushQuietHoursSettings): string 
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
   return `${fmt(settings.quietStart)} – ${fmt(settings.quietEnd)}`;
+}
+
+/** Human-readable quiet-hours end time for sleep-mode UI ("Sleeping until 7:00 AM"). */
+export function formatQuietEndLabel(settings: Pick<PushQuietHoursSettings, 'quietEnd'>): string {
+  const [h, m] = settings.quietEnd.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/** When sleep is paused overnight — time the owner opted back in ("Awake since 11:04 PM"). */
+export function formatAwakeSinceLabel(settings: PushQuietHoursSettings): string {
+  const tz = settings.timezone;
+  if (settings.sleepPausedAt) {
+    const d = new Date(settings.sleepPausedAt);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+    }
+  }
+  const [h, m] = settings.quietStart.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }

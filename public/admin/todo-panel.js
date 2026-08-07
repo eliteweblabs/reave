@@ -36,9 +36,10 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260803a';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260805b';
+} from './admin-ui.js?v=20260805b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
+import { postTitle, postLower } from './post-alias.js?v=20260805a';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260805h';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260730c';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
@@ -211,7 +212,7 @@ async function loadTodoTab(opts = {}) {
     todoState.jobs = [];
     try {
       const workRes = await adminFetch('/api/work');
-      const workData = await readAdminJson(workRes, 'Projects');
+      const workData = await readAdminJson(workRes, postTitle(2));
       if (workRes.ok) todoState.jobs = workData.jobs || [];
     } catch (workErr) {
       if (workErr.message === 'Session expired') throw workErr;
@@ -449,7 +450,7 @@ function createTodoListItem(todo) {
     `<span class="${todoPriorityDotClass(todo.priority)}" aria-hidden="true"></span>` +
     `<span class="td-list-body">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(todo.title)}</span></span>` +
-    `<span class="de-item-slug">${escHtml(todoSubline(todo) || 'No project')}</span>` +
+    `<span class="de-item-slug">${escHtml(todoSubline(todo) || `No ${postLower(1)}`)}</span>` +
     `</span></span></span>`;
   item.addEventListener('click', () => openTodo(todo.id));
   return item;
@@ -643,7 +644,7 @@ function renderTodoEditPane(pane, isNew) {
         tab: 'work',
         jobSlug: linked.slug,
         trackEl: linkTrackEl,
-        title: `${linked.contact_name || linked.client || 'Client'} — Projects`,
+        title: `${linked.contact_name || linked.client || 'Client'} — ${postTitle(2)}`,
         recipient: {
           contactUid: linked.contact_uid,
           name: linked.contact_name || linked.client || 'Client',
@@ -667,7 +668,7 @@ function renderTodoEditPane(pane, isNew) {
     back: inDrawer
       ? null
       : {
-          label: todoState.returnToWorkSlug ? 'Back to project' : 'Back to to‑dos',
+          label: todoState.returnToWorkSlug ? `Back to ${postLower(1)}` : 'Back to to‑dos',
           onClick: () => closeTodoEditor(),
         },
     editableTitle: {
@@ -809,7 +810,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
 
   const fieldLabel = document.createElement('span');
   fieldLabel.className = 'de-label';
-  fieldLabel.textContent = 'Project';
+  fieldLabel.textContent = postTitle(1);
   wrap.appendChild(fieldLabel);
 
   const selectedEl = document.createElement('div');
@@ -833,7 +834,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search Projects…';
+  searchInput.placeholder = `Search ${postTitle(2)}…`;
   searchInput.autocomplete = 'off';
   const dropdown = document.createElement('div');
   dropdown.className = 'wk-client-dropdown';
@@ -878,7 +879,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
     const createBtn = document.createElement('button');
     createBtn.type = 'button';
     createBtn.className = 'wk-client-option wk-client-add';
-    createBtn.textContent = q ? `+ Create "${q}" as new project` : '+ Create new project…';
+    createBtn.textContent = q ? `+ Create "${q}" as new ${postLower(1)}` : `+ Create new ${postLower(1)}…`;
     createBtn.addEventListener('mousedown', (e) => e.preventDefault());
     createBtn.addEventListener('click', () => beginCreateProject(q));
     dropdown.appendChild(createBtn);
@@ -886,7 +887,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
       clearBtn.className = 'wk-client-option wk-client-add';
-      clearBtn.textContent = 'Remove project link';
+      clearBtn.textContent = `Remove ${postLower(1)} link`;
       clearBtn.addEventListener('mousedown', (e) => e.preventDefault());
       clearBtn.addEventListener('click', () => pickJob(null));
       dropdown.appendChild(clearBtn);

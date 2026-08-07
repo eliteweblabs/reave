@@ -1,9 +1,10 @@
 /**
  * ── Skeleton / shimmer loading system ──
- * Markup from skeletonHtml() in public/admin/shared.js:
- *   .sk-list       — sidebar list panels (work, chat, clients, inbox, etc.)
+ * Markup from skeletonHtml() / listPanelSkeletonHtml() in public/admin/shared.js:
+ *   .sk-list        — inline list rows (detail panes, desktop sidebar)
+ *   .sk-list-panel  — full mobile sidebar (search + filters + card rows)
  *   .sk-home        — home dashboard (alerts, today, stats, uptime, inbox)
- *   .sk-dashboard  — generic stat grid + cards (profile, social, analytics, etc.)
+ *   .sk-dashboard   — generic stat grid + cards (profile, social, analytics, etc.)
  */
 
 @keyframes sk-shimmer {
@@ -57,43 +58,86 @@
   animation: sk-shimmer 1.4s ease-in-out infinite;
 }
 
-/* ── List panel (avatar + two text lines × 6) ── */
+/* ── List rows — mirrors .ch-list-item (icon + title/date + optional sub) ── */
 .sk-list {
   position: relative;
   width: 100%;
-  padding: 0.85rem 1rem 0.5rem;
+  padding: 0.5rem var(--sidebar-inset, 1rem) var(--footer-scroll-pad);
 }
 
-.sk-row {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 1.1rem;
-}
-.sk-row:last-child {
-  margin-bottom: 0;
+.sk-list-item {
+  pointer-events: none;
 }
 
-.sk-avatar {
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 50%;
-  flex: 0 0 1.9rem;
+.sk-list-icon {
+  flex: 0 0 1.65rem;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 6px;
 }
 
-.sk-lines {
-  flex: 1;
+.sk-list-title {
+  flex: 1 1 auto;
   min-width: 0;
+  height: 0.72rem;
+  border-radius: 4px;
+}
+
+.sk-list-date {
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
+  height: 0.58rem;
+  border-radius: 4px;
+}
+
+.sk-list-sub {
+  display: block;
+  height: 0.62rem;
+  border-radius: 4px;
+}
+
+/* ── Mobile list panel — search + filter tabs + scroll list ── */
+.sk-list-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  overflow: hidden;
 }
 
-.sk-line {
-  height: 0.68rem;
+.sk-list-panel > .ch-list {
+  flex: 1 1 auto;
+  min-height: 0;
 }
-.sk-line--short {
-  height: 0.52rem;
+
+.sk-list-search-shell {
+  pointer-events: none;
+}
+
+.sk-list-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 0.72rem;
+  border-radius: 4px;
+}
+
+.sk-list-filters {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.35rem 0 0.55rem;
+  border-bottom: 1px solid var(--panel-border);
+  pointer-events: none;
+}
+
+.sk-list-filter {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 1.65rem;
+  border-radius: 6px;
+}
+
+@media (max-width: 639px) {
+  .sk-list-panel > .panel-list-subheader {
+    margin-bottom: 0;
+  }
 }
 
 /* ── Dashboard (2×2 stat grid + two cards) — profile / insights tabs ── */

@@ -7,9 +7,13 @@ import Favicon from '../components/Favicon.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import Header from '../components/Header.astro';
 import Preloader from '../components/Preloader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteAssistantWidget from '../components/SiteAssistantWidget.astro';
 import { assertDeckScript } from '../deck/validate';
 import type { DeckVideoEnter } from '../deck/types';
 import { getCompanyConfig, deckQuantumHeroMask, deckQuantumHeroLogo } from '../lib/companyConfig';
+import { hasFeature } from '../lib/features';
+import { isSiteAssistantConfigured } from '../lib/siteAssistant';
 import everythingRaw from '../deck/scripts/everything.json';
 import {
   Home,
@@ -31,6 +35,8 @@ export const prerender = false;
 
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
+const showSiteAssistant =
+  hasFeature('portal_assistant') && isSiteAssistantConfigured();
 const heroMask = deckQuantumHeroMask(company);
 const heroLogo = deckQuantumHeroLogo(company);
 
@@ -252,6 +258,20 @@ const deckPayload = {
         <div id="dock-quote-slot" class="deck-dock-slot"></div>
       </section>
     </main>
+
+    <div class="site-foot-wrap">
+      <SiteFooter company={company} />
+    </div>
+
+    {
+      showSiteAssistant && (
+        <SiteAssistantWidget
+          brandTitle={company.name}
+          supportPhone={company.supportPhone}
+          supportEmail={company.supportEmail}
+        />
+      )
+    }
 
     <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
 
@@ -858,99 +878,14 @@ const deckPayload = {
           animation: none;
         }
       }
+
+      .site-foot-wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 0 24px calc(24px + env(safe-area-inset-bottom, 0px));
+      }
     </style>
 
     <script src="/deck/deck-nav.js" defer></script>
-    <script is:inline>
-      (function () {
-        try {
-          var params = new URLSearchParams(window.location.search);
-          // Owner/QA previews and share-sheet link unfurls must not page-view ping.
-          if (params.get('preview') === '1') return;
-          var contactUid = (params.get('ref') || params.get('c') || params.get('uid') || '').trim();
-          var industry = (params.get('type') || '').trim();
-          var storageKey = 'deck-view:' + (contactUid || 'anon') + ':' + (industry || 'default');
-          if (sessionStorage.getItem(storageKey)) return;
-
-          var sessionKey = '';
-          try {
-            sessionKey = sessionStorage.getItem('deck-session-id') || '';
-            if (!sessionKey) {
-              sessionKey =
-                (crypto.randomUUID && crypto.randomUUID()) ||
-                String(Date.now()) + '-' + Math.random().toString(36).slice(2);
-              sessionStorage.setItem('deck-session-id', sessionKey);
-            }
-          } catch (_) {}
-
-          var DWELL_MS = 8000;
-          var sent = false;
-          var visibleAccumMs = 0;
-          var visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
-
-          function flushVisible() {
-            if (visibleSince == null) return;
-            visibleAccumMs += Date.now() - visibleSince;
-            visibleSince = null;
-          }
-
-          function visibleTotalMs() {
-            var total = visibleAccumMs;
-            if (visibleSince != null) total += Date.now() - visibleSince;
-            return total;
-          }
-
-          function sendView() {
-            if (sent) return;
-            if (document.visibilityState !== 'visible') return;
-            sent = true;
-            try {
-              sessionStorage.setItem(storageKey, '1');
-            } catch (_) {}
-            fetch('/api/deck/view', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                contactUid: contactUid || undefined,
-                ref: contactUid || undefined,
-                industry: industry || undefined,
-                sessionKey: sessionKey || undefined,
-              }),
-              keepalive: true,
-            }).catch(function () {});
-          }
-
-          function maybeSendFromDwell() {
-            if (sent) return;
-            if (document.visibilityState !== 'visible') return;
-            if (visibleTotalMs() >= DWELL_MS) sendView();
-          }
-
-          document.addEventListener('visibilitychange', function () {
-            if (document.visibilityState === 'visible') {
-              visibleSince = Date.now();
-              maybeSendFromDwell();
-            } else {
-              flushVisible();
-            }
-          });
-
-          // Real readers scroll; share-sheet / OG unfurls usually do not.
-          window.addEventListener(
-            'scroll',
-            function () {
-              if (sent) return;
-              if (document.visibilityState !== 'visible') return;
-              if ((window.scrollY || document.documentElement.scrollTop || 0) < 80) return;
-              sendView();
-            },
-            { passive: true },
-          );
-
-          setInterval(maybeSendFromDwell, 1000);
-        } catch (_) {}
-      })();
-    </script>
   </body>
 </html>
