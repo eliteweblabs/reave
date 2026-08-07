@@ -1765,10 +1765,7 @@
   }
 }
 
-/* App dialog — iOS bottom sheet on mobile, centered on desktop */
-#os-dialog-backdrop {
-  z-index: 5000;
-}
+/* App dialog — content theming; chrome/z-index come from ios-sheet.css */
 #os-dialog-backdrop .ios-sheet {
   --ios-sheet-bg: var(--panel);
   --ios-sheet-fg: var(--fg);
@@ -1778,9 +1775,6 @@
   --ios-sheet-close-bg: var(--surface-hover);
   --ios-sheet-close-hover: var(--surface-hover-strong);
   max-width: 400px;
-}
-#os-dialog-backdrop .ios-sheet-header {
-  border-bottom-color: var(--panel-border);
 }
 #os-dialog-backdrop .os-dialog-title {
   padding: 0;

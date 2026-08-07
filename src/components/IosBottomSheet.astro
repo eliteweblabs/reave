@@ -2,20 +2,47 @@
 interface Props {
   id: string;
   title?: string;
+  /** Override title element id (defaults to `${id}-title`). */
+  titleId?: string;
+  /** Extra class on the title element. */
+  titleClass?: string;
   /** When false, tapping the backdrop does not dismiss (e.g. required sign-in). */
   dismissible?: boolean;
   /** Always use bottom-sheet layout (skip centered desktop modal). */
   sheetOnly?: boolean;
+  /** Show the circular close control (defaults to `dismissible`). */
+  showClose?: boolean;
+  /** Start with the close button hidden (OS dialog toggles visibility). */
+  closeHidden?: boolean;
+  /**
+   * Close button dataset: `ios` → data-ios-sheet-close;
+   * `os-dialog` → data-os-dialog-close (admin controller owns dismiss).
+   */
+  closeVia?: 'ios' | 'os-dialog';
+  /** Extra class on the backdrop (in addition to ios-sheet-backdrop). */
   class?: string;
+  /** Extra class on the inner .ios-sheet panel. */
+  sheetClass?: string;
+  /** Extra class on .ios-sheet-body. */
+  bodyClass?: string;
 }
 
 const {
   id,
   title = '',
+  titleId = `${id}-title`,
+  titleClass = '',
   dismissible = true,
   sheetOnly = false,
+  showClose = dismissible,
+  closeHidden = false,
+  closeVia = 'ios',
   class: className = '',
+  sheetClass = '',
+  bodyClass = '',
 } = Astro.props;
+
+const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : { 'data-ios-sheet-close': true };
 ---
 
 <div
@@ -29,21 +56,25 @@ const {
   aria-hidden="true"
   data-sheet-dismiss={dismissible ? 'true' : 'false'}
 >
-  <div class="ios-sheet" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}>
+  <div class:list={['ios-sheet', sheetClass]} role="dialog" aria-modal="true" aria-labelledby={titleId}>
     <div class="ios-sheet-grabber" aria-hidden="true"></div>
     <header class="ios-sheet-header">
-      {dismissible && (
-        <button type="button" class="ios-sheet-close" data-ios-sheet-close aria-label="Close">
+      {showClose && (
+        <button
+          type="button"
+          class="ios-sheet-close"
+          {...closeAttr}
+          aria-label="Close"
+          hidden={closeHidden || undefined}
+        >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
           </svg>
         </button>
       )}
-      {title && (
-        <h2 class="ios-sheet-title" id={`${id}-title`}>{title}</h2>
-      )}
+      <h2 class:list={['ios-sheet-title', titleClass]} id={titleId}>{title}</h2>
     </header>
-    <div class="ios-sheet-body">
+    <div class:list={['ios-sheet-body', bodyClass]}>
       <slot />
     </div>
   </div>

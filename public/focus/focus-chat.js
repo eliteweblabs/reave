@@ -38,7 +38,6 @@
     projectList: document.getElementById('focus-project-list'),
     recentSheet: document.getElementById('focus-recent'),
     recentList: document.getElementById('focus-recent-list'),
-    overlayBackdrop: document.getElementById('focus-overlay-backdrop'),
   };
 
   /** @type {(() => void)|null} */
@@ -89,18 +88,20 @@
   }
 
   function showOverlay(el) {
-    els.overlayBackdrop?.removeAttribute('hidden');
-    el?.removeAttribute('hidden');
-    requestAnimationFrame(() => el?.classList.add('open'));
+    if (!el?.id) return;
+    window.IosSheet?.closeAll();
+    window.IosSheet?.open(el.id);
   }
 
-  function hideOverlay(el) {
-    el?.classList.remove('open');
-    els.projectPrompt?.setAttribute('hidden', '');
-    els.projectPicker?.setAttribute('hidden', '');
-    els.recentSheet?.setAttribute('hidden', '');
+  function hideOverlay() {
+    window.IosSheet?.closeAll();
     state.recentOpen = false;
-    els.overlayBackdrop?.setAttribute('hidden', '');
+    pickerResolve = null;
+    pendingProjectKind = null;
+  }
+
+  function onFocusSheetClose() {
+    state.recentOpen = false;
     pickerResolve = null;
     pendingProjectKind = null;
   }
@@ -406,35 +407,22 @@
     btn.addEventListener('click', () => {
       const kind = btn.getAttribute('data-focus-project-kind');
       if (kind === 'new') {
-        hideOverlay(els.projectPrompt);
+        hideOverlay();
         void finishNewChatWithProject('');
       } else if (kind === 'existing') {
-        hideOverlay(els.projectPrompt);
+        hideOverlay();
         void openProjectPicker('pick');
       }
     });
   });
 
-  document.querySelectorAll('[data-focus-overlay-close]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      hideOverlay(els.projectPrompt);
-      hideOverlay(els.projectPicker);
-      hideOverlay(els.recentSheet);
-    });
-  });
-
-  els.overlayBackdrop?.addEventListener('click', () => {
-    hideOverlay(els.projectPrompt);
-    hideOverlay(els.projectPicker);
-    hideOverlay(els.recentSheet);
-  });
+  for (const sheet of [els.projectPrompt, els.projectPicker, els.recentSheet]) {
+    sheet?.addEventListener('ios-sheet-close', onFocusSheetClose);
+  }
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (state.dialOpen) setDialOpen(false);
-      else hideOverlay(els.projectPrompt);
-      hideOverlay(els.projectPicker);
-      hideOverlay(els.recentSheet);
+    if (e.key === 'Escape' && state.dialOpen) {
+      setDialOpen(false);
     }
   });
 

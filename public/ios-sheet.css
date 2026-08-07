@@ -1,3 +1,42 @@
+/**
+ * Shared iOS bottom-sheet tokens + chrome.
+ *
+ * Stacking (intentional):
+ *   --ios-sheet-z-drawer / -pane  create-drawer (below sheets so osConfirm stacks)
+ *   --ios-sheet-z-nested          share sheet (under OS dialog / alerts)
+ *   --ios-sheet-z                 default sheets + OS dialog
+ */
+:root {
+  --ios-sheet-z: 6000;
+  --ios-sheet-z-nested: 5900;
+  --ios-sheet-z-drawer: 4800;
+  --ios-sheet-z-drawer-pane: 4900;
+
+  --ios-sheet-scrim: rgba(0, 0, 0, 0.3);
+  --ios-sheet-scrim-blur: blur(10px) saturate(1.1);
+  --ios-sheet-radius: 20px;
+  --ios-sheet-radius-desktop: 16px;
+  --ios-sheet-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  --ios-sheet-shadow-desktop: 0 24px 64px rgba(0, 0, 0, 0.35);
+  --ios-sheet-duration: 0.38s;
+  --ios-sheet-easing: cubic-bezier(0.32, 0.72, 0, 1);
+  --ios-sheet-fade-duration: 0.28s;
+  --ios-sheet-max-width: 520px;
+  --ios-sheet-max-height: min(92dvh, 720px);
+  --ios-sheet-max-height-desktop: min(86dvh, 640px);
+  --ios-sheet-grabber-w: 36px;
+  --ios-sheet-grabber-h: 5px;
+
+  --ios-sheet-bg: #ffffff;
+  --ios-sheet-fg: #0f172a;
+  --ios-sheet-muted: rgba(0, 0, 0, 0.55);
+  --ios-sheet-border: rgba(0, 0, 0, 0.08);
+  --ios-sheet-grabber: rgba(0, 0, 0, 0.18);
+  --ios-sheet-close-bg: rgba(0, 0, 0, 0.06);
+  --ios-sheet-close-hover: rgba(0, 0, 0, 0.1);
+  --ios-sheet-link: #0a84ff;
+}
+
 html.ios-sheet-locked {
   overflow: hidden;
   touch-action: none;
@@ -7,15 +46,15 @@ html.ios-sheet-locked {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 6000;
+  z-index: var(--ios-sheet-z, 6000);
   align-items: flex-end;
   justify-content: center;
   padding: 0;
   /* Lighter scrim so the frosted background blur reads as a slight blur
      rather than a flat dim. saturate() gives the iOS-style frosted look. */
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  background: var(--ios-sheet-scrim);
+  backdrop-filter: var(--ios-sheet-scrim-blur);
+  -webkit-backdrop-filter: var(--ios-sheet-scrim-blur);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -25,21 +64,21 @@ html.ios-sheet-locked {
 
 .ios-sheet {
   width: 100%;
-  max-width: 520px;
-  max-height: min(92dvh, 720px);
+  max-width: var(--ios-sheet-max-width);
+  max-height: var(--ios-sheet-max-height);
   display: flex;
   flex-direction: column;
-  background: var(--ios-sheet-bg, #ffffff);
-  color: var(--ios-sheet-fg, #0f172a);
-  border: 1px solid var(--ios-sheet-border, rgba(0, 0, 0, 0.08));
+  background: var(--ios-sheet-bg);
+  color: var(--ios-sheet-fg);
+  border: 1px solid var(--ios-sheet-border);
   border-bottom: none;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  border-radius: var(--ios-sheet-radius) var(--ios-sheet-radius) 0 0;
+  box-shadow: var(--ios-sheet-shadow);
   transform: translateY(100%);
   opacity: 1;
   transition:
-    transform 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.28s ease;
+    transform var(--ios-sheet-duration) var(--ios-sheet-easing),
+    opacity var(--ios-sheet-fade-duration) ease;
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -51,11 +90,11 @@ html.ios-sheet-locked {
 .ios-sheet-grabber {
   flex-shrink: 0;
   position: relative;
-  width: 36px;
-  height: 5px;
+  width: var(--ios-sheet-grabber-w);
+  height: var(--ios-sheet-grabber-h);
   margin: 8px auto 4px;
   border-radius: 999px;
-  background: var(--ios-sheet-grabber, rgba(0, 0, 0, 0.18));
+  background: var(--ios-sheet-grabber);
   touch-action: none;
 }
 
@@ -76,7 +115,7 @@ html.ios-sheet-locked {
   min-height: 44px;
   padding: 0 3rem;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--ios-sheet-border, rgba(0, 0, 0, 0.08));
+  border-bottom: 1px solid var(--ios-sheet-border);
 }
 
 .ios-sheet-title {
@@ -97,8 +136,8 @@ html.ios-sheet-locked {
   height: 32px;
   border: none;
   border-radius: 50%;
-  background: var(--ios-sheet-close-bg, rgba(0, 0, 0, 0.06));
-  color: var(--ios-sheet-muted, rgba(0, 0, 0, 0.55));
+  background: var(--ios-sheet-close-bg);
+  color: var(--ios-sheet-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -109,8 +148,8 @@ html.ios-sheet-locked {
 }
 
 .ios-sheet-close:hover {
-  background: var(--ios-sheet-close-hover, rgba(0, 0, 0, 0.1));
-  color: var(--ios-sheet-fg, #0f172a);
+  background: var(--ios-sheet-close-hover);
+  color: var(--ios-sheet-fg);
 }
 
 .ios-sheet-close[hidden] {
@@ -150,16 +189,22 @@ html.ios-sheet-locked {
   }
 
   .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) .ios-sheet {
-    border-radius: 16px;
-    border-bottom: 1px solid var(--ios-sheet-border, rgba(0, 0, 0, 0.08));
-    max-height: min(86dvh, 640px);
+    border-radius: var(--ios-sheet-radius-desktop);
+    border-bottom: 1px solid var(--ios-sheet-border);
+    max-height: var(--ios-sheet-max-height-desktop);
     transform: translateY(16px) scale(0.97);
     opacity: 0;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--ios-sheet-shadow-desktop);
   }
 
   .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only).open .ios-sheet.ios-sheet--visible {
     transform: translateY(0) scale(1);
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-sheet {
+    transition: none;
   }
 }

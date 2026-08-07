@@ -2,27 +2,29 @@
 /* ── New-record drawer ──
    A new project/client/to-do/etc. opens as an iOS bottom drawer over its
    list. The drawer *is* the detail pane, restyled — that keeps every
-   `#<panel> .de-pane …` rule below working inside it. */
+   `#<panel> .de-pane …` rule below working inside it.
+   Visual tokens (scrim, blur, radius, motion, grabber) come from ios-sheet.css. */
 /* Panel roots are their own stacking context, so the scrim has to live
    inside the one hosting the drawer — and that root has to outrank the
-   floating topbar and footer nav (both z-index 2000). */
+   floating topbar and footer nav (both z-index 2000), but stay below
+   --ios-sheet-z so osConfirm can stack over a create form. */
 #doc-editor.de-drawer-host,
 #knowledge-editor.de-drawer-host,
 #work-editor.de-drawer-host,
 #todo-editor.de-drawer-host,
 #clients-editor.de-drawer-host,
 #rule-editor.de-drawer-host {
-  z-index: 4800;
+  z-index: var(--ios-sheet-z-drawer, 4800);
 }
 .create-drawer-scrim {
   position: fixed;
   inset: 0;
-  z-index: 4800;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  z-index: var(--ios-sheet-z-drawer, 4800);
+  background: var(--ios-sheet-scrim, rgba(0, 0, 0, 0.3));
+  backdrop-filter: var(--ios-sheet-scrim-blur, blur(10px) saturate(1.1));
+  -webkit-backdrop-filter: var(--ios-sheet-scrim-blur, blur(10px) saturate(1.1));
   opacity: 0;
-  transition: opacity 0.28s ease;
+  transition: opacity var(--ios-sheet-fade-duration, 0.28s) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .create-drawer-scrim[hidden] {
@@ -42,17 +44,17 @@
   max-width: 560px;
   height: auto;
   max-height: min(92dvh, 780px);
-  z-index: 4900;
+  z-index: var(--ios-sheet-z-drawer-pane, 4900);
   flex-direction: column;
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-bottom: none;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+  border-radius: var(--ios-sheet-radius, 20px) var(--ios-sheet-radius, 20px) 0 0;
+  box-shadow: var(--ios-sheet-shadow, 0 -8px 40px rgba(0, 0, 0, 0.18));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   transform: translateY(100%);
-  transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--ios-sheet-duration, 0.38s) var(--ios-sheet-easing, cubic-bezier(0.32, 0.72, 0, 1));
 }
 /* Outranks the split-view show/hide and topbar-clearance rules above. */
 #doc-editor .de-pane.de-pane--drawer,
@@ -79,7 +81,7 @@
     calc(100dvh - var(--create-drawer-keyboard-inset, 0px) - 0.5rem)
   );
   transition:
-    transform 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    transform var(--ios-sheet-duration, 0.38s) var(--ios-sheet-easing, cubic-bezier(0.32, 0.72, 0, 1)),
     bottom 0.25s ease;
 }
 @media (min-width: 768px) {
@@ -101,11 +103,11 @@
 .de-drawer-grabber {
   position: relative;
   flex: 0 0 auto;
-  width: 36px;
-  height: 5px;
+  width: var(--ios-sheet-grabber-w, 36px);
+  height: var(--ios-sheet-grabber-h, 5px);
   margin: 8px auto 4px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  background: var(--ios-sheet-grabber, color-mix(in srgb, var(--muted) 55%, transparent));
   touch-action: none;
 }
 /* Widen the grab target without widening the pill — but stop at the bar
@@ -208,9 +210,9 @@
   font-weight: 400;
 }
 
-/* Reave share sheet */
+/* Reave share sheet — nested under OS dialog (--ios-sheet-z) */
 #reave-share-backdrop {
-  z-index: 5500;
+  z-index: var(--ios-sheet-z-nested, 5900);
 }
 #reave-share-backdrop .ios-sheet {
   --ios-sheet-bg: var(--panel);
@@ -223,15 +225,11 @@
   max-width: 420px;
 }
 #reave-share-backdrop .ios-sheet-header {
-  border-bottom-color: var(--panel-border);
   padding: 0 1rem;
   touch-action: none;
 }
-#reave-share-backdrop .ios-sheet-grabber {
-  touch-action: none;
-}
 .reave-share-body {
-  padding: 0 1rem  max(1rem, env(safe-area-inset-bottom));
+  padding: 0 1rem max(1rem, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 0.65rem;

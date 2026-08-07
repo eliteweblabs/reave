@@ -23,20 +23,29 @@ function repositionOpenOsDialogDropdowns() {
 export function openOsDialogBackdrop() {
   const backdrop = document.getElementById('os-dialog-backdrop');
   if (!backdrop) return null;
-  backdrop.classList.add('open');
-  backdrop.setAttribute('aria-hidden', 'false');
-  backdrop.querySelector('.ios-sheet')?.classList.add('ios-sheet--visible');
-  document.documentElement.classList.add('ios-sheet-locked');
+  if (window.IosSheet) {
+    window.IosSheet.open(backdrop);
+  } else {
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    backdrop.querySelector('.ios-sheet')?.classList.add('ios-sheet--visible');
+    document.documentElement.classList.add('ios-sheet-locked');
+  }
   return backdrop;
 }
 
 export function closeOsDialogBackdrop() {
   const backdrop = document.getElementById('os-dialog-backdrop');
   if (!backdrop) return;
-  backdrop.querySelector('.ios-sheet')?.classList.remove('ios-sheet--visible');
-  backdrop.classList.remove('open', 'os-dialog-keyboard');
-  backdrop.setAttribute('aria-hidden', 'true');
+  backdrop.classList.remove('os-dialog-keyboard');
   document.documentElement.style.removeProperty('--os-dialog-keyboard-inset');
+  if (window.IosSheet) {
+    window.IosSheet.close(backdrop);
+    return;
+  }
+  backdrop.querySelector('.ios-sheet')?.classList.remove('ios-sheet--visible');
+  backdrop.classList.remove('open');
+  backdrop.setAttribute('aria-hidden', 'true');
   if (!document.querySelector('.ios-sheet-backdrop.open')) {
     document.documentElement.classList.remove('ios-sheet-locked');
   }
