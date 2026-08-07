@@ -1,0 +1,33 @@
+---
+import { SignIn } from "@clerk/astro/components";
+import { dark } from "@clerk/ui/themes";
+
+const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === "1";
+---
+
+<div class="page">
+  <div class="card">
+    <SignIn
+      routing="path"
+      path="/login"
+      signUpUrl={allowSignUp ? "/sign-up" : undefined}
+      fallbackRedirectUrl="/admin/"
+      appearance={{ theme: dark }}
+    />
+  </div>
+</div>
+
+<style>
+  .page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 440px;
+  }
+</style>
