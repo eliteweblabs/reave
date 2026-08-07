@@ -1,10 +1,8 @@
 ---
-import { poweredByLabel, type CompanyConfig } from '../lib/companyConfig';
 import SiteLegalLinks from './SiteLegalLinks.astro';
 import FootBostonTag from './FootBostonTag.astro';
 
 export interface Props {
-  company: CompanyConfig;
   showLegalLinks?: boolean;
   tone?: 'dark' | 'light';
   /** Optional leading label (e.g. document id on signed PDF pages). */
@@ -13,24 +11,18 @@ export interface Props {
 }
 
 const {
-  company,
   showLegalLinks = true,
   tone = 'dark',
   leading = '',
   class: className,
 } = Astro.props;
-
-const poweredBy = poweredByLabel(company);
 ---
 
 <footer class:list={['site-foot', `site-foot--${tone}`, className]}>
-  <span class="site-foot-brand">{leading || poweredBy}</span>
+  {leading && <span class="site-foot-leading">{leading}</span>}
   <div class="site-foot-meta">
+    <FootBostonTag />
     {showLegalLinks && <SiteLegalLinks />}
-    <div class="site-foot-brand-row">
-      {leading && <span class="site-foot-powered">{poweredBy}</span>}
-      <FootBostonTag />
-    </div>
   </div>
 </footer>
 
@@ -38,40 +30,29 @@ const poweredBy = poweredByLabel(company);
   .site-foot {
     margin-top: 36px;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
     font-size: 12px;
     color: rgba(255, 255, 255, 0.35);
   }
 
-  .site-foot-brand {
+  .site-foot-leading {
     letter-spacing: 0.5px;
   }
 
   .site-foot-meta {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     gap: 8px;
   }
 
   .site-foot-meta :global(.site-legal-links) {
     padding: 0;
     font-size: 12px;
-  }
-
-  .site-foot-brand-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .site-foot-powered {
-    letter-spacing: 0.5px;
   }
 
   .site-foot--light {
@@ -81,8 +62,7 @@ const poweredBy = poweredByLabel(company);
     color: #bbb;
   }
 
-  .site-foot--light .site-foot-brand,
-  .site-foot--light .site-foot-powered {
+  .site-foot--light .site-foot-leading {
     color: #bbb;
   }
 

@@ -416,7 +416,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <h1>This page isn’t available</h1>
             <p>The link may be expired or incorrect. Please reach out and we’ll send you a fresh one.</p>
           </div>
-          <SiteFooter company={org} />
+          <SiteFooter />
         </main>
       ) : submitMode ? (
         <main class="wrap">
@@ -443,7 +443,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             </div>
           </div>
 
-          <SiteFooter company={org} />
+          <SiteFooter />
         </main>
       ) : (
         <main class="wrap">
@@ -778,7 +778,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             </section>
           )}
 
-          <SiteFooter company={org} />
+          <SiteFooter />
         </main>
       )
     }

@@ -126,7 +126,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />
 			<div class="site-foot-wrap">
-				<SiteFooter company={company} showLegalLinks={showLegalLinks} />
+				<SiteFooter showLegalLinks={showLegalLinks} />
 			</div>
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
