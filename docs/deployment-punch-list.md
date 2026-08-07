@@ -23,7 +23,7 @@ Check modules for this client, then run `npm run deploy:checklist`:
 | 002 | `web_handoff` | Portal Data tab |
 | 003 | `portal_assistant` | Portal help chat |
 | 004 | `billing` | Crater billing |
-| 005 | `site_audits` | Site audits |
+| 005 | `site_audits` | Website Audit |
 | 006 | `site_monitoring` | ChangeDetection.io |
 | 007 | `uptime_monitoring` | UptimeRobot |
 | 008 | `documents` | Document signing |

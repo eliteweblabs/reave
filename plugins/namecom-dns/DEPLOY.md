@@ -1,6 +1,6 @@
 ---
 feature: namecom_dns
-defaultStatus: request
+defaultStatus: deployed
 stage: 3
 ---
 

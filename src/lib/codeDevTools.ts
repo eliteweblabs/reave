@@ -1,6 +1,6 @@
 /**
  * Local filesystem + shell tools for the in-app coding agent.
- * Gated by the `code_dev` install feature (Reave only — not for other installs).
+ * Gated by the `code_dev` install feature (web dev agencies and internal installs).
  *
  * Paths are sandboxed to the project root. Shell runs with cwd = project root.
  */
@@ -16,6 +16,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { maybeDeferExecCommand } from './deferredDeploy';
 
 const MAX_READ_BYTES = 512 * 1024;
 const MAX_WRITE_BYTES = 512 * 1024;
@@ -301,6 +302,22 @@ export async function codeDevExecCommand(command: string): Promise<CodeDevResult
   const cmd = command.trim();
   if (!cmd) return { ok: false, error: 'command is required' };
   if (cmd.length > 2000) return { ok: false, error: 'command too long' };
+
+  const deferred = await maybeDeferExecCommand(cmd);
+  if (deferred) {
+    return {
+      ok: true,
+      data: {
+        command: cmd,
+        cwd: '.',
+        exit_code: deferred.run_now?.exit_code ?? 0,
+        stdout: deferred.run_now?.stdout ?? '',
+        stderr: deferred.run_now?.stderr ?? '',
+        deferred: true,
+        note: deferred.note,
+      },
+    };
+  }
 
   const root = projectRoot();
   return new Promise((resolvePromise) => {

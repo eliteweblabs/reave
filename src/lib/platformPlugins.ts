@@ -125,14 +125,14 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
   },
   {
     id: 'monitoring',
-    title: 'Site Monitoring & Audits',
+    title: 'Website Monitoring & Audits',
     teaser:
       'Uptime checks, change detection, and Lighthouse-style audits — so you know before the client does.',
     body: "Three layers watch client sites from the admin dashboard: UptimeRobot for downtime, ChangeDetection.io for content changes, and built-in audits for SSL, DNS, broken links, and Lighthouse scores. Alerts land in the smart inbox instead of a separate monitoring tab you'll forget to check.",
     bullets: [
       'UptimeRobot sync — auto-discover production domains and import monitors',
       'Change detection watches key pages and diffs what changed',
-      'Site audits: Lighthouse performance, SSL expiry, DNS records, broken links',
+      'Website audits: Lighthouse performance, SSL expiry, DNS records, broken links',
       'Agent tools can run audits and summarize results in chat',
     ],
   },

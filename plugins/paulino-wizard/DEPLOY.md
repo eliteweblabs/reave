@@ -1,6 +1,6 @@
 ---
 feature: dealership_wizard
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

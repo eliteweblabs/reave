@@ -184,6 +184,7 @@ type AnthropicStreamResult = {
     | { type: 'text'; text: string }
     | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   >;
+  usage?: AnthropicUsage;
 };
 
 function parseAnthropicSseBlock(block: string): Record<string, unknown> | null {
@@ -250,6 +251,7 @@ export async function streamAnthropicMessage(
   const decoder = new TextDecoder();
   let buffer = '';
   let stopReason: string | undefined;
+  let streamUsage: AnthropicUsage | undefined;
   const textBlocks = new Map<number, string>();
   const toolBlocks = new Map<
     number,
@@ -282,6 +284,13 @@ export async function streamAnthropicMessage(
         if (type === 'message_delta') {
           const delta = payload.delta as { stop_reason?: string } | undefined;
           if (delta?.stop_reason) stopReason = delta.stop_reason;
+          const usage = payload.usage as AnthropicUsage | undefined;
+          if (usage) streamUsage = usage;
+        }
+
+        if (type === 'message_start') {
+          const usage = (payload.message as { usage?: AnthropicUsage } | undefined)?.usage;
+          if (usage) streamUsage = usage;
         }
 
         if (type === 'content_block_start') {
@@ -340,5 +349,7 @@ export async function streamAnthropicMessage(
     }
   }
 
-  return { ok: true, data: { stop_reason: stopReason, content } };
+  if (streamUsage) logPromptCacheUsage(streamUsage);
+
+  return { ok: true, data: { stop_reason: stopReason, content, usage: streamUsage } };
 }

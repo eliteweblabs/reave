@@ -1,6 +1,6 @@
 ---
 feature: uptime_monitoring
-defaultStatus: pending
+defaultStatus: deployed
 stage: 3
 ---
 

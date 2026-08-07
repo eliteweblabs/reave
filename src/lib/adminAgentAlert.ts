@@ -3,6 +3,7 @@
  */
 
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
+import { truncateChatTitle } from './chatTypes';
 import {
   bestWorkDisplayName,
   formatAuditReadyNotification,
@@ -545,7 +546,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
       emailId: opts.emailId,
       autoRun: false,
       push: {
-        title: `Railway: ${opts.summary.slice(0, 60)}`,
+        title: truncateChatTitle(`Railway: ${opts.summary}`),
         body: opts.summary,
         tag: opts.emailId ?? 'railway-alert',
         url: opts.emailId
@@ -563,7 +564,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
     emailId: opts.emailId,
     autoRun: !isAnthropicBillingAlertStatus(opts.status),
     push: {
-      title: `Alert: ${opts.summary.slice(0, 60)}`,
+      title: truncateChatTitle(`Alert: ${opts.summary}`),
       body: opts.summary,
       tag: opts.emailId ?? `email-${opts.status}`,
       url: opts.emailId

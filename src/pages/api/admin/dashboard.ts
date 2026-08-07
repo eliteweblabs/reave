@@ -12,6 +12,7 @@ import {
   storeListEmailInbox,
 } from '../../../lib/emailInboxStore';
 import { listReviewNotifications } from '../../../lib/emailAutomation';
+import { listReceiptExpenseNotifications } from '../../../lib/emailReceiptExpense';
 import {
   listProjectCommentNotifications,
 } from '../../../lib/workCommentNotifications';
@@ -121,11 +122,13 @@ export async function GET(context: APIContext): Promise<Response> {
   const projectsTotal = jobs.length;
   const [
     emailNotifications,
+    receiptExpenseNotifications,
     commentNotifications,
     engagementNotifications,
     pushAlertNotifications,
   ] = await Promise.all([
     Promise.resolve(listReviewNotifications(events)),
+    Promise.resolve(listReceiptExpenseNotifications(events)),
     listProjectCommentNotifications(),
     listEngagementNotifications(),
     listPushAlertNotifications(),
@@ -133,6 +136,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const validWorkSlugs = new Set(jobs.map((j) => j.slug));
   const mergedNotifications = [
     ...emailNotifications,
+    ...receiptExpenseNotifications,
     ...commentNotifications,
     ...engagementNotifications,
     ...pushAlertNotifications,

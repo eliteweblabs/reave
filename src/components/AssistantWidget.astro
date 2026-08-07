@@ -70,7 +70,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 >
   <button
     id={fabId}
-    class:list={['aw-fab', `aw-fab--${variant}`]}
+    class:list={['aw-fab', `aw-fab--${variant}`, { 'is-visible': variant === 'site' && !revealFabOnEngagement }]}
     type="button"
     aria-haspopup="dialog"
     aria-expanded="false"
@@ -134,7 +134,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   </IosBottomSheet>
 </div>
 
-<script src="/ios-sheet.js" defer></script>
+<script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <style is:global>
   .aw-fab {

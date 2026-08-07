@@ -76,16 +76,16 @@ export async function postToSystemAlertsThread(opts: {
     let agentReply: string | undefined;
 
     if (autoRun) {
-      let reply = await runKnowledgeAgent({
+      const result = await runKnowledgeAgent({
         userText: opts.message,
         priorTurns,
         model: opts.model ?? null,
         context: agentContext,
       });
-      reply = await prependDeployBanner(reply, { userText: opts.message });
+      const reply = await prependDeployBanner(result.text, { userText: opts.message });
       await storeAppendChatMessages(userId, threadId, [
         { role: 'user', content: opts.message },
-        { role: 'assistant', content: reply },
+        { role: 'assistant', content: reply, agent_usage: result.usage },
       ]);
       agentReply = reply;
     } else {

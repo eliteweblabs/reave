@@ -249,6 +249,7 @@ export const MAPS = {
   media:     { id: 'media',     title: 'Media',      icon: '🖼️', type: 'media',         nodes: [],             edges: [],             groups: [] },
   analytics: { id: 'analytics', title: 'Analytics',  icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },
   fleet:     { id: 'fleet',     title: 'Fleet',      icon: '🚚',  type: 'fleet',         nodes: [],             edges: [],             groups: [] },
+  modules:   { id: 'modules',   title: 'Modules',    icon: '🧩',  type: 'modules',       nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
   socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },

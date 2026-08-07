@@ -17,8 +17,8 @@ const FEATURE_LABELS: Record<string, string> = {
   web_handoff: 'Portal Data tab (handoff creds)',
   portal_assistant: 'Client portal help chat',
   billing: 'Crater billing & invoices',
-  site_audits: 'Site audits',
-  site_monitoring: 'Site change monitoring',
+  site_audits: 'Website Audit',
+  site_monitoring: 'Website change monitoring',
   uptime_monitoring: 'Uptime monitoring',
   documents: 'Document signing templates',
   voice: 'Telnyx voice agent',
@@ -135,7 +135,7 @@ function scanPlaybooks(installCfg: ReturnType<typeof loadInstallConfig>): Playbo
   return FEATURE_IDS.map((feature) => {
     const pb = byFeature.get(feature);
     const enabled = installCfg.features.includes(feature);
-    const status = installCfg.moduleStatus[feature] ?? 'pending';
+    const status = installCfg.moduleStatus[feature] ?? 'development';
     return {
       feature,
       label: FEATURE_LABELS[feature]!,

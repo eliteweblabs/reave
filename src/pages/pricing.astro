@@ -1,15 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import FeaturesPricingSection from "../components/features/FeaturesPricingSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { ArrowRight } from "lucide-astro";
 
 const company = await getCompanyConfig(Astro.request);
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout
@@ -17,35 +12,31 @@ const showSiteAssistant =
   description={`${company.name} installation tiers — Core OS, Operations, Growth, and Full platform. Month-one ramp, flat monthly fee from month four.`}
 >
   <div class="pricing-page">
-    <section class="pricing-hero scroll-fade-in" aria-labelledby="pricing-title">
-      <p class="pricing-kicker">Installation plan</p>
+    <section
+      class="pricing-hero scroll-fade-in"
+      aria-labelledby="pricing-title"
+    >
       <h1 id="pricing-title" class="pricing-h1">Pricing</h1>
       <p class="pricing-lead">
-        Four tiers mapped to how much of the Business OS you need on day one. Every tier
-        includes the 90% core — CRM, portal, billing, inbox, AI, and mobile — with higher
-        tiers adding operations, growth, and industry plugins.
+        Four tiers mapped to how much of the Business OS you need on day one.
+        Every tier includes the 90% core — CRM, inbox triage, client portal,
+        agentic support, push notifications and more — with higher tiers adding
+        operations, growth, and industry plugins.
       </p>
       <div class="pricing-cta-row">
         <a class="pricing-btn pricing-btn--primary" href="/demo">
           Demo now
           <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
         </a>
-        <a class="pricing-btn pricing-btn--ghost brand-btn-glass" href="/features">Platform tour</a>
+        <a
+          class="pricing-btn pricing-btn--ghost brand-btn-glass"
+          href="/features">Platform tour</a
+        >
       </div>
     </section>
 
     <FeaturesPricingSection variant="standalone" />
   </div>
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>
 
 <style>
@@ -109,7 +100,9 @@ const showSiteAssistant =
     font-size: 0.92rem;
     font-weight: 600;
     text-decoration: none;
-    transition: transform 0.15s ease, filter 0.15s ease;
+    transition:
+      transform 0.15s ease,
+      filter 0.15s ease;
     white-space: nowrap;
   }
 

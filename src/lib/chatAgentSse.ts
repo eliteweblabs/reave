@@ -13,7 +13,12 @@ export type ChatAgentSseEvent =
       ok: boolean;
       title?: string;
       userMessage?: { role: 'user'; content: string };
-      assistantMessage?: { role: 'assistant'; content: string };
+      assistantMessage?: {
+        role: 'assistant';
+        content: string;
+        agent_usage?: import('./agentUsage').AgentUsageSummary | null;
+      };
+      agent_usage?: import('./agentUsage').AgentUsageSummary | null;
       error?: string;
       /** True when the reply is a partial/failure notice rather than a real answer. */
       interrupted?: boolean;

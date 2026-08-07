@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
 import react from '@astrojs/react';
 import clerk from '@clerk/astro';
+import { publicAssetVersion } from './scripts/asset-version.mjs';
 
 const usePolling = process.env.VITE_USE_POLLING === '1';
 
@@ -33,6 +34,16 @@ export default defineConfig({
     host: true,
   },
   vite: {
+    /**
+     * Cache-busting token for the scripts we serve from `public/`. Those files
+     * never reach src/middleware.ts (the node adapter answers them first), so
+     * they leave the origin with no Cache-Control and Cloudflare applies a
+     * four-hour browser TTL. scripts/version-public-assets.mjs stamps the same
+     * token onto the import specifiers inside them after the build.
+     */
+    define: {
+      __PUBLIC_ASSET_VERSION__: JSON.stringify(publicAssetVersion()),
+    },
     optimizeDeps: {
       // Pre-bundle Three.js + postprocessing so dep cache stays stable across restarts.
       include: [

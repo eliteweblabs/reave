@@ -24,7 +24,7 @@ const SCENE_GAP_MS = 350;
 const SCENE_EXIT_MS = 500;
 const ACTION_PRESS_MS = 900;
 /** Full hero background bright pulse after a simulated action click. */
-const SECTION_PULSE_MS = 1500;
+const SECTION_PULSE_MS = 1000;
 const SLASH_PICKER_ARROW_MS = 380;
 const SLASH_PICKER_SELECT_HOLD_MS = 520;
 const SLASH_PICKER_OPEN_MS = 200;

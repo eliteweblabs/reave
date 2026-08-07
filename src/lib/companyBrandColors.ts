@@ -1,5 +1,5 @@
 /**
- * Site-wide brand colors from admin Company settings — maps to --brand-* CSS vars.
+ * App-wide brand colors from admin Company settings — maps to --brand-* CSS vars.
  */
 import { brandFontCssVars, type ResolvedBrandFonts } from './brandFonts';
 import { buildPortalBrandColors, portalBrandCssVars, type PortalBrandColors } from './portalBrandColors';

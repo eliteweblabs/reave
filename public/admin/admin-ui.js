@@ -204,7 +204,8 @@ function ensureDeleteConfirmChrome(btn, ringSize = 36, ringRadius = 18) {
   holder.className = 'delete-confirm-ring-holder';
   holder.setAttribute('aria-hidden', 'true');
   holder.innerHTML = deleteConfirmRingMarkup(ringSize, ringRadius);
-  btn.appendChild(holder);
+  const ringAnchor = btn.querySelector('.em-filter-purge-icon') || btn;
+  ringAnchor.appendChild(holder);
 }
 
 export function resetDeleteConfirmButton(btn) {
@@ -268,7 +269,8 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
   const isSwipe = btn.classList.contains('swipe-act');
   const isIosIcon = btn.classList.contains('ios-icon-btn');
-  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : 36);
+  const isFilterPurge = btn.classList.contains('em-filter-tab--purge');
+  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : isFilterPurge ? 22 : 36);
   const ringRadius = opts.ringRadius ?? (isIosIcon ? 20 : 18);
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 
@@ -373,6 +375,38 @@ function createSearchFieldAdornment(input, onClear) {
     }
   });
   syncSearchFieldAdornment(input, btn);
+  return btn;
+}
+
+/** Toggle a clear-only adornment — hidden when empty, X when the field has text. */
+export function syncInputClearAdornment(input, btn, label = 'Clear') {
+  if (!input || !btn) return;
+  const hasText = input.value.length > 0;
+  btn.hidden = !hasText;
+  if (hasText) {
+    btn.dataset.mode = 'clear';
+    btn.classList.add('is-clear');
+    btn.classList.remove('is-search');
+    btn.setAttribute('aria-label', label);
+    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON;
+  }
+}
+
+/** Clear button for editable fields (address, etc.) — same shell as search clear. */
+export function createInputClearAdornment(input, onClear, label = 'Clear') {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'panel-list-search-clear search-overlay-clear panel-list-search-adornment';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (btn.hidden) return;
+    input.value = '';
+    syncInputClearAdornment(input, btn, label);
+    onClear?.('');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  });
+  syncInputClearAdornment(input, btn, label);
   return btn;
 }
 
@@ -1424,7 +1458,30 @@ function createListSelectionController(listEl, opts) {
     );
   }
 
-  return { enter, exit, toggle, bindRow, isActive: () => active, getSelected: () => selected };
+  function resyncAfterListRebuild() {
+    if (!active) return;
+    pruneStaleSelection();
+    if (selected.size === 0) {
+      exit();
+      return;
+    }
+    listEl.classList.add('list-selection-mode');
+    const subheader = subheaderEl();
+    if (subheader) subheader.hidden = true;
+    ensureToolbar();
+    if (toolbar) toolbar.hidden = false;
+    updateUI();
+  }
+
+  return {
+    enter,
+    exit,
+    toggle,
+    bindRow,
+    isActive: () => active,
+    getSelected: () => selected,
+    resyncAfterListRebuild,
+  };
 }
 
 /** Enable icon-click and long-press multi-select on sidebar lists. Call once per list element. */
@@ -1445,6 +1502,11 @@ export function exitListMultiSelect(listEl) {
 
 export function isListInSelectionMode(listEl) {
   return listSelectionControllers.get(listEl)?.isActive() ?? false;
+}
+
+/** Re-apply multi-select UI after a list DOM rebuild (rows replaced in place). */
+export function resyncListMultiSelect(listEl) {
+  listSelectionControllers.get(listEl)?.resyncAfterListRebuild();
 }
 
 // ---- Swipe row actions (shared across inbox, chats, docs, etc.) ----
@@ -1995,7 +2057,7 @@ export function createSwipeRow(contentEl, actions) {
 
   requestAnimationFrame(() => {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
-    const api = attachSwipeRow(row, content, revealPx);
+    attachSwipeRow(row, content, revealPx);
     maybeScheduleSwipeHint(row);
     const list = row.closest('.ch-list, .de-list, .em-list');
     const ctrl = list ? listSelectionControllers.get(list) : null;

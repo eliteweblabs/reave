@@ -1,5 +1,5 @@
 import { handleDeployFailure, isRailwayIncidentHandlerEnabled } from './deployIncidentHandler';
-import { markDeployFailed } from './deployStatus';
+import { clearDeployStarted, markDeployFailed, markDeployStarted } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
@@ -17,6 +17,16 @@ type RailwayWebhookBody = {
   };
   timestamp?: string;
 };
+
+function isDeployStartEvent(type: string): boolean {
+  const t = type.toLowerCase();
+  return (
+    t.includes('deployment.building') ||
+    t.includes('deployment.deploying') ||
+    t.includes('deployment.initializing') ||
+    t.includes('deployment.queued')
+  );
+}
 
 function isDeployFailureEvent(type: string): boolean {
   const t = type.toLowerCase();
@@ -95,7 +105,19 @@ export async function handleRailwayWebhook(opts: {
 
   const type = body.type ?? '';
 
+  if (isDeployStartEvent(type)) {
+    markDeployStarted({
+      commitHash:
+        typeof body.details?.commitHash === 'string' ? body.details.commitHash : null,
+      commitMessage:
+        typeof body.details?.commitMessage === 'string' ? body.details.commitMessage : null,
+      timestamp: body.timestamp ?? null,
+    });
+    return { ok: true, status: 200, message: 'deploy started — indicator updated' };
+  }
+
   if (isDeploySuccessEvent(type)) {
+    clearDeployStarted();
     if (hasFeature('site_monitoring')) {
       markDeployActivity();
     }

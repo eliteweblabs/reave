@@ -1,6 +1,6 @@
 ---
 feature: wayback_machine
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 

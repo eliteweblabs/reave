@@ -1,0 +1,44 @@
+---
+/**
+ * /demo-loader — public page to pick production modules + industry and launch the live demo.
+ */
+import Layout from "../layouts/Layout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { getPublicDemoSiteUrl } from "../lib/publicDemo";
+import "../styles/demo-loader.css";
+
+export const prerender = false;
+
+const company = await getCompanyConfig(Astro.request);
+const demoSiteUrl = getPublicDemoSiteUrl();
+---
+
+<Layout
+  title="Demo loader"
+  description={`Configure a live ${company.name} demo — pick the modules your business needs and an industry preset, then open the sandbox.`}
+>
+  <div class="demo-loader-page">
+    <header class="dl-hero">
+      <p class="dl-kicker">Try it yourself</p>
+      <h1 class="dl-h1">Build your demo</h1>
+      <p class="dl-lead">
+        Client portal, billing, and core portal tools are always included in every
+        demo. Pick additional modules below — only <strong>Deployed</strong> ones
+        can be toggled on. Status badges show
+        <strong>Development</strong>, <strong>Requested</strong>, or
+        <strong>Rejected</strong> for everything else.
+      </p>
+      {demoSiteUrl && (
+        <p class="dl-sandbox-note">
+          Sandbox: <a href={demoSiteUrl} rel="noopener noreferrer">{demoSiteUrl.replace(/^https?:\/\//, "")}</a>
+        </p>
+      )}
+    </header>
+
+    <div id="demo-loader-app" class="dl-app" aria-live="polite">
+      <p class="dl-loading">Loading modules…</p>
+    </div>
+  </div>
+
+  <script is:inline src={`/demo-loader.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
+</Layout>

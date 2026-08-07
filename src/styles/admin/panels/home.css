@@ -137,19 +137,6 @@
   max-width: none;
   margin: 0;
   box-shadow: none;
-  border: 1px solid transparent;
-  color: var(--fg);
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--brand-gradient) border-box;
-}
-.dash-review-alerts .admin-setup-alert--push,
-.dash-review-alerts .admin-setup-alert--pwa,
-.dash-review-alerts .admin-setup-alert--confirm {
-  border-color: transparent;
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--brand-gradient) border-box;
 }
 .dash-review-alerts .admin-setup-alert-btn--primary {
   border: none;

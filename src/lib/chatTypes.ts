@@ -1,6 +1,9 @@
+import type { AgentUsageSummary } from './agentUsage';
+
 export type ChatTurn = {
   role: 'user' | 'assistant';
   content: string;
+  agent_usage?: AgentUsageSummary | null;
 };
 
 export type ChatImageMediaType =
@@ -88,6 +91,7 @@ export interface ChatMessage {
   role: ChatTurn['role'];
   content: string;
   created_at: string;
+  agent_usage?: AgentUsageSummary | null;
 }
 
 export interface ChatThreadDetail extends ChatThreadSummary {
@@ -168,14 +172,24 @@ export function chatMessagePlainText(content: string): string {
 export const DEFAULT_CHAT_TITLE = 'New session';
 const LEGACY_DEFAULT_CHAT_TITLE = 'New chat';
 
+/** ~two lines in the chat sidebar list at 0.82rem / 1.35 line-height. */
+export const MAX_CHAT_TITLE_LENGTH = 120;
+
 export function isDefaultChatTitle(title: string): boolean {
   const t = title.trim();
   return t === DEFAULT_CHAT_TITLE || t === LEGACY_DEFAULT_CHAT_TITLE;
 }
 
+/** Collapse whitespace and cap stored/display titles at MAX_CHAT_TITLE_LENGTH. */
+export function truncateChatTitle(title: string): string {
+  const oneLine = title.replace(/\s+/g, ' ').trim();
+  if (!oneLine || oneLine.length <= MAX_CHAT_TITLE_LENGTH) return oneLine;
+  return `${oneLine.slice(0, MAX_CHAT_TITLE_LENGTH - 1)}…`;
+}
+
 export function titleFromMessage(text: string, imageCount = 0, docCount = 0): string {
   const oneLine = text.replace(/\s+/g, ' ').trim();
-  if (oneLine) return oneLine.length > 60 ? `${oneLine.slice(0, 57)}…` : oneLine;
+  if (oneLine) return truncateChatTitle(oneLine);
   const attachmentCount = imageCount + docCount;
   if (attachmentCount === 1) return docCount === 1 ? 'File' : 'Image';
   if (attachmentCount > 1) return `${attachmentCount} attachments`;

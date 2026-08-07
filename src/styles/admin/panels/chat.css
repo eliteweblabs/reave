@@ -90,7 +90,7 @@ body.sidebar-resize-active * {
 }
 .ch-item-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.4rem;
   width: 100%;
   min-width: 0;
@@ -104,8 +104,10 @@ body.sidebar-resize-active * {
   text-align: left;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .ch-item-date {
   flex: 0 0 auto;

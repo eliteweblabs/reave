@@ -169,14 +169,14 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
     pointer-events: none;
     opacity: 0;
     background:
-      radial-gradient(ellipse 90% 70% at 50% 40%, rgba(255, 255, 255, 0.2) 0%, transparent 62%),
-      radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.16) 0%, transparent 58%),
-      radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.16) 0%, transparent 55%),
-      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.1) 0%, transparent 52%);
+      radial-gradient(ellipse 90% 70% at 50% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 62%),
+      radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.08) 0%, transparent 58%),
+      radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.05) 0%, transparent 52%);
   }
 
   .home-hero--action-pulse::before {
-    animation: heroActionPulse 1.5s ease-out forwards;
+    animation: heroActionPulse 1s ease-out forwards;
   }
 
   @keyframes heroActionPulse {
@@ -184,7 +184,7 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
       opacity: 0;
     }
     22% {
-      opacity: 1;
+      opacity: 0.5;
     }
     100% {
       opacity: 0;

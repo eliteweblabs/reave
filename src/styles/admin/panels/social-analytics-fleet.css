@@ -57,10 +57,10 @@
 .soc-range {
   display: inline-flex;
   gap: 0.25rem;
-  padding: 0;
+  padding: 0.15rem;
   border: none;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 8px;
+  background: var(--btn-group-track-bg);
 }
 .soc-range-btn {
   border: 1px solid transparent;

@@ -1,6 +1,6 @@
 ---
 feature: documents
-defaultStatus: pending
+defaultStatus: deployed
 stage: 2
 ---
 

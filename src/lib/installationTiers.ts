@@ -51,7 +51,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month3: 750,
     month4Plus: 375,
     features: [
-      { label: 'Everything in Tier 4' },
+      { label: 'Everything in Core OS' },
       { label: 'Billing & invoicing', href: '/features#feature-billing' },
       { label: 'Scheduling & booking', href: '/features#feature-scheduling' },
       { label: 'Two-way SMS', href: '/features#feature-sms' },
@@ -64,20 +64,20 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     tier: 2,
     name: 'Growth',
     summary:
-      'Everything in Operations, plus a branded public site, voice, documents, marketing automation, and site monitoring.',
+      'Everything in Operations, plus a branded public website, voice, documents, marketing automation, and website monitoring.',
     month1: 4000,
     month2: 2000,
     month3: 1000,
     month4Plus: 500,
     features: [
-      { label: 'Everything in Tier 3' },
+      { label: 'Everything in Operations' },
       { label: 'Branded public website', href: '/features#feature-white-label' },
-      { label: 'CMS-less site editing via agent', href: '/features#feature-site-editing' },
+      { label: 'CMS-less website editing via agent', href: '/features#feature-site-editing' },
       { label: 'Voice & call routing', href: '/modules#plugin-voice' },
       { label: 'Document signing', href: '/modules#plugin-documents' },
       { label: 'Newsletters, social & analytics', href: '/features#feature-growth' },
       { label: 'Read receipts & engagement', href: '/features#feature-growth' },
-      { label: 'Site audits, uptime & change monitoring', href: '/modules#plugin-monitoring' },
+      { label: 'Website audits, uptime & change monitoring', href: '/modules#plugin-monitoring' },
     ],
   },
   {
@@ -90,7 +90,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month3: 1250,
     month4Plus: 625,
     features: [
-      { label: 'Everything in Tier 2' },
+      { label: 'Everything in Growth' },
       { label: 'Dealership inventory wizard', href: '/modules#plugin-dealership' },
       { label: 'Fleet GPS tracking', href: '/modules#plugin-fleet' },
       { label: 'Dev & deploy infrastructure', href: '/modules#plugin-dev-infra' },

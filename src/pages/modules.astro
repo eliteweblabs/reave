@@ -1,16 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import FeaturesPluginsSection from "../components/features/FeaturesPluginsSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { CORE_PLATFORM_MODULES } from "../lib/platformPlugins";
 import { ArrowRight } from "lucide-astro";
 
 const company = await getCompanyConfig(Astro.request);
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout
@@ -48,16 +43,6 @@ const showSiteAssistant =
 
     <FeaturesPluginsSection standalone />
   </div>
-
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-      />
-    )
-  }
 </Layout>
 
 <style>

@@ -58,7 +58,7 @@ export const POST: APIRoute = async (context) => {
     return json(
       {
         ok: false,
-        error: `Couldn't read fonts from ${website}. The site may block automated requests.`,
+        error: `Couldn't read fonts from ${website}. The website may block automated requests.`,
         website,
       },
       404,

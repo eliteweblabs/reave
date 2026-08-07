@@ -14,7 +14,6 @@ import { getPlugin, isPluginActive, REAVE_PLUGINS } from './pluginRegistry.ts';
 export const MODULE_DEPLOY_STATUSES = [
   'deployed',
   'development',
-  'pending',
   'request',
   'rejected',
 ] as const;
@@ -72,6 +71,8 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; body: st
 
 function normalizeStatus(raw: string | undefined, fallback: ModuleDeployStatus): ModuleDeployStatus {
   const v = (raw ?? '').trim().toLowerCase();
+  if (v === 'pending') return 'development';
+  if (v === 'requested') return 'request';
   if (STATUS_SET.has(v)) return v as ModuleDeployStatus;
   return fallback;
 }
@@ -93,7 +94,7 @@ function readPlaybookFile(absPath: string, pluginId: string | null): DeployModul
       feature: feature as FeatureId,
       pluginId,
       path: absPath.replace(projectRoot() + '/', ''),
-      defaultStatus: normalizeStatus(meta.defaultStatus, 'pending'),
+      defaultStatus: normalizeStatus(meta.defaultStatus, 'development'),
       stage: normalizeStage(meta.stage),
       title: titleMatch?.[1]?.trim() ?? FEATURE_LABELS[feature as FeatureId],
       body,
@@ -143,7 +144,7 @@ export function listDeployPlaybooks(): DeployModulePlaybook[] {
 function installStatusOverride(feature: FeatureId): ModuleDeployStatus | undefined {
   const raw = getInstallConfigSync().moduleStatus?.[feature];
   if (!raw) return undefined;
-  return normalizeStatus(raw, 'pending');
+  return normalizeStatus(raw, 'development');
 }
 
 function playbookFor(feature: FeatureId): DeployModulePlaybook | undefined {
@@ -156,7 +157,7 @@ export function getModuleDeployStatus(feature: FeatureId): ModuleDeployStatus {
   if (override) return override;
   const pb = playbookFor(feature);
   if (pb) return pb.defaultStatus;
-  return 'pending';
+  return 'development';
 }
 
 function isConfigured(feature: FeatureId): boolean {
@@ -183,7 +184,7 @@ export function shouldShowDeployBanner(feature: FeatureId): boolean {
   // Production configs like config-reave.json omit moduleStatus — modules are live or disabled via features[].
   const raw = getInstallConfigSync().moduleStatus?.[feature];
   if (raw === undefined) return false;
-  const status = normalizeStatus(raw, 'pending');
+  const status = normalizeStatus(raw, 'development');
   return status !== 'deployed' && status !== 'rejected';
 }
 
@@ -206,7 +207,7 @@ export function listAllDeployModules(): DeployModuleSnapshot[] {
       feature,
       pluginId: pb?.pluginId ?? plugin?.id ?? null,
       path: pb?.path ?? '',
-      defaultStatus: pb?.defaultStatus ?? 'pending',
+      defaultStatus: pb?.defaultStatus ?? 'development',
       stage: pb?.stage ?? 3,
       title: pb?.title ?? FEATURE_LABELS[feature],
       body: pb?.body ?? '',

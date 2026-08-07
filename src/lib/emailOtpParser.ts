@@ -258,3 +258,93 @@ export function extractVerificationCodeFromEmail(opts: OtpEmailProbe): Verificat
 export function isVerificationCodeEmail(opts: OtpEmailProbe): boolean {
   return looksLikeOtpEmail(opts);
 }
+
+/** Strip HTML/noise from a purpose target extracted from OTP email copy. */
+function cleanOtpPurposeTarget(raw: string): string {
+  return raw
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^["']+|["']+$/g, '')
+    .trim()
+    .slice(0, 72);
+}
+
+function senderDomain(from?: string): string {
+  const email = parseSenderEmailAddress(from);
+  const at = email.lastIndexOf('@');
+  return at >= 0 ? email.slice(at + 1) : '';
+}
+
+function domainEndsWith(domain: string, suffix: string): boolean {
+  const d = domain.toLowerCase();
+  const s = suffix.toLowerCase();
+  return d === s || d.endsWith(`.${s}`);
+}
+
+/**
+ * Human-readable label for what an OTP is for — used in push titles so the
+ * notification does not read like the app is verifying itself.
+ */
+export function describeOtpPurpose(
+  opts: OtpEmailProbe,
+  fallbackAppName?: string,
+): string {
+  const subject = (opts.subject ?? '').trim();
+  const body = plainBody(opts.text, opts.html);
+  const combined = [subject, body].filter(Boolean).join('\n');
+  const app = (fallbackAppName ?? '').trim();
+  const domain = senderDomain(opts.from);
+
+  const signInTo =
+    combined.match(/\bsign(?:ing)?\s*[- ]?in\s+to\s+(.+?)(?:[.\n!?]|$)/i) ??
+    combined.match(/\benter\s+this\s+code\s+to\s+(?:continue\s+)?sign(?:ing)?\s*[- ]?in\s+to\s+(.+?)(?:[.\n!?]|$)/i) ??
+    combined.match(/\buse\s+this\s+code\s+to\s+sign\s*[- ]?in\s+to\s+(.+?)(?:[.\n!?]|$)/i);
+  if (signInTo?.[1]) {
+    const target = cleanOtpPurposeTarget(signInTo[1]);
+    if (target) return `Sign-in to ${target}`;
+  }
+
+  if (/\buse\s+this\s+code\s+to\s+verify(?:\s+your\s+email)?/i.test(combined)) {
+    return app ? `Verify email for ${app}` : 'Email verification';
+  }
+  if (/\bverify\s+your\s+email\b/i.test(combined)) {
+    return app ? `Verify email for ${app}` : 'Email verification';
+  }
+  if (/\bpassword\s+reset\b/i.test(combined)) {
+    return app ? `Password reset for ${app}` : 'Password reset';
+  }
+  if (/\bcomplete\s+(?:your\s+)?sign\s*[- ]?up\b/i.test(combined)) {
+    return app ? `Sign-up for ${app}` : 'Sign-up';
+  }
+  if (/\bsign\s*[- ]?in\b/i.test(combined)) {
+    return app ? `Sign-in to ${app}` : 'Sign-in';
+  }
+
+  if (domainEndsWith(domain, 'clerk.com') || domainEndsWith(domain, 'clerk.accounts.dev')) {
+    return app ? `Sign-in to ${app}` : 'Clerk sign-in';
+  }
+  if (domain.includes('google')) return 'Google sign-in';
+  if (domain.includes('apple')) return 'Apple ID sign-in';
+  if (domain.includes('microsoft')) return 'Microsoft sign-in';
+  if (domain.includes('github')) return 'GitHub sign-in';
+  if (domain.includes('stripe')) return 'Stripe verification';
+  if (domain.includes('railway')) return 'Railway sign-in';
+  if (domain.includes('supabase')) return 'Supabase sign-in';
+  if (domain.includes('vercel')) return 'Vercel sign-in';
+
+  return app ? `Verification for ${app}` : 'Verification code';
+}
+
+/** Push title/body for OTP alerts — title states what the code is for. */
+export function formatOtpPushNotification(opts: {
+  code?: string | null;
+  purpose: string;
+}): { title: string; body: string } {
+  const purpose = opts.purpose.trim() || 'Verification code';
+  const code = opts.code?.trim();
+  const title = `${purpose} — code ready`;
+  const body = code
+    ? `Code ${code} — tap Copy code, then paste in Safari`
+    : 'Open the Email tab to copy your code — auto-deletes in 5 min';
+  return { title, body };
+}

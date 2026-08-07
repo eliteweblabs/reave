@@ -124,7 +124,7 @@ The `Dockerfile` runs `npm run build` **before** your hosting platform injects e
 
 Vapi is **not part of the default Reave install**. Enable the `vapi` feature in `config/config-{slug}.json` only when a customer purchases the add-on. See [`plugins/vapi/README.md`](plugins/vapi/README.md).
 
-When enabled, `VoiceChatButton` reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these variables are on the **running service**. Set `"homepageVoice": true` in install config for the public site widget.
+When enabled, `VoiceChatButton` reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these variables are on the **running service**. Set `"homepageVoice": true` in install config for the public website widget.
 
 **Build-time sync:** `npm run build` runs `scripts/sync-vapi-assistant.ts` only when the **`vapi` feature** is enabled in install config. Requires `VAPI_API_KEY` on the build service. Set `VAPI_SYNC_SKIP=1` to skip sync locally.
 

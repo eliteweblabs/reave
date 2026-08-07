@@ -43,7 +43,6 @@ const heading =
     <table class="fx-pricing-table">
       <thead>
         <tr>
-          <th scope="col">Tier</th>
           <th scope="col">Plan</th>
           <th scope="col">Month 1</th>
           <th scope="col">Month 2</th>
@@ -55,8 +54,7 @@ const heading =
         {
           [...INSTALLATION_TIERS].reverse().map((t) => (
             <tr>
-              <th scope="row">Tier {t.tier}</th>
-              <td class="fx-pricing-plan-name">{t.name}</td>
+              <th scope="row">{t.name}</th>
               <td>{formatInstallUsd(t.month1)}</td>
               <td>{formatInstallUsd(t.month2)}</td>
               <td>{formatInstallUsd(t.month3)}</td>
@@ -73,7 +71,6 @@ const heading =
       [...INSTALLATION_TIERS].reverse().map((t) => (
         <article class="fx-tier-card">
           <header class="fx-tier-card-head">
-            <p class="fx-tier-card-kicker">Tier {t.tier}</p>
             <h3 class="fx-tier-card-title">{t.name}</h3>
             <p class="fx-tier-card-summary">{t.summary}</p>
             <p class="fx-tier-card-price">
@@ -101,7 +98,7 @@ const heading =
   </div>
 
   <div class="fx-cta-row">
-    <a class="fx-btn fx-btn--ghost brand-btn-glass" href={quoteHref}>Get a quote for your tier</a>
+    <a class="fx-btn fx-btn--ghost brand-btn-glass" href={quoteHref}>Get a quote for your plan</a>
     {
       variant === "standalone" && (
         <a class="fx-btn fx-btn--ghost brand-btn-glass" href="/features">See full platform tour</a>
@@ -124,8 +121,7 @@ const heading =
       rgba(255, 255, 255, 0.02);
   }
 
-  .fx-pricing-kicker,
-  .fx-tier-card-kicker {
+  .fx-pricing-kicker {
     font-family: var(--font-secondary);
   }
 
@@ -208,13 +204,6 @@ const heading =
     border-bottom: 0;
   }
 
-  .fx-pricing-plan-name {
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.72);
-    text-align: left;
-    white-space: nowrap;
-  }
-
   .fx-tier-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -228,15 +217,6 @@ const heading =
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(0, 0, 0, 0.18);
-  }
-
-  .fx-tier-card-kicker {
-    margin: 0 0 4px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: rgba(74, 222, 128, 0.82);
   }
 
   .fx-tier-card-title {
