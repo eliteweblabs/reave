@@ -3212,28 +3212,16 @@ async function logReceiptExpenseFromAlert(item, btn) {
       const idx = emailState.allEvents.findIndex((e) => e.id === emailId);
       if (idx !== -1) emailState.allEvents[idx] = data.event;
     }
+
+    if (btn) btn.textContent = 'Done';
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     removeReviewAlertBanner(emailId);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
     if (emailState.activeId === emailId) renderEmailPanel();
     if (MAP.type === 'home') await loadHomeDashboard();
-
-    const amount =
-      data.expense?.amount != null
-        ? formatEmailUsd(Number(data.expense.amount))
-        : item.amount != null
-          ? formatEmailUsd(item.amount)
-          : '';
-    await osAlert({
-      title: 'Expense logged',
-      bodyHtml:
-        `<p>Added to Crater${amount ? ` for ${escHtml(amount)}` : ''}.</p>` +
-        (data.expense?.admin_url
-          ? `<p><a href="${escHtml(data.expense.admin_url)}" target="_blank" rel="noopener">Open in Finance</a></p>`
-          : ''),
-    });
   } catch (e) {
     await osAlert({ title: 'Could not log expense', bodyHtml: escHtml(e.message || String(e)) });
-  } finally {
     if (btn) {
       btn.disabled = false;
       if (prevLabel) btn.textContent = prevLabel;
