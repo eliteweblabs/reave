@@ -12,6 +12,7 @@ import {
   listTrackedLinksForJob,
   type TrackedLinkChannel,
 } from '../../../../lib/linkTracking';
+import { qrCodeDataUrl } from '../../../../lib/qrCode';
 
 export const prerender = false;
 
@@ -74,7 +75,8 @@ export async function POST(context: APIContext): Promise<Response> {
   });
 
   if (!created.ok) return json({ ok: false, error: created.error }, 400);
-  return json({ ok: true, link: created.link, url: created.url });
+  const qr_data_url = await qrCodeDataUrl(created.url, 200);
+  return json({ ok: true, link: created.link, url: created.url, qr_data_url });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {

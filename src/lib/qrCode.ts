@@ -1,45 +1,62 @@
 /**
- * QR code generation for project portal links (admin, client portal, email).
- * Centers the Reave AV mark in black-and-white with high error correction.
+ * QR code generation for project portal / tracked share links.
+ * Centers the current Reave app icon with a white quiet zone (high ECC).
  */
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
 
 const QR_DARK = '#111111';
 const QR_LIGHT = '#ffffff';
 
-/** AV triangles only — first two glyphs from ReaveLogoMark (no E bars). */
-const REAVE_AV_MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="241 214 137 100">
-  <rect x="241" y="214" width="137" height="100" fill="${QR_LIGHT}"/>
-  <path fill="${QR_DARK}" d="M241.2,313.4l42.1-99.3,42.6,99.3"/>
-  <path fill="${QR_DARK}" d="M298.5,214.1h79.7l-40.3,99.3"/>
-</svg>`;
+/** App icon used as the QR center mark (`public/reave-icon.png`). */
+const REAVE_ICON_PATH = join(process.cwd(), 'public', 'reave-icon.png');
 
-const AV_MARK_ASPECT = 137 / 100;
+/**
+ * Icon footprint as a fraction of QR width.
+ * The PNG is square with generous internal padding around the AV mark, so this
+ * is a bit larger than the old inline-SVG mark (~0.22) to keep the triangles
+ * readable without covering so many modules that H-level ECC can't recover.
+ */
+const ICON_FRACTION = 0.28;
+/** White pad around the icon so its black background doesn't melt into modules. */
+const QUIET_PAD_FRACTION = 0.06;
 
-async function reaveAvMarkOverlay(size: number): Promise<{ input: Buffer; left: number; top: number }> {
-  const markWidth = Math.max(18, Math.round(size * 0.22));
-  const markHeight = Math.max(9, Math.round(markWidth / AV_MARK_ASPECT));
-  const pad = Math.max(2, Math.round(markHeight * 0.12));
-  const boxWidth = markWidth + pad * 2;
-  const boxHeight = markHeight + pad * 2;
+let _iconBuffer: Buffer | null = null;
 
-  const overlay = await sharp(Buffer.from(REAVE_AV_MARK_SVG))
-    .resize(markWidth, markHeight, { fit: 'contain', background: QR_LIGHT })
-    .extend({
-      top: pad,
-      bottom: pad,
-      left: pad,
-      right: pad,
-      background: QR_LIGHT,
-    })
+async function loadReaveIcon(): Promise<Buffer> {
+  if (_iconBuffer) return _iconBuffer;
+  _iconBuffer = await readFile(REAVE_ICON_PATH);
+  return _iconBuffer;
+}
+
+async function reaveIconOverlay(size: number): Promise<{ input: Buffer; left: number; top: number }> {
+  const iconSize = Math.max(24, Math.round(size * ICON_FRACTION));
+  const pad = Math.max(3, Math.round(size * QUIET_PAD_FRACTION));
+  const box = iconSize + pad * 2;
+
+  const icon = await sharp(await loadReaveIcon())
+    .resize(iconSize, iconSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+    .png()
+    .toBuffer();
+
+  const overlay = await sharp({
+    create: {
+      width: box,
+      height: box,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .composite([{ input: icon, left: pad, top: pad }])
     .png()
     .toBuffer();
 
   return {
     input: overlay,
-    left: Math.round((size - boxWidth) / 2),
-    top: Math.round((size - boxHeight) / 2),
+    left: Math.round((size - box) / 2),
+    top: Math.round((size - box) / 2),
   };
 }
 
@@ -55,7 +72,7 @@ export async function qrCodeDataUrl(text: string, size = 160): Promise<string> {
     type: 'png',
   });
 
-  const logo = await reaveAvMarkOverlay(size);
+  const logo = await reaveIconOverlay(size);
   const composed = await sharp(qrBuffer)
     .composite([logo])
     .png()

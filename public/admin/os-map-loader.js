@@ -129,7 +129,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260807b';
+} from './work-panel.js?v=20260807c';
 import {
   initTodoPanel,
   todoState,
@@ -215,7 +215,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260807b';
+} from './chat-panel.js?v=20260807c';
 import {
   initCreateDrawer,
   beginCreateDrawer,

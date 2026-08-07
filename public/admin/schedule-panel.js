@@ -46,9 +46,9 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260805h';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260807c';
 import { navigateToClient } from './clients-panel.js?v=20260728p';
-import { openReaveShareSheet } from './chat-panel.js?v=20260730c';
+import { openReaveShareSheet } from './chat-panel.js?v=20260807c';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
 let shell = {};

@@ -2723,7 +2723,6 @@ function renderEditWorkForm(pane) {
             trackEl: linkTrackEl,
             shareLogEl,
             title: `${data.contact_name || data.client || 'Client'} — ${postTitle(2)}`,
-            qrDataUrl: data.qr_data_url,
             recipient: {
               contactUid: data.contact_uid,
               name: data.contact_name || data.client || 'Client',

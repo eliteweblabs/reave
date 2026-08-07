@@ -42,7 +42,7 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
-import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260805h';
+import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260807c';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
@@ -253,8 +253,8 @@ async function sharePortalLink(url, title, btn) {
   return ok;
 }
 
-async function createTrackedProjectShareUrl(jobSlug, contactUid, tab) {
-  if (!jobSlug || !contactUid) return '';
+async function createTrackedProjectShare(jobSlug, contactUid, tab) {
+  if (!jobSlug || !contactUid) return null;
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, {
       method: 'POST',
@@ -263,11 +263,38 @@ async function createTrackedProjectShareUrl(jobSlug, contactUid, tab) {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    return data.url || '';
+    return {
+      url: data.url || '',
+      qr_data_url: data.qr_data_url || '',
+      link: data.link || null,
+    };
   } catch (e) {
     showChatToast(e?.message || 'Could not create tracked link');
-    return clientPortalShareUrl(contactUid, tab, jobSlug);
+    return null;
   }
+}
+
+async function createTrackedProjectShareUrl(jobSlug, contactUid, tab) {
+  const created = await createTrackedProjectShare(jobSlug, contactUid, tab);
+  if (created?.url) return created.url;
+  return clientPortalShareUrl(contactUid, tab, jobSlug);
+}
+
+/** One tracked /go URL (+ QR) per open share sheet so Copy and QR stay in sync. */
+async function ensureTrackedShareForState(state) {
+  if (!state) return null;
+  if (state.trackedShareUrl) {
+    return { url: state.trackedShareUrl, qr_data_url: state.trackedShareQr || '' };
+  }
+  const jobSlug = state.jobSlug?.trim() || '';
+  const contactUid = state.recipient?.contactUid?.trim() || '';
+  if (!jobSlug || !contactUid) return null;
+  const created = await createTrackedProjectShare(jobSlug, contactUid, state.tab);
+  if (!created?.url) return null;
+  state.trackedShareUrl = created.url;
+  state.trackedShareQr = created.qr_data_url || '';
+  void refreshWorkLinkTrackStatus(state.trackEl, jobSlug, state.shareLogEl);
+  return created;
 }
 
 function formatLinkTrackWhen(iso) {
@@ -452,15 +479,12 @@ function setReaveShareQr(qrDataUrl) {
 }
 
 async function resolveReaveShareQrDataUrl(opts = {}) {
-  if (opts.qrDataUrl) return opts.qrDataUrl;
-  if (opts.kind !== 'work' || !opts.jobSlug) return '';
-  try {
-    const res = await fetch(`/api/work/${encodeURIComponent(opts.jobSlug)}`);
-    const data = await res.json();
-    if (res.ok && data.ok && data.qr_data_url) return data.qr_data_url;
-  } catch {
-    /* ignore */
+  // Prefer a tracked /go QR so scans count as views (same URL as Copy link).
+  if (opts.kind === 'work' && _reaveShareState?.jobSlug && _reaveShareState?.recipient?.contactUid) {
+    const tracked = await ensureTrackedShareForState(_reaveShareState);
+    if (tracked?.qr_data_url) return tracked.qr_data_url;
   }
+  if (opts.qrDataUrl) return opts.qrDataUrl;
   return '';
 }
 
@@ -499,13 +523,8 @@ async function resolveReaveShareUrl(state, opts = {}) {
   // Project shares: Copy link / native share get a tracked /go URL so the Viewed pill works.
   // Email/SMS still create tracked links server-side on send. Preview stays a direct URL.
   if (opts.tracked && jobSlug && contactUid) {
-    if (state.trackedShareUrl) return state.trackedShareUrl;
-    const url = await createTrackedProjectShareUrl(jobSlug, contactUid, tab);
-    if (url) {
-      state.trackedShareUrl = url;
-      void refreshWorkLinkTrackStatus(state.trackEl, jobSlug, state.shareLogEl);
-      return url;
-    }
+    const tracked = await ensureTrackedShareForState(state);
+    if (tracked?.url) return tracked.url;
   }
 
   if (contactUid) return clientPortalShareUrl(contactUid, tab, jobSlug || undefined);
