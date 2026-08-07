@@ -5,6 +5,8 @@
 
 import type { APIRoute } from 'astro';
 import { loadPortalJob } from '../../../../../../../lib/portalWorkAuth';
+import { checkInMemoryRateLimit } from '../../../../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../../../../lib/clientIp';
 import {
   PROJECT_FILE_MAX_BYTES,
   PROJECT_UPLOAD_MEDIA_TYPES,
@@ -52,6 +54,14 @@ export const POST: APIRoute = async ({ params, request }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
   if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+
+  const rate = checkInMemoryRateLimit(`portal-upload:${contactUid}:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 5,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many uploads. Please try again later.' }, 429);
+  }
 
   const ctx = await loadPortalJob(contactUid, jobSlug);
   if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
