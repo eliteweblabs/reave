@@ -187,7 +187,15 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
     isDemoMode() ? parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value)?.industry : undefined,
   );
   const siteContent = loadSiteContentByKey(siteKey);
-  if (!isSitePageAllowed(normalizedPath, siteContent) && normalizedPath !== "/sign-in" && normalizedPath !== "/sign-up") {
+  // Astro internals (/_image image transforms, /_astro hashed assets) are not
+  // marketing pages — blocking them 404s every <Image> srcset on /about etc.
+  const isAstroInternal = normalizedPath === "/_image" || normalizedPath.startsWith("/_");
+  if (
+    !isAstroInternal &&
+    !isSitePageAllowed(normalizedPath, siteContent) &&
+    normalizedPath !== "/sign-in" &&
+    normalizedPath !== "/sign-up"
+  ) {
     const isMarketingLike =
       normalizedPath !== "/admin" &&
       !normalizedPath.startsWith("/admin/") &&
