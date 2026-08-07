@@ -37,7 +37,9 @@ export async function GET(context: APIContext): Promise<Response> {
       sections,
       included,
       baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
-      industries: industries.map((i) => ({ slug: i.slug, label: i.label })),
+      industries: industries
+        .map((i) => ({ slug: i.slug, label: i.label }))
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })),
       defaultModuleIds: defaultDemoLoaderModuleIds(modules),
       suite: cookieSuite,
       demoSiteUrl,
