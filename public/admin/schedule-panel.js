@@ -1933,7 +1933,7 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
   wrap.appendChild(gutter);
 
   const cols = document.createElement('div');
-  cols.className = 'cal-time-columns';
+  cols.className = 'cal-time-columns' + (singleDay ? ' cal-time-columns--day' : '');
 
   for (const key of dayKeys) {
     const col = document.createElement('div');

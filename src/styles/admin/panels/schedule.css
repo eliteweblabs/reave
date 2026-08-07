@@ -852,8 +852,15 @@
   .cal-time-columns {
     overflow-x: auto;
   }
+  .cal-time-columns--day {
+    overflow-x: visible;
+  }
   .cal-time-col {
     flex: 0 0 3.25rem;
+  }
+  .cal-time-columns--day .cal-time-col {
+    flex: 1 1 auto;
+    min-width: 0;
   }
   .cal-week-header {
     overflow-x: auto;
