@@ -38,7 +38,7 @@ import {
   pullRefreshContentRoot,
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260805b';
+} from './admin-ui.js?v=20260807d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
@@ -217,10 +217,10 @@ async function shareChatText(text, role, btn) {
   const payload = { text, title: `${label} — ${brandName} session` };
   if (navigator.share) {
     try {
-      await navigator.share(payload);
-      return true;
-    } catch (e) {
-      if (e?.name === 'AbortError') return false;
+      const shared = await safeNativeShare(payload);
+      if (shared) return true;
+    } catch {
+      /* fall through to copy */
     }
   }
   const ok = await copyChatText(text, btn);
@@ -238,14 +238,42 @@ function clientPortalShareUrl(uid, tab, project) {
   return qs ? `${base}?${qs}` : base;
 }
 
+/** Avoid InvalidStateError when the user taps Share while the sheet is already open. */
+let nativeShareInFlight = null;
+
+function isBenignShareError(e) {
+  const name = e?.name || '';
+  const msg = String(e?.message || '');
+  return (
+    name === 'AbortError' ||
+    name === 'InvalidStateError' ||
+    /already in progress/i.test(msg)
+  );
+}
+
+async function safeNativeShare(payload) {
+  if (!navigator.share) return false;
+  if (nativeShareInFlight) return false;
+  try {
+    nativeShareInFlight = navigator.share(payload);
+    await nativeShareInFlight;
+    return true;
+  } catch (e) {
+    if (isBenignShareError(e)) return false;
+    throw e;
+  } finally {
+    nativeShareInFlight = null;
+  }
+}
+
 async function sharePortalLink(url, title, btn) {
   if (!url) return false;
   if (navigator.share) {
     try {
-      await navigator.share({ url, title: title || undefined });
-      return true;
-    } catch (e) {
-      if (e?.name === 'AbortError') return false;
+      const shared = await safeNativeShare({ url, title: title || undefined });
+      if (shared) return true;
+    } catch {
+      /* fall through to copy */
     }
   }
   const ok = await copyChatText(url, btn);
@@ -559,7 +587,7 @@ async function sendViaReaveShare(channel, state) {
     docTitle: state.docTitle || undefined,
   };
 
-  const buttons = document.querySelectorAll('#reave-share-actions .reave-share-btn--primary');
+  const buttons = document.querySelectorAll('#reave-share-actions [data-share-send]');
   buttons.forEach((b) => { b.disabled = true; });
 
   try {
@@ -595,54 +623,54 @@ function buildReaveShareActions(state, opts = {}) {
   const canSms = !!phone || !!email || !!recipient.contactUid;
 
   actionsEl.innerHTML = '';
+  actionsEl.className = 'reave-share-actions';
 
-  const mkBtn = (label, className, onClick, disabled, hint) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `reave-share-btn ${className}`.trim();
-    btn.disabled = !!disabled;
-    if (hint) {
-      btn.innerHTML = `${escHtml(label)}<small>${escHtml(hint)}</small>`;
-    } else {
-      btn.textContent = label;
-    }
-    btn.addEventListener('click', onClick);
-    return btn;
-  };
+  const emailLabel = email
+    ? `Email ${name} at ${email}`
+    : canEmail
+      ? `Email ${name} via ${brandName}`
+      : 'No email on file';
+  const smsLabel = phoneDisplay
+    ? `Text ${name} at ${phoneDisplay}`
+    : canSms
+      ? `Text ${name} via ${brandName}`
+      : 'No phone on file';
 
-  const emailLabel = email ? `Email ${name} at ${email}` : `Email ${name}`;
-  const emailHint = email ? undefined : (canEmail ? `Via ${brandName}` : 'No email on file');
-  const smsLabel = phoneDisplay ? `Text ${name} at ${phoneDisplay}` : `Text ${name}`;
-  const smsHint = phoneDisplay ? undefined : (canSms ? `Via ${brandName}` : 'No phone on file');
+  const emailBtn = createIosIconBtn({
+    iconKey: 'send',
+    label: emailLabel,
+    className: 'ios-icon-btn reave-share-icon',
+    onClick: () => sendViaReaveShare('email', state),
+  });
+  emailBtn.dataset.shareSend = 'email';
+  emailBtn.disabled = !canEmail;
 
-  actionsEl.appendChild(
-    mkBtn(
-      emailLabel,
-      'reave-share-btn--primary',
-      () => sendViaReaveShare('email', state),
-      !canEmail,
-      emailHint,
-    ),
-  );
-  actionsEl.appendChild(
-    mkBtn(
-      smsLabel,
-      'reave-share-btn--primary',
-      () => sendViaReaveShare('sms', state),
-      !canSms,
-      smsHint,
-    ),
-  );
-  actionsEl.appendChild(
-    mkBtn('Preview', 'reave-share-btn--ghost', async () => {
+  const smsBtn = createIosIconBtn({
+    iconKey: 'message',
+    label: smsLabel,
+    className: 'ios-icon-btn reave-share-icon',
+    onClick: () => sendViaReaveShare('sms', state),
+  });
+  smsBtn.dataset.shareSend = 'sms';
+  smsBtn.disabled = !canSms;
+
+  const previewBtn = createIosIconBtn({
+    iconKey: 'eye',
+    label: 'Preview',
+    className: 'ios-icon-btn reave-share-icon',
+    onClick: async () => {
       const url = await resolveReaveShareUrl(state);
       if (!url) return;
       const previewUrl = `${url}${url.includes('?') ? '&' : '?'}preview=1`;
       window.open(previewUrl, '_blank', 'noopener,noreferrer');
-    }),
-  );
-  actionsEl.appendChild(
-    mkBtn('Copy link', 'reave-share-btn--ghost', async (e) => {
+    },
+  });
+
+  const copyBtn = createIosIconBtn({
+    iconKey: 'copy',
+    label: 'Copy link',
+    className: 'ios-icon-btn reave-share-icon',
+    onClick: async (btn) => {
       const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
       let text = url;
       if (state.kind === 'booking' && state.booking) {
@@ -650,23 +678,30 @@ function buildReaveShareActions(state, opts = {}) {
           .filter(Boolean)
           .join('\n');
       }
-      if (text) await copyChatText(text, e.currentTarget);
-    }),
-  );
+      if (text) await copyChatText(text, btn);
+    },
+  });
+
+  actionsEl.append(emailBtn, smsBtn, previewBtn, copyBtn);
+
   if (navigator.share) {
-    actionsEl.appendChild(
-      mkBtn('More options…', 'reave-share-btn--ghost', async () => {
+    const moreBtn = createIosIconBtn({
+      iconKey: 'more',
+      label: 'More options',
+      className: 'ios-icon-btn reave-share-icon',
+      onClick: async () => {
         const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
         const sharePayload = { title: opts.shareTitle || `Share with ${name}` };
         if (url) sharePayload.url = url;
         if (opts.shareText) sharePayload.text = opts.shareText;
         try {
-          await navigator.share(sharePayload);
+          await safeNativeShare(sharePayload);
         } catch (e) {
-          if (e?.name !== 'AbortError') setReaveShareStatus(e?.message || 'Share cancelled', 'err');
+          setReaveShareStatus(e?.message || 'Share failed', 'err');
         }
-      }),
-    );
+      },
+    });
+    actionsEl.appendChild(moreBtn);
   }
 }
 
