@@ -58,7 +58,7 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
   {
     id: 'handoff-vault',
     label: 'Handoff Vault',
-    blurb: 'Secure credential and site-access handoff inside the portal Data tab.',
+    blurb: 'Bidirectionally share secure credentials and other data in the portal Data tab.',
   },
   {
     id: 'agent-chat',
