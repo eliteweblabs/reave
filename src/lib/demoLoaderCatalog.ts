@@ -88,7 +88,7 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
   {
     id: 'business-audit',
     label: 'Business Audit',
-    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content without the HTML deep-dive.',
+    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content.',
   },
   {
     id: 'web-search',
