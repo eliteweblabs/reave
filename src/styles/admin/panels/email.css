@@ -71,7 +71,8 @@
   gap: 0.15rem;
   z-index: 2;
   padding: 0;
-  background: transparent;
+  /* Opaque so scrollable category tabs never show through Draft/Sent */
+  background: var(--btn-group-track-bg);
   border: none;
   border-radius: 0;
   pointer-events: none;
@@ -88,11 +89,17 @@
 }
 .em-filter-tabs-fixed .em-filter-tab {
   pointer-events: auto;
+  opacity: 1;
+  color: var(--muted);
 }
 .em-filter-tab--draft,
 .em-filter-tab--sent {
   background: transparent;
   border-color: transparent;
+  opacity: 1;
+}
+.em-filter-tabs-fixed .em-filter-tab .em-filter-count {
+  opacity: 1;
 }
 .em-filter-tab--draft:hover,
 .em-filter-tab--sent:hover {
