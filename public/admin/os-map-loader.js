@@ -7077,6 +7077,9 @@ function renderAppSettingsPanel(settings, sleepData) {
   const s = settings || {};
   const sleep = sleepData?.settings || {};
   const ttl = Number.isFinite(Number(s.otpTtlMinutes)) ? Number(s.otpTtlMinutes) : 5;
+  const recentlyViewedDays = Number.isFinite(Number(s.recentlyViewedDays))
+    ? Number(s.recentlyViewedDays)
+    : 7;
   const sleepEnabled = sleep.sleepModeEnabled !== false;
   const quietStart = sleep.quietStart || '23:00';
   const quietEnd = sleep.quietEnd || '07:00';
@@ -7104,6 +7107,13 @@ function renderAppSettingsPanel(settings, sleepData) {
             `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
             `<input id="settings-otp-ttl" name="otpTtlMinutes" type="number" min="0" max="1440" step="1" value="${escHtml(String(ttl))}" required />` +
             `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
+          `</div>` +
+          `<h2 class="prof-title prof-title--section">Recently viewed</h2>` +
+          `<p class="prof-subtitle">Projects opened within this window appear under the Recently Viewed filter in ${escHtml(postTitle(2))}.</p>` +
+          `<div class="prof-field">` +
+            `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
+            `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
+            `<span class="prof-hint">Default is 7 days. Applies to this browser’s view history.</span>` +
           `</div>` +
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
@@ -7136,10 +7146,17 @@ function bindAppSettingsForm(root) {
     formSelector: '#app-settings-form',
     alertEl,
     validateField(el) {
-      if (el.name !== 'otpTtlMinutes') return defaultFieldValidator(el);
-      const n = Number(el.value);
-      if (!Number.isFinite(n) || n < 0 || n > 1440) return false;
-      return true;
+      if (el.name === 'otpTtlMinutes') {
+        const n = Number(el.value);
+        if (!Number.isFinite(n) || n < 0 || n > 1440) return false;
+        return true;
+      }
+      if (el.name === 'recentlyViewedDays') {
+        const n = Number(el.value);
+        if (!Number.isFinite(n) || n < 1 || n > 365) return false;
+        return true;
+      }
+      return defaultFieldValidator(el);
     },
     async save(payload) {
       const res = await fetch('/api/admin/settings', {
@@ -7147,9 +7164,15 @@ function bindAppSettingsForm(root) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           otpTtlMinutes: Number(payload.otpTtlMinutes),
+          recentlyViewedDays: Number(payload.recentlyViewedDays),
         }),
       });
       const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok !== false && json.settings?.recentlyViewedDays != null) {
+        document.dispatchEvent(
+          new CustomEvent('reave-app-settings-updated', { detail: json.settings }),
+        );
+      }
       return { ok: res.ok && json.ok !== false, error: json.error };
     },
   });

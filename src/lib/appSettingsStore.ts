@@ -1,5 +1,6 @@
 /**
- * Install-wide admin settings (OTP TTL, etc.) — Postgres with JSON file fallback.
+ * Install-wide admin settings (OTP TTL, recently viewed window, etc.) —
+ * Postgres with JSON file fallback.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -10,17 +11,22 @@ import { serverEnv } from './serverEnv';
 export type AppSettings = {
   /** Minutes until verification-code inbox rows auto-delete. 0 disables. */
   otpTtlMinutes: number;
+  /** Days a project stays in the Recently Viewed filter after opening. */
+  recentlyViewedDays: number;
   updatedAt: string | null;
 };
 
 const DEFAULT_OTP_TTL_MINUTES = 5;
+const DEFAULT_RECENTLY_VIEWED_DAYS = 7;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS app_settings (
-  id                INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  otp_ttl_minutes   INT NOT NULL DEFAULT 5,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                     INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  otp_ttl_minutes        INT NOT NULL DEFAULT 5,
+  recently_viewed_days   INT NOT NULL DEFAULT 7,
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS recently_viewed_days INT NOT NULL DEFAULT 7;
 INSERT INTO app_settings (id) VALUES (1)
   ON CONFLICT (id) DO NOTHING;
 `;
@@ -86,6 +92,16 @@ export function clampOtpTtlMinutes(raw: unknown, fallback = DEFAULT_OTP_TTL_MINU
   return Math.max(1, Math.min(Math.round(n), 1440));
 }
 
+/** Clamp recently-viewed window to 1–365 days. */
+export function clampRecentlyViewedDays(
+  raw: unknown,
+  fallback = DEFAULT_RECENTLY_VIEWED_DAYS,
+): number {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(Math.round(n), 365));
+}
+
 function envDefaultOtpTtl(): number {
   const raw = serverEnv('EMAIL_OTP_TTL_MINUTES');
   if (raw == null || raw === '') return DEFAULT_OTP_TTL_MINUTES;
@@ -95,6 +111,7 @@ function envDefaultOtpTtl(): number {
 function normalizeSettings(raw: unknown): AppSettings {
   const base: AppSettings = {
     otpTtlMinutes: envDefaultOtpTtl(),
+    recentlyViewedDays: DEFAULT_RECENTLY_VIEWED_DAYS,
     updatedAt: null,
   };
   if (!raw || typeof raw !== 'object') return base;
@@ -104,6 +121,10 @@ function normalizeSettings(raw: unknown): AppSettings {
       o.otpTtlMinutes !== undefined
         ? clampOtpTtlMinutes(o.otpTtlMinutes, base.otpTtlMinutes)
         : base.otpTtlMinutes,
+    recentlyViewedDays:
+      o.recentlyViewedDays !== undefined
+        ? clampRecentlyViewedDays(o.recentlyViewedDays, base.recentlyViewedDays)
+        : base.recentlyViewedDays,
     updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : null,
   };
 }
@@ -136,12 +157,19 @@ async function readPgSettings(): Promise<AppSettings | null> {
     const pool = await ensureSchema();
     if (!pool) return null;
     const { rows } = await pool.query(
-      `SELECT otp_ttl_minutes, updated_at FROM app_settings WHERE id = 1`,
+      `SELECT otp_ttl_minutes, recently_viewed_days, updated_at FROM app_settings WHERE id = 1`,
     );
-    const row = rows[0] as { otp_ttl_minutes?: number; updated_at?: Date | string } | undefined;
+    const row = rows[0] as
+      | {
+          otp_ttl_minutes?: number;
+          recently_viewed_days?: number;
+          updated_at?: Date | string;
+        }
+      | undefined;
     if (!row) return null;
     return normalizeSettings({
       otpTtlMinutes: row.otp_ttl_minutes,
+      recentlyViewedDays: row.recently_viewed_days,
       updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
     });
   } catch (e) {
@@ -154,12 +182,13 @@ async function writePgSettings(settings: AppSettings): Promise<boolean> {
   const pool = await ensureSchema();
   if (!pool) return false;
   await pool.query(
-    `INSERT INTO app_settings (id, otp_ttl_minutes, updated_at)
-     VALUES (1, $1, now())
+    `INSERT INTO app_settings (id, otp_ttl_minutes, recently_viewed_days, updated_at)
+     VALUES (1, $1, $2, now())
      ON CONFLICT (id) DO UPDATE SET
        otp_ttl_minutes = EXCLUDED.otp_ttl_minutes,
+       recently_viewed_days = EXCLUDED.recently_viewed_days,
        updated_at = now()`,
-    [settings.otpTtlMinutes],
+    [settings.otpTtlMinutes, settings.recentlyViewedDays],
   );
   return true;
 }
@@ -185,8 +214,14 @@ export async function getOtpTtlMinutes(): Promise<number> {
   return settings.otpTtlMinutes;
 }
 
+/** Days a project stays in Recently Viewed after opening. */
+export async function getRecentlyViewedDays(): Promise<number> {
+  const settings = await getAppSettings();
+  return settings.recentlyViewedDays;
+}
+
 export async function saveAppSettings(
-  patch: Partial<Pick<AppSettings, 'otpTtlMinutes'>>,
+  patch: Partial<Pick<AppSettings, 'otpTtlMinutes' | 'recentlyViewedDays'>>,
 ): Promise<AppSettings | null> {
   const cur = await getAppSettings();
   const next: AppSettings = {
@@ -194,6 +229,10 @@ export async function saveAppSettings(
       patch.otpTtlMinutes !== undefined
         ? clampOtpTtlMinutes(patch.otpTtlMinutes, cur.otpTtlMinutes)
         : cur.otpTtlMinutes,
+    recentlyViewedDays:
+      patch.recentlyViewedDays !== undefined
+        ? clampRecentlyViewedDays(patch.recentlyViewedDays, cur.recentlyViewedDays)
+        : cur.recentlyViewedDays,
     updatedAt: new Date().toISOString(),
   };
   const ok = databaseUrl() ? await writePgSettings(next) : writeFileSettings(next);

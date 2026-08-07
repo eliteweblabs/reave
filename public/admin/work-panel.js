@@ -46,6 +46,17 @@ let shell = {};
 
 export function initWorkPanel(deps) {
   shell = deps;
+  if (!workSettingsListenerBound) {
+    workSettingsListenerBound = true;
+    document.addEventListener('reave-app-settings-updated', (ev) => {
+      const days = Number(ev?.detail?.recentlyViewedDays);
+      if (!Number.isFinite(days) || days < 1) return;
+      workState.recentlyViewedDays = Math.min(Math.round(days), 365);
+      if (getWorkEditor()?.querySelector('.ch-sidebar')) {
+        refreshWorkSidebarList();
+      }
+    });
+  }
 }
 
 // ---- extracted from os-map-loader.js:10942-13417 ----
@@ -77,6 +88,11 @@ const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
 
 const AUTOSAVE_DEBOUNCE_MS = 650;
 
+const WORK_RECENTLY_VIEWED_KEY = 'reave-work-recently-viewed';
+const DEFAULT_RECENTLY_VIEWED_DAYS = 7;
+/** Keep local view history for up to a year so raising the admin window still works. */
+const WORK_VIEW_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+
 const TODO_PRIORITY_LABELS = {
   low: 'Low',
   normal: 'Normal',
@@ -90,6 +106,7 @@ let workState = {
   priorities: ['low', 'normal', 'high', 'urgent'],
   search: '',
   statusFilter: 'all',
+  recentlyViewedDays: DEFAULT_RECENTLY_VIEWED_DAYS,
   activeSlug: null,
   dirty: false,
   draft: null,
@@ -102,6 +119,7 @@ let workState = {
 
 let workAutosaveTimer = null;
 let workAutosaveFlush = null;
+let workSettingsListenerBound = false;
 
 function syncWorkSidebarTitle(slug, title) {
   const job = workState.jobs.find((j) => j.slug === slug);
@@ -279,7 +297,64 @@ function compareWorkJobsByRecency(a, b) {
   return bT.localeCompare(aT);
 }
 
+function readWorkViewHistory() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(WORK_RECENTLY_VIEWED_KEY) || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const cutoff = Date.now() - WORK_VIEW_HISTORY_RETENTION_MS;
+    const next = {};
+    for (const [slug, ts] of Object.entries(raw)) {
+      const n = typeof ts === 'number' ? ts : Date.parse(String(ts));
+      if (!slug || !Number.isFinite(n) || n < cutoff) continue;
+      next[slug] = n;
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function writeWorkViewHistory(map) {
+  try {
+    localStorage.setItem(WORK_RECENTLY_VIEWED_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function recordWorkView(slug) {
+  if (!slug || slug === '__new__') return;
+  const map = readWorkViewHistory();
+  map[slug] = Date.now();
+  writeWorkViewHistory(map);
+}
+
+function workViewedAt(slug) {
+  if (!slug) return 0;
+  return readWorkViewHistory()[slug] || 0;
+}
+
+function recentlyViewedCutoffMs() {
+  const days = Number(workState.recentlyViewedDays);
+  const n = Number.isFinite(days) && days > 0 ? days : DEFAULT_RECENTLY_VIEWED_DAYS;
+  return Date.now() - n * 24 * 60 * 60 * 1000;
+}
+
+function isRecentlyViewedJob(job) {
+  const at = workViewedAt(job?.slug);
+  return at > 0 && at >= recentlyViewedCutoffMs();
+}
+
+function compareWorkJobsByRecentlyViewed(a, b) {
+  const diff = workViewedAt(b.slug) - workViewedAt(a.slug);
+  if (diff !== 0) return diff;
+  return compareWorkJobsByRecency(a, b);
+}
+
 function sortWorkJobsForDisplay(jobs) {
+  if (workState.statusFilter === 'recent') {
+    return [...jobs].sort(compareWorkJobsByRecentlyViewed);
+  }
   return [...jobs].sort(compareWorkJobsByRecency);
 }
 
@@ -302,6 +377,7 @@ function workStatusTabCounts() {
   const jobs = workState.jobs;
   return {
     all: jobs.length,
+    recent: jobs.filter((j) => isRecentlyViewedJob(j)).length,
     inquiry: jobs.filter((j) => j.status === 'inquiry').length,
     active: jobs.filter((j) => j.status === 'active').length,
     archived: jobs.filter((j) => isWorkArchivedStatus(j.status)).length,
@@ -311,6 +387,7 @@ function workStatusTabCounts() {
 function workJobsForStatusFilter(jobs) {
   const f = workState.statusFilter;
   if (f === 'all') return jobs;
+  if (f === 'recent') return jobs.filter((j) => isRecentlyViewedJob(j));
   if (f === 'archived') return jobs.filter((j) => isWorkArchivedStatus(j.status));
   return jobs.filter((j) => (j.status || 'inquiry') === f);
 }
@@ -334,6 +411,7 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
+    { id: 'recent', label: 'Recently Viewed', count: counts.recent },
     { id: 'inquiry', label: 'Inquiry', count: counts.inquiry },
     { id: 'active', label: 'Active', count: counts.active },
     { id: 'archived', label: 'Archived', count: counts.archived },
@@ -1307,9 +1385,23 @@ async function loadWorkTab(opts = {}) {
     mountPanelSkeleton(root, 'list', 'Loading work…', { contentSelector: '.ch-sidebar' });
   }
   try {
-    const res = await adminFetch('/api/work');
+    const [res, settingsRes] = await Promise.all([
+      adminFetch('/api/work'),
+      adminFetch('/api/admin/settings').catch(() => null),
+    ]);
     const data = await readAdminJson(res, postTitle(2));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (settingsRes?.ok) {
+      try {
+        const settingsData = await settingsRes.json();
+        const days = Number(settingsData?.settings?.recentlyViewedDays);
+        if (Number.isFinite(days) && days >= 1) {
+          workState.recentlyViewedDays = Math.min(Math.round(days), 365);
+        }
+      } catch {
+        /* keep default */
+      }
+    }
     workState.jobs = sortWorkJobsForDisplay(data.jobs || []);
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
@@ -1328,6 +1420,9 @@ async function loadWorkTab(opts = {}) {
   pendingWorkDeepLinkSlug = null;
   workState.activeSlug = deepSlug || null;
   workState.dirty = false;
+  if (deepSlug && deepSlug !== '__new__' && deepSlug !== prevActiveSlug) {
+    recordWorkView(deepSlug);
+  }
   if (!preserveNew) workState.draft = null;
   shell.clearEditorFooterSave();
   if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
@@ -1413,7 +1508,14 @@ function fillWorkSidebarList(list) {
   if (visibleJobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = search.trim() ? 'No matches.' : `No ${postLower(2)} yet.`;
+    if (search.trim()) {
+      empty.textContent = 'No matches.';
+    } else if (workState.statusFilter === 'recent') {
+      const days = workState.recentlyViewedDays || DEFAULT_RECENTLY_VIEWED_DAYS;
+      empty.textContent = `No ${postLower(2)} viewed in the last ${days} day${days === 1 ? '' : 's'}.`;
+    } else {
+      empty.textContent = `No ${postLower(2)} yet.`;
+    }
     list.appendChild(empty);
   }
 }
@@ -2834,6 +2936,7 @@ async function openWork(slug) {
   workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
+  recordWorkView(slug);
   activateWorkPaneOnMobile();
   renderWorkEditor();
 }
@@ -2873,6 +2976,7 @@ async function createWork(slug, payload) {
       return;
     }
     workState.activeSlug = slug;
+    recordWorkView(slug);
     renderWorkEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
