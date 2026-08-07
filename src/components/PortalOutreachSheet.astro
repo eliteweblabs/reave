@@ -7,11 +7,14 @@ export interface Props {
   alertId?: string;
   /** Sheet body copy; blank paragraphs separated by a blank line. */
   content: string;
+  /** First name, company, or other short greeting label for the sheet title. */
+  greetingName?: string;
 }
 
-const { alertId = 'reave-automatic-outreach', content } = Astro.props;
+const { alertId = 'reave-automatic-outreach', content, greetingName = '' } = Astro.props;
 const storageKey = `reave-site-alert-dismiss:${alertId}`;
 const sheetId = `portal-outreach-${alertId}`;
+const sheetTitle = greetingName.trim() ? `Hi there, ${greetingName.trim()}` : 'Hi there';
 const paragraphs = content
   .split(/\n\n+/)
   .map((p) => p.trim())
@@ -20,7 +23,7 @@ const paragraphs = content
 
 <IosBottomSheet
   id={sheetId}
-  title="A quick note"
+  title={sheetTitle}
   dismissible={true}
   sheetOnly={true}
   class="portal-outreach-sheet"

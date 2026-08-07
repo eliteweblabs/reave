@@ -345,6 +345,8 @@ const submitMode = !notFound && Astro.url.searchParams.has('submit');
 const showAssistant =
   !notFound && !submitMode && hasFeature('portal_assistant') && isPortalAssistantConfigured();
 const clientFirstName = displayName.split(/\s+/)[0] || '';
+const outreachGreetingName =
+  displayName !== 'Client' ? clientFirstName || displayName : company || '';
 
 let portalBrand: PortalBrandColors | null = null;
 if (contact && uid) {
@@ -1345,7 +1347,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     }
     {
       !notFound && org.portalOutreachNotice && (
-        <PortalOutreachSheet alertId="reave-automatic-outreach" content={org.portalOutreachNotice} />
+        <PortalOutreachSheet
+          alertId="reave-automatic-outreach"
+          content={org.portalOutreachNotice}
+          greetingName={outreachGreetingName}
+        />
       )
     }
   </body>
