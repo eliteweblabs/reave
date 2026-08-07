@@ -85,6 +85,14 @@ interface ImportMetaEnv {
   DEFER_DEPLOY_UNTIL_TURN_END?: string;
   /** Injected by Railway at deploy time — the live commit SHA (used to verify deploy is current). */
   RAILWAY_GIT_COMMIT_SHA?: string;
+  /** Injected by Railway at deploy time — commit message for the live deployment. */
+  RAILWAY_GIT_COMMIT_MESSAGE?: string;
+  /** Injected by Railway — this service's UUID (deploy-status GraphQL scope). */
+  RAILWAY_SERVICE_ID?: string;
+  /** Injected by Railway — this service's display name. */
+  RAILWAY_SERVICE_NAME?: string;
+  /** Injected by Railway — environment name (e.g. production). */
+  RAILWAY_ENVIRONMENT_NAME?: string;
   /** Injected by Railway — public domain of the service (used for the health ping). */
   RAILWAY_PUBLIC_DOMAIN?: string;
   /** Injected by Railway — repo owner of the connected GitHub repo. */

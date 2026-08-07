@@ -324,6 +324,122 @@ Client: Acme Corp
 
 **Tip**: Use **Ask for Input** actions to prompt for title and client.
 
+### Add To-Do
+
+**What it does**: Create a personal/work to-do (dynamic alert) — separate from client projects. Use when you want a reminder that is **not** a job with a client.
+
+**JSON body**:
+
+```json
+{
+  "action": "add_todo",
+  "title": "Call the accountant about Q2 taxes",
+  "due_date": "2026-08-15",
+  "priority": "high",
+  "format": "text"
+}
+```
+
+**Parameters**:
+- `title` (required): Task text. Aliases: `todo`, `text`, `query`.
+- `due_date` (optional): Deadline (`YYYY-MM-DD` or ISO). Alias: `due`.
+- `priority` (optional): `low`, `normal`, `high`, `urgent` (default: `normal`)
+
+**Also accepts**: `"action": "create_todo"`
+
+**Example response**:
+
+```
+Added to-do: Call the accountant about Q2 taxes · high · due 2026-08-15
+```
+
+**Siri phrase**: "add a to-do" or "new to-do"
+
+**Tip**: Use **Ask for Input** for the title so you can dictate freely.
+
+### List To-Dos
+
+**What it does**: Read open (or filtered) personal to-dos aloud.
+
+**JSON body**:
+
+```json
+{
+  "action": "list_todos",
+  "status": "open",
+  "format": "text"
+}
+```
+
+**Parameters**:
+- `status` (optional): `open` (default), `done`, or `all`
+- `priority` (optional): filter by priority
+- `limit` (optional): max items (default 15, max 50)
+
+**Siri phrase**: "list my to-dos" or "what's on my to-do list"
+
+### Update To-Do
+
+**What it does**: Change title, due date, priority, or status. Match by `id` or by title text.
+
+**JSON body**:
+
+```json
+{
+  "action": "update_todo",
+  "title": "Call the accountant",
+  "priority": "urgent",
+  "format": "text"
+}
+```
+
+**Parameters**:
+- `id` or `title` (required): Which item — title aliases: `todo`, `text`, `query`
+- `new_title` (optional): Rename (use this when matching by title so the lookup title is not overwritten)
+- `due_date` / `due` (optional): New deadline, or empty string to clear
+- `priority` (optional): `low`, `normal`, `high`, `urgent`
+- `status` (optional): `open` or `done`
+
+**Siri phrase**: "update to-do"
+
+### Complete To-Do
+
+**What it does**: Mark a to-do done (clears it from the open list). Match by `id` or title.
+
+**JSON body**:
+
+```json
+{
+  "action": "complete_todo",
+  "title": "Call the accountant",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "done_todo"` or `"action": "mark_todo_done"`
+
+**Siri phrase**: "complete to-do" or "mark to-do done"
+
+### Delete To-Do
+
+**What it does**: Permanently remove a to-do. Match by `id` or title.
+
+**JSON body**:
+
+```json
+{
+  "action": "delete_todo",
+  "title": "Call the accountant",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "clear_todo"`
+
+**Siri phrase**: "delete to-do" or "clear to-do"
+
+**Requirement**: `DATABASE_URL` (same Postgres to-do store the admin dashboard and agent use).
+
 ### Send SMS
 
 **What it does**: Send a text message via Telnyx.
@@ -541,7 +657,14 @@ Example actions to add:
 
 - `list_invoices`: Show outstanding invoices (requires Crater integration)
 - `check_schedule`: Show today's bookings (requires Cal.com integration)
-- `add_todo`: Create a quick to-do item
+
+**Personal to-dos** (requires `DATABASE_URL`):
+
+- `add_todo` / `create_todo`: Create a quick to-do item
+- `list_todos`: List open (or filtered) to-dos
+- `update_todo`: Change title, due date, priority, or status
+- `complete_todo` / `done_todo` / `mark_todo_done`: Mark a to-do done
+- `delete_todo` / `clear_todo`: Permanently remove a to-do
 
 **Time tracking** (requires `time_tracking` feature):
 

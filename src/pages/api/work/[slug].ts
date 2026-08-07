@@ -19,7 +19,6 @@ import { listRelatedForJob } from '../../../lib/projectLinks';
 import { listTrackedLinksForJob } from '../../../lib/linkTracking';
 import { storeListProjectFiles } from '../../../lib/projectFiles';
 import { projectPortalUrl } from '../../../lib/contactApi';
-import { qrCodeDataUrl } from '../../../lib/qrCode';
 import { requestOrigin } from '../../../lib/requestOrigin';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
@@ -47,8 +46,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const files = await storeListProjectFiles(slug);
   const contactUid = doc.contact_uid?.trim() || '';
   const portal_url = contactUid ? projectPortalUrl(contactUid, slug, { base: requestOrigin(context.request) }) : '';
-  const qr_data_url = portal_url ? await qrCodeDataUrl(portal_url, 200) : '';
-  return json({ ok: true, ...doc, related, tracked_links, files, portal_url, qr_data_url });
+  return json({ ok: true, ...doc, related, tracked_links, files, portal_url });
 }
 
 export async function PUT(context: APIContext): Promise<Response> {

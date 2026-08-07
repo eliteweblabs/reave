@@ -30,35 +30,20 @@ export type DemoLoaderSection = {
   modules: DemoLoaderModule[];
 };
 
+function byTitle(a: { label: string }, b: { label: string }): number {
+  return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+}
+
 /**
  * Always-on platform capabilities shown as marketing cards (not toggles).
  * Baseline portal modules + core agent tools that ship with every demo.
+ * Keep alphabetical by label (UI sorts as a safeguard too).
  */
 export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
   {
-    id: 'crm',
-    label: 'CRM',
-    blurb: 'Contacts, companies, and client profiles — searchable by name, phone, or domain.',
-  },
-  {
-    id: 'client-portal',
-    label: 'Client Portal',
-    blurb: 'A branded portal for every client — projects, files, and status in one place.',
-  },
-  {
-    id: 'billing',
-    label: 'Billing & Invoices',
-    blurb: 'Quotes, invoices, and payments wired to the work you’re already shipping.',
-  },
-  {
-    id: 'portal-assistant',
-    label: 'Portal Assistant',
-    blurb: 'Speed-dial help chat so clients get answers without ringing your phone.',
-  },
-  {
-    id: 'handoff-vault',
-    label: 'Handoff Vault',
-    blurb: 'Secure credential and site-access handoff inside the portal Data tab.',
+    id: 'web-search',
+    label: 'Agent Web Search',
+    blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
   },
   {
     id: 'agent-chat',
@@ -66,19 +51,39 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
     blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
   },
   {
+    id: 'billing',
+    label: 'Billing & Invoices',
+    blurb: 'Quotes, invoices, and payments wired to the work you’re already shipping.',
+  },
+  {
+    id: 'business-audit',
+    label: 'Business Audit',
+    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content.',
+  },
+  {
+    id: 'client-portal',
+    label: 'Client Portal',
+    blurb: 'A branded portal for every client — projects, files, and status in one place.',
+  },
+  {
+    id: 'crm',
+    label: 'CRM',
+    blurb: 'Contacts, companies, and client profiles — searchable by name, phone, or domain.',
+  },
+  {
+    id: 'dynamic-todos',
+    label: 'Dynamic To-Dos',
+    blurb: 'Dynamic alerts for personal or work — create, update, and clear with the agent or Siri.',
+  },
+  {
     id: 'email-inbox',
     label: 'Email Inbox',
     blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
   },
   {
-    id: 'projects',
-    label: 'Projects & Work',
-    blurb: 'Jobs, inquiry notes, and delivery tracking with full agent read/write.',
-  },
-  {
-    id: 'dynamic-todos',
-    label: 'Dynamic To-Dos',
-    blurb: 'Personal tasks that stay out of the job list — create, update, and clear with the agent.',
+    id: 'handoff-vault',
+    label: 'Handoff Vault',
+    blurb: 'Bidirectionally share secure credentials and other data in the portal Data tab.',
   },
   {
     id: 'knowledge',
@@ -86,14 +91,14 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
     blurb: 'Playbooks the agent actually follows — SOPs, install notes, and how-tos on demand.',
   },
   {
-    id: 'business-audit',
-    label: 'Business Audit',
-    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content without the HTML deep-dive.',
+    id: 'portal-assistant',
+    label: 'Portal Assistant',
+    blurb: 'Speed-dial help chat so clients get answers without ringing your phone.',
   },
   {
-    id: 'web-search',
-    label: 'Agent Web Search',
-    blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
+    id: 'projects',
+    label: 'Projects & Work',
+    blurb: 'Jobs, inquiry notes, and delivery tracking with full agent read/write.',
   },
 ];
 
@@ -138,16 +143,17 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         toggleable: deployed && Boolean(moduleId),
       };
     })
-    .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId));
+    .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId))
+    .sort(byTitle);
 }
 
 export function listDemoLoaderIncludedCards(): DemoLoaderIncludedCard[] {
-  return [...DEMO_LOADER_INCLUDED_CARDS];
+  return [...DEMO_LOADER_INCLUDED_CARDS].sort(byTitle);
 }
 
 /**
  * Optional sections: “Optional Modules” (remaining) then named groups such as
- * Web Development Modules.
+ * Web Development Modules. Tiles within each section are alphabetical by title.
  */
 export function listDemoLoaderSections(
   modules: readonly DemoLoaderModule[] = listDemoLoaderModules(),
@@ -163,10 +169,11 @@ export function listDemoLoaderSections(
       claimed.add(feature);
       sectionModules.push(mod);
     }
+    sectionModules.sort(byTitle);
     return { id: group.id, title: group.title, modules: sectionModules };
   }).filter((s) => s.modules.length > 0);
 
-  const ungrouped = modules.filter((m) => !claimed.has(m.feature));
+  const ungrouped = modules.filter((m) => !claimed.has(m.feature)).sort(byTitle);
   const sections: DemoLoaderSection[] = [];
   if (ungrouped.length) {
     sections.push({ id: 'optional', title: 'Optional Modules', modules: ungrouped });
