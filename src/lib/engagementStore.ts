@@ -16,7 +16,8 @@ export type EngagementEventType =
   | 'vault_entry'
   | 'share_open'
   | 'deck_view'
-  | 'contact_form';
+  | 'contact_form'
+  | 'demo_launch';
 
 export type EngagementEvent = {
   id: string;

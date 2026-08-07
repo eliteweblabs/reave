@@ -1,5 +1,6 @@
 import { getDemoSetupStatus, isDemoMode, isDemoSeedReady } from '../../src/lib/demoMode';
 import { runDemoSeed } from '../../src/lib/demoSeedRunner';
+import { getActiveDemoSuite } from '../../src/lib/demoSuiteContext';
 import { hasFeature } from '../../src/lib/features';
 import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
 
@@ -33,18 +34,32 @@ async function handle_run_demo_seed(args: Record<string, unknown>, _ctx: ToolCon
     });
   }
 
+  const suite = getActiveDemoSuite();
   const result = runDemoSeed({
     fresh: args.fresh === true,
     forceCompany: args.force_company === true || args.forceCompany === true,
     withBookings: args.with_bookings === true || args.withBookings === true,
     dryRun,
-    industry: typeof args.industry === 'string' ? args.industry : undefined,
+    industry:
+      typeof args.industry === 'string' ? args.industry : suite?.industry,
     moduleIds: Array.isArray(args.module_ids)
       ? (args.module_ids as string[])
       : Array.isArray(args.moduleIds)
         ? (args.moduleIds as string[])
-        : undefined,
-    tier: typeof args.tier === 'number' ? args.tier : undefined,
+        : suite?.moduleIds,
+    tier: typeof args.tier === 'number' ? args.tier : suite?.tier,
+    visitorName:
+      typeof args.visitor_name === 'string'
+        ? args.visitor_name
+        : typeof args.visitorName === 'string'
+          ? args.visitorName
+          : suite?.visitorName,
+    visitorEmail:
+      typeof args.visitor_email === 'string'
+        ? args.visitor_email
+        : typeof args.visitorEmail === 'string'
+          ? args.visitorEmail
+          : suite?.visitorEmail,
   });
 
   if (!result.ok) {

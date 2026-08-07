@@ -22,14 +22,20 @@ export function buildDemoSuiteConfig(opts: {
   tier?: number;
   moduleIds: readonly string[];
   industry: string;
+  visitorName?: string | null;
+  visitorEmail?: string | null;
 }): DemoSuiteConfig {
   const moduleIds = opts.moduleIds.map((id) => id.padStart(3, '0'));
+  const visitorName = opts.visitorName?.trim().slice(0, 120) || undefined;
+  const visitorEmail = opts.visitorEmail?.trim().toLowerCase().slice(0, 254) || undefined;
   return {
     tier: opts.tier ?? 1,
     moduleIds,
     features: resolveDemoModuleFeatures(moduleIds),
     industry: opts.industry.trim().toLowerCase() || 'general',
     capturedAt: new Date().toISOString(),
+    ...(visitorName ? { visitorName } : {}),
+    ...(visitorEmail ? { visitorEmail } : {}),
   };
 }
 
@@ -51,6 +57,10 @@ export type DemoSuiteConfig = {
   industry: string;
   /** ISO timestamp when suite was captured. */
   capturedAt: string;
+  /** Visitor display name from the demo loader (optional). */
+  visitorName?: string;
+  /** Visitor email from the demo loader (optional). */
+  visitorEmail?: string;
 };
 
 export type DemoSuiteParseResult = {
@@ -75,6 +85,15 @@ export function parseDemoSuiteFromSearchParams(params: URLSearchParams): DemoSui
   const demo = params.get('demo');
   const modulesRaw = params.get('modules');
   const industry = params.get('industry')?.trim().toLowerCase() || 'general';
+  const visitorName =
+    params.get('name')?.trim() ||
+    params.get('guest')?.trim() ||
+    params.get('visitorName')?.trim() ||
+    '';
+  const visitorEmail =
+    params.get('email')?.trim().toLowerCase() ||
+    params.get('visitorEmail')?.trim().toLowerCase() ||
+    '';
 
   if (!demo && !modulesRaw && !params.get('industry')) return null;
   if (!demo && !modulesRaw) {
@@ -91,16 +110,15 @@ export function parseDemoSuiteFromSearchParams(params: URLSearchParams): DemoSui
     return { ok: false, error: `Unknown module id(s): ${unknown.join(', ')}` };
   }
 
-  const features = resolveDemoModuleFeatures(moduleIds);
   return {
     ok: true,
-    suite: {
+    suite: buildDemoSuiteConfig({
       tier: parseTier(demo),
       moduleIds,
-      features,
       industry,
-      capturedAt: new Date().toISOString(),
-    },
+      visitorName: visitorName || null,
+      visitorEmail: visitorEmail || null,
+    }),
   };
 }
 
@@ -114,6 +132,16 @@ export function parseDemoSuiteCookie(raw: string | null | undefined): DemoSuiteC
     const parsed = JSON.parse(raw) as DemoSuiteConfig;
     if (!Array.isArray(parsed.moduleIds) || !parsed.industry) return null;
     parsed.features = resolveDemoModuleFeatures(parsed.moduleIds);
+    if (typeof parsed.visitorName === 'string') {
+      parsed.visitorName = parsed.visitorName.trim().slice(0, 120) || undefined;
+    } else {
+      delete parsed.visitorName;
+    }
+    if (typeof parsed.visitorEmail === 'string') {
+      parsed.visitorEmail = parsed.visitorEmail.trim().toLowerCase().slice(0, 254) || undefined;
+    } else {
+      delete parsed.visitorEmail;
+    }
     return parsed;
   } catch {
     return null;
@@ -124,7 +152,9 @@ export function demoSuiteSummary(suite: DemoSuiteConfig): string {
   const labels = suite.moduleIds
     .map((id) => demoModuleById(id)?.label ?? id)
     .join(', ');
-  return `Tier ${suite.tier} · ${suite.industry} · ${labels}`;
+  const who = suite.visitorName?.trim();
+  const base = `Tier ${suite.tier} · ${suite.industry} · ${labels}`;
+  return who ? `${who} · ${base}` : base;
 }
 
 export function demoModuleCatalog(): DemoModuleCatalogEntry[] {
@@ -136,10 +166,16 @@ export function buildDemoSuiteUrl(origin: string, opts: {
   tier?: number;
   moduleIds: string[];
   industry: string;
+  visitorName?: string | null;
+  visitorEmail?: string | null;
 }): string {
   const url = new URL('/', origin);
   url.searchParams.set('demo', `tier-${opts.tier ?? 1}`);
   url.searchParams.set('modules', `[${opts.moduleIds.join(',')}]`);
   url.searchParams.set('industry', opts.industry);
+  const name = opts.visitorName?.trim();
+  const email = opts.visitorEmail?.trim().toLowerCase();
+  if (name) url.searchParams.set('name', name);
+  if (email) url.searchParams.set('email', email);
   return url.toString();
 }

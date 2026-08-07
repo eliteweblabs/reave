@@ -505,6 +505,48 @@ export async function notifyAdminAgentOfDeckView(opts: {
   });
 }
 
+/** Fire-and-forget — public demo loader launch. */
+export async function notifyAdminAgentOfDemoLaunch(opts: {
+  contactName: string | null;
+  contactUid: string | null;
+  email: string | null;
+  industry: string | null;
+  industryLabel?: string | null;
+  moduleCount?: number;
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const industryLabel = opts.industryLabel?.trim() || opts.industry?.trim() || null;
+  const who = opts.contactName || 'Visitor';
+  const message = [
+    '🚀 Live demo launched',
+    '',
+    `Visitor: ${who}`,
+    opts.email ? `Email: ${opts.email}` : null,
+    industryLabel ? `Industry: ${industryLabel}` : null,
+    opts.moduleCount != null ? `Modules: ${opts.moduleCount}` : null,
+    '',
+    'Someone configured a suite on /demo-loader and opened the sandbox.',
+  ]
+    .filter((line) => line != null)
+    .join('\n');
+
+  const url = opts.contactUid
+    ? `/admin?tab=clients&client=${encodeURIComponent(opts.contactUid)}`
+    : '/admin?tab=home';
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: '🚀 Demo launched',
+      body: `${who}${industryLabel ? ` · ${industryLabel}` : ''}`,
+      tag: `demo-launch-${opts.engagementId}`,
+      url,
+    },
+  });
+}
+
 /**
  * Fire-and-forget — logs failures, never throws to inbound email handler.
  *

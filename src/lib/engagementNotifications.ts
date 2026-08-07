@@ -6,6 +6,7 @@ import everythingDeck from '../deck/scripts/everything.json';
 import {
   notifyAdminAgentOfContactForm,
   notifyAdminAgentOfDeckView,
+  notifyAdminAgentOfDemoLaunch,
   notifyAdminAgentOfShareOpen,
   notifyAdminAgentOfVaultSubmit,
 } from './adminAgentAlert';
@@ -236,6 +237,51 @@ export async function recordDeckViewEngagement(opts: {
         industry: industrySlug,
         industryLabel,
         deckTitle: deckName,
+        engagementId: event.id,
+      }),
+  );
+}
+
+export async function recordDemoLaunchEngagement(opts: {
+  contactUid: string;
+  contactName: string;
+  email: string;
+  industry?: string | null;
+  moduleIds?: string[];
+}): Promise<EngagementEvent | null> {
+  const who = opts.contactName.trim() || 'Visitor';
+  const email = opts.email.trim().toLowerCase();
+  const industrySlug = opts.industry?.trim().toLowerCase() || null;
+  let industryLabel: string | null = null;
+  if (industrySlug) {
+    const row = await getDeckIndustryBySlug(industrySlug).catch(() => null);
+    industryLabel = row?.label?.trim() || industrySlug;
+  }
+  const moduleCount = opts.moduleIds?.length ?? 0;
+  const day = new Date().toISOString().slice(0, 10);
+  const detailParts = [
+    email || null,
+    industryLabel ? `${industryLabel} industry` : null,
+    moduleCount ? `${moduleCount} modules` : null,
+  ].filter(Boolean);
+
+  return createAndNotify(
+    {
+      type: 'demo_launch',
+      title: `${who} launched a live demo`,
+      detail: detailParts.join(' · ') || 'Demo loader',
+      contactUid: opts.contactUid.trim() || null,
+      contactName: who,
+      dedupeKey: `demo_launch:${email || opts.contactUid}:${day}`,
+    },
+    (event) =>
+      notifyAdminAgentOfDemoLaunch({
+        contactName: who,
+        contactUid: opts.contactUid.trim() || null,
+        email: email || null,
+        industry: industrySlug,
+        industryLabel,
+        moduleCount,
         engagementId: event.id,
       }),
   );

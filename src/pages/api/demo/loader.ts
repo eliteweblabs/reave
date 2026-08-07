@@ -10,20 +10,34 @@ import {
   listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
 import { buildDemoSuiteUrl, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from '../../../lib/demoSuite';
+import { checkDemoLoaderCatalogRateLimit } from '../../../lib/demoLaunch';
 import { DEMO_BASELINE_MODULE_IDS, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
 import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      ...(extraHeaders || {}),
+    },
   });
 }
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
+    const rate = checkDemoLoaderCatalogRateLimit(context.request);
+    if (!rate.ok) {
+      return json(
+        { ok: false, error: 'Too many requests. Please try again shortly.' },
+        429,
+        { 'Retry-After': String(rate.retryAfterSeconds) },
+      );
+    }
+
     const modules = listDemoLoaderModules();
     const sections = listDemoLoaderSections(modules);
     const included = listDemoLoaderIncludedCards();

@@ -1,5 +1,6 @@
 /**
  * Public demo loader — 6-column tile grid, toggles only on deployed modules.
+ * Launch requires name + email and goes through POST /api/demo/launch.
  */
 (function () {
   const STATUS = {
@@ -17,6 +18,10 @@
   let selectedIds = new Set();
   let industry = 'general';
   let demoSiteUrl = null;
+  let visitorName = '';
+  let visitorEmail = '';
+  let launchError = '';
+  let launching = false;
 
   const root = document.getElementById('demo-loader-app');
   if (!root) return;
@@ -55,6 +60,8 @@
           .filter((id) => allowed.has(id)),
       );
       industry = data.suite.industry || industry;
+      if (data.suite.visitorName) visitorName = data.suite.visitorName;
+      if (data.suite.visitorEmail) visitorEmail = data.suite.visitorEmail;
     } else {
       selectedIds = new Set(data.defaultModuleIds || [...allowed]);
       industry = industries[0]?.slug || 'general';
@@ -70,6 +77,15 @@
   function selectedToggleableCount() {
     const allowed = new Set(toggleableModules().map((m) => m.moduleId));
     return [...selectedIds].filter((id) => allowed.has(id)).length;
+  }
+
+  function canLaunch() {
+    return Boolean(
+      demoSiteUrl &&
+        visitorName.trim().length >= 2 &&
+        visitorEmail.trim().includes('@') &&
+        !launching,
+    );
   }
 
   function statusMeta(m) {
@@ -174,22 +190,39 @@
   function render() {
     const toggleCount = toggleableModules().length;
     const selectedCount = selectedToggleableCount();
-    const canLaunch = Boolean(demoSiteUrl);
+    const ready = canLaunch();
 
     root.innerHTML =
       `<div class="dl-panel">` +
       `<div class="dl-toolbar">` +
+      `<div class="dl-visitor">` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Your name</span>` +
+      `<input id="dl-name" class="dl-input" type="text" autocomplete="name" required maxlength="120" ` +
+      `placeholder="Jane Smith" value="${esc(visitorName)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Work email</span>` +
+      `<input id="dl-email" class="dl-input" type="email" autocomplete="email" required maxlength="254" ` +
+      `placeholder="jane@company.com" value="${esc(visitorEmail)}" />` +
+      `</label>` +
+      `<label class="dl-field dl-honeypot" aria-hidden="true">` +
+      `<span class="dl-field-label">Company website</span>` +
+      `<input id="dl-website" class="dl-input" type="text" tabindex="-1" autocomplete="off" />` +
+      `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
       `<select id="dl-industry" class="dl-select">${renderIndustryOptions()}</select>` +
       `</label>` +
+      `</div>` +
       `<div class="dl-toolbar-actions">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all deployed</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
-      `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${canLaunch ? '' : ' disabled'}>` +
-      (demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
+      `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${ready ? '' : ' disabled'}>` +
+      (launching ? 'Starting…' : demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
       `</button>` +
       `</div>` +
+      (launchError ? `<p class="dl-launch-error" role="alert">${esc(launchError)}</p>` : '') +
       `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
       `</div>` +
       renderLegend() +
@@ -199,11 +232,19 @@
       `</div>` +
       (!demoSiteUrl ?
         `<p class="dl-footnote">Live sandbox URL is not configured on this install. Book a call from the <a href="/demo">demo page</a> for hands-on access.</p>`
-      : '') +
+      : `<p class="dl-footnote">We use your name and email to personalize the sandbox and follow up. Launches are rate-limited to keep the demo fast for everyone.</p>`) +
       `</div>`;
   }
 
+  function readVisitorFields() {
+    const nameEl = root.querySelector('#dl-name');
+    const emailEl = root.querySelector('#dl-email');
+    if (nameEl) visitorName = nameEl.value || '';
+    if (emailEl) visitorEmail = emailEl.value || '';
+  }
+
   function toggleModule(id) {
+    readVisitorFields();
     if (!toggleableModules().some((m) => m.moduleId === id)) return;
     if (selectedIds.has(id)) selectedIds.delete(id);
     else selectedIds.add(id);
@@ -211,18 +252,78 @@
     bind();
   }
 
+  async function launch() {
+    if (!demoSiteUrl || launching) return;
+    readVisitorFields();
+    launchError = '';
+    if (visitorName.trim().length < 2) {
+      launchError = 'Please enter your name.';
+      render();
+      bind();
+      root.querySelector('#dl-name')?.focus();
+      return;
+    }
+    if (!visitorEmail.trim().includes('@')) {
+      launchError = 'Please enter a valid email.';
+      render();
+      bind();
+      root.querySelector('#dl-email')?.focus();
+      return;
+    }
+
+    launching = true;
+    render();
+    bind();
+
+    try {
+      const website = root.querySelector('#dl-website')?.value || '';
+      const res = await fetch('/api/demo/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: visitorName.trim(),
+          email: visitorEmail.trim(),
+          industry: industry || 'general',
+          moduleIds: launchModuleIds(),
+          tier: 1,
+          website,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok || !json.redirectUrl) {
+        throw new Error(json.error || `Could not start demo (${res.status})`);
+      }
+      window.location.assign(json.redirectUrl);
+    } catch (e) {
+      launching = false;
+      launchError = e.message || 'Could not start demo.';
+      render();
+      bind();
+    }
+  }
+
   function bind() {
     root.querySelector('#dl-industry')?.addEventListener('change', (e) => {
       industry = e.target.value || 'general';
     });
 
+    const syncLaunchEnabled = () => {
+      readVisitorFields();
+      const btn = root.querySelector('#dl-launch');
+      if (btn) btn.disabled = !canLaunch();
+    };
+    root.querySelector('#dl-name')?.addEventListener('input', syncLaunchEnabled);
+    root.querySelector('#dl-email')?.addEventListener('input', syncLaunchEnabled);
+
     root.querySelector('#dl-select-all')?.addEventListener('click', () => {
+      readVisitorFields();
       selectedIds = new Set(toggleableModules().map((m) => m.moduleId));
       render();
       bind();
     });
 
     root.querySelector('#dl-clear')?.addEventListener('click', () => {
+      readVisitorFields();
       selectedIds = new Set();
       render();
       bind();
@@ -244,13 +345,7 @@
     });
 
     root.querySelector('#dl-launch')?.addEventListener('click', () => {
-      if (!demoSiteUrl) return;
-      const ids = launchModuleIds();
-      const url = new URL('/', demoSiteUrl);
-      url.searchParams.set('demo', 'tier-1');
-      url.searchParams.set('modules', `[${ids.join(',')}]`);
-      url.searchParams.set('industry', industry || 'general');
-      window.location.assign(url.toString());
+      void launch();
     });
   }
 

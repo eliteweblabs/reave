@@ -89,6 +89,8 @@ export async function POST(context: APIContext): Promise<Response> {
     industry: (body.industry as string) ?? suite?.industry,
     moduleIds: (body.moduleIds as string[]) ?? suite?.moduleIds,
     tier: (body.tier as number) ?? suite?.tier,
+    visitorName: (body.visitorName as string) ?? suite?.visitorName,
+    visitorEmail: (body.visitorEmail as string) ?? suite?.visitorEmail,
   });
 
   if (!result.ok) {

@@ -14,6 +14,9 @@ export type DemoSeedOptions = {
   industry?: string;
   moduleIds?: string[];
   tier?: number;
+  /** Override DEMO_REAL_CONTACT_* for this run (visitor personalization). */
+  visitorName?: string;
+  visitorEmail?: string;
 };
 
 export type DemoSeedResult =
@@ -58,7 +61,15 @@ export function runDemoSeed(options: DemoSeedOptions = {}): DemoSeedResult {
 
   const child = spawnSync(process.execPath, args, {
     cwd: root,
-    env: process.env,
+    env: {
+      ...process.env,
+      ...(options.visitorEmail?.trim()
+        ? { DEMO_REAL_CONTACT_EMAIL: options.visitorEmail.trim().toLowerCase() }
+        : {}),
+      ...(options.visitorName?.trim()
+        ? { DEMO_REAL_CONTACT_NAME: options.visitorName.trim() }
+        : {}),
+    },
     encoding: 'utf8',
     timeout: 300_000,
     maxBuffer: 4 * 1024 * 1024,
