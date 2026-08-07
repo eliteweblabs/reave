@@ -213,32 +213,6 @@ function scrollSidebarListItemIntoView(list, itemEl) {
   }
 }
 
-/** Scroll a filter tab into the tab strip only when it is clipped. No-op if fully visible. */
-function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
-  if (!nav || !tabEl) return;
-  const navRect = nav.getBoundingClientRect();
-  const tabRect = tabEl.getBoundingClientRect();
-  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
-  if (tabRect.left < navRect.left) {
-    nav.scrollLeft += tabRect.left - navRect.left;
-  } else if (tabRect.right > navRect.right) {
-    nav.scrollLeft += tabRect.right - navRect.right;
-  }
-}
-
-function captureFilterTabsScroll(root) {
-  return root?.querySelector('.em-filter-tabs')?.scrollLeft ?? 0;
-}
-
-function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
-  if (!nav) return;
-  // Restore after attach — scrollLeft on a detached node does not stick.
-  requestAnimationFrame(() => {
-    nav.scrollLeft = savedScrollLeft;
-    scrollFilterTabIntoViewIfNeeded(nav, nav.querySelector('.em-filter-tab.active'));
-  });
-}
-
 function captureSidebarListScroll(root) {
   return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
 }

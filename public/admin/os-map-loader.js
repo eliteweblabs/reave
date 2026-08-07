@@ -107,6 +107,13 @@ import {
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
+import {
+  captureFilterTabsScroll,
+  mountFilterTabsScroll,
+  mountListFilterTabsWrap,
+  applyEmailFilterTabsScroll,
+  shouldCenterEmailFilterTab,
+} from './filter-tabs.js?v=20260807b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -122,7 +129,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260806a';
+} from './work-panel.js?v=20260807b';
 import {
   initTodoPanel,
   todoState,
@@ -175,7 +182,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260806c';
+} from './clients-panel.js?v=20260807b';
 import {
   initChatPanel,
   chatState,
@@ -208,7 +215,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260806a';
+} from './chat-panel.js?v=20260807b';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -509,117 +516,6 @@ export function scrollSidebarListItemIntoView(list, itemEl) {
   } else if (rowRect.bottom > listRect.bottom) {
     list.scrollTop += rowRect.bottom - listRect.bottom + padding;
   }
-}
-
-/** Scroll a filter tab into the tab strip only when it is clipped. No-op if fully visible. */
-function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
-  if (!nav || !tabEl) return;
-  const navRect = nav.getBoundingClientRect();
-  const tabRect = tabEl.getBoundingClientRect();
-  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
-  let delta = 0;
-  if (tabRect.left < navRect.left) {
-    delta = tabRect.left - navRect.left;
-  } else if (tabRect.right > navRect.right) {
-    delta = tabRect.right - navRect.right;
-  }
-  if (delta) setFilterNavScrollLeft(nav, nav.scrollLeft + delta, { smooth: false });
-}
-
-const EMAIL_FILTER_SCROLL_TAB_IDS = [
-  'all',
-  'alert',
-  'review',
-  'book',
-  'project',
-  'routed',
-  'receipt',
-  'junk',
-];
-const EMAIL_FILTER_CENTER_FROM_ID = 'receipt';
-
-function emailFilterShouldCenter(filterId) {
-  const cutoff = EMAIL_FILTER_SCROLL_TAB_IDS.indexOf(EMAIL_FILTER_CENTER_FROM_ID);
-  const idx = EMAIL_FILTER_SCROLL_TAB_IDS.indexOf(filterId);
-  return cutoff !== -1 && idx !== -1 && idx >= cutoff;
-}
-
-function getEmailFilterFixedTabWidth(wrap) {
-  if (!wrap) return 0;
-  const fixedNav = wrap.querySelector('.em-filter-tabs-fixed');
-  const measured = fixedNav?.offsetWidth ?? 0;
-  if (measured > 0) return measured;
-  const cssVar = parseFloat(getComputedStyle(wrap).getPropertyValue('--em-filter-fixed-tab-width'));
-  return Number.isFinite(cssVar) ? cssVar : 0;
-}
-
-/** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */
-function setFilterNavScrollLeft(nav, left, { smooth = false } = {}) {
-  if (!nav) return;
-  nav.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
-}
-
-/** Center a scroll-tab in the strip left of pinned Draft/Sent. */
-function centerFilterTabInScrollNav(nav, tabEl, wrap, { smooth = true } = {}) {
-  if (!nav || !tabEl) return;
-  const fixedWidth = getEmailFilterFixedTabWidth(wrap);
-  const visibleWidth = Math.max(0, nav.clientWidth - fixedWidth);
-  const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth);
-  const target = tabEl.offsetLeft + tabEl.offsetWidth / 2 - visibleWidth / 2;
-  const left = Math.max(0, Math.min(target, maxScroll));
-  if (Math.abs(nav.scrollLeft - left) < 1) {
-    setFilterNavScrollLeft(nav, left, { smooth: false });
-    return;
-  }
-  setFilterNavScrollLeft(nav, left, { smooth });
-}
-
-function applyEmailFilterTabsScroll(wrap, savedScrollLeft = 0, filterId = 'all') {
-  if (!wrap) return;
-  const nav = wrap.querySelector('.em-filter-tabs--scroll');
-  if (!nav) return;
-  const run = () => {
-    syncEmailFilterFixedTabWidth(wrap);
-    const activeTab = nav.querySelector('.em-filter-tab.active');
-    const shouldCenter = emailFilterShouldCenter(filterId) && emailState.centerInboxFilterTab;
-    if (shouldCenter && activeTab) {
-      centerFilterTabInScrollNav(nav, activeTab, wrap, { smooth: true });
-      emailState.centerInboxFilterTab = false;
-      return;
-    }
-    emailState.centerInboxFilterTab = false;
-    setFilterNavScrollLeft(nav, savedScrollLeft, { smooth: false });
-    scrollFilterTabIntoViewIfNeeded(nav, activeTab);
-  };
-  requestAnimationFrame(() => requestAnimationFrame(run));
-}
-
-function captureFilterTabsScroll(root) {
-  return (
-    root?.querySelector('.em-filter-tabs--scroll')?.scrollLeft ??
-    root?.querySelector('.em-filter-tabs')?.scrollLeft ??
-    0
-  );
-}
-
-function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
-  if (!nav) return;
-  requestAnimationFrame(() => {
-    setFilterNavScrollLeft(nav, savedScrollLeft, { smooth: false });
-    scrollFilterTabIntoViewIfNeeded(nav, nav.querySelector('.em-filter-tab.active'));
-  });
-}
-
-function syncEmailFilterFixedTabWidth(wrap) {
-  if (!wrap) return;
-  const fixedNav = wrap.querySelector('.em-filter-tabs-fixed');
-  if (!fixedNav) return;
-  const apply = () => {
-    const w = fixedNav.offsetWidth;
-    if (w > 0) wrap.style.setProperty('--em-filter-fixed-tab-width', `${w}px`);
-  };
-  apply();
-  requestAnimationFrame(apply);
 }
 
 function captureSidebarListScroll(root) {
@@ -11362,7 +11258,7 @@ async function switchEmailInboxFilter(nextFilter) {
   await leaveEmailCompose();
   if (emailState.inboxFilter === nextFilter) return;
   emailState.inboxFilter = nextFilter;
-  emailState.centerInboxFilterTab = emailFilterShouldCenter(nextFilter);
+  emailState.centerInboxFilterTab = shouldCenterEmailFilterTab(nextFilter);
   emailState.activeId = null;
   getEmailPanel()?.classList.remove('em-pane-active');
   if (MAP?.type === 'email') syncAdminTabUrl('email');
@@ -11441,111 +11337,58 @@ async function loadEmailTab(quiet) {
 
 function renderEmailFilterTabs(savedScrollLeft = 0) {
   const counts = inboxTabCounts();
-  const wrap = document.createElement('div');
-  wrap.className = 'em-filter-tabs-wrap';
-
-  const scrollNav = document.createElement('div');
-  scrollNav.className = 'em-filter-tabs em-filter-tabs--scroll';
-  scrollNav.setAttribute('role', 'tablist');
-  scrollNav.setAttribute('aria-label', 'Inbox filters');
-
-  const tabs = [
-    { id: 'all', label: 'All', count: counts.all },
-    { id: 'alert', label: 'Alerts', count: counts.alert },
-    { id: 'review', label: 'Review', count: counts.review },
-    { id: 'book', label: 'Book', count: counts.book },
-    { id: 'project', label: postTitle(2), count: counts.project },
-    { id: 'routed', label: 'Archive', count: counts.routed },
-    { id: 'receipt', label: 'Receipts', count: counts.receipt },
-    { id: 'junk', label: 'Junk', count: counts.junk },
-  ];
-
-  for (const tab of tabs) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = emailState.inboxFilter === tab.id;
-    const canBulkDelete = isActive && tab.id !== 'all' && tab.count > 0;
-    const isAllRefresh = isActive && tab.id === 'all';
-    btn.className =
-      'em-filter-tab' +
-      (isActive ? ' active' : '') +
-      (canBulkDelete ? ' em-filter-tab--purge' : '') +
-      (isAllRefresh ? ' em-filter-tab--refresh' : '') +
-      (isAllRefresh && emailState.inboxRefreshing ? ' em-filter-tab--refreshing' : '');
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.dataset.filter = tab.id;
-
-    if (canBulkDelete) {
-      btn.innerHTML =
-        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
-        `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
-      btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
-      btn.title = `Delete all ${tab.label.toLowerCase()} messages`;
-      bindConfirmDeleteButton(btn, () => bulkDeleteInboxCategory(tab));
-    } else if (isAllRefresh) {
-      btn.innerHTML =
-        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
-        `<span class="em-filter-refresh-icon">${IOS_ICONS.refresh}</span>`;
-      btn.setAttribute('aria-label', 'Refresh inbox');
-      btn.title = 'Check for new mail';
-      btn.addEventListener('click', () => {
-        if (emailState.inboxRefreshing) return;
-        emailState.inboxRefreshing = true;
-        renderEmailPanel();
-        void loadEmailTab(true).finally(() => {
-          emailState.inboxRefreshing = false;
-          renderEmailPanel();
-        });
-      });
-    } else {
-      btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
-      btn.addEventListener('click', () => {
-        void switchEmailInboxFilter(tab.id);
-      });
-    }
-
-    scrollNav.appendChild(btn);
-  }
-
-  const fixedNav = document.createElement('div');
-  fixedNav.className = 'em-filter-tabs-fixed';
-  fixedNav.setAttribute('role', 'tablist');
-  fixedNav.setAttribute('aria-label', 'Mail folders');
-
-  const draftTab = { id: 'draft', label: 'Draft', count: counts.draft };
-  const draftBtn = document.createElement('button');
-  draftBtn.type = 'button';
-  const draftActive = emailState.inboxFilter === draftTab.id;
-  draftBtn.className =
-    'em-filter-tab em-filter-tab--draft' + (draftActive ? ' active' : '');
-  draftBtn.setAttribute('role', 'tab');
-  draftBtn.setAttribute('aria-selected', draftActive ? 'true' : 'false');
-  draftBtn.dataset.filter = draftTab.id;
-  draftBtn.innerHTML = `${escHtml(draftTab.label)} <span class="em-filter-count">${draftTab.count}</span>`;
-  draftBtn.addEventListener('click', () => {
-    void switchEmailInboxFilter(draftTab.id);
+  return mountListFilterTabsWrap({
+    scrollTabs: [
+      { id: 'all', label: 'All', count: counts.all },
+      { id: 'alert', label: 'Alerts', count: counts.alert },
+      { id: 'review', label: 'Review', count: counts.review },
+      { id: 'book', label: 'Book', count: counts.book },
+      { id: 'project', label: postTitle(2), count: counts.project },
+      { id: 'routed', label: 'Archive', count: counts.routed },
+      { id: 'receipt', label: 'Receipts', count: counts.receipt },
+      { id: 'junk', label: 'Junk', count: counts.junk },
+    ],
+    fixedTabs: [
+      { id: 'draft', label: 'Draft', count: counts.draft, variant: 'draft' },
+      { id: 'sent', label: 'Sent', count: counts.sent, variant: 'sent' },
+    ],
+    activeId: emailState.inboxFilter,
+    savedScrollLeft,
+    onSelect: (id) => {
+      void switchEmailInboxFilter(id);
+    },
+    activeTabVariant(tab, active) {
+      if (!active) return null;
+      const canBulkDelete = tab.id !== 'all' && (tab.count ?? 0) > 0;
+      const isAllRefresh = tab.id === 'all';
+      if (canBulkDelete) {
+        return {
+          variant: 'purge',
+          ariaLabel: `Delete all ${tab.label.toLowerCase()} messages`,
+          title: `Delete all ${tab.label.toLowerCase()} messages`,
+          onConfirmDelete: () => bulkDeleteInboxCategory(tab),
+        };
+      }
+      if (isAllRefresh) {
+        return {
+          variant: 'refresh',
+          refreshing: emailState.inboxRefreshing,
+          ariaLabel: 'Refresh inbox',
+          title: 'Check for new mail',
+          onClick: () => {
+            if (emailState.inboxRefreshing) return;
+            emailState.inboxRefreshing = true;
+            renderEmailPanel();
+            void loadEmailTab(true).finally(() => {
+              emailState.inboxRefreshing = false;
+              renderEmailPanel();
+            });
+          },
+        };
+      }
+      return null;
+    },
   });
-  fixedNav.appendChild(draftBtn);
-
-  const sentTab = { id: 'sent', label: 'Sent', count: counts.sent };
-  const sentBtn = document.createElement('button');
-  sentBtn.type = 'button';
-  const sentActive = emailState.inboxFilter === sentTab.id;
-  sentBtn.className =
-    'em-filter-tab em-filter-tab--sent' + (sentActive ? ' active' : '');
-  sentBtn.setAttribute('role', 'tab');
-  sentBtn.setAttribute('aria-selected', sentActive ? 'true' : 'false');
-  sentBtn.dataset.filter = sentTab.id;
-  sentBtn.innerHTML = `${escHtml(sentTab.label)} <span class="em-filter-count">${sentTab.count}</span>`;
-  sentBtn.addEventListener('click', () => {
-    void switchEmailInboxFilter(sentTab.id);
-  });
-  fixedNav.appendChild(sentBtn);
-
-  wrap.appendChild(scrollNav);
-  wrap.appendChild(fixedNav);
-  return wrap;
 }
 
 function emailCountForActiveTab() {
@@ -11703,7 +11546,9 @@ function renderEmailSidebar(savedFilterScroll = 0) {
       subheader.el.querySelector('.em-filter-tabs-wrap'),
       savedFilterScroll,
       emailState.inboxFilter,
+      emailState.centerInboxFilterTab,
     );
+    emailState.centerInboxFilterTab = false;
   }
 
   const list = document.createElement('div');

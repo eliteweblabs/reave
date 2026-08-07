@@ -1204,6 +1204,7 @@ button.de-placeholder-action:active {
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: calc(var(--detail-pad-x) + 0.15rem);
   padding:
     calc(var(--detail-tabs-pad-y) + 0.15rem)
     calc(var(--detail-pad-x-right) + 0.15rem)
@@ -1231,20 +1232,6 @@ button.de-placeholder-action:active {
 .detail-tabs::after {
   right: 0;
   background: linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%);
-}
-/* Projects: flat sub-nav — no track pill; slightly less bottom pad for optical balance */
-#work-editor .wk-detail-tabs {
-  background: none;
-  border-radius: 0;
-  padding:
-    var(--detail-tabs-pad-y)
-    var(--detail-pad-x-right)
-    calc(var(--detail-tabs-pad-y) - 0.1rem)
-    var(--detail-pad-x);
-}
-#work-editor .wk-detail-tabs::before,
-#work-editor .wk-detail-tabs::after {
-  content: none;
 }
 .detail-tabs::-webkit-scrollbar { display: none; }
 .detail-tab {
@@ -1299,8 +1286,11 @@ button.de-placeholder-action:active {
   padding: 0;
 }
 .detail-form-scroll .detail-panel-body,
+.detail-form-scroll .detail-panel > .detail-panel-body,
 .detail-form-scroll .detail-panel > .cl-jobs-section,
 .detail-form-scroll .detail-panel > .cl-vault-section,
+.detail-form-scroll .detail-panel-body.cl-jobs-section,
+.detail-form-scroll .detail-panel-body.cl-vault-section,
 .detail-form-scroll .detail-panel > .wk-comments-section,
 .detail-form-scroll .detail-panel > .wk-todos-section,
 .detail-form-scroll .detail-panel > .wk-files-section,
@@ -2492,7 +2482,7 @@ button.de-placeholder-action:active {
   font-size: max(16px, 0.875rem);
   line-height: 1.45;
 }
-.cl-jobs-section {
+.cl-jobs-section:not(.detail-panel-body) {
   padding: 1rem 1rem var(--footer-scroll-pad);
   border-top: 1px solid var(--panel-border);
   margin-top: 0.5rem;
@@ -2526,7 +2516,7 @@ button.de-placeholder-action:active {
 #clients-editor .cl-notes-textarea--tab {
   min-height: 12rem;
 }
-.cl-vault-section {
+.cl-vault-section:not(.detail-panel-body) {
   padding: 1rem 1rem var(--footer-scroll-pad);
 }
 .cl-vault-header {

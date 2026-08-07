@@ -16,6 +16,7 @@
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 0.5rem;
   margin: 0 var(--sidebar-inset) 0.35rem;
   flex: 0 0 auto;
   width: 100%;
