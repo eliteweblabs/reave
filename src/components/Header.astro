@@ -132,7 +132,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
             title="Enable push notifications"
             hidden
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7v3.586l-1.707 1.707A1 1 0 0 0 4 16h16a1 1 0 0 0 .707-1.707L19 12.586V9a7 7 0 0 0-7-7zm0 20a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22z"/></svg>
           </button>
           <div class="topbar-profile-cluster">
             <DeployStatusDot />
@@ -837,20 +837,38 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   .topbar-push-btn {
-    border-color: rgba(239, 68, 68, 0.85);
-    background: rgba(239, 68, 68, 0.1);
-    color: rgba(252, 165, 165, 0.98);
-    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+    width: calc(var(--app-header-icon-btn-h) * 0.8);
+    height: calc(var(--app-header-icon-btn-h) * 0.8);
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: #0f172a;
   }
 
   .topbar-push-btn:hover {
-    border-color: rgba(248, 113, 113, 1);
-    color: #fecaca;
-    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.5);
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: #000;
+  }
+
+  .topbar-push-btn svg {
+    width: calc(var(--app-header-icon-btn-icon-h) * 0.8);
+    height: calc(var(--app-header-icon-btn-icon-h) * 0.8);
   }
 
   .topbar-push-btn[hidden] {
     display: none !important;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .topbar-push-btn {
+      color: #f8fafc;
+    }
+
+    .topbar-push-btn:hover {
+      color: #fff;
+    }
   }
 
   .app-header-icon-btn svg,
