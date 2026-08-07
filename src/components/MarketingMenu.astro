@@ -54,13 +54,9 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     <DeployStatusDot />
     {
       !signedIn && showSignIn ? (
-        <button
-          type="button"
-          class="marketing-nav-signin"
-          data-ios-sheet-open="sign-in-sheet"
-        >
+        <a href="/login" class="marketing-nav-signin">
           Sign in
-        </button>
+        </a>
       ) : showAccountNav ? (
         <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
           <a href="/admin/?tab=home" class="marketing-nav-link">

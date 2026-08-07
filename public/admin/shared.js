@@ -3,7 +3,6 @@
  */
 
 const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
-const AUTH_SYNC_MAX = 2;
 
 /** Strip sign-in redirect params so return URLs cannot loop on auth=sign-in. */
 export function cleanAdminReturnUrl(pathname, search = '') {
@@ -17,87 +16,29 @@ export function cleanAdminReturnUrl(pathname, search = '') {
   }
 }
 
-function clerkClientHasSession() {
-  return Boolean(window.Clerk?.user?.id);
-}
 
 function serverHasStaffSession() {
   return Boolean(document.body?.dataset?.userId?.trim());
 }
 
-/** Routes where SSR session cookies must match the Clerk client (admin shell + auth pages). */
-function isAdminSsrSyncRoute() {
-  const path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
-  return (
-    path === '/admin' ||
-    path.startsWith('/admin/') ||
-    path === '/sign-in' ||
-    path === '/sign-up'
-  );
-}
-
-/** Clerk client signed in but SSR/API cookies missing — reload once (Safari after sign-in). */
+/**
+ * Never speculative-reload for cookie lag.
+ * Combined with SignIn fallbackRedirectUrl="/" that caused refresh loops.
+ */
 export function syncSsrAfterClerkSignIn() {
-  if (!isAdminSsrSyncRoute()) return false;
-
   if (serverHasStaffSession()) {
     try {
       sessionStorage.removeItem(AUTH_SYNC_KEY);
     } catch {
       /* ignore */
     }
-    return false;
   }
-  if (!clerkClientHasSession()) return false;
-
-  let attempts = 0;
-  try {
-    attempts = Number(sessionStorage.getItem(AUTH_SYNC_KEY) || '0');
-  } catch {
-    /* ignore */
-  }
-  if (attempts >= AUTH_SYNC_MAX) return false;
-
-  try {
-    sessionStorage.setItem(AUTH_SYNC_KEY, String(attempts + 1));
-  } catch {
-    /* ignore */
-  }
-
-  // /sign-in and /sign-up never set body[data-user-id], so reloading them can
-  // never satisfy serverHasStaffSession and loops until AUTH_SYNC_MAX. Land on
-  // /admin/ where the SSR session marker exists.
-  const path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
-  const target =
-    path === '/sign-in' || path === '/sign-up'
-      ? '/admin/'
-      : cleanAdminReturnUrl(window.location.pathname, window.location.search);
-  window.location.replace(target);
-  return true;
+  return false;
 }
 
-/**
- * After Clerk sign-in on iOS, client session can lead SSR by a beat. Reload once
- * instead of reopening sign-in or redirecting with auth=sign-in (refresh loop).
- */
-export function bindClerkSsrSessionSync(opts = {}) {
-  const { autoOpenSignIn = false } = opts;
-
-  function run() {
-    if (syncSsrAfterClerkSignIn()) return;
-    if (autoOpenSignIn && !serverHasStaffSession() && !clerkClientHasSession()) {
-      window.IosSheet?.open('sign-in-sheet');
-    }
-  }
-
-  // Capture phase — beat Clerk SignIn's post-auth redirect when SSR cookies lag (Safari).
-  window.addEventListener('clerk-loaded', run, true);
-  if (window.Clerk?.loaded) run();
-  else {
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.Clerk?.loaded) run();
-    });
-  }
+/** Sheet flow retired — sign-in is /login. Keep export for old imports. */
+export function bindClerkSsrSessionSync() {
+  /* no-op */
 }
 
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
@@ -112,19 +53,10 @@ export async function adminFetch(url, opts = {}) {
     },
   });
   if (res.status === 401) {
-    if (syncSsrAfterClerkSignIn()) {
-      throw new Error('Session expired');
-    }
-
     const returnTo = encodeURIComponent(
       cleanAdminReturnUrl(window.location.pathname, window.location.search),
     );
-    const signInSheet = document.getElementById('sign-in-sheet');
-    if (signInSheet && window.IosSheet?.open) {
-      window.IosSheet.open('sign-in-sheet');
-    } else {
-      window.location.assign(`/admin/?auth=sign-in&returnTo=${returnTo}`);
-    }
+    window.location.assign(`/login?redirect_url=${returnTo}`);
     throw new Error('Session expired');
   }
   return res;
