@@ -1051,7 +1051,19 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     border-radius: 10px;
     padding: 0.35rem;
     box-shadow: var(--dropdown-shadow, 0 16px 40px rgba(0, 0, 0, 0.55));
-    z-index: 120;
+    /* Above admin header chrome (logo, deploy dot) and footer nav (2000). */
+    z-index: 10000;
+  }
+
+  /* When open, lift the whole end cluster so siblings cannot paint over the menu. */
+  .app-header:has(.topbar-dropdown.open),
+  .app-header--admin:has(.topbar-dropdown.open) {
+    z-index: 10000;
+  }
+  .app-header--admin .app-header-row .topbar-end:has(.topbar-dropdown.open),
+  .topbar-profile-cluster:has(.topbar-dropdown.open),
+  .topbar-profile-menu:has(.topbar-dropdown.open) {
+    z-index: 10000;
   }
 
   .app-header-dropdown.open,
@@ -1127,10 +1139,36 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
 {!adminShell && (
   <script>
+    function resetHeaderDropdownMenu(menu: HTMLElement | null) {
+      if (!menu) return;
+      menu.style.position = "";
+      menu.style.top = "";
+      menu.style.left = "";
+      menu.style.right = "";
+      menu.style.zIndex = "";
+    }
+
+    function positionHeaderDropdownMenu(menuEl: HTMLElement, toggleEl: HTMLElement) {
+      requestAnimationFrame(() => {
+        const rect = toggleEl.getBoundingClientRect();
+        const menuWidth = menuEl.offsetWidth || 188;
+        const left = Math.min(
+          Math.max(8, rect.right - menuWidth),
+          window.innerWidth - menuWidth - 8,
+        );
+        menuEl.style.position = "fixed";
+        menuEl.style.top = `${rect.bottom + 6}px`;
+        menuEl.style.left = `${left}px`;
+        menuEl.style.right = "auto";
+        menuEl.style.zIndex = "10000";
+      });
+    }
+
     function closeHeaderMenus(exceptMenu?: HTMLElement | null) {
       for (const menu of document.querySelectorAll(".topbar-dropdown")) {
         if (exceptMenu && menu === exceptMenu) continue;
         menu.classList.remove("open");
+        resetHeaderDropdownMenu(menu as HTMLElement);
       }
       document.getElementById("topbar-profile-toggle")?.setAttribute("aria-expanded", "false");
     }
@@ -1142,6 +1180,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
       if (willOpen) {
         menuEl.classList.add("open");
         toggleEl.setAttribute("aria-expanded", "true");
+        positionHeaderDropdownMenu(menuEl, toggleEl);
       }
     }
 
