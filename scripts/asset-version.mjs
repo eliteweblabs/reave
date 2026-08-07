@@ -15,7 +15,11 @@ import { execSync } from 'node:child_process';
  * is deterministic for that reason — never a timestamp.
  */
 export function publicAssetVersion() {
-  const fromDeploy = process.env.RAILWAY_GIT_COMMIT_SHA?.trim();
+  const fromCommit = process.env.RAILWAY_GIT_COMMIT_SHA?.trim();
+  if (fromCommit) return fromCommit.slice(0, 12);
+
+  // Docker builds without a .git tree — use deployment id so `?v=` still changes per ship.
+  const fromDeploy = process.env.RAILWAY_DEPLOYMENT_ID?.trim();
   if (fromDeploy) return fromDeploy.slice(0, 12);
 
   try {

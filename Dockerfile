@@ -45,6 +45,14 @@ RUN npx playwright install chromium --with-deps || true
 # Copy source
 COPY . .
 
+# Railway injects git metadata as build args for Dockerfiles — declare them so
+# `scripts/asset-version.mjs` can stamp public/* script URLs with the commit SHA
+# (otherwise they fall back to `?v=dev` and Cloudflare's 4h TTL never busts).
+ARG RAILWAY_GIT_COMMIT_SHA
+ARG RAILWAY_DEPLOYMENT_ID
+ENV RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA
+ENV RAILWAY_DEPLOYMENT_ID=$RAILWAY_DEPLOYMENT_ID
+
 # Build the app
 RUN npm run build
 
