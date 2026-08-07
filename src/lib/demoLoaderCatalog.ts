@@ -37,7 +37,14 @@ export const DEMO_LOADER_SECTION_GROUPS: ReadonlyArray<{
   {
     id: 'web-development',
     title: 'Web Development Modules',
-    features: ['dev_infra', 'code_dev', 'namecom_dns', 'site_monitoring', 'wayback_machine'],
+    features: [
+      'site_audits',
+      'dev_infra',
+      'code_dev',
+      'namecom_dns',
+      'site_monitoring',
+      'wayback_machine',
+    ],
   },
 ];
 
