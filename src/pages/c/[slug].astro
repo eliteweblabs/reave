@@ -137,6 +137,12 @@ function richText(s: string): string {
   return linked.replace(/\n/g, '<br />');
 }
 
+function vaultDataHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return null;
+}
+
 function workFileUrlForPortal(url: string, contactUid: string, jobSlug: string): string {
   const m = url.match(/\/api\/work\/([^/]+)\/files\/([^/?#]+)/);
   if (!m || m[1] !== jobSlug) return url;
@@ -704,9 +710,20 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                   <details class="data-card">
                     <summary class="data-label"><span class="data-label-text">{e.label}</span></summary>
                     <div class="data-card-body">
-                      {e.url && (
-                        <a class="data-url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>
-                      )}
+                      {e.url && (() => {
+                        const href = vaultDataHref(e.url);
+                        return href ? (
+                          <a class="data-url" href={href} target="_blank" rel="noopener noreferrer">{e.url}</a>
+                        ) : (
+                          <div class="cred">
+                            <span class="cred-key">Data</span>
+                            <code class="cred-val">{e.url}</code>
+                            <button class="mini mini-icon" data-copy type="button" aria-label="Copy data">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            </button>
+                          </div>
+                        );
+                      })()}
                       {e.username && (
                         <div class="cred">
                           <span class="cred-key">User</span>

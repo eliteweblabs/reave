@@ -1284,7 +1284,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
         placeholder: 'e.g. WordPress admin',
         required: true,
       });
-      appendVaultField(card, 'URL', 'url', entry.url, { placeholder: 'https://…', type: 'url' });
+      appendVaultField(card, 'Data', 'url', entry.url, { placeholder: 'URL, API key, token…' });
       appendVaultField(card, 'Username', 'username', entry.username, { copy: true });
       appendVaultField(card, 'Password', 'password', entry.password, { secret: true, copy: true });
       appendVaultField(card, 'Notes', 'value', entry.value, { placeholder: 'Other details' });

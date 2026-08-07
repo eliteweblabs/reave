@@ -72,14 +72,14 @@ function buildSystemPrompt(ctx: PortalAssistantContext): string {
     );
     for (const e of dataEntries) {
       const bits = [`• ${e.label}`];
-      if (e.url) bits.push(`url: ${e.url}`);
+      if (e.url) bits.push(`data: ${e.url}`);
       if (e.username) bits.push(`username: ${e.username}`);
       if (e.password) bits.push(`password: ${e.password}`);
       if (e.value) bits.push(`notes: ${e.value}`);
       lines.push(bits.join(' | '));
     }
     lines.push(
-      'When asked "what\'s my login" or about a specific account, match by label or URL and answer with the username (and a direct link if you have one). For the password: first suggest they open the Vault tab on this page and tap the reveal icon — but if they ask you directly for the password, or say they cannot find the Vault tab, just tell them the exact value above so they are not stuck. Never invent a login that is not listed above — if nothing matches, say plainly it is not on file.',
+      'When asked "what\'s my login" or about a specific account, match by label or data field and answer with the username (and a direct link if the data value is a URL). For the password: first suggest they open the Vault tab on this page and tap the reveal icon — but if they ask you directly for the password, or say they cannot find the Vault tab, just tell them the exact value above so they are not stuck. Never invent a login that is not listed above — if nothing matches, say plainly it is not on file.',
     );
   } else {
     lines.push(

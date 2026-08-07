@@ -402,7 +402,7 @@ export const clientPortalModule: AgentToolModule = {
                     data: {
                       type: 'array',
                       description:
-                        'Web-design handoff items shown in the client’s DATA tab (passwords, DNS records, hosting/login info, etc.). Each entry has a label plus any of: value, username, password, url. Passwords are masked on the page (reveal/copy). Replaces the existing data list when provided.',
+                        'Web-design handoff items shown in the client’s Vault tab (passwords, DNS records, hosting/login info, API keys, etc.). Each entry has a label plus any of: value, username, password, url (url holds URLs, API keys, tokens, or other credential values). Passwords are masked on the page (reveal/copy). Replaces the existing data list when provided.',
                       items: {
                         type: 'object',
                         properties: {
@@ -410,7 +410,7 @@ export const clientPortalModule: AgentToolModule = {
                           value: { type: 'string', description: 'Free-form value/notes (e.g. a DNS record or instructions)' },
                           username: { type: 'string' },
                           password: { type: 'string' },
-                          url: { type: 'string' },
+                          url: { type: 'string', description: 'URL, API key, token, or other credential value' },
                         },
                         required: ['label'],
                         additionalProperties: false,

@@ -218,6 +218,7 @@ export type ClientDataEntry = {
   value?: string;
   username?: string;
   password?: string;
+  /** URL, API key, token, or other credential value (stored as `url` in metadata). */
   url?: string;
 };
 
