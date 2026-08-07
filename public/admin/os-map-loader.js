@@ -177,12 +177,13 @@ import {
   clientState,
   loadClientsTab,
   navigateToClient,
+  navigateToNewClient,
   resumeClientDetailFromUrl,
   parseClientDeepLinkFromUrl,
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260807c';
+} from './clients-panel.js?v=20260807d';
 import {
   initChatPanel,
   chatState,
@@ -823,7 +824,7 @@ function activateMapPanel(opts = {}) {
     if (opts.scheduleUid) scheduleState.activeUid = opts.scheduleUid;
     loadScheduleTab();
   } else if (MAP.type === 'clients') {
-    loadClientsTab({ clientUid: opts.clientUid });
+    loadClientsTab({ clientUid: opts.clientUid, newClient: opts.newClient });
   } else if (MAP.type === 'social') {
     loadSocialTab();
   } else if (MAP.type === 'reviews') {
@@ -9489,6 +9490,121 @@ function formatEmailCardFrom(ev) {
   return parseSenderEmail(ev.from) || '(unknown)';
 }
 
+function findClientByEmailLocal(email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle) return null;
+  return (
+    (clientState.clients || []).find(
+      (c) => String(c.email || '').trim().toLowerCase() === needle,
+    ) || null
+  );
+}
+
+function pickResolvedClientMatch(data) {
+  if ((data?.match === 'exact' || data?.match === 'likely') && data.contact?.uid) {
+    return { uid: data.contact.uid, name: data.contact.name || '' };
+  }
+  if (data?.match === 'possible' && Array.isArray(data.candidates) && data.candidates.length === 1) {
+    const candidate = data.candidates[0];
+    if (candidate?.uid && (candidate.score ?? 0) >= 0.85) {
+      return { uid: candidate.uid, name: candidate.name || '' };
+    }
+  }
+  return null;
+}
+
+async function resolveClientForEmailAddress(email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle) return null;
+  const local = findClientByEmailLocal(needle);
+  if (local?.uid) return { uid: local.uid, name: local.name || '' };
+  try {
+    const res = await fetch('/api/clients/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: needle }),
+    });
+    const data = await res.json();
+    if (!res.ok) return null;
+    return pickResolvedClientMatch(data);
+  } catch {
+    return null;
+  }
+}
+
+function emailDetailFromHtml(ev) {
+  const fromDisplay = ev.from || '(unknown)';
+  return (
+    `<span class="em-from-client">` +
+      `<strong>From</strong> ` +
+      `<span class="em-from-value">${escHtml(fromDisplay)}</span>` +
+    `</span>`
+  );
+}
+
+function applyEmailFromClientMatch(host, ev, match) {
+  const valueEl = host.querySelector('.em-from-value');
+  if (!valueEl || !host.isConnected) return;
+  const fromDisplay = ev.from || parseSenderEmail(ev.from) || '(unknown)';
+  const email = parseSenderEmail(ev.from);
+
+  if (match?.uid) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'em-from-link';
+    btn.textContent = fromDisplay;
+    btn.title = match.name ? `Open ${match.name}` : 'Open client profile';
+    btn.addEventListener('click', () => navigateToClient(match.uid));
+    valueEl.replaceWith(btn);
+    return;
+  }
+
+  if (!email || !/^[^\s@]+@[^\s@]+$/.test(email)) return;
+
+  const wrap = document.createElement('span');
+  wrap.className = 'em-from-unknown';
+  wrap.appendChild(document.createTextNode(`${fromDisplay} · `));
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'em-from-add';
+  addBtn.textContent = 'Add to client list';
+  addBtn.title = 'Create a client from this sender';
+  addBtn.addEventListener('click', () => {
+    navigateToNewClient({
+      email,
+      name: parseSenderDisplayName(ev.from) || '',
+    });
+  });
+  wrap.appendChild(addBtn);
+  valueEl.replaceWith(wrap);
+}
+
+async function hydrateEmailFromClient(detail, ev) {
+  const host = detail.querySelector('.em-from-client');
+  if (!host) return;
+
+  const knownUid = String(ev.contactUid || '').trim();
+  if (knownUid) {
+    applyEmailFromClientMatch(host, ev, {
+      uid: knownUid,
+      name: ev.contactName || '',
+    });
+    return;
+  }
+
+  const email = parseSenderEmail(ev.from);
+  if (!email) return;
+
+  const local = findClientByEmailLocal(email);
+  if (local?.uid) {
+    applyEmailFromClientMatch(host, ev, { uid: local.uid, name: local.name || '' });
+    return;
+  }
+
+  const match = await resolveClientForEmailAddress(email);
+  applyEmailFromClientMatch(host, ev, match);
+}
+
 function formatEmailAction(ev) {
   const bits = [];
   if (ev.action === 'project_reply' || ev.status === 'PROJECT_REPLY') {
@@ -12843,7 +12959,7 @@ function renderEmailPanel(opts = {}) {
   }
   detailHtml +=
     `<div class="em-detail-meta">` +
-      `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
+      emailDetailFromHtml(ev) +
       (Array.isArray(ev.to) && ev.to.length
         ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
         : '') +
@@ -12920,6 +13036,7 @@ function renderEmailPanel(opts = {}) {
   detail.querySelector('.em-project-link')?.addEventListener('click', () =>
     navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
   );
+  void hydrateEmailFromClient(detail, ev);
   if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev))) {
     void hydrateEmailProjectContextIcon(detail, ev);
   }

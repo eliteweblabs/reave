@@ -423,12 +423,19 @@ function syncClientsListActiveState() {
   });
 }
 
+/** Prefill for new-client form when opened from email / other panels. */
+let pendingNewClientPrefill = null;
+
 async function loadClientsTab(opts = {}) {
   const root = getClientsEditor();
   if (!root) return;
 
-  const pendingDeepLink = opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
+  const openNewClient = Boolean(opts.newClient || pendingNewClientPrefill);
+  const pendingDeepLink = openNewClient
+    ? null
+    : opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
   const canPreserveMounted =
+    !openNewClient &&
     root.querySelector('.de-pane') &&
     clientState.activeUid &&
     clientState.activeUid !== '__new__' &&
@@ -453,6 +460,12 @@ async function loadClientsTab(opts = {}) {
     await fetchClientsList();
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
+    return;
+  }
+
+  if (openNewClient) {
+    pendingClientDeepLinkUid = null;
+    startNewClient(pendingNewClientPrefill || {});
     return;
   }
 
@@ -550,7 +563,12 @@ function refreshClientsSidebarList() {
 
 let newClientFormGetPayload = null;
 
-function startNewClient() {
+function startNewClient(opts = {}) {
+  const prefill = {
+    name: String(opts.name ?? pendingNewClientPrefill?.name ?? '').trim(),
+    email: String(opts.email ?? pendingNewClientPrefill?.email ?? '').trim(),
+  };
+  pendingNewClientPrefill = null;
   armTitleFocus('clients');
   shell.beginCreateDrawer({
     key: 'clients',
@@ -576,8 +594,8 @@ function startNewClient() {
   clientState.activeUid = '__new__';
   clientState.dirty = false;
   clientState.draft = {
-    name: '',
-    email: '',
+    name: prefill.name,
+    email: prefill.email,
     phone: '',
     company: '',
     website: '',
@@ -586,6 +604,16 @@ function startNewClient() {
     kind: 'professional',
   };
   renderClientsEditor();
+}
+
+/** Switch to Clients and open the new-client form (optional email/name prefill). */
+function navigateToNewClient(opts = {}) {
+  pendingNewClientPrefill = {
+    name: String(opts.name || '').trim(),
+    email: String(opts.email || '').trim(),
+  };
+  pendingClientDeepLinkUid = null;
+  shell.setActiveMap('clients', { force: true, newClient: true });
 }
 
 function renderClientsEditor() {
@@ -2025,6 +2053,7 @@ export {
   clientState,
   loadClientsTab,
   navigateToClient,
+  navigateToNewClient,
   resumeClientDetailFromUrl,
   createClientListItem,
   createClientSwipeRow,

@@ -756,6 +756,35 @@
   overflow-wrap: anywhere;
 }
 .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
+.em-from-link,
+.em-from-add {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  color: #79c0ff;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.em-from-link:hover,
+.em-from-add:hover {
+  text-decoration: underline;
+}
+.em-from-unknown {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+/* Junk badge is already visible on the sidebar list when both panes show. */
+@media (min-width: 640px) {
+  .em-detail .em-status.em-cat-junk {
+    display: none;
+  }
+  .em-detail .em-item-row:has(> .em-status.em-cat-junk):not(:has(.em-project-context, .em-book-scheduled, .em-status:not(.em-cat-junk))) {
+    display: none;
+  }
+}
 .em-btn-group {
   display: inline-flex;
   align-items: stretch;
