@@ -366,14 +366,11 @@
 .ind-row input[type="text"]:focus {
   border-color: var(--border-strong-hover);
 }
-.ind-enabled {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.78rem;
-  color: var(--muted, #8b97a8);
-  white-space: nowrap;
-  user-select: none;
+.ind-row .ind-enabled-toggle {
+  margin-inline: 0.15rem;
+}
+.ind-row .ch-delete-btn {
+  flex-shrink: 0;
 }
 .ind-empty {
   font-size: 0.85rem;
@@ -387,9 +384,9 @@
 }
 @media (max-width: 640px) {
   .ind-row {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr auto auto;
   }
-  .ind-row .ind-remove {
+  .ind-row .ind-slug {
     grid-column: 1 / -1;
   }
 }

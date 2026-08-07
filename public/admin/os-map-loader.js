@@ -6106,24 +6106,69 @@ function bindSocialsForm(root) {
   showSocialOAuthReturnAlert(root);
 }
 
-function industriesRowsHtml(industries) {
+function industriesEmptyHtml() {
+  return `<div class="ind-empty">No industries yet — add one below.</div>`;
+}
+
+function setIndustryEnabledToggle(toggle, enabled) {
+  if (!(toggle instanceof HTMLElement)) return;
+  const on = enabled !== false;
+  toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+  toggle.title = on ? 'On' : 'Off';
+  toggle.setAttribute('aria-label', on ? 'Enabled' : 'Disabled');
+}
+
+function createIndustryRow(item, { onDelete, onToggle } = {}) {
+  const enabled = item?.enabled !== false;
+  const row = document.createElement('div');
+  row.className = 'ind-row';
+
+  const labelInput = document.createElement('input');
+  labelInput.className = 'ind-label';
+  labelInput.type = 'text';
+  labelInput.value = item?.label || '';
+  labelInput.placeholder = 'Label';
+  labelInput.setAttribute('aria-label', 'Industry label');
+
+  const slugInput = document.createElement('input');
+  slugInput.className = 'ind-slug';
+  slugInput.type = 'text';
+  slugInput.value = item?.slug || '';
+  slugInput.placeholder = item?.slug ? 'slug' : 'slug (auto)';
+  slugInput.setAttribute('aria-label', 'Industry slug');
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'prof-plugin-toggle ind-enabled-toggle';
+  toggle.setAttribute('role', 'switch');
+  setIndustryEnabledToggle(toggle, enabled);
+  toggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = toggle.getAttribute('aria-checked') !== 'true';
+    setIndustryEnabledToggle(toggle, next);
+    onToggle?.(toggle);
+  });
+
+  const removeBtn = paneDeleteIcon({
+    label: 'Delete industry',
+    onClick: () => onDelete?.(row),
+  });
+
+  row.append(labelInput, slugInput, toggle, removeBtn);
+  return row;
+}
+
+function mountIndustriesList(listEl, industries, rowHandlers) {
+  listEl.replaceChildren();
   const list = Array.isArray(industries) && industries.length ? industries : [];
   if (!list.length) {
-    return `<div class="ind-empty">No industries yet — add one below.</div>`;
+    listEl.innerHTML = industriesEmptyHtml();
+    return;
   }
-  return list
-    .map((item) => {
-      const enabled = item.enabled !== false;
-      return (
-        `<div class="ind-row">` +
-          `<input class="ind-label" type="text" value="${escHtml(item.label || '')}" placeholder="Label" aria-label="Industry label" />` +
-          `<input class="ind-slug" type="text" value="${escHtml(item.slug || '')}" placeholder="slug" aria-label="Industry slug" />` +
-          `<label class="ind-enabled"><input type="checkbox" class="ind-enabled-cb"${enabled ? ' checked' : ''} /> On</label>` +
-          `<button type="button" class="prof-btn-secondary ind-remove" aria-label="Remove">Remove</button>` +
-        `</div>`
-      );
-    })
-    .join('');
+  for (const item of list) {
+    listEl.appendChild(createIndustryRow(item, rowHandlers));
+  }
 }
 
 function collectIndustriesFromDom(root) {
@@ -6131,7 +6176,7 @@ function collectIndustriesFromDom(root) {
     .map((row, i) => {
       const label = row.querySelector('.ind-label')?.value?.trim() || '';
       const slug = row.querySelector('.ind-slug')?.value?.trim() || '';
-      const enabled = !!row.querySelector('.ind-enabled-cb')?.checked;
+      const enabled = row.querySelector('.ind-enabled-toggle')?.getAttribute('aria-checked') === 'true';
       return { label, slug, enabled, sortOrder: i };
     })
     .filter((r) => r.label);
@@ -6159,10 +6204,10 @@ function syncIndustriesListFromServer(listEl, industries) {
     if (!row) return;
     const labelInput = row.querySelector('.ind-label');
     const slugInput = row.querySelector('.ind-slug');
-    const cb = row.querySelector('.ind-enabled-cb');
+    const toggle = row.querySelector('.ind-enabled-toggle');
     if (labelInput && labelInput !== active) labelInput.value = item.label || '';
     if (slugInput && slugInput !== active) slugInput.value = item.slug || '';
-    if (cb) cb.checked = item.enabled !== false;
+    if (toggle) setIndustryEnabledToggle(toggle, item.enabled !== false);
   });
   if (active instanceof HTMLInputElement && listEl.contains(active)) {
     active.focus();
@@ -6178,13 +6223,13 @@ function syncIndustriesListFromServer(listEl, industries) {
   }
 }
 
-function bindIndustriesEditor(root) {
+function bindIndustriesEditor(root, industries) {
   const listEl = root.querySelector('#industries-list');
   const alertEl = root.querySelector('#industries-alert');
   const addBtn = root.querySelector('#industries-add-btn');
   if (!listEl) return;
 
-  let baseline = JSON.stringify(collectIndustriesFromDom(root));
+  let baseline = '[]';
   let activeEl = null;
   let debounceTimer = null;
   let saving = false;
@@ -6208,11 +6253,11 @@ function bindIndustriesEditor(root) {
     if (activeEl) setFormFieldState(activeEl, 'saving');
 
     try {
-      const industries = collectIndustriesFromDom(root);
+      const nextIndustries = collectIndustriesFromDom(root);
       const res = await fetch('/api/admin/deck-industries', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ industries }),
+        body: JSON.stringify({ industries: nextIndustries }),
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.ok) {
@@ -6243,43 +6288,51 @@ function bindIndustriesEditor(root) {
   };
 
   const schedule = (el) => {
-    activeEl = el;
-    if (!el.classList.contains(FORM_FIELD_INVALID) && !el.classList.contains(FORM_FIELD_SAVED)) {
+    activeEl = el || null;
+    if (
+      el &&
+      !el.classList.contains(FORM_FIELD_INVALID) &&
+      !el.classList.contains(FORM_FIELD_SAVED)
+    ) {
       setFormFieldState(el, null);
     }
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
-  listEl.addEventListener('click', (e) => {
-    const btn = e.target?.closest?.('.ind-remove');
-    if (!btn) return;
-    btn.closest('.ind-row')?.remove();
+  const removeRow = (row) => {
+    row?.remove();
+    if (!listEl.querySelector('.ind-row')) {
+      listEl.innerHTML = industriesEmptyHtml();
+    }
     activeEl = null;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
-  });
+  };
+
+  const rowHandlers = {
+    onDelete: removeRow,
+    onToggle: () => {
+      activeEl = null;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
+    },
+  };
+
+  mountIndustriesList(listEl, industries, rowHandlers);
+  baseline = industriesBaselineFromList(
+    Array.isArray(industries) && industries.length ? industries : collectIndustriesFromDom(root),
+  );
 
   listEl.addEventListener('input', (e) => {
     if (e.target?.matches?.('.ind-label, .ind-slug')) schedule(e.target);
   });
 
-  listEl.addEventListener('change', (e) => {
-    if (e.target?.matches?.('.ind-enabled-cb')) schedule(e.target);
-  });
-
   addBtn?.addEventListener('click', () => {
-    const wrap = document.createElement('div');
-    wrap.innerHTML =
-      `<div class="ind-row">` +
-        `<input class="ind-label" type="text" value="" placeholder="Label" aria-label="Industry label" />` +
-        `<input class="ind-slug" type="text" value="" placeholder="slug (auto)" aria-label="Industry slug" />` +
-        `<label class="ind-enabled"><input type="checkbox" class="ind-enabled-cb" checked /> On</label>` +
-        `<button type="button" class="prof-btn-secondary ind-remove" aria-label="Remove">Remove</button>` +
-      `</div>`;
     listEl.querySelector('.ind-empty')?.remove();
-    listEl.appendChild(wrap.firstElementChild);
-    const labelInput = listEl.querySelector('.ind-row:last-child .ind-label');
+    const row = createIndustryRow({ label: '', slug: '', enabled: true }, rowHandlers);
+    listEl.appendChild(row);
+    const labelInput = row.querySelector('.ind-label');
     labelInput?.focus();
     if (labelInput) schedule(labelInput);
   });
@@ -6837,14 +6890,14 @@ function renderSocialsPanel(company, connections) {
   );
 }
 
-function renderIndustriesPanel(industries) {
+function renderIndustriesPanel() {
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Industries</h1>` +
         `<p class="prof-subtitle">Categories for <code>/deck?type=…</code> presets. Edit labels and slugs; turn Off to hide without deleting.</p>` +
         `<div id="industries-alert" class="prof-alert" hidden></div>` +
-        `<div id="industries-list" class="ind-list">${industriesRowsHtml(industries)}</div>` +
+        `<div id="industries-list" class="ind-list"></div>` +
         `<div class="prof-actions ind-actions">` +
           `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
         `</div>` +
@@ -7207,9 +7260,9 @@ async function loadIndustriesTab() {
     if (!industriesRes.ok || !industriesData.ok) {
       throw new Error(industriesData.error || `HTTP ${industriesRes.status}`);
     }
-    root.innerHTML = renderIndustriesPanel(industriesData.industries);
+    root.innerHTML = renderIndustriesPanel();
     prependSettingsBackHeader(root);
-    bindIndustriesEditor(root);
+    bindIndustriesEditor(root, industriesData.industries);
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
