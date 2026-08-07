@@ -286,4 +286,52 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
     ],
   },
+  {
+    id: "reggie-payment",
+    userAvatar: "/images/hero-demo/henderson-billing.png",
+    holdMs: 1100,
+    turns: [
+      {
+        role: "user",
+        text: "Reggie gave me $500 towards his bill.",
+        kind: "voice",
+      },
+      {
+        role: "assistant",
+        text: "Looking up open invoices for The Solid Builder…",
+        pauseMs: 700,
+      },
+      {
+        role: "assistant",
+        text: "Great — two open invoices for The Solid Builder. Which one should I apply the $500 to?",
+        pauseMs: 1500,
+        actions: [
+          { label: "Website redesign", variant: "primary" },
+          { label: "2027 Hosting", variant: "secondary" },
+        ],
+      },
+      {
+        role: "assistant",
+        text: "Ok — I'll apply it to the website redesign invoice. How did he pay? Cash, check, Apple Pay, Venmo, or Zelle?",
+        pauseMs: 1400,
+      },
+      {
+        role: "user",
+        text: "He wrote a check.",
+        kind: "voice",
+        pauseMs: 1400,
+      },
+      {
+        role: "assistant",
+        text: "Recording payment…",
+        pauseMs: 700,
+      },
+      {
+        role: "assistant",
+        text: "Applied a $500 check to website redesign (INV-0087). Remaining balance: $2,150.",
+        pauseMs: 1300,
+        actions: [{ label: "View invoice", variant: "primary" }],
+      },
+    ],
+  },
 ];
