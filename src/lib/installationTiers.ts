@@ -15,11 +15,12 @@ export type InstallationTier = {
   month1: number;
   month2: number;
   month3: number;
-  month4Plus: number;
+  month4: number;
+  month5Plus: number;
   features: TierFeatureRef[];
 };
 
-/** 50% step-down months 1–3, flat from month 4. Tier 1 = fullest scope. */
+/** 50% step-down months 1–4, flat from month 5. Tier 1 = fullest scope. */
 export const INSTALLATION_TIERS: InstallationTier[] = [
   {
     tier: 4,
@@ -29,7 +30,8 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month1: 2000,
     month2: 1000,
     month3: 500,
-    month4Plus: 250,
+    month4: 250,
+    month5Plus: 125,
     features: [
       { label: 'Contacts & CRM', href: '/features#feature-contacts' },
       { label: 'Client portal', href: '/features#feature-portal' },
@@ -49,7 +51,8 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month1: 3000,
     month2: 1500,
     month3: 750,
-    month4Plus: 375,
+    month4: 375,
+    month5Plus: 187.5,
     features: [
       { label: 'Everything in Core OS' },
       { label: 'Billing & invoicing', href: '/features#feature-billing' },
@@ -68,7 +71,8 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month1: 4000,
     month2: 2000,
     month3: 1000,
-    month4Plus: 500,
+    month4: 500,
+    month5Plus: 250,
     features: [
       { label: 'Everything in Operations' },
       { label: 'Branded public website', href: '/features#feature-white-label' },
@@ -88,7 +92,8 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     month1: 5000,
     month2: 2500,
     month3: 1250,
-    month4Plus: 625,
+    month4: 625,
+    month5Plus: 312.5,
     features: [
       { label: 'Everything in Growth' },
       { label: 'Dealership inventory wizard', href: '/modules#plugin-dealership' },

@@ -76,6 +76,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
+  {!adminShell && (
+    <div class="app-header-scrim" aria-hidden="true">
+      <span class="app-header-scrim-blur"></span>
+      <span class="app-header-scrim-blur"></span>
+      <span class="app-header-scrim-blur"></span>
+    </div>
+  )}
+
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
     href={logoHref}
@@ -339,6 +347,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     --app-header-h: 3.25rem;
     --safe-top: env(safe-area-inset-top, 0px);
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
+    /* Chrome band plus the tail the scrim fades out over, below the bar. */
+    --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 2.5rem);
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
@@ -431,6 +441,51 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     padding: 0;
     position: relative;
     overflow: visible;
+    z-index: 1;
+  }
+
+  /*
+   * Public headers are fixed and transparent, so page content scrolls under the
+   * logo and nav. The scrim blurs it out: stacked backdrop-filter layers with
+   * masks that ramp blur toward the top (radii compound across layers). Admin
+   * is excluded — its panes pad below the bar and notice cards live in-header.
+   */
+  .app-header:not(.app-header--admin) > .app-header-scrim {
+    position: absolute;
+    top: calc(-1 * env(safe-area-inset-top, 0px));
+    left: calc(-1 * var(--app-header-inline-pad));
+    right: calc(-1 * var(--app-header-inline-pad));
+    height: var(--app-header-scrim-h);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .app-header-scrim-blur {
+    position: absolute;
+    inset: 0;
+    /* Safari needs a painted surface before backdrop-filter composites. */
+    background: rgba(0, 0, 0, 0.001);
+    transform: translateZ(0);
+    -webkit-mask-image: var(--app-header-scrim-mask);
+    mask-image: var(--app-header-scrim-mask);
+  }
+
+  .app-header-scrim-blur:nth-child(1) {
+    --app-header-scrim-mask: linear-gradient(to top, transparent 0%, #000 28%, #000 100%);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+
+  .app-header-scrim-blur:nth-child(2) {
+    --app-header-scrim-mask: linear-gradient(to top, transparent 18%, #000 50%, #000 100%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .app-header-scrim-blur:nth-child(3) {
+    --app-header-scrim-mask: linear-gradient(to top, transparent 42%, #000 76%, #000 100%);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
   }
 
   .app-header--admin::before {
