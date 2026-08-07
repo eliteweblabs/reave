@@ -28,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260805b';
+} from './admin-ui.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
@@ -720,10 +720,9 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       noteInput.value = entry.note || '';
       noteInput.setAttribute('aria-label', 'Note');
 
-      const removeBtn = createIosIconBtn({
-        iconKey: 'trash',
+      const removeBtn = paneDeleteIcon({
         label: 'Remove time row',
-        className: 'ios-icon-btn wk-time-remove',
+        className: 'wk-time-remove',
         onClick: () => {
           entries.splice(index, 1);
           render();
@@ -1285,18 +1284,17 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       const cardTitle = document.createElement('div');
       cardTitle.className = 'cl-vault-card-title';
       cardTitle.textContent = entry.label || `Entry ${index + 1}`;
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'de-btn de-btn-secondary';
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.addEventListener('click', async () => {
-        rows.splice(index, 1);
-        renderVaultList();
-        try {
-          await saveClientVaultData(uid, readRowsFromDom());
-        } catch (e) {
-          shell.showChatToast(e.message || 'Vault save failed');
-        }
+      const deleteBtn = paneDeleteIcon({
+        label: `Delete ${entry.label || `entry ${index + 1}`}`,
+        onClick: async () => {
+          rows.splice(index, 1);
+          renderVaultList();
+          try {
+            await saveClientVaultData(uid, readRowsFromDom());
+          } catch (e) {
+            shell.showChatToast(e.message || 'Vault save failed');
+          }
+        },
       });
       head.appendChild(cardTitle);
       head.appendChild(deleteBtn);

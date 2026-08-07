@@ -212,9 +212,7 @@
   opacity: 0.35;
   cursor: default;
 }
-.list-selection-bar-btn--delete:not(:disabled) {
-  color: var(--danger, #e5484d);
-}
+/* Bulk-delete in the selection bar uses paneDeleteIcon (.ch-delete-btn). */
 .list-selection-mode .td-list-grip {
   display: none;
 }

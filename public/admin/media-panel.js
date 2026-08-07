@@ -1,8 +1,9 @@
 /**
  * Admin media library — upload, browse, and delete shared assets.
  */
+import { paneDeleteIcon } from './admin-ui.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260805j';
-import { osAlert, osConfirm } from './os-dialog.js?v=20260804c';
+import { osAlert } from './os-dialog.js?v=20260804c';
 
 const MEDIA_API = '/api/admin/media';
 
@@ -62,7 +63,7 @@ function renderGridItem(item) {
     `</div>` +
     `<div class="ml-grid-actions">` +
     `<button type="button" class="de-btn de-btn-secondary ml-copy-url" data-url="${escHtml(item.url)}">Copy URL</button>` +
-    `<button type="button" class="de-btn de-btn-secondary ml-delete" data-media-id="${escHtml(item.id)}">Delete</button>` +
+    `<span class="ml-delete-slot" data-media-id="${escHtml(item.id)}"></span>` +
     `</div>` +
     `</article>`
   );
@@ -174,28 +175,25 @@ function bindPanelEvents(root) {
     });
   });
 
-  root.querySelectorAll('.ml-delete').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-media-id') || '';
-      if (!id) return;
-      const item = state.items.find((i) => i.id === id);
-      const name = item?.filename || 'this file';
-      const ok = await osConfirm({
-        title: 'Delete from library?',
-        bodyHtml: `<p>${escHtml(name)} will be removed. Branding already applied is not affected.</p>`,
-        confirmLabel: 'Delete',
-        danger: true,
-      });
-      if (!ok) return;
-      btn.disabled = true;
-      try {
-        await deleteItem(id);
-        renderAndBind();
-      } catch (e) {
-        await osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
-        btn.disabled = false;
-      }
-    });
+  root.querySelectorAll('.ml-delete-slot').forEach((slot) => {
+    const id = slot.getAttribute('data-media-id') || '';
+    if (!id) return;
+    const item = state.items.find((i) => i.id === id);
+    const name = item?.filename || 'file';
+    slot.replaceWith(
+      paneDeleteIcon({
+        label: `Delete ${name}`,
+        className: 'ml-delete',
+        onClick: async () => {
+          try {
+            await deleteItem(id);
+            renderAndBind();
+          } catch (e) {
+            await osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
+          }
+        },
+      }),
+    );
   });
 }
 
