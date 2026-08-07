@@ -1,18 +1,11 @@
 import { cachedCompanyBrandName } from '../companyConfig';
 import { serverEnv } from '../serverEnv';
+import { secretMatches } from '../secretCompare';
 
 export type CardDavAuth = {
   username: string;
   method: 'basic' | 'token';
 };
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return out === 0;
-}
-
 function parseBasicAuth(header: string): { username: string; password: string } | null {
   const m = /^Basic\s+(.+)$/i.exec(header.trim());
   if (!m) return null;
@@ -59,18 +52,18 @@ export function requireCardDavAuth(request: Request): CardDavAuth | Response {
   if (authHeader) {
     const basic = parseBasicAuth(authHeader);
     if (basic) {
-      const userOk = timingSafeEqual(basic.username, creds.username);
-      const passOk = timingSafeEqual(basic.password, creds.password);
+      const userOk = secretMatches(basic.username, creds.username);
+      const passOk = secretMatches(basic.password, creds.password);
       if (userOk && passOk) return { username: creds.username, method: 'basic' };
     }
 
     const bearer = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-    if (bearer && creds.token && timingSafeEqual(bearer[1].trim(), creds.token)) {
+    if (bearer && creds.token && secretMatches(bearer[1].trim(), creds.token)) {
       return { username: creds.username, method: 'token' };
     }
   }
 
-  if (tokenHeader && creds.token && timingSafeEqual(tokenHeader, creds.token)) {
+  if (tokenHeader && creds.token && secretMatches(tokenHeader, creds.token)) {
     return { username: creds.username, method: 'token' };
   }
 

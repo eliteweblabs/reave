@@ -2,7 +2,7 @@
  * Crawl a page and check links for broken URLs, redirects, and empty anchors.
  */
 import * as cheerio from 'cheerio';
-import { normalizePublicUrl } from './publicUrl';
+import { normalizePublicUrl, resolvePublicRedirectUrl } from './publicUrl';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -172,10 +172,22 @@ async function probeLink(link: ParsedLink): Promise<LinkProbeResult> {
             redirect_chain: chain,
           };
         }
-        const next = new URL(loc, current).toString();
-        if (chain.includes(next)) break;
-        chain.push(next);
-        current = next;
+        const validated = resolvePublicRedirectUrl(loc, current, true);
+        if (!validated) {
+          return {
+            url: link.resolved,
+            anchor_text: link.anchor_text,
+            source_page: link.source_page,
+            internal: link.internal,
+            status: 'error',
+            redirect_chain: chain,
+            error: 'Redirect target blocked (private or invalid URL)',
+          };
+        }
+        const nextValidated = validated.toString();
+        if (chain.includes(nextValidated)) break;
+        chain.push(nextValidated);
+        current = nextValidated;
         continue;
       }
 

@@ -246,10 +246,11 @@ export function verifyTelnyxWebhook(opts: {
  * is unset or headers/signature are invalid. Returns an error Response or null.
  */
 export function authorizeTelnyxWebhook(request: Request, rawBody: string, logTag = 'telnyx'): Response | null {
+  const skipVerify = serverEnv('TELNYX_WEBHOOK_SKIP_VERIFY') === '1';
   const publicKey = serverEnv('TELNYX_WEBHOOK_PUBLIC_KEY')?.trim();
   if (!publicKey) {
     console.error(`[${logTag}] TELNYX_WEBHOOK_PUBLIC_KEY not set`);
-    if (import.meta.env.PROD) return new Response('Unauthorized', { status: 401 });
+    if (!skipVerify) return new Response('Unauthorized', { status: 401 });
     return null;
   }
 
@@ -257,14 +258,14 @@ export function authorizeTelnyxWebhook(request: Request, rawBody: string, logTag
   const ts = request.headers.get('telnyx-timestamp') ?? '';
   if (!sig || !ts) {
     console.warn(`[${logTag}] missing Telnyx signature headers`);
-    if (import.meta.env.PROD) return new Response('Unauthorized', { status: 401 });
+    if (!skipVerify) return new Response('Unauthorized', { status: 401 });
     return null;
   }
 
   const valid = verifyTelnyxWebhook({ rawBody, signature: sig, timestamp: ts, publicKey });
   if (!valid) {
     console.error(`[${logTag}] invalid Telnyx webhook signature`);
-    if (import.meta.env.PROD) return new Response('Unauthorized', { status: 401 });
+    if (!skipVerify) return new Response('Unauthorized', { status: 401 });
   }
 
   return null;

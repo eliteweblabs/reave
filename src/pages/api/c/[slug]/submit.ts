@@ -8,7 +8,7 @@ import { clientIp } from '../../../../lib/clientIp';
 export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request }) => {
-  const rate = checkInMemoryRateLimit(`vault:${clientIp(request)}`, {
+  const rate = checkInMemoryRateLimit(`vault:${uid}:${clientIp(request)}`, {
     windowMs: 10 * 60 * 1000,
     maxPerWindow: 10,
   });

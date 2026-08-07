@@ -8,12 +8,10 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { serverEnv } from './serverEnv';
 
 function secret(): string | undefined {
-  return (
-    serverEnv('NEWSLETTER_UNSUB_SECRET') ||
-    serverEnv('RESEND_WEBHOOK_SECRET') ||
-    serverEnv('CLERK_SECRET_KEY') ||
-    undefined
-  );
+  const dedicated = serverEnv('NEWSLETTER_UNSUB_SECRET');
+  if (dedicated) return dedicated;
+  if (import.meta.env.PROD) return undefined;
+  return serverEnv('RESEND_WEBHOOK_SECRET') || serverEnv('CLERK_SECRET_KEY') || undefined;
 }
 
 function b64urlEncode(input: string): string {
