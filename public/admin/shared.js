@@ -36,9 +36,23 @@ export function syncSsrAfterClerkSignIn() {
   return false;
 }
 
-/** Sheet flow retired — sign-in is /login. Keep export for old imports. */
-export function bindClerkSsrSessionSync() {
-  /* no-op */
+/** Open sign-in sheet when asked — never navigate/reload for cookie lag. */
+export function bindClerkSsrSessionSync(opts = {}) {
+  const { autoOpenSignIn = false } = opts;
+
+  function run() {
+    if (autoOpenSignIn && !serverHasStaffSession()) {
+      window.IosSheet?.open('sign-in-sheet');
+    }
+  }
+
+  window.addEventListener('clerk-loaded', run, true);
+  if (window.Clerk?.loaded) run();
+  else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.Clerk?.loaded) run();
+    });
+  }
 }
 
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
@@ -53,10 +67,12 @@ export async function adminFetch(url, opts = {}) {
     },
   });
   if (res.status === 401) {
-    const returnTo = encodeURIComponent(
-      cleanAdminReturnUrl(window.location.pathname, window.location.search),
-    );
-    window.location.assign(`/login?redirect_url=${returnTo}`);
+    const signInSheet = document.getElementById('sign-in-sheet');
+    if (signInSheet && window.IosSheet?.open) {
+      window.IosSheet.open('sign-in-sheet');
+    } else {
+      window.location.assign('/sign-in');
+    }
     throw new Error('Session expired');
   }
   return res;

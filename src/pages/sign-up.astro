@@ -9,7 +9,7 @@ import "../styles/mobile-touch.css";
 
 const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === "1";
 if (!allowSignUp) {
-  return Astro.redirect("/login");
+  return Astro.redirect("/sign-in");
 }
 
 const company = await getCompanyConfig(Astro.request);
@@ -35,7 +35,7 @@ if (userId) {
     <div class="page">
       <div class="card">
         <SignUp
-          signInUrl="/login"
+          signInUrl="/sign-in"
           fallbackRedirectUrl="/admin/"
           appearance={{ theme: dark }}
         />
