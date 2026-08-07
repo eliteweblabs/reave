@@ -51,7 +51,14 @@ export function syncSsrAfterClerkSignIn() {
     /* ignore */
   }
 
-  window.location.replace(cleanAdminReturnUrl(window.location.pathname, window.location.search));
+  // /sign-in never sets body[data-user-id], so reloading it can never satisfy
+  // serverHasStaffSession and loops until AUTH_SYNC_MAX. Go to /admin/ instead.
+  const path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
+  const target =
+    path === '/sign-in' || path === '/sign-up'
+      ? '/admin/'
+      : cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  window.location.replace(target);
   return true;
 }
 
