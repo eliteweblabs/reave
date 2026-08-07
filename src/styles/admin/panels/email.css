@@ -70,11 +70,14 @@
   align-items: center;
   gap: 0.15rem;
   z-index: 2;
-  padding: 0;
-  /* Opaque so scrollable category tabs never show through Draft/Sent */
-  background: var(--btn-group-track-bg);
+  padding: 0.15rem;
+  box-sizing: border-box;
+  /* Solid --bg under the track tint so translucent track alone can't let
+     scrollable labels (Junk, etc.) bleed through Draft/Sent. */
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--btn-group-track-bg), var(--btn-group-track-bg));
   border: none;
-  border-radius: 0;
+  border-radius: 0 8px 8px 0;
   pointer-events: none;
 }
 .em-filter-tabs-fixed::before {
@@ -84,7 +87,10 @@
   top: 0;
   bottom: 0;
   width: var(--filter-tab-fade-w);
-  background: linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%);
+  /* Opaque fade: solid bg underneath, track tint on top */
+  background-image:
+    linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%),
+    linear-gradient(to right, transparent 0%, var(--bg) 100%);
   pointer-events: none;
 }
 .em-filter-tabs-fixed .em-filter-tab {
@@ -94,6 +100,7 @@
 }
 .em-filter-tab--draft,
 .em-filter-tab--sent {
+  /* Inactive: sit on the opaque pinned strip (not see-through to scroll tabs) */
   background: transparent;
   border-color: transparent;
   opacity: 1;
