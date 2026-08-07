@@ -230,7 +230,7 @@ export type DeckIndustryInput = {
 function normalizeInputList(raw: DeckIndustryInput[]): DeckIndustryInput[] {
   const seen = new Set<string>();
   const out: DeckIndustryInput[] = [];
-  raw.forEach((item, i) => {
+  raw.forEach((item) => {
     const label = typeof item.label === 'string' ? item.label.trim() : '';
     if (!label) return;
     let slug =
@@ -250,11 +250,12 @@ function normalizeInputList(raw: DeckIndustryInput[]): DeckIndustryInput[] {
       id: typeof item.id === 'number' ? item.id : undefined,
       slug: candidate,
       label,
-      sortOrder: typeof item.sortOrder === 'number' ? item.sortOrder : i,
       enabled: item.enabled === false ? false : true,
     });
   });
-  return out;
+  // Alphabetical by label on every save; sortOrder is derived from that order.
+  out.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  return out.map((item, i) => ({ ...item, sortOrder: i }));
 }
 
 async function replacePgIndustries(inputs: DeckIndustryInput[]): Promise<DeckIndustry[]> {
