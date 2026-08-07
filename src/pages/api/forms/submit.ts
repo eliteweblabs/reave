@@ -38,7 +38,6 @@ export const POST: APIRoute = async ({ request }) => {
           : null;
     const message = String(formData.message || '').trim();
     const subject = String(formData.subject || 'New form submission').trim();
-    const to = formData.to != null ? String(formData.to).trim() : undefined;
 
     if (!name && !email && !message) {
       return new Response(
@@ -58,7 +57,6 @@ export const POST: APIRoute = async ({ request }) => {
       smsOptIn,
       message,
       subject,
-      to,
     });
 
     if (result.warnings.length) {
@@ -78,9 +76,6 @@ export const POST: APIRoute = async ({ request }) => {
       JSON.stringify({
         success: true,
         message: 'Form submitted successfully',
-        contactUid: result.contactUid,
-        jobSlug: result.jobSlug,
-        contactCreated: result.contactCreated,
       }),
       {
         headers: { 'Content-Type': 'application/json' },
