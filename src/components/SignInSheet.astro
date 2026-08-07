@@ -74,6 +74,7 @@ const clerkAppearance = {
     signUpUrl={authPath}
     signInUrl={authPath}
     fallbackRedirectUrl={fallbackRedirectUrl}
+    forceRedirectUrl={fallbackRedirectUrl}
     appearance={clerkAppearance}
   />
   {allowSignUp && (
@@ -82,10 +83,47 @@ const clerkAppearance = {
       signUpUrl={authPath}
       signInUrl={authPath}
       fallbackRedirectUrl={fallbackRedirectUrl}
+      forceRedirectUrl={fallbackRedirectUrl}
       appearance={clerkAppearance}
     />
   )}
 </IosBottomSheet>
+
+<script is:inline>
+  /**
+   * Today's Clerk instance churn left multiple __client_uat_* cookies on
+   * reave.app. That blocks the handshake that sets __session, so OTP can
+   * "succeed" in the UI while the server still sees you as signed out (401s
+   * + refresh loop). Clear orphaned Clerk cookies once when signed out.
+   */
+  (function () {
+    if (document.body?.dataset?.userId?.trim()) return;
+    var names = document.cookie.split(';').map(function (p) {
+      return p.trim().split('=')[0];
+    });
+    var clerkNames = names.filter(function (n) {
+      return (
+        n === '__session' ||
+        n === '__client_uat' ||
+        n.indexOf('__client_uat_') === 0 ||
+        n.indexOf('__clerk_') === 0
+      );
+    });
+    if (clerkNames.length <= 1) return;
+    try {
+      sessionStorage.removeItem('reave-clerk-ssr-sync');
+    } catch (e) {
+      /* ignore */
+    }
+    var domains = [undefined, 'reave.app', '.reave.app', window.location.hostname];
+    clerkNames.forEach(function (name) {
+      domains.forEach(function (domain) {
+        var base = name + '=; Max-Age=0; Path=/';
+        document.cookie = domain ? base + '; Domain=' + domain : base;
+      });
+    });
+  })();
+</script>
 
 <script src="/ios-sheet.js" defer></script>
 
@@ -126,6 +164,6 @@ const clerkAppearance = {
 </style>
 
 <script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
-  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260806noloop';
+  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260806handshake';
   bindClerkSsrSessionSync({ autoOpenSignIn });
 </script>
