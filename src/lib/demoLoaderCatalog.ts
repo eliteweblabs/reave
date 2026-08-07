@@ -17,6 +17,12 @@ export type DemoLoaderModule = {
   toggleable: boolean;
 };
 
+export type DemoLoaderIncludedCard = {
+  id: string;
+  label: string;
+  blurb: string;
+};
+
 export type DemoLoaderSection = {
   id: string;
   /** Section heading; null = no title block (ungrouped modules above named sections). */
@@ -25,9 +31,76 @@ export type DemoLoaderSection = {
 };
 
 /**
- * Named section groups for the public demo loader.
+ * Always-on platform capabilities shown as marketing cards (not toggles).
+ * Baseline portal modules + core agent tools that ship with every demo.
+ */
+export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
+  {
+    id: 'crm',
+    label: 'CRM',
+    blurb: 'Contacts, companies, and client profiles — searchable by name, phone, or domain.',
+  },
+  {
+    id: 'client-portal',
+    label: 'Client Portal',
+    blurb: 'A branded portal for every client — projects, files, and status in one place.',
+  },
+  {
+    id: 'billing',
+    label: 'Billing & Invoices',
+    blurb: 'Quotes, invoices, and payments wired to the work you’re already shipping.',
+  },
+  {
+    id: 'portal-assistant',
+    label: 'Portal Assistant',
+    blurb: 'Speed-dial help chat so clients get answers without ringing your phone.',
+  },
+  {
+    id: 'handoff-vault',
+    label: 'Handoff Vault',
+    blurb: 'Secure credential and site-access handoff inside the portal Data tab.',
+  },
+  {
+    id: 'agent-chat',
+    label: 'AI Agent Chat',
+    blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
+  },
+  {
+    id: 'email-inbox',
+    label: 'Email Inbox',
+    blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
+  },
+  {
+    id: 'projects',
+    label: 'Projects & Work',
+    blurb: 'Jobs, inquiry notes, and delivery tracking with full agent read/write.',
+  },
+  {
+    id: 'dynamic-todos',
+    label: 'Dynamic To-Dos',
+    blurb: 'Personal tasks that stay out of the job list — create, update, and clear with the agent.',
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge Base',
+    blurb: 'Playbooks the agent actually follows — SOPs, install notes, and how-tos on demand.',
+  },
+  {
+    id: 'business-audit',
+    label: 'Business Audit',
+    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content without the HTML deep-dive.',
+  },
+  {
+    id: 'web-search',
+    label: 'Agent Web Search',
+    blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
+  },
+];
+
+/**
+ * Named section groups for optional modules in the public demo loader.
  * Features listed here are pulled out of the default list and rendered under the title
- * (in this array order). Everything else stays above with no title for later organization.
+ * (in this array order). Remaining optionals sit under “Optional Modules”.
  */
 export const DEMO_LOADER_SECTION_GROUPS: ReadonlyArray<{
   id: string;
@@ -68,7 +141,14 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
     .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId));
 }
 
-/** Sectioned catalog: ungrouped modules first, then named groups at the bottom. */
+export function listDemoLoaderIncludedCards(): DemoLoaderIncludedCard[] {
+  return [...DEMO_LOADER_INCLUDED_CARDS];
+}
+
+/**
+ * Optional sections: “Optional Modules” (remaining) then named groups such as
+ * Web Development Modules.
+ */
 export function listDemoLoaderSections(
   modules: readonly DemoLoaderModule[] = listDemoLoaderModules(),
 ): DemoLoaderSection[] {
@@ -89,7 +169,10 @@ export function listDemoLoaderSections(
   const ungrouped = modules.filter((m) => !claimed.has(m.feature));
   const sections: DemoLoaderSection[] = [];
   if (ungrouped.length) {
-    sections.push({ id: 'ungrouped', title: null, modules: ungrouped });
+    sections.push({ id: 'optional', title: 'Optional Modules', modules: ungrouped });
+  } else if (named.length) {
+    // Keep the Optional Modules heading even when everything is in named groups.
+    sections.push({ id: 'optional', title: 'Optional Modules', modules: [] });
   }
   sections.push(...named);
   return sections;
