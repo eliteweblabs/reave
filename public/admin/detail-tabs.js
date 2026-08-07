@@ -1,7 +1,38 @@
 /**
  * Shared detail chrome — header + tab bar + tab panels for clients and projects.
  * Both editors mount these classes so spacing stays in sync via .detail-* CSS.
+ *
+ * Pair with filter-tabs.js for list sidebar category navigation (under search bars).
  */
+
+function setDetailTabScrollLeft(nav, left) {
+  if (!nav) return;
+  nav.scrollTo({ left, behavior: 'instant' });
+}
+
+/** Scroll an active detail tab into view when clipped at the strip edge. */
+export function scrollDetailTabIntoViewIfNeeded(nav, tabEl) {
+  if (!nav || !tabEl) return;
+  const navRect = nav.getBoundingClientRect();
+  const tabRect = tabEl.getBoundingClientRect();
+  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
+  let delta = 0;
+  if (tabRect.left < navRect.left) {
+    delta = tabRect.left - navRect.left;
+  } else if (tabRect.right > navRect.right) {
+    delta = tabRect.right - navRect.right;
+  }
+  if (delta) setDetailTabScrollLeft(nav, nav.scrollLeft + delta);
+}
+
+/** Restore horizontal scroll and ensure the active tab is visible after mount. */
+export function mountDetailTabScroll(nav, savedScrollLeft = 0) {
+  if (!nav) return;
+  requestAnimationFrame(() => {
+    setDetailTabScrollLeft(nav, savedScrollLeft);
+    scrollDetailTabIntoViewIfNeeded(nav, nav.querySelector('.detail-tab.active'));
+  });
+}
 
 export function createDetailChrome(pane, extraClass = '') {
   const chrome = document.createElement('div');
@@ -75,6 +106,7 @@ export function mountDetailTabs(parent, opts) {
   }
 
   parent.appendChild(nav);
+  mountDetailTabScroll(nav);
   return nav;
 }
 
@@ -124,6 +156,10 @@ export function showDetailPanel(pane, opts) {
   pane.querySelectorAll(panelSelector).forEach((panel) => {
     panel.hidden = panel.dataset[panelDataAttr] !== tabId;
   });
+  const tabsNav = pane.querySelector('.detail-tabs');
+  if (tabsNav) {
+    scrollDetailTabIntoViewIfNeeded(tabsNav, tabsNav.querySelector(`${tabBtnSelector}.active`));
+  }
   if (resetScroll && scrollSelector) {
     const scroll = pane.querySelector(scrollSelector);
     if (scroll) scroll.scrollTop = 0;

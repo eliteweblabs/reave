@@ -41,6 +41,7 @@ import {
 } from './admin-ui.js?v=20260805b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260805h';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
@@ -1554,67 +1555,50 @@ async function bulkDeleteChatCategory(tab) {
 
 function renderChatFilterTabs(savedScrollLeft = 0) {
   const counts = chatTabCounts();
-  const nav = document.createElement('div');
-  nav.className = 'em-filter-tabs em-filter-tabs--scroll';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Session filters');
-
-  const tabs = [
-    { id: 'all', label: 'All', count: counts.all },
-    { id: 'review', label: 'Review', count: counts.review },
-    { id: 'working', label: 'Working', count: counts.working },
-    { id: 'project', label: postTitle(1), count: counts.project },
-    { id: 'archive', label: 'Archive', count: counts.archive },
-  ];
-
-  for (const tab of tabs) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = chatState.categoryFilter === tab.id;
-    const canBulkDelete = isActive && tab.id !== 'all' && tab.count > 0;
-    const isAllRefresh = isActive && tab.id === 'all';
-    btn.className =
-      'em-filter-tab' +
-      (isActive ? ' active' : '') +
-      (canBulkDelete ? ' em-filter-tab--purge' : '') +
-      (isAllRefresh ? ' em-filter-tab--refresh' : '') +
-      (isAllRefresh && chatState.listRefreshing ? ' em-filter-tab--refreshing' : '');
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.dataset.filter = tab.id;
-
-    if (canBulkDelete) {
-      btn.innerHTML =
-        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
-        `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
-      btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} sessions`);
-      btn.title = `Delete all ${tab.label.toLowerCase()} sessions`;
-      bindConfirmDeleteButton(btn, () => bulkDeleteChatCategory(tab));
-    } else if (isAllRefresh) {
-      btn.innerHTML =
-        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
-        `<span class="em-filter-refresh-icon">${IOS_ICONS.refresh}</span>`;
-      btn.setAttribute('aria-label', 'Refresh sessions');
-      btn.title = 'Refresh sessions';
-      btn.addEventListener('click', () => {
-        if (chatState.listRefreshing) return;
-        chatState.listRefreshing = true;
-        refreshChatFilterTabsUi();
-        void refreshChatsListQuiet().finally(() => {
-          chatState.listRefreshing = false;
-          refreshChatFilterTabsUi();
-        });
-      });
-    } else {
-      btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
-      btn.addEventListener('click', () => switchChatCategoryFilter(tab.id));
-    }
-
-    nav.appendChild(btn);
-  }
-
-  shell.mountFilterTabsScroll?.(nav, savedScrollLeft);
-  return nav;
+  return mountListFilterTabs({
+    tabs: [
+      { id: 'all', label: 'All', count: counts.all },
+      { id: 'review', label: 'Review', count: counts.review },
+      { id: 'working', label: 'Working', count: counts.working },
+      { id: 'project', label: postTitle(1), count: counts.project },
+      { id: 'archive', label: 'Archive', count: counts.archive },
+    ],
+    activeId: chatState.categoryFilter,
+    ariaLabel: 'Session filters',
+    savedScrollLeft,
+    onSelect: switchChatCategoryFilter,
+    activeTabVariant(tab, active) {
+      if (!active) return null;
+      const canBulkDelete = tab.id !== 'all' && (tab.count ?? 0) > 0;
+      const isAllRefresh = tab.id === 'all';
+      if (canBulkDelete) {
+        return {
+          variant: 'purge',
+          ariaLabel: `Delete all ${tab.label.toLowerCase()} sessions`,
+          title: `Delete all ${tab.label.toLowerCase()} sessions`,
+          onConfirmDelete: () => bulkDeleteChatCategory(tab),
+        };
+      }
+      if (isAllRefresh) {
+        return {
+          variant: 'refresh',
+          refreshing: chatState.listRefreshing,
+          ariaLabel: 'Refresh sessions',
+          title: 'Refresh sessions',
+          onClick: () => {
+            if (chatState.listRefreshing) return;
+            chatState.listRefreshing = true;
+            refreshChatFilterTabsUi();
+            void refreshChatsListQuiet().finally(() => {
+              chatState.listRefreshing = false;
+              refreshChatFilterTabsUi();
+            });
+          },
+        };
+      }
+      return null;
+    },
+  });
 }
 
 function updateChatFilterTabCounts(root) {

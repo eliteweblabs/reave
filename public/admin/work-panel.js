@@ -32,6 +32,7 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import {
   createDetailChrome,
   createDetailFormScroll,
@@ -39,7 +40,7 @@ import {
   mountDetailTabs,
   createDetailPanel,
   showDetailPanel,
-} from './detail-tabs.js?v=20260807a';
+} from './detail-tabs.js?v=20260807b';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -404,30 +405,19 @@ function workSearchPlaceholder(count) {
 
 function renderWorkFilterTabs(savedScrollLeft = 0) {
   const counts = workStatusTabCounts();
-  const nav = document.createElement('div');
-  nav.className = 'em-filter-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', `${postTitle(1)} status filters`);
-
-  const tabs = [
-    { id: 'all', label: 'All', count: counts.all },
-    { id: 'recent', label: 'Recently Viewed', count: counts.recent },
-    { id: 'inquiry', label: 'Inquiry', count: counts.inquiry },
-    { id: 'active', label: 'Active', count: counts.active },
-    { id: 'archived', label: 'Archived', count: counts.archived },
-  ];
-
-  for (const tab of tabs) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = workState.statusFilter === tab.id;
-    btn.className = 'em-filter-tab' + (isActive ? ' active' : '');
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
-    btn.addEventListener('click', () => {
-      if (workState.statusFilter === tab.id) return;
-      workState.statusFilter = tab.id;
+  return mountListFilterTabs({
+    tabs: [
+      { id: 'all', label: 'All', count: counts.all },
+      { id: 'recent', label: 'Recently Viewed', count: counts.recent },
+      { id: 'inquiry', label: 'Inquiry', count: counts.inquiry },
+      { id: 'active', label: 'Active', count: counts.active },
+      { id: 'archived', label: 'Archived', count: counts.archived },
+    ],
+    activeId: workState.statusFilter,
+    ariaLabel: `${postTitle(1)} status filters`,
+    savedScrollLeft,
+    onSelect(tabId) {
+      workState.statusFilter = tabId;
       const visible = filterWorkJobs(workState.jobs, workState.search);
       if (workState.activeSlug && !visible.some((j) => j.slug === workState.activeSlug)) {
         workState.activeSlug = null;
@@ -436,12 +426,8 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
         getWorkEditor()?.classList.remove('de-pane-active');
       }
       renderWorkEditor();
-    });
-    nav.appendChild(btn);
-  }
-
-  shell.mountFilterTabsScroll(nav, savedScrollLeft);
-  return nav;
+    },
+  });
 }
 
 function getWorkEditor() { return document.getElementById('work-editor'); }

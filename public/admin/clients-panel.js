@@ -55,8 +55,9 @@ import {
   createClientDetailPanel,
   mountClientVaultSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260806a';
-import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807a';
+} from './work-panel.js?v=20260807b';
+import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
@@ -331,30 +332,19 @@ function clientFilterCounts(clients) {
 
 function renderClientFilterTabs(savedScrollLeft = 0) {
   const counts = clientFilterCounts(clientState.clients);
-  const nav = document.createElement('div');
-  nav.className = 'em-filter-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Client list filters');
-
-  const tabs = [
-    { id: 'all', label: 'All', count: counts.all },
-    { id: 'professional', label: 'Client', count: counts.professional },
-    { id: 'service', label: 'Service', count: counts.service },
-    { id: 'proposed', label: 'Proposed', count: counts.proposed },
-    { id: 'personal', label: 'Personal', count: counts.personal },
-  ];
-
-  for (const tab of tabs) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = clientState.contactFilter === tab.id;
-    btn.className = 'em-filter-tab' + (isActive ? ' active' : '');
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
-    btn.addEventListener('click', () => {
-      if (clientState.contactFilter === tab.id) return;
-      clientState.contactFilter = tab.id;
+  return mountListFilterTabs({
+    tabs: [
+      { id: 'all', label: 'All', count: counts.all },
+      { id: 'professional', label: 'Client', count: counts.professional },
+      { id: 'service', label: 'Service', count: counts.service },
+      { id: 'proposed', label: 'Proposed', count: counts.proposed },
+      { id: 'personal', label: 'Personal', count: counts.personal },
+    ],
+    activeId: clientState.contactFilter,
+    ariaLabel: 'Client list filters',
+    savedScrollLeft,
+    onSelect(tabId) {
+      clientState.contactFilter = tabId;
       const visible = filterClientsForSidebar(clientState.clients);
       if (clientState.activeUid && !visible.some((c) => c.uid === clientState.activeUid)) {
         clientState.activeUid = null;
@@ -367,12 +357,8 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
         getClientsEditor()?.classList.remove('de-pane-active');
       }
       renderClientsEditor();
-    });
-    nav.appendChild(btn);
-  }
-
-  shell.mountFilterTabsScroll(nav, savedScrollLeft);
-  return nav;
+    },
+  });
 }
 
 async function fetchClientsList() {
