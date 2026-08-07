@@ -350,9 +350,10 @@ function renderSetupAlert(kind) {
     syncAdminSetupAlerts();
     syncAdminPushButton();
   });
-  actions.appendChild(dismissBtn);
 
-  alert.append(copy, actions);
+  alert.append(copy);
+  if (actions.childNodes.length) alert.appendChild(actions);
+  alert.appendChild(dismissBtn);
   root.appendChild(alert);
   bindSetupAlertResize();
   requestAnimationFrame(() => syncSetupAlertInset());
@@ -475,9 +476,10 @@ export function showAdminConfirmBanner(opts = {}) {
     dismissBtn.innerHTML =
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
     dismissBtn.addEventListener('click', () => finish(false));
-    actions.appendChild(dismissBtn);
 
-    alert.append(copy, actions);
+    alert.append(copy);
+    if (actions.childNodes.length) alert.appendChild(actions);
+    alert.appendChild(dismissBtn);
     root.appendChild(alert);
     bindSetupAlertResize();
     requestAnimationFrame(() => syncSetupAlertInset());

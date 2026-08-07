@@ -3816,6 +3816,7 @@ function isAuditPushAlert(item) {
 function reviewAlertTone(item) {
   if (isReceiptExpenseNotification(item)) return 'receipt';
   if (isOtpReviewAlert(item)) return 'otp';
+  if (isAuditPushAlert(item)) return 'audit';
   const type = item?.type;
   if (type === 'meeting_conflict') return 'meeting-conflict';
   if (type === 'meeting' || type === 'meeting_request' || type === 'meeting_followup') return 'meeting';
@@ -4233,11 +4234,9 @@ function buildReviewAlertBanner(item) {
   head.append(brandIcon, copy);
   alert.append(head);
   if (actionBtnCount > 0) {
-    toolbar.appendChild(dismissBtn);
     alert.appendChild(toolbar);
-  } else {
-    head.appendChild(dismissBtn);
   }
+  alert.appendChild(dismissBtn);
   bindReviewAlertSwipe(alert, item);
   return alert;
 }
