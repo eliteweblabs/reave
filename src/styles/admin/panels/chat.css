@@ -774,15 +774,14 @@ body.admin-split-view #chat-panel .ch-compose {
   }
 }
 /* Canonical trash icon delete control (paneDeleteIcon / bindConfirmDeleteButton). */
-.ch-delete-btn,
-.ch-delete-btn.delete-confirm-btn[data-state='confirm'] {
+.ch-delete-btn {
   color: var(--danger, #dc2626);
 }
-.ch-delete-btn:hover,
-.ch-delete-btn:hover.delete-confirm-btn[data-state='confirm'] {
+.ch-delete-btn:hover {
   background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
   color: var(--danger-hover, #b91c1c);
 }
+/* Armed fill/color comes from email.css (.ios-icon-btn.delete-confirm-btn[data-state=confirm]). */
 .ch-copy-chat-btn,
 .ch-share-chat-btn,
 .ch-archive-chat-btn {

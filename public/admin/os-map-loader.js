@@ -103,7 +103,7 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260807e';
+} from './admin-ui.js?v=20260807f';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';

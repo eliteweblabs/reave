@@ -1,7 +1,7 @@
 /**
  * Admin media library — upload, browse, and delete shared assets.
  */
-import { paneDeleteIcon } from './admin-ui.js?v=20260807e';
+import { paneDeleteIcon } from './admin-ui.js?v=20260807f';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { osAlert } from './os-dialog.js?v=20260804c';
 

@@ -344,9 +344,19 @@
 .swipe-act-delete.delete-confirm-btn[data-state="confirm"] {
   color: #fff;
 }
-/* Icon deletes stay danger-red for idle + armed (timing ring uses currentColor). */
-.ios-icon-btn.delete-confirm-btn[data-state="confirm"] {
-  color: var(--danger, #dc2626);
+/*
+ * Armed icon-delete: solid danger fill + white stopwatch/ring.
+ * White-on-transparent made the control vanish on light backgrounds.
+ */
+.ios-icon-btn.delete-confirm-btn[data-state="confirm"],
+.ios-icon-btn.ch-delete-btn.delete-confirm-btn[data-state="confirm"] {
+  color: #fff;
+  background: var(--danger, #dc2626);
+}
+.ios-icon-btn.delete-confirm-btn[data-state="confirm"]:hover,
+.ios-icon-btn.ch-delete-btn.delete-confirm-btn[data-state="confirm"]:hover {
+  color: #fff;
+  background: var(--danger-hover, #b91c1c);
 }
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
   inset: -4px;

@@ -274,6 +274,10 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const ringRadius = opts.ringRadius ?? (isIosIcon ? 20 : 18);
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 
+  // Guard against double-binding (would arm then immediately confirm on one click).
+  if (btn.dataset.deleteConfirmBound === '1') return;
+  btn.dataset.deleteConfirmBound = '1';
+
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
     e.preventDefault();
