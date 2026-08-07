@@ -17,6 +17,13 @@ export function createDetailFormScroll(pane, extraClass = '') {
   return scroll;
 }
 
+/** Standard inner wrapper for tab panel content — scroll owns outer inset. */
+export function createDetailPanelBody(extraClass = '') {
+  const body = document.createElement('div');
+  body.className = ['detail-panel-body', extraClass].filter(Boolean).join(' ');
+  return body;
+}
+
 /**
  * @param {HTMLElement} parent
  * @param {{

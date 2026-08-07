@@ -35,10 +35,11 @@ import { clientState, clientMapController } from './clients-panel.js?v=20260804d
 import {
   createDetailChrome,
   createDetailFormScroll,
+  createDetailPanelBody,
   mountDetailTabs,
   createDetailPanel,
   showDetailPanel,
-} from './detail-tabs.js?v=20260806a';
+} from './detail-tabs.js?v=20260807a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -1054,8 +1055,7 @@ function scheduleClientVaultSave(uid, getData) {
 }
 
 function mountClientVaultSection(parent, uid, entries, opts = {}) {
-  const wrap = document.createElement('div');
-  wrap.className = 'cl-vault-section';
+  const wrap = createDetailPanelBody('cl-vault-section');
 
   const header = document.createElement('div');
   header.className = 'cl-vault-header';
@@ -1262,8 +1262,7 @@ function renderClientWorkSection(jobsWrap, jobs) {
 }
 
 function mountClientWorkSection(pane, uid) {
-  const jobsWrap = document.createElement('div');
-  jobsWrap.className = 'cl-jobs-section';
+  const jobsWrap = createDetailPanelBody('cl-jobs-section');
   jobsWrap.innerHTML = skeletonHtml('list', `Loading ${postLower(2)}…`);
   pane.appendChild(jobsWrap);
   syncClientProjectsTabBadge(0);

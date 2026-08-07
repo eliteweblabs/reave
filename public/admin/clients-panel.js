@@ -56,7 +56,7 @@ import {
   mountClientVaultSection,
   flushClientVaultSave,
 } from './work-panel.js?v=20260806a';
-import { createDetailChrome, createDetailFormScroll } from './detail-tabs.js?v=20260806a';
+import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260730c';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
@@ -1394,6 +1394,7 @@ function renderEditClientForm(pane) {
       const activeTab = clientState.detailTab;
 
       const profilePanel = createClientDetailPanel('profile', activeTab);
+      const profileBody = createDetailPanelBody();
       const profileFields = document.createElement('div');
       profileFields.className = 'de-fields';
 
@@ -1462,10 +1463,12 @@ function renderEditClientForm(pane) {
       );
 
       mountClientMapSection(profileFields, clientState.draft);
-      profilePanel.appendChild(profileFields);
+      profileBody.appendChild(profileFields);
+      profilePanel.appendChild(profileBody);
       scroll.appendChild(profilePanel);
 
       const brandingPanel = createClientDetailPanel('branding', activeTab);
+      const brandingBody = createDetailPanelBody();
       const brandingFields = document.createElement('div');
       brandingFields.className = 'de-fields';
       const brandingWrap = mountClientBrandingSection(brandingFields, uid, clientState.draft, {
@@ -1481,10 +1484,12 @@ function renderEditClientForm(pane) {
       });
       clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
       websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
-      brandingPanel.appendChild(brandingFields);
+      brandingBody.appendChild(brandingFields);
+      brandingPanel.appendChild(brandingBody);
       scroll.appendChild(brandingPanel);
 
       const notesPanel = createClientDetailPanel('notes', activeTab);
+      const notesBody = createDetailPanelBody();
       const notesFields = document.createElement('div');
       notesFields.className = 'de-fields';
       const notesLabel = document.createElement('label');
@@ -1497,7 +1502,8 @@ function renderEditClientForm(pane) {
       notesTa.value = clientState.draft.notes || '';
       notesLabel.appendChild(notesTa);
       notesFields.appendChild(notesLabel);
-      notesPanel.appendChild(notesFields);
+      notesBody.appendChild(notesFields);
+      notesPanel.appendChild(notesBody);
       scroll.appendChild(notesPanel);
       registerClientField(notesTa, () => true);
       registerClientField(companyInput, () =>

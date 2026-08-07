@@ -1285,19 +1285,30 @@ button.de-placeholder-action:active {
     var(--footer-scroll-pad)
     var(--detail-pad-x);
 }
-.detail-form-scroll .de-fields,
-.detail-panel > .cl-jobs-section,
-.detail-panel > .cl-vault-section,
-.detail-panel > .wk-comments-section,
-.detail-panel > .wk-todos-section,
-.detail-panel > .wk-files-section,
-.detail-panel > .wk-checklist-section,
-.detail-panel > .wk-time-section {
-  padding-left: 0;
-  padding-right: 0;
+/* Tab scroll owns all outer inset; panel bodies/sections never add their own. */
+.detail-form-scroll .detail-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
 }
-.detail-form-scroll .de-fields {
-  padding-top: 0;
+.detail-form-scroll .detail-panel-body .de-fields,
+.detail-form-scroll .detail-panel > .de-fields {
+  padding: 0;
+}
+.detail-form-scroll .detail-panel-body,
+.detail-form-scroll .detail-panel > .cl-jobs-section,
+.detail-form-scroll .detail-panel > .cl-vault-section,
+.detail-form-scroll .detail-panel > .wk-comments-section,
+.detail-form-scroll .detail-panel > .wk-todos-section,
+.detail-form-scroll .detail-panel > .wk-files-section,
+.detail-form-scroll .detail-panel > .wk-checklist-section,
+.detail-form-scroll .detail-panel > .wk-time-section {
+  padding: 0;
+  margin: 0;
+  border-top: none;
 }
 
 #work-editor .re-form-scroll.wk-form-scroll .de-fields {
@@ -2442,6 +2453,7 @@ button.de-placeholder-action:active {
     display: none;
   }
 }
+.detail-form-scroll .cl-notes-label { margin-top: 0; }
 .cl-notes-label { margin-top: 0.15rem; }
 .cl-notes-textarea {
   margin: 0;
@@ -2461,10 +2473,6 @@ button.de-placeholder-action:active {
 #clients-editor .detail-form-scroll {
   flex: 1 1 auto;
   min-height: 0;
-}
-#clients-editor .detail-panel > .cl-jobs-section,
-#clients-editor .detail-panel > .cl-vault-section {
-  padding-top: 0;
 }
 #clients-editor .cl-branding-label {
   gap: 0.65rem;
@@ -2509,9 +2517,11 @@ button.de-placeholder-action:active {
 #clients-editor .detail-tab .cl-detail-tab-badge[hidden] {
   display: none !important;
 }
-#clients-editor .detail-panel .cl-jobs-section {
-  border-top: none;
-  margin-top: 0;
+#clients-editor .detail-panel .cl-jobs-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+#clients-editor .detail-panel .cl-job-card {
+  aspect-ratio: auto;
 }
 #clients-editor .cl-notes-textarea--tab {
   min-height: 12rem;
