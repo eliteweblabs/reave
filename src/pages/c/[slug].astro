@@ -704,7 +704,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           {/* Vault (web-design handoff) */}
           {hasVault && (
             <section class={`panel ${initialTab === 'vault' ? 'active' : ''}`} data-tab-panel="vault">
-              <p class="data-note">Account details &amp; credentials for your {postAlias.singular}. Keep this link private.</p>
               {dataEntries.length > 0 ? (
                 dataEntries.map((e) => (
                   <details class="data-card">
@@ -751,7 +750,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                 ))
               ) : (
                 <div class="vault-empty">
-                  <p class="muted">No account details saved yet. Add hosting, login, or DNS info when you&apos;re ready.</p>
+                  <p class="muted">Account details &amp; credentials for your {postAlias.singular}. Keep this link private.</p>
                   <a class="vault-submit-link" href="?submit">Add account details</a>
                 </div>
               )}
