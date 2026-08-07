@@ -28,6 +28,10 @@ const demoSiteUrl = getPublicDemoSiteUrl();
         <strong>Development</strong>, <strong>Requested</strong>, or
         <strong>Rejected</strong> for everything else.
       </p>
+      <p class="dl-notice" role="note">
+        Siri shortcuts and push notifications are set up per device on a live
+        install — they won’t run in this demo sandbox.
+      </p>
       {demoSiteUrl && (
         <p class="dl-sandbox-note">
           Sandbox: <a href={demoSiteUrl} rel="noopener noreferrer">{demoSiteUrl.replace(/^https?:\/\//, "")}</a>
