@@ -83,6 +83,7 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
 const showSiteAssistant =
   hasFeature("portal_assistant") && isSiteAssistantConfigured();
+const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
 <!doctype html>
@@ -117,7 +118,7 @@ const showSiteAssistant =
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
-	<body>
+	<body data-user-id={userId ?? ""}>
 		<DeployStatusBanner />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} siteContent={siteContent} />

@@ -25,8 +25,21 @@ function serverHasStaffSession() {
   return Boolean(document.body?.dataset?.userId?.trim());
 }
 
+/** Routes where SSR session cookies must match the Clerk client (admin shell + auth pages). */
+function isAdminSsrSyncRoute() {
+  const path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
+  return (
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    path === '/sign-in' ||
+    path === '/sign-up'
+  );
+}
+
 /** Clerk client signed in but SSR/API cookies missing — reload once (Safari after sign-in). */
 export function syncSsrAfterClerkSignIn() {
+  if (!isAdminSsrSyncRoute()) return false;
+
   if (serverHasStaffSession()) {
     try {
       sessionStorage.removeItem(AUTH_SYNC_KEY);

@@ -76,12 +76,6 @@ const signInRedirect = cleanInternalReturnPath(
       ? adminReturnFallback
       : Astro.url.pathname + Astro.url.search,
 );
-const clerkAuthPath = (() => {
-  const u = new URL(Astro.url.pathname + Astro.url.search, Astro.url.origin);
-  u.searchParams.delete("auth");
-  u.searchParams.delete("returnTo");
-  return u.pathname + u.search;
-})();
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
 const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
@@ -277,7 +271,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
     autoOpen={signInAutoOpen && !showMarketingNav}
-    authPath={clerkAuthPath}
+    authPath="/sign-in"
   />
 )}
 
