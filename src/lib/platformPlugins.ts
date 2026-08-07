@@ -149,6 +149,19 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     ],
   },
   {
+    id: 'content-management',
+    title: 'Website Content Management',
+    teaser:
+      'Update headline, navigation, and page copy through chat — no CMS login, no page builder.',
+    body: 'The business owner describes what they want changed on their public site and the agent handles the rest — read the config, edit the Astro files, commit to GitHub, and Railway deploys it. Same agent they already use for billing and projects; no separate CMS product to learn.',
+    bullets: [
+      'Change copy, headlines, and nav by asking in plain English',
+      'Swap images — stock photos via Pexels or upload through Media',
+      'Edits commit to main and go live after deploy (no draft queue)',
+      'Uses existing agent tools — no WordPress or Webflow admin',
+    ],
+  },
+  {
     id: 'dev-infra',
     title: 'Dev & Deploy Infrastructure',
     teaser:

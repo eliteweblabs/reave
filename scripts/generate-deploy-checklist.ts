@@ -36,6 +36,9 @@ const FEATURE_LABELS: Record<string, string> = {
   real_estate_data: 'Real estate data & lead scanner',
   inventory_sync: 'Multi-channel inventory sync',
   online_reviews: 'Online reviews inbox',
+  wayback_machine: 'Wayback Machine',
+  content_management: 'Website content management',
+  stock_photos: 'Pexels stock photos',
 };
 
 const FEATURE_IDS = Object.keys(FEATURE_LABELS);
