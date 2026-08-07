@@ -34,7 +34,7 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260805b';
+} from './admin-ui.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260805j';
 import { postLower } from './post-alias.js?v=20260805a';
 import {
@@ -46,7 +46,7 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260807c';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260807e';
 import { navigateToClient } from './clients-panel.js?v=20260728p';
 import { openReaveShareSheet } from './chat-panel.js?v=20260807c';
 

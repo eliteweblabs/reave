@@ -107,6 +107,7 @@
 .ml-grid-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
 }
 
@@ -114,6 +115,11 @@
   flex: 1 1 auto;
   padding: 0.3rem 0.45rem;
   font-size: 0.74rem;
+}
+
+.ml-grid-actions .ch-delete-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 /* Picker modal grid */

@@ -773,12 +773,15 @@ body.admin-split-view #chat-panel .ch-compose {
     display: none;
   }
 }
-.ch-delete-btn {
-  color: #dc2626;
+/* Canonical trash icon delete control (paneDeleteIcon / bindConfirmDeleteButton). */
+.ch-delete-btn,
+.ch-delete-btn.delete-confirm-btn[data-state='confirm'] {
+  color: var(--danger, #dc2626);
 }
-.ch-delete-btn:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
+.ch-delete-btn:hover,
+.ch-delete-btn:hover.delete-confirm-btn[data-state='confirm'] {
+  background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
+  color: var(--danger-hover, #b91c1c);
 }
 .ch-copy-chat-btn,
 .ch-share-chat-btn,
@@ -847,10 +850,10 @@ body.admin-split-view #chat-panel .ch-compose {
   background: var(--msg-action-hover);
 }
 .ch-context-item--danger {
-  color: var(--danger, #e5484d);
+  color: var(--danger, #dc2626);
 }
 .ch-context-item--danger:hover {
-  background: color-mix(in srgb, var(--danger, #e5484d) 12%, transparent);
+  background: color-mix(in srgb, var(--danger, #dc2626) 12%, transparent);
 }
 
 /* iOS pull-to-refresh (sidebar lists) */

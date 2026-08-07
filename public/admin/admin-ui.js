@@ -1269,11 +1269,8 @@ function createListSelectionController(listEl, opts) {
     }
 
     if (typeof opts.onBulkDelete === 'function') {
-      deleteBtn = createIosIconBtn({
-        iconKey: 'trash',
+      deleteBtn = paneDeleteIcon({
         label: 'Delete',
-        className: 'list-selection-bar-btn list-selection-bar-btn--delete',
-        confirmDelete: true,
         onClick: () => void runBulkDelete(),
       });
       actions.appendChild(deleteBtn);
@@ -2178,11 +2175,13 @@ export async function downloadBrandingImage(url, baseName) {
   a.remove();
 }
 
-export function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
+/** Canonical trash + timing-ring delete control. Use everywhere entity deletes appear. */
+export function paneDeleteIcon({ label, onClick, confirmDelete = true, className = '' } = {}) {
+  const classes = ['ios-icon-btn', 'ch-delete-btn', className].filter(Boolean).join(' ');
   return createIosIconBtn({
     iconKey: 'trash',
     label,
-    className: 'ios-icon-btn ch-delete-btn',
+    className: classes,
     confirmDelete,
     onClick,
   });

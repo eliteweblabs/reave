@@ -103,7 +103,7 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260806d';
+} from './admin-ui.js?v=20260807e';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
@@ -129,7 +129,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260807d';
+} from './work-panel.js?v=20260807e';
 import {
   initTodoPanel,
   todoState,
@@ -251,7 +251,7 @@ import {
 import {
   initMediaPanel,
   loadMediaTab,
-} from './media-panel.js?v=20260804c';
+} from './media-panel.js?v=20260807e';
 import {
   initModulesPanel,
   loadModulesTab,
