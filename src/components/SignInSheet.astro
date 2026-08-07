@@ -1,5 +1,4 @@
 ---
-import { SignIn, SignUp } from '@clerk/astro/components';
 import IosBottomSheet from './IosBottomSheet.astro';
 
 interface Props {
@@ -69,22 +68,21 @@ const clerkAppearance = {
 ---
 
 <IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={true} class="sign-in-sheet">
-  <SignIn
-    routing="hash"
-    signUpUrl={authPath}
-    signInUrl={authPath}
-    fallbackRedirectUrl={fallbackRedirectUrl}
-    appearance={clerkAppearance}
-  />
-  {allowSignUp && (
-    <SignUp
-      routing="hash"
-      signUpUrl={authPath}
-      signInUrl={authPath}
-      fallbackRedirectUrl={fallbackRedirectUrl}
-      appearance={clerkAppearance}
-    />
-  )}
+  {/*
+    Mount Clerk client-side only. Never SSR-mount <SignIn> on /admin when the
+    browser already has a Clerk user but the server cookie is missing — Clerk
+    would redirect to fallbackRedirectUrl (/admin/) forever.
+  */}
+  <div id="sign-in-clerk-root"></div>
+  <div id="sign-in-session-stuck" class="sign-in-session-stuck" hidden>
+    <p>
+      This browser is signed in, but the server session cookie is missing. That
+      mismatch was causing the refresh loop.
+    </p>
+    <button type="button" id="sign-in-stuck-sign-out" class="sign-in-stuck-btn">
+      Sign out and try again
+    </button>
+  </div>
 </IosBottomSheet>
 
 <script src="/ios-sheet.js" defer></script>
@@ -101,20 +99,14 @@ const clerkAppearance = {
 
   #sign-in-sheet .cl-rootBox,
   #sign-in-sheet .cl-cardBox,
-  #sign-in-sheet .cl-card,
-  #sign-in-sheet .cl-scrollBox,
-  #sign-in-sheet .cl-main {
+  #sign-in-sheet .cl-card {
     width: 100%;
     max-width: 100%;
-  }
-
-  #sign-in-sheet .cl-cardBox,
-  #sign-in-sheet .cl-card {
     margin: 0;
     padding: 0;
+    box-shadow: none;
     border: none;
     border-radius: 0;
-    box-shadow: none;
     background: transparent;
   }
 
@@ -123,9 +115,167 @@ const clerkAppearance = {
     background: transparent;
     box-shadow: none;
   }
+
+  .sign-in-session-stuck {
+    display: grid;
+    gap: 1rem;
+    padding: 0.25rem 0 0.5rem;
+    color: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .sign-in-session-stuck[hidden] {
+    display: none;
+  }
+
+  .sign-in-stuck-btn {
+    appearance: none;
+    border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+  }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: autoOpen }}>
+<script type="module" define:vars={{ autoOpenSignIn: autoOpen, fallbackRedirectUrl, authPath, allowSignUp, clerkAppearance }}>
   import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260806sync';
-  bindClerkSsrSessionSync({ autoOpenSignIn });
+
+  const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
+
+  function serverHasStaffSession() {
+    return Boolean(document.body?.dataset?.userId?.trim());
+  }
+
+  function onAdminPath() {
+    return window.location.pathname.startsWith('/admin');
+  }
+
+  /**
+   * Block /admin → /admin hard navigations while Clerk JS has a user but SSR
+   * does not. That is the refresh loop. Do not block sign-in → /admin.
+   */
+  function installHalfSessionRedirectGuard() {
+    if (window.__reaveHalfSessionGuard) return;
+    window.__reaveHalfSessionGuard = true;
+
+    const shouldBlock = (url) => {
+      if (!window.Clerk?.user || serverHasStaffSession()) return false;
+      if (!onAdminPath()) return false;
+      try {
+        const next = new URL(String(url), window.location.origin);
+        return next.origin === window.location.origin && next.pathname.startsWith('/admin');
+      } catch {
+        return false;
+      }
+    };
+
+    const proto = window.Location?.prototype;
+    if (!proto) return;
+    for (const method of ['assign', 'replace']) {
+      const original = proto[method];
+      if (typeof original !== 'function') continue;
+      proto[method] = function patchedLocationNav(url) {
+        if (shouldBlock(url)) {
+          console.warn('[reave] blocked half-session admin redirect loop', url);
+          showStuckSession();
+          return;
+        }
+        return original.call(this, url);
+      };
+    }
+  }
+
+  function showStuckSession() {
+    const root = document.getElementById('sign-in-clerk-root');
+    const stuck = document.getElementById('sign-in-session-stuck');
+    if (root) root.hidden = true;
+    if (stuck) stuck.hidden = false;
+    window.IosSheet?.open('sign-in-sheet');
+
+    const btn = document.getElementById('sign-in-stuck-sign-out');
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await window.Clerk?.signOut?.({ redirectUrl: '/sign-in' });
+        } catch (err) {
+          console.warn('[reave] signOut failed', err);
+          window.location.assign('/sign-in');
+        }
+      });
+    }
+  }
+
+  function mountClerkAuth() {
+    if (window[AUTH_MOUNT_KEY]) return;
+    const clerk = window.Clerk;
+    const root = document.getElementById('sign-in-clerk-root');
+    if (!clerk?.loaded || !root || !clerk.mountSignIn) return;
+
+    installHalfSessionRedirectGuard();
+
+    // Client session without SSR cookie: never mount SignIn (it redirects to /admin).
+    if (clerk.user && !serverHasStaffSession()) {
+      window[AUTH_MOUNT_KEY] = true;
+      showStuckSession();
+      return;
+    }
+
+    // Fully signed-in on server — nothing to mount.
+    if (clerk.user && serverHasStaffSession()) {
+      window[AUTH_MOUNT_KEY] = true;
+      return;
+    }
+
+    window[AUTH_MOUNT_KEY] = true;
+    const stuck = document.getElementById('sign-in-session-stuck');
+    if (stuck) stuck.hidden = true;
+    root.hidden = false;
+
+    clerk.mountSignIn(root, {
+      routing: 'hash',
+      signInUrl: authPath,
+      signUpUrl: authPath,
+      fallbackRedirectUrl,
+      appearance: clerkAppearance,
+    });
+
+    if (allowSignUp && clerk.mountSignUp) {
+      const signUpRoot = document.createElement('div');
+      signUpRoot.id = 'sign-up-clerk-root';
+      root.parentElement?.appendChild(signUpRoot);
+      clerk.mountSignUp(signUpRoot, {
+        routing: 'hash',
+        signInUrl: authPath,
+        signUpUrl: authPath,
+        fallbackRedirectUrl,
+        appearance: clerkAppearance,
+      });
+    }
+  }
+
+  function onClerkReady() {
+    mountClerkAuth();
+    bindClerkSsrSessionSync({ autoOpenSignIn });
+  }
+
+  window.addEventListener('clerk-loaded', onClerkReady, true);
+  if (window.Clerk?.loaded) onClerkReady();
+  else {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (window.Clerk?.loaded) {
+        clearInterval(timer);
+        onClerkReady();
+      } else if (Date.now() - started > 20000) {
+        clearInterval(timer);
+      }
+    }, 50);
+  }
 </script>
