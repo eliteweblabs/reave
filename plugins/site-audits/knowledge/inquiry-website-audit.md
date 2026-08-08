@@ -47,7 +47,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS (public resolvers — can lag after NS changes) |
 | `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
-| `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
+| `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
 | `playwright_audit` | Real-browser UX/UI: nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
 
@@ -123,7 +123,12 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
 
 ### Online Presence
-- {Google Business Profile, Yelp, Instagram, Facebook — from brave_search + fetch}
+Write one bullet per channel so the client portal report card can grade each row:
+- Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {hours, photos, categories, NAP consistency}
+- Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps listing notes}
+- Reviews: {platform, star rating, review count} — {reputation notes}
+- Social: {Instagram / Facebook / other handles and activity}
+- Listings: {Yelp / Bing Places / other directories}
 - {Hours inconsistencies across platforms}
 
 ---

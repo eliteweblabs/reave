@@ -42,6 +42,7 @@ import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl } from '../../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
+import { buildAuditReportCard } from '../../lib/auditReportCard';
 import SiteFooter from '../../components/SiteFooter.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -260,14 +261,22 @@ const origin = requestOrigin(Astro.request);
 const portalWorkJobs: PortalWorkJobItem[] = await Promise.all(
   clientJobs.map(async (job) => {
     const portalUrl = projectPortalUrl(uid, job.slug, { base: origin });
+    const bodyRaw = jobBodies[job.slug] || '';
+    const auditReport = buildAuditReportCard({
+      tags: job.tags,
+      source: job.source,
+      title: job.title,
+      body: bodyRaw,
+    });
     return {
       slug: job.slug,
       title: job.title,
       status: job.status,
       statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
-      bodyHtml: jobBodies[job.slug] ? workBodyHtml(jobBodies[job.slug], uid, job.slug) : '',
+      bodyHtml: bodyRaw ? workBodyHtml(bodyRaw, uid, job.slug) : '',
       dateLabel: fmtDate(job.updated || job.created),
       portalUrl,
+      auditReport,
     };
   }),
 );

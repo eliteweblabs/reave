@@ -4,6 +4,8 @@
  */
 import type { WorkJobComment } from '../lib/workComments';
 import type { WorkStatus } from '../lib/workStore';
+import type { AuditReportCard } from '../lib/auditReportCard';
+import PortalAuditReportCard from './PortalAuditReportCard.astro';
 
 export interface PortalWorkJobItem {
   slug: string;
@@ -16,6 +18,8 @@ export interface PortalWorkJobItem {
   dateLabel: string;
   /** Shareable portal URL for this project. */
   portalUrl: string;
+  /** Soft client-facing report card for website audits (optional). */
+  auditReport?: AuditReportCard | null;
 }
 
 export interface PortalWorkFileItem {
@@ -124,12 +128,28 @@ const filesEndpointBase = commentEndpointBase;
                 <span class="work-title">{job.title}</span>
                 {job.dateLabel && <span class="work-meta">Updated {job.dateLabel}</span>}
               </span>
+              {job.auditReport?.overall && !job.auditReport.inProgress && (
+                <span
+                  class={`work-grade work-grade-${job.auditReport.overall.toLowerCase()}`}
+                  title={`Overall grade ${job.auditReport.overall}`}
+                >
+                  {job.auditReport.overall}
+                </span>
+              )}
+              {job.auditReport?.inProgress && (
+                <span class="work-grade work-grade-pending" title="Audit in progress">…</span>
+              )}
               <span class={`work-status work-status-${job.status}`}>{job.statusLabel}</span>
               <span class="work-chevron" aria-hidden="true">›</span>
             </button>
 
             <div class="work-item-body" hidden={!startOpen || undefined}>
-              {job.bodyHtml ? (
+              {job.auditReport ? (
+                <PortalAuditReportCard
+                  report={job.auditReport}
+                  bodyHtml={job.auditReport.inProgress ? '' : job.bodyHtml}
+                />
+              ) : job.bodyHtml ? (
                 <div class="work-description" set:html={job.bodyHtml} />
               ) : (
                 <p class="work-description-empty">Project details will appear here as work progresses.</p>
@@ -535,6 +555,27 @@ const filesEndpointBase = commentEndpointBase;
     font-size: 12px;
     color: rgba(255, 255, 255, 0.45);
   }
+
+  .work-grade {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .work-grade-a { color: #34d399; background: rgba(52, 211, 153, 0.14); }
+  .work-grade-b { color: #6ee7b7; background: rgba(110, 231, 183, 0.12); }
+  .work-grade-c { color: #fbbf24; background: rgba(251, 191, 36, 0.14); }
+  .work-grade-d { color: #fb923c; background: rgba(251, 146, 60, 0.14); }
+  .work-grade-f { color: #f87171; background: rgba(248, 113, 113, 0.14); }
+  .work-grade-pending { color: #7dd3fc; background: rgba(125, 211, 252, 0.12); }
 
   .work-status {
     flex: none;

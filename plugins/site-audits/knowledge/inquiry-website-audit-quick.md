@@ -44,7 +44,7 @@ Run these in parallel when possible:
 | `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
-| `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts |
+| `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts |
 
 **Do not run in quick tier:** `playwright_audit`, `check_links`, `detect_tech_stack` (save for full audit).
 
@@ -99,7 +99,12 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - {A records, MX, SPF/DKIM/DMARC from dns_check}
 
 ### Online Presence
-- {Google Business Profile, Yelp, reviews/reputation, social — from brave_search}
+Write one bullet per channel so the client portal report card can grade each row:
+- Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
+- Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
+- Reviews: {platform, stars, count} — {notes}
+- Social: {Instagram / Facebook / other}
+- Listings: {Yelp / other directories}
 
 ---
 
