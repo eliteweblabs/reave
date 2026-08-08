@@ -11,7 +11,7 @@ import { serverEnv } from './serverEnv';
 export type AppSettings = {
   /** Minutes until verification-code inbox rows auto-delete. 0 disables. */
   otpTtlMinutes: number;
-  /** Days a project stays in the Recently Viewed filter after opening. */
+  /** Days a project stays in the Recently Viewed filter after last edit. */
   recentlyViewedDays: number;
   updatedAt: string | null;
 };
@@ -214,7 +214,7 @@ export async function getOtpTtlMinutes(): Promise<number> {
   return settings.otpTtlMinutes;
 }
 
-/** Days a project stays in Recently Viewed after opening. */
+/** Days a project stays in Recently Viewed after last edit. */
 export async function getRecentlyViewedDays(): Promise<number> {
   const settings = await getAppSettings();
   return settings.recentlyViewedDays;

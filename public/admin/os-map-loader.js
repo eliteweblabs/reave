@@ -130,7 +130,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260807d';
+} from './work-panel.js?v=20260808a';
 import {
   initTodoPanel,
   todoState,
@@ -7134,13 +7134,13 @@ function renderAppSettingsPanel(settings, sleepData) {
           `<section class="prof-section">` +
             `<div class="prof-section-copy">` +
               `<h2 class="prof-title prof-title--section">Recently viewed</h2>` +
-              `<p class="prof-subtitle">Projects opened within this window appear under the Recently Viewed filter in ${escHtml(postTitle(2))}.</p>` +
+              `<p class="prof-subtitle">Projects updated within this window appear under the Recently Viewed filter in ${escHtml(postTitle(2))}. Opening a project does not count.</p>` +
             `</div>` +
             `<div class="prof-section-fields">` +
               `<div class="prof-field">` +
-                `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
+                `<label for="settings-recently-viewed-days">Show projects updated within (days)</label>` +
                 `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
-                `<span class="prof-hint">Default is 7 days. Applies to this browser’s view history.</span>` +
+                `<span class="prof-hint">Default is 7 days. Based on each project’s last edit, not admin clicks.</span>` +
               `</div>` +
             `</div>` +
           `</section>` +

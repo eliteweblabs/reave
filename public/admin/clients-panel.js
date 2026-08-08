@@ -57,7 +57,7 @@ import {
   createClientDetailPanel,
   mountClientVaultSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260807c';
+} from './work-panel.js?v=20260808a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
