@@ -594,18 +594,58 @@ async function loadScheduleTab() {
   }
 }
 
+function syncScheduleActiveState() {
+  const root = getSchedulePanel();
+  if (!root) return;
+  const uid = scheduleState.activeUid;
+  root.querySelectorAll('.cal-agenda-item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.uid === uid);
+  });
+  root.querySelectorAll('.cal-event-block').forEach((el) => {
+    el.classList.toggle('active', el.dataset.uid === uid);
+  });
+}
+
+function renderScheduleDetailPane() {
+  const root = getSchedulePanel();
+  if (!root) return;
+  const pane = root.querySelector('.de-pane.schedule-detail-pane, .schedule-detail-pane');
+  if (!pane || !root.querySelector('.ch-sidebar')) {
+    renderSchedulePanel();
+    return;
+  }
+  root.classList.toggle('de-pane-active', Boolean(scheduleState.activeUid));
+  const active = scheduleState.activeUid ? findScheduleBooking(scheduleState.activeUid) : null;
+  if (active) {
+    renderScheduleDetail(pane, active);
+  } else {
+    pane.innerHTML = '';
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'schedule',
+      iconName: 'calendar',
+      bodyHtml: '<p>Select an event to view guest details, or book a new time.</p>',
+      btnLabel: 'New Meeting',
+      onCreate: () => scheduleOpenCreateDialog(),
+    });
+  }
+}
+
 function selectScheduleBooking(uid) {
   scheduleState.activeUid = uid;
   scheduleState.selectedSlot = null;
-  getSchedulePanel()?.classList.add('de-pane-active');
-  renderSchedulePanel();
+  const root = getSchedulePanel();
+  root?.querySelectorAll('.cal-slot-marker').forEach((el) => el.remove());
+  root?.classList.add('de-pane-active');
+  syncScheduleActiveState();
+  renderScheduleDetailPane();
   shell.syncFooterNav();
 }
 
 function closeScheduleDetail() {
   scheduleState.activeUid = null;
   getSchedulePanel()?.classList.remove('de-pane-active');
-  renderSchedulePanel();
+  syncScheduleActiveState();
+  renderScheduleDetailPane();
   shell.syncFooterNav();
 }
 
@@ -1664,6 +1704,7 @@ function createCalAgendaItem(booking) {
     'cal-agenda-item' +
     (scheduleBookingIsPast(booking) ? ' cal-agenda-item--past' : '') +
     (booking.uid === scheduleState.activeUid ? ' active' : '');
+  item.dataset.uid = booking.uid;
   const who = scheduleBookingWhoLabel(booking);
   item.innerHTML =
     `<span class="cal-agenda-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>` +
@@ -1973,6 +2014,7 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
         'cal-event-block' +
         (scheduleBookingIsPast(booking) ? ' cal-event-block--past' : '') +
         (booking.uid === scheduleState.activeUid ? ' active' : '');
+      block.dataset.uid = booking.uid;
       block.style.top = `${top}px`;
       block.style.height = `${height}px`;
       block.innerHTML =
@@ -2061,19 +2103,8 @@ function renderSchedulePanel() {
 
   const pane = document.createElement('div');
   pane.className = 'de-pane schedule-detail-pane';
-  const active = scheduleState.activeUid ? findScheduleBooking(scheduleState.activeUid) : null;
-  if (active) {
-    renderScheduleDetail(pane, active);
-  } else {
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'schedule',
-      iconName: 'calendar',
-      bodyHtml: '<p>Select an event to view guest details, or book a new time.</p>',
-      btnLabel: 'New Meeting',
-      onCreate: () => scheduleOpenCreateDialog(),
-    });
-  }
   root.appendChild(pane);
+  renderScheduleDetailPane();
 }
 export {
   scheduleState,

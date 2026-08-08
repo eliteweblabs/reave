@@ -1448,6 +1448,10 @@ function syncChatSidebarActiveState(opts = {}) {
   root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
     const isActive = el.dataset.id === chatState.activeId;
     el.classList.toggle('active', isActive);
+    const thread = chatState.threads.find((t) => t.id === el.dataset.id);
+    if (thread) {
+      el.classList.toggle('ch-list-item--unread', isChatUnread(thread));
+    }
     if (isActive) {
       el.setAttribute('aria-current', 'page');
       activeEl = el;
@@ -1938,7 +1942,7 @@ function mountChatThreadRoot(threadHost) {
         const data = await readApiJson(res);
         chatState.messages = data.thread.messages || [];
         chatState.title = data.thread.title;
-        renderChatPanel();
+        renderChatPane();
       } catch {
         /* keep current messages on refresh failure */
       }
@@ -1989,6 +1993,44 @@ function mountChatThreadRoot(threadHost) {
   });
 }
 
+function renderChatPane() {
+  const root = getChatPanel();
+  if (!root) return;
+  let pane = root.querySelector('.ch-pane');
+  if (!pane || !root.querySelector('.ch-sidebar')) {
+    renderChatPanel();
+    return;
+  }
+  unmountChatThreadRoot(root);
+  pane.innerHTML = '';
+
+  if (!chatState.activeId) {
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'chats',
+      iconName: 'agent',
+      bodyHtml: '<p>Select a session or start a new one.</p>',
+      btnLabel: 'Start New Session',
+      onCreate: () => void startNewChat(),
+    });
+    shell.clearTopbarPanelContext();
+    shell.setChatComposeFocused(false);
+    shell.syncFooterNav();
+    return;
+  }
+
+  pane.appendChild(shell.buildChatPaneHeader());
+
+  const threadHost = document.createElement('div');
+  threadHost.className = 'ch-thread-root';
+  threadHost.id = 'ch-thread-root';
+  pane.appendChild(threadHost);
+
+  root.classList.add('ch-pane-active');
+  shell.syncTopbarPanelContext();
+  shell.syncFooterNav();
+  mountChatThreadRoot(threadHost);
+}
+
 function renderChatPanel() {
   const root = getChatPanel();
   if (!root) return;
@@ -2001,35 +2043,8 @@ function renderChatPanel() {
 
   const pane = document.createElement('div');
   pane.className = 'ch-pane';
-
-  if (!chatState.activeId) {
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'chats',
-      iconName: 'agent',
-      bodyHtml: '<p>Select a session or start a new one.</p>',
-      btnLabel: 'Start New Session',
-      onCreate: () => void startNewChat(),
-    });
-    root.appendChild(pane);
-    shell.clearTopbarPanelContext();
-    shell.setChatComposeFocused(false);
-    shell.syncFooterNav();
-    shell.finishSidebarListScroll(root, savedSidebarScroll);
-    return;
-  }
-
-  if (chatState.activeId) pane.appendChild(shell.buildChatPaneHeader());
-
-  const threadHost = document.createElement('div');
-  threadHost.className = 'ch-thread-root';
-  threadHost.id = 'ch-thread-root';
-  pane.appendChild(threadHost);
-
   root.appendChild(pane);
-  getChatPanel()?.classList.add('ch-pane-active');
-  shell.syncTopbarPanelContext();
-  shell.syncFooterNav();
-  mountChatThreadRoot(threadHost);
+  renderChatPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -2088,7 +2103,8 @@ async function openChat(id, opts = {}) {
     if (idx !== -1) {
       chatState.threads[idx] = { ...chatState.threads[idx], linked_jobs: chatState.linkedJobs };
     }
-    renderChatPanel();
+    syncChatSidebarActiveState({ scroll: true });
+    renderChatPane();
   } catch (e) {
     alert(`Could not load session: ${e.message}`);
   }

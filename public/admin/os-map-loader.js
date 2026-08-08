@@ -11942,7 +11942,8 @@ function openSentEvent(id) {
   emailState.activeId = id;
   emailState.composing = false;
   clearEmailReplyContext();
-  renderEmailPanel();
+  syncEmailSidebarActiveState({ scroll: true });
+  renderEmailPane();
   ensureEmailMobilePaneOpen();
 }
 
@@ -12021,7 +12022,8 @@ function openDraftEvent(id) {
     body: draft.body || '',
   };
   getEmailPanel()?.classList.add('em-pane-active');
-  renderEmailPanel();
+  syncEmailSidebarActiveState({ scroll: true });
+  renderEmailPane();
   syncFooterNav();
   requestAnimationFrame(() => {
     const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
@@ -12896,26 +12898,48 @@ function openEmailEvent(id) {
   emailState.activeId = id;
   emailState.composing = false;
   clearEmailReplyContext();
-  renderEmailPanel();
+  syncEmailSidebarActiveState({ scroll: true });
+  renderEmailPane();
   ensureEmailMobilePaneOpen();
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: id });
 }
 
-function renderEmailPanel(opts = {}) {
+function syncEmailSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
   const root = getEmailPanel();
   if (!root) return;
-  const savedSidebarScroll = captureSidebarListScroll(root);
-  const savedFilterScroll = captureFilterTabsScroll(root);
-
-  if (opts.preserveSidebar) {
-    refreshEmailSidebarList();
-  } else {
-    root.innerHTML = '';
-    root.appendChild(renderEmailSidebar(savedFilterScroll));
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .em-list-item, .ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.id === emailState.activeId;
+    el.classList.toggle('active', isActive);
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
+  });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => scrollSidebarListItemIntoView(list, activeEl));
+    }
   }
+}
 
-  if (opts.preservePane) {
-    finishSidebarListScroll(root, savedSidebarScroll);
+function clearEmailDetailSelection() {
+  emailState.activeId = null;
+  emailState.composing = false;
+  getEmailPanel()?.classList.remove('em-pane-active');
+  syncEmailSidebarActiveState();
+  renderEmailPane();
+}
+
+function renderEmailPane() {
+  const root = getEmailPanel();
+  if (!root) return;
+  if (!root.querySelector('.ch-sidebar')) {
+    renderEmailPanel();
     return;
   }
 
@@ -12927,9 +12951,8 @@ function renderEmailPanel(opts = {}) {
   if (emailState.composing) {
     renderEmailComposePane(pane);
     root.appendChild(pane);
-    getEmailPanel()?.classList.add('em-pane-active');
+    root.classList.add('em-pane-active');
     syncFooterNav();
-    finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
@@ -12946,9 +12969,8 @@ function renderEmailPanel(opts = {}) {
         onCreate: () => startNewEmail(),
       });
       root.appendChild(pane);
-      getEmailPanel()?.classList.remove('em-pane-active');
+      root.classList.remove('em-pane-active');
       syncFooterNav();
-      finishSidebarListScroll(root, savedSidebarScroll);
       return;
     }
 
@@ -12956,12 +12978,7 @@ function renderEmailPanel(opts = {}) {
       createPaneSubheader({
         back: {
           label: 'Back to sent',
-          onClick: () => {
-            emailState.activeId = null;
-            emailState.composing = false;
-            getEmailPanel()?.classList.remove('em-pane-active');
-            renderEmailPanel();
-          },
+          onClick: () => clearEmailDetailSelection(),
         },
         title: sent.subject || '(no subject)',
         icons: [
@@ -12997,9 +13014,8 @@ function renderEmailPanel(opts = {}) {
     }
     pane.appendChild(detail);
     root.appendChild(pane);
-    getEmailPanel()?.classList.add('em-pane-active');
+    root.classList.add('em-pane-active');
     syncFooterNav();
-    finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
@@ -13015,9 +13031,8 @@ function renderEmailPanel(opts = {}) {
       onCreate: () => startNewEmail(),
     });
     root.appendChild(pane);
-    getEmailPanel()?.classList.remove('em-pane-active');
+    root.classList.remove('em-pane-active');
     syncFooterNav();
-    finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
@@ -13044,12 +13059,7 @@ function renderEmailPanel(opts = {}) {
     createPaneSubheader({
       back: {
         label: 'Back to inbox',
-        onClick: () => {
-          emailState.activeId = null;
-          emailState.composing = false;
-          getEmailPanel()?.classList.remove('em-pane-active');
-          renderEmailPanel();
-        },
+        onClick: () => clearEmailDetailSelection(),
       },
       title: ev.subject || '(no subject)',
       beforeIcons,
@@ -13115,8 +13125,7 @@ function renderEmailPanel(opts = {}) {
         `<div class="em-book-card-title">${isEmailBooked(ev) ? 'Meeting scheduled' : 'Meeting requested'}</div>` +
         `<div class="em-book-card-when">${escHtml(whenLabel)}</div>` +
         (ev.schedulingNote && (ev.bookingStart || ev.proposedMeetingStart)
-          ? `<div class="em-book-card-note">${escHtml(ev.schedulingNote)}</div>`
-          : '') +
+          ? `<div class="em-book-card-note">${escHtml(ev.schedulingNote)}</div>` : '') +
         (isEmailBooked(ev) && ev.bookingUid
           ? `<div class="em-hint">Cal.com booking · ${escHtml(ev.bookingUid.slice(0, 8))}…</div>`
           : '') +
@@ -13241,7 +13250,7 @@ function renderEmailPanel(opts = {}) {
   });
   if (!ev._fullLoaded) {
     void fetchFullEmailRecord(ev).then((full) => {
-      if (emailState.activeId === full.id) renderEmailPanel();
+      if (emailState.activeId === full.id) renderEmailPane();
     });
   }
   void mountEmailScheduleActions(detail.querySelector('.em-schedule-actions'), ev);
@@ -13255,8 +13264,29 @@ function renderEmailPanel(opts = {}) {
   pane.appendChild(detail);
 
   root.appendChild(pane);
-  getEmailPanel()?.classList.add('em-pane-active');
+  root.classList.add('em-pane-active');
   syncFooterNav();
+}
+
+function renderEmailPanel(opts = {}) {
+  const root = getEmailPanel();
+  if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
+  const savedFilterScroll = captureFilterTabsScroll(root);
+
+  if (opts.preserveSidebar) {
+    refreshEmailSidebarList();
+  } else {
+    root.innerHTML = '';
+    root.appendChild(renderEmailSidebar(savedFilterScroll));
+  }
+
+  if (opts.preservePane) {
+    finishSidebarListScroll(root, savedSidebarScroll);
+    return;
+  }
+
+  renderEmailPane();
   finishSidebarListScroll(root, savedSidebarScroll);
 }
 
