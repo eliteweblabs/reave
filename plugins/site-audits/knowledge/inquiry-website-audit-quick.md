@@ -44,7 +44,7 @@ Run these in parallel when possible:
 | `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
-| `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts |
+| `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts |
 
 **Do not run in quick tier:** `playwright_audit`, `check_links`, `detect_tech_stack` (save for full audit).
 
@@ -80,14 +80,17 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 
 ---
 
-### Website Performance
-- {lighthouse mobile/desktop scores OR "N/A — password-protected / API unavailable"}
-
-### SEO
-- Meta description, page title, local keyword gaps
+### Performance
+- Performance score: {mobile} / {desktop} OR "N/A — password-protected / API unavailable"
 
 ### Accessibility
-- {Scores or issues from lighthouse}
+- Accessibility notes from fetch_url / any available score (quick tier may not run full Lighthouse a11y)
+
+### Best Practices
+- Best Practices notes if observable (HTTPS, mixed content, console/platform issues) — or "Not scored — quick tier"
+
+### SEO
+- SEO score if available; otherwise meta description, page title, local keyword gaps
 
 ### SSL & Security
 - SSL validity, expiry, missing headers
@@ -99,15 +102,26 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - {A records, MX, SPF/DKIM/DMARC from dns_check}
 
 ### Online Presence
-- {Google Business Profile, Yelp, reviews/reputation, social — from brave_search}
+Write one bullet per channel so the client portal report card can grade each row:
+- Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
+- Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
+- Reviews: {platform, stars, count} — {notes}
+- Social: {Instagram / Facebook / other}
+- Listings: {Yelp / other directories}
 
 ---
+
+## Opportunities
+Write 3–5 **Problem → Solution** pairs (plain language) for the client portal Ideas section:
+- Problem: {what’s broken} → Solution: {service / fix we can sell}
 
 ## Action Items
 - [ ] Reach out to {contact} about {primary opportunity}
 - [ ] {Specific fix 1}
 - [ ] {Specific fix 2}
 ```
+
+Keep Performance / Accessibility / Best Practices / SEO as **separate** headings (the four Lighthouse categories) — do not collapse them under “Website”.
 
 **Minimum length:** ~1,200+ characters when the website is publicly crawlable.
 
