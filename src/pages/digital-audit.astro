@@ -1,0 +1,461 @@
+---
+/**
+ * Public Digital Audit — same Siri audit pipeline + portal report card.
+ * Provide a business name (and optional website), Generate, then watch the
+ * online-presence diagnostic fill in.
+ */
+import Layout from '../layouts/Layout.astro';
+import PortalAuditReportCard from '../components/PortalAuditReportCard.astro';
+import { getCompanyConfig } from '../lib/companyConfig';
+import { hasFeature } from '../lib/features';
+import { isSafeWorkSlug, storeReadWork } from '../lib/workStore';
+import { buildAuditReportCard, isAuditJob } from '../lib/auditReportCard';
+import { getSiriAuditRun } from '../lib/siriAuditRuns';
+import '../styles/marketing-sections.css';
+
+export const prerender = false;
+
+const company = await getCompanyConfig(Astro.request);
+const auditsEnabled = hasFeature('site_audits');
+
+const runSlug = (Astro.url.searchParams.get('run') || '').trim().toLowerCase();
+let report: ReturnType<typeof buildAuditReportCard> = null;
+let clientName = '';
+let scanDate = '';
+let bodyHtml = '';
+let inProgress = false;
+let runLabel = '';
+
+if (auditsEnabled && runSlug && isSafeWorkSlug(runSlug)) {
+  const doc = await storeReadWork(runSlug);
+  if (
+    doc &&
+    (doc.source === 'siri_audit' ||
+      isAuditJob({
+        tags: doc.tags,
+        source: doc.source,
+        title: doc.title,
+        body: doc.body,
+      }))
+  ) {
+    report = buildAuditReportCard({
+      tags: doc.tags,
+      source: doc.source,
+      title: doc.title,
+      body: doc.body || '',
+    });
+    clientName = (doc.contact_name || '').trim();
+    scanDate = doc.updated || doc.created || '';
+    runLabel = clientName || doc.title || runSlug;
+    const activeRun = getSiriAuditRun(runSlug);
+    inProgress = Boolean(report?.inProgress) || Boolean(activeRun);
+    if (!inProgress && doc.body?.trim()) {
+      bodyHtml = escapeLines(doc.body.trim());
+    }
+  }
+}
+
+function escapeLines(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .split('\n')
+    .map((line) => (line.trim() ? line : '&nbsp;'))
+    .join('<br />');
+}
+
+const showResults = Boolean(report);
+---
+
+<Layout
+  title="Digital Audit"
+  description={`Free online presence diagnostic from ${company.name} — enter a business name and get the same audit report we use for clients.`}
+>
+  <div class="da-page" data-da-page data-run={showResults ? runSlug : ''} data-in-progress={inProgress ? '1' : '0'}>
+    <header class="da-hero">
+      <p class="da-brand">{company.name}</p>
+      <h1 class="da-h1">Digital Audit</h1>
+      {!showResults && (
+        <p class="da-lead">
+          Tell us who to check. We’ll scan the website, listings, and reputation — then show the
+          same report card we build for clients.
+        </p>
+      )}
+      {showResults && runLabel && (
+        <p class="da-lead">
+          {inProgress ? `Auditing ${runLabel}…` : `Results for ${runLabel}`}
+        </p>
+      )}
+    </header>
+
+    {!auditsEnabled ? (
+      <p class="da-unavailable" role="status">Digital audits aren’t available on this install.</p>
+    ) : !showResults ? (
+      <form id="da-form" class="da-form" autocomplete="on">
+        <label class="da-field da-field--main">
+          <span class="da-label">Business</span>
+          <input
+            id="da-business"
+            name="business"
+            type="text"
+            required
+            maxlength="300"
+            placeholder="Joe’s Pizza on Main Street in Portland"
+            autocomplete="organization"
+            autofocus
+          />
+        </label>
+
+        <details class="da-more">
+          <summary>Optional details</summary>
+          <div class="da-more-fields">
+            <label class="da-field">
+              <span class="da-label">Website</span>
+              <input
+                id="da-url"
+                name="url"
+                type="url"
+                maxlength="400"
+                placeholder="https://example.com"
+                autocomplete="url"
+                inputmode="url"
+              />
+            </label>
+            <label class="da-field">
+              <span class="da-label">Phone</span>
+              <input id="da-phone" name="phone" type="tel" maxlength="40" autocomplete="tel" />
+            </label>
+            <label class="da-field">
+              <span class="da-label">Email</span>
+              <input id="da-email" name="email" type="email" maxlength="120" autocomplete="email" />
+            </label>
+            <label class="da-field">
+              <span class="da-label">Notes</span>
+              <input id="da-notes" name="notes" type="text" maxlength="500" placeholder="Anything else that helps find them" />
+            </label>
+          </div>
+        </details>
+
+        {/* Honeypot — leave empty */}
+        <label class="da-hp" aria-hidden="true">
+          <span>Company website</span>
+          <input type="text" name="website_url" tabindex="-1" autocomplete="off" />
+        </label>
+
+        <p id="da-error" class="da-error" hidden></p>
+
+        <div class="da-actions">
+          <button type="submit" class="da-submit" id="da-submit">
+            Generate
+          </button>
+        </div>
+      </form>
+    ) : (
+      <div class="da-results">
+        <PortalAuditReportCard
+          report={report!}
+          bodyHtml={bodyHtml}
+          companyName={company.name}
+          clientName={clientName}
+          scanDate={scanDate}
+        />
+        {!inProgress && (
+          <p class="da-again">
+            <a href="/digital-audit">Run another audit</a>
+          </p>
+        )}
+      </div>
+    )}
+  </div>
+
+  <script>
+    const page = document.querySelector('[data-da-page]');
+    if (!page) {
+      // no-op
+    } else {
+      const form = document.getElementById('da-form') as HTMLFormElement | null;
+      const errorEl = document.getElementById('da-error');
+      const submitBtn = document.getElementById('da-submit') as HTMLButtonElement | null;
+      const runSlug = page.getAttribute('data-run') || '';
+      const wasInProgress = page.getAttribute('data-in-progress') === '1';
+
+      function showError(msg: string) {
+        if (!errorEl) return;
+        errorEl.textContent = msg;
+        errorEl.hidden = !msg;
+      }
+
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showError('');
+        const fd = new FormData(form);
+        const business = String(fd.get('business') || '').trim();
+        if (!business) {
+          showError('Enter a business name to get started.');
+          return;
+        }
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Starting…';
+        }
+        try {
+          const res = await fetch('/api/digital-audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              business,
+              url: String(fd.get('url') || '').trim(),
+              phone: String(fd.get('phone') || '').trim(),
+              email: String(fd.get('email') || '').trim(),
+              notes: String(fd.get('notes') || '').trim(),
+              website_url: String(fd.get('website_url') || '').trim(),
+              tier: 'quick',
+            }),
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            ok?: boolean;
+            error?: string;
+            data?: { slug?: string };
+          };
+          if (!res.ok || !data.ok || !data.data?.slug) {
+            showError(data.error || 'Could not start the audit. Try again in a moment.');
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Generate';
+            }
+            return;
+          }
+          window.location.href = `/digital-audit?run=${encodeURIComponent(data.data.slug)}`;
+        } catch {
+          showError('Network error — check your connection and try again.');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Generate';
+          }
+        }
+      });
+
+      // Poll while the diagnostic is building, then soft-reload for the full card.
+      if (runSlug && wasInProgress) {
+        let stopped = false;
+        const poll = async () => {
+          if (stopped) return;
+          try {
+            const res = await fetch(
+              `/api/digital-audit?slug=${encodeURIComponent(runSlug)}`,
+              { headers: { Accept: 'application/json' } },
+            );
+            const data = (await res.json().catch(() => ({}))) as {
+              ok?: boolean;
+              data?: { inProgress?: boolean };
+            };
+            if (data.ok && data.data && data.data.inProgress === false) {
+              stopped = true;
+              window.location.reload();
+              return;
+            }
+          } catch {
+            // keep polling
+          }
+          if (!stopped) window.setTimeout(poll, 4000);
+        };
+        window.setTimeout(poll, 3500);
+      }
+    }
+  </script>
+</Layout>
+
+<style>
+  .da-page {
+    --da-ink: #0f1419;
+    --da-muted: #5a6570;
+    --da-line: rgba(15, 20, 25, 0.12);
+    --da-surface: rgba(255, 255, 255, 0.72);
+    --da-accent: var(--brand-primary, #1a6b5a);
+    min-height: 100vh;
+    padding: calc(
+        var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
+          48px
+      )
+      20px 96px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .da-hero {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .da-brand {
+    margin: 0 0 8px;
+    font-size: clamp(1.75rem, 5vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--da-ink);
+  }
+
+  .da-h1 {
+    margin: 0 0 12px;
+    font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--da-muted);
+  }
+
+  .da-lead {
+    margin: 0 auto;
+    max-width: 36rem;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    color: var(--da-muted);
+  }
+
+  .da-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 18px 22px;
+    border-radius: 16px;
+    border: 1px solid var(--da-line);
+    background: var(--da-surface);
+    backdrop-filter: blur(10px);
+  }
+
+  .da-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .da-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--da-muted);
+  }
+
+  .da-field input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--da-line);
+    background: #fff;
+    color: var(--da-ink);
+    font-size: 1.05rem;
+    line-height: 1.3;
+  }
+
+  .da-field--main input {
+    font-size: 1.15rem;
+    padding: 16px 18px;
+  }
+
+  .da-field input:focus {
+    outline: 2px solid color-mix(in srgb, var(--da-accent) 55%, transparent);
+    outline-offset: 1px;
+    border-color: color-mix(in srgb, var(--da-accent) 45%, var(--da-line));
+  }
+
+  .da-more {
+    border-radius: 10px;
+    border: 1px dashed var(--da-line);
+    padding: 4px 12px 8px;
+  }
+
+  .da-more summary {
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--da-muted);
+    padding: 8px 0;
+    list-style: none;
+  }
+
+  .da-more summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .da-more-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 8px;
+  }
+
+  .da-hp {
+    position: absolute;
+    left: -9999px;
+    height: 0;
+    overflow: hidden;
+  }
+
+  .da-error {
+    margin: 0;
+    color: #b42318;
+    font-size: 0.95rem;
+  }
+
+  .da-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .da-submit {
+    appearance: none;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--da-accent);
+    cursor: pointer;
+  }
+
+  .da-submit:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+
+  .da-submit:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+
+  .da-unavailable {
+    text-align: center;
+    color: var(--da-muted);
+  }
+
+  .da-results {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .da-again {
+    text-align: center;
+    margin: 28px 0 0;
+  }
+
+  .da-again a {
+    color: var(--da-accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .da-again a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 560px) {
+    .da-page {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+  }
+</style>

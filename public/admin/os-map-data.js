@@ -19,12 +19,13 @@
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
   // Clients / entry points
-  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
+  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go · /digital-audit', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · @mentions · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · @mentions · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
   { id: 'vapi', title: 'Vapi', sub: 'Live Speak Agent Widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
-  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
+  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands · audits', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
+  { id: 'digital_audit', title: 'Digital Audit', sub: '/digital-audit · /api/digital-audit · site_audits · same Siri pipeline', icon: '🔎', hue: 160, status: true, group: 'clients', x: 60, y: 910 },
 
   // App hub (Railway / hosting)
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
@@ -74,6 +75,7 @@ const SYSTEM_EDGES = [
   { from: 'engagement', to: 'web_push', label: 'dashboard + push', dashed: true },
   { from: 'sms_caller', to: 'telnyx', label: 'SMS / call' },
   { from: 'siri', to: 'astro', label: '/api/siri' },
+  { from: 'digital_audit', to: 'astro', label: '/api/digital-audit' },
   { from: 'dev', to: 'clerk', label: 'sign-in' },
   { from: 'focus_chat', to: 'clerk', label: 'sign-in', dashed: true },
   { from: 'focus_chat', to: 'astro', label: '/focus · /api/chats · /api/people', dashed: true },
@@ -139,7 +141,7 @@ const SYSTEM_EDGES = [
 ];
 
 const SYSTEM_GROUPS = [
-  { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri'] },
+  { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
   { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'content_mgmt', 'visit_planner'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_places', 'pexels'] },
 ];
