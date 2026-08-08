@@ -1,7 +1,7 @@
 /**
  * Admin media library — upload, browse, and delete shared assets.
  */
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260805j';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260808k';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260804c';
 
 const MEDIA_API = '/api/admin/media';

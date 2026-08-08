@@ -107,7 +107,7 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260808k';
 import {
   captureFilterTabsScroll,
   mountFilterTabsScroll,

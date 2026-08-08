@@ -108,29 +108,27 @@
   min-height: 0;
 }
 
-.sk-list-search-shell {
-  pointer-events: none;
-}
-
+/* Match real search field outer height; fill the bone so it isn’t an empty header band. */
 .sk-list-search {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 0.72rem;
-  border-radius: 4px;
+  width: 100%;
+  height: var(--control-h, 2.5rem);
+  border-radius: var(--radius-input, 8px);
+  flex: 0 0 auto;
 }
 
 .sk-list-filters {
   display: flex;
   gap: 0.25rem;
-  padding: 0.35rem 0 0.55rem;
-  border-bottom: 1px solid var(--panel-border);
+  padding: 0.15rem;
+  border-radius: 8px;
+  background: var(--btn-group-track-bg);
   pointer-events: none;
 }
 
 .sk-list-filter {
   flex: 1 1 0;
   min-width: 0;
-  height: 1.65rem;
+  height: 1.35rem;
   border-radius: 6px;
 }
 
@@ -138,6 +136,28 @@
   .sk-list-panel > .panel-list-subheader {
     margin-bottom: 0;
   }
+}
+
+/*
+ * Bare panel-root skeletons (desktop first paint) — same logo clearance as
+ * #dashboard-panel:has(.sk-home). Without this, list rows sit under the brand.
+ */
+#chat-panel > .sk-list,
+#email-panel > .sk-list,
+#doc-editor > .sk-list,
+#knowledge-editor > .sk-list,
+#work-editor > .sk-list,
+#todo-editor > .sk-list,
+#clients-editor > .sk-list,
+#rule-editor > .sk-list,
+#media-panel > .sk-list,
+#newsletter-editor > .sk-list,
+#online-reviews-panel > .sk-list,
+#modules-panel > .sk-dashboard {
+  padding-top: calc(
+    var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) + 0.5rem
+  );
+  box-sizing: border-box;
 }
 
 /* ── Dashboard (2×2 stat grid + two cards) — profile / insights tabs ── */

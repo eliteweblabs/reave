@@ -1,7 +1,7 @@
 /**
  * Admin modules monitor — live deployment status for optional feature modules.
  */
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260806a';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260808k';
 import { osAlert } from './os-dialog.js?v=20260728q';
 
 const API = '/api/admin/deploy-status';

@@ -38,7 +38,7 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260808c';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';

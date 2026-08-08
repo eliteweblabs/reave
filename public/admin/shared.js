@@ -168,9 +168,8 @@ export function listPanelSkeletonHtml(label = 'Loading…') {
     `<div class="ch-sidebar sk-list-panel" role="status" aria-live="polite" aria-busy="true">` +
     `<span class="sk-sr">${safeLabel}</span>` +
     `<div class="panel-list-subheader panel-list-subheader--search-only panel-list-subheader--stacked">` +
-    `<div class="panel-list-search-field control-field sk-list-search-shell">` +
-    `<div class="sk-bone sk-list-search"></div>` +
-    `</div>` +
+    /* Solid bar — avoid hollow .control-field shell (tall empty band under the logo). */
+    `<div class="sk-bone sk-list-search" aria-hidden="true"></div>` +
     `<div class="em-filter-tabs sk-list-filters">${filters}</div>` +
     `</div>` +
     `<div class="ch-list">${listItemSkeletonRows(8)}</div>` +
