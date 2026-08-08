@@ -283,6 +283,36 @@ export function averageGrade(grades: Array<LetterGrade | null | undefined>): Let
   return scoreToGrade(avg);
 }
 
+function worseGrade(
+  a: LetterGrade | null | undefined,
+  b: LetterGrade | null | undefined,
+): LetterGrade | null {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return GRADE_RANK[a] <= GRADE_RANK[b] ? a : b;
+}
+
+/**
+ * Keep letter grade and 0–100 score in lockstep for the client UI.
+ * Numeric scores win; letter-only categories get a representative mid-band score.
+ */
+export function alignScoreAndGrade(
+  score: number | null | undefined,
+  grade: LetterGrade | null | undefined,
+): { score: number | null; grade: LetterGrade | null } {
+  if (score != null && !Number.isNaN(score)) {
+    const clamped = Math.max(0, Math.min(100, Math.round(score)));
+    return { score: clamped, grade: scoreToGrade(clamped) };
+  }
+  if (grade) return { score: gradeToScore(grade), grade };
+  return { score: null, grade: null };
+}
+
+function finalizeCategory(cat: ReportCardCategory): ReportCardCategory {
+  const aligned = alignScoreAndGrade(cat.score, cat.grade);
+  return { ...cat, score: aligned.score, grade: aligned.grade };
+}
+
 function improveGrade(grade: LetterGrade | null, steps = 2): LetterGrade | null {
   if (!grade) return null;
   const order: LetterGrade[] = ['F', 'D', 'C', 'B', 'A'];
@@ -389,6 +419,15 @@ function extractNamedScore(text: string, names: RegExp): number | null {
   ]);
 }
 
+/** Section-local `Score: 100/100` / `Score: 100` (common in Lighthouse writeups). */
+function extractBareScore(text: string): number | null {
+  if (!text.trim()) return null;
+  return findNumber(text, [
+    /\bscore\s*[:=]?\s*(\d{1,3})\s*\/\s*100\b/i,
+    /\bscore\s*[:=]?\s*(\d{1,3})\b/i,
+  ]);
+}
+
 type PresenceSignal = {
   status: 'strong' | 'ok' | 'weak' | 'missing' | 'unknown' | 'unavailable';
   summary: string;
@@ -464,7 +503,7 @@ function assessChannel(
 
   // Missing only when the *matched* snippet itself denies the listing.
   const missingHit = hits.some((h) =>
-    /not (?:found|claimed|listed|set up|configured|verified)|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|missing|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b/i.test(
+    /not (?:found|claimed|listed|set up|configured|verified|confirmed)|no confirmed|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|missing|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b|critical gap/i.test(
       h,
     ),
   );
@@ -497,7 +536,7 @@ function assessChannel(
     };
   }
 
-  return { status: 'ok', summary: 'Mentioned in audit', why };
+  return { status: 'weak', summary: 'Needs a closer look', why };
 }
 
 function signalToGrade(signal: PresenceSignal): LetterGrade | null {
@@ -652,6 +691,23 @@ function primaryFinding(why: string[], fallback: string): string {
   if (!first) return fallback;
   // Cap so cards stay scannable.
   return first.length > 180 ? `${first.slice(0, 177).trim()}…` : first;
+}
+
+/** Prefer a finding that matches a weak/failing grade instead of a rosy first bullet. */
+function primaryFindingForGrade(
+  why: string[],
+  fallback: string,
+  grade: LetterGrade | null,
+): string {
+  if (grade === 'D' || grade === 'F') {
+    const negative = why.find((w) =>
+      /missing|fail|expired|invalid|critical|no confirmed|not found|weak|risk|error|insecure|broken|none|gap/i.test(
+        w,
+      ),
+    );
+    if (negative) return primaryFinding([negative], fallback);
+  }
+  return primaryFinding(why, fallback);
 }
 
 function extractActionItems(body: string): string[] {
@@ -1122,14 +1178,17 @@ export function buildAuditReportCard(input: {
   const a11yScore =
     lhScores.accessibility ??
     extractNamedScore(a11ySection, /accessibility/) ??
+    extractBareScore(a11ySection) ??
     extractNamedScore(scorePool, /accessibility/);
   const bpScore =
     lhScores.best_practices ??
     extractNamedScore(bpSection, /best[-\s]?practices?/) ??
+    extractBareScore(bpSection) ??
     extractNamedScore(scorePool, /best[-\s]?practices?/);
   const seoScore =
     lhScores.seo ??
     extractNamedScore(seoSection, /seo/) ??
+    extractBareScore(seoSection) ??
     extractNamedScore(scorePool, /seo/);
 
   const seoCorpus = seoSection.trim() || contentSection;
@@ -1148,10 +1207,15 @@ export function buildAuditReportCard(input: {
     if (!a11ySection.trim() && !/alt text|contrast|tap target|accessib|wcag/i.test(lower)) {
       return null;
     }
-    if (/fail|contrast|missing (?:alt|label)|tap target|wcag/.test(lower)) {
+    // Require real failure language — bare "WCAG" / "contrast" is common in clean writeups.
+    if (
+      /\bfail(?:s|ed|ure)?\b|poor contrast|low contrast|missing (?:alt|label)|tap targets? (?:too small|fail)|wcag[^\n]{0,40}(?:fail|issue|error)/i.test(
+        lower,
+      )
+    ) {
       return 'D' as LetterGrade;
     }
-    if (/pass|good|no major/.test(lower)) return 'B' as LetterGrade;
+    if (/pass|good|no major|excellent|100\s*\/\s*100/.test(lower)) return 'A' as LetterGrade;
     if (a11ySection.trim() || /alt text|contrast|tap target|accessib/i.test(lower)) {
       return 'C' as LetterGrade;
     }
@@ -1178,27 +1242,28 @@ export function buildAuditReportCard(input: {
     return null;
   })();
 
-  const sslGrade = findLetterGrade(sslSection) ?? findLetterGrade(body);
+  // Only read SSL letter grades from the SSL section — never the whole body
+  // (otherwise an unrelated "Grade: F" elsewhere poisons website security).
+  const sslGrade = findLetterGrade(sslSection);
   const securityGrade =
     sslGrade ??
     (() => {
-      const lower = sslSection.toLowerCase() || body.toLowerCase();
+      const lower = sslSection.toLowerCase();
       if (!sslSection.trim() && !/\bssl\b|certificate|https|security header/i.test(body)) {
         return null;
       }
+      if (!sslSection.trim()) return null;
       if (/expired|not trusted|invalid|http,? not https/.test(lower)) return 'F' as LetterGrade;
       if (/missing .+ header|mixed.content|not fully secure/.test(lower)) {
         return 'D' as LetterGrade;
       }
       if (/valid|ok|looks good|certificate is valid/.test(lower)) return 'B' as LetterGrade;
-      return sslSection.trim() ? ('C' as LetterGrade) : null;
+      return 'C' as LetterGrade;
     })();
 
-  // Fold Best Practices into security when we have BP signal but no SSL grade.
-  const securityCombinedGrade =
-    securityGrade ??
-    (bpScore != null ? scoreToGrade(bpScore) : null) ??
-    bpFallback;
+  const bpGrade = bpScore != null ? scoreToGrade(bpScore) : bpFallback;
+  // Security = worse of certificate/headers vs Best Practices (aligned score below).
+  const securityCombinedGrade = worseGrade(securityGrade, bpGrade) ?? securityGrade ?? bpGrade;
 
   const dnsCorpus =
     dnsSection.trim() ||
@@ -1368,10 +1433,14 @@ export function buildAuditReportCard(input: {
     const hasSignal = section.trim().length > 0 || opts.present.test(body);
     let grade: LetterGrade | null = null;
     if (hasSignal) {
-      if (opts.bad.test(lower) || opts.bad.test(body.toLowerCase())) {
-        grade = opts.badGrade || 'D';
-      } else if (opts.good.test(lower)) {
+      // Prefer the section text — scanning the whole body causes false D/F grades
+      // (e.g. "blocklists" in a clean writeup, or unrelated failures elsewhere).
+      const haystack = section.trim() ? lower : body.toLowerCase();
+      // Good before bad so "not listed on blocklists" / "clean" wins over substring traps.
+      if (opts.good.test(haystack)) {
         grade = opts.goodGrade || 'B';
+      } else if (opts.bad.test(haystack)) {
+        grade = opts.badGrade || 'D';
       } else if (section.trim() || opts.present.test(body)) {
         grade = opts.midGrade || 'C';
       }
@@ -1391,14 +1460,29 @@ export function buildAuditReportCard(input: {
     const meta = CATEGORY_BY_ID.get('security')!;
     const why = clientFriendlyBullets(bulletsFromSection(securityWhySource), 5);
     const grade = securityCombinedGrade;
+    const scoreParts: number[] = [];
+    if (securityGrade) {
+      const s = gradeToScore(securityGrade);
+      if (s != null) scoreParts.push(s);
+    }
+    if (bpScore != null) scoreParts.push(bpScore);
+    else if (bpGrade) {
+      const s = gradeToScore(bpGrade);
+      if (s != null) scoreParts.push(s);
+    }
+    const score =
+      scoreParts.length > 0
+        ? Math.min(...scoreParts) // match worseGrade — don't let a strong BP lift a weak cert
+        : gradeToScore(grade);
     const summary =
       grade == null
         ? 'Not scored in this audit'
-        : primaryFinding(
+        : primaryFindingForGrade(
             why,
             sslGrade
               ? `Website security graded ${sslGrade}.`
               : 'Certificate and protection checks need attention.',
+            grade,
           );
     return {
       id: 'security',
@@ -1408,7 +1492,7 @@ export function buildAuditReportCard(input: {
       summary,
       finding: summary,
       grade,
-      score: bpScore ?? null,
+      score: score ?? null,
       why: why.length ? why : ['No detailed security notes in this audit.'],
       unavailable: grade == null,
     };
@@ -1444,7 +1528,7 @@ export function buildAuditReportCard(input: {
 
   const rawCategories: ReportCardCategory[] = [
     heuristicSection('domain_reputation', reputationCorpus, {
-      bad: /blacklist|blocklist|flagged|spam|poor reputation|trending down|not trusted/i,
+      bad: /\b(?:black|block)listed\b|listed on .{0,40}\b(?:black|block)lists?\b|flagged|spamhaus|poor reputation|trending down|not trusted/i,
       good: /clean|good reputation|not (?:listed|blacklisted)|clear/i,
       present: /reputation|blacklist|blocklist|spamhaus|safe browsing/i,
       emptySummary: 'Not scored in this audit',
@@ -1528,7 +1612,10 @@ export function buildAuditReportCard(input: {
   ];
 
   // Don't show empty "—" rows to clients — only graded / available categories.
-  const categories = rawCategories.filter((c) => c.grade && !c.unavailable);
+  // Align score↔grade so the ring, letter, and bars never contradict each other.
+  const categories = rawCategories
+    .filter((c) => c.grade && !c.unavailable)
+    .map(finalizeCategory);
 
   const featured =
     categories.find((c) => c.id === 'domain_reputation' && c.featured) ||
@@ -1538,23 +1625,15 @@ export function buildAuditReportCard(input: {
     ? categories.filter((c) => c.id !== featured.id)
     : categories;
 
-  const scored = categories
-    .map((c) => c.score)
-    .filter((n): n is number => n != null && !Number.isNaN(n));
-  const overallFromScores =
-    scored.length >= 2
-      ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length)
-      : null;
-  const overall = averageGrade(categories.map((c) => c.grade));
   const overallScore =
-    overallFromScores ??
-    (overall
+    categories.length > 0
       ? Math.round(
           categories
             .map((c) => c.score ?? gradeToScore(c.grade) ?? 0)
-            .reduce((a, b) => a + b, 0) / Math.max(1, categories.length),
+            .reduce((a, b) => a + b, 0) / categories.length,
         )
-      : null);
+      : null;
+  const overall = scoreToGrade(overallScore);
 
   const actionItems = extractActionItems(body);
   const ideas = buildIdeas(rawCategories, body, actionItems);
