@@ -1,0 +1,174 @@
+---
+/**
+ * Dual horizontal logo marquee (opposite scroll directions). Same effect as
+ * the homepage integrations section — icons from public/logos/<folder>/.
+ */
+import { listBrandLogos, type BrandLogo } from "../lib/brandLogos";
+
+interface Props {
+  /** Subfolder under public/logos/, e.g. "replaced-apps". */
+  folder?: string;
+  /** Edge fade color — match the surface behind the marquee. */
+  fadeColor?: string;
+  /** One full loop duration. */
+  duration?: string;
+  class?: string;
+}
+
+const {
+  folder = "replaced-apps",
+  fadeColor = "#050505",
+  duration = "80s",
+  class: className,
+} = Astro.props;
+
+const logos = listBrandLogos(folder);
+
+const midpoint = Math.ceil(logos.length / 2);
+const topRow = logos.slice(0, midpoint);
+const bottomRow = logos.slice(midpoint);
+
+/** Duplicate each row so -50% translate loops seamlessly. */
+function loopRow(row: BrandLogo[]): BrandLogo[] {
+  return row.length > 0 ? [...row, ...row] : [];
+}
+
+const topLoop = loopRow(topRow);
+const bottomLoop = loopRow(bottomRow);
+---
+
+{
+  logos.length > 0 && (
+    <div
+      class:list={["blm", className]}
+      aria-hidden="true"
+      style={`--blm-fade: ${fadeColor}; --blm-duration: ${duration};`}
+    >
+      {
+        topLoop.length > 0 && (
+          <div class="blm-scroller" style="--blm-direction: normal;">
+            <ul class="blm-track">
+              {topLoop.map((logo) => (
+                <li class="blm-tile">
+                  <img
+                    src={logo.src}
+                    alt=""
+                    width="40"
+                    height="40"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+      {
+        bottomLoop.length > 0 && (
+          <div class="blm-scroller" style="--blm-direction: reverse;">
+            <ul class="blm-track">
+              {bottomLoop.map((logo) => (
+                <li class="blm-tile">
+                  <img
+                    src={logo.src}
+                    alt=""
+                    width="40"
+                    height="40"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+      <div class="blm-fade blm-fade--left" />
+      <div class="blm-fade blm-fade--right" />
+    </div>
+  )
+}
+
+<style>
+  .blm {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .blm-scroller {
+    overflow: hidden;
+    width: 100%;
+  }
+
+  /*
+   * Deliberately not gated on prefers-reduced-motion: that gate wrapped the
+   * tracks into a static multi-row grid on phones with Reduce Motion enabled
+   * (common on iOS), while narrow desktop still showed the marquee. This is a
+   * slow, linear, decorative drift — not a vestibular trigger.
+   */
+  .blm-track {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px;
+    width: max-content;
+    min-width: 100%;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    animation: blm-scroll var(--blm-duration, 80s) linear infinite;
+    animation-direction: var(--blm-direction, normal);
+    will-change: transform;
+  }
+
+  @keyframes blm-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .blm-tile {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .blm-tile img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    opacity: 0.92;
+  }
+
+  .blm-fade {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: min(128px, 18vw);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .blm-fade--left {
+    left: 0;
+    background: linear-gradient(to right, var(--blm-fade, #050505) 0%, transparent 100%);
+  }
+
+  .blm-fade--right {
+    right: 0;
+    background: linear-gradient(to left, var(--blm-fade, #050505) 0%, transparent 100%);
+  }
+</style>

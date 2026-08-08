@@ -3,7 +3,7 @@
  * Sales-deck-style tour of the whole platform — used on /features and embedded on the homepage.
  * Accordion sections, dark brand theme; optional modules live on /modules.
  */
-import BrandLogoGrid from "../BrandLogoGrid.astro";
+import BrandLogoMarquee from "../BrandLogoMarquee.astro";
 import FeaturesPricingSection from "./FeaturesPricingSection.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import {
@@ -28,7 +28,7 @@ import {
 } from "lucide-astro";
 
 interface Props {
-  /** Show the static replaced-apps logo grid (homepage already has the marquee). */
+  /** Show the replaced-apps logo marquee (homepage already has its own). */
   showLogoStack?: boolean;
   /** Tighter padding when nested inside the homepage scroll container. */
   embedded?: boolean;
@@ -397,7 +397,9 @@ const customPrompts: PromptExample[] = [
             AI, file storage, e-sign, and project tools. {company.name} is built to
             absorb that whole layer — so your clients stop juggling logins and line items.
           </p>
-          <BrandLogoGrid folder="replaced-apps" />
+          <div class="fx-stack-marquees">
+            <BrandLogoMarquee folder="replaced-apps" fadeColor="#0a0a0c" />
+          </div>
           <p class="fx-stack-note">
             Keep Gmail or Outlook for personal mail if you want — the OS handles CRM,
             billing, projects, scheduling, AI, and the client portal that used to
@@ -832,6 +834,7 @@ const customPrompts: PromptExample[] = [
     padding: 28px 22px 32px;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
     background:
       radial-gradient(ellipse 80% 60% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 70%),
       rgba(255, 255, 255, 0.02);
@@ -863,8 +866,10 @@ const customPrompts: PromptExample[] = [
     color: rgba(255, 255, 255, 0.62);
   }
 
-  .fx-stack :global(.blg-grid) {
-    margin-bottom: 20px;
+  .fx-stack-marquees {
+    width: calc(100% + 44px);
+    margin: 0 -22px 20px;
+    overflow: hidden;
   }
 
   .fx-stack-note {

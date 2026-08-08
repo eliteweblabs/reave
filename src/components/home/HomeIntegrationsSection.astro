@@ -5,21 +5,10 @@
  * /features logo wall).
  */
 import { ArrowRight } from "lucide-astro";
-import { listBrandLogos, type BrandLogo } from "../../lib/brandLogos";
+import BrandLogoMarquee from "../BrandLogoMarquee.astro";
+import { listBrandLogos } from "../../lib/brandLogos";
 
 const logos = listBrandLogos("replaced-apps");
-
-const midpoint = Math.ceil(logos.length / 2);
-const topRow = logos.slice(0, midpoint);
-const bottomRow = logos.slice(midpoint);
-
-/** Duplicate each row so -50% translate loops seamlessly. */
-function loopRow(row: BrandLogo[]): BrandLogo[] {
-  return row.length > 0 ? [...row, ...row] : [];
-}
-
-const topLoop = loopRow(topRow);
-const bottomLoop = loopRow(bottomRow);
 ---
 
 {
@@ -44,55 +33,8 @@ const bottomLoop = loopRow(bottomRow);
           </a>
         </div>
 
-        <div class="home-integrations-marquees" aria-hidden="true">
-          {
-            topLoop.length > 0 && (
-              <div
-                class="integrations-scroller"
-                style="--marquee-direction: normal; --marquee-duration: 80s;"
-              >
-                <ul class="integrations-marquee-track">
-                  {topLoop.map((logo) => (
-                    <li class="integrations-tile">
-                      <img
-                        src={logo.src}
-                        alt=""
-                        width="40"
-                        height="40"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )
-          }
-          {
-            bottomLoop.length > 0 && (
-              <div
-                class="integrations-scroller"
-                style="--marquee-direction: reverse; --marquee-duration: 80s;"
-              >
-                <ul class="integrations-marquee-track">
-                  {bottomLoop.map((logo) => (
-                    <li class="integrations-tile">
-                      <img
-                        src={logo.src}
-                        alt=""
-                        width="40"
-                        height="40"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )
-          }
-          <div class="integrations-fade integrations-fade--left" />
-          <div class="integrations-fade integrations-fade--right" />
+        <div class="home-integrations-marquees">
+          <BrandLogoMarquee folder="replaced-apps" />
         </div>
       </div>
     </section>
@@ -176,86 +118,12 @@ const bottomLoop = loopRow(bottomRow);
 
   .home-integrations-marquees {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
     min-width: 0;
     flex: 1;
     width: 100vw;
     max-width: 100vw;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-  }
-
-  .integrations-scroller {
-    overflow: hidden;
-    width: 100%;
-  }
-
-  /*
-   * Deliberately not gated on prefers-reduced-motion: that gate wrapped the
-   * tracks into a static multi-row grid on phones with Reduce Motion enabled
-   * (common on iOS), while narrow desktop still showed the marquee. This is a
-   * slow, linear, decorative drift — not a vestibular trigger.
-   */
-  .integrations-marquee-track {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 16px;
-    width: max-content;
-    min-width: 100%;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    animation: integrations-marquee var(--marquee-duration, 80s) linear infinite;
-    animation-direction: var(--marquee-direction, normal);
-    will-change: transform;
-  }
-
-  @keyframes integrations-marquee {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(-50%);
-    }
-  }
-
-  .integrations-tile {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    width: 72px;
-    height: 72px;
-    background: rgba(255, 255, 255, 0.02);
-  }
-
-  .integrations-tile img {
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-    opacity: 0.92;
-  }
-
-  .integrations-fade {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: min(128px, 18vw);
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  .integrations-fade--left {
-    left: 0;
-    background: linear-gradient(to right, #050505 0%, transparent 100%);
-  }
-
-  .integrations-fade--right {
-    right: 0;
-    background: linear-gradient(to left, #050505 0%, transparent 100%);
   }
 
   @media (min-width: 768px) {
@@ -290,5 +158,4 @@ const bottomLoop = loopRow(bottomRow);
       flex: 1;
     }
   }
-
 </style>
