@@ -34,7 +34,11 @@ function isHealthLiveProbe(pathname: string): boolean {
 }
 
 /** Admin HTML sub-pages that require a session (not the main PWA shell). */
-const isProtectedAdminPage = createRouteMatcher(["/admin/doc(.*)", "/admin/profile(.*)"]);
+const isProtectedAdminPage = createRouteMatcher([
+  "/admin/doc(.*)",
+  "/admin/profile(.*)",
+  "/admin/components(.*)",
+]);
 
 /** PWA assets must be fetchable without a session (manifest, install flow). */
 const isPublicAdminAsset = createRouteMatcher([

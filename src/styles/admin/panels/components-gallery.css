@@ -1,0 +1,155 @@
+/* /admin/components — living UI kit gallery */
+
+.components-gallery {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem calc(2rem + var(--footer-scroll-pad, 4rem));
+  color: var(--fg);
+}
+
+.components-gallery-intro {
+  margin: 0 0 1.5rem;
+}
+
+.components-gallery-intro h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.components-gallery-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 40rem;
+}
+
+.components-gallery-intro code {
+  font-size: 0.82em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--code-fg);
+}
+
+.cg-section {
+  margin: 0 0 1.75rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.cg-section h2 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.cg-section .cg-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.cg-section .cg-hint code {
+  font-size: 0.92em;
+  color: var(--code-fg);
+}
+
+.cg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+}
+
+.cg-row--toolbar {
+  padding: 0.35rem 0.5rem;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+}
+
+.cg-label {
+  flex: 0 0 100%;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0.35rem 0 0;
+}
+
+.cg-label:first-child {
+  margin-top: 0;
+}
+
+.cg-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.cg-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.25rem;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: #0a84ff;
+}
+
+.cg-icon-cell span {
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+.cg-icon-cell svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.cg-swatch {
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px dashed var(--panel-border);
+}
+
+.cg-demo-list {
+  max-width: 360px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--swipe-row-bg, var(--card));
+}
+
+.cg-status {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
+.cg-status[data-tone='ok'] {
+  color: #16a34a;
+}
+
+.cg-status[data-tone='warn'] {
+  color: #dc2626;
+}

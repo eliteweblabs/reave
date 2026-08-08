@@ -5,7 +5,7 @@
  * CSS: .em-filter-tabs, .em-filter-tab (see email.css + editor.css stacked subheader)
  */
 
-import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260805b';
+import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260808a';
 import { escHtml } from './shared.js?v=20260805j';
 
 /** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */

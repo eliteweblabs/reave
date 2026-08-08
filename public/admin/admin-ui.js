@@ -111,12 +111,16 @@ export function createAgentBtn(opts = {}) {
   });
 }
 
-/** Icon-only toolbar button (44pt touch target, iOS-style). */
+/**
+ * Icon-only toolbar button (44pt touch target, iOS-style).
+ * Prefer this (or paneDeleteIcon / paneShareIcon / createAgentBtn / createPanelBackBtn)
+ * over hand-rolled <button> + SVG so chrome stays consistent.
+ */
 export function createIosIconBtn(opts = {}) {
   const { iconKey, label, className = 'ios-icon-btn', onClick, confirmDelete = false, confirmTimeout } = opts;
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = className;
+  btn.className = normalizeIosIconBtnClass(className);
   btn.setAttribute('aria-label', label);
   btn.title = label;
   btn.innerHTML = IOS_ICONS[iconKey] || '';
@@ -129,6 +133,31 @@ export function createIosIconBtn(opts = {}) {
     });
   }
   return btn;
+}
+
+/** Alternate button shells that intentionally omit `.ios-icon-btn` sizing/color. */
+const IOS_ICON_BTN_ALT_BASES = [
+  'agent-btn',
+  'em-agent-btn',
+  'list-selection-bar-btn',
+  'swipe-act',
+  'de-new-btn',
+  'em-filter-tab',
+];
+
+function normalizeIosIconBtnClass(className) {
+  const classes = String(className || 'ios-icon-btn')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (classes.length === 0) return 'ios-icon-btn';
+  const hasAlt = classes.some((c) =>
+    IOS_ICON_BTN_ALT_BASES.some((base) => c === base || c.startsWith(`${base}--`) || c.startsWith(`${base}-`)),
+  );
+  if (!hasAlt && !classes.includes('ios-icon-btn')) {
+    classes.unshift('ios-icon-btn');
+  }
+  return classes.join(' ');
 }
 
 /** Vercel-style copy feedback — swap button content to a checkmark briefly. */
@@ -2197,6 +2226,7 @@ export async function downloadBrandingImage(url, baseName) {
   a.remove();
 }
 
+/** Canonical pane-header trash (two-step confirm). Use everywhere — not one-off SVGs. */
 export function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
   return createIosIconBtn({
     iconKey: 'trash',
@@ -2207,6 +2237,7 @@ export function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
   });
 }
 
+/** Canonical pane-header share control. */
 export function paneShareIcon({ label, onClick }) {
   return createIosIconBtn({
     iconKey: 'share',

@@ -12,5 +12,6 @@
 @import './panels/settings.css';
 @import './panels/media.css';
 @import './panels/search.css';
+@import './panels/components-gallery.css';
 /* Skeleton shimmer — imported last so it wins over panel loading stubs */
 @import './skeleton.css';

@@ -339,11 +339,24 @@
 .delete-confirm-btn[data-state="confirm"] .delete-confirm-ring-circle {
   animation: delete-confirm-draw-ring var(--delete-confirm-ms, 3000ms) linear forwards;
 }
+/* Swipe delete sits on a red fill — white icon/ring stays readable. */
 .swipe-act-delete.delete-confirm-btn {
   color: #fff;
 }
-.ios-icon-btn.delete-confirm-btn[data-state="confirm"] {
-  color: #fff;
+/*
+ * Toolbar / pane trash (paneDeleteIcon → .ios-icon-btn.ch-delete-btn) is on a
+ * transparent header. Confirm must keep the danger red — never #fff (washes
+ * out on light panels). Shared so project, chat, email, etc. stay in sync.
+ */
+.ios-icon-btn.delete-confirm-btn[data-state="confirm"],
+.ch-delete-btn.delete-confirm-btn[data-state="confirm"],
+.list-selection-bar-btn--delete.delete-confirm-btn[data-state="confirm"] {
+  color: #dc2626;
+}
+.ios-icon-btn.ch-delete-btn.delete-confirm-btn[data-state="confirm"]:hover,
+.ch-delete-btn.delete-confirm-btn[data-state="confirm"]:hover {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.12);
 }
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
   inset: -4px;
@@ -1304,10 +1317,10 @@
 .wk-file-actions .ch-delete-btn {
   color: var(--muted);
 }
-.wk-file-actions .ch-delete-btn:hover,
-.wk-file-actions .ch-delete-btn.delete-confirm-btn[data-state='confirm'] {
+.wk-file-actions .ch-delete-btn:hover {
   color: #e55;
 }
+/* Confirm uses shared .ch-delete-btn.delete-confirm-btn[data-state="confirm"] red */
 .wk-files-upload {
   display: flex;
   align-items: center;
