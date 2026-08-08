@@ -8531,6 +8531,7 @@ function initKeyboardShortcuts() {
 let reviewsPendingCount = 0;
 
 const footerNavCounts = {
+  reviews: null,
   chats: null,
   emails: null,
   meetings: null,
@@ -8554,6 +8555,7 @@ function footerNavShowsCountTooltip(btn) {
 
 function syncFooterNavCountTooltips() {
   const defs = [
+    { id: 'footer-nav-dashboard', key: 'reviews', singular: 'review', plural: 'reviews' },
     { id: 'footer-nav-chat', key: 'chats', singular: 'session', plural: 'sessions' },
     { id: 'footer-nav-inbox', key: 'emails', singular: 'email', plural: 'emails' },
     { id: 'footer-nav-schedule', key: 'meetings', singular: 'meeting', plural: 'meetings' },
@@ -8562,13 +8564,21 @@ function syncFooterNavCountTooltips() {
     { id: 'footer-nav-clients', key: 'clients', singular: 'client', plural: 'clients' },
   ];
 
-  document.getElementById('footer-nav-dashboard')?.removeAttribute('data-footer-count');
-
   for (const { id, key, singular, plural } of defs) {
     const btn = document.getElementById(id);
     if (!btn) continue;
     if (!footerNavShowsCountTooltip(btn)) {
       btn.removeAttribute('data-footer-count');
+      continue;
+    }
+    // Collapsed dashboard is the expand control — keep that label on the hover tip.
+    if (id === 'footer-nav-dashboard' && footerNavCollapsed) {
+      const raw = footerNavCounts.reviews;
+      const hint =
+        raw != null && Number(raw) > 0
+          ? `Show navigation · ${footerNavCountLabel(raw, singular, plural)}`
+          : 'Show navigation';
+      btn.setAttribute('data-footer-count', hint);
       continue;
     }
     const raw = footerNavCounts[key];
@@ -8582,7 +8592,9 @@ function syncFooterNavCountTooltips() {
 
 function syncReviewBadge(count) {
   reviewsPendingCount = Math.max(0, Number(count) || 0);
+  footerNavCounts.reviews = reviewsPendingCount;
   renderFooterNavBadges();
+  syncFooterNavCountTooltips();
   void setAppIconBadge(reviewsPendingCount);
 }
 
@@ -8621,6 +8633,7 @@ function syncDashboardFooterBadges(stats) {
 
 function syncDashboardFooterBadgesWithoutReview(stats) {
   if (!stats || typeof stats !== 'object') return;
+  footerNavCounts.reviews = reviewsPendingCount;
   footerNavCounts.chats = stats.chats ?? 0;
   footerNavCounts.emails = stats.emailsTotal ?? stats.emails ?? 0;
   footerNavCounts.meetings = stats.meetingsTotal ?? null;
