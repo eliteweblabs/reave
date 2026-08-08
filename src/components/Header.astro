@@ -326,7 +326,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     --safe-top: env(safe-area-inset-top, 0px);
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     /* Chrome band plus the tail the scrim fades out over, below the bar. */
-    --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 2.5rem);
+    --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 3.75rem);
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
@@ -444,22 +444,42 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     mask-image: var(--app-header-scrim-mask);
   }
 
+  /* Soft progressive blur: each layer starts later and adds a small radius so
+   * content going under the bar eases out instead of snapping into heavy blur. */
   .app-header-scrim-blur:nth-child(1) {
-    --app-header-scrim-mask: linear-gradient(to top, transparent 0%, #000 28%, #000 100%);
+    --app-header-scrim-mask: linear-gradient(
+      to top,
+      transparent 0%,
+      rgba(0, 0, 0, 0.35) 22%,
+      #000 55%,
+      #000 100%
+    );
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .app-header-scrim-blur:nth-child(2) {
+    --app-header-scrim-mask: linear-gradient(
+      to top,
+      transparent 18%,
+      rgba(0, 0, 0, 0.4) 42%,
+      #000 72%,
+      #000 100%
+    );
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
   }
 
-  .app-header-scrim-blur:nth-child(2) {
-    --app-header-scrim-mask: linear-gradient(to top, transparent 18%, #000 50%, #000 100%);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-  }
-
   .app-header-scrim-blur:nth-child(3) {
-    --app-header-scrim-mask: linear-gradient(to top, transparent 42%, #000 76%, #000 100%);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
+    --app-header-scrim-mask: linear-gradient(
+      to top,
+      transparent 40%,
+      rgba(0, 0, 0, 0.45) 68%,
+      #000 92%,
+      #000 100%
+    );
+    -webkit-backdrop-filter: blur(7px);
+    backdrop-filter: blur(7px);
   }
 
   .app-header--admin::before {
