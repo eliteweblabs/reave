@@ -215,6 +215,20 @@ export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] 
   }
 }
 
+export async function dbCountOpenTodos(): Promise<number | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM todos WHERE status = 'open'`,
+    );
+    return Number(rows[0]?.count ?? 0);
+  } catch (e) {
+    console.error('[todos:pg] count open error:', e);
+    return null;
+  }
+}
+
 export async function dbReadTodo(id: number): Promise<TodoItem | null> {
   try {
     const pool = await ensureSchema();

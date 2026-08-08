@@ -136,9 +136,21 @@ export const POST: APIRoute = async ({ request }) => {
   });
 };
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, request }) => {
   if (!hasFeature('site_audits')) {
     return json({ ok: false, error: 'Not found' }, 404);
+  }
+
+  const ip = clientIp(request) || 'unknown';
+  const rate = checkInMemoryRateLimit(`digital-audit-poll:${ip}`, {
+    windowMs: 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return json(
+      { ok: false, error: 'Too many requests. Please slow down.', retryAfterSeconds: rate.retryAfterSeconds },
+      429,
+    );
   }
 
   const slug = (url.searchParams.get('slug') || '').trim().toLowerCase();

@@ -171,22 +171,37 @@ function portalUrls(portal: ClientPortal | null | undefined): string[] {
   return out.map((u) => monitorHostKey(u)).filter(Boolean) as string[];
 }
 
-async function resolveClientUidForMonitor(monitorUrl: string | null, monitorId: number): Promise<string | null> {
+/** host key → contact uid — built once per uptime sync to avoid N× listContacts calls. */
+type ContactHostMap = Map<string, string>;
+
+async function buildContactHostMap(): Promise<ContactHostMap> {
+  const map: ContactHostMap = new Map();
+  const listed = await listContacts({ limit: 500 });
+  if (!listed.ok) return map;
+
+  for (const c of listed.data.contacts) {
+    const portal = (c.links ?? []).find((l) => l.system === 'portal')?.metadata as ClientPortal | undefined;
+    for (const pUrl of portalUrls(portal ?? null)) {
+      map.set(pUrl, c.uid);
+    }
+  }
+  return map;
+}
+
+function resolveClientUidForMonitor(
+  monitorUrl: string | null,
+  monitorId: number,
+  hostMap: ContactHostMap,
+): string | null {
   const manual = monitorClientMap()[String(monitorId)];
   if (manual) return manual;
 
   const norm = monitorHostKey(monitorUrl);
   if (!norm) return null;
 
-  const listed = await listContacts({ limit: 500 });
-  if (!listed.ok) return null;
-
-  for (const c of listed.data.contacts) {
-    const portal = (c.links ?? []).find((l) => l.system === 'portal')?.metadata as ClientPortal | undefined;
-    for (const pUrl of portalUrls(portal ?? null)) {
-      if (pUrl === norm || norm.endsWith(pUrl) || pUrl.endsWith(norm)) {
-        return c.uid;
-      }
+  for (const [pUrl, uid] of hostMap) {
+    if (pUrl === norm || norm.endsWith(pUrl) || pUrl.endsWith(norm)) {
+      return uid;
     }
   }
   return null;
@@ -314,9 +329,12 @@ async function applyStatusChange(opts: {
   return { incident: null, notified: false };
 }
 
-async function upsertMonitorFromApi(m: UptimeRobotMonitor): Promise<UptimeMonitorRow | null> {
+async function upsertMonitorFromApi(
+  m: UptimeRobotMonitor,
+  hostMap: ContactHostMap,
+): Promise<UptimeMonitorRow | null> {
   const ratios = parseCustomUptimeRatios(m.custom_uptime_ratio);
-  const clientUid = await resolveClientUidForMonitor(m.url, m.id);
+  const clientUid = resolveClientUidForMonitor(m.url, m.id, hostMap);
   return dbUpsertUptimeMonitor({
     id: m.id,
     friendly_name: m.friendly_name || m.url || `Monitor ${m.id}`,
@@ -346,10 +364,11 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
   const api = await urGetAllMonitors({ customUptimeRatios: '7-30' });
   if (!api.ok) return { ok: false, synced: 0, error: api.error };
 
+  const hostMap = await buildContactHostMap();
   let synced = 0;
   for (const m of api.monitors) {
     const prev = await dbGetUptimeMonitor(m.id);
-    const row = await upsertMonitorFromApi(m);
+    const row = await upsertMonitorFromApi(m, hostMap);
     if (!row) continue;
     synced += 1;
 
@@ -412,12 +431,14 @@ export async function createUptimeMonitor(opts: {
   if (opts.fetchDetails !== false) {
     const api = await urGetMonitors({ monitorIds: [created.monitorId], customUptimeRatios: '7-30' });
     if (api.ok && api.monitors[0]) {
-      const row = await upsertMonitorFromApi(api.monitors[0]);
+      const hostMap = await buildContactHostMap();
+      const row = await upsertMonitorFromApi(api.monitors[0], hostMap);
       if (row) return { ok: true, monitor: row };
     }
   }
 
-  const clientUid = await resolveClientUidForMonitor(url, created.monitorId);
+  const hostMap = await buildContactHostMap();
+  const clientUid = resolveClientUidForMonitor(url, created.monitorId, hostMap);
   const row = await dbUpsertUptimeMonitor({
     id: created.monitorId,
     friendly_name: opts.friendlyName?.trim() || url,
@@ -460,7 +481,8 @@ export async function linkUptimeMonitor(opts: {
     };
   }
 
-  const row = await upsertMonitorFromApi(remote);
+  const hostMap = await buildContactHostMap();
+  const row = await upsertMonitorFromApi(remote, hostMap);
   if (!row) return { ok: false, error: 'Monitor found but failed to save locally' };
   return { ok: true, monitor: row };
 }
@@ -932,12 +954,14 @@ export async function handleUptimeWebhook(payload: UptimeWebhookPayload): Promis
   if (isUptimeRobotConfigured()) {
     const api = await urGetMonitors({ monitorIds: [monitorId], customUptimeRatios: '7-30' });
     if (api.ok && api.monitors[0]) {
-      monitor = (await upsertMonitorFromApi(api.monitors[0])) ?? prev;
+      const hostMap = await buildContactHostMap();
+      monitor = (await upsertMonitorFromApi(api.monitors[0], hostMap)) ?? prev;
     }
   }
 
   if (!monitor) {
-    const clientUid = await resolveClientUidForMonitor(payload.monitorURL ?? null, monitorId);
+    const hostMap = await buildContactHostMap();
+    const clientUid = resolveClientUidForMonitor(payload.monitorURL ?? null, monitorId, hostMap);
     monitor = await dbUpsertUptimeMonitor({
       id: monitorId,
       friendly_name: payload.monitorFriendlyName?.trim() || payload.monitorURL || `Monitor ${monitorId}`,

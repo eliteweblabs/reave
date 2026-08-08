@@ -1,24 +1,15 @@
 import type { APIRoute } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
-import { serverEnv } from '../../../lib/serverEnv';
-import { secretMatches } from '../../../lib/secretCompare';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function isDashboardAuthed(request: Request): boolean {
-  const expected = serverEnv('DASHBOARD_KEY')?.trim();
-  if (!expected) return false;
-  const auth = request.headers.get('x-dashboard-key');
-  return secretMatches(auth, expected);
-}
-
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
   const json = (body: object, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-  if (!isDashboardAuthed(request)) {
-    return json({ ok: false, error: 'Unauthorized' }, 401);
-  }
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
@@ -26,7 +17,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
