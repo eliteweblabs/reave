@@ -24,7 +24,7 @@
       { "href": "/compare-2", "label": "Compare 2" },
       { "href": "/pricing", "label": "Pricing" },
       { "href": "/modules", "label": "Modules" },
-      { "href": "/deck", "label": "Walkthrough", "hideBelow": 1080 },
+      { "href": "/demo-loader", "label": "Walkthrough", "hideBelow": 1080 },
       { "href": "/about", "label": "About" },
       { "href": "/services", "label": "Services" },
       { "href": "/#contact", "label": "Contact" }
@@ -42,7 +42,7 @@
           { "href": "/modules", "label": "Modules" },
           { "href": "/demo", "label": "Demo", "primary": true },
           { "href": "/demo-loader", "label": "Build demo" },
-          { "href": "/deck", "label": "Walkthrough" }
+          { "href": "/demo-loader", "label": "Walkthrough" }
         ]
       },
       {

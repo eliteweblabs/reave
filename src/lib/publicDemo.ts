@@ -1,5 +1,5 @@
 /**
- * Public demo entry points — walkthrough (/deck) and optional live sandbox install.
+ * Public demo entry points — demo loader and optional live sandbox install.
  */
 import { normalizePublicUrl } from './publicUrl';
 import { serverEnv } from './serverEnv';
@@ -44,7 +44,7 @@ export type PublicDemoOptions = {
 /** Resolved demo paths for marketing pages. */
 export function getPublicDemoOptions(): PublicDemoOptions {
   return {
-    walkthroughHref: '/deck',
+    walkthroughHref: '/demo-loader',
     adminUrl: getPublicDemoAdminUrl(),
     portalUrl: getPublicDemoPortalUrl(),
     scheduleHref: '/schedule',

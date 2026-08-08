@@ -102,7 +102,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/pricing',
       '/modules',
       '/demo',
-      '/deck',
+      '/demo-loader',
       '/about',
       '/services',
       '/privacy',
