@@ -270,37 +270,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 <script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <script>
-  /** True for iPhone/iPod and iPadOS (desktop UA + touch). Desktop Mac overscroll must not run the pin. */
-  function isAppleTouchDevice() {
-    const ua = navigator.userAgent || "";
-    if (/iPad|iPhone|iPod/.test(ua)) return true;
-    // iPadOS 13+ reports as Macintosh with touch
-    return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-  }
-
-  /** Pin public headers to the visual viewport top during iOS overscroll bounce only. */
-  function bindAppHeaderViewportPin() {
-    if (!isAppleTouchDevice()) return;
-    if (document.documentElement.dataset.appHeaderVvPin === "1") return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    document.documentElement.dataset.appHeaderVvPin = "1";
-
-    const sync = () => {
-      const offsetTop = window.visualViewport?.offsetTop ?? 0;
-      // Negative offsetTop during iOS top rubber-band pulls fixed chrome under the status bar.
-      document.documentElement.style.setProperty(
-        "--app-header-vv-top",
-        `${Math.max(0, offsetTop)}px`,
-      );
-    };
-
-    vv.addEventListener("scroll", sync, { passive: true });
-    vv.addEventListener("resize", sync, { passive: true });
-    window.addEventListener("scroll", sync, { passive: true });
-    sync();
-  }
-
   /** iOS can report 0 for env(safe-area-inset-top) on fixed shells — probe and pin px when needed. */
   function syncAppHeaderSafeArea() {
     const probe = document.createElement("div");
@@ -342,11 +311,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   syncAppHeaderSafeArea();
-  bindAppHeaderViewportPin();
   bindTopbarHeightObserver();
   document.addEventListener("astro:page-load", () => {
     syncAppHeaderSafeArea();
-    bindAppHeaderViewportPin();
     bindTopbarHeightObserver();
     syncTopbarMeasuredHeight();
   });
@@ -401,10 +368,10 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public/marketing headers are fixed. On iOS only, JS syncs --app-header-vv-top
-   * from visualViewport so rubber-band overscroll does not pull layout-fixed
-   * chrome under the status bar (without blocking native overscroll / PTR).
-   * Desktop leaves top at 0 — the pin would otherwise shove the bar on overscroll.
+   * Public/marketing headers are fixed at the layout viewport top. Do not sync
+   * visualViewport.offsetTop into `top` — that shove is what clipped the bar
+   * during Safari/macOS rubber-band overscroll. Layout html uses
+   * overscroll-behavior-y: none so the fixed chrome stays put.
    */
 
   .app-header {
@@ -427,10 +394,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
-  }
-
-  .app-header:not(.app-header--admin) {
-    top: max(0px, var(--app-header-vv-top, 0px));
   }
 
   .app-header--admin {

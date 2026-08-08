@@ -157,6 +157,11 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 		/*
+		 * Kill rubber-band overscroll so position:fixed header chrome does not
+		 * shear/clip under Safari (macOS + iOS). Matches admin shell.
+		 */
+		overscroll-behavior-y: none;
+		/*
 		 * Default every page to the dark theme (matches the homepage) so pages
 		 * never fall back to the browser's white default — which otherwise
 		 * causes white text (styled for a dark background) to render invisibly
