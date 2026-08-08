@@ -5,6 +5,7 @@ import type { APIContext } from 'astro';
 import {
   clampOtpTtlMinutes,
   clampRecentlyViewedDays,
+  coerceShareOpenChatAlerts,
   getAppSettings,
   saveAppSettings,
 } from '../../../lib/appSettingsStore';
@@ -17,6 +18,14 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+function parseOptionalBool(raw: unknown): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw === 'boolean') return raw;
+  if (raw === 1 || raw === '1' || raw === 'true' || raw === 'on') return true;
+  if (raw === 0 || raw === '0' || raw === 'false' || raw === 'off') return false;
+  return undefined;
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -43,7 +52,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const patch: { otpTtlMinutes?: number; recentlyViewedDays?: number } = {};
+  const patch: {
+    otpTtlMinutes?: number;
+    recentlyViewedDays?: number;
+    shareOpenChatAlerts?: boolean;
+  } = {};
   if (body.otpTtlMinutes !== undefined) {
     const n = Number(body.otpTtlMinutes);
     if (!Number.isFinite(n)) {
@@ -57,6 +70,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
       return json({ ok: false, error: 'recentlyViewedDays must be a number (1–365).' }, 400);
     }
     patch.recentlyViewedDays = clampRecentlyViewedDays(n, 7);
+  }
+  if (body.shareOpenChatAlerts !== undefined) {
+    const parsed = parseOptionalBool(body.shareOpenChatAlerts);
+    if (parsed === undefined) {
+      return json({ ok: false, error: 'shareOpenChatAlerts must be a boolean.' }, 400);
+    }
+    patch.shareOpenChatAlerts = coerceShareOpenChatAlerts(parsed, false);
   }
 
   if (Object.keys(patch).length === 0) {

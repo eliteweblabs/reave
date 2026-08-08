@@ -7147,6 +7147,7 @@ function renderAppSettingsPanel(settings, sleepData) {
   const recentlyViewedDays = Number.isFinite(Number(s.recentlyViewedDays))
     ? Number(s.recentlyViewedDays)
     : 7;
+  const shareOpenChatAlerts = s.shareOpenChatAlerts === true;
   const sleepEnabled = sleep.sleepModeEnabled !== false;
   const quietStart = sleep.quietStart || '23:00';
   const quietEnd = sleep.quietEnd || '07:00';
@@ -7194,6 +7195,21 @@ function renderAppSettingsPanel(settings, sleepData) {
               `</div>` +
             `</div>` +
           `</section>` +
+          `<section class="prof-section">` +
+            `<div class="prof-section-copy">` +
+              `<h2 class="prof-title prof-title--section">Portal opens</h2>` +
+              `<p class="prof-subtitle">When a client first opens a tracked portal or share link, optionally open a chat alert so you can follow up while interest is warm.</p>` +
+            `</div>` +
+            `<div class="prof-section-fields">` +
+              `<div class="prof-field">` +
+                `<label class="prof-check-row">` +
+                  `<input id="settings-share-open-chat-alerts" name="shareOpenChatAlerts" type="checkbox" value="1"${shareOpenChatAlerts ? ' checked' : ''} />` +
+                  `<span>Open a chat alert suggesting follow-up</span>` +
+                `</label>` +
+                `<span class="prof-hint">Off by default. First opens still count for Recently Viewed; this only controls the chat + push.</span>` +
+              `</div>` +
+            `</div>` +
+          `</section>` +
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
           `<section class="prof-section">` +
@@ -7227,6 +7243,7 @@ function renderAppSettingsPanel(settings, sleepData) {
 
 function bindAppSettingsForm(root) {
   const alertEl = root.querySelector('#app-settings-alert');
+  const appForm = root.querySelector('#app-settings-form');
   const otpBind = bindAutosaveForm(root, {
     formSelector: '#app-settings-form',
     alertEl,
@@ -7244,12 +7261,15 @@ function bindAppSettingsForm(root) {
       return defaultFieldValidator(el);
     },
     async save(payload) {
+      const shareOpenChatAlerts =
+        appForm?.querySelector('#settings-share-open-chat-alerts')?.checked === true;
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           otpTtlMinutes: Number(payload.otpTtlMinutes),
           recentlyViewedDays: Number(payload.recentlyViewedDays),
+          shareOpenChatAlerts,
         }),
       });
       const json = await res.json().catch(() => ({}));

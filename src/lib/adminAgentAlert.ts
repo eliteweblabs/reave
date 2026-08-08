@@ -3,6 +3,7 @@
  */
 
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
+import { getShareOpenChatAlerts } from './appSettingsStore';
 import { truncateChatTitle } from './chatTypes';
 import {
   bestWorkDisplayName,
@@ -405,6 +406,10 @@ export async function notifyAdminAgentOfShareOpen(opts: {
   engagementId: string;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
+  if (!(await getShareOpenChatAlerts())) {
+    log.info('share-open chat alert skipped (setting off)');
+    return;
+  }
 
   const message = [
     `👀 Client opened ${opts.kind}`,
