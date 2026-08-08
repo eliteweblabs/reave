@@ -87,18 +87,24 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ---
 
-### Website Performance
-- {lighthouse mobile/desktop scores OR "N/A — site password-protected / API unavailable"}
+### Performance
+- Performance score: {mobile} / {desktop} (Lighthouse) OR "N/A — site password-protected / API unavailable"
 - {FCP, LCP, specific issues if from lighthouse}
 - {Platform bloat, render-blocking, JS/CSS notes if observable}
 
+### Accessibility
+- Accessibility score: {0–100 from lighthouse}
+- {Contrast, labels, tap targets, other issues}
+
+### Best Practices
+- Best Practices score: {0–100 from lighthouse}
+- {Console errors, mixed content, deprecated APIs, HTTPS issues}
+
 ### SEO
+- SEO score: {0–100 from lighthouse}
 - Meta description: {present/missing/empty}
 - Page title: {value} — {local keyword gap}
 - {Structured data, sitemap, indexability}
-
-### Accessibility
-- {Scores or issues from lighthouse / manual fetch}
 
 ### UX & UI (Playwright)
 - {Nav menu, JS console errors, overflow, tap targets, CTA/form issues from playwright_audit}
@@ -133,12 +139,20 @@ Write one bullet per channel so the client portal report card can grade each row
 
 ---
 
+## Opportunities
+Write 3–6 **Problem → Solution** pairs the client portal can promote as service ideas (plain language, not jargon):
+- Problem: {what’s broken for the customer} → Solution: {service / fix we can sell}
+- Problem: {e.g. mobile speed score 42} → Solution: {Performance pass / rebuild}
+- Problem: {e.g. no Apple Business Connect} → Solution: {Apple Maps listing setup}
+
 ## Action Items
 - [ ] Reach out to {contact} about {primary opportunity}
 - [ ] {Specific fix 1}
 - [ ] {Specific fix 2}
 - …
 ```
+
+Keep the four Lighthouse categories as **separate** `###` headings (Performance, Accessibility, Best Practices, SEO) — do not wrap them under a single “Website” section. Include numeric scores when `lighthouse_audit` returns them.
 
 **Minimum length:** Aim for **1,500+ characters** when the website is publicly crawlable. Stubs under ~800 characters mean you skipped tools.
 

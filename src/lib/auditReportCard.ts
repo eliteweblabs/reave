@@ -5,9 +5,12 @@
 
 export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
+/** Lighthouse’s four categories first, then presence / infra rows. */
 export type ReportCardCategoryId =
-  | 'website'
-  | 'search'
+  | 'performance'
+  | 'accessibility'
+  | 'best_practices'
+  | 'seo'
   | 'security'
   | 'email'
   | 'domain'
@@ -31,6 +34,17 @@ export interface ReportCardCategory {
   unavailable?: boolean;
 }
 
+/** Client-facing service opportunity: problem → solution. */
+export interface ReportCardIdea {
+  id: string;
+  categoryId: ReportCardCategoryId | 'general';
+  categoryLabel: string;
+  problem: string;
+  solution: string;
+  /** Lower = show first (weaker grades / clearer opportunities). */
+  priority: number;
+}
+
 export interface AuditReportCard {
   isAudit: boolean;
   /** Stub “in progress” Siri project — show waiting state, not grades. */
@@ -39,6 +53,8 @@ export interface AuditReportCard {
   website?: string;
   overall: LetterGrade | null;
   categories: ReportCardCategory[];
+  /** Promoted service opportunities (problem → solution). */
+  ideas: ReportCardIdea[];
   /** Checkbox action items from the audit body. */
   actionItems: string[];
   /** Suggested letter after recommended work (optimistic, for graphics). */
@@ -56,8 +72,10 @@ const CATEGORY_META: {
   id: ReportCardCategoryId;
   label: string;
 }[] = [
-  { id: 'website', label: 'Website' },
-  { id: 'search', label: 'Search' },
+  { id: 'performance', label: 'Performance' },
+  { id: 'accessibility', label: 'Accessibility' },
+  { id: 'best_practices', label: 'Best Practices' },
+  { id: 'seo', label: 'SEO' },
   { id: 'security', label: 'Security' },
   { id: 'email', label: 'Email' },
   { id: 'domain', label: 'Domain' },
@@ -74,6 +92,14 @@ const GRADE_SCORE: Record<LetterGrade, number> = {
   C: 72,
   D: 62,
   F: 40,
+};
+
+const GRADE_RANK: Record<LetterGrade, number> = {
+  A: 5,
+  B: 4,
+  C: 3,
+  D: 2,
+  F: 1,
 };
 
 export function scoreToGrade(score: number | null | undefined): LetterGrade | null {
@@ -134,6 +160,26 @@ function extractSection(body: string, heading: RegExp): string {
   return m?.[1]?.trim() ?? '';
 }
 
+function findNumber(text: string, patterns: RegExp[]): number | null {
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (!m) continue;
+    const n = Number(m[1]);
+    if (!Number.isNaN(n) && n >= 0 && n <= 100) return n;
+  }
+  return null;
+}
+
+function findLetterGrade(text: string): LetterGrade | null {
+  const m = text.match(
+    /\b(?:grade|ssl(?:\s*grade)?|security(?:\s*grade)?)\s*[:\-–]?\s*([ABCDF])\b/i,
+  );
+  if (m) return m[1].toUpperCase() as LetterGrade;
+  const bare = text.match(/\bGrade\s+([ABCDF])\b/i);
+  if (bare) return bare[1].toUpperCase() as LetterGrade;
+  return null;
+}
+
 /** Prefer explicit mobile/desktop performance scores; average when both exist. */
 function extractPerformanceScore(text: string): number | null {
   const mobile = findNumber(text, [
@@ -155,24 +201,11 @@ function extractPerformanceScore(text: string): number | null {
   );
 }
 
-function findNumber(text: string, patterns: RegExp[]): number | null {
-  for (const re of patterns) {
-    const m = text.match(re);
-    if (!m) continue;
-    const n = Number(m[1]);
-    if (!Number.isNaN(n) && n >= 0 && n <= 100) return n;
-  }
-  return null;
-}
-
-function findLetterGrade(text: string): LetterGrade | null {
-  const m = text.match(
-    /\b(?:grade|ssl(?:\s*grade)?|security(?:\s*grade)?)\s*[:\-–]?\s*([ABCDF])\b/i,
-  );
-  if (m) return m[1].toUpperCase() as LetterGrade;
-  const bare = text.match(/\bGrade\s+([ABCDF])\b/i);
-  if (bare) return bare[1].toUpperCase() as LetterGrade;
-  return null;
+function extractNamedScore(text: string, names: RegExp): number | null {
+  return findNumber(text, [
+    new RegExp(`(?:${names.source})(?:\\s*score)?\\s*[:\\-–]?\\s*(\\d{1,3})`, 'i'),
+    new RegExp(`(?:${names.source})[^.\\n]{0,40}?(\\d{1,3})\\s*\\/\\s*100`, 'i'),
+  ]);
 }
 
 type PresenceSignal = {
@@ -380,6 +413,297 @@ function extractWebsiteLine(body: string): string | undefined {
   return stripMd(m[1]).slice(0, 120);
 }
 
+/** Explicit Problem/Solution pairs authored in the audit markdown. */
+function extractAuthoredIdeas(body: string): ReportCardIdea[] {
+  const section = extractSection(body, /Opportunities|Ideas|Recommended (?:Work|Fixes)|Services/);
+  const source = section || body;
+  const lines = source.split('\n').map((l) => stripMd(l)).filter(Boolean);
+  const ideas: ReportCardIdea[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const paired = line.match(
+      /^(?:problem|issue)\s*[:\-–]\s*(.+?)\s*(?:→|->|\||;)\s*(?:solution|fix|offer)\s*[:\-–]?\s*(.+)$/i,
+    );
+    if (paired) {
+      ideas.push({
+        id: `authored-${ideas.length}`,
+        categoryId: 'general',
+        categoryLabel: 'Opportunity',
+        problem: paired[1].trim(),
+        solution: paired[2].trim(),
+        priority: 1 + ideas.length,
+      });
+      continue;
+    }
+
+    const problemOnly = line.match(/^(?:problem|issue)\s*[:\-–]\s*(.+)$/i);
+    if (problemOnly) {
+      const next = lines[i + 1] || '';
+      const solutionOnly = next.match(/^(?:solution|fix|offer)\s*[:\-–]\s*(.+)$/i);
+      if (solutionOnly) {
+        ideas.push({
+          id: `authored-${ideas.length}`,
+          categoryId: 'general',
+          categoryLabel: 'Opportunity',
+          problem: problemOnly[1].trim(),
+          solution: solutionOnly[1].trim(),
+          priority: 1 + ideas.length,
+        });
+        i += 1;
+      }
+    }
+  }
+
+  return ideas;
+}
+
+type IdeaTemplate = {
+  id: string;
+  categoryId: ReportCardCategoryId;
+  categoryLabel: string;
+  /** Trigger when grade rank is at or below this (F=1 … A=5). */
+  maxRank: number;
+  problem: (cat: ReportCardCategory) => string;
+  solution: string;
+};
+
+const IDEA_TEMPLATES: IdeaTemplate[] = [
+  {
+    id: 'perf-speed',
+    categoryId: 'performance',
+    categoryLabel: 'Performance',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.score != null
+        ? `The site scores ${cat.score}/100 on speed — visitors on phones will feel the lag.`
+        : 'The site feels slow, especially on phones.',
+    solution: 'Performance pass: trim heavy scripts, optimize images, and tighten hosting so pages open fast.',
+  },
+  {
+    id: 'a11y-access',
+    categoryId: 'accessibility',
+    categoryLabel: 'Accessibility',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.score != null
+        ? `Accessibility scores ${cat.score}/100 — some customers will struggle to use the site.`
+        : 'Parts of the site are hard for some visitors to use.',
+    solution:
+      'Accessibility cleanup: contrast, labels, tap targets, and keyboard-friendly navigation.',
+  },
+  {
+    id: 'bp-hygiene',
+    categoryId: 'best_practices',
+    categoryLabel: 'Best Practices',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.score != null
+        ? `Best Practices scores ${cat.score}/100 — browsers are flagging quality issues.`
+        : 'The site is missing modern quality / browser best-practice checks.',
+    solution: 'Technical hygiene pass: console errors, deprecated APIs, and secure asset loading.',
+  },
+  {
+    id: 'seo-findable',
+    categoryId: 'seo',
+    categoryLabel: 'SEO',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.score != null
+        ? `SEO scores ${cat.score}/100 — the site is harder to find in Google than it should be.`
+        : 'Search visibility is weaker than it should be for a local business.',
+    solution:
+      'Local SEO package: titles, meta descriptions, schema, and Google Business alignment.',
+  },
+  {
+    id: 'security-harden',
+    categoryId: 'security',
+    categoryLabel: 'Security',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.grade
+        ? `Website security grade is ${cat.grade}.`
+        : 'Security protections on the site look incomplete.',
+    solution: 'SSL & security hardening: certificate health plus missing protection headers.',
+  },
+  {
+    id: 'email-auth',
+    categoryId: 'email',
+    categoryLabel: 'Email',
+    maxRank: 3,
+    problem: () =>
+      'Email authentication (SPF / DKIM / DMARC) has gaps — messages can look spoofed or land in spam.',
+    solution: 'Email authentication setup so customer and business mail deliver reliably.',
+  },
+  {
+    id: 'domain-dns',
+    categoryId: 'domain',
+    categoryLabel: 'Domain',
+    maxRank: 2,
+    problem: () => 'Domain or DNS looks unstable or misconfigured.',
+    solution: 'DNS cleanup and monitoring so the site and email keep resolving correctly.',
+  },
+  {
+    id: 'gbp',
+    categoryId: 'google_business',
+    categoryLabel: 'Google Business',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.grade === 'F'
+        ? 'No solid Google Business Profile showed up — many local customers search Maps first.'
+        : 'Google Business Profile needs attention (hours, photos, or claim status).',
+    solution: 'Google Business Profile claim + optimization so Maps and local search work for you.',
+  },
+  {
+    id: 'apple',
+    categoryId: 'apple_business',
+    categoryLabel: 'Apple Business',
+    maxRank: 3,
+    problem: (cat) =>
+      cat.grade === 'F'
+        ? 'No Apple Business Connect / Apple Maps listing showed up.'
+        : 'Apple Maps listing looks incomplete or unclaimed.',
+    solution: 'Apple Business Connect setup so iPhone users can find you in Maps.',
+  },
+  {
+    id: 'social',
+    categoryId: 'social',
+    categoryLabel: 'Social',
+    maxRank: 3,
+    problem: () => 'Social presence is quiet, missing, or inconsistent with the website.',
+    solution: 'Social setup and a simple posting cadence so the brand stays visible.',
+  },
+  {
+    id: 'reviews',
+    categoryId: 'reviews',
+    categoryLabel: 'Reviews',
+    maxRank: 3,
+    problem: () => 'Reviews aren’t doing enough work for the business yet.',
+    solution: 'Review generation and reputation monitoring across Google / Yelp / key sites.',
+  },
+  {
+    id: 'listings',
+    categoryId: 'presence',
+    categoryLabel: 'Listings',
+    maxRank: 3,
+    problem: () => 'Directory listings are thin, inconsistent, or missing.',
+    solution: 'Listings / citations cleanup so name, address, and phone match everywhere.',
+  },
+];
+
+function buildIdeas(
+  categories: ReportCardCategory[],
+  body: string,
+  actionItems: string[],
+): ReportCardIdea[] {
+  const authored = extractAuthoredIdeas(body);
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const derived: ReportCardIdea[] = [];
+
+  for (const tmpl of IDEA_TEMPLATES) {
+    const cat = byId.get(tmpl.categoryId);
+    if (!cat || cat.unavailable || !cat.grade) continue;
+    const rank = GRADE_RANK[cat.grade];
+    if (rank > tmpl.maxRank) continue;
+    derived.push({
+      id: tmpl.id,
+      categoryId: tmpl.categoryId,
+      categoryLabel: tmpl.categoryLabel,
+      problem: tmpl.problem(cat),
+      solution: tmpl.solution,
+      priority: rank + (cat.score != null && cat.score < 50 ? 0 : 0.5),
+    });
+  }
+
+  // Turn leftover action items into soft ideas when we still have room.
+  const covered = new Set(derived.map((d) => d.categoryId));
+  for (const item of actionItems) {
+    if (derived.length + authored.length >= 8) break;
+    const lower = item.toLowerCase();
+    if (/reach out|call|email the|follow up/.test(lower)) continue;
+    let categoryId: ReportCardCategoryId | 'general' = 'general';
+    let categoryLabel = 'Opportunity';
+    if (/performance|speed|slow|lighthouse/.test(lower)) {
+      categoryId = 'performance';
+      categoryLabel = 'Performance';
+    } else if (/accessib/.test(lower)) {
+      categoryId = 'accessibility';
+      categoryLabel = 'Accessibility';
+    } else if (/seo|meta|search|schema/.test(lower)) {
+      categoryId = 'seo';
+      categoryLabel = 'SEO';
+    } else if (/google business|gbp|maps/.test(lower)) {
+      categoryId = 'google_business';
+      categoryLabel = 'Google Business';
+    } else if (/apple/.test(lower)) {
+      categoryId = 'apple_business';
+      categoryLabel = 'Apple Business';
+    } else if (/ssl|security|header/.test(lower)) {
+      categoryId = 'security';
+      categoryLabel = 'Security';
+    } else if (/spf|dkim|dmarc|email/.test(lower)) {
+      categoryId = 'email';
+      categoryLabel = 'Email';
+    } else if (/review/.test(lower)) {
+      categoryId = 'reviews';
+      categoryLabel = 'Reviews';
+    } else if (/social|instagram|facebook/.test(lower)) {
+      categoryId = 'social';
+      categoryLabel = 'Social';
+    }
+    if (categoryId !== 'general' && covered.has(categoryId)) continue;
+    if (categoryId !== 'general') covered.add(categoryId);
+    derived.push({
+      id: `action-${derived.length}`,
+      categoryId,
+      categoryLabel,
+      problem: item,
+      solution: 'We can take this on as a focused service engagement.',
+      priority: 4.5,
+    });
+  }
+
+  const merged = [...authored, ...derived].sort((a, b) => a.priority - b.priority);
+  const seen = new Set<string>();
+  const out: ReportCardIdea[] = [];
+  for (const idea of merged) {
+    const key = `${idea.categoryId}:${idea.problem.slice(0, 40).toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(idea);
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
+function scoreCategory(
+  id: ReportCardCategoryId,
+  label: string,
+  score: number | null,
+  section: string,
+  fallbackGrade: LetterGrade | null,
+  emptySummary: string,
+): ReportCardCategory {
+  const grade = scoreToGrade(score) ?? fallbackGrade;
+  const why = clientFriendlyBullets(bulletsFromSection(section), 5);
+  return {
+    id,
+    label,
+    summary:
+      grade == null
+        ? section.trim()
+          ? `${label} notes on file`
+          : emptySummary
+        : score != null
+          ? `${label} score ${score}`
+          : `${label} check`,
+    grade,
+    score,
+    why: why.length ? why : [`No detailed ${label.toLowerCase()} notes in this audit.`],
+    unavailable: grade == null && !section.trim(),
+  };
+}
+
 export function isAuditJob(input: {
   tags?: string[] | null;
   source?: string | null;
@@ -392,7 +716,7 @@ export function isAuditJob(input: {
   const body = input.body || '';
   if (/siri audit in progress/i.test(body)) return true;
   if (AUDIT_HEADING_RE.test(body)) return true;
-  if (/###\s+Website Performance/i.test(body) && /###\s+SSL/i.test(body)) return true;
+  if (/###\s+(?:Website\s+)?Performance/i.test(body) && /###\s+SSL/i.test(body)) return true;
   if (/audit/i.test(input.title || '') && /###\s+/.test(body)) return true;
   return false;
 }
@@ -418,6 +742,7 @@ export function buildAuditReportCard(input: {
       title: input.title || 'Website audit',
       overall: null,
       categories: [],
+      ideas: [],
       actionItems: [],
       potential: null,
       overallScore: null,
@@ -426,55 +751,57 @@ export function buildAuditReportCard(input: {
   }
 
   const perfSection = extractSection(body, /Website Performance|Performance/);
-  const seoSection = extractSection(body, /SEO/);
+  const seoSection = extractSection(body, /SEO|Search/);
   const a11ySection = extractSection(body, /Accessibility/);
+  const bpSection = extractSection(body, /Best Practices|Best\-Practices/);
   const sslSection = extractSection(body, /SSL\s*&\s*Security|Security|SSL/);
   const dnsSection = extractSection(body, /DNS\s*&\s*Email|DNS|Email/);
   const contentSection = extractSection(body, /Content Issues|Content/);
   const presenceSection = extractSection(body, /Online Presence|Presence|Listings/);
   const uxSection = extractSection(body, /UX\s*&\s*UI|Playwright/);
 
-  const presenceLines = bulletsFromSection(presenceSection);
-  const allPresenceish = [
-    ...presenceLines,
-    ...bulletsFromSection(contentSection).filter((l) =>
-      /google|apple|yelp|facebook|instagram|review|listing/i.test(l),
-    ),
-  ];
+  // Lighthouse scores sometimes land in the Performance section even for other cats.
+  const scorePool = [perfSection, bpSection, a11ySection, seoSection, body].join('\n');
 
   const perfScore = extractPerformanceScore(perfSection);
-
+  const a11yScore =
+    extractNamedScore(a11ySection, /accessibility/) ??
+    extractNamedScore(scorePool, /accessibility/);
+  const bpScore =
+    extractNamedScore(bpSection, /best[-\s]?practices?/) ??
+    extractNamedScore(scorePool, /best[-\s]?practices?/);
   const seoScore =
-    findNumber(seoSection, [
-      /(?:seo(?:\s*score)?)\s*[:\-–]?\s*(\d{1,3})/i,
-      /(\d{1,3})\s*\/\s*100/,
-    ]) ?? null;
+    extractNamedScore(seoSection, /seo/) ?? extractNamedScore(scorePool, /seo/);
 
-  const a11yScore = findNumber(a11ySection, [
-    /(?:accessibility(?:\s*score)?)\s*[:\-–]?\s*(\d{1,3})/i,
-    /(\d{1,3})\s*\/\s*100/,
-  ]);
+  const seoFallback = (() => {
+    const lower = seoSection.toLowerCase();
+    if (!seoSection.trim()) return null;
+    if (/missing|empty|no meta|not index/.test(lower)) return 'D' as LetterGrade;
+    if (/present|good|optimized/.test(lower)) return 'B' as LetterGrade;
+    return 'C' as LetterGrade;
+  })();
 
-  const websiteScores = [perfScore, a11yScore].filter((n): n is number => n != null);
-  const websiteScore = websiteScores.length
-    ? Math.round(websiteScores.reduce((a, b) => a + b, 0) / websiteScores.length)
-    : null;
-  const websiteGrade = scoreToGrade(websiteScore);
-  const websiteWhy = clientFriendlyBullets([
-    ...bulletsFromSection(perfSection),
-    ...bulletsFromSection(a11ySection),
-    ...bulletsFromSection(uxSection),
-  ]);
+  const a11yFallback = (() => {
+    const lower = a11ySection.toLowerCase();
+    if (!a11ySection.trim()) return null;
+    if (/fail|contrast|missing label|tap target/.test(lower)) return 'D' as LetterGrade;
+    if (/pass|good|no major/.test(lower)) return 'B' as LetterGrade;
+    return 'C' as LetterGrade;
+  })();
 
-  const searchGrade =
-    scoreToGrade(seoScore) ??
-    (() => {
-      const lower = seoSection.toLowerCase();
-      if (!seoSection.trim()) return null;
-      if (/missing|empty|no meta|not index/.test(lower)) return 'D' as LetterGrade;
-      if (/present|good|optimized/.test(lower)) return 'B' as LetterGrade;
-      return 'C' as LetterGrade;
-    })();
+  const bpFallback = (() => {
+    const text = bpSection || '';
+    const lower = text.toLowerCase();
+    if (!text.trim()) {
+      // Infer lightly from UX / console notes when no dedicated section.
+      const ux = uxSection.toLowerCase();
+      if (/console error|mixed content|deprecated/.test(ux)) return 'D' as LetterGrade;
+      return null;
+    }
+    if (/fail|error|mixed content|deprecated/.test(lower)) return 'D' as LetterGrade;
+    if (/pass|good|solid/.test(lower)) return 'B' as LetterGrade;
+    return 'C' as LetterGrade;
+  })();
 
   const sslGrade = findLetterGrade(sslSection);
   const securityGrade =
@@ -491,6 +818,14 @@ export function buildAuditReportCard(input: {
   const email = emailGradeFromText(dnsSection);
   const domain = domainGradeFromText(dnsSection);
 
+  const presenceLines = bulletsFromSection(presenceSection);
+  const allPresenceish = [
+    ...presenceLines,
+    ...bulletsFromSection(contentSection).filter((l) =>
+      /google|apple|yelp|facebook|instagram|review|listing/i.test(l),
+    ),
+  ];
+
   const gbp = presenceSignal(allPresenceish, [
     /google\s*business/i,
     /\bgbp\b/i,
@@ -504,47 +839,37 @@ export function buildAuditReportCard(input: {
   const social = presenceSignal(allPresenceish, [
     /instagram|facebook|tiktok|linkedin|social/i,
   ]);
-  const reviews = presenceSignal(allPresenceish, [
-    /review|rating|stars?|yelp/i,
-  ]);
+  const reviews = presenceSignal(allPresenceish, [/review|rating|stars?|yelp/i]);
   const listings = presenceSignal(allPresenceish, [
     /yelp|bing\s*places|tripadvisor|directories|listings?/i,
   ]);
 
   const categories: ReportCardCategory[] = [
-    {
-      id: 'website',
-      label: 'Website',
-      summary:
-        websiteGrade == null
-          ? perfSection
-            ? 'Performance notes on file'
-            : 'Not scored in this audit'
-          : websiteScore != null
-            ? `Speed & experience score ${websiteScore}`
-            : 'Based on site checks',
-      grade: websiteGrade,
-      score: websiteScore,
-      why:
-        websiteWhy.length > 0
-          ? websiteWhy
-          : ['Website performance details were limited in this audit.'],
-      unavailable: websiteGrade == null && !perfSection,
-    },
-    {
-      id: 'search',
-      label: 'Search',
-      summary:
-        searchGrade == null
-          ? 'Not scored in this audit'
-          : seoScore != null
-            ? `SEO score ${seoScore}`
-            : 'How findable the site looks',
-      grade: searchGrade,
-      score: seoScore,
-      why: clientFriendlyBullets(bulletsFromSection(seoSection), 4),
-      unavailable: searchGrade == null && !seoSection,
-    },
+    scoreCategory(
+      'performance',
+      'Performance',
+      perfScore,
+      perfSection,
+      perfSection.trim() ? 'C' : null,
+      'Not scored in this audit',
+    ),
+    scoreCategory(
+      'accessibility',
+      'Accessibility',
+      a11yScore,
+      a11ySection,
+      a11yFallback,
+      'Not scored in this audit',
+    ),
+    scoreCategory(
+      'best_practices',
+      'Best Practices',
+      bpScore,
+      bpSection,
+      bpFallback,
+      'Not scored in this audit',
+    ),
+    scoreCategory('seo', 'SEO', seoScore, seoSection, seoFallback, 'Not scored in this audit'),
     {
       id: 'security',
       label: 'Security',
@@ -616,10 +941,10 @@ export function buildAuditReportCard(input: {
     },
   ];
 
-  // Prefer categories that actually have a grade for the overall average.
   const overall = averageGrade(categories.map((c) => c.grade));
   const actionItems = extractActionItems(body);
-  const potential = improveGrade(overall, actionItems.length >= 4 ? 2 : 1);
+  const ideas = buildIdeas(categories, body, actionItems);
+  const potential = improveGrade(overall, ideas.length >= 3 || actionItems.length >= 4 ? 2 : 1);
 
   return {
     isAudit: true,
@@ -628,6 +953,7 @@ export function buildAuditReportCard(input: {
     website: extractWebsiteLine(body),
     overall,
     categories,
+    ideas,
     actionItems,
     potential,
     overallScore: gradeToScore(overall),

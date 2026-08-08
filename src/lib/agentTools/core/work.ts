@@ -673,7 +673,7 @@ export const workModule: AgentToolModule = {
                   body: {
                     type: 'string',
                     description:
-                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run website audit tools, then write a full body (Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, Action Items; 1,200+ quick / 1,500+ full chars). Online Presence must include separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings. Do not create short prospect stubs.',
+                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run website audit tools, then write a full body with separate headings for Performance, Accessibility, Best Practices, SEO (the four Lighthouse categories — not wrapped under Website), plus SSL, Broken Links, Content, DNS, Online Presence, Opportunities (Problem → Solution pairs), and Action Items; 1,200+ quick / 1,500+ full chars. Online Presence must include separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings. Do not create short prospect stubs.',
                   },
                   status: {
                     type: 'string',

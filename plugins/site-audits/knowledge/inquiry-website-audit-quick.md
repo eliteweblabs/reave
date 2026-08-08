@@ -80,14 +80,17 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 
 ---
 
-### Website Performance
-- {lighthouse mobile/desktop scores OR "N/A — password-protected / API unavailable"}
-
-### SEO
-- Meta description, page title, local keyword gaps
+### Performance
+- Performance score: {mobile} / {desktop} OR "N/A — password-protected / API unavailable"
 
 ### Accessibility
-- {Scores or issues from lighthouse}
+- Accessibility notes from fetch_url / any available score (quick tier may not run full Lighthouse a11y)
+
+### Best Practices
+- Best Practices notes if observable (HTTPS, mixed content, console/platform issues) — or "Not scored — quick tier"
+
+### SEO
+- SEO score if available; otherwise meta description, page title, local keyword gaps
 
 ### SSL & Security
 - SSL validity, expiry, missing headers
@@ -108,11 +111,17 @@ Write one bullet per channel so the client portal report card can grade each row
 
 ---
 
+## Opportunities
+Write 3–5 **Problem → Solution** pairs (plain language) for the client portal Ideas section:
+- Problem: {what’s broken} → Solution: {service / fix we can sell}
+
 ## Action Items
 - [ ] Reach out to {contact} about {primary opportunity}
 - [ ] {Specific fix 1}
 - [ ] {Specific fix 2}
 ```
+
+Keep Performance / Accessibility / Best Practices / SEO as **separate** headings (the four Lighthouse categories) — do not collapse them under “Website”.
 
 **Minimum length:** ~1,200+ characters when the website is publicly crawlable.
 
