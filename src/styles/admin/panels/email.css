@@ -73,10 +73,9 @@
   z-index: 2;
   padding: 0.15rem;
   box-sizing: border-box;
-  /* Solid --bg under the track tint so translucent track alone can't let
-     scrollable labels (Junk, etc.) bleed through Draft/Sent. */
-  background-color: var(--bg);
-  background-image: linear-gradient(var(--btn-group-track-bg), var(--btn-group-track-bg));
+  /* Opaque, slightly darker than the scroll track so Receipts/etc. can't
+     wash through under the pinned Draft/Sent tabs. */
+  background: color-mix(in srgb, var(--bg), var(--fg) 8%);
   border: none;
   border-radius: 0 8px 8px 0;
   pointer-events: none;
@@ -88,10 +87,11 @@
   top: 0;
   bottom: 0;
   width: var(--filter-tab-fade-w);
-  /* Opaque fade: solid bg underneath, track tint on top */
-  background-image:
-    linear-gradient(to right, transparent 0%, var(--btn-group-track-bg) 100%),
-    linear-gradient(to right, transparent 0%, var(--bg) 100%);
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--bg), var(--fg) 8%) 100%
+  );
   pointer-events: none;
 }
 .em-filter-tabs-fixed .em-filter-tab {
