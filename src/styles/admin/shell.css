@@ -771,8 +771,8 @@ select,
 /* Items near the right edge: right-align the tooltip */
 [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
 .topbar-deploy-dot[data-tooltip]::after {
-  white-space: normal;
-  max-width: min(72vw, 16rem);
+  white-space: pre-line;
+  max-width: min(72vw, 18rem);
   text-align: left;
   line-height: 1.35;
 }

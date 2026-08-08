@@ -35,6 +35,7 @@ export async function GET(_context: APIContext): Promise<Response> {
       tone: deployIndicatorTone(deploy.state),
       tooltip: deployTooltip(deploy),
       deployedShort: deploy.deployed_short,
+      deployedAt: deploy.deployed_at,
       upToDate: deploy.up_to_date,
       chatLocked,
       chatLockMessage: chatLocked ? chatDeployLockMessage(deploy) : null,

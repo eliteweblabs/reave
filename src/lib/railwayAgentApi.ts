@@ -412,7 +412,7 @@ export async function railwayListDeployments(opts: {
       }>;
     } | null;
   }>({
-    query: `query deps($input: JSON!, $first: Int) {
+    query: `query deps($input: DeploymentListInput!, $first: Int) {
       deployments(input: $input, first: $first) {
         edges {
           node {

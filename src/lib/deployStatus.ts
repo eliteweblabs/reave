@@ -120,13 +120,30 @@ function commitPushedAt(commit: DeployCommitInfo | null | undefined): string | n
   return commit.pushed_at || commit.date || null;
 }
 
+/** Insert "· 3m ago" after the first em dash segment so age is visible in the tooltip. */
+function withInlineAge(text: string, iso: string | null | undefined): string {
+  const age = relativeAge(iso);
+  if (!age) return text;
+  // "Live — abc1234 — msg" → "Live — abc1234 · 3m ago — msg"
+  const parts = text.split(' — ');
+  if (parts.length >= 2) {
+    parts[1] = `${parts[1]} · ${age}`;
+    return parts.join(' — ');
+  }
+  return `${text} · ${age}`;
+}
+
 function appendRelativeDeployLine(
   text: string,
   iso: string | null | undefined,
   label: 'Deployed' | 'Started' = 'Deployed',
 ): string {
   const age = relativeAge(iso);
-  return age ? `${text}\n${label} ${age}` : text;
+  if (!age) return text;
+  const eastern = formatDeployDateEastern(iso);
+  const detail = eastern ? `${label} ${age} (${eastern})` : `${label} ${age}`;
+  const head = label === 'Deployed' ? withInlineAge(text, iso) : text;
+  return `${head}\n${detail}`;
 }
 
 function noteStateTransition(state: DeployState): void {
