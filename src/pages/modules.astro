@@ -2,10 +2,12 @@
 import Layout from "../layouts/Layout.astro";
 import FeaturesPluginsSection from "../components/features/FeaturesPluginsSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { CORE_PLATFORM_MODULES } from "../lib/platformPlugins";
+import { listDemoLoaderIncludedCards } from "../lib/demoLoaderCatalog";
 import { ArrowRight } from "lucide-astro";
 
 const company = await getCompanyConfig(Astro.request);
+/** Same source as GET /api/demo/loader → `included` (always-on marketing cards). */
+const coreModules = listDemoLoaderIncludedCards();
 ---
 
 <Layout
@@ -25,8 +27,8 @@ const company = await getCompanyConfig(Astro.request);
         <p class="modules-core-label">Included in the core OS (not add-ons)</p>
         <ul class="modules-core-list">
           {
-            CORE_PLATFORM_MODULES.map((name) => (
-              <li>{name}</li>
+            coreModules.map((card) => (
+              <li title={card.blurb}>{card.label}</li>
             ))
           }
         </ul>

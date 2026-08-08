@@ -186,14 +186,3 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     ],
   },
 ];
-
-/** Core OS capabilities included in every install — not opt-in plugins. */
-export const CORE_PLATFORM_MODULES = [
-  'Client portal',
-  'Billing & invoicing',
-  'Scheduling & booking',
-  'Contacts & CRM',
-  'Smart inbox',
-  'AI admin agent',
-  'Media library',
-];
