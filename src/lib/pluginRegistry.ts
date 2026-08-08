@@ -29,6 +29,7 @@ import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
 import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
 import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
+import { wordpressContentPlugin } from '../../plugins/wordpress-content/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -52,6 +53,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   waybackMachinePlugin,
   contentManagementPlugin,
   stockPhotosPlugin,
+  wordpressContentPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -152,6 +154,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['content-management'];
     case 'stock-photos':
       return ['stock-photos'];
+    case 'wordpress-content':
+      return ['wordpress-content'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':

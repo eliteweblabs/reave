@@ -39,6 +39,7 @@ const FEATURE_LABELS: Record<string, string> = {
   wayback_machine: 'Wayback Machine',
   content_management: 'Website content management',
   stock_photos: 'Pexels stock photos',
+  wordpress_content: 'WordPress content plugin',
 };
 
 const FEATURE_IDS = Object.keys(FEATURE_LABELS);

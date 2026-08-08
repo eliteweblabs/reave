@@ -52,7 +52,7 @@ Always **read before write**. For long pages, use `write_github_file` with `appe
 
 ## WordPress on Kinsta
 
-This playbook is for **this Reave/Astro app repo**. Kinsta WordPress client sites are edited in wp-admin; you can `clear_kinsta_cache` after they publish (`dev_infra` + Kinsta env).
+For **WordPress client sites** with the companion plugin (`wordpress_content`), use that module’s playbook and tools — not this Astro path. Without that feature, clients edit in wp-admin; you can still `clear_kinsta_cache` after they publish (`dev_infra` + Kinsta env).
 
 ## Rules
 

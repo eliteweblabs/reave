@@ -32,6 +32,7 @@ Generated: 2026-08-05T00:20:53.084Z
 - [ ] **024** — Wayback Machine (`wayback_machine`)
 - [ ] **025** — Website content management (`content_management`)
 - [ ] **026** — Pexels stock photos (`stock_photos`)
+- [ ] **027** — WordPress content plugin (`wordpress_content`)
 
 ## Step 1 — App core
 

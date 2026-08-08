@@ -46,6 +46,7 @@ const SYSTEM_NODES = [
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews inbox', sub: 'Google sync · response to-do (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
   { id: 'content_mgmt', title: 'Content management', sub: 'agent edits site · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
+  { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
 
   // External APIs
@@ -134,6 +135,9 @@ const SYSTEM_EDGES = [
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
   { from: 'content_mgmt', to: 'github', label: 'write_github_file', dashed: true },
   { from: 'content_mgmt', to: 'astro', label: 'config/sites · src/pages', dashed: true },
+  { from: 'dev', to: 'wp_content', label: 'update WP content', dashed: true },
+  { from: 'astro', to: 'wp_content', label: 'companion plugin API', dashed: true },
+  { from: 'wp_content', to: 'kinsta_api', label: 'clear cache after publish', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site · engagement' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
@@ -142,7 +146,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'content_mgmt', 'visit_planner'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'content_mgmt', 'wp_content', 'visit_planner'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_places', 'pexels'] },
 ];
 

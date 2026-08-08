@@ -42,6 +42,7 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 024 | `wayback_machine` | Wayback Machine — browse archived website snapshots |
 | 025 | `content_management` | Website content management — update your site through the agent |
 | 026 | `stock_photos` | Pexels stock photos — royalty-free search |
+| 027 | `wordpress_content` | WordPress content plugin — agent updates posts/pages on WordPress |
 
 ## Default suite (no URL)
 

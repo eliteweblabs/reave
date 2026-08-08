@@ -37,6 +37,7 @@ const FEATURE_IDS_LIST = [
   'wayback_machine',
   'content_management',
   'stock_photos',
+  'wordpress_content',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

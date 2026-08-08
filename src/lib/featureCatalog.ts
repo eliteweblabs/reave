@@ -31,6 +31,7 @@ export const FEATURE_IDS = [
   'wayback_machine',
   'content_management',
   'stock_photos',
+  'wordpress_content',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -63,6 +64,8 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   wayback_machine: 'Wayback Machine — browse archived website snapshots (Internet Archive)',
   content_management: 'Website content management — update your site through the agent, no CMS',
   stock_photos: 'Pexels stock photos — royalty-free search for pages, decks, and newsletters',
+  wordpress_content:
+    'WordPress content plugin — agent updates posts, pages, and media on a WordPress site',
 };
 
 export const CORE_FEATURE_NOTE =

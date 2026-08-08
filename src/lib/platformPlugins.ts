@@ -162,6 +162,19 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     ],
   },
   {
+    id: 'wordpress-content',
+    title: 'WordPress Content Plugin',
+    teaser:
+      'Keep the WordPress site — let the agent update posts, pages, and media through a dedicated plugin.',
+    body: 'For installs that already run on WordPress: a companion plugin exposes content APIs the Reave agent can call from chat. Owners ask for a headline change or a new page draft without logging into wp-admin. Opt-in add-on — not part of the core OS or Astro content-management path.',
+    bullets: [
+      'Companion WordPress plugin on the client site',
+      'Agent updates posts, pages, and media from admin chat',
+      'Works alongside Kinsta hosting tools (cache clear after publish)',
+      'Optional per install — separate from CMS-less Astro editing',
+    ],
+  },
+  {
     id: 'dev-infra',
     title: 'Dev & Deploy Infrastructure',
     teaser:
