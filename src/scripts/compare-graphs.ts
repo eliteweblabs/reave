@@ -259,7 +259,7 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement)
       id: "saas",
       title: "Box SaaS",
       color: PATH_COLORS.saas,
-      nodes: ["CRM", "QB", "Slack", "Cal", "Mail", "Sign", "HR", "Ads", "Zoom", "Drive"],
+      nodes: ["CRM", "QB", "Slack", "Cal", "Mail", "Sign", "HR", "Ads", "PM", "Drive"],
       hub: false,
     },
     {

@@ -11,14 +11,16 @@
  * <title> in the folder — no code change either way) is all it takes to add
  * or refresh an icon.
  *
- * Some brands here (Outlook, Teams, Slack, Salesforce, DocuSign) were pulled
- * from later Simple Icons releases after trademark takedown requests from
+ * Some brands here (Outlook, Slack, Salesforce, DocuSign) were pulled from
+ * later Simple Icons releases after trademark takedown requests from
  * Microsoft/Salesforce — see simple-icons/simple-icons#13503 and #11232. This
  * script pins to the last release that still shipped each one so the wall
  * keeps working instead of silently 404ing against the live CDN (which is
  * what the old inline-array + jsDelivr version of this page was doing).
  * Monday.com never had a Simple Icons entry, so it gets a small self-authored
  * monogram instead of vendoring an official logo file.
+ * Video-conferencing brands (Zoom, Teams, Meet, etc.) are intentionally
+ * omitted — this platform does not replace those tools.
  *
  * Prefix a filename with a two-digit number to control display order;
  * unprefixed files sort alphabetically after the numbered ones.
@@ -31,7 +33,7 @@ const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "l
 
 /** Current release for icons Simple Icons still ships. */
 const CURRENT = "16.27.1";
-/** Last release before Microsoft-family icons (Outlook, Teams) and DocuSign were pulled. */
+/** Last release before Microsoft-family icons (Outlook) and DocuSign were pulled. */
 const PRE_MS_REMOVAL = "12.0.0";
 /** Last release before the Salesforce-owned family (Slack, Salesforce, ...) and OpenAI were pulled. */
 const PRE_SALESFORCE_REMOVAL = "13.19.0";
@@ -47,8 +49,6 @@ const ICONS = [
   { slug: "openai", version: PRE_SALESFORCE_REMOVAL, file: "04-chatgpt.svg", name: "ChatGPT", color: "#412991" },
   { slug: "quickbooks", version: CURRENT, file: "05-quickbooks.svg", name: "QuickBooks", color: "#2CA01C" },
   { slug: "slack", version: PRE_SALESFORCE_REMOVAL, file: "06-slack.svg", name: "Slack", color: "#4A154B" },
-  { slug: "zoom", version: CURRENT, file: "07-zoom.svg", name: "Zoom", color: "#0B5CFF" },
-  { slug: "microsoftteams", version: PRE_MS_REMOVAL, file: "08-teams.svg", name: "Teams", color: "#6264A7" },
   { slug: "notion", version: CURRENT, file: "09-notion.svg", name: "Notion", color: "#FFFFFF" },
   { slug: "trello", version: CURRENT, file: "10-trello.svg", name: "Trello", color: "#0052CC" },
   { slug: "asana", version: CURRENT, file: "11-asana.svg", name: "Asana", color: "#F06A6A" },
