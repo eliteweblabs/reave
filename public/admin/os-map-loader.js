@@ -8845,6 +8845,9 @@ async function openEmailFromDeepLink(id) {
     pendingEmailDeepLinkId = id;
     return false;
   }
+  // Deep links (dashboard notifications, push, URL) must show the target in the
+  // sidebar — clear any leftover search so the list isn't filtered away from it.
+  emailState.search = '';
   applyEmailInboxFilterForEvent(ev);
   openEmailEvent(id);
   return true;
