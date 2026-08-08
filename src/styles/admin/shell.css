@@ -383,6 +383,8 @@ select,
  * Tone modifiers set --notice-accent (rgb triplet); wash strength is shared.
  */
 .admin-setup-alerts {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
   /* Cancel header inline pad so cards align with dashboard (1rem sides). */
   margin-left: calc(-1 * var(--app-header-inline-pad, 0.5rem));

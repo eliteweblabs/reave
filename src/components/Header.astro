@@ -75,13 +75,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  {!adminShell && (
-    <div class="app-header-scrim" aria-hidden="true">
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-    </div>
-  )}
+  <div class="app-header-scrim" aria-hidden="true">
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+  </div>
 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
@@ -419,12 +417,12 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public headers are fixed and transparent, so page content scrolls under the
-   * logo and nav. The scrim blurs it out: stacked backdrop-filter layers with
-   * masks that ramp blur toward the top (radii compound across layers). Admin
-   * is excluded — its panes pad below the bar and notice cards live in-header.
+   * Fixed transparent headers let page content scroll under the logo and nav.
+   * The scrim blurs it out: stacked backdrop-filter layers with masks that ramp
+   * blur toward the top (radii compound across layers). Same treatment on public
+   * and admin — admin chrome (row, sleep toggle, notices) sits above via z-index.
    */
-  .app-header:not(.app-header--admin) > .app-header-scrim {
+  .app-header > .app-header-scrim {
     position: absolute;
     top: calc(-1 * env(safe-area-inset-top, 0px));
     left: calc(-1 * var(--app-header-inline-pad));
