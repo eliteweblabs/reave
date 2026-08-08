@@ -270,8 +270,17 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 <script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <script>
-  /** Pin public headers to the visual viewport top during iOS overscroll bounce. */
+  /** True for iPhone/iPod and iPadOS (desktop UA + touch). Desktop Mac overscroll must not run the pin. */
+  function isAppleTouchDevice() {
+    const ua = navigator.userAgent || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    // iPadOS 13+ reports as Macintosh with touch
+    return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  }
+
+  /** Pin public headers to the visual viewport top during iOS overscroll bounce only. */
   function bindAppHeaderViewportPin() {
+    if (!isAppleTouchDevice()) return;
     if (document.documentElement.dataset.appHeaderVvPin === "1") return;
     const vv = window.visualViewport;
     if (!vv) return;
@@ -392,10 +401,10 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public/marketing headers are fixed. iOS rubber-band overscroll moves
-   * layout-viewport-fixed chrome; --app-header-vv-top (synced from visualViewport
-   * above) keeps the bar pinned to the screen top without blocking native
-   * overscroll or pull-to-refresh.
+   * Public/marketing headers are fixed. On iOS only, JS syncs --app-header-vv-top
+   * from visualViewport so rubber-band overscroll does not pull layout-fixed
+   * chrome under the status bar (without blocking native overscroll / PTR).
+   * Desktop leaves top at 0 — the pin would otherwise shove the bar on overscroll.
    */
 
   .app-header {
