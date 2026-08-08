@@ -175,12 +175,14 @@
 .dash-event-btn:hover {
   background: var(--surface-hover-strong);
 }
+/* Secondary row under meeting title — pane chrome scale 4 (see tokens.css). */
 .schedule-detail-when-nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
-  padding: 0.35rem 0.35rem;
+  gap: 0.05rem;
+  min-height: var(--pane-chrome-scale-4, 1.625rem);
+  padding: 0 0.25rem;
   border-bottom: 1px solid var(--panel-border);
   flex: 0 0 auto;
 }
@@ -195,9 +197,10 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 0.88rem;
-  font-weight: 600;
-  line-height: 1.45;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--muted);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -208,11 +211,7 @@
 }
 @media (max-width: 639px) {
   .schedule-detail-when-nav {
-    padding: 0.3rem 0.2rem;
-  }
-  .schedule-detail-when-nav-btn {
-    width: 2.25rem;
-    height: 2.25rem;
+    padding: 0 0.15rem;
   }
   .schedule-detail-when-full {
     display: none;

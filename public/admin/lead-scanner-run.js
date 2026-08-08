@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch } from './shared.js?v=20260805j';
 import { postLower, postTitle } from './post-alias.js?v=20260805a';
-import { createPaneHeader } from './pane-header.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808d';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

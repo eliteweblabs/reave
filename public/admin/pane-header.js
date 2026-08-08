@@ -10,7 +10,7 @@
  * available via admin-ui.js for callers that only need the title row.
  */
 
-import { createPaneSubheader } from './admin-ui.js?v=20260808c';
+import { createPaneSubheader } from './admin-ui.js?v=20260808d';
 
 // Re-export so panels can import header chrome from this one module.
 
@@ -54,7 +54,10 @@ export function createPaneHeader(opts = {}) {
   const root = document.createElement('div');
   root.className = 'pane-header' + (stackClassName ? ` ${stackClassName}` : '');
   root.appendChild(header);
-  for (const node of secondaryNodes) root.appendChild(node);
+  for (const node of secondaryNodes) {
+    if (node instanceof HTMLElement) node.classList.add('pane-header-secondary');
+    root.appendChild(node);
+  }
   return { root, header, titleInput };
 }
 

@@ -76,6 +76,14 @@
    * drifts per-panel. Legacy --pane-topbar-tuck kept for non-header chrome.
    */
   --pane-header-clearance: 0.2rem;
+  /*
+   * Pane chrome cascade under the logo topbar (createPaneHeader):
+   * logo header = 8, title subheader = 6, secondary (e.g. date nav) = 4.
+   */
+  --pane-chrome-scale-8: var(--app-header-h, 3.25rem);
+  --pane-chrome-unit: calc(var(--pane-chrome-scale-8) / 8);
+  --pane-chrome-scale-6: calc(var(--pane-chrome-unit) * 6);
+  --pane-chrome-scale-4: calc(var(--pane-chrome-unit) * 4);
   /* Pull non-header mobile chrome up under the transparent admin top bar. */
   --pane-topbar-tuck: 0.85rem;
   --footer-nav-pill-h: var(--control-h);

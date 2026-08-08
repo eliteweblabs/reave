@@ -36,7 +36,7 @@ import {
   pullRefreshContentRoot,
   showCopyButtonFeedback,
 } from './admin-ui.js?v=20260808c';
-import { createPaneHeader } from './pane-header.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260807c';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';

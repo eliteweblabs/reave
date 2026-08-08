@@ -536,13 +536,35 @@ button.de-placeholder-action:active {
   min-width: 0;
   overflow: hidden;
 }
-/* createPaneHeader() stack — title row (+ optional secondary). See pane-header.js */
+/* createPaneHeader() stack — title row (+ optional secondary). See pane-header.js
+   Cascade: logo topbar = 8, .de-header = 6, .pane-header-secondary = 4. */
 .pane-header:not(.de-header) {
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
   min-width: 0;
   background: var(--bg);
+}
+.pane-header.de-header:not(.settings-subheader),
+.pane-header:not(.settings-subheader) > .de-header {
+  min-height: var(--pane-chrome-scale-6, 2.4375rem);
+}
+.pane-header .de-doc-name,
+.pane-header .de-header-title-input {
+  font-size: 0.9rem;
+}
+.pane-header-secondary {
+  flex: 0 0 auto;
+  min-height: var(--pane-chrome-scale-4, 1.625rem);
+  box-sizing: border-box;
+}
+.pane-header-secondary .ios-icon-btn {
+  width: calc(var(--pane-chrome-scale-4, 1.625rem) - 0.1rem);
+  height: calc(var(--pane-chrome-scale-4, 1.625rem) - 0.1rem);
+}
+.pane-header-secondary .ios-icon-btn svg {
+  width: 14px;
+  height: 14px;
 }
 @media (max-width: 639px) {
   /* settings-subheader keeps its own topbar padding-top — do not override. */
@@ -551,19 +573,24 @@ button.de-placeholder-action:active {
     flex-shrink: 0;
     background: var(--bg);
     gap: 0.3rem;
+    min-height: var(--pane-chrome-scale-6, 2.4375rem);
     padding:
-      0.35rem
+      0.2rem
       max(0.5rem, env(safe-area-inset-right, 0px))
-      0.25rem
+      0.15rem
       max(0.5rem, env(safe-area-inset-left, 0px));
   }
-  .pane-header.de-header .ios-icon-btn,
-  .pane-header > .de-header .ios-icon-btn {
-    width: 2.25rem;
-    height: 2.25rem;
+  .pane-header.de-header:not(.settings-subheader) .ios-icon-btn,
+  .pane-header:not(.settings-subheader) > .de-header .ios-icon-btn {
+    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
+    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
   }
   .pane-header .de-header-actions {
     gap: 0.15rem;
+  }
+  .pane-header .de-doc-name,
+  .pane-header .de-header-title-input {
+    font-size: 0.84rem;
   }
 }
 #email-panel .de-header {
