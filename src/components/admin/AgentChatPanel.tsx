@@ -37,6 +37,11 @@ import {
   type AgentHelperCommand,
 } from '../../lib/agentHelperCommands';
 import {
+  mentionsPresentInText,
+  type ChatMention,
+  type PeopleSearchResult,
+} from '../../lib/chatMentions';
+import {
   parseStoredChatContent,
   storedChatPlainText,
   userMessageDisplayText,
@@ -836,6 +841,7 @@ function createChatAdapter(
   threadId: string,
   propsRef: RefObject<AgentChatPanelProps>,
   onStreamedProgress: (progress: AgentProgress | null) => void,
+  pendingMentionsRef: RefObject<ChatMention[]>,
 ): ChatModelAdapter {
   return {
     async *run(options) {
@@ -851,6 +857,8 @@ function createChatAdapter(
       const images = extractImagesFromUserMessage(lastUser);
       const docs = extractDocsFromUserMessage(lastUser);
       const model = propsRef.current?.getModel?.();
+      const mentions = mentionsPresentInText(pendingMentionsRef.current ?? [], text);
+      pendingMentionsRef.current = [];
       const runStartedAt = Date.now();
 
       const emitProgress = (update: Omit<AgentProgress, 'startedAt' | 'updatedAt'>) => {
@@ -877,6 +885,7 @@ function createChatAdapter(
             images,
             docs,
             stream: true,
+            ...(mentions.length ? { mentions } : {}),
             ...(model ? { model } : {}),
           }),
           signal: options.abortSignal,
@@ -1350,6 +1359,282 @@ function HelperCommandsPanel({
   );
 }
 
+function peopleResultToMention(person: PeopleSearchResult): ChatMention {
+  if (person.kind === 'contact') {
+    return {
+      kind: 'contact',
+      uid: person.uid,
+      name: person.name,
+      email: person.email,
+      company: person.company,
+    };
+  }
+  return {
+    kind: 'user',
+    userId: person.userId,
+    name: person.name,
+    email: person.email,
+  };
+}
+
+function peopleSubline(person: PeopleSearchResult): string {
+  if (person.kind === 'contact') {
+    return [person.company, person.email, person.phone].filter(Boolean).join(' · ') || 'Client';
+  }
+  return [person.email, person.username].filter(Boolean).join(' · ') || 'Team';
+}
+
+/** Active `@query` token ending at caret (token-scoped, not whole-string). */
+function activeMentionAt(text: string, caret: number): { start: number; query: string } | null {
+  const before = text.slice(0, Math.max(0, Math.min(caret, text.length)));
+  const match = before.match(/(?:^|[\s\n])@([^\s@]*)$/);
+  if (!match) return null;
+  const start = before.lastIndexOf('@');
+  if (start < 0) return null;
+  return { start, query: match[1] ?? '' };
+}
+
+function MentionsPanel({
+  people,
+  onPick,
+  activeIdx = -1,
+  loading = false,
+}: {
+  people: PeopleSearchResult[];
+  onPick: (person: PeopleSearchResult) => void;
+  activeIdx?: number;
+  loading?: boolean;
+}) {
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
+  return (
+    <div className="aui-helper-panel" onPointerDown={(e) => e.preventDefault()}>
+      <ul className="aui-helper-list" role="listbox" aria-label="Mention people">
+        {loading && people.length === 0 ? (
+          <li className="aui-helper-empty">Searching…</li>
+        ) : null}
+        {!loading && people.length === 0 ? (
+          <li className="aui-helper-empty">No people found</li>
+        ) : null}
+        {people.map((person, i) => {
+          const key = person.kind === 'contact' ? `c:${person.uid}` : `u:${person.userId}`;
+          const sub = peopleSubline(person);
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                className={`aui-helper-item aui-mention-item${i === activeIdx ? ' active' : ''}`}
+                role="option"
+                aria-selected={i === activeIdx}
+                ref={i === activeIdx ? activeRef : undefined}
+                onClick={() => onPick(person)}
+              >
+                <span className="aui-mention-kind">{person.kind === 'contact' ? 'Client' : 'Team'}</span>
+                <span className="aui-mention-body">
+                  <span className="aui-helper-item-slash">@{person.name}</span>
+                  {sub ? <span className="aui-helper-item-summary">{sub}</span> : null}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
+  const composer = useComposerRuntime();
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [tokenStart, setTokenStart] = useState(-1);
+  const [people, setPeople] = useState<PeopleSearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchGen = useRef(0);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  const showMentions = open && (loading || people.length > 0 || query.length >= 0);
+
+  const clearBlurTimer = () => {
+    if (blurTimer.current) {
+      clearTimeout(blurTimer.current);
+      blurTimer.current = null;
+    }
+  };
+
+  const closeMentions = useCallback(() => {
+    clearBlurTimer();
+    setOpen(false);
+    setActiveIdx(-1);
+  }, []);
+
+  const focusInput = useCallback(() => {
+    const el = inputRef.current ?? document.querySelector('#chat-panel .aui-input');
+    if (el instanceof HTMLTextAreaElement) el.focus();
+  }, []);
+
+  useEffect(() => () => clearBlurTimer(), []);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    closeMentions();
+  }, [isRunning, closeMentions]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('.aui-helper-panel, .aui-composer-shell, .aui-composer-card')) return;
+      closeMentions();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open, closeMentions]);
+
+  useEffect(() => {
+    if (!open) return;
+    const gen = ++fetchGen.current;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ limit: '20' });
+      if (query) params.set('q', query);
+      void fetch(`/api/people?${params}`)
+        .then(async (res) => {
+          if (gen !== fetchGen.current) return;
+          if (!res.ok) {
+            setPeople([]);
+            return;
+          }
+          const data = (await res.json()) as { ok?: boolean; people?: PeopleSearchResult[] };
+          if (gen !== fetchGen.current) return;
+          setPeople(Array.isArray(data.people) ? data.people : []);
+        })
+        .catch(() => {
+          if (gen === fetchGen.current) setPeople([]);
+        })
+        .finally(() => {
+          if (gen === fetchGen.current) setLoading(false);
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [open, query]);
+
+  useEffect(() => {
+    setActiveIdx(-1);
+  }, [query, open, people]);
+
+  const applyPerson = (person: PeopleSearchResult) => {
+    const el = inputRef.current;
+    const value = el?.value ?? '';
+    const caret = el?.selectionStart ?? value.length;
+    const active = activeMentionAt(value, caret) ?? (tokenStart >= 0 ? { start: tokenStart, query } : null);
+    if (!active) return;
+
+    const mention = peopleResultToMention(person);
+    const before = value.slice(0, active.start);
+    const after = value.slice(caret);
+    const insert = `@${mention.name} `;
+    const next = `${before}${insert}${after}`;
+    const nextCaret = before.length + insert.length;
+
+    const prev = pendingMentionsRef.current ?? [];
+    const key =
+      mention.kind === 'contact' ? `contact:${mention.uid}` : `user:${mention.userId}`;
+    const withoutDup = prev.filter((m) =>
+      m.kind === 'contact' ? `contact:${m.uid}` !== key : `user:${m.userId}` !== key,
+    );
+    pendingMentionsRef.current = [...withoutDup, mention];
+
+    composer.setText(next);
+    closeMentions();
+    focusInput();
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+        input.setSelectionRange(nextCaret, nextCaret);
+      }
+    });
+  };
+
+  const onInput = (value: string, caret: number) => {
+    // Slash helpers own the whole string when it starts with `/`.
+    if (value.startsWith('/')) {
+      closeMentions();
+      return;
+    }
+    const active = activeMentionAt(value, caret);
+    if (!active) {
+      closeMentions();
+      return;
+    }
+    clearBlurTimer();
+    setTokenStart(active.start);
+    setQuery(active.query);
+    setOpen(true);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (!showMentions || !open) return false;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const n = people.length;
+      if (n === 0) return true;
+      setActiveIdx((idx) => {
+        if (e.key === 'ArrowDown') return idx < 0 ? 0 : (idx + 1) % n;
+        return idx <= 0 ? n - 1 : idx - 1;
+      });
+      return true;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeMentions();
+      return true;
+    }
+    if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      const pick = activeIdx >= 0 ? people[activeIdx] : people[0];
+      if (pick) {
+        e.preventDefault();
+        applyPerson(pick);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const onBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+    if (isComposerFocusTarget(e.relatedTarget)) return;
+    clearBlurTimer();
+    blurTimer.current = setTimeout(() => {
+      blurTimer.current = null;
+      if (isComposerFocusTarget(document.activeElement)) return;
+      closeMentions();
+    }, 120);
+  };
+
+  const onFocus = () => clearBlurTimer();
+
+  return {
+    inputRef,
+    showMentions: open,
+    people,
+    loading,
+    activeIdx,
+    applyPerson,
+    onInput,
+    onKeyDown,
+    onBlur,
+    onFocus,
+    closeMentions,
+  };
+}
+
 const COMPOSER_FOCUS_SELECTOR = '.aui-composer-shell, .aui-composer-card, .aui-helper-panel';
 
 function isComposerFocusTarget(el: Element | null | undefined): boolean {
@@ -1524,6 +1809,7 @@ function AttachIcon() {
 function ClaudeComposer({
   propsRef,
   commands,
+  pendingMentionsRef,
   onFocusInputReady,
   centered = false,
   threadId,
@@ -1536,6 +1822,7 @@ function ClaudeComposer({
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
+  pendingMentionsRef: RefObject<ChatMention[]>;
   onFocusInputReady?: (focus: () => void) => void;
   centered?: boolean;
   threadId: string;
@@ -1547,9 +1834,18 @@ function ClaudeComposer({
   deployChatLockMessage?: string | null;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
+  const mentions = useMentions(pendingMentionsRef);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
   useCapComposerAttachments();
+
+  const setInputRef = useCallback(
+    (el: HTMLTextAreaElement | null) => {
+      helpers.inputRef.current = el;
+      mentions.inputRef.current = el;
+    },
+    [helpers.inputRef, mentions.inputRef],
+  );
 
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
@@ -1620,7 +1916,14 @@ function ClaudeComposer({
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
-      {helpers.showHelpers ? (
+      {mentions.showMentions ? (
+        <MentionsPanel
+          people={mentions.people}
+          onPick={mentions.applyPerson}
+          activeIdx={mentions.activeIdx}
+          loading={mentions.loading}
+        />
+      ) : helpers.showHelpers ? (
         <HelperCommandsPanel
           commands={helpers.filtered}
           onPick={helpers.applyCommand}
@@ -1637,7 +1940,7 @@ function ClaudeComposer({
             </div>
           </AuiIf>
           <ComposerPrimitive.Input
-            ref={helpers.inputRef}
+            ref={setInputRef}
             className="aui-input"
             placeholder="How can I help you today?"
             rows={1}
@@ -1646,10 +1949,24 @@ function ClaudeComposer({
             autoCorrect="off"
             spellCheck={false}
             addAttachmentOnPaste
-            onFocus={helpers.onFocus}
-            onBlur={helpers.onBlur}
-            onInput={(e) => helpers.onInput(e.currentTarget.value)}
-            onKeyDown={helpers.onKeyDown}
+            onFocus={() => {
+              helpers.onFocus();
+              mentions.onFocus();
+            }}
+            onBlur={(e) => {
+              helpers.onBlur(e);
+              mentions.onBlur(e);
+            }}
+            onInput={(e) => {
+              const value = e.currentTarget.value;
+              const caret = e.currentTarget.selectionStart ?? value.length;
+              helpers.onInput(value);
+              mentions.onInput(value, caret);
+            }}
+            onKeyDown={(e) => {
+              if (mentions.onKeyDown(e)) return;
+              helpers.onKeyDown(e);
+            }}
           />
           <div className="aui-composer-toolbar">
             <ComposerPrimitive.AddAttachment
@@ -1660,7 +1977,8 @@ function ClaudeComposer({
               <AttachIcon />
             </ComposerPrimitive.AddAttachment>
             <span className="aui-composer-hint">
-              Type / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files
+              Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint
+              files
             </span>
             <ComposerPrimitive.Send
               className="aui-composer-send"
