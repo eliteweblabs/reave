@@ -346,6 +346,7 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
     onSelect(tabId) {
       clientState.contactFilter = tabId;
       const visible = filterClientsForSidebar(clientState.clients);
+      let cleared = false;
       if (clientState.activeUid && !visible.some((c) => c.uid === clientState.activeUid)) {
         clientState.activeUid = null;
         clientState.draft = null;
@@ -355,8 +356,11 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
         clearClientLastActiveUid();
         syncClientDeepLinkUrl(null);
         getClientsEditor()?.classList.remove('de-pane-active');
+        cleared = true;
       }
-      renderClientsEditor();
+      refreshClientsSidebarList();
+      syncClientsListActiveState();
+      if (cleared) renderClientsPane();
     },
   });
 }
@@ -415,12 +419,27 @@ function ensureClientMobilePaneOpen() {
   getClientsEditor()?.classList.add('de-pane-active');
 }
 
-function syncClientsListActiveState() {
+function syncClientsListActiveState(opts = {}) {
+  const { scroll = false } = opts;
   const root = getClientsEditor();
   if (!root) return;
-  root.querySelectorAll('.ch-list-item[data-id]').forEach((item) => {
-    item.classList.toggle('active', item.dataset.id === clientState.activeUid);
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .ch-list-item[data-id]').forEach((item) => {
+    const isActive = item.dataset.id === clientState.activeUid;
+    item.classList.toggle('active', isActive);
+    if (isActive) {
+      item.setAttribute('aria-current', 'page');
+      activeEl = item;
+    } else {
+      item.removeAttribute('aria-current');
+    }
   });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => shell.scrollSidebarListItemIntoView(list, activeEl));
+    }
+  }
 }
 
 /** Prefill for new-client form when opened from email / other panels. */
@@ -603,7 +622,8 @@ function startNewClient(opts = {}) {
     personal: false,
     kind: 'professional',
   };
-  renderClientsEditor();
+  syncClientsListActiveState();
+  renderClientsPane();
 }
 
 /** Switch to Clients and open the new-client form (optional email/name prefill). */
@@ -616,12 +636,41 @@ function navigateToNewClient(opts = {}) {
   shell.setActiveMap('clients', { force: true, newClient: true });
 }
 
+function renderClientsPane() {
+  const root = getClientsEditor();
+  if (!root) return;
+  let pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderClientsEditor();
+    return;
+  }
+  const { activeUid } = clientState;
+
+  if (activeUid === '__new__') {
+    renderNewClientForm(pane);
+    shell.mountCreateDrawerChrome(pane);
+  } else if (activeUid) {
+    renderEditClientForm(pane);
+  } else {
+    shell.clearEditorFooterSave();
+    pane.innerHTML = '';
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'clients',
+      iconName: 'users',
+      bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
+      btnLabel: 'Add New',
+      onCreate: () => startNewClient(),
+    });
+  }
+  flushTitleFocus('clients');
+}
+
 function renderClientsEditor() {
   const root = getClientsEditor();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
   const savedFilterScroll = shell.captureFilterTabsScroll(root);
-  const { clients, activeUid } = clientState;
+  const { clients } = clientState;
   const visibleCount = filterClientsForSidebar(clients).length;
   root.innerHTML = '';
 
@@ -653,25 +702,8 @@ function renderClientsEditor() {
 
   const pane = document.createElement('div');
   pane.className = 'de-pane';
-
-  if (activeUid === '__new__') {
-    renderNewClientForm(pane);
-    shell.mountCreateDrawerChrome(pane);
-  } else if (activeUid) {
-    renderEditClientForm(pane);
-  } else {
-    shell.clearEditorFooterSave();
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'clients',
-      iconName: 'users',
-      bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
-      btnLabel: 'Add New',
-      onCreate: () => startNewClient(),
-    });
-  }
-
   root.appendChild(pane);
-  flushTitleFocus('clients');
+  renderClientsPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -1651,10 +1683,16 @@ async function closeClientEditor(checkDirty = true) {
     shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid });
     return;
   }
-  renderClientsEditor();
+  syncClientsListActiveState();
+  renderClientsPane();
 }
 
 async function openClient(uid) {
+  if (uid === clientState.activeUid) {
+    syncClientsListActiveState({ scroll: true });
+    ensureClientMobilePaneOpen();
+    return;
+  }
   await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
   clientState.returnToWorkSlug = null;
@@ -1665,7 +1703,9 @@ async function openClient(uid) {
   clientState.autosaveGetPayload = null;
   rememberClientActiveUid(uid);
   syncClientDeepLinkUrl(uid);
-  renderClientsEditor();
+  syncClientsListActiveState({ scroll: true });
+  renderClientsPane();
+  ensureClientMobilePaneOpen();
 }
 
 async function createClient(payload) {
@@ -1927,8 +1967,10 @@ async function deleteClient(uid) {
 function createClientListItem(c) {
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'ch-list-item' + (c.uid === clientState.activeUid ? ' active' : '');
+  const isActive = c.uid === clientState.activeUid;
+  item.className = 'ch-list-item' + (isActive ? ' active' : '');
   item.dataset.id = c.uid;
+  if (isActive) item.setAttribute('aria-current', 'page');
   item.innerHTML =
     `<span class="ch-list-content ch-list-content--client">` +
     `<span class="ch-item-row ch-item-row--client">` +

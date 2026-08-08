@@ -233,7 +233,7 @@
 .em-list-item.active {
   color: var(--fg);
   background: var(--list-item-active-bg);
-  border-color: var(--em-item-accent, var(--list-item-active-border));
+  /* Keep border transparent — accent is inset only, so selection does not reflow/jump. */
   box-shadow: inset 3px 0 0 var(--em-item-accent, var(--list-item-active-border));
 }
 
@@ -413,11 +413,10 @@
   background: var(--list-item-active-bg);
 }
 .swipe-content .em-list-item.active {
-  border-color: var(--em-item-accent, var(--list-item-active-border));
+  /* Keep border transparent — accent is inset only, so selection does not reflow/jump. */
   box-shadow: inset 3px 0 0 var(--em-item-accent, var(--list-item-active-border));
 }
 .swipe-content .ch-list-item.active {
-  border-color: var(--list-item-active-border);
   box-shadow: inset 3px 0 0 var(--list-item-active-border);
 }
 .em-item-row {

@@ -200,7 +200,14 @@ export function mountListFilterTabs(opts) {
       onClick:
         variant === 'default'
           ? () => {
-              if (activeId === tab.id) return;
+              const current = nav.querySelector('.em-filter-tab.active')?.dataset.filter;
+              if (current === tab.id) return;
+              nav.querySelectorAll('.em-filter-tab').forEach((el) => {
+                const on = el.dataset.filter === tab.id;
+                el.classList.toggle('active', on);
+                el.setAttribute('aria-selected', on ? 'true' : 'false');
+              });
+              scrollFilterTabIntoViewIfNeeded(nav, btn);
               onSelect(tab.id);
             }
           : variantOpts?.onClick,

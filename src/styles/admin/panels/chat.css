@@ -74,7 +74,7 @@ body.sidebar-resize-active * {
 .ch-list-item.active {
   color: var(--fg);
   background: var(--list-item-active-bg);
-  border-color: var(--list-item-active-border);
+  /* Keep border transparent — accent is inset only, so selection does not reflow/jump. */
   box-shadow: inset 3px 0 0 var(--list-item-active-border);
 }
 .ch-list-item.active .ch-item-title { color: var(--fg); }
