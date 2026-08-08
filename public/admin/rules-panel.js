@@ -40,7 +40,8 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260808a';
+  createAgentBtn,
+} from './admin-ui.js?v=20260808b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728q';
@@ -323,13 +324,10 @@ function renderRuleEditPane(pane) {
     return;
   }
 
-  const agentBtn = document.createElement('button');
-  agentBtn.type = 'button';
-  agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-  agentBtn.setAttribute('aria-label', 'Agent');
-  agentBtn.title = 'Agent';
-  agentBtn.innerHTML = shell.navIcon('agent', 16);
-  agentBtn.addEventListener('click', () => askAgentAboutRule(rule));
+  const agentBtn = createAgentBtn({
+    label: 'Agent',
+    onClick: () => askAgentAboutRule(rule),
+  });
 
   const inDrawer = shell.isCreateDrawerOpen('rules');
   const header = createPaneSubheader({

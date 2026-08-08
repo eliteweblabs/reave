@@ -30,13 +30,14 @@ import {
   swipeClearAction,
   paneDeleteIcon,
   paneShareIcon,
+  createAgentBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260808a';
+} from './admin-ui.js?v=20260808b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
@@ -407,13 +408,10 @@ function renderEditKnowledgeForm(pane) {
       knowledgeState.dirty = false;
       pane.innerHTML = '';
 
-      const agentBtn = document.createElement('button');
-      agentBtn.type = 'button';
-      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-      agentBtn.setAttribute('aria-label', 'Agent');
-      agentBtn.title = 'Agent';
-      agentBtn.innerHTML = shell.navIcon('agent', 16);
-      agentBtn.addEventListener('click', () => askAgentAboutKnowledge(entry || { slug, title: data.title }));
+      const agentBtn = createAgentBtn({
+        label: 'Agent',
+        onClick: () => askAgentAboutKnowledge(entry || { slug, title: data.title }),
+      });
 
       const { header } = createPaneSubheader({
         back: {

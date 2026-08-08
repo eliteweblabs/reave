@@ -100,15 +100,31 @@ Object.defineProperty(IOS_ICONS, 'agent', {
   configurable: true,
 });
 
-/** Branded agent control (Lucide hat-glasses / fedora + glasses, gradient background). */
+/**
+ * Circular branded agent control (same shell as pane headers everywhere).
+ * Default classes: de-new-btn em-agent-btn em-header-action-btn — never a bare square.
+ */
 export function createAgentBtn(opts = {}) {
-  const { onClick, className = 'agent-btn', label = 'Agent' } = opts;
-  return createIosIconBtn({
+  const {
+    onClick,
+    className = 'de-new-btn em-agent-btn em-header-action-btn',
+    label = 'Agent',
+    title,
+  } = opts;
+  const btn = createIosIconBtn({
     iconKey: 'agent',
     label,
     className,
     onClick,
   });
+  if (title != null) btn.title = title;
+  // Header agent glyph is 16px (matches panels that previously hand-rolled this).
+  const svg = btn.querySelector('svg');
+  if (svg) {
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+  }
+  return btn;
 }
 
 /**
@@ -322,8 +338,9 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const isSwipe = btn.classList.contains('swipe-act');
   const isIosIcon = btn.classList.contains('ios-icon-btn');
   const isFilterPurge = btn.classList.contains('em-filter-tab--purge');
-  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 44 : isFilterPurge ? 22 : 36);
-  const ringRadius = opts.ringRadius ?? (isIosIcon ? 20 : 18);
+  // Toolbar trash: CSS sizes the holder just outside the ~20px icon; path fills the viewBox.
+  const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 28 : isFilterPurge ? 22 : 36);
+  const ringRadius = opts.ringRadius ?? 18;
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 
   btn.addEventListener('click', async (e) => {

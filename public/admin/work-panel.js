@@ -25,11 +25,12 @@ import {
   swipeDeleteAction,
   paneDeleteIcon,
   paneShareIcon,
+  createAgentBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260808a';
+} from './admin-ui.js?v=20260808b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
@@ -2796,13 +2797,11 @@ function renderEditWorkForm(pane) {
       const shareLogEl = document.createElement('div');
       shareLogEl.className = 'wk-share-log';
 
-      const agentBtn = document.createElement('button');
-      agentBtn.type = 'button';
-      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-      agentBtn.setAttribute('aria-label', 'Agent');
-      agentBtn.title = 'Send to Agent';
-      agentBtn.innerHTML = IOS_ICONS.agent.replace(/width="\d+" height="\d+"/, 'width="16" height="16"');
-      agentBtn.addEventListener('click', () => askAgentAboutWork({ slug, title: data.title, ...data }));
+      const agentBtn = createAgentBtn({
+        label: 'Agent',
+        title: 'Send to Agent',
+        onClick: () => askAgentAboutWork({ slug, title: data.title, ...data }),
+      });
 
       headerActions.innerHTML = '';
       headerActions.appendChild(agentBtn);

@@ -26,7 +26,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260808a';
+} from './admin-ui.js?v=20260808b';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260728j';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
 

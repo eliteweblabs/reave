@@ -358,8 +358,18 @@
   color: #b91c1c;
   background: rgba(239, 68, 68, 0.12);
 }
+/* Ring sits just outside the glyph — not stretched to the 44pt hit target. */
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
-  inset: -4px;
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 1.65rem;
+  height: 1.65rem;
+  transform: translate(-50%, -50%);
+}
+.ios-icon-btn.delete-confirm-btn .delete-confirm-ring {
+  width: 100%;
+  height: 100%;
 }
 .ios-icon-btn.delete-confirm-btn[data-state="confirm"] .delete-confirm-icon {
   position: relative;
@@ -868,13 +878,20 @@
 .em-agent-btn--triage {
   animation: admin-setup-alert-triage-pulse 0.8s ease 2;
 }
+/* Circular header agent — createAgentBtn default; never a sharp square. */
+.agent-btn,
 .de-new-btn.em-agent-btn.em-header-action-btn {
   width: 2.25rem;
   height: 2.25rem;
+  min-width: 2.25rem;
   margin: 0;
   padding: 0;
   border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+.agent-btn svg,
 .de-new-btn.em-agent-btn svg {
   display: block;
 }
