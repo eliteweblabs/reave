@@ -42,12 +42,12 @@ function byTitle(a: { label: string }, b: { label: string }): number {
 export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
   {
     id: 'web-search',
-    label: 'Agent Web Search',
+    label: 'Agentic Web Search',
     blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
   },
   {
     id: 'agent-chat',
-    label: 'AI Agent Chat',
+    label: 'Agentic Chat',
     blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
   },
   {
@@ -77,7 +77,7 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
   },
   {
     id: 'email-inbox',
-    label: 'Email Inbox',
+    label: 'Inbox Triage',
     blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
   },
   {
