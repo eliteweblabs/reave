@@ -5,7 +5,7 @@ import { PROJECT_WAIT_INSTRUCTION } from './chatMessageFormat';
 export const MAX_AGENT_WORK_BODY = 14_000;
 
 const WORK_STATUS_LABELS: Record<string, string> = {
-  inquiry: 'Inquiry',
+  inquiry: 'Prospect / Audit',
   active: 'Active',
   archived: 'Archived',
 };

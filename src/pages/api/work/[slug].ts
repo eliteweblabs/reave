@@ -18,9 +18,10 @@ import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { listRelatedForJob } from '../../../lib/projectLinks';
 import { listTrackedLinksForJob } from '../../../lib/linkTracking';
 import { storeListProjectFiles } from '../../../lib/projectFiles';
-import { projectPortalUrl } from '../../../lib/contactApi';
+import { projectPortalUrl, auditPortalUrl } from '../../../lib/contactApi';
 import { requestOrigin } from '../../../lib/requestOrigin';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { isAuditJob } from '../../../lib/auditReportCard';
 
 export const prerender = false;
 
@@ -45,7 +46,12 @@ export async function GET(context: APIContext): Promise<Response> {
   const tracked_links = await listTrackedLinksForJob(slug, { limit: 20 });
   const files = await storeListProjectFiles(slug);
   const contactUid = doc.contact_uid?.trim() || '';
-  const portal_url = contactUid ? projectPortalUrl(contactUid, slug, { base: requestOrigin(context.request) }) : '';
+  const origin = requestOrigin(context.request);
+  const portal_url = contactUid
+    ? isAuditJob(doc)
+      ? auditPortalUrl(contactUid, slug, { base: origin })
+      : projectPortalUrl(contactUid, slug, { base: origin })
+    : '';
   return json({ ok: true, ...doc, related, tracked_links, files, portal_url });
 }
 

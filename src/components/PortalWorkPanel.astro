@@ -1,11 +1,10 @@
 ---
 /**
- * Client portal Work tab — job list with expandable comment threads.
+ * Client portal Work (Projects) tab — job list with expandable comment threads.
+ * Website audits live on the Audit tab, not here.
  */
 import type { WorkJobComment } from '../lib/workComments';
 import type { WorkStatus } from '../lib/workStore';
-import type { AuditReportCard } from '../lib/auditReportCard';
-import PortalAuditReportCard from './PortalAuditReportCard.astro';
 
 export interface PortalWorkJobItem {
   slug: string;
@@ -18,8 +17,6 @@ export interface PortalWorkJobItem {
   dateLabel: string;
   /** Shareable portal URL for this project. */
   portalUrl: string;
-  /** Soft client-facing report card for website audits (optional). */
-  auditReport?: AuditReportCard | null;
 }
 
 export interface PortalWorkFileItem {
@@ -128,28 +125,12 @@ const filesEndpointBase = commentEndpointBase;
                 <span class="work-title">{job.title}</span>
                 {job.dateLabel && <span class="work-meta">Updated {job.dateLabel}</span>}
               </span>
-              {job.auditReport?.overall && !job.auditReport.inProgress && (
-                <span
-                  class={`work-grade work-grade-${job.auditReport.overall.toLowerCase()}`}
-                  title={`Overall grade ${job.auditReport.overall}`}
-                >
-                  {job.auditReport.overall}
-                </span>
-              )}
-              {job.auditReport?.inProgress && (
-                <span class="work-grade work-grade-pending" title="Audit in progress">…</span>
-              )}
               <span class={`work-status work-status-${job.status}`}>{job.statusLabel}</span>
               <span class="work-chevron" aria-hidden="true">›</span>
             </button>
 
             <div class="work-item-body" hidden={!startOpen || undefined}>
-              {job.auditReport ? (
-                <PortalAuditReportCard
-                  report={job.auditReport}
-                  bodyHtml={job.auditReport.inProgress ? '' : job.bodyHtml}
-                />
-              ) : job.bodyHtml ? (
+              {job.bodyHtml ? (
                 <div class="work-description" set:html={job.bodyHtml} />
               ) : (
                 <p class="work-description-empty">Project details will appear here as work progresses.</p>

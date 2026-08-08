@@ -13,6 +13,7 @@ import {
   type TrackedLinkChannel,
 } from '../../../../lib/linkTracking';
 import { qrCodeDataUrl } from '../../../../lib/qrCode';
+import { isAuditJob } from '../../../../lib/auditReportCard';
 
 export const prerender = false;
 
@@ -59,7 +60,12 @@ export async function POST(context: APIContext): Promise<Response> {
   const contactUid = String(body.contact_uid ?? job.contact_uid ?? '').trim();
   if (!contactUid) return json({ ok: false, error: 'Project has no linked client' }, 400);
 
-  const tab = typeof body.tab === 'string' ? body.tab.trim() : 'work';
+  const tab =
+    typeof body.tab === 'string' && body.tab.trim()
+      ? body.tab.trim()
+      : isAuditJob(job)
+        ? 'audit'
+        : 'work';
   const channelRaw = typeof body.channel === 'string' ? body.channel.trim() : 'share';
   const channel = CHANNELS.has(channelRaw as TrackedLinkChannel)
     ? (channelRaw as TrackedLinkChannel)

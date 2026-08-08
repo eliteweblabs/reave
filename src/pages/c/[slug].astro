@@ -9,10 +9,10 @@
  * comes from the `portal` link metadata on the contact (see src/lib/contactApi).
  * Internal `notes` are intentionally NOT shown.
  *
- * Tabs: Overview (headline/body/fields), Billing (Crater invoices), Vault
- * (web-design handoff: passwords/DNS/hosting). Vault shows when web_handoff is
- * enabled even if empty so clients can add the first entry. Other tabs appear
- * when populated.
+ * Tabs: Overview, Audit (online presence diagnostic), Projects (Work),
+ * Billing (Crater invoices), Vault (web-design handoff). Vault shows when
+ * web_handoff is enabled even if empty so clients can add the first entry.
+ * Other tabs appear when populated.
  */
 import {
   getContact,
@@ -39,10 +39,11 @@ import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
 import { requestOrigin } from '../../lib/requestOrigin';
-import { projectPortalUrl } from '../../lib/contactApi';
+import { projectPortalUrl, auditPortalUrl } from '../../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
-import { buildAuditReportCard } from '../../lib/auditReportCard';
+import PortalAuditPanel from '../../components/PortalAuditPanel.astro';
+import { buildAuditReportCard, isAuditJob } from '../../lib/auditReportCard';
 import SiteFooter from '../../components/SiteFooter.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -258,9 +259,14 @@ if (contact && uid) {
 
 const origin = requestOrigin(Astro.request);
 
-const portalWorkJobs: PortalWorkJobItem[] = await Promise.all(
+type PortalJobBuilt = PortalWorkJobItem & {
+  isAudit: boolean;
+  auditReport: ReturnType<typeof buildAuditReportCard>;
+  updatedAt: string;
+};
+
+const portalJobsBuilt: PortalJobBuilt[] = await Promise.all(
   clientJobs.map(async (job) => {
-    const portalUrl = projectPortalUrl(uid, job.slug, { base: origin });
     const bodyRaw = jobBodies[job.slug] || '';
     const auditReport = buildAuditReportCard({
       tags: job.tags,
@@ -268,6 +274,15 @@ const portalWorkJobs: PortalWorkJobItem[] = await Promise.all(
       title: job.title,
       body: bodyRaw,
     });
+    const isAudit = Boolean(auditReport) || isAuditJob({
+      tags: job.tags,
+      source: job.source,
+      title: job.title,
+      body: bodyRaw,
+    });
+    const portalUrl = isAudit
+      ? auditPortalUrl(uid, job.slug, { base: origin })
+      : projectPortalUrl(uid, job.slug, { base: origin });
     return {
       slug: job.slug,
       title: job.title,
@@ -276,15 +291,38 @@ const portalWorkJobs: PortalWorkJobItem[] = await Promise.all(
       bodyHtml: bodyRaw ? workBodyHtml(bodyRaw, uid, job.slug) : '',
       dateLabel: fmtDate(job.updated || job.created),
       portalUrl,
+      isAudit,
       auditReport,
+      updatedAt: job.updated || job.created || '',
     };
   }),
 );
 
+/** Non-audit projects for the Projects tab. */
+const portalWorkJobs: PortalWorkJobItem[] = portalJobsBuilt
+  .filter((j) => !j.isAudit)
+  .map(({ isAudit: _a, auditReport: _r, updatedAt: _u, ...job }) => job);
+
+/**
+ * One live diagnostic per client — prefer the newest completed audit,
+ * else the newest in-progress stub.
+ */
+const portalAuditJob = (() => {
+  const audits = portalJobsBuilt.filter((j) => j.isAudit);
+  if (!audits.length) return null;
+  const sorted = [...audits].sort((a, b) => {
+    const ta = Date.parse(a.updatedAt) || 0;
+    const tb = Date.parse(b.updatedAt) || 0;
+    return tb - ta;
+  });
+  const completed = sorted.find((j) => j.auditReport && !j.auditReport.inProgress);
+  return completed || sorted[0] || null;
+})();
+
 const expandProjectSlug = (() => {
   const raw = Astro.url.searchParams.get('project')?.trim();
   if (!raw) return '';
-  return clientJobs.some((j) => j.slug === raw) ? raw : '';
+  return portalWorkJobs.some((j) => j.slug === raw) ? raw : '';
 })();
 
 const trackToken = Astro.url.searchParams.get('track')?.trim() || '';
@@ -309,10 +347,12 @@ const hasOverview = Boolean(
 const hasBilling = Boolean(portalBillingView);
 const hasVault = hasFeature('web_handoff');
 const hasDocs = portalDocs.length > 0;
-const hasWork = clientJobs.length > 0;
+const hasWork = portalWorkJobs.length > 0;
+const hasAudit = Boolean(portalAuditJob);
 const postAlias = getPostAlias();
 const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
+if (hasAudit) tabs.push({ id: 'audit', label: 'Audit' });
 if (hasWork) tabs.push({ id: 'work', label: postAlias.pluralTitle });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
 if (hasVault) tabs.push({ id: 'vault', label: 'Vault' });
@@ -321,8 +361,23 @@ const showTabs = tabs.length > 1;
 
 const initialTab = (() => {
   const raw = Astro.url.searchParams.get('tab')?.trim().toLowerCase();
-  const normalized = raw === 'data' ? 'vault' : raw === 'payments' ? 'billing' : raw;
+  const normalized =
+    raw === 'data' ? 'vault'
+    : raw === 'payments' ? 'billing'
+    : raw === 'projects' ? 'work'
+    : raw;
+  // Deep-linked audit project → Audit tab even if tab param was still "work".
+  const projectParam = Astro.url.searchParams.get('project')?.trim();
+  if (
+    projectParam &&
+    portalAuditJob &&
+    (projectParam === portalAuditJob.slug ||
+      portalJobsBuilt.some((j) => j.isAudit && j.slug === projectParam))
+  ) {
+    if (!normalized || normalized === 'work' || normalized === 'audit') return 'audit';
+  }
   if (normalized && tabs.some((t) => t.id === normalized)) return normalized;
+  if (hasAudit) return 'audit';
   if (hasWork) return 'work';
   return tabs[0]?.id ?? 'overview';
 })();
@@ -554,6 +609,18 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             )}
           </section>
 
+          {/* Audit — single live online-presence diagnostic */}
+          {hasAudit && uid && portalAuditJob?.auditReport && (
+            <PortalAuditPanel
+              report={portalAuditJob.auditReport}
+              bodyHtml={portalAuditJob.bodyHtml}
+              companyName={org.name?.trim() || brandTitle}
+              clientName={company || displayName}
+              scanDate={portalAuditJob.updatedAt}
+              active={initialTab === 'audit'}
+            />
+          )}
+
           {/* Work (client-visible jobs + comments) */}
           {hasWork && uid && (
             <PortalWorkPanel
@@ -564,7 +631,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               clientAvatarUrl={logoUrl}
               staffAvatarUrl={staffAvatarUrl}
               active={initialTab === 'work'}
-              autoExpand={clientJobs.length === 1}
+              autoExpand={portalWorkJobs.length === 1}
               expandSlug={expandProjectSlug}
               trackToken={trackToken}
             />

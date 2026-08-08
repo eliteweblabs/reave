@@ -71,10 +71,28 @@ export function initWorkPanel(deps) {
 // ---- extracted from os-map-loader.js:10942-13417 ----
 
 const WORK_STATUS_LABELS = {
-  inquiry: 'Inquiry',
+  inquiry: 'Prospect',
   active: 'Active',
   archived: 'Archived',
 };
+
+const AUDIT_TAG_RE = /^(siri-audit|quick-audit|full-audit)$/i;
+
+function isAuditWorkJob(job) {
+  if (!job) return false;
+  const tags = Array.isArray(job.tags) ? job.tags : [];
+  if (tags.some((t) => AUDIT_TAG_RE.test(String(t || '')))) return true;
+  if (String(job.source || '').toLowerCase() === 'siri_audit') return true;
+  return false;
+}
+
+function workStatusDisplayLabel(job) {
+  if (!job) return WORK_STATUS_LABELS.inquiry;
+  if (isWorkArchivedStatus(job.status)) return WORK_STATUS_LABELS.archived;
+  if (isAuditWorkJob(job)) return 'Audit';
+  if ((job.status || 'inquiry') === 'inquiry') return 'Prospect';
+  return WORK_STATUS_LABELS[job.status] || job.status || 'Prospect';
+}
 
 const WORK_PRIORITY_LABELS = {
   low: 'Low',
@@ -387,7 +405,10 @@ function workStatusTabCounts() {
   return {
     all: jobs.length,
     recent: jobs.filter((j) => isRecentlyViewedJob(j)).length,
-    inquiry: jobs.filter((j) => j.status === 'inquiry').length,
+    audits: jobs.filter((j) => isAuditWorkJob(j) && !isWorkArchivedStatus(j.status)).length,
+    prospects: jobs.filter(
+      (j) => (j.status || 'inquiry') === 'inquiry' && !isAuditWorkJob(j),
+    ).length,
     active: jobs.filter((j) => j.status === 'active').length,
     archived: jobs.filter((j) => isWorkArchivedStatus(j.status)).length,
   };
@@ -398,6 +419,14 @@ function workJobsForStatusFilter(jobs) {
   if (f === 'all') return jobs;
   if (f === 'recent') return jobs.filter((j) => isRecentlyViewedJob(j));
   if (f === 'archived') return jobs.filter((j) => isWorkArchivedStatus(j.status));
+  if (f === 'audits') {
+    return jobs.filter((j) => isAuditWorkJob(j) && !isWorkArchivedStatus(j.status));
+  }
+  if (f === 'prospects' || f === 'inquiry') {
+    return jobs.filter(
+      (j) => (j.status || 'inquiry') === 'inquiry' && !isAuditWorkJob(j),
+    );
+  }
   return jobs.filter((j) => (j.status || 'inquiry') === f);
 }
 
@@ -417,11 +446,12 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
     tabs: [
       { id: 'all', label: 'All', count: counts.all },
       { id: 'recent', label: 'Recently Viewed', count: counts.recent },
-      { id: 'inquiry', label: 'Inquiry', count: counts.inquiry },
+      { id: 'audits', label: 'Audits', count: counts.audits },
+      { id: 'prospects', label: 'Prospects', count: counts.prospects },
       { id: 'active', label: 'Active', count: counts.active },
       { id: 'archived', label: 'Archived', count: counts.archived },
     ],
-    activeId: workState.statusFilter,
+    activeId: workState.statusFilter === 'inquiry' ? 'prospects' : workState.statusFilter,
     ariaLabel: `${postTitle(1)} status filters`,
     savedScrollLeft,
     onSelect(tabId) {
@@ -439,18 +469,20 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
 }
 
 /**
- * Entry point to the field visit planner, shown only on the Inquiry filter
- * since that is the only list it plans from.
+ * Entry point to the field visit planner, shown only on the Prospects filter
+ * since that is the open-door-knock list (non-audit inquiries).
  */
 function renderVisitPlanLink() {
-  if (workState.statusFilter !== 'inquiry') return null;
+  if (workState.statusFilter !== 'prospects' && workState.statusFilter !== 'inquiry') {
+    return null;
+  }
   const counts = workStatusTabCounts();
-  if (!counts.inquiry) return null;
+  if (!counts.prospects) return null;
 
   const link = document.createElement('a');
   link.href = '/admin/visit-plan';
   link.className = 'wk-visit-plan-link';
-  link.textContent = `Plan visits to these ${counts.inquiry} inquiries`;
+  link.textContent = `Plan visits to these ${counts.prospects} prospects`;
   return link;
 }
 
@@ -461,9 +493,10 @@ function workStatusClass(status) {
   return `wk-status wk-status-${key}`;
 }
 
-function workStatusLabel(status) {
+function workStatusLabel(status, job) {
+  if (job) return workStatusDisplayLabel(job);
   if (isWorkArchivedStatus(status)) return WORK_STATUS_LABELS.archived;
-  return WORK_STATUS_LABELS[status] || status || 'Inquiry';
+  return WORK_STATUS_LABELS[status] || status || 'Prospect';
 }
 
 function formatWorkCardDate(iso) {
@@ -915,7 +948,7 @@ function createClientWorkCard(job) {
 
   const status = document.createElement('span');
   status.className = workStatusClass(job.status);
-  status.textContent = workStatusLabel(job.status);
+  status.textContent = workStatusLabel(job.status, job);
   meta.appendChild(status);
 
   if (job.created) {
@@ -2807,11 +2840,13 @@ function renderEditWorkForm(pane) {
       headerActions.appendChild(agentBtn);
       const shareBtn = data.contact_uid
         ? shell.createPortalShareBtn(data.contact_uid, {
-            tab: 'work',
+            tab: isAuditWorkJob(data) ? 'audit' : 'work',
             jobSlug: slug,
             trackEl: linkTrackEl,
             shareLogEl,
-            title: `${data.contact_name || data.client || 'Client'} — ${postTitle(2)}`,
+            title: `${data.contact_name || data.client || 'Client'} — ${
+              isAuditWorkJob(data) ? 'Audit' : postTitle(2)
+            }`,
             recipient: {
               contactUid: data.contact_uid,
               name: data.contact_name || data.client || 'Client',
@@ -3863,7 +3898,7 @@ async function askAgentAboutWork(job) {
       `Slug: ${job.slug}`,
     ];
     if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
-    if (job.status) lines.push(`Status: ${workStatusLabel(job.status)}`);
+    if (job.status) lines.push(`Status: ${workStatusLabel(job.status, job)}`);
     lines.push('', `Please wait for instructions on how to work on this ${postLower(1)}.`);
     await shell.askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });
   } catch (e) {
@@ -3942,7 +3977,7 @@ function createWorkListItem(job) {
     `<span class="ch-item-status-dot"></span>` +
     `</span>`;
   const auditingStatus = `<span class="wk-status wk-status-auditing" hidden>Auditing</span>`;
-  const defaultStatus = `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status))}</span>`;
+  const defaultStatus = `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status, job))}</span>`;
   const progressHint =
     isAuditing && progress?.toolLabel
       ? `<span class="wk-audit-progress">${escHtml(progress.toolLabel)}</span>`

@@ -41,8 +41,21 @@ export function clientPortalUrl(uid: string, opts?: { tab?: string; project?: st
 }
 
 /** Client portal URL for a specific project (Projects tab, deep-linked). */
-export function projectPortalUrl(contactUid: string, jobSlug: string, opts?: { base?: string }): string {
-  return clientPortalUrl(contactUid, { tab: 'work', project: jobSlug, base: opts?.base });
+export function projectPortalUrl(contactUid: string, jobSlug: string, opts?: { base?: string; tab?: string }): string {
+  return clientPortalUrl(contactUid, {
+    tab: opts?.tab?.trim() || 'work',
+    project: jobSlug,
+    base: opts?.base,
+  });
+}
+
+/** Client portal URL for a website audit diagnostic (Audit tab). */
+export function auditPortalUrl(contactUid: string, jobSlug?: string, opts?: { base?: string }): string {
+  return clientPortalUrl(contactUid, {
+    tab: 'audit',
+    project: jobSlug,
+    base: opts?.base,
+  });
 }
 
 /** Admin deep link to a client profile (Clients tab). */

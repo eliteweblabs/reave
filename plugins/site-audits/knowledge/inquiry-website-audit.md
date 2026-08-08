@@ -117,19 +117,37 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - SSL: {valid, issuer, expiry}
 - {Missing headers, mixed content}
 
-### Broken Links
+### Domain & IP Reputation
+- {Safe Browsing / blocklist / IP reputation signals, or "No reputation flags found"}
+
+### Broken Links & Crawl Health
 - {From check_links — or "Homepage only; no crawlable nav" if applicable}
 
-### Content Issues
-- {Empty pages, outdated copy, hours conflicts, placeholder pages}
+### Content & Messaging
+- {Empty pages, outdated copy, hours conflicts, placeholder pages, unclear offer/CTA}
+
+### Lead Capture
+- {Contact form / click-to-call / chat — present, broken, or missing}
+
+### Analytics & Conversion Tracking
+- {Analytics / tag manager / conversion goals — installed and configured, or untracked}
+
+### Search Rich Results
+- {LocalBusiness / structured data present or missing}
+
+### Mobile Responsiveness
+- {From Playwright UX — layout, tap targets, overflow on phones}
+
+### Backup & Hosting Reliability
+- {Backup / uptime / single-hosting risk if observable}
 
 ### DNS & Email
-- {A records, host, MX provider}
-- {SPF/DKIM/DMARC status from dns_check}
+- Domain renewal window if known; {A records, host, MX provider}
+- Email deliverability: {SPF/DKIM/DMARC status from dns_check} in plain language
 - If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
 
 ### Online Presence
-Write one bullet per channel so the client portal report card can grade each row:
+Write one bullet per channel so the client portal diagnostic can grade each card:
 - Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {hours, photos, categories, NAP consistency}
 - Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps listing notes}
 - Reviews: {platform, star rating, review count} — {reputation notes}
@@ -140,10 +158,11 @@ Write one bullet per channel so the client portal report card can grade each row
 ---
 
 ## Opportunities
-Write 3–6 **Problem → Solution** pairs the client portal can promote as service ideas (plain language, not jargon):
+Write 3–6 **Problem → Solution** pairs in plain language for the client portal
+(what’s broken → what fixing it does for the business — no jargon):
 - Problem: {what’s broken for the customer} → Solution: {service / fix we can sell}
-- Problem: {e.g. mobile speed score 42} → Solution: {Performance pass / rebuild}
-- Problem: {e.g. no Apple Business Connect} → Solution: {Apple Maps listing setup}
+- Problem: {e.g. the site feels slow on phones} → Solution: {Performance pass / rebuild}
+- Problem: {e.g. invisible on Apple Maps} → Solution: {Apple Maps listing setup}
 
 ## Action Items
 - [ ] Reach out to {contact} about {primary opportunity}
@@ -192,7 +211,7 @@ When the user gives a list of businesses (e.g. local street scan):
 When finishing an audit in admin chat, append structured button blocks using URLs from the **update_work** tool result:
 
 - **Client profile:** `profile_url`
-- **Audit on client portal:** `project_portal_url`
+- **Audit on client portal:** `project_portal_url` (opens the **Audit** tab)
 
 Never put a job slug or business name in `/c/…` — only the contact **uid** works.
 

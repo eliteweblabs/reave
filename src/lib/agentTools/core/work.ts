@@ -60,10 +60,12 @@ import {
   adminClientProfileUrl,
   adminWorkProjectUrl,
   projectPortalUrl,
+  auditPortalUrl,
   type ClientPortal,
   type ClientPortalField,
   type ClientDataEntry,
 } from '../../contactApi';
+import { isAuditJob } from '../../auditReportCard';
 import {
   extractClientSearchTerms,
   formatClientCandidate,
@@ -295,7 +297,9 @@ async function handle_create_work(args: Record<string, unknown>, _ctx: ToolConte
       ? {
           profile_url: adminClientProfileUrl(linkedUid),
           portal_url: clientPortalUrl(linkedUid),
-          project_portal_url: projectPortalUrl(linkedUid, doc.slug),
+          project_portal_url: isAuditJob(doc)
+            ? auditPortalUrl(linkedUid, doc.slug)
+            : projectPortalUrl(linkedUid, doc.slug),
           admin_project_url: adminWorkProjectUrl(doc.slug),
         }
       : {}),
@@ -486,7 +490,9 @@ async function handle_update_work(args: Record<string, unknown>, _ctx: ToolConte
       ? {
           profile_url: adminClientProfileUrl(contactUid),
           portal_url: clientPortalUrl(contactUid),
-          project_portal_url: projectPortalUrl(contactUid, doc.slug),
+          project_portal_url: isAuditJob(doc)
+            ? auditPortalUrl(contactUid, doc.slug)
+            : projectPortalUrl(contactUid, doc.slug),
           admin_project_url: adminWorkProjectUrl(doc.slug),
         }
       : {}),

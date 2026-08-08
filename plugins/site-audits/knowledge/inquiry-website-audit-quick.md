@@ -95,14 +95,35 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 ### SSL & Security
 - SSL validity, expiry, missing headers
 
+### Domain & IP Reputation
+- Any blacklist / Safe Browsing / reputation signals (or "No reputation flags found")
+
 ### Content Issues
-- {Empty pages, outdated copy, placeholder pages from fetch_url}
+- {Empty pages, outdated copy, placeholder pages, unclear offer/CTA from fetch_url}
+
+### Lead Capture
+- Contact form / click-to-call / chat present and working? Or missing/broken
+
+### Analytics & Conversion Tracking
+- Analytics installed? Conversion goals configured? Or untracked leads
+
+### Search Rich Results
+- LocalBusiness / structured data present or missing
+
+### Mobile Responsiveness
+- Layout on phones from fetch_url (quick tier — no Playwright)
+
+### Backup & Hosting Reliability
+- Backup / uptime signals if observable — else "Not verified — quick tier"
+
+### Broken Links & Crawl Health
+- Not crawled — quick audit tier
 
 ### DNS & Email
-- {A records, MX, SPF/DKIM/DMARC from dns_check}
+- Domain renewal if known; A/MX records; SPF/DKIM/DMARC gaps in plain language
 
 ### Online Presence
-Write one bullet per channel so the client portal report card can grade each row:
+Write one bullet per channel so the client portal diagnostic can grade each card:
 - Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
 - Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
 - Reviews: {platform, stars, count} — {notes}
@@ -112,7 +133,8 @@ Write one bullet per channel so the client portal report card can grade each row
 ---
 
 ## Opportunities
-Write 3–5 **Problem → Solution** pairs (plain language) for the client portal Ideas section:
+Write 3–5 **Problem → Solution** pairs in plain language for the client portal
+(what’s broken → what fixing it does — no jargon):
 - Problem: {what’s broken} → Solution: {service / fix we can sell}
 
 ## Action Items
@@ -138,6 +160,6 @@ If the user later runs Siri **"full audit"** on the same business, read `inquiry
 When finishing an audit in admin chat, append structured button blocks using URLs from the **update_work** tool result — never guess:
 
 - **Client profile:** `profile_url` (opens Clients tab for that contact)
-- **Audit on client portal:** `project_portal_url` (contact uid in `/c/…`, not the job slug)
+- **Audit on client portal:** `project_portal_url` (opens the **Audit** tab — contact uid in `/c/…`, not the job slug)
 
 Wrong `/c/{job-slug}` or `/c/{business-name}` links 404 — only the contact **uid** works in portal paths.

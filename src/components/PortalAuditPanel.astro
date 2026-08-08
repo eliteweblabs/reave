@@ -1,0 +1,40 @@
+---
+/**
+ * Client portal Audit tab — single live online-presence diagnostic.
+ * Audits are filtered out of Projects; one diagnostic per client.
+ */
+import type { AuditReportCard } from '../lib/auditReportCard';
+import PortalAuditReportCard from './PortalAuditReportCard.astro';
+
+interface Props {
+  report: AuditReportCard | null;
+  bodyHtml?: string;
+  companyName?: string;
+  clientName?: string;
+  scanDate?: string;
+  active?: boolean;
+}
+
+const {
+  report,
+  bodyHtml = '',
+  companyName = '',
+  clientName = '',
+  scanDate = '',
+  active = false,
+} = Astro.props;
+---
+
+<section class={`panel portal-audit ${active ? 'active' : ''}`} data-tab-panel="audit">
+  {!report ? (
+    <p class="muted">No online presence diagnostic yet.</p>
+  ) : (
+    <PortalAuditReportCard
+      report={report}
+      bodyHtml={report.inProgress ? '' : bodyHtml}
+      companyName={companyName}
+      clientName={clientName}
+      scanDate={scanDate}
+    />
+  )}
+</section>
