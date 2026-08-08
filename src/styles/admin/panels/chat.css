@@ -153,8 +153,12 @@ body.sidebar-resize-active * {
  * of the item, absolutely positioned so it's fully out of flow) and are
  * never inserted/removed from the DOM — only opacity/visibility toggles
  * via the parent's --running/--unread class — so neither can ever
- * reflow or "jump" the row.
+ * reflow or "jump" the row. Extra right padding keeps title/date text
+ * clear of that 12px slot (+ glow).
  */
+.ch-list-item:has(.ch-item-status) {
+  padding-right: 1.35rem;
+}
 .ch-item-status {
   position: absolute;
   top: 5px;
