@@ -31,6 +31,7 @@ import {
 } from '../../../lib/chatStore';
 import type { AgentUsageSummary } from '../../../lib/agentUsage';
 import { runKnowledgeAgent, runKnowledgeAgentStreaming } from '../../../lib/agentRunner';
+import { parseChatMentions } from '../../../lib/chatMentions';
 import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
 import {
   cancelAgentRun,
@@ -302,6 +303,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   const modelOverride =
     body.model == null || body.model === '' ? undefined : String(body.model);
+  const mentions = parseChatMentions(body.mentions);
 
   const loaded = await loadOwnerChatThread(userId, id);
   if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
@@ -379,6 +381,7 @@ export async function POST(context: APIContext): Promise<Response> {
     emailId: thread.source_email_id ?? undefined,
     messageImages: images.length ? images : undefined,
     messageDocs: docs.length ? docs : undefined,
+    ...(mentions.length ? { mentions } : {}),
   };
 
   if (wantsEventStream(context, body)) {

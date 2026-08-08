@@ -2257,11 +2257,13 @@ function AgentChatThreadBody({
   threadId,
   streamedProgress,
   deployChatLock,
+  pendingMentionsRef,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   threadId: string;
   streamedProgress: AgentProgress | null;
   deployChatLock: DeployChatLockState;
+  pendingMentionsRef: RefObject<ChatMention[]>;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
@@ -2313,6 +2315,7 @@ function AgentChatThreadBody({
             threadId={threadId}
             propsRef={propsRef}
             commands={commands}
+            pendingMentionsRef={pendingMentionsRef}
             externalProgress={recoveryProgress}
             useExternalProgress={recovering}
             streamedProgress={streamedProgress}
@@ -2355,6 +2358,7 @@ function AgentChatThreadBody({
                 threadId={threadId}
                 propsRef={propsRef}
                 commands={commands}
+                pendingMentionsRef={pendingMentionsRef}
                 externalProgress={recoveryProgress}
                 useExternalProgress={recovering}
                 streamedProgress={streamedProgress}
@@ -2387,8 +2391,9 @@ function AgentChatThread({
 }) {
   const deployChatLock = useDeployChatLock();
   const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
+  const pendingMentionsRef = useRef<ChatMention[]>([]);
   const adapter = useMemo(
-    () => createChatAdapter(threadId, propsRef, setStreamedProgress),
+    () => createChatAdapter(threadId, propsRef, setStreamedProgress, pendingMentionsRef),
     [threadId, propsRef],
   );
 
@@ -2414,6 +2419,7 @@ function AgentChatThread({
         threadId={threadId}
         streamedProgress={streamedProgress}
         deployChatLock={deployChatLock}
+        pendingMentionsRef={pendingMentionsRef}
       />
     </AssistantRuntimeProvider>
   );

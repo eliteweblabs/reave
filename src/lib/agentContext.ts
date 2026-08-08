@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
+import type { ChatMention } from './chatMentions';
 import type { OwnerContactRecord } from './ownerContact';
 
 export interface AgentRunContext {
@@ -12,6 +13,11 @@ export interface AgentRunContext {
   messageImages?: ChatImageAttachment[];
   /** PDF/PPTX documents attached to the current user message (for filing to projects). */
   messageDocs?: ChatDocAttachment[];
+  /**
+   * Structured @-mentions from the composer (contacts + Clerk team users).
+   * Prefer these ids over fuzzy resolve_contact for the current turn.
+   */
+  mentions?: ChatMention[];
   /**
    * The logged-in admin user's own contact-api record.
    * Injected at request time so the agent can assign internal projects to the

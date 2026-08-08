@@ -873,6 +873,37 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.aui-mention-item {
+  align-items: flex-start;
+  white-space: normal;
+}
+
+.aui-mention-kind {
+  flex-shrink: 0;
+  min-width: 2.6rem;
+  margin-top: 0.1rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.aui-mention-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.aui-helper-empty {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 @media (hover: none) {
