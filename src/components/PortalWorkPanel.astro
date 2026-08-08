@@ -44,7 +44,7 @@ interface Props {
   expandSlug?: string;
   /** Tracked share token from ?track= (appended by /go/:token redirect). */
   trackToken?: string;
-  /** Dwell time before deep-link auto view (ms). */
+  /** Dwell time before recording a client view (deep-link or accordion expand). */
   dwellMs?: number;
 }
 
@@ -326,20 +326,41 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   const viewedSlugs = new Set();
-  let deepLinkDwellTimer = null;
+  const dwellTimers = new Map();
 
-  function cancelDeepLinkDwell() {
-    if (deepLinkDwellTimer != null) {
-      clearTimeout(deepLinkDwellTimer);
-      deepLinkDwellTimer = null;
+  function cancelDwell(slug) {
+    const key = String(slug || '').trim();
+    const t = dwellTimers.get(key);
+    if (t != null) {
+      clearTimeout(t);
+      dwellTimers.delete(key);
     }
+  }
+
+  function cancelAllDwells() {
+    for (const t of dwellTimers.values()) clearTimeout(t);
+    dwellTimers.clear();
+  }
+
+  function scheduleDwellView(jobSlug) {
+    const slugKey = String(jobSlug || '').trim();
+    if (!slugKey || viewedSlugs.has(slugKey)) return;
+    cancelDwell(slugKey);
+    if (document.visibilityState !== 'visible') return;
+    dwellTimers.set(
+      slugKey,
+      window.setTimeout(() => {
+        dwellTimers.delete(slugKey);
+        recordProjectViewed(slugKey);
+      }, dwellMs),
+    );
   }
 
   function recordProjectViewed(jobSlug) {
     const slugKey = String(jobSlug || '').trim();
     if (!slugKey || viewedSlugs.has(slugKey)) return;
     viewedSlugs.add(slugKey);
-    if (slugKey === expandSlug) cancelDeepLinkDwell();
+    cancelDwell(slugKey);
     const payload = trackToken ? { token: trackToken } : {};
     fetch(`${commentEndpointBase}/${encodeURIComponent(slugKey)}/viewed`, {
       method: 'POST',
@@ -350,17 +371,23 @@ const filesEndpointBase = commentEndpointBase;
 
   if (expandSlug) {
     const scheduleDeepLinkDwell = () => {
-      cancelDeepLinkDwell();
-      if (document.visibilityState !== 'visible') return;
-      deepLinkDwellTimer = window.setTimeout(() => recordProjectViewed(expandSlug), dwellMs);
+      if (document.visibilityState !== 'visible') {
+        cancelDwell(expandSlug);
+        return;
+      }
+      scheduleDwellView(expandSlug);
     };
     if (document.readyState === 'complete') scheduleDeepLinkDwell();
     else window.addEventListener('load', scheduleDeepLinkDwell, { once: true });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') scheduleDeepLinkDwell();
-      else cancelDeepLinkDwell();
+      else cancelDwell(expandSlug);
     });
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') cancelAllDwells();
+  });
 
   document.querySelectorAll('.work-item').forEach((item) => {
     const head = item.querySelector('.work-item-head');
@@ -420,16 +447,19 @@ const filesEndpointBase = commentEndpointBase;
         if (el !== body) {
           el.setAttribute('hidden', '');
           el.previousElementSibling?.setAttribute('aria-expanded', 'false');
+          const otherSlug = el.closest('.work-item')?.getAttribute('data-job-slug');
+          if (otherSlug) cancelDwell(otherSlug);
         }
       });
       if (open) {
         body.removeAttribute('hidden');
         head.setAttribute('aria-expanded', 'true');
-        recordProjectViewed(slug);
+        scheduleDwellView(slug);
         textarea.focus();
       } else {
         body.setAttribute('hidden', '');
         head.setAttribute('aria-expanded', 'false');
+        cancelDwell(slug);
       }
     });
 

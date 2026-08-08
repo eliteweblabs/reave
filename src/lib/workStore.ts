@@ -55,6 +55,11 @@ export interface WorkJobSummary {
   source_chat_id?: string;
   created: string;
   updated: string;
+  /**
+   * When a non-staff client last viewed this project on the portal
+   * (after dwell). Admin edits / saves must not set this.
+   */
+  last_client_viewed_at?: string | null;
   /** Short lines for compact client project tiles. */
   preview_bullets?: string[];
 }
@@ -264,6 +269,7 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     source_chat_id: meta.source_chat_id?.trim() || undefined,
     created: meta.created?.trim() || '',
     updated: meta.updated?.trim() || '',
+    last_client_viewed_at: meta.last_client_viewed_at?.trim() || null,
     preview_bullets: extractWorkPreviewBullets(body, { tags }),
   };
 }
@@ -302,6 +308,8 @@ function buildMarkdown(
   if (value != null) lines.push(yamlLine('value', String(value)));
   if (tags.length) lines.push(yamlLine('tags', tags.join(', ')));
   if (sourceChatId) lines.push(yamlLine('source_chat_id', sourceChatId));
+  const clientViewed = existing?.last_client_viewed_at?.trim();
+  if (clientViewed) lines.push(yamlLine('last_client_viewed_at', clientViewed));
   lines.push(
     yamlLine('created', created),
     yamlLine('updated', now),
@@ -641,6 +649,39 @@ export async function storeDeleteWork(slug: string): Promise<boolean> {
     });
   }
   return deleted;
+}
+
+/**
+ * Record a non-staff client portal view. Does not bump `updated` — admin saves
+ * and tag edits must not land projects in Recently Viewed.
+ */
+export async function storeTouchClientViewed(
+  slug: string,
+): Promise<{ ok: true; last_client_viewed_at: string } | { ok: false; error: string }> {
+  if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
+  const now = new Date().toISOString();
+
+  if (isWorkDbConfigured()) {
+    const { dbTouchClientViewed } = await import('./pgJobs');
+    const touched = await dbTouchClientViewed(slug);
+    if (!touched) return { ok: false, error: 'Not found' };
+    return { ok: true, last_client_viewed_at: touched };
+  }
+
+  const path = join(workDir(), `${slug}.md`);
+  if (!existsSync(path)) return { ok: false, error: 'Not found' };
+  const content = readFileSync(path, 'utf8');
+  // Patch frontmatter in place — do not bump `updated`.
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!fmMatch) return { ok: false, error: 'Invalid job file' };
+  let fm = fmMatch[1];
+  if (/^last_client_viewed_at:/m.test(fm)) {
+    fm = fm.replace(/^last_client_viewed_at:.*$/m, yamlLine('last_client_viewed_at', now));
+  } else {
+    fm = `${fm.trimEnd()}\n${yamlLine('last_client_viewed_at', now)}`;
+  }
+  writeFileSync(path, `---\n${fm}\n---\n${fmMatch[2]}`, 'utf8');
+  return { ok: true, last_client_viewed_at: now };
 }
 
 export async function storeDeleteWorkByClientUid(clientUid: string): Promise<number> {

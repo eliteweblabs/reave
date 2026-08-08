@@ -327,20 +327,29 @@ function recentlyViewedCutoffMs() {
   return Date.now() - n * 24 * 60 * 60 * 1000;
 }
 
-/** Recently Viewed uses last edit time — opening a project in admin must not count. */
-function workJobEditedAtMs(job) {
-  const raw = workJobLastEdited(job);
+/** Client portal dwell timestamp — admin edits / saves must not count. */
+function workJobClientViewedAtMs(job) {
+  const raw = job?.last_client_viewed_at || job?.lastClientViewedAt || '';
   if (!raw) return 0;
   const n = Date.parse(String(raw));
   return Number.isFinite(n) ? n : 0;
 }
 
 function isRecentlyViewedJob(job) {
-  const at = workJobEditedAtMs(job);
+  const at = workJobClientViewedAtMs(job);
   return at > 0 && at >= recentlyViewedCutoffMs();
 }
 
+function compareWorkJobsByClientViewed(a, b) {
+  const diff = workJobClientViewedAtMs(b) - workJobClientViewedAtMs(a);
+  if (diff !== 0) return diff;
+  return compareWorkJobsByRecency(a, b);
+}
+
 function sortWorkJobsForDisplay(jobs) {
+  if (workState.statusFilter === 'recent') {
+    return [...jobs].sort(compareWorkJobsByClientViewed);
+  }
   return [...jobs].sort(compareWorkJobsByRecency);
 }
 
@@ -1511,7 +1520,7 @@ function fillWorkSidebarList(list) {
       empty.textContent = 'No matches.';
     } else if (workState.statusFilter === 'recent') {
       const days = workState.recentlyViewedDays || DEFAULT_RECENTLY_VIEWED_DAYS;
-      empty.textContent = `No ${postLower(2)} updated in the last ${days} day${days === 1 ? '' : 's'}.`;
+      empty.textContent = `No ${postLower(2)} viewed by clients in the last ${days} day${days === 1 ? '' : 's'}.`;
     } else {
       empty.textContent = `No ${postLower(2)} yet.`;
     }

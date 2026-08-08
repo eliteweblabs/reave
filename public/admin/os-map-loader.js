@@ -7134,13 +7134,13 @@ function renderAppSettingsPanel(settings, sleepData) {
           `<section class="prof-section">` +
             `<div class="prof-section-copy">` +
               `<h2 class="prof-title prof-title--section">Recently viewed</h2>` +
-              `<p class="prof-subtitle">Projects updated within this window appear under the Recently Viewed filter in ${escHtml(postTitle(2))}. Opening a project does not count.</p>` +
+              `<p class="prof-subtitle">Projects a client viewed on their portal (after a short dwell) appear under Recently Viewed in ${escHtml(postTitle(2))}. Admin edits and saves do not count.</p>` +
             `</div>` +
             `<div class="prof-section-fields">` +
               `<div class="prof-field">` +
-                `<label for="settings-recently-viewed-days">Show projects updated within (days)</label>` +
+                `<label for="settings-recently-viewed-days">Show projects clients viewed within (days)</label>` +
                 `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
-                `<span class="prof-hint">Default is 7 days. Based on each project’s last edit, not admin clicks.</span>` +
+                `<span class="prof-hint">Default is 7 days. Based on client portal dwell (~4s), not staff activity.</span>` +
               `</div>` +
             `</div>` +
           `</section>` +

@@ -1,14 +1,18 @@
 /**
- * POST /api/c/[slug]/work/[jobSlug]/viewed — record a project share view from the portal.
- * Triggered after deep-link dwell time or when the client expands a project accordion.
+ * POST /api/c/[slug]/work/[jobSlug]/viewed — record a client portal project view.
+ * Triggered after dwell time on deep-link or accordion expand (non-staff only).
+ * Stamps last_client_viewed_at for Recently Viewed; optionally marks a tracked share open.
  */
 import type { APIRoute } from 'astro';
 import { getContact } from '../../../../../../lib/contactApi';
 import { recordShareOpenEngagement } from '../../../../../../lib/engagementNotifications';
 import { recordProjectShareView } from '../../../../../../lib/linkTracking';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
-import { isStaffSession } from '../../../../../../lib/staffSession';
-import { storeReadWork } from '../../../../../../lib/workStore';
+import {
+  isLinkPreviewRequest,
+  isStaffSession,
+} from '../../../../../../lib/staffSession';
+import { storeReadWork, storeTouchClientViewed } from '../../../../../../lib/workStore';
 
 export const prerender = false;
 
@@ -27,7 +31,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
   const ctx = await loadPortalJob(contactUid, jobSlug);
   if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
 
-  if (isStaffSession(locals)) {
+  if (isStaffSession(locals) || isLinkPreviewRequest(request)) {
     return json({ ok: true, recorded: false });
   }
 
@@ -40,7 +44,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
   const token = typeof body.token === 'string' ? body.token.trim() : '';
 
-  const result = await recordProjectShareView({
+  const touched = await storeTouchClientViewed(jobSlug);
+  if (!touched.ok) return json({ ok: false, error: touched.error }, 404);
+
+  const share = await recordProjectShareView({
     jobSlug,
     contactUid,
     token: token || undefined,
@@ -50,9 +57,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     },
   });
 
-  if (!result.recorded) return json({ ok: true, recorded: false });
-
-  if (result.wasFirstOpen) {
+  if (share.recorded && share.wasFirstOpen) {
     void (async () => {
       const [contactRes, job] = await Promise.all([
         getContact(contactUid).catch(() => null),
@@ -66,11 +71,16 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
         contactName,
         jobSlug,
         jobTitle,
-        linkToken: result.link.token,
-        destination: result.link.destination,
+        linkToken: share.link.token,
+        destination: share.link.destination,
       });
     })();
   }
 
-  return json({ ok: true, recorded: true, wasFirstOpen: result.wasFirstOpen });
+  return json({
+    ok: true,
+    recorded: true,
+    last_client_viewed_at: touched.last_client_viewed_at,
+    wasFirstOpen: share.recorded ? share.wasFirstOpen : false,
+  });
 };

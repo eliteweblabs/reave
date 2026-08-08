@@ -34,6 +34,7 @@ export interface JobRow {
   body: string;
   created_at: string | Date;
   updated_at: string | Date;
+  last_client_viewed_at: string | Date | null;
 }
 
 function pgTimestamp(value: unknown): string {
@@ -43,7 +44,7 @@ function pgTimestamp(value: unknown): string {
 }
 
 const JOB_COLUMNS = `
-  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body, created_at, updated_at
+  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body, created_at, updated_at, last_client_viewed_at
 `;
 
 const SCHEMA_SQL = `
@@ -61,7 +62,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   source VARCHAR(100) DEFAULT '',
   body TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_client_viewed_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_slug ON jobs(slug);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
@@ -69,6 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_client_uid ON jobs(client_uid);
 CREATE INDEX IF NOT EXISTS idx_jobs_priority ON jobs(priority);
 CREATE INDEX IF NOT EXISTS idx_jobs_due_date ON jobs(due_date);
 CREATE INDEX IF NOT EXISTS idx_jobs_tags ON jobs USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_jobs_client_viewed ON jobs(last_client_viewed_at DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING GIN(
   to_tsvector('english', title || ' ' || COALESCE(body, ''))
 );
@@ -103,6 +106,8 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS value NUMERIC(12,2);
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT '';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_chat_id TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_client_viewed_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_jobs_client_viewed ON jobs(last_client_viewed_at DESC NULLS LAST);
 UPDATE jobs SET status = 'archived' WHERE status = 'done';
 ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
 ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('inquiry', 'active', 'archived'));
@@ -129,6 +134,9 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     source_chat_id: row.source_chat_id?.trim() || undefined,
     created: pgTimestamp(row.created_at),
     updated: pgTimestamp(row.updated_at),
+    last_client_viewed_at: row.last_client_viewed_at
+      ? pgTimestamp(row.last_client_viewed_at)
+      : null,
     preview_bullets: extractWorkPreviewBullets(row.body ?? '', { tags }),
   };
 }
@@ -375,6 +383,26 @@ export async function dbAppendWorkNote(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
+  }
+}
+
+/** Stamp client portal dwell without bumping updated_at. */
+export async function dbTouchClientViewed(slug: string): Promise<string | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{ last_client_viewed_at: string | Date }>(
+      `UPDATE jobs
+       SET last_client_viewed_at = NOW()
+       WHERE slug = $1
+       RETURNING last_client_viewed_at`,
+      [slug.trim()],
+    );
+    const at = rows[0]?.last_client_viewed_at;
+    return at ? pgTimestamp(at) : null;
+  } catch (e) {
+    console.error('[jobs:pg] touch client viewed error:', e);
+    return null;
   }
 }
 
