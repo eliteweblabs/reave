@@ -1,6 +1,7 @@
 /**
  * Public demo loader — 6-column tile grid, toggles only on deployed modules.
- * Launch requires name + email and goes through POST /api/demo/launch.
+ * Submit collects name, email, and modules via POST /api/demo/launch
+ * (creates a proposed client + inquiry; sandbox auto-provision is paused).
  */
 (function () {
   const STATUS = {
@@ -17,11 +18,11 @@
   let baselineModuleIds = [];
   let selectedIds = new Set();
   let industry = 'general';
-  let demoSiteUrl = null;
   let visitorName = '';
   let visitorEmail = '';
   let launchError = '';
   let launching = false;
+  let submitted = false;
 
   const root = document.getElementById('demo-loader-app');
   if (!root) return;
@@ -51,7 +52,6 @@
       : [{ id: 'optional', title: 'Optional Modules', modules }];
     industries = data.industries || [];
     baselineModuleIds = data.baselineModuleIds || [];
-    demoSiteUrl = data.demoSiteUrl || null;
     const allowed = new Set(toggleableModules().map((m) => m.moduleId));
     if (data.suite?.moduleIds?.length) {
       selectedIds = new Set(
@@ -81,10 +81,10 @@
 
   function canLaunch() {
     return Boolean(
-      demoSiteUrl &&
-        visitorName.trim().length >= 2 &&
+      visitorName.trim().length >= 2 &&
         visitorEmail.trim().includes('@') &&
-        !launching,
+        !launching &&
+        !submitted,
     );
   }
 
@@ -187,7 +187,23 @@
     );
   }
 
+  function renderSuccess() {
+    root.innerHTML =
+      `<div class="dl-panel dl-panel--success" role="status">` +
+      `<h2 class="dl-success-title">Request received</h2>` +
+      `<p class="dl-success-body">Thanks${visitorName.trim() ? `, ${esc(visitorName.trim().split(/\s+/)[0])}` : ''}. ` +
+      `We’ll notify you as soon as your custom demo environment is ready.</p>` +
+      `<p class="dl-success-meta">A confirmation will go to <strong>${esc(visitorEmail.trim())}</strong> when the sandbox is live.</p>` +
+      `<p class="dl-footnote"><a href="/demo">Back to demo</a></p>` +
+      `</div>`;
+  }
+
   function render() {
+    if (submitted) {
+      renderSuccess();
+      return;
+    }
+
     const toggleCount = toggleableModules().length;
     const selectedCount = selectedToggleableCount();
     const ready = canLaunch();
@@ -219,7 +235,7 @@
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all deployed</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${ready ? '' : ' disabled'}>` +
-      (launching ? 'Starting…' : demoSiteUrl ? 'Launch live demo' : 'Demo sandbox unavailable') +
+      (launching ? 'Submitting…' : 'Request custom demo') +
       `</button>` +
       `</div>` +
       (launchError ? `<p class="dl-launch-error" role="alert">${esc(launchError)}</p>` : '') +
@@ -230,9 +246,7 @@
       renderIncludedSection() +
       sections.map(renderSection).join('') +
       `</div>` +
-      (!demoSiteUrl ?
-        `<p class="dl-footnote">Live sandbox URL is not configured on this install. Book a call from the <a href="/demo">demo page</a> for hands-on access.</p>`
-      : `<p class="dl-footnote">We use your name and email to personalize the sandbox and follow up. Launches are rate-limited to keep the demo fast for everyone.</p>`) +
+      `<p class="dl-footnote">Tell us which modules you need and we’ll prepare a personalized demo. You’ll hear from us as soon as it’s ready.</p>` +
       `</div>`;
   }
 
@@ -253,7 +267,7 @@
   }
 
   async function launch() {
-    if (!demoSiteUrl || launching) return;
+    if (launching || submitted) return;
     readVisitorFields();
     launchError = '';
     if (visitorName.trim().length < 2) {
@@ -290,19 +304,23 @@
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok || !json.redirectUrl) {
-        throw new Error(json.error || `Could not start demo (${res.status})`);
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || `Could not submit request (${res.status})`);
       }
-      window.location.assign(json.redirectUrl);
+      launching = false;
+      submitted = true;
+      render();
     } catch (e) {
       launching = false;
-      launchError = e.message || 'Could not start demo.';
+      launchError = e.message || 'Could not submit request.';
       render();
       bind();
     }
   }
 
   function bind() {
+    if (submitted) return;
+
     root.querySelector('#dl-industry')?.addEventListener('change', (e) => {
       industry = e.target.value || 'general';
     });

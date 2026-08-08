@@ -471,6 +471,13 @@ select,
 .admin-setup-alert--alert {
   --notice-accent: 248, 113, 113;
 }
+/* High-priority operational notices (demo requests, etc.). */
+.admin-setup-alert--critical {
+  --notice-accent: 239, 68, 68;
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.35),
+    0 8px 28px rgba(239, 68, 68, 0.18);
+}
 .admin-setup-alert--pwa {
   --notice-accent: 94, 234, 212;
 }

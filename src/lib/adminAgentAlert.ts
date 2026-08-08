@@ -552,6 +552,65 @@ export async function notifyAdminAgentOfDemoLaunch(opts: {
   });
 }
 
+/** Fire-and-forget — custom demo environment request (critical). */
+export async function notifyAdminAgentOfDemoRequest(opts: {
+  contactName: string | null;
+  contactUid: string | null;
+  email: string | null;
+  industry: string | null;
+  industryLabel?: string | null;
+  moduleCount?: number;
+  moduleIds?: string[];
+  jobSlug?: string | null;
+  jobTitle?: string | null;
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const post = getPostAlias();
+  const industryLabel = opts.industryLabel?.trim() || opts.industry?.trim() || null;
+  const who = opts.contactName || 'Visitor';
+  const modulesLine =
+    opts.moduleIds?.length ?
+      `Modules (${opts.moduleIds.length}): ${opts.moduleIds.join(', ')}`
+    : opts.moduleCount != null ? `Modules: ${opts.moduleCount}`
+    : null;
+
+  const message = [
+    '🚨 Critical: custom demo environment requested',
+    '',
+    `Visitor: ${who}`,
+    opts.email ? `Email: ${opts.email}` : null,
+    industryLabel ? `Industry: ${industryLabel}` : null,
+    modulesLine,
+    opts.jobSlug ? `${post.singularTitle}: ${opts.jobTitle || opts.jobSlug} (${opts.jobSlug})` : null,
+    '',
+    'Someone submitted /demo-loader. Auto-provisioning is paused — build their sandbox and notify them when ready.',
+  ]
+    .filter((line) => line != null)
+    .join('\n');
+
+  const url = opts.jobSlug
+    ? `/admin?tab=work&slug=${encodeURIComponent(opts.jobSlug)}`
+    : opts.contactUid
+      ? `/admin?tab=clients&client=${encodeURIComponent(opts.contactUid)}`
+      : '/admin?tab=dashboard';
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `🚨 Demo request: ${who}`,
+      body: `${industryLabel || 'Custom demo'}${opts.moduleCount != null ? ` · ${opts.moduleCount} modules` : ''}`,
+      tag: `demo-request-${opts.engagementId}`,
+      url,
+      urgent: true,
+      kind: 'critical',
+      // Engagement banner already shows on the dashboard as critical.
+      skipDashboardAlert: true,
+    },
+  });
+}
+
 /**
  * Fire-and-forget — logs failures, never throws to inbound email handler.
  *

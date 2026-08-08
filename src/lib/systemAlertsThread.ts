@@ -14,6 +14,7 @@ import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
 import { isSleepModeActive } from './pushQuietHours';
 import { createLogger } from './logger';
+import type { PushAlertKind } from './pushAlertStore';
 
 const log = createLogger('system-alerts');
 
@@ -49,7 +50,16 @@ export async function postToSystemAlertsThread(opts: {
   autoRun?: boolean;
   emailId?: string;
   model?: string;
-  push?: { title: string; body: string; tag?: string; url?: string };
+  push?: {
+    title: string;
+    body: string;
+    tag?: string;
+    url?: string;
+    urgent?: boolean;
+    kind?: PushAlertKind;
+    /** When true, skip the dismissible dashboard mirror (engagement banner already covers it). */
+    skipDashboardAlert?: boolean;
+  };
 }): Promise<{ threadId?: string; agentReply?: string }> {
   const userId = agentAlertUserId();
   if (!userId) return {};
@@ -98,6 +108,9 @@ export async function postToSystemAlertsThread(opts: {
         body: opts.push.body,
         tag: opts.push.tag ?? `system-alert-${threadId}`,
         url: opts.push.url ?? `/admin?tab=chats&chat=${encodeURIComponent(threadId)}`,
+        urgent: opts.push.urgent,
+        kind: opts.push.kind,
+        skipDashboardAlert: opts.push.skipDashboardAlert,
       }).catch((e) => log.warn('push failed', e));
     }
 

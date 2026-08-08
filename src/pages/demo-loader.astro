@@ -1,21 +1,19 @@
 ---
 /**
- * /demo-loader — public page to pick production modules + industry and launch the live demo.
+ * /demo-loader — public page to pick modules + industry and request a custom demo.
  */
 import Layout from "../layouts/Layout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { getPublicDemoSiteUrl } from "../lib/publicDemo";
 import "../styles/demo-loader.css";
 
 export const prerender = false;
 
 const company = await getCompanyConfig(Astro.request);
-const demoSiteUrl = getPublicDemoSiteUrl();
 ---
 
 <Layout
   title="Demo loader"
-  description={`Configure a live ${company.name} demo — pick the modules your business needs and an industry preset, then open the sandbox.`}
+  description={`Request a custom ${company.name} demo — pick the modules your business needs and an industry preset.`}
 >
   <div class="demo-loader-page">
     <header class="dl-hero">
@@ -24,18 +22,12 @@ const demoSiteUrl = getPublicDemoSiteUrl();
       <p class="dl-lead">
         Every demo starts with the core platform — CRM, portal, billing, agent
         chat, and more. Enter your name and email, pick optional modules below —
-        only <strong>Deployed</strong> ones can be toggled on — then launch a
-        personalized sandbox.
+        only <strong>Deployed</strong> ones can be toggled on — then request a
+        personalized demo environment.
       </p>
       <p class="dl-notice" role="note">
-        Siri shortcuts and push notifications are set up per device on a live
-        install — they won’t run in this demo sandbox.
+        We’ll prepare your sandbox and notify you as soon as it’s ready.
       </p>
-      {demoSiteUrl && (
-        <p class="dl-sandbox-note">
-          Sandbox: <a href={demoSiteUrl} rel="noopener noreferrer">{demoSiteUrl.replace(/^https?:\/\//, "")}</a>
-        </p>
-      )}
     </header>
 
     <div id="demo-loader-app" class="dl-app" aria-live="polite">

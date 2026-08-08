@@ -17,7 +17,9 @@ export type EngagementEventType =
   | 'share_open'
   | 'deck_view'
   | 'contact_form'
-  | 'demo_launch';
+  | 'demo_launch'
+  /** Custom demo environment request from /demo-loader (critical). */
+  | 'demo_request';
 
 export type EngagementEvent = {
   id: string;

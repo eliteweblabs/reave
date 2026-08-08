@@ -1,5 +1,7 @@
 /**
- * POST /api/demo/launch — gated demo-loader launch (name/email + abuse limits).
+ * POST /api/demo/launch — gated demo-loader request (name/email + abuse limits).
+ * Creates a proposed client, inquiry project, and critical dashboard notice.
+ * Auto sandbox redirect is paused.
  */
 import type { APIContext } from 'astro';
 import { processDemoLaunch } from '../../../lib/demoLaunch';
@@ -44,8 +46,8 @@ export async function POST(context: APIContext): Promise<Response> {
 
   return json({
     ok: true,
-    redirectUrl: result.redirectUrl,
-    suite: result.suite,
     contactUid: result.contactUid,
+    jobSlug: result.jobSlug,
+    jobTitle: result.jobTitle,
   });
 }

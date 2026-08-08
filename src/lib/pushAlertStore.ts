@@ -11,7 +11,15 @@ import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { workSlugFromAdminUrl } from './notificationFormat';
 
-export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement' | 'otp' | 'auth_link';
+export type PushAlertKind =
+  | 'uptime'
+  | 'email'
+  | 'system'
+  | 'comment'
+  | 'engagement'
+  | 'otp'
+  | 'auth_link'
+  | 'critical';
 
 export type PushAlert = {
   id: string;
@@ -124,6 +132,7 @@ export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
   if (t.startsWith('vault-') || t.startsWith('share-open-') || t.startsWith('deck-view-')) {
     return 'engagement';
   }
+  if (t.startsWith('critical-') || t.startsWith('demo-request-')) return 'critical';
   if (t.startsWith('email-') || u.includes('tab=email')) return 'email';
   return 'system';
 }

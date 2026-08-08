@@ -3959,6 +3959,8 @@ function reviewAlertTone(item) {
     return 'project';
   }
   if (type === 'vault_entry' || type === 'deck_view' || type === 'demo_launch') return 'client';
+  if (type === 'demo_request') return 'critical';
+  if (type === 'push_alert' && item.alertKind === 'critical') return 'critical';
   if (type === 'push_alert' && item.alertKind === 'engagement') return 'client';
   return 'alert';
 }
@@ -4108,7 +4110,8 @@ async function openReviewNotificationTarget(item) {
       item.type === 'project_match' ||
       item.type === 'project_comment' ||
       item.type === 'share_open' ||
-      item.type === 'contact_form') &&
+      item.type === 'contact_form' ||
+      item.type === 'demo_request') &&
     item.jobSlug
   ) {
     if (
@@ -4119,6 +4122,10 @@ async function openReviewNotificationTarget(item) {
     return;
   }
   if ((item.type === 'vault_entry' || item.type === 'deck_view' || item.type === 'demo_launch') && item.contactUid) {
+    navigateToClient(item.contactUid);
+    return;
+  }
+  if (item.type === 'demo_request' && item.contactUid) {
     navigateToClient(item.contactUid);
     return;
   }
@@ -4140,6 +4147,7 @@ function buildReviewAlertBanner(item) {
   const isShareOpen = item.type === 'share_open';
   const isDeckView = item.type === 'deck_view';
   const isDemoLaunch = item.type === 'demo_launch';
+  const isDemoRequest = item.type === 'demo_request';
   const isContactForm = item.type === 'contact_form';
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
@@ -4200,9 +4208,9 @@ function buildReviewAlertBanner(item) {
         onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
       });
     }
-  } else if (isProjectComment || isShareOpen || isContactForm) {
+  } else if (isProjectComment || isShareOpen || isContactForm || isDemoRequest) {
     actions.push({
-      label: `View ${postLower(1)}`,
+      label: isDemoRequest && !item.jobSlug ? 'View client' : `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });

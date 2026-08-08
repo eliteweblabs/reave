@@ -7,6 +7,7 @@ import {
   notifyAdminAgentOfContactForm,
   notifyAdminAgentOfDeckView,
   notifyAdminAgentOfDemoLaunch,
+  notifyAdminAgentOfDemoRequest,
   notifyAdminAgentOfShareOpen,
   notifyAdminAgentOfVaultSubmit,
 } from './adminAgentAlert';
@@ -242,6 +243,7 @@ export async function recordDeckViewEngagement(opts: {
   );
 }
 
+/** @deprecated Prefer recordDemoRequestEngagement — live auto-launch is paused. */
 export async function recordDemoLaunchEngagement(opts: {
   contactUid: string;
   contactName: string;
@@ -282,6 +284,65 @@ export async function recordDemoLaunchEngagement(opts: {
         industry: industrySlug,
         industryLabel,
         moduleCount,
+        engagementId: event.id,
+      }),
+  );
+}
+
+/** Critical dashboard notice when someone requests a custom demo environment. */
+export async function recordDemoRequestEngagement(opts: {
+  contactUid: string;
+  contactName: string;
+  email: string;
+  industry?: string | null;
+  moduleIds?: string[];
+  jobSlug?: string | null;
+  jobTitle?: string | null;
+}): Promise<EngagementEvent | null> {
+  const who = opts.contactName.trim() || 'Visitor';
+  const email = opts.email.trim().toLowerCase();
+  const industrySlug = opts.industry?.trim().toLowerCase() || null;
+  let industryLabel: string | null = null;
+  if (industrySlug) {
+    const row = await getDeckIndustryBySlug(industrySlug).catch(() => null);
+    industryLabel = row?.label?.trim() || industrySlug;
+  }
+  const moduleCount = opts.moduleIds?.length ?? 0;
+  const modulePreview = (opts.moduleIds || [])
+    .slice(0, 8)
+    .map((id) => id.padStart(3, '0'))
+    .join(', ');
+  const day = new Date().toISOString().slice(0, 10);
+  const detailParts = [
+    email || null,
+    industryLabel ? `${industryLabel} industry` : null,
+    moduleCount
+      ? `${moduleCount} modules${modulePreview ? `: ${modulePreview}${moduleCount > 8 ? '…' : ''}` : ''}`
+      : null,
+  ].filter(Boolean);
+
+  return createAndNotify(
+    {
+      type: 'demo_request',
+      title: `Critical: ${who} requested a custom demo`,
+      detail: detailParts.join(' · ') || 'Demo loader request',
+      contactUid: opts.contactUid.trim() || null,
+      contactName: who,
+      jobSlug: opts.jobSlug?.trim() || null,
+      jobTitle: opts.jobTitle?.trim() || null,
+      dedupeKey: `demo_request:${email || opts.contactUid}:${day}`,
+    },
+    (event) =>
+      notifyAdminAgentOfDemoRequest({
+        contactName: who,
+        contactUid: opts.contactUid.trim() || null,
+        email: email || null,
+        industry: industrySlug,
+        industryLabel,
+        moduleCount,
+        moduleIds: opts.moduleIds,
+        jobSlug: opts.jobSlug?.trim() || null,
+        jobTitle: opts.jobTitle?.trim() || null,
         engagementId: event.id,
       }),
   );
