@@ -970,9 +970,10 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     top: calc(100% + 6px);
     left: auto;
     right: 0;
-    transform: none;
+    /* Right-anchored: grows left across the open header space. */
+    width: max-content;
+    max-width: min(calc(100vw - 2.5rem), 40rem);
     white-space: pre-line;
-    max-width: min(72vw, 18rem);
     text-align: left;
     line-height: 1.35;
     background: var(--tooltip-bg, rgba(15, 23, 42, 0.96));
@@ -981,12 +982,17 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     font-size: 0.68rem;
     font-family: ui-sans-serif, system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
-    padding: 3px 8px;
-    border-radius: 5px;
+    padding: 0.4rem 0.65rem;
+    border-radius: 6px;
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.12s;
+    transform-origin: right top;
+    transform: translateX(0.65rem);
+    transition:
+      opacity 0.18s ease,
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0.22s;
     z-index: 9999;
   }
 
@@ -994,6 +1000,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   [data-tooltip].topbar-deploy-dot.tooltip-open::after {
     opacity: 1;
     visibility: visible;
+    transform: translateX(0);
   }
 
   .topbar-profile-btn svg {

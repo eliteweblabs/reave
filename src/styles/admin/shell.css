@@ -772,11 +772,25 @@ select,
 [data-tooltip].tooltip-open::after { opacity: 1; visibility: visible; }
 /* Items near the right edge: right-align the tooltip */
 [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
+/* Deploy tip: right-anchored fly-out across open header space (overrides .tt-left). */
 .topbar-deploy-dot[data-tooltip]::after {
+  width: max-content;
+  max-width: min(calc(100vw - 2.5rem), 40rem);
   white-space: pre-line;
-  max-width: min(72vw, 18rem);
   text-align: left;
   line-height: 1.35;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  transform-origin: right top;
+  transform: translateX(0.65rem);
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.22s;
+}
+.topbar-deploy-dot[data-tooltip]:hover::after,
+.topbar-deploy-dot[data-tooltip].tooltip-open::after {
+  transform: translateX(0);
 }
 
 /* Tabs — scroll wrapper keeps items from overlapping the right cluster */
