@@ -13,12 +13,27 @@
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
   min-width: 0;
-  border-right: 1px solid var(--panel-border);
+  /* Split rail via ::after — must not bisect the transparent logo header. */
+  border-right: none;
   display: flex;
   flex-direction: column;
   background: var(--bg);
   overflow: hidden;
   position: relative;
+}
+.ch-sidebar::after {
+  content: '';
+  position: absolute;
+  top: var(
+    --topbar-measured-h,
+    calc(var(--topbar-h) + var(--setup-alert-h, 0px))
+  );
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--panel-border);
+  pointer-events: none;
+  z-index: 2;
 }
 .ch-sidebar-resizer {
   position: absolute;

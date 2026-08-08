@@ -25,12 +25,27 @@
 .de-sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
-  border-right: 1px solid var(--panel-border);
+  /* Split rail via ::after — must not bisect the transparent logo header. */
+  border-right: none;
   display: flex;
   flex-direction: column;
   background: var(--bg);
   overflow: hidden;
   position: relative;
+}
+.de-sidebar::after {
+  content: '';
+  position: absolute;
+  top: var(
+    --topbar-measured-h,
+    calc(var(--topbar-h) + var(--setup-alert-h, 0px))
+  );
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--panel-border);
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* Mobile: single-pane navigation */
@@ -44,6 +59,10 @@
     flex: 1 1 auto;
     border-right: none;
     border-bottom: 1px solid var(--panel-border);
+  }
+  .de-sidebar::after,
+  .ch-sidebar::after {
+    display: none;
   }
   .de-pane {
     display: none;
