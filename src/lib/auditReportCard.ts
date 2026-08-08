@@ -152,12 +152,31 @@ function bulletsFromSection(section: string): string[] {
 
 function extractSection(body: string, heading: RegExp): string {
   // Wrap alternations so `|` cannot escape the heading atom.
+  // Accept ## / ### / #### and bold-only headings agents sometimes write.
   const re = new RegExp(
-    `(?:^|\\n)#{2,3}\\s+(?:${heading.source})\\s*\\n([\\s\\S]*?)(?=\\n#{2,3}\\s+|$)`,
+    `(?:^|\\n)(?:#{2,4}\\s+(?:${heading.source})\\s*|\\*\\*(?:${heading.source})\\*\\*\\s*)\\n([\\s\\S]*?)(?=\\n(?:#{2,4}\\s+|\\*\\*[^*]+\\*\\*\\s*$)|$)`,
     'i',
   );
   const m = body.match(re);
   return m?.[1]?.trim() ?? '';
+}
+
+/** Pull Lighthouse-style `performance: 42, accessibility: 78, best-practices: 71, seo: 55`. */
+function extractLighthouseScoreMap(text: string): Partial<Record<ReportCardCategoryId, number>> {
+  const out: Partial<Record<ReportCardCategoryId, number>> = {};
+  const re =
+    /\b(performance|accessibility|best[-\s]?practices?|seo)\b\s*[:=]?\s*(\d{1,3})(?:\s*\/\s*100)?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const raw = m[1].toLowerCase().replace(/\s+/g, '-');
+    const n = Number(m[2]);
+    if (Number.isNaN(n) || n < 0 || n > 100) continue;
+    if (raw.startsWith('performance')) out.performance = n;
+    else if (raw.startsWith('accessibility')) out.accessibility = n;
+    else if (raw.startsWith('best')) out.best_practices = n;
+    else if (raw === 'seo') out.seo = n;
+  }
+  return out;
 }
 
 function findNumber(text: string, patterns: RegExp[]): number | null {
@@ -183,22 +202,26 @@ function findLetterGrade(text: string): LetterGrade | null {
 /** Prefer explicit mobile/desktop performance scores; average when both exist. */
 function extractPerformanceScore(text: string): number | null {
   const mobile = findNumber(text, [
+    /mobile[^\n]{0,80}?performance\s*[:=]\s*(\d{1,3})/i,
     /mobile(?:\s+performance|\s+perf(?:ormance)?\s*score)?\s*[:\-–]?\s*(\d{1,3})/i,
     /performance[^.\n]{0,40}?mobile[^.\n]{0,20}?(\d{1,3})/i,
   ]);
   const desktop = findNumber(text, [
+    /desktop[^\n]{0,80}?performance\s*[:=]\s*(\d{1,3})/i,
     /desktop(?:\s+performance|\s+perf(?:ormance)?\s*score)?\s*[:\-–]?\s*(\d{1,3})/i,
     /performance[^.\n]{0,40}?desktop[^.\n]{0,20}?(\d{1,3})/i,
   ]);
-  if (mobile != null && desktop != null) return Math.round((mobile + desktop) / 2);
-  if (mobile != null) return mobile;
-  if (desktop != null) return desktop;
-  return (
-    findNumber(text, [
-      /(?:performance|perf(?:ormance)?\s*score)\s*[:\-–]?\s*(\d{1,3})/i,
-      /performance[^.\n]{0,40}?(\d{1,3})\s*\/\s*100/i,
-    ]) ?? null
+  const generic = findNumber(text, [
+    /(?:scores?[^\n]{0,60})?\bperformance\s*[:=]\s*(\d{1,3})/i,
+    /(?:performance|perf(?:ormance)?\s*score)\s*[:\-–]?\s*(\d{1,3})/i,
+    /performance[^.\n]{0,40}?(\d{1,3})\s*\/\s*100/i,
+  ]);
+  const vals = [mobile, desktop, generic].filter(
+    (n, i, arr): n is number => n != null && arr.indexOf(n) === i,
   );
+  if (!vals.length) return null;
+  if (vals.length === 1) return vals[0];
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
 function extractNamedScore(text: string, names: RegExp): number | null {
@@ -214,9 +237,55 @@ type PresenceSignal = {
   why: string[];
 };
 
-function presenceSignal(lines: string[], keywords: RegExp[]): PresenceSignal {
-  const hits = lines.filter((line) => keywords.some((re) => re.test(line)));
+/** Split freeform presence prose into sentence-sized snippets (never whole paragraphs). */
+function presenceSnippets(text: string): string[] {
+  const chunks: string[] = [];
+  for (const line of text.split('\n')) {
+    const cleaned = stripMd(line);
+    if (!cleaned || cleaned === '---' || /^#{1,6}\s/.test(cleaned)) continue;
+    const parts = cleaned.split(/(?<=[.!?])\s+|\s*;\s*/).map((s) => s.trim());
+    for (const part of parts) {
+      if (part.length > 8) chunks.push(part);
+    }
+  }
+  // De-dupe while preserving order.
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of chunks) {
+    const key = c.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+    if (out.length >= 24) break;
+  }
+  return out;
+}
+
+function assessChannel(
+  corpus: string,
+  opts: {
+    keywords: RegExp[];
+    /** When Online Presence was checked but this channel was never named. */
+    omittedAsMissing?: boolean;
+    omittedSummary?: string;
+    omittedWhy?: string;
+  },
+  presenceAudited: boolean,
+): PresenceSignal {
+  const snippets = presenceSnippets(corpus);
+  const hits = snippets.filter((line) => opts.keywords.some((re) => re.test(line)));
+
   if (!hits.length) {
+    if (presenceAudited && opts.omittedAsMissing) {
+      return {
+        status: 'missing',
+        summary: opts.omittedSummary || 'Not found in the presence check',
+        why: [
+          opts.omittedWhy ||
+            'The online presence check did not mention this channel — usually means no listing turned up.',
+        ],
+      };
+    }
     return {
       status: 'unknown',
       summary: 'Not covered in this audit',
@@ -228,30 +297,39 @@ function presenceSignal(lines: string[], keywords: RegExp[]): PresenceSignal {
   const why = hits.slice(0, 4);
 
   if (
-    /unavailable|quota exceeded|data unavailable|could not (?:check|verify)|n\/?a\b/.test(
+    /unavailable|quota exceeded|data unavailable|could not (?:check|verify|find)|search quota/.test(
       joined,
     )
   ) {
     return { status: 'unavailable', summary: 'Could not verify right now', why };
   }
-  if (
-    /not (?:found|claimed|listed|set up|configured)|no (?:listing|profile|page|presence)|missing|none found|does not (?:appear|exist)/.test(
-      joined,
-    )
-  ) {
+
+  // Missing only when the *matched* snippet itself denies the listing.
+  const missingHit = hits.some((h) =>
+    /not (?:found|claimed|listed|set up|configured|verified)|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|missing|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b/i.test(
+      h,
+    ),
+  );
+  // If some hits are positive and one is negative, prefer weak/ok from the positive ones.
+  const positiveHit = hits.some((h) =>
+    /found|claimed|active|verified|complete|appears|shows up|listing|maps pin|reviews?|stars?/i.test(
+      h,
+    ),
+  );
+  if (missingHit && !positiveHit) {
     return { status: 'missing', summary: 'No listing found', why };
   }
+
   if (
-    /conflict|outdated|incomplete|inconsistent|wrong hours|not claimed|unclaimed|inactive|stale|placeholder|needs update|hours (?:don.?t|do not) match/.test(
+    missingHit ||
+    /conflict|outdated|incomplete|inconsistent|wrong hours|not claimed|unclaimed|inactive|stale|placeholder|needs update|hours (?:don.?t|do not) match|few reviews|unanswered|spam|thin|months ago/.test(
       joined,
     )
   ) {
     return { status: 'weak', summary: 'Needs attention', why };
   }
-  if (
-    /found|claimed|active|verified|complete|optimized|looking good|strong|present/.test(joined)
-  ) {
-    const hasPraise = /strong|optimized|complete|verified|looking good|excellent|great/.test(
+  if (positiveHit) {
+    const hasPraise = /strong|optimized|complete|verified|looking good|excellent|great|active/.test(
       joined,
     );
     return {
@@ -751,106 +829,226 @@ export function buildAuditReportCard(input: {
   }
 
   const perfSection = extractSection(body, /Website Performance|Performance/);
-  const seoSection = extractSection(body, /SEO|Search/);
-  const a11ySection = extractSection(body, /Accessibility/);
+  const seoSection = extractSection(body, /SEO|Search(?:\s+Fundamentals)?/);
+  const a11ySection = extractSection(body, /Accessibility(?:\s*\(WCAG\))?/);
   const bpSection = extractSection(body, /Best Practices|Best\-Practices/);
-  const sslSection = extractSection(body, /SSL\s*&\s*Security|Security|SSL/);
-  const dnsSection = extractSection(body, /DNS\s*&\s*Email|DNS|Email/);
+  const sslSection = extractSection(body, /SSL\s*&\s*Security|Website Security|Security|SSL/);
+  const dnsSection = extractSection(
+    body,
+    /DNS\s*&\s*Email|Domain\s*&\s*DNS|DNS|Email(?:\s+Auth(?:entication)?)?/,
+  );
   const contentSection = extractSection(body, /Content Issues|Content/);
-  const presenceSection = extractSection(body, /Online Presence|Presence|Listings/);
-  const uxSection = extractSection(body, /UX\s*&\s*UI|Playwright/);
+  const presenceSection = extractSection(
+    body,
+    /Online Presence|Local Presence|Presence|Listings|Reputation/,
+  );
+  const uxSection = extractSection(body, /UX\s*&\s*UI|Playwright|Mobile Responsiveness/);
 
-  // Lighthouse scores sometimes land in the Performance section even for other cats.
+  // Lighthouse scores often land as "Scores — performance: 42, accessibility: 78, …"
+  const lhScores = extractLighthouseScoreMap(
+    [perfSection, bpSection, a11ySection, seoSection, body].join('\n'),
+  );
   const scorePool = [perfSection, bpSection, a11ySection, seoSection, body].join('\n');
 
-  const perfScore = extractPerformanceScore(perfSection);
+  const perfScore =
+    extractPerformanceScore(perfSection) ??
+    lhScores.performance ??
+    extractNamedScore(scorePool, /performance/);
   const a11yScore =
+    lhScores.accessibility ??
     extractNamedScore(a11ySection, /accessibility/) ??
     extractNamedScore(scorePool, /accessibility/);
   const bpScore =
+    lhScores.best_practices ??
     extractNamedScore(bpSection, /best[-\s]?practices?/) ??
     extractNamedScore(scorePool, /best[-\s]?practices?/);
   const seoScore =
-    extractNamedScore(seoSection, /seo/) ?? extractNamedScore(scorePool, /seo/);
+    lhScores.seo ??
+    extractNamedScore(seoSection, /seo/) ??
+    extractNamedScore(scorePool, /seo/);
 
+  const seoCorpus = seoSection.trim() || contentSection;
   const seoFallback = (() => {
-    const lower = seoSection.toLowerCase();
-    if (!seoSection.trim()) return null;
-    if (/missing|empty|no meta|not index/.test(lower)) return 'D' as LetterGrade;
-    if (/present|good|optimized/.test(lower)) return 'B' as LetterGrade;
+    const lower = seoCorpus.toLowerCase();
+    if (!seoCorpus.trim()) return null;
+    if (/missing|empty|no meta|not index|duplicate title|no sitemap/.test(lower)) {
+      return 'D' as LetterGrade;
+    }
+    if (/present|good|optimized|sitemap/.test(lower)) return 'B' as LetterGrade;
     return 'C' as LetterGrade;
   })();
 
   const a11yFallback = (() => {
-    const lower = a11ySection.toLowerCase();
-    if (!a11ySection.trim()) return null;
-    if (/fail|contrast|missing label|tap target/.test(lower)) return 'D' as LetterGrade;
+    const lower = `${a11ySection}\n${uxSection}`.toLowerCase();
+    if (!a11ySection.trim() && !/alt text|contrast|tap target|accessib|wcag/i.test(lower)) {
+      return null;
+    }
+    if (/fail|contrast|missing (?:alt|label)|tap target|wcag/.test(lower)) {
+      return 'D' as LetterGrade;
+    }
     if (/pass|good|no major/.test(lower)) return 'B' as LetterGrade;
-    return 'C' as LetterGrade;
+    if (a11ySection.trim() || /alt text|contrast|tap target|accessib/i.test(lower)) {
+      return 'C' as LetterGrade;
+    }
+    return null;
   })();
 
   const bpFallback = (() => {
-    const text = bpSection || '';
+    const text = `${bpSection}\n${sslSection}\n${uxSection}`;
     const lower = text.toLowerCase();
-    if (!text.trim()) {
-      // Infer lightly from UX / console notes when no dedicated section.
-      const ux = uxSection.toLowerCase();
-      if (/console error|mixed content|deprecated/.test(ux)) return 'D' as LetterGrade;
-      return null;
+    if (/console error|mixed content|deprecated|not fully secure/.test(lower)) {
+      return 'D' as LetterGrade;
     }
-    if (/fail|error|mixed content|deprecated/.test(lower)) return 'D' as LetterGrade;
-    if (/pass|good|solid/.test(lower)) return 'B' as LetterGrade;
-    return 'C' as LetterGrade;
+    if (bpSection.trim()) {
+      if (/fail|error/.test(lower)) return 'D' as LetterGrade;
+      if (/pass|good|solid/.test(lower)) return 'B' as LetterGrade;
+      return 'C' as LetterGrade;
+    }
+    // Infer a soft grade from SSL/security hygiene when no BP section exists.
+    if (/missing .+ header|mixed.content/.test(sslSection.toLowerCase())) {
+      return 'D' as LetterGrade;
+    }
+    if (/ssl|certificate|valid|https/.test(sslSection.toLowerCase())) {
+      return 'C' as LetterGrade;
+    }
+    return null;
   })();
 
-  const sslGrade = findLetterGrade(sslSection);
+  const sslGrade = findLetterGrade(sslSection) ?? findLetterGrade(body);
   const securityGrade =
     sslGrade ??
     (() => {
-      const lower = sslSection.toLowerCase();
-      if (!sslSection.trim()) return null;
+      const lower = sslSection.toLowerCase() || body.toLowerCase();
+      if (!sslSection.trim() && !/\bssl\b|certificate|https|security header/i.test(body)) {
+        return null;
+      }
       if (/expired|not trusted|invalid|http,? not https/.test(lower)) return 'F' as LetterGrade;
-      if (/missing .+ header|mixed.content/.test(lower)) return 'D' as LetterGrade;
-      if (/valid|ok|looks good/.test(lower)) return 'B' as LetterGrade;
-      return 'C' as LetterGrade;
+      if (/missing .+ header|mixed.content|not fully secure/.test(lower)) {
+        return 'D' as LetterGrade;
+      }
+      if (/valid|ok|looks good|certificate is valid/.test(lower)) return 'B' as LetterGrade;
+      return sslSection.trim() ? ('C' as LetterGrade) : null;
     })();
 
-  const email = emailGradeFromText(dnsSection);
-  const domain = domainGradeFromText(dnsSection);
+  const dnsCorpus =
+    dnsSection.trim() ||
+    body
+      .split('\n')
+      .filter((l) => /\b(spf|dkim|dmarc|mx\b|whois|nameserver|a record|dns)\b/i.test(l))
+      .join('\n');
+  const email = emailGradeFromText(dnsCorpus);
+  const domain = domainGradeFromText(dnsCorpus || dnsSection);
 
-  const presenceLines = bulletsFromSection(presenceSection);
-  const allPresenceish = [
-    ...presenceLines,
-    ...bulletsFromSection(contentSection).filter((l) =>
-      /google|apple|yelp|facebook|instagram|review|listing/i.test(l),
-    ),
-  ];
+  // Presence: prefer the Online Presence section; also scrape related lines from the whole body.
+  const presenceExtras = body
+    .split('\n')
+    .map((l) => stripMd(l))
+    .filter((l) =>
+      /google|apple\s*maps|apple\s*business|yelp|facebook|instagram|tiktok|linkedin|review|maps|listing|citation|tripadvisor|bing\s*places|social/i.test(
+        l,
+      ),
+    );
+  const presenceCorpus = [presenceSection, contentSection, ...presenceExtras]
+    .filter(Boolean)
+    .join('\n');
+  const presenceAudited = Boolean(
+    presenceSection.trim() ||
+      /online presence|google (?:business|maps)|apple (?:business|maps)|yelp|instagram|facebook/i.test(
+        body,
+      ),
+  );
 
-  const gbp = presenceSignal(allPresenceish, [
-    /google\s*business/i,
-    /\bgbp\b/i,
-    /maps\.google/i,
-  ]);
-  const apple = presenceSignal(allPresenceish, [
-    /apple\s*business/i,
-    /apple\s*maps/i,
-    /business\s*connect/i,
-  ]);
-  const social = presenceSignal(allPresenceish, [
-    /instagram|facebook|tiktok|linkedin|social/i,
-  ]);
-  const reviews = presenceSignal(allPresenceish, [/review|rating|stars?|yelp/i]);
-  const listings = presenceSignal(allPresenceish, [
-    /yelp|bing\s*places|tripadvisor|directories|listings?/i,
-  ]);
+  const gbp = assessChannel(
+    presenceCorpus,
+    {
+      keywords: [
+        /google\s*(business|my\s*business|maps|listing|profile|place)/i,
+        /\bgbp\b|\bgmb\b/i,
+        /maps\.google|goo\.gl\/maps|maps\.app\.goo/i,
+        /\bgoogle maps\b/i,
+      ],
+      omittedAsMissing: true,
+      omittedSummary: 'No Google Business listing called out',
+      omittedWhy:
+        'The presence check did not mention Google Business / Maps — usually means no solid listing turned up.',
+    },
+    presenceAudited,
+  );
+  const apple = assessChannel(
+    presenceCorpus,
+    {
+      keywords: [
+        /apple\s*business/i,
+        /apple\s*maps/i,
+        /business\s*connect/i,
+        /\bapple\b.*\b(maps|listing|wallet|siri)\b/i,
+      ],
+      omittedAsMissing: true,
+      omittedSummary: 'No Apple Maps listing called out',
+      omittedWhy:
+        'Apple Business Connect / Apple Maps was not mentioned — most businesses without a Connect listing stay invisible on iPhone Maps.',
+    },
+    presenceAudited,
+  );
+  const social = assessChannel(
+    presenceCorpus,
+    {
+      keywords: [
+        /instagram|facebook|fb\.com|tiktok|linkedin|twitter|\bx\.com\b|social(?:\s+media|\s+presence|\s+spread)?/i,
+      ],
+      omittedAsMissing: true,
+      omittedSummary: 'No active social presence called out',
+      omittedWhy:
+        'The presence check did not mention social profiles — treat as missing or inactive until confirmed.',
+    },
+    presenceAudited,
+  );
+  const reviews = assessChannel(
+    presenceCorpus,
+    {
+      keywords: [/reviews?|ratings?|\d(?:\.\d)?\s*stars?|yelp|reputation/i],
+      omittedAsMissing: true,
+      omittedSummary: 'No review footprint called out',
+      omittedWhy:
+        'Reviews / ratings were not mentioned in the presence notes — reputation may be thin or unchecked.',
+    },
+    presenceAudited,
+  );
+  const listings = assessChannel(
+    presenceCorpus,
+    {
+      keywords: [
+        /yelp|bing\s*places|tripadvisor|yellow\s*pages|directories|citations?|listings?/i,
+      ],
+      omittedAsMissing: true,
+      omittedSummary: 'Directory listings look thin',
+      omittedWhy:
+        'Other directories (Yelp, Bing Places, citations) were not clearly documented as healthy listings.',
+    },
+    presenceAudited,
+  );
 
-  const categories: ReportCardCategory[] = [
+  const channelCategory = (
+    id: ReportCardCategoryId,
+    label: string,
+    signal: PresenceSignal,
+  ): ReportCardCategory => ({
+    id,
+    label,
+    summary: signal.summary,
+    grade: signalToGrade(signal),
+    why: clientFriendlyBullets(signal.why, 4),
+    // Only hide when we truly have nothing — omitted-as-missing becomes a real F/D grade.
+    unavailable: signal.status === 'unavailable' || signal.status === 'unknown',
+  });
+
+  const rawCategories: ReportCardCategory[] = [
     scoreCategory(
       'performance',
       'Performance',
       perfScore,
       perfSection,
-      perfSection.trim() ? 'C' : null,
+      perfSection.trim() || perfScore != null ? 'C' : null,
       'Not scored in this audit',
     ),
     scoreCategory(
@@ -865,11 +1063,18 @@ export function buildAuditReportCard(input: {
       'best_practices',
       'Best Practices',
       bpScore,
-      bpSection,
+      bpSection || (bpFallback ? sslSection || uxSection : ''),
       bpFallback,
       'Not scored in this audit',
     ),
-    scoreCategory('seo', 'SEO', seoScore, seoSection, seoFallback, 'Not scored in this audit'),
+    scoreCategory(
+      'seo',
+      'SEO',
+      seoScore,
+      seoSection || (seoFallback ? seoCorpus : ''),
+      seoFallback,
+      'Not scored in this audit',
+    ),
     {
       id: 'security',
       label: 'Security',
@@ -880,8 +1085,8 @@ export function buildAuditReportCard(input: {
             ? `Website security grade ${sslGrade}`
             : 'Certificate & protection checks',
       grade: securityGrade,
-      why: clientFriendlyBullets(bulletsFromSection(sslSection), 5),
-      unavailable: securityGrade == null && !sslSection,
+      why: clientFriendlyBullets(bulletsFromSection(sslSection || body), 5),
+      unavailable: securityGrade == null,
     },
     {
       id: 'email',
@@ -889,7 +1094,7 @@ export function buildAuditReportCard(input: {
       summary: email.summary,
       grade: email.grade,
       why: clientFriendlyBullets(email.why, 5),
-      unavailable: email.unavailable,
+      unavailable: email.unavailable || email.grade == null,
     },
     {
       id: 'domain',
@@ -897,53 +1102,21 @@ export function buildAuditReportCard(input: {
       summary: domain.summary,
       grade: domain.grade,
       why: clientFriendlyBullets(domain.why, 4),
-      unavailable: domain.grade == null && !dnsSection,
+      unavailable: domain.grade == null,
     },
-    {
-      id: 'google_business',
-      label: 'Google Business',
-      summary: gbp.summary,
-      grade: signalToGrade(gbp),
-      why: clientFriendlyBullets(gbp.why, 4),
-      unavailable: gbp.status === 'unavailable' || gbp.status === 'unknown',
-    },
-    {
-      id: 'apple_business',
-      label: 'Apple Business',
-      summary: apple.summary,
-      grade: signalToGrade(apple),
-      why: clientFriendlyBullets(apple.why, 4),
-      unavailable: apple.status === 'unavailable' || apple.status === 'unknown',
-    },
-    {
-      id: 'social',
-      label: 'Social',
-      summary: social.summary,
-      grade: signalToGrade(social),
-      why: clientFriendlyBullets(social.why, 4),
-      unavailable: social.status === 'unavailable' || social.status === 'unknown',
-    },
-    {
-      id: 'reviews',
-      label: 'Reviews',
-      summary: reviews.summary,
-      grade: signalToGrade(reviews),
-      why: clientFriendlyBullets(reviews.why, 4),
-      unavailable: reviews.status === 'unavailable' || reviews.status === 'unknown',
-    },
-    {
-      id: 'presence',
-      label: 'Listings',
-      summary: listings.summary,
-      grade: signalToGrade(listings),
-      why: clientFriendlyBullets(listings.why, 4),
-      unavailable: listings.status === 'unavailable' || listings.status === 'unknown',
-    },
+    channelCategory('google_business', 'Google Business', gbp),
+    channelCategory('apple_business', 'Apple Business', apple),
+    channelCategory('social', 'Social', social),
+    channelCategory('reviews', 'Reviews', reviews),
+    channelCategory('presence', 'Listings', listings),
   ];
+
+  // Don't show empty "—" rows to clients — only graded / available categories.
+  const categories = rawCategories.filter((c) => c.grade && !c.unavailable);
 
   const overall = averageGrade(categories.map((c) => c.grade));
   const actionItems = extractActionItems(body);
-  const ideas = buildIdeas(categories, body, actionItems);
+  const ideas = buildIdeas(rawCategories, body, actionItems);
   const potential = improveGrade(overall, ideas.length >= 3 || actionItems.length >= 4 ? 2 : 1);
 
   return {
