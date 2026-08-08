@@ -1202,7 +1202,8 @@ function renderNewClientForm(pane) {
   companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
   const inDrawer = shell.isCreateDrawerOpen('clients');
-  pane.appendChild(
+  const chrome = createDetailChrome(pane, 'cl-detail-chrome');
+  chrome.appendChild(
     createPaneSubheader({
       back: inDrawer
         ? null
@@ -1216,6 +1217,7 @@ function renderNewClientForm(pane) {
   requestTitleFocus('clients', companyInput);
 
   const scroll = createClientFormScroll(pane);
+  const body = createDetailPanelBody();
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
@@ -1269,7 +1271,8 @@ function renderNewClientForm(pane) {
   notesLabel.appendChild(notesTa);
   fields.appendChild(notesLabel);
 
-  scroll.appendChild(fields);
+  body.appendChild(fields);
+  scroll.appendChild(body);
   registerClientField(companyInput, () => !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value));
   registerClientField(notesTa, () => true);
 

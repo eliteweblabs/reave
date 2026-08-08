@@ -169,8 +169,21 @@
 
 /* The drawer floats free of the app chrome, so drop the topbar clearance
    and the floating-footer scroll padding the pane normally carries. */
+/* Match form scroll inset (--detail-pad-x). Base .de-header only uses 0.5rem,
+   which left create-drawer titles (company name, to-do title, etc.) hanging
+   outside the padded field column. */
 .de-pane--drawer > .de-header {
   border-bottom: none;
+  padding:
+    0.35rem
+    var(--detail-pad-x-right)
+    0
+    var(--detail-pad-x);
+}
+.de-pane--drawer > .detail-chrome {
+  border-bottom: none;
+}
+.de-pane--drawer > .detail-chrome > .de-header {
   padding-top: 0.35rem;
 }
 .de-pane--drawer .re-form-scroll {
