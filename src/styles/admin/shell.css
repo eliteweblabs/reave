@@ -28,6 +28,7 @@ html.pwa-standalone :is(
   .schedule-panel-scroll,
   .em-list,
   .aui-viewport,
+  .components-gallery,
   #tabs-scroll
 ) {
   overscroll-behavior-x: none;
@@ -56,7 +57,8 @@ body {
   .de-sc-dir-body,
   .home-dashboard-scroll,
   .profile-panel-scroll,
-  .schedule-panel-scroll
+  .schedule-panel-scroll,
+  .components-gallery
 ) {
   scroll-padding-bottom: var(--footer-scroll-pad);
 }

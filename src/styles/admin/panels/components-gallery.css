@@ -1,10 +1,28 @@
-/* /admin/components — living UI kit gallery */
+/* /admin/components — living UI kit gallery
+ * html/body are overflow:hidden + position:fixed (admin shell), so this
+ * page must own its own scroll region like .home-dashboard-scroll. */
 
 .components-gallery {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem calc(2rem + var(--footer-scroll-pad, 4rem));
+  position: fixed;
+  inset: 0;
+  height: 100%;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding:
+    calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem)
+    1.25rem
+    calc(2rem + var(--footer-scroll-pad, 4rem));
   color: var(--fg);
+}
+
+.components-gallery-intro,
+#components-gallery {
+  max-width: 920px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .components-gallery-intro {
