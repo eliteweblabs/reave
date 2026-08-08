@@ -28,6 +28,8 @@
  *   Finds an existing project or searches for a client and creates one, then starts the timer.
  * - stop_time_tracking: { action: "stop_time_tracking" } — stop timer and log hours
  * - time_tracking_status: { action: "time_tracking_status" } — current timer or recent project prompt
+ * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
+ *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater
  *
  * Authentication: Bearer token (Clerk session token) or X-Siri-Key header (SIRI_API_KEY env var).
  */
@@ -79,6 +81,9 @@ import {
   type TodoPriority,
   type TodoStatus,
 } from '../../../lib/todoStore';
+import { craterRecordPayment, isCraterConfigured } from '../../../lib/craterClient';
+
+const PAYMENT_MODE_ENUM = ['CASH', 'CHECK', 'CREDIT_CARD', 'BANK_TRANSFER', 'OTHER'] as const;
 
 export const prerender = false;
 
@@ -204,6 +209,11 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'time_tracking_status':
         result = await handleTimeTrackingStatus();
+        break;
+      case 'record_payment':
+      case 'add_payment':
+      case 'create_payment':
+        result = await handleRecordPayment(body);
         break;
       default:
         return json({ ok: false, error: `Unknown action: ${action}` }, 400);
@@ -845,6 +855,163 @@ function timeTrackingDisabled(): SiriResponse {
     ok: false,
     error: 'Time tracking is not enabled on this install',
     text: 'Time tracking is not enabled on this install.',
+  };
+}
+
+function billingUnavailable(): SiriResponse {
+  return {
+    ok: false,
+    error: 'Billing is not available — enable the billing feature and configure Crater.',
+    text: 'Billing is not available on this install.',
+  };
+}
+
+function parsePaymentAmount(raw: unknown): number | null {
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : null;
+  }
+  const cleaned = String(raw ?? '')
+    .trim()
+    .replace(/[$,\s]/g, '')
+    .replace(/^usd/i, '');
+  if (!cleaned) return null;
+  const amount = Number(cleaned);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function normalizePaymentMode(
+  raw: unknown,
+): (typeof PAYMENT_MODE_ENUM)[number] | null | undefined {
+  if (raw == null || raw === '') return undefined;
+  const value = String(raw).trim().toUpperCase().replace(/[\s-]+/g, '_');
+  const aliases: Record<string, (typeof PAYMENT_MODE_ENUM)[number]> = {
+    CASH: 'CASH',
+    CHECK: 'CHECK',
+    CHEQUE: 'CHECK',
+    CREDIT_CARD: 'CREDIT_CARD',
+    CREDITCARD: 'CREDIT_CARD',
+    CARD: 'CREDIT_CARD',
+    CC: 'CREDIT_CARD',
+    BANK_TRANSFER: 'BANK_TRANSFER',
+    BANKTRANSFER: 'BANK_TRANSFER',
+    TRANSFER: 'BANK_TRANSFER',
+    ACH: 'BANK_TRANSFER',
+    WIRE: 'BANK_TRANSFER',
+    OTHER: 'OTHER',
+  };
+  return aliases[value] ?? null;
+}
+
+function formatPaymentDollars(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function paymentModeLabel(mode: (typeof PAYMENT_MODE_ENUM)[number]): string {
+  switch (mode) {
+    case 'CASH':
+      return 'cash';
+    case 'CHECK':
+      return 'check';
+    case 'CREDIT_CARD':
+      return 'credit card';
+    case 'BANK_TRANSFER':
+      return 'bank transfer';
+    case 'OTHER':
+      return 'other';
+  }
+}
+
+async function handleRecordPayment(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!hasFeature('billing') || !isCraterConfigured()) return billingUnavailable();
+
+  const customerName = String(
+    params.customer_name ?? params.customer ?? params.client ?? params.name ?? '',
+  ).trim();
+  if (!customerName) {
+    return {
+      ok: false,
+      error: 'customer_name is required',
+      text: 'Which customer should I record this payment for?',
+    };
+  }
+
+  const amount = parsePaymentAmount(params.amount ?? params.payment_amount);
+  if (amount == null || amount <= 0) {
+    return {
+      ok: false,
+      error: 'amount must be a positive number',
+      text: 'How much was the payment?',
+    };
+  }
+
+  const paymentMode = normalizePaymentMode(params.payment_mode ?? params.mode ?? params.method);
+  if (paymentMode === null) {
+    return {
+      ok: false,
+      error: 'invalid payment_mode',
+      text: 'Payment mode must be cash, check, credit card, bank transfer, or other.',
+    };
+  }
+
+  const paymentDateRaw = params.payment_date ?? params.date;
+  const paymentDate =
+    paymentDateRaw == null || paymentDateRaw === ''
+      ? undefined
+      : String(paymentDateRaw).trim();
+
+  const notesRaw = params.notes ?? params.note;
+  const notes =
+    notesRaw == null || notesRaw === '' ? undefined : String(notesRaw).trim();
+
+  const invoiceRaw = params.invoice_id ?? params.invoice;
+  let invoiceId: number | undefined;
+  if (invoiceRaw != null && invoiceRaw !== '') {
+    const parsed = typeof invoiceRaw === 'number' ? invoiceRaw : Number(String(invoiceRaw).trim());
+    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      return {
+        ok: false,
+        error: 'invoice_id must be a positive integer',
+        text: 'Invoice id must be a whole number.',
+      };
+    }
+    invoiceId = parsed;
+  }
+
+  const result = await craterRecordPayment({
+    customerName,
+    amount,
+    paymentMode,
+    paymentDate,
+    notes,
+    invoiceId,
+  });
+
+  if (!result.ok) {
+    const speakable =
+      result.status === 300
+        ? `I need more detail to record that payment: ${result.error}`
+        : result.error;
+    return {
+      ok: false,
+      error: result.error,
+      text: speakable,
+      data: { status: result.status },
+    };
+  }
+
+  const modeBit = paymentMode ? ` via ${paymentModeLabel(paymentMode)}` : '';
+  const invoiceBit = invoiceId != null ? ` on invoice ${invoiceId}` : '';
+  const dateBit = paymentDate ? ` for ${paymentDate}` : '';
+
+  return {
+    ok: true,
+    text: `Recorded ${formatPaymentDollars(amount)} payment from ${customerName}${modeBit}${invoiceBit}${dateBit}.`,
+    data: result.data,
   };
 }
 

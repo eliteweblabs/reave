@@ -2397,6 +2397,47 @@ function formatEventTime(iso) {
   }
 }
 
+/** Compact countdown for Next 24h: "in 4h35m", "in 12m", or "now". */
+function formatDashRelativeUntil(iso, nowMs = Date.now()) {
+  const target = new Date(iso).getTime();
+  if (!Number.isFinite(target)) return '';
+  const diffMs = target - nowMs;
+  if (diffMs < 60_000) return 'now';
+  const totalMin = Math.floor(diffMs / 60_000);
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  if (hours <= 0) return `in ${minutes}m`;
+  return `in ${hours}h${minutes}m`;
+}
+
+function formatDashEventWhen(iso, view) {
+  if (view === 'next24') return formatDashRelativeUntil(iso);
+  return formatEventTime(iso);
+}
+
+let dashRelativeTimer = null;
+let dashRelativeVisibilityBound = false;
+
+function tickDashRelativeTimes() {
+  document.querySelectorAll('[data-dash-until]').forEach((el) => {
+    const iso = el.getAttribute('data-dash-until');
+    if (!iso) return;
+    el.textContent = formatDashRelativeUntil(iso);
+  });
+}
+
+function syncDashRelativeTimers() {
+  tickDashRelativeTimes();
+  if (!dashRelativeVisibilityBound) {
+    dashRelativeVisibilityBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') tickDashRelativeTimes();
+    });
+  }
+  if (dashRelativeTimer) return;
+  dashRelativeTimer = setInterval(tickDashRelativeTimes, 1000);
+}
+
 function formatDashTodoWhen(raw) {
   const d = parseTodoDueInstant(raw);
   if (!d) return '';
@@ -2599,12 +2640,17 @@ function renderDashTodayLists(container, data, view) {
       const li = document.createElement('li');
       const uid = ev.uid || ev.id;
       const canOpen = scheduleLive && uid;
+      const when = formatDashEventWhen(ev.time, view);
+      const untilAttr =
+        view === 'next24' && ev.time
+          ? ` data-dash-until="${escHtml(String(ev.time))}"`
+          : '';
       if (canOpen) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'dash-event dash-event-btn';
         btn.innerHTML =
-          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<span class="dash-event-time"${untilAttr}>${escHtml(when)}</span>` +
           `<div class="dash-event-body">` +
             `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
             (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
@@ -2615,7 +2661,7 @@ function renderDashTodayLists(container, data, view) {
       } else {
         li.className = 'dash-event';
         li.innerHTML =
-          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<span class="dash-event-time"${untilAttr}>${escHtml(when)}</span>` +
           `<div class="dash-event-body">` +
             `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
             (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
@@ -2625,6 +2671,8 @@ function renderDashTodayLists(container, data, view) {
     }
     container.appendChild(eventsList);
   }
+
+  if (view === 'next24') syncDashRelativeTimers();
 }
 
 function formatEmailWhen(iso) {

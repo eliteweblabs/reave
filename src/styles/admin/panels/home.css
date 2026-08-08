@@ -426,6 +426,9 @@
   color: #79c0ff;
   font-variant-numeric: tabular-nums;
 }
+.dash-event-time[data-dash-until] {
+  min-width: 5.4rem;
+}
 .dash-event-time--overdue {
   color: #f85149;
 }

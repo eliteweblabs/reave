@@ -293,6 +293,52 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
+## Example 6d: "Record a Payment"
+
+**What it does**: Records an offline payment in Crater for a customer (cash, check, card, etc.).
+
+**Siri phrase**: "record a payment" or "add a payment"
+
+**Requires**: `billing` feature + Crater API configured.
+
+**Shortcut steps**:
+
+1. **Ask for Input**
+   - Prompt: "Which customer?"
+   - Variable: `Customer`
+
+2. **Ask for Input**
+   - Prompt: "How much?"
+   - Input Type: Number (or Text)
+   - Variable: `Amount`
+
+3. **Ask for Input** (optional)
+   - Prompt: "Payment mode? cash, check, card, bank transfer, or other"
+   - Variable: `Mode`
+
+4. **Text**
+   ```json
+   {
+     "action": "record_payment",
+     "customer_name": "Customer",
+     "amount": "Amount",
+     "payment_mode": "Mode",
+     "format": "text"
+   }
+   ```
+
+5. **Get Contents of URL**
+   - URL: `https://reave.app/api/siri`
+   - Method: POST
+   - Headers: `X-Siri-Key` + `Content-Type: application/json`
+   - Request Body: `Text`
+
+6. **Show Result** / **Speak Text**
+
+**Tip**: If Crater says the customer or invoice is ambiguous, re-run with a fuller customer name or add `invoice_id`.
+
+---
+
 ## Example 7: "Create Reave Project"
 
 **What it does**: Finds an existing client or creates a new one, then starts a project. Prompts for missing details via Siri.

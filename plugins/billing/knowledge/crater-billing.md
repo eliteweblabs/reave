@@ -19,7 +19,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 
 - **Admin Dashboard:** Manage invoices through the `/admin` interface
 - **Agent Tools (needs `ANTHROPIC_API_KEY`):** Natural language → Claude calls Crater tools via `src/lib/agentTools.ts` for invoice creation and management
-- **Siri Shortcuts:** Can be extended to integrate with Crater invoice APIs for voice-controlled billing
+- **Siri Shortcuts:** `POST /api/siri` with `action: "record_payment"` (aliases `add_payment`, `create_payment`) records offline payments via Crater
 
 ## Custom API endpoints (all wired as assistant tools)
 

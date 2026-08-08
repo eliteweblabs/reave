@@ -357,6 +357,44 @@ Added to-do: Call the accountant about Q2 taxes · high · due 2026-08-15
 
 **Tip**: Use **Ask for Input** for the title so you can dictate freely.
 
+### Record Payment
+
+**What it does**: Record an offline customer payment in Crater (cash, check, card, bank transfer, etc.). Requires the `billing` feature and Crater API env vars.
+
+**JSON body**:
+
+```json
+{
+  "action": "record_payment",
+  "customer_name": "Acme Plumbing",
+  "amount": 250,
+  "payment_mode": "CHECK",
+  "format": "text"
+}
+```
+
+**Parameters**:
+- `customer_name` (required): Customer name as it appears in Crater. Aliases: `customer`, `client`, `name`.
+- `amount` (required): Payment amount in whole dollars (also accepts `$250` strings). Alias: `payment_amount`.
+- `payment_mode` (optional): `CASH`, `CHECK`, `CREDIT_CARD`, `BANK_TRANSFER`, or `OTHER`. Voice-friendly aliases like `card`, `ach`, and `cheque` work. Aliases: `mode`, `method`.
+- `payment_date` (optional): `YYYY-MM-DD` (defaults to today in Crater). Alias: `date`.
+- `notes` (optional): Free-text note. Alias: `note`.
+- `invoice_id` (optional): Specific open invoice when the customer has more than one. Alias: `invoice`.
+
+**Also accepts**: `"action": "add_payment"` or `"action": "create_payment"`
+
+**Example response**:
+
+```
+Recorded $250 payment from Acme Plumbing via check.
+```
+
+If Crater cannot uniquely match the customer, invoice, or payment mode, the spoken error asks you to be more specific (e.g. include `invoice_id` or `payment_mode`).
+
+**Siri phrase**: "record a payment" or "add a payment"
+
+**Tip**: Use **Ask for Input** for customer name and amount; add a third prompt for payment mode when you take mixed payment types.
+
 ### List To-Dos
 
 **What it does**: Read open (or filtered) personal to-dos aloud.
@@ -657,6 +695,10 @@ Example actions to add:
 
 - `list_invoices`: Show outstanding invoices (requires Crater integration)
 - `check_schedule`: Show today's bookings (requires Cal.com integration)
+
+**Billing** (requires `billing` feature + Crater):
+
+- `record_payment` / `add_payment` / `create_payment`: Record an offline customer payment
 
 **Personal to-dos** (requires `DATABASE_URL`):
 
