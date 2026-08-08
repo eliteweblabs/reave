@@ -149,6 +149,26 @@ Everything in the quick audit plus Playwright UX/UI, broken links, and tech stac
 
 ---
 
+## Record Payment
+
+```json
+{
+  "action": "record_payment",
+  "customer_name": "Acme Plumbing",
+  "amount": 250,
+  "payment_mode": "CHECK",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "add_payment"` or `"action": "create_payment"`.
+
+**Requires** `billing` feature + Crater (`CRATER_API_BASE_URL`, `CRATER_API_TOKEN`).
+
+**Optional**: `payment_date` (`YYYY-MM-DD`), `notes`, `invoice_id`. Customer aliases: `customer`, `client`, `name`. Mode aliases: `mode`, `method` (`cash`, `check`/`cheque`, `card`/`credit card`, `ach`/`bank transfer`, `other`).
+
+---
+
 ## List To-Dos
 
 ```json
@@ -270,6 +290,12 @@ curl -X POST https://reave.app/api/siri \
   -H "X-Siri-Key: YOUR_KEY_HERE" \
   -H "Content-Type: application/json" \
   -d '{"action":"full_audit","business":"Example Plumbing Co on Oak Street in Portland","format":"text"}'
+
+# Record payment
+curl -X POST https://reave.app/api/siri \
+  -H "X-Siri-Key: YOUR_KEY_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"record_payment","customer_name":"Acme Plumbing","amount":250,"payment_mode":"CHECK","format":"text"}'
 
 # Status
 curl -X POST https://reave.app/api/siri \
