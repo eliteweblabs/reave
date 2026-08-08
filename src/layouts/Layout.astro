@@ -121,7 +121,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	<body data-user-id={userId ?? ""}>
 		<DeployStatusBanner />
 		<SiteBackground />
-		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} siteContent={siteContent} />
+		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />

@@ -17,8 +17,6 @@ interface Props {
   adminShell?: boolean;
   /** Vercel-style inline nav + hamburger on public marketing pages */
   marketingNav?: boolean;
-  /** Homepage — signed-in avatar account menu in the header end cluster. */
-  homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
   staffPreview?: boolean;
   /** Settings links in the account dropdown (from install config). */
@@ -34,7 +32,6 @@ interface Props {
 const {
   adminShell = false,
   marketingNav = false,
-  homeAdminEntry = false,
   staffPreview = false,
   profileMenu = [],
   signInAutoOpen: signInAutoOpenProp = false,
@@ -57,12 +54,14 @@ const signInRedirect = "/admin/";
 const signInAutoOpen =
   signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;
-const showHomeAdminEntry = homeAdminEntry && Boolean(userId);
 const showHeaderSignIn = !userId && !showMarketingNav;
 /** Signed-in profile control in the header end cluster (admin shell or public pages). */
 const showHeaderProfile = userId && !showMarketingNav;
-/** Homepage is a marketing page but still shows the avatar account menu on the right. */
-const showHeaderHomeProfile = showHomeAdminEntry && showMarketingNav;
+/**
+ * Marketing pages: avatar account menu on the right (same as homepage) —
+ * not inline Administration / Sign out links in MarketingMenu.
+ */
+const showHeaderHomeProfile = showMarketingNav && Boolean(userId);
 const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 ---
 
