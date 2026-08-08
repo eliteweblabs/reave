@@ -44,7 +44,7 @@ const title = argValue('--title') ?? 'Demo notification';
 const message =
   argValue('--message') ??
   'Push is working — you will get inbox alerts, bookings, and website monitoring here.';
-const url = argValue('--url') ?? '/admin?tab=home';
+const url = argValue('--url') ?? '/admin?tab=dashboard';
 
 const { isPushConfigured, sendPushNotification } = await import('../src/lib/webPush.ts');
 if (!isPushConfigured()) {

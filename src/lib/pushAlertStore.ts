@@ -1,5 +1,5 @@
 /**
- * Dismissible admin push alerts — mirrors phone notifications on the home dashboard.
+ * Dismissible admin push alerts — mirrors phone notifications on the dashboard.
  * Postgres (DATABASE_URL) when set; otherwise JSON under src/knowledge/.
  */
 
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS admin_push_alerts (
   kind          TEXT NOT NULL DEFAULT 'system',
   title         TEXT NOT NULL,
   detail        TEXT NOT NULL DEFAULT '',
-  url           TEXT NOT NULL DEFAULT '/admin?tab=home',
+  url           TEXT NOT NULL DEFAULT '/admin?tab=dashboard',
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   staff_ack_at  TIMESTAMPTZ
 );
@@ -179,7 +179,7 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
   const kind = input.kind ?? inferPushAlertKind(tag, input.url ?? '');
   const title = input.title.trim().slice(0, 120);
   const detail = (input.detail ?? '').trim().slice(0, 240);
-  const url = (input.url ?? '/admin?tab=home').slice(0, 500);
+  const url = (input.url ?? '/admin?tab=dashboard').slice(0, 500);
   const createdAt = input.createdAt?.trim() || new Date().toISOString();
 
   try {

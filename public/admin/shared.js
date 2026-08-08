@@ -120,7 +120,7 @@ export function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-/** Shimmer skeleton — `kind`: 'list' | 'home' | 'dashboard'. */
+/** Shimmer skeleton — `kind`: 'list' | 'dashboard-home' | 'dashboard'. */
 const SK_LIST_WIDTHS = [
   [72, 58],
   [84, 46],
@@ -180,7 +180,7 @@ export function listPanelSkeletonHtml(label = 'Loading…') {
 
 export function skeletonHtml(kind = 'list', label = 'Loading…') {
   const safeLabel = escHtml(label);
-  if (kind === 'home') {
+  if (kind === 'dashboard-home' || kind === 'home') {
     const alerts = `<div class="sk-bone sk-home-alert"></div>`.repeat(2);
     const events = Array(3)
       .fill(

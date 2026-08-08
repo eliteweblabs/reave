@@ -243,27 +243,27 @@ export async function notifyAdminAgentOfEmailAutomation(opts: {
   if (kind === 'project_created') {
     messageLines.push(
       '',
-      `A ${post.singular} was created automatically from this inbound email. Review it on the home dashboard or Email tab — a branded acknowledgment was sent to the client.`,
+      `A ${post.singular} was created automatically from this inbound email. Review it on the dashboard or Email tab — a branded acknowledgment was sent to the client.`,
     );
   } else if (kind === 'project_match_suggested') {
     messageLines.push(
       '',
-      `This inbound email may belong on an existing ${post.singular}. Open the home dashboard or Email tab to add the message content and any attachments, or dismiss if it is not a match.`,
+      `This inbound email may belong on an existing ${post.singular}. Open the dashboard or Email tab to add the message content and any attachments, or dismiss if it is not a match.`,
     );
   } else if (kind === 'meeting_booked') {
     messageLines.push(
       '',
-      `A calendar booking was created automatically. Confirm the ${post.singular} link and send the meeting confirmation from the home dashboard or Email tab.`,
+      `A calendar booking was created automatically. Confirm the ${post.singular} link and send the meeting confirmation from the dashboard or Email tab.`,
     );
   } else if (kind === 'meeting_request') {
     messageLines.push(
       '',
-      'The client wants to meet but no specific time was booked. Use Accept & notify on the home dashboard to send them a branded scheduling link.',
+      'The client wants to meet but no specific time was booked. Use Accept & notify on the dashboard to send them a branded scheduling link.',
     );
   } else if (kind === 'meeting_conflict') {
     messageLines.push(
       '',
-      'The requested meeting time conflicts with an existing booking. Notify the client from the home dashboard.',
+      'The requested meeting time conflicts with an existing booking. Notify the client from the dashboard.',
     );
   } else if (kind === 'meeting_followup') {
     messageLines.push('', 'The client sent a follow-up about an existing meeting.');
@@ -488,7 +488,7 @@ export async function notifyAdminAgentOfDeckView(opts: {
 
   const url = opts.contactUid
     ? `/admin?tab=clients&client=${encodeURIComponent(opts.contactUid)}`
-    : '/admin?tab=home';
+    : '/admin?tab=dashboard';
 
   await postToSystemAlertsThread({
     message,
@@ -534,7 +534,7 @@ export async function notifyAdminAgentOfDemoLaunch(opts: {
 
   const url = opts.contactUid
     ? `/admin?tab=clients&client=${encodeURIComponent(opts.contactUid)}`
-    : '/admin?tab=home';
+    : '/admin?tab=dashboard';
 
   await postToSystemAlertsThread({
     message,

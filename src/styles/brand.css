@@ -129,7 +129,7 @@
 /** Footer: invert badge on the gradient-highlighted (active) tab */
 .footer-nav-btn.active .footer-nav-badge,
 .admin-footer-nav.footer-nav-collapsed
-  #footer-nav-home
+  #footer-nav-dashboard
   .footer-nav-badge:not([hidden]) {
   background: #fff;
   color: var(--brand-magenta);
@@ -137,9 +137,9 @@
   box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
 }
 
-body.footer-chat-inline-home
+body.footer-chat-inline-dashboard
   .admin-footer-nav.footer-nav-collapsed
-  #footer-nav-home
+  #footer-nav-dashboard
   .footer-nav-badge {
   background: var(--brand-gradient);
   color: #fff;

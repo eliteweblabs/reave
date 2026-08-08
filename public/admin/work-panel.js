@@ -2660,7 +2660,7 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
     .then(([data, clientIconUrl]) => {
       void fetch(`/api/work/${encodeURIComponent(slug)}/comments/ack`, { method: 'POST' })
         .then(() => {
-          if (shell.reviewsPendingCount > 0) void shell.loadHomeDashboard();
+          if (shell.reviewsPendingCount > 0) void shell.loadAdminDashboard();
         })
         .catch(() => undefined);
       wrap.innerHTML = '';

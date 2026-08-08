@@ -61,6 +61,9 @@ export const IOS_ICONS = {
   more: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
   refresh:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+  /* IOS_ICONS.dashboard — layout-dashboard; keep in sync with AdminFooterNav LayoutDashboard */
+  dashboard:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
 };
 
 /** Resize an IOS_ICONS glyph (keeps paths; swaps width/height attrs). */
@@ -1656,7 +1659,7 @@ const swipeRowApis = new WeakMap();
 
 function getSwipeHintScope(list) {
   return (
-    list.closest('[id$="-panel"], [id$="-editor"], #home-dashboard') ||
+    list.closest('[id$="-panel"], [id$="-editor"], #dashboard-panel') ||
     list.closest('.dash-events') ||
     list
   );

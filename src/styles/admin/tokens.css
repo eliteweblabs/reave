@@ -77,8 +77,8 @@
   --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom) + var(--footer-nav-bottom-gap));
   --ch-compose-gap: 0.35rem;
   --ch-compose-h: var(--control-h);
-  --ch-inline-home-w: 2.25rem;
-  --ch-inline-home-gap: 0.4rem;
+  --ch-inline-dashboard-w: 2.25rem;
+  --ch-inline-dashboard-gap: 0.4rem;
   --footer-chat-stack: calc(var(--footer-nav-h) + var(--ch-compose-gap) + var(--ch-compose-h));
   --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
   --create-fab-bg: var(--brand-gradient);

@@ -63,7 +63,7 @@
   background: rgba(248, 113, 113, 0.08);
   border-color: rgba(248, 113, 113, 0.35);
 }
-#home-dashboard button.dash-uptime-tile {
+#dashboard-panel button.dash-uptime-tile {
   width: 100%;
   border-radius: 10px;
   font: inherit;

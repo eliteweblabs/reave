@@ -1,6 +1,6 @@
 
-/* ── Home dashboard ── */
-#home-dashboard {
+/* ── Dashboard ── */
+#dashboard-panel {
   position: fixed;
   inset: 0;
   height: 100dvh;
@@ -19,7 +19,7 @@
   overflow-y: auto;
   padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem) 1rem var(--footer-scroll-pad);
 }
-/* Prevent flex children from shrinking below content (iOS home dashboard). */
+/* Prevent flex children from shrinking below content (iOS dashboard). */
 .home-dashboard-scroll > * {
   flex-shrink: 0;
 }
@@ -81,13 +81,13 @@
   opacity: 0.9;
 }
 /* Override global pill buttons — dashboard cards stay rounded-rect. */
-#home-dashboard button.dash-stat {
+#dashboard-panel button.dash-stat {
   border-radius: 14px;
 }
-#home-dashboard button.dash-inbox-item {
+#dashboard-panel button.dash-inbox-item {
   border-radius: 10px;
 }
-#home-dashboard button.home-dashboard-tile {
+#dashboard-panel button.home-dashboard-tile {
   border-radius: 12px;
 }
 .dash-stat:hover {

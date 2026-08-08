@@ -254,7 +254,7 @@ async function notifyUptimeAlert(opts: {
       title: down ? `DOWN: ${label}` : `UP: ${label}`,
       body: detail.slice(0, 180),
       tag: `uptime-incident-${incident.id}`,
-      url: '/admin?tab=home',
+      url: '/admin?tab=dashboard',
     },
   });
 }

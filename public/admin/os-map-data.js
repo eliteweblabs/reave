@@ -36,7 +36,7 @@ const SYSTEM_NODES = [
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.example.com · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
   { id: 'portal', title: 'Client portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
-  { id: 'engagement', title: 'Engagement alerts', sub: 'vault · share opens · deck views · contact form · home banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
+  { id: 'engagement', title: 'Engagement alerts', sub: 'vault · share opens · deck views · contact form · dashboard banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
   { id: 'inventory_api', title: 'inventory-api', sub: 'Shopify · Woo · Square stock (FEATURES: inventory_sync)', icon: '📦', brand: 'shopify', hue: 96, status: true, group: 'reave', x: 880, y: 624 },
@@ -244,7 +244,7 @@ const TOOLING_GROUPS = [
 
 // ───────────────────────── exports ─────────────────────────
 export const MAPS = {
-  home:      { id: 'home',      title: 'Home',       icon: 'home', type: 'home',          nodes: [],             edges: [],             groups: [] },
+  dashboard: { id: 'dashboard', title: 'Dashboard', icon: 'layout-dashboard', type: 'dashboard', nodes: [],             edges: [],             groups: [] },
   system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
   // Telegram integration removed — admin Chats tab + Siri Shortcuts are the primary agent surfaces

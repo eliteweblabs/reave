@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/dashboard — aggregated at-a-glance stats for the home dashboard.
+ * GET /api/admin/dashboard — aggregated at-a-glance stats for the admin dashboard.
  */
 
 import type { APIContext } from 'astro';

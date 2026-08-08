@@ -47,7 +47,7 @@ const userId = auth?.userId ?? null;
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 const inAdminRoute = adminShell || path.startsWith("/admin");
-const logoHref = inAdminRoute ? "/admin/?tab=home" : "/";
+const logoHref = inAdminRoute ? "/admin/?tab=dashboard" : "/";
 const logoAriaLabel = inAdminRoute ? "Dashboard" : company.name || "Home";
 /** Always /admin after auth — never "/" (that looped SignIn → / → SignIn). */
 const signInRedirect = "/admin/";

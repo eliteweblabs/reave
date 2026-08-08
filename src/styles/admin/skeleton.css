@@ -3,7 +3,7 @@
  * Markup from skeletonHtml() / listPanelSkeletonHtml() in public/admin/shared.js:
  *   .sk-list        — inline list rows (detail panes, desktop sidebar)
  *   .sk-list-panel  — full mobile sidebar (search + filters + card rows)
- *   .sk-home        — home dashboard (alerts, today, stats, uptime, inbox)
+ *   .sk-home        — dashboard panel (alerts, today, stats, uptime, inbox)
  *   .sk-dashboard   — generic stat grid + cards (profile, social, analytics, etc.)
  */
 
@@ -169,13 +169,13 @@
   margin-bottom: 0;
 }
 
-/* ── Home dashboard — mirrors dash-today, dash-stats, uptime, inbox ── */
-#home-dashboard:has(.sk-home) {
+/* ── Dashboard panel — mirrors dash-today, dash-stats, uptime, inbox ── */
+#dashboard-panel:has(.sk-home) {
   padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem);
   box-sizing: border-box;
 }
 
-#home-dashboard:has(.sk-home) > .home-dashboard-scroll {
+#dashboard-panel:has(.sk-home) > .home-dashboard-scroll {
   padding-top: 0;
   padding-left: 1rem;
   padding-right: 1rem;
@@ -340,11 +340,11 @@
 }
 
 @media (max-width: 639px) {
-  #home-dashboard:has(.sk-home) {
+  #dashboard-panel:has(.sk-home) {
     padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.5rem);
   }
 
-  #home-dashboard:has(.sk-home) > .home-dashboard-scroll {
+  #dashboard-panel:has(.sk-home) > .home-dashboard-scroll {
     padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
   }

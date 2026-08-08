@@ -15,7 +15,7 @@ export const GET: APIRoute = async ({ request }) => {
     name: company.name ? `${company.name} Business OS` : 'Business OS',
     short_name: shortName.length > 12 ? `${shortName.slice(0, 12)}…` : shortName,
     description: 'Business OS — inbox, jobs, contacts',
-    start_url: '/admin/?tab=home',
+    start_url: '/admin/?tab=dashboard',
     scope: '/admin',
     display: 'standalone',
     display_override: ['standalone', 'minimal-ui'],

@@ -1,5 +1,5 @@
 ---
-import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from "lucide-astro";
+import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from "lucide-astro";
 ---
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
@@ -8,13 +8,13 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
     <div id="footer-nav-indicator" class="footer-nav-indicator" hidden aria-hidden="true"></div>
     <button
       type="button"
-      id="footer-nav-home"
+      id="footer-nav-dashboard"
       class="footer-nav-btn"
-      data-nav="home"
-      aria-label="Home"
+      data-nav="dashboard"
+      aria-label="Dashboard"
     >
-      <Home size={20} strokeWidth={1.75} />
-      <span id="footer-home-badge" class="footer-nav-badge" hidden>0</span>
+      <LayoutDashboard size={20} strokeWidth={1.75} />
+      <span id="footer-dashboard-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -125,7 +125,7 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
       overflow: visible;
     }
 
-    .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home),
+    .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-dashboard),
     .admin-footer-nav.footer-nav-collapsed #footer-nav-work {
       width: 0;
       max-width: 0;
@@ -135,12 +135,12 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
       pointer-events: none;
     }
 
-    .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-dashboard {
       color: #fff;
       background: transparent;
     }
 
-    .admin-footer-nav.footer-nav-collapsed #footer-nav-home .footer-nav-badge {
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-dashboard .footer-nav-badge {
       z-index: 10;
     }
 
@@ -152,7 +152,7 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
       pointer-events: none;
     }
 
-    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed {
+    body.footer-chat-inline-dashboard .admin-footer-nav.footer-nav-collapsed {
       left: auto;
       right: calc(max(0.5rem, env(safe-area-inset-right, 0px)) + 0.35rem);
       width: auto;
@@ -162,26 +162,26 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
       align-items: flex-end;
     }
 
-    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-bar {
+    body.footer-chat-inline-dashboard .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-bar {
       width: auto;
       flex: 0 0 auto;
     }
 
-    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
-      height: var(--ch-inline-home-w, 2.25rem);
+    body.footer-chat-inline-dashboard .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
+      height: var(--ch-inline-dashboard-w, 2.25rem);
     }
 
-    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
-      width: var(--ch-inline-home-w, 2.25rem);
-      max-width: var(--ch-inline-home-w, 2.25rem);
-      height: var(--ch-inline-home-w, 2.25rem);
+    body.footer-chat-inline-dashboard .admin-footer-nav.footer-nav-collapsed #footer-nav-dashboard {
+      width: var(--ch-inline-dashboard-w, 2.25rem);
+      max-width: var(--ch-inline-dashboard-w, 2.25rem);
+      height: var(--ch-inline-dashboard-w, 2.25rem);
       color: var(--nav-icon-active);
       border: 1px solid var(--panel-border);
       background: var(--card);
       box-shadow: var(--shadow-lg);
     }
 
-    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed #footer-nav-home svg {
+    body.footer-chat-inline-dashboard .admin-footer-nav.footer-nav-collapsed #footer-nav-dashboard svg {
       width: 17px;
       height: 17px;
     }
@@ -320,7 +320,7 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
   }
 
   @media (max-width: 639px) {
-    .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-dashboard {
       border-radius: var(--radius-input);
     }
   }

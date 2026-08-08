@@ -1055,7 +1055,7 @@ export type BillingDashboardStats = {
   recurringActive: number;
 };
 
-/** Org-wide billing snapshot for the admin home dashboard. */
+/** Org-wide billing snapshot for the admin dashboard. */
 export async function craterBillingDashboardStats(): Promise<CraterResult<BillingDashboardStats>> {
   const [invoicesRes, recurringRes] = await Promise.all([
     craterListInvoices(),

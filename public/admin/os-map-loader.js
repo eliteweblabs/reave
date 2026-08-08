@@ -303,7 +303,7 @@ const ICON_CDN = (slug) => {
 };
 
 const MAP_ICON_KEYS = {
-  home: 'home',
+  dashboard: 'layout-dashboard',
   system: 'monitor',
   tooling: 'wrench',
   todo: 'check-square',
@@ -360,9 +360,10 @@ function normalizeFooterNavKeys(keys) {
       if (!result.includes(CHAT_TAB_SLOT)) result.push(CHAT_TAB_SLOT);
       continue;
     }
-    if (MAPS[raw] && !result.includes(raw)) result.push(raw);
+    const mapKey = resolveMapKey(raw);
+    if (MAPS[mapKey] && !result.includes(mapKey)) result.push(mapKey);
   }
-  return result.length ? result : [SYSTEM_TAB_SLOT, 'home'];
+  return result.length ? result : [SYSTEM_TAB_SLOT, 'dashboard'];
 }
 
 function isSettingsMapType(type) {
@@ -384,8 +385,8 @@ function settingsPanelHasFocusedInput() {
   );
 }
 
-/** Home dashboard tiles that live in the footer nav — omit from the grid. */
-const HOME_DASHBOARD_FOOTER_KEYS = new Set(['chats', 'email', 'work', 'schedule', 'clients']);
+/** Dashboard tiles that live in the footer nav — omit from the grid. */
+const DASHBOARD_FOOTER_KEYS = new Set(['chats', 'email', 'work', 'schedule', 'clients']);
 
 const LEGACY_EMOJI_ICON = {
   '🔔': 'bell',
@@ -406,7 +407,7 @@ const LEGACY_EMOJI_ICON = {
 
 const NAV_ICON_PATHS = {
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
-  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  'layout-dashboard': '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
@@ -758,11 +759,11 @@ function setActiveMap(key, opts = {}) {
     }
   }
   syncAdminTabUrl(key, opts);
-  if (key === 'home' && prevType !== 'home') void refreshInboxBadgeQuiet();
+  if (key === 'dashboard' && prevType !== 'dashboard') void refreshInboxBadgeQuiet();
 }
 
-function homeDashboardHasContent() {
-  const root = document.getElementById('home-dashboard');
+function dashboardPanelHasContent() {
+  const root = document.getElementById('dashboard-panel');
   return Boolean(
     root?.querySelector(
       '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
@@ -774,7 +775,7 @@ function isPanelMapKey(key) {
   const t = MAPS[key]?.type;
   return (
     isSettingsMapType(t) ||
-    t === 'home' ||
+    t === 'dashboard' ||
     t === 'documents' ||
     t === 'knowledge' ||
     t === 'work' ||
@@ -794,9 +795,9 @@ function isPanelMapKey(key) {
 }
 
 function activateMapPanel(opts = {}) {
-  if (MAP.type === 'home') {
-    const quiet = !opts.refreshHome && homeDashboardHasContent();
-    loadHomeDashboard({ quiet });
+  if (MAP.type === 'dashboard') {
+    const quiet = !opts.refreshDashboard && dashboardPanelHasContent();
+    loadAdminDashboard({ quiet });
   } else if (MAP.type === 'profile') {
     loadProfileTab();
   } else if (MAP.type === 'company') {
@@ -863,7 +864,7 @@ function activateMapPanel(opts = {}) {
 function isPanelTab() {
   return (
     isSettingsMapType(MAP.type) ||
-    MAP.type === 'home' ||
+    MAP.type === 'dashboard' ||
     MAP.type === 'documents' ||
     MAP.type === 'knowledge' ||
     MAP.type === 'work' ||
@@ -893,7 +894,7 @@ function syncCanvasVisibility() {
   if (wrap) wrap.style.display = isPanel ? 'none' : '';
   setPanelDisplay('tools', isPanel ? 'none' : '');
   setPanelDisplay('legend', isPanel ? 'none' : '');
-  setPanelDisplay('home-dashboard', MAP.type === 'home' ? 'flex' : 'none');
+  setPanelDisplay('dashboard-panel', MAP.type === 'dashboard' ? 'flex' : 'none');
   setPanelDisplay('settings-panel', isSettingsMapType(MAP.type) ? 'flex' : 'none');
   setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
   setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
@@ -1828,7 +1829,8 @@ function normalizeTabOrderKeys(saved) {
       }
       continue;
     }
-    if (MAPS[raw] && allowed.has(raw) && !result.includes(raw)) result.push(raw);
+    const mapKey = resolveMapKey(raw);
+    if (MAPS[mapKey] && allowed.has(mapKey) && !result.includes(mapKey)) result.push(mapKey);
   }
 
   if (!systemSlot && allowed.has(SYSTEM_TAB_SLOT)) result.unshift(SYSTEM_TAB_SLOT);
@@ -2237,7 +2239,7 @@ function updateTabs() {
 
 }
 
-/** Flat tab keys for the home dashboard grid (all sections, no collapsed slots). */
+/** Flat tab keys for the dashboard grid (all sections, no collapsed slots). */
 function dashboardTabKeys(order) {
   const out = [];
   for (const key of normalizeTabOrderKeys(order)) {
@@ -2567,7 +2569,7 @@ async function markDashTodoDone(id) {
     });
     await readApiJson(res);
     closeOpenSwipeRow();
-    await loadHomeDashboard();
+    await loadAdminDashboard();
   } catch (e) {
     osAlert({ title: 'Could not complete', bodyHtml: escHtml(e.message) });
   }
@@ -2848,7 +2850,7 @@ async function purgeExpiredOtpsQuietly() {
       });
       if (MAP?.type === 'email') renderEmailPanel();
       syncInboxAppBadge(emailState.allEvents);
-      if (MAP?.type === 'home') void refreshHomeReviewBannersQuiet();
+      if (MAP?.type === 'dashboard') void refreshDashboardReviewBannersQuiet();
     }
     return deleted;
   } finally {
@@ -3094,7 +3096,7 @@ function ensureUptimePlatformSyncPolling() {
       const created = data.created ?? result?.created ?? 0;
       void showUptimeSyncResultDialog(result);
       window.setTimeout(() => {
-        void loadHomeDashboard();
+        void loadAdminDashboard();
       }, created > 0 ? 6000 : 2500);
     } catch {
       /* ignore transient poll errors while job runs */
@@ -3299,7 +3301,7 @@ async function runReviewScheduleAction(item, action, btn) {
   };
   await runEmailScheduleAction(ev, action, btn);
   updateInboxBadgesFromState();
-  if (MAP.type === 'home') await loadHomeDashboard();
+  if (MAP.type === 'dashboard') await loadAdminDashboard();
 }
 
 async function logReceiptExpenseFromAlert(item, btn) {
@@ -3329,7 +3331,7 @@ async function logReceiptExpenseFromAlert(item, btn) {
     removeReviewAlertBanner(emailId);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
     if (emailState.activeId === emailId) renderEmailPanel();
-    if (MAP.type === 'home') await loadHomeDashboard();
+    if (MAP.type === 'dashboard') await loadAdminDashboard();
   } catch (e) {
     await osAlert({ title: 'Could not log expense', bodyHtml: escHtml(e.message || String(e)) });
     if (btn) {
@@ -3371,7 +3373,7 @@ async function archiveReceiptFromAlert(item, btn) {
     removeReviewAlertBanner(emailId);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
     if (emailState.activeId === emailId) renderEmailPanel();
-    if (MAP.type === 'home') await loadHomeDashboard();
+    if (MAP.type === 'dashboard') await loadAdminDashboard();
   } catch (e) {
     await osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message || String(e)) });
   } finally {
@@ -4075,7 +4077,7 @@ async function handleMissingWorkNotification(item) {
     title: `${postTitle(1)} not found`,
     bodyHtml: `This ${postLower(1)} was deleted. The notification has been archived.`,
   });
-  if (MAP.type === 'home') await loadHomeDashboard();
+  if (MAP.type === 'dashboard') await loadAdminDashboard();
 }
 
 async function openReviewNotificationTarget(item) {
@@ -4444,7 +4446,7 @@ async function dismissPushAlertById(alertId, tag) {
 
   removeReviewAlertBanner(null, null, null, id);
   syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-  if (MAP.type === 'home') await loadHomeDashboard();
+  if (MAP.type === 'dashboard') await loadAdminDashboard();
 }
 
 const EMAIL_AUTOMATION_REVIEW_TYPES = new Set([
@@ -4700,7 +4702,7 @@ function buildReviewAlertBanners(notifications) {
   return wrap;
 }
 
-/** Drop a resolved review alert from the home dashboard immediately (no poll / reload wait). */
+/** Drop a resolved review alert from the dashboard immediately (no poll / reload wait). */
 function removeReviewAlertBanner(emailId, commentId, engagementId, alertId) {
   const emailKey = String(emailId || '').trim();
   const commentKey = String(commentId || '').trim();
@@ -4785,8 +4787,8 @@ function queueTriageEmailFromUrl() {
   }
 }
 
-function renderHomeDashboard(data) {
-  const root = document.getElementById('home-dashboard');
+function renderAdminDashboard(data) {
+  const root = document.getElementById('dashboard-panel');
   if (!root) return;
   root.innerHTML = '';
 
@@ -5006,9 +5008,9 @@ function renderHomeDashboard(data) {
     if (m.link) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
     } else if (
-      key !== 'home' &&
+      key !== 'dashboard' &&
       !SETTINGS_MAP_TYPES.has(key) &&
-      !HOME_DASHBOARD_FOOTER_KEYS.has(key)
+      !DASHBOARD_FOOTER_KEYS.has(key)
     ) {
       grid.appendChild(buildHomeMapTile(key, m));
     }
@@ -5093,7 +5095,7 @@ function showAddUptimeSiteDialog() {
         const data = await readApiJson(res);
         if (!data.ok) throw new Error(data.error || 'Could not add site');
         finish(true);
-        await loadHomeDashboard();
+        await loadAdminDashboard();
       } catch (e) {
         addBtn.disabled = false;
         addBtn.textContent = 'Add site';
@@ -5179,7 +5181,7 @@ function showLinkUptimeMonitorDialog() {
         const data = await readApiJson(res);
         if (!data.ok) throw new Error(data.error || 'Could not link monitor');
         finish(true);
-        await loadHomeDashboard();
+        await loadAdminDashboard();
       } catch (e) {
         linkBtn.disabled = false;
         linkBtn.textContent = 'Link monitor';
@@ -5261,7 +5263,7 @@ async function syncUptimeMonitorsFromApi() {
     closeBtn.textContent = 'Done';
     closeBtn.addEventListener('click', async () => {
       closeOsDialogBackdrop();
-      if (data.synced > 0) await loadHomeDashboard();
+      if (data.synced > 0) await loadAdminDashboard();
     });
     actionsEl.appendChild(closeBtn);
     closeBtn.focus();
@@ -5273,29 +5275,29 @@ async function syncUptimeMonitorsFromApi() {
 
 let homeDashboardLoadPromise = null;
 let homeDashboardLastLoadAt = 0;
-const HOME_DASHBOARD_MIN_RELOAD_MS = 1500;
+const DASHBOARD_MIN_RELOAD_MS = 1500;
 
-async function loadHomeDashboard(opts = {}) {
+async function loadAdminDashboard(opts = {}) {
   if (!userId) return;
   const quiet = opts.quiet === true;
-  const root = document.getElementById('home-dashboard');
+  const root = document.getElementById('dashboard-panel');
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
-  const hasContent = homeDashboardHasContent();
+  const hasContent = dashboardPanelHasContent();
   if (!quiet && hasContent) {
     const elapsed = Date.now() - homeDashboardLastLoadAt;
-    if (elapsed < HOME_DASHBOARD_MIN_RELOAD_MS) return;
+    if (elapsed < DASHBOARD_MIN_RELOAD_MS) return;
   }
 
   homeDashboardLoadPromise = (async () => {
     if (!hasContent) {
-      mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
+      mountPanelSkeleton(root, 'dashboard-home', 'Loading dashboard…', {
         quiet: false,
         contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
       });
     } else if (!quiet) {
-      mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
+      mountPanelSkeleton(root, 'dashboard-home', 'Loading dashboard…', {
         quiet: true,
         contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
       });
@@ -5306,7 +5308,7 @@ async function loadHomeDashboard(opts = {}) {
       const data = await readAdminJson(res, 'dashboard');
       if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDashboardFooterBadges(data.stats);
-      renderHomeDashboard(data);
+      renderAdminDashboard(data);
       homeDashboardLastLoadAt = Date.now();
       void initFleetLocationReporter();
     } catch (e) {
@@ -5325,10 +5327,10 @@ async function loadHomeDashboard(opts = {}) {
   }
 }
 
-/** Update home review banners without wiping the dashboard (badge poll / push). */
-async function refreshHomeReviewBannersQuiet() {
-  if (MAP?.type !== 'home') return;
-  const root = document.getElementById('home-dashboard');
+/** Update dashboard review banners without wiping the view (badge poll / push). */
+async function refreshDashboardReviewBannersQuiet() {
+  if (MAP?.type !== 'dashboard') return;
+  const root = document.getElementById('dashboard-panel');
   const scroll = root?.querySelector('.home-dashboard-scroll');
   if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton')) return;
 
@@ -7077,7 +7079,7 @@ function renderVapiPanel(company) {
  */
 function prependSettingsBackHeader(root) {
   const { header } = createPaneSubheader({
-    back: { label: 'Back', onClick: () => setActiveMap('home', { force: true, refreshHome: true }) },
+    back: { label: 'Back', onClick: () => setActiveMap('dashboard', { force: true, refreshDashboard: true }) },
     className: 'settings-subheader',
   });
   root.prepend(header);
@@ -7508,7 +7510,7 @@ async function refreshVapiPluginStatus() {
 }
 
 function footerNavActiveKey() {
-  if (activeKey === 'home') return 'home';
+  if (activeKey === 'dashboard') return 'dashboard';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
   if (activeKey === 'schedule') return 'schedule';
@@ -7570,7 +7572,7 @@ function footerNavShowsSave(nav) {
 }
 
 function footerNavShowsCreate(nav) {
-  if (footerNavCollapsed || nav === 'home') return false;
+  if (footerNavCollapsed || nav === 'dashboard') return false;
   return footerNavActiveKey() === nav;
 }
 
@@ -7747,7 +7749,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #modules-panel, #search-overlay';
+  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #modules-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
   '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
@@ -7759,7 +7761,7 @@ function collapseFooterNav() {
   if (footerNavCollapsed) return;
   footerNavCollapsed = true;
   document.getElementById('admin-footer-nav')?.classList.add('footer-nav-collapsed');
-  const homeBtn = document.getElementById('footer-nav-home');
+  const homeBtn = document.getElementById('footer-nav-dashboard');
   homeBtn?.setAttribute('title', 'Show navigation');
   syncFooterChatNav();
   syncFooterInboxNav();
@@ -7767,7 +7769,7 @@ function collapseFooterNav() {
   syncFooterWorkNav();
   syncFooterTodoNav();
   syncFooterClientsNav();
-  syncFooterChatInlineHome();
+  syncFooterChatInlineDashboard();
   syncFooterNavCountTooltips();
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
@@ -7777,15 +7779,15 @@ function expandFooterNav() {
   if (!footerNavCollapsed) return;
   footerNavCollapsed = false;
   document.getElementById('admin-footer-nav')?.classList.remove('footer-nav-collapsed');
-  const homeBtn = document.getElementById('footer-nav-home');
-  homeBtn?.setAttribute('title', 'Home');
+  const homeBtn = document.getElementById('footer-nav-dashboard');
+  homeBtn?.setAttribute('title', 'Dashboard');
   syncFooterChatNav();
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
   syncFooterTodoNav();
   syncFooterClientsNav();
-  syncFooterChatInlineHome();
+  syncFooterChatInlineDashboard();
   syncFooterNavCountTooltips();
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
@@ -7825,14 +7827,14 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'work', 'todo', 'clients'];
+const FOOTER_NAV_DRAG_ORDER = ['dashboard', 'chat', 'inbox', 'schedule', 'work', 'todo', 'clients'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
   const indicator = document.getElementById('footer-nav-indicator');
   if (!indicator || indicator.hidden) return true;
   const activeNav = footerNavActiveKey();
-  return activeNav != null && activeNav !== 'home' && footerNavCreateModeActive(activeNav);
+  return activeNav != null && activeNav !== 'dashboard' && footerNavCreateModeActive(activeNav);
 }
 
 function getVisibleFooterNavButtons() {
@@ -7917,12 +7919,12 @@ function activateFooterChatNav() {
 
 function activateFooterNavFromDrag(nav) {
   closeSearchOverlay();
-  if (nav === 'home') {
+  if (nav === 'dashboard') {
     if (footerNavCollapsed) {
       expandFooterNav();
       return;
     }
-    setActiveMap('home', { force: activeKey === 'home', refreshHome: activeKey === 'home' });
+    setActiveMap('dashboard', { force: activeKey === 'dashboard', refreshDashboard: activeKey === 'dashboard' });
     return;
   }
   if (nav === 'chat') {
@@ -8073,13 +8075,13 @@ function syncFooterNavIndicator() {
   if (!indicator || !pill) return;
 
   const activeNav = footerNavActiveKey();
-  const hideForCreate = activeNav != null && activeNav !== 'home' && footerNavCreateModeActive(activeNav);
+  const hideForCreate = activeNav != null && activeNav !== 'dashboard' && footerNavCreateModeActive(activeNav);
 
   let targetBtn = activeNav
     ? document.querySelector(`.footer-nav-btn[data-nav="${activeNav}"]`)
     : null;
   if (footerNavCollapsed) {
-    targetBtn = document.getElementById('footer-nav-home');
+    targetBtn = document.getElementById('footer-nav-dashboard');
   }
 
   if (!targetBtn || hideForCreate) {
@@ -8102,14 +8104,14 @@ function scheduleFooterNavIndicatorSync() {
   window.setTimeout(syncFooterNavIndicator, 340);
 }
 
-function syncFooterChatInlineHome() {
+function syncFooterChatInlineDashboard() {
   const use =
     isMobileTabs() &&
     footerNavCollapsed &&
     activeKey === 'chats' &&
     Boolean(chatState.activeId) &&
     !document.body.classList.contains('chat-compose-focused');
-  document.body.classList.toggle('footer-chat-inline-home', use);
+  document.body.classList.toggle('footer-chat-inline-dashboard', use);
 }
 
 function syncChatComposeViewport() {
@@ -8145,7 +8147,7 @@ function setChatComposeFocused(focused) {
   syncChatComposeFormNav(focused);
   if (focused) syncChatComposeViewport();
   else document.documentElement.style.removeProperty('--chat-compose-bottom');
-  syncFooterChatInlineHome();
+  syncFooterChatInlineDashboard();
 }
 
 function initChatComposeFocusLayout() {
@@ -8204,7 +8206,7 @@ function initChatComposeFocusLayout() {
 
 function syncFooterNav() {
   syncEditorFooterSaveState();
-  syncFooterChatInlineHome();
+  syncFooterChatInlineDashboard();
   const activeNav = footerNavActiveKey();
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
@@ -8229,13 +8231,13 @@ function syncProfileMenuActive() {
 }
 
 function initFooterNav() {
-  document.getElementById('footer-nav-home')?.addEventListener('click', () => {
+  document.getElementById('footer-nav-dashboard')?.addEventListener('click', () => {
     closeSearchOverlay();
     if (footerNavCollapsed) {
       expandFooterNav();
       return;
     }
-    setActiveMap('home', { force: activeKey === 'home', refreshHome: activeKey === 'home' });
+    setActiveMap('dashboard', { force: activeKey === 'dashboard', refreshDashboard: activeKey === 'dashboard' });
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     activateFooterChatNav();
@@ -8560,7 +8562,7 @@ function syncFooterNavCountTooltips() {
     { id: 'footer-nav-clients', key: 'clients', singular: 'client', plural: 'clients' },
   ];
 
-  document.getElementById('footer-nav-home')?.removeAttribute('data-footer-count');
+  document.getElementById('footer-nav-dashboard')?.removeAttribute('data-footer-count');
 
   for (const { id, key, singular, plural } of defs) {
     const btn = document.getElementById(id);
@@ -8585,8 +8587,8 @@ function syncReviewBadge(count) {
 }
 
 function renderFooterNavBadges() {
-  const badge = document.getElementById('footer-home-badge');
-  const btn = document.getElementById('footer-nav-home');
+  const badge = document.getElementById('footer-dashboard-badge');
+  const btn = document.getElementById('footer-nav-dashboard');
   if (!badge || !btn) return;
 
   const n = reviewsPendingCount;
@@ -8596,12 +8598,12 @@ function renderFooterNavBadges() {
     const hint = `${n} review${n === 1 ? '' : 's'} pending`;
     btn.setAttribute(
       'aria-label',
-      footerNavCollapsed ? `Show navigation (${hint})` : `Home (${hint})`,
+      footerNavCollapsed ? `Show navigation (${hint})` : `Dashboard (${hint})`,
     );
   } else {
     badge.hidden = true;
     badge.textContent = '0';
-    btn.setAttribute('aria-label', footerNavCollapsed ? 'Show navigation' : 'Home');
+    btn.setAttribute('aria-label', footerNavCollapsed ? 'Show navigation' : 'Dashboard');
   }
 }
 
@@ -8689,7 +8691,7 @@ function initTopbarMenus() {
       ev.preventDefault();
       closeTopbarMenus();
       closeSearchOverlay();
-      setActiveMap('home', { force: true, refreshHome: true });
+      setActiveMap('dashboard', { force: true, refreshDashboard: true });
     });
   }
 }
@@ -8996,7 +8998,7 @@ function handleNotificationOpen(url) {
   if (!url) return;
   try {
     const u = new URL(url, window.location.origin);
-    const tab = u.searchParams.get('tab');
+    const tab = resolveMapKey(u.searchParams.get('tab'));
     const emailId = u.searchParams.get('email')?.trim();
     if (tab === 'email' && emailId) {
       pendingEmailDeepLinkId = emailId;
@@ -9439,9 +9441,9 @@ async function refreshFooterBadgesQuiet() {
 async function refreshInboxBadgeQuiet(forceHome = false) {
   const prevCount = reviewsPendingCount;
   await refreshFooterBadgesQuiet();
-  if (MAP.type !== 'home') return;
+  if (MAP.type !== 'dashboard') return;
   if (forceHome || reviewsPendingCount !== prevCount) {
-    await refreshHomeReviewBannersQuiet();
+    await refreshDashboardReviewBannersQuiet();
   }
 }
 
@@ -10052,7 +10054,7 @@ initWorkPanel({
   formatChatDate,
   formatTodoDueDate,
   sharePortalLink,
-  loadHomeDashboard,
+  loadAdminDashboard,
   reviewsPendingCount,
   clearEditorFooterSave,
   mountCreateDrawerChrome,
@@ -13361,6 +13363,13 @@ function loadPositions() {
     }
   }
 }
+
+/** Legacy tab key from older installs / deep links. */
+function resolveMapKey(key) {
+  if (key === 'home') return 'dashboard';
+  return key;
+}
+
 function loadActiveKey() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -13368,17 +13377,17 @@ function loadActiveKey() {
     if (params.get('client')?.trim()) return 'clients';
     if (params.get('chat')?.trim()) return 'chats';
     if (params.get('slug')?.trim()) return 'work';
-    const tab = params.get('tab');
+    const tab = resolveMapKey(params.get('tab'));
     if (tab && MAPS[tab]) return tab;
   } catch {}
   let key;
   try {
-    key = localStorage.getItem(MAP_STORE);
+    key = resolveMapKey(localStorage.getItem(MAP_STORE));
   } catch {
     key = null;
   }
   if (MAPS[key]) return key;
-  return 'home';
+  return 'dashboard';
 }
 function saveActiveKey() {
   try {

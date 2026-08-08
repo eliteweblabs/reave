@@ -57,7 +57,7 @@ export type FooterNavSlotKey = (typeof FOOTER_NAV_SLOT_KEYS)[number];
 
 /** Map tab keys allowed in footerNav (non-slot). Must exist in os-map-data MAPS. */
 export const FOOTER_NAV_MAP_KEYS = [
-  'home',
+  'dashboard',
   'todo',
   'documents',
   'knowledge',
@@ -239,7 +239,8 @@ function normalizeFooterNav(raw: unknown): FooterNavKey[] {
   const out: FooterNavKey[] = [];
   for (const item of raw) {
     if (typeof item !== 'string') continue;
-    const key = item.trim();
+    // Legacy installs used "home" for the admin dashboard tab.
+    const key = item.trim() === 'home' ? 'dashboard' : item.trim();
     if (FOOTER_NAV_SLOT_SET.has(key) || FOOTER_NAV_MAP_SET.has(key)) {
       if (!out.includes(key as FooterNavKey)) out.push(key as FooterNavKey);
     }
@@ -251,7 +252,7 @@ function normalizeFooterNav(raw: unknown): FooterNavKey[] {
 export function defaultFooterNav(): FooterNavKey[] {
   return [
     '__system__',
-    'home',
+    'dashboard',
     'todo',
     'documents',
     'knowledge',

@@ -1780,26 +1780,26 @@
   }
   .ch-messages { padding: 0.75rem 0.85rem var(--footer-scroll-pad); }
 
-  /* Collapsed footer: home sits on the same row as chat input (right, small). */
-  body.footer-chat-inline-home #chat-panel .ch-compose,
-  body.footer-chat-inline-home #chat-panel .aui-compose-footer {
+  /* Collapsed footer: dashboard sits on the same row as chat input (right, small). */
+  body.footer-chat-inline-dashboard #chat-panel .ch-compose,
+  body.footer-chat-inline-dashboard #chat-panel .aui-compose-footer {
     bottom: calc(var(--ch-compose-gap) + env(safe-area-inset-bottom, 0px));
     right: calc(
-      var(--ch-inline-home-w) + var(--ch-inline-home-gap) +
+      var(--ch-inline-dashboard-w) + var(--ch-inline-dashboard-gap) +
       max(0.5rem, env(safe-area-inset-right, 0px))
     );
   }
-  body.footer-chat-inline-home #chat-panel .ch-compose-main,
-  body.footer-chat-inline-home #chat-panel .ch-attachments {
+  body.footer-chat-inline-dashboard #chat-panel .ch-compose-main,
+  body.footer-chat-inline-dashboard #chat-panel .ch-attachments {
     max-width: none;
     margin: 0;
   }
-  body.footer-chat-inline-home #chat-panel.ch-pane-active .ch-messages,
-  body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport {
+  body.footer-chat-inline-dashboard #chat-panel.ch-pane-active .ch-messages,
+  body.footer-chat-inline-dashboard #chat-panel.ch-pane-active .aui-viewport {
     padding-bottom: 0.75rem;
   }
 
-  body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-compose-footer {
+  body.footer-chat-inline-dashboard #chat-panel.ch-pane-active .aui-compose-footer {
     padding-bottom: calc(
       var(--control-h) + var(--ch-compose-gap) + 0.65rem + env(safe-area-inset-bottom, 0px)
     );

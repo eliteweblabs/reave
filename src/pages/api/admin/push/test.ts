@@ -68,7 +68,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const message =
     body.message?.trim() ||
     'Push is working — you will get inbox alerts, bookings, and website monitoring here.';
-  const url = body.url?.trim() || '/admin?tab=home';
+  const url = body.url?.trim() || '/admin?tab=dashboard';
 
   await sendPushNotification({
     title,

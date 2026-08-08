@@ -39,7 +39,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
 export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   __system__: 'System',
   __chat__: 'Sessions',
-  home: 'Home',
+  dashboard: 'Dashboard',
   todo: 'To-do',
   documents: 'Documents',
   knowledge: 'Knowledge',
