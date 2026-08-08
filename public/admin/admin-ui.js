@@ -1035,7 +1035,12 @@ export function createEditableHeaderTitleInput(opts = {}) {
 }
 
 /**
- * Standard detail-pane subheader: back + title + optional middle + icon actions.
+ * Detail-pane title row: back + title + optional middle + icon actions.
+ *
+ * Prefer `createPaneHeader` from `pane-header.js` when mounting under the logo
+ * topbar — that API owns the full header/subheader stack (optional secondary
+ * row) and the shared clearance CSS. Keep calling this only when you need the
+ * bare `.de-header` node (e.g. inside `.detail-chrome`).
  *
  * @param {object} opts
  * @param {object|false} [opts.back] — back button opts; omit for none

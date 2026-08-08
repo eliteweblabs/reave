@@ -9,7 +9,6 @@ import {
   listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
-  createPaneSubheader,
   wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
@@ -37,7 +36,8 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
@@ -357,7 +357,7 @@ function startNewKnowledge() {
 function renderNewKnowledgeForm(pane) {
   pane.innerHTML = '';
   const inDrawer = shell.isCreateDrawerOpen('knowledge');
-  const { header, titleInput: slugInput } = createPaneSubheader({
+  const { root, titleInput: slugInput } = createPaneHeader({
     back: inDrawer
       ? null
       : {
@@ -375,7 +375,7 @@ function renderNewKnowledgeForm(pane) {
       ariaLabel: 'Slug (filename)',
     },
   });
-  pane.appendChild(header);
+  pane.appendChild(root);
   requestTitleFocus('knowledge', slugInput);
 
   const scroll = document.createElement('div');
@@ -413,30 +413,31 @@ function renderEditKnowledgeForm(pane) {
         onClick: () => askAgentAboutKnowledge(entry || { slug, title: data.title }),
       });
 
-      const { header } = createPaneSubheader({
-        back: {
-          label: 'Back to knowledge',
-          onClick: async () => {
-            await flushKnowledgeAutosave();
-            if (knowledgeState.dirty && !(await confirmDiscardChanges())) return;
-            knowledgeState.activeSlug = null;
-            knowledgeState.dirty = false;
-            getKnowledgeEditor()?.classList.remove('de-pane-active');
-            syncKnowledgeSidebarActiveState();
-            renderKnowledgePane();
+      pane.appendChild(
+        createPaneHeader({
+          back: {
+            label: 'Back to knowledge',
+            onClick: async () => {
+              await flushKnowledgeAutosave();
+              if (knowledgeState.dirty && !(await confirmDiscardChanges())) return;
+              knowledgeState.activeSlug = null;
+              knowledgeState.dirty = false;
+              getKnowledgeEditor()?.classList.remove('de-pane-active');
+              syncKnowledgeSidebarActiveState();
+              renderKnowledgePane();
+            },
           },
-        },
-        title: data.title || entry?.title || slug,
-        subtitle: slug,
-        beforeIcons: [agentBtn],
-        icons: [
-          paneDeleteIcon({
-            label: 'Delete knowledge doc',
-            onClick: () => deleteKnowledge(slug),
-          }),
-        ],
-      });
-      pane.appendChild(header);
+          title: data.title || entry?.title || slug,
+          subtitle: slug,
+          beforeIcons: [agentBtn],
+          icons: [
+            paneDeleteIcon({
+              label: 'Delete knowledge doc',
+              onClick: () => deleteKnowledge(slug),
+            }),
+          ],
+        }).root,
+      );
 
       const ta = document.createElement('textarea');
       ta.className = 'de-textarea';

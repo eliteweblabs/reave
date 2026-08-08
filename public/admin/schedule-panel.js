@@ -9,7 +9,6 @@ import {
   listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
-  createPaneSubheader,
   wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
@@ -34,7 +33,8 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260805j';
 import { postLower } from './post-alias.js?v=20260805a';
 import {
@@ -1517,16 +1517,16 @@ function renderScheduleDetail(pane, booking) {
   }
 
   pane.appendChild(
-    createPaneSubheader({
+    createPaneHeader({
       back: {
         label: 'Back to schedule',
         onClick: () => closeScheduleDetail(),
       },
       title: booking.title || 'Meeting',
       icons,
-    }).header,
+      secondary: renderScheduleDetailWhenNav(booking),
+    }).root,
   );
-  pane.appendChild(renderScheduleDetailWhenNav(booking));
 
   const scroll = document.createElement('div');
   scroll.className = 're-form-scroll schedule-detail-scroll';

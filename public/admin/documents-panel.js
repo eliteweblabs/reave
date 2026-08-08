@@ -9,7 +9,6 @@ import {
   listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
-  createPaneSubheader,
   wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
@@ -36,7 +35,8 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260805j';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260807c';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
@@ -392,7 +392,7 @@ function renderDocEditor() {
 function renderNewForm(pane) {
   pane.innerHTML = '';
   const inDrawer = shell.isCreateDrawerOpen('documents');
-  const { header, titleInput: slugInput } = createPaneSubheader({
+  const { root, titleInput: slugInput } = createPaneHeader({
     back: inDrawer ? null : { label: 'Back to documents', onClick: () => backToList() },
     editableTitle: {
       value: '',
@@ -400,7 +400,7 @@ function renderNewForm(pane) {
       ariaLabel: 'Filename (slug)',
     },
   });
-  pane.appendChild(header);
+  pane.appendChild(root);
   requestTitleFocus('documents', slugInput);
 
   const scroll = document.createElement('div');
@@ -450,22 +450,23 @@ function renderEditForm(pane) {
       modeTabs.appendChild(editTab);
       modeTabs.appendChild(viewTab);
 
-      const { header } = createPaneSubheader({
-        back: { label: 'Back to documents', onClick: () => backToList() },
-        title: tpl?.title ?? slug,
-        afterTitle: modeTabs,
-        icons: [
-          paneShareIcon({
-            label: 'Send to a client',
-            onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
-          }),
-          paneDeleteIcon({
-            label: 'Delete document',
-            onClick: () => deleteDocument(slug),
-          }),
-        ],
-      });
-      pane.appendChild(header);
+      pane.appendChild(
+        createPaneHeader({
+          back: { label: 'Back to documents', onClick: () => backToList() },
+          title: tpl?.title ?? slug,
+          afterTitle: modeTabs,
+          icons: [
+            paneShareIcon({
+              label: 'Send to a client',
+              onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
+            }),
+            paneDeleteIcon({
+              label: 'Delete document',
+              onClick: () => deleteDocument(slug),
+            }),
+          ],
+        }).root,
+      );
 
       docState.savedContent = content;
       docState.dirty = false;

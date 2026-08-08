@@ -9,7 +9,6 @@ import {
   listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
-  createPaneSubheader,
   wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
@@ -36,7 +35,8 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260808b';
@@ -748,7 +748,7 @@ function renderTodoEditPane(pane, isNew) {
   }
 
   const inDrawer = isNew && shell.isCreateDrawerOpen('todo');
-  const { header, titleInput } = createPaneSubheader({
+  const { root, titleInput } = createPaneHeader({
     back: inDrawer
       ? null
       : {
@@ -762,7 +762,7 @@ function renderTodoEditPane(pane, isNew) {
     },
     icons,
   });
-  pane.appendChild(header);
+  pane.appendChild(root);
   if (isNew) requestTitleFocus('todo', titleInput);
 
   const scroll = document.createElement('div');
