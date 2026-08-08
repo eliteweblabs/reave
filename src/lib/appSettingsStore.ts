@@ -11,7 +11,7 @@ import { serverEnv } from './serverEnv';
 export type AppSettings = {
   /** Minutes until verification-code inbox rows auto-delete. 0 disables. */
   otpTtlMinutes: number;
-  /** Days a project stays in the Recently Viewed filter after last edit. */
+  /** Days a project stays in Recently Viewed after an admin open or client portal dwell. */
   recentlyViewedDays: number;
   updatedAt: string | null;
 };

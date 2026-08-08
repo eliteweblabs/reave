@@ -115,7 +115,10 @@ const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
 
 const AUTOSAVE_DEBOUNCE_MS = 650;
 
+const WORK_RECENTLY_VIEWED_KEY = 'reave-work-recently-viewed';
 const DEFAULT_RECENTLY_VIEWED_DAYS = 7;
+/** Keep local admin view history for up to a year so raising the settings window still works. */
+const WORK_VIEW_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 
 const TODO_PRIORITY_LABELS = {
   low: 'Low',
@@ -327,7 +330,44 @@ function recentlyViewedCutoffMs() {
   return Date.now() - n * 24 * 60 * 60 * 1000;
 }
 
-/** Client portal dwell timestamp — admin edits / saves must not count. */
+function readWorkViewHistory() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(WORK_RECENTLY_VIEWED_KEY) || '{}');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const cutoff = Date.now() - WORK_VIEW_HISTORY_RETENTION_MS;
+    const next = {};
+    for (const [slug, ts] of Object.entries(raw)) {
+      const n = typeof ts === 'number' ? ts : Date.parse(String(ts));
+      if (!slug || !Number.isFinite(n) || n < cutoff) continue;
+      next[slug] = n;
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function writeWorkViewHistory(map) {
+  try {
+    localStorage.setItem(WORK_RECENTLY_VIEWED_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function recordWorkView(slug) {
+  if (!slug || slug === '__new__') return;
+  const map = readWorkViewHistory();
+  map[slug] = Date.now();
+  writeWorkViewHistory(map);
+}
+
+function workAdminViewedAtMs(slug) {
+  if (!slug) return 0;
+  return readWorkViewHistory()[slug] || 0;
+}
+
+/** Client portal dwell — admin edits / saves must not count as a client view. */
 function workJobClientViewedAtMs(job) {
   const raw = job?.last_client_viewed_at || job?.lastClientViewedAt || '';
   if (!raw) return 0;
@@ -335,20 +375,25 @@ function workJobClientViewedAtMs(job) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Recently Viewed = admin opens (local) or client portal dwell, within the settings window. */
+function workJobRecentlyViewedAtMs(job) {
+  return Math.max(workAdminViewedAtMs(job?.slug), workJobClientViewedAtMs(job));
+}
+
 function isRecentlyViewedJob(job) {
-  const at = workJobClientViewedAtMs(job);
+  const at = workJobRecentlyViewedAtMs(job);
   return at > 0 && at >= recentlyViewedCutoffMs();
 }
 
-function compareWorkJobsByClientViewed(a, b) {
-  const diff = workJobClientViewedAtMs(b) - workJobClientViewedAtMs(a);
+function compareWorkJobsByRecentlyViewed(a, b) {
+  const diff = workJobRecentlyViewedAtMs(b) - workJobRecentlyViewedAtMs(a);
   if (diff !== 0) return diff;
   return compareWorkJobsByRecency(a, b);
 }
 
 function sortWorkJobsForDisplay(jobs) {
   if (workState.statusFilter === 'recent') {
-    return [...jobs].sort(compareWorkJobsByClientViewed);
+    return [...jobs].sort(compareWorkJobsByRecentlyViewed);
   }
   return [...jobs].sort(compareWorkJobsByRecency);
 }
@@ -1444,6 +1489,9 @@ async function loadWorkTab(opts = {}) {
   pendingWorkDeepLinkSlug = null;
   workState.activeSlug = deepSlug || null;
   workState.dirty = false;
+  if (deepSlug && deepSlug !== '__new__' && deepSlug !== prevActiveSlug) {
+    recordWorkView(deepSlug);
+  }
   if (!preserveNew) workState.draft = null;
   shell.clearEditorFooterSave();
   if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
@@ -1537,7 +1585,7 @@ function fillWorkSidebarList(list) {
       empty.textContent = 'No matches.';
     } else if (workState.statusFilter === 'recent') {
       const days = workState.recentlyViewedDays || DEFAULT_RECENTLY_VIEWED_DAYS;
-      empty.textContent = `No ${postLower(2)} viewed by clients in the last ${days} day${days === 1 ? '' : 's'}.`;
+      empty.textContent = `No ${postLower(2)} viewed in the last ${days} day${days === 1 ? '' : 's'}.`;
     } else {
       empty.textContent = `No ${postLower(2)} yet.`;
     }
@@ -3070,6 +3118,9 @@ async function openWork(slug) {
   workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
+  // Stamp for Recently Viewed, but do not rebuild the sidebar here — that
+  // used to reshuffle the list under the cursor on every click.
+  recordWorkView(slug);
   syncWorkSidebarActiveState({ scroll: true });
   renderWorkPane();
   activateWorkPaneOnMobile();
@@ -3110,6 +3161,7 @@ async function createWork(slug, payload) {
       return;
     }
     workState.activeSlug = slug;
+    recordWorkView(slug);
     renderWorkEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);

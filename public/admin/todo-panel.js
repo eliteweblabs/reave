@@ -39,7 +39,7 @@ import {
 } from './admin-ui.js?v=20260808b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260808a';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260808b';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260807c';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';

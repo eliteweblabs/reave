@@ -130,7 +130,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260808a';
+} from './work-panel.js?v=20260808b';
 import {
   initTodoPanel,
   todoState,
@@ -7188,7 +7188,7 @@ function renderAppSettingsPanel(settings, sleepData) {
             `</div>` +
             `<div class="prof-section-fields">` +
               `<div class="prof-field">` +
-                `<label for="settings-recently-viewed-days">Show projects clients viewed within (days)</label>` +
+                `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
                 `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
                 `<span class="prof-hint">Default is 7 days. Based on client portal dwell (~4s), not staff activity.</span>` +
               `</div>` +
