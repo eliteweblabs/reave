@@ -1705,22 +1705,15 @@
   }
   .ch-pane { display: none; }
   #chat-panel.ch-pane-active .ch-sidebar { display: none; }
-  #chat-panel.ch-pane-active .ch-pane {
+  #chat-panel.ch-pane-active .ch-pane,
+  #email-panel.em-pane-active .ch-pane {
     display: flex;
     flex: 1 1 auto;
-    /* Full topbar clearance — other mobile panes tuck under the logo, but the back
-       chevron here must stay below the brand tap target. */
-    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.2rem);
-  }
-  #chat-panel.ch-pane-active .ch-pane-header {
-    flex-shrink: 0;
-    background: var(--bg);
-    gap: 0.3rem;
-    padding: 0.35rem 0.45rem 0.25rem;
-  }
-  #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn {
-    width: 2.25rem;
-    height: 2.25rem;
+    /* Same clearance as .pane-header detail panes (editor.css / tokens). */
+    padding-top: calc(
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px)))
+      + var(--pane-header-clearance, 0.2rem)
+    );
   }
   #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher,
   #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
@@ -1730,28 +1723,7 @@
   #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
     border: none;
   }
-  #chat-panel.ch-pane-active .ch-pane-header .de-header-actions {
-    gap: 0.15rem;
-  }
   #email-panel.em-pane-active .ch-sidebar { display: none; }
-  #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
-  #email-panel.em-pane-active .de-header {
-    flex-shrink: 0;
-    background: var(--bg);
-    gap: 0.3rem;
-    padding:
-      0.15rem
-      max(0.5rem, env(safe-area-inset-right, 0px))
-      0.2rem
-      max(0.5rem, env(safe-area-inset-left, 0px));
-  }
-  #email-panel.em-pane-active .de-header .ios-icon-btn {
-    width: 2.25rem;
-    height: 2.25rem;
-  }
-  #email-panel.em-pane-active .de-header-actions {
-    gap: 0.15rem;
-  }
   #email-panel.em-pane-active .em-project-trigger-label,
   #email-panel.em-pane-active .em-project-trigger-caret {
     display: none;
@@ -1761,19 +1733,6 @@
   }
   #email-panel.em-pane-active .em-btn-group-segment.em-project-trigger {
     padding: 0.42rem 0.55rem;
-  }
-  #schedule-panel.de-pane-active .de-pane {
-    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - var(--pane-topbar-tuck, 0.85rem));
-  }
-  #schedule-panel.de-pane-active .de-header {
-    flex-shrink: 0;
-    background: var(--bg);
-    gap: 0.3rem;
-    padding: 0.15rem 0.45rem 0.2rem;
-  }
-  #schedule-panel.de-pane-active .de-header .ios-icon-btn {
-    width: 2.25rem;
-    height: 2.25rem;
   }
   #schedule-panel.de-pane-active .re-form-scroll {
     padding-top: 0.45rem;

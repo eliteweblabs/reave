@@ -68,7 +68,6 @@ import {
   createSlidingPillSelect,
   createPanelBackBtn,
   createEditableHeaderTitleInput,
-  createPaneSubheader,
   wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
@@ -104,7 +103,8 @@ import {
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808c';
 import { installPwaNavGuard } from './push-client.js?v=20260805h';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260805j';
@@ -171,7 +171,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260804b';
+} from './schedule-panel.js?v=20260808c';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -500,8 +500,7 @@ function mapPaneTitle(mapKey) {
 
 /** Empty detail pane: subheader title + centered placeholder with create action. */
 function appendEmptyDetailPane(pane, { mapKey, iconName, bodyHtml, btnLabel = 'Create New', onCreate }) {
-  const { header } = createPaneSubheader({ title: mapPaneTitle(mapKey) });
-  pane.appendChild(header);
+  pane.appendChild(createPaneHeader({ title: mapPaneTitle(mapKey) }).root);
   const body = document.createElement('div');
   body.className = 'de-pane-empty-body';
   body.appendChild(createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel, onCreate }));
@@ -7078,11 +7077,12 @@ function renderVapiPanel(company) {
  * with no adjacent sidebar to fall back to on desktop).
  */
 function prependSettingsBackHeader(root) {
-  const { header } = createPaneSubheader({
-    back: { label: 'Back', onClick: () => setActiveMap('dashboard', { force: true, refreshDashboard: true }) },
-    className: 'settings-subheader',
-  });
-  root.prepend(header);
+  root.prepend(
+    createPaneHeader({
+      back: { label: 'Back', onClick: () => setActiveMap('dashboard', { force: true, refreshDashboard: true }) },
+      className: 'settings-subheader',
+    }).root,
+  );
 }
 
 async function loadProfileTab() {
@@ -9231,7 +9231,7 @@ export function buildChatPaneHeader() {
   const thread = activeChatThread();
   const isArchived = !!thread?.archived;
 
-  return createPaneSubheader({
+  return createPaneHeader({
     className: 'ch-pane-header',
     back: { label: 'Back to sessions', onClick: () => closeActiveChat() },
     titleNode: main,
@@ -9261,7 +9261,7 @@ export function buildChatPaneHeader() {
         onClick: () => deleteChat(chatState.activeId),
       }),
     ],
-  }).header;
+  }).root;
 }
 
 function syncTopbarPanelContext() {
@@ -12783,10 +12783,10 @@ function renderEmailComposePane(pane) {
       : 'Reply'
     : 'New message';
   pane.appendChild(
-    createPaneSubheader({
+    createPaneHeader({
       back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: composeTitle,
-    }).header,
+    }).root,
   );
 
   const form = document.createElement('div');
@@ -13038,7 +13038,7 @@ function renderEmailPane() {
     }
 
     pane.appendChild(
-      createPaneSubheader({
+      createPaneHeader({
         back: {
           label: 'Back to sent',
           onClick: () => clearEmailDetailSelection(),
@@ -13050,7 +13050,7 @@ function renderEmailPane() {
             onClick: (btn) => shareChatText(sentShareText(sent), 'assistant', btn),
           }),
         ],
-      }).header,
+      }).root,
     );
 
     const detail = document.createElement('div');
@@ -13119,7 +13119,7 @@ function renderEmailPane() {
   }
 
   pane.appendChild(
-    createPaneSubheader({
+    createPaneHeader({
       back: {
         label: 'Back to inbox',
         onClick: () => clearEmailDetailSelection(),
@@ -13127,7 +13127,7 @@ function renderEmailPane() {
       title: ev.subject || '(no subject)',
       beforeIcons,
       icons: buildEmailDetailHeaderIcons(ev),
-    }).header,
+    }).root,
   );
 
   const detail = document.createElement('div');

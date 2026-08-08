@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch } from './shared.js?v=20260805j';
 import { postLower, postTitle } from './post-alias.js?v=20260805a';
-import { createPaneSubheader } from './admin-ui.js';
+import { createPaneHeader } from './pane-header.js?v=20260808c';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -185,7 +185,7 @@ export class LeadScannerRunSession {
     if (existing && !this.savedSubheader) {
       this.savedSubheader = existing;
     }
-    const { header } = createPaneSubheader({
+    const { root: header } = createPaneHeader({
       back: { label: 'Back', onClick: () => this.close() },
       title,
       subtitle,

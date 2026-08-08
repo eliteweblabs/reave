@@ -1,6 +1,6 @@
 /**
  * /admin/components — living gallery of shared admin UI primitives.
- * Source of truth: public/admin/admin-ui.js (+ os-dialog, admin-notice).
+ * Source of truth: public/admin/admin-ui.js + pane-header.js (+ os-dialog, admin-notice).
  */
 
 import {
@@ -17,7 +17,6 @@ import {
   createListEmptyState,
   createCenteredListEmpty,
   createPanePlaceholder,
-  createPaneSubheader,
   createEditableHeaderTitleInput,
   listSearchAddNew,
   createSwipeRow,
@@ -26,7 +25,8 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260728j';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
 
@@ -217,7 +217,7 @@ function mount() {
   section(
     root,
     'Headers + empty states',
-    '<code>createPaneSubheader</code>, <code>createEditableHeaderTitleInput</code>, empty/placeholder helpers.',
+    '<code>createPaneHeader</code> (pane-header.js), <code>createEditableHeaderTitleInput</code>, empty/placeholder helpers.',
     (el) => {
       const setStatus = statusLine(el);
       const headerHost = document.createElement('div');
@@ -233,21 +233,29 @@ function mount() {
       });
       editable.input.addEventListener('change', () => setStatus(`Title: ${editable.input.value}`));
 
-      const { header } = createPaneSubheader({
-        back: { label: 'Back', onClick: () => setStatus('Header back') },
-        titleNode: editable.el,
-        icons: [
-          paneShareIcon({ label: 'Share', onClick: () => setStatus('Header share') }),
-          paneDeleteIcon({ label: 'Delete', onClick: () => setStatus('Header delete', 'warn') }),
-        ],
-      });
-      headerHost.appendChild(header);
+      const secondary = document.createElement('p');
+      secondary.className = 'schedule-detail-when';
+      secondary.style.cssText = 'margin:0;padding:0.35rem;text-align:center;font-size:0.88rem;font-weight:600;border-bottom:1px solid var(--panel-border)';
+      secondary.textContent = 'Optional secondary row';
 
-      const { header: sub } = createPaneSubheader({
-        title: 'Subheader',
-        icons: [createFabNewBtn('New', () => setStatus('Subheader new'))],
-      });
-      headerHost.appendChild(sub);
+      headerHost.appendChild(
+        createPaneHeader({
+          back: { label: 'Back', onClick: () => setStatus('Header back') },
+          titleNode: editable.el,
+          icons: [
+            paneShareIcon({ label: 'Share', onClick: () => setStatus('Header share') }),
+            paneDeleteIcon({ label: 'Delete', onClick: () => setStatus('Header delete', 'warn') }),
+          ],
+          secondary,
+        }).root,
+      );
+
+      headerHost.appendChild(
+        createPaneHeader({
+          title: 'Title only',
+          icons: [createFabNewBtn('New', () => setStatus('Header new'))],
+        }).root,
+      );
 
       const empties = document.createElement('div');
       empties.className = 'cg-row';

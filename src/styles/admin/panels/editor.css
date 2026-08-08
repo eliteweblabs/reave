@@ -536,6 +536,36 @@ button.de-placeholder-action:active {
   min-width: 0;
   overflow: hidden;
 }
+/* createPaneHeader() stack — title row (+ optional secondary). See pane-header.js */
+.pane-header:not(.de-header) {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 0;
+  background: var(--bg);
+}
+@media (max-width: 639px) {
+  /* settings-subheader keeps its own topbar padding-top — do not override. */
+  .pane-header.de-header:not(.settings-subheader),
+  .pane-header:not(.settings-subheader) > .de-header {
+    flex-shrink: 0;
+    background: var(--bg);
+    gap: 0.3rem;
+    padding:
+      0.35rem
+      max(0.5rem, env(safe-area-inset-right, 0px))
+      0.25rem
+      max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+  .pane-header.de-header .ios-icon-btn,
+  .pane-header > .de-header .ios-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .pane-header .de-header-actions {
+    gap: 0.15rem;
+  }
+}
 #email-panel .de-header {
   overflow: visible;
   position: relative;
@@ -1430,14 +1460,17 @@ button.de-placeholder-action:active {
   padding-top: 0.2rem;
 }
 @media (max-width: 639px) {
+  /* Shared logo clearance for detail panes — one token, not per-panel tuck. */
   #clients-editor.de-pane-active .de-pane,
   #work-editor.de-pane-active .de-pane,
   #knowledge-editor.de-pane-active .de-pane,
   #todo-editor.de-pane-active .de-pane,
   #rule-editor.de-pane-active .de-pane,
-  #doc-editor.de-pane-active .de-pane {
+  #doc-editor.de-pane-active .de-pane,
+  #schedule-panel.de-pane-active .de-pane {
     padding-top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem)
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px)))
+      + var(--pane-header-clearance, 0.2rem)
     );
   }
   #clients-editor.de-pane-active .de-pane,
@@ -1452,7 +1485,8 @@ button.de-placeholder-action:active {
     grid-row: 1;
     position: sticky;
     top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) - var(--pane-topbar-tuck, 0.85rem)
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px)))
+      + var(--pane-header-clearance, 0.2rem)
     );
     z-index: 6;
     overflow: visible;
@@ -1470,16 +1504,18 @@ button.de-placeholder-action:active {
     flex-shrink: 0;
     gap: 0.3rem;
     padding:
-      var(--detail-header-pad-y)
+      0.35rem
       var(--detail-pad-x-right)
-      0.2rem
+      0.25rem
       var(--detail-pad-x);
   }
-  #clients-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn {
+  #clients-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn,
+  #work-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn {
     width: 2.25rem;
     height: 2.25rem;
   }
-  #clients-editor.de-pane-active .de-header-actions {
+  #clients-editor.de-pane-active .de-header-actions,
+  #work-editor.de-pane-active .de-header-actions {
     gap: 0.15rem;
   }
   #work-editor .sliding-pill-select {

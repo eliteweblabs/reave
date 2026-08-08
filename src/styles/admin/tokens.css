@@ -70,7 +70,13 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
-  /* Pull mobile detail panes up under the transparent admin top bar. */
+  /*
+   * Gap below the logo topbar for detail pane headers (createPaneHeader).
+   * Do not tuck title/back rows under the brand — that fights the logo and
+   * drifts per-panel. Legacy --pane-topbar-tuck kept for non-header chrome.
+   */
+  --pane-header-clearance: 0.2rem;
+  /* Pull non-header mobile chrome up under the transparent admin top bar. */
   --pane-topbar-tuck: 0.85rem;
   --footer-nav-pill-h: var(--control-h);
   --footer-nav-bottom-gap: 0px;
@@ -186,6 +192,7 @@
 @media (max-width: 639px) {
   :root {
     --pane-topbar-tuck: 1.5rem;
+    --pane-header-clearance: 0.2rem;
   }
 }
 @media (prefers-color-scheme: dark) {

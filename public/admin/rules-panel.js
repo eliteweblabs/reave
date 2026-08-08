@@ -11,7 +11,6 @@ import {
   createSlidingPillSelect,
   createPanelBackBtn,
   createEditableHeaderTitleInput,
-  createPaneSubheader,
   wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
@@ -41,7 +40,8 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   createAgentBtn,
-} from './admin-ui.js?v=20260808b';
+} from './admin-ui.js?v=20260808c';
+import { createPaneHeader } from './pane-header.js?v=20260808c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260805j';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728q';
@@ -378,21 +378,22 @@ function renderRuleEditPane(pane) {
   });
 
   const inDrawer = shell.isCreateDrawerOpen('rules');
-  const header = createPaneSubheader({
-    back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
-    title: rule.title || rule.status || 'Rule',
-    subtitle: rule.status || '',
-    beforeIcons: [agentBtn],
-    icons: inDrawer
-      ? []
-      : [
-          paneDeleteIcon({
-            label: 'Delete rule',
-            onClick: () => deleteRule(rule.id),
-          }),
-        ],
-  }).header;
-  pane.appendChild(header);
+  pane.appendChild(
+    createPaneHeader({
+      back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
+      title: rule.title || rule.status || 'Rule',
+      subtitle: rule.status || '',
+      beforeIcons: [agentBtn],
+      icons: inDrawer
+        ? []
+        : [
+            paneDeleteIcon({
+              label: 'Delete rule',
+              onClick: () => deleteRule(rule.id),
+            }),
+          ],
+    }).root,
+  );
 
   const form = document.createElement('div');
   form.className = 're-form-scroll';
