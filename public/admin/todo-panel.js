@@ -274,7 +274,8 @@ function beginNewTodoDrawer() {
       if (!(await saveActiveTodoDraft())) return;
       shell.finishCreateDrawer();
       getTodoEditor()?.classList.add('de-pane-active');
-      renderTodoEditor();
+      syncTodoSidebarActiveState({ scroll: true });
+      renderTodoPane();
     },
     onDismiss: () => {
       const returnSlug = todoState.returnToWorkSlug;
@@ -288,7 +289,8 @@ function beginNewTodoDrawer() {
         navigateToWork(returnSlug);
         return;
       }
-      renderTodoEditor();
+      syncTodoSidebarActiveState();
+      renderTodoPane();
       shell.syncFooterNav();
     },
   });
@@ -315,7 +317,8 @@ function startNewTodo(opts = {}) {
   if (todoState.draft.job_slug) {
     void refreshTodoLinkedJob(todoState.draft.job_slug);
   }
-  renderTodoEditor();
+  syncTodoSidebarActiveState();
+  renderTodoPane();
   shell.syncFooterNav();
 }
 
@@ -354,13 +357,80 @@ function refreshTodoSidebarList() {
     searchInput.placeholder = todoSearchPlaceholder();
   }
   fillTodoSidebarList(list);
+  syncTodoSidebarActiveState();
+}
+
+function syncTodoSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
+  const root = getTodoEditor();
+  if (!root) return;
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.id === String(todoState.activeId);
+    el.classList.toggle('active', isActive);
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
+  });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => shell.scrollSidebarListItemIntoView(list, activeEl));
+    }
+  }
+}
+
+function renderTodoPane() {
+  const root = getTodoEditor();
+  if (!root) return;
+  let pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderTodoEditor();
+    return;
+  }
+  const { activeId } = todoState;
+
+  if (activeId === '__new__') {
+    pane.innerHTML = '';
+    renderTodoEditPane(pane, true);
+    shell.mountCreateDrawerChrome(pane);
+  } else if (activeId) {
+    pane.innerHTML = '';
+    renderTodoEditPane(pane, false);
+  } else {
+    pane.innerHTML = '';
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'todo',
+      iconName: 'check-square',
+      bodyHtml: '<p>Select a to‑do, or create a new one.</p>',
+      onCreate: () => startNewTodo(),
+    });
+  }
+  flushTitleFocus('todo');
+}
+
+function updateTodoFilterTabActiveState() {
+  const root = getTodoEditor();
+  if (!root) return;
+  const { todos, filter } = todoState;
+  const openCount = todos.filter((t) => t.status === 'open').length;
+  const doneCount = todos.filter((t) => t.status === 'done').length;
+  const labels = { open: `Open (${openCount})`, done: `Done (${doneCount})` };
+  root.querySelectorAll('.td-filter-tab').forEach((btn) => {
+    const key = btn.dataset.filter;
+    btn.classList.toggle('active', key === filter);
+    if (key && labels[key]) btn.textContent = labels[key];
+  });
 }
 
 function renderTodoEditor() {
   const root = getTodoEditor();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
-  const { todos, activeId, search, filter } = todoState;
+  const { todos, search, filter } = todoState;
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
@@ -391,11 +461,29 @@ function renderTodoEditor() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'td-filter-tab' + (filter === tab.key ? ' active' : '');
+    btn.dataset.filter = tab.key;
     btn.textContent = tab.label;
     btn.addEventListener('click', () => {
       if (todoState.filter === tab.key) return;
       todoState.filter = tab.key;
-      renderTodoEditor();
+      const visible = filterTodoItems(todoState.todos);
+      let cleared = false;
+      if (
+        todoState.activeId &&
+        todoState.activeId !== '__new__' &&
+        !visible.some((t) => String(t.id) === String(todoState.activeId))
+      ) {
+        todoState.activeId = null;
+        todoState.draft = null;
+        todoState.linkedJob = null;
+        todoState.dirty = false;
+        getTodoEditor()?.classList.remove('de-pane-active');
+        cleared = true;
+      }
+      updateTodoFilterTabActiveState();
+      refreshTodoSidebarList();
+      syncTodoSidebarActiveState();
+      if (cleared) renderTodoPane();
     });
     filterTabs.appendChild(btn);
   }
@@ -411,21 +499,8 @@ function renderTodoEditor() {
 
   const pane = document.createElement('div');
   pane.className = 'de-pane';
-  if (activeId === '__new__') {
-    renderTodoEditPane(pane, true);
-    shell.mountCreateDrawerChrome(pane);
-  } else if (activeId) {
-    renderTodoEditPane(pane, false);
-  } else {
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'todo',
-      iconName: 'check-square',
-      bodyHtml: '<p>Select a to‑do, or create a new one.</p>',
-      onCreate: () => startNewTodo(),
-    });
-  }
   root.appendChild(pane);
-  flushTitleFocus('todo');
+  renderTodoPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -436,13 +511,15 @@ function todoAuthorContactUid(todo) {
 }
 
 function createTodoListItem(todo) {
+  const isActive = String(todo.id) === String(todoState.activeId);
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
     'ch-list-item' +
-    (todo.id === todoState.activeId ? ' active' : '') +
+    (isActive ? ' active' : '') +
     (todo.status === 'done' ? ' ch-list-item--done' : '');
   item.dataset.id = String(todo.id);
+  if (isActive) item.setAttribute('aria-current', 'page');
   item.innerHTML =
     sidebarAuthorIconHtml({ contactUid: todoAuthorContactUid(todo) }) +
     `<span class="ch-list-content">` +
@@ -477,19 +554,24 @@ function createTodoSwipeRow(todo) {
 }
 
 async function openTodo(id, opts = {}) {
+  if (String(id) === String(todoState.activeId) && !opts.fromWorkSlug) {
+    syncTodoSidebarActiveState({ scroll: true });
+    getTodoEditor()?.classList.add('de-pane-active');
+    return;
+  }
   await flushTodoAutosave();
-  if (todoState.dirty && todoState.activeId && todoState.activeId !== id) {
+  if (todoState.dirty && todoState.activeId && String(todoState.activeId) !== String(id)) {
     if (!(await confirmDiscardChanges())) return;
   }
   if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
 
-  let todo = todoState.todos.find((t) => t.id === id);
+  let todo = todoState.todos.find((t) => t.id === id || String(t.id) === String(id));
   if (!todo) {
     try {
       const res = await fetch(`/api/todos/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
       todo = normalizeTodoItemDates(data);
-      const idx = todoState.todos.findIndex((t) => t.id === id);
+      const idx = todoState.todos.findIndex((t) => t.id === id || String(t.id) === String(id));
       if (idx === -1) todoState.todos.unshift(todo);
       else todoState.todos[idx] = todo;
     } catch (e) {
@@ -498,7 +580,7 @@ async function openTodo(id, opts = {}) {
     }
   }
 
-  todoState.activeId = id;
+  todoState.activeId = todo.id;
   todoState.dirty = false;
   todoState.draft = {
     title: todo.title,
@@ -520,7 +602,8 @@ async function openTodo(id, opts = {}) {
     }
   }
   getTodoEditor()?.classList.add('de-pane-active');
-  renderTodoEditor();
+  syncTodoSidebarActiveState({ scroll: true });
+  renderTodoPane();
   shell.syncFooterNav();
 }
 
@@ -538,7 +621,8 @@ async function closeTodoEditor(checkDirty = true) {
     navigateToWork(returnSlug);
     return;
   }
-  renderTodoEditor();
+  syncTodoSidebarActiveState();
+  renderTodoPane();
   shell.syncFooterNav();
 }
 
@@ -927,7 +1011,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
     dropdown.style.display = 'none';
     syncView();
     markDirty();
-    void refreshTodoLinkedJob(draft.job_slug).then(() => renderTodoEditor());
+    void refreshTodoLinkedJob(draft.job_slug).then(() => renderTodoPane());
   }
 
   changeBtn.addEventListener('click', () => {

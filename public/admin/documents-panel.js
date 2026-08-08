@@ -252,13 +252,65 @@ function refreshDocumentsSidebarList() {
     searchInput.placeholder = `Search ${n} ${n === 1 ? 'Document' : 'Documents'}`;
   }
   fillDocumentsSidebarList(list);
+  syncDocumentsSidebarActiveState();
+}
+
+function syncDocumentsSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
+  const root = getDocEditor();
+  if (!root) return;
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.slug === docState.activeSlug;
+    el.classList.toggle('active', isActive);
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
+  });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => shell.scrollSidebarListItemIntoView(list, activeEl));
+    }
+  }
+}
+
+function renderDocumentsPane() {
+  const root = getDocEditor();
+  if (!root) return;
+  let pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderDocEditor();
+    return;
+  }
+  const { activeSlug } = docState;
+
+  if (activeSlug === '__new__') {
+    renderNewForm(pane);
+    shell.mountCreateDrawerChrome(pane);
+  } else if (activeSlug) {
+    renderEditForm(pane);
+  } else {
+    shell.clearEditorFooterSave();
+    pane.innerHTML = '';
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'documents',
+      iconName: 'file-text',
+      bodyHtml: '<p>Select a template to edit, or create a new one.</p>',
+      onCreate: () => void startNewDocument(),
+    });
+  }
+  flushTitleFocus('documents');
 }
 
 function renderDocEditor() {
   const root = getDocEditor();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
-  const { templates, activeSlug, dirty, search } = docState;
+  const { templates, search } = docState;
 
   root.innerHTML = '';
 
@@ -332,24 +384,8 @@ function renderDocEditor() {
   // ── Editor pane ──
   const pane = document.createElement('div');
   pane.className = 'de-pane';
-
-  if (activeSlug === '__new__') {
-    renderNewForm(pane);
-    shell.mountCreateDrawerChrome(pane);
-  } else if (activeSlug) {
-    renderEditForm(pane);
-  } else {
-    shell.clearEditorFooterSave();
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'documents',
-      iconName: 'file-text',
-      bodyHtml: '<p>Select a template to edit, or create a new one.</p>',
-      onCreate: () => void startNewDocument(),
-    });
-  }
-
   root.appendChild(pane);
-  flushTitleFocus('documents');
+  renderDocumentsPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -552,6 +588,11 @@ async function autosaveDocument(slug, content) {
 }
 
 async function openDocument(slug) {
+  if (slug === docState.activeSlug) {
+    syncDocumentsSidebarActiveState({ scroll: true });
+    getDocEditor()?.classList.add('de-pane-active');
+    return;
+  }
   await flushDocAutosave();
   if (docState.dirty && !(await confirmDiscardChanges())) return;
   docState.activeSlug = slug;
@@ -559,7 +600,8 @@ async function openDocument(slug) {
   docState.savedContent = '';
   docState.autosaveGetHtml = null;
   docState.paneMode = 'edit';
-  renderDocEditor();
+  syncDocumentsSidebarActiveState({ scroll: true });
+  renderDocumentsPane();
   getDocEditor()?.classList.add('de-pane-active');
 }
 
@@ -588,14 +630,16 @@ async function startNewDocument() {
       docState.activeSlug = null;
       docState.dirty = false;
       getDocEditor()?.classList.remove('de-pane-active');
-      renderDocEditor();
+      syncDocumentsSidebarActiveState();
+      renderDocumentsPane();
     },
   });
   docState.activeSlug = '__new__';
   docState.dirty = false;
   docState.savedContent = '';
   docState.autosaveGetHtml = null;
-  renderDocEditor();
+  syncDocumentsSidebarActiveState();
+  renderDocumentsPane();
 }
 
 async function backToList() {
@@ -607,7 +651,8 @@ async function backToList() {
   docState.autosaveGetHtml = null;
   shell.clearEditorFooterSave();
   getDocEditor()?.classList.remove('de-pane-active');
-  renderDocEditor();
+  syncDocumentsSidebarActiveState();
+  renderDocumentsPane();
 }
 
 async function createDocument(slug, content) {
@@ -627,7 +672,8 @@ async function createDocument(slug, content) {
     await loadDocumentsTab();
     docState.activeSlug = slug;
     getDocEditor()?.classList.add('de-pane-active');
-    renderDocEditor();
+    syncDocumentsSidebarActiveState({ scroll: true });
+    renderDocumentsPane();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
   }
@@ -853,10 +899,12 @@ async function askAgentAboutDocument(tpl) {
 
 
 function createDocumentListItem(tpl) {
+  const isActive = tpl.slug === docState.activeSlug;
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'ch-list-item' + (tpl.slug === docState.activeSlug ? ' active' : '');
+  item.className = 'ch-list-item' + (isActive ? ' active' : '');
   item.dataset.slug = tpl.slug;
+  if (isActive) item.setAttribute('aria-current', 'page');
   item.innerHTML =
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(tpl.title)}</span></span>` +
     `<span class="ch-item-sub ch-item-slug">${escHtml(tpl.slug)}</span>`;

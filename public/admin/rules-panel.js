@@ -150,10 +150,12 @@ async function loadRulesTab() {
 }
 
 function createRuleListItem(rule, activeId) {
+  const isActive = activeId === rule.id || String(activeId) === String(rule.id);
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = `ch-list-item${activeId === rule.id ? ' active' : ''}${rule.enabled === false || isRuleExpired(rule) ? ' re-list-disabled' : ''}`;
+  btn.className = `ch-list-item${isActive ? ' active' : ''}${rule.enabled === false || isRuleExpired(rule) ? ' re-list-disabled' : ''}`;
   btn.dataset.id = rule.id;
+  if (isActive) btn.setAttribute('aria-current', 'page');
   btn.innerHTML = `
     <span class="ch-item-row">
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
@@ -205,13 +207,64 @@ function refreshRulesSidebarList() {
     searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
   }
   fillRulesSidebarList(list);
+  syncRulesSidebarActiveState();
+}
+
+function syncRulesSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
+  const root = getRuleEditor();
+  if (!root) return;
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.id === String(ruleState.activeId);
+    el.classList.toggle('active', isActive);
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
+  });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => shell.scrollSidebarListItemIntoView(list, activeEl));
+    }
+  }
+}
+
+function renderRulesPane() {
+  const root = getRuleEditor();
+  if (!root) return;
+  let pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderRulesEditor();
+    return;
+  }
+  const { activeId } = ruleState;
+
+  if (activeId) {
+    pane.innerHTML = '';
+    renderRuleEditPane(pane);
+    shell.mountCreateDrawerChrome(pane);
+  } else {
+    shell.clearEditorFooterSave();
+    pane.innerHTML = '';
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'rules',
+      iconName: 'zap',
+      bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
+      onCreate: () => void startNewRule(),
+    });
+  }
+  flushTitleFocus('rules');
 }
 
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
-  const { rules, activeId, notifyOnUnmatched, storage } = ruleState;
+  const { rules, notifyOnUnmatched, storage } = ruleState;
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
@@ -279,32 +332,26 @@ function renderRulesEditor() {
 
   const pane = document.createElement('div');
   pane.className = 'de-pane';
-  if (activeId) {
-    renderRuleEditPane(pane);
-    shell.mountCreateDrawerChrome(pane);
-  } else {
-    shell.clearEditorFooterSave();
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'rules',
-      iconName: 'zap',
-      bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
-      onCreate: () => void startNewRule(),
-    });
-  }
   root.appendChild(pane);
-  flushTitleFocus('rules');
+  renderRulesPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 async function openRuleEditor(id) {
+  if (String(id) === String(ruleState.activeId)) {
+    syncRulesSidebarActiveState({ scroll: true });
+    if (!shell.isCreateDrawerOpen('rules')) getRuleEditor()?.classList.add('de-pane-active');
+    return;
+  }
   await flushRuleAutosave();
-  if (ruleState.dirty && ruleState.activeId && ruleState.activeId !== id) {
+  if (ruleState.dirty && ruleState.activeId && String(ruleState.activeId) !== String(id)) {
     if (!(await confirmDiscardChanges())) return;
   }
   ruleState.activeId = id;
   ruleState.dirty = false;
   if (!shell.isCreateDrawerOpen('rules')) getRuleEditor()?.classList.add('de-pane-active');
-  renderRulesEditor();
+  syncRulesSidebarActiveState({ scroll: true });
+  renderRulesPane();
 }
 
 async function closeRuleEditor(checkDirty = true) {
@@ -314,7 +361,8 @@ async function closeRuleEditor(checkDirty = true) {
   ruleState.dirty = false;
   shell.clearEditorFooterSave();
   getRuleEditor()?.classList.remove('de-pane-active');
-  renderRulesEditor();
+  syncRulesSidebarActiveState();
+  renderRulesPane();
 }
 
 function renderRuleEditPane(pane) {
@@ -759,7 +807,8 @@ async function startNewRule() {
         await flushRuleAutosave();
         shell.finishCreateDrawer();
         getRuleEditor()?.classList.add('de-pane-active');
-        renderRulesEditor();
+        syncRulesSidebarActiveState({ scroll: true });
+        renderRulesPane();
       },
       onDismiss: () => {
         void deleteRule(newId);

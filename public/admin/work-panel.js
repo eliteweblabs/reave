@@ -425,13 +425,26 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
     onSelect(tabId) {
       workState.statusFilter = tabId;
       const visible = filterWorkJobs(workState.jobs, workState.search);
+      let cleared = false;
       if (workState.activeSlug && !visible.some((j) => j.slug === workState.activeSlug)) {
         workState.activeSlug = null;
         workState.draft = null;
         workState.dirty = false;
         getWorkEditor()?.classList.remove('de-pane-active');
+        cleared = true;
       }
-      renderWorkEditor();
+      const root = getWorkEditor();
+      const sidebar = root?.querySelector('.ch-sidebar');
+      if (sidebar) {
+        sidebar.querySelector('.wk-visit-plan-link')?.remove();
+        const visitPlanLink = renderVisitPlanLink();
+        const list = sidebar.querySelector('.ch-list');
+        if (visitPlanLink && list) sidebar.insertBefore(visitPlanLink, list);
+        else if (visitPlanLink) sidebar.appendChild(visitPlanLink);
+      }
+      refreshWorkSidebarList();
+      syncWorkSidebarActiveState();
+      if (cleared) renderWorkPane();
     },
   });
 }
@@ -1476,7 +1489,10 @@ function beginNewProjectDrawer() {
       workState.returnToTodoId = null;
       getWorkEditor()?.classList.remove('de-pane-active');
       if (returnTodoId) shell.navigateToTodo(returnTodoId);
-      else renderWorkEditor();
+      else {
+        syncWorkSidebarActiveState();
+        renderWorkPane();
+      }
     },
   });
 }
@@ -1501,7 +1517,8 @@ function startNewProject() {
     source: '',
     body: '',
   };
-  renderWorkEditor();
+  syncWorkSidebarActiveState();
+  renderWorkPane();
 }
 
 function fillWorkSidebarList(list) {
@@ -1540,6 +1557,58 @@ function refreshWorkSidebarList() {
     searchInput.placeholder = workSearchPlaceholder(filterWorkJobs(workState.jobs, workState.search).length);
   }
   fillWorkSidebarList(list);
+  syncWorkSidebarActiveState();
+}
+
+function syncWorkSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
+  const root = getWorkEditor();
+  if (!root) return;
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.slug === workState.activeSlug;
+    el.classList.toggle('active', isActive);
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
+  });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => shell.scrollSidebarListItemIntoView(list, activeEl));
+    }
+  }
+}
+
+function renderWorkPane() {
+  const root = getWorkEditor();
+  if (!root) return;
+  let pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderWorkEditor();
+    return;
+  }
+  const { activeSlug } = workState;
+
+  if (activeSlug === '__new__') {
+    renderNewWorkForm(pane);
+    shell.mountCreateDrawerChrome(pane);
+  } else if (activeSlug) {
+    renderEditWorkForm(pane);
+  } else {
+    shell.clearEditorFooterSave();
+    pane.innerHTML = '';
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'work',
+      iconName: 'briefcase',
+      bodyHtml: `<p>Select a ${postLower(1)} to edit, or create a new one.</p>`,
+      onCreate: () => startNewProject(),
+    });
+  }
+  shell.flushTitleFocus('work');
 }
 
 function renderWorkEditor() {
@@ -1547,7 +1616,7 @@ function renderWorkEditor() {
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
   const savedFilterScroll = shell.captureFilterTabsScroll(root);
-  const { jobs, activeSlug, search } = workState;
+  const { jobs, search } = workState;
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
@@ -1584,24 +1653,8 @@ function renderWorkEditor() {
 
   const pane = document.createElement('div');
   pane.className = 'de-pane';
-
-  if (activeSlug === '__new__') {
-    renderNewWorkForm(pane);
-    shell.mountCreateDrawerChrome(pane);
-  } else if (activeSlug) {
-    renderEditWorkForm(pane);
-  } else {
-    shell.clearEditorFooterSave();
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'work',
-      iconName: 'briefcase',
-      bodyHtml: `<p>Select a ${postLower(1)} to edit, or create a new one.</p>`,
-      onCreate: () => startNewProject(),
-    });
-  }
-
   root.appendChild(pane);
-  shell.flushTitleFocus('work');
+  renderWorkPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -2441,7 +2494,8 @@ function renderNewWorkForm(pane) {
             workState.activeSlug = null;
             workState.draft = null;
             getWorkEditor()?.classList.remove('de-pane-active');
-            renderWorkEditor();
+            syncWorkSidebarActiveState();
+            renderWorkPane();
           },
         },
     editableTitle: {
@@ -2718,7 +2772,8 @@ function workEditBackHandler(slug) {
     workState.activeSlug = null;
     workState.draft = null;
     getWorkEditor()?.classList.remove('de-pane-active');
-    renderWorkEditor();
+    syncWorkSidebarActiveState();
+    renderWorkPane();
   };
 }
 
@@ -3004,14 +3059,20 @@ function activateWorkPaneOnMobile() {
 }
 
 async function openWork(slug) {
+  if (slug === workState.activeSlug) {
+    syncWorkSidebarActiveState({ scroll: true });
+    activateWorkPaneOnMobile();
+    return;
+  }
   await flushWorkAutosave();
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
   workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
+  syncWorkSidebarActiveState({ scroll: true });
+  renderWorkPane();
   activateWorkPaneOnMobile();
-  renderWorkEditor();
 }
 
 async function createWork(slug, payload) {
@@ -3926,14 +3987,16 @@ function syncWorkAuditingPoll() {
 function createWorkListItem(job) {
   const isAuditing = workState.auditingSlugs.has(job.slug);
   const progress = workState.auditingProgress.get(job.slug);
+  const isActive = job.slug === workState.activeSlug;
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
     'ch-list-item' +
-    (job.slug === workState.activeSlug ? ' active' : '') +
+    (isActive ? ' active' : '') +
     (isWorkArchivedStatus(job.status) ? ' ch-list-item--archived' : '') +
     (isAuditing ? ' ch-list-item--running' : '');
   item.dataset.slug = job.slug;
+  if (isActive) item.setAttribute('aria-current', 'page');
   const statusIndicator =
     `<span class="ch-item-status" aria-hidden="true">` +
     `<span class="ch-item-status-spinner">${WK_SPINNER_SVG}</span>` +
