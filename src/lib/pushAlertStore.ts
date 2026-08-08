@@ -11,7 +11,7 @@ import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { workSlugFromAdminUrl } from './notificationFormat';
 
-export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement' | 'otp';
+export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement' | 'otp' | 'auth_link';
 
 export type PushAlert = {
   id: string;
@@ -118,6 +118,7 @@ export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
   const t = tag.toLowerCase();
   const u = url.toLowerCase();
   if (t.startsWith('otp-')) return 'otp';
+  if (t.startsWith('auth-')) return 'auth_link';
   if (t.startsWith('uptime-') || t.startsWith('watch-')) return 'uptime';
   if (t.startsWith('project-comment-')) return 'comment';
   if (t.startsWith('vault-') || t.startsWith('share-open-') || t.startsWith('deck-view-')) {
@@ -365,6 +366,7 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
   const now = new Date().toISOString();
   const cutoff = cutoffIso(DEFAULT_MAX_AGE_DAYS);
   const otpTag = `otp-${id}`.slice(0, 120);
+  const authTag = `auth-${id}`.slice(0, 120);
   const urlNeedle = `%email=${id}%`;
   const urlNeedleEnc = `%email=${encodeURIComponent(id)}%`;
 
@@ -377,9 +379,9 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
          WHERE staff_ack_at IS NULL
            AND created_at >= $3::timestamptz
            AND (
-             tag = $1 OR tag = $4 OR url LIKE $5 OR url LIKE $6
+             tag = $1 OR tag = $4 OR tag = $5 OR url LIKE $6 OR url LIKE $7
            )`,
-        [id, now, cutoff, otpTag, urlNeedle, urlNeedleEnc],
+        [id, now, cutoff, otpTag, authTag, urlNeedle, urlNeedleEnc],
       );
       return rowCount ?? 0;
     }
@@ -392,7 +394,7 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
   let acked = 0;
   for (const alert of alerts) {
     if (alert.staffAckAt || new Date(alert.createdAt).getTime() < cutoffMs) continue;
-    const matchesTag = alert.tag === id || alert.tag === otpTag;
+    const matchesTag = alert.tag === id || alert.tag === otpTag || alert.tag === authTag;
     const matchesUrl = alert.url.includes(`email=${id}`) || alert.url.includes(`email=${encodeURIComponent(id)}`);
     if (!matchesTag && !matchesUrl) continue;
     alert.staffAckAt = now;

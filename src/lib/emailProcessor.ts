@@ -4,7 +4,7 @@
 
 import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
-import { classifyEmail, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
+import { classifyEmail, isAuthLinkRuleStatus, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
@@ -38,6 +38,12 @@ import {
   extractVerificationCodeFromEmail,
   formatOtpPushNotification,
 } from './emailOtpParser';
+import {
+  describeAuthLinkPurpose,
+  extractAuthActionUrl,
+  formatAuthLinkPushNotification,
+  isAuthLinkEmail,
+} from './emailAuthLinkParser';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
 import {
   attachmentSummaryFallback,
@@ -45,7 +51,7 @@ import {
   normalizeEmailAttachments,
 } from './emailAttachments';
 
-/** ISO timestamp for OTP auto-delete, or null when disabled. TTL from admin Settings (fallback: `EMAIL_OTP_TTL_MINUTES` / 5). */
+/** ISO timestamp for OTP / auth-link auto-delete, or null when disabled. TTL from admin Settings (fallback: `EMAIL_OTP_TTL_MINUTES` / 5). */
 export async function verificationCodeDeleteAfterAt(): Promise<string | null> {
   const { getOtpTtlMinutes } = await import('./appSettingsStore');
   const min = await getOtpTtlMinutes();
@@ -54,7 +60,7 @@ export async function verificationCodeDeleteAfterAt(): Promise<string | null> {
   return new Date(Date.now() + clamped * 60_000).toISOString();
 }
 
-export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project' | 'otp';
+export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project' | 'otp' | 'auth_link';
 
 export interface ProcessedEmailResult {
   ok: boolean;
@@ -262,8 +268,9 @@ export function shouldSendInboxPush(opts: {
 
   if (opts.category === 'junk' || action === 'junk') return false;
   if (opts.category === 'receipt') return false;
-  if (opts.action === 'verification_code') return false;
-  if (isVerificationCodeRuleStatus(opts.ruleStatus)) return false;
+  if (opts.action === 'verification_code' || opts.action === 'activation_link') return false;
+  if (opts.category === 'otp' || opts.category === 'auth_link') return false;
+  if (isVerificationCodeRuleStatus(opts.ruleStatus) || isAuthLinkRuleStatus(opts.ruleStatus)) return false;
   if (!opts.ruleNotify) return false;
   if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
   // Auto-sorted to a job — visible under Routed, no ping needed (except urgent project replies).
@@ -326,16 +333,46 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       html: email.html,
     })?.code ?? null;
 
+  const authActionUrl =
+    verificationCode == null
+      ? extractAuthActionUrl({
+          from,
+          subject: email.subject,
+          text: bodyText,
+          html: email.html,
+        })?.url ?? null
+      : null;
+
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
 
   const isVerificationCode =
     verificationCode != null || isVerificationCodeRuleStatus(ruleResult.status);
 
+  const isAuthLink =
+    !isVerificationCode &&
+    (authActionUrl != null ||
+      isAuthLinkRuleStatus(ruleResult.status) ||
+      isAuthLinkEmail({
+        from,
+        subject: email.subject,
+        text: bodyText,
+        html: email.html,
+      }));
+
   let otpPurpose: string | null = null;
   if (isVerificationCode) {
     const company = await getCompanyConfig().catch(() => null);
     otpPurpose = describeOtpPurpose(
+      { from, subject: email.subject, text: bodyText, html: email.html },
+      company?.name,
+    );
+  }
+
+  let authLinkPurpose: string | null = null;
+  if (isAuthLink) {
+    const company = await getCompanyConfig().catch(() => null);
+    authLinkPurpose = describeAuthLinkPurpose(
       { from, subject: email.subject, text: bodyText, html: email.html },
       company?.name,
     );
@@ -366,6 +403,10 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     summary = otpPurpose
       ? `${otpPurpose}: ${verificationCode} — tap to copy`
       : `Code: ${verificationCode} — tap to copy`;
+  } else if (isAuthLink) {
+    summary = authLinkPurpose
+      ? `${authLinkPurpose} — tap Activate`
+      : 'Activation link — tap Activate';
   }
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
@@ -400,9 +441,10 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       : [];
 
   // ── Receipt override: a DELETE rule must not win over a monetary receipt. ──
-  // Never bury OTP mail under junk when the parser found a code.
+  // Never bury OTP / auth-link mail under junk when the parser matched.
   if (
     !isVerificationCode &&
+    !isAuthLink &&
     (category === 'junk' || ruleResult.status.toUpperCase() === 'DELETE')
   ) {
     const earlyReceipt = shouldAutoFileAsReceipt({
@@ -425,6 +467,14 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     category = 'otp';
     action = 'verification_code';
     routeNote = routeNote || 'Verification code — tap to copy; auto-deletes in 5 min';
+  } else if (isAuthLink) {
+    category = 'auth_link';
+    action = 'activation_link';
+    routeNote =
+      routeNote ||
+      (authActionUrl
+        ? 'Activation link — tap Activate; email deletes after use'
+        : 'Activation link — open Email tab; auto-deletes soon');
   } else if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
     const ai = await runAiTriage(email, jobs, contactName);
     if (ai) {
@@ -516,6 +566,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   const suppressedAsJunk =
     !isVerificationCode &&
+    !isAuthLink &&
     (category === 'junk' || action === 'junk' || ruleResult.status.toUpperCase() === 'DELETE');
   if (!suppressedAsJunk) {
     const replyMatch = await detectProjectClientReply({
@@ -562,7 +613,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     ? 'PROJECT_REPLY'
     : isVerificationCode
       ? 'VERIFICATION_CODE'
-      : ruleResult.status;
+      : isAuthLink
+        ? 'AUTH_LINK'
+        : ruleResult.status;
   if (
     !shouldSkipAutoReceipt({
       category,
@@ -726,7 +779,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
-  const deleteAfterAt = isVerificationCode ? await verificationCodeDeleteAfterAt() : null;
+  const deleteAfterAt =
+    isVerificationCode || isAuthLink ? await verificationCodeDeleteAfterAt() : null;
 
   const record = await storeRecordEmailInbox({
     from,
@@ -758,6 +812,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     bookingStart,
     automationKind,
     verificationCode,
+    actionUrl: isAuthLink ? authActionUrl : null,
     deleteAfterAt,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
@@ -930,7 +985,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     isUptimeRobot: isUptimeRobotEmail(email),
   });
 
-  if (inboxRecord && (notify || verificationCode) && !inboxRecord.notified) {
+  if (inboxRecord && (notify || verificationCode || isAuthLink) && !inboxRecord.notified) {
     await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
   }
 
@@ -947,6 +1002,19 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       kind: 'otp',
       urgent: true,
     }).catch((e) => console.warn('[email] otp push failed', e));
+  } else if (inboxRecord && isAuthLink) {
+    const authPush = formatAuthLinkPushNotification({
+      purpose: authLinkPurpose ?? 'Activation link',
+      hasUrl: Boolean(authActionUrl),
+    });
+    sendInboxPushNotification({
+      title: authPush.title,
+      body: authPush.body,
+      tag: `auth-${inboxRecord.id}`,
+      emailId: inboxRecord.id,
+      kind: 'auth_link',
+      urgent: true,
+    }).catch((e) => console.warn('[email] auth-link push failed', e));
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`

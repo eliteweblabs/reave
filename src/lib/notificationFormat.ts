@@ -151,12 +151,13 @@ export function formatNotificationPayload(title: string, body: string): { title:
   };
 }
 
-/** Inbox id embedded in a push-alert tag (plain id, otp-{id}, or email-{id}). */
+/** Inbox id embedded in a push-alert tag (plain id, otp-{id}, auth-{id}, or email-{id}). */
 export function emailIdFromPushAlertTag(tag: string): string | null {
   const raw = tag.trim();
   if (!raw) return null;
   const lower = raw.toLowerCase();
   if (lower.startsWith('otp-')) return raw.slice(4).trim() || null;
+  if (lower.startsWith('auth-')) return raw.slice(5).trim() || null;
   if (lower.startsWith('email-')) return raw.slice(6).trim() || null;
   if (/^[0-9a-f-]{36}$/i.test(raw)) return raw;
   return null;

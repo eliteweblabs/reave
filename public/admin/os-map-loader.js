@@ -2693,6 +2693,17 @@ function isOtpReviewAlert(item) {
   return false;
 }
 
+function isAuthLinkReviewAlert(item) {
+  if (!item) return false;
+  if (isOtpReviewAlert(item)) return false;
+  if (item.alertKind === 'auth_link') return true;
+  if (String(item.tag || '').toLowerCase().startsWith('auth-')) return true;
+  if (item.actionUrl) return true;
+  if (/ready to activate/i.test(String(item.title || ''))) return true;
+  if (/activation link/i.test(String(item.title || ''))) return true;
+  return false;
+}
+
 let otpCountdownTimer = null;
 let otpExpiryPurgeInFlight = false;
 
@@ -2725,7 +2736,11 @@ function collectExpiredOtpEmailIds(now = Date.now()) {
     const fromTag = String(banner?.getAttribute('data-review-alert-tag') || '');
     const emailId =
       banner?.getAttribute('data-review-email-id') ||
-      (fromTag.toLowerCase().startsWith('otp-') ? fromTag.slice(4) : '');
+      (fromTag.toLowerCase().startsWith('otp-')
+        ? fromTag.slice(4)
+        : fromTag.toLowerCase().startsWith('auth-')
+          ? fromTag.slice(5)
+          : '');
     if (emailId) ids.add(String(emailId));
   });
   return [...ids];
@@ -2740,6 +2755,8 @@ async function closeOtpPushNotifications(emailIds) {
       for (const id of emailIds) {
         const notes = await reg.getNotifications({ tag: `otp-${id}` });
         for (const n of notes) n.close();
+        const authNotes = await reg.getNotifications({ tag: `auth-${id}` });
+        for (const n of authNotes) n.close();
       }
     }
   } catch {
@@ -2844,6 +2861,35 @@ async function deleteOtpFromReviewAlert(item, btn) {
   }
 }
 
+async function activateAuthLinkFromReviewAlert(item, btn) {
+  let url = String(item?.actionUrl || '').trim();
+  if (!url && item?.emailId) {
+    const ev = emailState.allEvents.find((e) => e.id === item.emailId);
+    url = String(ev?.actionUrl || '').trim();
+  }
+  if (url) {
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      /* fall through to delete anyway */
+    }
+  } else if (item?.emailId) {
+    setActiveMap('email', { force: true, emailId: item.emailId });
+    return;
+  }
+  await deleteOtpFromReviewAlert(item, btn);
+}
+
+function authLinkPurposeLabel(item) {
+  const title = String(item?.title || '').trim();
+  const stripped = title.replace(/\s*[—–-]\s*ready to activate\s*$/i, '').trim();
+  if (stripped) return stripped;
+  const detail = String(item?.detail || item?.summary || '').trim();
+  const fromDetail = detail.match(/^([^—–-]+)/);
+  if (fromDetail?.[1]) return fromDetail[1].trim();
+  return 'Activation link';
+}
+
 function reviewAlertCopyIsDuplicated(title, detail) {
   const t = String(title || '')
     .trim()
@@ -2904,6 +2950,22 @@ function reviewAlertCopyHtml(item) {
       : '';
     const senderHtml = sender ? `<p class="admin-otp-sender">${escHtml(sender)}</p>` : '';
     return `<strong>${headline}</strong>${codeHtml}${senderHtml}${countdownHtml}`;
+  }
+  if (isAuthLinkReviewAlert(item)) {
+    const when = formatReviewAlertWhen(item.receivedAt);
+    const purpose = authLinkPurposeLabel(item);
+    const sender = item.from ? senderLabelForReviewAlert(item.from, item.contactName) : '';
+    const headline = when ? `${escHtml(when)} · ${escHtml(purpose)}` : escHtml(purpose);
+    const body = String(item.detail || item.summary || '').trim();
+    const bodyHtml =
+      body && body.toLowerCase() !== purpose.toLowerCase()
+        ? `<p>${escHtml(body)}</p>`
+        : `<p>Tap Activate to open the sign-in link</p>`;
+    const countdownHtml = item.deleteAfterAt
+      ? `<p class="admin-otp-expiry"><span class="admin-otp-countdown" data-otp-expires="${escHtml(item.deleteAfterAt)}">—</span> until auto-delete</p>`
+      : '';
+    const senderHtml = sender ? `<p class="admin-otp-sender">${escHtml(sender)}</p>` : '';
+    return `<strong>${headline}</strong>${bodyHtml}${senderHtml}${countdownHtml}`;
   }
   const when = formatReviewAlertWhen(item.receivedAt);
   const { headline, body } = reviewAlertDisplayCopy(item);
@@ -3833,7 +3895,7 @@ function isAuditPushAlert(item) {
 
 function reviewAlertTone(item) {
   if (isReceiptExpenseNotification(item)) return 'receipt';
-  if (isOtpReviewAlert(item)) return 'otp';
+  if (isOtpReviewAlert(item) || isAuthLinkReviewAlert(item)) return 'otp';
   if (isAuditPushAlert(item)) return 'audit';
   const type = item?.type;
   if (type === 'meeting_conflict') return 'meeting-conflict';
@@ -4036,6 +4098,7 @@ function buildReviewAlertBanner(item) {
   const isReceiptExpense = isReceiptExpenseNotification(item);
   const isPushAlert = item.type === 'push_alert';
   const isOtp = isOtpReviewAlert(item);
+  const isAuthLink = isAuthLinkReviewAlert(item);
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
 
   const actions = [];
@@ -4046,6 +4109,24 @@ function buildReviewAlertBanner(item) {
         label: 'Copy code',
         primary: true,
         onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
+      });
+    } else {
+      actions.push({
+        label: 'View',
+        primary: true,
+        onClick: () => openReviewNotificationTarget(item),
+      });
+    }
+    actions.push({
+      label: 'Delete',
+      onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
+    });
+  } else if (isAuthLink) {
+    if (item.actionUrl) {
+      actions.push({
+        label: 'Activate',
+        primary: true,
+        onClick: (btn) => void activateAuthLinkFromReviewAlert(item, btn),
       });
     } else {
       actions.push({
@@ -4189,6 +4270,7 @@ function buildReviewAlertBanner(item) {
     actions,
     onCopyClick: () => {
       if (isOtp && item.verificationCode) void copyOtpFromReviewAlert(item, null);
+      else if (isAuthLink && item.actionUrl) void activateAuthLinkFromReviewAlert(item, null);
       else openReviewNotificationTarget(item);
     },
     onDismiss: (dismissBtn) => {
@@ -8738,7 +8820,7 @@ function applyEmailInboxFilterForEvent(ev) {
   else if (isEmailBookable(ev)) emailState.inboxFilter = 'book';
   else if (isEmailProject(ev)) emailState.inboxFilter = 'project';
   else if (isEmailRouted(ev)) emailState.inboxFilter = 'routed';
-  else if (ev.category === 'review' || ev.category === 'otp') emailState.inboxFilter = 'review';
+  else if (ev.category === 'review' || ev.category === 'otp' || ev.category === 'auth_link') emailState.inboxFilter = 'review';
   else emailState.inboxFilter = 'all';
 }
 
@@ -8932,7 +9014,9 @@ function inboxTabCounts() {
     all: all.filter(active).length,
     alert: all.filter((e) => e.category === 'alert' && !isEmailRouted(e)).length,
     review: all.filter(
-      (e) => (e.category === 'review' || e.category === 'otp') && !isEmailRouted(e),
+      (e) =>
+        (e.category === 'review' || e.category === 'otp' || e.category === 'auth_link') &&
+        !isEmailRouted(e),
     ).length,
     book: all.filter((e) => isEmailBookable(e) && !isEmailRouted(e)).length,
     project: all.filter(isEmailProject).length,
@@ -8952,7 +9036,9 @@ function inboxEventsForFilter() {
   if (f === 'alert') return all.filter((e) => e.category === 'alert' && !isEmailRouted(e));
   if (f === 'review') {
     return all.filter(
-      (e) => (e.category === 'review' || e.category === 'otp') && !isEmailRouted(e),
+      (e) =>
+        (e.category === 'review' || e.category === 'otp' || e.category === 'auth_link') &&
+        !isEmailRouted(e),
     );
   }
   if (f === 'book') return all.filter((e) => isEmailBookable(e) && !isEmailRouted(e));
@@ -9324,12 +9410,25 @@ function syncInboxBadgePoll() {
 
 function emailCategoryClass(cat) {
   const key = String(cat || 'review').toLowerCase();
-  const known = new Set(['junk', 'client', 'alert', 'internal', 'review', 'receipt', 'project', 'otp']);
-  return known.has(key) ? `em-cat-${key}` : 'em-cat-review';
+  const known = new Set([
+    'junk',
+    'client',
+    'alert',
+    'internal',
+    'review',
+    'receipt',
+    'project',
+    'otp',
+    'auth_link',
+  ]);
+  return known.has(key) ? `em-cat-${key === 'auth_link' ? 'otp' : key}` : 'em-cat-review';
 }
 
 function formatEmailCategoryLabel(ev) {
   if (isVerificationCodeEmail(ev)) return 'Verification code';
+  if (String(ev.category || '').toLowerCase() === 'auth_link' || ev.actionUrl) {
+    return 'Activation link';
+  }
   if (isProjectReplyEmail(ev)) return 'Client reply';
   if (isEmailProject(ev)) return postTitle(2);
   const cat = String(ev.category || 'review').toLowerCase();
@@ -9348,6 +9447,7 @@ function formatEmailUsd(amount) {
 
 function emailShowsReceiptAction(ev) {
   if (isVerificationCodeEmail(ev)) return false;
+  if (isAuthLinkEmailRecord(ev)) return false;
   if (ev.category === 'receipt') return false;
   return emailMonetaryAmount(ev) != null;
 }
@@ -9358,6 +9458,15 @@ function isVerificationCodeEmail(ev) {
   if (String(ev.category || '').toLowerCase() === 'otp') return true;
   if (String(ev.action || '').toLowerCase() === 'verification_code') return true;
   return String(ev.status || '').toUpperCase() === 'VERIFICATION_CODE';
+}
+
+function isAuthLinkEmailRecord(ev) {
+  if (!ev) return false;
+  if (isVerificationCodeEmail(ev)) return false;
+  if (Boolean(ev.actionUrl)) return true;
+  if (String(ev.category || '').toLowerCase() === 'auth_link') return true;
+  if (String(ev.action || '').toLowerCase() === 'activation_link') return true;
+  return String(ev.status || '').toUpperCase() === 'AUTH_LINK';
 }
 
 function closeEmailDetail() {
@@ -9429,6 +9538,42 @@ function buildEmailDetailHeaderIcons(ev) {
           label: 'Copy code',
           className: 'ios-icon-btn em-copy-code-btn',
           onClick: (btn) => void copyEmailVerificationCode(ev.verificationCode, btn),
+        }),
+      );
+    }
+    icons.push(
+      paneDeleteIcon({
+        label: 'Delete message',
+        onClick: () => deleteEmail(ev),
+      }),
+      createIosIconBtn({
+        iconKey: 'x',
+        label: 'Close',
+        className: 'ios-icon-btn em-close-detail-btn',
+        onClick: () => closeEmailDetail(),
+      }),
+    );
+    return icons;
+  }
+  if (isAuthLinkEmailRecord(ev)) {
+    const icons = [];
+    if (ev.actionUrl) {
+      icons.push(
+        createIosIconBtn({
+          iconKey: 'link',
+          label: 'Activate',
+          className: 'ios-icon-btn em-activate-link-btn',
+          onClick: (btn) => {
+            if (btn) btn.disabled = true;
+            try {
+              window.open(String(ev.actionUrl), '_blank', 'noopener,noreferrer');
+            } catch {
+              /* ignore */
+            }
+            void deleteEmail(ev).finally(() => {
+              if (btn) btn.disabled = false;
+            });
+          },
         }),
       );
     }
@@ -11267,7 +11412,7 @@ function createEmailListItem(ev) {
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       (isProjectReplyEmail(ev)
         ? '<span class="em-status em-project-reply">Client reply</span>'
-        : `<span class="em-status ${isVerificationCodeEmail(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
+        : `<span class="em-status ${isVerificationCodeEmail(ev) || isAuthLinkEmailRecord(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
       (emailMonetaryAmount(ev) && ev.category !== 'receipt'
         ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
         : '') +
@@ -11278,7 +11423,9 @@ function createEmailListItem(ev) {
           : '') +
       (ev.verificationCode
         ? `<span class="em-status em-otp-hint">${escHtml(ev.verificationCode)}</span>`
-        : '') +
+        : ev.actionUrl
+          ? '<span class="em-status em-otp-hint">Activate</span>'
+          : '') +
       (Array.isArray(ev.attachments) && ev.attachments.length
         ? `<span class="em-status em-attach-hint" title="${escHtml(
             ev.attachments.map((a) => a.filename || 'file').join(', '),
@@ -11306,6 +11453,33 @@ function buildEmailSwipeActions(ev) {
       actions.push(
         swipeCopyAction({
           onClick: () => void copyEmailVerificationCode(ev.verificationCode, null),
+        }),
+      );
+    }
+    actions.push(
+      swipeDeleteAction({
+        label: 'Delete',
+        onClick: () => deleteEmail(ev),
+      }),
+    );
+    return actions;
+  }
+
+  if (isAuthLinkEmailRecord(ev)) {
+    const actions = [];
+    actions.push(swipeAgentAction(() => askAgentAboutEmail(ev)));
+    if (ev.actionUrl) {
+      actions.push(
+        swipeCopyAction({
+          label: 'Activate',
+          onClick: () => {
+            try {
+              window.open(String(ev.actionUrl), '_blank', 'noopener,noreferrer');
+            } catch {
+              /* ignore */
+            }
+            void deleteEmail(ev);
+          },
         }),
       );
     }
@@ -12907,6 +13081,26 @@ function renderEmailPanel(opts = {}) {
         `<p class="em-otp-hint">${expiryHtml}Tap the code to copy — switch back to your browser and tap <strong>Paste</strong> above the keyboard.</p>` +
       `</div>`;
     syncOtpCountdownTimers();
+  } else if (isAuthLinkEmailRecord(ev)) {
+    const expiryHtml = ev.deleteAfterAt
+      ? `Auto-deletes in <span class="admin-otp-countdown em-otp-countdown" data-otp-expires="${escHtml(ev.deleteAfterAt)}">—</span> · `
+      : '';
+    const authTitle = (() => {
+      const summary = String(ev.summary || '').trim();
+      const stripped = summary.replace(/\s*[—–-]\s*tap Activate\s*$/i, '').trim();
+      if (stripped) return stripped;
+      return 'Activation link';
+    })();
+    const activateBtn = ev.actionUrl
+      ? `<button type="button" class="em-otp-code-btn em-auth-activate-btn" data-auth-activate data-url="${escHtml(ev.actionUrl)}">Activate</button>`
+      : '';
+    detailHtml +=
+      `<div class="em-otp-card" data-otp-card>` +
+        `<div class="em-otp-card-title">${escHtml(authTitle)}</div>` +
+        activateBtn +
+        `<p class="em-otp-hint">${expiryHtml}Tap Activate to open the sign-in link — the email is deleted afterward.</p>` +
+      `</div>`;
+    syncOtpCountdownTimers();
   }
   if (isEmailBookable(ev)) {
     const whenLabel =
@@ -13025,6 +13219,22 @@ function renderEmailPanel(opts = {}) {
     const btn = e.currentTarget;
     const code = btn?.getAttribute('data-code') || ev.verificationCode;
     void copyEmailVerificationCode(code, btn);
+  });
+  detail.querySelector('[data-auth-activate]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const url = btn?.getAttribute('data-url') || ev.actionUrl;
+    if (btn) btn.disabled = true;
+    if (url) {
+      try {
+        window.open(String(url), '_blank', 'noopener,noreferrer');
+      } catch {
+        /* ignore */
+      }
+    }
+    void deleteEmail(ev).finally(() => {
+      if (btn) btn.disabled = false;
+    });
   });
   if (!ev._fullLoaded) {
     void fetchFullEmailRecord(ev).then((full) => {

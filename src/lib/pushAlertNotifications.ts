@@ -33,6 +33,7 @@ export type PushAlertReviewNotification = {
   subject?: string;
   contactName?: string | null;
   verificationCode?: string | null;
+  actionUrl?: string | null;
   deleteAfterAt?: string | null;
 };
 
@@ -83,6 +84,7 @@ export async function toPushAlertReviewNotification(
           subject: inbox.subject || '',
           contactName: inbox.contactName,
           verificationCode: inbox.verificationCode,
+          actionUrl: inbox.actionUrl,
           deleteAfterAt: inbox.deleteAfterAt,
         }
       : {}),

@@ -18,6 +18,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **Cutoff:** Mail whose `Date` header is before go-live is dropped (not triaged, not stored). Cutoff auto-sets to the first webhook time; override with `EMAIL_INBOUND_SINCE`.
 - **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`). Rules are indefinite by default; optional `expires_at` stops matching after that time (admin Rules toggle, or chat when creating a rule).
 - **Verification codes (global):** Built-in rule `VERIFICATION_CODE` matches OTP / login-code mail via regex **and known OTP sender addresses** (noreply@, accounts.google.com, id.apple.com, etc.; extend with `EMAIL_OTP_SENDERS`). Parsed code is stored on the inbox row; category is **`otp`**; Email tab shows copy / delete / close actions and a dedicated push notification with **Copy code · Delete · ✕** (not generic View/Archive). **Auto-delete:** verification-code mail and its dashboard notification are removed **5 minutes** after arrival (override with `EMAIL_OTP_TTL_MINUTES`; set `0` to disable).
+- **Activation / magic links (global):** Built-in rule `AUTH_LINK` matches magic sign-in / activation / one-click login mail (e.g. “magic sign-in link”, “secure link to”, “activation link”) **before** DELETE/junk — transactional footers often contain “unsubscribe” and must not bury these. The CTA URL is scraped into `action_url`; category is **`auth_link`**; dashboard banner shows **Activate · Delete** (Activate opens the link then deletes the email). Same TTL auto-delete as OTPs. These never land in Junk.
 - **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Attachments:** Resend attachment metadata is stored on the inbox row and shown in the Email detail pane with download links (`/api/email/inbox/:id/attachments/:attachmentId`). Attachment-only mail (signature + files, no body) is summarized by filename — not treated as blank. Linking an email to a project still imports files into that project's file grid.
@@ -36,7 +37,9 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `internal` | Admin/personal, not client work |
 | `review` | Needs your decision |
 | `otp` | One-time verification / login code — copy in Email tab or dashboard banner |
+| `auth_link` | Magic / activation / one-click sign-in link — Activate on dashboard (opens CTA, deletes email) |
 | `VERIFICATION_CODE` | OTP status label (category is `otp`) |
+| `AUTH_LINK` | Auth-link status label (category is `auth_link`) |
 
 ## Environment
 

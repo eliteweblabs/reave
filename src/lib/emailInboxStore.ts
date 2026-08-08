@@ -64,6 +64,8 @@ export interface EmailInboxRecord {
   automationKind: string | null;
   /** Parsed one-time verification code for copy-to-clipboard UX. */
   verificationCode: string | null;
+  /** Scraped magic / activation CTA URL for dashboard Activate. */
+  actionUrl: string | null;
   /** When set, row is auto-deleted (and linked notifications dismissed) after this time. */
   deleteAfterAt: string | null;
 }
@@ -98,6 +100,7 @@ export interface EmailInboxInput {
   bookingStart?: string | null;
   automationKind?: string | null;
   verificationCode?: string | null;
+  actionUrl?: string | null;
   deleteAfterAt?: string | null;
 }
 
@@ -184,6 +187,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS message_id TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS resend_email_id TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS verification_code TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS action_url TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS attachments_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS delete_after_at TIMESTAMPTZ`,
 ];
@@ -200,7 +204,7 @@ const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
               automation_ack_at, automation_triage_at, automation_triage_action, automation_triage_rule_id,
-              automation_kind, verification_code, delete_after_at, attachments_json`;
+              automation_kind, verification_code, action_url, delete_after_at, attachments_json`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -278,6 +282,7 @@ type InboxRow = {
   automation_triage_rule_id?: string | null;
   automation_kind?: string | null;
   verification_code?: string | null;
+  action_url?: string | null;
   delete_after_at?: Date | string | null;
 };
 
@@ -291,7 +296,8 @@ function normalizeCategory(raw: string | undefined): EmailCategory {
     c === 'review' ||
     c === 'receipt' ||
     c === 'project' ||
-    c === 'otp'
+    c === 'otp' ||
+    c === 'auth_link'
   ) {
     return c;
   }
@@ -354,6 +360,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     automationTriageRuleId: row.automation_triage_rule_id ?? null,
     automationKind: row.automation_kind ?? null,
     verificationCode: row.verification_code ?? null,
+    actionUrl: row.action_url ?? null,
     deleteAfterAt: row.delete_after_at ? new Date(row.delete_after_at).toISOString() : null,
   };
 }
@@ -399,6 +406,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       automationTriageRuleId: e.automationTriageRuleId ?? null,
       automationKind: e.automationKind ?? null,
       verificationCode: e.verificationCode ?? null,
+      actionUrl: e.actionUrl ?? null,
       deleteAfterAt: e.deleteAfterAt ?? null,
     }));
   } catch {
@@ -469,7 +477,7 @@ export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean
     }
     visible++;
     if (e.category === 'client') client++;
-    else if (e.category === 'review' || e.category === 'otp') review++;
+    else if (e.category === 'review' || e.category === 'otp' || e.category === 'auth_link') review++;
     else if (e.category === 'alert') alert++;
     if (e.action === 'filed') filed++;
   }
@@ -495,7 +503,7 @@ async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null>
          COUNT(*) FILTER (WHERE category = 'junk')::text AS junk_hidden,
          COUNT(*) FILTER (WHERE category = 'client')::text AS client,
          COUNT(*) FILTER (WHERE action = 'filed')::text AS filed,
-         COUNT(*) FILTER (WHERE category = 'review')::text AS review,
+         COUNT(*) FILTER (WHERE category IN ('review', 'otp', 'auth_link'))::text AS review,
          COUNT(*) FILTER (WHERE category = 'alert')::text AS alert
        FROM email_inbox`,
     );
@@ -575,6 +583,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     automationTriageRuleId: null,
     automationKind: input.automationKind ?? null,
     verificationCode: input.verificationCode ?? null,
+    actionUrl: input.actionUrl ?? null,
     deleteAfterAt: input.deleteAfterAt ?? null,
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
@@ -627,9 +636,9 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
          reply_to_addrs, headers_json, message_id, resend_email_id, attachments_json,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
          route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
-         verification_code, delete_after_at)
+         verification_code, action_url, delete_after_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14::jsonb,
-               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
+               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
@@ -662,6 +671,7 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         input.bookingStart ?? null,
         input.automationKind ?? null,
         input.verificationCode ?? null,
+        input.actionUrl ?? null,
         input.deleteAfterAt ?? null,
       ],
     );
@@ -836,6 +846,7 @@ export type EmailInboxPatch = Partial<
     | 'automationKind'
     | 'notified'
     | 'verificationCode'
+    | 'actionUrl'
     | 'deleteAfterAt'
     | 'attachments'
     | 'summary'
@@ -875,6 +886,7 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.automationKind !== undefined ? { automationKind: patch.automationKind } : {}),
     ...(patch.notified !== undefined ? { notified: patch.notified } : {}),
     ...(patch.verificationCode !== undefined ? { verificationCode: patch.verificationCode } : {}),
+    ...(patch.actionUrl !== undefined ? { actionUrl: patch.actionUrl } : {}),
     ...(patch.deleteAfterAt !== undefined ? { deleteAfterAt: patch.deleteAfterAt } : {}),
     ...(patch.attachments !== undefined
       ? { attachments: normalizeEmailAttachments(patch.attachments) }
@@ -977,6 +989,10 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
       sets.push(`verification_code = $${i++}`);
       vals.push(patch.verificationCode);
     }
+    if (patch.actionUrl !== undefined) {
+      sets.push(`action_url = $${i++}`);
+      vals.push(patch.actionUrl);
+    }
     if (patch.deleteAfterAt !== undefined) {
       sets.push(`delete_after_at = $${i++}`);
       vals.push(patch.deleteAfterAt);
@@ -1040,14 +1056,16 @@ export async function storeUpdateEmailInbox(
   id: string,
   patch: EmailInboxPatch,
 ): Promise<EmailInboxRecord | null> {
-  // Leaving OTP classification — clear code UX + auto-delete timer so
-  // false positives don't stay stuck as "verification code" after junk/route.
+  // Leaving OTP / auth-link classification — clear code/URL UX + auto-delete timer so
+  // false positives don't stay stuck after junk/route.
   const leavingOtp =
-    (patch.category != null && String(patch.category).toLowerCase() !== 'otp') ||
-    (patch.action != null && String(patch.action).toLowerCase() !== 'verification_code');
+    (patch.category != null &&
+      !['otp', 'auth_link'].includes(String(patch.category).toLowerCase())) ||
+    (patch.action != null &&
+      !['verification_code', 'activation_link'].includes(String(patch.action).toLowerCase()));
   let nextPatch = patch;
-  if (leavingOtp && patch.verificationCode === undefined) {
-    nextPatch = { ...patch, verificationCode: null, deleteAfterAt: null };
+  if (leavingOtp && patch.verificationCode === undefined && patch.actionUrl === undefined) {
+    nextPatch = { ...patch, verificationCode: null, actionUrl: null, deleteAfterAt: null };
   }
   if (databaseUrl()) return updateInPg(id, nextPatch);
   return updateInFile(id, nextPatch);

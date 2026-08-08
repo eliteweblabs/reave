@@ -12,20 +12,31 @@
  * any sending address.
  *
  * Rule order matters: first enabled match wins.
- * `VERIFICATION_CODE` is always evaluated first (regex via emailOtpParser) on
- * every installation — even when persisted sort order differs.
+ * `VERIFICATION_CODE` then `AUTH_LINK` are always evaluated first (regex via
+ * emailOtpParser / emailAuthLinkParser) on every installation — even when
+ * persisted sort order differs. Auth-link mail must never fall through to
+ * DELETE/junk (footers often contain "unsubscribe") while still surfacing
+ * as a dashboard Activate notification.
  * Keep high-signal operational alerts (RAILWAY, DOWN, NEEDS_CHECK) ABOVE
  * catch-all filing rules (RECEIPT, AUTO_ARCHIVED, DELETE) so a Railway build
  * failure is never silently mis-classified as a receipt.
  */
 
+import { isAuthLinkEmail } from './emailAuthLinkParser';
 import { isVerificationCodeEmail } from './emailOtpParser';
 
 /** Built-in status for OTP / login-code mail (global on all installs). */
 export const VERIFICATION_CODE_STATUS = 'VERIFICATION_CODE';
 
+/** Built-in status for magic / activation / one-click sign-in link mail. */
+export const AUTH_LINK_STATUS = 'AUTH_LINK';
+
 export function isVerificationCodeRuleStatus(status: string): boolean {
   return status.toUpperCase() === VERIFICATION_CODE_STATUS;
+}
+
+export function isAuthLinkRuleStatus(status: string): boolean {
+  return status.toUpperCase() === AUTH_LINK_STATUS;
 }
 
 export type MatchMode = 'any' | 'all';
@@ -87,6 +98,7 @@ export interface Classification {
  *
  * Ordering principle:
  *   0. Verification codes  — OTP / login codes (regex; always checked first)
+ *   0b. Auth / magic links — activation & one-click sign-in (before junk)
  *   1. Operational alerts  — Railway, uptime, security (must not be buried)
  *   2. Auto-filing         — receipts, Google invoices
  *   3. Delete/junk         — marketing trash (last resort)
@@ -121,6 +133,32 @@ export const DEFAULT_RULES: EmailRule[] = [
     notify: true,
     enabled: true,
     summaryOverride: 'Verification code — open the Email tab and tap the code to copy.',
+  },
+
+  // ── 0b. AUTH / MAGIC LINKS (global — never junk) ────────────────────────
+
+  {
+    status: AUTH_LINK_STATUS,
+    description:
+      'Magic sign-in / activation / one-click login links — CTA URL scraped for dashboard Activate; auto-deleted after use or TTL; never filed as junk (transactional footers often match DELETE).',
+    phrases: [
+      'magic sign-in link',
+      'magic link',
+      'activation link',
+      'secure link to',
+      'sign-in link',
+      'login link',
+      'click to sign in',
+      'click to login',
+      'click to log in',
+      'activate your account',
+      'one-click sign-in',
+    ],
+    matchMode: 'any',
+    fields: ['subject', 'body'],
+    notify: true,
+    enabled: true,
+    summaryOverride: 'Activation link — tap Activate on the dashboard notification.',
   },
 
   // ── 1. OPERATIONAL ALERTS ───────────────────────────────────────────────
@@ -274,10 +312,23 @@ function matchesVerificationCodeRule(rule: EmailRule, email: InboundEmail): bool
   });
 }
 
+function matchesAuthLinkRule(rule: EmailRule, email: InboundEmail): boolean {
+  if (!rule.enabled || !isAuthLinkRuleStatus(rule.status)) return false;
+  return isAuthLinkEmail({
+    from: email.from,
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+  });
+}
+
 function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
   if (!rule.enabled) return false;
   if (isVerificationCodeRuleStatus(rule.status)) {
     return matchesVerificationCodeRule(rule, email);
+  }
+  if (isAuthLinkRuleStatus(rule.status)) {
+    return matchesAuthLinkRule(rule, email);
   }
   if (rule.phrases.length === 0) return false;
   const haystack = rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
@@ -314,8 +365,18 @@ export function classifyEmail(
     };
   }
 
+  // Global auth-link rule — before DELETE/junk (footers often match unsubscribe).
+  const authLinkRule = rules.find((r) => r.enabled && isAuthLinkRuleStatus(r.status));
+  if (authLinkRule && matchesAuthLinkRule(authLinkRule, email)) {
+    return {
+      status: authLinkRule.status,
+      matched: authLinkRule,
+      notify: authLinkRule.notify,
+    };
+  }
+
   for (const rule of rules) {
-    if (isVerificationCodeRuleStatus(rule.status)) continue;
+    if (isVerificationCodeRuleStatus(rule.status) || isAuthLinkRuleStatus(rule.status)) continue;
     if (ruleMatches(rule, email)) {
       return { status: rule.status, matched: rule, notify: rule.notify };
     }
