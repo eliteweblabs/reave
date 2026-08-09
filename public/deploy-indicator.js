@@ -14,14 +14,18 @@
       const data = await res.json();
       if (!res.ok || !data.ok || !data.deploy) {
         dot.hidden = true;
+        dot.classList.remove('tooltip-open');
+        window.ProximityTooltip?.hide?.();
         deployPollMs = DEPLOY_POLL_MS_LIVE;
         return;
       }
       const { tone, tooltip } = data.deploy;
+      const keepOpen = dot.classList.contains('tooltip-open');
       dot.hidden = false;
-      dot.className = `topbar-deploy-dot topbar-deploy-dot--${tone || 'alert'} tt-left`;
+      dot.className = `topbar-deploy-dot topbar-deploy-dot--${tone || 'alert'} tt-left${keepOpen ? ' tooltip-open' : ''}`;
       dot.dataset.tooltip = tooltip || 'Deploy status unavailable';
       dot.setAttribute('aria-label', tooltip || 'Deploy status');
+      if (keepOpen) window.ProximityTooltip?.sync?.();
       deployPollMs =
         tone === 'deploying'
           ? DEPLOY_POLL_MS_ACTIVE
@@ -29,10 +33,12 @@
             ? DEPLOY_POLL_MS_ALERT
             : DEPLOY_POLL_MS_LIVE;
     } catch {
+      const keepOpen = dot.classList.contains('tooltip-open');
       dot.hidden = false;
-      dot.className = 'topbar-deploy-dot topbar-deploy-dot--alert tt-left';
+      dot.className = `topbar-deploy-dot topbar-deploy-dot--alert tt-left${keepOpen ? ' tooltip-open' : ''}`;
       dot.dataset.tooltip = 'Could not check deploy status';
       dot.setAttribute('aria-label', 'Could not check deploy status');
+      if (keepOpen) window.ProximityTooltip?.sync?.();
       deployPollMs = DEPLOY_POLL_MS_ALERT;
     }
   }
@@ -65,6 +71,7 @@
     dot.addEventListener('click', (ev) => {
       ev.stopPropagation();
       dot.classList.toggle('tooltip-open');
+      window.ProximityTooltip?.sync?.();
     });
     startDeployPoll();
   }
@@ -93,12 +100,17 @@
   if (!document.documentElement.dataset.deployTooltipBound) {
     document.documentElement.dataset.deployTooltipBound = '1';
     document.addEventListener('click', () => {
-      document.getElementById('topbar-deploy-dot')?.classList.remove('tooltip-open');
+      const dot = document.getElementById('topbar-deploy-dot');
+      if (!dot?.classList.contains('tooltip-open')) return;
+      dot.classList.remove('tooltip-open');
+      window.ProximityTooltip?.sync?.();
     });
     document.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape') {
-        document.getElementById('topbar-deploy-dot')?.classList.remove('tooltip-open');
-      }
+      if (ev.key !== 'Escape') return;
+      const dot = document.getElementById('topbar-deploy-dot');
+      if (!dot?.classList.contains('tooltip-open')) return;
+      dot.classList.remove('tooltip-open');
+      window.ProximityTooltip?.hide?.();
     });
   }
 })();

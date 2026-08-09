@@ -8676,12 +8676,20 @@ function initTopbarMenus() {
     document.documentElement.dataset.topbarMenuBound = '1';
     document.addEventListener('click', () => {
       closeTopbarMenus();
-      document.getElementById('topbar-deploy-dot')?.classList.remove('tooltip-open');
+      const deployDot = document.getElementById('topbar-deploy-dot');
+      if (deployDot?.classList.contains('tooltip-open')) {
+        deployDot.classList.remove('tooltip-open');
+        window.ProximityTooltip?.sync?.();
+      }
     });
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         closeTopbarMenus();
-        document.getElementById('topbar-deploy-dot')?.classList.remove('tooltip-open');
+        const deployDot = document.getElementById('topbar-deploy-dot');
+        if (deployDot?.classList.contains('tooltip-open')) {
+          deployDot.classList.remove('tooltip-open');
+          window.ProximityTooltip?.hide?.();
+        }
       }
     });
   }
