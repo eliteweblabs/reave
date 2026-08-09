@@ -183,10 +183,21 @@ function normalizeSettings(raw: unknown): PushQuietHoursSettings {
     quietEnd: end ?? base.quietEnd,
     timezone: tz,
     allowUrgentDuringSleep: bool('allowUrgentDuringSleep', base.allowUrgentDuringSleep),
-    sleepPausedAt:
-      typeof o.sleepPausedAt === 'string' && o.sleepPausedAt.trim() ? o.sleepPausedAt.trim() : null,
-    updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : null,
+    sleepPausedAt: coerceTimestamp(o.sleepPausedAt),
+    updatedAt: coerceTimestamp(o.updatedAt),
   };
+}
+
+/** pg returns timestamptz as Date; JSON/file settings use ISO strings. */
+function coerceTimestamp(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) {
+    const d = new Date(value.trim());
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  return null;
 }
 
 function readFileSettings(): PushQuietHoursSettings {

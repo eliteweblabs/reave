@@ -537,8 +537,27 @@ function applySleepModeSettingsPayload(data) {
 function formatTopbarSleepLabel(data, enabled) {
   const until = data?.quietEndLabel || '7:00 AM';
   if (enabled) return `Sleeping until ${until}`;
-  const since = data?.awakeSinceLabel;
+  const since =
+    data?.awakeSinceLabel ||
+    formatAwakeSinceFromSettings(data?.settings) ||
+    null;
   return since ? `Awake since ${since}` : 'Awake tonight';
+}
+
+function formatAwakeSinceFromSettings(settings) {
+  const raw = settings?.sleepPausedAt;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    return d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: settings.timezone || undefined,
+    });
+  } catch {
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
 }
 
 function syncTopbarSleepToggle(data = sleepModeCache) {
