@@ -8618,14 +8618,9 @@ function syncFooterNavCountTooltips() {
       btn.removeAttribute('data-footer-count');
       continue;
     }
-    // Collapsed dashboard is the expand control — keep that label on the hover tip.
-    if (id === 'footer-nav-dashboard' && footerNavCollapsed) {
-      const raw = footerNavCounts.reviews;
-      const hint =
-        raw != null && Number(raw) > 0
-          ? `Show navigation · ${footerNavCountLabel(raw, singular, plural)}`
-          : 'Show navigation';
-      btn.setAttribute('data-footer-count', hint);
+    // Dashboard tip is the nav name (badge already shows pending reviews).
+    if (id === 'footer-nav-dashboard') {
+      btn.setAttribute('data-footer-count', footerNavCollapsed ? 'Show navigation' : 'Dashboard');
       continue;
     }
     const raw = footerNavCounts[key];
