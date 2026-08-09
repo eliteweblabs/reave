@@ -356,6 +356,7 @@ function refreshTodoSidebarList() {
   if (searchInput) {
     searchInput.placeholder = todoSearchPlaceholder();
   }
+  updateTodoFilterTabActiveState();
   fillTodoSidebarList(list);
   syncTodoSidebarActiveState();
 }

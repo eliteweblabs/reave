@@ -143,7 +143,7 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260803a';
+} from './todo-panel.js?v=20260808a';
 import {
   initDocumentsPanel,
   docState,
