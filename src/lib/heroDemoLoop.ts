@@ -12,9 +12,24 @@ import {
 
 /** Demo pacing (~33% slower than baseline). Applied in wait() and exit timeouts. */
 const TIMING_SCALE = 1.33;
+/**
+ * Extra slowdown on iOS only. Mobile Safari reads the same ms as faster (and the
+ * right-growing bubble made typing feel rushed); gate the fix so desktop stays put.
+ */
+const IOS_TIMING_SCALE = 1.75;
+
+let timingScale = TIMING_SCALE;
 
 function scaleMs(ms: number): number {
-  return Math.round(ms * TIMING_SCALE);
+  return Math.round(ms * timingScale);
+}
+
+/** iPhone / iPod / iPad (including iPadOS that reports as Macintosh + touch). */
+function isIOSDevice(): boolean {
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  // iPadOS 13+ spoofs Macintosh in the UA; touch points distinguish real Macs.
+  return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
 
 const DEFAULT_THINK_MS = 1500;
@@ -162,9 +177,10 @@ function fitBubbleToRenderedText(bubble: HTMLElement): void {
 }
 
 /**
- * Cap a bubble at the width its *final* text will need, before that text is
- * typed. The bubble then grows into its finished size instead of filling the
- * lane and snapping narrower once typing stops.
+ * Lock a bubble to the width its *final* text will need, before that text is
+ * typed. User turns are right-aligned, so a shrink-wrapping bubble expands
+ * leftward as characters arrive, then jumps to full width on wrap — locking
+ * `width` (not just max-width) keeps every character painting left-to-right.
  */
 function fitBubbleToFinalText(row: HTMLElement, finalText: string): void {
   const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
@@ -175,7 +191,24 @@ function fitBubbleToFinalText(row: HTMLElement, finalText: string): void {
   const typed = textEl.textContent;
   textEl.textContent = finalText;
   fitBubble(bubble, textEl);
+
+  const fittedMax = bubble.style.maxWidth;
+  if (fittedMax) {
+    bubble.style.width = fittedMax;
+  } else {
+    // Single-line messages skip the max-width pass — measure natural width.
+    bubble.style.width = `${Math.ceil(bubble.getBoundingClientRect().width)}px`;
+  }
+
   textEl.textContent = typed;
+}
+
+/** Drop the compose-time width lock and re-hug the finished text. */
+function releaseBubbleWidthLock(row: HTMLElement): void {
+  const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
+  if (!bubble) return;
+  bubble.style.width = "";
+  fitBubbleToRenderedText(bubble);
 }
 
 function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: boolean): void {
@@ -494,6 +527,7 @@ async function playUserTurn(
   if (!isAlive()) return;
   textEl.classList.remove("home-hero-demo-bubble-text--cursor");
   row.classList.remove("home-hero-demo-msg--composing");
+  releaseBubbleWidthLock(row);
   relayout(true);
 }
 
@@ -626,6 +660,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
   depthBlurEnabled = !isSafariBrowser();
   if (!depthBlurEnabled) root.classList.add("home-hero-demo--safari");
+
+  timingScale = isIOSDevice() ? TIMING_SCALE * IOS_TIMING_SCALE : TIMING_SCALE;
 
   const relayout: Relayout = (flush = false) => {
     syncHeroCopyHeight(hero, copyEl);
