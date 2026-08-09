@@ -10,7 +10,7 @@ import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
 import { importEmailAttachmentsToProject } from './emailProjectAttachments';
 import { ensureProjectForMeetingEmail } from './emailMeetingProject';
-import { resolveContact } from './contactApi';
+import { resolveContact, getContact, getClientKind, siteBaseUrl, type ClientKind } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, storeUpdateEmailInbox, type EmailInboxRecord } from './emailInboxStore';
@@ -28,11 +28,10 @@ import {
 } from './adminAgentAlert';
 import { getCompanyConfig } from './companyConfig';
 import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
-import { siteBaseUrl } from './contactApi';
 import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
 import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectReply';
 import { isSuggestedProjectMatch } from './emailAutomation';
-import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
+import { looksLikeFailedOrDuePayment, looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 import {
   describeOtpPurpose,
   extractVerificationCodeFromEmail,
@@ -44,6 +43,13 @@ import {
   formatAuthLinkPushNotification,
   isAuthLinkEmail,
 } from './emailAuthLinkParser';
+import {
+  aiConfidenceThreshold,
+  mapAiLabelToOutcome,
+  runAiClassify,
+  shouldAgentFirstClassify,
+  type AiClassifyResult,
+} from './emailAiClassify';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
 import {
   attachmentSummaryFallback,
@@ -211,16 +217,113 @@ Attachments: when the body is empty or signature-only but Attachments are listed
   }
 }
 
-function extractContact(data: unknown): { uid: string; name: string } | null {
+function extractContact(data: unknown): { uid: string; name: string; email: string | null } | null {
   if (!data || typeof data !== 'object') return null;
-  const o = data as { match?: string; contact?: { uid?: string; name?: string } };
+  const o = data as { match?: string; contact?: { uid?: string; name?: string; email?: string | null } };
   if ((o.match === 'exact' || o.match === 'likely') && o.contact?.uid) {
     return {
       uid: String(o.contact.uid),
       name: String(o.contact.name ?? '').trim() || 'Client',
+      email: o.contact.email != null ? String(o.contact.email) : null,
     };
   }
   return null;
+}
+
+async function resolveSenderContact(senderEmail: string): Promise<{
+  uid: string | null;
+  name: string | null;
+  emailOnRecord: string | null;
+  clientKind: ClientKind | null;
+}> {
+  if (!senderEmail.includes('@')) {
+    return { uid: null, name: null, emailOnRecord: null, clientKind: null };
+  }
+  const contactRes = await resolveContact({ email: senderEmail });
+  const contact = contactRes.ok ? extractContact(contactRes.data) : null;
+  if (!contact) {
+    return { uid: null, name: null, emailOnRecord: null, clientKind: null };
+  }
+  let clientKind: ClientKind | null = null;
+  const full = await getContact(contact.uid).catch(() => null);
+  if (full?.ok) {
+    clientKind = getClientKind(full.data);
+  }
+  return {
+    uid: contact.uid,
+    name: contact.name,
+    emailOnRecord: contact.email,
+    clientKind,
+  };
+}
+
+function applyTrustedAiClassify(opts: {
+  ai: AiClassifyResult;
+  from: string;
+  subject: string;
+  bodyText: string;
+  html?: string;
+  verificationCode: string | null;
+}): {
+  category: EmailCategory;
+  action: string;
+  inboxStatus: string;
+  summary: string;
+  routeNote: string;
+  isVerificationCode: boolean;
+  isAuthLink: boolean;
+  authActionUrl: string | null;
+  otpPurpose: string | null;
+  authLinkPurpose: string | null;
+  proposedMeetingStart: string | null;
+  schedulingNote: string;
+  aiJobSlug: string | null;
+  aiNote: string | null;
+} {
+  const mapped = mapAiLabelToOutcome(opts.ai.label);
+  let isVerificationCode = opts.ai.label === 'otp';
+  let isAuthLink = opts.ai.label === 'activation_link';
+  let authActionUrl: string | null = null;
+  let otpPurpose: string | null = null;
+  let authLinkPurpose: string | null = null;
+  let summary = opts.ai.summary;
+  let routeNote = opts.ai.reason || `AI ${opts.ai.label} (${Math.round(opts.ai.confidence * 100)}%)`;
+
+  if (isVerificationCode) {
+    if (opts.verificationCode) {
+      // purpose filled by caller with company name when available
+    } else {
+      // Model said OTP but no digits — keep review-ish otp banner without code.
+      routeNote = `${routeNote} · no code parsed`;
+    }
+  }
+
+  if (isAuthLink) {
+    authActionUrl =
+      extractAuthActionUrl({
+        from: opts.from,
+        subject: opts.subject,
+        text: opts.bodyText,
+        html: opts.html,
+      })?.url ?? null;
+  }
+
+  return {
+    category: mapped.category,
+    action: mapped.action,
+    inboxStatus: mapped.status,
+    summary,
+    routeNote,
+    isVerificationCode,
+    isAuthLink,
+    authActionUrl,
+    otpPurpose,
+    authLinkPurpose,
+    proposedMeetingStart: opts.ai.proposed_meeting_start,
+    schedulingNote: opts.ai.scheduling_note ?? '',
+    aiJobSlug: opts.ai.job_slug,
+    aiNote: opts.ai.note_to_append,
+  };
 }
 
 function pickJobSlug(
@@ -266,6 +369,7 @@ export function shouldSendInboxPush(opts: {
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
 
+  if (action === 'needs_explain') return true;
   if (opts.category === 'junk' || action === 'junk') return false;
   if (opts.category === 'receipt') return false;
   if (opts.action === 'verification_code' || opts.action === 'activation_link') return false;
@@ -333,50 +437,66 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       html: email.html,
     })?.code ?? null;
 
-  const authActionUrl =
-    verificationCode == null
-      ? extractAuthActionUrl({
-          from,
-          subject: email.subject,
-          text: bodyText,
-          html: email.html,
-        })?.url ?? null
-      : null;
-
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
 
-  const isVerificationCode =
-    verificationCode != null || isVerificationCodeRuleStatus(ruleResult.status);
+  const sender = await resolveSenderContact(senderEmail);
+  let contactUid = sender.uid;
+  let contactName = sender.name;
+  const contactEmailOnRecord = sender.emailOnRecord;
+  const clientKind = sender.clientKind;
 
-  const isAuthLink =
-    !isVerificationCode &&
-    (authActionUrl != null ||
-      isAuthLinkRuleStatus(ruleResult.status) ||
-      isAuthLinkEmail({
-        from,
-        subject: email.subject,
-        text: bodyText,
-        html: email.html,
-      }));
+  const jobs =
+    contactUid != null
+      ? (await storeListWork({ contact_uid: contactUid })).filter(
+          (j) => j.status !== 'archived',
+        )
+      : [];
 
+  const agentFirst = shouldAgentFirstClassify({
+    hasContact: Boolean(contactUid),
+    clientKind,
+  });
+  const confidenceMin = aiConfidenceThreshold();
+  let aiTrusted = false;
+  let needsExplain = false;
+  let aiClassify: AiClassifyResult | null = null;
+
+  if (agentFirst && aiEnabled()) {
+    aiClassify = await runAiClassify(email, jobs, contactName, clientKind);
+    if (aiClassify && aiClassify.confidence >= confidenceMin) {
+      aiTrusted = true;
+    } else {
+      needsExplain = true;
+    }
+  }
+
+  // Auth CTA URL — scraped for Activate UX, but never classifies alone (TikTok "Open …" FPs).
+  let authActionUrl: string | null = null;
+
+  let isVerificationCode = false;
+  let isAuthLink = false;
   let otpPurpose: string | null = null;
-  if (isVerificationCode) {
-    const company = await getCompanyConfig().catch(() => null);
-    otpPurpose = describeOtpPurpose(
-      { from, subject: email.subject, text: bodyText, html: email.html },
-      company?.name,
-    );
-  }
-
   let authLinkPurpose: string | null = null;
-  if (isAuthLink) {
-    const company = await getCompanyConfig().catch(() => null);
-    authLinkPurpose = describeAuthLinkPurpose(
-      { from, subject: email.subject, text: bodyText, html: email.html },
-      company?.name,
-    );
-  }
+
+  let category: EmailCategory = ruleCategory(ruleResult.status);
+  let summary =
+    ruleResult.matched?.summaryOverride ||
+    snippet(bodyText) ||
+    attachmentSummaryFallback(attachments) ||
+    email.subject ||
+    '(no subject)';
+  let jobSlug: string | null = null;
+  let jobTitle: string | null = null;
+  let routeNote = '';
+  let action = 'classified';
+  let proposedMeetingStart: string | null = null;
+  let schedulingNote = '';
+  let bookingUid: string | null = null;
+  let bookingStart: string | null = null;
+  let automationKind: string | null = null;
+  let inboxStatusOverride: string | null = null;
+  const receivedAt = new Date().toISOString();
 
   const forwardTo = ruleResult.matched?.forwardTo?.trim();
   if (forwardTo) {
@@ -392,129 +512,75 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
-  let category: EmailCategory = ruleCategory(ruleResult.status);
-  let summary =
-    ruleResult.matched?.summaryOverride ||
-    snippet(bodyText) ||
-    attachmentSummaryFallback(attachments) ||
-    email.subject ||
-    '(no subject)';
-  if (isVerificationCode && verificationCode) {
-    summary = otpPurpose
-      ? `${otpPurpose}: ${verificationCode} — tap to copy`
-      : `Code: ${verificationCode} — tap to copy`;
-  } else if (isAuthLink) {
-    summary = authLinkPurpose
-      ? `${authLinkPurpose} — tap Activate`
-      : 'Activation link — tap Activate';
-  }
-  let jobSlug: string | null = null;
-  let jobTitle: string | null = null;
-  let contactUid: string | null = null;
-  let contactName: string | null = null;
-  let routeNote = '';
-  let action = 'classified';
-  let proposedMeetingStart: string | null = null;
-  let schedulingNote = '';
-  let bookingUid: string | null = null;
-  let bookingStart: string | null = null;
-  let automationKind: string | null = null;
-  const receivedAt = new Date().toISOString();
-
-  const contactRes = senderEmail.includes('@')
-    ? await resolveContact({ email: senderEmail })
-    : null;
-  const contact = contactRes?.ok ? extractContact(contactRes.data) : null;
-  const contactEmailOnRecord = contactRes?.ok
-    ? ((contactRes.data as { contact?: { email?: string | null } }).contact?.email ?? null)
-    : null;
-  if (contact) {
-    contactUid = contact.uid;
-    contactName = contact.name;
-  }
-
-  const jobs =
-    contactUid != null
-      ? (await storeListWork({ contact_uid: contactUid })).filter(
-          (j) => j.status !== 'archived',
-        )
-      : [];
-
-  // ── Receipt override: a DELETE rule must not win over a monetary receipt. ──
-  // Never bury OTP / auth-link mail under junk when the parser matched.
-  if (
-    !isVerificationCode &&
-    !isAuthLink &&
-    (category === 'junk' || ruleResult.status.toUpperCase() === 'DELETE')
-  ) {
-    const earlyReceipt = shouldAutoFileAsReceipt({
-      from,
-      subject: email.subject ?? '',
-      summary,
-      bodyText,
-      bodySnippet: snippet(bodyText),
-    });
-    if (earlyReceipt) {
-      category = 'receipt';
-      action = 'receipt';
-      routeNote = earlyReceipt.routeNote;
-    }
-  }
-
   let isProjectReply = false;
 
-  if (isVerificationCode) {
-    category = 'otp';
-    action = 'verification_code';
-    routeNote = routeNote || 'Verification code — tap to copy; auto-deletes in 5 min';
-  } else if (isAuthLink) {
-    category = 'auth_link';
-    action = 'activation_link';
-    routeNote =
-      routeNote ||
-      (authActionUrl
-        ? 'Activation link — tap Activate; email deletes after use'
-        : 'Activation link — open Email tab; auto-deletes soon');
-  } else if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
-    const ai = await runAiTriage(email, jobs, contactName);
-    if (ai) {
-      category = ai.category;
-      summary = ai.summary;
-      // Guard against models calling attachment-only mail "blank/empty".
-      if (
-        attachments.length &&
-        /\b(no body|blank|empty|no content|no message body|no attachment details|just (a |his )?signature)\b/i.test(
-          summary,
-        ) &&
-        !/\battach/i.test(summary)
-      ) {
-        summary = attachmentSummaryFallback(attachments);
+  if (aiTrusted && aiClassify) {
+    const applied = applyTrustedAiClassify({
+      ai: aiClassify,
+      from,
+      subject: email.subject ?? '',
+      bodyText,
+      html: email.html,
+      verificationCode,
+    });
+    category = applied.category;
+    action = applied.action;
+    summary = applied.summary;
+    routeNote = applied.routeNote;
+    inboxStatusOverride = applied.inboxStatus;
+    isVerificationCode = applied.isVerificationCode;
+    isAuthLink = applied.isAuthLink;
+    authActionUrl = applied.authActionUrl;
+    proposedMeetingStart = applied.proposedMeetingStart;
+    schedulingNote = applied.schedulingNote;
+
+    if (isVerificationCode) {
+      const company = await getCompanyConfig().catch(() => null);
+      otpPurpose = describeOtpPurpose(
+        { from, subject: email.subject, text: bodyText, html: email.html },
+        company?.name,
+      );
+      if (verificationCode) {
+        summary = otpPurpose
+          ? `${otpPurpose}: ${verificationCode} — tap to copy`
+          : `Code: ${verificationCode} — tap to copy`;
       }
-      routeNote = ai.reason ?? '';
-      proposedMeetingStart = ai.proposed_meeting_start;
-      schedulingNote = ai.scheduling_note ?? '';
-      const bodySnippet = snippet(bodyText, 2000);
-      const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
-      const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
-      const mentionsScheduling =
-        schedulingNote ||
-        mentionsNextWeek ||
-        /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary);
-      if (!proposedMeetingStart || mentionsNextWeek) {
-        if (mentionsScheduling) {
-          const resolved = resolveProposedMeetingStart({
-            proposedMeetingStart: mentionsNextWeek ? null : proposedMeetingStart,
-            schedulingNote,
-            summary,
-            bodyText: bodySnippet,
-            receivedAt,
-          });
-          if (resolved) proposedMeetingStart = resolved;
-        }
-      }
-      const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
-      if (job && category === 'client' && ai.note_to_append?.trim()) {
-        const appended = await storeAppendWorkNote(job.slug, ai.note_to_append.trim(), {
+      routeNote = routeNote || 'Verification code — tap to copy; auto-deletes in 5 min';
+    } else if (isAuthLink) {
+      const company = await getCompanyConfig().catch(() => null);
+      authLinkPurpose = describeAuthLinkPurpose(
+        { from, subject: email.subject, text: bodyText, html: email.html },
+        company?.name,
+      );
+      summary = authLinkPurpose
+        ? `${authLinkPurpose} — tap Activate`
+        : 'Activation link — tap Activate';
+      routeNote =
+        routeNote ||
+        (authActionUrl
+          ? 'Activation link — tap Activate; email deletes after use'
+          : 'Activation link — open Email tab; auto-deletes soon');
+    } else if (
+      aiClassify.label === 'failed_payment' ||
+      looksLikeFailedOrDuePayment({
+        subject: email.subject ?? '',
+        summary,
+        bodyText,
+      })
+    ) {
+      category = 'alert';
+      action = 'failed_payment';
+      inboxStatusOverride = 'FAILED_PAYMENT';
+    }
+
+    // Job append for trusted client labels
+    if (
+      (aiClassify.label === 'client' || aiClassify.label === 'project') &&
+      applied.aiJobSlug
+    ) {
+      const job = pickJobSlug(applied.aiJobSlug, jobs, email.subject ?? '');
+      if (job && applied.aiNote?.trim()) {
+        const appended = await storeAppendWorkNote(job.slug, applied.aiNote.trim(), {
           subject: email.subject ?? '',
           from: senderEmail,
         });
@@ -522,46 +588,219 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           jobSlug = job.slug;
           jobTitle = job.title;
           action = 'filed';
+          category = 'client';
           routeNote = `Appended to job "${job.title}"`;
-        } else {
-          action = 'review';
-          routeNote = `Job match ${job.slug} but append failed: ${appended.error}`;
         }
-      } else if (job && category === 'client') {
+      } else if (job) {
         jobSlug = job.slug;
         jobTitle = job.title;
         action = 'matched';
+        category = 'client';
         routeNote = routeNote || `Matched job "${job.title}" (no note extracted)`;
-      } else if (category === 'client' && !contact) {
-        category = 'review';
-        routeNote = 'Client-like mail but sender not in contacts';
-        action = 'review';
-      } else if (category === 'junk') {
-        action = 'junk';
-      } else if (category === 'alert') {
-        action = 'alert';
-      } else if (category === 'review') {
-        action = 'review';
       }
     }
-  } else if (category === 'junk') {
-    action = 'junk';
-    summary = email.subject || 'Filtered as junk';
-  } else if (category === 'receipt') {
-    action = 'receipt';
-  } else if (contact && jobs.length === 1) {
-    category = 'client';
-    action = 'review';
-    jobSlug = jobs[0]!.slug;
-    jobTitle = jobs[0]!.title;
-    routeNote = `From known client; single open job "${jobTitle}"`;
-  } else if (contact) {
-    category = 'client';
-    action = 'review';
-    routeNote = `From known client ${contactName}`;
+
+    // Meeting resolution (same as legacy AI path)
+    const bodySnippet = snippet(bodyText, 2000);
+    const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
+    const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
+    const mentionsScheduling =
+      schedulingNote ||
+      mentionsNextWeek ||
+      /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary);
+    if ((!proposedMeetingStart || mentionsNextWeek) && mentionsScheduling) {
+      const resolved = resolveProposedMeetingStart({
+        proposedMeetingStart: mentionsNextWeek ? null : proposedMeetingStart,
+        schedulingNote,
+        summary,
+        bodyText: bodySnippet,
+        receivedAt,
+      });
+      if (resolved) proposedMeetingStart = resolved;
+    }
   } else {
-    category = category === 'alert' ? 'alert' : 'review';
-    action = category;
+    // Rules / parser path (fallback for low confidence, or known non-service contacts)
+    isVerificationCode =
+      verificationCode != null || isVerificationCodeRuleStatus(ruleResult.status);
+
+    // Require auth phrasing / AUTH_LINK rule — never URL scrape alone.
+    isAuthLink =
+      !isVerificationCode &&
+      (isAuthLinkRuleStatus(ruleResult.status) ||
+        isAuthLinkEmail({
+          from,
+          subject: email.subject,
+          text: bodyText,
+          html: email.html,
+        }));
+
+    if (isAuthLink) {
+      authActionUrl =
+        extractAuthActionUrl({
+          from,
+          subject: email.subject,
+          text: bodyText,
+          html: email.html,
+        })?.url ?? null;
+    }
+
+    if (isVerificationCode) {
+      const company = await getCompanyConfig().catch(() => null);
+      otpPurpose = describeOtpPurpose(
+        { from, subject: email.subject, text: bodyText, html: email.html },
+        company?.name,
+      );
+    }
+
+    if (isAuthLink) {
+      const company = await getCompanyConfig().catch(() => null);
+      authLinkPurpose = describeAuthLinkPurpose(
+        { from, subject: email.subject, text: bodyText, html: email.html },
+        company?.name,
+      );
+    }
+
+    if (isVerificationCode && verificationCode) {
+      summary = otpPurpose
+        ? `${otpPurpose}: ${verificationCode} — tap to copy`
+        : `Code: ${verificationCode} — tap to copy`;
+    } else if (isAuthLink) {
+      summary = authLinkPurpose
+        ? `${authLinkPurpose} — tap Activate`
+        : 'Activation link — tap Activate';
+    }
+
+    // Receipt override: DELETE must not win over a completed payment receipt.
+    if (
+      !isVerificationCode &&
+      !isAuthLink &&
+      (category === 'junk' || ruleResult.status.toUpperCase() === 'DELETE')
+    ) {
+      const earlyReceipt = shouldAutoFileAsReceipt({
+        from,
+        subject: email.subject ?? '',
+        summary,
+        bodyText,
+        bodySnippet: snippet(bodyText),
+      });
+      if (earlyReceipt) {
+        category = 'receipt';
+        action = 'receipt';
+        routeNote = earlyReceipt.routeNote;
+      }
+    }
+
+    if (isVerificationCode) {
+      category = 'otp';
+      action = 'verification_code';
+      routeNote = routeNote || 'Verification code — tap to copy; auto-deletes in 5 min';
+    } else if (isAuthLink) {
+      category = 'auth_link';
+      action = 'activation_link';
+      routeNote =
+        routeNote ||
+        (authActionUrl
+          ? 'Activation link — tap Activate; email deletes after use'
+          : 'Activation link — open Email tab; auto-deletes soon');
+    } else if (category !== 'junk' && category !== 'receipt' && aiEnabled() && !agentFirst) {
+      // Known professional/personal contacts: legacy AI triage (no confidence gate).
+      const ai = await runAiTriage(email, jobs, contactName);
+      if (ai) {
+        category = ai.category;
+        summary = ai.summary;
+        if (
+          attachments.length &&
+          /\b(no body|blank|empty|no content|no message body|no attachment details|just (a |his )?signature)\b/i.test(
+            summary,
+          ) &&
+          !/\battach/i.test(summary)
+        ) {
+          summary = attachmentSummaryFallback(attachments);
+        }
+        routeNote = ai.reason ?? '';
+        proposedMeetingStart = ai.proposed_meeting_start;
+        schedulingNote = ai.scheduling_note ?? '';
+        const bodySnippet = snippet(bodyText, 2000);
+        const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
+        const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
+        const mentionsScheduling =
+          schedulingNote ||
+          mentionsNextWeek ||
+          /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary);
+        if (!proposedMeetingStart || mentionsNextWeek) {
+          if (mentionsScheduling) {
+            const resolved = resolveProposedMeetingStart({
+              proposedMeetingStart: mentionsNextWeek ? null : proposedMeetingStart,
+              schedulingNote,
+              summary,
+              bodyText: bodySnippet,
+              receivedAt,
+            });
+            if (resolved) proposedMeetingStart = resolved;
+          }
+        }
+        const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
+        if (job && category === 'client' && ai.note_to_append?.trim()) {
+          const appended = await storeAppendWorkNote(job.slug, ai.note_to_append.trim(), {
+            subject: email.subject ?? '',
+            from: senderEmail,
+          });
+          if (appended.ok) {
+            jobSlug = job.slug;
+            jobTitle = job.title;
+            action = 'filed';
+            routeNote = `Appended to job "${job.title}"`;
+          } else {
+            action = 'review';
+            routeNote = `Job match ${job.slug} but append failed: ${appended.error}`;
+          }
+        } else if (job && category === 'client') {
+          jobSlug = job.slug;
+          jobTitle = job.title;
+          action = 'matched';
+          routeNote = routeNote || `Matched job "${job.title}" (no note extracted)`;
+        } else if (category === 'client' && !contactUid) {
+          category = 'review';
+          routeNote = 'Client-like mail but sender not in contacts';
+          action = 'review';
+        } else if (category === 'junk') {
+          action = 'junk';
+        } else if (category === 'alert') {
+          action = 'alert';
+        } else if (category === 'review') {
+          action = 'review';
+        }
+      }
+    } else if (category === 'junk') {
+      action = 'junk';
+      summary = email.subject || 'Filtered as junk';
+    } else if (category === 'receipt') {
+      action = 'receipt';
+    } else if (contactUid && jobs.length === 1) {
+      category = 'client';
+      action = 'review';
+      jobSlug = jobs[0]!.slug;
+      jobTitle = jobs[0]!.title;
+      routeNote = `From known client; single open job "${jobTitle}"`;
+    } else if (contactUid) {
+      category = 'client';
+      action = 'review';
+      routeNote = `From known client ${contactName}`;
+    } else {
+      category = category === 'alert' ? 'alert' : 'review';
+      action = category;
+    }
+
+    if (needsExplain && aiClassify) {
+      routeNote = [
+        routeNote,
+        `Low AI confidence (${Math.round(aiClassify.confidence * 100)}% on ${aiClassify.label}; need ≥${Math.round(confidenceMin * 100)}%) — rules applied`,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    } else if (needsExplain && !aiClassify) {
+      routeNote = [routeNote, 'AI classify unavailable — rules applied'].filter(Boolean).join(' · ');
+    }
   }
 
   const suppressedAsJunk =
@@ -615,8 +854,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       ? 'VERIFICATION_CODE'
       : isAuthLink
         ? 'AUTH_LINK'
-        : ruleResult.status;
+        : inboxStatusOverride || ruleResult.status;
+
+  // Late receipt auto-file — skip when agent already classified (esp. failed_payment / alert).
+  const skipLateReceipt =
+    aiTrusted &&
+    action !== 'receipt' &&
+    category !== 'receipt';
   if (
+    !skipLateReceipt &&
     !shouldSkipAutoReceipt({
       category,
       ruleStatus: ruleResult.status,
@@ -644,6 +890,17 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   // (ruleResult.status would still be DELETE without this correction).
   if (category === 'receipt' && action === 'receipt' && inboxStatus.toUpperCase() === 'DELETE') {
     inboxStatus = 'RECEIPT';
+  }
+
+  if (needsExplain) {
+    // Prefer review visibility over silent junk when we're unsure.
+    if (category === 'junk' && action === 'junk') {
+      category = 'review';
+      action = 'needs_explain';
+      if (inboxStatus.toUpperCase() === 'DELETE') inboxStatus = 'UNMATCHED';
+    } else if (action !== 'verification_code' && action !== 'activation_link' && action !== 'project_reply') {
+      if (action === 'classified' || action === 'junk') action = 'needs_explain';
+    }
   }
 
   if (
@@ -908,17 +1165,23 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     bodySnippet: snippet(bodyText),
   });
 
-  if (
-    inboxRecord?.id &&
-    !automationKind &&
-    !jobSlug &&
-    action !== 'project_reply' &&
-    action !== 'junk' &&
-    action !== 'receipt' &&
-    category !== 'junk' &&
-    category !== 'receipt' &&
-    !paymentNotification
-  ) {
+  const blockAutoProject =
+    needsExplain ||
+    action === 'project_reply' ||
+    action === 'junk' ||
+    action === 'receipt' ||
+    action === 'failed_payment' ||
+    action === 'google_alert' ||
+    action === 'needs_explain' ||
+    category === 'junk' ||
+    category === 'receipt' ||
+    category === 'alert' ||
+    category === 'otp' ||
+    category === 'auth_link' ||
+    paymentNotification ||
+    (aiTrusted && aiClassify != null && aiClassify.label !== 'project' && aiClassify.label !== 'client');
+
+  if (inboxRecord?.id && !automationKind && !jobSlug && !blockAutoProject) {
     const autoProject = await tryAutoCreateProjectFromInboundEmail({
       from,
       subject: email.subject ?? '',
@@ -973,7 +1236,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const notify = shouldSendInboxPush({
     category,
     action,
-    ruleNotify: ruleResult.notify,
+    ruleNotify: ruleResult.notify || needsExplain,
     ruleStatus: ruleResult.status,
     isProjectReply,
     automationKind,
@@ -985,7 +1248,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     isUptimeRobot: isUptimeRobotEmail(email),
   });
 
-  if (inboxRecord && (notify || verificationCode || isAuthLink) && !inboxRecord.notified) {
+  if (inboxRecord && (notify || verificationCode || isAuthLink || needsExplain) && !inboxRecord.notified) {
     await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
   }
 
@@ -1015,6 +1278,18 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       kind: 'auth_link',
       urgent: true,
     }).catch((e) => console.warn('[email] auth-link push failed', e));
+  } else if (inboxRecord && needsExplain) {
+    const guess = aiClassify
+      ? `${aiClassify.label} at ${Math.round(aiClassify.confidence * 100)}%`
+      : 'rules fallback';
+    sendInboxPushNotification({
+      title: 'Uncertain email — ask agent',
+      body: `${(email.subject || summary || 'Inbound mail').slice(0, 120)} · ${guess}. Tap Explain.`,
+      tag: `triage-${inboxRecord.id}`,
+      emailId: inboxRecord.id,
+      kind: 'triage',
+      urgent: false,
+    }).catch((e) => console.warn('[email] triage push failed', e));
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`

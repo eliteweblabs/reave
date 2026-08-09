@@ -24,9 +24,9 @@ const AUTH_LINK_CONTEXT =
 const AUTH_LINK_SUBJECT =
   /\b(?:secure\s+link|magic\s+link|activation\s+link|sign[-\s]?in\s+link|login\s+link|activate\s+your|verify\s+your\s+email|confirm\s+your\s+(?:email|account)|click\s+to\s+(?:sign|log)\s*in)\b/i;
 
-/** CTA-ish anchor label text. */
+/** CTA-ish anchor label text (auth only — not "Open TikTok" / social app buttons). */
 const CTA_LABEL =
-  /^(?:\s*(?:sign\s*[- ]?in|log\s*[- ]?in|login|activate|verify|confirm|continue|get\s+started|open\s+\w+|access\s+(?:your\s+)?account|click\s+here|tap\s+here)\s*)$/i;
+  /^(?:\s*(?:sign\s*[- ]?in|log\s*[- ]?in|login|activate|verify|confirm|continue|get\s+started|access\s+(?:your\s+)?account|click\s+here|tap\s+here)\s*)$/i;
 
 const CTA_LABEL_LOOSE =
   /\b(?:sign\s*[- ]?in|log\s*[- ]?in|login|activate|verify\s+email|confirm\s+email|continue\s+to)\b/i;

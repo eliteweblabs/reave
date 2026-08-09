@@ -2747,11 +2747,21 @@ function isOtpReviewAlert(item) {
 function isAuthLinkReviewAlert(item) {
   if (!item) return false;
   if (isOtpReviewAlert(item)) return false;
+  if (isTriageExplainAlert(item)) return false;
   if (item.alertKind === 'auth_link') return true;
   if (String(item.tag || '').toLowerCase().startsWith('auth-')) return true;
   if (item.actionUrl) return true;
   if (/ready to activate/i.test(String(item.title || ''))) return true;
   if (/activation link/i.test(String(item.title || ''))) return true;
+  return false;
+}
+
+function isTriageExplainAlert(item) {
+  if (!item) return false;
+  if (item.alertKind === 'triage') return true;
+  if (String(item.tag || '').toLowerCase().startsWith('triage-')) return true;
+  if (/uncertain email/i.test(String(item.title || ''))) return true;
+  if (/ask agent/i.test(String(item.title || '')) && item.emailId) return true;
   return false;
 }
 
@@ -2931,6 +2941,36 @@ async function activateAuthLinkFromReviewAlert(item, btn) {
   await deleteOtpFromReviewAlert(item, btn);
 }
 
+async function explainUncertainEmailFromAlert(item, btn) {
+  const emailId = String(item?.emailId || '').trim();
+  if (!emailId) {
+    await dismissReviewNotification(item, btn);
+    return;
+  }
+  if (btn) btn.disabled = true;
+  try {
+    let ev = emailState.allEvents.find((e) => e.id === emailId);
+    if (!ev) ev = { id: emailId, from: item.from, subject: item.subject, summary: item.detail };
+    const full = await fetchFullEmailRecord(ev);
+    const lines = [
+      buildEmailAgentPrompt(full),
+      '',
+      'This email was low-confidence on automatic classification. Rules were applied as a fallback.',
+      'Please explain what this email is, what category it should be, and whether any automation should change.',
+    ];
+    if (full?.routeNote) lines.push('', `Current route note: ${full.routeNote}`);
+    if (full?.action) lines.push(`Current action: ${full.action}`);
+    if (full?.category) lines.push(`Current category: ${full.category}`);
+    await askAgentWithPrompt(lines.join('\n'), {
+      sourceEmailId: full.id || emailId,
+      sourceJobSlug: full.jobSlug || null,
+    });
+    await dismissReviewNotification(item, null);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function authLinkPurposeLabel(item) {
   const title = String(item?.title || '').trim();
   const stripped = title.replace(/\s*[—–-]\s*ready to activate\s*$/i, '').trim();
@@ -3017,6 +3057,17 @@ function reviewAlertCopyHtml(item) {
       : '';
     const senderHtml = sender ? `<p class="admin-otp-sender">${escHtml(sender)}</p>` : '';
     return `<strong>${headline}</strong>${bodyHtml}${senderHtml}${countdownHtml}`;
+  }
+  if (isTriageExplainAlert(item)) {
+    const when = formatReviewAlertWhen(item.receivedAt);
+    const sender = item.from ? senderLabelForReviewAlert(item.from, item.contactName) : '';
+    const headline = when
+      ? `${escHtml(when)} · Uncertain classification`
+      : 'Uncertain classification';
+    const body = String(item.detail || item.summary || item.subject || '').trim();
+    const bodyHtml = body ? `<p>${escHtml(body)}</p>` : `<p>Tap Explain to ask the agent</p>`;
+    const senderHtml = sender ? `<p class="admin-otp-sender">${escHtml(sender)}</p>` : '';
+    return `<strong>${headline}</strong>${bodyHtml}${senderHtml}`;
   }
   const when = formatReviewAlertWhen(item.receivedAt);
   const { headline, body } = reviewAlertDisplayCopy(item);
@@ -3947,6 +3998,7 @@ function isAuditPushAlert(item) {
 function reviewAlertTone(item) {
   if (isReceiptExpenseNotification(item)) return 'receipt';
   if (isOtpReviewAlert(item) || isAuthLinkReviewAlert(item)) return 'otp';
+  if (isTriageExplainAlert(item)) return 'alert';
   if (isAuditPushAlert(item)) return 'audit';
   const type = item?.type;
   if (type === 'meeting_conflict') return 'meeting-conflict';
@@ -4158,6 +4210,7 @@ function buildReviewAlertBanner(item) {
   const isPushAlert = item.type === 'push_alert';
   const isOtp = isOtpReviewAlert(item);
   const isAuthLink = isAuthLinkReviewAlert(item);
+  const isTriageExplain = isTriageExplainAlert(item);
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
 
   const actions = [];
@@ -4197,6 +4250,20 @@ function buildReviewAlertBanner(item) {
     actions.push({
       label: 'Delete',
       onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
+    });
+  } else if (isTriageExplain) {
+    actions.push({
+      label: 'Explain',
+      primary: true,
+      onClick: (btn) => void explainUncertainEmailFromAlert(item, btn),
+    });
+    actions.push({
+      label: 'View',
+      onClick: () => openReviewNotificationTarget(item),
+    });
+    actions.push({
+      label: 'Archive',
+      onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
     });
   } else if (isPushAlert) {
     actions.push({

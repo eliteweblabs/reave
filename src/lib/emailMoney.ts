@@ -60,6 +60,10 @@ export function formatUsdAmount(amount: number): string {
 const NEWSLETTER_RECEIVED_BOILERPLATE =
   /\byou\s+received\s+this\s+(?:email|message|notification)\s+because\b/i;
 
+/** Payment due / failed / Capital — alerts, not tax receipts. */
+const FAILED_OR_DUE_PAYMENT =
+  /\b(?:failed\s+payment|payment\s+(?:failed|declined)|outstanding\s+balance|upcoming\s+(?:minimum\s+)?payment|minimum\s+payment(?:\s+requirement)?|past\s+due|amount\s+due|currently\s+due|balance\s+(?:currently\s+)?due|capital\s+(?:loan|minimum|repayment)|loan\s+repayment|we\s+will\s+debit)\b/i;
+
 /** Payment/receipt language — used with a detected dollar amount to auto-file tax receipts. */
 const RECEIPT_HINT =
   /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|payment\s+of|received\s+a\s+payment|you\s+(?:just\s+)?received\s+a\s+payment|amount\s+paid|you\s+paid|billing\s+statement|your\s+receipt\s+from|your\s+invoice\s+from)\b/i;
@@ -71,7 +75,26 @@ const STRONG_RECEIPT_HINT =
 const PAYMENT_PROCESSOR_FROM =
   /@(?:[\w.-]+\.)?(?:stripe|paypal|squareup|square|cash\.app)\.com\b/i;
 
-/** Stripe/PayPal/Square payment notifications — not client work requests. */
+function paymentEmailText(ev: {
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): string {
+  return [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+}
+
+/** True when language is about money owed / failed — never auto-file as receipt. */
+export function looksLikeFailedOrDuePayment(ev: {
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): boolean {
+  return FAILED_OR_DUE_PAYMENT.test(paymentEmailText(ev));
+}
+
+/** Stripe/PayPal/Square completed-payment notifications — not dues or client work. */
 export function looksLikePaymentNotification(ev: {
   from?: string;
   subject?: string;
@@ -79,11 +102,15 @@ export function looksLikePaymentNotification(ev: {
   bodySnippet?: string;
   bodyText?: string;
 }): boolean {
-  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) return true;
-  const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+  const text = paymentEmailText(ev);
   if (!text.trim()) return false;
-  // Stripe dashboard subject: "Payment of $200.00 from Joel Williams for Eliteweblabs"
-  if (/\bpayment\s+of\s+\$/i.test(text)) return true;
+  if (FAILED_OR_DUE_PAYMENT.test(text)) return false;
+  // Completed payment subjects: "Payment of $200.00 from …"
+  if (/\bpayment\s+of\s+\$/i.test(text) && !FAILED_OR_DUE_PAYMENT.test(text)) return true;
+  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) {
+    // Processor domain alone is not enough (Stripe Capital / failed charges).
+    return STRONG_RECEIPT_HINT.test(text);
+  }
   const amount = extractMonetaryAmountFromText(text);
   if (amount == null) return false;
   return /\b(?:received\s+a\s+payment|you\s+just\s+received|payment\s+from|sent\s+you\s+\$|money\s+(?:was\s+)?deposited)\b/i.test(
@@ -99,7 +126,8 @@ export function shouldAutoFileAsReceipt(ev: {
   bodySnippet?: string;
   bodyText?: string;
 }): { amount: number; routeNote: string } | null {
-  const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+  const text = paymentEmailText(ev);
+  if (FAILED_OR_DUE_PAYMENT.test(text)) return null;
   const amount = extractMonetaryAmountFromText(text);
   if (amount == null) return null;
   if (looksLikePaymentNotification(ev)) {

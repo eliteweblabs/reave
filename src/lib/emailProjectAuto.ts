@@ -27,8 +27,11 @@ export function looksLikeNewWorkRequest(input: {
   bodyText?: string;
 }): boolean {
   if (looksLikePaymentNotification(input)) return false;
+  const from = (input.from ?? '').toLowerCase();
+  if (/alerts\.google\.com|googlealerts-noreply@|@google\.com\b/.test(from)) return false;
   const blob = [input.subject, input.summary, input.bodyText].join(' ').toLowerCase();
   if (!blob.trim()) return false;
+  if (/\bgoogle\s+alert/.test(blob) || /\bas-it-happens\b/.test(blob)) return false;
   if (/\b(meet(ing)?|schedule|calendar|appointment|get together)\b/.test(blob) &&
       /\b(\d{1,2}(:\d{2})?\s*(am|pm)|monday|tuesday|wednesday|thursday|friday)\b/i.test(blob)) {
     return false;
