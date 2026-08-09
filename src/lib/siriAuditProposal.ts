@@ -55,6 +55,11 @@ export type AuditProposalResult =
 export type AuditProposalOptions = {
   /** Label used in the agent prompt (defaults to "Siri shortcut"). */
   triggerLabel?: string;
+  /**
+   * Owner-initiated Siri Shortcuts may run research + completion push during
+   * sleep mode. Public Digital Audit form submissions stay blocked overnight.
+   */
+  bypassSleepMode?: boolean;
 };
 
 function pickBusiness(params: AuditProposalParams): string {
@@ -122,6 +127,7 @@ export async function startAuditProposal(
     jobSlug: stub.slug,
     userId,
     triggerLabel: options.triggerLabel || 'Siri shortcut',
+    bypassSleepMode: options.bypassSleepMode === true,
   }).catch((e) => {
     log.error('background research failed', e instanceof Error ? e : new Error(String(e)));
   });
@@ -157,6 +163,7 @@ async function runProposalResearch(input: {
   jobSlug: string;
   userId: string | null;
   triggerLabel: string;
+  bypassSleepMode: boolean;
 }): Promise<void> {
   const givenLines = [
     input.business ? `Business name: ${input.business}` : null,
@@ -223,7 +230,10 @@ async function runProposalResearch(input: {
 
   const researchStartedAt = Date.now();
   const threadId = siriAuditThreadId(input.jobSlug);
-  const agentContext = input.userId ? { userId: input.userId, threadId } : {};
+  const agentContext = {
+    ...(input.userId ? { userId: input.userId, threadId } : {}),
+    ...(input.bypassSleepMode ? { bypassSleepMode: true } : {}),
+  };
 
   let reply: string;
   try {
@@ -249,6 +259,7 @@ async function runProposalResearch(input: {
     jobSlug: input.jobSlug,
     tier: input.tier,
     researchStartedAt,
+    bypassQuietHours: input.bypassSleepMode,
   }).catch((e) =>
     log.warn('proposal notify failed', {
       err: e instanceof Error ? e.message : String(e),

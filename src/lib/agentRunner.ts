@@ -633,7 +633,7 @@ async function runKnowledgeAgentInner(
   },
   stream?: AgentStreamCallbacks,
 ): Promise<AgentRunResult> {
-  if (await isSleepModeActive()) {
+  if (await isSleepModeActive() && !getAgentContext().bypassSleepMode) {
     // Must await — sleepModeBlockMessage is async; returning the Promise as
     // `text` makes settle() throw on `.trim()` and the client reconciles the
     // turn as a mysterious "interrupted" failure instead of the sleep notice.

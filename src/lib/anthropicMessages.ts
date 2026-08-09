@@ -1,5 +1,6 @@
 import { serverEnv } from './serverEnv';
 import { renderButton } from './chatResponseRenderer';
+import { getAgentContext } from './agentContext';
 import { isSleepModeActive } from './pushQuietHours';
 
 export type AnthropicCacheControl = { type: 'ephemeral'; ttl?: '5m' | '1h' };
@@ -147,7 +148,7 @@ export async function createAnthropicMessage(
   if (!apiKey) {
     return { ok: false, status: 0, text: 'ANTHROPIC_API_KEY not set' };
   }
-  if (await isSleepModeActive()) {
+  if ((await isSleepModeActive()) && !getAgentContext().bypassSleepMode) {
     return { ok: false, status: 0, text: 'sleep_mode' };
   }
 
@@ -218,7 +219,7 @@ export async function streamAnthropicMessage(
   if (!apiKey) {
     return { ok: false, status: 0, text: 'ANTHROPIC_API_KEY not set' };
   }
-  if (await isSleepModeActive()) {
+  if ((await isSleepModeActive()) && !getAgentContext().bypassSleepMode) {
     return { ok: false, status: 0, text: 'sleep_mode' };
   }
 

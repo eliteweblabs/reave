@@ -2,6 +2,10 @@
  * Scheduled quiet hours ("sleep mode") — pause push, inbound email triage,
  * Anthropic API calls, system-alert agent runs, and other automated processing
  * during the configured window (default 11 PM–7 AM).
+ *
+ * Owner-initiated Siri Shortcuts set AgentRunContext.bypassSleepMode so audit
+ * research and related Claude calls still run; completion push uses
+ * bypassQuietHours. Automated overnight work stays blocked.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';

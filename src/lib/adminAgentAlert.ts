@@ -118,6 +118,8 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   jobSlug?: string | null;
   tier?: 'quick' | 'full';
   researchStartedAt?: number;
+  /** Deliver completion push even during sleep mode (Siri-initiated audits). */
+  bypassQuietHours?: boolean;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
@@ -142,6 +144,7 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
     body: detail,
     tag: `siri-proposal-${slug ?? opts.label}`,
     url: deepLinkUrl,
+    bypassQuietHours: opts.bypassQuietHours === true,
   }).catch((e) => log.warn('siri audit push failed', e));
 }
 
