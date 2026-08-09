@@ -167,10 +167,10 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
           </svg>
           <div class="opd-ring-center">
             {report.overallScore != null ? (
-              <>
+              <span class="opd-ring-scoreline">
                 <span class="opd-ring-score">{report.overallScore}</span>
                 <span class="opd-ring-over">/ 100</span>
-              </>
+              </span>
             ) : null}
             <span class={`opd-ring-grade ${gradeClass(report.overall)}`}>
               {gradeLabel(report.overall)}
@@ -515,14 +515,20 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     align-items: center;
     line-height: 1.05;
   }
-  .opd-ring-score {
-    font-family: var(--opd-display);
-    font-size: 2rem;
-    font-weight: 700;
-  }
-  .opd-ring-over {
+  .opd-ring-scoreline {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.2em;
     font-family: var(--opd-mono);
     font-size: 11px;
+    line-height: 1;
+  }
+  .opd-ring-score {
+    font-weight: 700;
+    color: var(--opd-text);
+  }
+  .opd-ring-over {
+    font-weight: 500;
     color: var(--opd-muted);
   }
   .opd-ring-grade {
