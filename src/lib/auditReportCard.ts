@@ -761,6 +761,127 @@ function domainGradeFromText(text: string): {
   return { grade: 'C', summary: 'Domain notes on file', why };
 }
 
+/** Hosting company + tier notes from dns_check IP lookup writeups. */
+function hostingGradeFromText(text: string): {
+  grade: LetterGrade | null;
+  summary: string;
+  why: string[];
+  score: number | null;
+  unavailable?: boolean;
+} {
+  const why = bulletsFromSection(text).slice(0, 5);
+  if (!text.trim()) {
+    return {
+      grade: null,
+      summary: 'Not scored in this audit',
+      why: ['Hosting was not detailed in the audit notes.'],
+      score: null,
+      unavailable: true,
+    };
+  }
+  const lower = text.toLowerCase();
+
+  // Explicit grade hint from dns_check / playbook lines
+  const hint = lower.match(/hosting grade(?:\s*hint)?\s*[:=]\s*([a-f])/i);
+  const managedWp =
+    /flywheel|kinsta|wp\s*engine|pressable|managed wordpress|hosting score\s*100/.test(lower);
+  const sharedBudget =
+    /godaddy|blue ?host|hostgator|hostinger|siteground|dreamhost|shared(?:\/budget)? hosting|server resource issue/.test(
+      lower,
+    );
+  const cloudPaas = /vercel|netlify|railway|render\.com|heroku|cloud\/paas/.test(lower);
+
+  if (
+    hint?.[1] === 'a' ||
+    /hosting score\s*100|setup looks solid|appropriate hosting|managed wordpress —/.test(lower)
+  ) {
+    return {
+      grade: 'A',
+      summary: managedWp
+        ? 'Managed WordPress hosting looks solid'
+        : 'Reliable hosting setup',
+      why: why.length ? why : ['Hosting company and setup look appropriate.'],
+      // 100 stays A after alignScoreAndGrade (≥90)
+      score: /hosting score\s*100|setup looks solid/.test(lower) ? 100 : gradeToScore('A'),
+    };
+  }
+  if (hint?.[1] === 'b' || (cloudPaas && !sharedBudget)) {
+    return {
+      grade: 'B',
+      summary: 'Capable hosting',
+      why: why.length ? why : ['Hosting looks capable for this site.'],
+      score: gradeToScore('B'),
+    };
+  }
+  if (
+    hint?.[1] === 'd' ||
+    hint?.[1] === 'f' ||
+    /server resource issue|underpowered|shared\/budget hosting/.test(lower) ||
+    (sharedBudget && /slow|poor|crappy|resource/.test(lower))
+  ) {
+    const grade: LetterGrade = hint?.[1] === 'f' ? 'F' : 'D';
+    return {
+      grade,
+      summary: sharedBudget
+        ? 'Shared hosting likely limiting speed'
+        : 'Hosting needs attention',
+      why: why.length
+        ? why
+        : ['Budget/shared hosting can throttle a clean site — treat slow scores as a server resource issue.'],
+      score: gradeToScore(grade),
+    };
+  }
+  if (managedWp) {
+    return {
+      grade: 'A',
+      summary: 'Managed WordPress hosting',
+      why: why.length ? why : ['On managed WordPress hosting.'],
+      score: gradeToScore('A'),
+    };
+  }
+  if (sharedBudget) {
+    return {
+      grade: 'C',
+      summary: 'Budget/shared hosting',
+      why: why.length ? why : ['On shared/budget hosting — watch for server resource limits.'],
+      score: gradeToScore('C'),
+    };
+  }
+  if (/backup|hosting|uptime|server|cloudflare/.test(lower)) {
+    if (/no (?:automated )?backup|single point of failure|hosting (?:risk|issue)/.test(lower)) {
+      return {
+        grade: 'D',
+        summary: 'Hosting / backup risk',
+        why,
+        score: gradeToScore('D'),
+      };
+    }
+    if (/backup(?:s)? (?:enabled|scheduled|running)|reliable hosting|uptime/.test(lower)) {
+      return {
+        grade: 'B',
+        summary: 'Hosting looks reliable',
+        why,
+        score: gradeToScore('B'),
+      };
+    }
+    {
+      const g = ((hint?.[1]?.toUpperCase() || 'C') as LetterGrade);
+      return {
+        grade: g,
+        summary: 'Hosting noted',
+        why,
+        score: gradeToScore(g),
+      };
+    }
+  }
+  return {
+    grade: 'C',
+    summary: 'Hosting notes on file',
+    why,
+    score: gradeToScore('C'),
+  };
+}
+
 /** Soften technical jargon into money-relevant plain language for clients. */
 function plainLanguage(line: string, clientName = ''): string {
   const name = clientName.trim();
@@ -903,11 +1024,19 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     categoryId: 'performance',
     categoryLabel: 'Site Speed',
     maxRank: 3,
-    problem: (cat) =>
-      cat.score != null
+    problem: (cat) => {
+      const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
+      if (/server resource issue|shared hosting|godaddy|blue ?host/.test(blob)) {
+        return cat.score != null
+          ? `The site scores ${cat.score}/100 on speed — the build looks lean, so the server/hosting is the bottleneck.`
+          : 'The site feels slow even though the front-end build looks clean — likely a server resource issue.';
+      }
+      return cat.score != null
         ? `The site scores ${cat.score}/100 on speed — people on phones will leave before it loads.`
-        : 'The site feels slow, especially on phones.',
-    solution: 'Speed fix: compress images, cut heavy scripts, and tune hosting so pages open fast.',
+        : 'The site feels slow, especially on phones.';
+    },
+    solution:
+      'Speed fix: compress images, cut heavy scripts, and move off underpowered shared hosting when the build is already clean.',
   },
   {
     id: 'a11y-access',
@@ -1026,8 +1155,15 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     categoryId: 'hosting',
     categoryLabel: 'Hosting',
     maxRank: 3,
-    problem: () => 'No clear backup plan — a hosting glitch could take the site offline for good.',
-    solution: 'Hosting & automated backups so recovery is measured in minutes, not days.',
+    problem: (cat) => {
+      const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
+      if (/server resource issue|godaddy|blue ?host|shared\/budget|underpowered/.test(blob)) {
+        return 'The site is on budget/shared hosting that is likely throttling speed even when the files are light.';
+      }
+      return 'No clear backup plan — a hosting glitch could take the site offline for good.';
+    },
+    solution:
+      'Move to managed WordPress hosting (Flywheel / Kinsta / WP Engine) with automated backups so speed and recovery both improve.',
   },
   {
     id: 'broken-links',
@@ -1739,15 +1875,25 @@ export function buildAuditReportCard(input: {
         clientName,
       );
     })(),
-    scoreCategory(
-      'performance',
-      perfScore,
-      perfSection,
-      perfSection.trim() || perfScore != null ? 'C' : null,
-      'Not scored in this audit',
-      undefined,
-      clientName,
-    ),
+    (() => {
+      const hostBlob = `${hostingSection}\n${body}`;
+      const resourceIssue =
+        /server resource issue|shared\/budget hosting|underpowered/.test(hostBlob) &&
+        /godaddy|blue\s*host|hostgator|hostinger|siteground|shared hosting/i.test(hostBlob);
+      const perfBody =
+        resourceIssue && !/server resource issue/i.test(perfSection)
+          ? `${perfSection}\n- Clean build but slow — likely server resource issue on current hosting.`
+          : perfSection;
+      return scoreCategory(
+        'performance',
+        perfScore,
+        perfBody,
+        perfBody.trim() || perfScore != null ? 'C' : null,
+        'Not scored in this audit',
+        undefined,
+        clientName,
+      );
+    })(),
     scoreCategory(
       'mobile',
       null,
@@ -1796,12 +1942,45 @@ export function buildAuditReportCard(input: {
       undefined,
       clientName,
     ),
-    heuristicSection('hosting', hostingSection, {
-      bad: /no (?:automated )?backup|single point of failure|no uptime|hosting (?:risk|issue)/i,
-      good: /backup(?:s)? (?:enabled|scheduled|running)|uptime|redundant|reliable hosting/i,
-      present: /backup|hosting|uptime|server/i,
-      emptySummary: 'Not scored in this audit',
-    }),
+    (() => {
+      const hostingCorpus =
+        hostingSection.trim() ||
+        body
+          .split('\n')
+          .filter((l) =>
+            /hosting|flywheel|kinsta|wp\s*engine|godaddy|blue\s*host|server resource|backup|uptime/i.test(
+              l,
+            ),
+          )
+          .join('\n');
+      const hosting = hostingGradeFromText(hostingCorpus);
+      const meta = CATEGORY_BY_ID.get('hosting')!;
+      if (hosting.unavailable || hosting.grade == null) {
+        return heuristicSection('hosting', hostingSection, {
+          bad: /no (?:automated )?backup|single point of failure|no uptime|hosting (?:risk|issue)|server resource issue/i,
+          good: /backup(?:s)? (?:enabled|scheduled|running)|uptime|redundant|reliable hosting|hosting score\s*100|managed wordpress/i,
+          present: /backup|hosting|uptime|server|flywheel|kinsta|godaddy|blue\s*host/i,
+          emptySummary: 'Not scored in this audit',
+          goodGrade: 'A',
+          badGrade: 'D',
+        });
+      }
+      const why = hosting.why.length
+        ? clientFriendlyBullets(hosting.why, 4, clientName)
+        : ['Hosting notes from the audit.'];
+      return {
+        id: 'hosting' as const,
+        label: meta.label,
+        icon: meta.icon,
+        source: 'dns_check IP → hosting company · backup signals',
+        summary: hosting.summary,
+        finding: hosting.summary,
+        grade: hosting.grade,
+        score: hosting.score,
+        why,
+        unavailable: false,
+      };
+    })(),
     heuristicSection('broken_links', linksSection, {
       bad: /broken link|404|dead link|crawl (?:error|fail)|not crawled/i,
       good: /no broken|0 broken|links (?:look |are )?healthy|crawl clean/i,

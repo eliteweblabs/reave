@@ -404,7 +404,7 @@ export const siteAuditsModule: AgentToolModule = {
               function: {
                 name: 'dns_check',
                 description:
-                  'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, and A-record propagation across public resolvers. Read-only — does not change Cloudflare.',
+                  'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, A-record propagation, and hosting-company lookup from A-record IPs (PTR + ASN/org — e.g. Flywheel vs GoDaddy/Bluehost) with a hosting grade hint. Read-only — does not change Cloudflare.',
                 parameters: {
                   type: 'object',
                   properties: {

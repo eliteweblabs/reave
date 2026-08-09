@@ -47,7 +47,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
 | `ssl_check` | Certificate expiry, TLS, security headers (CSP, HSTS, X-Frame-Options, etc.) |
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
-| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS (public resolvers — can lag after NS changes) |
+| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** (public resolvers — can lag after NS changes) |
 | `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
 | `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
 | `playwright_audit` | Real-browser UX/UI (Playwright / Chromium): nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
@@ -128,6 +128,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Technology Stack
 - {CMS, hosting, analytics from detect_tech_stack}
+- Prefer `dns_check.hosting.company` when header fingerprints miss the host (common behind Cloudflare)
 
 ### SSL & Security
 - SSL: {valid, issuer, expiry}
@@ -135,6 +136,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Domain & IP Reputation
 - {Safe Browsing / blocklist / IP reputation signals, or "No reputation flags found"}
+- IP / ASN org from `dns_check.hosting` when useful for reputation context
 
 ### Broken Links & Crawl Health
 - {From check_links — or "Homepage only; no crawlable nav" if applicable}
@@ -166,10 +168,18 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - {From Playwright UX — layout, tap targets, overflow on phones}
 
 ### Backup & Hosting Reliability
+Always write structured hosting lines from `dns_check.hosting` (the client portal grades this section):
+- Hosting: {company} ({tier}, confidence {high|medium|low})
+- Hosting grade hint: {A|B|C|D} — {rating.note}
 - {Backup / uptime / single-hosting risk if observable}
 
+**Rating rules (use these exact phrases when they apply):**
+- **Managed WordPress (Flywheel / Kinsta / WP Engine / Pressable)** + clean build + strong Lighthouse → Hosting grade A / hosting score 100. Example: `Flywheel managed WordPress — setup looks solid (hosting score 100).`
+- **Shared/budget (GoDaddy / Bluehost / HostGator / Hostinger / SiteGround)** + lean page weight (no huge unused-JS / image bloat) + **poor** Lighthouse performance → call it a **server resource issue**, not a front-end problem. Example: `GoDaddy shared hosting + clean build + slow mobile — likely server resource issue.`
+- When `attribute_slow_speed_to_resources` is true, repeat that server-resource note under Performance as well.
+
 ### DNS & Email
-- Domain renewal window if known; {A records, host, MX provider}
+- Domain renewal window if known; {A records, hosting company from dns_check, MX provider}
 - Email deliverability: {SPF/DKIM/DMARC status from dns_check} in plain language
 - If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
 

@@ -45,7 +45,7 @@ Run these in parallel when possible:
 | `seo_inventory` | **Required** — og:image, Twitter cards, favicon, manifest, robots.txt, sitemap, canonical, meta robots, JSON-LD + Problem → Impact pitches |
 | `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
-| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
+| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** |
 | `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts |
 
 **Do not run in quick tier:** `playwright_audit`, `check_links`, `detect_tech_stack` (save for full audit).
@@ -121,13 +121,20 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - Layout on phones from fetch_url (quick tier — no Playwright; full audit adds Playwright Chromium checks)
 
 ### Backup & Hosting Reliability
-- Backup / uptime signals if observable — else "Not verified — quick tier"
+Write from `dns_check.hosting` even on the quick tier (IP lookup is part of dns_check):
+- Hosting: {company} ({tier}, confidence {high|medium|low})
+- Hosting grade hint: {A|B|C|D} — {rating.note}
+- Backup / uptime signals if observable — else note backups not verified on quick tier
+
+**Rating rules:**
+- Flywheel / Kinsta / WP Engine + clean setup → Hosting grade A (hosting score 100 when everything looks solid)
+- GoDaddy / Bluehost / similar shared host + clean build + poor Lighthouse speed → **server resource issue** (say so under Performance too)
 
 ### Broken Links & Crawl Health
 - Not crawled — quick audit tier
 
 ### DNS & Email
-- Domain renewal if known; A/MX records; SPF/DKIM/DMARC gaps in plain language
+- Domain renewal if known; A/MX records; hosting company; SPF/DKIM/DMARC gaps in plain language
 
 ### Online Presence
 Write one bullet per channel (the client portal rolls Google / Apple / Yelp directories into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
