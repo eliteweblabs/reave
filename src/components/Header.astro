@@ -268,6 +268,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 {userId && (
   <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
+<script is:inline src={`/proximity-tooltip.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 <script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <script>
@@ -963,47 +964,38 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     }
   }
 
-  [data-tooltip].topbar-deploy-dot {
-    position: relative;
+  /* Deploy tip uses /proximity-tooltip.js — keep near the bulb, in-viewport. */
+  [data-tooltip].topbar-deploy-dot::after {
+    content: none !important;
+    display: none !important;
   }
 
-  [data-tooltip].topbar-deploy-dot::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: calc(100% + 6px);
-    left: auto;
-    right: 0;
-    /* Right-anchored: grows left across the open header space. */
-    width: max-content;
-    max-width: min(calc(100vw - 2.5rem), 40rem);
-    white-space: pre-line;
-    text-align: left;
-    line-height: 1.35;
+  .proximity-tooltip {
+    position: fixed;
+    z-index: 10050;
+    max-width: min(18rem, calc(100vw - 1.25rem));
+    white-space: nowrap;
     background: var(--tooltip-bg, rgba(15, 23, 42, 0.96));
     border: 1px solid var(--tooltip-border, rgba(255, 255, 255, 0.12));
     color: var(--tooltip-fg, #e9eef6);
     font-size: 0.68rem;
     font-family: ui-sans-serif, system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
+    padding: 3px 8px;
+    border-radius: 5px;
+    pointer-events: none;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+  .proximity-tooltip[hidden] { display: none !important; }
+  .proximity-tooltip--multiline,
+  .proximity-tooltip--deploy {
+    white-space: pre-line;
+    text-align: left;
+    line-height: 1.35;
     padding: 0.4rem 0.65rem;
     border-radius: 6px;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transform-origin: right top;
-    transform: translateX(0.65rem);
-    transition:
-      opacity 0.18s ease,
-      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      visibility 0.22s;
-    z-index: 9999;
-  }
-
-  [data-tooltip].topbar-deploy-dot:hover::after,
-  [data-tooltip].topbar-deploy-dot.tooltip-open::after {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(0);
+    max-width: min(22rem, calc(100vw - 1.25rem));
   }
 
   .topbar-profile-btn svg {

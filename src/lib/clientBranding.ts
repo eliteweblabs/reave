@@ -1,6 +1,9 @@
 /**
  * Client portal logo/icon uploads — stored in contact portal metadata,
  * served from /api/clients/:uid/logo and /api/clients/:uid/icon.
+ *
+ * Website-scraped logos also resolve through the serve path so contrast
+ * adaptation (mostly-black → white on dark portal) can run centrally.
  */
 import {
   contactStringField,
@@ -11,6 +14,21 @@ import {
 } from './contactApi';
 import { refreshPortalBrandColors } from './portalBrandColors';
 
+const LOGO_FETCH_TIMEOUT_MS = 8_000;
+
+/** Only allow remote http(s) image URLs when hydrating scraped logos. */
+function safeRemoteLogoUrl(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  try {
+    const url = new URL(t);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function clientLogoServePath(uid: string): string {
   return `/api/clients/${encodeURIComponent(uid.trim())}/logo`;
 }
@@ -19,24 +37,54 @@ export function clientIconServePath(uid: string): string {
   return `/api/clients/${encodeURIComponent(uid.trim())}/icon`;
 }
 
-export function resolveClientLogoUrl(portal: ClientPortal | null | undefined, uid: string): string {
-  if (!portal) return '';
-  if (portal.logoSource === 'upload') {
-    const v = portal.updatedAt ? `?v=${encodeURIComponent(portal.updatedAt)}` : '';
-    return `${clientLogoServePath(uid)}${v}`;
-  }
-  return contactStringField(portal.logoUrl) || '';
+export type ClientLogoServeOpts = {
+  /**
+   * Contrast adaptation for the surface the logo will sit on.
+   * Portal / admin chrome is dark — default `dark` flips mostly-black ink to white.
+   * Pass `raw` for light contexts (email signatures) that need the original bytes.
+   */
+  bg?: 'dark' | 'light' | 'raw';
+};
+
+function brandingServeQuery(updatedAt?: string, bg: ClientLogoServeOpts['bg'] = 'dark'): string {
+  const q = new URLSearchParams();
+  if (updatedAt) q.set('v', updatedAt);
+  // API defaults to raw; portal/admin callers opt into adaptation explicitly.
+  if (bg && bg !== 'raw') q.set('bg', bg);
+  const s = q.toString();
+  return s ? `?${s}` : '';
 }
 
-export function resolveClientIconUrl(portal: ClientPortal | null | undefined, uid: string): string {
+export function resolveClientLogoUrl(
+  portal: ClientPortal | null | undefined,
+  uid: string,
+  opts?: ClientLogoServeOpts,
+): string {
   if (!portal) return '';
+  const bg = opts?.bg ?? 'dark';
+  if (portal.logoSource === 'upload') {
+    return `${clientLogoServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
+  }
+  // Route remote/scraped logos through our API so dark-bg contrast adapt can run.
+  if (contactStringField(portal.logoUrl)) {
+    return `${clientLogoServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
+  }
+  return '';
+}
+
+export function resolveClientIconUrl(
+  portal: ClientPortal | null | undefined,
+  uid: string,
+  opts?: ClientLogoServeOpts,
+): string {
+  if (!portal) return '';
+  const bg = opts?.bg ?? 'dark';
   if (portal.iconSource === 'upload') {
-    const v = portal.updatedAt ? `?v=${encodeURIComponent(portal.updatedAt)}` : '';
-    return `${clientIconServePath(uid)}${v}`;
+    return `${clientIconServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
   }
   const iconUrl = contactStringField(portal.iconUrl);
   if (iconUrl) return iconUrl;
-  return resolveClientLogoUrl(portal, uid);
+  return resolveClientLogoUrl(portal, uid, { bg });
 }
 
 export type ClientBrandingBlob = {
@@ -44,16 +92,69 @@ export type ClientBrandingBlob = {
   mediaType: string;
 };
 
+async function fetchRemoteBrandingBuffer(url: string): Promise<Buffer | null> {
+  const remote = safeRemoteLogoUrl(url);
+  if (!remote) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOGO_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(remote, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { Accept: 'image/*,*/*;q=0.8' },
+    });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length > 0 ? buf : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function guessImageMediaType(buf: Buffer, fallback = 'image/png'): string {
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return 'image/png';
+  }
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buf.length >= 12 &&
+    buf.toString('ascii', 0, 4) === 'RIFF' &&
+    buf.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  if (buf.length >= 5 && buf.toString('ascii', 0, 5) === '<?xml') return 'image/svg+xml';
+  if (buf.length >= 4 && buf.toString('ascii', 0, 4) === '<svg') return 'image/svg+xml';
+  return fallback;
+}
+
 export async function getClientPortalLogoBlob(
   uid: string,
 ): Promise<(ClientBrandingBlob & { updatedAt?: string }) | null> {
   const res = await getContact(uid);
   if (!res.ok) return null;
   const portal = extractPortal(res.data);
-  if (portal?.logoSource !== 'upload' || !portal.logoData || !portal.logoMediaType) return null;
+  if (!portal) return null;
+
+  if (portal.logoSource === 'upload' && portal.logoData && portal.logoMediaType) {
+    return {
+      dataBase64: portal.logoData,
+      mediaType: portal.logoMediaType,
+      updatedAt: portal.updatedAt,
+    };
+  }
+
+  const remoteUrl = contactStringField(portal.logoUrl);
+  if (!remoteUrl || remoteUrl.startsWith('/api/clients/')) return null;
+  const buf = await fetchRemoteBrandingBuffer(remoteUrl);
+  if (!buf) return null;
   return {
-    dataBase64: portal.logoData,
-    mediaType: portal.logoMediaType,
+    dataBase64: buf.toString('base64'),
+    mediaType: guessImageMediaType(buf),
     updatedAt: portal.updatedAt,
   };
 }
@@ -93,7 +194,13 @@ export async function setClientPortalLogo(
 
   void refreshPortalBrandColors(uid);
 
-  return { ok: true, logoUrl: `${clientLogoServePath(uid)}?v=${encodeURIComponent(updatedAt)}` };
+  return {
+    ok: true,
+    logoUrl: resolveClientLogoUrl(
+      { logoSource: 'upload', updatedAt },
+      uid,
+    ),
+  };
 }
 
 export async function clearClientPortalLogo(

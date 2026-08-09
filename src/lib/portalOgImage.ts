@@ -13,6 +13,7 @@ import {
   resolveClientLogoUrl,
 } from './clientBranding';
 import { enrichClientPortalBrand } from './clientBrand';
+import { adaptLogoContrast } from './logoContrastAdapt';
 
 export const PORTAL_OG_WIDTH = 1200;
 export const PORTAL_OG_HEIGHT = 630;
@@ -168,7 +169,11 @@ async function composeLogoPng(logoBuf: Buffer): Promise<Buffer | null> {
     const innerW = Math.round(PORTAL_OG_WIDTH * (1 - OG_LOGO_INSET * 2));
     const innerH = Math.round(PORTAL_OG_HEIGHT * (1 - OG_LOGO_INSET * 2));
 
-    const logo = await sharp(logoBuf)
+    // OG canvas is #0a0a0a — flip mostly-black logos to white, keep color accents.
+    const adapted = await adaptLogoContrast(logoBuf, 'dark');
+    const sourceBuf = adapted.changed ? adapted.buffer : logoBuf;
+
+    const logo = await sharp(sourceBuf)
       .rotate()
       .resize(innerW, innerH, {
         fit: 'contain',

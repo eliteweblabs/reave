@@ -751,53 +751,38 @@ select,
 }
 
 /* ── Tooltips ──
-   Default: centered below the trigger.
-   .tt-left anchors to left edge (for items near right edge of screen). */
+   Positioning is proximity-aware via /proximity-tooltip.js (fixed tip near
+   the trigger, clamped to the viewport). Keep ::after disabled so tips never
+   span unrelated header chrome. */
 [data-tooltip] { position: relative; }
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+[data-tooltip]::after { content: none !important; display: none !important; }
+
+.proximity-tooltip {
+  position: fixed;
+  z-index: 10050;
+  max-width: min(18rem, calc(100vw - 1.25rem));
   white-space: nowrap;
-  background: var(--tooltip-bg);
-  border: 1px solid var(--tooltip-border);
-  color: var(--tooltip-fg);
+  background: var(--tooltip-bg, rgba(15, 23, 42, 0.96));
+  border: 1px solid var(--tooltip-border, rgba(255, 255, 255, 0.12));
+  color: var(--tooltip-fg, #e9eef6);
   font-size: 0.68rem;
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   padding: 3px 8px;
   border-radius: 5px;
   pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.12s;
-  z-index: 9999;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
 }
-[data-tooltip]:hover::after { opacity: 1; visibility: visible; }
-[data-tooltip].tooltip-open::after { opacity: 1; visibility: visible; }
-/* Items near the right edge: right-align the tooltip */
-[data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
-/* Deploy tip: right-anchored fly-out across open header space (overrides .tt-left). */
-.topbar-deploy-dot[data-tooltip]::after {
-  width: max-content;
-  max-width: min(calc(100vw - 2.5rem), 40rem);
+.proximity-tooltip[hidden] { display: none !important; }
+.proximity-tooltip--multiline,
+.proximity-tooltip--deploy {
   white-space: pre-line;
   text-align: left;
   line-height: 1.35;
   padding: 0.4rem 0.65rem;
   border-radius: 6px;
-  transform-origin: right top;
-  transform: translateX(0.65rem);
-  transition:
-    opacity 0.18s ease,
-    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 0.22s;
-}
-.topbar-deploy-dot[data-tooltip]:hover::after,
-.topbar-deploy-dot[data-tooltip].tooltip-open::after {
-  transform: translateX(0);
+  max-width: min(22rem, calc(100vw - 1.25rem));
 }
 
 /* Tabs — scroll wrapper keeps items from overlapping the right cluster */

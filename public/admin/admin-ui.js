@@ -1249,6 +1249,8 @@ export function initSidebarLayout() {
 
 const LIST_LONG_PRESS_MS = 500;
 const LIST_LONG_PRESS_SLOP = 10;
+/** Keep in sync with `.list-selection-bar` transition in editor.css */
+const LIST_SELECTION_BAR_MS = 500;
 
 /** @type {WeakMap<HTMLElement, object>} */
 const listSelectionControllers = new WeakMap();
@@ -1269,6 +1271,10 @@ function createListSelectionController(listEl, opts) {
   let archiveBtn = null;
   /** @type {HTMLButtonElement | null} */
   let deleteBtn = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let hideToolbarTimer = null;
+  /** Pixel height captured before the subheader collapses (for a true 0.5s slide). */
+  let stashedSubheaderHeight = 0;
   const boundRows = new WeakSet();
 
   function sidebarEl() {
@@ -1301,6 +1307,95 @@ function createListSelectionController(listEl, opts) {
     });
   }
 
+  function clearHideToolbarTimer() {
+    if (hideToolbarTimer != null) {
+      clearTimeout(hideToolbarTimer);
+      hideToolbarTimer = null;
+    }
+  }
+
+  function stashSubheader(subheader, animate) {
+    subheader.hidden = false;
+    subheader.setAttribute('aria-hidden', 'true');
+    if (!subheader.classList.contains('panel-list-subheader--selection-stashed')) {
+      stashedSubheaderHeight = subheader.scrollHeight;
+    }
+    if (!animate || subheader.classList.contains('panel-list-subheader--selection-stashed')) {
+      subheader.classList.add('panel-list-subheader--selection-stashed');
+      subheader.style.maxHeight = '0px';
+      return;
+    }
+    subheader.style.maxHeight = `${stashedSubheaderHeight}px`;
+    void subheader.offsetHeight;
+    subheader.classList.add('panel-list-subheader--selection-stashed');
+    subheader.style.maxHeight = '0px';
+  }
+
+  function unstashSubheader(subheader, animate) {
+    subheader.setAttribute('aria-hidden', 'false');
+    subheader.hidden = false;
+    if (!animate) {
+      subheader.classList.remove('panel-list-subheader--selection-stashed');
+      subheader.style.maxHeight = '';
+      return;
+    }
+    const h = stashedSubheaderHeight || subheader.scrollHeight;
+    subheader.style.maxHeight = '0px';
+    subheader.classList.remove('panel-list-subheader--selection-stashed');
+    void subheader.offsetHeight;
+    subheader.style.maxHeight = `${h}px`;
+    const clearMax = () => {
+      if (!subheader.classList.contains('panel-list-subheader--selection-stashed')) {
+        subheader.style.maxHeight = '';
+      }
+    };
+    subheader.addEventListener('transitionend', clearMax, { once: true });
+    setTimeout(clearMax, LIST_SELECTION_BAR_MS + 80);
+  }
+
+  function showSelectionChrome({ animate = true } = {}) {
+    const subheader = subheaderEl();
+    ensureToolbar();
+    if (subheader) stashSubheader(subheader, animate);
+    if (!toolbar) return;
+    clearHideToolbarTimer();
+    toolbar.hidden = false;
+    toolbar.setAttribute('aria-hidden', 'false');
+    if (!animate || toolbar.classList.contains('list-selection-bar--open')) {
+      toolbar.classList.add('list-selection-bar--open');
+      return;
+    }
+    // Two frames: apply the collapsed starting styles, then open so height can transition.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (active) toolbar?.classList.add('list-selection-bar--open');
+      });
+    });
+  }
+
+  function hideSelectionChrome({ animate = true } = {}) {
+    const subheader = subheaderEl();
+    if (toolbar) {
+      toolbar.classList.remove('list-selection-bar--open');
+      toolbar.setAttribute('aria-hidden', 'true');
+      resetDeleteConfirmsIn(toolbar);
+      clearHideToolbarTimer();
+      const bar = toolbar;
+      const finishHide = () => {
+        if (bar && !bar.classList.contains('list-selection-bar--open')) {
+          bar.hidden = true;
+        }
+      };
+      if (animate) {
+        bar.addEventListener('transitionend', finishHide, { once: true });
+        hideToolbarTimer = setTimeout(finishHide, LIST_SELECTION_BAR_MS + 80);
+      } else {
+        finishHide();
+      }
+    }
+    if (subheader) unstashSubheader(subheader, animate);
+  }
+
   function ensureToolbar() {
     removeOrphanSelectionBars(toolbar);
     if (toolbar?.isConnected) return;
@@ -1317,6 +1412,10 @@ function createListSelectionController(listEl, opts) {
     toolbar.hidden = true;
     toolbar.setAttribute('role', 'toolbar');
     toolbar.setAttribute('aria-label', 'Selection actions');
+    toolbar.setAttribute('aria-hidden', 'true');
+
+    const inner = document.createElement('div');
+    inner.className = 'list-selection-bar-inner';
 
     const closeBtn = createIosIconBtn({
       iconKey: 'x',
@@ -1352,9 +1451,10 @@ function createListSelectionController(listEl, opts) {
       actions.appendChild(deleteBtn);
     }
 
-    toolbar.appendChild(closeBtn);
-    toolbar.appendChild(countEl);
-    toolbar.appendChild(actions);
+    inner.appendChild(closeBtn);
+    inner.appendChild(countEl);
+    inner.appendChild(actions);
+    toolbar.appendChild(inner);
 
     if (subheader) subheader.insertAdjacentElement('afterend', toolbar);
     else listEl.insertAdjacentElement('beforebegin', toolbar);
@@ -1403,10 +1503,7 @@ function createListSelectionController(listEl, opts) {
     if (!active) {
       active = true;
       listEl.classList.add('list-selection-mode');
-      const subheader = subheaderEl();
-      if (subheader) subheader.hidden = true;
-      ensureToolbar();
-      if (toolbar) toolbar.hidden = false;
+      showSelectionChrome({ animate: true });
     }
     if (initialId) selected.add(initialId);
     if (selected.size === 0) {
@@ -1422,13 +1519,8 @@ function createListSelectionController(listEl, opts) {
     active = false;
     selected.clear();
     listEl.classList.remove('list-selection-mode');
-    if (toolbar) {
-      toolbar.hidden = true;
-      resetDeleteConfirmsIn(toolbar);
-    }
+    hideSelectionChrome({ animate: wasActive });
     if (countEl) countEl.textContent = '';
-    const subheader = subheaderEl();
-    if (subheader) subheader.hidden = false;
     syncRowSelectedClasses();
     if (wasActive) opts.onSelectionChange?.(selected, active);
   }
@@ -1554,10 +1646,8 @@ function createListSelectionController(listEl, opts) {
       return;
     }
     listEl.classList.add('list-selection-mode');
-    const subheader = subheaderEl();
-    if (subheader) subheader.hidden = true;
-    ensureToolbar();
-    if (toolbar) toolbar.hidden = false;
+    // List rebuild may recreate the subheader; restore chrome without replaying slide-in.
+    showSelectionChrome({ animate: false });
     updateUI();
   }
 
