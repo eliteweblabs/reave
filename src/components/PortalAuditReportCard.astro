@@ -31,9 +31,16 @@ function gradeLabel(grade: LetterGrade | null | undefined): string {
   return grade || '—';
 }
 
-function scoreBars(score: number | null | undefined): number {
-  if (score == null || Number.isNaN(score)) return 0;
-  return Math.max(1, Math.min(5, Math.ceil(score / 20)));
+/** Horizontal fill % for each of 5 bars (20 points each). e.g. 62 → [100,100,100,10,0]. */
+function scoreBarFills(score: number | null | undefined): number[] {
+  if (score == null || Number.isNaN(score)) return [0, 0, 0, 0, 0];
+  const clamped = Math.max(0, Math.min(100, score));
+  return [0, 1, 2, 3, 4].map((band) => {
+    const inBand = clamped - band * 20;
+    if (inBand <= 0) return 0;
+    if (inBand >= 20) return 100;
+    return (inBand / 20) * 100;
+  });
 }
 
 const ringPct = report.overallScore ?? 0;
@@ -187,7 +194,18 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
 
       <div class="opd-grid">
         {cats.map((cat) => {
-          const filled = scoreBars(cat.score ?? (cat.grade === 'A' ? 95 : cat.grade === 'B' ? 85 : cat.grade === 'C' ? 72 : cat.grade === 'D' ? 62 : 40));
+          const numericScore =
+            cat.score ??
+            (cat.grade === 'A'
+              ? 95
+              : cat.grade === 'B'
+                ? 85
+                : cat.grade === 'C'
+                  ? 72
+                  : cat.grade === 'D'
+                    ? 62
+                    : 40);
+          const fills = scoreBarFills(numericScore);
           const displayScore = cat.score ?? null;
           return (
             <article class="opd-card">
@@ -204,11 +222,15 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
               </header>
               <div class="opd-card-score">
                 <div class="opd-bars" aria-hidden="true">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <span
-                      class={`opd-bar ${i <= filled ? `on ${gradeClass(cat.grade)}` : ''}`}
-                      style={`height:${6 + (i - 1) * 4}px`}
-                    />
+                  {fills.map((pct, i) => (
+                    <span class="opd-bar" style={`height:${6 + i * 4}px`}>
+                      {pct > 0 ? (
+                        <span
+                          class={`opd-bar-fill ${gradeClass(cat.grade)}`}
+                          style={`width:${pct}%`}
+                        />
+                      ) : null}
+                    </span>
                   ))}
                 </div>
                 {displayScore != null && <span class="opd-score-num">{displayScore}/100</span>}
@@ -653,16 +675,26 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     height: 22px;
   }
   .opd-bar {
-    width: 6px;
+    position: relative;
+    display: block;
+    width: 8px;
     border-radius: 1px;
     background: var(--opd-hairline);
+    overflow: hidden;
   }
-  .opd-bar.on.grade-a,
-  .opd-bar.on.grade-b { background: var(--opd-good); }
-  .opd-bar.on.grade-c { background: var(--opd-warn); }
-  .opd-bar.on.grade-d { background: var(--opd-risk); }
-  .opd-bar.on.grade-f,
-  .opd-bar.on.grade-na { background: var(--opd-crit); }
+  .opd-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+  }
+  .opd-bar-fill.grade-a,
+  .opd-bar-fill.grade-b { background: var(--opd-good); }
+  .opd-bar-fill.grade-c { background: var(--opd-warn); }
+  .opd-bar-fill.grade-d { background: var(--opd-risk); }
+  .opd-bar-fill.grade-f,
+  .opd-bar-fill.grade-na { background: var(--opd-crit); }
 
   .opd-finding {
     margin: 0;
