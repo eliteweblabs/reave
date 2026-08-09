@@ -67,6 +67,11 @@ function escapeLines(s: string): string {
 }
 
 const showResults = Boolean(report);
+
+/** Prefill from ?url=&business= (e.g. “reproduce here” from a report card). */
+const prefillUrl = (Astro.url.searchParams.get('url') || '').trim().slice(0, 400);
+const prefillBusiness = (Astro.url.searchParams.get('business') || '').trim().slice(0, 300);
+const openOptionalDetails = Boolean(prefillUrl);
 ---
 
 <Layout
@@ -105,10 +110,11 @@ const showResults = Boolean(report);
             placeholder="Joe’s Pizza on Main Street in Portland"
             autocomplete="organization"
             autofocus
+            value={prefillBusiness}
           />
         </label>
 
-        <details class="da-more">
+        <details class="da-more" open={openOptionalDetails || undefined}>
           <summary>Optional details</summary>
           <div class="da-more-fields">
             <label class="da-field">
@@ -121,6 +127,7 @@ const showResults = Boolean(report);
                 placeholder="https://example.com"
                 autocomplete="url"
                 inputmode="url"
+                value={prefillUrl}
               />
             </label>
             <label class="da-field">

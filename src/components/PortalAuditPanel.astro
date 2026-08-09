@@ -12,6 +12,7 @@ interface Props {
   companyName?: string;
   clientName?: string;
   scanDate?: string;
+  website?: string;
   active?: boolean;
 }
 
@@ -21,6 +22,7 @@ const {
   companyName = '',
   clientName = '',
   scanDate = '',
+  website = '',
   active = false,
 } = Astro.props;
 ---
@@ -35,6 +37,7 @@ const {
       companyName={companyName}
       clientName={clientName}
       scanDate={scanDate}
+      website={website}
     />
   )}
 </section>
