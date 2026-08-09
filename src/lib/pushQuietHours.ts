@@ -264,14 +264,36 @@ async function writePgSettings(settings: PushQuietHoursSettings): Promise<boolea
   return true;
 }
 
+async function readRawPushQuietHoursSettings(): Promise<PushQuietHoursSettings> {
+  const fromPg = databaseUrl() ? await readPgSettings() : null;
+  return fromPg ?? readFileSettings();
+}
+
+/**
+ * Overnight header-toggle pauses expire when the quiet window ends.
+ * Permanent disables (Settings unchecked outside the window) leave
+ * sleepModeEnabled false with sleepPausedAt null and are left alone.
+ */
+async function resumeExpiredOvernightPause(
+  settings: PushQuietHoursSettings,
+): Promise<PushQuietHoursSettings> {
+  if (settings.sleepModeEnabled || !settings.sleepPausedAt) return settings;
+  if (isWithinQuietWindow(settings)) return settings;
+
+  const resumed: PushQuietHoursSettings = {
+    ...settings,
+    sleepModeEnabled: true,
+    sleepPausedAt: null,
+    updatedAt: new Date().toISOString(),
+  };
+  const ok = databaseUrl() ? await writePgSettings(resumed) : writeFileSettings(resumed);
+  return ok ? resumed : { ...settings, sleepPausedAt: null };
+}
+
 export async function getPushQuietHoursSettings(): Promise<PushQuietHoursSettings> {
   const now = Date.now();
   if (_cached && now - _cacheAt < CACHE_MS) return _cached;
-  const fromPg = databaseUrl() ? await readPgSettings() : null;
-  let settings = fromPg ?? readFileSettings();
-  if (settings.sleepPausedAt && !isWithinQuietWindow(settings)) {
-    settings = { ...settings, sleepPausedAt: null };
-  }
+  let settings = await resumeExpiredOvernightPause(await readRawPushQuietHoursSettings());
   _cached = settings;
   _cacheAt = now;
   return settings;
@@ -290,15 +312,39 @@ export async function savePushQuietHoursSettings(
     >
   >,
 ): Promise<PushQuietHoursSettings | null> {
-  const cur = await getPushQuietHoursSettings();
+  // Read raw so a daytime Settings save cannot wipe sleepPausedAt that
+  // getPushQuietHoursSettings would otherwise strip/resume first.
+  const cur = await readRawPushQuietHoursSettings();
   const nowIso = new Date().toISOString();
   let sleepPausedAt = cur.sleepPausedAt;
+  let sleepModeEnabled = cur.sleepModeEnabled;
   if (patch.sleepModeEnabled !== undefined) {
-    sleepPausedAt = patch.sleepModeEnabled ? null : nowIso;
+    sleepModeEnabled = patch.sleepModeEnabled;
+    if (patch.sleepModeEnabled) {
+      sleepPausedAt = null;
+    } else {
+      // Header toggle only appears in-window → overnight pause with timestamp.
+      // Unchecking Enable sleep mode outside the window is a permanent disable.
+      const nextSchedule = {
+        quietStart:
+          patch.quietStart !== undefined
+            ? (normalizeHm(patch.quietStart) ?? cur.quietStart)
+            : cur.quietStart,
+        quietEnd:
+          patch.quietEnd !== undefined
+            ? (normalizeHm(patch.quietEnd) ?? cur.quietEnd)
+            : cur.quietEnd,
+        timezone:
+          patch.timezone !== undefined && patch.timezone.trim()
+            ? patch.timezone.trim()
+            : cur.timezone,
+      };
+      sleepPausedAt = isWithinQuietWindow(nextSchedule) ? nowIso : null;
+    }
   }
   const next: PushQuietHoursSettings = {
     ...cur,
-    ...(patch.sleepModeEnabled !== undefined ? { sleepModeEnabled: patch.sleepModeEnabled } : {}),
+    sleepModeEnabled,
     ...(patch.quietStart !== undefined
       ? { quietStart: normalizeHm(patch.quietStart) ?? cur.quietStart }
       : {}),
@@ -368,16 +414,18 @@ export function formatQuietEndLabel(settings: Pick<PushQuietHoursSettings, 'quie
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-/** When sleep is paused overnight — time the owner opted back in ("Awake since 11:04 PM"). */
-export function formatAwakeSinceLabel(settings: PushQuietHoursSettings): string {
-  const tz = settings.timezone;
-  if (settings.sleepPausedAt) {
-    const d = new Date(settings.sleepPausedAt);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
-    }
-  }
-  const [h, m] = settings.quietStart.split(':').map(Number);
-  const d = new Date(2000, 0, 1, h, m);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+/**
+ * When sleep is paused overnight — time the owner flipped the header toggle
+ * ("Awake since 11:04 PM"). Returns null when there is no pause timestamp
+ * (permanent disable) so the UI does not fake quietStart as an awake time.
+ */
+export function formatAwakeSinceLabel(settings: PushQuietHoursSettings): string | null {
+  if (!settings.sleepPausedAt) return null;
+  const d = new Date(settings.sleepPausedAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: settings.timezone,
+  });
 }

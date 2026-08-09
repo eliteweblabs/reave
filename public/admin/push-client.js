@@ -537,8 +537,8 @@ function applySleepModeSettingsPayload(data) {
 function formatTopbarSleepLabel(data, enabled) {
   const until = data?.quietEndLabel || '7:00 AM';
   if (enabled) return `Sleeping until ${until}`;
-  const since = data?.awakeSinceLabel || until;
-  return `Awake since ${since}`;
+  const since = data?.awakeSinceLabel;
+  return since ? `Awake since ${since}` : 'Awake tonight';
 }
 
 function syncTopbarSleepToggle(data = sleepModeCache) {
@@ -560,7 +560,9 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
     'aria-label',
     enabled
       ? `Sleep mode on until ${data?.quietEndLabel || 'quiet hours end'} — tap to allow AI and alerts tonight`
-      : `Sleep mode off since ${data?.awakeSinceLabel || 'you opted out'} — tap to pause AI and alerts again`,
+      : data?.awakeSinceLabel
+        ? `Sleep mode off since ${data.awakeSinceLabel} — tap to pause AI and alerts again`
+        : 'Sleep mode off tonight — tap to pause AI and alerts again',
   );
 }
 
