@@ -391,11 +391,12 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName }}>
+<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName, embedded }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const RECIPIENT_EMAIL = recipientEmail;
   const BRAND_NAME = brandName;
+  const IS_EMBEDDED = Boolean(embedded);
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
 
   function smsConsentCheckboxLabel() {
@@ -744,7 +745,11 @@ const rootClass = embedded
         userInput().placeholder = placeholder;
         userInput().setAttribute("aria-label", promptLine);
         userInput().value = "";
-        userInput().focus({ preventScroll: true });
+        // Homepage contact chat is embedded mid-page — never steal focus on load.
+        // Dedicated /form pages can still autofocus the input.
+        if (!IS_EMBEDDED) {
+          userInput().focus({ preventScroll: true });
+        }
       }
       if (field.required === false) {
         showOptionalSkip(() => {
