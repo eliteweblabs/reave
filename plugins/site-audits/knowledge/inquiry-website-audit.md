@@ -19,6 +19,7 @@ For **fast street audits** (Siri **"audit"** / **"create proposal"**), use `inqu
 - Do **not** skip audit tools because the website looks empty or password-protected — document what you *can* verify (DNS, SSL, redirects, platform)
 - Do **not** guess Lighthouse scores — run `lighthouse_audit` or omit scores and explain why
 - Do **not** use `create_work` for personal to-dos (use todo tools)
+- Do **not** write client-facing copy as **"this business"** — it reads informal and generic. Use the resolved contact / business name whenever possible (e.g. `Joe's Pizza is missing on Apple Maps`, not `This business is missing on Apple Maps`).
 
 ## Required workflow (in order)
 
@@ -169,12 +170,16 @@ Write one bullet per channel so the client portal diagnostic can grade each card
 
 ---
 
+## Client-facing voice
+
+In the audit `body` (findings, Opportunities, Action Items), **name the business** whenever you refer to them. Prefer `{Business Name}` over vague stand-ins like "this business", "the company", or "the client". Project **titles** still omit the business name (it already shows as the client line in the project list).
+
 ## Opportunities
 Write 3–6 **Problem → Solution** pairs in plain language for the client portal
-(what’s broken → what fixing it does for the business — no jargon):
+(what’s broken → what fixing it does for {Business Name} — no jargon):
 - Problem: {what’s broken for the customer} → Solution: {service / fix we can sell}
 - Problem: {e.g. the site feels slow on phones} → Solution: {Performance pass / rebuild}
-- Problem: {e.g. invisible on Apple Maps} → Solution: {Apple Maps listing setup}
+- Problem: {e.g. {Business Name} is invisible on Apple Maps} → Solution: {Apple Maps listing setup}
 
 ## Action Items
 - [ ] Reach out to {contact} about {primary opportunity}

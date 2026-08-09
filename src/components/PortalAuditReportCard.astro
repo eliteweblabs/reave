@@ -148,7 +148,10 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
         </div>
         <div class="opd-hero-copy">
           <h3 class="opd-headline">
-            {report.headline || 'A plain-language look at how this business shows up online.'}
+            {report.headline ||
+              (clientName
+                ? `A plain-language look at how ${clientName} shows up online.`
+                : 'A plain-language look at the online presence.')}
           </h3>
           <ul class="opd-stats">
             {heroStats.map((s) => (

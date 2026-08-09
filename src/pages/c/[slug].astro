@@ -276,6 +276,7 @@ const portalJobsBuilt: PortalJobBuilt[] = await Promise.all(
       source: job.source,
       title: job.title,
       body: bodyRaw,
+      clientName: company || displayName,
     });
     const isAudit = Boolean(auditReport) || isAuditJob({
       tags: job.tags,

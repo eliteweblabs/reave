@@ -17,6 +17,7 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 - Do **not** guess Lighthouse scores — run `lighthouse_audit` once or write "Scores unavailable"
 - Do **not** retry `lighthouse_audit` if it fails — proceed to `update_work` (retries burn the run budget)
 - Do **not** use `create_work` for personal to-dos (use todo tools)
+- Do **not** write client-facing copy as **"this business"** — use the resolved contact / business name whenever possible (e.g. `Joe's Pizza is missing on Apple Maps`)
 
 ## Required workflow (in order)
 
@@ -132,9 +133,13 @@ Write one bullet per channel so the client portal diagnostic can grade each card
 
 ---
 
+## Client-facing voice
+
+In the audit `body` (findings, Opportunities, Action Items), **name the business** whenever you refer to them. Prefer `{Business Name}` over vague stand-ins like "this business", "the company", or "the client". Project **titles** still omit the business name (it already shows as the client line in the project list).
+
 ## Opportunities
 Write 3–5 **Problem → Solution** pairs in plain language for the client portal
-(what’s broken → what fixing it does — no jargon):
+(what’s broken → what fixing it does for {Business Name} — no jargon):
 - Problem: {what’s broken} → Solution: {service / fix we can sell}
 
 ## Action Items

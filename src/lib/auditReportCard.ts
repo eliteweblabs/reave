@@ -652,8 +652,9 @@ function domainGradeFromText(text: string): {
 }
 
 /** Soften technical jargon into money-relevant plain language for clients. */
-function plainLanguage(line: string): string {
-  return line
+function plainLanguage(line: string, clientName = ''): string {
+  const name = clientName.trim();
+  let out = line
     .replace(/\bFCP\b/gi, 'how fast the page first appears')
     .replace(/\bLCP\b/gi, 'how fast the main content loads')
     .replace(/\bCLS\b/gi, 'layout jumping around')
@@ -674,13 +675,15 @@ function plainLanguage(line: string): string {
     .replace(/\bMX records?\b/gi, 'email routing')
     .replace(/\bWHOIS\b/gi, 'domain registration')
     .replace(/\bLighthouse\b/gi, 'speed & quality scan')
-    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test')
-    .trim();
+    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test');
+  // Prefer the real client name over generic "this business" phrasing.
+  out = out.replace(/\b[Tt]his business\b/g, name || 'the business');
+  return out.trim();
 }
 
-function clientFriendlyBullets(lines: string[], limit = 4): string[] {
+function clientFriendlyBullets(lines: string[], limit = 4, clientName = ''): string[] {
   return lines
-    .map((line) => plainLanguage(line))
+    .map((line) => plainLanguage(line, clientName))
     .filter((line) => line.length > 2)
     .slice(0, limit);
 }
@@ -1053,11 +1056,12 @@ function scoreCategory(
   fallbackGrade: LetterGrade | null,
   emptySummary: string,
   overrides?: Partial<Pick<ReportCardCategory, 'label' | 'source' | 'icon' | 'featured'>>,
+  clientName = '',
 ): ReportCardCategory {
   const meta = CATEGORY_BY_ID.get(id);
   const label = overrides?.label || meta?.label || id;
   const grade = scoreToGrade(score) ?? fallbackGrade;
-  const why = clientFriendlyBullets(bulletsFromSection(section), 5);
+  const why = clientFriendlyBullets(bulletsFromSection(section), 5, clientName);
   const summary =
     grade == null
       ? section.trim()
@@ -1104,9 +1108,12 @@ export function buildAuditReportCard(input: {
   source?: string | null;
   title?: string | null;
   body?: string | null;
+  /** Business / contact name — used in client-facing headlines and findings. */
+  clientName?: string | null;
 }): AuditReportCard | null {
   const body = (input.body || '').trim();
   if (!isAuditJob({ ...input, body })) return null;
+  const clientName = (input.clientName || '').trim();
 
   const inProgress =
     /siri audit in progress/i.test(body) ||
@@ -1318,7 +1325,9 @@ export function buildAuditReportCard(input: {
         /\bapple\b.*\b(maps|listing|wallet|siri)\b/i,
       ],
       omittedAsMissing: true,
-      omittedSummary: 'Not on Apple Maps — iPhone users cannot find this business there.',
+      omittedSummary: clientName
+        ? `Not on Apple Maps — iPhone users cannot find ${clientName} there.`
+        : 'Not on Apple Maps — iPhone users cannot find them there.',
       omittedWhy:
         'Apple Business Connect / Apple Maps was not mentioned — most businesses without a Connect listing stay invisible on iPhone Maps.',
     },
@@ -1342,7 +1351,9 @@ export function buildAuditReportCard(input: {
     {
       keywords: [/reviews?|ratings?|\d(?:\.\d)?\s*stars?|yelp|reputation/i],
       omittedAsMissing: true,
-      omittedSummary: 'Reviews are thin or not working hard enough for the business.',
+      omittedSummary: clientName
+        ? `Reviews are thin or not working hard enough for ${clientName}.`
+        : 'Reviews are thin or not working hard enough yet.',
       omittedWhy:
         'Reviews / ratings were not mentioned in the presence notes — reputation may be thin or unchecked.',
     },
@@ -1388,8 +1399,8 @@ export function buildAuditReportCard(input: {
   ): ReportCardCategory => {
     const meta = CATEGORY_BY_ID.get(id);
     const label = meta?.label || id;
-    const why = clientFriendlyBullets(signal.why, 4);
-    const summary = plainLanguage(signal.summary);
+    const why = clientFriendlyBullets(signal.why, 4, clientName);
+    const summary = plainLanguage(signal.summary, clientName);
     return {
       id,
       label,
@@ -1445,7 +1456,7 @@ export function buildAuditReportCard(input: {
         grade = opts.midGrade || 'C';
       }
     }
-    return scoreCategory(id, null, section, grade, opts.emptySummary);
+    return scoreCategory(id, null, section, grade, opts.emptySummary, undefined, clientName);
   };
 
   const reputationCorpus =
@@ -1458,7 +1469,7 @@ export function buildAuditReportCard(input: {
   const securityWhySource = [sslSection, bpSection].filter(Boolean).join('\n') || body;
   const securityCat: ReportCardCategory = (() => {
     const meta = CATEGORY_BY_ID.get('security')!;
-    const why = clientFriendlyBullets(bulletsFromSection(securityWhySource), 5);
+    const why = clientFriendlyBullets(bulletsFromSection(securityWhySource), 5, clientName);
     const grade = securityCombinedGrade;
     const scoreParts: number[] = [];
     if (securityGrade) {
@@ -1499,28 +1510,28 @@ export function buildAuditReportCard(input: {
   })();
 
   const emailMeta = CATEGORY_BY_ID.get('email')!;
-  const emailWhy = clientFriendlyBullets(email.why, 5);
+  const emailWhy = clientFriendlyBullets(email.why, 5, clientName);
   const emailCat: ReportCardCategory = {
     id: 'email',
     label: emailMeta.label,
     icon: emailMeta.icon,
     source: emailMeta.source,
-    summary: plainLanguage(email.summary),
-    finding: primaryFinding(emailWhy, plainLanguage(email.summary)),
+    summary: plainLanguage(email.summary, clientName),
+    finding: primaryFinding(emailWhy, plainLanguage(email.summary, clientName)),
     grade: email.grade,
     why: emailWhy,
     unavailable: email.unavailable || email.grade == null,
   };
 
   const domainMeta = CATEGORY_BY_ID.get('domain')!;
-  const domainWhy = clientFriendlyBullets(domain.why, 4);
+  const domainWhy = clientFriendlyBullets(domain.why, 4, clientName);
   const domainCat: ReportCardCategory = {
     id: 'domain',
     label: domainMeta.label,
     icon: domainMeta.icon,
     source: domainMeta.source,
-    summary: plainLanguage(domain.summary),
-    finding: primaryFinding(domainWhy, plainLanguage(domain.summary)),
+    summary: plainLanguage(domain.summary, clientName),
+    finding: primaryFinding(domainWhy, plainLanguage(domain.summary, clientName)),
     grade: domain.grade,
     why: domainWhy,
     unavailable: domain.grade == null,
@@ -1546,6 +1557,8 @@ export function buildAuditReportCard(input: {
       seoSection || (seoFallback ? seoCorpus : ''),
       seoFallback,
       'Not scored in this audit',
+      undefined,
+      clientName,
     ),
     scoreCategory(
       'performance',
@@ -1553,6 +1566,8 @@ export function buildAuditReportCard(input: {
       perfSection,
       perfSection.trim() || perfScore != null ? 'C' : null,
       'Not scored in this audit',
+      undefined,
+      clientName,
     ),
     scoreCategory(
       'mobile',
@@ -1560,6 +1575,8 @@ export function buildAuditReportCard(input: {
       uxSection || (mobileFallback ? `${a11ySection}\n${perfSection}` : ''),
       mobileFallback,
       'Not scored in this audit',
+      undefined,
+      clientName,
     ),
     channelCategory('reviews', reviews),
     channelCategory('social', socialMerged),
@@ -1580,7 +1597,7 @@ export function buildAuditReportCard(input: {
           finding: 'Analytics check unavailable',
           grade: null,
           score: null,
-          why: clientFriendlyBullets(bulletsFromSection(analyticsSection), 3),
+          why: clientFriendlyBullets(bulletsFromSection(analyticsSection), 3, clientName),
           unavailable: true,
         };
       }
@@ -1597,6 +1614,8 @@ export function buildAuditReportCard(input: {
       a11ySection,
       a11yFallback,
       'Not scored in this audit',
+      undefined,
+      clientName,
     ),
     heuristicSection('hosting', hostingSection, {
       bad: /no (?:automated )?backup|single point of failure|no uptime|hosting (?:risk|issue)/i,
@@ -1665,8 +1684,8 @@ export function buildAuditReportCard(input: {
   const potential = improveGrade(overall, ideas.length >= 3 || actionItems.length >= 4 ? 2 : 1);
   const criticalCount = categories.filter((c) => c.grade === 'F').length;
 
-  const headline = buildDiagnosticHeadline(categories, overall);
-  const heroStats = buildHeroStats(categories, criticalCount, domainWhy);
+  const headline = buildDiagnosticHeadline(categories, overall, clientName);
+  const heroStats = buildHeroStats(categories, criticalCount, domainWhy, clientName);
 
   return {
     isAudit: true,
@@ -1690,20 +1709,28 @@ export function buildAuditReportCard(input: {
 function buildDiagnosticHeadline(
   categories: ReportCardCategory[],
   overall: LetterGrade | null,
+  clientName = '',
 ): string {
+  const name = clientName.trim();
   const weak = categories.filter((c) => c.grade === 'D' || c.grade === 'F');
   const has = (id: ReportCardCategoryId) => weak.some((c) => c.id === id);
   if (has('google_business') && has('apple_business')) {
-    return 'This business is hard to find where local customers actually search.';
+    return name
+      ? `${name} is hard to find where local customers actually search.`
+      : 'Hard to find where local customers actually search.';
   }
   if (has('google_business') || has('apple_business') || has('social')) {
-    return 'This business is invisible where it matters most.';
+    return name
+      ? `${name} is invisible where it matters most.`
+      : 'Invisible where it matters most.';
   }
   if (has('performance') || has('mobile')) {
     return 'The site is costing attention before customers ever reach the offer.';
   }
   if (has('security') || has('email') || has('domain_reputation')) {
-    return 'Trust signals are soft — customers and inboxes may not believe this business.';
+    return name
+      ? `Trust signals are soft — customers and inboxes may not believe ${name}.`
+      : 'Trust signals are soft — customers and inboxes may not believe the brand.';
   }
   if (has('reviews')) {
     return 'Reputation is not doing enough work to win the next customer.';
@@ -1717,13 +1744,16 @@ function buildDiagnosticHeadline(
   if (overall === 'C') {
     return 'The online presence works in places, but gaps are leaving money on the table.';
   }
-  return 'A plain-language look at how this business shows up online.';
+  return name
+    ? `A plain-language look at how ${name} shows up online.`
+    : 'A plain-language look at the online presence.';
 }
 
 function buildHeroStats(
   categories: ReportCardCategory[],
   criticalCount: number,
   domainWhy: string[],
+  clientName = '',
 ): Array<{ label: string; tone: 'crit' | 'risk' | 'info' }> {
   const stats: Array<{ label: string; tone: 'crit' | 'risk' | 'info' }> = [];
   const total = categories.length;
@@ -1736,7 +1766,7 @@ function buildHeroStats(
   const renew = domainWhy.find((w) => /renew|expir|auto-?renew/i.test(w));
   if (renew) {
     stats.push({
-      label: plainLanguage(renew).slice(0, 72),
+      label: plainLanguage(renew, clientName).slice(0, 72),
       tone: 'risk',
     });
   }

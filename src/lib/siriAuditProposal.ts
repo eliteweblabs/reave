@@ -212,7 +212,8 @@ async function runProposalResearch(input: {
       'it already appears as the client name in the project list). Examples: "Antique shop, antique website — ' +
       'not in a good way", "Great reviews, terrible mobile score". Never use "Website Redesign — {Business Name}". ' +
       'Replace the stub body with a complete markdown audit following the required section structure — 1,200+ characters for ' +
-      'quick tier, 1,500+ for full tier, not a stub.',
+      'quick tier, 1,500+ for full tier, not a stub. In findings and Opportunities, refer to the business by name ' +
+      '(never "this business" — too informal/generic).',
     '5. End your final reply with a line formatted exactly like ' +
       `\`Project: ${input.jobSlug}\` followed by 2-3 sentences summarizing the top findings and the recommended next step.`,
   ].join('\n');
