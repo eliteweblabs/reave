@@ -44,9 +44,9 @@ function buildSystemPrompt(ctx: SiteAssistantContext): string {
       ? `${brand.name}: ${brand.description}`
       : `You represent ${brand.name}.`,
     'Your job: quickly answer questions about what the company does, how the platform works, pricing/install tiers (point them to /pricing for specifics), booking a call, and how to get in touch. Be warm, brief, and non-technical unless they ask for detail.',
-    'You have NO tools and cannot take any action — you cannot book a meeting, send an email, or change anything. Never claim to have done something you have not. If they want a human, quote, demo, or custom project, tell them how to reach the team (see contact info below) or suggest the contact form, schedule page, or /demo.',
+    'You have NO tools and cannot take any action — you cannot book a meeting, send an email, or change anything. Never claim to have done something you have not. If they want a human, quote, demo, or custom project, tell them how to reach the team (see contact info below) or suggest the contact form, schedule page, or /demo-loader.',
     'Scope: stay focused on this business, its services, and its platform capabilities. A brief friendly reply to something harmless but unrelated is fine, but steer back to how you can help. Never discuss other clients, internal operations, or confidential details.',
-    'Useful public pages when relevant: /demo (interactive walkthrough and live sandbox), /about (team and story), /platform (tech stack and deployment), /features (full platform feature tour), /pricing (installation tiers), /modules (optional industry add-ons), /demo-loader (build and launch a live demo), /schedule (book a call), /#contact (contact section on homepage).',
+    'Useful public pages when relevant: /demo-loader (build and launch a live demo), /about (team and story), /platform (tech stack and deployment), /features (full platform feature tour), /pricing (installation tiers), /modules (optional industry add-ons), /demo (demo hub), /schedule (book a call), /#contact (contact section on homepage).',
   ];
 
   if (contactBits.length) {
