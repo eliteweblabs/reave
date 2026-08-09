@@ -2,13 +2,14 @@
  * GET  /api/email/inbox/[id]/schedule — check proposed slot vs Cal.com
  * POST /api/email/inbox/[id]/schedule — book meeting and mark inbox item
  *   action: "book" (default) | "accept-notify" | "notify-conflict" | "notify-schedule-link" | "prepare-project" | "attach-project" | "confirm"
+ *
+ * accept-notify / confirm book (or ack) without emailing the requester — inbound
+ * meeting mail is often from a no-reply third-party address.
  */
 
 import type { APIContext } from 'astro';
 import {
   bookingCreate,
-  bookingGet,
-  bookingManageUrl,
   publicBookingPageUrl,
   resolveBookingAddress,
 } from '../../../../../lib/bookingClient';
@@ -22,7 +23,6 @@ import { ensureContactForMeetingEmail } from '../../../../../lib/emailContactExt
 import { sendInboundThreadReply } from '../../../../../lib/inboundEmailReply';
 import {
   attendeeFromEmail,
-  buildMeetingAcceptNotifyEmail,
   buildMeetingScheduleInviteEmail,
   buildMeetingSlotBookedEmail,
   checkEmailMeetingSlot,
@@ -178,18 +178,6 @@ async function handleNotifyScheduleLink(
   });
 }
 
-/** Best-effort meeting location for the confirmation email's "Where" row. */
-async function resolveBookingLocation(uid: string | null | undefined): Promise<string | null> {
-  if (!uid) return null;
-  try {
-    const got = await bookingGet(uid);
-    if (got.ok) return got.data.booking.location?.trim() || null;
-  } catch {
-    // best-effort — omit the row if the lookup fails
-  }
-  return null;
-}
-
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
@@ -331,53 +319,33 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!event.bookingUid) {
       return json({ ok: false, error: 'No booking on this message' }, 400);
     }
-    if (!event.jobSlug) {
-      return json(
-        {
-          ok: false,
-          error: 'Confirm the project link before sending the meeting confirmation',
-          code: 'project_required',
-        },
-        400,
-      );
-    }
     const whenIso = event.bookingStart || proposedStart;
     if (!whenIso) {
       return json({ ok: false, error: 'No booking time on this message' }, 400);
     }
-    const whenLabel = formatWhenLabel(whenIso);
-    const mail = await buildMeetingAcceptNotifyEmail({
-      attendeeName: attendee.name,
-      whenLabel,
-      companyName: company.name,
-      manageUrl: bookingManageUrl(event.bookingUid),
-      locationLabel: await resolveBookingLocation(event.bookingUid),
-      bookingUid: event.bookingUid,
-    });
-    const sent = await sendSchedulingReply(event, mail);
-    if (!sent.ok) {
-      return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
-    }
+    // Client already requested this meeting (often via a no-reply third-party
+    // address) — confirm locally without emailing them back.
+    const withProject = await attachMeetingProject(id, event, event.bookingUid, whenIso);
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
       acceptAutomationDecision: true,
       markAutomationAck: true,
     });
+    const whenLabel = formatWhenLabel(whenIso);
     return json({
       ok: true,
       confirmed: true,
-      notified: true,
+      notified: false,
       action: 'confirm',
-      bookingUid: event.bookingUid,
-      bookingStart: event.bookingStart,
-      jobSlug: event.jobSlug,
-      jobTitle: event.jobTitle,
+      bookingUid: withProject.bookingUid,
+      bookingStart: withProject.bookingStart,
+      jobSlug: withProject.jobSlug,
+      jobTitle: withProject.jobTitle,
       whenLabel,
       attendeeName: attendee.name,
-      attendeeEmail: sent.to,
-      notifyEmailId: sent.emailId ?? null,
-      event: updated ?? event,
+      attendeeEmail: attendee.email,
+      event: updated ?? withProject,
     });
   }
 
@@ -401,7 +369,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (action === 'notify-conflict') {
     if (checkRes.check.available) {
       return json(
-        { ok: false, error: 'That time appears to be open — use Accept and Notify instead', check: checkRes.check },
+        { ok: false, error: 'That time appears to be open — use Confirm instead', check: checkRes.check },
         409,
       );
     }
@@ -469,22 +437,14 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (action === 'accept-notify' && event.bookingUid) {
+    // Already on the calendar — ack without emailing. Inbound meeting requests
+    // often come from no-reply third-party addresses.
     const withProject = await attachMeetingProject(
       id,
       event,
       event.bookingUid,
       event.bookingStart || start.toISOString(),
     );
-    const mail = await buildMeetingAcceptNotifyEmail({
-      attendeeName: attendee.name,
-      whenLabel: formatWhenLabel(withProject.bookingStart || start.toISOString()),
-      companyName: company.name,
-      manageUrl: bookingManageUrl(withProject.bookingUid!),
-      locationLabel: await resolveBookingLocation(withProject.bookingUid),
-      bookingUid: withProject.bookingUid!,
-    });
-    const sent = await sendSchedulingReply(withProject, mail);
-    if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
@@ -494,7 +454,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({
       ok: true,
       alreadyBooked: true,
-      notified: true,
+      notified: false,
       action: 'accept-notify',
       bookingUid: withProject.bookingUid,
       bookingStart: withProject.bookingStart,
@@ -560,26 +520,8 @@ export async function POST(context: APIContext): Promise<Response> {
   updated = await attachMeetingProject(id, updated, bookingUid, bookingStart);
 
   if (action === 'accept-notify') {
-    const mail = await buildMeetingAcceptNotifyEmail({
-      attendeeName: attendee.name,
-      whenLabel: formatWhenLabel(bookingStart),
-      companyName: company.name,
-      manageUrl: bookingManageUrl(bookingUid),
-      locationLabel: await resolveBookingLocation(bookingUid),
-      bookingUid,
-    });
-    const sent = await sendSchedulingReply(updated, mail);
-    if (!sent.ok) {
-      return json({
-        ok: true,
-        booked: true,
-        notifyError: sent.error,
-        bookingUid,
-        bookingStart,
-        durationMinutes: DEFAULT_MEETING_MINUTES,
-        event: updated,
-      });
-    }
+    // Book + clear the review item. Do not email the requester — they initiated
+    // via inbound mail (often a no-reply scheduling service).
     const filed = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
@@ -589,7 +531,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({
       ok: true,
       booked: true,
-      notified: true,
+      notified: false,
       action: 'accept-notify',
       bookingUid,
       bookingStart,

@@ -3575,436 +3575,44 @@ async function dismissReviewNotification(item, btn) {
   }
 }
 
-function setMeetingConfirmStep(bodyEl, stepKey, state, title, detail) {
-  const step = bodyEl.querySelector(`[data-step="${stepKey}"]`);
-  if (!step) return;
-  step.className = `meeting-confirm-step meeting-confirm-step--${state}`;
-  step.setAttribute('data-state', state);
-  const icon = step.querySelector('.meeting-confirm-step-icon');
-  if (icon) {
-    icon.textContent = state === 'done' ? '✓' : state === 'active' ? '…' : state === 'error' ? '!' : '○';
-  }
-  const titleEl = step.querySelector('.meeting-confirm-step-title');
-  if (titleEl) titleEl.textContent = title;
-  const detailEl = step.querySelector('.meeting-confirm-step-detail');
-  if (detailEl) detailEl.textContent = detail || '';
-  else if (detail) {
-    const copy = step.querySelector('.meeting-confirm-step-copy');
-    const el = document.createElement('div');
-    el.className = 'meeting-confirm-step-detail';
-    el.textContent = detail;
-    copy?.appendChild(el);
-  }
-}
-
 function sleepMs(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function inboxEventForMeetingItem(item) {
-  const found = emailState.allEvents.find((e) => e.id === item.emailId);
-  if (found) return found;
-  return {
-    id: item.emailId,
-    from: item.from || '',
-    subject: item.subject || '',
-    contactUid: item.contactUid || null,
-    contactName: item.contactName || null,
-    jobSlug: item.jobSlug || null,
-    jobTitle: item.jobTitle || null,
-  };
-}
-
-async function fetchMeetingProjectPrepare(item) {
-  const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/schedule`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'prepare-project' }),
-  });
-  const data = await readApiJson(res);
-  if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
-function meetingConfirmProjectPanelHtml(prep) {
-  const name = prep.linked ? prep.jobTitle : prep.proposedTitle;
-  const meta = prep.linked
-    ? 'Already linked to this meeting email'
-    : `A new ${postLower(1)} will be created with this title`;
-  return (
-    `<div class="meeting-confirm-project">` +
-      `<div class="meeting-confirm-project-name">${escHtml(name || postTitle(1))}</div>` +
-      `<div class="meeting-confirm-project-meta">${escHtml(meta)}</div>` +
-      `<div class="meeting-confirm-project-actions">` +
-        `<button type="button" class="os-dialog-btn os-dialog-btn--primary meeting-confirm-project-use">` +
-          `${prep.linked ? `Use this ${postLower(1)}` : `Create &amp; use this ${postLower(1)}`}` +
-        `</button>` +
-        `<button type="button" class="os-dialog-btn os-dialog-btn--ghost meeting-confirm-project-pick">Choose existing…</button>` +
-        `<button type="button" class="os-dialog-btn os-dialog-btn--ghost meeting-confirm-project-new">Create new…</button>` +
-      `</div>` +
-      `<div class="meeting-confirm-project-picker" hidden>` +
-        `<div class="meeting-confirm-project-picker-label">Open ${postLower(2)} for this client</div>` +
-        `<div class="meeting-confirm-project-picker-list"></div>` +
-      `</div>` +
-      `<div class="meeting-confirm-project-create" hidden>` +
-        `<label class="meeting-confirm-project-create-label">${escHtml(postTitleLabel())}</label>` +
-        `<input type="text" class="meeting-confirm-project-create-input" value="${escHtml(prep.proposedTitle || '')}" />` +
-        `<button type="button" class="os-dialog-btn os-dialog-btn--primary meeting-confirm-project-create-btn">Create ${postLower(1)}</button>` +
-      `</div>` +
-      `<p class="meeting-confirm-project-error" hidden></p>` +
-    `</div>`
-  );
-}
-
-function mountMeetingConfirmProjectPicker(listEl, suggestions, onPick) {
-  listEl.innerHTML = '';
-  if (!suggestions.length) {
-    listEl.innerHTML = `<div class="meeting-confirm-project-picker-empty">No open ${postLower(2)} for this client</div>`;
-    return;
-  }
-  for (const job of suggestions) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'meeting-confirm-project-picker-item';
-    btn.innerHTML =
-      `<span class="meeting-confirm-project-picker-title">${escHtml(job.title)}</span>` +
-      `<span class="meeting-confirm-project-picker-meta">${escHtml(workStatusLabel(job.status))}</span>`;
-    btn.addEventListener('click', () => onPick(job));
-    listEl.appendChild(btn);
-  }
-}
-
-function waitForMeetingProjectChoice(bodyEl, item, prep) {
-  return new Promise((resolve, reject) => {
-    const step = bodyEl.querySelector('[data-step="project"]');
-    if (!step) {
-      reject(new Error('Project step not found'));
-      return;
-    }
-
-    const copy = step.querySelector('.meeting-confirm-step-copy');
-    if (!copy) {
-      reject(new Error('Project step copy not found'));
-      return;
-    }
-
-    copy.querySelector('.meeting-confirm-step-detail')?.remove();
-    copy.insertAdjacentHTML('beforeend', meetingConfirmProjectPanelHtml(prep));
-
-    const panel = copy.querySelector('.meeting-confirm-project');
-    const useBtn = panel.querySelector('.meeting-confirm-project-use');
-    const pickBtn = panel.querySelector('.meeting-confirm-project-pick');
-    const newBtn = panel.querySelector('.meeting-confirm-project-new');
-    const pickerWrap = panel.querySelector('.meeting-confirm-project-picker');
-    const pickerList = panel.querySelector('.meeting-confirm-project-picker-list');
-    const createWrap = panel.querySelector('.meeting-confirm-project-create');
-    const createInput = panel.querySelector('.meeting-confirm-project-create-input');
-    const createBtn = panel.querySelector('.meeting-confirm-project-create-btn');
-    const errEl = panel.querySelector('.meeting-confirm-project-error');
-    const ev = inboxEventForMeetingItem(item);
-
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-    const fail = (err) => {
-      if (settled) return;
-      settled = true;
-      reject(err);
-    };
-    const showError = (message) => {
-      if (!errEl) return;
-      errEl.hidden = !message;
-      errEl.textContent = message || '';
-    };
-    const setBusy = (busy) => {
-      for (const btn of panel.querySelectorAll('button')) btn.disabled = busy;
-    };
-
-    function updateProjectDisplay(jobSlug, jobTitle, linked) {
-      const nameEl = panel.querySelector('.meeting-confirm-project-name');
-      const metaEl = panel.querySelector('.meeting-confirm-project-meta');
-      if (nameEl) nameEl.textContent = jobTitle || jobSlug || postTitle(1);
-      if (metaEl) {
-        metaEl.textContent = linked
-          ? 'Linked to this meeting email'
-          : 'Selected for this meeting';
-      }
-      if (useBtn) {
-        useBtn.textContent = linked ? `Use this ${postLower(1)}` : `Create & use this ${postLower(1)}`;
-      }
-      prep.linked = Boolean(linked && jobSlug);
-      prep.jobSlug = jobSlug;
-      prep.jobTitle = jobTitle;
-    }
-
-    useBtn?.addEventListener('click', async () => {
-      showError('');
-      setBusy(true);
-      try {
-        if (prep.linked && prep.jobSlug) {
-          finish({ jobSlug: prep.jobSlug, jobTitle: prep.jobTitle || prep.jobSlug });
-          return;
-        }
-        const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/schedule`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'attach-project' }),
-        });
-        const data = await readApiJson(res);
-        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        if (data.event) {
-          const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
-          if (idx !== -1) emailState.allEvents[idx] = data.event;
-        }
-        finish({ jobSlug: data.jobSlug, jobTitle: data.jobTitle || data.jobSlug });
-      } catch (e) {
-        showError(e.message || String(e));
-        setBusy(false);
-      }
-    });
-
-    pickBtn?.addEventListener('click', () => {
-      createWrap.hidden = true;
-      pickerWrap.hidden = !pickerWrap.hidden;
-      if (!pickerWrap.hidden) {
-        mountMeetingConfirmProjectPicker(pickerList, prep.suggestions || [], async (job) => {
-          showError('');
-          setBusy(true);
-          try {
-            const data = await postEmailProject(ev, { mode: 'link', slug: job.slug }, { skipNavigate: true });
-            updateProjectDisplay(data.slug, data.title || job.title, true);
-            pickerWrap.hidden = true;
-            finish({ jobSlug: data.slug, jobTitle: data.title || job.title });
-          } catch (e) {
-            showError(e.message || String(e));
-            setBusy(false);
-          }
-        });
-      }
-    });
-
-    newBtn?.addEventListener('click', () => {
-      pickerWrap.hidden = true;
-      createWrap.hidden = !createWrap.hidden;
-      if (!createWrap.hidden) createInput?.focus();
-    });
-
-    createBtn?.addEventListener('click', async () => {
-      const title = String(createInput?.value || '').trim();
-      if (!title) {
-        showError(`Enter a ${postLower(1)} title`);
-        createInput?.focus();
-        return;
-      }
-      showError('');
-      setBusy(true);
-      try {
-        const data = await postEmailProject(ev, { mode: 'create', title }, { skipNavigate: true });
-        updateProjectDisplay(data.slug, data.title || title, true);
-        createWrap.hidden = true;
-        finish({ jobSlug: data.slug, jobTitle: data.title || title });
-      } catch (e) {
-        showError(e.message || String(e));
-        setBusy(false);
-      }
-    });
-  });
-}
-
-async function runMeetingConfirmChecklist(item) {
-  const backdrop = document.getElementById('os-dialog-backdrop');
-  const titleEl = document.getElementById('os-dialog-title');
-  const bodyEl = document.getElementById('os-dialog-body');
-  const actionsEl = document.getElementById('os-dialog-actions');
-  if (!backdrop || !titleEl || !bodyEl || !actionsEl) {
-    return { ok: false, error: 'Dialog not available' };
-  }
-
-  const whenLabel = item.whenLabel || formatScheduleWhen(item.bookingStart);
-  const attendeeLabel = item.attendeeName || item.attendeeEmail || item.from || 'Guest';
-  const emailTarget = item.attendeeEmail || parseSenderEmail(item.from) || 'the sender';
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      closeOsDialogBackdrop();
-      document.removeEventListener('keydown', onKey);
-      resolve(value);
-    };
-    const onKey = (ev) => {
-      if (ev.key === 'Escape') finish({ ok: false, cancelled: true });
-    };
-
-    titleEl.textContent = 'Confirming meeting';
-    bodyEl.innerHTML =
-      `<p class="meeting-confirm-lead">Work through the checklist — confirm the ${postLower(1)} before sending the confirmation email.</p>` +
-      `<ul class="meeting-confirm-steps">` +
-        `<li class="meeting-confirm-step meeting-confirm-step--done" data-step="calendar" data-state="done">` +
-          `<span class="meeting-confirm-step-icon" aria-hidden="true">✓</span>` +
-          `<div class="meeting-confirm-step-copy">` +
-            `<div class="meeting-confirm-step-title">Calendar booking finalized</div>` +
-            `<div class="meeting-confirm-step-detail">${escHtml(whenLabel)} · ${escHtml(attendeeLabel)}</div>` +
-          `</div>` +
-        `</li>` +
-        `<li class="meeting-confirm-step meeting-confirm-step--active" data-step="project" data-state="active">` +
-          `<span class="meeting-confirm-step-icon" aria-hidden="true">…</span>` +
-          `<div class="meeting-confirm-step-copy">` +
-            `<div class="meeting-confirm-step-title">Link to a ${postLower(1)}</div>` +
-            `<div class="meeting-confirm-step-detail">Confirm or choose the ${postLower(1)} for this meeting</div>` +
-          `</div>` +
-        `</li>` +
-        `<li class="meeting-confirm-step meeting-confirm-step--pending" data-step="email" data-state="pending">` +
-          `<span class="meeting-confirm-step-icon" aria-hidden="true">○</span>` +
-          `<div class="meeting-confirm-step-copy">` +
-            `<div class="meeting-confirm-step-title">Send confirmation email</div>` +
-            `<div class="meeting-confirm-step-detail">Notifying ${escHtml(emailTarget)}</div>` +
-          `</div>` +
-        `</li>` +
-        `<li class="meeting-confirm-step meeting-confirm-step--pending" data-step="review" data-state="pending">` +
-          `<span class="meeting-confirm-step-icon" aria-hidden="true">○</span>` +
-          `<div class="meeting-confirm-step-copy">` +
-            `<div class="meeting-confirm-step-title">Clear from your review list</div>` +
-            `<div class="meeting-confirm-step-detail">Removes this from your review list</div>` +
-          `</div>` +
-        `</li>` +
-      `</ul>` +
-      `<p class="meeting-confirm-error" id="meeting-confirm-error" hidden></p>`;
-    actionsEl.innerHTML = '';
-
-    openOsDialogBackdrop();
-    bindOsDialogDismiss(backdrop, () => finish({ ok: false, cancelled: true }), true);
-    document.addEventListener('keydown', onKey);
-
-    void (async () => {
-      try {
-        const prep = await fetchMeetingProjectPrepare(item);
-        const project = await waitForMeetingProjectChoice(bodyEl, item, prep);
-
-        const projectStep = bodyEl.querySelector('[data-step="project"]');
-        projectStep?.querySelector('.meeting-confirm-project')?.remove();
-        setMeetingConfirmStep(
-          bodyEl,
-          'project',
-          'done',
-          prep.linked ? `${postTitle(1)} linked` : `${postTitle(1)} confirmed`,
-          project.jobTitle || project.jobSlug,
-        );
-        await sleepMs(300);
-
-        setMeetingConfirmStep(bodyEl, 'email', 'active', 'Sending confirmation email', `Notifying ${escHtml(emailTarget)}`);
-
-        const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/schedule`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'confirm' }),
-        });
-        const data = await readApiJson(res);
-        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
-        const sentTo = data.attendeeEmail || emailTarget;
-        setMeetingConfirmStep(
-          bodyEl,
-          'email',
-          'done',
-          'Confirmation email sent',
-          `Reply delivered to ${sentTo}`,
-        );
-        await sleepMs(350);
-        setMeetingConfirmStep(
-          bodyEl,
-          'review',
-          'done',
-          'Review cleared',
-          'Removed from your review list on the dashboard',
-        );
-
-        if (data.event) {
-          const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
-          if (idx !== -1) emailState.allEvents[idx] = data.event;
-        }
-        updateInboxBadgesFromState();
-        removeReviewAlertBanner(item.emailId);
-        if (emailState.activeId === item.emailId) renderEmailPanel();
-
-        titleEl.textContent = 'Meeting confirmed';
-        bodyEl.querySelector('.meeting-confirm-lead')?.remove();
-
-        actionsEl.innerHTML = '';
-        const doneBtn = document.createElement('button');
-        doneBtn.type = 'button';
-        doneBtn.className = 'os-dialog-btn os-dialog-btn--primary';
-        doneBtn.textContent = 'Done';
-        doneBtn.addEventListener('click', () => {
-          finish({ ok: true, data, project });
-        });
-        if (project.jobSlug) {
-          const viewBtn = document.createElement('button');
-          viewBtn.type = 'button';
-          viewBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
-          viewBtn.textContent = `View ${postLower(1)}`;
-          viewBtn.addEventListener('click', () => {
-            finish({ ok: true, data, project, openProject: true });
-            navigateToWork(project.jobSlug, { fromEmailId: item.emailId });
-          });
-          actionsEl.appendChild(viewBtn);
-        }
-        actionsEl.appendChild(doneBtn);
-      } catch (e) {
-        if (e?.cancelled) {
-          finish({ ok: false, cancelled: true });
-          return;
-        }
-        const projectFailed = bodyEl.querySelector('[data-step="project"][data-state="active"]');
-        if (projectFailed) {
-          setMeetingConfirmStep(
-            bodyEl,
-            'project',
-            'error',
-            `${postTitle(1)} link required`,
-            e.message || String(e),
-          );
-          setMeetingConfirmStep(bodyEl, 'email', 'pending', 'Send confirmation email', 'Waiting…');
-        } else {
-          setMeetingConfirmStep(
-            bodyEl,
-            'email',
-            'error',
-            'Confirmation email failed',
-            e.message || String(e),
-          );
-        }
-        setMeetingConfirmStep(bodyEl, 'review', 'pending', 'Clear from your review list', 'Waiting…');
-        titleEl.textContent = 'Could not confirm';
-        actionsEl.innerHTML = '';
-        const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
-        closeBtn.textContent = 'Close';
-        closeBtn.addEventListener('click', () => finish({ ok: false, error: e.message }));
-        actionsEl.appendChild(closeBtn);
-      }
-    })();
-  });
-}
-
+/** Confirm a meeting from a dashboard/email action — Confirm → Booking… → Booked, no sheet. */
 async function confirmScheduledMeeting(item, btn) {
   if (!item?.emailId) return;
+  const prevLabel = btn?.textContent || 'Confirm';
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Confirming…';
+    btn.textContent = 'Booking…';
   }
-  const result = await runMeetingConfirmChecklist(item);
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = 'Confirm';
-  }
-  if (!result.ok && !result.cancelled && result.error) {
-    await osAlert({ title: 'Could not confirm', bodyHtml: escHtml(result.error) });
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'confirm' }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    if (btn) btn.textContent = 'Booked';
+    await sleepMs(700);
+    updateInboxBadgesFromState();
+    removeReviewAlertBanner(item.emailId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+    if (emailState.activeId === item.emailId) renderEmailPanel();
+    if (MAP.type === 'dashboard') await loadAdminDashboard();
+  } catch (e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+    }
+    await osAlert({ title: 'Could not confirm', bodyHtml: escHtml(e.message || String(e)) });
   }
 }
 
@@ -4354,7 +3962,7 @@ function buildReviewAlertBanner(item) {
         ? 'Send scheduling link'
         : item.type === 'meeting_conflict'
           ? 'Notify conflict'
-          : 'Accept & notify',
+          : 'Confirm',
       primary: true,
       onClick: (btn) =>
         void runReviewScheduleAction(
@@ -10529,24 +10137,31 @@ async function runEmailScheduleAction(ev, action, btn) {
       const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
       if (idx !== -1) emailState.allEvents[idx] = data.event;
     }
+
+    // Meeting accept: Confirm → Booking… → Booked on the button — no sheet,
+    // and no client email (inbound requests are often no-reply).
+    if (action === 'accept-notify') {
+      btn.disabled = true;
+      btn.textContent = 'Booked';
+      await sleepMs(700);
+      if (data.event?.automationAckAt) {
+        removeReviewAlertBanner(ev.id);
+        updateInboxBadgesFromState();
+        syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+      }
+      renderEmailPanel();
+      return;
+    }
+
     if (data.event?.automationAckAt) {
       removeReviewAlertBanner(ev.id);
       updateInboxBadgesFromState();
     }
     renderEmailPanel();
-    if (action === 'accept-notify') {
-      await osAlert({
-        title: data.alreadyBooked ? 'Notification sent' : 'Meeting accepted',
-        bodyHtml: data.notifyError
-          ? `<p>Meeting booked, but the notification email failed: ${escHtml(data.notifyError)}</p>`
-          : `<p>Calendar updated and ${escHtml(attendeeFromEmailEvent(ev).name || 'the sender')} was notified.</p>`,
-      });
-    } else {
-      await osAlert({
-        title: 'Notification sent',
-        bodyHtml: `<p>Let ${escHtml(attendeeFromEmailEvent(ev).name || 'the sender')} know that time is booked.</p>`,
-      });
-    }
+    await osAlert({
+      title: 'Notification sent',
+      bodyHtml: `<p>Let ${escHtml(attendeeFromEmailEvent(ev).name || 'the sender')} know that time is booked.</p>`,
+    });
   } catch (err) {
     btn.disabled = false;
     btn.textContent = prevLabel;
@@ -10665,7 +10280,7 @@ async function mountEmailScheduleActions(container, ev) {
       primaryBtn.hidden = false;
       primaryBtn.disabled = false;
       const action = data.check.available ? 'accept-notify' : 'notify-conflict';
-      primaryBtn.textContent = data.check.available ? 'Accept and Notify' : 'Time slot is booked';
+      primaryBtn.textContent = data.check.available ? 'Confirm' : 'Time slot is booked';
       primaryBtn.dataset.action = action;
       primaryBtn.addEventListener('click', () => {
         void runEmailScheduleAction(ev, action, primaryBtn);
