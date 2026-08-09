@@ -120,6 +120,9 @@ const DEFAULT_RECENTLY_VIEWED_DAYS = 7;
 /** Keep local admin view history for up to a year so raising the settings window still works. */
 const WORK_VIEW_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 
+/** Last opened project — restores detail after refresh when the URL has no slug. */
+const WORK_LAST_ACTIVE_KEY = 'work:lastActiveSlug-v1';
+
 const TODO_PRIORITY_LABELS = {
   low: 'Low',
   normal: 'Normal',
@@ -248,6 +251,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
       if (res.status === 409) throw new Error(`A ${postLower(1)} with that title already exists.`);
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       workState.activeSlug = slug;
+      syncWorkDeepLinkUrl(slug);
       const jobEntry = {
         slug,
         title: data.title || payload.title,
@@ -475,6 +479,7 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
         workState.activeSlug = null;
         workState.draft = null;
         workState.dirty = false;
+        syncWorkDeepLinkUrl(null);
         getWorkEditor()?.classList.remove('de-pane-active');
         cleared = true;
       }
@@ -1487,14 +1492,38 @@ async function loadWorkTab(opts = {}) {
     console.warn('[work] project list unavailable', e);
   }
   pendingWorkDeepLinkSlug = null;
-  workState.activeSlug = deepSlug || null;
+
+  let restoreSlug = deepSlug || null;
+  if (!restoreSlug && preserveNew) restoreSlug = '__new__';
+  if (!restoreSlug && prevActiveSlug && prevActiveSlug !== '__new__') {
+    restoreSlug = prevActiveSlug;
+  }
+  if (!restoreSlug) restoreSlug = readWorkLastActiveSlug();
+  if (
+    restoreSlug &&
+    restoreSlug !== '__new__' &&
+    workState.jobs.length > 0 &&
+    !workState.jobs.some((j) => j.slug === restoreSlug)
+  ) {
+    restoreSlug = null;
+    clearWorkLastActiveSlug();
+  }
+
+  workState.activeSlug = restoreSlug || null;
   workState.dirty = false;
-  if (deepSlug && deepSlug !== '__new__' && deepSlug !== prevActiveSlug) {
-    recordWorkView(deepSlug);
+  if (restoreSlug && restoreSlug !== '__new__' && restoreSlug !== prevActiveSlug) {
+    recordWorkView(restoreSlug);
   }
   if (!preserveNew) workState.draft = null;
   shell.clearEditorFooterSave();
-  if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
+  if (workState.activeSlug && workState.activeSlug !== '__new__') {
+    syncWorkDeepLinkUrl(workState.activeSlug);
+  } else if (workState.activeSlug === '__new__') {
+    syncWorkDeepLinkUrl('__new__');
+  } else {
+    syncWorkDeepLinkUrl(null);
+    getWorkEditor()?.classList.remove('de-pane-active');
+  }
   if (keepDetailOpen && workState.activeSlug === prevActiveSlug) {
     refreshWorkSidebarList();
     applyWorkAuditingIndicators();
@@ -1535,6 +1564,7 @@ function beginNewProjectDrawer() {
       workState.activeSlug = null;
       workState.draft = null;
       workState.returnToTodoId = null;
+      syncWorkDeepLinkUrl(null);
       getWorkEditor()?.classList.remove('de-pane-active');
       if (returnTodoId) shell.navigateToTodo(returnTodoId);
       else {
@@ -1565,6 +1595,7 @@ function startNewProject() {
     source: '',
     body: '',
   };
+  syncWorkDeepLinkUrl('__new__');
   syncWorkSidebarActiveState();
   renderWorkPane();
 }
@@ -2535,12 +2566,14 @@ function renderNewWorkForm(pane) {
               workState.returnToTodoId = null;
               workState.activeSlug = null;
               workState.draft = null;
+              syncWorkDeepLinkUrl(null);
               getWorkEditor()?.classList.remove('de-pane-active');
               shell.navigateToTodo(returnTodoId);
               return;
             }
             workState.activeSlug = null;
             workState.draft = null;
+            syncWorkDeepLinkUrl(null);
             getWorkEditor()?.classList.remove('de-pane-active');
             syncWorkSidebarActiveState();
             renderWorkPane();
@@ -2806,6 +2839,7 @@ function workEditBackHandler(slug) {
       workState.returnToEmailId = null;
       workState.activeSlug = null;
       workState.draft = null;
+      syncWorkDeepLinkUrl(null);
       shell.navigateToEmail(returnEmailId);
       return;
     }
@@ -2813,13 +2847,12 @@ function workEditBackHandler(slug) {
       workState.returnToTodoId = null;
       workState.activeSlug = null;
       workState.draft = null;
+      syncWorkDeepLinkUrl(null);
       getWorkEditor()?.classList.remove('de-pane-active');
       shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
       return;
     }
-    workState.activeSlug = null;
-    workState.draft = null;
-    getWorkEditor()?.classList.remove('de-pane-active');
+    closeWorkDetailPane();
     syncWorkSidebarActiveState();
     renderWorkPane();
   };
@@ -3108,6 +3141,7 @@ function activateWorkPaneOnMobile() {
 
 async function openWork(slug) {
   if (slug === workState.activeSlug) {
+    syncWorkDeepLinkUrl(slug);
     syncWorkSidebarActiveState({ scroll: true });
     activateWorkPaneOnMobile();
     return;
@@ -3121,6 +3155,7 @@ async function openWork(slug) {
   // Stamp for Recently Viewed, but do not rebuild the sidebar here — that
   // used to reshuffle the list under the cursor on every click.
   recordWorkView(slug);
+  syncWorkDeepLinkUrl(slug);
   syncWorkSidebarActiveState({ scroll: true });
   renderWorkPane();
   activateWorkPaneOnMobile();
@@ -3156,12 +3191,14 @@ async function createWork(slug, payload) {
       workState.returnToTodoId = null;
       workState.activeSlug = null;
       workState.draft = null;
+      syncWorkDeepLinkUrl(null);
       getWorkEditor()?.classList.remove('de-pane-active');
       shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
       return;
     }
     workState.activeSlug = slug;
     recordWorkView(slug);
+    syncWorkDeepLinkUrl(slug);
     renderWorkEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
@@ -3182,6 +3219,7 @@ async function saveWork(slug, payload) {
     workState.dirty = false;
     await loadWorkTab();
     workState.activeSlug = slug;
+    syncWorkDeepLinkUrl(slug);
     renderWorkEditor();
   } catch (e) {
     alert(`Failed to save: ${e.message}`);
@@ -3253,6 +3291,7 @@ async function bulkArchiveWork(slugs) {
         workState.activeSlug = null;
         workState.draft = null;
         workState.dirty = false;
+        syncWorkDeepLinkUrl(null);
         getWorkEditor()?.classList.remove('de-pane-active');
       }
     } catch {
@@ -3352,6 +3391,7 @@ async function archiveWork(jobOrSlug) {
         workState.activeSlug = null;
         workState.draft = null;
         workState.dirty = false;
+        syncWorkDeepLinkUrl(null);
         getWorkEditor()?.classList.remove('de-pane-active');
       } else {
         Object.assign(workState.draft, {
@@ -3433,12 +3473,42 @@ function parseWorkDeepLinkFromUrl() {
   }
 }
 
+function readWorkLastActiveSlug() {
+  try {
+    return localStorage.getItem(WORK_LAST_ACTIVE_KEY)?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberWorkActiveSlug(slug) {
+  if (!slug || slug === '__new__') return;
+  try {
+    localStorage.setItem(WORK_LAST_ACTIVE_KEY, slug);
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearWorkLastActiveSlug() {
+  try {
+    localStorage.removeItem(WORK_LAST_ACTIVE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function syncWorkDeepLinkUrl(slug) {
   try {
     const url = new URL(window.location.href);
     url.searchParams.set('tab', 'work');
-    if (slug && slug !== '__new__') url.searchParams.set('slug', slug);
-    else url.searchParams.delete('slug');
+    if (slug && slug !== '__new__') {
+      url.searchParams.set('slug', slug);
+      rememberWorkActiveSlug(slug);
+    } else {
+      url.searchParams.delete('slug');
+      if (!slug) clearWorkLastActiveSlug();
+    }
     history.replaceState({}, '', url.pathname + url.search + url.hash);
   } catch {
     /* ignore */
