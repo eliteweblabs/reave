@@ -2194,7 +2194,12 @@ function scrollAnchorIntoView(anchor: HTMLElement | null) {
   anchor.scrollIntoView({ block: 'end' });
 }
 
-/** Keep the viewport pinned to the latest content while the agent streams. */
+/**
+ * Keep the viewport pinned to the latest content while the agent streams —
+ * but only while the user is already near the bottom. Scrolling up to read
+ * history pauses follow until they return near the bottom (or a new run starts
+ * via ThreadPrimitive.Viewport's scrollToBottomOnRunStart).
+ */
 function ChatFollowBottom({
   followActive,
   recoveryText,
@@ -2204,15 +2209,36 @@ function ChatFollowBottom({
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useThreadViewport((s) => s.isAtBottom);
+  const followPinnedRef = useRef(true);
   const lastAssistantText = useAuiState((s) => lastAssistantMessageText(s.thread.messages));
   const messageCount = useAuiState((s) => s.thread.messages.length);
-  const wasFollowingRef = useRef(followActive);
+
+  // Sync pin from the library's at-bottom flag, and watch native scroll so a
+  // mid-stream wheel/touch immediately unpins before the next token re-centers.
+  useEffect(() => {
+    if (isAtBottom) followPinnedRef.current = true;
+  }, [isAtBottom]);
+
+  useEffect(() => {
+    const viewport = anchorRef.current?.closest('.aui-viewport');
+    if (!(viewport instanceof HTMLElement)) return;
+
+    const NEAR_BOTTOM_PX = 80;
+    const onScroll = () => {
+      const distance =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      followPinnedRef.current = distance <= NEAR_BOTTOM_PX;
+    };
+
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => viewport.removeEventListener('scroll', onScroll);
+  }, [messageCount]);
 
   useLayoutEffect(() => {
-    const shouldFollow = followActive || isAtBottom || wasFollowingRef.current;
-    if (!shouldFollow) return;
+    if (!followPinnedRef.current) return;
+    if (!followActive && !recoveryText) return;
     scrollAnchorIntoView(anchorRef.current);
-    wasFollowingRef.current = followActive;
   }, [followActive, isAtBottom, lastAssistantText, messageCount, recoveryText]);
 
   useEffect(() => {
@@ -2221,8 +2247,12 @@ function ChatFollowBottom({
 
     let frame: number | null = null;
     const schedule = () => {
+      if (!followPinnedRef.current) return;
       if (frame !== null) cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => scrollAnchorIntoView(anchorRef.current));
+      frame = requestAnimationFrame(() => {
+        if (!followPinnedRef.current) return;
+        scrollAnchorIntoView(anchorRef.current);
+      });
     };
 
     const observer = new ResizeObserver(schedule);
