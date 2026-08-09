@@ -164,6 +164,7 @@ import {
   isBookingConfigured,
   bookingList,
   bookingGet,
+  bookingCreate,
   bookingEventTypes,
   publicBookingPageUrl,
   formatBookingLine,
@@ -232,6 +233,38 @@ async function handle_get_booking_link(args: Record<string, unknown>, _ctx: Tool
   });
 }
 
+async function handle_create_booking(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const name = String(args.name ?? '').trim();
+  const email = String(args.email ?? '').trim();
+  const start = String(args.start ?? '').trim();
+  const phone = typeof args.phone === 'string' ? args.phone.trim() : undefined;
+  const notes = typeof args.notes === 'string' ? args.notes.trim() : undefined;
+  const address = typeof args.address === 'string' ? args.address.trim() : undefined;
+
+  if (!name) return JSON.stringify({ error: 'name is required' });
+  if (!email) return JSON.stringify({ error: 'email is required' });
+  if (!start) return JSON.stringify({ error: 'start is required (ISO 8601 datetime)' });
+
+  // Validate ISO date
+  const startDate = new Date(start);
+  if (isNaN(startDate.getTime())) {
+    return JSON.stringify({ error: `Invalid start time: "${start}". Use ISO 8601 format, e.g. 2026-08-11T13:40:00-04:00` });
+  }
+
+  const result = await bookingCreate({ name, email, start, phone, notes, address });
+  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+
+  const booking = result.data?.booking;
+  return JSON.stringify({
+    success: true,
+    uid: booking?.uid ?? null,
+    startTime: booking?.startTime ?? start,
+    summary: booking?.uid
+      ? `Booking created for ${name} on ${new Date(booking.startTime ?? start).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+      : `Booking created for ${name}`,
+  });
+}
+
 export const schedulingModule: AgentToolModule = {
   id: 'scheduling',
   enabled: (ctx) => hasFeature('scheduling') && isBookingConfigured(),
@@ -291,12 +324,37 @@ export const schedulingModule: AgentToolModule = {
                   additionalProperties: false,
                 },
               },
-            }
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'create_booking',
+                description:
+                  'Create a new Cal.com booking/appointment. Use when a user asks to schedule a meeting, create an appointment, or when an email contains a meeting request at a specific date and time. start must be a full ISO 8601 datetime with timezone offset, e.g. 2026-08-11T13:40:00-04:00 for 1:40 PM Eastern.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: 'Attendee full name' },
+                    email: { type: 'string', description: 'Attendee email address' },
+                    start: {
+                      type: 'string',
+                      description: 'Start datetime in ISO 8601 with timezone offset, e.g. 2026-08-11T13:40:00-04:00. Always include the offset — never pass a bare local time or UTC Z when the intent is a local time.',
+                    },
+                    phone: { type: 'string', description: 'Optional attendee phone number' },
+                    notes: { type: 'string', description: 'Optional meeting notes or agenda' },
+                    address: { type: 'string', description: 'Optional meeting address (defaults to company address)' },
+                  },
+                  required: ['name', 'email', 'start'],
+                  additionalProperties: false,
+                },
+              },
+            },
     ];
   },
   handlers: {
     'list_bookings': handle_list_bookings,
     'get_booking': handle_get_booking,
     'get_booking_link': handle_get_booking_link,
+    'create_booking': handle_create_booking,
   },
 };
