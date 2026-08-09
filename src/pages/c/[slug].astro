@@ -617,9 +617,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <PortalAuditPanel
               report={portalAuditJob.auditReport}
               bodyHtml={portalAuditJob.bodyHtml}
-              companyName={org.name?.trim() || brandTitle}
               clientName={company || displayName}
-              scanDate={portalAuditJob.updatedAt}
               website={clientWebsite}
               active={initialTab === 'audit'}
             />

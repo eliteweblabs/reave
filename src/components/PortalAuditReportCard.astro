@@ -7,24 +7,18 @@ import type { AuditReportCard, LetterGrade, ReportCardIcon } from '../lib/auditR
 
 interface Props {
   report: AuditReportCard;
-  /** Company display name (header). */
-  companyName?: string;
-  /** Client / business name for scan metadata. */
+  /** Client / business name for “reproduce here” prefill. */
   clientName?: string;
   /** Escaped/linked HTML of the raw audit body (technical notes). */
   bodyHtml?: string;
-  /** ISO date string for scan date (defaults to today). */
-  scanDate?: string;
   /** Website URL for “reproduce here” (falls back to report.website). */
   website?: string;
 }
 
 const {
   report,
-  companyName = 'Elite Web Labs',
   clientName = '',
   bodyHtml = '',
-  scanDate,
   website = '',
 } = Astro.props;
 
@@ -37,14 +31,6 @@ function gradeLabel(grade: LetterGrade | null | undefined): string {
   return grade || '—';
 }
 
-function fmtScanDate(iso?: string): string {
-  const d = iso ? new Date(iso) : new Date();
-  if (Number.isNaN(d.getTime())) return '';
-  return d
-    .toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-    .toUpperCase();
-}
-
 function scoreBars(score: number | null | undefined): number {
   if (score == null || Number.isNaN(score)) return 0;
   return Math.max(1, Math.min(5, Math.ceil(score / 20)));
@@ -53,18 +39,10 @@ function scoreBars(score: number | null | undefined): number {
 const ringPct = report.overallScore ?? 0;
 const circumference = 2 * Math.PI * 54;
 const ringOffset = circumference - (ringPct / 100) * circumference;
-const dateLabel = fmtScanDate(scanDate);
 const featured = report.featured;
 const cats = report.categories || [];
 const ideas = (report.ideas || []).slice(0, 5);
 const heroStats = report.heroStats || [];
-const brandInitials = companyName
-  .split(/\s+/)
-  .filter(Boolean)
-  .slice(0, 3)
-  .map((w) => w[0]?.toUpperCase() || '')
-  .join('')
-  .slice(0, 3) || 'EWL';
 
 /** Public Digital Audit form — pass website (+ business) so “reproduce here” prefills. */
 function buildReproduceAuditHref(website?: string, business?: string): string {
@@ -123,21 +101,6 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     </div>
   ) : (
     <>
-      <header class="opd-header">
-        <div class="opd-brand">
-          <div class="opd-brand-mark" aria-hidden="true">{brandInitials}</div>
-          <div>
-            <div class="opd-brand-name">{companyName}</div>
-            <div class="opd-brand-sub">Audit engine by REΛVE Automation</div>
-          </div>
-        </div>
-        <div class="opd-meta">
-          {dateLabel && <div><span>SCAN DATE</span> {dateLabel}</div>}
-          {clientName && <div><span>CLIENT</span> {clientName}</div>}
-          <div><span>PREPARED BY</span> {companyName.toUpperCase()}</div>
-        </div>
-      </header>
-
       <h2 class="opd-title">Online presence diagnostic</h2>
       <p class="opd-lede">An independent systems scan of your business’s digital footprint.</p>
 
@@ -357,56 +320,6 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     max-width: 36ch;
     line-height: 1.5;
     font-size: 0.95rem;
-  }
-
-  .opd-header {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 16px 24px;
-    margin-bottom: 22px;
-  }
-  .opd-brand {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-  .opd-brand-mark {
-    width: 40px;
-    height: 40px;
-    border: 1.5px solid var(--opd-cyan);
-    border-radius: 4px;
-    display: grid;
-    place-items: center;
-    font-family: var(--opd-display);
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--opd-cyan);
-    letter-spacing: 0.04em;
-  }
-  .opd-brand-name {
-    font-family: var(--opd-mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: var(--opd-muted);
-    text-transform: uppercase;
-  }
-  .opd-brand-sub {
-    font-size: 11px;
-    color: var(--opd-dim);
-    margin-top: 2px;
-  }
-  .opd-meta {
-    font-family: var(--opd-mono);
-    font-size: 10.5px;
-    color: var(--opd-muted);
-    text-align: right;
-    line-height: 1.65;
-  }
-  .opd-meta span {
-    color: var(--opd-dim);
-    margin-right: 6px;
   }
 
   .opd-title {
@@ -869,7 +782,6 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
   @media (max-width: 560px) {
     .opd-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
     .opd-hero-copy { text-align: left; width: 100%; }
-    .opd-meta { text-align: left; }
     .opd-featured-row { grid-template-columns: 1fr; }
     .opd-featured-score { flex-direction: row; justify-content: flex-start; }
   }

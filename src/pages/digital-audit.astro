@@ -21,7 +21,6 @@ const auditsEnabled = hasFeature('site_audits');
 const runSlug = (Astro.url.searchParams.get('run') || '').trim().toLowerCase();
 let report: ReturnType<typeof buildAuditReportCard> = null;
 let clientName = '';
-let scanDate = '';
 let bodyHtml = '';
 let inProgress = false;
 let runLabel = '';
@@ -45,7 +44,6 @@ if (auditsEnabled && runSlug && isSafeWorkSlug(runSlug)) {
       body: doc.body || '',
     });
     clientName = (doc.contact_name || '').trim();
-    scanDate = doc.updated || doc.created || '';
     runLabel = clientName || doc.title || runSlug;
     const activeRun = getSiriAuditRun(runSlug);
     inProgress = Boolean(report?.inProgress) || Boolean(activeRun);
@@ -164,9 +162,7 @@ const openOptionalDetails = Boolean(prefillUrl);
         <PortalAuditReportCard
           report={report!}
           bodyHtml={bodyHtml}
-          companyName={company.name}
           clientName={clientName}
-          scanDate={scanDate}
         />
         {!inProgress && (
           <p class="da-again">
