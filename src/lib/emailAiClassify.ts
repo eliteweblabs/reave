@@ -46,6 +46,7 @@ export type AiClassifyResult = {
   reason: string;
   proposed_meeting_start: string | null;
   scheduling_note: string | null;
+  proposed_meeting_duration_minutes: number | null;
 };
 
 const AI_LABELS = new Set<string>([
@@ -131,6 +132,15 @@ function clampConfidence(raw: unknown): number {
   return Math.min(1, Math.max(0, n));
 }
 
+function parseMeetingDurationMinutesField(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+  if (!Number.isFinite(n)) return null;
+  const minutes = Math.round(n);
+  if (minutes < 5 || minutes > 480) return null;
+  return minutes;
+}
+
 /**
  * Claude classify call — returns label + confidence.
  * Null when AI is disabled or the call fails.
@@ -163,7 +173,8 @@ Respond with ONLY valid JSON (no markdown fences):
   "note_to_append": "project-relevant facts to append to the job file, or null",
   "reason": "short classification explanation",
   "proposed_meeting_start": "ISO 8601 datetime with offset when the email proposes a concrete meeting date AND time, otherwise null",
-  "scheduling_note": "short human phrase for the proposed meeting time, or null when not scheduling"
+  "scheduling_note": "short human phrase for the proposed meeting time AND length when stated (e.g. Tuesday 2pm for 1 hour), or null when not scheduling",
+  "proposed_meeting_duration_minutes": "integer minutes when the email states a meeting length (60 for an hour); null when unspecified"
 }
 
 Labels (pick exactly one):
@@ -187,6 +198,7 @@ Confidence rules:
 
 Pick job_slug only when confident; prefer active/inquiry jobs.
 For proposed_meeting_start: require BOTH a specific date and time. Vague availability must be null.
+For proposed_meeting_duration_minutes: extract when the sender asks for a length ("an hour", "60 minutes", "15 min"). Leave null when they do not say — do not assume 30.
 Attachments: when the body is empty but Attachments are listed, summarize the attached files — never call it blank.`;
 
   const triageBody = normalizeEmailBody(email.text, email.html);
@@ -248,6 +260,9 @@ Attachments: when the body is empty but Attachments are listed, summarize the at
       reason: String(parsed.reason ?? '').trim() || `AI label ${label}`,
       proposed_meeting_start: parseProposedMeetingStart(parsed.proposed_meeting_start),
       scheduling_note: parsed.scheduling_note ? String(parsed.scheduling_note).trim() : null,
+      proposed_meeting_duration_minutes: parseMeetingDurationMinutesField(
+        parsed.proposed_meeting_duration_minutes,
+      ),
     };
   } catch (e) {
     console.warn('[email] AI classify failed', e);

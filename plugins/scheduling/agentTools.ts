@@ -240,10 +240,24 @@ async function handle_create_booking(args: Record<string, unknown>, _ctx: ToolCo
   const phone = typeof args.phone === 'string' ? args.phone.trim() : undefined;
   const notes = typeof args.notes === 'string' ? args.notes.trim() : undefined;
   const address = typeof args.address === 'string' ? args.address.trim() : undefined;
+  const eventSlug =
+    typeof args.event_slug === 'string' && args.event_slug.trim()
+      ? args.event_slug.trim()
+      : undefined;
+  const durationRaw = args.duration_minutes;
+  const durationMinutes =
+    typeof durationRaw === 'number' && Number.isFinite(durationRaw)
+      ? Math.round(durationRaw)
+      : typeof durationRaw === 'string' && durationRaw.trim() && Number.isFinite(Number(durationRaw))
+        ? Math.round(Number(durationRaw))
+        : undefined;
 
   if (!name) return JSON.stringify({ error: 'name is required' });
   if (!email) return JSON.stringify({ error: 'email is required' });
   if (!start) return JSON.stringify({ error: 'start is required (ISO 8601 datetime)' });
+  if (durationMinutes != null && (durationMinutes < 5 || durationMinutes > 480)) {
+    return JSON.stringify({ error: 'duration_minutes must be between 5 and 480' });
+  }
 
   // Validate ISO date
   const startDate = new Date(start);
@@ -251,17 +265,37 @@ async function handle_create_booking(args: Record<string, unknown>, _ctx: ToolCo
     return JSON.stringify({ error: `Invalid start time: "${start}". Use ISO 8601 format, e.g. 2026-08-11T13:40:00-04:00` });
   }
 
-  const result = await bookingCreate({ name, email, start, phone, notes, address });
+  const result = await bookingCreate({
+    name,
+    email,
+    start,
+    phone,
+    notes,
+    address,
+    durationMinutes,
+    eventSlug,
+  });
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
 
   const booking = result.data?.booking;
+  const lengthMinutes = result.data?.durationMinutes ?? durationMinutes ?? 30;
+  const when = new Date(booking?.startTime ?? start).toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
   return JSON.stringify({
     success: true,
     uid: booking?.uid ?? null,
     startTime: booking?.startTime ?? start,
+    duration_minutes: lengthMinutes,
+    event_slug: result.data?.eventSlug ?? eventSlug ?? null,
     summary: booking?.uid
-      ? `Booking created for ${name} on ${new Date(booking.startTime ?? start).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-      : `Booking created for ${name}`,
+      ? `Booking created for ${name} on ${when} (${lengthMinutes} min)`
+      : `Booking created for ${name} (${lengthMinutes} min)`,
   });
 }
 
@@ -318,7 +352,7 @@ export const schedulingModule: AgentToolModule = {
                   properties: {
                     event_slug: {
                       type: 'string',
-                      description: 'Cal.com event slug, e.g. 30min, 15min. Default 30min.',
+                      description: 'Cal.com event slug, e.g. 30min, 60min, 15min. Default 30min.',
                     },
                   },
                   additionalProperties: false,
@@ -330,7 +364,7 @@ export const schedulingModule: AgentToolModule = {
               function: {
                 name: 'create_booking',
                 description:
-                  'Create a new Cal.com booking/appointment. Use when a user asks to schedule a meeting, create an appointment, or when an email contains a meeting request at a specific date and time. start must be a full ISO 8601 datetime with timezone offset, e.g. 2026-08-11T13:40:00-04:00 for 1:40 PM Eastern.',
+                  'Create a new Cal.com booking/appointment. Use when a user asks to schedule a meeting, create an appointment, or when an email contains a meeting request at a specific date and time. start must be a full ISO 8601 datetime with timezone offset, e.g. 2026-08-11T13:40:00-04:00 for 1:40 PM Eastern. Meetings have a fixed length (Cal.com event types) — not open-ended. Default duration is 30 minutes; when the client asks for an hour (or another length), pass duration_minutes (e.g. 60) or event_slug (e.g. 60min).',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -339,6 +373,16 @@ export const schedulingModule: AgentToolModule = {
                     start: {
                       type: 'string',
                       description: 'Start datetime in ISO 8601 with timezone offset, e.g. 2026-08-11T13:40:00-04:00. Always include the offset — never pass a bare local time or UTC Z when the intent is a local time.',
+                    },
+                    duration_minutes: {
+                      type: 'integer',
+                      description:
+                        'Meeting length in minutes (5–480). Default 30. Use 60 when the client asks for an hour, 15 for a quick call, etc. Mapped to the closest Cal.com event type.',
+                    },
+                    event_slug: {
+                      type: 'string',
+                      description:
+                        'Optional Cal.com event slug (e.g. 30min, 60min). Overrides duration_minutes when set. Call get_booking_link first if you need the available event_types list.',
                     },
                     phone: { type: 'string', description: 'Optional attendee phone number' },
                     notes: { type: 'string', description: 'Optional meeting notes or agenda' },

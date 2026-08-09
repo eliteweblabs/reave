@@ -122,6 +122,19 @@ export async function POST(context: APIContext): Promise<Response> {
   const notes = rec.notes != null ? String(rec.notes).trim().slice(0, 500) : '';
   const phone = rec.phone != null ? String(rec.phone).trim() : undefined;
   const address = resolveBookingAddress(rec.address);
+  const eventSlug =
+    rec.eventSlug != null
+      ? String(rec.eventSlug).trim()
+      : rec.event_slug != null
+        ? String(rec.event_slug).trim()
+        : '';
+  const durationRaw = rec.durationMinutes ?? rec.duration_minutes;
+  const durationMinutes =
+    typeof durationRaw === 'number' && Number.isFinite(durationRaw)
+      ? Math.round(durationRaw)
+      : typeof durationRaw === 'string' && durationRaw.trim() && Number.isFinite(Number(durationRaw))
+        ? Math.round(Number(durationRaw))
+        : undefined;
 
   if (!name) return json({ ok: false, error: 'Guest name is required' }, 400);
   if (!email.includes('@')) return json({ ok: false, error: 'Valid guest email is required' }, 400);
@@ -135,6 +148,7 @@ export async function POST(context: APIContext): Promise<Response> {
     proposedStart: start.toISOString(),
     from: `${name} <${email}>`,
     contactName: name,
+    durationMinutes,
   });
   if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
   if (!checkRes.check.available) {
@@ -154,6 +168,8 @@ export async function POST(context: APIContext): Promise<Response> {
     start: start.toISOString(),
     notes: notes || undefined,
     phone,
+    durationMinutes,
+    ...(eventSlug ? { eventSlug } : {}),
     ...(address ? { address } : {}),
   });
   if (!created.ok) {
@@ -170,6 +186,8 @@ export async function POST(context: APIContext): Promise<Response> {
     booking: {
       uid: booking.uid,
       startTime: booking.startTime ?? start.toISOString(),
+      durationMinutes: created.data.durationMinutes ?? durationMinutes ?? checkRes.check.durationMinutes,
+      eventSlug: created.data.eventSlug ?? (eventSlug || null),
     },
   });
 }

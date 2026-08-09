@@ -12,11 +12,16 @@ import {
   type AvailabilitySlot,
   type BookingSummary,
 } from './bookingClient';
+import {
+  DEFAULT_MEETING_MINUTES,
+  inferMeetingDurationMinutes,
+  resolveBookingLength,
+} from './bookingDuration';
 import { siteBaseUrl } from './contactApi';
 import { bookingCalendarUrl, mapsDirectionsUrl } from './calendarLinks';
 import { scheduleFormUrl } from './inboundEmailReply';
 
-export const DEFAULT_MEETING_MINUTES = 30;
+export { DEFAULT_MEETING_MINUTES };
 const SLOT_MATCH_MS = 5 * 60 * 1000;
 const MAX_ALTERNATIVES = 6;
 
@@ -639,6 +644,9 @@ export async function tryAutoBookInboundMeeting(input: {
   subject: string;
   schedulingNote?: string;
   summary?: string;
+  bodyText?: string;
+  /** Explicit length when AI/caller already extracted it (minutes). */
+  durationMinutes?: number | null;
   /**
    * Known contact uid for the sender (resolved by exact email). Passed through
    * to the booking service so it skips its fuzzy name match instead of
@@ -656,10 +664,21 @@ export async function tryAutoBookInboundMeeting(input: {
     return { ok: false, reason: 'invalid_time' };
   }
 
+  const inferred = inferMeetingDurationMinutes(
+    input.schedulingNote,
+    input.subject,
+    input.summary,
+    input.bodyText,
+  );
+  const length = await resolveBookingLength({
+    durationMinutes: input.durationMinutes ?? inferred ?? undefined,
+  });
+
   const checkRes = await checkEmailMeetingSlot({
     proposedStart: proposed.toISOString(),
     from: input.from,
     contactName: input.contactName,
+    durationMinutes: length.durationMinutes,
   });
   if (!checkRes.ok) {
     return { ok: false, reason: 'booking_failed', error: checkRes.error };
@@ -676,6 +695,9 @@ export async function tryAutoBookInboundMeeting(input: {
   const notes = [
     `From inbox: ${input.subject || '(no subject)'}`,
     input.schedulingNote ? `Requested: ${input.schedulingNote}` : '',
+    length.durationMinutes !== DEFAULT_MEETING_MINUTES
+      ? `Duration: ${length.durationMinutes} minutes`
+      : '',
     input.summary ? input.summary.slice(0, 200) : '',
   ]
     .filter(Boolean)
@@ -686,6 +708,8 @@ export async function tryAutoBookInboundMeeting(input: {
     email: attendee.email,
     start: proposed.toISOString(),
     notes: notes.slice(0, 500),
+    durationMinutes: length.durationMinutes,
+    eventSlug: length.eventSlug,
     ...(input.confirmContactUid ? { confirmContactUid: input.confirmContactUid } : {}),
   });
   if (!created.ok) {
@@ -699,11 +723,15 @@ export async function tryAutoBookInboundMeeting(input: {
   }
 
   const whenLabel = formatMeetingWhenLabel(bookingStart);
+  const durationLabel =
+    length.durationMinutes === 60
+      ? '1 hour'
+      : `${length.durationMinutes} min`;
   return {
     ok: true,
     bookingUid,
     bookingStart,
     whenLabel,
-    routeNote: `Meeting scheduled automatically for ${whenLabel}`,
+    routeNote: `Meeting scheduled automatically for ${whenLabel} (${durationLabel})`,
   };
 }

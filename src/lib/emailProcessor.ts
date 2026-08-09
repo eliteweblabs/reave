@@ -120,6 +120,7 @@ type AiTriage = {
   reason: string;
   proposed_meeting_start: string | null;
   scheduling_note: string | null;
+  proposed_meeting_duration_minutes?: number | null;
 };
 
 async function runAiTriage(
@@ -148,7 +149,8 @@ Respond with ONLY valid JSON (no markdown fences):
   "note_to_append": "project-relevant facts to append to the job file, or null",
   "reason": "short routing explanation",
   "proposed_meeting_start": "ISO 8601 datetime with offset when the email proposes a concrete meeting date AND time, otherwise null",
-  "scheduling_note": "short human phrase for the proposed meeting time, or null when not scheduling"
+  "scheduling_note": "short human phrase for the proposed meeting time AND length when stated (e.g. Tuesday 2pm for 1 hour), or null when not scheduling",
+  "proposed_meeting_duration_minutes": "integer minutes when the email states a meeting length (60 for an hour, 30 for half hour); null when unspecified"
 }
 Categories:
 - junk: marketing, newsletters, spam, bulk list mail (not tax receipts — those may be filed separately)
@@ -158,6 +160,7 @@ Categories:
 - review: ambiguous — needs human decision
 Pick job_slug only when confident; prefer active/inquiry jobs.
 For proposed_meeting_start: require BOTH a specific date and time. Use the Received timestamp to resolve relative phrases. "Next week Tuesday" means Tuesday of the following calendar week, not the nearest Tuesday. "Next Tuesday" skips the imminent Tuesday (e.g. on Monday, next Tuesday is 8 days out). Vague availability ("let's find a time") with no day/time must be null. Deadlines and launch dates are NOT meetings.
+For proposed_meeting_duration_minutes: extract when the sender asks for a length ("an hour", "60 minutes", "quick 15 min"). Leave null when they do not say — do not assume 30.
 Attachments: when the body is empty or signature-only but Attachments are listed below, the email is NOT blank — summarize that the sender attached those files (name them). Never describe an email as empty/blank when attachments are present.`;
 
   const triageBody = normalizeEmailBody(email.text, email.html);
@@ -210,6 +213,18 @@ Attachments: when the body is empty or signature-only but Attachments are listed
       ? String(parsed.scheduling_note).trim()
       : null;
     parsed.proposed_meeting_start = parseProposedMeetingStart(parsed.proposed_meeting_start);
+    const durationRaw = (parsed as { proposed_meeting_duration_minutes?: unknown })
+      .proposed_meeting_duration_minutes;
+    const durationNum =
+      typeof durationRaw === 'number'
+        ? durationRaw
+        : typeof durationRaw === 'string' && durationRaw.trim()
+          ? Number(durationRaw)
+          : NaN;
+    parsed.proposed_meeting_duration_minutes =
+      Number.isFinite(durationNum) && durationNum >= 5 && durationNum <= 480
+        ? Math.round(durationNum)
+        : null;
     return parsed;
   } catch (e) {
     console.warn('[email] AI triage failed', e);
@@ -277,6 +292,7 @@ function applyTrustedAiClassify(opts: {
   authLinkPurpose: string | null;
   proposedMeetingStart: string | null;
   schedulingNote: string;
+  proposedMeetingDurationMinutes: number | null;
   aiJobSlug: string | null;
   aiNote: string | null;
 } {
@@ -321,6 +337,7 @@ function applyTrustedAiClassify(opts: {
     authLinkPurpose,
     proposedMeetingStart: opts.ai.proposed_meeting_start,
     schedulingNote: opts.ai.scheduling_note ?? '',
+    proposedMeetingDurationMinutes: opts.ai.proposed_meeting_duration_minutes ?? null,
     aiJobSlug: opts.ai.job_slug,
     aiNote: opts.ai.note_to_append,
   };
@@ -492,6 +509,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let action = 'classified';
   let proposedMeetingStart: string | null = null;
   let schedulingNote = '';
+  let proposedMeetingDurationMinutes: number | null = null;
   let bookingUid: string | null = null;
   let bookingStart: string | null = null;
   let automationKind: string | null = null;
@@ -533,6 +551,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     authActionUrl = applied.authActionUrl;
     proposedMeetingStart = applied.proposedMeetingStart;
     schedulingNote = applied.schedulingNote;
+    proposedMeetingDurationMinutes = applied.proposedMeetingDurationMinutes;
 
     if (isVerificationCode) {
       const company = await getCompanyConfig().catch(() => null);
@@ -720,6 +739,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         routeNote = ai.reason ?? '';
         proposedMeetingStart = ai.proposed_meeting_start;
         schedulingNote = ai.scheduling_note ?? '';
+        proposedMeetingDurationMinutes = ai.proposed_meeting_duration_minutes ?? null;
         const bodySnippet = snippet(bodyText, 2000);
         const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
         const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
@@ -963,6 +983,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       subject: email.subject ?? '',
       schedulingNote,
       summary,
+      bodyText,
+      durationMinutes: proposedMeetingDurationMinutes,
       confirmContactUid,
     });
     if (autoBook.ok) {

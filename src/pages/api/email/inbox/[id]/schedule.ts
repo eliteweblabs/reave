@@ -30,6 +30,10 @@ import {
   resolveProposedMeetingStart,
 } from '../../../../../lib/emailScheduling';
 import {
+  inferMeetingDurationMinutes,
+  resolveBookingLength,
+} from '../../../../../lib/bookingDuration';
+import {
   ensureProjectForMeetingEmail,
   previewMeetingProjectTitle,
 } from '../../../../../lib/emailMeetingProject';
@@ -359,10 +363,34 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid start time' }, 400);
   }
 
+  const durationRaw = rec.durationMinutes ?? rec.duration_minutes;
+  const explicitDuration =
+    typeof durationRaw === 'number' && Number.isFinite(durationRaw)
+      ? Math.round(durationRaw)
+      : typeof durationRaw === 'string' && durationRaw.trim() && Number.isFinite(Number(durationRaw))
+        ? Math.round(Number(durationRaw))
+        : undefined;
+  const inferredDuration = inferMeetingDurationMinutes(
+    event.schedulingNote,
+    event.subject,
+    event.summary,
+    event.bodySnippet || event.bodyText,
+  );
+  const bookingLength = await resolveBookingLength({
+    durationMinutes: explicitDuration ?? inferredDuration ?? undefined,
+    eventSlug:
+      rec.eventSlug != null
+        ? String(rec.eventSlug).trim()
+        : rec.event_slug != null
+          ? String(rec.event_slug).trim()
+          : undefined,
+  });
+
   const checkRes = await checkEmailMeetingSlot({
     proposedStart: start.toISOString(),
     from: event.from,
     contactName: event.contactName,
+    durationMinutes: bookingLength.durationMinutes,
   });
   if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
 
@@ -497,6 +525,8 @@ export async function POST(context: APIContext): Promise<Response> {
     email: attendee.email,
     start: start.toISOString(),
     notes: notes.slice(0, 500),
+    durationMinutes: bookingLength.durationMinutes,
+    eventSlug: bookingLength.eventSlug,
     ...(address ? { address } : {}),
     ...(confirmContactUid ? { confirmContactUid } : {}),
   });
@@ -506,6 +536,8 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const bookingUid = created.data.booking?.uid ?? null;
   const bookingStart = created.data.booking?.startTime ?? start.toISOString();
+  const durationMinutes =
+    created.data.durationMinutes ?? bookingLength.durationMinutes ?? DEFAULT_MEETING_MINUTES;
   if (!bookingUid) {
     return json({ ok: false, error: 'Booking API did not return a booking id' }, 502);
   }
@@ -535,7 +567,8 @@ export async function POST(context: APIContext): Promise<Response> {
       action: 'accept-notify',
       bookingUid,
       bookingStart,
-      durationMinutes: DEFAULT_MEETING_MINUTES,
+      durationMinutes,
+      eventSlug: created.data.eventSlug ?? bookingLength.eventSlug ?? null,
       event: filed ?? updated,
     });
   }
@@ -544,7 +577,8 @@ export async function POST(context: APIContext): Promise<Response> {
     ok: true,
     bookingUid,
     bookingStart,
-    durationMinutes: DEFAULT_MEETING_MINUTES,
+    durationMinutes,
+    eventSlug: created.data.eventSlug ?? bookingLength.eventSlug ?? null,
     event: updated,
   });
 }
