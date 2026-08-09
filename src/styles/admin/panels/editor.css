@@ -1326,34 +1326,58 @@ button.de-placeholder-action:active {
   /* Same 8/6/4 cascade as createPaneHeader stacks. */
   background: var(--bg);
 }
-/* Outer inset for detail tabs — keeps labels clear of screen edges. */
+/*
+ * Detail tab nav — same edge-fade technique as email category nav
+ * (.em-filter-tabs-wrap), full-bleed so the strip joins the page.
+ */
 .detail-tabs-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
   flex: 0 0 auto;
   min-width: 0;
-  padding:
-    0.14rem
-    var(--detail-pad-x-right)
-    calc(var(--detail-tabs-pad-y) + 0.1rem)
-    var(--detail-pad-x);
+  width: 100%;
+  margin: 0;
+  padding: 0.15rem 0 calc(var(--detail-tabs-pad-y) + 0.1rem);
   overflow: hidden;
-  background: var(--bg);
+  background: var(--btn-group-track-bg);
+}
+.detail-tabs-wrap::before,
+.detail-tabs-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--detail-tab-fade-w, 1rem);
+  pointer-events: none;
+  z-index: 2;
+}
+.detail-tabs-wrap::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+}
+.detail-tabs-wrap::after {
+  right: 0;
+  background: linear-gradient(to left, var(--bg) 0%, transparent 100%);
 }
 .detail-tabs {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  scroll-padding-inline: 0.35rem;
-  padding: 0.15rem;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 0;
   width: 100%;
-  border-radius: 8px;
-  background: var(--btn-group-track-bg);
+  margin: 0;
+  padding: 0.15rem max(var(--detail-pad-x), var(--detail-tab-fade-w, 1rem));
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: max(var(--detail-pad-x), var(--detail-tab-fade-w, 1rem));
+  background: transparent;
+  border-radius: 0;
+  box-sizing: border-box;
 }
 .detail-tabs::-webkit-scrollbar { display: none; }
 .detail-tab {
