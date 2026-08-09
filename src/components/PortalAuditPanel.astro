@@ -9,18 +9,16 @@ import PortalAuditReportCard from './PortalAuditReportCard.astro';
 interface Props {
   report: AuditReportCard | null;
   bodyHtml?: string;
-  companyName?: string;
   clientName?: string;
-  scanDate?: string;
+  website?: string;
   active?: boolean;
 }
 
 const {
   report,
   bodyHtml = '',
-  companyName = '',
   clientName = '',
-  scanDate = '',
+  website = '',
   active = false,
 } = Astro.props;
 ---
@@ -32,9 +30,8 @@ const {
     <PortalAuditReportCard
       report={report}
       bodyHtml={report.inProgress ? '' : bodyHtml}
-      companyName={companyName}
       clientName={clientName}
-      scanDate={scanDate}
+      website={website}
     />
   )}
 </section>

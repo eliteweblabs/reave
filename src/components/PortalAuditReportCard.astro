@@ -7,22 +7,19 @@ import type { AuditReportCard, LetterGrade, ReportCardIcon } from '../lib/auditR
 
 interface Props {
   report: AuditReportCard;
-  /** Company display name (header). */
-  companyName?: string;
-  /** Client / business name for scan metadata. */
+  /** Client / business name for “reproduce here” prefill. */
   clientName?: string;
   /** Escaped/linked HTML of the raw audit body (technical notes). */
   bodyHtml?: string;
-  /** ISO date string for scan date (defaults to today). */
-  scanDate?: string;
+  /** Website URL for “reproduce here” (falls back to report.website). */
+  website?: string;
 }
 
 const {
   report,
-  companyName = 'Elite Web Labs',
   clientName = '',
   bodyHtml = '',
-  scanDate,
+  website = '',
 } = Astro.props;
 
 function gradeClass(grade: LetterGrade | null | undefined): string {
@@ -34,14 +31,6 @@ function gradeLabel(grade: LetterGrade | null | undefined): string {
   return grade || '—';
 }
 
-function fmtScanDate(iso?: string): string {
-  const d = iso ? new Date(iso) : new Date();
-  if (Number.isNaN(d.getTime())) return '';
-  return d
-    .toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-    .toUpperCase();
-}
-
 function scoreBars(score: number | null | undefined): number {
   if (score == null || Number.isNaN(score)) return 0;
   return Math.max(1, Math.min(5, Math.ceil(score / 20)));
@@ -50,18 +39,26 @@ function scoreBars(score: number | null | undefined): number {
 const ringPct = report.overallScore ?? 0;
 const circumference = 2 * Math.PI * 54;
 const ringOffset = circumference - (ringPct / 100) * circumference;
-const dateLabel = fmtScanDate(scanDate);
 const featured = report.featured;
 const cats = report.categories || [];
 const ideas = (report.ideas || []).slice(0, 5);
 const heroStats = report.heroStats || [];
-const brandInitials = companyName
-  .split(/\s+/)
-  .filter(Boolean)
-  .slice(0, 3)
-  .map((w) => w[0]?.toUpperCase() || '')
-  .join('')
-  .slice(0, 3) || 'EWL';
+
+/** Public Digital Audit form — pass website (+ business) so “reproduce here” prefills. */
+function buildReproduceAuditHref(website?: string, business?: string): string {
+  const params = new URLSearchParams();
+  const site = (website || '').trim();
+  if (site) {
+    const href = /^https?:\/\//i.test(site) ? site : `https://${site}`;
+    params.set('url', href);
+  }
+  const biz = (business || '').trim();
+  if (biz) params.set('business', biz);
+  const qs = params.toString();
+  return qs ? `/digital-audit?${qs}` : '/digital-audit';
+}
+
+const reproduceAuditHref = buildReproduceAuditHref(website || report.website, clientName);
 
 const ICON_PATHS: Record<ReportCardIcon, string> = {
   radar: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 3"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>`,
@@ -104,29 +101,17 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     </div>
   ) : (
     <>
-      <header class="opd-header">
-        <div class="opd-brand">
-          <div class="opd-brand-mark" aria-hidden="true">{brandInitials}</div>
-          <div>
-            <div class="opd-brand-name">{companyName}</div>
-            <div class="opd-brand-sub">Audit engine by Reave Automated</div>
-          </div>
-        </div>
-        <div class="opd-meta">
-          {dateLabel && <div><span>SCAN DATE</span> {dateLabel}</div>}
-          {clientName && <div><span>CLIENT</span> {clientName}</div>}
-          <div><span>PREPARED BY</span> {companyName.toUpperCase()}</div>
-        </div>
-      </header>
-
       <h2 class="opd-title">Online presence diagnostic</h2>
       <p class="opd-lede">An independent systems scan of your business’s digital footprint.</p>
 
       <div class="opd-banner">
         <span class="opd-banner-icon" aria-hidden="true" set:html={`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS.radar}</svg>`} />
         <p>
-          Every score on this report reflects data published by Google, Apple, and other independent
-          platforms — not a sales opinion.
+          Every score reflects data published by Google<sup>®</sup>, Apple<sup>®</sup>, and other 3rd
+          party platforms. None of this is the opinion.
+          <br />
+          All results can be reproduced{' '}
+          <a class="opd-banner-link" href={reproduceAuditHref}>here</a>.
         </p>
       </div>
 
@@ -145,7 +130,7 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
           </svg>
           <div class="opd-ring-center">
             {report.overallScore != null ? (
-              <span class="opd-ring-score-row">
+              <span class="opd-ring-scoreline">
                 <span class="opd-ring-score">{report.overallScore}</span>
                 <span class="opd-ring-over">/ 100</span>
               </span>
@@ -337,56 +322,6 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     font-size: 0.95rem;
   }
 
-  .opd-header {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 16px 24px;
-    margin-bottom: 22px;
-  }
-  .opd-brand {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-  .opd-brand-mark {
-    width: 40px;
-    height: 40px;
-    border: 1.5px solid var(--opd-cyan);
-    border-radius: 4px;
-    display: grid;
-    place-items: center;
-    font-family: var(--opd-display);
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--opd-cyan);
-    letter-spacing: 0.04em;
-  }
-  .opd-brand-name {
-    font-family: var(--opd-mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: var(--opd-muted);
-    text-transform: uppercase;
-  }
-  .opd-brand-sub {
-    font-size: 11px;
-    color: var(--opd-dim);
-    margin-top: 2px;
-  }
-  .opd-meta {
-    font-family: var(--opd-mono);
-    font-size: 10.5px;
-    color: var(--opd-muted);
-    text-align: right;
-    line-height: 1.65;
-  }
-  .opd-meta span {
-    color: var(--opd-dim);
-    margin-right: 6px;
-  }
-
   .opd-title {
     font-family: var(--opd-display);
     font-size: clamp(1.45rem, 4vw, 1.9rem);
@@ -416,6 +351,19 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     color: var(--opd-muted);
     font-size: 0.85rem;
     line-height: 1.45;
+  }
+  .opd-banner p sup {
+    font-size: 0.65em;
+    line-height: 0;
+    vertical-align: super;
+  }
+  .opd-banner-link {
+    color: var(--opd-cyan);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .opd-banner-link:hover {
+    color: var(--opd-fg, #f5f5f5);
   }
 
   .opd-hero {
@@ -489,20 +437,21 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     padding: 28px 22px;
     box-sizing: border-box;
   }
-  .opd-ring-score-row {
-    display: flex;
+  .opd-ring-scoreline {
+    display: inline-flex;
     align-items: baseline;
     justify-content: center;
-    gap: 3px;
+    gap: 0.2em;
+    font-family: var(--opd-mono);
+    font-size: 11px;
+    line-height: 1;
   }
   .opd-ring-score {
-    font-family: var(--opd-display);
-    font-size: 0.95rem;
     font-weight: 700;
+    color: var(--opd-text);
   }
   .opd-ring-over {
-    font-family: var(--opd-mono);
-    font-size: 10px;
+    font-weight: 500;
     color: var(--opd-muted);
   }
   .opd-ring-grade {
@@ -843,7 +792,6 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
   @media (max-width: 560px) {
     .opd-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
     .opd-hero-copy { text-align: left; width: 100%; }
-    .opd-meta { text-align: left; }
     .opd-featured-row { grid-template-columns: 1fr; }
     .opd-featured-score { flex-direction: row; justify-content: flex-start; }
   }

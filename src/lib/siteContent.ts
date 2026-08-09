@@ -39,6 +39,51 @@ export type SiteHeroCta = {
   variant?: 'primary' | 'ghost';
 };
 
+/** Aggregated static marketing site — rendered when homepage.template === "landing". */
+export type SiteLandingConfig = {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  themeColor?: string;
+  photo?: {
+    src: string;
+    alt: string;
+    width?: number;
+    height?: number;
+  };
+  eyebrow?: string;
+  name?: string;
+  role?: string;
+  tagline?: string;
+  steps?: {
+    heading: string;
+    items: string[];
+    ctaLabel?: string;
+    ctaHref?: string;
+  };
+  inquiry?: {
+    heading: string;
+    intro: string;
+    web3formsAccessKey?: string;
+    subject?: string;
+    submitLabel?: string;
+  };
+  contact?: {
+    heading: string;
+    phone?: string;
+    phoneHref?: string;
+    email?: string;
+    officeLines?: string[];
+  };
+  licensedStates?: {
+    heading: string;
+    states: string;
+    nmlsLabel?: string;
+    nmlsHref?: string;
+  };
+  footer?: string;
+};
+
 export type SiteContentConfig = {
   key: string;
   pages: string[];
@@ -50,6 +95,8 @@ export type SiteContentConfig = {
     showSignIn?: boolean;
   };
   homepage: {
+    /** "landing" = config-driven client site (no Reave marketing sections). */
+    template?: 'default' | 'landing';
     heroHeadlineHtml: string;
     showHeroDemo?: boolean;
     showDialogue?: boolean;
@@ -59,6 +106,8 @@ export type SiteContentConfig = {
     showLegalLinks?: boolean;
     ctas?: SiteHeroCta[];
   };
+  /** Full landing-page copy when homepage.template is "landing". */
+  landing?: SiteLandingConfig;
 };
 
 const _cache = new Map<string, SiteContentConfig>();
@@ -145,6 +194,7 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
 
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as SiteContentConfig;
+    const template = raw.homepage?.template === 'landing' ? 'landing' : 'default';
     const config: SiteContentConfig = {
       key: raw.key || slug,
       pages: Array.isArray(raw.pages) ? raw.pages.map(normalizePagePath) : ['/'],
@@ -156,6 +206,7 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
         showSignIn: raw.nav?.showSignIn ?? true,
       },
       homepage: {
+        template,
         heroHeadlineHtml: raw.homepage?.heroHeadlineHtml ?? '',
         showHeroDemo: raw.homepage?.showHeroDemo ?? false,
         showDialogue: raw.homepage?.showDialogue ?? false,
@@ -165,6 +216,7 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
         showLegalLinks: raw.homepage?.showLegalLinks ?? true,
         ctas: Array.isArray(raw.homepage?.ctas) ? raw.homepage.ctas : [],
       },
+      landing: raw.landing && typeof raw.landing === 'object' ? raw.landing : undefined,
     };
     _cache.set(slug, config);
     return config;
