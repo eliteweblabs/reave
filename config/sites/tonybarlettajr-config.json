@@ -1,0 +1,83 @@
+{
+  "key": "tonybarlettajr",
+  "pages": ["/", "/privacy", "/terms"],
+  "nav": {
+    "links": [
+      { "href": "/#inquiry", "label": "Get Started" },
+      { "href": "/#contact", "label": "Contact" }
+    ],
+    "groups": [
+      {
+        "id": "site",
+        "label": "Site",
+        "links": [
+          { "href": "/#inquiry", "label": "Send an Inquiry", "primary": true },
+          { "href": "/#contact", "label": "Contact" },
+          { "href": "/admin", "label": "Dashboard" }
+        ]
+      }
+    ],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Tony Barletta Jr.",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true,
+    "ctas": [{ "href": "/#inquiry", "label": "Get Started", "variant": "primary" }]
+  },
+  "landing": {
+    "title": "Tony Barletta Jr. | Loan Officer",
+    "description": "Work with Tony Barletta Jr., NMLS #18717. Licensed mortgage loan officer serving clients across multiple states.",
+    "ogImage": "/sites/tonybarlettajr/headshot.png",
+    "themeColor": "#01061d",
+    "photo": {
+      "src": "/sites/tonybarlettajr/headshot.png",
+      "alt": "Tony Barletta Jr.",
+      "width": 449,
+      "height": 449
+    },
+    "eyebrow": "NMLS #18717",
+    "name": "Tony Barletta Jr.",
+    "role": "Loan Officer",
+    "tagline": "Guiding homebuyers and refinancers through the mortgage process with clear, personal service.",
+    "steps": {
+      "heading": "Your mortgage application in 5 simple steps",
+      "items": [
+        "Connect with Tony to discuss your goals",
+        "Review loan options and get pre-approved",
+        "Submit your application and documentation",
+        "Track underwriting and appraisal progress",
+        "Close on your new home or refinance"
+      ],
+      "ctaLabel": "Get Started",
+      "ctaHref": "#inquiry"
+    },
+    "inquiry": {
+      "heading": "Send an Inquiry",
+      "intro": "Have a question about buying or refinancing? Send a message and Tony will get back to you.",
+      "web3formsAccessKey": "a362ab79-9052-4af8-9526-632749ceeabe",
+      "subject": "New inquiry from tonybarlettajr.com",
+      "submitLabel": "Send Inquiry"
+    },
+    "contact": {
+      "heading": "Contact",
+      "phone": "781-223-0845",
+      "phoneHref": "tel:+17812230845",
+      "email": "tony@tonybarlettajr.com",
+      "officeLines": ["128 Union Street, Suite 101", "New Bedford, MA 02740"]
+    },
+    "licensedStates": {
+      "heading": "Licensed States",
+      "states": "AL, CO, FL, IA, KS, MA, MN, MO, MS, NC, NH, NV, OH, OK, PA, SD, TX, UT, VA, WA, WV, WI",
+      "nmlsLabel": "NMLS Consumer Access",
+      "nmlsHref": "https://www.nmlsconsumeraccess.org/"
+    },
+    "footer": "Tony Barletta Jr. NMLS #18717"
+  }
+}

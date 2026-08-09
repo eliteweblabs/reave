@@ -1,41 +1,52 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import LandingLayout from "../layouts/LandingLayout.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
+import SiteLandingPage from "../components/home/SiteLandingPage.astro";
 import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
 
 const siteContent = getSiteContent();
 const homepage = siteContent.homepage;
+const isLanding = homepage.template === "landing" && siteContent.landing;
 ---
 
-<Layout>
-  <div class="home-scroll">
-    <HomeHeroSection siteContent={siteContent} />
+{
+  isLanding ? (
+    <LandingLayout>
+      <SiteLandingPage landing={siteContent.landing!} />
+    </LandingLayout>
+  ) : (
+    <Layout>
+      <div class="home-scroll">
+        <HomeHeroSection siteContent={siteContent} />
 
-    {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
-    {homepage.showIntegrations && <HomeIntegrationsSection />}
-    {
-      homepage.showFeatures && (
-        <FeaturesPageContent embedded showLogoStack={false} />
-      )
-    }
-    {homepage.showContact && <HomeContactSection />}
-  </div>
-</Layout>
+        {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
+        {homepage.showIntegrations && <HomeIntegrationsSection />}
+        {homepage.showFeatures && <FeaturesPageContent embedded showLogoStack={false} />}
+        {homepage.showContact && <HomeContactSection />}
+      </div>
+    </Layout>
+  )
+}
 
-<style>
-  :global(html),
-  :global(body) {
-    min-height: 100%;
-  }
+{
+  !isLanding && (
+    <style>
+      :global(html),
+      :global(body) {
+        min-height: 100%;
+      }
 
-  .home-scroll {
-    position: relative;
-    z-index: 1;
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  }
-</style>
+      .home-scroll {
+        position: relative;
+        z-index: 1;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      }
+    </style>
+  )
+}

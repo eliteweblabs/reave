@@ -1,0 +1,422 @@
+---
+import type { SiteLandingConfig } from "../../lib/siteContent";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const photo = landing.photo;
+const steps = landing.steps;
+const inquiry = landing.inquiry;
+const contact = landing.contact;
+const licensed = landing.licensedStates;
+const year = new Date().getFullYear();
+---
+
+<main class="page">
+  <section class="hero">
+    <div class="hero__content">
+      {
+        photo?.src && (
+          <img
+            class="hero__photo"
+            src={photo.src}
+            alt={photo.alt || landing.name || ""}
+            width={photo.width || 449}
+            height={photo.height || 449}
+          />
+        )
+      }
+      <div class="hero__intro">
+        {landing.eyebrow && <p class="hero__eyebrow">{landing.eyebrow}</p>}
+        {landing.name && <h1>{landing.name}</h1>}
+        {landing.role && <p class="hero__title">{landing.role}</p>}
+        {landing.tagline && <p class="hero__tagline">{landing.tagline}</p>}
+      </div>
+    </div>
+  </section>
+
+  {
+    steps && (
+      <section class="steps card">
+        <h2>{steps.heading}</h2>
+        <ol class="steps__list">
+          {steps.items.map((item, i) => (
+            <li>
+              <span>{i + 1}</span>
+              {item}
+            </li>
+          ))}
+        </ol>
+        {steps.ctaLabel && steps.ctaHref && (
+          <a class="button" href={steps.ctaHref}>
+            {steps.ctaLabel}
+          </a>
+        )}
+      </section>
+    )
+  }
+
+  {
+    inquiry && (
+      <section class="card inquiry" id="inquiry">
+        <h2>{inquiry.heading}</h2>
+        <p class="inquiry__intro">{inquiry.intro}</p>
+        {inquiry.web3formsAccessKey ? (
+          <form class="inquiry-form" action="https://api.web3forms.com/submit" method="POST">
+            <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />
+            <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
+            <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+
+            <div class="form-row">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" required autocomplete="name" />
+            </div>
+
+            <div class="form-row">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" required autocomplete="email" />
+            </div>
+
+            <div class="form-row">
+              <label for="phone">
+                Phone <span class="optional">(optional)</span>
+              </label>
+              <input type="tel" id="phone" name="phone" autocomplete="tel" />
+            </div>
+
+            <div class="form-row">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" rows="5" required />
+            </div>
+
+            <button class="button" type="submit">
+              {inquiry.submitLabel || "Send Inquiry"}
+            </button>
+          </form>
+        ) : (
+          <p class="inquiry__intro">
+            {contact?.email ? (
+              <>
+                Email{" "}
+                <a href={`mailto:${contact.email}`}>{contact.email}</a> to get started.
+              </>
+            ) : (
+              "Contact details coming soon."
+            )}
+          </p>
+        )}
+      </section>
+    )
+  }
+
+  <section class="grid" id="contact">
+    {
+      contact && (
+        <article class="card">
+          <h2>{contact.heading}</h2>
+          <ul class="contact-list">
+            {contact.phone && (
+              <li>
+                <strong>Phone</strong>
+                <a href={contact.phoneHref || `tel:${contact.phone.replace(/[^\d+]/g, "")}`}>
+                  {contact.phone}
+                </a>
+              </li>
+            )}
+            {contact.email && (
+              <li>
+                <strong>Email</strong>
+                <a href={`mailto:${contact.email}`}>{contact.email}</a>
+              </li>
+            )}
+            {contact.officeLines?.length ? (
+              <li>
+                <strong>Office</strong>
+                <address>
+                  {contact.officeLines.map((line, i) => (
+                    <>
+                      {i > 0 && <br />}
+                      {line}
+                    </>
+                  ))}
+                </address>
+              </li>
+            ) : null}
+          </ul>
+        </article>
+      )
+    }
+
+    {
+      licensed && (
+        <article class="card">
+          <h2>{licensed.heading}</h2>
+          <p class="states">{licensed.states}</p>
+          {licensed.nmlsHref && (
+            <p class="fine-print">
+              {licensed.nmlsLabel || "NMLS Consumer Access"}:{" "}
+              <a href={licensed.nmlsHref} target="_blank" rel="noopener noreferrer">
+                nmlsconsumeraccess.org
+              </a>
+            </p>
+          )}
+        </article>
+      )
+    }
+  </section>
+
+  {
+    landing.footer && (
+      <footer class="footer">
+        <p>
+          &copy; {year} {landing.footer}
+        </p>
+      </footer>
+    )
+  }
+</main>
+
+<style>
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  .hero {
+    margin-bottom: 2rem;
+  }
+
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .hero__photo {
+    width: min(220px, 55vw);
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    border: 3px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .hero__eyebrow {
+    margin: 0 0 0.5rem;
+    color: #60a5fa;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+  }
+
+  .hero__title {
+    margin: 0.5rem 0 0;
+    font-size: 1.25rem;
+    color: #94a3b8;
+  }
+
+  .hero__tagline {
+    margin: 1rem 0 0;
+    max-width: 36rem;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+
+  .card {
+    background: rgba(1, 12, 61, 0.65);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .steps h2,
+  .grid h2 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+  }
+
+  .steps__list {
+    margin: 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps__list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    line-height: 1.5;
+  }
+
+  .steps__list li:last-child {
+    border-bottom: 0;
+  }
+
+  .steps__list span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #38bdf8, #1d4ed8);
+    font-size: 0.875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .button {
+    display: inline-block;
+    padding: 0.875rem 1.5rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff !important;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      transform 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  .button:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+    text-decoration: none;
+  }
+
+  button.button {
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .inquiry__intro {
+    margin: 0 0 1.5rem;
+    color: #cbd5e1;
+    line-height: 1.6;
+  }
+
+  .inquiry-form {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .form-row {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .form-row label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #e2e8f0;
+  }
+
+  .optional {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  .inquiry-form input,
+  .inquiry-form textarea {
+    width: 100%;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 0.5rem;
+    background: rgba(1, 6, 29, 0.8);
+    color: #fff;
+    font: inherit;
+  }
+
+  .inquiry-form input:focus,
+  .inquiry-form textarea:focus {
+    outline: 2px solid rgba(59, 130, 246, 0.5);
+    outline-offset: 1px;
+    border-color: #3b82f6;
+  }
+
+  .inquiry-form textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+
+  .grid {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .contact-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .contact-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .contact-list li:last-child {
+    border-bottom: 0;
+  }
+
+  .contact-list strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #94a3b8;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  address {
+    font-style: normal;
+    line-height: 1.5;
+  }
+
+  .states {
+    margin: 0;
+    line-height: 1.7;
+    color: #dbeafe;
+  }
+
+  .fine-print {
+    margin: 1rem 0 0;
+    font-size: 0.875rem;
+    color: #94a3b8;
+  }
+
+  .footer {
+    margin-top: 1rem;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.875rem;
+  }
+
+  @media (min-width: 768px) {
+    .hero__content {
+      flex-direction: row;
+      text-align: left;
+    }
+
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

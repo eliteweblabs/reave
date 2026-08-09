@@ -1,0 +1,95 @@
+---
+import Favicon from "../components/Favicon.astro";
+import ViewportMeta from "../components/ViewportMeta.astro";
+import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
+import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
+import { getSiteContent } from "../lib/siteContent";
+import { requestOrigin } from "../lib/requestOrigin";
+import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+
+export interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  themeColor?: string;
+}
+
+const {
+  title: titleProp,
+  description: descriptionProp,
+  ogImage: ogImageProp,
+  themeColor: themeColorProp,
+} = Astro.props;
+
+const company = await getCompanyConfig(Astro.request);
+const siteContent = getSiteContent();
+const landing = siteContent.landing ?? {};
+const title = titleProp ?? landing.title ?? company.name;
+const description = descriptionProp ?? landing.description ?? company.description;
+const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
+const themeColor = themeColorProp ?? landing.themeColor ?? "#01061d";
+const origin = requestOrigin(Astro.request);
+const publicOrigin = company.domain ? `https://${company.domain}` : origin;
+const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
+const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${origin}${ogImage}`;
+const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
+  ? `${origin}${LOGO_ICON_OG_PATH}`
+  : ogImageAbsolute;
+---
+
+<!doctype html>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
+  <head>
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <meta name="theme-color" content={themeColor} />
+    <meta name="generator" content={Astro.generator} />
+    <Favicon />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={landing.name ?? company.name} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageSafe} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={landing.name ?? company.name} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageSafe} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="landing-body">
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body.landing-body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #fff;
+    background: linear-gradient(180deg, #01061d, #01092b);
+  }
+
+  a {
+    color: #60a5fa;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
