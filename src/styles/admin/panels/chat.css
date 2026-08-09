@@ -288,6 +288,14 @@ body.sidebar-resize-active * {
 .ch-pane-header {
   flex-shrink: 0;
   background: var(--bg);
+  /* Match email headers: allow the Agent model menu to paint outside the bar.
+     (Menu is also portaled to document.body; this covers non-portaled fallbacks.) */
+  overflow: visible;
+  position: relative;
+  z-index: 3;
+}
+#chat-panel .ch-pane-header.de-header {
+  overflow: visible;
 }
 .ch-pane-header-main {
   flex: 1;
@@ -311,7 +319,8 @@ body.sidebar-resize-active * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ch-pane-header .ch-model-switcher {
+.ch-pane-header .ch-model-switcher,
+.de-header-actions .ch-model-switcher {
   flex-shrink: 0;
 }
 .ch-pane-header--nav-only {

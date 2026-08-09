@@ -1069,6 +1069,16 @@ function modelDropdownOptions() {
   return current ? [current] : [];
 }
 
+function modelDropdownContains(entry, target) {
+  return !!entry && (entry.root.contains(target) || entry.menu.contains(target));
+}
+
+function focusModelDropdownEl(el) {
+  // preventScroll: opening inside overflow:hidden pane headers must not
+  // fire the capture-phase scroll listener that immediately closes the menu.
+  el?.focus?.({ preventScroll: true });
+}
+
 function closeModelDropdown() {
   if (!openModelDropdown) return;
   const entry = openModelDropdown;
@@ -1076,6 +1086,10 @@ function closeModelDropdown() {
   entry.root.classList.remove('open');
   entry.menu.hidden = true;
   entry.trigger.setAttribute('aria-expanded', 'false');
+  // Return portaled menu to its trigger root for cleanup / isConnected checks.
+  if (entry.menu.parentElement !== entry.root) {
+    entry.root.appendChild(entry.menu);
+  }
 }
 
 function positionModelDropdownMenu(entry) {
@@ -1104,13 +1118,18 @@ function openModelDropdownFor(entry) {
   if (openModelDropdown && openModelDropdown !== entry) closeModelDropdown();
   openModelDropdown = entry;
   entry.root.classList.add('open');
+  // Portal to body so overflow:hidden on .de-header / .ch-pane cannot clip it
+  // (especially on iOS Safari where fixed descendants still get clipped).
+  if (entry.menu.parentElement !== document.body) {
+    document.body.appendChild(entry.menu);
+  }
   entry.menu.hidden = false;
   entry.trigger.setAttribute('aria-expanded', 'true');
   positionModelDropdownMenu(entry);
   const selected =
     entry.menu.querySelector('.model-dd-option[aria-selected="true"]') ||
     entry.menu.querySelector('.model-dd-option');
-  selected?.focus();
+  focusModelDropdownEl(selected);
 }
 
 function toggleModelDropdown(entry) {
@@ -1120,7 +1139,7 @@ function toggleModelDropdown(entry) {
 
 function chooseModel(entry, id) {
   closeModelDropdown();
-  entry.trigger.focus();
+  focusModelDropdownEl(entry.trigger);
   if (id && id !== agentModelState.model) saveAgentModel(id);
 }
 
@@ -1129,7 +1148,7 @@ function onModelDropdownKeydown(entry, e) {
     if (openModelDropdown !== entry) return;
     e.preventDefault();
     closeModelDropdown();
-    entry.trigger.focus();
+    focusModelDropdownEl(entry.trigger);
     return;
   }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
@@ -1146,7 +1165,7 @@ function onModelDropdownKeydown(entry, e) {
     else if (e.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - 1);
     else if (e.key === 'Home') next = 0;
     else next = items.length - 1;
-    items[next]?.focus();
+    focusModelDropdownEl(items[next]);
     return;
   }
   const active = document.activeElement;
@@ -1206,6 +1225,8 @@ function renderModelSelectOptions() {
   for (const entry of Array.from(modelDropdowns)) {
     if (!entry.root.isConnected) {
       if (openModelDropdown === entry) closeModelDropdown();
+      // Drop orphaned portaled menus when the chat header is rebuilt.
+      entry.menu.remove();
       modelDropdowns.delete(entry);
       continue;
     }
@@ -1217,7 +1238,9 @@ function bindModelDropdownGlobals() {
   if (modelDropdownGlobalBound) return;
   modelDropdownGlobalBound = true;
   document.addEventListener('click', (e) => {
-    if (openModelDropdown && !openModelDropdown.root.contains(e.target)) closeModelDropdown();
+    if (openModelDropdown && !modelDropdownContains(openModelDropdown, e.target)) {
+      closeModelDropdown();
+    }
   });
   window.addEventListener('resize', closeModelDropdown);
   window.addEventListener('scroll', closeModelDropdown, true);
@@ -1298,7 +1321,12 @@ function syncModelNodeLabels() {
 }
 
 async function loadAgentModel() {
-  if (!userId) return;
+  if (!userId) {
+    // Don't leave the chat Agent button permanently disabled (loading starts true).
+    agentModelState.loading = false;
+    renderModelSelectOptions();
+    return;
+  }
   agentModelState.loading = true;
   renderModelSelectOptions();
   try {
@@ -1350,11 +1378,13 @@ async function saveAgentModel(model) {
 
 function initModelSelector() {
   const el = modelSelectEl();
-  if (!el || el.dataset.bound) return;
-  el.dataset.bound = '1';
-  const { root } = createModelDropdown();
-  el.appendChild(root);
-  loadAgentModel();
+  if (el && !el.dataset.bound) {
+    el.dataset.bound = '1';
+    const { root } = createModelDropdown();
+    el.appendChild(root);
+  }
+  // Always load so the chat-header Agent select enables even if #model-select is absent.
+  void loadAgentModel();
   syncModelSelectorVisibility();
 }
 
@@ -9352,7 +9382,9 @@ export function buildChatPaneHeader() {
     className: 'ch-pane-header',
     back: { label: 'Back to sessions', onClick: () => closeActiveChat() },
     titleNode: main,
-    afterTitle: createChatModelSwitcher(),
+    // Agent model select lives in the action cluster (chat-only — other panes'
+    // agent buttons triage/send-to-agent and do not open this picker).
+    beforeIcons: [createChatModelSwitcher()],
     icons: [
       createIosIconBtn({
         iconKey: 'copy',
