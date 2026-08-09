@@ -124,6 +124,12 @@
   color: var(--placeholder);
   opacity: 1;
 }
+/* Rich slash hint replaces the native placeholder when attached. */
+.has-slash-search-hint > .panel-list-search::placeholder,
+.has-slash-search-hint > .search-overlay-input::placeholder {
+  color: transparent;
+  opacity: 0;
+}
 .panel-list-search::-webkit-search-cancel-button,
 .panel-list-search::-webkit-search-decoration {
   -webkit-appearance: none;

@@ -36,7 +36,7 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260808c';
+} from './admin-ui.js?v=20260809a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.

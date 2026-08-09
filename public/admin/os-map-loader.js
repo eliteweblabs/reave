@@ -65,6 +65,8 @@ import {
   listSearchSubheader,
   listSearchAddNew,
   syncSearchFieldAdornment,
+  attachSlashSearchHint,
+  focusVisibleListSearch,
   createSlidingPillSelect,
   createPanelBackBtn,
   createEditableHeaderTitleInput,
@@ -103,7 +105,7 @@ import {
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260808c';
+} from './admin-ui.js?v=20260809a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260808b';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
@@ -8459,6 +8461,14 @@ function initSearchOverlay() {
   const input = document.getElementById('search-overlay-input');
   const clearBtn = document.getElementById('search-overlay-clear');
   if (input instanceof HTMLInputElement) input.disabled = !searchOverlayOpen;
+  const field = input?.closest('.control-field');
+  if (input instanceof HTMLInputElement && field instanceof HTMLElement) {
+    attachSlashSearchHint(
+      field,
+      input,
+      input.dataset.searchPlaceholderRaw || 'Search Sections And Clients…',
+    );
+  }
 
   input?.addEventListener('input', () => {
     syncSearchOverlayClearBtn();
@@ -8542,6 +8552,15 @@ function initKeyboardShortcuts() {
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') {
       ev.preventDefault();
       toggleSearchOverlay();
+      return;
+    }
+
+    if (ev.key === '/' && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+      if (keyboardShortcutBlocked()) return;
+      if (searchOverlayOpen) return;
+      if (isEditableKeyboardTarget(ev.target)) return;
+      ev.preventDefault();
+      if (!focusVisibleListSearch()) openSearchOverlay();
       return;
     }
 

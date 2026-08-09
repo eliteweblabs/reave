@@ -62,6 +62,61 @@
 .panel-list-search-clear[hidden] {
   display: none !important;
 }
+
+/* Rich "Type / to Search …" hint with kbd keycap (native placeholder can't style /). */
+.control-field.has-slash-search-hint {
+  position: relative;
+}
+.panel-list-search-hint {
+  position: absolute;
+  left: calc(var(--control-inset) + 0.5rem);
+  right: calc(var(--control-inset) + var(--control-h));
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.28em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--placeholder);
+  font-size: 0.82rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  user-select: none;
+}
+.panel-list-search-field:has(.de-new-btn) .panel-list-search-hint {
+  right: calc(var(--control-inset) + (var(--control-h) * 2) + 0.35rem);
+}
+.search-overlay-field .panel-list-search-hint {
+  font-size: 1rem;
+}
+.panel-list-search-hint[hidden] {
+  display: none !important;
+}
+.panel-list-search-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 1.15em;
+  height: 1.25em;
+  padding: 0 0.28em;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 85%, var(--muted));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--card) 70%, var(--panel-border));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--panel-border) 80%, transparent);
+  color: var(--placeholder);
+  font: inherit;
+  font-size: 0.78em;
+  font-weight: 600;
+  line-height: 1;
+}
 .search-overlay-results {
   flex: 1;
   overflow-y: auto;

@@ -409,6 +409,108 @@ export function matchesListSearch(query, ...parts) {
 const SEARCH_FIELD_CLEAR_ICON = () => iosIcon('x', 18);
 const SEARCH_FIELD_SEARCH_ICON = () => iosIcon('search', 18);
 
+function escapeSearchHintText(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Normalize a search placeholder into the "Type / to Search …" label.
+ * Accepts either a subject ("45 Emails") or an existing "Search …" / "Type / to …" string.
+ */
+export function formatSlashSearchLabel(placeholder) {
+  const raw = String(placeholder ?? '').trim() || 'Search…';
+  if (/^type\s+\/\s+to\s+/i.test(raw)) return raw.replace(/^type\s+\/\s+to\s+/i, 'Type / to ');
+  const rest = raw.replace(/^search\s+/i, '').trim() || '…';
+  return `Type / to Search ${rest}`;
+}
+
+/** Build rich hint HTML with a kbd-styled `/` keycap. */
+export function slashSearchHintHtml(placeholder) {
+  const label = formatSlashSearchLabel(placeholder);
+  const match = label.match(/^(Type\s+)\/(\s+to\s+Search\s+)([\s\S]*)$/i);
+  if (!match) return escapeSearchHintText(label);
+  return (
+    `${escapeSearchHintText(match[1])}` +
+    `<kbd class="panel-list-search-kbd">/</kbd>` +
+    `${escapeSearchHintText(match[2])}` +
+    `${escapeSearchHintText(match[3])}`
+  );
+}
+
+function syncSlashSearchHintVisibility(input, hint) {
+  if (!input || !hint) return;
+  hint.hidden = input.value.length > 0;
+}
+
+/**
+ * Attach (or refresh) a rich "Type / to Search …" overlay on a search field.
+ * Intercepts `input.placeholder` so existing `searchInput.placeholder = …` call sites keep working.
+ */
+export function attachSlashSearchHint(field, input, placeholder) {
+  if (!field || !input) return null;
+  field.classList.add('has-slash-search-hint');
+  let hint = field.querySelector(':scope > .panel-list-search-hint');
+  if (!(hint instanceof HTMLElement)) {
+    hint = document.createElement('span');
+    hint.className = 'panel-list-search-hint';
+    hint.setAttribute('aria-hidden', 'true');
+    field.insertBefore(hint, input.nextSibling);
+  }
+
+  const apply = (raw) => {
+    const source = raw == null || raw === '' ? input.dataset.searchPlaceholderRaw || 'Search…' : raw;
+    input.dataset.searchPlaceholderRaw = String(source);
+    const label = formatSlashSearchLabel(source);
+    hint.innerHTML = slashSearchHintHtml(source);
+    input.setAttribute('aria-label', label);
+    // Native placeholder stays empty — the overlay carries the styled hint.
+    input.setAttribute('placeholder', '');
+    syncSlashSearchHintVisibility(input, hint);
+  };
+
+  if (!input.dataset.slashHintBound) {
+    input.dataset.slashHintBound = '1';
+    Object.defineProperty(input, 'placeholder', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return input.dataset.searchPlaceholderRaw || '';
+      },
+      set(value) {
+        apply(value);
+      },
+    });
+    input.addEventListener('input', () => syncSlashSearchHintVisibility(input, hint));
+    input.addEventListener('focus', () => syncSlashSearchHintVisibility(input, hint));
+    input.addEventListener('blur', () => syncSlashSearchHintVisibility(input, hint));
+  }
+
+  apply(
+    placeholder ??
+      input.dataset.searchPlaceholderRaw ??
+      input.getAttribute('placeholder') ??
+      'Search…',
+  );
+  return hint;
+}
+
+/** Focus the first visible panel/list search field. Returns true if focused. */
+export function focusVisibleListSearch() {
+  const inputs = document.querySelectorAll('.panel-list-search, .search-overlay-input');
+  for (const el of inputs) {
+    if (!(el instanceof HTMLInputElement) || el.disabled) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    el.focus();
+    return true;
+  }
+  return false;
+}
+
 /** Toggle the right-side search adornment between magnifying glass (empty) and clear (has text). */
 export function syncSearchFieldAdornment(input, btn) {
   if (!input || !btn) return;
@@ -426,6 +528,9 @@ export function syncSearchFieldAdornment(input, btn) {
     btn.setAttribute('aria-label', 'Search');
     btn.innerHTML = SEARCH_FIELD_SEARCH_ICON();
   }
+  const field = input.closest('.has-slash-search-hint');
+  const hint = field?.querySelector(':scope > .panel-list-search-hint');
+  if (hint) syncSlashSearchHintVisibility(input, hint);
 }
 
 function createSearchFieldAdornment(input, onClear) {
@@ -695,9 +800,7 @@ export function listSearchAddNew(opts = {}) {
     const input = document.createElement('input');
     input.className = 'panel-list-search';
     input.type = 'search';
-    input.placeholder = opts.search.placeholder || 'Search…';
     input.value = opts.search.value ?? '';
-    input.setAttribute('aria-label', opts.search.ariaLabel || opts.search.placeholder || 'Search');
     const clearBtn = createSearchFieldAdornment(input, (value) => opts.search.onInput?.(value));
     input.addEventListener('input', (e) => {
       syncSearchFieldAdornment(input, clearBtn);
@@ -705,6 +808,10 @@ export function listSearchAddNew(opts = {}) {
     });
     field.appendChild(input);
     field.appendChild(clearBtn);
+    attachSlashSearchHint(field, input, opts.search.placeholder || 'Search…');
+    if (opts.search.ariaLabel) {
+      input.setAttribute('aria-label', opts.search.ariaLabel);
+    }
     if (newBtn) field.appendChild(newBtn);
     wrap.appendChild(field);
     for (const node of belowNodes) wrap.appendChild(node);
