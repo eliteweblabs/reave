@@ -7,7 +7,7 @@ import {
   syncAdminSplitView,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260809a';
+} from './admin-ui.js?v=20260809b';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260808k';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260803a';
 

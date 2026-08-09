@@ -105,7 +105,7 @@ import {
   showCopyButtonFeedback,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260809a';
+} from './admin-ui.js?v=20260809b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260808b';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';

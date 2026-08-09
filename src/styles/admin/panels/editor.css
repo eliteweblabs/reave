@@ -191,37 +191,38 @@
   z-index: 2;
 }
 
-/* List multi-select — icon click + long-press (see admin-ui.js bindListMultiSelect) */
+/* List multi-select — icon click + long-press (see admin-ui.js bindListMultiSelect).
+   Open height + margin-bottom are set in JS to match the stashed subheader so the
+   list does not jump when selection chrome swaps in. */
 .list-selection-bar {
-  display: grid;
-  grid-template-rows: 0fr;
+  height: 0;
   opacity: 0;
+  overflow: hidden;
   margin: 0 var(--sidebar-inset);
+  margin-bottom: 0;
   padding: 0;
   border: none;
   background: transparent;
   flex: 0 0 auto;
   pointer-events: none;
   transition:
-    grid-template-rows 0.5s ease,
+    height 0.5s ease,
     opacity 0.45s ease,
     margin-bottom 0.5s ease;
 }
 .list-selection-bar.list-selection-bar--open {
-  grid-template-rows: 1fr;
   opacity: 1;
-  margin-bottom: 0.5rem;
   pointer-events: auto;
 }
 .list-selection-bar[hidden] {
   display: none !important;
 }
 .list-selection-bar-inner {
-  overflow: hidden;
-  min-height: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  height: 100%;
+  box-sizing: border-box;
   padding: 0.35rem 0.5rem;
   border-radius: var(--radius-input);
   background: var(--surface-hover);
