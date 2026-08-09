@@ -260,6 +260,12 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
   }
 
   @media (max-width: 640px) {
+    /* Sit the icon + headline higher on phones; chat lane tracks via brand rect. */
+    .home-hero-brand {
+      top: calc(50% - 10vh);
+      top: calc(50% - 10dvh);
+    }
+
     .home-hero-title-break {
       display: inline;
     }
