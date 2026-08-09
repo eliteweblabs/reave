@@ -71,10 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_jobs_client_uid ON jobs(client_uid);
 CREATE INDEX IF NOT EXISTS idx_jobs_priority ON jobs(priority);
 CREATE INDEX IF NOT EXISTS idx_jobs_due_date ON jobs(due_date);
 CREATE INDEX IF NOT EXISTS idx_jobs_tags ON jobs USING GIN(tags);
-CREATE INDEX IF NOT EXISTS idx_jobs_client_viewed ON jobs(last_client_viewed_at DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING GIN(
   to_tsvector('english', title || ' ' || COALESCE(body, ''))
 );
+-- idx_jobs_client_viewed is created in MIGRATE_SQL after ADD COLUMN so
+-- existing installs (CREATE TABLE IF NOT EXISTS no-op) do not fail schema init.
 CREATE TABLE IF NOT EXISTS job_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   job_slug VARCHAR(255) NOT NULL,
@@ -180,8 +181,12 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
+    // Run create/indexes first, then migrations (ADD COLUMN + dependent indexes).
+    // A single multi-statement query aborted ADD COLUMN when SCHEMA_SQL tried to
+    // index last_client_viewed_at on existing DBs that lacked the column.
     _schemaReady = pool
-      .query(`${SCHEMA_SQL}\n${MIGRATE_SQL}`)
+      .query(SCHEMA_SQL)
+      .then(() => pool.query(MIGRATE_SQL))
       .then(() => undefined)
       .catch((e) => {
         _schemaReady = null;
