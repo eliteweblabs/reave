@@ -21,6 +21,7 @@
     "check": "astro check",
     "check:chat": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-resilience.ts",
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
+    "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "icons:generate": "node scripts/generate-brand-icons.mjs",
     "logos:replaced-apps": "node scripts/fetch-replaced-app-logos.mjs",
