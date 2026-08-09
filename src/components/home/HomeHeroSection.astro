@@ -260,6 +260,16 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
   }
 
   @media (max-width: 640px) {
+    .home-hero {
+      /* Keep the chat lane tucked under the raised brand block. */
+      --home-hero-brand-bottom: 32%;
+    }
+
+    /* Mid-screen feels low on phones — lift icon + title ~10% of the viewport. */
+    .home-hero-brand {
+      top: 40%;
+    }
+
     .home-hero-title-break {
       display: inline;
     }
