@@ -589,6 +589,8 @@ export type AgentChatPanelProps = {
   initialMessages: StoredChatMessage[];
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
+  /** Focus the composer once after mount (e.g. newly created empty session). */
+  autoFocusComposer?: boolean;
   /** `focus` — minimal full-screen skin at `/focus` (no footer nav padding). */
   variant?: 'default' | 'focus';
   getModel?: () => string | undefined;
@@ -1474,8 +1476,15 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   }, []);
 
   const focusInput = useCallback(() => {
-    const el = inputRef.current ?? document.querySelector('#chat-panel .aui-input');
-    if (el instanceof HTMLTextAreaElement) el.focus();
+    const el =
+      inputRef.current ??
+      document.querySelector<HTMLTextAreaElement>('#chat-panel .aui-input, .aui-root .aui-input');
+    if (!(el instanceof HTMLTextAreaElement)) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
   }, []);
 
   useEffect(() => () => clearBlurTimer(), []);
@@ -1683,8 +1692,15 @@ function useSlashHelpers(
   };
 
   const focusInput = useCallback(() => {
-    const el = inputRef.current ?? document.querySelector('#chat-panel .aui-input');
-    if (el instanceof HTMLTextAreaElement) el.focus();
+    const el =
+      inputRef.current ??
+      document.querySelector<HTMLTextAreaElement>('#chat-panel .aui-input, .aui-root .aui-input');
+    if (!(el instanceof HTMLTextAreaElement)) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
   }, []);
 
   const applyCommand = (command: AgentHelperCommand) => {
@@ -2297,6 +2313,7 @@ function AgentChatThreadBody({
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
+  const autoFocusDoneRef = useRef(false);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const { recovering, recoveryProgress, recoveryText, stopRecovery } = useRecoverInFlightRun(
     threadId,
@@ -2308,6 +2325,26 @@ function AgentChatThreadBody({
     s.thread.isRunning ? lastAssistantMessageText(s.thread.messages) : '',
   );
   const showInThreadStatus = showThreadStatus && !recoveryText.trim() && !inFlightAssistantText.trim();
+
+  const onFocusInputReady = useCallback(
+    (focus: () => void) => {
+      focusComposerRef.current = focus;
+      if (autoFocusDoneRef.current) return;
+      if (!propsRef.current?.autoFocusComposer) return;
+      // Auto-send drafts should not steal focus / open the keyboard.
+      if (propsRef.current?.pendingAutoSend) return;
+      autoFocusDoneRef.current = true;
+      // Double rAF: wait until the textarea is committed and laid out. On mobile,
+      // a keyboard bridge may already be focused from the new-chat tap; focusing
+      // the real input transfers that activation so the keypad can stay open.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          focus();
+        });
+      });
+    },
+    [propsRef],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -2352,9 +2389,7 @@ function AgentChatThreadBody({
             onStopExternal={() => void stopRecovery()}
             deployChatLocked={deployChatLock.locked}
             deployChatLockMessage={deployChatLock.message}
-            onFocusInputReady={(focus) => {
-              focusComposerRef.current = focus;
-            }}
+            onFocusInputReady={onFocusInputReady}
           />
         </div>
       </AuiIf>
@@ -2395,9 +2430,7 @@ function AgentChatThreadBody({
                 onStopExternal={() => void stopRecovery()}
                 deployChatLocked={deployChatLock.locked}
                 deployChatLockMessage={deployChatLock.message}
-                onFocusInputReady={(focus) => {
-                  focusComposerRef.current = focus;
-                }}
+                onFocusInputReady={onFocusInputReady}
               />
               <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>
             </div>
