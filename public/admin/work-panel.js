@@ -2654,6 +2654,7 @@ function renderNewWorkForm(pane) {
       ariaLabel: postTitleLabel(),
     },
   });
+  header.classList.add('pane-header');
   const chrome = createWorkDetailChrome(pane);
   chrome.appendChild(header);
   requestTitleFocus('work', titleInput);
@@ -2934,8 +2935,14 @@ function renderEditWorkForm(pane) {
   const returnTodoId = workState.returnToTodoId;
   pane.innerHTML = '';
 
-  const headerActions = document.createElement('div');
-  headerActions.className = 'de-header-actions';
+  // Mount chrome actions immediately so refresh doesn't land on an empty
+  // actions rail then shove the agent circle into the truncated title.
+  const linkTrackEl = document.createElement('div');
+  linkTrackEl.className = 'wk-link-track';
+  linkTrackEl.hidden = true;
+
+  const shareLogEl = document.createElement('div');
+  shareLogEl.className = 'wk-share-log';
 
   const { header, titleInput } = createPaneSubheader({
     back: {
@@ -2948,6 +2955,39 @@ function renderEditWorkForm(pane) {
       ariaLabel: postTitleLabel(),
     },
   });
+  header.classList.add('pane-header');
+
+  const agentBtn = createAgentBtn({
+    label: 'Agent',
+    title: 'Send to Agent',
+    onClick: () => {
+      const draft = workState.draft;
+      askAgentAboutWork({
+        slug,
+        title: draft?.title || listJob?.title || titleInput.value || '',
+        ...(draft || listJob || {}),
+      });
+    },
+  });
+
+  const archiveBtn = createIosIconBtn({
+    iconKey: 'archive',
+    label:
+      (workState.draft?.status || listJob?.status) === 'archived'
+        ? `Unarchive ${postLower(1)}`
+        : `Archive ${postLower(1)}`,
+    className: 'ios-icon-btn wk-archive-btn',
+    onClick: () => void archiveWork(slug),
+  });
+
+  const deleteBtn = paneDeleteIcon({
+    label: `Delete ${postLower(1)}`,
+    onClick: () => deleteWork(slug),
+  });
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+  headerActions.append(agentBtn, archiveBtn, deleteBtn);
   header.appendChild(headerActions);
   const chrome = createWorkDetailChrome(pane);
   chrome.appendChild(header);
@@ -2993,21 +3033,15 @@ function renderEditWorkForm(pane) {
       workState.dirty = false;
       titleInput.value = workState.draft.title;
 
-      const linkTrackEl = document.createElement('div');
-      linkTrackEl.className = 'wk-link-track';
-      linkTrackEl.hidden = true;
+      archiveBtn.setAttribute(
+        'aria-label',
+        data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
+      );
+      archiveBtn.title =
+        data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`;
 
-      const shareLogEl = document.createElement('div');
-      shareLogEl.className = 'wk-share-log';
-
-      const agentBtn = createAgentBtn({
-        label: 'Agent',
-        title: 'Send to Agent',
-        onClick: () => askAgentAboutWork({ slug, title: data.title, ...data }),
-      });
-
-      headerActions.innerHTML = '';
-      headerActions.appendChild(agentBtn);
+      // Share depends on contact_uid — splice in after Agent without rebuilding the row.
+      headerActions?.querySelectorAll('.de-share-btn').forEach((el) => el.remove());
       const shareBtn = data.contact_uid
         ? shell.createPortalShareBtn(data.contact_uid, {
             tab: isAuditWorkJob(data) ? 'audit' : 'work',
@@ -3025,21 +3059,9 @@ function renderEditWorkForm(pane) {
             },
           })
         : null;
-      if (shareBtn) headerActions.appendChild(shareBtn);
-      headerActions.appendChild(
-        createIosIconBtn({
-          iconKey: 'archive',
-          label: data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
-          className: 'ios-icon-btn wk-archive-btn',
-          onClick: () => void archiveWork(slug),
-        }),
-      );
-      headerActions.appendChild(
-        paneDeleteIcon({
-          label: `Delete ${postLower(1)}`,
-          onClick: () => deleteWork(slug),
-        }),
-      );
+      if (shareBtn && headerActions) {
+        headerActions.insertBefore(shareBtn, archiveBtn);
+      }
 
       clearWorkDetailScrollBody(scroll);
       const activeTab = workState.detailTab;

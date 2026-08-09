@@ -405,14 +405,33 @@ export async function bookingCreate(input: {
   notes?: string;
   address?: string;
   /**
+   * Requested meeting length in minutes. Resolved against Cal.com event types
+   * (e.g. 60 → 60min). Defaults to 30 when omitted.
+   */
+  durationMinutes?: number;
+  /** Cal.com event type slug (e.g. 30min, 60min). Overrides durationMinutes when set. */
+  eventSlug?: string;
+  /**
    * When set, the booking service uses this contact directly and SKIPS its
    * fuzzy name/email resolution — so a known meeting attendee never gets
    * blocked by a "possible matching contacts" prompt. Resolve/ensure the
    * contact on our side (by exact email), then pass the uid here.
    */
   confirmContactUid?: string;
-}): Promise<BookingResult<{ booking?: { uid?: string; startTime?: string } }>> {
-  const { address: _address, confirmContactUid, ...rest } = input;
+}): Promise<
+  BookingResult<{
+    booking?: { uid?: string; startTime?: string; endTime?: string };
+    durationMinutes?: number;
+    eventSlug?: string;
+  }>
+> {
+  const {
+    address: _address,
+    confirmContactUid,
+    durationMinutes,
+    eventSlug,
+    ...rest
+  } = input;
   const address = await bookingAddressForCreate(_address);
   if (!address) {
     return {
@@ -422,6 +441,30 @@ export async function bookingCreate(input: {
       status: 400,
     };
   }
+
+  const { DEFAULT_MEETING_MINUTES, resolveBookingLength } = await import('./bookingDuration');
+  const wantsCustomLength =
+    (typeof durationMinutes === 'number' && Number.isFinite(durationMinutes)) ||
+    Boolean(eventSlug?.trim());
+  const length = wantsCustomLength
+    ? await resolveBookingLength({ durationMinutes, eventSlug })
+    : { durationMinutes: DEFAULT_MEETING_MINUTES as number, eventSlug: undefined as string | undefined, eventTypeId: undefined as number | undefined };
+
+  // Only attach length fields when the caller asked for a non-default meeting
+  // length — keeps the legacy create body intact for ordinary 30-min bookings
+  // in case calcom-booking-api ignores or rejects unknown keys differently.
+  const lengthFields =
+    wantsCustomLength && length.durationMinutes
+      ? {
+          ...(length.eventSlug
+            ? { eventSlug: length.eventSlug, eventTypeSlug: length.eventSlug }
+            : {}),
+          ...(length.eventTypeId != null ? { eventTypeId: length.eventTypeId } : {}),
+          durationMinutes: length.durationMinutes,
+          length: length.durationMinutes,
+        }
+      : {};
+
   const result = await bookingFetch<BookingApiResponse>('/api/booking/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -429,6 +472,7 @@ export async function bookingCreate(input: {
       ...rest,
       address,
       ...(confirmContactUid ? { confirmContactUid } : {}),
+      ...lengthFields,
     }),
   });
   if (!result.ok && isBookingGeocodeError(result.error)) {
@@ -437,6 +481,14 @@ export async function bookingCreate(input: {
   if (result.ok) {
     const confirmErr = bookingConfirmationError(result.data);
     if (confirmErr) return confirmErr;
+    return {
+      ok: true,
+      data: {
+        ...result.data,
+        durationMinutes: length.durationMinutes,
+        eventSlug: length.eventSlug,
+      },
+    };
   }
   return result;
 }

@@ -35,7 +35,7 @@ import {
 } from './anthropicMessages';
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
 import { appendAgentPartialText, setAgentProgress } from './agentProgress';
-import { isSleepModeActive, sleepModeBlockMessage } from './pushQuietHours';
+import { isSleepModeActive, sleepModeBlockMessage, getPushQuietHoursSettings } from './pushQuietHours';
 import { throwIfAborted } from './agentRunControl';
 import {
   agentLlmTurnTimeoutMs,
@@ -169,21 +169,35 @@ async function anthropicContentFromStored(
   return buildUserContentBlocks(text, images, docs);
 }
 
-function currentDateTimeLine(): string {
-  return `Current date and time: ${new Date().toLocaleString('en-US', {
+/**
+ * Returns the current date/time formatted in the owner's configured timezone
+ * (from Admin → Settings → Sleep mode → Timezone). Falls back to UTC if the
+ * setting cannot be read. The timezone name is appended so the agent knows
+ * which zone all times are expressed in.
+ */
+async function currentDateTimeLine(): Promise<string> {
+  let timeZone = 'UTC';
+  try {
+    const settings = await getPushQuietHoursSettings();
+    if (settings.timezone?.trim()) timeZone = settings.timezone.trim();
+  } catch {
+    // non-fatal — fall back to UTC
+  }
+  const formatted = new Date().toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'America/New_York',
-  })}`;
+    timeZone,
+  });
+  return `Current date and time: ${formatted} (${timeZone})`;
 }
 
-function runtimeContextLine(model: string): string {
+async function runtimeContextLine(model: string): Promise<string> {
   return [
-    currentDateTimeLine(),
+    await currentDateTimeLine(),
     `Runtime model: ${labelForAgentModel(model)} (${model}). If asked which model or version you are, report this exactly — do not guess.`,
   ].join('\n');
 }
@@ -245,7 +259,7 @@ function looksLikeUnfulfilledPromise(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
   const promise =
-    /\b(let me\b|i['’]?ll\b|i will\b|i['’]?m going to\b|i am going to\b|i['’]?m about to\b|here['’]?s what i['’]?ll do|now\s+(i['’]?m\s+)?(writing|creating|building|editing|updating|committing|pushing|deploying|sending|generating)\b|going to\s+(write|create|build|edit|update|commit|push|deploy|send|generate)\b)/i;
+    /\b(let me\b|i['']?ll\b|i will\b|i['']?m going to\b|i am going to\b|i['']?m about to\b|here['']?s what i['']?ll do|now\s+(i['']?m\s+)?(writing|creating|building|editing|updating|committing|pushing|deploying|sending|generating)\b|going to\s+(write|create|build|edit|update|commit|push|deploy|send|generate)\b)/i;
   if (!promise.test(t)) return false;
   // Real failures are short and/or trail off into a colon ("…right now:"). Long,
   // substantive replies that merely mention "I'll" in passing are left alone.
@@ -619,7 +633,7 @@ async function runKnowledgeAgentInner(
   },
   stream?: AgentStreamCallbacks,
 ): Promise<AgentRunResult> {
-  if (await isSleepModeActive()) {
+  if (await isSleepModeActive() && !getAgentContext().bypassSleepMode) {
     // Must await — sleepModeBlockMessage is async; returning the Promise as
     // `text` makes settle() throw on `.trim()` and the client reconciles the
     // turn as a mysterious "interrupted" failure instead of the sleep notice.
@@ -768,7 +782,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('scheduling') && isBookingConfigured()) {
     sysParts.push(
-      `Scheduling: Cal.com is wired via calcom-booking-api. Use list_bookings for today/upcoming meetings; get_booking for one appointment; get_booking_link to share the public booking URL or /form/schedule conversational form. Admin calendar UI uses the configured Cal.com host when set.`,
+      `Scheduling: Cal.com is wired via calcom-booking-api. Use list_bookings for today/upcoming meetings; get_booking for one appointment; create_booking to book a specific time (pass duration_minutes when the client asks for a length other than the default 30 — e.g. 60 for an hour; meetings are not open-ended); get_booking_link to share the public booking URL or /form/schedule conversational form (event_slug for non-default lengths). Admin calendar UI uses the configured Cal.com host when set.`,
     );
   }
   if (hasFeature('vapi')) {
@@ -807,8 +821,8 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('site_audits')) {
     sysParts.push(
-      'Website review: use fetch_url to read a client website (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Call lighthouse_audit at most once per audit — if it fails (timeout, slow website, PSI error), proceed to update_work immediately; do NOT retry (retries burn the tool-round budget and the run will fail). Quick/street audits: pass category "performance" only (2 PSI calls, not 8). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for public DNS, SPF/DKIM/DMARC, and WHOIS. When the user asks to check or fix Cloudflare DNS or SSL (or says nameservers are Cloudflare), call cloudflare_dns verify then list_records / get_ssl_mode before concluding — dns_check alone can lag after a recent NS change. If fetch_url or ssl_check shows Cloudflare Error 525 (SSL handshake failed), call get_ssl_mode then set_ssl_mode flexible when the user wants it fixed — do not ask them to log into Cloudflare. Use brave_search for Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
-      'Inquiry projects from website/prospect audits: call read_knowledge before create_work or update_work. **Quick/street tier** (Siri "audit" / create_proposal): slug "inquiry-website-audit-quick" — fetch_url, lighthouse_audit (category performance only), ssl_check, dns_check, brave_search only; skip playwright_audit, check_links, detect_tech_stack, and Search/Analytics tools. **Full tier** (Siri "full audit"): slug "inquiry-website-audit" — add playwright_audit, check_links, detect_tech_stack, and when analytic_audit is enabled: gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps plus plausible_stats or ga4_stats (always pass explicit site_url / site_id / property_id — never company domain). If analytics tools return ANALYTICS_FAILED, mark Search / Analytics as Failed and do not invent metrics. Run all read-only audit tools in one parallel batch, then update_work once — do not call read_work for reference during audits. Write a 1,200+ char body (quick) or 1,500+ char body (full) with separate headings for the four Lighthouse categories (Performance, Accessibility, Best Practices, SEO — do not wrap under Website), plus SSL, Content, DNS, Online Presence, Search / Analytics (full), Opportunities, and Action Items — never a short prospect stub. In Online Presence, use separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings (Found/Missing/Incomplete). In Opportunities, write Problem → Solution pairs the client portal can promote as service ideas. If a stub project exists, update_work with the full audit. **Title:** catchy finding-based headline (5–12 words) — do NOT include the business name (it shows as the client name in the list). Never "Website Redesign — {Business Name}".',
+      'Website review: use fetch_url to read a client website (content, title, meta description). Use seo_inventory for the sales SEO checklist (og:image / Open Graph, Twitter cards, robots.txt, XML sitemap, web manifest, favicon, canonical, meta robots/noindex, JSON-LD) with Problem → Impact pitches — run it on every website audit. Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Call lighthouse_audit at most once per audit — if it fails (timeout, slow website, PSI error), proceed to update_work immediately; do NOT retry (retries burn the tool-round budget and the run will fail). Quick/street audits: pass category "performance" only (2 PSI calls, not 8). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for public DNS, SPF/DKIM/DMARC, WHOIS, and hosting-company lookup from A-record IPs (Flywheel vs GoDaddy/Bluehost — note the hosting company under DNS & Email; if shared/budget host + lean build + poor Lighthouse, call out a server resource issue under Performance — do not invent a Backup & Hosting section). Use playwright_audit (Playwright / headless Chromium) for real-browser UX on desktop + mobile in the full tier. When the user asks to check or fix Cloudflare DNS or SSL (or says nameservers are Cloudflare), call cloudflare_dns verify then list_records / get_ssl_mode before concluding — dns_check alone can lag after a recent NS change. If fetch_url or ssl_check shows Cloudflare Error 525 (SSL handshake failed), call get_ssl_mode then set_ssl_mode flexible when the user wants it fixed — do not ask them to log into Cloudflare. Use brave_search for Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
+      'Inquiry projects from website/prospect audits: call read_knowledge before create_work or update_work. **Quick/street tier** (Siri "audit" / create_proposal): slug "inquiry-website-audit-quick" — fetch_url, seo_inventory, lighthouse_audit (category performance only), ssl_check, dns_check, brave_search; skip playwright_audit, check_links, detect_tech_stack, and Search/Analytics tools. **Full tier** (Siri "full audit"): slug "inquiry-website-audit" — add playwright_audit (cite as Playwright / Chromium in UX & Mobile sections), check_links, detect_tech_stack, and when analytic_audit is enabled: gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps plus plausible_stats or ga4_stats (always pass explicit site_url / site_id / property_id — never company domain). If analytics tools return ANALYTICS_FAILED, mark Search / Analytics as Failed and do not invent metrics. Run all read-only audit tools in one parallel batch, then update_work once — do not call read_work for reference during audits. Write a 1,200+ char body (quick) or 1,500+ char body (full) with separate headings for the four Lighthouse categories (Performance, Accessibility, Best Practices, SEO — do not wrap under Website), plus SSL, Content, DNS, Online Presence, Search / Analytics (full), Opportunities, and Action Items — never a short prospect stub. In SEO / Search Rich Results, quote seo_inventory checklist items (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD) and copy Problem → Impact pitches into Opportunities. In Online Presence, use separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings (Found/Missing/Incomplete) — the portal combines Google/Apple/Yelp into one Maps & Directories coverage score. In Opportunities, write Problem → Solution pairs the client portal can promote as service ideas. If a stub project exists, update_work with the full audit. **Title:** catchy finding-based headline (5–12 words) — do NOT include the business name (it shows as the client name in the list). Never "Website Redesign — {Business Name}".',
     );
   }
   if (hasFeature('analytic_audit')) {
@@ -832,7 +846,7 @@ async function runKnowledgeAgentInner(
   const mentionsLine = formatMentionsContextLine(getAgentContext().mentions ?? []);
   if (mentionsLine) sysParts.push(mentionsLine);
 
-  const system = cachedSystemBlocks(sysParts.join('\n'), runtimeContextLine(model));
+  const system = cachedSystemBlocks(sysParts.join('\n'), await runtimeContextLine(model));
   const cachedTools = withToolPromptCaching(tools);
   const messages: AnthropicMessage[] = await Promise.all([
     ...trimTurnsForAgent(priorTurns).map(async (turn) => ({

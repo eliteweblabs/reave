@@ -72,10 +72,12 @@
   --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
   /*
    * Gap below the logo topbar for detail pane headers (createPaneHeader).
-   * Do not tuck title/back rows under the brand — that fights the logo and
-   * drifts per-panel. Legacy --pane-topbar-tuck kept for non-header chrome.
+   * Keep this non-negative — negative clearance lets sticky chrome sit on top
+   * of the form (client bar peeks under the tab strip). Tighten perceived
+   * spacing via pane-chrome scale / header padding instead. Legacy
+   * --pane-topbar-tuck stays for non-header chrome (list skeletons, etc.).
    */
-  --pane-header-clearance: 0.2rem;
+  --pane-header-clearance: 0.15rem;
   /*
    * Pane chrome cascade under the logo topbar (createPaneHeader):
    * logo header = 8, title subheader = 6, secondary (e.g. date nav) = 4.
@@ -200,7 +202,7 @@
 @media (max-width: 639px) {
   :root {
     --pane-topbar-tuck: 1.5rem;
-    --pane-header-clearance: 0.2rem;
+    --pane-header-clearance: 0.1rem;
   }
 }
 @media (prefers-color-scheme: dark) {

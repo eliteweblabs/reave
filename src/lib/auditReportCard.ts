@@ -12,13 +12,13 @@ export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
  * Diagnostic categories shown to clients (mockup 13 + monetizable extras).
  * `best_practices` / `presence` remain parseable from older markdown but are
  * folded into security / social for the client view.
+ * `google_business` / `apple_business` fold into `local_listings`.
  */
 export type ReportCardCategoryId =
   | 'domain_reputation'
   | 'security'
   | 'domain'
-  | 'google_business'
-  | 'apple_business'
+  | 'local_listings'
   | 'seo'
   | 'performance'
   | 'mobile'
@@ -26,7 +26,6 @@ export type ReportCardCategoryId =
   | 'social'
   | 'analytics'
   | 'accessibility'
-  | 'hosting'
   | 'broken_links'
   | 'content'
   | 'lead_capture'
@@ -35,7 +34,13 @@ export type ReportCardCategoryId =
   /** @deprecated folded into security — kept for older markdown / LH scores */
   | 'best_practices'
   /** @deprecated folded into social — kept for older markdown */
-  | 'presence';
+  | 'presence'
+  /** @deprecated folded into local_listings */
+  | 'google_business'
+  /** @deprecated folded into local_listings */
+  | 'apple_business'
+  /** @deprecated removed — no client tile; hosting company stays under DNS notes */
+  | 'hosting';
 
 export type ReportCardIcon =
   | 'radar'
@@ -142,103 +147,92 @@ const CATEGORY_META: CategoryMeta[] = [
     id: 'security',
     label: 'SSL & Website Security',
     icon: 'shield',
-    source: 'Certificate & browser security checks',
+    source: 'TLS certificate inspection · security headers (HSTS, CSP, X-Frame-Options)',
   },
   {
     id: 'domain',
     label: 'Domain & DNS Health',
     icon: 'globe',
-    source: 'Domain registration · DNS lookup',
+    source: 'Public DNS resolvers (Google · Cloudflare) · WHOIS registration',
   },
   {
-    id: 'google_business',
-    label: 'Google Business Profile',
+    id: 'local_listings',
+    label: 'Maps & Directories',
     icon: 'pin',
-    source: 'Google Business Profile',
-  },
-  {
-    id: 'apple_business',
-    label: 'Apple Business Connect',
-    icon: 'compass',
-    source: 'Apple Business Connect',
+    source: 'Brave Search · Google Business · Apple Maps · Yelp',
   },
   {
     id: 'seo',
     label: 'SEO Fundamentals',
     icon: 'search',
-    source: 'Search visibility checks',
+    source:
+      'SEO inventory scan · Open Graph · robots.txt · XML sitemap · Google Lighthouse SEO',
   },
   {
     id: 'performance',
     label: 'Site Speed & Performance',
     icon: 'speed',
-    source: 'Google PageSpeed Insights',
+    source: 'Google PageSpeed Insights (Lighthouse) · Core Web Vitals',
   },
   {
     id: 'mobile',
     label: 'Mobile Responsiveness',
     icon: 'mobile',
-    source: 'Mobile layout checks',
+    source: 'Mobile layout review',
   },
   {
     id: 'reviews',
     label: 'Reviews & Reputation',
     icon: 'star',
-    source: 'Google · Yelp · major review sites',
+    source: 'Brave Search · Google · Yelp · major review sites',
   },
   {
     id: 'social',
     label: 'Social Spread',
     icon: 'share',
-    source: 'Social profiles · local directories',
+    source: 'Brave Search · social profiles · local directories',
   },
   {
     id: 'analytics',
     label: 'Analytics & Conversion Tracking',
     icon: 'chart',
-    source: 'Analytics & conversion checks',
+    source: 'Tech stack detection · Google Analytics / Tag Manager patterns',
   },
   {
     id: 'accessibility',
     label: 'Accessibility',
     icon: 'access',
-    source: 'Accessibility (WCAG) checks',
-  },
-  {
-    id: 'hosting',
-    label: 'Backup & Hosting Reliability',
-    icon: 'cloud',
-    source: 'Hosting & backup signals',
+    source: 'Google Lighthouse · WCAG accessibility checks',
   },
   {
     id: 'broken_links',
     label: 'Broken Links & Crawl Health',
     icon: 'link',
-    source: 'Site crawl',
+    source: 'Automated site crawl · link status checker',
   },
   {
     id: 'content',
     label: 'Content & Messaging',
     icon: 'content',
-    source: 'Homepage & page content review',
+    source: 'Homepage HTML fetch · page content review',
   },
   {
     id: 'lead_capture',
     label: 'Lead Capture',
     icon: 'lead',
-    source: 'Forms & contact paths',
+    source: 'Homepage contact path review',
   },
   {
     id: 'schema',
     label: 'Search Rich Results',
     icon: 'schema',
-    source: 'Structured data / rich results',
+    source: 'JSON-LD structured data scan · LocalBusiness markup',
   },
   {
     id: 'email',
     label: 'Email Deliverability',
     icon: 'mail',
-    source: 'Email authentication checks',
+    source: 'DNS email auth · SPF · DKIM · DMARC',
   },
 ];
 
@@ -502,16 +496,19 @@ function assessChannel(
   }
 
   // Missing only when the *matched* snippet itself denies the listing.
-  const missingHit = hits.some((h) =>
-    /not (?:found|claimed|listed|set up|configured|verified|confirmed)|no confirmed|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|missing|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b|critical gap/i.test(
+  const isMissingLine = (h: string) =>
+    /not (?:found|claimed|listed|set up|configured|verified|confirmed)|no confirmed|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|\bmissing\b|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b|critical gap/i.test(
       h,
-    ),
-  );
-  // If some hits are positive and one is negative, prefer weak/ok from the positive ones.
-  const positiveHit = hits.some((h) =>
-    /found|claimed|active|verified|complete|appears|shows up|listing|maps pin|reviews?|stars?/i.test(
-      h,
-    ),
+    );
+  const missingHit = hits.some(isMissingLine);
+  // Positive evidence must come from a non-denial line — otherwise
+  // "no listing found" / "Listings: Yelp missing" falsely look present.
+  const positiveHit = hits.some(
+    (h) =>
+      !isMissingLine(h) &&
+      /(?:\bfound\b|\bclaimed\b|\bactive\b|\bverified\b|\bcomplete\b|appears|shows up|maps pin|\breviews?\b|\bstars?\b)/i.test(
+        h,
+      ),
   );
   if (missingHit && !positiveHit) {
     return { status: 'missing', summary: 'No listing found', why };
@@ -552,6 +549,114 @@ function signalToGrade(signal: PresenceSignal): LetterGrade | null {
     default:
       return null;
   }
+}
+
+/** How much of a channel's weight a presence status earns (missing = 0). */
+function signalWeightFactor(status: PresenceSignal['status']): number | null {
+  switch (status) {
+    case 'strong':
+      return 1;
+    case 'ok':
+      return 0.85;
+    case 'weak':
+      return 0.4;
+    case 'missing':
+      return 0;
+    default:
+      return null; // unknown / unavailable — exclude from denominator
+  }
+}
+
+type WeightedChannel = {
+  label: string;
+  signal: PresenceSignal;
+  /** Share of the combined 100-point listings score. */
+  weight: number;
+};
+
+/**
+ * Roll Google / Apple / other directories into one coverage score (0–100).
+ * Zero presence across checked channels → 0, not a mid-band "F = 40".
+ */
+function combineLocalListings(
+  channels: WeightedChannel[],
+  clientName = '',
+): { signal: PresenceSignal; score: number | null } {
+  let earned = 0;
+  let possible = 0;
+  const why: string[] = [];
+  const present: string[] = [];
+  const gaps: string[] = [];
+
+  for (const ch of channels) {
+    const factor = signalWeightFactor(ch.signal.status);
+    if (factor == null) continue;
+    possible += ch.weight;
+    earned += ch.weight * factor;
+    if (ch.signal.status === 'missing') {
+      gaps.push(ch.label);
+    } else if (ch.signal.status === 'weak') {
+      gaps.push(`${ch.label} (needs cleanup)`);
+      present.push(ch.label);
+    } else {
+      present.push(ch.label);
+    }
+    for (const line of ch.signal.why) {
+      if (why.length >= 4) break;
+      if (!why.includes(line)) why.push(line);
+    }
+  }
+
+  if (possible === 0) {
+    return {
+      signal: {
+        status: 'unknown',
+        summary: 'Not covered in this audit',
+        why: ['Maps and directory listings were not checked in the audit notes.'],
+      },
+      score: null,
+    };
+  }
+
+  const score = Math.round((earned / possible) * 100);
+  const name = clientName.trim();
+  const gapList = gaps.slice(0, 3).join(', ');
+  const presentList = present.slice(0, 3).join(', ');
+
+  let status: PresenceSignal['status'];
+  let summary: string;
+  if (score <= 0) {
+    status = 'missing';
+    summary = name
+      ? `${name} is missing from Google, Apple Maps, and major directories.`
+      : 'Missing from Google, Apple Maps, and major directories.';
+  } else if (score < 60) {
+    status = 'weak';
+    summary = gapList
+      ? `Thin maps & directory coverage — gaps on ${gapList}.`
+      : 'Thin maps & directory coverage across the major platforms.';
+  } else if (score < 80) {
+    status = 'ok';
+    summary = presentList
+      ? `Listed in places (${presentList}), but coverage is incomplete.`
+      : 'Listed in places, but coverage is incomplete.';
+  } else if (score < 90) {
+    status = 'ok';
+    summary = 'Solid coverage across the major maps and directories.';
+  } else {
+    status = 'strong';
+    summary = 'Strong presence across Google, Apple Maps, and major directories.';
+  }
+
+  if (!why.length) {
+    why.push(
+      score <= 0
+        ? 'No confirmed Google Business, Apple Maps, or major directory listing turned up.'
+        : 'Coverage is based on Google Business Profile, Apple Maps, and other directories mentioned in the audit.',
+    );
+  }
+
+  return { signal: { status, summary, why }, score };
 }
 
 function emailGradeFromText(text: string): {
@@ -652,8 +757,9 @@ function domainGradeFromText(text: string): {
 }
 
 /** Soften technical jargon into money-relevant plain language for clients. */
-function plainLanguage(line: string): string {
-  return line
+function plainLanguage(line: string, clientName = ''): string {
+  const name = clientName.trim();
+  let out = line
     .replace(/\bFCP\b/gi, 'how fast the page first appears')
     .replace(/\bLCP\b/gi, 'how fast the main content loads')
     .replace(/\bCLS\b/gi, 'layout jumping around')
@@ -674,13 +780,15 @@ function plainLanguage(line: string): string {
     .replace(/\bMX records?\b/gi, 'email routing')
     .replace(/\bWHOIS\b/gi, 'domain registration')
     .replace(/\bLighthouse\b/gi, 'speed & quality scan')
-    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test')
-    .trim();
+    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test');
+  // Prefer the real client name over generic "this business" phrasing.
+  out = out.replace(/\b[Tt]his business\b/g, name || 'the business');
+  return out.trim();
 }
 
-function clientFriendlyBullets(lines: string[], limit = 4): string[] {
+function clientFriendlyBullets(lines: string[], limit = 4, clientName = ''): string[] {
   return lines
-    .map((line) => plainLanguage(line))
+    .map((line) => plainLanguage(line, clientName))
     .filter((line) => line.length > 2)
     .slice(0, limit);
 }
@@ -790,11 +898,19 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     categoryId: 'performance',
     categoryLabel: 'Site Speed',
     maxRank: 3,
-    problem: (cat) =>
-      cat.score != null
+    problem: (cat) => {
+      const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
+      if (/server resource issue|shared hosting|godaddy|blue ?host/.test(blob)) {
+        return cat.score != null
+          ? `The site scores ${cat.score}/100 on speed — the build looks lean, so the server/hosting is the bottleneck.`
+          : 'The site feels slow even though the front-end build looks clean — likely a server resource issue.';
+      }
+      return cat.score != null
         ? `The site scores ${cat.score}/100 on speed — people on phones will leave before it loads.`
-        : 'The site feels slow, especially on phones.',
-    solution: 'Speed fix: compress images, cut heavy scripts, and tune hosting so pages open fast.',
+        : 'The site feels slow, especially on phones.';
+    },
+    solution:
+      'Speed fix: compress images, cut heavy scripts, and move off underpowered shared hosting when the build is already clean.',
   },
   {
     id: 'a11y-access',
@@ -809,8 +925,26 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     categoryId: 'seo',
     categoryLabel: 'SEO',
     maxRank: 3,
-    problem: () => 'Search visibility is weaker than it should be for a local business.',
-    solution: 'Local SEO package: clearer titles, descriptions, and Google Business alignment.',
+    problem: (cat) => {
+      const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
+      if (/og:image|open graph|share image/.test(blob)) {
+        return 'Links shared on social and text messages show a blank or random preview — no Open Graph image.';
+      }
+      if (/robots\.txt/.test(blob) && /block|disallow|missing/.test(blob)) {
+        return 'robots.txt is missing or blocking crawlers — search engines cannot index the site cleanly.';
+      }
+      if (/sitemap/.test(blob) && /missing|no xml/.test(blob)) {
+        return 'No XML sitemap — Google has no map of your pages and discovers them slowly.';
+      }
+      if (/favicon/.test(blob) && /missing|no favicon/.test(blob)) {
+        return 'No favicon — browser tabs show a generic icon instead of the brand.';
+      }
+      if (/manifest/.test(blob)) {
+        return 'No web app manifest — phones cannot offer a proper Add to Home Screen icon.';
+      }
+      return 'Search visibility is weaker than it should be for a local business.';
+    },
+    solution: 'Local SEO package: share images, robots/sitemap, titles, descriptions, and Google Business alignment.',
   },
   {
     id: 'security-harden',
@@ -845,34 +979,26 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     solution: 'Reputation cleanup and monitoring so mail and campaigns stay trusted.',
   },
   {
-    id: 'gbp',
-    categoryId: 'google_business',
-    categoryLabel: 'Google Business',
+    id: 'local-listings',
+    categoryId: 'local_listings',
+    categoryLabel: 'Maps & Directories',
     maxRank: 3,
     problem: (cat) =>
-      cat.grade === 'F'
-        ? 'No solid Google Business Profile — many local customers search Maps first.'
-        : 'Google Business Profile needs attention (hours, photos, or claim status).',
-    solution: 'Claim and optimize Google Business so Maps and local search work for you.',
-  },
-  {
-    id: 'apple',
-    categoryId: 'apple_business',
-    categoryLabel: 'Apple Maps',
-    maxRank: 3,
-    problem: (cat) =>
-      cat.grade === 'F'
-        ? 'Invisible on Apple Maps — iPhone users cannot find you there.'
-        : 'Apple Maps listing looks incomplete or unverified.',
-    solution: 'Apple Business Connect setup so iPhone customers can find you.',
+      cat.score != null && cat.score <= 0
+        ? 'Missing from Google, Apple Maps, and major directories — local customers cannot find you.'
+        : cat.grade === 'F' || (cat.score != null && cat.score < 60)
+          ? 'Maps & directory coverage is thin — gaps on Google, Apple Maps, or Yelp leave customers guessing.'
+          : 'Some listings need cleanup (hours, claim status, or missing platforms).',
+    solution:
+      'Claim and align Google Business, Apple Business Connect, and key directories so every map points to the same business.',
   },
   {
     id: 'social',
     categoryId: 'social',
     categoryLabel: 'Social Spread',
     maxRank: 3,
-    problem: () => 'Name, address, or phone do not match across the web — or social is quiet.',
-    solution: 'Listings & social cleanup so every directory points to the same business.',
+    problem: () => 'Social profiles look thin, quiet, or inconsistent.',
+    solution: 'Social cleanup so customers find a clear, matching presence on the networks they use.',
   },
   {
     id: 'reviews',
@@ -897,14 +1023,6 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     maxRank: 3,
     problem: () => 'You cannot see which visits turn into calls or leads.',
     solution: 'Analytics & conversion tracking so every lead is measurable.',
-  },
-  {
-    id: 'hosting',
-    categoryId: 'hosting',
-    categoryLabel: 'Hosting',
-    maxRank: 3,
-    problem: () => 'No clear backup plan — a hosting glitch could take the site offline for good.',
-    solution: 'Hosting & automated backups so recovery is measured in minutes, not days.',
   },
   {
     id: 'broken-links',
@@ -981,12 +1099,13 @@ function buildIdeas(
     } else if (/seo|meta|search|schema|rich result/.test(lower)) {
       categoryId = /schema|rich result|structured/.test(lower) ? 'schema' : 'seo';
       categoryLabel = categoryId === 'schema' ? 'Rich Results' : 'SEO';
-    } else if (/google business|gbp|maps/.test(lower)) {
-      categoryId = 'google_business';
-      categoryLabel = 'Google Business';
-    } else if (/apple/.test(lower)) {
-      categoryId = 'apple_business';
-      categoryLabel = 'Apple Maps';
+    } else if (
+      /google business|gbp|apple (?:maps|business)|business connect|yelp|bing places|maps & directories|local listings?|directories|citations?|nap/.test(
+        lower,
+      )
+    ) {
+      categoryId = 'local_listings';
+      categoryLabel = 'Maps & Directories';
     } else if (/ssl|security|header|padlock|https/.test(lower)) {
       categoryId = 'security';
       categoryLabel = 'Security';
@@ -996,7 +1115,7 @@ function buildIdeas(
     } else if (/review/.test(lower)) {
       categoryId = 'reviews';
       categoryLabel = 'Reviews';
-    } else if (/social|instagram|facebook|citation|listing|directory|nap/.test(lower)) {
+    } else if (/social|instagram|facebook|tiktok|linkedin/.test(lower)) {
       categoryId = 'social';
       categoryLabel = 'Social Spread';
     } else if (/mobile|responsive|tap target/.test(lower)) {
@@ -1005,9 +1124,6 @@ function buildIdeas(
     } else if (/analytics|conversion|tracking|ga4/.test(lower)) {
       categoryId = 'analytics';
       categoryLabel = 'Tracking';
-    } else if (/backup|hosting|uptime/.test(lower)) {
-      categoryId = 'hosting';
-      categoryLabel = 'Hosting';
     } else if (/broken link|404|crawl/.test(lower)) {
       categoryId = 'broken_links';
       categoryLabel = 'Crawl Health';
@@ -1053,11 +1169,12 @@ function scoreCategory(
   fallbackGrade: LetterGrade | null,
   emptySummary: string,
   overrides?: Partial<Pick<ReportCardCategory, 'label' | 'source' | 'icon' | 'featured'>>,
+  clientName = '',
 ): ReportCardCategory {
   const meta = CATEGORY_BY_ID.get(id);
   const label = overrides?.label || meta?.label || id;
   const grade = scoreToGrade(score) ?? fallbackGrade;
-  const why = clientFriendlyBullets(bulletsFromSection(section), 5);
+  const why = clientFriendlyBullets(bulletsFromSection(section), 5, clientName);
   const summary =
     grade == null
       ? section.trim()
@@ -1104,9 +1221,12 @@ export function buildAuditReportCard(input: {
   source?: string | null;
   title?: string | null;
   body?: string | null;
+  /** Business / contact name — used in client-facing headlines and findings. */
+  clientName?: string | null;
 }): AuditReportCard | null {
   const body = (input.body || '').trim();
   if (!isAuditJob({ ...input, body })) return null;
+  const clientName = (input.clientName || '').trim();
 
   const inProgress =
     /siri audit in progress/i.test(body) ||
@@ -1149,10 +1269,6 @@ export function buildAuditReportCard(input: {
     body,
     /Search\s*\/\s*Analytics|Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking|Tracking/,
   );
-  const hostingSection = extractSection(
-    body,
-    /Backup(?:\s*&\s*Hosting(?:\s+Reliability)?)?|Hosting(?:\s+Reliability)?|Uptime/,
-  );
   const linksSection = extractSection(body, /Broken Links(?:\s*&\s*Crawl Health)?|Crawl Health|Links/);
   const leadSection = extractSection(body, /Lead Capture|Contact Forms?|Forms?/);
   const schemaSection = extractSection(
@@ -1192,9 +1308,39 @@ export function buildAuditReportCard(input: {
     extractNamedScore(scorePool, /seo/);
 
   const seoCorpus = seoSection.trim() || contentSection;
+  const seoInventoryGrade = (() => {
+    // Prefer explicit "SEO inventory grade: B (78/100)" from seo_inventory tool output.
+    const m = seoCorpus.match(
+      /SEO inventory grade:\s*([ABCDF])(?:\s*\((\d{1,3})\s*\/\s*100\))?/i,
+    );
+    if (m) return m[1].toUpperCase() as LetterGrade;
+    const m2 = body.match(
+      /SEO inventory[^\n]{0,40}grade:\s*([ABCDF])(?:\s*\((\d{1,3})\s*\/\s*100\))?/i,
+    );
+    if (m2) return m2[1].toUpperCase() as LetterGrade;
+    return null;
+  })();
+  const seoInventoryScore = (() => {
+    const m = `${seoCorpus}\n${body}`.match(
+      /SEO inventory grade:\s*[ABCDF]\s*\((\d{1,3})\s*\/\s*100\)/i,
+    );
+    if (m) {
+      const n = Number(m[1]);
+      return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : null;
+    }
+    return null;
+  })();
   const seoFallback = (() => {
+    if (seoInventoryGrade) return seoInventoryGrade;
     const lower = seoCorpus.toLowerCase();
     if (!seoCorpus.trim()) return null;
+    if (
+      /missing (?:og:image|open graph|robots\.txt|sitemap|favicon|manifest|canonical)|no (?:og:image|sitemap|robots\.txt|favicon)|blocks? all crawlers|noindex/.test(
+        lower,
+      )
+    ) {
+      return 'D' as LetterGrade;
+    }
     if (/missing|empty|no meta|not index|duplicate title|no sitemap/.test(lower)) {
       return 'D' as LetterGrade;
     }
@@ -1318,7 +1464,9 @@ export function buildAuditReportCard(input: {
         /\bapple\b.*\b(maps|listing|wallet|siri)\b/i,
       ],
       omittedAsMissing: true,
-      omittedSummary: 'Not on Apple Maps — iPhone users cannot find this business there.',
+      omittedSummary: clientName
+        ? `Not on Apple Maps — iPhone users cannot find ${clientName} there.`
+        : 'Not on Apple Maps — iPhone users cannot find them there.',
       omittedWhy:
         'Apple Business Connect / Apple Maps was not mentioned — most businesses without a Connect listing stay invisible on iPhone Maps.',
     },
@@ -1328,12 +1476,12 @@ export function buildAuditReportCard(input: {
     presenceCorpus,
     {
       keywords: [
-        /instagram|facebook|fb\.com|tiktok|linkedin|twitter|\bx\.com\b|social(?:\s+media|\s+presence|\s+spread)?|citation|directories|listings?/i,
+        /instagram|facebook|fb\.com|tiktok|linkedin|twitter|\bx\.com\b|social(?:\s+media|\s+presence|\s+spread)?/i,
       ],
       omittedAsMissing: true,
-      omittedSummary: 'Social profiles and directories look thin or inconsistent.',
+      omittedSummary: 'Social profiles look thin or inconsistent.',
       omittedWhy:
-        'The presence check did not mention healthy social profiles or matching directory listings.',
+        'The presence check did not mention healthy social profiles (Instagram, Facebook, etc.).',
     },
     presenceAudited,
   );
@@ -1342,7 +1490,9 @@ export function buildAuditReportCard(input: {
     {
       keywords: [/reviews?|ratings?|\d(?:\.\d)?\s*stars?|yelp|reputation/i],
       omittedAsMissing: true,
-      omittedSummary: 'Reviews are thin or not working hard enough for the business.',
+      omittedSummary: clientName
+        ? `Reviews are thin or not working hard enough for ${clientName}.`
+        : 'Reviews are thin or not working hard enough yet.',
       omittedWhy:
         'Reviews / ratings were not mentioned in the presence notes — reputation may be thin or unchecked.',
     },
@@ -1362,34 +1512,34 @@ export function buildAuditReportCard(input: {
     presenceAudited,
   );
 
-  // Merge listings signal into social (Social Spread) for the client view.
-  const socialMerged: PresenceSignal = (() => {
-    if (social.status === 'unavailable' && listings.status !== 'unavailable') return listings;
-    if (listings.status === 'missing' || listings.status === 'weak') {
-      if (social.status === 'strong' || social.status === 'ok') {
-        return {
-          status: 'weak' as const,
-          summary: 'Social or directory listings need cleanup — name, address, or phone may not match.',
-          why: [...social.why, ...listings.why].slice(0, 4),
-        };
-      }
-      return {
-        status: listings.status,
-        summary: listings.summary,
-        why: [...listings.why, ...social.why].slice(0, 4),
-      };
-    }
-    return social;
-  })();
+  // One client-facing card: Google + Apple Maps + Yelp/directories (coverage score, not binary).
+  const localListings = combineLocalListings(
+    [
+      { label: 'Google Business Profile', signal: gbp, weight: 45 },
+      { label: 'Apple Maps', signal: apple, weight: 30 },
+      { label: 'Yelp & other directories', signal: listings, weight: 25 },
+    ],
+    clientName,
+  );
 
   const channelCategory = (
     id: ReportCardCategoryId,
     signal: PresenceSignal,
+    score?: number | null,
   ): ReportCardCategory => {
     const meta = CATEGORY_BY_ID.get(id);
     const label = meta?.label || id;
-    const why = clientFriendlyBullets(signal.why, 4);
-    const summary = plainLanguage(signal.summary);
+    const why = clientFriendlyBullets(signal.why, 4, clientName);
+    const summary = plainLanguage(signal.summary, clientName);
+    // Missing presence = 0/100 (not the mid-band F→40 placeholder).
+    const resolvedScore =
+      score != null && !Number.isNaN(score)
+        ? score
+        : signal.status === 'missing'
+          ? 0
+          : null;
+    const grade =
+      resolvedScore != null ? scoreToGrade(resolvedScore) : signalToGrade(signal);
     return {
       id,
       label,
@@ -1398,7 +1548,8 @@ export function buildAuditReportCard(input: {
       featured: meta?.featured,
       summary,
       finding: primaryFinding(why, summary),
-      grade: signalToGrade(signal),
+      grade,
+      score: resolvedScore,
       why,
       unavailable: signal.status === 'unavailable' || signal.status === 'unknown',
     };
@@ -1406,15 +1557,29 @@ export function buildAuditReportCard(input: {
 
   const mobileFallback = (() => {
     const lower = `${uxSection}\n${perfSection}\n${a11ySection}`.toLowerCase();
-    if (!uxSection.trim() && !/mobile|responsive|tap target|viewport/i.test(lower)) return null;
+    if (!uxSection.trim() && !/mobile|responsive|tap target|viewport|playwright/i.test(lower)) {
+      return null;
+    }
     if (/not mobile|fails? mobile|broken on (?:phone|mobile)|overflow|tap target/.test(lower)) {
       return 'D' as LetterGrade;
     }
     if (/mobile[- ]friendly|responsive|adapts well|looks good on mobile/.test(lower)) {
       return 'B' as LetterGrade;
     }
-    return uxSection.trim() || /mobile|responsive/i.test(lower) ? ('C' as LetterGrade) : null;
+    return uxSection.trim() || /mobile|responsive|playwright/i.test(lower)
+      ? ('C' as LetterGrade)
+      : null;
   })();
+
+  /** Prefer Playwright-attributed source when the audit body cites it. */
+  const mobileSourceOverride = /playwright|headless chromium|real-browser/i.test(
+    `${uxSection}\n${body}`,
+  )
+    ? 'Playwright (headless Chromium) · real-browser mobile layout'
+    : undefined;
+  const leadSourceOverride = /playwright/i.test(`${leadSection}\n${uxSection}\n${body}`)
+    ? 'Playwright form checks · homepage contact path review'
+    : undefined;
 
   const heuristicSection = (
     id: ReportCardCategoryId,
@@ -1445,7 +1610,7 @@ export function buildAuditReportCard(input: {
         grade = opts.midGrade || 'C';
       }
     }
-    return scoreCategory(id, null, section, grade, opts.emptySummary);
+    return scoreCategory(id, null, section, grade, opts.emptySummary, undefined, clientName);
   };
 
   const reputationCorpus =
@@ -1458,7 +1623,7 @@ export function buildAuditReportCard(input: {
   const securityWhySource = [sslSection, bpSection].filter(Boolean).join('\n') || body;
   const securityCat: ReportCardCategory = (() => {
     const meta = CATEGORY_BY_ID.get('security')!;
-    const why = clientFriendlyBullets(bulletsFromSection(securityWhySource), 5);
+    const why = clientFriendlyBullets(bulletsFromSection(securityWhySource), 5, clientName);
     const grade = securityCombinedGrade;
     const scoreParts: number[] = [];
     if (securityGrade) {
@@ -1499,28 +1664,28 @@ export function buildAuditReportCard(input: {
   })();
 
   const emailMeta = CATEGORY_BY_ID.get('email')!;
-  const emailWhy = clientFriendlyBullets(email.why, 5);
+  const emailWhy = clientFriendlyBullets(email.why, 5, clientName);
   const emailCat: ReportCardCategory = {
     id: 'email',
     label: emailMeta.label,
     icon: emailMeta.icon,
     source: emailMeta.source,
-    summary: plainLanguage(email.summary),
-    finding: primaryFinding(emailWhy, plainLanguage(email.summary)),
+    summary: plainLanguage(email.summary, clientName),
+    finding: primaryFinding(emailWhy, plainLanguage(email.summary, clientName)),
     grade: email.grade,
     why: emailWhy,
     unavailable: email.unavailable || email.grade == null,
   };
 
   const domainMeta = CATEGORY_BY_ID.get('domain')!;
-  const domainWhy = clientFriendlyBullets(domain.why, 4);
+  const domainWhy = clientFriendlyBullets(domain.why, 4, clientName);
   const domainCat: ReportCardCategory = {
     id: 'domain',
     label: domainMeta.label,
     icon: domainMeta.icon,
     source: domainMeta.source,
-    summary: plainLanguage(domain.summary),
-    finding: primaryFinding(domainWhy, plainLanguage(domain.summary)),
+    summary: plainLanguage(domain.summary, clientName),
+    finding: primaryFinding(domainWhy, plainLanguage(domain.summary, clientName)),
     grade: domain.grade,
     why: domainWhy,
     unavailable: domain.grade == null,
@@ -1538,31 +1703,61 @@ export function buildAuditReportCard(input: {
     }),
     securityCat,
     domainCat,
-    channelCategory('google_business', gbp),
-    channelCategory('apple_business', apple),
-    scoreCategory(
-      'seo',
-      seoScore,
-      seoSection || (seoFallback ? seoCorpus : ''),
-      seoFallback,
-      'Not scored in this audit',
-    ),
-    scoreCategory(
-      'performance',
-      perfScore,
-      perfSection,
-      perfSection.trim() || perfScore != null ? 'C' : null,
-      'Not scored in this audit',
-    ),
+    channelCategory('local_listings', localListings.signal, localListings.score),
+    (() => {
+      // Combine Lighthouse SEO with seo_inventory — missing og:image / robots / sitemap
+      // should pull the grade down even when Lighthouse SEO looks fine.
+      const lhGrade = scoreToGrade(seoScore);
+      const invGrade = seoInventoryGrade ?? scoreToGrade(seoInventoryScore);
+      const combinedGrade = worseGrade(lhGrade, invGrade) ?? seoFallback;
+      const combinedScore = (() => {
+        const parts = [seoScore, seoInventoryScore].filter(
+          (n): n is number => n != null && !Number.isNaN(n),
+        );
+        if (!parts.length) return null;
+        return Math.min(...parts);
+      })();
+      return scoreCategory(
+        'seo',
+        combinedScore,
+        seoSection || (seoFallback ? seoCorpus : ''),
+        combinedGrade,
+        'Not scored in this audit',
+        undefined,
+        clientName,
+      );
+    })(),
+    (() => {
+      // Hosting company may appear under DNS notes (no separate Backup & Hosting tile).
+      const hostBlob = `${dnsSection}\n${body}`;
+      const resourceIssue =
+        /server resource issue|shared\/budget hosting|underpowered/.test(hostBlob) &&
+        /godaddy|blue\s*host|hostgator|hostinger|siteground|shared hosting/i.test(hostBlob);
+      const perfBody =
+        resourceIssue && !/server resource issue/i.test(perfSection)
+          ? `${perfSection}\n- Clean build but slow — likely server resource issue on current hosting.`
+          : perfSection;
+      return scoreCategory(
+        'performance',
+        perfScore,
+        perfBody,
+        perfBody.trim() || perfScore != null ? 'C' : null,
+        'Not scored in this audit',
+        undefined,
+        clientName,
+      );
+    })(),
     scoreCategory(
       'mobile',
       null,
       uxSection || (mobileFallback ? `${a11ySection}\n${perfSection}` : ''),
       mobileFallback,
       'Not scored in this audit',
+      mobileSourceOverride ? { source: mobileSourceOverride } : undefined,
+      clientName,
     ),
     channelCategory('reviews', reviews),
-    channelCategory('social', socialMerged),
+    channelCategory('social', social),
     (() => {
       const lower = analyticsSection.toLowerCase();
       if (
@@ -1580,7 +1775,7 @@ export function buildAuditReportCard(input: {
           finding: 'Analytics check unavailable',
           grade: null,
           score: null,
-          why: clientFriendlyBullets(bulletsFromSection(analyticsSection), 3),
+          why: clientFriendlyBullets(bulletsFromSection(analyticsSection), 3, clientName),
           unavailable: true,
         };
       }
@@ -1597,13 +1792,9 @@ export function buildAuditReportCard(input: {
       a11ySection,
       a11yFallback,
       'Not scored in this audit',
+      undefined,
+      clientName,
     ),
-    heuristicSection('hosting', hostingSection, {
-      bad: /no (?:automated )?backup|single point of failure|no uptime|hosting (?:risk|issue)/i,
-      good: /backup(?:s)? (?:enabled|scheduled|running)|uptime|redundant|reliable hosting/i,
-      present: /backup|hosting|uptime|server/i,
-      emptySummary: 'Not scored in this audit',
-    }),
     heuristicSection('broken_links', linksSection, {
       bad: /broken link|404|dead link|crawl (?:error|fail)|not crawled/i,
       good: /no broken|0 broken|links (?:look |are )?healthy|crawl clean/i,
@@ -1618,16 +1809,20 @@ export function buildAuditReportCard(input: {
       present: /content|copy|messaging|placeholder|cta/i,
       emptySummary: 'Not scored in this audit',
     }),
-    heuristicSection('lead_capture', leadSection || contentSection, {
-      bad: /no form|broken form|form (?:fails|error)|no chat|no contact|lead(?:s)? (?:lost|untracked)/i,
-      good: /form works|contact form|click.to.call|chat (?:is )?available|lead capture/i,
-      present: /form|lead capture|contact form|chat widget|click.to.call/i,
-      emptySummary: 'Not scored in this audit',
-    }),
+    (() => {
+      const cat = heuristicSection('lead_capture', leadSection || contentSection, {
+        bad: /no form|broken form|form (?:fails|error)|no chat|no contact|lead(?:s)? (?:lost|untracked)/i,
+        good: /form works|contact form|click.to.call|chat (?:is )?available|lead capture/i,
+        present: /form|lead capture|contact form|chat widget|click.to.call/i,
+        emptySummary: 'Not scored in this audit',
+      });
+      if (leadSourceOverride) cat.source = leadSourceOverride;
+      return cat;
+    })(),
     heuristicSection('schema', schemaSection || seoSection, {
-      bad: /no schema|missing (?:schema|structured data)|no (?:localbusiness|rich results)/i,
-      good: /schema present|structured data|localbusiness|rich results/i,
-      present: /schema|structured data|json-?ld|rich results|localbusiness/i,
+      bad: /no schema|missing (?:schema|structured data|json-?ld)|no (?:localbusiness|rich results)|types:\s*none/i,
+      good: /schema present|structured data|localbusiness|json-?ld|rich results/i,
+      present: /schema|structured data|json-?ld|rich results|localbusiness|seo_inventory/i,
       emptySummary: 'Not scored in this audit',
     }),
     emailCat,
@@ -1665,8 +1860,8 @@ export function buildAuditReportCard(input: {
   const potential = improveGrade(overall, ideas.length >= 3 || actionItems.length >= 4 ? 2 : 1);
   const criticalCount = categories.filter((c) => c.grade === 'F').length;
 
-  const headline = buildDiagnosticHeadline(categories, overall);
-  const heroStats = buildHeroStats(categories, criticalCount, domainWhy);
+  const headline = buildDiagnosticHeadline(categories, overall, clientName);
+  const heroStats = buildHeroStats(categories, criticalCount, domainWhy, clientName);
 
   return {
     isAudit: true,
@@ -1690,20 +1885,34 @@ export function buildAuditReportCard(input: {
 function buildDiagnosticHeadline(
   categories: ReportCardCategory[],
   overall: LetterGrade | null,
+  clientName = '',
 ): string {
+  const name = clientName.trim();
   const weak = categories.filter((c) => c.grade === 'D' || c.grade === 'F');
   const has = (id: ReportCardCategoryId) => weak.some((c) => c.id === id);
-  if (has('google_business') && has('apple_business')) {
-    return 'This business is hard to find where local customers actually search.';
+  if (has('local_listings')) {
+    const listings = weak.find((c) => c.id === 'local_listings');
+    if (listings?.score != null && listings.score <= 0) {
+      return name
+        ? `${name} is invisible where local customers actually search.`
+        : 'Invisible where local customers actually search.';
+    }
+    return name
+      ? `${name} is hard to find where local customers actually search.`
+      : 'Hard to find where local customers actually search.';
   }
-  if (has('google_business') || has('apple_business') || has('social')) {
-    return 'This business is invisible where it matters most.';
+  if (has('social')) {
+    return name
+      ? `${name} is quiet where customers look for a brand.`
+      : 'Quiet where customers look for a brand.';
   }
   if (has('performance') || has('mobile')) {
     return 'The site is costing attention before customers ever reach the offer.';
   }
   if (has('security') || has('email') || has('domain_reputation')) {
-    return 'Trust signals are soft — customers and inboxes may not believe this business.';
+    return name
+      ? `Trust signals are soft — customers and inboxes may not believe ${name}.`
+      : 'Trust signals are soft — customers and inboxes may not believe the brand.';
   }
   if (has('reviews')) {
     return 'Reputation is not doing enough work to win the next customer.';
@@ -1717,13 +1926,16 @@ function buildDiagnosticHeadline(
   if (overall === 'C') {
     return 'The online presence works in places, but gaps are leaving money on the table.';
   }
-  return 'A plain-language look at how this business shows up online.';
+  return name
+    ? `A plain-language look at how ${name} shows up online.`
+    : 'A plain-language look at the online presence.';
 }
 
 function buildHeroStats(
   categories: ReportCardCategory[],
   criticalCount: number,
   domainWhy: string[],
+  clientName = '',
 ): Array<{ label: string; tone: 'crit' | 'risk' | 'info' }> {
   const stats: Array<{ label: string; tone: 'crit' | 'risk' | 'info' }> = [];
   const total = categories.length;
@@ -1736,7 +1948,7 @@ function buildHeroStats(
   const renew = domainWhy.find((w) => /renew|expir|auto-?renew/i.test(w));
   if (renew) {
     stats.push({
-      label: plainLanguage(renew).slice(0, 72),
+      label: plainLanguage(renew, clientName).slice(0, 72),
       tone: 'risk',
     });
   }

@@ -37,13 +37,14 @@ if (auditsEnabled && runSlug && isSafeWorkSlug(runSlug)) {
         body: doc.body,
       }))
   ) {
+    clientName = (doc.contact_name || '').trim();
     report = buildAuditReportCard({
       tags: doc.tags,
       source: doc.source,
       title: doc.title,
       body: doc.body || '',
+      clientName,
     });
-    clientName = (doc.contact_name || '').trim();
     runLabel = clientName || doc.title || runSlug;
     const activeRun = getSiriAuditRun(runSlug);
     inProgress = Boolean(report?.inProgress) || Boolean(activeRun);

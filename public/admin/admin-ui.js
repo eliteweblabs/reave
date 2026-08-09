@@ -105,12 +105,13 @@ Object.defineProperty(IOS_ICONS, 'agent', {
 
 /**
  * Circular branded agent control (same shell as pane headers everywhere).
- * Default classes: de-new-btn em-agent-btn em-header-action-btn — never a bare square.
+ * Default classes: agent-btn em-header-action-btn — never de-new-btn (that
+ * shell carries list-FAB margins that shove the control into the title).
  */
 export function createAgentBtn(opts = {}) {
   const {
     onClick,
-    className = 'de-new-btn em-agent-btn em-header-action-btn',
+    className = 'agent-btn em-header-action-btn',
     label = 'Agent',
     title,
   } = opts;
@@ -1442,6 +1443,8 @@ function createListSelectionController(listEl, opts) {
   let hideToolbarTimer = null;
   /** Pixel height captured before the subheader collapses (for a true 0.5s slide). */
   let stashedSubheaderHeight = 0;
+  /** Computed margin-bottom of the subheader before stash (keeps list spacing stable). */
+  let stashedSubheaderMarginBottom = '';
   const boundRows = new WeakSet();
 
   function sidebarEl() {
@@ -1481,11 +1484,47 @@ function createListSelectionController(listEl, opts) {
     }
   }
 
+  function measureNaturalToolbarHeight() {
+    if (!toolbar) return 0;
+    const prevHeight = toolbar.style.height;
+    const prevMargin = toolbar.style.marginBottom;
+    const wasHidden = toolbar.hidden;
+    const wasOpen = toolbar.classList.contains('list-selection-bar--open');
+    toolbar.hidden = false;
+    toolbar.classList.add('list-selection-bar--open');
+    toolbar.style.height = 'auto';
+    toolbar.style.marginBottom = '0px';
+    const h = Math.round(toolbar.scrollHeight);
+    toolbar.style.height = prevHeight;
+    toolbar.style.marginBottom = prevMargin;
+    if (!wasOpen) toolbar.classList.remove('list-selection-bar--open');
+    toolbar.hidden = wasHidden;
+    return h;
+  }
+
+  function selectionBarTargetHeight() {
+    const natural = measureNaturalToolbarHeight();
+    // Prefer the stashed search/tabs height so the list does not jump; never shrink
+    // below the bar's own content height (avoids clipping the action buttons).
+    return Math.max(stashedSubheaderHeight || 0, natural);
+  }
+
+  function selectionBarTargetMargin() {
+    return stashedSubheaderMarginBottom || '0.5rem';
+  }
+
+  function clearToolbarLayoutStyles(bar) {
+    if (!bar) return;
+    bar.style.height = '';
+    bar.style.marginBottom = '';
+  }
+
   function stashSubheader(subheader, animate) {
     subheader.hidden = false;
     subheader.setAttribute('aria-hidden', 'true');
     if (!subheader.classList.contains('panel-list-subheader--selection-stashed')) {
       stashedSubheaderHeight = subheader.scrollHeight;
+      stashedSubheaderMarginBottom = getComputedStyle(subheader).marginBottom || '';
     }
     if (!animate || subheader.classList.contains('panel-list-subheader--selection-stashed')) {
       subheader.classList.add('panel-list-subheader--selection-stashed');
@@ -1526,16 +1565,26 @@ function createListSelectionController(listEl, opts) {
     if (subheader) stashSubheader(subheader, animate);
     if (!toolbar) return;
     clearHideToolbarTimer();
+    const targetH = selectionBarTargetHeight();
+    const targetMargin = selectionBarTargetMargin();
     toolbar.hidden = false;
     toolbar.setAttribute('aria-hidden', 'false');
     if (!animate || toolbar.classList.contains('list-selection-bar--open')) {
+      toolbar.style.height = `${targetH}px`;
+      toolbar.style.marginBottom = targetMargin;
       toolbar.classList.add('list-selection-bar--open');
       return;
     }
+    // Match the collapsing subheader: start at 0, then grow to the same height/margin.
+    toolbar.style.height = '0px';
+    toolbar.style.marginBottom = '0px';
     // Two frames: apply the collapsed starting styles, then open so height can transition.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        if (active) toolbar?.classList.add('list-selection-bar--open');
+        if (!active || !toolbar) return;
+        toolbar.style.height = `${targetH}px`;
+        toolbar.style.marginBottom = targetMargin;
+        toolbar.classList.add('list-selection-bar--open');
       });
     });
   }
@@ -1545,12 +1594,15 @@ function createListSelectionController(listEl, opts) {
     if (toolbar) {
       toolbar.classList.remove('list-selection-bar--open');
       toolbar.setAttribute('aria-hidden', 'true');
+      toolbar.style.height = '0px';
+      toolbar.style.marginBottom = '0px';
       resetDeleteConfirmsIn(toolbar);
       clearHideToolbarTimer();
       const bar = toolbar;
       const finishHide = () => {
         if (bar && !bar.classList.contains('list-selection-bar--open')) {
           bar.hidden = true;
+          clearToolbarLayoutStyles(bar);
         }
       };
       if (animate) {

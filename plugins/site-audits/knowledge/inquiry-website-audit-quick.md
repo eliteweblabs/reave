@@ -13,10 +13,11 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 ## Never do this
 
 - Do **not** call `playwright_audit` or `check_links` in the quick tier — those belong in the full audit
-- Do **not** skip `lighthouse_audit`, `ssl_check`, `dns_check`, or `brave_search` — they are the core of the quick audit
+- Do **not** skip `lighthouse_audit`, `ssl_check`, `dns_check`, `seo_inventory`, or `brave_search` — they are the core of the quick audit
 - Do **not** guess Lighthouse scores — run `lighthouse_audit` once or write "Scores unavailable"
 - Do **not** retry `lighthouse_audit` if it fails — proceed to `update_work` (retries burn the run budget)
 - Do **not** use `create_work` for personal to-dos (use todo tools)
+- Do **not** write client-facing copy as **"this business"** — use the resolved contact / business name whenever possible (e.g. `Joe's Pizza is missing on Apple Maps`)
 
 ## Required workflow (in order)
 
@@ -41,14 +42,15 @@ Run these in parallel when possible:
 | Tool | Use for |
 |------|---------|
 | `fetch_url` | Title, meta description, visible text, page structure, password/coming-soon pages |
+| `seo_inventory` | **Required** — og:image, Twitter cards, favicon, manifest, robots.txt, sitemap, canonical, meta robots, JSON-LD + Problem → Impact pitches |
 | `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
-| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
+| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** |
 | `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts |
 
 **Do not run in quick tier:** `playwright_audit`, `check_links`, `detect_tech_stack` (save for full audit).
 
-**Password-protected sites:** Still run `ssl_check`, `dns_check`, and `fetch_url`. Note that Lighthouse scores are N/A until launch.
+**Password-protected sites:** Still run `ssl_check`, `dns_check`, `seo_inventory`, and `fetch_url`. Note that Lighthouse scores are N/A until launch.
 
 **If `lighthouse_audit` fails:** Call it once only. Write "Scores unavailable — run a fresh audit later" in Performance (and Accessibility/SEO if needed). Use `fetch_url` observations — do not invent scores and do not retry the tool.
 
@@ -90,7 +92,11 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - Best Practices notes if observable (HTTPS, mixed content, console/platform issues) — or "Not scored — quick tier"
 
 ### SEO
-- SEO score if available; otherwise meta description, page title, local keyword gaps
+- SEO inventory grade: {A–F} ({score}/100 from seo_inventory)
+- Page title / meta description / og:image / Twitter card / canonical / favicon / manifest
+- robots.txt: {present / missing / blocks all}
+- XML sitemap: {present / missing}
+- Copy 2–4 Problem → Impact pitches from seo_inventory into Opportunities
 
 ### SSL & Security
 - SSL validity, expiry, missing headers
@@ -108,33 +114,36 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - Analytics installed? Conversion goals configured? Or untracked leads
 
 ### Search Rich Results
-- LocalBusiness / structured data present or missing
+- JSON-LD types from seo_inventory: {list or "none"}
+- LocalBusiness / Organization: {present or missing}
 
 ### Mobile Responsiveness
-- Layout on phones from fetch_url (quick tier — no Playwright)
-
-### Backup & Hosting Reliability
-- Backup / uptime signals if observable — else "Not verified — quick tier"
+- Layout on phones from fetch_url (quick tier — no Playwright; full audit adds Playwright Chromium checks)
 
 ### Broken Links & Crawl Health
 - Not crawled — quick audit tier
 
 ### DNS & Email
-- Domain renewal if known; A/MX records; SPF/DKIM/DMARC gaps in plain language
+- Domain renewal if known; A/MX records; hosting company from dns_check; SPF/DKIM/DMARC gaps in plain language
+- If shared/budget host + lean build + poor Lighthouse, note **server resource issue** under Performance (no separate hosting grade)
 
 ### Online Presence
-Write one bullet per channel so the client portal diagnostic can grade each card:
+Write one bullet per channel (the client portal rolls Google / Apple / Yelp directories into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
 - Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
 - Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
 - Reviews: {platform, stars, count} — {notes}
 - Social: {Instagram / Facebook / other}
-- Listings: {Yelp / other directories}
+- Listings: {Yelp / Bing Places / other directories}
 
 ---
 
+## Client-facing voice
+
+In the audit `body` (findings, Opportunities, Action Items), **name the business** whenever you refer to them. Prefer `{Business Name}` over vague stand-ins like "this business", "the company", or "the client". Project **titles** still omit the business name (it already shows as the client line in the project list).
+
 ## Opportunities
 Write 3–5 **Problem → Solution** pairs in plain language for the client portal
-(what’s broken → what fixing it does — no jargon):
+(what’s broken → what fixing it does for {Business Name} — no jargon):
 - Problem: {what’s broken} → Solution: {service / fix we can sell}
 
 ## Action Items

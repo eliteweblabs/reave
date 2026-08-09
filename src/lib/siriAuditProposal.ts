@@ -55,6 +55,11 @@ export type AuditProposalResult =
 export type AuditProposalOptions = {
   /** Label used in the agent prompt (defaults to "Siri shortcut"). */
   triggerLabel?: string;
+  /**
+   * Owner-initiated Siri Shortcuts may run research + completion push during
+   * sleep mode. Public Digital Audit form submissions stay blocked overnight.
+   */
+  bypassSleepMode?: boolean;
 };
 
 function pickBusiness(params: AuditProposalParams): string {
@@ -122,6 +127,7 @@ export async function startAuditProposal(
     jobSlug: stub.slug,
     userId,
     triggerLabel: options.triggerLabel || 'Siri shortcut',
+    bypassSleepMode: options.bypassSleepMode === true,
   }).catch((e) => {
     log.error('background research failed', e instanceof Error ? e : new Error(String(e)));
   });
@@ -157,6 +163,7 @@ async function runProposalResearch(input: {
   jobSlug: string;
   userId: string | null;
   triggerLabel: string;
+  bypassSleepMode: boolean;
 }): Promise<void> {
   const givenLines = [
     input.business ? `Business name: ${input.business}` : null,
@@ -172,18 +179,21 @@ async function runProposalResearch(input: {
 
   const auditToolsStep =
     input.tier === 'full'
-      ? '3. Run the **full** audit tool sequence on the website: fetch_url, lighthouse_audit, ssl_check, ' +
-        'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
-        'playwright_audit (real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
+      ? '3. Run the **full** audit tool sequence on the website: fetch_url, seo_inventory (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD), ' +
+        'lighthouse_audit, ssl_check, check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
+        'playwright_audit (Playwright / Chromium real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
         '(gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps and plausible_stats or ga4_stats when site_id/property_id is known — ' +
         'always pass explicit site_url; never company domain). Run read-only tools in parallel when possible. ' +
         'Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry. ' +
-        'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections.'
-      : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, ' +
+        'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections. ' +
+        'In the SEO and Search Rich Results sections, quote seo_inventory findings and copy Problem → Impact pitches into Opportunities.'
+      : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, seo_inventory ' +
+        '(og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD — required for customer pitches), ' +
         'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
         '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
         'detect_tech_stack, or Search/Analytics tools — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
-        'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry.';
+        'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry. ' +
+        'Quote seo_inventory checklist items and Problem → Impact pitches in SEO / Opportunities.';
 
   const userText = [
     `${input.triggerLabel} "${tierLabel}" was triggered with only the raw information below — there is no one ` +
@@ -212,14 +222,18 @@ async function runProposalResearch(input: {
       'it already appears as the client name in the project list). Examples: "Antique shop, antique website — ' +
       'not in a good way", "Great reviews, terrible mobile score". Never use "Website Redesign — {Business Name}". ' +
       'Replace the stub body with a complete markdown audit following the required section structure — 1,200+ characters for ' +
-      'quick tier, 1,500+ for full tier, not a stub.',
+      'quick tier, 1,500+ for full tier, not a stub. In findings and Opportunities, refer to the business by name ' +
+      '(never "this business" — too informal/generic).',
     '5. End your final reply with a line formatted exactly like ' +
       `\`Project: ${input.jobSlug}\` followed by 2-3 sentences summarizing the top findings and the recommended next step.`,
   ].join('\n');
 
   const researchStartedAt = Date.now();
   const threadId = siriAuditThreadId(input.jobSlug);
-  const agentContext = input.userId ? { userId: input.userId, threadId } : {};
+  const agentContext = {
+    ...(input.userId ? { userId: input.userId, threadId } : {}),
+    ...(input.bypassSleepMode ? { bypassSleepMode: true } : {}),
+  };
 
   let reply: string;
   try {
@@ -245,6 +259,7 @@ async function runProposalResearch(input: {
     jobSlug: input.jobSlug,
     tier: input.tier,
     researchStartedAt,
+    bypassQuietHours: input.bypassSleepMode,
   }).catch((e) =>
     log.warn('proposal notify failed', {
       err: e instanceof Error ? e.message : String(e),

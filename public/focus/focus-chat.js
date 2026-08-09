@@ -9,7 +9,7 @@
   const companyName = root.dataset.companyName || 'Assistant';
   const initialChatId = (root.dataset.chatId || '').trim();
 
-  /** @type {{ activeId: string|null, messages: any[], linkedJobs: {slug:string,title:string}[], threads: any[], dialOpen: boolean, recentOpen: boolean }} */
+  /** @type {{ activeId: string|null, messages: any[], linkedJobs: {slug:string,title:string}[], threads: any[], dialOpen: boolean, recentOpen: boolean, autoFocusComposer: boolean }} */
   const state = {
     activeId: null,
     messages: [],
@@ -17,7 +17,46 @@
     threads: [],
     dialOpen: false,
     recentOpen: false,
+    autoFocusComposer: false,
   };
+
+  /** Hold mobile keyboard across async create+mount (same idea as admin chat-panel). */
+  let composerKeyboardBridge = null;
+  let composerKeyboardBridgeTimer = 0;
+
+  function disarmComposerKeyboardBridge() {
+    if (composerKeyboardBridgeTimer) {
+      clearTimeout(composerKeyboardBridgeTimer);
+      composerKeyboardBridgeTimer = 0;
+    }
+    const bridge = composerKeyboardBridge;
+    composerKeyboardBridge = null;
+    bridge?.remove();
+  }
+
+  function armComposerKeyboardBridge() {
+    disarmComposerKeyboardBridge();
+    const bridge = document.createElement('textarea');
+    bridge.setAttribute('aria-hidden', 'true');
+    bridge.tabIndex = -1;
+    bridge.setAttribute('autocomplete', 'off');
+    bridge.setAttribute('autocorrect', 'off');
+    bridge.setAttribute('spellcheck', 'false');
+    bridge.style.cssText =
+      'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;border:0;padding:0;margin:0;overflow:hidden;z-index:-1;';
+    document.body.appendChild(bridge);
+    try {
+      bridge.focus({ preventScroll: true });
+    } catch {
+      bridge.focus();
+    }
+    if (document.activeElement !== bridge) {
+      bridge.remove();
+      return;
+    }
+    composerKeyboardBridge = bridge;
+    composerKeyboardBridgeTimer = window.setTimeout(disarmComposerKeyboardBridge, 2500);
+  }
 
   const els = {
     idle: document.getElementById('focus-idle'),
@@ -128,12 +167,22 @@
 
   function mountThread() {
     const chatApi = window.__reaveAgentChat;
-    if (!chatApi || !els.threadHost || !state.activeId) return;
+    if (!chatApi || !els.threadHost || !state.activeId) {
+      disarmComposerKeyboardBridge();
+      return;
+    }
+    const autoFocusComposer = state.autoFocusComposer === true;
+    state.autoFocusComposer = false;
+    if (!autoFocusComposer) disarmComposerKeyboardBridge();
     chatApi.mount(els.threadHost, {
       threadId: state.activeId,
       companyName,
       variant: 'focus',
       initialMessages: state.messages,
+      autoFocusComposer,
+      onComposeFocus: (focused) => {
+        if (focused) disarmComposerKeyboardBridge();
+      },
       onAgentRunChange: () => {},
       onRefreshMessages: async () => {
         if (!state.activeId) return;
@@ -295,10 +344,15 @@
   }
 
   async function finishNewChatWithProject(slug) {
+    // Capture the confirm-tap user-activation before create+mount awaits.
+    armComposerKeyboardBridge();
+    state.autoFocusComposer = true;
     try {
       const thread = await createThread(slug || undefined);
       await openChat(thread.id, thread);
     } catch (e) {
+      disarmComposerKeyboardBridge();
+      state.autoFocusComposer = false;
       alert(e instanceof Error ? e.message : 'Could not create session');
     }
   }

@@ -118,6 +118,8 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   jobSlug?: string | null;
   tier?: 'quick' | 'full';
   researchStartedAt?: number;
+  /** Deliver completion push even during sleep mode (Siri-initiated audits). */
+  bypassQuietHours?: boolean;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
@@ -142,6 +144,7 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
     body: detail,
     tag: `siri-proposal-${slug ?? opts.label}`,
     url: deepLinkUrl,
+    bypassQuietHours: opts.bypassQuietHours === true,
   }).catch((e) => log.warn('siri audit push failed', e));
 }
 
@@ -254,12 +257,12 @@ export async function notifyAdminAgentOfEmailAutomation(opts: {
   } else if (kind === 'meeting_booked') {
     messageLines.push(
       '',
-      `A calendar booking was created automatically. Confirm the ${post.singular} link and send the meeting confirmation from the dashboard or Email tab.`,
+      'A calendar booking was created automatically. Tap Confirm on the dashboard notification to clear it from your review list.',
     );
   } else if (kind === 'meeting_request') {
     messageLines.push(
       '',
-      'The client wants to meet but no specific time was booked. Use Accept & notify on the dashboard to send them a branded scheduling link.',
+      'The client wants to meet but no specific time was booked. Use Send scheduling link on the dashboard, or Confirm when a time is proposed.',
     );
   } else if (kind === 'meeting_conflict') {
     messageLines.push(

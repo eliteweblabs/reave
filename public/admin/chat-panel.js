@@ -1029,12 +1029,60 @@ let chatState = {
   sendAbort: null,
   pendingDraft: null,
   pendingAutoSend: false,
+  /** One-shot: focus composer after the next mount (new session). */
+  autoFocusComposer: false,
   disposableChatId: null,
   composeDirty: false,
   // Thread ids with an in-flight agent run (own tab + polled background runs
   // in other threads/tabs) — drives the sidebar "working…" spinner.
   runningIds: new Set(),
 };
+
+/**
+ * Keep the mobile keyboard open across the async "new chat" create+mount.
+ * iOS/Android only honor programmatic focus that continues a user gesture;
+ * after `await fetch`, a late `.focus()` on the real textarea usually fails.
+ * Arming a tiny bridge textarea synchronously on tap holds the keyboard until
+ * the real `.aui-input` mounts and takes focus.
+ */
+let composerKeyboardBridge = null;
+let composerKeyboardBridgeTimer = 0;
+
+function disarmComposerKeyboardBridge() {
+  if (composerKeyboardBridgeTimer) {
+    clearTimeout(composerKeyboardBridgeTimer);
+    composerKeyboardBridgeTimer = 0;
+  }
+  const bridge = composerKeyboardBridge;
+  composerKeyboardBridge = null;
+  bridge?.remove();
+}
+
+function armComposerKeyboardBridge() {
+  disarmComposerKeyboardBridge();
+  const bridge = document.createElement('textarea');
+  bridge.setAttribute('aria-hidden', 'true');
+  bridge.tabIndex = -1;
+  bridge.setAttribute('autocomplete', 'off');
+  bridge.setAttribute('autocorrect', 'off');
+  bridge.setAttribute('spellcheck', 'false');
+  // Must not use display:none / visibility:hidden — those refuse focus.
+  bridge.style.cssText =
+    'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;border:0;padding:0;margin:0;overflow:hidden;z-index:-1;';
+  document.body.appendChild(bridge);
+  try {
+    bridge.focus({ preventScroll: true });
+  } catch {
+    bridge.focus();
+  }
+  if (document.activeElement !== bridge) {
+    bridge.remove();
+    return;
+  }
+  composerKeyboardBridge = bridge;
+  // Safety net if React never takes focus (mount failure, etc.).
+  composerKeyboardBridgeTimer = window.setTimeout(disarmComposerKeyboardBridge, 2500);
+}
 
 const CHAT_LAST_ACTIVE_KEY = 'chat:lastActiveId-v1';
 const CHAT_LAST_SEEN_KEY = 'chat:lastSeenAt-v1';
@@ -1905,20 +1953,28 @@ function mountChatThreadRoot(threadHost) {
   if (!chatApi) {
     threadHost.innerHTML =
       '<div class="de-loading de-error">Session UI failed to load. Hard-refresh the page.</div>';
+    disarmComposerKeyboardBridge();
     return;
   }
   const pendingDraft = chatState.pendingDraft;
   const pendingAutoSend = chatState.pendingAutoSend;
+  const autoFocusComposer = chatState.autoFocusComposer === true && !pendingAutoSend;
   chatState.pendingDraft = null;
   chatState.pendingAutoSend = false;
+  chatState.autoFocusComposer = false;
+  if (!autoFocusComposer) disarmComposerKeyboardBridge();
   chatApi.mount(threadHost, {
     threadId: chatState.activeId,
     companyName: window.__companyBrand?.name || 'Assistant',
     initialMessages: chatState.messages,
     pendingDraft,
     pendingAutoSend,
+    autoFocusComposer,
     getModel: getAgentModelForChat,
-    onComposeFocus: (focused) => shell.setChatComposeFocused(focused),
+    onComposeFocus: (focused) => {
+      if (focused) disarmComposerKeyboardBridge();
+      shell.setChatComposeFocused(focused);
+    },
     onComposeDirty: (dirty) => {
       chatState.composeDirty = dirty;
       if (dirty && chatState.activeId === chatState.disposableChatId) {
@@ -2049,12 +2105,15 @@ function renderChatPanel() {
 }
 
 async function startNewChat(opts = {}) {
-  const prevId = chatState.activeId;
-  if (prevId) {
-    await finalizeChatTitleIfNeeded(prevId);
-    await abandonDisposableChat(prevId);
-  }
+  // Capture the tap/click user-activation before any await so mobile can keep
+  // the keyboard open until the real composer mounts.
+  armComposerKeyboardBridge();
   try {
+    const prevId = chatState.activeId;
+    if (prevId) {
+      await finalizeChatTitleIfNeeded(prevId);
+      await abandonDisposableChat(prevId);
+    }
     const res = await fetch('/api/chats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2068,10 +2127,13 @@ async function startNewChat(opts = {}) {
     chatState.messages = [];
     chatState.linkedJobs = thread.linked_jobs || [];
     chatState.composeDirty = false;
+    chatState.autoFocusComposer = true;
     chatState.disposableChatId = opts.disposable === false ? null : thread.id;
     rememberChatActiveId(thread.id);
     renderChatPanel();
   } catch (e) {
+    disarmComposerKeyboardBridge();
+    chatState.autoFocusComposer = false;
     alert(`Could not create session: ${e.message}`);
   }
 }

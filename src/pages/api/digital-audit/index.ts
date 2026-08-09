@@ -156,6 +156,7 @@ export const GET: APIRoute = async ({ url }) => {
     source: doc.source,
     title: doc.title,
     body: doc.body || '',
+    clientName: doc.contact_name || '',
   });
 
   const activeRun = getSiriAuditRun(slug);

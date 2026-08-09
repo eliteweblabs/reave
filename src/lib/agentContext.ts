@@ -9,6 +9,11 @@ export interface AgentRunContext {
   emailId?: string;
   /** Automated system alert — do not replay chat history or "wait for instructions". */
   systemAlert?: boolean;
+  /**
+   * Owner-initiated Siri Shortcuts (and similar) may run Claude during sleep mode.
+   * Checked by the agent runner and Anthropic client — automated overnight work stays blocked.
+   */
+  bypassSleepMode?: boolean;
   /** Images (including SVGs) attached to the current user message (for filing to projects). */
   messageImages?: ChatImageAttachment[];
   /** PDF/PPTX documents attached to the current user message (for filing to projects). */

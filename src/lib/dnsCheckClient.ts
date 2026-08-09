@@ -1,9 +1,15 @@
 /**
- * DNS health, email authentication (SPF/DKIM/DMARC), and WHOIS basics.
+ * DNS health, email authentication (SPF/DKIM/DMARC), WHOIS basics,
+ * and hosting-company lookup from A-record IPs.
  */
 import { Resolver } from 'node:dns/promises';
 import whois from 'whois-json';
 import { withDeadline } from './agentWatchdog';
+import {
+  formatHostingLookup,
+  lookupHosting,
+  type HostingLookupResult,
+} from './hostingLookupClient';
 import { normalizeDomain } from './publicUrl';
 
 const PUBLIC_RESOLVERS = [
@@ -48,6 +54,8 @@ export type DnsCheckResponse =
       nameservers: string[];
       email_auth: EmailAuthResult;
       whois: WhoisBasics;
+      /** Hosting company traced from A-record IPs + NS/CNAME fingerprints. */
+      hosting: HostingLookupResult;
       propagation: {
         consistent: boolean;
         A_records_by_resolver: Record<string, string[]>;
@@ -214,9 +222,14 @@ export async function dnsCheck(domainInput: string): Promise<DnsCheckResponse> {
     dmarc: parseDmarc(dmarcTxt),
   };
 
-  const [whoisResult, propagation] = await Promise.all([
+  const [whoisResult, propagation, hosting] = await Promise.all([
     lookupWhois(domain),
     checkPropagation(domain),
+    lookupHosting({
+      ips: records.A,
+      nameservers: records.NS,
+      cnames: records.CNAME,
+    }),
   ]);
 
   return {
@@ -226,6 +239,7 @@ export async function dnsCheck(domainInput: string): Promise<DnsCheckResponse> {
     nameservers: records.NS,
     email_auth,
     whois: whoisResult,
+    hosting,
     propagation,
   };
 }
@@ -261,6 +275,9 @@ export function formatDnsCheckResults(result: Extract<DnsCheckResponse, { ok: tr
   } else if (result.whois.raw_error) {
     lines.push('', `WHOIS: unavailable (${result.whois.raw_error.slice(0, 120)})`);
   }
+
+  lines.push('');
+  lines.push(formatHostingLookup(result.hosting));
 
   lines.push('');
   lines.push(`A-record propagation: ${result.propagation.consistent ? 'consistent across resolvers' : 'inconsistent — check DNS propagation'}`);
