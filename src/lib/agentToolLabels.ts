@@ -90,6 +90,17 @@ const TOOL_LABELS: Record<string, string> = {
   get_site_monitoring: 'Reading website monitoring',
   set_site_monitoring: 'Updating website monitoring',
   recheck_site_monitoring: 'Rechecking website monitoring',
+  gsc_list_sites: 'Listing Search Console sites',
+  gsc_search_analytics: 'Querying Search Console',
+  gsc_inspect_url: 'Inspecting URL in Search Console',
+  gsc_list_sitemaps: 'Listing sitemaps',
+  gsc_submit_sitemap: 'Submitting sitemap',
+  gsc_add_site: 'Adding Search Console property',
+  plausible_stats: 'Fetching Plausible stats',
+  ga4_list_properties: 'Listing GA4 properties',
+  ga4_stats: 'Fetching GA4 stats',
+  indexnow_submit_urls: 'Submitting IndexNow URLs',
+  bing_webmaster_status: 'Checking Bing Webmaster',
 };
 
 function titleCaseWords(value: string): string {

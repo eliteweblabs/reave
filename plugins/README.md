@@ -31,7 +31,8 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `email-marketing/` | `email_marketing` | `newsletter.md` | — |
 | `namecom-dns/` | `namecom_dns` | — | yes |
 | `scheduling/` | `scheduling` | — | yes |
-| `site-audits/` | `site_audits` | — | yes |
+| `site-audits/` | `site_audits` | inquiry audit playbooks | yes |
+| `analytic-audit/` | `analytic_audit` | Search Console / GA4 / Plausible / IndexNow | yes |
 | `site-monitoring/` | `site_monitoring` | — | yes |
 | `uptime-monitoring/` | `uptime_monitoring` | `uptime-monitoring.md` | yes |
 | `fleet/` | `fleet_tracking` | `fleet-tracking.md` | yes |

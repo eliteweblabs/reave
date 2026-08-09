@@ -16,6 +16,7 @@ const FEATURE_IDS_LIST = [
   'portal_assistant',
   'billing',
   'site_audits',
+  'analytic_audit',
   'site_monitoring',
   'uptime_monitoring',
   'documents',

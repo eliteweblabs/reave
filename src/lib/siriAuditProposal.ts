@@ -174,12 +174,15 @@ async function runProposalResearch(input: {
     input.tier === 'full'
       ? '3. Run the **full** audit tool sequence on the website: fetch_url, lighthouse_audit, ssl_check, ' +
         'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
-        'playwright_audit (real-browser UX/UI on desktop + mobile), and detect_tech_stack. Run read-only ' +
-        'tools in parallel when possible. Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry.'
+        'playwright_audit (real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
+        '(gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps and plausible_stats or ga4_stats when site_id/property_id is known — ' +
+        'always pass explicit site_url; never company domain). Run read-only tools in parallel when possible. ' +
+        'Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry. ' +
+        'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections.'
       : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, ' +
         'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
         '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
-        'or detect_tech_stack — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
+        'detect_tech_stack, or Search/Analytics tools — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
         'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry.';
 
   const userText = [

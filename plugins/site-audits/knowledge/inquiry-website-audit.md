@@ -50,12 +50,16 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
 | `playwright_audit` | Real-browser UX/UI: nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
+| `gsc_search_analytics` / `gsc_inspect_url` / `gsc_list_sitemaps` | Search Console performance + index status (**full tier**; requires connected Google). Always pass explicit `site_url`. |
+| `plausible_stats` or `ga4_stats` | Traffic stats when site_id / property_id is known — never invent numbers |
 
-**Full tier only:** `playwright_audit`, `check_links`, and `detect_tech_stack` are intentionally omitted from the quick street playbook — run them here.
+**Full tier only:** `playwright_audit`, `check_links`, `detect_tech_stack`, and Search/Analytics tools (`analytic_audit` feature) are intentionally omitted from the quick street playbook — run them here.
 
 **Password-protected or pre-launch sites (e.g. Shopify password page):** Still run `ssl_check`, `dns_check`, and `fetch_url` on the password page and any public policy URLs. Note in the audit that public Lighthouse scores are N/A until the store launches.
 
 **If `lighthouse_audit` fails (quota / missing `GOOGLE_PAGESPEED_API_KEY`):** Call it once only. Write "Scores unavailable — run a fresh audit later" in affected sections and rely on `fetch_url` + platform notes — do not invent scores and do not retry the tool.
+
+**If Search/Analytics tools return `ANALYTICS_FAILED`:** Mark `### Search / Analytics` as **Failed** with the reason. Do **not** invent clicks, impressions, or traffic. Do **not** retry. Continue the rest of the audit. That failed block must stay admin-only (portal treats it as unavailable).
 
 ### 4. Create or update the project
 
@@ -131,6 +135,14 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Analytics & Conversion Tracking
 - {Analytics / tag manager / conversion goals — installed and configured, or untracked}
+
+### Search / Analytics
+- Status: {OK | **Failed** — reason from ANALYTICS_FAILED; never invent metrics}
+- Search Console: {top queries / impressions / CTR when tools succeed}
+- Traffic: {Plausible or GA4 summary when configured for this site_url — else N/A}
+- Sitemaps / URL inspection: {notes when tools succeed}
+- Bing: skipped (placeholder until API ships)
+- IndexNow: only for sites we control — not sales prospects
 
 ### Search Rich Results
 - {LocalBusiness / structured data present or missing}
@@ -219,5 +231,6 @@ Never put a job slug or business name in `/c/…` — only the contact **uid** w
 
 - Work/jobs: `create_work`, `update_work`, `read_work`, `link_to_work`
 - Website audits: `fetch_url`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`, `playwright_audit`, `detect_tech_stack`
+- Search & analytics (full tier): `gsc_*`, `plausible_stats`, `ga4_stats` — see `analytic-audit`
 - Research: `brave_search`, `resolve_contact`
 - Quick tier (Siri "audit"): see `inquiry-website-audit-quick`

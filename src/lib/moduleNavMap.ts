@@ -12,6 +12,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   portal_assistant: ['clients'],
   billing: ['finance'],
   site_audits: ['__system__'],
+  analytic_audit: ['analytics', '__system__'],
   site_monitoring: ['rules', '__system__'],
   uptime_monitoring: ['analytics', '__system__'],
   documents: ['documents'],
@@ -33,6 +34,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   wayback_machine: ['__system__'],
   content_management: ['media', '__system__'],
   stock_photos: ['__system__', 'media'],
+  wordpress_content: ['__system__'],
 };
 
 /** Human labels for footerNav keys (monitor panel). */

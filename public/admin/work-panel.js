@@ -1034,6 +1034,7 @@ const CLIENT_DETAIL_TABS = [
   { id: 'notes', label: 'Notes' },
   { id: 'projects', label: postTitle(2) },
   { id: 'vault', label: 'Vault' },
+  { id: 'analytics', label: 'Analytics', feature: 'analytic_audit' },
 ];
 
 const WORK_DETAIL_TABS = [
@@ -1119,7 +1120,7 @@ function syncClientProjectsTabBadge(count) {
 
 function mountClientDetailTabs(pane, activeTab, onSelect) {
   return mountDetailTabs(pane, {
-    tabs: CLIENT_DETAIL_TABS,
+    tabs: CLIENT_DETAIL_TABS.filter((t) => !t.feature || hasInstallFeature(t.feature)),
     activeTab,
     onSelect,
     ariaLabel: 'Client sections',
@@ -1204,6 +1205,61 @@ function scheduleClientVaultSave(uid, getData) {
       shell.showChatToast(e.message || 'Vault save failed');
     }
   }, 650);
+}
+
+async function mountClientAnalyticsSection(parent, uid) {
+  const wrap = createDetailPanelBody('cl-analytics-section');
+  wrap.innerHTML = `<p class="dash-empty">Loading analytics…</p>`;
+  parent.appendChild(wrap);
+
+  const connectRow = document.createElement('div');
+  connectRow.className = 'cl-vault-actions';
+  connectRow.style.marginBottom = '12px';
+  const connectLink = document.createElement('a');
+  connectLink.className = 'prof-btn-secondary';
+  connectLink.href = `/api/admin/analytic-audit/connect?contact_uid=${encodeURIComponent(uid)}`;
+  connectLink.textContent = 'Connect Google (this client)';
+  connectRow.appendChild(connectLink);
+  wrap.prepend(connectRow);
+
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/analytics?range=30`, {
+      cache: 'no-store',
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const d = data.dashboard || {};
+    if (!d.configured) {
+      const empty = document.createElement('p');
+      empty.className = 'dash-empty';
+      empty.textContent =
+        d.error ||
+        'No Plausible site id or GA4 property for this client. Add vault labels “Plausible site id” / “GA4 property id”, or connect Google.';
+      wrap.appendChild(empty);
+      return;
+    }
+    if (d.failed || d.error) {
+      const err = document.createElement('p');
+      err.className = 'dash-empty';
+      err.textContent = `Analytics failed: ${d.error || 'unknown error'}`;
+      wrap.appendChild(err);
+      return;
+    }
+    const m = d.metrics || {};
+    const stats = document.createElement('div');
+    stats.className = 'dash-stats';
+    stats.innerHTML =
+      `<div class="dash-stat dash-stat--muted"><span class="dash-stat-value">${escHtml(String(Math.round(m.visitors?.value || 0)))}</span><span class="dash-stat-label">Visitors</span></div>` +
+      `<div class="dash-stat dash-stat--muted"><span class="dash-stat-value">${escHtml(String(Math.round(m.pageviews?.value || 0)))}</span><span class="dash-stat-label">Pageviews</span></div>` +
+      `<div class="dash-stat dash-stat--muted"><span class="dash-stat-value">${escHtml(String(d.source || ''))}</span><span class="dash-stat-label">Source</span></div>` +
+      `<div class="dash-stat dash-stat--muted"><span class="dash-stat-value">${escHtml(String(d.siteId || '—'))}</span><span class="dash-stat-label">Property</span></div>`;
+    wrap.appendChild(stats);
+  } catch (e) {
+    const err = document.createElement('p');
+    err.className = 'dash-empty';
+    err.textContent = e.message || 'Could not load client analytics';
+    wrap.appendChild(err);
+  }
 }
 
 function mountClientVaultSection(parent, uid, entries, opts = {}) {
@@ -4190,6 +4246,7 @@ export {
   showClientDetailPanel,
   createClientDetailPanel,
   mountClientVaultSection,
+  mountClientAnalyticsSection,
   flushClientVaultSave,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,

@@ -17,6 +17,7 @@ import { emailMarketingPlugin } from '../../plugins/email-marketing/manifest';
 import { namecomDnsPlugin } from '../../plugins/namecom-dns/manifest';
 import { schedulingPlugin } from '../../plugins/scheduling/manifest';
 import { siteAuditsPlugin } from '../../plugins/site-audits/manifest';
+import { analyticAuditPlugin } from '../../plugins/analytic-audit/manifest';
 import { siteMonitoringPlugin } from '../../plugins/site-monitoring/manifest';
 import { uptimeMonitoringPlugin } from '../../plugins/uptime-monitoring/manifest';
 import { vapiPlugin } from '../../plugins/vapi/manifest';
@@ -41,6 +42,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   namecomDnsPlugin,
   schedulingPlugin,
   siteAuditsPlugin,
+  analyticAuditPlugin,
   siteMonitoringPlugin,
   uptimeMonitoringPlugin,
   vapiPlugin,
@@ -158,8 +160,10 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['wordpress-content'];
     case 'code-dev':
       return ['code-dev-tools'];
-    case 'siteAudits':
+    case 'site-audits':
       return ['inquiry-website-audit', 'inquiry-website-audit-quick'];
+    case 'analytic-audit':
+      return ['analytic-audit'];
     default:
       return [];
   }

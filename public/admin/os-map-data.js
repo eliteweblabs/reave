@@ -45,6 +45,7 @@ const SYSTEM_NODES = [
   { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews inbox', sub: 'Google sync · response to-do (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
+  { id: 'analytic_audit', title: 'Analytic audit', sub: 'GSC · GA4 · Plausible · IndexNow (FEATURES: analytic_audit)', icon: '📊', brand: 'google', hue: 145, status: true, group: 'reave', x: 640, y: 804 },
   { id: 'content_mgmt', title: 'Content management', sub: 'agent edits site · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
@@ -62,7 +63,11 @@ const SYSTEM_NODES = [
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
-  { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
+  { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats · agent plausible_stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
+  { id: 'google_search_console', title: 'Google Search Console', sub: 'OAuth · search analytics · URL inspect · sitemaps (FEATURES: analytic_audit)', icon: '🔎', brand: 'google', hue: 145, status: true, group: 'external', x: 1400, y: 1420 },
+  { id: 'ga4', title: 'Google Analytics 4', sub: 'OAuth · Data API · admin dashboard toggle', icon: '📉', brand: 'googleanalytics', hue: 160, status: true, group: 'external', x: 1400, y: 1540 },
+  { id: 'indexnow', title: 'IndexNow', sub: 'Bing/Yandex URL ping · owned sites only', icon: '⚡', hue: 50, status: true, group: 'external', x: 1400, y: 1660 },
+  { id: 'bing_webmaster', title: 'Bing Webmaster', sub: 'placeholder · API later', icon: '🅱️', brand: 'bing', hue: 35, status: true, ghost: true, group: 'external', x: 1400, y: 1780 },
   { id: 'google_places', title: 'Google Places', sub: 'review sync · address autocomplete · Place Details opening hours · GOOGLE_MAPS_API_KEY', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
   { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
 ];
@@ -122,6 +127,12 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'calcom_api', label: 'bookings API', dashed: true },
   { from: 'web', to: 'calcom_api', label: '/form/schedule', dashed: true },
   { from: 'web', to: 'plausible', label: 'pageviews', dashed: true },
+  { from: 'astro', to: 'analytic_audit', label: 'full audit · agent tools', dashed: true },
+  { from: 'analytic_audit', to: 'google_search_console', label: 'GSC API', dashed: true },
+  { from: 'analytic_audit', to: 'ga4', label: 'GA4 Data API', dashed: true },
+  { from: 'analytic_audit', to: 'plausible', label: 'plausible_stats', dashed: true },
+  { from: 'analytic_audit', to: 'indexnow', label: 'owned sites', dashed: true },
+  { from: 'analytic_audit', to: 'bing_webmaster', label: 'placeholder', dashed: true },
   { from: 'calcom_api', to: 'calcom_web', label: 'Cal.com Postgres', dashed: true },
   { from: 'astro', to: 'online_reviews', label: '/api/admin/online-reviews', dashed: true },
   { from: 'online_reviews', to: 'app_pg', label: 'reviews inbox', dashed: true },
@@ -131,6 +142,8 @@ const SYSTEM_EDGES = [
   { from: 'visit_planner', to: 'contact_api', label: 'address · geo · hours', dashed: true },
   { from: 'visit_planner', to: 'google_places', label: 'Place Details hours backfill', dashed: true },
   { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },
+  { from: 'astro', to: 'google_search_console', label: '/api/admin/analytic-audit/*', dashed: true },
+  { from: 'astro', to: 'ga4', label: 'analytics source=ga4', dashed: true },
   { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
   { from: 'content_mgmt', to: 'github', label: 'write_github_file', dashed: true },
@@ -146,8 +159,8 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'content_mgmt', 'wp_content', 'visit_planner'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_places', 'pexels'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'content_mgmt', 'wp_content', 'visit_planner'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────

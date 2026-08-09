@@ -1147,7 +1147,7 @@ export function buildAuditReportCard(input: {
   const uxSection = extractSection(body, /UX\s*&\s*UI|Playwright|Mobile Responsiveness|Mobile/);
   const analyticsSection = extractSection(
     body,
-    /Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking|Tracking/,
+    /Search\s*\/\s*Analytics|Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking|Tracking/,
   );
   const hostingSection = extractSection(
     body,
@@ -1563,12 +1563,34 @@ export function buildAuditReportCard(input: {
     ),
     channelCategory('reviews', reviews),
     channelCategory('social', socialMerged),
-    heuristicSection('analytics', analyticsSection, {
-      bad: /no analytics|missing analytics|not (?:installed|configured)|no conversion|untracked|no goals/i,
-      good: /analytics (?:is )?installed|goals? configured|tracking (?:is )?working|ga4/i,
-      present: /analytics|conversion|gtm|ga4|tag manager|tracking/i,
-      emptySummary: 'Not scored in this audit',
-    }),
+    (() => {
+      const lower = analyticsSection.toLowerCase();
+      if (
+        /analytics_failed|\*\*failed\*\*|status:\s*failed|search console (?:auth|quota)|could not (?:load|fetch) analytics/.test(
+          lower,
+        )
+      ) {
+        const meta = CATEGORY_BY_ID.get('analytics')!;
+        return {
+          id: 'analytics' as const,
+          label: meta.label,
+          icon: meta.icon,
+          source: meta.source,
+          summary: 'Analytics check unavailable',
+          finding: 'Analytics check unavailable',
+          grade: null,
+          score: null,
+          why: clientFriendlyBullets(bulletsFromSection(analyticsSection), 3),
+          unavailable: true,
+        };
+      }
+      return heuristicSection('analytics', analyticsSection, {
+        bad: /no analytics|missing analytics|not (?:installed|configured)|no conversion|untracked|no goals/i,
+        good: /analytics (?:is )?installed|goals? configured|tracking (?:is )?working|ga4/i,
+        present: /analytics|conversion|gtm|ga4|tag manager|tracking|search console/i,
+        emptySummary: 'Not scored in this audit',
+      });
+    })(),
     scoreCategory(
       'accessibility',
       a11yScore,

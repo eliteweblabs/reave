@@ -345,6 +345,8 @@ async function loadSocialTab() {
 
 const ANALYTICS_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
 let analyticsRangeDays = 30;
+let analyticsSource = 'plausible';
+let analyticsStatus = null;
 
 function analyticsNumFmt(n) {
   const v = Number(n);
@@ -415,6 +417,39 @@ function analyticsRangeTabs() {
   );
 }
 
+function analyticsSourceTabs(available) {
+  const sources = Array.isArray(available) && available.length
+    ? available
+    : ['plausible', 'ga4'];
+  return (
+    `<div class="soc-range" role="tablist" aria-label="Analytics source">` +
+      sources
+        .map(
+          (s) =>
+            `<button type="button" class="soc-range-btn${s === analyticsSource ? ' active' : ''}" data-analytics-source="${escHtml(s)}">${s === 'ga4' ? 'GA4' : 'Plausible'}</button>`,
+        )
+        .join('') +
+    `</div>`
+  );
+}
+
+function analyticsGoogleConnectHtml(status) {
+  if (!status) return '';
+  if (status.google?.connected) {
+    const label = status.google.accountLabel || 'Google connected';
+    return (
+      `<div class="ana-google-row">` +
+        `<span class="soc-sub">${escHtml(label)}</span>` +
+        `<button type="button" class="prof-btn-secondary" data-analytics-disconnect>Disconnect</button>` +
+      `</div>`
+    );
+  }
+  if (!status.googleOAuthConfigured) {
+    return `<p class="soc-empty-hint">Set <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code> to connect Search Console &amp; GA4.</p>`;
+  }
+  return `<a class="prof-btn-secondary" href="${escHtml(status.connectUrl || '/api/admin/analytic-audit/connect')}">Connect Google</a>`;
+}
+
 function analyticsMetricCard(value, label, hint, change) {
   return (
     `<div class="dash-stat dash-stat--muted">` +
@@ -468,49 +503,90 @@ function bindAnalyticsControls(root) {
       void loadAnalyticsTab();
     });
   });
+  root.querySelectorAll('[data-analytics-source]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = btn.getAttribute('data-analytics-source');
+      if (!next || next === analyticsSource) return;
+      analyticsSource = next;
+      void loadAnalyticsTab();
+    });
+  });
+  root.querySelectorAll('[data-analytics-disconnect]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Disconnect Google Search Console / Analytics from this install?')) return;
+      try {
+        const res = await fetch('/api/admin/analytic-audit/status', { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        void loadAnalyticsTab();
+      } catch (e) {
+        alert(e.message || 'Disconnect failed');
+      }
+    });
+  });
 }
 
-function renderAnalyticsDashboard(root, d) {
+function renderAnalyticsDashboard(root, d, status) {
   const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
   const siteId = d?.siteId || '';
   const dashboardUrl = d?.dashboardUrl || '';
   const realtime =
     d?.realtimeVisitors != null ? analyticsNumFmt(d.realtimeVisitors) : null;
+  const source = d?.source || analyticsSource;
+  analyticsSource = source;
 
   const openLink = dashboardUrl
-    ? `<a class="prof-btn-secondary ana-open-link" href="${escHtml(dashboardUrl)}" target="_blank" rel="noopener noreferrer">Open in Plausible</a>`
+    ? `<a class="prof-btn-secondary ana-open-link" href="${escHtml(dashboardUrl)}" target="_blank" rel="noopener noreferrer">Open ${source === 'ga4' ? 'GA4' : 'Plausible'}</a>`
     : '';
 
   const header =
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
         `<h1 class="soc-title">Analytics</h1>` +
-        `<p class="soc-sub">${escHtml(siteId || 'Website analytics')} · ${escHtml(rangeLabel)}` +
+        `<p class="soc-sub">${escHtml(siteId || 'Website analytics')} · ${escHtml(source)} · ${escHtml(rangeLabel)}` +
           (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
         `</p>` +
       `</div>` +
-      `<div class="ana-header-actions">` + analyticsRangeTabs() + openLink + `</div>` +
+      `<div class="ana-header-actions">` +
+        analyticsSourceTabs(d?.availableSources) +
+        analyticsRangeTabs() +
+        openLink +
+        analyticsGoogleConnectHtml(status) +
+      `</div>` +
     `</div>`;
 
-  if (!d?.configured) {
+  if (!d?.configured && source === 'plausible' && !(status?.google?.connected)) {
     root.innerHTML =
       `<div class="social-scroll">` +
         header +
         `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">Plausible is not configured on this deployment.</p>` +
-          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code>, <code>PLAUSIBLE_API_KEY</code>, and optionally <code>PLAUSIBLE_SITE_ID</code> on Railway.</p>` +
+          `<p class="dash-empty">Plausible is not configured, and Google is not connected.</p>` +
+          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_*</code> env vars, or Connect Google for GA4 / Search Console.</p>` +
         `</div>` +
       `</div>`;
     bindAnalyticsControls(root);
     return;
   }
 
-  if (d?.error) {
+  if (d?.error || d?.failed) {
     root.innerHTML =
       `<div class="social-scroll">` +
         header +
         `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">Could not load analytics: ${escHtml(d.error)}</p>` +
+          `<p class="dash-empty">Analytics failed: ${escHtml(d.error || 'unknown error')}</p>` +
+          `<p class="soc-empty-hint">No invented metrics — fix auth/quota and reload.</p>` +
+        `</div>` +
+      `</div>`;
+    bindAnalyticsControls(root);
+    return;
+  }
+
+  if (!d?.configured) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        header +
+        `<div class="prof-card soc-empty-card">` +
+          `<p class="dash-empty">${source === 'ga4' ? 'GA4' : 'Plausible'} is not configured for this view.</p>` +
         `</div>` +
       `</div>`;
     bindAnalyticsControls(root);
@@ -549,10 +625,16 @@ async function loadAnalyticsTab() {
   });
 
   try {
-    const res = await fetch(`/api/admin/analytics?range=${analyticsRangeDays}`, { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    renderAnalyticsDashboard(root, data.dashboard);
+    const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
+    const [dashRes, statusRes] = await Promise.all([
+      fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
+      fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
+    ]);
+    const data = await dashRes.json();
+    const statusData = await statusRes.json().catch(() => ({}));
+    analyticsStatus = statusData?.ok ? statusData : null;
+    if (!dashRes.ok || !data.ok) throw new Error(data.error || `HTTP ${dashRes.status}`);
+    renderAnalyticsDashboard(root, data.dashboard, analyticsStatus);
   } catch (e) {
     root.innerHTML =
       `<div class="social-scroll">` +

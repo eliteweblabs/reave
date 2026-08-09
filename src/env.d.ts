@@ -27,6 +27,19 @@ interface ImportMetaEnv {
   PUBLIC_MAPBOX_ACCESS_TOKEN?: string;
   /** Alias for GOOGLE_MAPS_API_KEY. */
   GOOGLE_PLACES_API_KEY?: string;
+  /** Google OAuth client (YouTube social + Search Console / GA4 analytic_audit). */
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  /** Plausible Stats API (admin analytics + agent tools). */
+  PLAUSIBLE_API_BASE_URL?: string;
+  PLAUSIBLE_API_KEY?: string;
+  PLAUSIBLE_SITE_ID?: string;
+  /** IndexNow key for owned-site URL pings (not Google). */
+  INDEXNOW_KEY?: string;
+  /** Optional override path for integration OAuth tokens (GSC/GA4). */
+  INTEGRATION_TOKENS_FILE?: string;
+  /** Optional override path for social OAuth tokens. */
+  SOCIAL_TOKENS_FILE?: string;
   /** Optional: max user+assistant turns kept per admin chat (default 20) */
   AGENT_CHAT_HISTORY_TURNS?: string;
   /** Set to "1" on test/staging to expose /sign-up and link from sign-in (production stays sign-in only). */

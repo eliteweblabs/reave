@@ -56,8 +56,9 @@ import {
   showClientDetailPanel,
   createClientDetailPanel,
   mountClientVaultSection,
+  mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260808b';
+} from './work-panel.js?v=20260809a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
@@ -1564,6 +1565,10 @@ function renderEditClientForm(pane) {
       const vaultPanel = createClientDetailPanel('vault', activeTab);
       mountClientVaultSection(vaultPanel, uid, clientState.draft.data || []);
       scroll.appendChild(vaultPanel);
+
+      const analyticsPanel = createClientDetailPanel('analytics', activeTab);
+      void mountClientAnalyticsSection(analyticsPanel, uid);
+      scroll.appendChild(analyticsPanel);
 
       const getPayload = () => {
         const firstName = firstNameInput.value.trim();
