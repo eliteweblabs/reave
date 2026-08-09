@@ -1621,9 +1621,12 @@ export function buildAuditReportCard(input: {
     categories.find((c) => c.id === 'domain_reputation' && c.featured) ||
     categories.find((c) => c.featured) ||
     null;
-  const gridCategories = featured
+  const gridCategories = (featured
     ? categories.filter((c) => c.id !== featured.id)
-    : categories;
+    : categories
+  )
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
   const overallScore =
     categories.length > 0
