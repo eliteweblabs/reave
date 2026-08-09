@@ -32,6 +32,9 @@
  *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater
  *
  * Authentication: Bearer token (Clerk session token) or X-Siri-Key header (SIRI_API_KEY env var).
+ *
+ * Sleep mode: Siri Shortcuts bypass quiet hours — audit research and completion
+ * push still run overnight. Automated inbound triage stays deferred.
  */
 
 import type { APIContext } from 'astro';
@@ -170,11 +173,11 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'create_proposal':
       case 'audit':
-        result = await startAuditProposal(body, 'quick');
+        result = await startAuditProposal(body, 'quick', { bypassSleepMode: true });
         break;
       case 'create_proposal_full':
       case 'full_audit':
-        result = await startAuditProposal(body, 'full');
+        result = await startAuditProposal(body, 'full', { bypassSleepMode: true });
         break;
       case 'send_sms':
         result = await handleSendSms(body);

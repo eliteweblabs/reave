@@ -10,6 +10,8 @@ Apple Shortcuts calls `/api/siri` with JSON commands and displays the response. 
 2. Includes authentication (X-Siri-Key header or Clerk session token)
 3. Receives a response (text or JSON) that Siri can read aloud or display
 
+**Sleep mode:** Siri Shortcuts bypass overnight quiet hours. CRUD actions always work, and audit research plus its completion push still run during sleep mode (unlike inbound email triage and other automated AI).
+
 ## Setup
 
 ### 1. Get Your Siri API Key

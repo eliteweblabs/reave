@@ -47,7 +47,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
 | `ssl_check` | Certificate expiry, TLS, security headers (CSP, HSTS, X-Frame-Options, etc.) |
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
-| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS (public resolvers — can lag after NS changes) |
+| `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** (public resolvers — can lag after NS changes) |
 | `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
 | `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
 | `playwright_audit` | Real-browser UX/UI (Playwright / Chromium): nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
@@ -128,6 +128,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Technology Stack
 - {CMS, hosting, analytics from detect_tech_stack}
+- Prefer `dns_check.hosting.company` when header fingerprints miss the host (common behind Cloudflare)
 
 ### SSL & Security
 - SSL: {valid, issuer, expiry}
@@ -135,6 +136,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Domain & IP Reputation
 - {Safe Browsing / blocklist / IP reputation signals, or "No reputation flags found"}
+- IP / ASN org from `dns_check.hosting` when useful for reputation context
 
 ### Broken Links & Crawl Health
 - {From check_links — or "Homepage only; no crawlable nav" if applicable}
@@ -166,9 +168,10 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - {From Playwright UX — layout, tap targets, overflow on phones}
 
 ### DNS & Email
-- Domain renewal window if known; {A records, host, MX provider}
+- Domain renewal window if known; {A records, hosting company from dns_check, MX provider}
 - Email deliverability: {SPF/DKIM/DMARC status from dns_check} in plain language
 - If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
+- When `dns_check.hosting.attribute_slow_speed_to_resources` is true (shared/budget host + lean build + poor Lighthouse), note a **server resource issue** under Performance — not a separate hosting grade
 
 ### Online Presence
 Write one bullet per channel (the client portal rolls Google / Apple / Yelp directories into one **Maps & Directories** coverage score — separate bullets keep that score accurate):

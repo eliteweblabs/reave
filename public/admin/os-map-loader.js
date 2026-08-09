@@ -6930,7 +6930,7 @@ function renderAppSettingsPanel(settings, sleepData) {
           `<section class="prof-section">` +
             `<div class="prof-section-copy">` +
               `<h2 class="prof-title prof-title--section">Sleep mode</h2>` +
-              `<p class="prof-subtitle">During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Messages received overnight appear in Email as <strong>Sleep deferred</strong>.</p>` +
+              `<p class="prof-subtitle">During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Owner-initiated <strong>Siri Shortcuts</strong> still run (including audits and their completion push). Messages received overnight appear in Email as <strong>Sleep deferred</strong>.</p>` +
             `</div>` +
             `<div class="prof-section-fields">` +
               sleepStatus +

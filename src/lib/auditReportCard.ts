@@ -39,8 +39,8 @@ export type ReportCardCategoryId =
   | 'google_business'
   /** @deprecated folded into local_listings */
   | 'apple_business'
-  /** @deprecated removed — backups aren't verifiable from a public audit */
-  | 'hosting'
+  /** @deprecated removed — no client tile; hosting company stays under DNS notes */
+  | 'hosting';
 
 export type ReportCardIcon =
   | 'radar'
@@ -898,11 +898,19 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     categoryId: 'performance',
     categoryLabel: 'Site Speed',
     maxRank: 3,
-    problem: (cat) =>
-      cat.score != null
+    problem: (cat) => {
+      const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
+      if (/server resource issue|shared hosting|godaddy|blue ?host/.test(blob)) {
+        return cat.score != null
+          ? `The site scores ${cat.score}/100 on speed — the build looks lean, so the server/hosting is the bottleneck.`
+          : 'The site feels slow even though the front-end build looks clean — likely a server resource issue.';
+      }
+      return cat.score != null
         ? `The site scores ${cat.score}/100 on speed — people on phones will leave before it loads.`
-        : 'The site feels slow, especially on phones.',
-    solution: 'Speed fix: compress images, cut heavy scripts, and tune hosting so pages open fast.',
+        : 'The site feels slow, especially on phones.';
+    },
+    solution:
+      'Speed fix: compress images, cut heavy scripts, and move off underpowered shared hosting when the build is already clean.',
   },
   {
     id: 'a11y-access',
@@ -1719,15 +1727,26 @@ export function buildAuditReportCard(input: {
         clientName,
       );
     })(),
-    scoreCategory(
-      'performance',
-      perfScore,
-      perfSection,
-      perfSection.trim() || perfScore != null ? 'C' : null,
-      'Not scored in this audit',
-      undefined,
-      clientName,
-    ),
+    (() => {
+      // Hosting company may appear under DNS notes (no separate Backup & Hosting tile).
+      const hostBlob = `${dnsSection}\n${body}`;
+      const resourceIssue =
+        /server resource issue|shared\/budget hosting|underpowered/.test(hostBlob) &&
+        /godaddy|blue\s*host|hostgator|hostinger|siteground|shared hosting/i.test(hostBlob);
+      const perfBody =
+        resourceIssue && !/server resource issue/i.test(perfSection)
+          ? `${perfSection}\n- Clean build but slow — likely server resource issue on current hosting.`
+          : perfSection;
+      return scoreCategory(
+        'performance',
+        perfScore,
+        perfBody,
+        perfBody.trim() || perfScore != null ? 'C' : null,
+        'Not scored in this audit',
+        undefined,
+        clientName,
+      );
+    })(),
     scoreCategory(
       'mobile',
       null,

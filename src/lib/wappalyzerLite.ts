@@ -337,6 +337,54 @@ export const TECH_PATTERNS: TechPattern[] = [
       html: [/flywheelsites\.com/i],
     },
   },
+  {
+    name: 'Pressable',
+    category: 'Hosting',
+    patterns: {
+      headers: { 'x-ac': /.+/, 'x-pressable': /.+/ },
+      html: [/pressablecdn\.com/i],
+    },
+  },
+  {
+    name: 'GoDaddy',
+    category: 'Hosting',
+    patterns: {
+      headers: { server: /^(?:DPS|GSE|secureserver)/i },
+      html: [/secureserver\.net/i, /godaddy\.com\/websites/i, /img1\.wsimg\.com/i],
+      url: [/secureserver\.net/i],
+    },
+  },
+  {
+    name: 'Bluehost',
+    category: 'Hosting',
+    patterns: {
+      html: [/bluehost\.com/i, /bluehost-cdn/i],
+      headers: { server: /Bluehost/i },
+    },
+  },
+  {
+    name: 'HostGator',
+    category: 'Hosting',
+    patterns: {
+      html: [/hostgator\.com/i],
+    },
+  },
+  {
+    name: 'Hostinger',
+    category: 'Hosting',
+    patterns: {
+      html: [/hostinger/i, /hostinger-cdn/i],
+      headers: { server: /Hostinger/i },
+    },
+  },
+  {
+    name: 'SiteGround',
+    category: 'Hosting',
+    patterns: {
+      headers: { 'x-proxy-cache-info': /.+/, server: /SiteGround/i },
+      html: [/siteground/i],
+    },
+  },
 
   // ─── Server / Language ──────────────────────────────────────────────────────
   {
