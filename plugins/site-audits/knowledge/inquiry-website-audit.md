@@ -160,7 +160,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - If Cloudflare-managed: note what cloudflare_dns list_records showed vs public dns_check
 
 ### Online Presence
-Write one bullet per channel so the client portal diagnostic can grade each card:
+Write one bullet per channel (the client portal rolls Google / Apple / Yelp directories into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
 - Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {hours, photos, categories, NAP consistency}
 - Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps listing notes}
 - Reviews: {platform, star rating, review count} — {reputation notes}

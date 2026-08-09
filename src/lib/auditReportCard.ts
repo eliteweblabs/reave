@@ -12,13 +12,13 @@ export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
  * Diagnostic categories shown to clients (mockup 13 + monetizable extras).
  * `best_practices` / `presence` remain parseable from older markdown but are
  * folded into security / social for the client view.
+ * `google_business` / `apple_business` fold into `local_listings`.
  */
 export type ReportCardCategoryId =
   | 'domain_reputation'
   | 'security'
   | 'domain'
-  | 'google_business'
-  | 'apple_business'
+  | 'local_listings'
   | 'seo'
   | 'performance'
   | 'mobile'
@@ -35,7 +35,11 @@ export type ReportCardCategoryId =
   /** @deprecated folded into security — kept for older markdown / LH scores */
   | 'best_practices'
   /** @deprecated folded into social — kept for older markdown */
-  | 'presence';
+  | 'presence'
+  /** @deprecated folded into local_listings */
+  | 'google_business'
+  /** @deprecated folded into local_listings */
+  | 'apple_business';
 
 export type ReportCardIcon =
   | 'radar'
@@ -151,16 +155,10 @@ const CATEGORY_META: CategoryMeta[] = [
     source: 'Domain registration · DNS lookup',
   },
   {
-    id: 'google_business',
-    label: 'Google Business Profile',
+    id: 'local_listings',
+    label: 'Maps & Directories',
     icon: 'pin',
-    source: 'Google Business Profile',
-  },
-  {
-    id: 'apple_business',
-    label: 'Apple Business Connect',
-    icon: 'compass',
-    source: 'Apple Business Connect',
+    source: 'Google · Apple Maps · Yelp · major directories',
   },
   {
     id: 'seo',
@@ -502,16 +500,19 @@ function assessChannel(
   }
 
   // Missing only when the *matched* snippet itself denies the listing.
-  const missingHit = hits.some((h) =>
-    /not (?:found|claimed|listed|set up|configured|verified|confirmed)|no confirmed|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|missing|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b|critical gap/i.test(
+  const isMissingLine = (h: string) =>
+    /not (?:found|claimed|listed|set up|configured|verified|confirmed)|no confirmed|no (?:clear\s+)?(?:listing|profile|page|presence)|(?:no|not)\s+(?:on\s+)?(?:apple|google)|\bmissing\b|none found|does not (?:appear|exist)|invisible|unlisted|no clear\b|critical gap/i.test(
       h,
-    ),
-  );
-  // If some hits are positive and one is negative, prefer weak/ok from the positive ones.
-  const positiveHit = hits.some((h) =>
-    /found|claimed|active|verified|complete|appears|shows up|listing|maps pin|reviews?|stars?/i.test(
-      h,
-    ),
+    );
+  const missingHit = hits.some(isMissingLine);
+  // Positive evidence must come from a non-denial line — otherwise
+  // "no listing found" / "Listings: Yelp missing" falsely look present.
+  const positiveHit = hits.some(
+    (h) =>
+      !isMissingLine(h) &&
+      /(?:\bfound\b|\bclaimed\b|\bactive\b|\bverified\b|\bcomplete\b|appears|shows up|maps pin|\breviews?\b|\bstars?\b)/i.test(
+        h,
+      ),
   );
   if (missingHit && !positiveHit) {
     return { status: 'missing', summary: 'No listing found', why };
@@ -552,6 +553,114 @@ function signalToGrade(signal: PresenceSignal): LetterGrade | null {
     default:
       return null;
   }
+}
+
+/** How much of a channel's weight a presence status earns (missing = 0). */
+function signalWeightFactor(status: PresenceSignal['status']): number | null {
+  switch (status) {
+    case 'strong':
+      return 1;
+    case 'ok':
+      return 0.85;
+    case 'weak':
+      return 0.4;
+    case 'missing':
+      return 0;
+    default:
+      return null; // unknown / unavailable — exclude from denominator
+  }
+}
+
+type WeightedChannel = {
+  label: string;
+  signal: PresenceSignal;
+  /** Share of the combined 100-point listings score. */
+  weight: number;
+};
+
+/**
+ * Roll Google / Apple / other directories into one coverage score (0–100).
+ * Zero presence across checked channels → 0, not a mid-band "F = 40".
+ */
+function combineLocalListings(
+  channels: WeightedChannel[],
+  clientName = '',
+): { signal: PresenceSignal; score: number | null } {
+  let earned = 0;
+  let possible = 0;
+  const why: string[] = [];
+  const present: string[] = [];
+  const gaps: string[] = [];
+
+  for (const ch of channels) {
+    const factor = signalWeightFactor(ch.signal.status);
+    if (factor == null) continue;
+    possible += ch.weight;
+    earned += ch.weight * factor;
+    if (ch.signal.status === 'missing') {
+      gaps.push(ch.label);
+    } else if (ch.signal.status === 'weak') {
+      gaps.push(`${ch.label} (needs cleanup)`);
+      present.push(ch.label);
+    } else {
+      present.push(ch.label);
+    }
+    for (const line of ch.signal.why) {
+      if (why.length >= 4) break;
+      if (!why.includes(line)) why.push(line);
+    }
+  }
+
+  if (possible === 0) {
+    return {
+      signal: {
+        status: 'unknown',
+        summary: 'Not covered in this audit',
+        why: ['Maps and directory listings were not checked in the audit notes.'],
+      },
+      score: null,
+    };
+  }
+
+  const score = Math.round((earned / possible) * 100);
+  const name = clientName.trim();
+  const gapList = gaps.slice(0, 3).join(', ');
+  const presentList = present.slice(0, 3).join(', ');
+
+  let status: PresenceSignal['status'];
+  let summary: string;
+  if (score <= 0) {
+    status = 'missing';
+    summary = name
+      ? `${name} is missing from Google, Apple Maps, and major directories.`
+      : 'Missing from Google, Apple Maps, and major directories.';
+  } else if (score < 60) {
+    status = 'weak';
+    summary = gapList
+      ? `Thin maps & directory coverage — gaps on ${gapList}.`
+      : 'Thin maps & directory coverage across the major platforms.';
+  } else if (score < 80) {
+    status = 'ok';
+    summary = presentList
+      ? `Listed in places (${presentList}), but coverage is incomplete.`
+      : 'Listed in places, but coverage is incomplete.';
+  } else if (score < 90) {
+    status = 'ok';
+    summary = 'Solid coverage across the major maps and directories.';
+  } else {
+    status = 'strong';
+    summary = 'Strong presence across Google, Apple Maps, and major directories.';
+  }
+
+  if (!why.length) {
+    why.push(
+      score <= 0
+        ? 'No confirmed Google Business, Apple Maps, or major directory listing turned up.'
+        : 'Coverage is based on Google Business Profile, Apple Maps, and other directories mentioned in the audit.',
+    );
+  }
+
+  return { signal: { status, summary, why }, score };
 }
 
 function emailGradeFromText(text: string): {
@@ -848,34 +957,26 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     solution: 'Reputation cleanup and monitoring so mail and campaigns stay trusted.',
   },
   {
-    id: 'gbp',
-    categoryId: 'google_business',
-    categoryLabel: 'Google Business',
+    id: 'local-listings',
+    categoryId: 'local_listings',
+    categoryLabel: 'Maps & Directories',
     maxRank: 3,
     problem: (cat) =>
-      cat.grade === 'F'
-        ? 'No solid Google Business Profile — many local customers search Maps first.'
-        : 'Google Business Profile needs attention (hours, photos, or claim status).',
-    solution: 'Claim and optimize Google Business so Maps and local search work for you.',
-  },
-  {
-    id: 'apple',
-    categoryId: 'apple_business',
-    categoryLabel: 'Apple Maps',
-    maxRank: 3,
-    problem: (cat) =>
-      cat.grade === 'F'
-        ? 'Invisible on Apple Maps — iPhone users cannot find you there.'
-        : 'Apple Maps listing looks incomplete or unverified.',
-    solution: 'Apple Business Connect setup so iPhone customers can find you.',
+      cat.score != null && cat.score <= 0
+        ? 'Missing from Google, Apple Maps, and major directories — local customers cannot find you.'
+        : cat.grade === 'F' || (cat.score != null && cat.score < 60)
+          ? 'Maps & directory coverage is thin — gaps on Google, Apple Maps, or Yelp leave customers guessing.'
+          : 'Some listings need cleanup (hours, claim status, or missing platforms).',
+    solution:
+      'Claim and align Google Business, Apple Business Connect, and key directories so every map points to the same business.',
   },
   {
     id: 'social',
     categoryId: 'social',
     categoryLabel: 'Social Spread',
     maxRank: 3,
-    problem: () => 'Name, address, or phone do not match across the web — or social is quiet.',
-    solution: 'Listings & social cleanup so every directory points to the same business.',
+    problem: () => 'Social profiles look thin, quiet, or inconsistent.',
+    solution: 'Social cleanup so customers find a clear, matching presence on the networks they use.',
   },
   {
     id: 'reviews',
@@ -984,12 +1085,13 @@ function buildIdeas(
     } else if (/seo|meta|search|schema|rich result/.test(lower)) {
       categoryId = /schema|rich result|structured/.test(lower) ? 'schema' : 'seo';
       categoryLabel = categoryId === 'schema' ? 'Rich Results' : 'SEO';
-    } else if (/google business|gbp|maps/.test(lower)) {
-      categoryId = 'google_business';
-      categoryLabel = 'Google Business';
-    } else if (/apple/.test(lower)) {
-      categoryId = 'apple_business';
-      categoryLabel = 'Apple Maps';
+    } else if (
+      /google business|gbp|apple (?:maps|business)|business connect|yelp|bing places|maps & directories|local listings?|directories|citations?|nap/.test(
+        lower,
+      )
+    ) {
+      categoryId = 'local_listings';
+      categoryLabel = 'Maps & Directories';
     } else if (/ssl|security|header|padlock|https/.test(lower)) {
       categoryId = 'security';
       categoryLabel = 'Security';
@@ -999,7 +1101,7 @@ function buildIdeas(
     } else if (/review/.test(lower)) {
       categoryId = 'reviews';
       categoryLabel = 'Reviews';
-    } else if (/social|instagram|facebook|citation|listing|directory|nap/.test(lower)) {
+    } else if (/social|instagram|facebook|tiktok|linkedin/.test(lower)) {
       categoryId = 'social';
       categoryLabel = 'Social Spread';
     } else if (/mobile|responsive|tap target/.test(lower)) {
@@ -1337,12 +1439,12 @@ export function buildAuditReportCard(input: {
     presenceCorpus,
     {
       keywords: [
-        /instagram|facebook|fb\.com|tiktok|linkedin|twitter|\bx\.com\b|social(?:\s+media|\s+presence|\s+spread)?|citation|directories|listings?/i,
+        /instagram|facebook|fb\.com|tiktok|linkedin|twitter|\bx\.com\b|social(?:\s+media|\s+presence|\s+spread)?/i,
       ],
       omittedAsMissing: true,
-      omittedSummary: 'Social profiles and directories look thin or inconsistent.',
+      omittedSummary: 'Social profiles look thin or inconsistent.',
       omittedWhy:
-        'The presence check did not mention healthy social profiles or matching directory listings.',
+        'The presence check did not mention healthy social profiles (Instagram, Facebook, etc.).',
     },
     presenceAudited,
   );
@@ -1373,34 +1475,34 @@ export function buildAuditReportCard(input: {
     presenceAudited,
   );
 
-  // Merge listings signal into social (Social Spread) for the client view.
-  const socialMerged: PresenceSignal = (() => {
-    if (social.status === 'unavailable' && listings.status !== 'unavailable') return listings;
-    if (listings.status === 'missing' || listings.status === 'weak') {
-      if (social.status === 'strong' || social.status === 'ok') {
-        return {
-          status: 'weak' as const,
-          summary: 'Social or directory listings need cleanup — name, address, or phone may not match.',
-          why: [...social.why, ...listings.why].slice(0, 4),
-        };
-      }
-      return {
-        status: listings.status,
-        summary: listings.summary,
-        why: [...listings.why, ...social.why].slice(0, 4),
-      };
-    }
-    return social;
-  })();
+  // One client-facing card: Google + Apple Maps + Yelp/directories (coverage score, not binary).
+  const localListings = combineLocalListings(
+    [
+      { label: 'Google Business Profile', signal: gbp, weight: 45 },
+      { label: 'Apple Maps', signal: apple, weight: 30 },
+      { label: 'Yelp & other directories', signal: listings, weight: 25 },
+    ],
+    clientName,
+  );
 
   const channelCategory = (
     id: ReportCardCategoryId,
     signal: PresenceSignal,
+    score?: number | null,
   ): ReportCardCategory => {
     const meta = CATEGORY_BY_ID.get(id);
     const label = meta?.label || id;
     const why = clientFriendlyBullets(signal.why, 4, clientName);
     const summary = plainLanguage(signal.summary, clientName);
+    // Missing presence = 0/100 (not the mid-band F→40 placeholder).
+    const resolvedScore =
+      score != null && !Number.isNaN(score)
+        ? score
+        : signal.status === 'missing'
+          ? 0
+          : null;
+    const grade =
+      resolvedScore != null ? scoreToGrade(resolvedScore) : signalToGrade(signal);
     return {
       id,
       label,
@@ -1409,7 +1511,8 @@ export function buildAuditReportCard(input: {
       featured: meta?.featured,
       summary,
       finding: primaryFinding(why, summary),
-      grade: signalToGrade(signal),
+      grade,
+      score: resolvedScore,
       why,
       unavailable: signal.status === 'unavailable' || signal.status === 'unknown',
     };
@@ -1549,8 +1652,7 @@ export function buildAuditReportCard(input: {
     }),
     securityCat,
     domainCat,
-    channelCategory('google_business', gbp),
-    channelCategory('apple_business', apple),
+    channelCategory('local_listings', localListings.signal, localListings.score),
     scoreCategory(
       'seo',
       seoScore,
@@ -1579,7 +1681,7 @@ export function buildAuditReportCard(input: {
       clientName,
     ),
     channelCategory('reviews', reviews),
-    channelCategory('social', socialMerged),
+    channelCategory('social', social),
     (() => {
       const lower = analyticsSection.toLowerCase();
       if (
@@ -1714,15 +1816,21 @@ function buildDiagnosticHeadline(
   const name = clientName.trim();
   const weak = categories.filter((c) => c.grade === 'D' || c.grade === 'F');
   const has = (id: ReportCardCategoryId) => weak.some((c) => c.id === id);
-  if (has('google_business') && has('apple_business')) {
+  if (has('local_listings')) {
+    const listings = weak.find((c) => c.id === 'local_listings');
+    if (listings?.score != null && listings.score <= 0) {
+      return name
+        ? `${name} is invisible where local customers actually search.`
+        : 'Invisible where local customers actually search.';
+    }
     return name
       ? `${name} is hard to find where local customers actually search.`
       : 'Hard to find where local customers actually search.';
   }
-  if (has('google_business') || has('apple_business') || has('social')) {
+  if (has('social')) {
     return name
-      ? `${name} is invisible where it matters most.`
-      : 'Invisible where it matters most.';
+      ? `${name} is quiet where customers look for a brand.`
+      : 'Quiet where customers look for a brand.';
   }
   if (has('performance') || has('mobile')) {
     return 'The site is costing attention before customers ever reach the offer.';

@@ -124,12 +124,12 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - Domain renewal if known; A/MX records; SPF/DKIM/DMARC gaps in plain language
 
 ### Online Presence
-Write one bullet per channel so the client portal diagnostic can grade each card:
+Write one bullet per channel (the client portal rolls Google / Apple / Yelp directories into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
 - Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
 - Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
 - Reviews: {platform, stars, count} — {notes}
 - Social: {Instagram / Facebook / other}
-- Listings: {Yelp / other directories}
+- Listings: {Yelp / Bing Places / other directories}
 
 ---
 
