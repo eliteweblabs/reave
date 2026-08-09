@@ -234,6 +234,15 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     feature: 'site_audits',
   },
   {
+    slash: '/seoinventory',
+    summary: 'SEO inventory (OG, robots, sitemap, manifest)',
+    template:
+      'Run seo_inventory on [url] — check og:image, robots.txt, sitemap, manifest, favicon, canonical, and JSON-LD.',
+    example:
+      'Run seo_inventory on https://acme.com — check og:image, robots.txt, sitemap, manifest, favicon, canonical, and JSON-LD.',
+    feature: 'site_audits',
+  },
+  {
     slash: '/ssl',
     summary: 'Check SSL certificate',
     template: 'Check SSL certificate for [domain].',

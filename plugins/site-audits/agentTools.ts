@@ -146,6 +146,7 @@ import { formatLighthouseResults, lighthouseAudit } from '../../src/lib/lighthou
 import { sslCheck, formatSslCheckResults } from '../../src/lib/sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
+import { seoInventory, formatSeoInventoryResults } from '../../src/lib/seoInventoryClient';
 import {
   syncAllResendDnsToCloudflare,
   syncResendDnsToCloudflare,
@@ -269,6 +270,14 @@ async function handle_dns_check(args: Record<string, unknown>, _ctx: ToolContext
   return JSON.stringify({ ...result, summary: formatDnsCheckResults(result) });
 }
 
+async function handle_seo_inventory(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const url = String(args.url ?? '').trim();
+  if (!url) return JSON.stringify({ error: 'url is required' });
+  const result = await seoInventory(url);
+  if (!result.ok) return JSON.stringify({ error: result.error });
+  return JSON.stringify({ ...result, summary: formatSeoInventoryResults(result) });
+}
+
 async function handle_sync_resend_dns(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const domainArg = args.domain != null ? String(args.domain).trim().toLowerCase() : '';
   if (domainArg === 'all') {
@@ -313,7 +322,7 @@ export const siteAuditsModule: AgentToolModule = {
               function: {
                 name: 'fetch_url',
                 description:
-                  'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For performance use lighthouse_audit; for SSL/headers use ssl_check; for broken links use check_links; for DNS/email auth use dns_check.',
+                  'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For the sales SEO checklist (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD) use seo_inventory; for performance use lighthouse_audit; for SSL/headers use ssl_check; for broken links use check_links; for DNS/email auth use dns_check.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -409,6 +418,22 @@ export const siteAuditsModule: AgentToolModule = {
             {
               type: 'function',
               function: {
+                name: 'seo_inventory',
+                description:
+                  'Sales-ready on-page SEO / share / crawl inventory. Checks homepage for Open Graph (og:image, og:title, og:description), Twitter/X cards, page title, meta description, canonical, meta robots/noindex, favicon, apple-touch-icon, web app manifest, robots.txt (incl. Disallow: /), XML sitemap, and JSON-LD structured data types. Returns a grade (A–F), checklist, and Problem → Impact pitches you can put in front of a customer (e.g. missing og:image → broken social previews). Run on every quick and full website audit alongside fetch_url.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    url: { type: 'string', description: 'Full URL or domain to inventory' },
+                  },
+                  required: ['url'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
                 name: 'sync_resend_dns',
                 description:
                   'Resend-only: ensure Resend domain DNS records (DKIM, SPF, MX, receiving) exist in Cloudflare — check and create/update from Resend\'s expected values. Requires CLOUDFLARE_API_TOKEN + RESEND_API_KEY and the domain must exist in Resend. For client domains (M365, GoDaddy mail, etc.) use cloudflare_dns instead.',
@@ -457,6 +482,7 @@ export const siteAuditsModule: AgentToolModule = {
     'ssl_check': handle_ssl_check,
     'check_links': handle_check_links,
     'dns_check': handle_dns_check,
+    'seo_inventory': handle_seo_inventory,
     'sync_resend_dns': handle_sync_resend_dns,
     'create_resend_domain': handle_create_resend_domain,
   },

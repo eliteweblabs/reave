@@ -43,13 +43,14 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | Tool | Use for |
 |------|---------|
 | `fetch_url` | Title, meta description, visible text, page structure, password/coming-soon pages |
+| `seo_inventory` | **Required** sales checklist: og:image / Open Graph, Twitter cards, favicon, apple-touch-icon, web manifest, robots.txt, XML sitemap, canonical, meta robots/noindex, JSON-LD types — with Problem → Impact pitches |
 | `lighthouse_audit` | Performance, accessibility, SEO, best-practices scores (mobile + desktop when `strategy: both`) |
 | `ssl_check` | Certificate expiry, TLS, security headers (CSP, HSTS, X-Frame-Options, etc.) |
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS (public resolvers — can lag after NS changes) |
 | `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
 | `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
-| `playwright_audit` | Real-browser UX/UI: nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
+| `playwright_audit` | Real-browser UX/UI (Playwright / Chromium): nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
 | `gsc_search_analytics` / `gsc_inspect_url` / `gsc_list_sitemaps` | Search Console performance + index status (**full tier**; requires connected Google). Always pass explicit `site_url`. |
 | `plausible_stats` or `ga4_stats` | Traffic stats when site_id / property_id is known — never invent numbers |
@@ -107,11 +108,21 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### SEO
 - SEO score: {0–100 from lighthouse}
-- Meta description: {present/missing/empty}
+- SEO inventory grade: {A–F} ({score}/100 from seo_inventory)
 - Page title: {value} — {local keyword gap}
-- {Structured data, sitemap, indexability}
+- Meta description: {present/missing/empty}
+- Open Graph image (og:image): {present/missing — quote URL or "missing"}
+- Twitter/X card: {present/missing}
+- Canonical URL: {present/missing}
+- Meta robots / noindex: {ok or BLOCKS INDEXING}
+- Favicon / apple-touch-icon: {present/missing}
+- Web app manifest: {present/missing/invalid}
+- robots.txt: {present / missing / blocks all crawlers}
+- XML sitemap: {present with URL / missing}
+- Copy 2–4 Problem → Impact pitches from seo_inventory into Opportunities when status is missing/warn/error
 
 ### UX & UI (Playwright)
+- Source: Playwright (headless Chromium) — desktop 1440×900 + mobile 375×812
 - {Nav menu, JS console errors, overflow, tap targets, CTA/form issues from playwright_audit}
 - {Note if Playwright unavailable in environment}
 
@@ -146,9 +157,12 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - IndexNow: only for sites we control — not sales prospects
 
 ### Search Rich Results
-- {LocalBusiness / structured data present or missing}
+- JSON-LD types from seo_inventory: {list or "none"}
+- LocalBusiness / Organization: {present or missing}
+- {Any rich-result gaps worth pitching}
 
 ### Mobile Responsiveness
+- Source: Playwright (headless Chromium) real-browser checks
 - {From Playwright UX — layout, tap targets, overflow on phones}
 
 ### Backup & Hosting Reliability
@@ -235,7 +249,7 @@ Never put a job slug or business name in `/c/…` — only the contact **uid** w
 ## Related tools
 
 - Work/jobs: `create_work`, `update_work`, `read_work`, `link_to_work`
-- Website audits: `fetch_url`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`, `playwright_audit`, `detect_tech_stack`
+- Website audits: `fetch_url`, `seo_inventory`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`, `playwright_audit`, `detect_tech_stack`
 - Search & analytics (full tier): `gsc_*`, `plausible_stats`, `ga4_stats` — see `analytic-audit`
 - Research: `brave_search`, `resolve_contact`
 - Quick tier (Siri "audit"): see `inquiry-website-audit-quick`

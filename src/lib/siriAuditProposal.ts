@@ -172,18 +172,21 @@ async function runProposalResearch(input: {
 
   const auditToolsStep =
     input.tier === 'full'
-      ? '3. Run the **full** audit tool sequence on the website: fetch_url, lighthouse_audit, ssl_check, ' +
-        'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
-        'playwright_audit (real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
+      ? '3. Run the **full** audit tool sequence on the website: fetch_url, seo_inventory (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD), ' +
+        'lighthouse_audit, ssl_check, check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
+        'playwright_audit (Playwright / Chromium real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
         '(gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps and plausible_stats or ga4_stats when site_id/property_id is known — ' +
         'always pass explicit site_url; never company domain). Run read-only tools in parallel when possible. ' +
         'Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry. ' +
-        'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections.'
-      : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, ' +
+        'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections. ' +
+        'In the SEO and Search Rich Results sections, quote seo_inventory findings and copy Problem → Impact pitches into Opportunities.'
+      : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, seo_inventory ' +
+        '(og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD — required for customer pitches), ' +
         'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
         '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
         'detect_tech_stack, or Search/Analytics tools — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
-        'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry.';
+        'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry. ' +
+        'Quote seo_inventory checklist items and Problem → Impact pitches in SEO / Opportunities.';
 
   const userText = [
     `${input.triggerLabel} "${tierLabel}" was triggered with only the raw information below — there is no one ` +

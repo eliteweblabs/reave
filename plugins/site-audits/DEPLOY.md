@@ -23,5 +23,6 @@ stage: 2
 
 - [ ] Set `GOOGLE_PAGESPEED_API_KEY` on Astro service
 - [ ] Run a Lighthouse audit via agent or inquiry flow
+- [ ] Confirm `seo_inventory` returns og:image / robots.txt / sitemap / manifest / favicon / JSON-LD checklist
 - [ ] Confirm fallback works when quota is exceeded (`fetch_url` + manual notes)
 - [ ] Set `moduleStatus.site_audits` → `deployed` in install config

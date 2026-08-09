@@ -146,97 +146,98 @@ const CATEGORY_META: CategoryMeta[] = [
     id: 'security',
     label: 'SSL & Website Security',
     icon: 'shield',
-    source: 'Certificate & browser security checks',
+    source: 'TLS certificate inspection · security headers (HSTS, CSP, X-Frame-Options)',
   },
   {
     id: 'domain',
     label: 'Domain & DNS Health',
     icon: 'globe',
-    source: 'Domain registration · DNS lookup',
+    source: 'Public DNS resolvers (Google · Cloudflare) · WHOIS registration',
   },
   {
     id: 'local_listings',
     label: 'Maps & Directories',
     icon: 'pin',
-    source: 'Google · Apple Maps · Yelp · major directories',
+    source: 'Brave Search · Google Business · Apple Maps · Yelp',
   },
   {
     id: 'seo',
     label: 'SEO Fundamentals',
     icon: 'search',
-    source: 'Search visibility checks',
+    source:
+      'SEO inventory scan · Open Graph · robots.txt · XML sitemap · Google Lighthouse SEO',
   },
   {
     id: 'performance',
     label: 'Site Speed & Performance',
     icon: 'speed',
-    source: 'Google PageSpeed Insights',
+    source: 'Google PageSpeed Insights (Lighthouse) · Core Web Vitals',
   },
   {
     id: 'mobile',
     label: 'Mobile Responsiveness',
     icon: 'mobile',
-    source: 'Mobile layout checks',
+    source: 'Mobile layout review',
   },
   {
     id: 'reviews',
     label: 'Reviews & Reputation',
     icon: 'star',
-    source: 'Google · Yelp · major review sites',
+    source: 'Brave Search · Google · Yelp · major review sites',
   },
   {
     id: 'social',
     label: 'Social Spread',
     icon: 'share',
-    source: 'Social profiles · local directories',
+    source: 'Brave Search · social profiles · local directories',
   },
   {
     id: 'analytics',
     label: 'Analytics & Conversion Tracking',
     icon: 'chart',
-    source: 'Analytics & conversion checks',
+    source: 'Tech stack detection · Google Analytics / Tag Manager patterns',
   },
   {
     id: 'accessibility',
     label: 'Accessibility',
     icon: 'access',
-    source: 'Accessibility (WCAG) checks',
+    source: 'Google Lighthouse · WCAG accessibility checks',
   },
   {
     id: 'hosting',
     label: 'Backup & Hosting Reliability',
     icon: 'cloud',
-    source: 'Hosting & backup signals',
+    source: 'Hosting & backup signals · uptime patterns',
   },
   {
     id: 'broken_links',
     label: 'Broken Links & Crawl Health',
     icon: 'link',
-    source: 'Site crawl',
+    source: 'Automated site crawl · link status checker',
   },
   {
     id: 'content',
     label: 'Content & Messaging',
     icon: 'content',
-    source: 'Homepage & page content review',
+    source: 'Homepage HTML fetch · page content review',
   },
   {
     id: 'lead_capture',
     label: 'Lead Capture',
     icon: 'lead',
-    source: 'Forms & contact paths',
+    source: 'Homepage contact path review',
   },
   {
     id: 'schema',
     label: 'Search Rich Results',
     icon: 'schema',
-    source: 'Structured data / rich results',
+    source: 'JSON-LD structured data scan · LocalBusiness markup',
   },
   {
     id: 'email',
     label: 'Email Deliverability',
     icon: 'mail',
-    source: 'Email authentication checks',
+    source: 'DNS email auth · SPF · DKIM · DMARC',
   },
 ];
 
@@ -921,8 +922,26 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     categoryId: 'seo',
     categoryLabel: 'SEO',
     maxRank: 3,
-    problem: () => 'Search visibility is weaker than it should be for a local business.',
-    solution: 'Local SEO package: clearer titles, descriptions, and Google Business alignment.',
+    problem: (cat) => {
+      const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
+      if (/og:image|open graph|share image/.test(blob)) {
+        return 'Links shared on social and text messages show a blank or random preview — no Open Graph image.';
+      }
+      if (/robots\.txt/.test(blob) && /block|disallow|missing/.test(blob)) {
+        return 'robots.txt is missing or blocking crawlers — search engines cannot index the site cleanly.';
+      }
+      if (/sitemap/.test(blob) && /missing|no xml/.test(blob)) {
+        return 'No XML sitemap — Google has no map of your pages and discovers them slowly.';
+      }
+      if (/favicon/.test(blob) && /missing|no favicon/.test(blob)) {
+        return 'No favicon — browser tabs show a generic icon instead of the brand.';
+      }
+      if (/manifest/.test(blob)) {
+        return 'No web app manifest — phones cannot offer a proper Add to Home Screen icon.';
+      }
+      return 'Search visibility is weaker than it should be for a local business.';
+    },
+    solution: 'Local SEO package: share images, robots/sitemap, titles, descriptions, and Google Business alignment.',
   },
   {
     id: 'security-harden',
@@ -1301,9 +1320,39 @@ export function buildAuditReportCard(input: {
     extractNamedScore(scorePool, /seo/);
 
   const seoCorpus = seoSection.trim() || contentSection;
+  const seoInventoryGrade = (() => {
+    // Prefer explicit "SEO inventory grade: B (78/100)" from seo_inventory tool output.
+    const m = seoCorpus.match(
+      /SEO inventory grade:\s*([ABCDF])(?:\s*\((\d{1,3})\s*\/\s*100\))?/i,
+    );
+    if (m) return m[1].toUpperCase() as LetterGrade;
+    const m2 = body.match(
+      /SEO inventory[^\n]{0,40}grade:\s*([ABCDF])(?:\s*\((\d{1,3})\s*\/\s*100\))?/i,
+    );
+    if (m2) return m2[1].toUpperCase() as LetterGrade;
+    return null;
+  })();
+  const seoInventoryScore = (() => {
+    const m = `${seoCorpus}\n${body}`.match(
+      /SEO inventory grade:\s*[ABCDF]\s*\((\d{1,3})\s*\/\s*100\)/i,
+    );
+    if (m) {
+      const n = Number(m[1]);
+      return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : null;
+    }
+    return null;
+  })();
   const seoFallback = (() => {
+    if (seoInventoryGrade) return seoInventoryGrade;
     const lower = seoCorpus.toLowerCase();
     if (!seoCorpus.trim()) return null;
+    if (
+      /missing (?:og:image|open graph|robots\.txt|sitemap|favicon|manifest|canonical)|no (?:og:image|sitemap|robots\.txt|favicon)|blocks? all crawlers|noindex/.test(
+        lower,
+      )
+    ) {
+      return 'D' as LetterGrade;
+    }
     if (/missing|empty|no meta|not index|duplicate title|no sitemap/.test(lower)) {
       return 'D' as LetterGrade;
     }
@@ -1520,15 +1569,29 @@ export function buildAuditReportCard(input: {
 
   const mobileFallback = (() => {
     const lower = `${uxSection}\n${perfSection}\n${a11ySection}`.toLowerCase();
-    if (!uxSection.trim() && !/mobile|responsive|tap target|viewport/i.test(lower)) return null;
+    if (!uxSection.trim() && !/mobile|responsive|tap target|viewport|playwright/i.test(lower)) {
+      return null;
+    }
     if (/not mobile|fails? mobile|broken on (?:phone|mobile)|overflow|tap target/.test(lower)) {
       return 'D' as LetterGrade;
     }
     if (/mobile[- ]friendly|responsive|adapts well|looks good on mobile/.test(lower)) {
       return 'B' as LetterGrade;
     }
-    return uxSection.trim() || /mobile|responsive/i.test(lower) ? ('C' as LetterGrade) : null;
+    return uxSection.trim() || /mobile|responsive|playwright/i.test(lower)
+      ? ('C' as LetterGrade)
+      : null;
   })();
+
+  /** Prefer Playwright-attributed source when the audit body cites it. */
+  const mobileSourceOverride = /playwright|headless chromium|real-browser/i.test(
+    `${uxSection}\n${body}`,
+  )
+    ? 'Playwright (headless Chromium) · real-browser mobile layout'
+    : undefined;
+  const leadSourceOverride = /playwright/i.test(`${leadSection}\n${uxSection}\n${body}`)
+    ? 'Playwright form checks · homepage contact path review'
+    : undefined;
 
   const heuristicSection = (
     id: ReportCardCategoryId,
@@ -1653,15 +1716,29 @@ export function buildAuditReportCard(input: {
     securityCat,
     domainCat,
     channelCategory('local_listings', localListings.signal, localListings.score),
-    scoreCategory(
-      'seo',
-      seoScore,
-      seoSection || (seoFallback ? seoCorpus : ''),
-      seoFallback,
-      'Not scored in this audit',
-      undefined,
-      clientName,
-    ),
+    (() => {
+      // Combine Lighthouse SEO with seo_inventory — missing og:image / robots / sitemap
+      // should pull the grade down even when Lighthouse SEO looks fine.
+      const lhGrade = scoreToGrade(seoScore);
+      const invGrade = seoInventoryGrade ?? scoreToGrade(seoInventoryScore);
+      const combinedGrade = worseGrade(lhGrade, invGrade) ?? seoFallback;
+      const combinedScore = (() => {
+        const parts = [seoScore, seoInventoryScore].filter(
+          (n): n is number => n != null && !Number.isNaN(n),
+        );
+        if (!parts.length) return null;
+        return Math.min(...parts);
+      })();
+      return scoreCategory(
+        'seo',
+        combinedScore,
+        seoSection || (seoFallback ? seoCorpus : ''),
+        combinedGrade,
+        'Not scored in this audit',
+        undefined,
+        clientName,
+      );
+    })(),
     scoreCategory(
       'performance',
       perfScore,
@@ -1677,7 +1754,7 @@ export function buildAuditReportCard(input: {
       uxSection || (mobileFallback ? `${a11ySection}\n${perfSection}` : ''),
       mobileFallback,
       'Not scored in this audit',
-      undefined,
+      mobileSourceOverride ? { source: mobileSourceOverride } : undefined,
       clientName,
     ),
     channelCategory('reviews', reviews),
@@ -1739,16 +1816,20 @@ export function buildAuditReportCard(input: {
       present: /content|copy|messaging|placeholder|cta/i,
       emptySummary: 'Not scored in this audit',
     }),
-    heuristicSection('lead_capture', leadSection || contentSection, {
-      bad: /no form|broken form|form (?:fails|error)|no chat|no contact|lead(?:s)? (?:lost|untracked)/i,
-      good: /form works|contact form|click.to.call|chat (?:is )?available|lead capture/i,
-      present: /form|lead capture|contact form|chat widget|click.to.call/i,
-      emptySummary: 'Not scored in this audit',
-    }),
+    (() => {
+      const cat = heuristicSection('lead_capture', leadSection || contentSection, {
+        bad: /no form|broken form|form (?:fails|error)|no chat|no contact|lead(?:s)? (?:lost|untracked)/i,
+        good: /form works|contact form|click.to.call|chat (?:is )?available|lead capture/i,
+        present: /form|lead capture|contact form|chat widget|click.to.call/i,
+        emptySummary: 'Not scored in this audit',
+      });
+      if (leadSourceOverride) cat.source = leadSourceOverride;
+      return cat;
+    })(),
     heuristicSection('schema', schemaSection || seoSection, {
-      bad: /no schema|missing (?:schema|structured data)|no (?:localbusiness|rich results)/i,
-      good: /schema present|structured data|localbusiness|rich results/i,
-      present: /schema|structured data|json-?ld|rich results|localbusiness/i,
+      bad: /no schema|missing (?:schema|structured data|json-?ld)|no (?:localbusiness|rich results)|types:\s*none/i,
+      good: /schema present|structured data|localbusiness|json-?ld|rich results/i,
+      present: /schema|structured data|json-?ld|rich results|localbusiness|seo_inventory/i,
       emptySummary: 'Not scored in this audit',
     }),
     emailCat,
