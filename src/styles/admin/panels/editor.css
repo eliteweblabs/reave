@@ -98,6 +98,10 @@
   position: relative;
   margin: 0 var(--sidebar-inset) 0.5rem;
   flex: 0 0 auto;
+  transition:
+    max-height 0.5s ease,
+    opacity 0.4s ease,
+    margin 0.5s ease;
 }
 .panel-list-subheader--fab-only {
   display: flex;
@@ -183,18 +187,39 @@
 
 /* List multi-select — icon click + long-press (see admin-ui.js bindListMultiSelect) */
 .list-selection-bar {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin: 0 var(--sidebar-inset);
+  padding: 0;
+  border: none;
+  background: transparent;
+  flex: 0 0 auto;
+  pointer-events: none;
+  transition:
+    grid-template-rows 0.5s ease,
+    opacity 0.45s ease,
+    margin-bottom 0.5s ease;
+}
+.list-selection-bar.list-selection-bar--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-bottom: 0.5rem;
+  pointer-events: auto;
+}
+.list-selection-bar[hidden] {
+  display: none !important;
+}
+.list-selection-bar-inner {
+  overflow: hidden;
+  min-height: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0 var(--sidebar-inset) 0.5rem;
   padding: 0.35rem 0.5rem;
   border-radius: var(--radius-input);
   background: var(--surface-hover);
   border: 1px solid var(--border);
-  flex: 0 0 auto;
-}
-.list-selection-bar[hidden] {
-  display: none !important;
 }
 .list-selection-count {
   flex: 1;
@@ -209,6 +234,22 @@
   align-items: center;
   gap: 0.25rem;
   flex: 0 0 auto;
+}
+/* Smoothly stash search/tabs while the selection bar slides in.
+   !important on margin beats panel-specific subheader margin rules (e.g. email). */
+.panel-list-subheader.panel-list-subheader--selection-stashed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  overflow: hidden;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .list-selection-bar,
+  .panel-list-subheader {
+    transition: none;
+  }
 }
 .list-selection-bar-btn {
   display: inline-flex;
