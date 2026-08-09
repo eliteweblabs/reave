@@ -37,8 +37,9 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   showCopyButtonFeedback,
+  createCopyIconBtn,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260809a';
+} from './admin-ui.js?v=20260809b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260808k';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
@@ -666,20 +667,19 @@ function buildReaveShareActions(state, opts = {}) {
     },
   });
 
-  const copyBtn = createIosIconBtn({
-    iconKey: 'copy',
+  const copyBtn = createCopyIconBtn({
     label: 'Copy link',
     className: 'ios-icon-btn reave-share-icon',
-    onClick: async (btn) => {
+    getText: async () => {
       const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
-      let text = url;
       if (state.kind === 'booking' && state.booking) {
-        text = [formatScheduleRange(state.booking.startTime, state.booking.endTime), url]
+        return [formatScheduleRange(state.booking.startTime, state.booking.endTime), url]
           .filter(Boolean)
           .join('\n');
       }
-      if (text) await copyChatText(text, btn);
+      return url || '';
     },
+    onError: () => showChatToast('Copy failed — check browser permissions'),
   });
 
   actionsEl.append(emailBtn, smsBtn, previewBtn, copyBtn);

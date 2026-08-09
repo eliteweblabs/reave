@@ -220,6 +220,66 @@ export function showCopyButtonFeedback(btn, opts = {}) {
   copyFeedbackTimers.set(btn, timer);
 }
 
+/**
+ * Canonical copy control: IOS_ICONS.copy → checkmark via showCopyButtonFeedback.
+ * Prefer this over hand-rolled Copy text buttons or one-off createIosIconBtn({ iconKey: 'copy' }).
+ *
+ * @param {{
+ *   getText?: () => (string | Promise<string>),
+ *   text?: string,
+ *   label?: string,
+ *   className?: string,
+ *   onSuccess?: (btn: HTMLElement, text: string) => void,
+ *   onError?: (err: unknown, btn: HTMLElement) => void,
+ * }} [opts]
+ */
+export function createCopyIconBtn(opts = {}) {
+  const {
+    getText,
+    text = '',
+    label = 'Copy',
+    className = 'ios-icon-btn',
+    onSuccess,
+    onError,
+  } = opts;
+  return createIosIconBtn({
+    iconKey: 'copy',
+    label,
+    className,
+    onClick: async (btn) => {
+      let value = '';
+      try {
+        value = typeof getText === 'function' ? await getText() : text;
+      } catch (err) {
+        onError?.(err, btn);
+        return;
+      }
+      const str = String(value ?? '');
+      if (!str) return;
+      try {
+        await navigator.clipboard.writeText(str);
+        showCopyButtonFeedback(btn);
+        onSuccess?.(btn, str);
+      } catch (err) {
+        onError?.(err, btn);
+      }
+    },
+  });
+}
+
+/** Return a normalized http(s) href when `value` is a valid URL; otherwise null. */
+export function looksLikeHttpUrl(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || !/^https?:\/\//i.test(trimmed)) return null;
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
 // ---- Two-step delete confirm (trash → 3s timer ring → tap again) ----
 
 const DELETE_CONFIRM_MS = 3000;

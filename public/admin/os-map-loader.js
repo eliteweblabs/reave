@@ -103,9 +103,10 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   showCopyButtonFeedback,
+  createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260809a';
+} from './admin-ui.js?v=20260809b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260808b';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
@@ -9354,11 +9355,11 @@ export function buildChatPaneHeader() {
     titleNode: main,
     afterTitle: createChatModelSwitcher(),
     icons: [
-      createIosIconBtn({
-        iconKey: 'copy',
+      createCopyIconBtn({
         label: 'Copy entire conversation',
         className: 'ios-icon-btn ch-copy-chat-btn',
-        onClick: (btn) => copyChatText(transcript, btn),
+        getText: () => transcript,
+        onError: () => showChatToast('Copy failed — check browser permissions'),
       }),
       paneShareIcon({
         label: 'Share entire conversation',

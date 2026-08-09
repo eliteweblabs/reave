@@ -2449,6 +2449,9 @@ button.de-placeholder-action:active {
 .ios-icon-btn:active {
   opacity: 0.55;
 }
+.ios-icon-btn.is-copy-success {
+  color: #167c3e;
+}
 .ios-icon-btn svg:not(.delete-confirm-ring) {
   display: block;
   width: 1.25rem;
@@ -2742,6 +2745,19 @@ button.de-placeholder-action:active {
 .cl-vault-row .de-input {
   max-width: none;
   width: 100%;
+}
+.cl-vault-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+  flex: 0 0 auto;
+}
+.cl-vault-row-actions .ios-icon-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.cl-vault-row-actions .ios-icon-btn[hidden] {
+  display: none;
 }
 .cl-vault-secret {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

@@ -12,7 +12,7 @@ import {
   createFabNewBtn,
   paneDeleteIcon,
   paneShareIcon,
-  showCopyButtonFeedback,
+  createCopyIconBtn,
   createSlidingPillSelect,
   createListEmptyState,
   createCenteredListEmpty,
@@ -25,7 +25,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260809a';
+} from './admin-ui.js?v=20260809b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260728j';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
@@ -88,7 +88,7 @@ function mount() {
   section(
     root,
     'Pane header toolbar',
-    'Canonical header actions via <code>paneDeleteIcon</code>, <code>paneShareIcon</code>, <code>createIosIconBtn</code>, <code>createAgentBtn</code>, <code>createPanelBackBtn</code>. Tap trash once → confirm (must stay <strong>red</strong>, never white).',
+    'Canonical header actions via <code>paneDeleteIcon</code>, <code>paneShareIcon</code>, <code>createCopyIconBtn</code>, <code>createIosIconBtn</code>, <code>createAgentBtn</code>, <code>createPanelBackBtn</code>. Tap trash once → confirm (must stay <strong>red</strong>, never white).',
     (el) => {
       const setStatus = statusLine(el);
       const toolbar = document.createElement('div');
@@ -101,13 +101,10 @@ function mount() {
         }),
       );
       toolbar.appendChild(
-        createIosIconBtn({
-          iconKey: 'copy',
+        createCopyIconBtn({
           label: 'Copy',
-          onClick: (btn) => {
-            showCopyButtonFeedback(btn);
-            setStatus('Copied', 'ok');
-          },
+          getText: () => 'Gallery copy demo',
+          onSuccess: () => setStatus('Copied', 'ok'),
         }),
       );
       toolbar.appendChild(

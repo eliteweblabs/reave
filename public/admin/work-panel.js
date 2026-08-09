@@ -29,8 +29,9 @@ import {
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
-  showCopyButtonFeedback,
-} from './admin-ui.js?v=20260809a';
+  createCopyIconBtn,
+  looksLikeHttpUrl,
+} from './admin-ui.js?v=20260809b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260804d';
@@ -673,17 +674,12 @@ function renderWorkChecklistPanel(mountEl, opts) {
     billLabel.textContent = 'Ready to invoice';
     billHead.appendChild(billLabel);
 
-    const copyBtn = createIosIconBtn({
-      iconKey: 'copy',
+    const copyBtn = createCopyIconBtn({
       label: 'Copy line descriptions',
       className: 'ios-icon-btn wk-billable-copy',
-      onClick: (btn) => {
-        const lines = doneItems.map((i) => i.text).join('\n');
-        navigator.clipboard.writeText(lines).then(
-          () => showCopyButtonFeedback(btn),
-          () => shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
-        );
-      },
+      getText: () => doneItems.map((i) => i.text).join('\n'),
+      onError: () =>
+        shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
     });
     billHead.appendChild(copyBtn);
     bill.appendChild(billHead);
@@ -869,22 +865,18 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       billLabel.textContent = 'Ready to invoice';
       billHead.appendChild(billLabel);
 
-      const copyBtn = createIosIconBtn({
-        iconKey: 'copy',
+      const copyBtn = createCopyIconBtn({
         label: 'Copy time for invoice',
         className: 'ios-icon-btn wk-billable-copy',
-        onClick: (btn) => {
-          const lines = billable
+        getText: () =>
+          billable
             .map((e) => {
               const note = (e.note || '').trim() || 'Time worked';
               return `${formatWorkTimeHours(Number(e.hours))}h — ${note}`;
             })
-            .join('\n');
-          navigator.clipboard.writeText(lines).then(
-            () => showCopyButtonFeedback(btn),
-            () => shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
-          );
-        },
+            .join('\n'),
+        onError: () =>
+          shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
       });
       billHead.appendChild(copyBtn);
       bill.appendChild(billHead);
@@ -1279,12 +1271,11 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   const submitUrl = portalUrl ? `${portalUrl}${portalUrl.includes('?') ? '&' : '?'}submit` : '';
 
   if (submitUrl) {
-    const copySubmitBtn = document.createElement('button');
-    copySubmitBtn.type = 'button';
-    copySubmitBtn.className = 'de-btn de-btn-secondary';
-    copySubmitBtn.textContent = 'Copy submit link';
-    copySubmitBtn.addEventListener('click', () => {
-      void shell.copyChatText(submitUrl, copySubmitBtn);
+    const copySubmitBtn = createCopyIconBtn({
+      label: 'Copy submit link',
+      className: 'ios-icon-btn cl-vault-submit-copy',
+      getText: () => submitUrl,
+      onError: () => shell.showChatToast?.('Copy failed — check browser permissions'),
     });
     actions.appendChild(copySubmitBtn);
   }
@@ -1356,27 +1347,46 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     const actions = document.createElement('div');
     actions.className = 'cl-vault-row-actions';
     if (opts.secret) {
-      const revealBtn = document.createElement('button');
-      revealBtn.type = 'button';
-      revealBtn.className = 'de-btn de-btn-secondary';
-      revealBtn.textContent = 'Show';
-      revealBtn.addEventListener('click', () => {
-        const masked = input.classList.toggle('cl-vault-secret-masked');
-        revealBtn.textContent = masked ? 'Show' : 'Hide';
+      const revealBtn = createIosIconBtn({
+        iconKey: 'eye',
+        label: 'Show password',
+        className: 'ios-icon-btn cl-vault-reveal',
+        onClick: (btn) => {
+          const masked = input.classList.toggle('cl-vault-secret-masked');
+          btn.innerHTML = masked ? IOS_ICONS.eye : IOS_ICONS['eye-off'];
+          btn.setAttribute('aria-label', masked ? 'Show password' : 'Hide password');
+          btn.title = masked ? 'Show password' : 'Hide password';
+        },
       });
       input.classList.add('cl-vault-secret-masked');
       actions.appendChild(revealBtn);
     }
-    if (opts.copy) {
-      const copyBtn = document.createElement('button');
-      copyBtn.type = 'button';
-      copyBtn.className = 'de-btn de-btn-secondary';
-      copyBtn.textContent = 'Copy';
-      copyBtn.addEventListener('click', () => {
-        void shell.copyChatText(input.value, copyBtn);
+    if (opts.linkWhenUrl) {
+      const linkBtn = createIosIconBtn({
+        iconKey: 'link',
+        label: 'Open link',
+        className: 'ios-icon-btn cl-vault-link',
+        onClick: () => {
+          const href = looksLikeHttpUrl(input.value);
+          if (href) window.open(href, '_blank', 'noopener,noreferrer');
+        },
       });
-      actions.appendChild(copyBtn);
+      const syncLinkVisibility = () => {
+        const href = looksLikeHttpUrl(input.value);
+        linkBtn.hidden = !href;
+        linkBtn.disabled = !href;
+      };
+      syncLinkVisibility();
+      input.addEventListener('input', syncLinkVisibility);
+      actions.appendChild(linkBtn);
     }
+    const copyBtn = createCopyIconBtn({
+      label: `Copy ${label.toLowerCase()}`,
+      className: 'ios-icon-btn cl-vault-copy',
+      getText: () => input.value,
+      onError: () => shell.showChatToast?.('Copy failed — check browser permissions'),
+    });
+    actions.appendChild(copyBtn);
     row.appendChild(actions);
     input.addEventListener('input', queueSave);
     input.addEventListener('blur', () => {
@@ -1428,9 +1438,12 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
         placeholder: 'e.g. WordPress admin',
         required: true,
       });
-      appendVaultField(card, 'Data', 'url', entry.url, { placeholder: 'URL, API key, token…' });
-      appendVaultField(card, 'Username', 'username', entry.username, { copy: true });
-      appendVaultField(card, 'Password', 'password', entry.password, { secret: true, copy: true });
+      appendVaultField(card, 'Data', 'url', entry.url, {
+        placeholder: 'URL, API key, token…',
+        linkWhenUrl: true,
+      });
+      appendVaultField(card, 'Username', 'username', entry.username);
+      appendVaultField(card, 'Password', 'password', entry.password, { secret: true });
       appendVaultField(card, 'Notes', 'value', entry.value, { placeholder: 'Other details' });
       labelInput.addEventListener('input', () => {
         cardTitle.textContent = labelInput.value.trim() || `Entry ${index + 1}`;
