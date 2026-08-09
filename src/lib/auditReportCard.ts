@@ -26,7 +26,6 @@ export type ReportCardCategoryId =
   | 'social'
   | 'analytics'
   | 'accessibility'
-  | 'hosting'
   | 'broken_links'
   | 'content'
   | 'lead_capture'
@@ -39,7 +38,9 @@ export type ReportCardCategoryId =
   /** @deprecated folded into local_listings */
   | 'google_business'
   /** @deprecated folded into local_listings */
-  | 'apple_business';
+  | 'apple_business'
+  /** @deprecated removed — backups aren't verifiable from a public audit */
+  | 'hosting'
 
 export type ReportCardIcon =
   | 'radar'
@@ -202,12 +203,6 @@ const CATEGORY_META: CategoryMeta[] = [
     label: 'Accessibility',
     icon: 'access',
     source: 'Google Lighthouse · WCAG accessibility checks',
-  },
-  {
-    id: 'hosting',
-    label: 'Backup & Hosting Reliability',
-    icon: 'cloud',
-    source: 'Hosting & backup signals · uptime patterns',
   },
   {
     id: 'broken_links',
@@ -1022,14 +1017,6 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     solution: 'Analytics & conversion tracking so every lead is measurable.',
   },
   {
-    id: 'hosting',
-    categoryId: 'hosting',
-    categoryLabel: 'Hosting',
-    maxRank: 3,
-    problem: () => 'No clear backup plan — a hosting glitch could take the site offline for good.',
-    solution: 'Hosting & automated backups so recovery is measured in minutes, not days.',
-  },
-  {
     id: 'broken-links',
     categoryId: 'broken_links',
     categoryLabel: 'Crawl Health',
@@ -1129,9 +1116,6 @@ function buildIdeas(
     } else if (/analytics|conversion|tracking|ga4/.test(lower)) {
       categoryId = 'analytics';
       categoryLabel = 'Tracking';
-    } else if (/backup|hosting|uptime/.test(lower)) {
-      categoryId = 'hosting';
-      categoryLabel = 'Hosting';
     } else if (/broken link|404|crawl/.test(lower)) {
       categoryId = 'broken_links';
       categoryLabel = 'Crawl Health';
@@ -1276,10 +1260,6 @@ export function buildAuditReportCard(input: {
   const analyticsSection = extractSection(
     body,
     /Search\s*\/\s*Analytics|Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking|Tracking/,
-  );
-  const hostingSection = extractSection(
-    body,
-    /Backup(?:\s*&\s*Hosting(?:\s+Reliability)?)?|Hosting(?:\s+Reliability)?|Uptime/,
   );
   const linksSection = extractSection(body, /Broken Links(?:\s*&\s*Crawl Health)?|Crawl Health|Links/);
   const leadSection = extractSection(body, /Lead Capture|Contact Forms?|Forms?/);
@@ -1796,12 +1776,6 @@ export function buildAuditReportCard(input: {
       undefined,
       clientName,
     ),
-    heuristicSection('hosting', hostingSection, {
-      bad: /no (?:automated )?backup|single point of failure|no uptime|hosting (?:risk|issue)/i,
-      good: /backup(?:s)? (?:enabled|scheduled|running)|uptime|redundant|reliable hosting/i,
-      present: /backup|hosting|uptime|server/i,
-      emptySummary: 'Not scored in this audit',
-    }),
     heuristicSection('broken_links', linksSection, {
       bad: /broken link|404|dead link|crawl (?:error|fail)|not crawled/i,
       good: /no broken|0 broken|links (?:look |are )?healthy|crawl clean/i,

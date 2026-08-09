@@ -120,9 +120,6 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 ### Mobile Responsiveness
 - Layout on phones from fetch_url (quick tier — no Playwright; full audit adds Playwright Chromium checks)
 
-### Backup & Hosting Reliability
-- Backup / uptime signals if observable — else "Not verified — quick tier"
-
 ### Broken Links & Crawl Health
 - Not crawled — quick audit tier
 

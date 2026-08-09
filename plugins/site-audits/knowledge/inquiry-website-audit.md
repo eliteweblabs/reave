@@ -165,9 +165,6 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - Source: Playwright (headless Chromium) real-browser checks
 - {From Playwright UX — layout, tap targets, overflow on phones}
 
-### Backup & Hosting Reliability
-- {Backup / uptime / single-hosting risk if observable}
-
 ### DNS & Email
 - Domain renewal window if known; {A records, host, MX provider}
 - Email deliverability: {SPF/DKIM/DMARC status from dns_check} in plain language
