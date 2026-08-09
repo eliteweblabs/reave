@@ -210,6 +210,10 @@
 
     root.innerHTML =
       `<div class="dl-panel">` +
+      `<div class="dl-sections">` +
+      renderIncludedSection() +
+      sections.map(renderSection).join('') +
+      `</div>` +
       `<div class="dl-toolbar">` +
       `<div class="dl-visitor">` +
       `<label class="dl-field">` +
@@ -242,10 +246,6 @@
       `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
       `</div>` +
       renderLegend() +
-      `<div class="dl-sections">` +
-      renderIncludedSection() +
-      sections.map(renderSection).join('') +
-      `</div>` +
       `<p class="dl-footnote">Tell us which modules you need and we’ll prepare a personalized demo. You’ll hear from us as soon as it’s ready.</p>` +
       `</div>`;
   }
