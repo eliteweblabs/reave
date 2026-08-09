@@ -203,7 +203,8 @@ const portalDocs = hasFeature('documents')
 
 const staffAvatarUrl = companyStaffAvatarUrl(org);
 const providerName = org.name?.trim() || 'us';
-const addContactsLabel = `Add ${providerName} to Contacts`;
+const contactsBrand = providerName.replace(/\s+automation$/i, '').trim() || providerName;
+const addContactsLabel = `Add ${contactsBrand} to contacts`;
 const showClientContact = Boolean(company && displayName !== company && displayName !== brandTitle);
 const vcardHref = '/contact.vcf';
 const schedulePrefill = {
