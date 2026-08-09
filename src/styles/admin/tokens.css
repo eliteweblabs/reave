@@ -72,8 +72,10 @@
   --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
   /*
    * Gap below the logo topbar for detail pane headers (createPaneHeader).
-   * Do not tuck title/back rows under the brand — that fights the logo and
-   * drifts per-panel. Legacy --pane-topbar-tuck kept for non-header chrome.
+   * The logo mark is vertically centered in a taller --app-header-h row, so a
+   * small negative clearance on mobile pulls the subheader into that unused
+   * band without covering the wordmark. Legacy --pane-topbar-tuck stays for
+   * non-header chrome (list skeletons, etc.).
    */
   --pane-header-clearance: 0.2rem;
   /*
@@ -200,7 +202,10 @@
 @media (max-width: 639px) {
   :root {
     --pane-topbar-tuck: 1.5rem;
-    --pane-header-clearance: 0.2rem;
+    /* (logo-h - row-h) / 2 + hairline — sit just under the REAVE glyphs. */
+    --pane-header-clearance: calc(
+      (var(--app-header-logo-h, 24px) - var(--app-header-h, 3.25rem)) / 2 + 0.15rem
+    );
   }
 }
 @media (prefers-color-scheme: dark) {

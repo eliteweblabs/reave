@@ -10764,7 +10764,7 @@ function createEmailAgentDropdown(ev, opts = {}) {
   trigger.type = 'button';
   trigger.className = opts.inGroup
     ? 'em-btn-group-segment em-agent-btn em-agent-trigger'
-    : 'de-new-btn em-agent-btn em-header-action-btn em-agent-trigger';
+    : 'agent-btn em-header-action-btn em-agent-trigger';
   trigger.setAttribute('aria-label', emailAwaitingTriage ? 'Agent triage' : 'Agent');
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.title = emailAwaitingTriage

@@ -105,12 +105,13 @@ Object.defineProperty(IOS_ICONS, 'agent', {
 
 /**
  * Circular branded agent control (same shell as pane headers everywhere).
- * Default classes: de-new-btn em-agent-btn em-header-action-btn — never a bare square.
+ * Default classes: agent-btn em-header-action-btn — never de-new-btn (that
+ * shell carries list-FAB margins that shove the control into the title).
  */
 export function createAgentBtn(opts = {}) {
   const {
     onClick,
-    className = 'de-new-btn em-agent-btn em-header-action-btn',
+    className = 'agent-btn em-header-action-btn',
     label = 'Agent',
     title,
   } = opts;

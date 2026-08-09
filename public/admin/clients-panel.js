@@ -1430,6 +1430,7 @@ function renderEditClientForm(pane) {
           }),
         ].filter(Boolean),
       });
+      header.classList.add('pane-header');
       const chrome = createDetailChrome(pane, 'cl-detail-chrome');
       chrome.appendChild(header);
 

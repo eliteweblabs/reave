@@ -1312,12 +1312,16 @@ button.de-placeholder-action:active {
 }
 .detail-chrome > .de-header {
   border-bottom: none;
-  min-height: 0;
+  min-height: var(--pane-chrome-scale-6, 2.4375rem);
   padding:
     var(--detail-header-pad-y)
     var(--detail-pad-x-right)
     0
     var(--detail-pad-x);
+}
+.detail-chrome > .de-header.pane-header {
+  /* Same 8/6/4 cascade as createPaneHeader stacks. */
+  background: var(--bg);
 }
 /* Outer inset for detail tabs — keeps labels clear of screen edges when sticky. */
 .detail-tabs-wrap {
@@ -1597,20 +1601,41 @@ button.de-placeholder-action:active {
     overflow: visible;
     flex-shrink: 0;
     gap: 0.3rem;
+    min-height: var(--pane-chrome-scale-6, 2.4375rem);
     padding:
-      0.35rem
+      0.2rem
       var(--detail-pad-x-right)
-      0.25rem
+      0.15rem
       var(--detail-pad-x);
   }
   #clients-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn,
   #work-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
+    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
+  }
+  #clients-editor.de-pane-active .detail-chrome > .de-header .agent-btn,
+  #work-editor.de-pane-active .detail-chrome > .de-header .agent-btn,
+  #clients-editor.de-pane-active .detail-chrome > .de-header .de-new-btn.em-agent-btn,
+  #work-editor.de-pane-active .detail-chrome > .de-header .de-new-btn.em-agent-btn {
+    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
+    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
+    min-width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
   }
   #clients-editor.de-pane-active .de-header-actions,
   #work-editor.de-pane-active .de-header-actions {
     gap: 0.15rem;
+  }
+  #clients-editor.de-pane-active .detail-chrome > .de-header .de-header-title-field,
+  #work-editor.de-pane-active .detail-chrome > .de-header .de-header-title-field,
+  #clients-editor.de-pane-active .detail-chrome > .de-header .de-doc-name,
+  #work-editor.de-pane-active .detail-chrome > .de-header .de-doc-name {
+    padding-right: 0.15rem;
+  }
+  #clients-editor.de-pane-active .detail-chrome > .de-header .de-header-title-input,
+  #work-editor.de-pane-active .detail-chrome > .de-header .de-header-title-input,
+  #clients-editor.de-pane-active .detail-chrome > .de-header .de-doc-name,
+  #work-editor.de-pane-active .detail-chrome > .de-header .de-doc-name {
+    font-size: 0.84rem;
   }
   #work-editor .sliding-pill-select {
     gap: 0;
