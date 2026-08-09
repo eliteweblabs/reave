@@ -1309,6 +1309,9 @@ button.de-placeholder-action:active {
   min-width: 0;
   background: var(--bg);
   border-bottom: 1px solid var(--panel-border);
+  /* Opaque stack — form content (sticky client bar) must never paint through. */
+  isolation: isolate;
+  overflow: hidden;
 }
 .detail-chrome > .de-header {
   border-bottom: none;
@@ -1323,7 +1326,7 @@ button.de-placeholder-action:active {
   /* Same 8/6/4 cascade as createPaneHeader stacks. */
   background: var(--bg);
 }
-/* Outer inset for detail tabs — keeps labels clear of screen edges when sticky. */
+/* Outer inset for detail tabs — keeps labels clear of screen edges. */
 .detail-tabs-wrap {
   flex: 0 0 auto;
   min-width: 0;
@@ -1332,7 +1335,8 @@ button.de-placeholder-action:active {
     var(--detail-pad-x-right)
     calc(var(--detail-tabs-pad-y) + 0.1rem)
     var(--detail-pad-x);
-  overflow: visible;
+  overflow: hidden;
+  background: var(--bg);
 }
 .detail-tabs {
   position: relative;
@@ -1391,6 +1395,10 @@ button.de-placeholder-action:active {
     var(--footer-scroll-pad)
     var(--detail-pad-x);
 }
+/* Project form: keep the sticky client author bar clear of the tab chrome. */
+#work-editor .re-form-scroll.wk-form-scroll.detail-form-scroll {
+  padding-top: 0.35rem;
+}
 /* Tab scroll owns all outer inset; panel bodies/sections never add their own. */
 .detail-form-scroll .detail-panel-body {
   display: flex;
@@ -1437,12 +1445,14 @@ button.de-placeholder-action:active {
 #work-editor .wk-detail-panel .wk-client-picker.wk-client-picker--readonly {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 2;
   margin-left: calc(-1 * var(--detail-pad-x));
   margin-right: calc(-1 * var(--detail-pad-x-right));
   padding-left: var(--detail-pad-x);
   padding-right: var(--detail-pad-x-right);
   background: var(--bg);
+  /* Keep the sticky author bar fully inside the form scrollport. */
+  flex-shrink: 0;
 }
 #work-editor .wk-detail-panel[data-work-tab="project"] .wk-related-section {
   margin-top: 0;
@@ -1469,12 +1479,13 @@ button.de-placeholder-action:active {
 #work-editor .re-form-scroll.wk-form-scroll > .wk-client-picker.wk-client-picker--readonly {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 2;
   margin-left: calc(-1 * var(--detail-pad-x));
   margin-right: calc(-1 * var(--detail-pad-x-right));
   padding-left: var(--detail-pad-x);
   padding-right: var(--detail-pad-x-right);
   background: var(--bg);
+  flex-shrink: 0;
 }
 #work-editor .de-fields .de-label {
   display: flex;
@@ -1578,21 +1589,26 @@ button.de-placeholder-action:active {
     flex: 1 1 auto;
     overflow: hidden;
   }
+  /*
+   * Grid row 1 already pins the chrome — do not also position:sticky it.
+   * Sticky + overflow:visible on iOS lets the client author bar paint under
+   * the tab strip (truncated name + blue action icons peeking through).
+   */
   #clients-editor.de-pane-active .detail-chrome,
   #work-editor.de-pane-active .detail-chrome {
     grid-row: 1;
-    position: sticky;
-    top: calc(
-      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px)))
-      + var(--pane-header-clearance, 0.2rem)
-    );
+    position: relative;
+    top: auto;
     z-index: 6;
-    overflow: visible;
+    overflow: hidden;
+    background: var(--bg);
   }
   #clients-editor.de-pane-active .detail-form-scroll,
   #work-editor.de-pane-active .detail-form-scroll {
     grid-row: 2;
     min-height: 0;
+    position: relative;
+    z-index: 0;
   }
   #clients-editor.de-pane-active .detail-chrome > .de-header,
   #work-editor.de-pane-active .detail-chrome > .de-header {
