@@ -16,6 +16,7 @@ export {
 
 import {
   dbListTodos,
+  dbCountOpenTodos,
   dbReadTodo,
   dbCreateTodo,
   dbUpdateTodo,
@@ -33,6 +34,11 @@ export async function storeListTodos(opts?: ListTodosOpts): Promise<TodoItem[]> 
   await storeSeedTodosFromMarkdownIfEmpty();
   const rows = await dbListTodos(opts ?? {});
   return rows ?? [];
+}
+
+export async function storeCountOpenTodos(): Promise<number> {
+  await storeSeedTodosFromMarkdownIfEmpty();
+  return (await dbCountOpenTodos()) ?? 0;
 }
 
 export async function storeSeedTodosFromMarkdownIfEmpty(): Promise<number> {

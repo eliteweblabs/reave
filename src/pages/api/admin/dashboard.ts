@@ -32,7 +32,7 @@ import {
   type DashboardEvent,
 } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
-import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
+import { isTodoDbConfigured, storeListTodos, storeCountOpenTodos } from '../../../lib/todoStore';
 import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView, syncUptimeMonitorsFromApiIfStale } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
@@ -175,8 +175,7 @@ export async function GET(context: APIContext): Promise<Response> {
   // Count open todos from DB (not legacy markdown files)
   let todosOpen = 0;
   if (isTodoDbConfigured()) {
-    const allOpen = await storeListTodos({ status: 'open' });
-    todosOpen = allOpen.length;
+    todosOpen = await storeCountOpenTodos();
   }
 
   let meetingsTotal: number | null = null;

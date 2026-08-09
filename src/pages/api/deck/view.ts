@@ -7,7 +7,7 @@ import type { APIRoute } from 'astro';
 import { createHash } from 'crypto';
 import { getContact } from '../../../lib/contactApi';
 import { recordDeckViewEngagement } from '../../../lib/engagementNotifications';
-import { isOwnerPreviewRequest, isStaffSession } from '../../../lib/staffSession';
+import { isStaffSession } from '../../../lib/staffSession';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
 
@@ -29,8 +29,8 @@ function dayBucket(): string {
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Owner previewing the deck while signed in should not create engagement noise.
-  if (isStaffSession(locals) || isOwnerPreviewRequest(request)) {
+  // Signed-in staff previewing the deck should not create engagement noise.
+  if (isStaffSession(locals)) {
     return json({ ok: true, skipped: 'signed_in' });
   }
 

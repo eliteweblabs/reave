@@ -66,6 +66,9 @@ export function codeDevReadFile(
 ): CodeDevResult {
   const resolved = resolveSafePath(path);
   if (!resolved.ok) return resolved;
+  if (isEnvLikePath(resolved.rel)) {
+    return { ok: false, error: 'reading .env files is blocked' };
+  }
   if (!existsSync(resolved.abs)) return { ok: false, error: `not found: ${resolved.rel}` };
   const st = statSync(resolved.abs);
   if (!st.isFile()) return { ok: false, error: `not a file: ${resolved.rel}` };

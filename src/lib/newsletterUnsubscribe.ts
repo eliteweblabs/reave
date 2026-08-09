@@ -11,7 +11,6 @@ function secret(): string | undefined {
   return (
     serverEnv('NEWSLETTER_UNSUB_SECRET') ||
     serverEnv('RESEND_WEBHOOK_SECRET') ||
-    serverEnv('CLERK_SECRET_KEY') ||
     undefined
   );
 }

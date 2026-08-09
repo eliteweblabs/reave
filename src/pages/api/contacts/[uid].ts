@@ -6,28 +6,22 @@ import {
   blockersToJson,
 } from '../../../lib/contactDeleteGuard';
 import { syncContactToCrater } from '../../../lib/contactCraterSync';
-import { serverEnv } from '../../../lib/serverEnv';
-import { secretMatches } from '../../../lib/secretCompare';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function isDashboardAuthed(request: Request): boolean {
-  const expected = serverEnv('DASHBOARD_KEY')?.trim();
-  if (!expected) return false;
-  return secretMatches(request.headers.get('x-dashboard-key'), expected);
-}
 
 const json = (body: object, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-export const GET: APIRoute = async ({ request, params, url }) => {
-  if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const GET: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
 
-  const uid = params.uid?.trim();
+  const uid = context.params.uid?.trim();
   if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
 
-  if (url.searchParams.get('preview') === 'delete') {
+  if (context.url.searchParams.get('preview') === 'delete') {
     const blockers = await getContactDeleteBlockers(uid);
     if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
     return json({ ok: true, ...blockersToJson(blockers.data) });
@@ -36,16 +30,17 @@ export const GET: APIRoute = async ({ request, params, url }) => {
   return json({ ok: false, error: 'Not found' }, 404);
 };
 
-export const PATCH: APIRoute = async ({ request, params }) => {
-  if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const PATCH: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
 
-  const uid = params.uid?.trim();
+  const uid = context.params.uid?.trim();
   if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
 
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
@@ -75,14 +70,15 @@ export const PATCH: APIRoute = async ({ request, params }) => {
   });
 };
 
-export const DELETE: APIRoute = async ({ request, params, url }) => {
-  if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const DELETE: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
 
-  const uid = params.uid?.trim();
+  const uid = context.params.uid?.trim();
   if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
 
-  const force = url.searchParams.get('force') === 'true';
+  const force = context.url.searchParams.get('force') === 'true';
   const result = await executeContactDelete(uid, { force, permanent: force });
   if (!result.ok) {
     const body: Record<string, unknown> = { ok: false, error: result.error };

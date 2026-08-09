@@ -47,30 +47,12 @@
 
   async function refresh() {
     try {
-      const [dashRes, inboxRes] = await Promise.all([
-        fetch('/api/admin/dashboard', { cache: 'no-store' }),
-        fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
-      ]);
-      if (inboxRes.ok) {
-        const inboxData = await inboxRes.json();
-        let n = Math.max(0, Number(inboxData.digest?.reviewsPending) || 0);
-        if (dashRes.ok) {
-          const dash = await dashRes.json();
-          if (dash.ok) {
-            const stats = dash.stats || {};
-            n = Math.max(0, Number(stats.reviewsPending ?? stats.automationPending ?? n) || 0);
-          }
-        }
-        sync(n);
-        return;
-      }
-      if (dashRes.ok) {
-        const dash = await dashRes.json();
-        if (dash.ok) {
-          const stats = dash.stats || {};
-          sync(stats.reviewsPending ?? stats.automationPending ?? 0);
-        }
-      }
+      const dashRes = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+      if (!dashRes.ok) return;
+      const dash = await dashRes.json();
+      if (!dash.ok) return;
+      const stats = dash.stats || {};
+      sync(stats.reviewsPending ?? stats.automationPending ?? 0);
     } catch {}
   }
 
