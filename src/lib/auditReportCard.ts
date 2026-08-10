@@ -509,7 +509,7 @@ function assessChannel(
   }
 
   const joined = hits.join(' ').toLowerCase();
-  const why = hits.slice(0, 4);
+  const why = prioritizeNegativeFirst(hits).slice(0, 4);
 
   if (
     /unavailable|quota exceeded|data unavailable|could not (?:check|verify|find)|search quota/.test(
@@ -702,7 +702,7 @@ function emailGradeFromText(text: string): {
     return {
       grade: null,
       summary: 'Could not verify',
-      why: bulletsFromSection(text).slice(0, 4),
+      why: prioritizeNegativeFirst(bulletsFromSection(text)).slice(0, 4),
       unavailable: true,
     };
   }
@@ -731,7 +731,7 @@ function emailGradeFromText(text: string): {
     return {
       grade: null,
       summary: 'Email setup noted',
-      why: bulletsFromSection(text).slice(0, 4),
+      why: prioritizeNegativeFirst(bulletsFromSection(text)).slice(0, 4),
     };
   }
 
@@ -739,18 +739,20 @@ function emailGradeFromText(text: string): {
   const ratio = passes / known.length;
   const grade: LetterGrade =
     ratio >= 1 ? 'A' : ratio >= 0.67 ? 'C' : ratio >= 0.34 ? 'D' : 'F';
-  const labels = [
+  const labels = prioritizeNegativeFirst([
     `SPF: ${spf === 'unknown' ? 'not checked' : spf}`,
     `DKIM: ${dkim === 'unknown' ? 'not checked' : dkim}`,
     `DMARC: ${dmarc === 'unknown' ? 'not checked' : dmarc}`,
-  ];
+  ]);
+  // Drop raw SPF/DKIM/DMARC bullets — the structured labels already cover them.
+  const extras = bulletsFromSection(text).filter((b) => !/^\s*(spf|dkim|dmarc)\b/i.test(b));
   return {
     grade,
     summary:
       grade === 'A'
         ? 'Authentication looks complete'
         : 'Email authentication gaps',
-    why: [...labels, ...bulletsFromSection(text).slice(0, 3)],
+    why: prioritizeNegativeFirst([...labels, ...extras]).slice(0, 5),
   };
 }
 
@@ -759,7 +761,7 @@ function domainGradeFromText(text: string): {
   summary: string;
   why: string[];
 } {
-  const why = bulletsFromSection(text).slice(0, 4);
+  const why = prioritizeNegativeFirst(bulletsFromSection(text)).slice(0, 4);
   if (!text.trim()) {
     return {
       grade: null,
@@ -810,25 +812,78 @@ function plainLanguage(line: string, clientName = ''): string {
   return out.trim();
 }
 
-function clientFriendlyBullets(lines: string[], limit = 4, clientName = ''): string[] {
-  return lines
-    .map((line) => plainLanguage(line, clientName))
-    .filter((line) => line.length > 2)
-    .slice(0, limit);
-}
-
-/** First usable finding sentence for a category card. */
-function primaryFinding(why: string[], fallback: string): string {
-  const first = why.find((w) => w.length > 12) || why[0];
-  if (!first) return fallback;
-  // Cap so cards stay scannable.
-  return first.length > 180 ? `${first.slice(0, 177).trim()}…` : first;
-}
-
 const ROSY_FINDING_RE =
-  /outstanding|excellent|perfect|no (?:major )?(?:issues?|problems?)|looks? great|across both viewports/i;
+  /outstanding|excellent|perfect|strong|solid|looking (?:good|solid|great)|looks? great|no (?:major )?(?:issues?|problems?)|across both viewports|well (?:configured|optimized)|complete coverage|authentication looks complete/i;
 const WEAK_FINDING_RE =
-  /missing|fail|expired|invalid|critical|no confirmed|not found|weak|risk|error|insecure|broken|none|gap|needs? (?:work|attention)|room to improve/i;
+  /missing|fail|expired|invalid|critical|no confirmed|not (?:found|listed|claimed|configured|set|verified)|weak|risk|error|insecure|broken|none\b|gap|needs? (?:work|attention|update)|room to improve|poor|low contrast|too small|outdated|incomplete|inconsistent|unclaimed|inactive|stale|spam|thin|absent|unprotected|conflict|wrong hours|few reviews|unanswered|placeholder|could not|unavailable|blocks? (?:all )?crawler|noindex|dead link|404\b/i;
+
+function isNegativeFinding(line: string): boolean {
+  return WEAK_FINDING_RE.test(line);
+}
+
+function isRosyFinding(line: string): boolean {
+  // Don't treat a line as praise when it also flags a problem
+  // ("no outstanding issues" is fine; "outstanding… but missing alt" is not rosy).
+  return ROSY_FINDING_RE.test(line) && !isNegativeFinding(line);
+}
+
+/** Negatives first, then neutral, then praise — stable within each band. */
+function prioritizeNegativeFirst(lines: string[]): string[] {
+  const rank = (line: string) => (isNegativeFinding(line) ? 0 : isRosyFinding(line) ? 2 : 1);
+  return lines
+    .map((line, index) => ({ line, index, rank: rank(line) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((x) => x.line);
+}
+
+function clientFriendlyBullets(lines: string[], limit = 4, clientName = ''): string[] {
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const raw of lines) {
+    const line = plainLanguage(raw, clientName);
+    if (line.length <= 2) continue;
+    const key = line.toLowerCase().replace(/\s+/g, ' ');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cleaned.push(line);
+  }
+  // Sort before the limit so a trailing "missing alt text" is never sliced away
+  // in favor of an earlier "Outstanding score…" line.
+  return prioritizeNegativeFirst(cleaned).slice(0, limit);
+}
+
+const FINDING_MAX_CHARS = 180;
+
+/** Cap length without dropping a leading negative clause when possible. */
+function truncateFinding(text: string): string {
+  if (text.length <= FINDING_MAX_CHARS) return text;
+  // Prefer cutting after a sentence/clause boundary so the issue stays intact.
+  const budget = FINDING_MAX_CHARS - 1;
+  const window = text.slice(0, budget);
+  const boundary = Math.max(
+    window.lastIndexOf('. '),
+    window.lastIndexOf('; '),
+    window.lastIndexOf(' — '),
+    window.lastIndexOf(' - '),
+  );
+  if (boundary >= 60) {
+    return `${window.slice(0, boundary + (window[boundary] === '.' ? 1 : 0)).trim()}…`;
+  }
+  return `${window.trim()}…`;
+}
+
+/**
+ * First usable finding for a category card.
+ * Negatives always win over praise so truncation cannot hide problems.
+ */
+function primaryFinding(why: string[], fallback: string): string {
+  const ordered = prioritizeNegativeFirst(why.filter((w) => w && w.length > 2));
+  const negative = ordered.find((w) => isNegativeFinding(w) && w.length > 12);
+  const first =
+    negative || ordered.find((w) => w.length > 12) || ordered[0] || fallback;
+  if (!first) return fallback;
+  return truncateFinding(first);
+}
 
 /** Prefer a finding that matches a weak/failing grade instead of a rosy first bullet. */
 function primaryFindingForGrade(
@@ -837,11 +892,11 @@ function primaryFindingForGrade(
   grade: LetterGrade | null,
 ): string {
   if (grade === 'C' || grade === 'D' || grade === 'F') {
-    const negative = why.find((w) => WEAK_FINDING_RE.test(w));
+    const negative = prioritizeNegativeFirst(why).find((w) => isNegativeFinding(w));
     if (negative) return primaryFinding([negative], fallback);
     // Middling/poor grade with only praise in the bullets — never claim "outstanding".
     const first = why.find((w) => w.length > 12) || why[0];
-    if (first && ROSY_FINDING_RE.test(first)) return fallback;
+    if (first && isRosyFinding(first)) return fallback;
   }
   return primaryFinding(why, fallback);
 }
@@ -849,6 +904,7 @@ function primaryFindingForGrade(
 /**
  * Keep card copy honest when mobile/desktop numbers and the graded score disagree.
  * Near-perfect viewport scores must not sit next to a C without saying what dragged it down.
+ * Concrete issue bullets still lead — score context is secondary.
  */
 function findingAlignedToScore(
   why: string[],
@@ -858,17 +914,25 @@ function findingAlignedToScore(
 ): string {
   const fallback =
     score != null ? `${label} scored ${score}/100.` : `${label} needs a closer look.`;
+  const ordered = prioritizeNegativeFirst(why);
+  const negative = ordered.find((w) => isNegativeFinding(w) && w.length > 12);
   const pair = extractMobileDesktopPair(why.join('\n'));
   if (pair.mobile != null && pair.desktop != null && score != null) {
     const avg = Math.round((pair.mobile + pair.desktop) / 2);
     if (score <= avg - 6) {
-      return (
+      const context =
         `Mobile ${pair.mobile}/100 · Desktop ${pair.desktop}/100 — overall ${score}/100 ` +
-        `after other ${label.toLowerCase()} issues called out in the audit.`
-      );
+        `after other ${label.toLowerCase()} issues called out in the audit.`;
+      if (negative) {
+        // Issue first so a 180-char cap never eats the problem.
+        const combined = `${negative} ${context}`;
+        if (combined.length <= FINDING_MAX_CHARS) return combined;
+        return truncateFinding(negative);
+      }
+      return truncateFinding(context);
     }
   }
-  return primaryFindingForGrade(why, fallback, grade);
+  return primaryFindingForGrade(ordered, fallback, grade);
 }
 
 function extractActionItems(body: string): string[] {
