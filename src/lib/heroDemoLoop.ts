@@ -271,11 +271,121 @@ function renderActions(actions: HeroDemoAction[]): HTMLElement {
     chip.className = "home-hero-demo-action";
     if (action.variant === "primary") chip.classList.add("home-hero-demo-action--primary");
     if (action.variant === "secondary") chip.classList.add("home-hero-demo-action--secondary");
+    if (action.effect) chip.dataset.heroEffect = action.effect;
     chip.textContent = action.label;
     wrap.appendChild(chip);
   }
 
   return wrap;
+}
+
+/** Tiny illegible invoice card — bones only, no copy. */
+function createInvoiceSkeletonCard(): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact home-hero-demo-msg--enter";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-invoice";
+
+  const header = document.createElement("div");
+  header.className = "home-hero-demo-sk-invoice-header";
+  header.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--title"></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--meta"></span>';
+
+  const client = document.createElement("div");
+  client.className = "home-hero-demo-sk-invoice-client";
+  client.innerHTML = '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--client"></span>';
+
+  const lines = document.createElement("div");
+  lines.className = "home-hero-demo-sk-invoice-lines";
+  for (let i = 0; i < 2; i++) {
+    const line = document.createElement("div");
+    line.className = "home-hero-demo-sk-invoice-line";
+    line.innerHTML =
+      '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--line"></span>' +
+      '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--amt"></span>';
+    lines.appendChild(line);
+  }
+
+  const payments = document.createElement("div");
+  payments.className = "home-hero-demo-sk-invoice-payments";
+
+  const payLabel = document.createElement("div");
+  payLabel.className = "home-hero-demo-sk-invoice-section-label";
+  payLabel.innerHTML = '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--label"></span>';
+  payments.appendChild(payLabel);
+
+  const payRow = document.createElement("div");
+  payRow.className = "home-hero-demo-sk-invoice-payment home-hero-demo-sk-invoice-payment--pending";
+  payRow.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--line"></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--amt"></span>';
+  payments.appendChild(payRow);
+
+  const footer = document.createElement("div");
+  footer.className = "home-hero-demo-sk-invoice-footer";
+  footer.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--label"></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--total" data-hero-sk-total></span>';
+
+  card.appendChild(header);
+  card.appendChild(client);
+  card.appendChild(lines);
+  card.appendChild(payments);
+  card.appendChild(footer);
+  row.appendChild(card);
+
+  return row;
+}
+
+/**
+ * After "View invoice": reveal a tiny skeleton invoice, draw in a payment row,
+ * then flash the total bone so the balance update reads without any text.
+ */
+async function playInvoicePaymentSkeleton(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const row = createInvoiceSkeletonCard();
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (reducedMotion) {
+    row
+      .querySelector(".home-hero-demo-sk-invoice-payment--pending")
+      ?.classList.remove("home-hero-demo-sk-invoice-payment--pending");
+    row.querySelector("[data-hero-sk-total]")?.classList.add("home-hero-demo-sk-bone--flash");
+    await wait(480);
+    return;
+  }
+
+  await wait(520);
+  if (!isAlive()) return;
+
+  const payment = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice-payment--pending");
+  if (payment) {
+    void payment.offsetHeight;
+    payment.classList.remove("home-hero-demo-sk-invoice-payment--pending");
+    relayout(true);
+  }
+
+  await wait(620);
+  if (!isAlive()) return;
+
+  const total = row.querySelector<HTMLElement>("[data-hero-sk-total]");
+  if (total) {
+    total.classList.remove("home-hero-demo-sk-bone--flash");
+    void total.offsetWidth;
+    total.classList.add("home-hero-demo-sk-bone--flash");
+  }
+
+  await wait(900);
 }
 
 function createUserComposingShell(
@@ -549,7 +659,7 @@ async function playAssistantTurn(
     if (turn.actions?.length) {
       await wait(ACTION_PRESS_MS + 400);
       if (!isAlive()) return priorAssistantRow;
-      await simulateActionPress(priorAssistantRow);
+      await simulateActionPress(priorAssistantRow, sceneEl, relayout, reducedMotion, isAlive);
     }
 
     return priorAssistantRow;
@@ -584,19 +694,25 @@ async function playAssistantTurn(
   if (turn.actions?.length) {
     await wait(ACTION_PRESS_MS + 400);
     if (!isAlive()) return typing;
-    await simulateActionPress(typing);
+    await simulateActionPress(typing, sceneEl, relayout, reducedMotion, isAlive);
   }
 
   return typing;
 }
 
-async function simulateActionPress(row: HTMLElement): Promise<void> {
+async function simulateActionPress(
+  row: HTMLElement,
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
   const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
   const target = primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
   if (!target) return;
 
   const hero = row.closest<HTMLElement>(".home-hero");
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const effect = target.dataset.heroEffect;
 
   target.classList.add("home-hero-demo-action--pressed");
 
@@ -608,7 +724,12 @@ async function simulateActionPress(row: HTMLElement): Promise<void> {
   }
 
   await wait(ACTION_PRESS_MS);
+  if (!isAlive()) return;
   target.classList.remove("home-hero-demo-action--pressed");
+
+  if (effect === "invoice-payment") {
+    await playInvoicePaymentSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+  }
 }
 
 function animateSceneExit(sceneEl: HTMLElement): Promise<void> {

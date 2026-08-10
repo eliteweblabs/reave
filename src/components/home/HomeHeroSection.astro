@@ -625,6 +625,160 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
     border-color: rgba(255, 255, 255, 0.38);
   }
 
+  /* Artifact cards (skeleton invoice, etc.) — no avatar, hugs assistant side. */
+  .home-hero-demo-msg--artifact {
+    padding-inline-start: calc(1.85rem + 0.55rem);
+  }
+
+  .home-hero-demo-sk-invoice {
+    width: min(100%, 11.5rem);
+    padding: 0.55rem 0.62rem 0.5rem;
+    border-radius: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.055);
+    display: flex;
+    flex-direction: column;
+    gap: 0.38rem;
+  }
+
+  .home-hero-demo-sk-invoice-header,
+  .home-hero-demo-sk-invoice-line,
+  .home-hero-demo-sk-invoice-payment,
+  .home-hero-demo-sk-invoice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+  }
+
+  .home-hero-demo-sk-invoice-client,
+  .home-hero-demo-sk-invoice-section-label {
+    display: flex;
+  }
+
+  .home-hero-demo-sk-invoice-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    padding: 0.28rem 0 0.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .home-hero-demo-sk-invoice-payments {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    padding: 0.22rem 0 0.08rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .home-hero-demo-sk-invoice-footer {
+    padding-top: 0.28rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .home-hero-demo-sk-bone {
+    position: relative;
+    overflow: hidden;
+    display: block;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .home-hero-demo-sk-bone::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.22) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: heroDemoSkShimmer 1.4s ease-in-out infinite;
+  }
+
+  .home-hero-demo-sk-bone--title {
+    width: 42%;
+    height: 0.42rem;
+  }
+
+  .home-hero-demo-sk-bone--meta {
+    width: 22%;
+    height: 0.32rem;
+  }
+
+  .home-hero-demo-sk-bone--client {
+    width: 58%;
+    height: 0.36rem;
+  }
+
+  .home-hero-demo-sk-bone--label {
+    width: 28%;
+    height: 0.28rem;
+  }
+
+  .home-hero-demo-sk-bone--line {
+    flex: 1 1 auto;
+    height: 0.32rem;
+    max-width: 62%;
+  }
+
+  .home-hero-demo-sk-bone--amt {
+    flex: none;
+    width: 1.35rem;
+    height: 0.32rem;
+  }
+
+  .home-hero-demo-sk-bone--total {
+    flex: none;
+    width: 1.7rem;
+    height: 0.4rem;
+  }
+
+  .home-hero-demo-sk-invoice-payment {
+    max-height: 1.2rem;
+    opacity: 1;
+    transform: translateY(0);
+    overflow: hidden;
+    transition:
+      max-height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Collapsed until the payment "draws in". */
+  .home-hero-demo-sk-invoice-payment--pending {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    transform: translateY(-4px);
+  }
+
+  .home-hero-demo-sk-bone--flash {
+    animation: heroDemoSkTotalFlash 0.85s ease;
+  }
+
+  @keyframes heroDemoSkShimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes heroDemoSkTotalFlash {
+    0%,
+    100% {
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: none;
+    }
+    35%,
+    55% {
+      background: rgba(255, 255, 255, 0.42);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.28);
+    }
+  }
+
   .home-hero-demo-msg--user .home-hero-demo-bubble {
     color: rgba(255, 255, 255, 0.95);
     background: rgba(255, 255, 255, 0.12);
@@ -728,6 +882,15 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
     .home-hero-demo-ellipsis::after {
       animation: none;
       content: "…";
+    }
+
+    .home-hero-demo-sk-bone::after,
+    .home-hero-demo-sk-bone--flash {
+      animation: none;
+    }
+
+    .home-hero-demo-sk-invoice-payment {
+      transition: none;
     }
   }
 </style>

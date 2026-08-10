@@ -1,7 +1,11 @@
 /** Crafted hero demo scenes — multi-turn conversations with optional action chips. */
+export type HeroDemoActionEffect = "invoice-payment";
+
 export type HeroDemoAction = {
   label: string;
   variant?: "primary" | "secondary";
+  /** After the simulated press, play a skeleton UI beat (e.g. invoice + payment). */
+  effect?: HeroDemoActionEffect;
 };
 
 export type HeroDemoTurn = {
@@ -289,7 +293,8 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "reggie-payment",
     userAvatar: "/images/hero-demo/henderson-billing.png",
-    holdMs: 1100,
+    /** Extra hold so the invoice skeleton + payment beat can land before exit. */
+    holdMs: 2200,
     turns: [
       {
         role: "user",
@@ -330,7 +335,13 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "Applied a $500 check to website redesign (INV-0087). Remaining balance: $2,150.",
         pauseMs: 1300,
-        actions: [{ label: "View invoice", variant: "primary" }],
+        actions: [
+          {
+            label: "View invoice",
+            variant: "primary",
+            effect: "invoice-payment",
+          },
+        ],
       },
     ],
   },
