@@ -251,7 +251,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
-} from './rules-panel.js?v=20260803g';
+} from './rules-panel.js?v=20260810a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
