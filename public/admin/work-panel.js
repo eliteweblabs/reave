@@ -1022,12 +1022,30 @@ function createClientWorkCard(job) {
 
 const CLIENT_DETAIL_TABS = [
   { id: 'profile', label: 'Profile' },
-  { id: 'branding', label: 'Branding' },
+  { id: 'branding', label: 'Branding', clientOnly: true },
   { id: 'notes', label: 'Notes' },
   { id: 'projects', label: postTitle(2) },
   { id: 'vault', label: 'Vault' },
-  { id: 'analytics', label: 'Analytics', feature: 'analytic_audit' },
+  { id: 'analytics', label: 'Analytics', feature: 'analytic_audit', clientOnly: true },
 ];
+
+/** Branding / Analytics are for business contacts — not personal. */
+function contactShowsClientBusinessTabs(kindOrRecord) {
+  const kind =
+    typeof kindOrRecord === 'string'
+      ? kindOrRecord
+      : kindOrRecord?.kind || (kindOrRecord?.personal ? 'personal' : 'professional');
+  return String(kind || '').trim().toLowerCase() !== 'personal';
+}
+
+function clientDetailTabs(opts = {}) {
+  const showBusiness = opts.showBusinessTabs !== false;
+  return CLIENT_DETAIL_TABS.filter((t) => {
+    if (t.feature && !hasInstallFeature(t.feature)) return false;
+    if (t.clientOnly && !showBusiness) return false;
+    return true;
+  });
+}
 
 const WORK_DETAIL_TABS = [
   { id: 'project', label: postTitle(1) },
@@ -1110,9 +1128,9 @@ function syncClientProjectsTabBadge(count) {
   }
 }
 
-function mountClientDetailTabs(pane, activeTab, onSelect) {
+function mountClientDetailTabs(pane, activeTab, onSelect, opts = {}) {
   return mountDetailTabs(pane, {
-    tabs: CLIENT_DETAIL_TABS.filter((t) => !t.feature || hasInstallFeature(t.feature)),
+    tabs: clientDetailTabs(opts),
     activeTab,
     onSelect,
     ariaLabel: 'Client sections',
@@ -4278,6 +4296,7 @@ export {
   isWorkArchivedStatus,
   workClientSubline,
   mountClientDetailTabs,
+  contactShowsClientBusinessTabs,
   showClientDetailPanel,
   createClientDetailPanel,
   mountClientVaultSection,

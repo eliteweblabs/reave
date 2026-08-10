@@ -53,6 +53,7 @@ import {
   navigateToWork,
   mountClientWorkSection,
   mountClientDetailTabs,
+  contactShowsClientBusinessTabs,
   showClientDetailPanel,
   createClientDetailPanel,
   mountClientVaultSection,
@@ -1289,9 +1290,23 @@ function renderNewClientForm(pane) {
   registerClientField(websiteInput, () => true);
 
   let kindPill = null;
-  kindPill = mountClientKindPill(fields, clientState.draft?.kind, () => {});
-
-  mountClientBrandingSection(fields, null, clientState.draft, { disabled: true });
+  const brandingHost = document.createElement('div');
+  brandingHost.className = 'cl-new-branding-host';
+  function syncNewClientBrandingVisibility() {
+    const show = contactShowsClientBusinessTabs(
+      kindPill?.getValue?.() ?? clientState.draft?.kind,
+    );
+    brandingHost.hidden = !show;
+    if (show && !brandingHost.dataset.mounted) {
+      brandingHost.dataset.mounted = '1';
+      mountClientBrandingSection(brandingHost, null, clientState.draft, { disabled: true });
+    }
+  }
+  kindPill = mountClientKindPill(fields, clientState.draft?.kind, () => {
+    syncNewClientBrandingVisibility();
+  });
+  fields.appendChild(brandingHost);
+  syncNewClientBrandingVisibility();
 
   const notesLabel = document.createElement('label');
   notesLabel.className = 'de-label cl-notes-label';
@@ -1434,10 +1449,23 @@ function renderEditClientForm(pane) {
       const chrome = createDetailChrome(pane, 'cl-detail-chrome');
       chrome.appendChild(header);
 
-      mountClientDetailTabs(chrome, clientState.detailTab, (tabId) => {
-        clientState.detailTab = tabId;
-        showClientDetailPanel(pane, tabId);
-      });
+      const showBusinessTabs = contactShowsClientBusinessTabs(clientState.draft);
+      if (
+        !showBusinessTabs &&
+        (clientState.detailTab === 'branding' || clientState.detailTab === 'analytics')
+      ) {
+        clientState.detailTab = 'profile';
+      }
+
+      mountClientDetailTabs(
+        chrome,
+        clientState.detailTab,
+        (tabId) => {
+          clientState.detailTab = tabId;
+          showClientDetailPanel(pane, tabId);
+        },
+        { showBusinessTabs },
+      );
 
       const scroll = createClientFormScroll(pane);
       const activeTab = clientState.detailTab;
@@ -1516,26 +1544,30 @@ function renderEditClientForm(pane) {
       profilePanel.appendChild(profileBody);
       scroll.appendChild(profilePanel);
 
-      const brandingPanel = createClientDetailPanel('branding', activeTab);
-      const brandingBody = createDetailPanelBody();
-      const brandingFields = document.createElement('div');
-      brandingFields.className = 'de-fields';
-      const brandingWrap = mountClientBrandingSection(brandingFields, uid, clientState.draft, {
-        getWebsite: () => websiteInput.value,
-        onUpdate: (patch) => {
-          Object.assign(clientState.draft, patch);
-          if (patch.website != null) websiteInput.value = patch.website;
-          syncClientListAvatar(uid, {
-            logoUrl: clientState.draft.logoUrl,
-            iconUrl: clientState.draft.iconUrl,
-          });
-        },
-      });
-      clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
-      websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
-      brandingBody.appendChild(brandingFields);
-      brandingPanel.appendChild(brandingBody);
-      scroll.appendChild(brandingPanel);
+      if (showBusinessTabs) {
+        const brandingPanel = createClientDetailPanel('branding', activeTab);
+        const brandingBody = createDetailPanelBody();
+        const brandingFields = document.createElement('div');
+        brandingFields.className = 'de-fields';
+        const brandingWrap = mountClientBrandingSection(brandingFields, uid, clientState.draft, {
+          getWebsite: () => websiteInput.value,
+          onUpdate: (patch) => {
+            Object.assign(clientState.draft, patch);
+            if (patch.website != null) websiteInput.value = patch.website;
+            syncClientListAvatar(uid, {
+              logoUrl: clientState.draft.logoUrl,
+              iconUrl: clientState.draft.iconUrl,
+            });
+          },
+        });
+        clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
+        websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
+        brandingBody.appendChild(brandingFields);
+        brandingPanel.appendChild(brandingBody);
+        scroll.appendChild(brandingPanel);
+      } else {
+        clientState.brandingRefresh = null;
+      }
 
       const notesPanel = createClientDetailPanel('notes', activeTab);
       const notesBody = createDetailPanelBody();
@@ -1567,9 +1599,11 @@ function renderEditClientForm(pane) {
       mountClientVaultSection(vaultPanel, uid, clientState.draft.data || []);
       scroll.appendChild(vaultPanel);
 
-      const analyticsPanel = createClientDetailPanel('analytics', activeTab);
-      void mountClientAnalyticsSection(analyticsPanel, uid);
-      scroll.appendChild(analyticsPanel);
+      if (showBusinessTabs) {
+        const analyticsPanel = createClientDetailPanel('analytics', activeTab);
+        void mountClientAnalyticsSection(analyticsPanel, uid);
+        scroll.appendChild(analyticsPanel);
+      }
 
       const getPayload = () => {
         const firstName = firstNameInput.value.trim();
@@ -1880,6 +1914,17 @@ async function autosaveClient(uid, payload) {
       const root = getClientsEditor();
       const tabs = root?.querySelector('.em-filter-tabs');
       if (tabs) tabs.replaceWith(renderClientFilterTabs(tabs.scrollLeft));
+      const nextKind = normalizeClientKind(payload.kind);
+      if (contactShowsClientBusinessTabs(wasKind) !== contactShowsClientBusinessTabs(nextKind)) {
+        if (
+          !contactShowsClientBusinessTabs(nextKind) &&
+          (clientState.detailTab === 'branding' || clientState.detailTab === 'analytics')
+        ) {
+          clientState.detailTab = 'profile';
+        }
+        const pane = root?.querySelector('.de-pane');
+        if (pane && clientState.activeUid === uid) renderEditClientForm(pane);
+      }
     }
     if (clientActiveField) shell.flashFormFieldSaved(clientActiveField);
     return true;
