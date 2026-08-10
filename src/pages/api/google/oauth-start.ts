@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 
-export const GET: APIRoute = async ({ request, redirect }) => {
-  const clientId = import.meta.env.GOOGLE_CLIENT_ID;
+export const GET: APIRoute = async ({ redirect }) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
     return new Response(JSON.stringify({ error: 'GOOGLE_CLIENT_ID not set' }), { status: 500 });
   }
