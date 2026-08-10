@@ -54,8 +54,32 @@ const TYPING_DOTS_MS = 480;
 /** How long in-progress status lines show animated ellipsis. */
 const STATUS_HOLD_MS = 950;
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, scaleMs(ms)));
+/**
+ * Soft clock for admin play/pause/next. `wait()` freezes while paused and
+ * bails early when a scene skip is requested.
+ */
+type DemoClock = {
+  userPaused: boolean;
+  skipScene: boolean;
+};
+
+let demoClock: DemoClock = { userPaused: false, skipScene: false };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function wait(ms: number): Promise<void> {
+  let remaining = scaleMs(ms);
+  while (remaining > 0) {
+    while (demoClock.userPaused && !demoClock.skipScene) {
+      await sleep(40);
+    }
+    if (demoClock.skipScene) return;
+    const slice = Math.min(40, remaining);
+    await sleep(slice);
+    remaining -= slice;
+  }
 }
 
 function parseScenes(raw: string | undefined): HeroDemoScene[] {
@@ -279,11 +303,11 @@ function renderActions(actions: HeroDemoAction[]): HTMLElement {
   return wrap;
 }
 
-/** Tiny illegible invoice card — bones only, no copy. */
+/** Full-width illegible invoice card — static bones, no shimmer. */
 function createInvoiceSkeletonCard(): HTMLElement {
   const row = document.createElement("div");
   row.className =
-    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact home-hero-demo-msg--enter";
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
   row.setAttribute("role", "listitem");
   row.setAttribute("aria-hidden", "true");
 
@@ -302,7 +326,7 @@ function createInvoiceSkeletonCard(): HTMLElement {
 
   const lines = document.createElement("div");
   lines.className = "home-hero-demo-sk-invoice-lines";
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     const line = document.createElement("div");
     line.className = "home-hero-demo-sk-invoice-line";
     line.innerHTML =
@@ -330,7 +354,7 @@ function createInvoiceSkeletonCard(): HTMLElement {
   footer.className = "home-hero-demo-sk-invoice-footer";
   footer.innerHTML =
     '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--label"></span>' +
-    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--total" data-hero-sk-total></span>';
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--total"></span>';
 
   card.appendChild(header);
   card.appendChild(client);
@@ -343,8 +367,8 @@ function createInvoiceSkeletonCard(): HTMLElement {
 }
 
 /**
- * After "View invoice": reveal a tiny skeleton invoice, draw in a payment row,
- * then flash the total bone so the balance update reads without any text.
+ * After "View invoice": bounce a full-width skeleton invoice in from center,
+ * then draw a new payment line. No shimmer / total flash.
  */
 async function playInvoicePaymentSkeleton(
   sceneEl: HTMLElement,
@@ -353,19 +377,29 @@ async function playInvoicePaymentSkeleton(
   isAlive: () => boolean,
 ): Promise<void> {
   const row = createInvoiceSkeletonCard();
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice");
   sceneEl.appendChild(row);
   relayout(true);
+
+  if (card) {
+    if (reducedMotion) {
+      card.classList.add("home-hero-demo-sk-invoice--settled");
+    } else {
+      void card.offsetWidth;
+      card.classList.add("home-hero-demo-sk-invoice--pop");
+    }
+  }
 
   if (reducedMotion) {
     row
       .querySelector(".home-hero-demo-sk-invoice-payment--pending")
       ?.classList.remove("home-hero-demo-sk-invoice-payment--pending");
-    row.querySelector("[data-hero-sk-total]")?.classList.add("home-hero-demo-sk-bone--flash");
     await wait(480);
     return;
   }
 
-  await wait(520);
+  // Let the scale bounce land before drawing the payment line.
+  await wait(720);
   if (!isAlive()) return;
 
   const payment = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice-payment--pending");
@@ -375,17 +409,7 @@ async function playInvoicePaymentSkeleton(
     relayout(true);
   }
 
-  await wait(620);
-  if (!isAlive()) return;
-
-  const total = row.querySelector<HTMLElement>("[data-hero-sk-total]");
-  if (total) {
-    total.classList.remove("home-hero-demo-sk-bone--flash");
-    void total.offsetWidth;
-    total.classList.add("home-hero-demo-sk-bone--flash");
-  }
-
-  await wait(900);
+  await wait(1100);
 }
 
 function createUserComposingShell(
@@ -770,6 +794,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const hero = root.closest<HTMLElement>(".home-hero");
   const viewport = root.querySelector<HTMLElement>("[data-hero-demo-viewport]");
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
+  const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
@@ -779,6 +804,12 @@ export function initHeroDemoLoop(root: HTMLElement) {
   if (!depthBlurEnabled) root.classList.add("home-hero-demo--safari");
 
   timingScale = isIOSDevice() ? TIMING_SCALE * IOS_TIMING_SCALE : TIMING_SCALE;
+
+  const once = root.dataset.once === "1";
+  const startSceneId = root.dataset.startScene?.trim() || "";
+  const startIdx = startSceneId
+    ? scenes.findIndex((scene) => scene.id === startSceneId)
+    : -1;
 
   const relayout: Relayout = (flush = false) => {
     syncHeroCopyHeight(hero, copyEl);
@@ -797,46 +828,70 @@ export function initHeroDemoLoop(root: HTMLElement) {
   window.setTimeout(() => relayout(true), 150);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let sceneIndex = Math.floor(Math.random() * scenes.length);
+  let sceneIndex = startIdx >= 0 ? startIdx : Math.floor(Math.random() * scenes.length);
   let running = false;
-  let paused = true;
-  let pauseTimer = 0;
+  let offscreen = true;
+  let loopGeneration = 0;
+  let hideTimer = 0;
 
-  const pauseDemo = () => {
-    if (paused) return;
-    paused = true;
-    running = false;
-    root.classList.add("home-hero-demo--stopped");
-    window.clearTimeout(pauseTimer);
-    pauseTimer = window.setTimeout(() => {
-      root.hidden = true;
-    }, scaleMs(SCENE_EXIT_MS));
+  const playBtn = controls?.querySelector<HTMLButtonElement>("[data-hero-demo-play]");
+  const pauseBtn = controls?.querySelector<HTMLButtonElement>("[data-hero-demo-pause]");
+  const nextBtn = controls?.querySelector<HTMLButtonElement>("[data-hero-demo-next]");
+
+  const syncControls = () => {
+    if (!controls) return;
+    const frozen = demoClock.userPaused || !running;
+    controls.dataset.state = frozen ? "paused" : "playing";
+    if (playBtn) playBtn.hidden = !frozen;
+    if (pauseBtn) pauseBtn.hidden = frozen;
   };
 
-  const resumeDemo = () => {
-    if (!paused) return;
-    paused = false;
-    window.clearTimeout(pauseTimer);
+  const isAlive = () => running && !demoClock.skipScene && !offscreen;
+
+  const pauseDemoOffscreen = () => {
+    if (offscreen) return;
+    offscreen = true;
+    running = false;
+    demoClock.userPaused = false;
+    root.classList.add("home-hero-demo--stopped");
+    window.clearTimeout(hideTimer);
+    hideTimer = window.setTimeout(() => {
+      root.hidden = true;
+    }, scaleMs(SCENE_EXIT_MS));
+    syncControls();
+  };
+
+  const resumeDemoOnscreen = () => {
+    if (!offscreen && running) return;
+    offscreen = false;
+    window.clearTimeout(hideTimer);
     root.hidden = false;
     root.classList.remove("home-hero-demo--stopped");
-    resetStack(stack);
-    running = true;
-    void loop();
+    demoClock.userPaused = false;
+    demoClock.skipScene = false;
+    if (!running) {
+      resetStack(stack);
+      running = true;
+      const gen = ++loopGeneration;
+      void loop(gen);
+    }
+    syncControls();
   };
 
   const heroObserver = new IntersectionObserver(
     ([entry]) => {
-      if (entry?.isIntersecting) resumeDemo();
-      else pauseDemo();
+      if (entry?.isIntersecting) resumeDemoOnscreen();
+      else pauseDemoOffscreen();
     },
     { threshold: 0.22, rootMargin: "0px 0px -12% 0px" },
   );
   heroObserver.observe(hero);
 
   const playScene = async (scene: HeroDemoScene): Promise<void> => {
-    if (!running) return;
+    if (!isAlive()) return;
 
     resetStack(stack);
+    demoClock.skipScene = false;
 
     const sceneEl = document.createElement("div");
     sceneEl.className = "home-hero-demo-scene";
@@ -847,7 +902,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
     for (let i = 0; i < scene.turns.length; i++) {
       const turn = scene.turns[i]!;
-      if (!running) return;
+      if (!isAlive()) return;
 
       if (turn.role === "user") {
         lastAssistantRow = null;
@@ -855,14 +910,14 @@ export function initHeroDemoLoop(root: HTMLElement) {
           const pause = turn.pauseMs ?? DEFAULT_USER_PAUSE_MS;
           await wait(pause);
         }
-        if (!running) return;
+        if (!isAlive()) return;
         await playUserTurn(
           turn,
           root,
           sceneEl,
           relayout,
           reducedMotion,
-          () => running,
+          isAlive,
           scene.userAvatar,
         );
         continue;
@@ -874,29 +929,95 @@ export function initHeroDemoLoop(root: HTMLElement) {
         sceneEl,
         relayout,
         reducedMotion,
-        () => running,
+        isAlive,
         lastAssistantRow,
       );
     }
 
+    if (demoClock.skipScene || !running || offscreen) return;
+
     await wait(scene.holdMs ?? DEFAULT_HOLD_MS);
-    if (!running) return;
+    if (!isAlive()) return;
 
     await animateSceneExit(sceneEl);
-    if (!running) return;
+    if (!isAlive()) return;
 
     resetStack(stack);
   };
 
-  const loop = async () => {
-    while (running) {
+  const loop = async (gen: number) => {
+    while (running && gen === loopGeneration && !offscreen) {
       const scene = scenes[sceneIndex]!;
       sceneIndex = (sceneIndex + 1) % scenes.length;
+      demoClock.skipScene = false;
       await playScene(scene);
-      if (!running) break;
+
+      const skipped = demoClock.skipScene;
+      demoClock.skipScene = false;
+
+      if (!running || gen !== loopGeneration || offscreen) break;
+
+      if (skipped) {
+        // Admin "next": replay the pinned test scene (or advance normally).
+        if (startIdx >= 0) sceneIndex = startIdx;
+        continue;
+      }
+
+      // Temporary testing: stop after the payment / invoice scene finishes.
+      if (once || scene.id === "reggie-payment") {
+        running = false;
+        demoClock.userPaused = true;
+        syncControls();
+        break;
+      }
+
       await wait(SCENE_GAP_MS);
     }
   };
+
+  const userPlay = () => {
+    if (offscreen) return;
+    demoClock.userPaused = false;
+    demoClock.skipScene = false;
+    window.clearTimeout(hideTimer);
+    root.hidden = false;
+    root.classList.remove("home-hero-demo--stopped");
+    if (!running) {
+      resetStack(stack);
+      // Replay the pinned test scene from the top.
+      if (startIdx >= 0) sceneIndex = startIdx;
+      running = true;
+      const gen = ++loopGeneration;
+      void loop(gen);
+    }
+    syncControls();
+  };
+
+  const userPause = () => {
+    demoClock.userPaused = true;
+    syncControls();
+  };
+
+  const userNext = () => {
+    if (offscreen) return;
+    demoClock.userPaused = false;
+    demoClock.skipScene = true;
+    window.clearTimeout(hideTimer);
+    root.hidden = false;
+    root.classList.remove("home-hero-demo--stopped");
+    if (!running) {
+      if (startIdx >= 0) sceneIndex = startIdx;
+      running = true;
+      const gen = ++loopGeneration;
+      void loop(gen);
+    }
+    syncControls();
+  };
+
+  playBtn?.addEventListener("click", userPlay);
+  pauseBtn?.addEventListener("click", userPause);
+  nextBtn?.addEventListener("click", userNext);
+  syncControls();
 }
 
 export function bootHeroDemoLoop() {
