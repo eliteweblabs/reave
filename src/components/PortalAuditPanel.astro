@@ -2,9 +2,12 @@
 /**
  * Client portal Audit tab — single live online-presence diagnostic.
  * Audits are filtered out of Projects; one diagnostic per client.
+ * Comments stay on the audit job (same job_comments thread as before).
  */
 import type { AuditReportCard } from '../lib/auditReportCard';
+import type { WorkJobComment } from '../lib/workComments';
 import PortalAuditReportCard from './PortalAuditReportCard.astro';
+import PortalJobComments from './PortalJobComments.astro';
 
 interface Props {
   report: AuditReportCard | null;
@@ -12,6 +15,12 @@ interface Props {
   clientName?: string;
   website?: string;
   active?: boolean;
+  /** Audit job slug — comments attach to this work job. */
+  jobSlug?: string;
+  comments?: WorkJobComment[];
+  contactUid?: string;
+  clientAvatarUrl?: string;
+  staffAvatarUrl?: string;
 }
 
 const {
@@ -20,18 +29,46 @@ const {
   clientName = '',
   website = '',
   active = false,
+  jobSlug = '',
+  comments = [],
+  contactUid = '',
+  clientAvatarUrl = '',
+  staffAvatarUrl = '',
 } = Astro.props;
+
+const showComments = Boolean(jobSlug && contactUid);
 ---
 
 <section class={`panel portal-audit ${active ? 'active' : ''}`} data-tab-panel="audit">
   {!report ? (
     <p class="muted">No online presence diagnostic yet.</p>
   ) : (
-    <PortalAuditReportCard
-      report={report}
-      bodyHtml={report.inProgress ? '' : bodyHtml}
-      clientName={clientName}
-      website={website}
-    />
+    <>
+      <PortalAuditReportCard
+        report={report}
+        bodyHtml={report.inProgress ? '' : bodyHtml}
+        clientName={clientName}
+        website={website}
+      />
+      {showComments && (
+        <div class="portal-audit-comments">
+          <PortalJobComments
+            jobSlug={jobSlug}
+            comments={comments}
+            contactUid={contactUid}
+            clientAvatarUrl={clientAvatarUrl}
+            staffAvatarUrl={staffAvatarUrl}
+          />
+        </div>
+      )}
+    </>
   )}
 </section>
+
+<style>
+  .portal-audit-comments {
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+</style>
