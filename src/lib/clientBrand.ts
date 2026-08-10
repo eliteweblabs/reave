@@ -11,7 +11,7 @@ import {
   type ClientPortal,
   type ContactRecord,
 } from './contactApi';
-import { normalizePublicUrl } from './publicUrl';
+import { normalizePublicUrl, resolvePublicRedirectUrl } from './publicUrl';
 import { isPortalWebsiteUrlFieldLabel, portalSiteUrl } from './siteMonitoring';
 import { refreshPortalBrandColors } from './portalBrandColors';
 
@@ -171,7 +171,9 @@ async function fetchHtmlOnce(
       const location = res.headers.get('location');
       if (!location || hop >= MAX_REDIRECTS) return { ok: false };
       if (/clerk\.accounts\.dev/i.test(location)) return { ok: false };
-      current = new URL(location, current).toString();
+      const validated = resolvePublicRedirectUrl(location, current, true);
+      if (!validated) return { ok: false };
+      current = validated.toString();
       continue;
     }
 

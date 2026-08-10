@@ -4,6 +4,7 @@ const { join } = require('path');
 const { getProvider, listProviders, resolveProviderId, searchAll } = require('./providers');
 const cache = require('./lib/cache');
 const { safeCompare } = require('./lib/safeCompare');
+const { checkRateLimit, clientIp } = require('../lib/rateLimit');
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -18,6 +19,13 @@ if (!API_KEY) {
   console.error('[inventory-api] FATAL: API_KEY is required. Refusing to start without authentication.');
   process.exit(1);
 }
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 
 app.use((req, res, next) => {
   const origin = req.headers.origin || '';
@@ -35,8 +43,13 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  if (req.path === '/health' || req.path === '/knowledge' || req.method === 'OPTIONS') return next();
-  const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
+  if (req.path === '/health' || req.method === 'OPTIONS') return next();
+  const ip = clientIp(req);
+  const authLimit = checkRateLimit(`auth:${ip}`, 30, 60_000);
+  if (!authLimit.allowed) {
+    return res.status(429).json({ ok: false, error: 'Too many requests' });
+  }
+  const provided = String(req.headers['x-api-key'] || '');
   if (!safeCompare(provided, API_KEY)) {
     return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
   }

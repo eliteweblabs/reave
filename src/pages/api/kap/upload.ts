@@ -12,6 +12,8 @@ import {
 } from '../../../lib/kapRecordings';
 import { secretMatches } from '../../../lib/secretCompare';
 import { serverEnv } from '../../../lib/serverEnv';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -43,6 +45,14 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   if (!isKapUploadAuthorized(context.request)) {
     return json({ ok: false, error: 'Unauthorized' }, 401);
+  }
+
+  const rate = checkInMemoryRateLimit(`kap:${clientIp(context.request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 15,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many uploads. Please try again later.' }, 429);
   }
 
   let form: FormData;

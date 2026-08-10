@@ -11,6 +11,7 @@ import { databaseUrl, getPgPool } from './pgPool';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import { isSafeWorkSlug, workDir } from './workStore';
 import { serverEnv } from './serverEnv';
+import { sanitizeContentDispositionFilename } from './sanitizeFilename';
 
 export type ProjectFileSource = 'chat' | 'admin' | 'agent' | 'email' | 'client';
 
@@ -77,7 +78,7 @@ export function isAllowedProjectFileMediaType(
 /** SVG can embed scripts — never serve inline in the browser. */
 export function projectFileContentDisposition(mediaType: string, filename: string): string {
   const normalized = mediaType.trim().toLowerCase();
-  const safeName = filename.replace(/"/g, '');
+  const safeName = sanitizeContentDispositionFilename(filename);
   if (normalized === 'image/svg+xml') {
     return `attachment; filename="${safeName}"`;
   }

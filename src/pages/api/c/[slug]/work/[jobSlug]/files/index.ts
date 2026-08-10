@@ -13,6 +13,8 @@ import {
   storeListProjectFiles,
   type ProjectFileSummary,
 } from '../../../../../../../lib/projectFiles';
+import { checkInMemoryRateLimit } from '../../../../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -52,6 +54,14 @@ export const POST: APIRoute = async ({ params, request }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
   if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+
+  const rate = checkInMemoryRateLimit(`portal-file:${contactUid}:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 20,
+  });
+  if (!rate.ok) {
+    return json({ ok: false, error: 'Too many uploads. Please try again later.' }, 429);
+  }
 
   const ctx = await loadPortalJob(contactUid, jobSlug);
   if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);

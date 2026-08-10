@@ -36,7 +36,8 @@ const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
-const SCENE_EXIT_MS = 500;
+/** Outro fade when a mock conversation ends — keep in sync with CSS. */
+const SCENE_EXIT_MS = 350;
 const ACTION_PRESS_MS = 900;
 /** Full hero background bright pulse after a simulated action click. */
 const SECTION_PULSE_MS = 1000;
@@ -1362,6 +1363,8 @@ function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
 
   stack.style.transform = `translateY(${targetY.toFixed(2)}px)`;
   messages.forEach((msg, i) => {
+    // Don't fight the outro — rewriting opacity mid-fade makes it look instant.
+    if (msg.closest(".home-hero-demo-scene--exit")) return;
     const depth = messageDepth(newest - i);
     if (depth <= 0) applyMessageFocus(msg);
     else applyMessageDepth(msg, depth);
@@ -1587,12 +1590,44 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
     return Promise.resolve();
   }
 
+  /*
+   * Fade the bubbles themselves. A scene-level class toggle was easy to miss —
+   * the depth pass already writes inline opacity on each message, so dissolving
+   * those values to 0 is what actually reads as an outro. Pin each bubble's
+   * current opacity with transition disabled, reflow, then ease to 0 over 350ms.
+   */
+  const ms = SCENE_EXIT_MS;
+  const messages = Array.from(sceneEl.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
+
+  sceneEl.style.setProperty("--hero-scene-exit-ms", `${ms}ms`);
   sceneEl.classList.add("home-hero-demo-scene--exit");
+
+  for (const msg of messages) {
+    const current = msg.style.opacity || getComputedStyle(msg).opacity || "1";
+    msg.style.transition = "none";
+    msg.style.opacity = current;
+  }
+  void sceneEl.offsetWidth;
+
+  for (const msg of messages) {
+    msg.style.transition = `opacity ${ms}ms ease`;
+    msg.style.opacity = "0";
+  }
+
+  // No message rows (shouldn't happen) — fall back to fading the scene wrapper.
+  if (!messages.length) {
+    sceneEl.style.transition = "none";
+    sceneEl.style.opacity = "1";
+    void sceneEl.offsetWidth;
+    sceneEl.style.transition = `opacity ${ms}ms ease`;
+    sceneEl.style.opacity = "0";
+  }
+
   return new Promise((resolve) => {
     window.setTimeout(() => {
       sceneEl.remove();
       resolve();
-    }, scaleMs(SCENE_EXIT_MS));
+    }, ms);
   });
 }
 

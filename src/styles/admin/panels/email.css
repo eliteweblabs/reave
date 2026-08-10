@@ -147,13 +147,13 @@
   border-color: var(--card-border);
 }
 .em-filter-tab--purge {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.35);
-  background: rgba(248, 113, 113, 0.08);
+  color: var(--danger, #dc2626);
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 35%, transparent);
+  background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
 }
 .em-filter-tab--purge:hover {
-  color: #fecaca;
-  background: rgba(248, 113, 113, 0.14);
+  color: var(--danger-hover, #b91c1c);
+  background: color-mix(in srgb, var(--danger, #dc2626) 18%, transparent);
 }
 .em-filter-tab--purge .em-filter-purge-icon {
   position: relative;
@@ -175,7 +175,7 @@
   height: 100%;
 }
 .em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] {
-  color: #f87171;
+  color: var(--danger, #dc2626);
 }
 .em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] .em-filter-tab-label {
   opacity: 0.72;
@@ -351,12 +351,12 @@
 .ios-icon-btn.delete-confirm-btn[data-state="confirm"],
 .ch-delete-btn.delete-confirm-btn[data-state="confirm"],
 .list-selection-bar-btn--delete.delete-confirm-btn[data-state="confirm"] {
-  color: #dc2626;
+  color: var(--danger, #dc2626);
 }
 .ios-icon-btn.ch-delete-btn.delete-confirm-btn[data-state="confirm"]:hover,
 .ch-delete-btn.delete-confirm-btn[data-state="confirm"]:hover {
-  color: #b91c1c;
-  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger-hover, #b91c1c);
+  background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
 }
 /* Ring sits just outside the glyph — not stretched to the 44pt hit target. */
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
@@ -1367,12 +1367,6 @@
     display: none;
   }
 }
-.wk-file-actions .ch-delete-btn {
-  color: var(--muted);
-}
-.wk-file-actions .ch-delete-btn:hover {
-  color: #e55;
-}
 /* Confirm uses shared .ch-delete-btn.delete-confirm-btn[data-state="confirm"] red */
 .wk-files-upload {
   display: flex;
@@ -1870,11 +1864,14 @@
 }
 .os-dialog-btn--ghost:hover { color: var(--fg); background: var(--surface-hover); }
 .os-dialog-btn--danger {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: var(--danger, #dc2626);
+  border-color: var(--danger, #dc2626);
   color: #fff;
 }
-.os-dialog-btn--danger:hover { background: #b91c1c; border-color: #b91c1c; }
+.os-dialog-btn--danger:hover {
+  background: var(--danger-hover, #b91c1c);
+  border-color: var(--danger-hover, #b91c1c);
+}
 .os-dialog-btn--primary {
   color: #fff;
   background: var(--brand-gradient);
