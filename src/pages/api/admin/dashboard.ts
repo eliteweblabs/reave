@@ -11,6 +11,7 @@ import {
   storeEmailInboxDigest,
   storeListEmailInbox,
 } from '../../../lib/emailInboxStore';
+import { dedupeDashboardNotificationsByEmail } from '../../../lib/dashboardNotificationDedupe';
 import { listReviewNotifications } from '../../../lib/emailAutomation';
 import { listReceiptExpenseNotifications } from '../../../lib/emailReceiptExpense';
 import {
@@ -134,13 +135,13 @@ export async function GET(context: APIContext): Promise<Response> {
     listPushAlertNotifications(),
   ]);
   const validWorkSlugs = new Set(jobs.map((j) => j.slug));
-  const mergedNotifications = [
+  const mergedNotifications = dedupeDashboardNotificationsByEmail([
     ...emailNotifications,
     ...receiptExpenseNotifications,
     ...commentNotifications,
     ...engagementNotifications,
     ...pushAlertNotifications,
-  ].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+  ]).sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
   const { kept: automationNotifications, staleSlugs } = partitionNotificationsByExistingWork(
     mergedNotifications,
     validWorkSlugs,

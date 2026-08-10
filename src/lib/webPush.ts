@@ -127,10 +127,12 @@ export async function sendInboxPushNotification(payload: {
   emailId?: string;
   urgent?: boolean;
   kind?: PushAlertKind;
+  /** When true, phone push only — no second dashboard banner. */
+  skipDashboardAlert?: boolean;
 }): Promise<void> {
   const url = payload.emailId
     ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
     : '/admin?tab=email';
-  const { emailId: _emailId, kind, ...rest } = payload;
-  return sendPushNotification({ ...rest, url, kind });
+  const { emailId: _emailId, kind, skipDashboardAlert, ...rest } = payload;
+  return sendPushNotification({ ...rest, url, kind, skipDashboardAlert });
 }

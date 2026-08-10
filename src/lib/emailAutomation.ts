@@ -116,12 +116,14 @@ export function isProjectMatchSuggestedPendingReview(
     'action' | 'jobSlug' | 'category' | 'automationKind' | 'automationAckAt'
   >,
 ): boolean {
+  if (isNeedsExplainAction(record)) return false;
   return isSuggestedProjectMatch(record) && !record.automationAckAt;
 }
 
 export function isAutoBookedMeetingPendingReview(
   record: Pick<EmailInboxRecord, 'action' | 'bookingUid' | 'automationAckAt'>,
 ): boolean {
+  if (isNeedsExplainAction(record)) return false;
   return (
     String(record.action || '').toLowerCase() === 'booked' &&
     Boolean(record.bookingUid) &&
@@ -130,8 +132,9 @@ export function isAutoBookedMeetingPendingReview(
 }
 
 export function isAutoProjectPendingReview(
-  record: Pick<EmailInboxRecord, 'automationKind' | 'jobSlug' | 'automationAckAt'>,
+  record: Pick<EmailInboxRecord, 'automationKind' | 'jobSlug' | 'automationAckAt' | 'action'>,
 ): boolean {
+  if (isNeedsExplainAction(record)) return false;
   return (
     record.automationKind === 'project_created' &&
     Boolean(record.jobSlug) &&
@@ -140,13 +143,20 @@ export function isAutoProjectPendingReview(
 }
 
 export function isMeetingFollowupPendingReview(
-  record: Pick<EmailInboxRecord, 'automationKind' | 'bookingUid' | 'automationAckAt'>,
+  record: Pick<EmailInboxRecord, 'automationKind' | 'bookingUid' | 'automationAckAt' | 'action'>,
 ): boolean {
+  if (isNeedsExplainAction(record)) return false;
   return (
     record.automationKind === 'meeting_followup' &&
     Boolean(record.bookingUid) &&
     !record.automationAckAt
   );
+}
+
+function isNeedsExplainAction(
+  record: Pick<EmailInboxRecord, 'action'> | { action?: string | null },
+): boolean {
+  return String(record.action || '').toLowerCase() === 'needs_explain';
 }
 
 export function isMeetingRequestPendingReview(
@@ -160,9 +170,12 @@ export function isMeetingRequestPendingReview(
     | 'category'
     | 'summary'
     | 'subject'
+    | 'action'
   >,
 ): boolean {
   if (record.bookingUid || record.automationAckAt) return false;
+  // Uncertain classification owns the dashboard slot (Explain) — never also Confirm.
+  if (isNeedsExplainAction(record)) return false;
   if (record.automationKind === 'meeting_request' || record.automationKind === 'meeting_conflict') {
     return Boolean(record.proposedMeetingStart || record.schedulingNote);
   }
@@ -173,10 +186,19 @@ export function isMeetingRequestPendingReview(
 export function isLegacyMeetingRequestPendingReview(
   record: Pick<
     EmailInboxRecord,
-    'automationKind' | 'proposedMeetingStart' | 'schedulingNote' | 'bookingUid' | 'automationAckAt' | 'category' | 'summary' | 'subject'
+    | 'automationKind'
+    | 'proposedMeetingStart'
+    | 'schedulingNote'
+    | 'bookingUid'
+    | 'automationAckAt'
+    | 'category'
+    | 'summary'
+    | 'subject'
+    | 'action'
   >,
 ): boolean {
   if (record.automationKind || record.bookingUid || record.automationAckAt) return false;
+  if (isNeedsExplainAction(record)) return false;
   if (record.category === 'junk') return false;
   const blob = [record.summary, record.subject, record.schedulingNote].join(' ').toLowerCase();
   const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
