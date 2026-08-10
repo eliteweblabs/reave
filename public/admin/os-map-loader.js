@@ -189,6 +189,14 @@ import {
   confirmDiscardChanges,
 } from './clients-panel.js?v=20260807d';
 import {
+  ensureShakePermission,
+  flushShakeUndoCommit,
+  isShakeUndoPendingKey,
+  pendingShakeUndoKey,
+  queueShakeUndo,
+  shakeUndoLikelyAvailable,
+} from './shake-undo.js?v=20260810a';
+import {
   initChatPanel,
   chatState,
   loadChatsTab,
@@ -3467,107 +3475,222 @@ async function archiveReceiptFromAlert(item, btn) {
   }
 }
 
-async function dismissReviewNotification(item, btn) {
+/** Keys for notifications dismissed locally but not yet committed (undo window). */
+const pendingDismissKeys = new Set();
+
+function reviewNotificationUndoKey(item) {
+  if (item?.alertId) return `alert:${String(item.alertId).trim()}`;
+  if (item?.engagementId) return `engagement:${String(item.engagementId).trim()}`;
+  if (item?.commentId) return `comment:${String(item.commentId).trim()}`;
+  if (item?.emailId) return `email:${String(item.emailId).trim()}`;
+  return '';
+}
+
+function filterPendingDismissNotifications(notifications) {
+  if (!Array.isArray(notifications) || !notifications.length) return [];
+  if (!pendingDismissKeys.size && !pendingShakeUndoKey()) return notifications;
+  return notifications.filter((n) => {
+    const key = reviewNotificationUndoKey(n);
+    if (!key) return true;
+    if (pendingDismissKeys.has(key) || isShakeUndoPendingKey(key)) return false;
+    return true;
+  });
+}
+
+function removeReviewAlertBannerForItem(item) {
+  if (item?.alertId) return removeReviewAlertBanner(null, null, null, item.alertId);
+  if (item?.engagementId) return removeReviewAlertBanner(null, null, item.engagementId);
+  if (item?.commentId) return removeReviewAlertBanner(null, item.commentId);
+  if (item?.emailId) return removeReviewAlertBanner(item.emailId);
+  return false;
+}
+
+function restoreReviewAlertBanner(item) {
+  if (!item) return;
+  const scroll = document.querySelector('#dashboard-panel .home-dashboard-scroll');
+  if (!scroll) return;
+
+  const key = reviewNotificationUndoKey(item);
+  if (key?.startsWith('alert:')) {
+    const id = key.slice('alert:'.length);
+    if (document.querySelector(`.dash-review-alerts [data-review-alert-id="${CSS.escape(id)}"]`)) {
+      return;
+    }
+  } else if (key?.startsWith('engagement:')) {
+    const id = key.slice('engagement:'.length);
+    if (
+      document.querySelector(`.dash-review-alerts [data-review-engagement-id="${CSS.escape(id)}"]`)
+    ) {
+      return;
+    }
+  } else if (key?.startsWith('comment:')) {
+    const id = key.slice('comment:'.length);
+    if (document.querySelector(`.dash-review-alerts [data-review-comment-id="${CSS.escape(id)}"]`)) {
+      return;
+    }
+  } else if (key?.startsWith('email:')) {
+    const id = key.slice('email:'.length);
+    if (document.querySelector(`.dash-review-alerts [data-review-email-id="${CSS.escape(id)}"]`)) {
+      return;
+    }
+  }
+
+  let wrap = scroll.querySelector('.dash-review-alerts');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'dash-review-alerts';
+    scroll.insertBefore(wrap, scroll.firstChild);
+  }
+  wrap.insertBefore(buildReviewAlertBanner(item), wrap.firstChild);
+  syncOtpCountdownTimers();
+  syncReviewBadge(reviewsPendingCount + 1);
+}
+
+async function ackPushAlertOnServer(alertId, tag) {
+  const id = String(alertId || '').trim();
+  const tagStr = String(tag || '').trim();
+  if (!id) return;
+
+  const qs = tagStr ? `?tag=${encodeURIComponent(tagStr)}` : '';
+  const url = `/api/admin/alerts/${encodeURIComponent(id)}${qs}`;
+
+  async function ack(method) {
+    const res = await adminFetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) {
+      if (res.status === 404) return { missing: true };
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    if (!data.ok) {
+      throw new Error(data.error || `Unexpected response (HTTP ${res.status})`);
+    }
+    return data;
+  }
+
+  try {
+    await ack('PATCH');
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg.includes('Unexpected response') || msg.includes('Empty response')) {
+      await ack('POST');
+    } else if (msg.includes('Alert not found') || msg.includes('HTTP 404')) {
+      /* Stale banner — treat as dismissed. */
+    } else {
+      throw e;
+    }
+  }
+}
+
+async function commitDismissReviewNotification(item) {
   if (item?.alertId) {
-    const prevLabel = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      if (prevLabel) btn.textContent = 'Archiving…';
-    }
-    try {
-      await dismissPushAlertById(item.alertId, item.tag);
-    } catch (e) {
-      await osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message || String(e)) });
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        if (prevLabel) btn.textContent = prevLabel;
-      }
-    }
+    await ackPushAlertOnServer(item.alertId, item.tag);
     return;
   }
   if (item?.engagementId) {
-    const prevLabel = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      if (prevLabel) btn.textContent = 'Dismissing…';
-    }
-    try {
-      const res = await fetch(`/api/admin/engagement/${encodeURIComponent(item.engagementId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await readApiJson(res);
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      removeReviewAlertBanner(null, null, item.engagementId);
-      syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-    } catch (e) {
-      await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        if (prevLabel) btn.textContent = prevLabel;
-      }
-    }
+    const res = await fetch(`/api/admin/engagement/${encodeURIComponent(item.engagementId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return;
   }
   if (item?.commentId) {
-    const prevLabel = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      if (prevLabel) btn.textContent = 'Dismissing…';
-    }
-    try {
-      const res = await fetch(`/api/work/comments/${encodeURIComponent(item.commentId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await readApiJson(res);
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      removeReviewAlertBanner(null, item.commentId);
-      syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-    } catch (e) {
-      await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        if (prevLabel) btn.textContent = prevLabel;
-      }
-    }
+    const res = await fetch(`/api/work/comments/${encodeURIComponent(item.commentId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return;
   }
   if (!item?.emailId) return;
+
+  const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ markAutomationAck: true }),
+  });
+  const text = await res.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(res.ok ? 'Invalid server response' : `HTTP ${res.status}`);
+    }
+  }
+  if (res.status === 409 && data.requiresTriage) {
+    restoreReviewAlertBanner(item);
+    await openNotificationTriageDialog(item);
+    return;
+  }
+  if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+  if (data.event) {
+    const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
+    if (idx !== -1) emailState.allEvents[idx] = data.event;
+  }
+  if (emailState.activeId === item.emailId) renderEmailPanel();
+}
+
+async function dismissReviewNotification(item, btn) {
+  if (!item?.alertId && !item?.engagementId && !item?.commentId && !item?.emailId) return;
   if (isEmailAutomationReview(item) && item.awaitingTriage) {
     await openNotificationTriageDialog(item);
     return;
   }
+
+  const key = reviewNotificationUndoKey(item);
+  if (!key) return;
+
   const prevLabel = btn?.textContent;
   if (btn) {
     btn.disabled = true;
-    if (prevLabel) btn.textContent = 'Dismissing…';
+    if (prevLabel) {
+      btn.textContent = item.alertId ? 'Archiving…' : 'Dismissing…';
+    }
   }
-  try {
-    const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markAutomationAck: true }),
-    });
-    const data = await readApiJson(res);
-    if (res.status === 409 && data.requiresTriage) {
-      await openNotificationTriageDialog(item);
-      return;
-    }
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-    if (data.event) {
-      const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
-      if (idx !== -1) emailState.allEvents[idx] = data.event;
-    }
-    removeReviewAlertBanner(item.emailId);
+  pendingDismissKeys.add(key);
+  try {
+    removeReviewAlertBannerForItem(item);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-    if (emailState.activeId === item.emailId) renderEmailPanel();
+
+    // Start permission from this gesture (iOS); do not await the dialog.
+    void ensureShakePermission();
+
+    const shakeHint = shakeUndoLikelyAvailable();
+    await queueShakeUndo({
+      key,
+      message: shakeHint ? 'Dismissed — Shake to Undo' : 'Notification dismissed',
+      commit: async () => {
+        pendingDismissKeys.delete(key);
+        try {
+          await commitDismissReviewNotification(item);
+        } catch (e) {
+          restoreReviewAlertBanner(item);
+          await osAlert({
+            title: item.alertId ? 'Could not archive' : 'Could not dismiss',
+            bodyHtml: escHtml(e.message || String(e)),
+          });
+        }
+      },
+      undo: () => {
+        pendingDismissKeys.delete(key);
+        restoreReviewAlertBanner(item);
+      },
+    });
   } catch (e) {
-    await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
+    pendingDismissKeys.delete(key);
+    restoreReviewAlertBanner(item);
+    await osAlert({
+      title: item.alertId ? 'Could not archive' : 'Could not dismiss',
+      bodyHtml: escHtml(e?.message || String(e)),
+    });
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -4124,41 +4247,14 @@ function bindReviewAlertSwipe(alert, item) {
 
 async function dismissPushAlertById(alertId, tag) {
   const id = String(alertId || '').trim();
-  const tagStr = String(tag || '').trim();
   if (!id) return;
 
-  const qs = tagStr ? `?tag=${encodeURIComponent(tagStr)}` : '';
-  const url = `/api/admin/alerts/${encodeURIComponent(id)}${qs}`;
-
-  async function ack(method) {
-    const res = await adminFetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    const data = await readApiJson(res);
-    if (!res.ok) {
-      if (res.status === 404) return { missing: true };
-      throw new Error(data.error || `HTTP ${res.status}`);
-    }
-    if (!data.ok) {
-      throw new Error(data.error || `Unexpected response (HTTP ${res.status})`);
-    }
-    return data;
+  // OS notification Archive — commit immediately (no in-app shake window).
+  if (isShakeUndoPendingKey(`alert:${id}`)) {
+    await flushShakeUndoCommit();
   }
 
-  try {
-    await ack('PATCH');
-  } catch (e) {
-    const msg = String(e?.message || e);
-    if (msg.includes('Unexpected response') || msg.includes('Empty response')) {
-      await ack('POST');
-    } else if (msg.includes('Alert not found') || msg.includes('HTTP 404')) {
-      /* Stale banner — remove locally below. */
-    } else {
-      throw e;
-    }
-  }
-
+  await ackPushAlertOnServer(id, tag);
   removeReviewAlertBanner(null, null, null, id);
   syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
   if (MAP.type === 'dashboard') await loadAdminDashboard();
@@ -4410,7 +4506,7 @@ function openNotificationTriageDialog(item) {
 function buildReviewAlertBanners(notifications) {
   const wrap = document.createElement('div');
   wrap.className = 'dash-review-alerts';
-  for (const item of notifications) {
+  for (const item of filterPendingDismissNotifications(notifications)) {
     wrap.appendChild(buildReviewAlertBanner(item));
   }
   syncOtpCountdownTimers();
@@ -4513,9 +4609,9 @@ function renderAdminDashboard(data) {
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
   const dashTimeView = readDashTimeView();
-  const automationNotifications = Array.isArray(data?.automationNotifications)
-    ? data.automationNotifications
-    : [];
+  const automationNotifications = filterPendingDismissNotifications(
+    Array.isArray(data?.automationNotifications) ? data.automationNotifications : [],
+  );
 
   if (automationNotifications.length) {
     scroll.appendChild(buildReviewAlertBanners(automationNotifications));
@@ -5056,7 +5152,9 @@ async function refreshDashboardReviewBannersQuiet() {
     syncDashboardFooterBadges(data.stats);
 
     scroll.querySelector('.dash-review-alerts')?.remove();
-    const notifications = Array.isArray(data.automationNotifications) ? data.automationNotifications : [];
+    const notifications = filterPendingDismissNotifications(
+      Array.isArray(data.automationNotifications) ? data.automationNotifications : [],
+    );
     if (notifications.length) {
       scroll.insertBefore(buildReviewAlertBanners(notifications), scroll.firstChild);
     }
