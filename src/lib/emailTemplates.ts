@@ -5,8 +5,11 @@
  * Apple Mail and modern mobile clients render in dark or light mode
  * automatically; inline styles provide the light-mode fallback for
  * clients that strip <style> blocks (Gmail, older Outlook).
+ *
+ * Visual language mirrors the public site: dark logo header, brand
+ * gradient pill CTAs (pink → magenta), and Space Grotesk typography.
  */
-import { getCompanyConfig, hasCompanyHeaderLogoImage, companyLogoUrl } from './companyConfig';
+import { getCompanyConfig, deckQuantumHeroLogo } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 
@@ -18,18 +21,13 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Kidney-bean SVG paths — same as FootBostonTag.astro (O's in "Boston"). */
-const BEAN_BODY =
-  'M5.8 1.1c2.9-.1 4.6 2.2 4.5 5.3-.1 3.1-2 5.9-4.4 6.3-1.4.3-2.6-.4-3-1.6-.35-.95-.15-2.05.55-2.35.65-.25 1.15.75.95 2.05-.35 2.2-2.25 1.35-2.75-1.05C1.15 7.35 1.55 3.95 3.25 2.25 4.15 1.35 5 1.1 5.8 1.1Z';
-const BEAN_CREASE = 'M3.45 3.35q.55 3.65.95 7.35';
-
-function emailBeanSvg(rotateDeg: number): string {
-  return `<span style="display:inline-block;width:10px;height:10px;margin:0 1px;vertical-align:middle;line-height:0;overflow:visible" aria-hidden="true"><svg viewBox="0 0 11 14" width="10" height="13" style="display:block" focusable="false" aria-hidden="true"><g transform="rotate(${rotateDeg} 5.5 7)"><path d="${BEAN_BODY}" fill="currentColor"></path><path d="${BEAN_CREASE}" fill="none" stroke="currentColor" stroke-width=".7" stroke-linecap="round" opacity=".4"></path></g></svg></span>`;
-}
-
-/** "Baked in Boston" footer tag with bean O's — matches FootBostonTag.astro. */
-function emailBostonTagHtml(): string {
-  return `<span class="email-boston-tag" style="letter-spacing:0.02em;display:inline-block;line-height:1;color:#aaa" aria-label="Baked in Boston">Baked in B${emailBeanSvg(28)}st${emailBeanSvg(-28)}n</span>`;
+/** Absolute logo URL for <img> — admin upload, default /reave-logo.png, or empty when hidden. */
+function emailLogoAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
+  const path = deckQuantumHeroLogo(company);
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalized}`;
 }
 
 export type EmailCta = { label: string; url: string };
@@ -62,15 +60,18 @@ export async function brandedEmailHtml(opts: {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
   const brandName = company.name || 'Business OS';
-  const logoUrl = hasCompanyHeaderLogoImage(company)
-    ? `${base}${companyLogoUrl(company.logoPath, company.logoVersion)}`
-    : '';
+  const brandPrimary = company.brandPrimary || '#f472b6';
+  const brandSecondary = company.brandSecondary || '#c026d3';
+  const brandGradient = `linear-gradient(135deg, ${brandPrimary}, ${brandSecondary})`;
+  const logoUrl = emailLogoAbsoluteUrl(company, base);
   const homeUrl = base;
+  const fontStack =
+    "Space Grotesk,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
   const logoHeaderHtml = logoUrl
-    ? `<img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="88" height="28"
-           style="display:block;max-width:220px;width:auto;height:28px;border:0;outline:none;text-decoration:none" />`
-    : `<span style="display:inline-block;color:#ffffff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${esc(brandName)}</span>`;
+    ? `<img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="140" height="36"
+           style="display:block;max-width:220px;width:auto;height:36px;border:0;outline:none;text-decoration:none" />`
+    : `<span style="display:inline-block;color:#ffffff;font-family:${fontStack};font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${esc(brandName)}</span>`;
 
   const bodyRows = opts.paragraphs
     .map(
@@ -79,18 +80,19 @@ export async function brandedEmailHtml(opts: {
     )
     .join('\n');
 
+  // Solid secondary = Outlook fallback; gradient for Apple Mail & modern clients.
+  // Dark label matches homepage primary CTAs (#0b0512 on brand gradient).
   const ctaHtml = opts.cta
     ? `
       <tr>
         <td style="padding:8px 0 20px" align="center">
-          <a href="${esc(opts.cta.url)}"
-             style="display:inline-block;background:#a855f7;color:#ffffff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:15px;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:8px;letter-spacing:0.01em;mso-padding-alt:0;text-align:center">
+          <a href="${esc(opts.cta.url)}" class="email-cta"
+             style="display:inline-block;background-color:${esc(brandSecondary)};background-image:${esc(brandGradient)};color:#0b0512;font-family:${fontStack};font-size:15px;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:999px;letter-spacing:0.01em;mso-padding-alt:0;text-align:center">
             ${esc(opts.cta.label)}
           </a>
         </td>
       </tr>`
     : '';
-
   let qrHtml = '';
   if (opts.qr?.url?.trim()) {
     const qrSrc = await qrCodeDataUrl(opts.qr.url.trim(), 168);
@@ -115,7 +117,7 @@ export async function brandedEmailHtml(opts: {
             ${opts.metaRows
               .map(([label, value, href]) => {
                 const valueCell = href
-                  ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:#a855f7;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
+                  ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:${esc(brandSecondary)};font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
                   : `<span class="email-meta-value" style="color:#1a1a1a;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</span>`;
                 return `<tr>
                     <td class="email-meta-label" style="padding:8px 16px 8px 0;font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
@@ -139,7 +141,7 @@ export async function brandedEmailHtml(opts: {
           opts.unsubscribeUrl
             ? `You're receiving this because you're a contact of ${esc(brandName)}. <a href="${esc(
                 opts.unsubscribeUrl,
-              )}" class="email-link" style="color:#a855f7;text-decoration:underline">Unsubscribe</a>.`
+              )}" class="email-link" style="color:${esc(brandSecondary)};text-decoration:underline">Unsubscribe</a>.`
             : ''
         }</p></td></tr>`
       : '';
@@ -163,13 +165,12 @@ export async function brandedEmailHtml(opts: {
       .email-meta-label           { color: #8e8e93 !important; }
       .email-meta-table           { border-top-color: #38383a !important; }
       .email-note                 { color: #636366 !important; }
-      .email-footer-text,
-      .email-boston-tag           { color: #636366 !important; }
-      /* CTA button and link keep the purple — stays readable in both modes */
+      .email-footer-text          { color: #636366 !important; }
+      /* CTA keeps brand gradient / solid — readable in both modes */
     }
   </style>
 </head>
-<body class="email-outer" style="margin:0;padding:0;background-color:#f4f4f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
+<body class="email-outer" style="margin:0;padding:0;background-color:#f4f4f5;font-family:${fontStack};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-outer" style="background-color:#f4f4f5">
     <tr>
       <td align="center" style="padding:40px 16px 48px">
@@ -223,11 +224,11 @@ export async function brandedEmailHtml(opts: {
           <!-- ── Footer ────────────────────────────────────────────── -->
           <tr>
             <td style="padding:20px 32px;text-align:center">
-              <p class="email-footer-text" style="margin:0 0 8px;color:#aaa;font-size:12px;line-height:1.5">
-                ${emailBostonTagHtml()}
+              <p class="email-footer-text" style="margin:0 0 8px;color:#aaa;font-size:12px;line-height:1.5;letter-spacing:0.02em">
+                Baked in Boston
               </p>
               <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
-                Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">${esc(brandName)}</a>
+                Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandSecondary)};text-decoration:none">${esc(brandName)}</a>
               </p>
             </td>
           </tr>
