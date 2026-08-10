@@ -694,6 +694,12 @@ function renderClientsEditor() {
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
+  const mapLink = document.createElement('a');
+  mapLink.href = '/admin/client-map';
+  mapLink.className = 'cl-client-map-link';
+  mapLink.textContent = 'Open client map';
+  sidebar.appendChild(mapLink);
+
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);

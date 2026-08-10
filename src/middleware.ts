@@ -38,6 +38,8 @@ const isProtectedAdminPage = createRouteMatcher([
   "/admin/doc(.*)",
   "/admin/profile(.*)",
   "/admin/components(.*)",
+  "/admin/client-map(.*)",
+  "/admin/visit-plan(.*)",
 ]);
 
 /** PWA assets must be fetchable without a session (manifest, install flow). */

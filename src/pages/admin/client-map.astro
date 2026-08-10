@@ -1,0 +1,373 @@
+---
+/**
+ * Standalone owner-only Mapbox map of all clients, filterable by client status
+ * (kind). Lives outside the OS map SPA for now.
+ */
+export const prerender = false;
+
+import ViewportMeta from "../../components/ViewportMeta.astro";
+import "../../styles/mobile-touch.css";
+import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  return Astro.redirect(
+    `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
+  );
+}
+
+if (!(await isDeploymentOwner(Astro))) {
+  return new Response("Forbidden", { status: 403 });
+}
+
+const mapboxAccessToken = getPublicMapboxAccessToken() || "";
+const assetVersion = __PUBLIC_ASSET_VERSION__;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <title>Client map</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="/admin-shell.css" />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --fg: #e9eef6;
+        --panel: #161b22;
+        --panel-border: #30363d;
+        --card: #1c2128;
+        --card-border: #30363d;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --surface-hover: rgba(177, 186, 196, 0.12);
+        --mode-tab-active-bg: rgba(88, 166, 255, 0.14);
+        --radius-input: 8px;
+        --sidebar-inset: 0;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100vh;
+      }
+
+      .cgm-root {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem 1rem 1.5rem;
+        gap: 0.75rem;
+      }
+
+      .cgm-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.75rem 1rem;
+      }
+
+      .cgm-back {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        color: inherit;
+        text-decoration: none;
+        font-size: 0.88rem;
+      }
+
+      .cgm-back:hover {
+        background: var(--surface-hover);
+      }
+
+      .cgm-header-text {
+        flex: 1 1 220px;
+        min-width: 0;
+      }
+
+      .cgm-title {
+        margin: 0 0 0.25rem;
+        font-size: 1.55rem;
+        font-weight: 700;
+      }
+
+      .cgm-subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
+      .cgm-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem 1rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .cgm-stats strong {
+        color: var(--fg);
+        font-weight: 700;
+      }
+
+      .cgm-filters {
+        margin: 0 -0.15rem;
+      }
+
+      .cgm-filters .em-filter-tabs {
+        display: flex;
+        gap: 0.25rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 0.35rem;
+        margin: 0;
+        width: 100%;
+      }
+
+      .cgm-filters .em-filter-tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .cgm-filters .em-filter-tab {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.55rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .cgm-filters .em-filter-tab:hover {
+        color: var(--fg);
+        background: var(--surface-hover);
+      }
+
+      .cgm-filters .em-filter-tab.active {
+        color: var(--fg);
+        background: var(--mode-tab-active-bg);
+        border-color: var(--card-border);
+      }
+
+      .cgm-filters .em-filter-count {
+        font-size: 0.68rem;
+        font-weight: 700;
+        opacity: 0.85;
+      }
+
+      .cgm-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
+        gap: 0.75rem;
+        flex: 1;
+        min-height: min(68vh, 720px);
+      }
+
+      @media (max-width: 860px) {
+        .cgm-layout {
+          grid-template-columns: 1fr;
+          min-height: auto;
+        }
+      }
+
+      .cgm-map-host {
+        position: relative;
+        min-height: 360px;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card);
+      }
+
+      .cgm-map-canvas {
+        position: absolute;
+        inset: 0;
+      }
+
+      .cgm-map-empty {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.95rem;
+        background: rgba(13, 17, 23, 0.72);
+      }
+
+      .cgm-map-empty[hidden] {
+        display: none;
+      }
+
+      .cgm-marker {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+      }
+
+      .cgm-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        background: var(--panel);
+        padding: 0.85rem;
+        max-height: min(68vh, 720px);
+        overflow: auto;
+      }
+
+      .cgm-sidebar-title {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+
+      .cgm-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .cgm-list-empty {
+        color: var(--muted);
+        font-size: 0.88rem;
+        padding: 0.5rem 0.15rem;
+      }
+
+      .cgm-list-item {
+        width: 100%;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.55rem 0.6rem;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .cgm-list-item:hover {
+        background: var(--surface-hover);
+      }
+
+      .cgm-list-item.is-active {
+        border-color: rgba(88, 166, 255, 0.45);
+        background: rgba(88, 166, 255, 0.1);
+      }
+
+      .cgm-list-item.is-unlocated {
+        opacity: 0.72;
+      }
+
+      .cgm-list-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-top: 0.35rem;
+        flex-shrink: 0;
+      }
+
+      .cgm-list-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+
+      .cgm-list-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cgm-list-meta {
+        font-size: 0.75rem;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cgm-list-kind {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        flex-shrink: 0;
+        margin-top: 0.2rem;
+      }
+
+      .cgm-status {
+        padding: 0.7rem 0.9rem;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        font-size: 0.88rem;
+      }
+
+      .cgm-status--error {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(239, 68, 68, 0.12);
+        color: #f87171;
+      }
+
+      .mapboxgl-popup-content {
+        color: #0d1117;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="clients-geo-map"
+      data-mapbox-token={mapboxAccessToken}
+    ></div>
+    <script is:inline define:vars={{ mapboxAccessToken }}>
+      window.__mapboxAccessToken = mapboxAccessToken || "";
+    </script>
+    <script is:inline type="module" src={`/admin/clients-geo-map.js?v=${assetVersion}`}></script>
+  </body>
+</html>

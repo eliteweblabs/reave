@@ -677,6 +677,37 @@ export function slimPortalMetadataForList(
   return Object.keys(out).length ? out : null;
 }
 
+/**
+ * Portal projection for the admin client geo map — kind + address/coords only.
+ * Omits branding blobs and vault secrets.
+ */
+export function mapPortalMetadataForList(
+  metadata: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const m = metadata as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  const kind = normalizeClientKind(m.clientKind);
+  if (kind && kind !== 'professional') out.clientKind = kind;
+  if (m.personal === true) out.personal = true;
+  const address = contactStringField(m.address);
+  if (address) out.address = address;
+  const rawGeo = m.geo;
+  if (rawGeo && typeof rawGeo === 'object') {
+    const lat = Number((rawGeo as ClientPortalGeo).lat);
+    const lng = Number((rawGeo as ClientPortalGeo).lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      out.geo = {
+        lat,
+        lng,
+        placeId: contactStringField((rawGeo as ClientPortalGeo).placeId) || undefined,
+        geocodedAt: contactStringField((rawGeo as ClientPortalGeo).geocodedAt) || undefined,
+      };
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 async function mapPool<T>(
   items: T[],
   concurrency: number,
@@ -704,10 +735,11 @@ async function mapPool<T>(
  */
 export async function attachPortalLinksForList(
   contacts: ContactRecord[],
-  opts?: { concurrency?: number },
+  opts?: { concurrency?: number; forMap?: boolean },
 ): Promise<ContactRecord[]> {
   if (!contacts.length) return contacts;
   const concurrency = opts?.concurrency ?? 12;
+  const project = opts?.forMap ? mapPortalMetadataForList : slimPortalMetadataForList;
 
   await mapPool(contacts, concurrency, async (contact) => {
     const res = await getContactLinks(contact.uid);
@@ -722,7 +754,7 @@ export async function attachPortalLinksForList(
     }
     const meta =
       portal.metadata && typeof portal.metadata === 'object'
-        ? slimPortalMetadataForList(portal.metadata as Record<string, unknown>)
+        ? project(portal.metadata as Record<string, unknown>)
         : null;
     contact.links = meta
       ? [{ system: PORTAL_SYSTEM, externalId: portal.externalId || contact.uid, metadata: meta }]
