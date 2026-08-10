@@ -98,7 +98,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     )
   }
 
-  <div class="home-hero-copy" data-hero-copy>
+  <div id="home-hero-copy" class="home-hero-copy" data-hero-copy>
     <div class="home-hero-cta">
       {
         ctas.map((cta) => (
@@ -118,6 +118,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       }
     </div>
   </div>
+
+  {/* Reparent before paint so hero overflow cannot trap position:fixed on iOS. */}
+  <script is:inline>
+    (function () {
+      var el = document.getElementById("home-hero-copy");
+      if (el && el.parentElement !== document.body) document.body.appendChild(el);
+    })();
+  </script>
 </section>
 
 {
@@ -131,6 +139,69 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 <script>
   import "../../lib/homeHeroCtaPin.ts";
 </script>
+
+<style is:global>
+  /*
+   * CTAs live on <body> (inline reparent + homeHeroCtaPin). Keep the shell
+   * positioning global so scoped Astro CSS cannot fail after the move.
+   * visualViewport pin adjusts `bottom` so mobile Safari chrome does not
+   * drift them from the page-load footer spot; Contact toggles
+   * .is-contact-occluding to slide them out of view.
+   */
+  .home-hero-copy {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 940;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+    pointer-events: none;
+    /*
+     * No resting transform — iOS Safari can stop compositing position:fixed
+     * at the visual viewport while a transform is present, so the CTAs drift
+     * from their page-load footer spot during scroll.
+     */
+    transform: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
+  }
+
+  .home-hero-copy.is-contact-occluding {
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-copy {
+      transition: none;
+    }
+
+    .home-hero-copy.is-contact-occluding {
+      transform: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
+  .home-hero-copy :is(a, button) {
+    pointer-events: auto;
+  }
+</style>
 
 <style>
   .home-hero {
@@ -226,58 +297,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: 100%;
     height: 100%;
     filter: var(--brand-glow-filter);
-  }
-
-  /*
-   * CTAs — fixed to the viewport footer so "How's it Work?" / "Demo" stay put
-   * while the page scrolls. Slide away at #contact like the live chat FAB.
-   */
-  .home-hero-copy {
-    position: fixed;
-    z-index: 940;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
-    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
-    text-align: center;
-    pointer-events: none;
-    transform: translateY(0);
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0s;
-  }
-
-  .home-hero-copy.is-contact-occluding {
-    transform: translateY(calc(100% + 28px));
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0.55s;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .home-hero-copy {
-      transition: none;
-    }
-
-    .home-hero-copy.is-contact-occluding {
-      transform: none;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-  }
-
-  .home-hero-copy :is(a, button) {
-    pointer-events: auto;
   }
 
   .home-hero-title {
