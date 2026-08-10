@@ -509,9 +509,11 @@ function stripMapToLandAndWater(map: any) {
   }
 }
 
-function createGpsPinElement(): HTMLElement {
+/** Fixed center reticle — not a Mapbox HTML marker (parent transforms break those). */
+function createGpsPinOverlay(): HTMLElement {
   const el = document.createElement("div");
   el.className = "home-hero-demo-sk-gps-marker";
+  el.setAttribute("data-hero-gps-marker", "");
   el.innerHTML =
     '<span class="home-hero-demo-sk-gps-ring"></span>' +
     '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--mid"></span>' +
@@ -520,7 +522,7 @@ function createGpsPinElement(): HTMLElement {
   return el;
 }
 
-/** Letterbox for Mapbox fly-in — map canvas only. */
+/** Letterbox for Mapbox fly-in — map canvas + centered pin overlay. */
 function createGpsLocateCard(): HTMLElement {
   const row = document.createElement("div");
   row.className =
@@ -539,15 +541,16 @@ function createGpsLocateCard(): HTMLElement {
   mapEl.setAttribute("data-hero-gps-map", "");
 
   viewport.appendChild(mapEl);
+  viewport.appendChild(createGpsPinOverlay());
   card.appendChild(viewport);
   row.appendChild(card);
   return row;
 }
 
 /**
- * Status-line GPS beat: Mapbox fly-in over land/water only. Pin appears mid-flight,
- * ends centered with a looping radar pulse, then stays in the stack and scrolls up
- * with later turns (no swipe-away).
+ * Status-line GPS beat: Mapbox fly-in over land/water only. A fixed center pin
+ * (targeting reticle) appears mid-flight with a radar pulse; the map flies the
+ * site under it. Letterbox stays in the stack and scrolls up with later turns.
  */
 async function playGpsLocateSkeleton(
   sceneEl: HTMLElement,
@@ -559,8 +562,8 @@ async function playGpsLocateSkeleton(
   const FLY_MS = 2600;
   const MARKER_AT = Math.round(FLY_MS * 0.66);
   const END_ZOOM = 13.4;
-  const END_PITCH = 0;
-  const END_BEARING = 0;
+  const END_PITCH = 48;
+  const END_BEARING = -22;
   // Arbitrary coastal job site — not meant to match a real address.
   const TARGET: [number, number] = [-70.255, 43.661];
   const START: [number, number] = [-95.7, 37.1];
@@ -568,6 +571,7 @@ async function playGpsLocateSkeleton(
   const row = createGpsLocateCard();
   const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps");
   const mapEl = row.querySelector<HTMLElement>("[data-hero-gps-map]");
+  const pinEl = row.querySelector<HTMLElement>("[data-hero-gps-marker]");
 
   sceneEl.appendChild(row);
   relayout(true);
@@ -578,6 +582,7 @@ async function playGpsLocateSkeleton(
   }
 
   if (!mapboxToken || !mapEl) {
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
     await wait(reducedMotion ? 400 : 900);
     return;
   }
@@ -586,15 +591,8 @@ async function playGpsLocateSkeleton(
   if (!isAlive()) return;
 
   let map: any = null;
-  let marker: any = null;
 
   const teardown = () => {
-    try {
-      marker?.remove?.();
-    } catch {
-      /* ignore */
-    }
-    marker = null;
     try {
       map?.remove?.();
     } catch {
@@ -626,8 +624,8 @@ async function playGpsLocateSkeleton(
       style: "mapbox://styles/mapbox/dark-v11",
       center: reducedMotion ? TARGET : START,
       zoom: reducedMotion ? END_ZOOM : 2.4,
-      pitch: 0,
-      bearing: 0,
+      pitch: reducedMotion ? END_PITCH : 0,
+      bearing: reducedMotion ? END_BEARING : 0,
       interactive: false,
       attributionControl: false,
       fadeDuration: 0,
@@ -651,35 +649,17 @@ async function playGpsLocateSkeleton(
 
     map.resize();
     relayout(true);
+    // Pop/scale on ancestors can leave the canvas mis-sized — resize again after paint.
+    requestAnimationFrame(() => map?.resize());
 
-    const pinEl = createGpsPinElement();
-    marker = new mapboxgl.Marker({ element: pinEl, anchor: "center" }).setLngLat(TARGET);
-
-    const lockCentered = () => {
-      if (!map) return;
-      map.resize();
+    if (reducedMotion) {
       map.jumpTo({
         center: TARGET,
         zoom: END_ZOOM,
         pitch: END_PITCH,
         bearing: END_BEARING,
       });
-      // Second tick after layout — keeps the pin dead-center after stack shifts.
-      requestAnimationFrame(() => {
-        map?.resize();
-        map?.jumpTo({
-          center: TARGET,
-          zoom: END_ZOOM,
-          pitch: END_PITCH,
-          bearing: END_BEARING,
-        });
-      });
-    };
-
-    if (reducedMotion) {
-      marker.addTo(map);
-      pinEl.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
-      lockCentered();
+      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
       await wait(480);
     } else {
       const flyDuration = scaleMs(FLY_MS);
@@ -695,7 +675,7 @@ async function playGpsLocateSkeleton(
         bearing: END_BEARING,
         duration: flyDuration,
         essential: true,
-        curve: 1.4,
+        curve: 1.35,
       });
 
       await wait(MARKER_AT);
@@ -705,8 +685,8 @@ async function playGpsLocateSkeleton(
         return;
       }
 
-      marker.addTo(map);
-      pinEl.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+      // Fixed center reticle — world flies under it; always letterbox-centered.
+      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
 
       await flyDone;
       if (!isAlive()) {
@@ -715,14 +695,20 @@ async function playGpsLocateSkeleton(
         return;
       }
 
-      // Snap so the pin finishes exactly at the letterbox center.
-      lockCentered();
+      map.resize();
+      map.jumpTo({
+        center: TARGET,
+        zoom: END_ZOOM,
+        pitch: END_PITCH,
+        bearing: END_BEARING,
+      });
       await wait(420);
     }
 
     card?.classList.remove("home-hero-demo-sk-gps--pop");
     card?.classList.add("home-hero-demo-sk-gps--settled");
     relayout(true);
+    requestAnimationFrame(() => map?.resize());
     // Leave the letterbox in the stack — later turns scroll it up naturally.
   } catch {
     teardown();
