@@ -381,29 +381,53 @@ function findLetterGrade(text: string): LetterGrade | null {
   return null;
 }
 
-/** Prefer explicit mobile/desktop performance scores; average when both exist. */
-function extractPerformanceScore(text: string): number | null {
+/** Mobile/desktop Lighthouse-style pairs from freeform audit prose. */
+function extractMobileDesktopPair(text: string): {
+  mobile: number | null;
+  desktop: number | null;
+} {
+  if (!text.trim()) return { mobile: null, desktop: null };
+  // Common agent shapes:
+  //   Mobile: 96 / 100 · Desktop: 96 / 100 — Outstanding…
+  //   mobile performance: 42
+  //   Performance score: 42 / 78  (handled separately via named extractors)
   const mobile = findNumber(text, [
-    /mobile[^\n]{0,80}?performance\s*[:=]\s*(\d{1,3})/i,
-    /mobile(?:\s+performance|\s+perf(?:ormance)?\s*score)?\s*[:\-–]?\s*(\d{1,3})/i,
-    /performance[^.\n]{0,40}?mobile[^.\n]{0,20}?(\d{1,3})/i,
+    /\bmobile\b[^\n]{0,40}?(?:performance|accessibility|seo|best[-\s]?practices?)?[^\n]{0,20}?[:=]\s*(\d{1,3})/i,
+    /\bmobile\b(?:\s+(?:performance|accessibility|seo|best[-\s]?practices?|score))?\s*[:\-–]?\s*(\d{1,3})(?:\s*\/\s*100)?/i,
+    /(?:performance|accessibility)[^.\n]{0,40}?\bmobile\b[^.\n]{0,20}?(\d{1,3})/i,
   ]);
   const desktop = findNumber(text, [
-    /desktop[^\n]{0,80}?performance\s*[:=]\s*(\d{1,3})/i,
-    /desktop(?:\s+performance|\s+perf(?:ormance)?\s*score)?\s*[:\-–]?\s*(\d{1,3})/i,
-    /performance[^.\n]{0,40}?desktop[^.\n]{0,20}?(\d{1,3})/i,
+    /\bdesktop\b[^\n]{0,40}?(?:performance|accessibility|seo|best[-\s]?practices?)?[^\n]{0,20}?[:=]\s*(\d{1,3})/i,
+    /\bdesktop\b(?:\s+(?:performance|accessibility|seo|best[-\s]?practices?|score))?\s*[:\-–]?\s*(\d{1,3})(?:\s*\/\s*100)?/i,
+    /(?:performance|accessibility)[^.\n]{0,40}?\bdesktop\b[^.\n]{0,20}?(\d{1,3})/i,
   ]);
+  return { mobile, desktop };
+}
+
+function averageScores(vals: Array<number | null | undefined>): number | null {
+  const nums = vals.filter((n): n is number => n != null && !Number.isNaN(n));
+  if (!nums.length) return null;
+  if (nums.length === 1) return nums[0];
+  return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+}
+
+/** Prefer explicit mobile/desktop scores; average when both exist. */
+function extractMobileDesktopScore(text: string): number | null {
+  const { mobile, desktop } = extractMobileDesktopPair(text);
+  return averageScores([mobile, desktop]);
+}
+
+/** Prefer explicit mobile/desktop performance scores; average when both exist. */
+function extractPerformanceScore(text: string): number | null {
+  const pairScore = extractMobileDesktopScore(text);
   const generic = findNumber(text, [
     /(?:scores?[^\n]{0,60})?\bperformance\s*[:=]\s*(\d{1,3})/i,
     /(?:performance|perf(?:ormance)?\s*score)\s*[:\-–]?\s*(\d{1,3})/i,
     /performance[^.\n]{0,40}?(\d{1,3})\s*\/\s*100/i,
   ]);
-  const vals = [mobile, desktop, generic].filter(
-    (n, i, arr): n is number => n != null && arr.indexOf(n) === i,
-  );
-  if (!vals.length) return null;
-  if (vals.length === 1) return vals[0];
-  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  // Viewport pair wins when present — don't let a stray generic dilute 96/96.
+  if (pairScore != null) return pairScore;
+  return generic;
 }
 
 function extractNamedScore(text: string, names: RegExp): number | null {
@@ -801,21 +825,50 @@ function primaryFinding(why: string[], fallback: string): string {
   return first.length > 180 ? `${first.slice(0, 177).trim()}…` : first;
 }
 
+const ROSY_FINDING_RE =
+  /outstanding|excellent|perfect|no (?:major )?(?:issues?|problems?)|looks? great|across both viewports/i;
+const WEAK_FINDING_RE =
+  /missing|fail|expired|invalid|critical|no confirmed|not found|weak|risk|error|insecure|broken|none|gap|needs? (?:work|attention)|room to improve/i;
+
 /** Prefer a finding that matches a weak/failing grade instead of a rosy first bullet. */
 function primaryFindingForGrade(
   why: string[],
   fallback: string,
   grade: LetterGrade | null,
 ): string {
-  if (grade === 'D' || grade === 'F') {
-    const negative = why.find((w) =>
-      /missing|fail|expired|invalid|critical|no confirmed|not found|weak|risk|error|insecure|broken|none|gap/i.test(
-        w,
-      ),
-    );
+  if (grade === 'C' || grade === 'D' || grade === 'F') {
+    const negative = why.find((w) => WEAK_FINDING_RE.test(w));
     if (negative) return primaryFinding([negative], fallback);
+    // Middling/poor grade with only praise in the bullets — never claim "outstanding".
+    const first = why.find((w) => w.length > 12) || why[0];
+    if (first && ROSY_FINDING_RE.test(first)) return fallback;
   }
   return primaryFinding(why, fallback);
+}
+
+/**
+ * Keep card copy honest when mobile/desktop numbers and the graded score disagree.
+ * Near-perfect viewport scores must not sit next to a C without saying what dragged it down.
+ */
+function findingAlignedToScore(
+  why: string[],
+  label: string,
+  score: number | null,
+  grade: LetterGrade | null,
+): string {
+  const fallback =
+    score != null ? `${label} scored ${score}/100.` : `${label} needs a closer look.`;
+  const pair = extractMobileDesktopPair(why.join('\n'));
+  if (pair.mobile != null && pair.desktop != null && score != null) {
+    const avg = Math.round((pair.mobile + pair.desktop) / 2);
+    if (score <= avg - 6) {
+      return (
+        `Mobile ${pair.mobile}/100 · Desktop ${pair.desktop}/100 — overall ${score}/100 ` +
+        `after other ${label.toLowerCase()} issues called out in the audit.`
+      );
+    }
+  }
+  return primaryFindingForGrade(why, fallback, grade);
 }
 
 function extractActionItems(body: string): string[] {
@@ -1180,10 +1233,7 @@ function scoreCategory(
       ? section.trim()
         ? `${label} notes on file`
         : emptySummary
-      : primaryFinding(
-          why,
-          score != null ? `${label} scored ${score}/100.` : `${label} needs a closer look.`,
-        );
+      : findingAlignedToScore(why, label, score, grade);
   return {
     id,
     label,
@@ -1291,11 +1341,24 @@ export function buildAuditReportCard(input: {
     extractPerformanceScore(perfSection) ??
     lhScores.performance ??
     extractNamedScore(scorePool, /performance/);
-  const a11yScore =
-    lhScores.accessibility ??
+  // Agents often write "Mobile: 96 / 100 · Desktop: 96 / 100". Parse that
+  // pair so we don't fall through to grade C (72) while the finding still
+  // quotes near-perfect viewport scores. When an explicit accessibility
+  // score is meaningfully worse than the pair, keep the lower score so the
+  // card can explain what dragged the overall down.
+  const a11yViewportScore = extractMobileDesktopScore(a11ySection);
+  const a11yNamedScore =
     extractNamedScore(a11ySection, /accessibility/) ??
     extractBareScore(a11ySection) ??
+    extractLighthouseScoreMap(a11ySection).accessibility ??
+    lhScores.accessibility ??
     extractNamedScore(scorePool, /accessibility/);
+  const a11yScore =
+    a11yViewportScore != null &&
+    a11yNamedScore != null &&
+    a11yNamedScore <= a11yViewportScore - 6
+      ? a11yNamedScore
+      : (a11yViewportScore ?? a11yNamedScore);
   const bpScore =
     lhScores.best_practices ??
     extractNamedScore(bpSection, /best[-\s]?practices?/) ??
@@ -1361,7 +1424,11 @@ export function buildAuditReportCard(input: {
     ) {
       return 'D' as LetterGrade;
     }
-    if (/pass|good|no major|excellent|100\s*\/\s*100/.test(lower)) return 'A' as LetterGrade;
+    if (
+      /pass|good|no major|excellent|outstanding|9\d\s*\/\s*100|100\s*\/\s*100/.test(lower)
+    ) {
+      return 'A' as LetterGrade;
+    }
     if (a11ySection.trim() || /alt text|contrast|tap target|accessib/i.test(lower)) {
       return 'C' as LetterGrade;
     }
