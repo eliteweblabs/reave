@@ -1,5 +1,5 @@
 /** Crafted hero demo scenes — multi-turn conversations with optional action chips. */
-export type HeroDemoActionEffect = "invoice-payment";
+export type HeroDemoActionEffect = "invoice-payment" | "proposal-flow";
 /** Plays during an assistant turn (e.g. status line) before the scene continues. */
 export type HeroDemoTurnEffect = "gps-locate";
 
@@ -61,20 +61,51 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "user",
-        text: "Text the crew lead he's clear to start rough-in.",
+        text: "Text the crew he's clear to start rough-in.",
         kind: "voice",
         pauseMs: 1400,
       },
       {
         role: "assistant",
-        text: "Sent to Mike Torres — delivered.",
+        text: "SMS sent to Mike Torres, Jordan Hale, and Ava Brooks.",
         pauseMs: 1200,
+      },
+    ],
+  },
+  {
+    id: "susie-proposal",
+    userAvatar: "/images/hero-demo/nda-signing.png",
+    holdMs: 1100,
+    turns: [
+      {
+        role: "user",
+        text: "Generate a proposal for Susie's Cookies in Springfield.",
+        kind: "voice",
       },
       {
         role: "assistant",
-        text: "Susie from Susie's Cookies just opened your Digital Marketing Strategy proposal.",
+        text: "Found Susie's Cookies — bakery at 412 Main St, Springfield, MO. Owner Susie Miller, susie@susiescookies.com, (417) 555-0198. Looks like a fit for digital marketing. Does that look right?",
+        pauseMs: 1600,
+      },
+      {
+        role: "user",
+        text: "Yes.",
+        kind: "voice",
         pauseMs: 1400,
-        actions: [{ label: "View activity", variant: "secondary" }],
+      },
+      {
+        role: "assistant",
+        text: "Do you want to use a template or start from scratch?",
+        pauseMs: 1500,
+        actions: [
+          { label: "Bronze", variant: "secondary" },
+          {
+            label: "Silver",
+            variant: "primary",
+            effect: "proposal-flow",
+          },
+          { label: "Gold", variant: "secondary" },
+        ],
       },
     ],
   },
@@ -98,12 +129,6 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         text: "Draft invoice INV-0042 is ready for review.",
         pauseMs: 1700,
         actions: [{ label: "Review draft", variant: "primary" }],
-      },
-      {
-        role: "assistant",
-        text: "Susie from Susie's Cookies opened the Digital Marketing Strategy proposal — 4 minutes ago.",
-        pauseMs: 1300,
-        actions: [{ label: "View proposal", variant: "secondary" }],
       },
       {
         role: "user",
@@ -135,7 +160,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Sarah viewed the proposal 2 minutes ago.",
+        text: "Sarah viewed the NDA document 2 minutes ago.",
         pauseMs: 1500,
         actions: [{ label: "View signing status", variant: "secondary" }],
       },

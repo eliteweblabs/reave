@@ -463,6 +463,287 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
+/** Compact dashboard toast — same center-scale overshoot as the invoice card. */
+function createDashboardNotificationCard(title: string, detail: string): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-notif";
+
+  const dot = document.createElement("span");
+  dot.className = "home-hero-demo-sk-notif-dot";
+  dot.setAttribute("aria-hidden", "true");
+
+  const copy = document.createElement("div");
+  copy.className = "home-hero-demo-sk-notif-copy";
+
+  const titleEl = document.createElement("p");
+  titleEl.className = "home-hero-demo-sk-notif-title";
+  titleEl.textContent = title;
+
+  const detailEl = document.createElement("p");
+  detailEl.className = "home-hero-demo-sk-notif-detail";
+  detailEl.textContent = detail;
+
+  copy.appendChild(titleEl);
+  copy.appendChild(detailEl);
+  card.appendChild(dot);
+  card.appendChild(copy);
+  row.appendChild(card);
+  return row;
+}
+
+/** Contract artifact — line bones draw in, then a signature strokes at the bottom. */
+function createContractSkeletonCard(): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-contract";
+
+  const header = document.createElement("div");
+  header.className = "home-hero-demo-sk-contract-header";
+  header.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--title"></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--meta"></span>';
+
+  const body = document.createElement("div");
+  body.className = "home-hero-demo-sk-contract-body";
+  const widths = ["92%", "86%", "78%", "90%", "64%"];
+  for (const width of widths) {
+    const line = document.createElement("span");
+    line.className = "home-hero-demo-sk-contract-line";
+    line.style.setProperty("--hero-contract-line-w", width);
+    body.appendChild(line);
+  }
+
+  const signBlock = document.createElement("div");
+  signBlock.className = "home-hero-demo-sk-contract-sign";
+  signBlock.innerHTML =
+    '<span class="home-hero-demo-sk-contract-sign-label"></span>' +
+    '<svg class="home-hero-demo-sk-contract-signature" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path class="home-hero-demo-sk-contract-signature-path" d="M8 24 C18 8, 28 8, 36 20 C42 30, 48 30, 56 18 C64 6, 74 10, 82 22 C90 34, 102 28, 112 16 C120 8, 132 12, 148 22" />' +
+    "</svg>" +
+    '<span class="home-hero-demo-sk-contract-sign-rule"></span>';
+
+  card.appendChild(header);
+  card.appendChild(body);
+  card.appendChild(signBlock);
+  row.appendChild(card);
+  return row;
+}
+
+async function appendAssistantChat(
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  text: string,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  opts?: { status?: boolean; pauseMs?: number; priorRow?: HTMLElement | null },
+): Promise<HTMLElement | null> {
+  const isStatus = opts?.status === true || isStatusMessage(text);
+
+  // Status → reply in the same bubble (matches the main assistant turn path).
+  if (!isStatus && opts?.priorRow?.dataset.heroAwaitingReply === "1") {
+    await wait(ASSISTANT_RESPONSE_DELAY_MS);
+    if (!isAlive()) return opts.priorRow;
+    morphStatusToReply(opts.priorRow, { role: "assistant", text });
+    relayout(true);
+    if (opts.pauseMs != null) await wait(opts.pauseMs);
+    return opts.priorRow;
+  }
+
+  const typing = createTypingIndicator(root);
+  typing.classList.add("home-hero-demo-msg--enter");
+  sceneEl.appendChild(typing);
+  relayout(true);
+
+  await wait(reducedMotion ? 280 : TYPING_DOTS_MS);
+  if (!isAlive()) return null;
+
+  morphTypingToMessage(typing, { role: "assistant", text }, isStatus);
+  relayout(true);
+
+  if (isStatus) {
+    typing.dataset.heroAwaitingReply = "1";
+    await wait(opts?.pauseMs ?? STATUS_HOLD_MS);
+    if (!isAlive()) return typing;
+  } else if (opts?.pauseMs != null) {
+    await wait(opts.pauseMs);
+    if (!isAlive()) return typing;
+  }
+
+  return typing;
+}
+
+async function playDashboardNotification(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  title: string,
+  detail: string,
+): Promise<void> {
+  const row = createDashboardNotificationCard(title, detail);
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-notif");
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (card) {
+    if (reducedMotion) {
+      card.classList.add("home-hero-demo-sk-notif--settled");
+    } else {
+      void card.offsetWidth;
+      card.classList.add("home-hero-demo-sk-notif--pop");
+    }
+  }
+
+  await wait(reducedMotion ? 700 : 1100);
+  if (!isAlive()) return;
+}
+
+async function playContractSkeleton(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const row = createContractSkeletonCard();
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-contract");
+  const lines = Array.from(row.querySelectorAll<HTMLElement>(".home-hero-demo-sk-contract-line"));
+  const signature = row.querySelector<HTMLElement>(".home-hero-demo-sk-contract-signature");
+
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (card) {
+    if (reducedMotion) {
+      card.classList.add("home-hero-demo-sk-contract--settled");
+      for (const line of lines) line.classList.add("home-hero-demo-sk-contract-line--in");
+      signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+      await wait(900);
+      return;
+    }
+    void card.offsetWidth;
+    card.classList.add("home-hero-demo-sk-contract--pop");
+  }
+
+  await wait(720);
+  if (!isAlive()) return;
+
+  for (const line of lines) {
+    if (!isAlive()) return;
+    line.classList.add("home-hero-demo-sk-contract-line--in");
+    relayout(true);
+    await wait(140);
+  }
+
+  await wait(280);
+  if (!isAlive()) return;
+
+  signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+  await wait(1400);
+  if (!isAlive()) return;
+}
+
+/**
+ * After Silver template press: send proposal → viewed/accepted toasts →
+ * contract draw + signature. Ends with a hard cut like the invoice beat.
+ */
+async function playProposalFlow(
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const sendingRow = await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Sending Silver proposal to susie@susiescookies.com…",
+    reducedMotion,
+    isAlive,
+    { status: true, pauseMs: 900 },
+  );
+  if (!isAlive()) return;
+
+  await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Proposal sent to susie@susiescookies.com.",
+    reducedMotion,
+    isAlive,
+    { pauseMs: 900, priorRow: sendingRow },
+  );
+  if (!isAlive()) return;
+
+  await playDashboardNotification(
+    sceneEl,
+    relayout,
+    reducedMotion,
+    isAlive,
+    "Proposal viewed",
+    "Susie's Cookies",
+  );
+  if (!isAlive()) return;
+
+  await wait(650);
+  if (!isAlive()) return;
+
+  await playDashboardNotification(
+    sceneEl,
+    relayout,
+    reducedMotion,
+    isAlive,
+    "Proposal accepted",
+    "Susie's Cookies",
+  );
+  if (!isAlive()) return;
+
+  await wait(550);
+  if (!isAlive()) return;
+
+  const contractStatus = await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Sending contract…",
+    reducedMotion,
+    isAlive,
+    { status: true, pauseMs: 850 },
+  );
+  if (!isAlive()) return;
+
+  await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Service agreement ready for signature.",
+    reducedMotion,
+    isAlive,
+    { pauseMs: 500, priorRow: contractStatus },
+  );
+  if (!isAlive()) return;
+
+  await playContractSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+  if (!isAlive()) return;
+
+  await wait(1200);
+  if (!isAlive()) return;
+
+  sceneEl.dataset.heroHardCut = "1";
+}
+
 const MAPBOX_CSS = "https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css";
 const MAPBOX_JS = "https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm";
 /** Dark basemap — static + GL share the same look. */
@@ -1194,7 +1475,14 @@ async function playAssistantTurn(
     if (turn.actions?.length) {
       await wait(ACTION_PRESS_MS + 400);
       if (!isAlive()) return priorAssistantRow;
-      await simulateActionPress(priorAssistantRow, sceneEl, relayout, reducedMotion, isAlive);
+      await simulateActionPress(
+        priorAssistantRow,
+        sceneEl,
+        root,
+        relayout,
+        reducedMotion,
+        isAlive,
+      );
     }
 
     return priorAssistantRow;
@@ -1250,7 +1538,7 @@ async function playAssistantTurn(
   if (turn.actions?.length) {
     await wait(ACTION_PRESS_MS + 400);
     if (!isAlive()) return typing;
-    await simulateActionPress(typing, sceneEl, relayout, reducedMotion, isAlive);
+    await simulateActionPress(typing, sceneEl, root, relayout, reducedMotion, isAlive);
   }
 
   return typing;
@@ -1259,12 +1547,14 @@ async function playAssistantTurn(
 async function simulateActionPress(
   row: HTMLElement,
   sceneEl: HTMLElement,
+  root: HTMLElement,
   relayout: Relayout,
   reducedMotion: boolean,
   isAlive: () => boolean,
 ): Promise<void> {
+  const withEffect = row.querySelector<HTMLElement>(".home-hero-demo-action[data-hero-effect]");
   const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
-  const target = primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
+  const target = withEffect ?? primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
   if (!target) return;
 
   const hero = row.closest<HTMLElement>(".home-hero");
@@ -1285,6 +1575,8 @@ async function simulateActionPress(
 
   if (effect === "invoice-payment") {
     await playInvoicePaymentSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+  } else if (effect === "proposal-flow") {
+    await playProposalFlow(root, sceneEl, relayout, reducedMotion, isAlive);
   }
 }
 
