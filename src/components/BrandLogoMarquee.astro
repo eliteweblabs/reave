@@ -2,14 +2,14 @@
 /**
  * Dual horizontal logo marquee (opposite scroll directions). Same effect as
  * the homepage integrations section — icons from public/logos/<folder>/.
+ * Edge fade is an opacity mask so the patterned page background shows through
+ * (no solid-color gradient “box”).
  */
 import { listBrandLogos, type BrandLogo } from "../lib/brandLogos";
 
 interface Props {
   /** Subfolder under public/logos/, e.g. "replaced-apps". */
   folder?: string;
-  /** Edge fade color — match the surface behind the marquee. */
-  fadeColor?: string;
   /** One full loop duration. */
   duration?: string;
   class?: string;
@@ -17,7 +17,6 @@ interface Props {
 
 const {
   folder = "replaced-apps",
-  fadeColor = "#050505",
   duration = "80s",
   class: className,
 } = Astro.props;
@@ -42,7 +41,7 @@ const bottomLoop = loopRow(bottomRow);
     <div
       class:list={["blm", className]}
       aria-hidden="true"
-      style={`--blm-fade: ${fadeColor}; --blm-duration: ${duration};`}
+      style={`--blm-duration: ${duration};`}
     >
       {
         topLoop.length > 0 && (
@@ -84,8 +83,6 @@ const bottomLoop = loopRow(bottomRow);
           </div>
         )
       }
-      <div class="blm-fade blm-fade--left" />
-      <div class="blm-fade blm-fade--right" />
     </div>
   )
 }
@@ -99,6 +96,21 @@ const bottomLoop = loopRow(bottomRow);
     min-width: 0;
     width: 100%;
     overflow: hidden;
+    /* Fade logos out at the edges via opacity — background pattern stays visible. */
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 12%,
+      #000 88%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 12%,
+      #000 88%,
+      transparent 100%
+    );
   }
 
   .blm-scroller {
@@ -151,24 +163,5 @@ const bottomLoop = loopRow(bottomRow);
     height: 40px;
     object-fit: contain;
     opacity: 0.92;
-  }
-
-  .blm-fade {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: min(128px, 18vw);
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  .blm-fade--left {
-    left: 0;
-    background: linear-gradient(to right, var(--blm-fade, #050505) 0%, transparent 100%);
-  }
-
-  .blm-fade--right {
-    right: 0;
-    background: linear-gradient(to left, var(--blm-fade, #050505) 0%, transparent 100%);
   }
 </style>
