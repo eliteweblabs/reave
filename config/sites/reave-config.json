@@ -20,6 +20,7 @@
   ],
   "nav": {
     "links": [
+      { "href": "/features", "label": "Features" },
       { "href": "/platform", "label": "Platform" },
       { "href": "/compare", "label": "Compare" },
       { "href": "/pricing", "label": "Pricing" },
@@ -33,8 +34,8 @@
         "id": "product",
         "label": "Product",
         "links": [
-          { "href": "/platform", "label": "Platform" },
           { "href": "/features", "label": "Features" },
+          { "href": "/platform", "label": "Platform" },
           { "href": "/compare", "label": "Compare" },
           { "href": "/pricing", "label": "Pricing" },
           { "href": "/modules", "label": "Modules" },
