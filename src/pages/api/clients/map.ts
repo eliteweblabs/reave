@@ -1,9 +1,10 @@
 /**
- * GET /api/clients/map — owner-only client list with address/geo for the map.
+ * GET /api/clients/map — owner-only client list with address/geo/icon for the map.
  */
 
 import type { APIContext } from 'astro';
 import { compareClientsForList } from '../../../lib/clientSearch';
+import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   attachPortalLinksForList,
@@ -13,8 +14,6 @@ import {
   extractPortal,
   isContactApiConfigured,
   listContacts,
-  normalizeClientKind,
-  type ClientKind,
   type ContactRecord,
 } from '../../../lib/contactApi';
 
@@ -25,12 +24,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-}
-
-function parseKindParam(raw: string | null): ClientKind | 'all' {
-  const v = (raw ?? '').trim().toLowerCase();
-  if (v === 'all' || !v) return 'all';
-  return normalizeClientKind(v) ?? 'all';
 }
 
 function mapClientEntry(c: ContactRecord) {
@@ -47,6 +40,9 @@ function mapClientEntry(c: ContactRecord) {
     address,
     geo,
     located: Boolean(geo),
+    // Light pin faces — keep original ink (no dark-bg flip).
+    iconUrl: resolveClientIconUrl(portal, c.uid, { bg: 'light' }),
+    logoUrl: resolveClientLogoUrl(portal, c.uid, { bg: 'light' }),
   };
 }
 
@@ -58,7 +54,6 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   const url = new URL(context.request.url);
-  const kind = parseKindParam(url.searchParams.get('kind'));
   const limitRaw = Number(url.searchParams.get('limit') ?? 200);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 200;
 
@@ -70,26 +65,24 @@ export async function GET(context: APIContext): Promise<Response> {
     { forMap: true },
   );
 
-  const allClients = withLinks.map(mapClientEntry).sort(compareClientsForList);
+  const clients = withLinks.map(mapClientEntry).sort(compareClientsForList);
   const counts = {
-    all: allClients.length,
+    all: clients.length,
     professional: 0,
     service: 0,
     proposed: 0,
     personal: 0,
     located: 0,
   };
-  for (const c of allClients) {
+  for (const c of clients) {
     if (CLIENT_KINDS.includes(c.kind)) counts[c.kind] += 1;
     if (c.located) counts.located += 1;
   }
 
-  const clients = kind === 'all' ? allClients : allClients.filter((c) => c.kind === kind);
-
   return json({
     ok: true,
     total: clients.length,
-    located: clients.filter((c) => c.located).length,
+    located: counts.located,
     counts,
     clients,
   });

@@ -678,8 +678,8 @@ export function slimPortalMetadataForList(
 }
 
 /**
- * Portal projection for the admin client geo map — kind + address/coords only.
- * Omits branding blobs and vault secrets.
+ * Portal projection for the admin client geo map — kind, address/coords, and
+ * enough branding fields to resolve pin icons. Omits vault secrets / blobs.
  */
 export function mapPortalMetadataForList(
   metadata: Record<string, unknown> | null | undefined,
@@ -692,6 +692,16 @@ export function mapPortalMetadataForList(
   if (m.personal === true) out.personal = true;
   const address = contactStringField(m.address);
   if (address) out.address = address;
+  const logoSource = contactStringField(m.logoSource);
+  const iconSource = contactStringField(m.iconSource);
+  const logoUrl = contactStringField(m.logoUrl);
+  const iconUrl = contactStringField(m.iconUrl);
+  const updatedAt = contactStringField(m.updatedAt);
+  if (logoSource) out.logoSource = logoSource;
+  if (iconSource) out.iconSource = iconSource;
+  if (logoUrl) out.logoUrl = logoUrl;
+  if (iconUrl) out.iconUrl = iconUrl;
+  if (updatedAt) out.updatedAt = updatedAt;
   const rawGeo = m.geo;
   if (rawGeo && typeof rawGeo === 'object') {
     const lat = Number((rawGeo as ClientPortalGeo).lat);
