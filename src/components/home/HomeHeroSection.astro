@@ -289,10 +289,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     line-height: 1.08;
     color: #fff;
     text-align: center;
-    text-wrap: balance;
+    /* Keep the headline on one line above small screens (brand column can wrap it otherwise). */
+    white-space: nowrap;
   }
 
-  /* One line once there's room; forced break only on narrow screens. */
+  /* Forced mid-title break only on narrow screens. */
   .home-hero-title-break {
     display: none;
   }
@@ -306,6 +307,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     /* Mid-screen feels low on phones — lift icon + title ~10% of the viewport. */
     .home-hero-brand {
       top: 40%;
+    }
+
+    .home-hero-title {
+      white-space: normal;
+      text-wrap: balance;
     }
 
     .home-hero-title-break {
