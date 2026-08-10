@@ -88,10 +88,8 @@ let _agentIconClipSeq = 0;
 /** Hat-glasses agent icon; right eye winks via clipped lid rects (see .agent-icon CSS). */
 export function agentIconSvg(size = 20) {
   const clipId = `agent-eye-clip-${++_agentIconClipSeq}`;
-  const winkPeriod = 4 + Math.random() * 4;
-  const winkDelay = -(Math.random() * winkPeriod);
   return (
-    `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="--agent-wink-period:${winkPeriod.toFixed(2)}s;--agent-wink-delay:${winkDelay.toFixed(2)}s">` +
+    `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
     `<defs><clipPath id="${clipId}"><circle cx="17" cy="18" r="3"/></clipPath></defs>` +
     '<path d="M14 18a2 2 0 0 0-4 0"/>' +
     '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +

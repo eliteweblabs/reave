@@ -905,31 +905,51 @@
   box-shadow: 0 1px 8px rgba(192, 38, 211, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
-/* Agent icon — occasional right-eye wink (lid rects clip to the eye circle). */
+/* Agent icon — right-eye wink on hover (lid rects clip to the eye circle). */
 @keyframes agent-eye-wink-top {
-  0%, 97%, 100% { transform: translateY(-3px); }
-  98%, 99% { transform: translateY(0); }
+  0%, 100% { transform: translateY(-3px); }
+  45%, 55% { transform: translateY(0); }
 }
 @keyframes agent-eye-wink-bottom {
-  0%, 97%, 100% { transform: translateY(3px); }
-  98%, 99% { transform: translateY(0); }
+  0%, 100% { transform: translateY(3px); }
+  45%, 55% { transform: translateY(0); }
 }
 .agent-icon .agent-eye-lid-top {
   transform: translateY(-3px);
-  animation: agent-eye-wink-top var(--agent-wink-period, 6s) linear infinite;
-  animation-delay: var(--agent-wink-delay, 0s);
-  animation-fill-mode: backwards;
 }
 .agent-icon .agent-eye-lid-bottom {
   transform: translateY(3px);
-  animation: agent-eye-wink-bottom var(--agent-wink-period, 6s) linear infinite;
-  animation-delay: var(--agent-wink-delay, 0s);
-  animation-fill-mode: backwards;
+}
+.agent-icon:is(:hover, :focus-visible) .agent-eye-lid-top,
+:where(
+  .agent-btn,
+  .em-agent-btn,
+  .swipe-act-agent,
+  .tab-item,
+  .tab-dropdown-item,
+  .de-placeholder-action
+):hover
+  .agent-icon
+  .agent-eye-lid-top {
+  animation: agent-eye-wink-top 0.32s ease-in-out;
+}
+.agent-icon:is(:hover, :focus-visible) .agent-eye-lid-bottom,
+:where(
+  .agent-btn,
+  .em-agent-btn,
+  .swipe-act-agent,
+  .tab-item,
+  .tab-dropdown-item,
+  .de-placeholder-action
+):hover
+  .agent-icon
+  .agent-eye-lid-bottom {
+  animation: agent-eye-wink-bottom 0.32s ease-in-out;
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-icon .agent-eye-lid-top,
   .agent-icon .agent-eye-lid-bottom {
-    animation: none;
+    animation: none !important;
   }
 }
 .em-btn-group-segment.em-agent-btn {
