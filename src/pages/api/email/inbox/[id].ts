@@ -12,6 +12,7 @@ import {
   type EmailInboxPatch,
 } from '../../../../lib/emailInboxStore';
 import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
+import { patchForMarkJunk } from '../../../../lib/emailJunkNotifyInvariant';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
 import { isPendingReviewNotification } from '../../../../lib/emailAutomation';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
@@ -169,9 +170,17 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (isEmailArchivedOrRemoved(storePatch)) {
     storePatch.markAutomationAck = true;
   }
-  const event = await storeUpdateEmailInbox(id, storePatch);
+  // Hard rule: marking junk dismisses dashboard alerts and strips client-reply urgency.
+  const markingJunk =
+    storePatch.category === 'junk' ||
+    String(storePatch.action || '').toLowerCase() === 'junk' ||
+    String(storePatch.status || '').toUpperCase() === 'JUNK';
+  const event = await storeUpdateEmailInbox(
+    id,
+    markingJunk ? { ...storePatch, ...patchForMarkJunk(existing) } : storePatch,
+  );
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
-  if (isEmailArchivedOrRemoved(storePatch)) {
+  if (isEmailArchivedOrRemoved(storePatch) || markingJunk) {
     await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
   }
   const monetaryAmount = extractMonetaryAmountFromEmail(event);

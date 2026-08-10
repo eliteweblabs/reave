@@ -9,6 +9,33 @@ export type ProjectClientReplyMatch = {
   outbound: ProjectOutboundMatch | null;
 };
 
+/** Automated mailers (Google security alerts, etc.) are never client replies. */
+export function isAutomatedNoreplySender(email: string): boolean {
+  const addr = parseSenderEmail(email);
+  if (!addr.includes('@')) return false;
+  const [local = '', domain = ''] = addr.split('@');
+  const localNorm = local.toLowerCase();
+  const domainNorm = domain.toLowerCase();
+  if (
+    /^(no-?reply|noreply|donotreply|do-not-reply|mailer-daemon|notifications?|alerts?)$/i.test(
+      localNorm,
+    )
+  ) {
+    return true;
+  }
+  if (localNorm.includes('noreply') || localNorm.includes('no-reply')) return true;
+  // Platform security / account mailers that share subjects with client threads.
+  if (
+    domainNorm === 'accounts.google.com' ||
+    domainNorm.endsWith('.accounts.google.com') ||
+    domainNorm === 'accountprotection.microsoft.com' ||
+    domainNorm === 'appleid.apple.com'
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function headerValue(headers: Record<string, string> | undefined, name: string): string {
   if (!headers) return '';
   const lower = name.toLowerCase();
@@ -89,6 +116,7 @@ export async function detectProjectClientReply(opts: {
 }): Promise<ProjectClientReplyMatch | null> {
   const senderEmail = parseSenderEmail(opts.senderEmail);
   if (!senderEmail.includes('@')) return null;
+  if (isAutomatedNoreplySender(senderEmail)) return null;
 
   const outbound = await findRecentProjectOutbound({
     senderEmail,
