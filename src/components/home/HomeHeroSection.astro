@@ -312,8 +312,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     white-space: nowrap;
   }
 
-  /* Forced mid-title break only on narrow screens. */
-  .home-hero-title-break {
+  /* Forced mid-title break only on narrow screens.
+     :global — class lives on set:html markup, so scoped attrs never attach. */
+  .home-hero-title :global(.home-hero-title-break) {
     display: none;
   }
 
@@ -333,7 +334,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       text-wrap: balance;
     }
 
-    .home-hero-title-break {
+    .home-hero-title :global(.home-hero-title-break) {
       display: inline;
     }
   }
