@@ -1541,7 +1541,7 @@ function renderEditClientForm(pane) {
               pickedAddress,
             );
           }
-          await saveNowRef();
+          await saveNowRef({ commitAddress: true });
         },
       );
 
@@ -1611,7 +1611,10 @@ function renderEditClientForm(pane) {
         scroll.appendChild(analyticsPanel);
       }
 
-      const getPayload = () => {
+      // Address is committed only on autocomplete pick, blur, clear, or flush.
+      // Keystroke debounce must not PATCH partial typed text — that races the
+      // select save and leaves the typed query after refresh.
+      const getPayload = ({ commitAddress = false } = {}) => {
         const firstName = firstNameInput.value.trim();
         const lastName = lastNameInput.value.trim();
         const company = companyInput.value.trim();
@@ -1621,15 +1624,17 @@ function renderEditClientForm(pane) {
           phone: phoneToStorage(phoneInput.value),
           company,
           website: websiteInput.value.trim(),
-          address: addressInput.value.trim(),
           notes: notesTa.value.trim(),
           kind: kindPill.getValue(),
         };
-        if (clientPendingGeo) payload.geo = clientPendingGeo;
-        else if (!payload.address) payload.geo = null;
+        if (commitAddress) {
+          payload.address = addressInput.value.trim();
+          if (clientPendingGeo) payload.geo = clientPendingGeo;
+          else if (!payload.address) payload.geo = null;
+        }
         return payload;
       };
-      clientState.autosaveGetPayload = getPayload;
+      clientState.autosaveGetPayload = () => getPayload({ commitAddress: true });
 
       const markDirty = () => {
         clientState.dirty =
@@ -1645,20 +1650,20 @@ function renderEditClientForm(pane) {
       };
       const queueAutosave = () => {
         markDirty();
-        scheduleClientAutosave(uid, getPayload);
+        scheduleClientAutosave(uid, () => getPayload({ commitAddress: false }));
       };
       queueAutosaveRef = queueAutosave;
-      const saveNow = async () => {
+      const saveNow = async ({ commitAddress = false } = {}) => {
         cancelClientAutosaveTimer();
         markDirty();
-        await autosaveClient(uid, getPayload());
+        await autosaveClient(uid, getPayload({ commitAddress }));
       };
       saveNowRef = saveNow;
       addressClearActions.fn = () => {
         cancelClientAutosaveTimer();
         clientPendingGeo = null;
         clientMapController?.setLocation(null, null, '');
-        void saveNowRef();
+        void saveNowRef({ commitAddress: true });
       };
       for (const el of [
         companyInput,
@@ -1672,23 +1677,33 @@ function renderEditClientForm(pane) {
       ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
-          if (el === addressInput && !addressInput.dataset.autocompletePick) {
-            clientPendingGeo = null;
-            if (!addressInput.value.trim()) {
-              clientMapController?.setLocation(null, null, '');
+          if (el === addressInput) {
+            if (!addressInput.dataset.autocompletePick) {
+              clientPendingGeo = null;
+              if (!addressInput.value.trim()) {
+                clientMapController?.setLocation(null, null, '');
+              }
             }
+            // Typing / post-pick synthetic input: do not debounce-save address.
+            // Persist on autocomplete pick, blur, clear button, or editor flush.
+            markDirty();
+            return;
           }
           queueAutosave();
         });
         el.addEventListener('blur', () => {
           clientActiveField = el;
           void (async () => {
-            if (el === addressInput && addressInput.value.trim()) {
-              const geo = await geocodeClientAddressPreview(addressInput.value);
-              if (geo) {
-                clientPendingGeo = geo;
-                clientMapController?.setLocation(geo.lat, geo.lng, addressInput.value.trim());
+            if (el === addressInput) {
+              if (addressInput.value.trim()) {
+                const geo = await geocodeClientAddressPreview(addressInput.value);
+                if (geo) {
+                  clientPendingGeo = geo;
+                  clientMapController?.setLocation(geo.lat, geo.lng, addressInput.value.trim());
+                }
               }
+              await saveNow({ commitAddress: true });
+              return;
             }
             await saveNow();
           })();
@@ -1820,8 +1835,10 @@ async function autosaveClient(uid, payload) {
   const draft = clientState.draft;
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
-  const geoUnchanged =
-    payload.geo === null
+  const addressInPayload = Object.prototype.hasOwnProperty.call(payload, 'address');
+  const geoUnchanged = !addressInPayload
+    ? true
+    : payload.geo === null
       ? !draft.geo
       : payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
   const unchanged =
@@ -1830,7 +1847,7 @@ async function autosaveClient(uid, payload) {
     payload.phone === draft.phone &&
     payload.company === draft.company &&
     payload.website === draft.website &&
-    payload.address === draft.address &&
+    (!addressInPayload || payload.address === draft.address) &&
     payload.notes === draft.notes &&
     normalizeClientKind(payload.kind) === wasKind &&
     geoUnchanged;
@@ -1863,6 +1880,14 @@ async function autosaveClient(uid, payload) {
       firstName: data.firstName,
       lastName: data.lastName,
     });
+    const nextAddress = addressInPayload
+      ? (data.address ?? payload.address)
+      : draft.address;
+    const nextGeo = !addressInPayload
+      ? draft.geo
+      : payload.address
+        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
+        : (data.geo ?? null);
     Object.assign(clientState.draft, {
       name: payload.name,
       firstName: nameParts.firstName,
@@ -1871,10 +1896,8 @@ async function autosaveClient(uid, payload) {
       phone: payload.phone,
       company: payload.company,
       website: payload.website,
-      address: data.address ?? payload.address,
-      geo: payload.address
-        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
-        : (data.geo ?? null),
+      address: nextAddress,
+      geo: nextGeo,
       notes: payload.notes,
       kind: normalizeClientKind(payload.kind),
       personal: normalizeClientKind(payload.kind) === 'personal',
@@ -1893,8 +1916,8 @@ async function autosaveClient(uid, payload) {
       logoSource: clientState.draft.logoSource,
       iconSource: clientState.draft.iconSource,
     });
-    clientPendingGeo = null;
-    if (clientMapController) {
+    if (addressInPayload) clientPendingGeo = null;
+    if (clientMapController && addressInPayload) {
       const geo = clientState.draft.geo;
       if (geo?.lat != null && geo?.lng != null) {
         clientMapController.setLocation(geo.lat, geo.lng, clientState.draft.address || '');
