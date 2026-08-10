@@ -374,8 +374,10 @@ export async function setClientPortalAddress(
 
   if (address) {
     const coordsMissing = !geo || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng);
-    const addressChanged = address !== (portal.address ?? '').trim();
-    if (coordsMissing || addressChanged) {
+    // When the admin already sent coordinates (autocomplete pick), keep them.
+    // Re-geocoding on every address change raced pick saves and could overwrite
+    // the selected place with a slower partial-query result.
+    if (coordsMissing) {
       const { geocodeAddress } = await import('./mapbox');
       const geocoded = await geocodeAddress(address);
       if (geocoded) {
