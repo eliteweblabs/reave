@@ -236,13 +236,12 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'RECEIPT',
-    description: 'Payment confirmations and tax receipts — auto-file silently.',
+    description:
+      'Expense tax receipts (you paid / your receipt) — auto-file silently. Not income like “Payment of $… from …”.',
     phrases: [
-      'Payment of $',
       'payment confirmation',
       'payment receipt',
       'Your receipt from',
-      'Your invoice from',
       'You paid',
       'Amount paid',
     ],

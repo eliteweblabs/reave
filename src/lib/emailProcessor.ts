@@ -31,7 +31,12 @@ import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
 import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectReply';
 import { isSuggestedProjectMatch } from './emailAutomation';
-import { looksLikeFailedOrDuePayment, looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
+import {
+  looksLikeFailedOrDuePayment,
+  looksLikeIncomingPayment,
+  looksLikePaymentNotification,
+  shouldAutoFileAsReceipt,
+} from './emailMoney';
 import {
   auditForMatchedRule,
   classificationAuditStep,
@@ -955,7 +960,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     pushAudit(
       'title',
       `Dashboard label: ${amountLabel}`,
-      'All pending receipt emails use the “Tax receipt” banner title so they can be logged as Crater expenses — including completed “Payment of $…” confirmations',
+      'Expense-side receipts use the Tax receipt banner for Crater logging — not “Payment of $… from …” income',
     );
   }
 
@@ -963,6 +968,30 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   // (ruleResult.status would still be DELETE without this correction).
   if (category === 'receipt' && action === 'receipt' && inboxStatus.toUpperCase() === 'DELETE') {
     inboxStatus = 'RECEIPT';
+  }
+
+  // Income notices must never stay filed as tax/expense receipts.
+  // "Payment of $… from …" is money received — the keyword is "from", not due/invoice.
+  const moneyEv = {
+    from,
+    subject: email.subject ?? '',
+    summary,
+    bodyText,
+    bodySnippet: snippet(bodyText),
+  };
+  if (
+    category === 'receipt' &&
+    (looksLikeIncomingPayment(moneyEv) || looksLikePaymentNotification(moneyEv))
+  ) {
+    category = 'internal';
+    action = 'classified';
+    inboxStatus = inboxStatus.toUpperCase() === 'RECEIPT' ? 'UNMATCHED' : inboxStatus;
+    routeNote = 'Incoming payment (income) — not a tax/expense receipt';
+    pushAudit(
+      'correction',
+      'Unfiled as tax receipt',
+      '"Payment of $… from …" / payment-received language is money in, not an expense',
+    );
   }
 
   if (needsExplain) {

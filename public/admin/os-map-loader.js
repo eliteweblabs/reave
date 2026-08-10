@@ -11114,7 +11114,7 @@ async function markEmailReceipt(ev) {
       step: 'title',
       decision: `Dashboard label: ${routeNote}`,
       detail:
-        'Pending receipt emails use the “Tax receipt” banner for expense logging — including completed “Payment of $…” confirmations',
+        'Expense-side receipts use the Tax receipt banner for Crater logging — not “Payment of $… from …” income',
     },
     {
       step: 'auto_file',

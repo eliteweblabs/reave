@@ -7,6 +7,7 @@ import {
   extractMonetaryAmountFromEmail,
   formatUsdAmount,
   looksLikeFailedOrDuePayment,
+  looksLikeIncomingPayment,
   looksLikePaymentNotification,
   shouldAutoFileAsReceipt,
 } from './emailMoney';
@@ -216,21 +217,16 @@ export function explainReceiptClassification(
         classificationAuditStep(
           'payment_language',
           'Looks like failed/due payment',
-          'Would normally block auto-file as receipt',
+          'Blocks auto-file as expense receipt',
         ),
       );
-    } else if (looksLikePaymentNotification(emailLike)) {
+    } else if (looksLikeIncomingPayment(emailLike) || looksLikePaymentNotification(emailLike)) {
       const subject = (record.subject || '').trim();
-      const paymentOf = /\bpayment\s+of\s+\$/i.test(
-        [record.subject, record.summary, record.bodyText, record.bodySnippet].join('\n'),
-      );
       steps.push(
         classificationAuditStep(
           'payment_language',
-          'Completed payment language',
-          paymentOf
-            ? `"Payment of $…" is treated as a completed payment confirmation (not an unpaid bill)${subject ? ` — subject: ${subject.slice(0, 120)}` : ''}`
-            : 'Payment-received / processor wording matched',
+          'Incoming payment (income) — not a tax receipt',
+          `"from" marks money received, not an expense${subject ? ` — subject: ${subject.slice(0, 120)}` : ''}. No due/invoice/outstanding language required to refuse expense filing.`,
         ),
       );
     } else {
@@ -239,8 +235,8 @@ export function explainReceiptClassification(
         steps.push(
           classificationAuditStep(
             'payment_language',
-            'Receipt/payment keywords with amount',
-            'RECEIPT_HINT matched (receipt, invoice, you paid, etc.)',
+            'Expense receipt language with amount',
+            'RECEIPT_HINT matched (you paid, amount paid, your receipt, payment confirmation)',
           ),
         );
       }
@@ -264,7 +260,7 @@ export function explainReceiptClassification(
       classificationAuditStep(
         'title',
         `Dashboard label: ${title}`,
-        'All pending receipt emails use the “Tax receipt” banner title so they can be logged as Crater expenses — including completed “Payment of $…” confirmations',
+        'Expense-side receipts use the Tax receipt banner for Crater logging — not “Payment of $… from …” income',
       ),
     );
   }
@@ -297,7 +293,7 @@ export function auditForManualReceiptMark(opts: {
       classificationAuditStep(
         'title',
         `Dashboard label: Tax receipt — ${formatUsdAmount(opts.amount)}`,
-        'Pending receipt emails use the “Tax receipt” banner for expense logging',
+        'Expense-side receipts use the Tax receipt banner for Crater logging',
       ),
     );
   } else {

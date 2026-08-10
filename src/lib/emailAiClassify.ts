@@ -180,8 +180,9 @@ Respond with ONLY valid JSON (no markdown fences):
 Labels (pick exactly one):
 - otp: one-time password / digit login code the owner must type
 - activation_link: magic sign-in / account activation / one-click login LINK (not social "Open App" buttons, not follower notifications)
-- receipt: payment already completed — paid invoice, payment confirmation, "you paid", tax receipt
+- receipt: expense you paid — "you paid", "amount paid", "your receipt from", payment confirmation for a charge you made (tax/expense receipt). NOT money someone paid you.
 - failed_payment: payment FAILED, past due, outstanding balance, upcoming minimum payment, loan capital reminder, debit warning — NOT a receipt
+- Prefer internal or review (not receipt) for income notices like "Payment of $… from …", "you received a payment", "payment from" — those are money in, not expenses
 - junk: newsletters, marketing, social notifications (TikTok/Facebook/Instagram followers, likes), bulk lists
 - google_alert: Google Alerts / news digests / keyword monitors — never a new client project
 - alert: uptime, security, monitoring, deploy failures, unusual sign-in warnings (not OTP/activation)
