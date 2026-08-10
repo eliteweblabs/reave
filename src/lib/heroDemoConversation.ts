@@ -61,13 +61,13 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "user",
-        text: "Text the crew lead he's clear to start rough-in.",
+        text: "Text the crew he's clear to start rough-in.",
         kind: "voice",
         pauseMs: 1400,
       },
       {
         role: "assistant",
-        text: "Sent to Mike Torres — delivered.",
+        text: "SMS sent to Mike Torres, Jordan Hale, and Ava Brooks.",
         pauseMs: 1200,
       },
     ],
