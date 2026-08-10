@@ -314,10 +314,10 @@ function bindPanelEvents(root) {
 
   bindDetailEvents(root);
 
-  attachIosPullToRefresh({
-    root: pullRefreshContentRoot(root, '.or-sidebar'),
-    onRefresh: () => loadOnlineReviewsTab({ keepSelection: true }),
-  });
+  const reviewsList = root.querySelector('#or-list, .or-list');
+  if (reviewsList instanceof HTMLElement) {
+    attachIosPullToRefresh(reviewsList, () => loadOnlineReviewsTab({ keepSelection: true }));
+  }
 }
 
 function bindDetailEvents(root) {

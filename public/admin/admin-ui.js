@@ -37,6 +37,11 @@ export const IOS_ICONS = {
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>',
   rewind:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></svg>',
+  play: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+  pause:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>',
+  'skip-forward':
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>',
   user: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
   mail: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
   bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
@@ -911,10 +916,24 @@ const IOS_PTR_AXIS_SLOP = 8;
 const IOS_PTR_VERTICAL_RATIO = 1.1;
 const IOS_PTR_HORIZONTAL_RATIO = 3;
 const IOS_PTR_HORIZONTAL_MIN = 28;
+/** Never leave the PTR spinner spinning if a refresh callback hangs. */
+const IOS_PTR_REFRESH_TIMEOUT_MS = 12000;
 
-/** iOS-style pull-to-refresh on a scroll container (touch only). Call after list children exist. */
-export function attachIosPullToRefresh(scrollEl, onRefresh) {
-  if (!scrollEl || scrollEl.dataset.ptrBound) return;
+/**
+ * iOS-style pull-to-refresh on a scroll container (touch).
+ * Call after list children exist.
+ *
+ * @param {HTMLElement | { root?: HTMLElement, scrollEl?: HTMLElement, onRefresh?: () => unknown }} scrollElOrOpts
+ * @param {(() => unknown) | undefined} [onRefresh]
+ */
+export function attachIosPullToRefresh(scrollElOrOpts, onRefresh) {
+  const opts =
+    scrollElOrOpts && typeof scrollElOrOpts === 'object' && !(scrollElOrOpts instanceof Element)
+      ? scrollElOrOpts
+      : { scrollEl: scrollElOrOpts, onRefresh };
+  const scrollEl = opts.scrollEl || opts.root;
+  const refreshFn = opts.onRefresh || onRefresh;
+  if (!(scrollEl instanceof Element) || scrollEl.dataset.ptrBound) return;
   scrollEl.dataset.ptrBound = '1';
   scrollEl.classList.add('ios-ptr-host');
 
@@ -934,6 +953,9 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
   let startY = 0;
   let tracking = false;
   let refreshing = false;
+  let refreshGeneration = 0;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let refreshTimer = null;
   /** @type {'vertical' | 'horizontal' | null} */
   let axis = null;
 
@@ -961,26 +983,46 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
     if (spinner) spinner.style.removeProperty('--ptr-rot');
   }
 
-  function finishRefresh() {
+  function finishRefresh(generation) {
+    if (generation !== refreshGeneration) return;
+    if (refreshTimer != null) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
     refreshing = false;
     resetPull();
   }
 
   function startRefresh() {
+    if (refreshing) return;
     refreshing = true;
     tracking = false;
     axis = null;
+    const generation = ++refreshGeneration;
     scrollEl.classList.add('ios-ptr-refreshing');
     scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release');
     setPull(52);
     scrollEl.style.setProperty('--ptr-icon-opacity', '1');
-    Promise.resolve(onRefresh?.()).finally(finishRefresh);
+    refreshTimer = setTimeout(() => finishRefresh(generation), IOS_PTR_REFRESH_TIMEOUT_MS);
+    Promise.resolve()
+      .then(() => refreshFn?.())
+      .catch((err) => {
+        console.warn('[ptr] refresh failed', err);
+      })
+      .finally(() => finishRefresh(generation));
   }
 
   function dampedPull(rawDy) {
     const y = rawDy * 0.52;
     if (y <= IOS_PTR_MAX) return y;
     return IOS_PTR_MAX + (y - IOS_PTR_MAX) * 0.15;
+  }
+
+  function endTracking(commit) {
+    if (!tracking || refreshing) return;
+    tracking = false;
+    if (commit && axis === 'vertical' && pullOffset() >= IOS_PTR_THRESHOLD) startRefresh();
+    else resetPull();
   }
 
   scrollEl.addEventListener(
@@ -1019,12 +1061,23 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
           return;
         } else if (ady > adx && dy > 0) {
           axis = 'vertical';
+        } else if (dy <= 0) {
+          tracking = false;
+          return;
         } else {
+          // Ambiguous diagonal — keep tracking until the gesture resolves.
           return;
         }
       }
 
-      if (axis !== 'vertical' || dy <= 0) return;
+      if (axis !== 'vertical') return;
+
+      // Finger moved back above the start — collapse the rubber-band instead of
+      // leaving a stranded spinner gap when touchend is skipped.
+      if (dy <= 0) {
+        setPull(0);
+        return;
+      }
 
       setPull(dampedPull(dy));
       e.preventDefault();
@@ -1036,10 +1089,7 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
   scrollEl.addEventListener(
     'touchend',
     () => {
-      if (!tracking || refreshing) return;
-      tracking = false;
-      if (axis === 'vertical' && pullOffset() >= IOS_PTR_THRESHOLD) startRefresh();
-      else resetPull();
+      endTracking(true);
     },
     { passive: true, capture: true },
   );
@@ -1047,17 +1097,28 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
   scrollEl.addEventListener(
     'touchcancel',
     () => {
-      tracking = false;
-      if (!refreshing) resetPull();
+      endTracking(false);
     },
     { passive: true, capture: true },
   );
+
+  // If the tab is backgrounded mid-pull, clear a stranded indicator.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && !refreshing) {
+      tracking = false;
+      resetPull();
+    }
+  });
 }
 
 /** Scroll list body used by pull-to-refresh (content wrapper if present). */
-export function pullRefreshContentRoot(scrollEl) {
+export function pullRefreshContentRoot(scrollEl, listSelector) {
   if (!scrollEl) return scrollEl;
-  return scrollEl.querySelector(':scope > .ios-ptr-content') || scrollEl;
+  const host =
+    typeof listSelector === 'string' && listSelector
+      ? scrollEl.querySelector(listSelector) || scrollEl
+      : scrollEl;
+  return host.querySelector(':scope > .ios-ptr-content') || host;
 }
 
 /** Pencil icon beside editable pane titles (todo, work, chat rename, etc.). */

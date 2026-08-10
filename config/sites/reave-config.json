@@ -7,6 +7,7 @@
     "/compare",
     "/compare-2",
     "/pricing",
+    "/hosting",
     "/modules",
     "/demo",
     "/demo-loader",
@@ -24,6 +25,7 @@
       { "href": "/compare", "label": "Compare" },
       { "href": "/compare-2", "label": "Compare 2" },
       { "href": "/pricing", "label": "Pricing" },
+      { "href": "/hosting", "label": "Hosting", "hideBelow": 1080 },
       { "href": "/modules", "label": "Modules" },
       { "href": "/digital-audit", "label": "Digital Audit", "hideBelow": 1080 },
       { "href": "/demo-loader", "label": "Walkthrough", "hideBelow": 1080 },
@@ -41,6 +43,7 @@
           { "href": "/compare", "label": "Compare" },
           { "href": "/compare-2", "label": "Compare 2" },
           { "href": "/pricing", "label": "Pricing" },
+          { "href": "/hosting", "label": "Managed Hosting" },
           { "href": "/modules", "label": "Modules" },
           { "href": "/digital-audit", "label": "Digital Audit" },
           { "href": "/demo-loader", "label": "Demo", "primary": true },
@@ -54,6 +57,7 @@
         "links": [
           { "href": "/about", "label": "About" },
           { "href": "/services", "label": "Services" },
+          { "href": "/hosting", "label": "Managed Hosting" },
           { "href": "/about#portfolio", "label": "Portfolio" },
           { "href": "/#contact", "label": "Contact" }
         ]

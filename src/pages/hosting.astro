@@ -1,0 +1,127 @@
+---
+import Layout from "../layouts/Layout.astro";
+import HostingPricingSection from "../components/hosting/HostingPricingSection.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { ArrowRight } from "lucide-astro";
+
+const company = await getCompanyConfig(Astro.request);
+---
+
+<Layout
+  title="Managed Hosting"
+  description={`${company.name} managed hosting — WordPress or web apps, with Care plans from $600/year. Daily scans, malware protection, weekly SEO reports, and optional unlimited edits.`}
+>
+  <div class="hosting-page">
+    <section
+      class="hosting-hero scroll-fade-in"
+      aria-labelledby="hosting-title"
+    >
+      <p class="hosting-kicker">Managed hosting</p>
+      <h1 id="hosting-title" class="hosting-h1">We host it. We watch it. We fix it.</h1>
+      <p class="hosting-lead">
+        Premium WordPress and web-app hosting wrapped in a Care plan — daily site scans,
+        malware protection, weekly SEO reports, and a team that actually handles the
+        boring stuff. From {company.name}, starting at $600/year.
+      </p>
+      <div class="hosting-cta-row">
+        <a class="hosting-btn hosting-btn--primary" href="#plans">
+          See Care plans
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a
+          class="hosting-btn hosting-btn--ghost brand-btn-glass"
+          href="/schedule">Book a call</a
+        >
+      </div>
+    </section>
+
+    <HostingPricingSection />
+  </div>
+</Layout>
+
+<style>
+  .hosting-page {
+    min-height: 100vh;
+    padding: calc(
+        var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
+          40px
+      )
+      20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hosting-hero {
+    width: 100%;
+    max-width: 760px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .hosting-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin: 0 0 14px;
+  }
+
+  .hosting-h1 {
+    margin: 0 0 16px;
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .hosting-lead {
+    margin: 0 auto 28px;
+    max-width: 580px;
+    font-family: var(--font-content);
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .hosting-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .hosting-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      transform 0.15s ease,
+      filter 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .hosting-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .hosting-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .hosting-btn--ghost:hover {
+    transform: translateY(-1px);
+  }
+</style>

@@ -848,6 +848,41 @@ body.admin-split-view #chat-panel .ch-compose {
 .ch-toast.ch-toast-anchored.ch-toast-visible {
   transform: translateY(0);
 }
+.ch-undo-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  pointer-events: auto;
+  padding: 0.4rem 0.4rem 0.4rem 0.85rem;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+}
+.ch-undo-toast-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-undo-toast-btn {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.3rem 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent, #0a84ff);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ch-undo-toast-btn:hover {
+  background: var(--msg-action-hover, rgba(127, 127, 127, 0.12));
+}
+.ch-undo-toast-btn:focus-visible {
+  outline: 2px solid var(--accent, #0a84ff);
+  outline-offset: 1px;
+}
 .ch-context-menu {
   position: fixed;
   z-index: 10000;
@@ -882,16 +917,26 @@ body.admin-split-view #chat-panel .ch-compose {
 }
 
 /* iOS pull-to-refresh (sidebar lists) */
-.ch-list.ios-ptr-host {
+.ios-ptr-host {
   position: relative;
   overscroll-behavior-y: contain;
+}
+.ch-list.ios-ptr-host,
+.de-list.ios-ptr-host {
   padding-top: 0;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   padding-bottom: var(--footer-scroll-pad);
 }
-.ch-list.ios-ptr-host .ios-ptr-content {
+.ch-list.ios-ptr-host .ios-ptr-content,
+.de-list.ios-ptr-host .ios-ptr-content {
   padding-top: 0.5rem;
+}
+/* While pulling/refreshing, stop the browser from claiming the pan gesture. */
+.ios-ptr-host.ios-ptr-active,
+.ios-ptr-host.ios-ptr-refreshing {
+  touch-action: none;
+  overscroll-behavior-y: none;
 }
 .ios-ptr-indicator {
   position: absolute;
@@ -912,10 +957,10 @@ body.admin-split-view #chat-panel .ch-compose {
   transform: translate3d(0, var(--ptr-y, 0), 0);
   will-change: transform;
 }
-.ch-list.ios-ptr-host:not(.ios-ptr-active):not(.ios-ptr-refreshing) .ios-ptr-content {
+.ios-ptr-host:not(.ios-ptr-active):not(.ios-ptr-refreshing) .ios-ptr-content {
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.ch-list.ios-ptr-refreshing .ios-ptr-indicator {
+.ios-ptr-host.ios-ptr-refreshing .ios-ptr-indicator {
   transition: height 0.2s ease;
 }
 .ios-ptr-spinner {
@@ -928,7 +973,7 @@ body.admin-split-view #chat-panel .ch-compose {
   opacity: var(--ptr-icon-opacity, 0);
   flex-shrink: 0;
 }
-.ch-list.ios-ptr-refreshing .ios-ptr-spinner {
+.ios-ptr-host.ios-ptr-refreshing .ios-ptr-spinner {
   animation: ios-ptr-spin 0.75s linear infinite;
   opacity: 1;
 }

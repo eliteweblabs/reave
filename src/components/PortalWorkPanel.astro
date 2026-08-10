@@ -5,6 +5,7 @@
  */
 import type { WorkJobComment } from '../lib/workComments';
 import type { WorkStatus } from '../lib/workStore';
+import PortalJobComments from './PortalJobComments.astro';
 
 export interface PortalWorkJobItem {
   slug: string;
@@ -71,38 +72,12 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function fmtCommentTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 function fmtFileSize(bytes: number): string {
   const n = Number(bytes) || 0;
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-function authorInitial(name: string): string {
-  const ch = name.trim().charAt(0);
-  return ch ? ch.toUpperCase() : '?';
-}
-
-function avatarUrlForAuthor(author: WorkJobComment['author']): string {
-  return author === 'staff' ? staffAvatarUrl : clientAvatarUrl;
-}
-
-const panelJobs = jobs.map((job) => ({
-  ...job,
-  comments: (commentsBySlug[job.slug] ?? []).map((c) => ({
-    id: c.id,
-    author: c.author,
-    authorName: c.authorName,
-    text: c.text,
-    createdLabel: fmtCommentTime(c.createdAt),
-  })),
-}));
 
 const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
 const filesEndpointBase = commentEndpointBase;
@@ -177,46 +152,13 @@ const filesEndpointBase = commentEndpointBase;
                 </div>
               </div>
 
-              <div class="work-comments" data-comments-root>
-                <span class="work-comments-label">Comments</span>
-                {comments.length === 0 ? (
-                  <p class="work-comments-empty">No comments yet — say hello below.</p>
-                ) : (
-                  <ul class="work-comment-list">
-                    {comments.map((c) => (
-                      <li class={`work-comment work-comment-${c.author}`} data-comment-id={c.id}>
-                        <article class="work-comment-inner">
-                          <div class="work-comment-avatar" aria-hidden="true">
-                            {avatarUrlForAuthor(c.author) ? (
-                              <img src={avatarUrlForAuthor(c.author)} alt="" loading="lazy" />
-                            ) : (
-                              <span class="work-comment-avatar-fallback">{authorInitial(c.authorName)}</span>
-                            )}
-                          </div>
-                          <div class="work-comment-main">
-                            <header class="work-comment-head">
-                              <span class="work-comment-author">{escapeHtml(c.authorName)}</span>
-                              <time class="work-comment-time" datetime={c.createdAt}>{fmtCommentTime(c.createdAt)}</time>
-                            </header>
-                            <p class="work-comment-text">{escapeHtml(c.text)}</p>
-                          </div>
-                        </article>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <label class="work-comment-label">
-                <span>Add a comment</span>
-                <textarea
-                  class="work-comment-input"
-                  rows="3"
-                  maxlength="4000"
-                  placeholder="Ask a question or share an update…"
-                />
-              </label>
-              <button class="work-comment-submit" type="button">Post comment</button>
+              <PortalJobComments
+                jobSlug={job.slug}
+                comments={comments}
+                contactUid={contactUid}
+                clientAvatarUrl={clientAvatarUrl}
+                staffAvatarUrl={staffAvatarUrl}
+              />
             </div>
           </li>
         );
@@ -225,7 +167,7 @@ const filesEndpointBase = commentEndpointBase;
   )}
 </section>
 
-<script define:vars={{ commentEndpointBase, filesEndpointBase, clientAvatarUrl, staffAvatarUrl, expandSlug, trackToken, dwellMs }}>
+<script define:vars={{ commentEndpointBase, filesEndpointBase, expandSlug, trackToken, dwellMs }}>
   function escHtml(s) {
     return String(s)
       .replace(/&/g, '&amp;')
@@ -233,12 +175,6 @@ const filesEndpointBase = commentEndpointBase;
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  function fmtTime(iso) {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   function fmtFileSize(bytes) {
@@ -282,47 +218,6 @@ const filesEndpointBase = commentEndpointBase;
     for (const file of files) {
       grid.appendChild(renderFileCard(file));
     }
-  }
-
-  function authorInitial(name) {
-    const ch = String(name || '').trim().charAt(0);
-    return ch ? ch.toUpperCase() : '?';
-  }
-
-  function avatarHtml(author, authorName) {
-    const url = author === 'staff' ? staffAvatarUrl : clientAvatarUrl;
-    if (url) {
-      return (
-        `<div class="work-comment-avatar" aria-hidden="true">` +
-        `<img src="${escHtml(url)}" alt="" loading="lazy" />` +
-        `</div>`
-      );
-    }
-    return (
-      `<div class="work-comment-avatar" aria-hidden="true">` +
-      `<span class="work-comment-avatar-fallback">${escHtml(authorInitial(authorName))}</span>` +
-      `</div>`
-    );
-  }
-
-  function renderComment(c) {
-    const li = document.createElement('li');
-    li.className = `work-comment work-comment-${c.author}`;
-    li.dataset.commentId = c.id;
-    const when = escHtml(c.createdLabel || fmtTime(c.createdAt));
-    const whenIso = escHtml(c.createdAt || '');
-    li.innerHTML =
-      `<article class="work-comment-inner">` +
-      avatarHtml(c.author, c.authorName) +
-      `<div class="work-comment-main">` +
-      `<header class="work-comment-head">` +
-      `<span class="work-comment-author">${escHtml(c.authorName)}</span>` +
-      `<time class="work-comment-time" datetime="${whenIso}">${when}</time>` +
-      `</header>` +
-      `<p class="work-comment-text">${escHtml(c.text)}</p>` +
-      `</div>` +
-      `</article>`;
-    return li;
   }
 
   const viewedSlugs = new Set();
@@ -394,12 +289,10 @@ const filesEndpointBase = commentEndpointBase;
     const body = item.querySelector('.work-item-body');
     const slug = item.getAttribute('data-job-slug');
     const textarea = item.querySelector('.work-comment-input');
-    const submitBtn = item.querySelector('.work-comment-submit');
-    const commentsRoot = item.querySelector('[data-comments-root]');
     const filesRoot = item.querySelector('[data-files-root]');
     const fileInput = item.querySelector('.work-files-input');
     const uploadBtn = item.querySelector('.work-files-upload-btn');
-    if (!head || !body || !slug || !textarea || !submitBtn || !commentsRoot) return;
+    if (!head || !body || !slug) return;
 
     if (filesRoot && fileInput && uploadBtn) {
       uploadBtn.addEventListener('click', () => fileInput.click());
@@ -455,60 +348,11 @@ const filesEndpointBase = commentEndpointBase;
         body.removeAttribute('hidden');
         head.setAttribute('aria-expanded', 'true');
         scheduleDwellView(slug);
-        textarea.focus();
+        textarea?.focus();
       } else {
         body.setAttribute('hidden', '');
         head.setAttribute('aria-expanded', 'false');
         cancelDwell(slug);
-      }
-    });
-
-    submitBtn.addEventListener('click', async () => {
-      const text = textarea.value.trim();
-      if (!text) {
-        textarea.focus();
-        return;
-      }
-
-      submitBtn.disabled = true;
-      const prev = submitBtn.textContent;
-      submitBtn.textContent = 'Posting…';
-
-      try {
-        const res = await fetch(`${commentEndpointBase}/${encodeURIComponent(slug)}/comments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to post');
-
-        const empty = commentsRoot.querySelector('.work-comments-empty');
-        if (empty) empty.remove();
-
-        let list = commentsRoot.querySelector('.work-comment-list');
-        if (!list) {
-          list = document.createElement('ul');
-          list.className = 'work-comment-list';
-          commentsRoot.appendChild(list);
-        }
-
-        const c = data.comment;
-        list.appendChild(
-          renderComment({
-            ...c,
-            createdLabel: fmtTime(c.createdAt),
-          }),
-        );
-
-        textarea.value = '';
-        body.removeAttribute('hidden');
-        head.setAttribute('aria-expanded', 'true');
-      } catch {
-        alert('Could not post your comment. Please try again.');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = prev;
       }
     });
   });
@@ -762,169 +606,7 @@ const filesEndpointBase = commentEndpointBase;
     transform: scale(0.98);
   }
 
-  .work-comments-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-bottom: 10px;
-  }
-
-  .work-comments {
-    margin: 0 0 12px;
-  }
-
-  .work-comments-empty {
-    margin: 0;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.45);
-  }
-
-  .portal-work :global(.work-comment-list) {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .portal-work :global(.work-comment) {
-    padding: 16px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .portal-work :global(.work-comment:last-child) {
-    border-bottom: none;
-    padding-bottom: 4px;
-  }
-
-  .portal-work :global(.work-comment-inner) {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .portal-work :global(.work-comment-avatar) {
-    flex: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .portal-work :global(.work-comment-avatar img) {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .portal-work :global(.work-comment-avatar-fallback) {
-    font-size: 15px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.75);
-    line-height: 1;
-  }
-
-  .portal-work :global(.work-comment-staff .work-comment-avatar) {
-    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.35);
-    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.12);
-  }
-
-  .portal-work :global(.work-comment-main) {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .portal-work :global(.work-comment-head) {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 12px;
-    margin-bottom: 6px;
-  }
-
-  .portal-work :global(.work-comment-author) {
-    font-size: 14px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.92);
-  }
-
-  .portal-work :global(.work-comment-staff .work-comment-author) {
-    color: var(--portal-accent, #d8b4fe);
-  }
-
-  .portal-work :global(.work-comment-time) {
-    flex: none;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.42);
-    white-space: nowrap;
-  }
-
-  .portal-work :global(.work-comment-text) {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.88);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .work-comment-label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 10px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  .work-comment-input {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    color: #fff;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1.5;
-    padding: 11px 14px;
-    outline: none;
-    resize: vertical;
-    min-height: 72px;
-  }
-
-  .work-comment-input:focus {
-    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.6);
-  }
-
-  .work-comment-submit {
-    width: 100%;
-    padding: 12px;
-    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-    border: 1px solid var(--portal-brand-fill-border, transparent);
-    border-radius: 12px;
-    color: #fff;
-    font: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .work-comment-submit:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
-
-  .work-comment-submit:active:not(:disabled) {
-    transform: scale(0.98);
+  .work-item-body :global(.portal-job-comments) {
+    margin-top: 4px;
   }
 </style>
