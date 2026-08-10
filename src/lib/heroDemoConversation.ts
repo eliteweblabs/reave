@@ -160,7 +160,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Sarah viewed the proposal 2 minutes ago.",
+        text: "Sarah viewed the NDA 2 minutes ago.",
         pauseMs: 1500,
         actions: [{ label: "View signing status", variant: "secondary" }],
       },
