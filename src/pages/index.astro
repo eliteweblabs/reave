@@ -25,9 +25,9 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
       <div class="home-scroll">
         <HomeHeroSection siteContent={siteContent} />
 
-        {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showIntegrations && <HomeIntegrationsSection />}
         {homepage.showFeatures && <FeaturesPageContent embedded showLogoStack={false} />}
+        {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
       </div>
     </Layout>
