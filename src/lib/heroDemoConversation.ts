@@ -47,7 +47,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     userAvatar: "/images/hero-demo/field-checkin.png",
     holdMs: 1000,
     turns: [
-      { role: "user", text: "Is Pete at the Pine Street job?", kind: "voice" },
+      { role: "user", text: "Is Pete at the Franklin Street job?", kind: "voice" },
       {
         role: "assistant",
         /** Visual-only — Mapbox fly-in is the agent reply. */
@@ -56,7 +56,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Pete checked in at Pine Street at 8:42 AM. On site now.",
+        text: "Pete checked in at Franklin Street at 8:42 AM. On site now.",
         pauseMs: 1600,
       },
       {
