@@ -139,6 +139,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - IP / ASN org from `dns_check.hosting` when useful for reputation context
 
 ### Broken Links & Crawl Health
+- Use this exact heading (a "Summary…" suffix is OK). Paste `check_links` results in plain language — broken URLs, status codes, empty anchors.
 - {From check_links — or "Homepage only; no crawlable nav" if applicable}
 
 ### Content & Messaging
