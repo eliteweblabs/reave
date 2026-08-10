@@ -19,7 +19,7 @@ export interface Props {
   supportPhone?: string;
   supportEmail?: string;
   variant?: 'site' | 'portal';
-  /** Slide the FAB in a few seconds after the user engages (marketing site). */
+  /** Slide the FAB in horizontally a few seconds after the user engages (marketing site). */
   revealFabOnEngagement?: boolean;
   /** Hide the FAB while key page sections are at least 20% in view (marketing site). */
   hideFabForHero?: boolean;
@@ -167,7 +167,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
     border: 1px solid transparent;
     box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(168, 85, 247, 0.45)), 0 2px 8px rgba(0, 0, 0, 0.35);
-    transform: translateY(calc(100% + 28px));
+    transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     transition:
@@ -184,7 +184,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   }
 
   .aw-fab--site.is-visible {
-    transform: translateY(0);
+    transform: translateX(0);
     opacity: 1;
     visibility: visible;
     transition:
@@ -195,7 +195,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 
   .aw-fab--site.is-hero-occluding,
   .aw-fab--site.is-visible.is-hero-occluding {
-    transform: translateY(calc(100% + 28px));
+    transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -206,8 +206,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   }
 
   .aw-fab:active { transform: scale(0.93); }
-  .aw-fab--site:active { transform: translateY(0) scale(0.93); }
-  .aw-fab--site.is-visible:active { transform: translateY(0) scale(0.93); }
+  .aw-fab--site:active { transform: translateX(0) scale(0.93); }
+  .aw-fab--site.is-visible:active { transform: translateX(0) scale(0.93); }
   .aw-fab[aria-expanded='true'] {
     opacity: 0;
     visibility: hidden;
