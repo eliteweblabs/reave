@@ -8,6 +8,7 @@ import { demoEnabledFeatures, demoHasFeature } from './demoFeatures.ts';
 import { isDemoMode } from './demoMode.ts';
 import {
   CORE_FEATURE_NOTE,
+  FEATURE_BLURBS,
   FEATURE_ID_SET,
   FEATURE_IDS,
   FEATURE_LABELS,
@@ -18,7 +19,7 @@ import { createLogger } from './logger';
 
 const log = createLogger('features');
 
-export { CORE_FEATURE_NOTE, FEATURE_IDS, FEATURE_LABELS, type FeatureId };
+export { CORE_FEATURE_NOTE, FEATURE_BLURBS, FEATURE_IDS, FEATURE_LABELS, type FeatureId };
 
 let _cached: Set<FeatureId> | null = null;
 

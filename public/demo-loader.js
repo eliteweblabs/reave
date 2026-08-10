@@ -40,10 +40,6 @@
       .replace(/"/g, '&quot;');
   }
 
-  function shortLabel(label) {
-    return String(label).replace(/\s*\([^)]*\)\s*$/, '').trim();
-  }
-
   function toggleableModules() {
     return modules.filter((m) => m.toggleable && m.moduleId);
   }
@@ -140,7 +136,8 @@
       `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
       `<span class="dl-badge ${meta.badge}">${esc(meta.label)}</span>` +
-      `<h3 class="dl-tile-label">${esc(shortLabel(m.label))}</h3>` +
+      `<h3 class="dl-tile-label">${esc(m.label)}</h3>` +
+      (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
       `</div>` +
       `<div class="dl-tile-foot">` +
       (canToggle ?
