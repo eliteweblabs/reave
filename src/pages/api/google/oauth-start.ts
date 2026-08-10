@@ -1,24 +1,12 @@
 import type { APIRoute } from 'astro';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
-export const GET: APIRoute = async ({ redirect }) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    return new Response(JSON.stringify({ error: 'GOOGLE_CLIENT_ID not set' }), { status: 500 });
-  }
-
-  const scopes = [
-    'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/webmasters',
-  ].join(' ');
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: 'https://reave.app/api/google/callback',
-    response_type: 'code',
-    scope: scopes,
-    access_type: 'offline',
-    prompt: 'consent',
-  });
-
-  return redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+/**
+ * Legacy Google OAuth entry — redirects authenticated owners to the
+ * supported analytic-audit connect flow.
+ */
+export const GET: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  return context.redirect('/api/admin/analytic-audit/connect', 302);
 };

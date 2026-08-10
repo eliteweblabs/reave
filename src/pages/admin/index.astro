@@ -38,7 +38,7 @@ const installConfigClient = {
   deployStatus: getDeployStatusClientSummary(),
 };
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
-const mapboxAccessToken = getPublicMapboxAccessToken() || '';
+const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
 const githubRepo = githubRepoSlug();
 ---
