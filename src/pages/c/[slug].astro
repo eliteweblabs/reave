@@ -621,6 +621,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               clientName={company || displayName}
               website={clientWebsite}
               active={initialTab === 'audit'}
+              jobSlug={portalAuditJob.slug}
+              comments={commentsBySlug[portalAuditJob.slug] ?? []}
+              contactUid={uid}
+              clientAvatarUrl={logoUrl}
+              staffAvatarUrl={staffAvatarUrl}
             />
           )}
 
