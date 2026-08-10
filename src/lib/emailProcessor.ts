@@ -56,6 +56,7 @@ import {
   formatAttachmentListForPrompt,
   normalizeEmailAttachments,
 } from './emailAttachments';
+import { enforceNotificationNotJunk } from './emailJunkNotifyInvariant';
 
 /** ISO timestamp for OTP / auth-link auto-delete, or null when disabled. TTL from admin Settings (fallback: `EMAIL_OTP_TTL_MINUTES` / 5). */
 export async function verificationCodeDeleteAfterAt(): Promise<string | null> {
@@ -371,6 +372,10 @@ export function shouldSendInboxPush(opts: {
   isProjectReply?: boolean;
   automationKind?: string | null;
 }): boolean {
+  // Hard rule: a message classified as junk never notifies.
+  // (Rule status DELETE alone is not enough — later overrides may have cleared junk.)
+  if (opts.category === 'junk' || opts.action.toLowerCase() === 'junk') return false;
+
   if (opts.isProjectReply) return true;
   if (
     opts.automationKind === 'meeting_booked' ||
@@ -387,7 +392,6 @@ export function shouldSendInboxPush(opts: {
   const status = opts.ruleStatus.toUpperCase();
 
   if (action === 'needs_explain') return true;
-  if (opts.category === 'junk' || action === 'junk') return false;
   if (opts.category === 'receipt') return false;
   if (opts.action === 'verification_code' || opts.action === 'activation_link') return false;
   if (opts.category === 'otp' || opts.category === 'auth_link') return false;
@@ -827,7 +831,10 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     !isVerificationCode &&
     !isAuthLink &&
     (category === 'junk' || action === 'junk' || ruleResult.status.toUpperCase() === 'DELETE');
-  if (!suppressedAsJunk) {
+  // Operational alerts (e.g. Google "Security alert") must not become urgent client-replies
+  // just because a project happens to share the subject line.
+  const suppressedAsOperationalAlert = isOperationalAlertStatus(ruleResult.status);
+  if (!suppressedAsJunk && !suppressedAsOperationalAlert) {
     const replyMatch = await detectProjectClientReply({
       senderEmail,
       contactUid,
@@ -1060,6 +1067,41 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   const deleteAfterAt =
     isVerificationCode || isAuthLink ? await verificationCodeDeleteAfterAt() : null;
+
+  // Hard rule: if we will fire a dashboard/push notification, the stored message is not junk.
+  const agentWillAlertPreview = shouldAgentAlertForInboundEmail({
+    category,
+    status: ruleResult.status,
+    isUptimeRobot: isUptimeRobotEmail(email),
+  });
+  const willNotifyPreview =
+    isProjectReply ||
+    Boolean(verificationCode) ||
+    isVerificationCode ||
+    isAuthLink ||
+    needsExplain ||
+    agentWillAlertPreview ||
+    Boolean(automationKind) ||
+    shouldSendInboxPush({
+      category,
+      action,
+      ruleNotify: ruleResult.notify || needsExplain,
+      ruleStatus: ruleResult.status,
+      isProjectReply,
+      automationKind,
+    });
+  if (willNotifyPreview) {
+    const fixed = enforceNotificationNotJunk({
+      category,
+      action,
+      status: inboxStatus,
+      willNotify: true,
+      isProjectReply,
+    });
+    category = fixed.category as EmailCategory;
+    action = fixed.action;
+    inboxStatus = fixed.status;
+  }
 
   const record = await storeRecordEmailInbox({
     from,

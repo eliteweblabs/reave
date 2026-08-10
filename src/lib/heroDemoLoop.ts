@@ -141,32 +141,28 @@ function bubbleLineRects(textEl: HTMLElement): DOMRect[] {
 
 /**
  * Collapse a wrapped bubble onto its longest line, so a turn whose last line is
- * short hugs its own side instead of filling the lane. Runs twice because
- * capping the width lets `text-wrap: pretty` rebreak the lines — but backs off
- * rather than buy the tighter box with an extra line.
+ * short hugs its own side instead of filling the lane. Backs off rather than
+ * buy the tighter box with an extra line.
  */
 function fitBubble(bubble: HTMLElement, textEl: HTMLElement): void {
   bubble.style.maxWidth = "";
   const baseline = bubbleLineRects(textEl).length;
   if (baseline < 2) return;
 
-  for (let pass = 0; pass < 2; pass++) {
-    const previous = bubble.style.maxWidth;
+  const previous = bubble.style.maxWidth;
 
-    let widest = 0;
-    for (const line of bubbleLineRects(textEl)) widest = Math.max(widest, line.width);
-    // Never squash an action chip to fit the text.
-    for (const chip of bubble.querySelectorAll<HTMLElement>(".home-hero-demo-action")) {
-      widest = Math.max(widest, chip.getBoundingClientRect().width);
-    }
+  let widest = 0;
+  for (const line of bubbleLineRects(textEl)) widest = Math.max(widest, line.width);
+  // Never squash an action chip to fit the text.
+  for (const chip of bubble.querySelectorAll<HTMLElement>(".home-hero-demo-action")) {
+    widest = Math.max(widest, chip.getBoundingClientRect().width);
+  }
 
-    const inset = bubble.getBoundingClientRect().width - textEl.getBoundingClientRect().width;
-    bubble.style.maxWidth = `${Math.ceil(widest + inset)}px`;
+  const inset = bubble.getBoundingClientRect().width - textEl.getBoundingClientRect().width;
+  bubble.style.maxWidth = `${Math.ceil(widest + inset)}px`;
 
-    if (bubbleLineRects(textEl).length > baseline) {
-      bubble.style.maxWidth = previous;
-      return;
-    }
+  if (bubbleLineRects(textEl).length > baseline) {
+    bubble.style.maxWidth = previous;
   }
 }
 
@@ -674,18 +670,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   else if (iconEl) new ResizeObserver(() => relayout()).observe(iconEl);
   new ResizeObserver(() => relayout()).observe(viewport);
 
-  /*
-   * iOS Safari fires visualViewport/window resize while the URL bar animates.
-   * Debounce so stack translate transitions are not restarted every frame —
-   * that reads as the chat racing ahead on mobile Safari.
-   */
-  let resizeRelayoutTimer = 0;
-  const scheduleResizeRelayout = () => {
-    window.clearTimeout(resizeRelayoutTimer);
-    resizeRelayoutTimer = window.setTimeout(() => relayout(), 120);
-  };
-  window.addEventListener("resize", scheduleResizeRelayout, { passive: true });
-  window.visualViewport?.addEventListener("resize", scheduleResizeRelayout, { passive: true });
+  window.addEventListener("resize", () => relayout(), { passive: true });
   document.fonts?.ready?.then(() => relayout(true));
   requestAnimationFrame(() => relayout(true));
   window.setTimeout(() => relayout(true), 150);

@@ -307,7 +307,15 @@ import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Us
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   }
 
-  .footer-nav-btn[data-footer-count]:not(.footer-nav-btn--create):not(.footer-nav-btn--save):hover::after,
+  /* Hover tips only on real pointer hover — sticky :hover after tap kept
+     the dashboard label tip stuck open on mobile. Keyboard still uses focus-visible. */
+  @media (hover: hover) and (pointer: fine) {
+    .footer-nav-btn[data-footer-count]:not(.footer-nav-btn--create):not(.footer-nav-btn--save):hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+
   .footer-nav-btn[data-footer-count]:not(.footer-nav-btn--create):not(.footer-nav-btn--save):focus-visible::after {
     opacity: 1;
     visibility: visible;

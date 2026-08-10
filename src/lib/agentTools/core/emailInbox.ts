@@ -107,6 +107,7 @@ import {
   type EmailInboxPatch,
 } from '../../emailInboxStore';
 import { dismissEmailRelatedNotifications } from '../../emailNotificationSync';
+import { patchForMarkJunk } from '../../emailJunkNotifyInvariant';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
 import { buildReplyEmailHeaders } from '../../emailReply';
 import { brandedPlainTextEmail } from '../../inboundEmailReply';
@@ -234,12 +235,12 @@ async function handle_list_email_inbox(args: Record<string, unknown>, _ctx: Tool
 async function handle_mark_email_junk(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const emailId = String(args.email_id ?? '').trim();
   if (!emailId) return JSON.stringify({ error: 'email_id is required' });
-  const event = await storeUpdateEmailInbox(emailId, {
-    category: 'junk',
-    action: 'junk',
-    status: 'JUNK',
-  });
+  const existing = await storeGetEmailInbox(emailId);
+  if (!existing) return JSON.stringify({ error: 'not found', email_id: emailId });
+  // Hard rule: junk and live dashboard notifications cannot coexist.
+  const event = await storeUpdateEmailInbox(emailId, patchForMarkJunk(existing));
   if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
+  await dismissEmailRelatedNotifications(emailId, { markAutomationAck: false }).catch(() => undefined);
   return JSON.stringify({ ok: true, email_id: emailId, category: event.category, action: event.action });
 }
 
