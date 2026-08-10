@@ -75,7 +75,7 @@ export function mountClientsGeoMap(container, opts = {}) {
   let clients = [];
   let counts = { all: 0, professional: 0, service: 0, proposed: 0, personal: 0, located: 0 };
   /** @type {Record<string, boolean>} */
-  let enabledKinds = {
+  const enabledKinds = {
     professional: true,
     service: true,
     proposed: true,
@@ -100,7 +100,7 @@ export function mountClientsGeoMap(container, opts = {}) {
       <div class="cgm-chrome-panel">
         <div class="cgm-chrome-top">
           <h1 class="cgm-title">Contact map</h1>
-          <p class="cgm-count" id="cgm-count" aria-live="polite"></p>
+          <p class="cgm-count" id="cgm-count" aria-live="polite">Loading…</p>
         </div>
         <div class="cgm-toggles" id="cgm-toggles" role="group" aria-label="Status toggles"></div>
       </div>
@@ -108,10 +108,10 @@ export function mountClientsGeoMap(container, opts = {}) {
     <div class="cgm-status" id="cgm-status" hidden></div>
   `;
 
-  const mapHost = container.querySelector('#cgm-map-host');
-  const togglesEl = container.querySelector('#cgm-toggles');
-  const countEl = container.querySelector('#cgm-count');
-  const statusEl = container.querySelector('#cgm-status');
+  const mapHost = /** @type {HTMLElement} */ (container.querySelector('#cgm-map-host'));
+  const togglesEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-toggles'));
+  const countEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-count'));
+  const statusEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-status'));
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cgm-map-empty';
@@ -149,28 +149,49 @@ export function mountClientsGeoMap(container, opts = {}) {
     const onKinds = CLIENT_KINDS.filter((k) => enabledKinds[k]).length;
     countEl.textContent =
       located === 1
-        ? `1 pin · ${onKinds}/4 statuses`
-        : `${located} pins · ${onKinds}/4 statuses`;
+        ? `1 pin · ${onKinds}/4 on`
+        : `${located} pins · ${onKinds}/4 on`;
+  }
+
+  function syncToggleRow(row, kind) {
+    const on = !!enabledKinds[kind];
+    row.classList.toggle('is-on', on);
+    const input = row.querySelector('input');
+    if (input instanceof HTMLInputElement) input.checked = on;
+    const countNode = row.querySelector('.cgm-toggle-count');
+    if (countNode) countNode.textContent = String(counts[kind] ?? 0);
+  }
+
+  function setKindEnabled(kind, next) {
+    enabledKinds[kind] = next;
+    if (!CLIENT_KINDS.some((k) => enabledKinds[k])) {
+      enabledKinds[kind] = true;
+    }
+    for (const row of togglesEl.querySelectorAll('.cgm-toggle')) {
+      const k = row.getAttribute('data-kind');
+      if (k) syncToggleRow(/** @type {HTMLElement} */ (row), k);
+    }
+    renderMarkers({ refit: true });
+    renderCount();
   }
 
   function renderToggles() {
-    togglesEl.innerHTML = '';
+    togglesEl.replaceChildren();
     for (const kind of CLIENT_KINDS) {
       const row = document.createElement('label');
       row.className = 'cgm-toggle';
       row.dataset.kind = kind;
-      if (enabledKinds[kind]) row.classList.add('is-on');
+      row.style.setProperty('--cgm-kind', kindColor(kind));
 
-      const sw = document.createElement('button');
-      sw.type = 'button';
-      sw.className = 'cgm-toggle-switch';
-      sw.setAttribute('role', 'switch');
-      sw.setAttribute('aria-checked', enabledKinds[kind] ? 'true' : 'false');
-      sw.setAttribute(
-        'aria-label',
-        `${CLIENT_KIND_LABELS[kind]} status ${enabledKinds[kind] ? 'on' : 'off'}`,
-      );
-      sw.style.setProperty('--cgm-kind', kindColor(kind));
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'cgm-toggle-input';
+      input.checked = !!enabledKinds[kind];
+      input.setAttribute('aria-label', `${CLIENT_KIND_LABELS[kind]} status`);
+
+      const track = document.createElement('span');
+      track.className = 'cgm-toggle-track';
+      track.setAttribute('aria-hidden', 'true');
 
       const meta = document.createElement('span');
       meta.className = 'cgm-toggle-meta';
@@ -180,25 +201,14 @@ export function mountClientsGeoMap(container, opts = {}) {
         <span class="cgm-toggle-count">${counts[kind] ?? 0}</span>
       `;
 
-      const toggle = () => {
-        enabledKinds[kind] = !enabledKinds[kind];
-        // Keep at least one status on so the map never goes blank by accident.
-        if (!CLIENT_KINDS.some((k) => enabledKinds[k])) {
-          enabledKinds[kind] = true;
-        }
-        renderToggles();
-        renderMarkers({ refit: true });
-        renderCount();
-      };
-
-      sw.addEventListener('click', toggle);
-      row.addEventListener('click', (e) => {
-        if (e.target === sw || sw.contains(e.target)) return;
-        toggle();
+      input.addEventListener('change', () => {
+        setKindEnabled(kind, input.checked);
       });
 
-      row.appendChild(sw);
+      row.appendChild(input);
+      row.appendChild(track);
       row.appendChild(meta);
+      syncToggleRow(row, kind);
       togglesEl.appendChild(row);
     }
   }
@@ -232,6 +242,7 @@ export function mountClientsGeoMap(container, opts = {}) {
       img.addEventListener(
         'error',
         () => {
+          face.replaceChildren();
           face.textContent = pinInitial(c);
           face.classList.add('cgm-pin-face--initial');
         },
@@ -258,6 +269,7 @@ export function mountClientsGeoMap(container, opts = {}) {
     if (!located.length) return;
     if (located.length === 1) {
       map.flyTo({ center: [located[0].geo.lng, located[0].geo.lat], zoom: 13 });
+      fitOnce = true;
       return;
     }
     const bounds = new mapboxgl.LngLatBounds();
@@ -266,8 +278,7 @@ export function mountClientsGeoMap(container, opts = {}) {
     fitOnce = true;
   }
 
-  function renderMarkers(opts = {}) {
-    const { refit = false } = opts;
+  function renderMarkers({ refit = false } = {}) {
     if (!map || !mapReady || !mapboxgl) {
       emptyEl.hidden = locatedClients().length > 0;
       return;
@@ -333,7 +344,6 @@ export function mountClientsGeoMap(container, opts = {}) {
         mapReady = true;
         renderMarkers({ refit: true });
       });
-      // Mapbox needs an explicit resize once the full-bleed host has layout.
       requestAnimationFrame(() => map?.resize());
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e), true);
@@ -360,12 +370,17 @@ export function mountClientsGeoMap(container, opts = {}) {
         located: data.counts?.located ?? clients.filter((c) => c.located).length,
       };
       setStatus('');
-      renderToggles();
+      // Refresh counts on the already-mounted toggles.
+      for (const row of togglesEl.querySelectorAll('.cgm-toggle')) {
+        const k = row.getAttribute('data-kind');
+        if (k) syncToggleRow(/** @type {HTMLElement} */ (row), k);
+      }
       renderCount();
       await ensureMap();
       if (mapReady) renderMarkers({ refit: true });
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e), true);
+      renderCount();
     }
   }
 
@@ -382,6 +397,9 @@ export function mountClientsGeoMap(container, opts = {}) {
     window.removeEventListener('resize', resize);
   }
 
+  // Mount toggles immediately so a slow/failed fetch never blanks the controls.
+  renderToggles();
+  renderCount();
   window.addEventListener('resize', resize);
   void loadClients();
 
@@ -390,7 +408,12 @@ export function mountClientsGeoMap(container, opts = {}) {
 
 const root = document.getElementById('clients-geo-map');
 if (root) {
-  mountClientsGeoMap(root, {
-    token: window.__mapboxAccessToken || root.dataset.mapboxToken || '',
-  });
+  try {
+    mountClientsGeoMap(root, {
+      token: window.__mapboxAccessToken || root.dataset.mapboxToken || '',
+    });
+  } catch (e) {
+    root.textContent = e instanceof Error ? e.message : String(e);
+    console.error('[client-map]', e);
+  }
 }
