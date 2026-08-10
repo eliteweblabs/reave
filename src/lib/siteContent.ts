@@ -153,7 +153,6 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/demo',
       '/demo-loader',
       '/about',
-      '/services',
       '/digital-audit',
       '/privacy',
       '/terms',
