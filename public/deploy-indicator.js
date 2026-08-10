@@ -6,6 +6,14 @@
   let deployPollTimer = null;
   let deployPollMs = DEPLOY_POLL_MS_LIVE;
 
+  function publishDeployIndicator(deploy) {
+    try {
+      window.dispatchEvent(new CustomEvent('reave:deploy-indicator', { detail: deploy ?? null }));
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function refreshDeployDot() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot) return;
@@ -17,6 +25,7 @@
         dot.classList.remove('tooltip-open');
         window.ProximityTooltip?.hide?.();
         deployPollMs = DEPLOY_POLL_MS_LIVE;
+        publishDeployIndicator(null);
         return;
       }
       const { tone, tooltip } = data.deploy;
@@ -32,6 +41,7 @@
           : tone === 'alert'
             ? DEPLOY_POLL_MS_ALERT
             : DEPLOY_POLL_MS_LIVE;
+      publishDeployIndicator(data.deploy);
     } catch {
       const keepOpen = dot.classList.contains('tooltip-open');
       dot.hidden = false;

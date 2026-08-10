@@ -63,7 +63,10 @@ const CHAT_IMAGE_ACCEPT =
 
 const MAX_CHAT_DOCS = 3;
 const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
-const DEPLOY_INDICATOR_POLL_MS = 60_000;
+/** Match public/deploy-indicator.js — poll faster while chat is locked so the banner clears with Railway. */
+const DEPLOY_CHAT_LOCK_POLL_MS_ACTIVE = 5_000;
+const DEPLOY_CHAT_LOCK_POLL_MS_IDLE = 15_000;
+const DEPLOY_CHAT_RELOAD_KEY = 'reave:deploy-reload-sha';
 const PPTX_MEDIA_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
@@ -1075,43 +1078,147 @@ function PendingDraftBoot({
   return null;
 }
 
-type DeployChatLockState = { locked: boolean; message: string | null };
+type DeployChatLockState = { locked: boolean; message: string | null; liveReloading?: boolean };
+
+type DeployIndicatorPayload = {
+  chatLocked?: boolean;
+  chatLockMessage?: string | null;
+  state?: string;
+  deployedShort?: string | null;
+  tone?: string;
+};
+
+function applyDeployChatLockPayload(
+  deploy: DeployIndicatorPayload | null | undefined,
+  opts: {
+    wasLocked: boolean;
+    setWasLocked: (locked: boolean) => void;
+    setState: (next: DeployChatLockState) => void;
+  },
+): void {
+  if (!deploy) {
+    opts.setWasLocked(false);
+    opts.setState({ locked: false, message: null });
+    return;
+  }
+
+  const locked = Boolean(deploy.chatLocked);
+  const message = deploy.chatLockMessage ?? null;
+  const deployedShort = deploy.deployedShort?.trim() || '';
+
+  // Railway all-clear: drop the composer banner and reload onto the new build.
+  // Regular users will not refresh on their own — and stale tabs keep old assets.
+  if (opts.wasLocked && !locked) {
+    let alreadyReloaded = false;
+    try {
+      alreadyReloaded = Boolean(
+        deployedShort && sessionStorage.getItem(DEPLOY_CHAT_RELOAD_KEY) === deployedShort,
+      );
+      if (deployedShort) sessionStorage.setItem(DEPLOY_CHAT_RELOAD_KEY, deployedShort);
+    } catch {
+      /* private mode */
+    }
+
+    opts.setWasLocked(false);
+    if (alreadyReloaded) {
+      opts.setState({ locked: false, message: null });
+      return;
+    }
+
+    opts.setState({
+      locked: true,
+      liveReloading: true,
+      message: 'New version is live — reloading…',
+    });
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 450);
+    return;
+  }
+
+  opts.setWasLocked(locked);
+  opts.setState({ locked, message });
+}
 
 function useDeployChatLock(): DeployChatLockState {
   const [state, setState] = useState<DeployChatLockState>({ locked: false, message: null });
+  const wasLockedRef = useRef(false);
+  const lockedRef = useRef(false);
+  const reloadScheduledRef = useRef(false);
+
+  const applyPayload = useCallback((deploy: DeployIndicatorPayload | null | undefined) => {
+    if (reloadScheduledRef.current) return;
+    const before = wasLockedRef.current;
+    applyDeployChatLockPayload(deploy, {
+      wasLocked: before,
+      setWasLocked: (locked) => {
+        wasLockedRef.current = locked;
+      },
+      setState: (next) => {
+        lockedRef.current = Boolean(next.locked);
+        if (next.liveReloading) reloadScheduledRef.current = true;
+        setState(next);
+      },
+    });
+  }, []);
 
   const refresh = useCallback(async () => {
+    if (reloadScheduledRef.current) return;
     try {
       const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
       const data = (await res.json()) as {
         ok?: boolean;
-        deploy?: { chatLocked?: boolean; chatLockMessage?: string | null } | null;
+        deploy?: DeployIndicatorPayload | null;
       };
-      if (!res.ok || !data.ok || !data.deploy) {
-        setState({ locked: false, message: null });
+      if (!res.ok || !data.ok) {
+        applyPayload(null);
         return;
       }
-      setState({
-        locked: Boolean(data.deploy.chatLocked),
-        message: data.deploy.chatLockMessage ?? null,
-      });
+      applyPayload(data.deploy ?? null);
     } catch {
-      setState({ locked: false, message: null });
+      // Keep the existing lock state on transient network errors so a blip
+      // doesn't unlock the composer while a deploy is still in flight.
     }
-  }, []);
+  }, [applyPayload]);
 
   useEffect(() => {
     void refresh();
-    const timer = setInterval(() => void refresh(), DEPLOY_INDICATOR_POLL_MS);
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      if (reloadScheduledRef.current || document.hidden) return;
+      const ms = lockedRef.current ? DEPLOY_CHAT_LOCK_POLL_MS_ACTIVE : DEPLOY_CHAT_LOCK_POLL_MS_IDLE;
+      timer = setTimeout(() => {
+        void refresh().finally(schedule);
+      }, ms);
+    };
+    schedule();
+
     const onVis = () => {
-      if (!document.hidden) void refresh();
+      if (document.hidden) {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        return;
+      }
+      void refresh().finally(schedule);
     };
+
+    // Header deploy bulb polls on the same endpoint — reuse its all-clear immediately.
+    const onDeployEvent = (ev: Event) => {
+      const detail = (ev as CustomEvent<DeployIndicatorPayload | null>).detail;
+      applyPayload(detail);
+      schedule();
+    };
+
     document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('reave:deploy-indicator', onDeployEvent);
     return () => {
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('reave:deploy-indicator', onDeployEvent);
     };
-  }, [refresh]);
+  }, [applyPayload, refresh]);
 
   return state;
 }
@@ -1718,6 +1825,10 @@ function useSlashHelpers(
     setHelpersOpen(false);
     setComposeText('');
     propsRef.current?.onComposeDirty?.(false);
+    // Sending keeps the textarea focused (Send uses preventDefault). When the
+    // running UI replaces it, clear compose-focus so the pane header is not left
+    // inert with no .aui-input left to blur.
+    propsRef.current?.onComposeFocus?.(false);
   }, [isRunning]);
 
   useEffect(() => {
@@ -1835,6 +1946,7 @@ function ClaudeComposer({
   onStopExternal,
   deployChatLocked = false,
   deployChatLockMessage = null,
+  deployLiveReloading = false,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
@@ -1848,11 +1960,15 @@ function ClaudeComposer({
   onStopExternal?: () => void;
   deployChatLocked?: boolean;
   deployChatLockMessage?: string | null;
+  deployLiveReloading?: boolean;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
   const mentions = useMentions(pendingMentionsRef);
+  const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
+  const sendBtnRef = useRef<HTMLButtonElement | null>(null);
+  const sentByTouchRef = useRef(false);
   useCapComposerAttachments();
 
   const setInputRef = useCallback(
@@ -1866,6 +1982,32 @@ function ClaudeComposer({
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
   }, [helpers.focusInput, onFocusInputReady]);
+
+  // Running / deploy-lock UIs unmount .aui-input. Drop compose-focus so the pane
+  // header is not left inert (share / archive / rename) until a hard refresh.
+  useEffect(() => {
+    if (!showRunning && !deployChatLocked) return;
+    propsRef.current?.onComposeFocus?.(false);
+  }, [showRunning, deployChatLocked, propsRef]);
+
+  // iOS Safari blurs the focused textarea on the touch that targets Send —
+  // often before `click` — which closes the keyboard and reflows the pinned
+  // composer enough that the tap never lands. A non-passive touchstart both
+  // blocks that blur and sends immediately, so one press sends and the
+  // keyboard dismisses when the running/Stop composer replaces the input.
+  useLayoutEffect(() => {
+    if (showRunning || deployChatLocked) return;
+    const btn = sendBtnRef.current;
+    if (!btn) return;
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      if (!composer.getState().canSend) return;
+      sentByTouchRef.current = true;
+      void composer.send();
+    };
+    btn.addEventListener('touchstart', onTouchStart, { passive: false });
+    return () => btn.removeEventListener('touchstart', onTouchStart);
+  }, [composer, showRunning, deployChatLocked]);
 
   if (showRunning) {
     return (
@@ -1917,13 +2059,18 @@ function ClaudeComposer({
   if (deployChatLocked) {
     return (
       <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
-        <div className="aui-composer-deploy-lock" role="status">
+        <div
+          className={`aui-composer-deploy-lock${deployLiveReloading ? ' aui-composer-deploy-lock--live' : ''}`}
+          role="status"
+        >
           <span className="aui-composer-deploy-lock-icon" aria-hidden="true">
-            🚀
+            {deployLiveReloading ? '🟢' : '🚀'}
           </span>
           <p className="aui-composer-deploy-lock-text">
             {deployChatLockMessage ||
-              'Deploy in progress — new messages are paused until the new version is live.'}
+              (deployLiveReloading
+                ? 'New version is live — reloading…'
+                : 'Deploy in progress — new messages are paused until the new version is live.')}
           </p>
         </div>
       </div>
@@ -1997,19 +2144,20 @@ function ClaudeComposer({
               files
             </span>
             <ComposerPrimitive.Send
+              ref={sendBtnRef}
               className="aui-composer-send"
               aria-label="Send message"
-              // iOS Safari fires `blur` on the composer textarea before `click` on
-              // whatever was tapped. Without this, the first tap on Send just closes
-              // the keyboard (and can shift the layout enough to eat the tap), so a
-              // second tap is needed to actually send. Preventing the default action
-              // of mousedown/pointerdown stops the browser from moving focus off the
-              // textarea, so the keyboard stays open and the tap sends immediately.
-              // Both handlers are needed: iOS's pointer-event support has been
-              // inconsistent about suppressing the compatibility mousedown it's
-              // supposed to when pointerdown is cancelled.
+              // Desktop / stylus: keep focus so the composer doesn't reflow before
+              // click. Touch send is handled by the non-passive touchstart listener
+              // above (React's synthetic preventDefault is often too late on iOS).
               onPointerDown={(e) => e.preventDefault()}
               onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                if (!sentByTouchRef.current) return;
+                sentByTouchRef.current = false;
+                // Already sent in touchstart — block ComposerPrimitive.Send's click send.
+                e.preventDefault();
+              }}
             >
               <SendIcon />
             </ComposerPrimitive.Send>
@@ -2389,6 +2537,7 @@ function AgentChatThreadBody({
             onStopExternal={() => void stopRecovery()}
             deployChatLocked={deployChatLock.locked}
             deployChatLockMessage={deployChatLock.message}
+            deployLiveReloading={Boolean(deployChatLock.liveReloading)}
             onFocusInputReady={onFocusInputReady}
           />
         </div>
@@ -2430,6 +2579,7 @@ function AgentChatThreadBody({
                 onStopExternal={() => void stopRecovery()}
                 deployChatLocked={deployChatLock.locked}
                 deployChatLockMessage={deployChatLock.message}
+                deployLiveReloading={Boolean(deployChatLock.liveReloading)}
                 onFocusInputReady={onFocusInputReady}
               />
               <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>

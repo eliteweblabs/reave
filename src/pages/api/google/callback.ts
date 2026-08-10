@@ -44,7 +44,9 @@ export const GET: APIRoute = async ({ url }) => {
     return new Response(
       `<html><body style="font-family:sans-serif;padding:2rem">
         <h2>⚠️ No refresh token returned</h2>
-        <p>Google only returns a refresh token on first authorization. If you've authorized before, revoke access at <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a> and try again.</p>
+        <p>Google only returns a refresh token on first authorization.</p>
+        <p>Token response: <pre>${JSON.stringify(tokens, null, 2)}</pre></p>
+        <p>Revoke access at <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a> and try again.</p>
         <a href="/admin">← Back to Admin</a>
       </body></html>`,
       { status: 400, headers: { 'Content-Type': 'text/html' } }
@@ -52,29 +54,58 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   // Store refresh token in Railway via GraphQL
+  let railwaySaveError = '';
+  let railwaySaveOk = false;
+
   if (railwayToken && serviceId && environmentId) {
     const mutation = `
       mutation UpsertVariables($input: VariableCollectionUpsertInput!) {
         variableCollectionUpsert(input: $input)
       }
     `;
-    await fetch('https://backboard.railway.app/graphql/v2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${railwayToken}`,
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: {
-          input: {
-            serviceId,
-            environmentId,
-            variables: { GOOGLE_REFRESH_TOKEN: tokens.refresh_token },
-          },
+    try {
+      const rrRes = await fetch('https://backboard.railway.app/graphql/v2', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${railwayToken}`,
         },
-      }),
-    });
+        body: JSON.stringify({
+          query: mutation,
+          variables: {
+            input: {
+              serviceId,
+              environmentId,
+              variables: { GOOGLE_REFRESH_TOKEN: tokens.refresh_token },
+            },
+          },
+        }),
+      });
+      const rrJson = await rrRes.json();
+      if (rrJson.errors) {
+        railwaySaveError = JSON.stringify(rrJson.errors);
+      } else {
+        railwaySaveOk = true;
+      }
+    } catch (e: any) {
+      railwaySaveError = e?.message || 'Unknown error';
+    }
+  } else {
+    railwaySaveError = `Missing env: railwayToken=${!!railwayToken} serviceId=${serviceId} environmentId=${environmentId}`;
+  }
+
+  if (!railwaySaveOk) {
+    return new Response(
+      `<html><body style="font-family:sans-serif;padding:2rem;max-width:600px;margin:auto">
+        <h2>⚠️ Token received but Railway save failed</h2>
+        <p>Your refresh token was returned by Google but could not be saved to Railway automatically.</p>
+        <p><strong>Error:</strong> <code>${railwaySaveError}</code></p>
+        <p>Please add this variable to Railway manually:</p>
+        <pre style="background:#f3f4f6;padding:1rem;border-radius:.4rem;word-break:break-all">GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}</pre>
+        <a href="/admin" style="background:#4f46e5;color:#fff;padding:.6rem 1.2rem;border-radius:.4rem;text-decoration:none">← Back to Admin</a>
+      </body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    );
   }
 
   return new Response(

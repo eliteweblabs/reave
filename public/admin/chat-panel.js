@@ -1983,6 +1983,9 @@ function mountChatThreadRoot(threadHost) {
     },
     onAgentRunChange: (running) => {
       chatState.sending = running;
+      // Agent-running UI replaces the textarea; drop compose-focus so the pane
+      // header is not left inert (mobile share / archive / rename).
+      if (running) shell.setChatComposeFocused?.(false);
       const id = chatState.activeId;
       if (!id) return;
       if (running) chatState.runningIds.add(id);

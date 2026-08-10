@@ -220,7 +220,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260807c';
+} from './chat-panel.js?v=20260810a';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -7864,9 +7864,33 @@ function syncChatComposeViewport() {
   document.documentElement.style.setProperty('--chat-compose-bottom', `${inset}px`);
 }
 
+function chatComposerInputEl() {
+  return document.querySelector('#chat-panel .aui-input');
+}
+
+function isChatComposerFocusTarget(el) {
+  return (
+    el instanceof HTMLElement &&
+    Boolean(
+      el.closest(
+        '.aui-compose, .aui-compose-footer, .aui-composer-shell, .aui-composer-card, .aui-helper-panel, .ch-compose',
+      ),
+    )
+  );
+}
+
+/** True only while the real message textarea still owns focus — not Stop / deploy lock. */
+function isChatComposerTextFocused() {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && active.classList.contains('aui-input') && Boolean(active.closest('#chat-panel'));
+}
+
 function syncChatComposeFormNav(focused) {
   const header = getChatPanel()?.querySelector('.ch-pane-header');
   if (header instanceof HTMLElement) {
+    // inert must track a live focused textarea. While the agent is running the
+    // composer swaps to Stop (no .aui-input) — leaving inert stuck made share /
+    // archive / rename look like a dead z-index overlay.
     header.inert = Boolean(focused);
   }
   const searchInput = document.getElementById('search-overlay-input');
@@ -7877,6 +7901,11 @@ function syncChatComposeFormNav(focused) {
 
 function setChatComposeFocused(focused) {
   if (!isMobileTabs() || activeKey !== 'chats' || !chatState.activeId) {
+    focused = false;
+  }
+  // Refuse to arm the lock unless the textarea is actually focused (guards against
+  // stale true after send → agent-running UI unmounts the input).
+  if (focused && !isChatComposerTextFocused()) {
     focused = false;
   }
   document.body.classList.toggle('chat-compose-focused', focused);
@@ -7906,15 +7935,16 @@ function initChatComposeFocusLayout() {
     (ev) => {
       if (!isMobileTabs()) return;
       const related = ev.relatedTarget;
-      if (
-        related instanceof HTMLElement &&
-        related.closest('.aui-compose, .aui-compose-footer, .aui-composer-shell, .aui-composer-card, .ch-compose')
-      ) {
+      // Stay armed only when focus moves to another composer *text* affordance
+      // (slash helpers). Stop / running chrome must not keep the header inert.
+      if (related instanceof HTMLElement && related.classList.contains('aui-input')) {
+        return;
+      }
+      if (related instanceof HTMLElement && related.closest('.aui-helper-panel')) {
         return;
       }
       requestAnimationFrame(() => {
-        const panel = getChatPanel();
-        if (panel?.contains(document.activeElement)) return;
+        if (isChatComposerTextFocused()) return;
         setChatComposeFocused(false);
       });
     },
@@ -7930,11 +7960,17 @@ function initChatComposeFocusLayout() {
     (ev) => {
       if (!document.body.classList.contains('chat-compose-focused')) return;
       const t = ev.target;
-      if (t instanceof HTMLElement && t.closest('.aui-compose, .aui-compose-footer, .aui-composer-shell, .aui-composer-card, .ch-compose')) {
+      if (isChatComposerFocusTarget(t)) {
+        // Stop / running chrome still lives under .aui-composer-shell, but the
+        // textarea is gone — release inert so header actions work again.
+        if (!chatComposerInputEl()) setChatComposeFocused(false);
         return;
       }
-      const input = document.querySelector('#chat-panel .aui-input');
+      // Outside the composer: blur the textarea when it exists; otherwise the
+      // agent-running UI left no input to blur and the header stayed inert.
+      const input = chatComposerInputEl();
       if (input instanceof HTMLElement) input.blur();
+      setChatComposeFocused(false);
     },
     true,
   );
