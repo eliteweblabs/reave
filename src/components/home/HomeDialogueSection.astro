@@ -325,7 +325,8 @@ const uid = `dialogue-${variant}-${id}`.replace(/[^a-zA-Z0-9_-]/g, "-");
     font-family: var(--font-content);
     font-size: clamp(0.875rem, 2.2vw, 0.95rem);
     line-height: 1.55;
-    text-wrap: pretty;
+    /* Greedy wrap — pretty/balance shortens early lines in chat bubbles. */
+    text-wrap: wrap;
   }
 
   .home-dialogue-text {
