@@ -47,7 +47,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         class="home-hero-demo"
         data-hero-demo
         data-scenes={JSON.stringify(demoScenes)}
-        data-start-scene="field-checkin"
+        data-start-scene="susie-proposal"
         data-mapbox-token={mapboxToken}
         aria-live="polite"
         aria-atomic="false"
@@ -999,6 +999,175 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
+  /* Dashboard notification toast — same center-scale overshoot as the invoice. */
+  .home-hero-demo-sk-notif {
+    width: min(100%, 18.5rem);
+    margin-inline: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.78rem 0.9rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    transform-origin: center center;
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  .home-hero-demo-sk-notif--pop {
+    animation: heroDemoSkInvoicePop 0.7s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+  }
+
+  .home-hero-demo-sk-notif--settled {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .home-hero-demo-sk-notif-dot {
+    flex: none;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.28rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+  }
+
+  .home-hero-demo-sk-notif-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+  }
+
+  .home-hero-demo-sk-notif-title,
+  .home-hero-demo-sk-notif-detail {
+    margin: 0;
+    font-family: var(--font-primary);
+    line-height: 1.25;
+  }
+
+  .home-hero-demo-sk-notif-title {
+    font-size: 0.86rem;
+    font-weight: 650;
+    color: rgba(255, 255, 255, 0.94);
+  }
+
+  .home-hero-demo-sk-notif-detail {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* Contract card — line bones draw in, then signature strokes. */
+  .home-hero-demo-sk-contract {
+    width: 100%;
+    padding: 0.9rem 0.95rem 0.85rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    transform-origin: center center;
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  .home-hero-demo-sk-contract--pop {
+    animation: heroDemoSkInvoicePop 0.7s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+  }
+
+  .home-hero-demo-sk-contract--settled {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .home-hero-demo-sk-contract-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+  }
+
+  .home-hero-demo-sk-contract-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.42rem;
+    padding: 0.35rem 0 0.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .home-hero-demo-sk-contract-line {
+    display: block;
+    height: 0.38rem;
+    width: 0;
+    max-width: var(--hero-contract-line-w, 90%);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.16);
+    opacity: 0;
+    transition:
+      width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.28s ease;
+  }
+
+  .home-hero-demo-sk-contract-line--in {
+    width: var(--hero-contract-line-w, 90%);
+    opacity: 1;
+  }
+
+  .home-hero-demo-sk-contract-sign {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .home-hero-demo-sk-contract-sign-label {
+    display: block;
+    width: 22%;
+    height: 0.32rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .home-hero-demo-sk-contract-signature {
+    width: min(100%, 10.5rem);
+    height: 2.1rem;
+    overflow: visible;
+  }
+
+  .home-hero-demo-sk-contract-signature-path {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.82);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+  }
+
+  .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path {
+    animation: heroDemoSkContractSign 1.05s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes heroDemoSkContractSign {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .home-hero-demo-sk-contract-sign-rule {
+    display: block;
+    width: 58%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
   /* GPS map bubble — map bleeds edge-to-edge; chrome is just the clip + border. */
   .home-hero-demo-msg--gps {
     align-items: flex-end;
@@ -1342,6 +1511,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     .home-hero-demo-sk-invoice--exit,
     .home-hero-demo-sk-bone--total-pulse,
     .home-hero-demo-sk-bone--total-pulse::after,
+    .home-hero-demo-sk-notif--pop,
+    .home-hero-demo-sk-contract--pop,
+    .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path,
     .home-hero-demo-sk-gps--pop,
     .home-hero-demo-sk-gps-marker--in,
     .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
@@ -1349,9 +1521,23 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
 
     .home-hero-demo-sk-invoice--pop,
-    .home-hero-demo-sk-invoice--settled {
+    .home-hero-demo-sk-invoice--settled,
+    .home-hero-demo-sk-notif--pop,
+    .home-hero-demo-sk-notif--settled,
+    .home-hero-demo-sk-contract--pop,
+    .home-hero-demo-sk-contract--settled {
       opacity: 1;
       transform: scale(1);
+    }
+
+    .home-hero-demo-sk-contract-line {
+      transition: none;
+      width: var(--hero-contract-line-w, 90%);
+      opacity: 1;
+    }
+
+    .home-hero-demo-sk-contract-signature-path {
+      stroke-dashoffset: 0;
     }
 
     .home-hero-demo-sk-gps--pop,
@@ -1377,7 +1563,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
 
     .home-hero-demo-sk-invoice-payments,
-    .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
+    .home-hero-demo-sk-invoice-payment [data-hero-sk-pay],
+    .home-hero-demo-sk-contract-line {
       transition: none;
     }
   }
