@@ -367,9 +367,15 @@ function createInvoiceSkeletonCard(): HTMLElement {
   return row;
 }
 
+/** Hold on the finished invoice before it swipes away. */
+const INVOICE_SIT_MS = 1000;
+/** Swipe duration — half the sit, so the exit reads snappier than the hold. */
+const INVOICE_SWIPE_MS = Math.round(INVOICE_SIT_MS / 2);
+
 /**
  * After "View invoice": bounce a full-width skeleton invoice in, stagger a
  * payment row L→R, pulse the total, then swipe the card off to the right.
+ * Marks the scene for a fade outro (no stack settle / cascade).
  */
 async function playInvoicePaymentSkeleton(
   sceneEl: HTMLElement,
@@ -400,10 +406,10 @@ async function playInvoicePaymentSkeleton(
     payments?.classList.add("home-hero-demo-sk-invoice-payments--open");
     for (const bone of payBones) bone.classList.add("home-hero-demo-sk-bone--pay-in");
     total?.classList.add("home-hero-demo-sk-bone--total-pulse");
-    await wait(600);
+    await wait(INVOICE_SIT_MS);
     card?.classList.add("home-hero-demo-sk-invoice--exit");
-    await wait(420);
-    // Hard-cut the scene — don't relayout or the remaining chats drop down.
+    await wait(INVOICE_SWIPE_MS);
+    // Fade the remaining chat next — don't relayout or bubbles drop down.
     sceneEl.dataset.heroHardCut = "1";
     return;
   }
@@ -439,8 +445,8 @@ async function playInvoicePaymentSkeleton(
   await wait(900);
   if (!isAlive()) return;
 
-  // Hold, then swipe off to the right and fade.
-  await wait(1000);
+  // Hold, then swipe off to the right (half the sit) and fade.
+  await wait(INVOICE_SIT_MS);
   if (!isAlive()) return;
 
   if (card) {
@@ -448,12 +454,13 @@ async function playInvoicePaymentSkeleton(
     card.classList.add("home-hero-demo-sk-invoice--settled");
     void card.offsetWidth;
     card.classList.remove("home-hero-demo-sk-invoice--settled");
+    card.style.setProperty("--hero-sk-invoice-exit-ms", `${scaleMs(INVOICE_SWIPE_MS)}ms`);
     card.classList.add("home-hero-demo-sk-invoice--exit");
   }
-  await wait(520);
+  await wait(INVOICE_SWIPE_MS);
   if (!isAlive()) return;
 
-  // Hard-cut: kill the scene immediately so older chats don't cascade back down.
+  // Signal playScene to fade the rest of the chat (no settle / cascade).
   sceneEl.dataset.heroHardCut = "1";
 }
 
@@ -979,7 +986,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
       );
 
       if (sceneEl.dataset.heroHardCut === "1") {
-        // Invoice swipe finished — cut straight to the next scene.
+        // Invoice already swiped away — fade the remaining chat, then next scene.
+        await animateSceneExit(sceneEl);
         resetStack(stack);
         return;
       }

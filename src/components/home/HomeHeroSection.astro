@@ -938,7 +938,9 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
   }
 
   .home-hero-demo-sk-invoice--exit {
-    animation: heroDemoSkInvoiceExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    /* Duration set from JS to half the sit hold (see --hero-sk-invoice-exit-ms). */
+    animation: heroDemoSkInvoiceExit var(--hero-sk-invoice-exit-ms, 0.5s)
+      cubic-bezier(0.4, 0, 0.2, 1) forwards;
   }
 
   @keyframes heroDemoSkInvoiceExit {
