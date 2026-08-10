@@ -258,36 +258,39 @@ const graphData = {
     background: rgba(0, 0, 0, 0.22);
     border: 1px solid rgba(255, 255, 255, 0.06);
     overflow: hidden;
-    flex: 1 1 auto;
+    /* Fixed heights below — never flex-grow. Growing with the SVG child
+       + ResizeObserver re-measure is what made these canvases run away. */
+    flex: none;
+  }
+
+  /* Inline SVG baseline gap otherwise adds a few px per redraw → infinite height. */
+  .cg-canvas :global(svg) {
+    display: block;
+    max-width: 100%;
   }
 
   .cg-canvas--tall {
     height: 280px;
-    flex: none;
   }
 
   .cg-canvas--square {
     height: 260px;
-    flex: none;
   }
 
   .cg-canvas--topology {
     height: 240px;
-    flex: none;
   }
 
   .cg-canvas--radar {
     height: 300px;
-    min-height: 300px;
   }
 
   .cg-canvas--gauge {
-    min-height: 300px;
+    height: 300px;
   }
 
   .cg-canvas--heatmap {
     min-height: 340px;
-    flex: none;
   }
 
   .cg-caption {

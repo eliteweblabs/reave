@@ -43,9 +43,16 @@ const TONE: Record<string, string> = {
 const PATH_COLORS = { saas: "#f87171", reave: "#a855f7", custom: "#fb923c" } as const;
 
 function hostSize(host: HTMLElement): { w: number; h: number } {
-  const w = host.clientWidth || 640;
-  const h = host.clientHeight || 320;
+  const w = Math.max(1, Math.round(host.clientWidth || 640));
+  const h = Math.max(1, Math.round(host.clientHeight || 320));
   return { w, h };
+}
+
+/** Mount an SVG root that cannot inflate the host via inline baseline gap. */
+function createDraw(host: HTMLElement, w: number, h: number) {
+  const draw = SVG().addTo(host).size(w, h);
+  draw.css({ display: "block", overflow: "hidden" });
+  return draw;
 }
 
 function setCaption(root: HTMLElement, key: string, html: string): void {
@@ -58,11 +65,16 @@ function score(ind: CompareIndicator): number {
 }
 
 /** Cumulative TCO — multi-series line chart with area fills. */
-function drawTcoChart(host: HTMLElement, data: CompareGraphData["tcoCumulative"], root: HTMLElement): () => void {
+function drawTcoChart(
+  host: HTMLElement,
+  data: CompareGraphData["tcoCumulative"],
+  root: HTMLElement,
+  animate: boolean,
+): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
   const pad = { t: 24, r: 20, b: 44, l: 48 };
-  const draw = SVG().addTo(host).size(w, h);
+  const draw = createDraw(host, w, h);
   const innerW = w - pad.l - pad.r;
   const innerH = h - pad.t - pad.b;
   const labels = data.labels;
@@ -91,16 +103,22 @@ function drawTcoChart(host: HTMLElement, data: CompareGraphData["tcoCumulative"]
 
   const visible = new Set(data.series.map((s) => s.id));
 
-  data.series.forEach((series) => {
+  data.series.forEach((series, si) => {
     const pts = series.values.map((v, i) => [xAt(i), yAt(v)] as const);
     const lineD = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ");
     const areaD = `${lineD} L ${pts[pts.length - 1][0]} ${yAt(0)} L ${pts[0][0]} ${yAt(0)} Z`;
 
-    const area = draw.path(areaD).fill(series.color).opacity(0.08);
+    const area = draw.path(areaD).fill(series.color).opacity(animate ? 0 : 0.08);
     const line = draw
       .path(lineD)
       .fill("none")
       .stroke({ color: series.color, width: 2.5, linecap: "round", linejoin: "round" });
+    if (animate) {
+      const len = line.length();
+      line.attr({ "stroke-dasharray": len, "stroke-dashoffset": len });
+      line.animate(900, si * 120, "now").attr({ "stroke-dashoffset": 0 });
+      area.animate(700, 200 + si * 120, "now").opacity(0.08);
+    }
 
     pts.forEach(([cx, cy], i) => {
       const dot = draw.circle(6).center(cx, cy).fill(series.color).opacity(0);
@@ -153,10 +171,11 @@ function drawUtilizationDonut(
   host: HTMLElement,
   segments: CompareGraphData["licenseBreakdown"],
   root: HTMLElement,
+  animate: boolean,
 ): () => void {
   host.innerHTML = "";
   const size = Math.min(host.clientWidth || 280, host.clientHeight || 280, 300);
-  const draw = SVG().addTo(host).size(size, size);
+  const draw = createDraw(host, size, size);
   const cx = size / 2;
   const cy = size / 2;
   const outer = size * 0.4;
@@ -178,12 +197,14 @@ function drawUtilizationDonut(
     const yi2 = cy + inner * Math.sin(rad(start));
     const d = `M ${x1} ${y1} A ${outer} ${outer} 0 ${large} 1 ${x2} ${y2} L ${xi1} ${yi1} A ${inner} ${inner} 0 ${large} 0 ${xi2} ${yi2} Z`;
     const color = TONE[seg.tone] ?? "#a855f7";
-    draw
+    const slice = draw
       .path(d)
       .fill(color)
-      .opacity(0.9)
+      .opacity(animate ? 0 : 0.9)
       .stroke({ color: "rgba(0,0,0,0.3)", width: 1 })
-      .css({ cursor: "pointer" })
+      .css({ cursor: "pointer" });
+    if (animate) slice.animate(500, (start + 90) * 1.2, "now").opacity(0.9);
+    slice
       .on("mouseenter", () => {
         setCaption(root, "util", `<strong>${seg.pct}%</strong> ${seg.label} — click segments to explore waste.`);
       })
@@ -197,8 +218,22 @@ function drawUtilizationDonut(
     start = end;
   });
 
-  draw.text("65%").font({ size: size * 0.13, weight: 800, family: "inherit" }).fill("#fff").center(cx, cy - 4);
-  draw.text("wasted").font({ size: size * 0.05, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.5)").center(cx, cy + size * 0.06);
+  const pctText = draw
+    .text("65%")
+    .font({ size: size * 0.13, weight: 800, family: "inherit" })
+    .fill("#fff")
+    .center(cx, cy - 4)
+    .opacity(animate ? 0 : 1);
+  const wastedText = draw
+    .text("wasted")
+    .font({ size: size * 0.05, weight: 600, family: "inherit" })
+    .fill("rgba(255,255,255,0.5)")
+    .center(cx, cy + size * 0.06)
+    .opacity(animate ? 0 : 1);
+  if (animate) {
+    pctText.animate(400, 280, "now").opacity(1);
+    wastedText.animate(400, 340, "now").opacity(1);
+  }
 
   return () => draw.remove();
 }
@@ -208,10 +243,11 @@ function drawRadialSpectrum(
   host: HTMLElement,
   items: CompareGraphData["spectrumRadial"],
   root: HTMLElement,
+  animate: boolean,
 ): () => void {
   host.innerHTML = "";
   const size = Math.min(host.clientWidth || 320, host.clientHeight || 320, 340);
-  const draw = SVG().addTo(host).size(size, size);
+  const draw = createDraw(host, size, size);
   const cx = size / 2;
   const cy = size / 2;
   const maxR = size * 0.38;
@@ -224,10 +260,10 @@ function drawRadialSpectrum(
     const x2 = cx + len * Math.cos(rad);
     const y2 = cy + len * Math.sin(rad);
     const bar = draw
-      .line(cx, cy, cx, cy)
+      .line(cx, cy, animate ? cx : x2, animate ? cy : y2)
       .stroke({ color: item.color, width: 10, linecap: "round" })
       .opacity(0.85);
-    bar.animate(500, i * 60, "now").plot(cx, cy, x2, y2);
+    if (animate) bar.animate(500, i * 60, "now").plot(cx, cy, x2, y2);
 
     const lx = cx + (maxR + 14) * Math.cos(rad);
     const ly = cy + (maxR + 14) * Math.sin(rad);
@@ -248,10 +284,10 @@ function drawRadialSpectrum(
 }
 
 /** Three topology mini-graphs: SaaS sprawl vs REAVE hub vs custom monolith. */
-function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement): () => void {
+function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
-  const draw = SVG().addTo(host).size(w, h);
+  const draw = createDraw(host, w, h);
   const colW = w / 3;
 
   const panels = [
@@ -316,14 +352,14 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement)
       const nx = ox + orbit * Math.cos(a);
       const ny = oy + orbit * Math.sin(a);
       const edge = draw
-        .line(ox, oy, ox, oy)
+        .line(ox, oy, animate ? ox : nx, animate ? oy : ny)
         .stroke({
           color: panel.color,
           width: panel.hub ? 1.5 : 1,
           dasharray: panel.hub ? undefined : "4 3",
           opacity: panel.hub ? 0.7 : 0.35,
         });
-      edge.animate(400, i * 30, "now").plot(ox, oy, nx, ny);
+      if (animate) edge.animate(400, i * 30, "now").plot(ox, oy, nx, ny);
 
       const node = draw.circle(16).center(nx, ny).fill("rgba(255,255,255,0.06)").stroke({ color: panel.color, width: 1 });
       draw.text(label).font({ size: 6, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.7)").center(nx, ny);
@@ -353,10 +389,10 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement)
 }
 
 /** Radar chart — feature scores for three paths. */
-function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement): () => void {
+function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
-  const draw = SVG().addTo(host).size(w, h);
+  const draw = createDraw(host, w, h);
   const cx = w / 2;
   const cy = h / 2 + 8;
   const maxR = Math.min(w, h) * 0.34;
@@ -401,36 +437,37 @@ function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement)
 
   paths.forEach((path, pi) => {
     const vals = rows.map((r) => score(r[path.key]));
-    const pts = vals.map((v, i) => ptAt(i, v));
-    const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ") + " Z";
+    const endPts = vals.map((v, i) => ptAt(i, v));
+    const startPts = vals.map((_, i) => ptAt(i, 0));
+    const endD = endPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ") + " Z";
+    const startD = startPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ") + " Z";
     const poly = draw
-      .path(d)
+      .path(animate ? startD : endD)
       .fill(path.color)
-      .opacity(0.12)
+      .opacity(animate ? 0 : 0.18)
       .stroke({ color: path.color, width: 2, linejoin: "round" });
-    poly.animate(600, pi * 80, "now").opacity(0.12);
+    if (animate) poly.animate(700, 120 + pi * 110, "now").attr({ d: endD }).opacity(0.18);
 
     poly.on("mouseenter", () => {
-      poly.opacity(0.28).stroke({ width: 3 });
+      poly.opacity(0.32).stroke({ width: 3 });
       setCaption(root, "radar", `<strong>${path.label}</strong> — hover axes for dimension detail.`);
     });
-    poly.on("mouseleave", () => poly.opacity(0.12).stroke({ width: 2 }));
+    poly.on("mouseleave", () => poly.opacity(0.18).stroke({ width: 2 }));
   });
 
   return () => draw.remove();
 }
 
 /** Grouped horizontal bar heatmap from full feature matrix. */
-function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTMLElement): () => void {
+function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w } = hostSize(host);
   const rowH = 22;
   const padL = 130;
-  const padR = 12;
   const barW = 36;
   const gap = 6;
   const h = data.compareMatrix.length * rowH + 36;
-  const draw = SVG().addTo(host).size(w, h);
+  const draw = createDraw(host, w, h);
 
   const paths = [
     { key: "saas" as const, label: "SaaS", color: PATH_COLORS.saas },
@@ -459,12 +496,12 @@ function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTM
       const x = padL + pi * (barW + gap);
       const bh = (s / 3) * (rowH - 8);
       const bar = draw
-        .rect(barW, 0)
-        .move(x, y + rowH - 4)
+        .rect(barW, animate ? 0 : bh)
+        .move(x, animate ? y + rowH - 4 : y + rowH - 4 - bh)
         .radius(4)
         .fill(p.color)
         .opacity(0.25 + s * 0.2);
-      bar.animate(400, i * 20, "now").size(barW, bh).move(x, y + rowH - 4 - bh);
+      if (animate) bar.animate(400, i * 20, "now").size(barW, bh).move(x, y + rowH - 4 - bh);
 
       bar.css({ cursor: "pointer" }).on("mouseenter", () => {
         bar.opacity(0.95);
@@ -479,10 +516,10 @@ function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTM
 }
 
 /** 90/10 arc gauge — fills the host canvas. */
-function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLElement): () => void {
+function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
-  const draw = SVG().addTo(host).size(w, h);
+  const draw = createDraw(host, w, h);
   const size = Math.min(w, h / 0.72);
   const cx = w / 2;
   const cy = h * 0.58;
@@ -495,47 +532,112 @@ function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLEleme
   const start = Math.PI;
   const end = 0;
 
-  const arc = (from: number, to: number, color: string, label: string, pct: string) => {
+  const arc = (from: number, to: number, color: string, label: string, pct: string, delay: number) => {
     const x1 = cx + r * Math.cos(from);
     const y1 = cy + r * Math.sin(from);
     const x2 = cx + r * Math.cos(to);
     const y2 = cy + r * Math.sin(to);
     const large = to - from > Math.PI ? 1 : 0;
-    draw
+    const path = draw
       .path(`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`)
       .fill("none")
       .stroke({ color, width: strokeW, linecap: "round" })
       .opacity(0.85);
+    if (animate) {
+      const len = path.length();
+      path.attr({ "stroke-dasharray": len, "stroke-dashoffset": len });
+      path.animate(900, delay, "now").attr({ "stroke-dashoffset": 0 });
+    }
+
     const mid = (from + to) / 2;
     const lx = cx + labelR * Math.cos(mid);
     const ly = cy + labelR * Math.sin(mid);
-    draw.text(pct).font({ size: pctSize, weight: 800, family: "inherit" }).fill("#fff").center(lx, ly - 4);
-    draw.text(label).font({ size: labelSize, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.55)").center(lx, ly + 8);
+    const pctEl = draw
+      .text(pct)
+      .font({ size: pctSize, weight: 800, family: "inherit" })
+      .fill("#fff")
+      .center(lx, ly - 4)
+      .opacity(animate ? 0 : 1);
+    const labelEl = draw
+      .text(label)
+      .font({ size: labelSize, weight: 600, family: "inherit" })
+      .fill("rgba(255,255,255,0.55)")
+      .center(lx, ly + 8)
+      .opacity(animate ? 0 : 1);
+    if (animate) {
+      pctEl.animate(400, delay + 450, "now").opacity(1);
+      labelEl.animate(400, delay + 520, "now").opacity(1);
+    }
   };
 
-  arc(start, start + 0.9 * Math.PI, "#a855f7", "Core OS", "90%");
-  arc(start + 0.9 * Math.PI + 0.02, end - 0.02, "#38bdf8", "Bolt-ons", "+10%");
+  arc(start, start + 0.9 * Math.PI, "#a855f7", "Core OS", "90%", 80);
+  arc(start + 0.9 * Math.PI + 0.02, end - 0.02, "#38bdf8", "Bolt-ons", "+10%", 280);
 
-  draw
+  const nameEl = draw
     .text(companyName)
     .font({ size: nameSize, weight: 700, family: "inherit" })
     .fill("rgba(255,255,255,0.7)")
-    .center(cx, cy + Math.max(8, r * 0.08));
+    .center(cx, cy + Math.max(8, r * 0.08))
+    .opacity(animate ? 0 : 1);
+  if (animate) nameEl.animate(450, 700, "now").opacity(1);
 
   setCaption(root, "gauge", `<strong>90%</strong> ships day one. <strong>10%</strong> makes it yours.`);
 
   return () => draw.remove();
 }
 
-function observeGraph(host: HTMLElement, render: () => () => void, cleanups: (() => void)[]): void {
-  let cleanup = render();
-  cleanups.push(() => cleanup());
-  const ro = new ResizeObserver(() => {
+function observeGraph(host: HTMLElement, render: (animate: boolean) => () => void, cleanups: (() => void)[]): void {
+  let cleanup = () => {};
+  let lastW = 0;
+  let lastH = 0;
+  let raf = 0;
+  let entered = false;
+
+  const run = (animate: boolean) => {
+    const { w, h } = hostSize(host);
+    if (w === lastW && h === lastH) return;
+    lastW = w;
+    lastH = h;
     cleanup();
-    cleanup = render();
+    cleanup = render(animate);
+  };
+
+  const play = () => {
+    if (entered) return;
+    entered = true;
+    lastW = 0;
+    lastH = 0;
+    run(true);
+  };
+
+  if (typeof IntersectionObserver !== "undefined") {
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          play();
+          io.disconnect();
+        }
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -6% 0px" },
+    );
+    io.observe(host);
+    cleanups.push(() => io.disconnect());
+  } else {
+    play();
+  }
+
+  cleanups.push(() => cleanup());
+
+  const ro = new ResizeObserver(() => {
+    if (!entered) return;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => run(false));
   });
   ro.observe(host);
-  cleanups.push(() => ro.disconnect());
+  cleanups.push(() => {
+    cancelAnimationFrame(raf);
+    ro.disconnect();
+  });
 }
 
 export function initCompareGraphs(root: HTMLElement, data: CompareGraphData): () => void {
@@ -543,14 +645,26 @@ export function initCompareGraphs(root: HTMLElement, data: CompareGraphData): ()
   root.dataset.cgInit = "1";
   const cleanups: (() => void)[] = [];
 
-  const mounts: [string, () => () => void][] = [
-    ["[data-cg-tco]", () => drawTcoChart(root.querySelector("[data-cg-tco]")!, data.tcoCumulative, root)],
-    ["[data-cg-util]", () => drawUtilizationDonut(root.querySelector("[data-cg-util]")!, data.licenseBreakdown, root)],
-    ["[data-cg-spectrum]", () => drawRadialSpectrum(root.querySelector("[data-cg-spectrum]")!, data.spectrumRadial, root)],
-    ["[data-cg-topology]", () => drawTopology(root.querySelector("[data-cg-topology]")!, data.companyName, root)],
-    ["[data-cg-radar]", () => drawRadar(root.querySelector("[data-cg-radar]")!, data, root)],
-    ["[data-cg-heatmap]", () => drawFeatureHeatmap(root.querySelector("[data-cg-heatmap]")!, data, root)],
-    ["[data-cg-gauge]", () => drawNinetyGauge(root.querySelector("[data-cg-gauge]")!, data.companyName, root)],
+  const mounts: [string, (animate: boolean) => () => void][] = [
+    ["[data-cg-tco]", (animate) => drawTcoChart(root.querySelector("[data-cg-tco]")!, data.tcoCumulative, root, animate)],
+    [
+      "[data-cg-util]",
+      (animate) => drawUtilizationDonut(root.querySelector("[data-cg-util]")!, data.licenseBreakdown, root, animate),
+    ],
+    [
+      "[data-cg-spectrum]",
+      (animate) => drawRadialSpectrum(root.querySelector("[data-cg-spectrum]")!, data.spectrumRadial, root, animate),
+    ],
+    [
+      "[data-cg-topology]",
+      (animate) => drawTopology(root.querySelector("[data-cg-topology]")!, data.companyName, root, animate),
+    ],
+    ["[data-cg-radar]", (animate) => drawRadar(root.querySelector("[data-cg-radar]")!, data, root, animate)],
+    ["[data-cg-heatmap]", (animate) => drawFeatureHeatmap(root.querySelector("[data-cg-heatmap]")!, data, root, animate)],
+    [
+      "[data-cg-gauge]",
+      (animate) => drawNinetyGauge(root.querySelector("[data-cg-gauge]")!, data.companyName, root, animate),
+    ],
   ];
 
   mounts.forEach(([sel, renderFn]) => {

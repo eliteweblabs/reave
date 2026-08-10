@@ -1,7 +1,7 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them, CTAs pinned to the bottom. Nothing shifts while the demo runs.
+ * under them, CTAs fixed to the viewport footer (slide away at Contact).
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
@@ -128,6 +128,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   )
 }
 
+<script>
+  import "../../lib/homeHeroCtaPin.ts";
+</script>
+
 <style>
   .home-hero {
     --home-hero-copy-h: 88px;
@@ -224,10 +228,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     filter: var(--brand-glow-filter);
   }
 
-  /* CTAs — pinned to viewport bottom */
+  /*
+   * CTAs — fixed to the viewport footer so "How's it Work?" / "Demo" stay put
+   * while the page scrolls. Slide away at #contact like the live chat FAB.
+   */
   .home-hero-copy {
-    position: absolute;
-    z-index: 5;
+    position: fixed;
+    z-index: 940;
     left: 0;
     right: 0;
     bottom: 0;
@@ -238,6 +245,35 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
     text-align: center;
     pointer-events: none;
+    transform: translateY(0);
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
+  }
+
+  .home-hero-copy.is-contact-occluding {
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-copy {
+      transition: none;
+    }
+
+    .home-hero-copy.is-contact-occluding {
+      transform: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
   }
 
   .home-hero-copy :is(a, button) {
@@ -366,17 +402,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     transition: opacity 1.13s ease;
   }
 
-  /*
-   * Admin-only mock-chat transport — fixed to the viewport footer so it does
-   * not drift while the page scrolls. Slides away at #contact (same motion as
-   * the live chat FAB) so the contact form stays distraction-free.
-   */
+  /* Admin-only testing transport — sits above the chat lane. */
   .home-hero-demo-controls {
-    position: fixed;
-    z-index: 940;
+    position: absolute;
+    z-index: 12;
     left: 50%;
-    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
-    transform: translateX(-50%) translateY(0);
+    bottom: calc(var(--home-hero-copy-h, 88px) + 10px);
+    transform: translateX(-50%);
     display: inline-flex;
     align-items: center;
     gap: 0.28rem;
@@ -387,34 +419,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     pointer-events: auto;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0s;
-  }
-
-  .home-hero-demo-controls.is-contact-occluding {
-    transform: translateX(-50%) translateY(calc(100% + 28px));
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0.55s;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .home-hero-demo-controls {
-      transition: none;
-    }
-
-    .home-hero-demo-controls.is-contact-occluding {
-      transform: translateX(-50%);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
   }
 
   .home-hero-demo-control {
