@@ -999,17 +999,18 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  /* GPS map bubble — same chrome as agent chat bubbles (square bottom-left). */
+  /* GPS map bubble — map bleeds edge-to-edge; chrome is just the clip + border. */
   .home-hero-demo-msg--gps {
     align-items: flex-end;
   }
 
   .home-hero-demo-sk-gps {
     width: min(100%, 22rem);
+    padding: 0;
     border-radius: 1rem;
     border-bottom-left-radius: 0.28rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.06);
+    background: #0b0d10;
     overflow: hidden;
     transform-origin: bottom left;
     opacity: 0;
@@ -1022,15 +1023,18 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-demo-sk-gps--settled {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
 
   .home-hero-demo-sk-gps-viewport {
     position: relative;
+    display: block;
     width: 100%;
     aspect-ratio: 16 / 9;
     min-height: 9.5rem;
     max-height: 12rem;
+    margin: 0;
+    padding: 0;
     overflow: hidden;
     background: #0b0d10;
   }
@@ -1040,6 +1044,18 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     inset: 0;
     width: 100%;
     height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* WebGL canvas must fill the letterbox — iOS often leaves a dead bar otherwise. */
+  .home-hero-demo-sk-gps-map .mapboxgl-map,
+  .home-hero-demo-sk-gps-map .mapboxgl-canvas-container,
+  .home-hero-demo-sk-gps-map .mapboxgl-canvas {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
   }
 
   .home-hero-demo-sk-gps-map .mapboxgl-canvas {
@@ -1050,6 +1066,93 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-demo-sk-gps-map .mapboxgl-ctrl-logo,
   .home-hero-demo-sk-gps-map .mapboxgl-ctrl-attrib {
     display: none !important;
+  }
+
+  /* Static Images path (iOS / GL fallback) — overview zooms, detail crossfades in. */
+  .home-hero-demo-sk-gps-map--static {
+    overflow: hidden;
+  }
+
+  .home-hero-demo-sk-gps-static-stage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home-hero-demo-sk-gps-static-img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    object-fit: cover;
+    object-position: center;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+
+  .home-hero-demo-sk-gps-static-img--overview {
+    z-index: 0;
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .home-hero-demo-sk-gps-static-img--detail {
+    z-index: 1;
+    transform: scale(1.18);
+    opacity: 0;
+  }
+
+  .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--overview {
+    animation: heroDemoSkGpsStaticOverview var(--hero-gps-fly-ms, 2.6s)
+      cubic-bezier(0.22, 0.8, 0.28, 1) forwards;
+  }
+
+  .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--detail {
+    animation: heroDemoSkGpsStaticDetail var(--hero-gps-fly-ms, 2.6s)
+      cubic-bezier(0.22, 0.8, 0.28, 1) forwards;
+  }
+
+  .home-hero-demo-sk-gps-static-stage--settled .home-hero-demo-sk-gps-static-img--overview {
+    opacity: 0;
+    transform: scale(2.35);
+  }
+
+  .home-hero-demo-sk-gps-static-stage--settled .home-hero-demo-sk-gps-static-img--detail {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  @keyframes heroDemoSkGpsStaticOverview {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    55% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2.35);
+    }
+  }
+
+  @keyframes heroDemoSkGpsStaticDetail {
+    0%,
+    42% {
+      opacity: 0;
+      transform: scale(1.18);
+    }
+    72% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   /* Fixed in the letterbox center — not a Mapbox HTML marker. */
@@ -1246,11 +1349,20 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
 
     .home-hero-demo-sk-invoice--pop,
-    .home-hero-demo-sk-invoice--settled,
+    .home-hero-demo-sk-invoice--settled {
+      opacity: 1;
+      transform: scale(1);
+    }
+
     .home-hero-demo-sk-gps--pop,
     .home-hero-demo-sk-gps--settled {
       opacity: 1;
-      transform: scale(1);
+      transform: none;
+    }
+
+    .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--overview,
+    .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--detail {
+      animation: none;
     }
 
     .home-hero-demo-sk-gps-marker--in,

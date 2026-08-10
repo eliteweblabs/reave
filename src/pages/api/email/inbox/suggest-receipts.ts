@@ -10,6 +10,7 @@ import {
   storeUpdateEmailInbox,
 } from '../../../../lib/emailInboxStore';
 import { suggestReceiptCandidate, formatUsdAmount, extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { auditForManualReceiptMark } from '../../../../lib/emailClassificationAudit';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -128,6 +129,11 @@ export async function POST(context: APIContext): Promise<Response> {
       action: 'receipt',
       status: 'RECEIPT',
       routeNote,
+      classificationAudit: auditForManualReceiptMark({
+        source: 'suggest_receipts',
+        amount: amount ?? null,
+        reason: hit?.reason,
+      }),
     });
     if (!event) {
       skipped.push({ id, reason: 'update failed' });

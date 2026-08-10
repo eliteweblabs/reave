@@ -109,6 +109,7 @@ import {
 import { dismissEmailRelatedNotifications } from '../../emailNotificationSync';
 import { patchForMarkJunk } from '../../emailJunkNotifyInvariant';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
+import { auditForManualReceiptMark } from '../../emailClassificationAudit';
 import { buildReplyEmailHeaders } from '../../emailReply';
 import { brandedPlainTextEmail } from '../../inboundEmailReply';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from '../../projectLinks';
@@ -257,6 +258,7 @@ async function handle_mark_email_receipt(args: Record<string, unknown>, _ctx: To
     action: 'receipt',
     status: 'RECEIPT',
     routeNote,
+    classificationAudit: auditForManualReceiptMark({ source: 'agent', amount }),
   });
   if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
   return JSON.stringify({

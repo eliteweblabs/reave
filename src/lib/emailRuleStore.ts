@@ -367,21 +367,40 @@ export async function loadEmailRulesConfig(): Promise<EmailRulesConfig> {
   return ensureBuiltinRules(config);
 }
 
+/** Phrases that wrongly filed income (“Payment of $… from …”) as tax receipts. */
+const INCOME_MISFILE_PHRASES = new Set(['payment of $', 'your invoice from']);
+
 /** Insert any new DEFAULT_RULES statuses missing from persisted config (e.g. RAILWAY_ALERT). */
 async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
   const present = new Set(config.rules.map((r) => r.status.toUpperCase()));
   const missing = DEFAULT_RULES.filter((r) => !present.has(r.status.toUpperCase()));
-  if (!missing.length) return config;
+  const receiptDefault = DEFAULT_RULES.find((r) => r.status === 'RECEIPT');
+
+  let receiptPhrasesFixed = false;
+  const rules = config.rules.map((r) => {
+    if (r.status.toUpperCase() !== 'RECEIPT') return r;
+    const nextPhrases = r.phrases.filter((p) => !INCOME_MISFILE_PHRASES.has(p.trim().toLowerCase()));
+    if (nextPhrases.length === r.phrases.length) return r;
+    receiptPhrasesFixed = true;
+    return {
+      ...r,
+      phrases: nextPhrases.length ? nextPhrases : (receiptDefault?.phrases ?? nextPhrases),
+      description: receiptDefault?.description ?? r.description,
+      title: receiptDefault ? ruleTitleFromDefaults(receiptDefault) : r.title,
+    };
+  });
+
+  if (!missing.length && !receiptPhrasesFixed) return config;
 
   const merged: EmailRulesConfig = {
     ...config,
     rules: [
-      ...config.rules,
+      ...rules,
       ...missing.map((r, i) => ({
         ...r,
         id: randomUUID(),
         title: ruleTitleFromDefaults(r),
-        sortOrder: config.rules.length + i,
+        sortOrder: rules.length + i,
       })),
     ],
   };

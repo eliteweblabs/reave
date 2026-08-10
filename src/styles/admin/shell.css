@@ -543,6 +543,48 @@ select,
   font-weight: 700;
   color: #fcd34d;
 }
+.admin-classification-audit {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.admin-classification-audit > summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  color: var(--text, inherit);
+  list-style: none;
+}
+.admin-classification-audit > summary::-webkit-details-marker {
+  display: none;
+}
+.admin-classification-audit > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.3rem;
+  transition: transform 0.12s ease;
+}
+.admin-classification-audit[open] > summary::before {
+  transform: rotate(90deg);
+}
+.admin-classification-audit ol {
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 1.1rem;
+}
+.admin-classification-audit li {
+  margin: 0.2rem 0;
+}
+.admin-classification-audit-decision {
+  display: block;
+  color: var(--text, inherit);
+  font-weight: 550;
+}
+.admin-classification-audit-detail {
+  display: block;
+  margin-top: 0.1rem;
+  opacity: 0.9;
+}
 .admin-setup-alert-error {
   margin: 0.35rem 0 0;
   font-size: 0.74rem;

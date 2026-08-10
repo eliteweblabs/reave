@@ -251,7 +251,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
-} from './rules-panel.js?v=20260803g';
+} from './rules-panel.js?v=20260810a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -3127,7 +3127,28 @@ function reviewAlertCopyHtml(item) {
     : escHtml(headline);
   const bodyHtml =
     body && body.toLowerCase() !== headline.toLowerCase() ? `<p>${escHtml(body)}</p>` : '';
-  return `<strong>${headlineLine}</strong>${bodyHtml}`;
+  const auditHtml = isReceiptExpenseNotification(item) ? classificationAuditTrailHtml(item) : '';
+  return `<strong>${headlineLine}</strong>${bodyHtml}${auditHtml}`;
+}
+
+/** Expandable decision path for receipt / classification notifications. */
+function classificationAuditTrailHtml(item) {
+  const steps = Array.isArray(item?.auditTrail) ? item.auditTrail : [];
+  if (!steps.length) return '';
+  const lis = steps
+    .map((step) => {
+      const decision = String(step?.decision || '').trim();
+      if (!decision) return '';
+      const detail = String(step?.detail || '').trim();
+      const detailHtml = detail
+        ? `<span class="admin-classification-audit-detail">${escHtml(detail)}</span>`
+        : '';
+      return `<li><span class="admin-classification-audit-decision">${escHtml(decision)}</span>${detailHtml}</li>`;
+    })
+    .filter(Boolean)
+    .join('');
+  if (!lis) return '';
+  return `<details class="admin-classification-audit"><summary>Why this classification</summary><ol>${lis}</ol></details>`;
 }
 
 let uptimePlatformSyncPollTimer = null;
@@ -4181,6 +4202,10 @@ function buildReviewAlertBanner(item) {
         dismissBtn.disabled = false;
       });
     },
+  });
+
+  notice.copy?.querySelectorAll?.('.admin-classification-audit')?.forEach((el) => {
+    el.addEventListener('click', (ev) => ev.stopPropagation());
   });
 
   bindReviewAlertSwipe(notice.root, item);
@@ -11084,6 +11109,27 @@ async function markEmailReceipt(ev) {
   closeOpenSwipeRow();
   const amount = emailMonetaryAmount(ev);
   const routeNote = amount != null ? `Tax receipt — ${formatEmailUsd(amount)}` : 'Tax receipt';
+  const classificationAudit = [
+    {
+      step: 'source',
+      decision: 'Manually marked as receipt',
+      detail: 'Owner swipe / Receipt action in Email tab',
+    },
+    amount != null
+      ? { step: 'amount', decision: `Extracted ${formatEmailUsd(amount)}` }
+      : { step: 'amount', decision: 'No dollar amount detected' },
+    {
+      step: 'title',
+      decision: `Dashboard label: ${routeNote}`,
+      detail:
+        'Expense-side receipts use the Tax receipt banner for Crater logging — not “Payment of $… from …” income',
+    },
+    {
+      step: 'auto_file',
+      decision: 'Filed as receipt',
+      detail: 'category=receipt · status=RECEIPT',
+    },
+  ];
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'PATCH',
@@ -11093,6 +11139,7 @@ async function markEmailReceipt(ev) {
         action: 'receipt',
         status: 'RECEIPT',
         routeNote,
+        classificationAudit,
       }),
     });
     const data = await readApiJson(res);
@@ -11108,7 +11155,13 @@ async function unmarkEmailReceipt(ev) {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED', routeNote: '' }),
+      body: JSON.stringify({
+        category: 'review',
+        action: 'review',
+        status: 'UNMATCHED',
+        routeNote: '',
+        classificationAudit: [],
+      }),
     });
     const data = await readApiJson(res);
     applyEmailPatchResult(ev.id, data.event);
@@ -13191,6 +13244,14 @@ function renderEmailPane() {
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
     `</div>`;
+  if (ev.category === 'receipt' || (Array.isArray(ev.classificationAudit) && ev.classificationAudit.length)) {
+    const auditItem = {
+      type: ev.category === 'receipt' ? 'receipt_expense' : 'classification',
+      auditTrail: Array.isArray(ev.classificationAudit) ? ev.classificationAudit : [],
+    };
+    const auditHtml = classificationAuditTrailHtml(auditItem);
+    if (auditHtml) detailHtml += `<div class="em-detail-audit">${auditHtml}</div>`;
+  }
   const attachments = Array.isArray(ev.attachments) ? ev.attachments : [];
   if (attachments.length) {
     detailHtml +=
