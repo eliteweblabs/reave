@@ -5,7 +5,6 @@
     "/platform",
     "/features",
     "/compare",
-    "/compare-2",
     "/pricing",
     "/hosting",
     "/modules",
@@ -23,7 +22,6 @@
     "links": [
       { "href": "/platform", "label": "Platform" },
       { "href": "/compare", "label": "Compare" },
-      { "href": "/compare-2", "label": "Compare 2" },
       { "href": "/pricing", "label": "Pricing" },
       { "href": "/hosting", "label": "Hosting", "hideBelow": 1080 },
       { "href": "/modules", "label": "Modules" },
@@ -41,7 +39,6 @@
           { "href": "/platform", "label": "Platform" },
           { "href": "/features", "label": "Features" },
           { "href": "/compare", "label": "Compare" },
-          { "href": "/compare-2", "label": "Compare 2" },
           { "href": "/pricing", "label": "Pricing" },
           { "href": "/hosting", "label": "Managed Hosting" },
           { "href": "/modules", "label": "Modules" },

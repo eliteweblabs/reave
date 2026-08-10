@@ -1,5 +1,5 @@
 /**
- * Compare-2 — SVG.js graph dashboard (line, radar, network, radial, heatmap).
+ * Compare — SVG.js graph dashboard (line, radar, network, radial, heatmap).
  */
 import { SVG, Element as SvgElement } from "@svgdotjs/svg.js";
 import type { CompareIndicator } from "../lib/comparePageData";
@@ -478,14 +478,20 @@ function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTM
   return () => draw.remove();
 }
 
-/** 90/10 arc gauge. */
+/** 90/10 arc gauge — fills the host canvas. */
 function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLElement): () => void {
   host.innerHTML = "";
-  const size = Math.min(host.clientWidth || 280, 200);
-  const draw = SVG().addTo(host).size(size, size * 0.72);
-  const cx = size / 2;
-  const cy = size * 0.58;
-  const r = size * 0.38;
+  const { w, h } = hostSize(host);
+  const draw = SVG().addTo(host).size(w, h);
+  const size = Math.min(w, h / 0.72);
+  const cx = w / 2;
+  const cy = h * 0.58;
+  const r = Math.min(size * 0.38, w * 0.36, h * 0.42);
+  const strokeW = Math.max(12, Math.min(22, r * 0.12));
+  const labelR = r + Math.max(20, strokeW + 10);
+  const pctSize = Math.max(11, Math.min(16, r * 0.08));
+  const labelSize = Math.max(7, Math.min(11, r * 0.055));
+  const nameSize = Math.max(10, Math.min(14, r * 0.07));
   const start = Math.PI;
   const end = 0;
 
@@ -498,13 +504,13 @@ function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLEleme
     draw
       .path(`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`)
       .fill("none")
-      .stroke({ color, width: 14, linecap: "round" })
+      .stroke({ color, width: strokeW, linecap: "round" })
       .opacity(0.85);
     const mid = (from + to) / 2;
-    const lx = cx + (r + 22) * Math.cos(mid);
-    const ly = cy + (r + 22) * Math.sin(mid);
-    draw.text(pct).font({ size: 11, weight: 800, family: "inherit" }).fill("#fff").center(lx, ly - 4);
-    draw.text(label).font({ size: 7, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.55)").center(lx, ly + 8);
+    const lx = cx + labelR * Math.cos(mid);
+    const ly = cy + labelR * Math.sin(mid);
+    draw.text(pct).font({ size: pctSize, weight: 800, family: "inherit" }).fill("#fff").center(lx, ly - 4);
+    draw.text(label).font({ size: labelSize, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.55)").center(lx, ly + 8);
   };
 
   arc(start, start + 0.9 * Math.PI, "#a855f7", "Core OS", "90%");
@@ -512,9 +518,9 @@ function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLEleme
 
   draw
     .text(companyName)
-    .font({ size: 10, weight: 700, family: "inherit" })
+    .font({ size: nameSize, weight: 700, family: "inherit" })
     .fill("rgba(255,255,255,0.7)")
-    .center(cx, cy + 8);
+    .center(cx, cy + Math.max(8, r * 0.08));
 
   setCaption(root, "gauge", `<strong>90%</strong> ships day one. <strong>10%</strong> makes it yours.`);
 

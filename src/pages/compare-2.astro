@@ -1,14 +1,7 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import Compare2PageContent from "../components/compare/Compare2PageContent.astro";
-import { getCompanyConfig } from "../lib/companyConfig";
-
-const company = await getCompanyConfig(Astro.request);
+/**
+ * Archived route — compare-2 was promoted to /compare.
+ * Redirect keeps old bookmarks working.
+ */
+return Astro.redirect("/compare", 301);
 ---
-
-<Layout
-  title="Compare Graphs"
-  description={`Interactive graph visualizations — SaaS waste, stack topology, feature radar, and cumulative TCO for ${company.name} vs box-stock SaaS vs bespoke development.`}
->
-  <Compare2PageContent />
-</Layout>
