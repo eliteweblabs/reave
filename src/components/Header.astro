@@ -441,6 +441,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   .app-header--admin.app-header--scrim > .app-header-scrim {
     display: block;
+    /* Same top pin as public; trim the fade tail so dashboard content peeks sooner. */
+    height: calc(var(--app-header-scrim-h) - 20px);
   }
 
   .app-header-scrim-blur {
