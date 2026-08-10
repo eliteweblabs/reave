@@ -650,7 +650,7 @@ async function playContractSkeleton(
   if (!isAlive()) return;
 
   signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
-  await wait(1100);
+  await wait(1400);
   if (!isAlive()) return;
 }
 
@@ -713,7 +713,7 @@ async function playProposalFlow(
   await wait(550);
   if (!isAlive()) return;
 
-  await appendAssistantChat(
+  const contractStatus = await appendAssistantChat(
     root,
     sceneEl,
     relayout,
@@ -724,10 +724,21 @@ async function playProposalFlow(
   );
   if (!isAlive()) return;
 
+  await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Service agreement ready for signature.",
+    reducedMotion,
+    isAlive,
+    { pauseMs: 500, priorRow: contractStatus },
+  );
+  if (!isAlive()) return;
+
   await playContractSkeleton(sceneEl, relayout, reducedMotion, isAlive);
   if (!isAlive()) return;
 
-  await wait(700);
+  await wait(1200);
   if (!isAlive()) return;
 
   sceneEl.dataset.heroHardCut = "1";
