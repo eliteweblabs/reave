@@ -104,6 +104,10 @@
   --radius-pill: var(--radius-input);
   --radius-input: 8px;
   --control-h: 2.75rem;
+  /* Destructive / delete affordances — one red everywhere */
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-soft-bg: rgba(239, 68, 68, 0.12);
   --control-inset: 0.22rem;
   --sidebar-w: 260px;
   --sidebar-min-w: 200px;
