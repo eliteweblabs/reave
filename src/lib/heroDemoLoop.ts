@@ -551,21 +551,28 @@ function stripMapToLandAndWater(map: any) {
   }
 }
 
+/** Default male stock headshot for the GPS person pin (field-checkin scene). */
+const GPS_PIN_FACE_FALLBACK = "/images/hero-demo/field-checkin.png";
+
 /** Fixed center reticle — not a Mapbox HTML marker (parent transforms break those). */
-function createGpsPinOverlay(): HTMLElement {
+function createGpsPinOverlay(faceUrl?: string): HTMLElement {
   const el = document.createElement("div");
   el.className = "home-hero-demo-sk-gps-marker";
   el.setAttribute("data-hero-gps-marker", "");
+  const src = (faceUrl || "").trim() || GPS_PIN_FACE_FALLBACK;
+  const safeSrc = src.replace(/"/g, "");
   el.innerHTML =
     '<span class="home-hero-demo-sk-gps-ring"></span>' +
     '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--mid"></span>' +
     '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--late"></span>' +
-    '<span class="home-hero-demo-sk-gps-pin"></span>';
+    '<span class="home-hero-demo-sk-gps-pin" aria-hidden="true">' +
+    `<img class="home-hero-demo-sk-gps-pin-face" src="${safeSrc}" alt="" loading="lazy" decoding="async" />` +
+    "</span>";
   return el;
 }
 
-/** Agent-bubble letterbox for Mapbox fly-in — avatar + map + centered pin. */
-function createGpsLocateCard(root: HTMLElement): HTMLElement {
+/** Agent-bubble letterbox for Mapbox fly-in — avatar + map + centered face pin. */
+function createGpsLocateCard(root: HTMLElement, faceUrl?: string): HTMLElement {
   const row = document.createElement("div");
   row.className =
     "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--gps home-hero-demo-msg--enter";
@@ -583,7 +590,7 @@ function createGpsLocateCard(root: HTMLElement): HTMLElement {
   mapEl.setAttribute("data-hero-gps-map", "");
 
   viewport.appendChild(mapEl);
-  viewport.appendChild(createGpsPinOverlay());
+  viewport.appendChild(createGpsPinOverlay(faceUrl));
   card.appendChild(viewport);
 
   row.appendChild(cloneAvatar("assistant", root));
@@ -706,6 +713,7 @@ async function playGpsLocateSkeleton(
   reducedMotion: boolean,
   isAlive: () => boolean,
   mapboxToken: string,
+  faceUrl?: string,
 ): Promise<void> {
   const FLY_MS = 2600;
   const MARKER_AT = Math.round(FLY_MS * 0.66);
@@ -716,7 +724,7 @@ async function playGpsLocateSkeleton(
   const TARGET: [number, number] = [-70.255, 43.661];
   const START: [number, number] = [-95.7, 37.1];
 
-  const row = createGpsLocateCard(root);
+  const row = createGpsLocateCard(root, faceUrl);
   const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps");
   const mapEl = row.querySelector<HTMLElement>("[data-hero-gps-map]");
   const pinEl = row.querySelector<HTMLElement>("[data-hero-gps-marker]");
@@ -1170,6 +1178,7 @@ async function playAssistantTurn(
   isAlive: () => boolean,
   priorAssistantRow: HTMLElement | null,
   mapboxToken = "",
+  userAvatarUrl?: string,
 ): Promise<HTMLElement | null> {
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
@@ -1203,7 +1212,15 @@ async function playAssistantTurn(
     await wait(reducedMotion ? 320 : TYPING_DOTS_MS);
     if (!isAlive()) return null;
     typing.remove();
-    await playGpsLocateSkeleton(root, sceneEl, relayout, reducedMotion, isAlive, mapboxToken);
+    await playGpsLocateSkeleton(
+      root,
+      sceneEl,
+      relayout,
+      reducedMotion,
+      isAlive,
+      mapboxToken,
+      userAvatarUrl,
+    );
     return null;
   }
 
@@ -1451,6 +1468,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         isAlive,
         lastAssistantRow,
         mapboxToken,
+        scene.userAvatar,
       );
 
       if (sceneEl.dataset.heroHardCut === "1") {
