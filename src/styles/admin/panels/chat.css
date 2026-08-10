@@ -814,7 +814,9 @@ body.admin-split-view #chat-panel .ch-compose {
   margin-left: 0;
 }
 @media (max-width: 639px) {
-  .ch-pane-header .ch-copy-chat-btn {
+  .ch-pane-header .ch-copy-chat-btn,
+  .ch-pane-header .ch-archive-chat-btn,
+  .ch-pane-header .ch-delete-btn {
     display: none;
   }
 }
