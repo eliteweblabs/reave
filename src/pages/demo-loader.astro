@@ -30,7 +30,12 @@ const company = await getCompanyConfig(Astro.request);
       </p>
     </header>
 
-    <div id="demo-loader-app" class="dl-app" aria-live="polite">
+    <div
+      id="demo-loader-app"
+      class="dl-app"
+      data-toggles="true"
+      aria-live="polite"
+    >
       <p class="dl-loading">Loading modules…</p>
     </div>
   </div>
