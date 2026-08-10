@@ -15,11 +15,11 @@ export const GET: APIRoute = async ({ url }) => {
     );
   }
 
-  const clientId = import.meta.env.GOOGLE_CLIENT_ID;
-  const clientSecret = import.meta.env.GOOGLE_CLIENT_SECRET;
-  const railwayToken = import.meta.env.RAILWAY_API_TOKEN;
-  const serviceId = import.meta.env.RAILWAY_SERVICE_ID;
-  const environmentId = import.meta.env.RAILWAY_ENVIRONMENT_ID;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const railwayToken = process.env.RAILWAY_API_TOKEN;
+  const serviceId = process.env.RAILWAY_SERVICE_ID;
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
 
   if (!clientId || !clientSecret) {
     return new Response(JSON.stringify({ error: 'Google credentials not configured' }), { status: 500 });
