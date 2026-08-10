@@ -513,6 +513,7 @@ function createGpsPinElement(): HTMLElement {
   el.className = "home-hero-demo-sk-gps-marker";
   el.innerHTML =
     '<span class="home-hero-demo-sk-gps-ring"></span>' +
+    '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--mid"></span>' +
     '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--late"></span>' +
     '<span class="home-hero-demo-sk-gps-pin"></span>';
   return el;
@@ -543,8 +544,9 @@ function createGpsLocateCard(): HTMLElement {
 }
 
 /**
- * Status-line GPS beat: Mapbox fly-in over land/water only, one pin locks on
- * mid-flight, then the letterbox exits so later turns can continue.
+ * Status-line GPS beat: Mapbox fly-in over land/water only. Pin appears mid-flight,
+ * ends centered with a looping radar pulse, then stays in the stack and scrolls up
+ * with later turns (no swipe-away).
  */
 async function playGpsLocateSkeleton(
   sceneEl: HTMLElement,
@@ -555,8 +557,9 @@ async function playGpsLocateSkeleton(
 ): Promise<void> {
   const FLY_MS = 2600;
   const MARKER_AT = Math.round(FLY_MS * 0.66);
-  const LOCK_HOLD_MS = 700;
-  const EXIT_MS = 420;
+  const END_ZOOM = 13.4;
+  const END_PITCH = 0;
+  const END_BEARING = 0;
   // Arbitrary coastal job site — not meant to match a real address.
   const TARGET: [number, number] = [-70.255, 43.661];
   const START: [number, number] = [-95.7, 37.1];
@@ -575,10 +578,6 @@ async function playGpsLocateSkeleton(
 
   if (!mapboxToken || !mapEl) {
     await wait(reducedMotion ? 400 : 900);
-    card?.classList.add("home-hero-demo-sk-gps--exit");
-    await wait(EXIT_MS);
-    row.remove();
-    relayout(true);
     return;
   }
 
@@ -587,7 +586,6 @@ async function playGpsLocateSkeleton(
 
   let map: any = null;
   let marker: any = null;
-  let mapboxgl: any = null;
 
   const teardown = () => {
     try {
@@ -604,11 +602,20 @@ async function playGpsLocateSkeleton(
     map = null;
   };
 
+  // Scene resets remove the row — tear down the WebGL map when that happens.
+  const orphanWatch = new MutationObserver(() => {
+    if (!row.isConnected) {
+      teardown();
+      orphanWatch.disconnect();
+    }
+  });
+  orphanWatch.observe(sceneEl, { childList: true });
+
   try {
-    mapboxgl = await loadMapboxGl();
+    const mapboxgl = await loadMapboxGl();
     if (!isAlive()) {
       teardown();
-      row.remove();
+      orphanWatch.disconnect();
       return;
     }
 
@@ -617,29 +624,26 @@ async function playGpsLocateSkeleton(
       container: mapEl,
       style: "mapbox://styles/mapbox/dark-v11",
       center: reducedMotion ? TARGET : START,
-      zoom: reducedMotion ? 13.2 : 2.4,
-      pitch: reducedMotion ? 42 : 0,
-      bearing: reducedMotion ? -18 : 0,
+      zoom: reducedMotion ? END_ZOOM : 2.4,
+      pitch: 0,
+      bearing: 0,
       interactive: false,
       attributionControl: false,
-      logoPosition: "bottom-right",
       fadeDuration: 0,
     });
 
     await new Promise<void>((resolve) => {
       const done = () => resolve();
       map.once("load", done);
-      // Safety if load never fires (offline / bad token).
       window.setTimeout(done, 4000);
     });
     if (!isAlive()) {
       teardown();
-      row.remove();
+      orphanWatch.disconnect();
       return;
     }
 
     stripMapToLandAndWater(map);
-    // Hide Mapbox logo chrome inside the tiny letterbox.
     mapEl.querySelectorAll(".mapboxgl-ctrl, .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib").forEach((node) => {
       (node as HTMLElement).style.display = "none";
     });
@@ -650,65 +654,79 @@ async function playGpsLocateSkeleton(
     const pinEl = createGpsPinElement();
     marker = new mapboxgl.Marker({ element: pinEl, anchor: "center" }).setLngLat(TARGET);
 
+    const lockCentered = () => {
+      if (!map) return;
+      map.resize();
+      map.jumpTo({
+        center: TARGET,
+        zoom: END_ZOOM,
+        pitch: END_PITCH,
+        bearing: END_BEARING,
+      });
+      // Second tick after layout — keeps the pin dead-center after stack shifts.
+      requestAnimationFrame(() => {
+        map?.resize();
+        map?.jumpTo({
+          center: TARGET,
+          zoom: END_ZOOM,
+          pitch: END_PITCH,
+          bearing: END_BEARING,
+        });
+      });
+    };
+
     if (reducedMotion) {
       marker.addTo(map);
-      pinEl.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--lock");
-      await wait(500);
+      pinEl.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+      lockCentered();
+      await wait(480);
     } else {
+      const flyDuration = scaleMs(FLY_MS);
+      const flyDone = new Promise<void>((resolve) => {
+        map.once("moveend", () => resolve());
+        window.setTimeout(() => resolve(), flyDuration + 240);
+      });
+
       map.flyTo({
         center: TARGET,
-        zoom: 13.4,
-        pitch: 48,
-        bearing: -22,
-        duration: scaleMs(FLY_MS),
+        zoom: END_ZOOM,
+        pitch: END_PITCH,
+        bearing: END_BEARING,
+        duration: flyDuration,
         essential: true,
-        curve: 1.35,
-        speed: 0.85,
+        curve: 1.4,
       });
 
       await wait(MARKER_AT);
       if (!isAlive()) {
         teardown();
-        row.remove();
+        orphanWatch.disconnect();
         return;
       }
 
       marker.addTo(map);
-      pinEl.classList.add("home-hero-demo-sk-gps-marker--in");
+      pinEl.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
 
-      await wait(FLY_MS - MARKER_AT);
+      await flyDone;
       if (!isAlive()) {
         teardown();
-        row.remove();
+        orphanWatch.disconnect();
         return;
       }
 
-      pinEl.classList.add("home-hero-demo-sk-gps-marker--lock");
-      await wait(LOCK_HOLD_MS);
+      // Snap so the pin finishes exactly at the letterbox center.
+      lockCentered();
+      await wait(420);
     }
+
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+    relayout(true);
+    // Leave the letterbox in the stack — later turns scroll it up naturally.
   } catch {
-    /* Mapbox failed — still exit the letterbox cleanly. */
-  }
-
-  if (!isAlive()) {
     teardown();
-    row.remove();
-    return;
+    orphanWatch.disconnect();
   }
-
-  if (card) {
-    card.classList.remove("home-hero-demo-sk-gps--pop");
-    card.classList.add("home-hero-demo-sk-gps--settled");
-    void card.offsetWidth;
-    card.classList.remove("home-hero-demo-sk-gps--settled");
-    card.style.setProperty("--hero-sk-gps-exit-ms", `${scaleMs(EXIT_MS)}ms`);
-    card.classList.add("home-hero-demo-sk-gps--exit");
-  }
-
-  await wait(EXIT_MS);
-  teardown();
-  row.remove();
-  relayout(true);
 }
 
 function createUserComposingShell(

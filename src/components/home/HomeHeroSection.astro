@@ -979,11 +979,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     transform: scale(1);
   }
 
-  .home-hero-demo-sk-gps--exit {
-    animation: heroDemoSkInvoiceExit var(--hero-sk-gps-exit-ms, 0.42s)
-      cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  }
-
   .home-hero-demo-sk-gps-viewport {
     position: relative;
     width: 100%;
@@ -1013,8 +1008,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-demo-sk-gps-marker {
     position: relative;
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2.75rem;
+    height: 2.75rem;
     opacity: 0;
     transform: scale(0.4);
     pointer-events: none;
@@ -1039,6 +1034,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: absolute;
     left: 50%;
     top: 50%;
+    z-index: 2;
     width: 0.58rem;
     height: 0.58rem;
     margin: -0.29rem 0 0 -0.29rem;
@@ -1053,42 +1049,33 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     border-radius: 50%;
     border: 1.5px solid rgba(255, 255, 255, 0.55);
     opacity: 0;
-    transform: scale(0.45);
+    transform: scale(0.35);
   }
 
-  .home-hero-demo-sk-gps-marker--lock .home-hero-demo-sk-gps-pin {
-    animation: heroDemoSkGpsPinHit 0.55s cubic-bezier(0.22, 1.4, 0.36, 1);
+  /* Looping radar pulse — active target. */
+  .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
+    animation: heroDemoSkGpsRadar 2.1s ease-out infinite;
   }
 
-  .home-hero-demo-sk-gps-marker--lock .home-hero-demo-sk-gps-ring {
-    animation: heroDemoSkGpsRing 0.9s ease-out forwards;
+  .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring--mid {
+    animation-delay: 0.7s;
   }
 
-  .home-hero-demo-sk-gps-marker--lock .home-hero-demo-sk-gps-ring--late {
-    animation-delay: 0.14s;
+  .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring--late {
+    animation-delay: 1.4s;
   }
 
-  @keyframes heroDemoSkGpsPinHit {
+  @keyframes heroDemoSkGpsRadar {
     0% {
-      transform: scale(1);
+      opacity: 0.7;
+      transform: scale(0.35);
     }
-    40% {
-      transform: scale(1.55);
-      box-shadow: 0 0 0 2px rgba(12, 12, 16, 0.9), 0 0 18px rgba(255, 255, 255, 0.7);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
-  @keyframes heroDemoSkGpsRing {
-    0% {
-      opacity: 0.75;
-      transform: scale(0.45);
+    70% {
+      opacity: 0.2;
     }
     100% {
       opacity: 0;
-      transform: scale(1.85);
+      transform: scale(1.9);
     }
   }
 
@@ -1202,10 +1189,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     .home-hero-demo-sk-bone--total-pulse,
     .home-hero-demo-sk-bone--total-pulse::after,
     .home-hero-demo-sk-gps--pop,
-    .home-hero-demo-sk-gps--exit,
     .home-hero-demo-sk-gps-marker--in,
-    .home-hero-demo-sk-gps-marker--lock .home-hero-demo-sk-gps-pin,
-    .home-hero-demo-sk-gps-marker--lock .home-hero-demo-sk-gps-ring {
+    .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
       animation: none;
     }
 
@@ -1218,9 +1203,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
 
     .home-hero-demo-sk-gps-marker--in,
-    .home-hero-demo-sk-gps-marker--lock {
+    .home-hero-demo-sk-gps-marker--active {
       opacity: 1;
       transform: scale(1);
+    }
+
+    .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
+      opacity: 0.35;
+      transform: scale(1.2);
     }
 
     .home-hero-demo-sk-invoice-payments,
