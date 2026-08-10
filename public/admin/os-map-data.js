@@ -3,7 +3,8 @@
 // from admin Company branding + env-injected URLs at boot.
 // ⚠️ KEEP CURRENT: add/edit nodes + edges here whenever a feature, service,
 //    API route, integration, bot command, MCP server, or CLI changes.
-//    Rendered at /admin/ (tabbed: "System" runtime + "MCP & CLI" tooling).
+//    Rendered at /admin/ (tabbed: "System" runtime + "MCP & CLI" tooling +
+//    "Email triage" inbound pipeline).
 //
 // node:  { id, title, sub, icon, brand?, hue, status?, ghost?, group?, x, y }
 // edge:  { from, to, label?, dashed?, ghost? }
@@ -260,12 +261,106 @@ const TOOLING_GROUPS = [
   { id: 't_prod', title: 'Production', hue: 150, members: ['t_prod'] },
 ];
 
+// ───────────────────────── EMAIL TRIAGE (inbound pipeline) ─────────────────────────
+// How one inbound message becomes a single dashboard action (or silent file/junk).
+const EMAIL_TRIAGE_NODES = [
+  // Source
+  { id: 'et_mailbox', title: 'Proton / Gmail', sub: 'Human inbox — keep reading there', icon: '📬', hue: 285, group: 'et_source', x: 40, y: 220 },
+  { id: 'et_copy', title: 'BCC / filter copy', sub: 'Forward a copy to inbound@…', icon: '↪️', hue: 310, group: 'et_source', x: 40, y: 360 },
+
+  // Ingest
+  { id: 'et_resend', title: 'Resend MX', sub: 'inbox@inbound… · email.received', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'et_ingest', x: 320, y: 180 },
+  { id: 'et_webhook', title: '/api/email/inbound', sub: 'Verify webhook · parse message', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'et_ingest', x: 320, y: 320 },
+  { id: 'et_gates', title: 'Cutoff · Sleep mode', sub: 'Drop pre-golive · defer 11pm–7am', icon: '😴', hue: 220, status: true, group: 'et_ingest', x: 320, y: 460 },
+
+  // Classify
+  { id: 'et_contact', title: 'Resolve sender', sub: 'contact-api · client kind', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
+  { id: 'et_rules', title: 'Keyword rules', sub: 'OTP · auth · junk · Railway…', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
+  { id: 'et_agent', title: 'Agent-first AI', sub: 'Unknown / Service · confidence', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
+  { id: 'et_legacy', title: 'Rules + AI triage', sub: 'Known professional / personal', icon: '🧠', brand: 'anthropic', hue: 280, status: true, group: 'et_classify', x: 600, y: 540 },
+
+  // Decide
+  { id: 'et_confidence', title: 'Confidence gate', sub: 'EMAIL_AI_CONFIDENCE_MIN · 0.72', icon: '🎚️', hue: 200, status: true, group: 'et_decide', x: 880, y: 260 },
+  { id: 'et_trusted', title: 'Trusted label', sub: 'Apply AI category · meeting fields', icon: '✅', hue: 140, status: true, group: 'et_decide', x: 880, y: 120 },
+  { id: 'et_explain', title: 'Uncertain → Explain', sub: 'Rules fallback · one triage banner', icon: '❓', hue: 10, status: true, group: 'et_decide', x: 880, y: 400 },
+  { id: 'et_dedupe', title: 'One banner / email', sub: 'Triage wins over meeting Confirm', icon: '🎯', hue: 350, status: true, group: 'et_decide', x: 880, y: 540 },
+
+  // Automate outcomes
+  { id: 'et_otp', title: 'OTP / auth link', sub: 'Copy · Activate · 5 min TTL', icon: '🔑', hue: 55, status: true, group: 'et_automate', x: 1160, y: 60 },
+  { id: 'et_meeting', title: 'Meeting automation', sub: 'Book · request · conflict', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
+  { id: 'et_project', title: 'Project automation', sub: 'Match existing · auto-create', icon: '💼', hue: 195, status: true, group: 'et_automate', x: 1160, y: 300 },
+  { id: 'et_file', title: 'File to job', sub: 'Append note · attachments', icon: '📎', hue: 210, status: true, group: 'et_automate', x: 1160, y: 420 },
+  { id: 'et_sort', title: 'Junk · receipt · alert', sub: 'Hide / expense / ops ping', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
+
+  // Surfaces
+  { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · Email tab', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },
+  { id: 'et_dash', title: 'Dashboard banner', sub: 'Explain · Confirm · OTP…', icon: '📊', hue: 185, status: true, group: 'et_surfaces', x: 1440, y: 300 },
+  { id: 'et_push', title: 'Web Push', sub: 'Phone PWA · tag per email', icon: '🔔', hue: 45, status: true, group: 'et_surfaces', x: 1440, y: 440 },
+  { id: 'et_chat', title: 'System alerts chat', sub: 'Agent for ops automations', icon: '💬', hue: 300, status: true, group: 'et_surfaces', x: 1440, y: 580 },
+];
+
+const EMAIL_TRIAGE_EDGES = [
+  { from: 'et_mailbox', to: 'et_copy', label: 'filter' },
+  { from: 'et_copy', to: 'et_resend', label: 'MX' },
+  { from: 'et_resend', to: 'et_webhook', label: 'webhook' },
+  { from: 'et_webhook', to: 'et_gates' },
+  { from: 'et_gates', to: 'et_contact', label: 'awake' },
+  { from: 'et_gates', to: 'et_inbox', label: 'sleep deferred', dashed: true },
+
+  { from: 'et_contact', to: 'et_rules' },
+  { from: 'et_contact', to: 'et_agent', label: 'unknown / service' },
+  { from: 'et_contact', to: 'et_legacy', label: 'known client' },
+  { from: 'et_rules', to: 'et_otp', label: 'OTP · AUTH_LINK' },
+  { from: 'et_rules', to: 'et_sort', label: 'junk · receipt', dashed: true },
+
+  { from: 'et_agent', to: 'et_confidence' },
+  { from: 'et_confidence', to: 'et_trusted', label: 'high' },
+  { from: 'et_confidence', to: 'et_explain', label: 'low' },
+  { from: 'et_legacy', to: 'et_trusted', dashed: true },
+  { from: 'et_explain', to: 'et_dedupe' },
+  { from: 'et_trusted', to: 'et_meeting', dashed: true },
+  { from: 'et_trusted', to: 'et_project', dashed: true },
+  { from: 'et_trusted', to: 'et_file', dashed: true },
+  { from: 'et_trusted', to: 'et_sort', dashed: true },
+  { from: 'et_meeting', to: 'et_dedupe', label: 'skip if uncertain', dashed: true },
+  { from: 'et_dedupe', to: 'et_dash' },
+
+  { from: 'et_otp', to: 'et_inbox' },
+  { from: 'et_otp', to: 'et_push' },
+  { from: 'et_meeting', to: 'et_inbox' },
+  { from: 'et_project', to: 'et_inbox' },
+  { from: 'et_file', to: 'et_inbox' },
+  { from: 'et_sort', to: 'et_inbox' },
+  { from: 'et_explain', to: 'et_push', label: 'triage push' },
+  { from: 'et_inbox', to: 'et_dash', dashed: true },
+  { from: 'et_meeting', to: 'et_chat', label: 'automation', dashed: true },
+  { from: 'et_project', to: 'et_chat', dashed: true },
+  { from: 'et_dash', to: 'et_push', dashed: true },
+];
+
+const EMAIL_TRIAGE_GROUPS = [
+  { id: 'et_source', title: 'Source', hue: 300, members: ['et_mailbox', 'et_copy'] },
+  { id: 'et_ingest', title: 'Ingest', hue: 150, members: ['et_resend', 'et_webhook', 'et_gates'] },
+  { id: 'et_classify', title: 'Classify', hue: 265, members: ['et_contact', 'et_rules', 'et_agent', 'et_legacy'] },
+  { id: 'et_decide', title: 'Decide', hue: 200, members: ['et_confidence', 'et_trusted', 'et_explain', 'et_dedupe'] },
+  { id: 'et_automate', title: 'Automate', hue: 120, members: ['et_otp', 'et_meeting', 'et_project', 'et_file', 'et_sort'] },
+  { id: 'et_surfaces', title: 'Surfaces', hue: 45, members: ['et_inbox', 'et_dash', 'et_push', 'et_chat'] },
+];
+
 
 // ───────────────────────── exports ─────────────────────────
 export const MAPS = {
   dashboard: { id: 'dashboard', title: 'Dashboard', icon: 'layout-dashboard', type: 'dashboard', nodes: [],             edges: [],             groups: [] },
   system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
+  'email-triage': {
+    id: 'email-triage',
+    title: 'Email triage',
+    icon: '🔀',
+    nodes: EMAIL_TRIAGE_NODES,
+    edges: EMAIL_TRIAGE_EDGES,
+    groups: EMAIL_TRIAGE_GROUPS,
+  },
   // Telegram integration removed — admin Chats tab + Siri Shortcuts are the primary agent surfaces
   todo:      { id: 'todo',      title: 'To\u2011do',  icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
@@ -294,7 +389,7 @@ export const MAPS = {
 };
 
 /** Canvas maps grouped under the header "System" dropdown. */
-export const SYSTEM_MAP_KEYS = ['system', 'tooling'];
+export const SYSTEM_MAP_KEYS = ['system', 'tooling', 'email-triage'];
 /** Placeholder key in saved tab order for the System dropdown slot. */
 export const SYSTEM_TAB_SLOT = '__system__';
 /** Mobile: Chats dropdown also opens Knowledge. */
