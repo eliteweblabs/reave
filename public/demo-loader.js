@@ -1,7 +1,9 @@
 /**
- * Public demo loader — 6-column tile grid, toggles only on deployed modules.
- * Submit collects name, email, and modules via POST /api/demo/launch
- * (creates a proposed client + inquiry; sandbox auto-provision is paused).
+ * Public demo loader — 6-column tile grid with grouped sections.
+ *
+ * Modes (on #demo-loader-app):
+ *   data-toggles="true"  (default) — pick modules + request a custom demo
+ *   data-toggles="false" — browse-only catalog; no switches, no launch form
  */
 (function () {
   const STATUS = {
@@ -26,6 +28,9 @@
 
   const root = document.getElementById('demo-loader-app');
   if (!root) return;
+
+  /** Browse catalog only — never render switches or the demo request form. */
+  const togglesEnabled = root.dataset.toggles !== 'false';
 
   function esc(s) {
     return String(s)
@@ -92,6 +97,14 @@
     return STATUS[m.status] || STATUS.development;
   }
 
+  function statusHint(m) {
+    if (m.status === 'development') return 'In development';
+    if (m.status === 'request') return 'Requested';
+    if (m.status === 'rejected') return 'Rejected';
+    if (m.status === 'deployed') return 'Ready';
+    return 'Preview only';
+  }
+
   function renderSwitch(checked, moduleId) {
     return (
       `<button type="button" class="dl-switch" role="switch" ` +
@@ -116,12 +129,14 @@
   }
 
   function renderTile(m) {
-    const checked = selectedIds.has(m.moduleId);
+    const canToggle = togglesEnabled && Boolean(m.toggleable && m.moduleId);
+    const checked = canToggle && selectedIds.has(m.moduleId);
     const meta = statusMeta(m);
-    const canToggle = Boolean(m.toggleable && m.moduleId);
+    // Dim only in toggle mode when a card isn't selectable — browse mode is all display.
+    const readonlyClass = togglesEnabled && !canToggle ? ' dl-tile--readonly' : '';
 
     return (
-      `<article class="dl-tile${checked && canToggle ? ' dl-tile--selected' : ''}${canToggle ? '' : ' dl-tile--readonly'}" ` +
+      `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}${readonlyClass}" ` +
       `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
       `<span class="dl-badge ${meta.badge}">${esc(meta.label)}</span>` +
@@ -130,7 +145,7 @@
       `<div class="dl-tile-foot">` +
       (canToggle ?
         renderSwitch(checked, m.moduleId)
-      : `<span class="dl-tile-hint">${m.status === 'development' ? 'In development' : m.status === 'request' ? 'Requested' : m.status === 'rejected' ? 'Rejected' : 'Preview only'}</span>`) +
+      : `<span class="dl-tile-hint">${esc(statusHint(m))}</span>`) +
       `</div>` +
       `</article>`
     );
@@ -149,10 +164,13 @@
   }
 
   function renderLegend() {
+    const deployedLine = togglesEnabled
+      ? `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready — include in demo</span>`
+      : `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready</span>`;
     return (
       `<div class="dl-legend">` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--included">Included</span> always on</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready — include in demo</span>` +
+      deployedLine +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--development">Development</span> in progress</span>` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--request">Requested</span> not built yet</span>` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--rejected">Rejected</span> off</span>` +
@@ -198,22 +216,22 @@
       `</div>`;
   }
 
-  function render() {
-    if (submitted) {
-      renderSuccess();
-      return;
-    }
+  function renderBrowseChrome() {
+    const deployed = modules.filter((m) => m.status === 'deployed').length;
+    return (
+      `<p class="dl-meta">${included.length} included · ${deployed} deployed · ${modules.length} add-ons available</p>` +
+      renderLegend() +
+      `<p class="dl-footnote">Browse optional modules by group. To try a custom stack in a sandbox, ` +
+      `<a href="/demo-loader">build your demo</a>.</p>`
+    );
+  }
 
+  function renderLaunchChrome() {
     const toggleCount = toggleableModules().length;
     const selectedCount = selectedToggleableCount();
     const ready = canLaunch();
 
-    root.innerHTML =
-      `<div class="dl-panel">` +
-      `<div class="dl-sections">` +
-      renderIncludedSection() +
-      sections.map(renderSection).join('') +
-      `</div>` +
+    return (
       `<div class="dl-toolbar">` +
       `<div class="dl-visitor">` +
       `<label class="dl-field">` +
@@ -246,7 +264,23 @@
       `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
       `</div>` +
       renderLegend() +
-      `<p class="dl-footnote">Tell us which modules you need and we’ll prepare a personalized demo. You’ll hear from us as soon as it’s ready.</p>` +
+      `<p class="dl-footnote">Tell us which modules you need and we’ll prepare a personalized demo. You’ll hear from us as soon as it’s ready.</p>`
+    );
+  }
+
+  function render() {
+    if (togglesEnabled && submitted) {
+      renderSuccess();
+      return;
+    }
+
+    root.innerHTML =
+      `<div class="dl-panel">` +
+      `<div class="dl-sections">` +
+      renderIncludedSection() +
+      sections.map(renderSection).join('') +
+      `</div>` +
+      (togglesEnabled ? renderLaunchChrome() : renderBrowseChrome()) +
       `</div>`;
   }
 
@@ -258,6 +292,7 @@
   }
 
   function toggleModule(id) {
+    if (!togglesEnabled) return;
     readVisitorFields();
     if (!toggleableModules().some((m) => m.moduleId === id)) return;
     if (selectedIds.has(id)) selectedIds.delete(id);
@@ -267,7 +302,7 @@
   }
 
   async function launch() {
-    if (launching || submitted) return;
+    if (!togglesEnabled || launching || submitted) return;
     readVisitorFields();
     launchError = '';
     if (visitorName.trim().length < 2) {
@@ -319,7 +354,7 @@
   }
 
   function bind() {
-    if (submitted) return;
+    if (!togglesEnabled || submitted) return;
 
     root.querySelector('#dl-industry')?.addEventListener('change', (e) => {
       industry = e.target.value || 'general';
@@ -383,7 +418,7 @@
       render();
       bind();
     } catch (e) {
-      root.innerHTML = `<p class="dl-error">Could not load demo loader: ${esc(e.message)}</p>`;
+      root.innerHTML = `<p class="dl-error">Could not load modules: ${esc(e.message)}</p>`;
     }
   }
 
