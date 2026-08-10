@@ -6,6 +6,7 @@
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
 import { storeGetEmailInbox, storeListEmailInbox, storeUpdateEmailInbox } from './emailInboxStore';
 import { listReviewNotifications } from './emailAutomation';
+import { dedupeDashboardNotificationsByEmail } from './dashboardNotificationDedupe';
 import {
   createTriageFeedback,
   extractPhrases,
@@ -77,12 +78,12 @@ async function listAllPendingDashboardNotifications() {
     listEngagementNotifications({ limit: 500, maxAgeDays: 14 }),
     listPushAlertNotifications({ limit: 500, maxAgeDays: 14 }),
   ]);
-  return [
+  return dedupeDashboardNotificationsByEmail([
     ...listReviewNotifications(events, { limit: 500, maxAgeDays: 14 }),
     ...comments,
     ...engagements,
     ...pushAlerts,
-  ];
+  ]);
 }
 
 /** Resolve other pending dashboard alerts that match the triage rule phrases. */

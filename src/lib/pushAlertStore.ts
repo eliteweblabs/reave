@@ -419,7 +419,10 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
 
 export async function storeAckPushAlert(
   id: string,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; id: string; tag: string; url: string; kind: PushAlertKind }
+  | { ok: false; error: string }
+> {
   const trimmed = id.trim();
   if (!trimmed) return { ok: false, error: 'Invalid alert id' };
 
@@ -428,19 +431,43 @@ export async function storeAckPushAlert(
   try {
     const pool = await ensureSchema();
     if (pool) {
-      const { rowCount } = await pool.query(
+      const { rows } = await pool.query<{
+        id: string;
+        tag: string;
+        kind: string;
+        url: string;
+      }>(
         `UPDATE admin_push_alerts
          SET staff_ack_at = COALESCE(staff_ack_at, $2::timestamptz)
-         WHERE id = $1`,
+         WHERE id = $1
+         RETURNING id, tag, kind, url`,
         [trimmed, now],
       );
-      if ((rowCount ?? 0) > 0) return { ok: true, id: trimmed };
+      if (rows[0]) {
+        return {
+          ok: true,
+          id: rows[0].id,
+          tag: rows[0].tag || '',
+          url: rows[0].url || '',
+          kind: (rows[0].kind || 'system') as PushAlertKind,
+        };
+      }
 
-      const { rows } = await pool.query<{ id: string }>(
-        `SELECT id FROM admin_push_alerts WHERE id = $1 LIMIT 1`,
-        [trimmed],
-      );
-      if (rows[0]) return { ok: true, id: trimmed };
+      const existing = await pool.query<{
+        id: string;
+        tag: string;
+        kind: string;
+        url: string;
+      }>(`SELECT id, tag, kind, url FROM admin_push_alerts WHERE id = $1 LIMIT 1`, [trimmed]);
+      if (existing.rows[0]) {
+        return {
+          ok: true,
+          id: existing.rows[0].id,
+          tag: existing.rows[0].tag || '',
+          url: existing.rows[0].url || '',
+          kind: (existing.rows[0].kind || 'system') as PushAlertKind,
+        };
+      }
     }
   } catch (e) {
     console.warn('[push-alerts] postgres ack failed', e);
@@ -451,5 +478,12 @@ export async function storeAckPushAlert(
   if (idx === -1) return { ok: false, error: 'Alert not found' };
   if (!alerts[idx]!.staffAckAt) alerts[idx]!.staffAckAt = now;
   writeFileAlerts(alerts);
-  return { ok: true, id: trimmed };
+  const alert = alerts[idx]!;
+  return {
+    ok: true,
+    id: alert.id,
+    tag: alert.tag || '',
+    url: alert.url || '',
+    kind: alert.kind,
+  };
 }

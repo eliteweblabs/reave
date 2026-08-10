@@ -921,12 +921,20 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   if (needsExplain) {
     // Prefer review visibility over silent junk when we're unsure.
+    // Always stamp needs_explain so meeting/project review banners do not
+    // appear alongside the triage "Explain" alert for the same email.
     if (category === 'junk' && action === 'junk') {
       category = 'review';
       action = 'needs_explain';
       if (inboxStatus.toUpperCase() === 'DELETE') inboxStatus = 'UNMATCHED';
-    } else if (action !== 'verification_code' && action !== 'activation_link' && action !== 'project_reply') {
-      if (action === 'classified' || action === 'junk') action = 'needs_explain';
+    } else if (
+      action !== 'verification_code' &&
+      action !== 'activation_link' &&
+      action !== 'project_reply'
+    ) {
+      if (category === 'junk') category = 'review';
+      action = 'needs_explain';
+      if (inboxStatus.toUpperCase() === 'DELETE') inboxStatus = 'UNMATCHED';
     }
   }
 
@@ -939,7 +947,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   let skipAutoBook = false;
 
-  if (!suppressedAsJunk && hasFeature('scheduling') && action !== 'project_reply' && senderEmail.includes('@')) {
+  // Uncertain classification → triage Explain only. Do not also emit meeting
+  // automation / Confirm banners for the same inbound message.
+  if (
+    !needsExplain &&
+    !suppressedAsJunk &&
+    hasFeature('scheduling') &&
+    action !== 'project_reply' &&
+    senderEmail.includes('@')
+  ) {
     const followUp = await detectMeetingFollowUp({
       from,
       contactName,
@@ -964,6 +980,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   }
 
   if (
+    !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
@@ -1030,6 +1047,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       }
     }
   } else if (
+    !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
@@ -1387,12 +1405,22 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         : automationKind === 'meeting_followup'
           ? summary.slice(0, 240)
           : summary;
+    // Meeting/project automations already render typed review banners from the
+    // inbox row — phone push only, so the dashboard does not show two cards.
+    const hasTypedReviewBanner =
+      automationKind === 'meeting_booked' ||
+      automationKind === 'meeting_request' ||
+      automationKind === 'meeting_conflict' ||
+      automationKind === 'meeting_followup' ||
+      automationKind === 'project_created' ||
+      automationKind === 'project_match_suggested';
     sendInboxPushNotification({
       title: pushTitle,
       body: pushBody,
       tag: inboxRecord.id,
       emailId: inboxRecord.id,
       urgent: isProjectReply,
+      skipDashboardAlert: hasTypedReviewBanner,
     }).catch((e) => console.warn('[email] push failed', e));
   }
 

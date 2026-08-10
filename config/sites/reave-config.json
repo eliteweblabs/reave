@@ -54,7 +54,7 @@
       }
     ],
     "demoCta": { "href": "/demo-loader", "label": "Demo" },
-    "showDemoCta": true,
+    "showDemoCta": false,
     "showSignIn": true
   },
   "homepage": {

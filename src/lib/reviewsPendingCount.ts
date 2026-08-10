@@ -3,24 +3,24 @@
  * (email automation + project comments + engagement events + push alerts).
  */
 
-import { countReviewNotifications } from './emailAutomation';
+import { dedupeDashboardNotificationsByEmail } from './dashboardNotificationDedupe';
+import { listReviewNotifications } from './emailAutomation';
 import { storeListEmailInbox } from './emailInboxStore';
-import { countEngagementNotifications } from './engagementNotifications';
-import { countPushAlertNotifications } from './pushAlertNotifications';
-import { countProjectCommentNotifications } from './workCommentNotifications';
+import { listEngagementNotifications } from './engagementNotifications';
+import { listPushAlertNotifications } from './pushAlertNotifications';
+import { listProjectCommentNotifications } from './workCommentNotifications';
 
 export async function getReviewsPendingCount(): Promise<number> {
-  const [allForDigest, commentReviewsPending, engagementReviewsPending, pushAlertsPending] =
-    await Promise.all([
-      storeListEmailInbox(500, { hideJunk: true, forDigest: true }),
-      countProjectCommentNotifications(),
-      countEngagementNotifications(),
-      countPushAlertNotifications(),
-    ]);
-  return (
-    countReviewNotifications(allForDigest) +
-    commentReviewsPending +
-    engagementReviewsPending +
-    pushAlertsPending
-  );
+  const [allForDigest, commentReviews, engagementReviews, pushAlerts] = await Promise.all([
+    storeListEmailInbox(500, { hideJunk: true, forDigest: true }),
+    listProjectCommentNotifications({ limit: 500, maxAgeDays: 14 }),
+    listEngagementNotifications({ limit: 500, maxAgeDays: 14 }),
+    listPushAlertNotifications({ limit: 500, maxAgeDays: 14 }),
+  ]);
+  return dedupeDashboardNotificationsByEmail([
+    ...listReviewNotifications(allForDigest, { limit: 500, maxAgeDays: 14 }),
+    ...commentReviews,
+    ...engagementReviews,
+    ...pushAlerts,
+  ]).length;
 }
