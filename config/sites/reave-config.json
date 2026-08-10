@@ -26,7 +26,6 @@
       { "href": "/hosting", "label": "Hosting", "hideBelow": 1080 },
       { "href": "/modules", "label": "Modules" },
       { "href": "/digital-audit", "label": "Digital Audit", "hideBelow": 1080 },
-      { "href": "/demo-loader", "label": "Walkthrough", "hideBelow": 1080 },
       { "href": "/about", "label": "About" },
       { "href": "/services", "label": "Services" },
       { "href": "/#contact", "label": "Contact" }
@@ -44,8 +43,7 @@
           { "href": "/modules", "label": "Modules" },
           { "href": "/digital-audit", "label": "Digital Audit" },
           { "href": "/demo-loader", "label": "Demo", "primary": true },
-          { "href": "/demo-loader", "label": "Build demo" },
-          { "href": "/demo-loader", "label": "Walkthrough" }
+          { "href": "/demo-loader", "label": "Build demo" }
         ]
       },
       {
