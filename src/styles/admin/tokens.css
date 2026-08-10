@@ -48,8 +48,10 @@
   --nav-chevron-hover: #000;
   --nav-indicator-bg: rgba(0, 0, 0, 0.05);
   --btn-group-track-bg: var(--nav-indicator-bg);
-  --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
-  --footer-nav-glass-bg: transparent;
+  /* Opaque enough to keep light/dark nav icons readable over bright
+     content (HTML email iframes stay white on purpose). */
+  --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.1);
+  --footer-nav-glass-bg: rgba(255, 255, 255, 0.86);
   --footer-nav-glass-blur: blur(18px) saturate(1.15);
   --badge-ring: rgba(255, 255, 255, 0.85);
   --accent-select-bg: rgba(0, 0, 0, 0.04);
@@ -252,7 +254,8 @@
     --nav-chevron: rgba(255, 255, 255, 0.8);
     --nav-chevron-hover: #fff;
     --nav-indicator-bg: rgba(255, 255, 255, 0.05);
-    --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.12);
+    --footer-nav-glass-bg: rgba(10, 13, 20, 0.88);
     --badge-ring: rgba(10, 13, 20, 0.55);
     --accent-select-bg: rgba(255, 255, 255, 0.04);
     --sc-pop-row-hover: #1e3a5f;
