@@ -45,12 +45,38 @@ function headerValue(headers: Record<string, string> | undefined, name: string):
   return '';
 }
 
+/** Subject looks like a forward into the inbound mailbox (not a client reply). */
+export function isForwardSubject(subject: string): boolean {
+  return /^(fw|fwd):\s/i.test(subject.trim());
+}
+
+/**
+ * Broad reply/forward signal — used for thread sibling lookup / dedupe.
+ * Includes Fw:/Fwd: because forwarded copies still belong to a thread key.
+ */
 export function isLikelyEmailReply(opts: {
   subject: string;
   headers?: Record<string, string>;
 }): boolean {
   const subject = opts.subject.trim();
   if (/^(re|fw|fwd|aw):\s/i.test(subject)) return true;
+  const inReply = headerValue(opts.headers, 'in-reply-to');
+  const references = headerValue(opts.headers, 'references');
+  return Boolean(inReply || references);
+}
+
+/**
+ * True client-thread reply (Re:/Aw: or In-Reply-To/References).
+ * Fw:/Fwd: alone is not a client reply — inbound often receives forwarded
+ * copies of apex messages (Proton/Gmail → inbound.*) with no real threading.
+ */
+export function isLikelyClientThreadReply(opts: {
+  subject: string;
+  headers?: Record<string, string>;
+}): boolean {
+  const subject = opts.subject.trim();
+  if (/^(re|aw):\s/i.test(subject)) return true;
+  if (isForwardSubject(subject)) return false;
   const inReply = headerValue(opts.headers, 'in-reply-to');
   const references = headerValue(opts.headers, 'references');
   return Boolean(inReply || references);
@@ -66,6 +92,9 @@ export function subjectRelatesToOutbound(inboundSubject: string, outboundSubject
   const a = normalizeSubjectForThread(inboundSubject);
   const b = normalizeSubjectForThread(outboundSubject);
   if (!a || !b) return false;
+  // Ignore placeholder outbound subjects — "New Project — Acme" must not
+  // treat every later mail that mentions Acme as a reply.
+  if (isPlaceholderProjectTitle(b)) return a === b;
   return a === b || a.includes(b) || b.includes(a);
 }
 
@@ -74,10 +103,40 @@ function hasReplyEvidence(opts: {
   headers?: Record<string, string>;
   outboundSubject?: string | null;
 }): boolean {
-  if (isLikelyEmailReply({ subject: opts.subject, headers: opts.headers })) return true;
+  if (isLikelyClientThreadReply({ subject: opts.subject, headers: opts.headers })) return true;
   const outboundSubject = opts.outboundSubject?.trim();
   if (outboundSubject && subjectRelatesToOutbound(opts.subject, outboundSubject)) return true;
   return false;
+}
+
+/**
+ * Draft / default titles like "New Project" or "New Project — Acme Co".
+ * These are not meaningful project names for reply/meeting summary copy.
+ */
+export function isPlaceholderProjectTitle(title: string): boolean {
+  const t = title.trim();
+  if (!t) return true;
+  return /^new\s+[a-z0-9-]+(\s*[—–-].*)?$/i.test(t);
+}
+
+/**
+ * Human label for summaries / route notes. Placeholder "New Project — Acme"
+ * becomes "Acme" so apex meeting mail does not read as a new-project reply.
+ */
+export function displayProjectTitle(
+  title: string | null | undefined,
+  fallback?: string | null,
+): string {
+  const t = (title ?? '').trim();
+  if (!t) return (fallback ?? '').trim() || 'project';
+  if (!isPlaceholderProjectTitle(t)) return t;
+  const parts = t.split(/\s*[—–-]\s*/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const rest = parts.slice(1).join(' — ');
+    if (rest && !isPlaceholderProjectTitle(rest)) return rest;
+  }
+  const fb = (fallback ?? '').trim();
+  return fb || 'project';
 }
 
 function senderMatchesContact(
@@ -96,6 +155,15 @@ function pickJobFromList(jobs: WorkJobSummary[], preferredSlug?: string | null):
     if (hit) return hit;
   }
   const open = jobs.filter((j) => j.status === 'active' || j.status === 'inquiry');
+  // Prefer a real titled job over a leftover "New Project" stub.
+  const meaningful = (list: WorkJobSummary[]) =>
+    list.filter((j) => !isPlaceholderProjectTitle(j.title));
+  const openReal = meaningful(open);
+  if (openReal.length === 1) return openReal[0]!;
+  if (openReal.length > 1) return openReal[0]!;
+  const allReal = meaningful(jobs);
+  if (allReal.length === 1) return allReal[0]!;
+  if (allReal.length > 1) return allReal[0]!;
   if (open.length === 1) return open[0]!;
   if (jobs.length === 1) return jobs[0]!;
   return open[0] ?? jobs[0] ?? null;
@@ -105,6 +173,7 @@ function pickJobFromList(jobs: WorkJobSummary[], preferredSlug?: string | null):
  * Detect inbound mail that is a client reply after we sent project-related outbound email.
  * Requires thread evidence (Re:/In-Reply-To/References, or same subject as outbound) —
  * a fresh email from a known contact is not treated as a reply.
+ * Forwarded copies (Fw:/Fwd:) into the inbound mailbox are not client replies.
  */
 export async function detectProjectClientReply(opts: {
   senderEmail: string;
@@ -148,14 +217,14 @@ export async function detectProjectClientReply(opts: {
     opts.contactUid &&
     opts.jobs.length > 0 &&
     senderMatchesContact(senderEmail, opts.contactEmailOnRecord) &&
-    isLikelyEmailReply({ subject: opts.subject, headers: opts.headers })
+    isLikelyClientThreadReply({ subject: opts.subject, headers: opts.headers })
   ) {
     const job = pickJobFromList(opts.jobs);
     if (!job) return null;
     return {
       jobSlug: job.slug,
       jobTitle: job.title,
-      reason: `Reply from client of record on open project "${job.title}"`,
+      reason: `Reply from client of record on open project "${displayProjectTitle(job.title)}"`,
       outbound: null,
     };
   }
