@@ -403,8 +403,8 @@ async function playInvoicePaymentSkeleton(
     await wait(600);
     card?.classList.add("home-hero-demo-sk-invoice--exit");
     await wait(420);
-    row.remove();
-    relayout(true);
+    // Hard-cut the scene — don't relayout or the remaining chats drop down.
+    sceneEl.dataset.heroHardCut = "1";
     return;
   }
 
@@ -453,8 +453,8 @@ async function playInvoicePaymentSkeleton(
   await wait(520);
   if (!isAlive()) return;
 
-  row.remove();
-  relayout(true);
+  // Hard-cut: kill the scene immediately so older chats don't cascade back down.
+  sceneEl.dataset.heroHardCut = "1";
 }
 
 function createUserComposingShell(
@@ -977,6 +977,12 @@ export function initHeroDemoLoop(root: HTMLElement) {
         isAlive,
         lastAssistantRow,
       );
+
+      if (sceneEl.dataset.heroHardCut === "1") {
+        // Invoice swipe finished — cut straight to the next scene.
+        resetStack(stack);
+        return;
+      }
     }
 
     if (demoClock.skipScene || !running || offscreen) return;
@@ -1008,8 +1014,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
-      // Temporary testing: stop after the payment / invoice scene finishes.
-      if (once || scene.id === "reggie-payment") {
+      // Temporary testing: stop after a single pass when data-once is set.
+      if (once) {
         running = false;
         demoClock.userPaused = true;
         syncControls();
