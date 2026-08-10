@@ -676,7 +676,11 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history: priorHistory }),
+          body: JSON.stringify({
+            message: text,
+            history: priorHistory,
+            pagePath: typeof location !== 'undefined' ? location.pathname : undefined,
+          }),
         });
         let data: { ok?: boolean; reply?: string; error?: string } = {};
         try {

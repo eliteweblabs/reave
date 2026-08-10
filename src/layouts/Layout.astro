@@ -137,6 +137,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 					brandTitle={company.name}
 					supportPhone={company.supportPhone}
 					supportEmail={company.supportEmail}
+					pagePath={Astro.url.pathname}
 				/>
 			)
 		}
