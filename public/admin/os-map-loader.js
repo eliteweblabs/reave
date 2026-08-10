@@ -106,7 +106,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260809b';
+} from './admin-ui.js?v=20260810a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260810a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
@@ -255,7 +255,7 @@ import {
 import {
   initMediaPanel,
   loadMediaTab,
-} from './media-panel.js?v=20260804c';
+} from './media-panel.js?v=20260810a';
 import {
   initModulesPanel,
   loadModulesTab,
@@ -7488,7 +7488,7 @@ const FOOTER_PANEL_SELECTOR =
   '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #modules-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
-  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
+  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ml-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
