@@ -96,7 +96,13 @@ export const BRAND_FONT_CATALOG: BrandFontOption[] = [
 ];
 
 const SANS_FALLBACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-const CONTENT_FALLBACK = 'Georgia, "Times New Roman", serif';
+const SERIF_FALLBACK = 'Georgia, "Times New Roman", serif';
+
+/** True when the chosen face is a serif — used so sans content fonts never fall back to Georgia. */
+function isSerifBrandFont(entry: BrandFontOption): boolean {
+  if (entry.id === 'source-serif-4') return true;
+  return /\bserif\b/i.test(entry.family) || /\bserif\b/i.test(entry.id);
+}
 
 const catalogById = new Map(BRAND_FONT_CATALOG.map((entry) => [entry.id, entry]));
 const runtimeCatalog = new Map<string, BrandFontOption>();
@@ -225,8 +231,11 @@ export type ResolvedBrandFonts = {
   googleFontsHref: string;
 };
 
-function fontFamilyCss(entry: BrandFontOption, role: BrandFontRole): string {
-  const fallback = role === 'content' ? CONTENT_FALLBACK : SANS_FALLBACK;
+function fontFamilyCss(entry: BrandFontOption, _role: BrandFontRole): string {
+  // Fall back by the face's genre, not the role. Content role often uses Inter /
+  // Mozilla Text / etc. — pairing those with Georgia made the whole marketing
+  // site flash serif whenever the webfont was slow or failed to load.
+  const fallback = isSerifBrandFont(entry) ? SERIF_FALLBACK : SANS_FALLBACK;
   return `"${entry.family}", ${fallback}`;
 }
 

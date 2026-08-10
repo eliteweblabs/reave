@@ -6378,7 +6378,15 @@ function bindCompanyFontPreview(root, catalog) {
   }
 
   const sansFallback = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  const contentFallback = 'Georgia, "Times New Roman", serif';
+  const serifFallback = 'Georgia, "Times New Roman", serif';
+  const contentStack = (entry) => {
+    if (!entry) return '';
+    const serif =
+      entry.id === 'source-serif-4' ||
+      /\bserif\b/i.test(String(entry.family || '')) ||
+      /\bserif\b/i.test(String(entry.id || ''));
+    return `"${entry.family}", ${serif ? serifFallback : sansFallback}`;
+  };
 
   const update = () => {
     const primaryId = primarySelect.value;
@@ -6391,7 +6399,7 @@ function bindCompanyFontPreview(root, catalog) {
     if (href) fontLink.href = href;
     previewPrimary.style.fontFamily = primary ? `"${primary.family}", ${sansFallback}` : '';
     previewSecondary.style.fontFamily = secondary ? `"${secondary.family}", ${sansFallback}` : '';
-    previewContent.style.fontFamily = content ? `"${content.family}", ${contentFallback}` : '';
+    previewContent.style.fontFamily = contentStack(content);
   };
 
   primarySelect.addEventListener('change', update);

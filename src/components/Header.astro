@@ -1152,7 +1152,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     gap: 0.45rem;
     width: 100%;
     padding: 0.5rem 0.55rem;
-    font: inherit;
+    /* Explicit UI sans — do not inherit marketing --font-content (serif fallbacks). */
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-size: 0.78rem;
     font-weight: 500;
     color: var(--muted, rgba(255, 255, 255, 0.62));
