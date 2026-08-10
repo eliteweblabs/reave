@@ -107,7 +107,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <div class="app-header-end topbar-end">
     {showHeaderSignIn && (
       <div class="topbar-auth-cluster">
-        <DeployStatusDot />
         <button
           type="button"
           class="app-header-signin"
@@ -267,7 +266,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
 <script is:inline src={`/proximity-tooltip.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
-<script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+{userId && (
+  <script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+)}
 
 <script>
   /** iOS can report 0 for env(safe-area-inset-top) on fixed shells — probe and pin px when needed. */

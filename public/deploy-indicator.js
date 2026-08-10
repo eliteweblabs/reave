@@ -14,24 +14,32 @@
     }
   }
 
-  async function refreshDeployDot() {
+  /** After 401/403, never poll again — endpoint is owner-only unless DEPLOY_STATUS_PUBLIC. */
+  let deployAuthDenied = false;
+
+  function hideDeployDot() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot) return;
+    dot.hidden = true;
+    dot.classList.remove('tooltip-open');
+    window.ProximityTooltip?.hide?.();
+  }
+
+  async function refreshDeployDot() {
+    const dot = document.getElementById('topbar-deploy-dot');
+    if (!dot || deployAuthDenied) return;
     try {
       const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
       if (res.status === 401 || res.status === 403) {
-        dot.hidden = true;
-        dot.classList.remove('tooltip-open');
-        window.ProximityTooltip?.hide?.();
-        deployPollMs = DEPLOY_POLL_MS_LIVE;
+        deployAuthDenied = true;
+        stopDeployPoll();
+        hideDeployDot();
         publishDeployIndicator(null);
         return;
       }
       const data = await res.json();
       if (!res.ok || !data.ok || !data.deploy) {
-        dot.hidden = true;
-        dot.classList.remove('tooltip-open');
-        window.ProximityTooltip?.hide?.();
+        hideDeployDot();
         deployPollMs = DEPLOY_POLL_MS_LIVE;
         publishDeployIndicator(null);
         return;
@@ -62,8 +70,9 @@
   }
 
   async function pollDeployDot() {
-    if (document.hidden) return;
+    if (document.hidden || deployAuthDenied) return;
     await refreshDeployDot();
+    if (deployAuthDenied || document.hidden) return;
     deployPollTimer = setTimeout(() => {
       void pollDeployDot();
     }, deployPollMs);
@@ -71,7 +80,7 @@
 
   function startDeployPoll() {
     stopDeployPoll();
-    if (document.hidden) return;
+    if (document.hidden || deployAuthDenied) return;
     void pollDeployDot();
   }
 
@@ -85,6 +94,10 @@
   function initDeployIndicator() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot || dot.dataset.deployBound) return;
+    if (deployAuthDenied) {
+      hideDeployDot();
+      return;
+    }
     dot.dataset.deployBound = '1';
     dot.addEventListener('click', (ev) => {
       ev.stopPropagation();
