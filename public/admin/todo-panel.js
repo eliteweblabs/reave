@@ -41,7 +41,7 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, pars
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260808b';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
-import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260807c';
+import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260810a';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initTodoPanel(). */

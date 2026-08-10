@@ -1718,6 +1718,10 @@ function useSlashHelpers(
     setHelpersOpen(false);
     setComposeText('');
     propsRef.current?.onComposeDirty?.(false);
+    // Sending keeps the textarea focused (Send uses preventDefault). When the
+    // running UI replaces it, clear compose-focus so the pane header is not left
+    // inert with no .aui-input left to blur.
+    propsRef.current?.onComposeFocus?.(false);
   }, [isRunning]);
 
   useEffect(() => {
@@ -1866,6 +1870,13 @@ function ClaudeComposer({
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
   }, [helpers.focusInput, onFocusInputReady]);
+
+  // Running / deploy-lock UIs unmount .aui-input. Drop compose-focus so the pane
+  // header is not left inert (share / archive / rename) until a hard refresh.
+  useEffect(() => {
+    if (!showRunning && !deployChatLocked) return;
+    propsRef.current?.onComposeFocus?.(false);
+  }, [showRunning, deployChatLocked, propsRef]);
 
   if (showRunning) {
     return (

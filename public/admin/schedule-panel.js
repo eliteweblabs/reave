@@ -48,7 +48,7 @@ import {
 } from './os-dialog.js?v=20260728j';
 import { navigateToWork, workClientSubline } from './work-panel.js?v=20260808b';
 import { navigateToClient } from './clients-panel.js?v=20260728p';
-import { openReaveShareSheet } from './chat-panel.js?v=20260807c';
+import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
 let shell = {};

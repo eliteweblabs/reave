@@ -62,7 +62,7 @@ import {
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
-import { createPortalShareBtn } from './chat-panel.js?v=20260807c';
+import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
 /** Injected by os-map-loader via initClientsPanel(). */
