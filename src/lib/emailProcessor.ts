@@ -29,7 +29,11 @@ import {
 import { getCompanyConfig } from './companyConfig';
 import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
-import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectReply';
+import {
+  detectProjectClientReply,
+  displayProjectTitle,
+  isLikelyClientThreadReply,
+} from './emailProjectReply';
 import { isSuggestedProjectMatch } from './emailAutomation';
 import {
   looksLikeFailedOrDuePayment,
@@ -877,7 +881,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       jobs,
     });
     if (replyMatch) {
-      const threadedReply = isLikelyEmailReply({
+      const threadedReply = isLikelyClientThreadReply({
         subject: email.subject ?? '',
         headers: email.headers,
       });
@@ -886,23 +890,42 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         /\b(meet(ing)?|schedule|appointment|available|availability)\b/i.test(
           `${summary} ${schedulingNote} ${snippet(bodyText, 500)}`,
         );
-      if (looksLikeMeeting && !threadedReply) {
+      const projectLabel = displayProjectTitle(replyMatch.jobTitle, contactName);
+      // Meeting asks are not "client replies" — even with Re: headers or when the
+      // only open job is a leftover "New Project — …" stub. Apex / forwarded
+      // copies into inbound must keep the AI summary, not a reply framing.
+      if (looksLikeMeeting) {
         if (!jobSlug) {
           jobSlug = replyMatch.jobSlug;
           jobTitle = replyMatch.jobTitle;
         }
         routeNote =
           routeNote ||
-          `Meeting request from ${contactName ?? senderEmail} on "${replyMatch.jobTitle}"`;
-      } else {
+          `Meeting request from ${contactName ?? senderEmail} on "${projectLabel}"`;
+      } else if (threadedReply) {
         isProjectReply = true;
         category = 'client';
         action = 'project_reply';
         jobSlug = replyMatch.jobSlug;
         jobTitle = replyMatch.jobTitle;
-        routeNote = `🚨 Client replied on "${replyMatch.jobTitle}" — follow up ASAP. ${replyMatch.reason}`;
+        routeNote = `🚨 Client replied on "${projectLabel}" — follow up ASAP. ${replyMatch.reason}`;
         if (!summary.toLowerCase().includes('client replied')) {
-          summary = `Client replied on project ${replyMatch.jobTitle}: ${summary}`;
+          summary = `Client replied on project ${projectLabel}: ${summary}`;
+        }
+      } else {
+        // Outbound subject match without true thread headers — link quietly.
+        if (!jobSlug) {
+          jobSlug = replyMatch.jobSlug;
+          jobTitle = replyMatch.jobTitle;
+        }
+        routeNote =
+          routeNote ||
+          `Linked to project "${projectLabel}"`;
+        if (action !== 'filed' && action !== 'matched') {
+          action = 'matched';
+        }
+        if (category !== 'junk' && category !== 'alert') {
+          category = 'client';
         }
       }
     }

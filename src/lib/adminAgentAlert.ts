@@ -16,6 +16,7 @@ import { hasFeature } from './features';
 import { createLogger } from './logger';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from './workStore';
 import { getPostAlias } from './postAlias';
+import { displayProjectTitle } from './emailProjectReply';
 
 const log = createLogger('admin-agent');
 
@@ -301,11 +302,12 @@ export async function notifyAdminAgentOfProjectReply(opts: {
   if (!agentAlertUserId()) return;
 
   const post = getPostAlias();
+  const projectLabel = displayProjectTitle(opts.jobTitle, opts.contactName);
   const messageLines = [
     `🚨 URGENT — Client replied on a ${post.singular}`,
     '',
     `Client: ${opts.contactName}`,
-    `${post.singularTitle}: ${opts.jobTitle}`,
+    `${post.singularTitle}: ${projectLabel}`,
     '',
     `This is new work that needs ASAP follow-up. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule), link to the ${post.singular} if needed, and do not ask what ${post.singular} they mean — the email body is below.`,
   ];
@@ -325,7 +327,7 @@ export async function notifyAdminAgentOfProjectReply(opts: {
     message,
     emailId: opts.emailId,
     push: {
-      title: `🚨 Client reply: ${opts.jobTitle}`,
+      title: `🚨 Client reply: ${projectLabel}`,
       body: `${opts.contactName} — follow up ASAP`,
       tag: opts.emailId ?? 'project-reply',
       url: opts.emailId

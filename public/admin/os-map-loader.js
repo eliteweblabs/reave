@@ -10618,7 +10618,7 @@ async function handleEmailProjectAddNew(ev, triggerEl) {
   try {
     await postEmailProject(ev, {
       mode: 'create',
-      title: (ev.subject || 'New project').trim(),
+      title: (ev.subject || ev.contactName || 'Project inquiry').trim(),
     });
   } catch (e) {
     if (triggerEl) {
@@ -13213,8 +13213,8 @@ function renderEmailPane() {
   if (isMeetingPendingConfirm(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
-        `<button type="button" class="em-schedule-action-primary de-new-btn">Confirm</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-new-btn">Reschedule</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary">Confirm</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Reschedule</button>` +
       `</div>`;
   } else if (isProjectMatchSuggested(ev)) {
     const attachmentCount = Array.isArray(ev.attachments) ? ev.attachments.length : 0;
@@ -13229,14 +13229,14 @@ function renderEmailPane() {
         `<div class="em-book-card-note">Add this email's content to the project notes? ${escHtml(attachmentHint)}</div>` +
       `</div>` +
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
-        `<button type="button" class="em-schedule-action-primary de-new-btn em-project-match-add">Add to project</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-new-btn em-project-match-reject">Not this project</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary em-project-match-add">Add to project</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary em-project-match-reject">Not this project</button>` +
       `</div>`;
   } else if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions">` +
-        `<button type="button" class="em-schedule-action-primary de-new-btn" disabled>Checking availability…</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-new-btn">Suggest alternate time</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary" disabled>Checking availability…</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Suggest alternate time</button>` +
       `</div>`;
   }
   detailHtml +=
