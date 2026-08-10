@@ -1,4 +1,4 @@
-/** Railway deploy status bulb in the page header (public dev indicator). */
+/** Railway deploy status bulb in the page header (owner session; see DEPLOY_STATUS_PUBLIC). */
 (function () {
   const DEPLOY_POLL_MS_LIVE = 15_000;
   const DEPLOY_POLL_MS_ACTIVE = 5_000;
@@ -19,6 +19,14 @@
     if (!dot) return;
     try {
       const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
+      if (res.status === 401 || res.status === 403) {
+        dot.hidden = true;
+        dot.classList.remove('tooltip-open');
+        window.ProximityTooltip?.hide?.();
+        deployPollMs = DEPLOY_POLL_MS_LIVE;
+        publishDeployIndicator(null);
+        return;
+      }
       const data = await res.json();
       if (!res.ok || !data.ok || !data.deploy) {
         dot.hidden = true;

@@ -1,24 +1,49 @@
 /** Normalize and validate public http(s) URLs (blocks localhost / private IPs). */
 
+function isPrivateIpv4(a: number, b: number, _c: number, _d: number): boolean {
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64.0.0/10
+  if (a === 0) return true;
+  return false;
+}
+
 export function isPrivateHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
+  if (h.endsWith('.internal')) return true;
+  if (h === 'metadata.google.internal' || h.endsWith('.metadata.google.internal')) return true;
   if (h === '0.0.0.0') return true;
+
+  const v4Mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (v4Mapped) return isPrivateHost(v4Mapped[1]);
 
   const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (v4) {
-    const [, a, b] = v4.map(Number);
-    if (a === 10) return true;
-    if (a === 127) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 0) return true;
+    const nums = v4.slice(1).map(Number);
+    if (nums.some((n) => n > 255)) return true;
+    return isPrivateIpv4(nums[0], nums[1], nums[2], nums[3]);
   }
 
   if (h === '::1' || h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true;
 
   return false;
+}
+
+/** Validate a redirect Location header against private-network SSRF rules. */
+export function resolvePublicRedirectUrl(
+  location: string,
+  baseUrl: string,
+  preferHttps = false,
+): URL | null {
+  try {
+    return normalizePublicUrl(new URL(location, baseUrl).toString(), preferHttps);
+  } catch {
+    return null;
+  }
 }
 
 export function normalizePublicUrl(raw: string, preferHttps = true): URL | null {

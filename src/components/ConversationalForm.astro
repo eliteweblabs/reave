@@ -3,8 +3,6 @@ interface Props {
   slug: string;
   /** Inline on marketing pages instead of full-screen /form route. */
   embedded?: boolean;
-  /** Recipient for /api/forms/submit (company support inbox). */
-  recipientEmail?: string;
   /** Brand name for SMS consent disclaimer copy. */
   brandName?: string;
 }
@@ -12,7 +10,6 @@ interface Props {
 const {
   slug,
   embedded = false,
-  recipientEmail = "",
   brandName = "REΛVE",
 } = Astro.props;
 const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
@@ -391,10 +388,9 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName, embedded }}>
+<script define:vars={{ bookingApiUrl, slug, brandName, embedded }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
-  const RECIPIENT_EMAIL = recipientEmail;
   const BRAND_NAME = brandName;
   const IS_EMBEDDED = Boolean(embedded);
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
@@ -809,7 +805,6 @@ const rootClass = embedded
 
   function buildSubmitPayload() {
     const payload = { ...formData };
-    if (RECIPIENT_EMAIL) payload.to = RECIPIENT_EMAIL;
     payload.subject =
       formDef.submitSubject ||
       (formDef.title ? `New ${formDef.title} submission` : "New form submission");

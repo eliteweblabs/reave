@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { safeCompare } = require('./lib/safeCompare');
+const { checkRateLimit, clientIp } = require('../lib/rateLimit');
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
@@ -15,6 +16,13 @@ if (!API_KEY) {
   console.error('[fleet-api] FATAL: API_KEY is required. Refusing to start without authentication.');
   process.exit(1);
 }
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 
 app.use((req, res, next) => {
   const origin = req.headers.origin || '';
@@ -33,7 +41,12 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   if (req.path === '/health' || req.path === '/api/health/live' || req.method === 'OPTIONS') return next();
-  const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
+  const ip = clientIp(req);
+  const authLimit = checkRateLimit(`auth:${ip}`, 30, 60_000);
+  if (!authLimit.allowed) {
+    return res.status(429).json({ ok: false, error: 'Too many requests' });
+  }
+  const provided = String(req.headers['x-api-key'] || '');
   if (!safeCompare(provided, API_KEY)) {
     return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
   }

@@ -7,8 +7,6 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 const { slug } = Astro.params;
 const company = await getCompanyConfig(Astro.request);
 const brandName = company.name || "REΛVE";
-const supportMail =
-  company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const isSmsOptIn = slug === "sms-opt-in";
 ---
 
@@ -34,12 +32,11 @@ const isSmsOptIn = slug === "sms-opt-in";
           </p>
         </header>
 
-        <SmsOptInForm brandName={brandName} recipientEmail={supportMail} />
+        <SmsOptInForm brandName={brandName} />
       </main>
     ) : slug ? (
       <ConversationalForm
         slug={slug}
-        recipientEmail={supportMail}
         brandName={brandName}
       />
     ) : null
