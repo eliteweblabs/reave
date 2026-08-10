@@ -335,26 +335,27 @@ function createInvoiceSkeletonCard(): HTMLElement {
     lines.appendChild(line);
   }
 
+  /*
+   * Payment block starts collapsed — three bones (label / detail / amount)
+   * stagger in L→R after the card pop, pushing the footer/total down.
+   */
   const payments = document.createElement("div");
-  payments.className = "home-hero-demo-sk-invoice-payments";
-
-  const payLabel = document.createElement("div");
-  payLabel.className = "home-hero-demo-sk-invoice-section-label";
-  payLabel.innerHTML = '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--label"></span>';
-  payments.appendChild(payLabel);
+  payments.className =
+    "home-hero-demo-sk-invoice-payments home-hero-demo-sk-invoice-payments--pending";
 
   const payRow = document.createElement("div");
-  payRow.className = "home-hero-demo-sk-invoice-payment home-hero-demo-sk-invoice-payment--pending";
+  payRow.className = "home-hero-demo-sk-invoice-payment";
   payRow.innerHTML =
-    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--line"></span>' +
-    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--amt"></span>';
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--pay-label" data-hero-sk-pay></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--pay-detail" data-hero-sk-pay></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--pay-amt" data-hero-sk-pay></span>';
   payments.appendChild(payRow);
 
   const footer = document.createElement("div");
   footer.className = "home-hero-demo-sk-invoice-footer";
   footer.innerHTML =
     '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--label"></span>' +
-    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--total"></span>';
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--total" data-hero-sk-total></span>';
 
   card.appendChild(header);
   card.appendChild(client);
@@ -366,9 +367,15 @@ function createInvoiceSkeletonCard(): HTMLElement {
   return row;
 }
 
+/** Hold on the finished invoice before it swipes away. */
+const INVOICE_SIT_MS = 1000;
+/** Swipe duration — half the sit, so the exit reads snappier than the hold. */
+const INVOICE_SWIPE_MS = Math.round(INVOICE_SIT_MS / 2);
+
 /**
- * After "View invoice": bounce a full-width skeleton invoice in from center,
- * then draw a new payment line. No shimmer / total flash.
+ * After "View invoice": bounce a full-width skeleton invoice in, stagger a
+ * payment row L→R, pulse the total, then swipe the card off to the right.
+ * Marks the scene for a fade outro (no stack settle / cascade).
  */
 async function playInvoicePaymentSkeleton(
   sceneEl: HTMLElement,
@@ -378,6 +385,10 @@ async function playInvoicePaymentSkeleton(
 ): Promise<void> {
   const row = createInvoiceSkeletonCard();
   const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice");
+  const payments = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice-payments");
+  const payBones = Array.from(row.querySelectorAll<HTMLElement>("[data-hero-sk-pay]"));
+  const total = row.querySelector<HTMLElement>("[data-hero-sk-total]");
+
   sceneEl.appendChild(row);
   relayout(true);
 
@@ -391,25 +402,66 @@ async function playInvoicePaymentSkeleton(
   }
 
   if (reducedMotion) {
-    row
-      .querySelector(".home-hero-demo-sk-invoice-payment--pending")
-      ?.classList.remove("home-hero-demo-sk-invoice-payment--pending");
-    await wait(480);
+    payments?.classList.remove("home-hero-demo-sk-invoice-payments--pending");
+    payments?.classList.add("home-hero-demo-sk-invoice-payments--open");
+    for (const bone of payBones) bone.classList.add("home-hero-demo-sk-bone--pay-in");
+    total?.classList.add("home-hero-demo-sk-bone--total-pulse");
+    await wait(INVOICE_SIT_MS);
+    card?.classList.add("home-hero-demo-sk-invoice--exit");
+    await wait(INVOICE_SWIPE_MS);
+    // Fade the remaining chat next — don't relayout or bubbles drop down.
+    sceneEl.dataset.heroHardCut = "1";
     return;
   }
 
-  // Let the scale bounce land before drawing the payment line.
-  await wait(720);
+  // Wait for the scale bounce to settle.
+  await wait(780);
   if (!isAlive()) return;
 
-  const payment = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice-payment--pending");
-  if (payment) {
-    void payment.offsetHeight;
-    payment.classList.remove("home-hero-demo-sk-invoice-payment--pending");
+  if (payments) {
+    void payments.offsetHeight;
+    payments.classList.remove("home-hero-demo-sk-invoice-payments--pending");
+    payments.classList.add("home-hero-demo-sk-invoice-payments--open");
     relayout(true);
   }
 
-  await wait(1100);
+  // Stagger the three payment bones left → right; each one grows the row.
+  for (const bone of payBones) {
+    if (!isAlive()) return;
+    bone.classList.add("home-hero-demo-sk-bone--pay-in");
+    relayout(true);
+    await wait(170);
+  }
+
+  await wait(220);
+  if (!isAlive()) return;
+
+  if (total) {
+    total.classList.remove("home-hero-demo-sk-bone--total-pulse");
+    void total.offsetWidth;
+    total.classList.add("home-hero-demo-sk-bone--total-pulse");
+  }
+
+  await wait(900);
+  if (!isAlive()) return;
+
+  // Hold, then swipe off to the right (half the sit) and fade.
+  await wait(INVOICE_SIT_MS);
+  if (!isAlive()) return;
+
+  if (card) {
+    card.classList.remove("home-hero-demo-sk-invoice--pop");
+    card.classList.add("home-hero-demo-sk-invoice--settled");
+    void card.offsetWidth;
+    card.classList.remove("home-hero-demo-sk-invoice--settled");
+    card.style.setProperty("--hero-sk-invoice-exit-ms", `${scaleMs(INVOICE_SWIPE_MS)}ms`);
+    card.classList.add("home-hero-demo-sk-invoice--exit");
+  }
+  await wait(INVOICE_SWIPE_MS);
+  if (!isAlive()) return;
+
+  // Signal playScene to fade the rest of the chat (no settle / cascade).
+  sceneEl.dataset.heroHardCut = "1";
 }
 
 function createUserComposingShell(
@@ -932,6 +984,13 @@ export function initHeroDemoLoop(root: HTMLElement) {
         isAlive,
         lastAssistantRow,
       );
+
+      if (sceneEl.dataset.heroHardCut === "1") {
+        // Invoice already swiped away — fade the remaining chat, then next scene.
+        await animateSceneExit(sceneEl);
+        resetStack(stack);
+        return;
+      }
     }
 
     if (demoClock.skipScene || !running || offscreen) return;
@@ -963,8 +1022,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
-      // Temporary testing: stop after the payment / invoice scene finishes.
-      if (once || scene.id === "reggie-payment") {
+      // Temporary testing: stop after a single pass when data-once is set.
+      if (once) {
         running = false;
         demoClock.userPaused = true;
         syncControls();

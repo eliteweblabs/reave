@@ -46,7 +46,6 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
         data-hero-demo
         data-scenes={JSON.stringify(demoScenes)}
         data-start-scene="reggie-payment"
-        data-once="1"
         aria-live="polite"
         aria-atomic="false"
       >
@@ -749,7 +748,6 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
 
   .home-hero-demo-sk-invoice-header,
   .home-hero-demo-sk-invoice-line,
-  .home-hero-demo-sk-invoice-payment,
   .home-hero-demo-sk-invoice-footer {
     display: flex;
     align-items: center;
@@ -757,8 +755,7 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     gap: 0.7rem;
   }
 
-  .home-hero-demo-sk-invoice-client,
-  .home-hero-demo-sk-invoice-section-label {
+  .home-hero-demo-sk-invoice-client {
     display: flex;
   }
 
@@ -770,12 +767,36 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  /* Collapsed until after the card pop — bones grow it and shove the footer down. */
   .home-hero-demo-sk-invoice-payments {
-    display: flex;
-    flex-direction: column;
-    gap: 0.38rem;
-    padding: 0.32rem 0 0.1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid transparent;
+    padding: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition:
+      max-height 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.35s ease,
+      padding 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.35s ease;
+  }
+
+  .home-hero-demo-sk-invoice-payments--open {
+    max-height: 3.5rem;
+    opacity: 1;
+    padding: 0.38rem 0 0.12rem;
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .home-hero-demo-sk-invoice-payment {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label ."
+      "detail amt";
+    column-gap: 0.7rem;
+    row-gap: 0.28rem;
+    align-items: center;
   }
 
   .home-hero-demo-sk-invoice-footer {
@@ -783,9 +804,11 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     border-top: 1px solid rgba(255, 255, 255, 0.12);
   }
 
-  /* Static bones — no shimmer / pulse. */
+  /* Static bones — no continuous shimmer. */
   .home-hero-demo-sk-bone {
+    position: relative;
     display: block;
+    overflow: hidden;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.16);
   }
@@ -828,23 +851,107 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     height: 0.5rem;
   }
 
-  .home-hero-demo-sk-invoice-payment {
-    max-height: 1.4rem;
-    opacity: 1;
-    transform: translateY(0);
-    overflow: hidden;
-    transition:
-      max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.45s ease,
-      transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  .home-hero-demo-sk-bone--pay-label {
+    grid-area: label;
+    width: 28%;
+    min-width: 2.4rem;
   }
 
-  /* Collapsed until the payment "draws in". */
-  .home-hero-demo-sk-invoice-payment--pending {
-    max-height: 0;
+  .home-hero-demo-sk-bone--pay-detail {
+    grid-area: detail;
+    width: 72%;
+  }
+
+  .home-hero-demo-sk-bone--pay-amt {
+    grid-area: amt;
+    width: 2.1rem;
+  }
+
+  /* Payment bones start collapsed; stagger L→R via --pay-in. */
+  .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
+    height: 0;
     opacity: 0;
-    margin: 0;
-    transform: translateY(-6px);
+    transform: translateX(-10px) scale(0.9);
+    transition:
+      height 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.3s ease,
+      transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .home-hero-demo-sk-bone--pay-label.home-hero-demo-sk-bone--pay-in {
+    height: 0.32rem;
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  .home-hero-demo-sk-bone--pay-detail.home-hero-demo-sk-bone--pay-in,
+  .home-hero-demo-sk-bone--pay-amt.home-hero-demo-sk-bone--pay-in {
+    height: 0.4rem;
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  .home-hero-demo-sk-bone--total-pulse {
+    animation: heroDemoSkTotalPulse 0.85s ease;
+  }
+
+  @keyframes heroDemoSkTotalPulse {
+    0% {
+      transform: scale(1);
+      background: rgba(255, 255, 255, 0.16);
+      box-shadow: none;
+    }
+    35% {
+      transform: scale(1.18);
+      background: rgba(255, 255, 255, 0.34);
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.22);
+    }
+    100% {
+      transform: scale(1);
+      background: rgba(255, 255, 255, 0.16);
+      box-shadow: none;
+    }
+  }
+
+  .home-hero-demo-sk-bone--total-pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.65) 45%,
+      rgba(255, 255, 255, 0.15) 55%,
+      transparent 100%
+    );
+    transform: translateX(-120%);
+    animation: heroDemoSkTotalShine 0.85s ease;
+  }
+
+  @keyframes heroDemoSkTotalShine {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(120%);
+    }
+  }
+
+  .home-hero-demo-sk-invoice--exit {
+    /* Duration set from JS to half the sit hold (see --hero-sk-invoice-exit-ms). */
+    animation: heroDemoSkInvoiceExit var(--hero-sk-invoice-exit-ms, 0.5s)
+      cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes heroDemoSkInvoiceExit {
+    0% {
+      opacity: 1;
+      transform: scale(1) translateX(0);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.98) translateX(28%);
+    }
   }
 
   .home-hero-demo-msg--user .home-hero-demo-bubble {
@@ -952,13 +1059,21 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
       content: "…";
     }
 
-    .home-hero-demo-sk-invoice--pop {
+    .home-hero-demo-sk-invoice--pop,
+    .home-hero-demo-sk-invoice--exit,
+    .home-hero-demo-sk-bone--total-pulse,
+    .home-hero-demo-sk-bone--total-pulse::after {
       animation: none;
+    }
+
+    .home-hero-demo-sk-invoice--pop,
+    .home-hero-demo-sk-invoice--settled {
       opacity: 1;
       transform: scale(1);
     }
 
-    .home-hero-demo-sk-invoice-payment {
+    .home-hero-demo-sk-invoice-payments,
+    .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
       transition: none;
     }
   }

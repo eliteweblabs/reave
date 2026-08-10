@@ -293,8 +293,8 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "reggie-payment",
     userAvatar: "/images/hero-demo/henderson-billing.png",
-    /** Extra hold so the invoice skeleton + payment beat can land before exit. */
-    holdMs: 2200,
+    /** Short hold after the invoice card has already swiped away. */
+    holdMs: 900,
     turns: [
       {
         role: "user",
