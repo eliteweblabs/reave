@@ -119,35 +119,29 @@
   }
 }
 
-/** Count badges — brand gradient fill, white numeral */
+/** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {
   border-radius: 9999px;
-  background: var(--brand-gradient);
+  background: #ff3b30;
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: 0 0 0 1px var(--bg, #fff);
+  box-shadow: 0 0 0 1.5px var(--bg, #fff);
 }
 
-/** Footer: invert badge on the gradient-highlighted (active) tab */
+/** Keep iOS red on active / collapsed dashboard (no invert) */
 .footer-nav-btn.active .footer-nav-badge,
 .admin-footer-nav.footer-nav-collapsed
   #footer-nav-dashboard
-  .footer-nav-badge:not([hidden]) {
-  background: #fff;
-  color: var(--brand-magenta);
-  -webkit-text-fill-color: var(--brand-magenta);
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
-}
-
+  .footer-nav-badge:not([hidden]),
 body.footer-chat-inline-dashboard
   .admin-footer-nav.footer-nav-collapsed
   #footer-nav-dashboard
   .footer-nav-badge {
-  background: var(--brand-gradient);
+  background: #ff3b30;
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: 0 0 0 1px var(--bg, #fff);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
 }
 
 /** Subtle fade-in as elements enter the viewport (CSS scroll-driven animations). */
