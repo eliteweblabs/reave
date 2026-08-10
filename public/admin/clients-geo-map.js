@@ -51,7 +51,7 @@ function kindColor(kind) {
 }
 
 function displayName(c) {
-  return (c.company || '').trim() || (c.name || '').trim() || 'Client';
+  return (c.company || '').trim() || (c.name || '').trim() || 'Contact';
 }
 
 function pinInitial(c) {
