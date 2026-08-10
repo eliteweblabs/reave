@@ -9474,6 +9474,20 @@ function buildEmailDetailHeaderIcons(ev) {
       label: 'Share message',
       onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),
     }),
+  );
+  // Archive sits between share and delete on ≥640px; swipe covers it on small screens.
+  if (ev.category !== 'junk') {
+    const routed = isEmailRouted(ev);
+    icons.push(
+      createIosIconBtn({
+        iconKey: 'archive',
+        label: routed ? 'Unarchive message' : 'Archive message',
+        className: 'ios-icon-btn em-archive-btn',
+        onClick: () => void (routed ? unarchiveEmail(ev) : archiveEmail(ev)),
+      }),
+    );
+  }
+  icons.push(
     paneDeleteIcon({
       label: 'Delete message',
       onClick: () => deleteEmail(ev),
