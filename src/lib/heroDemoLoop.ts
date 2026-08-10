@@ -463,6 +463,141 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
+/** Letterbox GPS locate — greytone globe zoom + targeting marker. */
+function createGpsLocateCard(): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-gps";
+
+  card.innerHTML = `
+    <div class="home-hero-demo-sk-gps-viewport">
+      <div class="home-hero-demo-sk-gps-world">
+        <div class="home-hero-demo-sk-gps-globe">
+          <div class="home-hero-demo-sk-gps-spin" aria-hidden="true">
+            <svg class="home-hero-demo-sk-gps-map" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+              <rect width="400" height="200" fill="rgba(255,255,255,0.04)"/>
+              <!-- Dumbed-down greytone continents — arbitrary, not geographic. -->
+              <ellipse cx="70" cy="70" rx="42" ry="48" fill="rgba(255,255,255,0.14)"/>
+              <ellipse cx="95" cy="110" rx="28" ry="36" fill="rgba(255,255,255,0.11)"/>
+              <ellipse cx="175" cy="55" rx="55" ry="32" fill="rgba(255,255,255,0.13)"/>
+              <ellipse cx="200" cy="95" rx="36" ry="40" fill="rgba(255,255,255,0.1)"/>
+              <ellipse cx="290" cy="80" rx="48" ry="44" fill="rgba(255,255,255,0.14)"/>
+              <ellipse cx="320" cy="120" rx="30" ry="26" fill="rgba(255,255,255,0.1)"/>
+              <ellipse cx="360" cy="60" rx="22" ry="34" fill="rgba(255,255,255,0.12)"/>
+              <ellipse cx="40" cy="150" rx="34" ry="20" fill="rgba(255,255,255,0.08)"/>
+              <ellipse cx="250" cy="150" rx="40" ry="18" fill="rgba(255,255,255,0.09)"/>
+            </svg>
+            <svg class="home-hero-demo-sk-gps-map home-hero-demo-sk-gps-map--tile" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+              <rect width="400" height="200" fill="rgba(255,255,255,0.04)"/>
+              <ellipse cx="70" cy="70" rx="42" ry="48" fill="rgba(255,255,255,0.14)"/>
+              <ellipse cx="95" cy="110" rx="28" ry="36" fill="rgba(255,255,255,0.11)"/>
+              <ellipse cx="175" cy="55" rx="55" ry="32" fill="rgba(255,255,255,0.13)"/>
+              <ellipse cx="200" cy="95" rx="36" ry="40" fill="rgba(255,255,255,0.1)"/>
+              <ellipse cx="290" cy="80" rx="48" ry="44" fill="rgba(255,255,255,0.14)"/>
+              <ellipse cx="320" cy="120" rx="30" ry="26" fill="rgba(255,255,255,0.1)"/>
+              <ellipse cx="360" cy="60" rx="22" ry="34" fill="rgba(255,255,255,0.12)"/>
+              <ellipse cx="40" cy="150" rx="34" ry="20" fill="rgba(255,255,255,0.08)"/>
+              <ellipse cx="250" cy="150" rx="40" ry="18" fill="rgba(255,255,255,0.09)"/>
+            </svg>
+          </div>
+          <div class="home-hero-demo-sk-gps-shade"></div>
+        </div>
+      </div>
+      <div class="home-hero-demo-sk-gps-marker">
+        <span class="home-hero-demo-sk-gps-ring"></span>
+        <span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--late"></span>
+        <span class="home-hero-demo-sk-gps-cross"></span>
+        <span class="home-hero-demo-sk-gps-pin"></span>
+      </div>
+    </div>
+  `;
+
+  row.appendChild(card);
+  return row;
+}
+
+/**
+ * Status-line GPS beat: letterbox globe rotates + zooms; marker locks on at ~66%,
+ * pulses a "found him" targeting hit, then exits so later turns can continue.
+ */
+async function playGpsLocateSkeleton(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const ZOOM_MS = 2200;
+  const MARKER_AT = Math.round(ZOOM_MS * 0.66);
+  const LOCK_HOLD_MS = 700;
+  const EXIT_MS = 420;
+
+  const row = createGpsLocateCard();
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps");
+  const world = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps-world");
+  const marker = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps-marker");
+
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (reducedMotion) {
+    card?.classList.add("home-hero-demo-sk-gps--settled", "home-hero-demo-sk-gps--zoomed");
+    world?.classList.add("home-hero-demo-sk-gps-world--zoomed");
+    marker?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--lock");
+    await wait(500);
+    card?.classList.add("home-hero-demo-sk-gps--exit");
+    await wait(EXIT_MS);
+    row.remove();
+    relayout(true);
+    return;
+  }
+
+  if (card) {
+    void card.offsetWidth;
+    card.classList.add("home-hero-demo-sk-gps--pop");
+  }
+
+  await wait(420);
+  if (!isAlive()) return;
+
+  card?.style.setProperty("--hero-sk-gps-zoom-ms", `${scaleMs(ZOOM_MS)}ms`);
+  world?.classList.add("home-hero-demo-sk-gps-world--zoom");
+
+  await wait(MARKER_AT);
+  if (!isAlive()) return;
+
+  marker?.classList.add("home-hero-demo-sk-gps-marker--in");
+
+  await wait(ZOOM_MS - MARKER_AT);
+  if (!isAlive()) return;
+
+  world?.classList.remove("home-hero-demo-sk-gps-world--zoom");
+  world?.classList.add("home-hero-demo-sk-gps-world--zoomed");
+  marker?.classList.add("home-hero-demo-sk-gps-marker--lock");
+
+  await wait(LOCK_HOLD_MS);
+  if (!isAlive()) return;
+
+  if (card) {
+    card.classList.remove("home-hero-demo-sk-gps--pop");
+    card.classList.add("home-hero-demo-sk-gps--settled");
+    void card.offsetWidth;
+    card.classList.remove("home-hero-demo-sk-gps--settled");
+    card.style.setProperty("--hero-sk-gps-exit-ms", `${scaleMs(EXIT_MS)}ms`);
+    card.classList.add("home-hero-demo-sk-gps--exit");
+  }
+
+  await wait(EXIT_MS);
+  if (!isAlive()) return;
+
+  row.remove();
+  relayout(true);
+}
+
 function createUserComposingShell(
   root: HTMLElement,
   kind: "voice" | "slash",
@@ -761,7 +896,11 @@ async function playAssistantTurn(
 
   if (isStatus) {
     typing.dataset.heroAwaitingReply = "1";
-    await wait(turn.pauseMs ?? STATUS_HOLD_MS);
+    if (turn.effect === "gps-locate") {
+      await playGpsLocateSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+    } else {
+      await wait(turn.pauseMs ?? STATUS_HOLD_MS);
+    }
     if (!isAlive()) return typing;
     relayout();
   }

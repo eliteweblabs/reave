@@ -1,5 +1,7 @@
 /** Crafted hero demo scenes — multi-turn conversations with optional action chips. */
 export type HeroDemoActionEffect = "invoice-payment";
+/** Plays during an assistant turn (e.g. status line) before the scene continues. */
+export type HeroDemoTurnEffect = "gps-locate";
 
 export type HeroDemoAction = {
   label: string;
@@ -16,6 +18,8 @@ export type HeroDemoTurn = {
   actions?: HeroDemoAction[];
   /** Pause before this turn appears (ms). */
   pauseMs?: number;
+  /** Skeleton / visual beat while this turn is on screen (status lines, etc.). */
+  effect?: HeroDemoTurnEffect;
 };
 
 export type HeroDemoScene = {
@@ -48,6 +52,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "Checking GPS for Pete Lawson…",
         pauseMs: 700,
+        effect: "gps-locate",
       },
       {
         role: "assistant",
