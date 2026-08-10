@@ -75,13 +75,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  {!adminShell && (
-    <div class="app-header-scrim" aria-hidden="true">
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-    </div>
-  )}
+  <div class="app-header-scrim" aria-hidden="true">
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+  </div>
 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
@@ -424,8 +422,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   /*
    * Fixed transparent headers let page content scroll under the logo and nav.
    * The scrim blurs it out: stacked backdrop-filter layers with masks that ramp
-   * blur toward the top (radii compound across layers). Public pages only —
-   * admin has no under-header scroll content that needs this treatment.
+   * blur toward the top (radii compound across layers). Public pages always;
+   * admin only while the dashboard tab is open (content scrolls under the bar).
    */
   .app-header > .app-header-scrim {
     position: absolute;
@@ -435,6 +433,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     height: var(--app-header-scrim-h);
     z-index: 0;
     pointer-events: none;
+  }
+
+  .app-header--admin > .app-header-scrim {
+    display: none;
+  }
+
+  .app-header--admin.app-header--scrim > .app-header-scrim {
+    display: block;
   }
 
   .app-header-scrim-blur {

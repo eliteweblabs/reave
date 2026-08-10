@@ -932,6 +932,12 @@ function syncCanvasVisibility() {
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
   setPanelDisplay('newsletter-editor', MAP.type === 'newsletter' ? 'flex' : 'none');
   setPanelDisplay('todo-editor', MAP.type === 'todo' ? 'flex' : 'none');
+  // Dashboard content scrolls under the transparent topbar — enable the same
+  // progressive blur scrim used on public pages (Header.astro app-header-scrim).
+  document.getElementById('topbar')?.classList.toggle(
+    'app-header--scrim',
+    MAP.type === 'dashboard',
+  );
 }
 
 // ---- health polling ----
