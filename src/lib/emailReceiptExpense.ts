@@ -5,6 +5,10 @@
 import type { EmailInboxRecord } from './emailInboxStore';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import {
+  explainReceiptClassification,
+  type ClassificationAuditStep,
+} from './emailClassificationAudit';
 
 export type ReceiptExpenseReviewNotification = {
   id: string;
@@ -18,6 +22,8 @@ export type ReceiptExpenseReviewNotification = {
   amount: number | null;
   vendorLabel: string;
   awaitingTriage: false;
+  /** Decision path that produced the Tax receipt classification / title. */
+  auditTrail: ClassificationAuditStep[];
 };
 
 function isReceiptArchived(record: Pick<EmailInboxRecord, 'action' | 'status'>): boolean {
@@ -87,6 +93,7 @@ export function toReceiptExpenseReviewNotification(
     amount: extractMonetaryAmountFromEmail(record),
     vendorLabel: receiptVendorLabel(record),
     awaitingTriage: false,
+    auditTrail: explainReceiptClassification(record),
   };
 }
 

@@ -21,6 +21,10 @@ import { parseEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../lib
 import { fetchResendInboundEmailHeaders } from '../../../../lib/resendInboundEmail';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import {
+  explainReceiptClassification,
+  parseClassificationAudit,
+} from '../../../../lib/emailClassificationAudit';
 
 export const prerender = false;
 
@@ -55,6 +59,10 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
   }
   if (rec.action != null) patch.action = String(rec.action);
   if (rec.status != null) patch.status = String(rec.status);
+  if (rec.routeNote != null) patch.routeNote = String(rec.routeNote);
+  if (rec.classificationAudit !== undefined) {
+    patch.classificationAudit = parseClassificationAudit(rec.classificationAudit);
+  }
   if (rec.bookingUid !== undefined) {
     patch.bookingUid = rec.bookingUid == null ? null : String(rec.bookingUid);
   }
@@ -91,6 +99,10 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   const unsubscribe = parseEmailUnsubscribe(headers);
+  const classificationAudit =
+    event.category === 'receipt'
+      ? explainReceiptClassification(event)
+      : event.classificationAudit;
   return json({
     ok: true,
     event: {
@@ -103,6 +115,7 @@ export async function GET(context: APIContext): Promise<Response> {
       monetaryAmount,
       hasMonetaryValue: monetaryAmount != null,
       unsubscribe,
+      classificationAudit,
     },
   });
 }

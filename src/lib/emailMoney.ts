@@ -118,6 +118,26 @@ export function looksLikePaymentNotification(ev: {
   );
 }
 
+export type AutoFileReceiptAuditStep = {
+  step: string;
+  decision: string;
+  detail?: string;
+};
+
+export type AutoFileReceiptResult = {
+  amount: number;
+  routeNote: string;
+  audit: AutoFileReceiptAuditStep[];
+};
+
+function receiptAuditStep(
+  step: string,
+  decision: string,
+  detail?: string,
+): AutoFileReceiptAuditStep {
+  return detail ? { step, decision, detail } : { step, decision };
+}
+
 /** Auto-file as receipt when text has both a dollar amount and receipt/payment keywords. */
 export function shouldAutoFileAsReceipt(ev: {
   from?: string;
@@ -125,19 +145,66 @@ export function shouldAutoFileAsReceipt(ev: {
   summary?: string;
   bodySnippet?: string;
   bodyText?: string;
-}): { amount: number; routeNote: string } | null {
+}): AutoFileReceiptResult | null {
   const text = paymentEmailText(ev);
   if (FAILED_OR_DUE_PAYMENT.test(text)) return null;
   const amount = extractMonetaryAmountFromText(text);
   if (amount == null) return null;
+  const amountStep = receiptAuditStep(
+    'amount',
+    `Extracted ${formatUsdAmount(amount)}`,
+    'Dollar amount detected in subject/summary/body',
+  );
+  const titleStep = receiptAuditStep(
+    'title',
+    `Dashboard label: Tax receipt — ${formatUsdAmount(amount)}`,
+    'Pending receipt emails use the “Tax receipt” banner for expense logging — including completed “Payment of $…” confirmations',
+  );
   if (looksLikePaymentNotification(ev)) {
-    return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+    const paymentOf = /\bpayment\s+of\s+\$/i.test(text);
+    return {
+      amount,
+      routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
+      audit: [
+        amountStep,
+        receiptAuditStep(
+          'payment_language',
+          'Completed payment language',
+          paymentOf
+            ? '"Payment of $…" is treated as a completed payment confirmation (not an unpaid bill)'
+            : 'Payment-received / processor wording matched',
+        ),
+        receiptAuditStep(
+          'auto_file',
+          'Auto-filed as receipt',
+          'shouldAutoFileAsReceipt → category=receipt',
+        ),
+        titleStep,
+      ],
+    };
   }
   if (NEWSLETTER_RECEIVED_BOILERPLATE.test(text) && !STRONG_RECEIPT_HINT.test(text)) {
     return null;
   }
   if (RECEIPT_HINT.test(text)) {
-    return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+    return {
+      amount,
+      routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
+      audit: [
+        amountStep,
+        receiptAuditStep(
+          'payment_language',
+          'Receipt/payment keywords with amount',
+          'RECEIPT_HINT matched (receipt, invoice, payment of, you paid, etc.)',
+        ),
+        receiptAuditStep(
+          'auto_file',
+          'Auto-filed as receipt',
+          'shouldAutoFileAsReceipt → category=receipt',
+        ),
+        titleStep,
+      ],
+    };
   }
   return null;
 }

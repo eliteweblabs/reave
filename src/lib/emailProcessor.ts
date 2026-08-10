@@ -33,6 +33,11 @@ import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectRepl
 import { isSuggestedProjectMatch } from './emailAutomation';
 import { looksLikeFailedOrDuePayment, looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 import {
+  auditForMatchedRule,
+  classificationAuditStep,
+  type ClassificationAuditStep,
+} from './emailClassificationAudit';
+import {
   describeOtpPurpose,
   extractVerificationCodeFromEmail,
   formatOtpPushNotification,
@@ -460,6 +465,16 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
+  const classificationAudit: ClassificationAuditStep[] = [
+    auditForMatchedRule(ruleResult.matched, ruleResult.status, {
+      from,
+      subject: email.subject ?? '',
+      text: bodyText,
+    }),
+  ];
+  const pushAudit = (step: string, decision: string, detail?: string) => {
+    classificationAudit.push(classificationAuditStep(step, decision, detail));
+  };
 
   const sender = await resolveSenderContact(senderEmail);
   let contactUid = sender.uid;
@@ -545,6 +560,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       html: email.html,
       verificationCode,
     });
+    pushAudit(
+      'ai',
+      `Trusted AI label: ${aiClassify.label}`,
+      `${Math.round(aiClassify.confidence * 100)}% confidence · ${aiClassify.reason || applied.routeNote}`,
+    );
     category = applied.category;
     action = applied.action;
     summary = applied.summary;
@@ -710,6 +730,14 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         category = 'receipt';
         action = 'receipt';
         routeNote = earlyReceipt.routeNote;
+        pushAudit(
+          'override',
+          'Receipt override beat junk/DELETE',
+          'Completed payment receipt wins over junk rule',
+        );
+        for (const step of earlyReceipt.audit) {
+          classificationAudit.push(classificationAuditStep(step.step, step.decision, step.detail));
+        }
       }
     }
 
@@ -908,9 +936,27 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       action = 'receipt';
       inboxStatus = 'RECEIPT';
       routeNote = autoReceipt.routeNote;
+      pushAudit('late_receipt', 'Late auto-file as receipt', 'shouldAutoFileAsReceipt after rules/AI');
+      for (const step of autoReceipt.audit) {
+        if (!classificationAudit.some((s) => s.step === step.step && s.decision === step.decision)) {
+          classificationAudit.push(classificationAuditStep(step.step, step.decision, step.detail));
+        }
+      }
     } else if (category === 'receipt' && action === 'receipt' && !routeNote) {
       routeNote = 'Payment notification — filed as receipt';
+      pushAudit('auto_file', 'Filed as receipt', 'Payment notification — rule/AI already set receipt');
     }
+  }
+
+  if (category === 'receipt' && !classificationAudit.some((s) => s.step === 'title')) {
+    const amountLabel = routeNote?.startsWith('Tax receipt')
+      ? routeNote
+      : 'Tax receipt (pending expense log)';
+    pushAudit(
+      'title',
+      `Dashboard label: ${amountLabel}`,
+      'All pending receipt emails use the “Tax receipt” banner title so they can be logged as Crater expenses — including completed “Payment of $…” confirmations',
+    );
   }
 
   // Ensure inboxStatus reflects receipt even when the early-override fired
@@ -1145,6 +1191,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     jobSlug,
     jobTitle,
     routeNote,
+    classificationAudit,
     proposedMeetingStart,
     schedulingNote,
     bookingUid,
