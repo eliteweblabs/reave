@@ -159,14 +159,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
               <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
               <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
               {profileMenu.map((key) => (
-                <button
-                  type="button"
+                <a
+                  href={`/admin/?tab=${key}`}
                   id={`topbar-${key}-link`}
                   class="topbar-dropdown-item"
                   role="menuitem"
                 >
                   {PROFILE_MENU_LABELS[key]}
-                </button>
+                </a>
               ))}
               <div class="topbar-dropdown-divider"></div>
               <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
@@ -1210,8 +1210,15 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 </style>
 
-{!adminShell && (
+{showHeaderAccountMenu && (
   <script>
+    /**
+     * Account menu chrome for every page that renders the profile dropdown.
+     * Admin shell pages without os-map-loader (e.g. /admin/components) still
+     * need toggle + sign-out; settings links are real /admin/?tab=… anchors
+     * so they navigate even when the map SPA is not loaded. On /admin/,
+     * os-map-loader intercepts those anchors for in-app tab switches.
+     */
     function resetHeaderDropdownMenu(menu: HTMLElement | null) {
       if (!menu) return;
       menu.style.position = "";
@@ -1258,6 +1265,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     }
 
     function bindHeaderProfileMenu() {
+      // Admin map SPA owns toggle/sign-out via os-map-loader — leave it alone.
+      if (document.getElementById("admin-footer-nav")) return;
+
       const profileToggle = document.getElementById("topbar-profile-toggle");
       const profileMenu = document.getElementById("topbar-profile-menu");
       if (profileToggle && profileMenu && !profileToggle.dataset.bound) {

@@ -465,6 +465,8 @@ async function playInvoicePaymentSkeleton(
 
 const MAPBOX_CSS = "https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css";
 const MAPBOX_JS = "https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm";
+/** Dark basemap — static + GL share the same look. */
+const MAPBOX_STYLE = "mapbox/dark-v11";
 
 let mapboxLoadPromise: Promise<any> | null = null;
 
@@ -483,6 +485,47 @@ async function loadMapboxGl(): Promise<any> {
     mapboxLoadPromise = import(/* @vite-ignore */ MAPBOX_JS).then((mod: any) => mod.default || mod);
   }
   return mapboxLoadPromise;
+}
+
+/**
+ * iOS Safari WebGL maps mis-size under ancestor transforms (our bubble pop /
+ * stack depth). Prefer Mapbox Static Images there — still Mapbox, no WebGL.
+ */
+function preferStaticMapbox(): boolean {
+  return isIOSDevice();
+}
+
+/** Mapbox Static Images URL — fills the letterbox via object-fit: cover. */
+function mapboxStaticUrl(opts: {
+  token: string;
+  lng: number;
+  lat: number;
+  zoom: number;
+  bearing?: number;
+  pitch?: number;
+  width: number;
+  height: number;
+}): string {
+  const width = Math.min(1280, Math.max(64, Math.round(opts.width)));
+  const height = Math.min(1280, Math.max(64, Math.round(opts.height)));
+  const bearing = opts.bearing ?? 0;
+  const pitch = opts.pitch ?? 0;
+  const path =
+    `${opts.lng},${opts.lat},${opts.zoom},${bearing},${pitch}/${width}x${height}@2x`;
+  return (
+    `https://api.mapbox.com/styles/v1/${MAPBOX_STYLE}/static/${path}` +
+    `?access_token=${encodeURIComponent(opts.token)}&attribution=false&logo=false`
+  );
+}
+
+function preloadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("map image failed"));
+    img.src = src;
+  });
 }
 
 /** Hide everything except land + water. No labels, roads, buildings, etc. */
@@ -548,10 +591,113 @@ function createGpsLocateCard(root: HTMLElement): HTMLElement {
   return row;
 }
 
+function gpsLetterboxSize(mapEl: HTMLElement): { width: number; height: number } {
+  const rect = mapEl.getBoundingClientRect();
+  // Static API max 1280; request retina via @2x. Floor so a pre-layout 0 doesn't 404.
+  const width = Math.max(320, Math.round(rect.width || mapEl.clientWidth || 320));
+  const height = Math.max(180, Math.round(rect.height || mapEl.clientHeight || 180));
+  return { width, height };
+}
+
 /**
- * Status-line GPS beat: Mapbox fly-in over land/water only. A fixed center pin
- * (targeting reticle) appears mid-flight with a radar pulse; the map flies the
- * site under it. Letterbox stays in the stack and scrolls up with later turns.
+ * iOS-safe Mapbox path: Static Images + CSS fly/crossfade. Avoids WebGL canvas
+ * sizing bugs when the bubble/stack use CSS transforms.
+ */
+async function playGpsStaticFly(
+  mapEl: HTMLElement,
+  pinEl: HTMLElement | null,
+  card: HTMLElement | null,
+  opts: {
+    token: string;
+    target: [number, number];
+    start: [number, number];
+    endZoom: number;
+    endPitch: number;
+    endBearing: number;
+    flyMs: number;
+    markerAt: number;
+    reducedMotion: boolean;
+    isAlive: () => boolean;
+    relayout: Relayout;
+  },
+): Promise<void> {
+  const { width, height } = gpsLetterboxSize(mapEl);
+  const overviewUrl = mapboxStaticUrl({
+    token: opts.token,
+    lng: opts.start[0],
+    lat: opts.start[1],
+    zoom: 2.6,
+    width,
+    height,
+  });
+  const detailUrl = mapboxStaticUrl({
+    token: opts.token,
+    lng: opts.target[0],
+    lat: opts.target[1],
+    zoom: opts.endZoom,
+    bearing: opts.endBearing,
+    pitch: opts.endPitch,
+    width,
+    height,
+  });
+
+  const [overviewImg, detailImg] = await Promise.all([
+    preloadImage(overviewUrl),
+    preloadImage(detailUrl),
+  ]);
+  if (!opts.isAlive()) return;
+
+  mapEl.classList.add("home-hero-demo-sk-gps-map--static");
+  mapEl.replaceChildren();
+
+  const stage = document.createElement("div");
+  stage.className = "home-hero-demo-sk-gps-static-stage";
+
+  overviewImg.className = "home-hero-demo-sk-gps-static-img home-hero-demo-sk-gps-static-img--overview";
+  overviewImg.alt = "";
+  overviewImg.draggable = false;
+
+  detailImg.className = "home-hero-demo-sk-gps-static-img home-hero-demo-sk-gps-static-img--detail";
+  detailImg.alt = "";
+  detailImg.draggable = false;
+
+  stage.appendChild(overviewImg);
+  stage.appendChild(detailImg);
+  mapEl.appendChild(stage);
+
+  opts.relayout(true);
+
+  if (opts.reducedMotion) {
+    stage.classList.add("home-hero-demo-sk-gps-static-stage--settled");
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+    await wait(480);
+    return;
+  }
+
+  const flyMs = scaleMs(opts.flyMs);
+  stage.style.setProperty("--hero-gps-fly-ms", `${flyMs}ms`);
+  void stage.offsetWidth;
+  stage.classList.add("home-hero-demo-sk-gps-static-stage--fly");
+
+  await wait(opts.markerAt);
+  if (!opts.isAlive()) return;
+  pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+
+  await wait(Math.max(0, flyMs - opts.markerAt) + 120);
+  if (!opts.isAlive()) return;
+
+  stage.classList.add("home-hero-demo-sk-gps-static-stage--settled");
+  card?.classList.remove("home-hero-demo-sk-gps--pop");
+  card?.classList.add("home-hero-demo-sk-gps--settled");
+  opts.relayout(true);
+}
+
+/**
+ * Status-line GPS beat: Mapbox fly-in. iOS uses Static Images (WebGL mis-sizes
+ * under our transforms); desktop uses GL with land/water stripping. A fixed
+ * center pin appears mid-flight. Letterbox stays in the stack for later turns.
  */
 async function playGpsLocateSkeleton(
   root: HTMLElement,
@@ -589,8 +735,35 @@ async function playGpsLocateSkeleton(
     return;
   }
 
-  await wait(reducedMotion ? 80 : 320);
+  // Let the bubble pop settle before measuring / painting map content.
+  await wait(reducedMotion ? 80 : 420);
   if (!isAlive()) return;
+
+  const staticOpts = {
+    token: mapboxToken,
+    target: TARGET,
+    start: START,
+    endZoom: END_ZOOM,
+    endPitch: END_PITCH,
+    endBearing: END_BEARING,
+    flyMs: FLY_MS,
+    markerAt: scaleMs(MARKER_AT),
+    reducedMotion,
+    isAlive,
+    relayout,
+  };
+
+  if (preferStaticMapbox()) {
+    try {
+      await playGpsStaticFly(mapEl, pinEl, card, staticOpts);
+    } catch {
+      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+      card?.classList.remove("home-hero-demo-sk-gps--pop");
+      card?.classList.add("home-hero-demo-sk-gps--settled");
+      await wait(reducedMotion ? 400 : 900);
+    }
+    return;
+  }
 
   let map: any = null;
 
@@ -620,10 +793,21 @@ async function playGpsLocateSkeleton(
       return;
     }
 
+    // Drop the pop transform before WebGL init — scale() ancestors break canvas size.
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+    relayout(true);
+    await wait(32);
+    if (!isAlive()) {
+      teardown();
+      orphanWatch.disconnect();
+      return;
+    }
+
     mapboxgl.accessToken = mapboxToken;
     map = new mapboxgl.Map({
       container: mapEl,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: `mapbox://styles/${MAPBOX_STYLE}`,
       center: reducedMotion ? TARGET : START,
       zoom: reducedMotion ? END_ZOOM : 2.4,
       pitch: reducedMotion ? END_PITCH : 0,
@@ -631,6 +815,7 @@ async function playGpsLocateSkeleton(
       interactive: false,
       attributionControl: false,
       fadeDuration: 0,
+      fitBoundsOptions: { padding: 0 },
     });
 
     await new Promise<void>((resolve) => {
@@ -651,7 +836,6 @@ async function playGpsLocateSkeleton(
 
     map.resize();
     relayout(true);
-    // Pop/scale on ancestors can leave the canvas mis-sized — resize again after paint.
     requestAnimationFrame(() => map?.resize());
 
     if (reducedMotion) {
@@ -680,7 +864,7 @@ async function playGpsLocateSkeleton(
         curve: 1.35,
       });
 
-      await wait(MARKER_AT);
+      await wait(scaleMs(MARKER_AT));
       if (!isAlive()) {
         teardown();
         orphanWatch.disconnect();
@@ -707,14 +891,24 @@ async function playGpsLocateSkeleton(
       await wait(420);
     }
 
-    card?.classList.remove("home-hero-demo-sk-gps--pop");
-    card?.classList.add("home-hero-demo-sk-gps--settled");
     relayout(true);
     requestAnimationFrame(() => map?.resize());
     // Leave the letterbox in the stack — later turns scroll it up naturally.
   } catch {
     teardown();
     orphanWatch.disconnect();
+    // Desktop WebGL failed — same static path iOS uses.
+    if (isAlive() && mapEl.isConnected) {
+      try {
+        await playGpsStaticFly(mapEl, pinEl, card, staticOpts);
+        return;
+      } catch {
+        /* fall through */
+      }
+    }
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
   }
 }
 
