@@ -517,12 +517,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     flex-direction: column;
     gap: 18px;
     padding-bottom: 2px;
-    transition: opacity 0.67s ease;
+    opacity: 1;
+    /* Duration set from JS (see --hero-scene-exit-ms / SCENE_EXIT_MS). */
+    transition: opacity var(--hero-scene-exit-ms, 350ms) ease;
   }
 
   .home-hero-demo-scene--exit {
     opacity: 0;
-    transition: opacity 0.67s ease;
+    transition: opacity var(--hero-scene-exit-ms, 350ms) ease;
   }
 
   .home-hero-demo-msg {
