@@ -522,11 +522,11 @@ function createGpsPinOverlay(): HTMLElement {
   return el;
 }
 
-/** Letterbox for Mapbox fly-in — map canvas + centered pin overlay. */
-function createGpsLocateCard(): HTMLElement {
+/** Agent-bubble letterbox for Mapbox fly-in — avatar + map + centered pin. */
+function createGpsLocateCard(root: HTMLElement): HTMLElement {
   const row = document.createElement("div");
   row.className =
-    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--gps home-hero-demo-msg--enter";
   row.setAttribute("role", "listitem");
   row.setAttribute("aria-hidden", "true");
 
@@ -543,6 +543,8 @@ function createGpsLocateCard(): HTMLElement {
   viewport.appendChild(mapEl);
   viewport.appendChild(createGpsPinOverlay());
   card.appendChild(viewport);
+
+  row.appendChild(cloneAvatar("assistant", root));
   row.appendChild(card);
   return row;
 }
@@ -553,6 +555,7 @@ function createGpsLocateCard(): HTMLElement {
  * site under it. Letterbox stays in the stack and scrolls up with later turns.
  */
 async function playGpsLocateSkeleton(
+  root: HTMLElement,
   sceneEl: HTMLElement,
   relayout: Relayout,
   reducedMotion: boolean,
@@ -568,7 +571,7 @@ async function playGpsLocateSkeleton(
   const TARGET: [number, number] = [-70.255, 43.661];
   const START: [number, number] = [-95.7, 37.1];
 
-  const row = createGpsLocateCard();
+  const row = createGpsLocateCard(root);
   const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps");
   const mapEl = row.querySelector<HTMLElement>("[data-hero-gps-map]");
   const pinEl = row.querySelector<HTMLElement>("[data-hero-gps-marker]");
@@ -977,9 +980,10 @@ async function playAssistantTurn(
 ): Promise<HTMLElement | null> {
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
+  const isGpsOnly = turn.effect === "gps-locate" && !turn.text.trim();
 
   // Status line → reply in the same bubble (no second bubble).
-  if (!isStatus && priorAssistantRow?.dataset.heroAwaitingReply === "1") {
+  if (!isStatus && !isGpsOnly && priorAssistantRow?.dataset.heroAwaitingReply === "1") {
     await wait(ASSISTANT_RESPONSE_DELAY_MS);
     if (!isAlive()) return priorAssistantRow;
     morphStatusToReply(priorAssistantRow, turn);
@@ -996,6 +1000,19 @@ async function playAssistantTurn(
 
   await wait(ASSISTANT_RESPONSE_DELAY_MS);
   if (!isAlive()) return null;
+
+  // Visual-only GPS reply — typing dots, then the map bubble (no status copy).
+  if (isGpsOnly) {
+    const typing = createTypingIndicator(root);
+    typing.classList.add("home-hero-demo-msg--enter");
+    sceneEl.appendChild(typing);
+    relayout(true);
+    await wait(reducedMotion ? 320 : TYPING_DOTS_MS);
+    if (!isAlive()) return null;
+    typing.remove();
+    await playGpsLocateSkeleton(root, sceneEl, relayout, reducedMotion, isAlive, mapboxToken);
+    return null;
+  }
 
   const dotsMs = isStatus
     ? TYPING_DOTS_MS
@@ -1015,11 +1032,7 @@ async function playAssistantTurn(
 
   if (isStatus) {
     typing.dataset.heroAwaitingReply = "1";
-    if (turn.effect === "gps-locate") {
-      await playGpsLocateSkeleton(sceneEl, relayout, reducedMotion, isAlive, mapboxToken);
-    } else {
-      await wait(turn.pauseMs ?? STATUS_HOLD_MS);
-    }
+    await wait(turn.pauseMs ?? STATUS_HOLD_MS);
     if (!isAlive()) return typing;
     relayout();
   }

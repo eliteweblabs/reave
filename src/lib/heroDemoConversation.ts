@@ -50,8 +50,8 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       { role: "user", text: "Is Pete at the Pine Street job?", kind: "voice" },
       {
         role: "assistant",
-        text: "Checking GPS for Pete Lawson…",
-        pauseMs: 700,
+        /** Visual-only — Mapbox fly-in is the agent reply. */
+        text: "",
         effect: "gps-locate",
       },
       {
