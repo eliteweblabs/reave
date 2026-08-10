@@ -9,6 +9,7 @@ import {
   type HeroDemoScene,
   type HeroDemoTurn,
 } from "./heroDemoConversation";
+import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
 
 /** Demo pacing (~33% slower than baseline). Applied in wait() and exit timeouts. */
 const TIMING_SCALE = 1.33;
@@ -1117,11 +1118,18 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const hero = root.closest<HTMLElement>(".home-hero");
   const viewport = root.querySelector<HTMLElement>("[data-hero-demo-viewport]");
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
-  const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
+  const controls =
+    hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ??
+    document.querySelector<HTMLElement>("[data-hero-demo-controls]");
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
+
+  // Keep fixed footer controls on <body> so hero overflow/transform can't clip them.
+  if (controls && controls.parentElement !== document.body) {
+    document.body.appendChild(controls);
+  }
 
   depthBlurEnabled = !isSafariBrowser();
   if (!depthBlurEnabled) root.classList.add("home-hero-demo--safari");
@@ -1349,6 +1357,14 @@ export function initHeroDemoLoop(root: HTMLElement) {
   pauseBtn?.addEventListener("click", userPause);
   nextBtn?.addEventListener("click", userNext);
   syncControls();
+
+  if (controls) {
+    initFloatingWidgetSectionHide(
+      controls,
+      "is-contact-occluding",
+      '#contact, [data-home-section="contact"]',
+    );
+  }
 }
 
 export function bootHeroDemoLoop() {

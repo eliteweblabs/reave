@@ -161,7 +161,7 @@ function fallbackReaveConfig(): SiteContentConfig {
     nav: {
       links: [],
       groups: [],
-      showDemoCta: true,
+      showDemoCta: false,
       showSignIn: true,
     },
     homepage: {
