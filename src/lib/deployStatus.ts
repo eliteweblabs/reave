@@ -5,6 +5,12 @@
 
 import { isRailwayConfigured } from './railwayClient';
 import { railwayListDeployments, type RailwayDeploymentRow } from './railwayAgentApi';
+import {
+  getDeployFlight,
+  setDeployFlightDeploying,
+  setDeployFlightFailed,
+  setDeployFlightIdle,
+} from './pgDeployFlight';
 import { serverEnv } from './serverEnv';
 
 export type DeployState = 'live' | 'deploying' | 'stale' | 'failed' | 'unknown';
@@ -50,7 +56,12 @@ const FAILED_STATUSES = new Set(['FAILED', 'CRASHED']);
 const SUCCESS_STATUSES = new Set(['SUCCESS']);
 
 let cache: { at: number; data: DeployStatusSnapshot | null } = { at: 0, data: null };
-let failedOverride: { reason: string; until: number; failed_sha: string | null } | null = null;
+let failedOverride: {
+  reason: string;
+  until: number;
+  failed_sha: string | null;
+  set_at: string;
+} | null = null;
 let deployingOverride: {
   commit_sha: string | null;
   commit_message: string | null;
@@ -188,6 +199,59 @@ function expireDeployOverrides(): void {
   }
 }
 
+/** Pull shared webhook state so draining replicas clear the chat lock after success. */
+async function hydrateOverridesFromFlight(): Promise<void> {
+  const flight = await getDeployFlight().catch(() => null);
+  if (!flight) return;
+
+  if (flight.status === 'idle') {
+    // Only clear local overrides when the shared row was updated *after* they started.
+    // Avoids a race where markDeployStarted sets memory before the PG write lands.
+    const flightAt = Date.parse(flight.updated_at);
+    if (deployingOverride) {
+      const startedAt = Date.parse(deployingOverride.started_at);
+      if (Number.isFinite(flightAt) && Number.isFinite(startedAt) && flightAt >= startedAt) {
+        deployingOverride = null;
+      }
+    }
+    if (failedOverride) {
+      const setAt = Date.parse(failedOverride.set_at);
+      if (Number.isFinite(flightAt) && Number.isFinite(setAt) && flightAt >= setAt) {
+        failedOverride = null;
+      }
+    }
+    return;
+  }
+
+  if (flight.status === 'deploying') {
+    failedOverride = null;
+    const started = flight.started_at || new Date().toISOString();
+    const ageMs = Date.now() - new Date(started).getTime();
+    if (Number.isFinite(ageMs) && ageMs > DEPLOYING_OVERRIDE_MS) {
+      deployingOverride = null;
+      void setDeployFlightIdle();
+      return;
+    }
+    deployingOverride = {
+      commit_sha: flight.commit_sha,
+      commit_message: flight.commit_message,
+      started_at: started,
+      until: Date.now() + Math.max(5_000, DEPLOYING_OVERRIDE_MS - Math.max(0, ageMs)),
+    };
+    return;
+  }
+
+  if (flight.status === 'failed') {
+    deployingOverride = null;
+    failedOverride = {
+      reason: flight.failed_reason || 'Deploy failed — check Railway logs',
+      until: Date.now() + 30 * 60_000,
+      failed_sha: flight.failed_sha,
+      set_at: flight.updated_at || new Date().toISOString(),
+    };
+  }
+}
+
 function commitInfo(
   hash: string,
   message?: string | null,
@@ -226,11 +290,11 @@ function commitFromDeployment(dep: RailwayDeploymentRow): DeployCommitInfo | nul
 }
 
 /** Called from Railway deploy-start webhook — instant yellow dot. */
-export function markDeployStarted(opts?: {
+export async function markDeployStarted(opts?: {
   commitHash?: string | null;
   commitMessage?: string | null;
   timestamp?: string | null;
-}): void {
+}): Promise<void> {
   const commitSha = opts?.commitHash?.trim() || null;
   deployingOverride = {
     commit_sha: commitSha,
@@ -239,24 +303,28 @@ export function markDeployStarted(opts?: {
     until: Date.now() + DEPLOYING_OVERRIDE_MS,
   };
   bustDeployCache();
+  await setDeployFlightDeploying(opts);
 }
 
 /** Called from Railway deploy-success webhook once the new version is live. */
-export function clearDeployStarted(): void {
+export async function clearDeployStarted(): Promise<void> {
   deployingOverride = null;
   failedOverride = null;
   bustDeployCache();
+  await setDeployFlightIdle();
 }
 
 /** Called from Railway deploy-failure webhook — surfaces until live again or TTL. */
-export function markDeployFailed(reason?: string, failedSha?: string | null): void {
+export async function markDeployFailed(reason?: string, failedSha?: string | null): Promise<void> {
   deployingOverride = null;
   failedOverride = {
     reason: reason?.trim() || 'Deploy failed — check Railway logs',
     until: Date.now() + 30 * 60_000,
     failed_sha: failedSha?.trim() || null,
+    set_at: new Date().toISOString(),
   };
   bustDeployCache();
+  await setDeployFlightFailed(reason, failedSha);
 }
 
 function cacheTtl(snapshot: DeployStatusSnapshot | null): number {
@@ -278,6 +346,7 @@ function applyDeployingOverride(snapshot: DeployStatusSnapshot): DeployStatusSna
     (!overrideCommit || overrideCommit === deployed || overrideCommit === latestSha)
   ) {
     deployingOverride = null;
+    void setDeployFlightIdle();
     return snapshot;
   }
 
@@ -371,6 +440,7 @@ async function railwayApiSnapshot(
   if (SUCCESS_STATUSES.has(status)) {
     failedOverride = null;
     deployingOverride = null;
+    void setDeployFlightIdle();
     const running =
       commit && deployed && commit.sha.startsWith(deployed.slice(0, 7))
         ? commit
@@ -395,6 +465,7 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
   const onRailway = Boolean(deployed);
 
   expireDeployOverrides();
+  await hydrateOverridesFromFlight();
 
   if (!onRailway) {
     return {

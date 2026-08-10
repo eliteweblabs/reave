@@ -771,6 +771,11 @@
   color: var(--fg);
 }
 
+.aui-composer-deploy-lock--live {
+  border-color: color-mix(in srgb, #22c55e 40%, transparent);
+  background: color-mix(in srgb, #22c55e 10%, var(--surface, #111));
+}
+
 .aui-composer-deploy-lock-icon {
   flex-shrink: 0;
   font-size: 1.1rem;

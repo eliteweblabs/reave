@@ -106,7 +106,7 @@ export async function handleRailwayWebhook(opts: {
   const type = body.type ?? '';
 
   if (isDeployStartEvent(type)) {
-    markDeployStarted({
+    await markDeployStarted({
       commitHash:
         typeof body.details?.commitHash === 'string' ? body.details.commitHash : null,
       commitMessage:
@@ -117,7 +117,7 @@ export async function handleRailwayWebhook(opts: {
   }
 
   if (isDeploySuccessEvent(type)) {
-    clearDeployStarted();
+    await clearDeployStarted();
     if (hasFeature('site_monitoring')) {
       markDeployActivity();
     }
@@ -132,7 +132,7 @@ export async function handleRailwayWebhook(opts: {
   const proj = body.resource?.project?.name ?? 'project';
   const failedSha =
     typeof body.details?.commitHash === 'string' ? body.details.commitHash : null;
-  markDeployFailed(`Deploy failed — ${svc} (${proj})`, failedSha);
+  await markDeployFailed(`Deploy failed — ${svc} (${proj})`, failedSha);
 
   if (!isRailwayIncidentHandlerEnabled()) {
     console.info('[railway-webhook] deploy failure logged — incident handler disabled');
