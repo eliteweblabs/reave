@@ -1855,8 +1855,11 @@ function ClaudeComposer({
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
   const mentions = useMentions(pendingMentionsRef);
+  const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
+  const sendBtnRef = useRef<HTMLButtonElement | null>(null);
+  const sentByTouchRef = useRef(false);
   useCapComposerAttachments();
 
   const setInputRef = useCallback(
@@ -1877,6 +1880,25 @@ function ClaudeComposer({
     if (!showRunning && !deployChatLocked) return;
     propsRef.current?.onComposeFocus?.(false);
   }, [showRunning, deployChatLocked, propsRef]);
+
+  // iOS Safari blurs the focused textarea on the touch that targets Send —
+  // often before `click` — which closes the keyboard and reflows the pinned
+  // composer enough that the tap never lands. A non-passive touchstart both
+  // blocks that blur and sends immediately, so one press sends and the
+  // keyboard dismisses when the running/Stop composer replaces the input.
+  useLayoutEffect(() => {
+    if (showRunning || deployChatLocked) return;
+    const btn = sendBtnRef.current;
+    if (!btn) return;
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      if (!composer.getState().canSend) return;
+      sentByTouchRef.current = true;
+      void composer.send();
+    };
+    btn.addEventListener('touchstart', onTouchStart, { passive: false });
+    return () => btn.removeEventListener('touchstart', onTouchStart);
+  }, [composer, showRunning, deployChatLocked]);
 
   if (showRunning) {
     return (
@@ -2008,19 +2030,20 @@ function ClaudeComposer({
               files
             </span>
             <ComposerPrimitive.Send
+              ref={sendBtnRef}
               className="aui-composer-send"
               aria-label="Send message"
-              // iOS Safari fires `blur` on the composer textarea before `click` on
-              // whatever was tapped. Without this, the first tap on Send just closes
-              // the keyboard (and can shift the layout enough to eat the tap), so a
-              // second tap is needed to actually send. Preventing the default action
-              // of mousedown/pointerdown stops the browser from moving focus off the
-              // textarea, so the keyboard stays open and the tap sends immediately.
-              // Both handlers are needed: iOS's pointer-event support has been
-              // inconsistent about suppressing the compatibility mousedown it's
-              // supposed to when pointerdown is cancelled.
+              // Desktop / stylus: keep focus so the composer doesn't reflow before
+              // click. Touch send is handled by the non-passive touchstart listener
+              // above (React's synthetic preventDefault is often too late on iOS).
               onPointerDown={(e) => e.preventDefault()}
               onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                if (!sentByTouchRef.current) return;
+                sentByTouchRef.current = false;
+                // Already sent in touchstart — block ComposerPrimitive.Send's click send.
+                e.preventDefault();
+              }}
             >
               <SendIcon />
             </ComposerPrimitive.Send>
