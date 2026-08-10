@@ -1,0 +1,417 @@
+---
+/**
+ * Managed hosting care plans + WordPress / web-app feature grids for /hosting.
+ */
+import { getCompanyConfig } from "../../lib/companyConfig";
+import {
+  HOSTING_CARE_PLANS,
+  WORDPRESS_HOSTING_FEATURES,
+  WEB_APP_HOSTING_FEATURES,
+  CARE_SERVICES_FEATURES,
+  formatHostingUsd,
+} from "../../lib/hostingPlans";
+
+const company = await getCompanyConfig(Astro.request);
+const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const quoteHref = supportMail
+  ? `mailto:${supportMail}?subject=${encodeURIComponent("Managed hosting — Care plan")}`
+  : "/schedule";
+
+const featureGroups = [
+  CARE_SERVICES_FEATURES,
+  WORDPRESS_HOSTING_FEATURES,
+  WEB_APP_HOSTING_FEATURES,
+];
+---
+
+<section
+  class="hx-pricing scroll-fade-in"
+  aria-label="Managed hosting care plans"
+  id="plans"
+>
+  <p class="hx-pricing-kicker">Care plans</p>
+  <h2 class="hx-pricing-h2">Two tiers — pick how hands-on you want us.</h2>
+  <p class="hx-pricing-lead">
+    Both plans include premium managed hosting for WordPress or a modern web app,
+    plus daily scans, malware protection, and weekly SEO reports. Billed annually.
+    Higher tier unlocks unlimited edits whenever something needs to change.
+  </p>
+
+  <div class="hx-plan-grid">
+    {
+      HOSTING_CARE_PLANS.map((plan) => (
+        <article
+          class:list={["hx-plan-card", plan.highlighted && "hx-plan-card--featured"]}
+        >
+          {plan.highlighted && <p class="hx-plan-badge">Most popular</p>}
+          <header class="hx-plan-card-head">
+            <h3 class="hx-plan-card-title">{plan.name}</h3>
+            <p class="hx-plan-card-tagline">{plan.tagline}</p>
+            <p class="hx-plan-card-price">
+              <span class="hx-plan-card-price-main">{formatHostingUsd(plan.annualUsd)}</span>
+              <span class="hx-plan-card-price-unit">/year</span>
+            </p>
+            <p class="hx-plan-card-equiv">
+              {formatHostingUsd(plan.monthlyEquivalentUsd)}/mo equivalent · billed annually
+            </p>
+            <p class="hx-plan-card-summary">{plan.summary}</p>
+          </header>
+          <ul class="hx-plan-feature-list">
+            {plan.features.map((f) => (
+              <li class:list={[f.unlimitedOnly && "hx-plan-feature--plus"]}>{f.label}</li>
+            ))}
+          </ul>
+          <a
+            class:list={[
+              "hx-btn",
+              plan.highlighted ? "hx-btn--primary" : "hx-btn--ghost brand-btn-glass",
+            ]}
+            href={quoteHref}
+          >
+            {plan.ctaLabel}
+          </a>
+        </article>
+      ))
+    }
+  </div>
+
+  <p class="hx-pricing-disclaimer">
+    One production site (or app) per plan. Extra sites, heavy ecommerce traffic, or
+    multi-service architectures quoted separately. Domain registration billed at cost when needed.
+  </p>
+</section>
+
+<section class="hx-stacks scroll-fade-in" aria-label="What's included">
+  <p class="hx-pricing-kicker">What's included</p>
+  <h2 class="hx-pricing-h2">Hosting stack + ongoing care.</h2>
+  <p class="hx-pricing-lead">
+    Choose WordPress or a git-deployed web app — Care covers the infrastructure and the
+    day-to-day watching, updating, and reporting either way.
+  </p>
+
+  <div class="hx-stack-grid">
+    {
+      featureGroups.map((group) => (
+        <article class="hx-stack-card" id={group.id}>
+          <h3 class="hx-stack-card-title">{group.title}</h3>
+          <p class="hx-stack-card-lead">{group.lead}</p>
+          <ul class="hx-stack-feature-list">
+            {group.features.map((label) => (
+              <li>{label}</li>
+            ))}
+          </ul>
+        </article>
+      ))
+    }
+  </div>
+
+  <div class="hx-cta-row">
+    <a class="hx-btn hx-btn--primary" href={quoteHref}>Get a quote for your site</a>
+    <a class="hx-btn hx-btn--ghost brand-btn-glass" href="/schedule">Book a call</a>
+    <a class="hx-btn hx-btn--ghost brand-btn-glass" href="/services">All services</a>
+  </div>
+</section>
+
+<style>
+  .hx-pricing,
+  .hx-stacks {
+    width: 100%;
+    max-width: 920px;
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .hx-stacks {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(56, 189, 248, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .hx-pricing-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin: 0 0 12px;
+  }
+
+  .hx-stacks .hx-pricing-kicker {
+    color: #38bdf8;
+  }
+
+  .hx-pricing-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .hx-pricing-lead {
+    font-family: var(--font-content);
+    margin: 0 auto 24px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .hx-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+    text-align: left;
+  }
+
+  .hx-plan-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 18px 18px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .hx-plan-card--featured {
+    border-color: rgba(74, 222, 128, 0.35);
+    background:
+      radial-gradient(ellipse 90% 50% at 50% 0%, rgba(34, 197, 94, 0.14), transparent 65%),
+      rgba(0, 0, 0, 0.22);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  }
+
+  .hx-plan-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    margin: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #0b0512;
+    background: linear-gradient(145deg, #86efac 0%, #4ade80 100%);
+  }
+
+  .hx-plan-card-title {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .hx-plan-card-tagline {
+    margin: 0 0 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #bbf7d0;
+  }
+
+  .hx-plan-card-price {
+    margin: 0 0 4px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .hx-plan-card-price-main {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hx-plan-card-price-unit {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .hx-plan-card-equiv {
+    margin: 0 0 12px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.45);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hx-plan-card-summary {
+    margin: 0 0 14px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .hx-plan-feature-list {
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex: 1;
+  }
+
+  .hx-plan-feature-list li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .hx-plan-feature-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.75);
+  }
+
+  .hx-plan-feature--plus {
+    color: rgba(255, 255, 255, 0.88);
+    font-weight: 600;
+  }
+
+  .hx-plan-feature--plus::before {
+    background: #4ade80;
+  }
+
+  .hx-pricing-disclaimer {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.45);
+    font-style: italic;
+  }
+
+  .hx-stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+    text-align: left;
+  }
+
+  .hx-stack-card {
+    padding: 18px 16px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .hx-stack-card-title {
+    margin: 0 0 8px;
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .hx-stack-card-lead {
+    margin: 0 0 12px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .hx-stack-feature-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .hx-stack-feature-list li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .hx-stack-feature-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.75);
+  }
+
+  .hx-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 0;
+  }
+
+  .hx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      transform 0.15s ease,
+      filter 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .hx-plan-card .hx-btn {
+    width: 100%;
+  }
+
+  .hx-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .hx-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .hx-btn--ghost:hover {
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 860px) {
+    .hx-stack-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hx-plan-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
