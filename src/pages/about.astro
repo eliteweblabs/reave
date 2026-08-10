@@ -4,7 +4,6 @@ import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { ArrowRight } from "lucide-astro";
 import "../styles/marketing-sections.css";
 
 const company = await getCompanyConfig(Astro.request);
@@ -67,27 +66,6 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     </section>
 
     <HomePortfolioSection />
-
-    <section class="about-block" aria-labelledby="about-story-title">
-      <h2 id="about-story-title">What we do today</h2>
-      <p>
-        We still take on bespoke projects — branding, WordPress, managed hosting,
-        training — but the core product is the Business OS: one login that replaces
-        the SaaS pile most small businesses pay for every month.
-      </p>
-      <p>
-        Every install is white-labeled to your company. Your clients see your portal
-        on their phone; you get CRM, projects, inbox, scheduling, billing, and an
-        always-on AI agent behind one dashboard.
-      </p>
-      <div class="about-cta-row">
-        <a class="about-btn about-btn--primary" href="/demo-loader">
-          Demo now
-          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-        </a>
-        <a class="about-btn about-btn--ghost brand-btn-glass" href="/features">Explore the platform</a>
-      </div>
-    </section>
 
     <section class="about-block about-closing" aria-labelledby="about-contact-title">
       <h2 id="about-contact-title">Work with us</h2>

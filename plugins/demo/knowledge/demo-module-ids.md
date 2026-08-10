@@ -16,33 +16,33 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 
 | ID | Feature | Label |
 |----|---------|-------|
-| 001 | `client_portal` | Client portal (/c/:uid) |
-| 002 | `web_handoff` | Portal Data tab (handoff creds) |
-| 003 | `portal_assistant` | Client portal help chat (speed-dial support assistant) |
+| 001 | `client_portal` | Client portal |
+| 002 | `web_handoff` | Portal Data tab |
+| 003 | `portal_assistant` | Client portal help chat |
 | 004 | `billing` | Crater billing & invoices |
 | 005 | `site_audits` | Website Audit |
-| 006 | `site_monitoring` | Website change monitoring (ChangeDetection.io) |
-| 007 | `uptime_monitoring` | Uptime monitoring (UptimeRobot) |
+| 006 | `site_monitoring` | Website change monitoring |
+| 007 | `uptime_monitoring` | Uptime monitoring |
 | 008 | `documents` | Document signing templates |
 | 009 | `voice` | Telnyx voice agent |
-| 010 | `vapi` | Vapi assistant (admin sync & branding) |
-| 011 | `carddav` | CardDAV (iOS Contacts sync) |
+| 010 | `vapi` | VAPI Voice Agent |
+| 011 | `carddav` | CardDAV Contact Sync |
 | 012 | `scheduling` | Cal.com scheduling & meetings |
-| 013 | `dev_infra` | Dev & infrastructure (Git, Railway, Kinsta, deploy) |
-| 014 | `code_dev` | Local code tools (read/write/list/exec) |
+| 013 | `dev_infra` | Dev & infrastructure |
+| 014 | `code_dev` | Local code tools |
 | 015 | `email_marketing` | Newsletter & email automation |
-| 016 | `fleet_tracking` | Fleet tracking (multi-vehicle GPS via fleet-api) |
-| 017 | `dealership_wizard` | Dealership inventory & deal wizard (paulino-wizard) |
-| 018 | `namecom_dns` | DNS record management (Name.com) — agency/ops installs only |
-| 019 | `time_tracking` | Project time log (hours + notes → invoicing) |
-| 020 | `demo` | Demo mode (seed script, quick-start wizard) |
+| 016 | `fleet_tracking` | Fleet tracking / GPS |
+| 017 | `dealership_wizard` | Dealership inventory & deal wizard |
+| 018 | `namecom_dns` | DNS record management |
+| 019 | `time_tracking` | Project Time Tracking |
+| 020 | `demo` | Demo mode |
 | 021 | `real_estate_data` | Real estate data & lead scanner |
 | 022 | `inventory_sync` | Multi-channel inventory sync |
-| 023 | `online_reviews` | Online reviews inbox — Google sync + response workflow |
-| 024 | `wayback_machine` | Wayback Machine — browse archived website snapshots |
-| 025 | `content_management` | Website content management — update your site through the agent |
-| 026 | `stock_photos` | Pexels stock photos — royalty-free search |
-| 027 | `wordpress_content` | WordPress content plugin — agent updates posts/pages on WordPress |
+| 023 | `online_reviews` | Online reviews inbox |
+| 024 | `wayback_machine` | Wayback Machine |
+| 025 | `content_management` | Website content management |
+| 026 | `stock_photos` | Pexels stock photos |
+| 027 | `wordpress_content` | WordPress content plugin |
 
 ## Default suite (no URL)
 

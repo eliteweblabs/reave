@@ -3,13 +3,14 @@
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
-import type { FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, type FeatureId } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
 
 export type DemoLoaderModule = {
   moduleId: string;
   feature: InstallFeatureId;
   label: string;
+  blurb: string;
   status: ModuleDeployStatus;
   /** Enabled on production Reave (config-reave.json features[]). */
   inProduction: boolean;
@@ -143,6 +144,7 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         moduleId,
         feature: m.feature,
         label: m.label,
+        blurb: FEATURE_BLURBS[m.feature] ?? '',
         status: m.status,
         inProduction: productionFeatures.has(m.feature),
         toggleable: deployed && Boolean(moduleId),

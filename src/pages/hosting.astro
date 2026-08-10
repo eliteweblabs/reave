@@ -36,6 +36,24 @@ const company = await getCompanyConfig(Astro.request);
     </section>
 
     <HostingPricingSection />
+
+    <section
+      class="hosting-audit-cta scroll-fade-in"
+      aria-labelledby="hosting-audit-title"
+    >
+      <p class="hosting-kicker">Digital audit</p>
+      <h2 id="hosting-audit-title" class="hosting-audit-h2">
+        Not sure what needs fixing first?
+      </h2>
+      <p class="hosting-audit-lead">
+        Run a free digital audit of your site — speed, SEO, and online presence —
+        then we can talk hosting with a clear picture of what’s broken.
+      </p>
+      <a class="hosting-btn hosting-btn--primary" href="/digital-audit">
+        Start a digital audit
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
+    </section>
   </div>
 </Layout>
 
@@ -123,5 +141,34 @@ const company = await getCompanyConfig(Astro.request);
 
   .hosting-btn--ghost:hover {
     transform: translateY(-1px);
+  }
+
+  .hosting-audit-cta {
+    width: 100%;
+    max-width: 640px;
+    margin-top: 56px;
+    padding: 36px 28px;
+    text-align: center;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .hosting-audit-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.25rem, 3vw, 1.65rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #fff;
+  }
+
+  .hosting-audit-lead {
+    margin: 0 auto 24px;
+    max-width: 480px;
+    font-family: var(--font-content);
+    font-size: 0.98rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.65);
   }
 </style>
