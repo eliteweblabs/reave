@@ -496,7 +496,8 @@ const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
     line-height: 1.45;
     word-wrap: break-word;
     overflow-wrap: anywhere;
-    text-wrap: pretty;
+    /* Greedy wrap — pretty/balance shortens early lines and looks "halved". */
+    text-wrap: wrap;
   }
 
   .home-hero-demo-bubble-text {
