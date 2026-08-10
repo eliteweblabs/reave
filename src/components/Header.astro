@@ -340,8 +340,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     --radius-input: 8px;
     --control-h: 2.5rem;
     --footer-nav-pill-h: var(--control-h);
-    --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
-    --footer-nav-glass-bg: transparent;
+    --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.1);
+    --footer-nav-glass-bg: rgba(255, 255, 255, 0.86);
     --footer-nav-glass-blur: blur(18px) saturate(1.15);
     --nav-icon: rgba(0, 0, 0, 0.45);
     --nav-icon-hover: rgba(0, 0, 0, 0.72);
@@ -362,7 +362,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
+      --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.12);
+      --footer-nav-glass-bg: rgba(10, 13, 20, 0.88);
       --nav-icon: rgba(255, 255, 255, 0.58);
       --nav-icon-hover: rgba(255, 255, 255, 0.88);
       --nav-icon-active: #ffffff;
