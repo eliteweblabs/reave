@@ -11,8 +11,6 @@ import { hasFeature } from '../lib/features';
 import { isSafeWorkSlug, storeReadWork } from '../lib/workStore';
 import { buildAuditReportCard, isAuditJob } from '../lib/auditReportCard';
 import { getSiriAuditRun } from '../lib/siriAuditRuns';
-import '../styles/marketing-sections.css';
-
 export const prerender = false;
 
 const company = await getCompanyConfig(Astro.request);
@@ -78,9 +76,9 @@ const openOptionalDetails = Boolean(prefillUrl);
   description={`Free online presence diagnostic from ${company.name} — enter a business name and get the same audit report we use for clients.`}
 >
   <div class="da-page" data-da-page data-run={showResults ? runSlug : ''} data-in-progress={inProgress ? '1' : '0'}>
-    <header class="da-hero">
-      <p class="da-brand">{company.name}</p>
-      <h1 class="da-h1">Digital Audit</h1>
+    <header class="da-hero" aria-labelledby="da-title">
+      <p class="da-kicker">Free diagnostic</p>
+      <h1 id="da-title" class="da-h1">Digital Audit</h1>
       {!showResults && (
         <p class="da-lead">
           Tell us who to check. We’ll scan the website, listings, and reputation — then show the
@@ -273,111 +271,115 @@ const openOptionalDetails = Boolean(prefillUrl);
 
 <style>
   .da-page {
-    --da-ink: #0f1419;
-    --da-muted: #5a6570;
-    --da-line: rgba(15, 20, 25, 0.12);
-    --da-surface: rgba(255, 255, 255, 0.72);
-    --da-accent: var(--brand-primary, #1a6b5a);
     min-height: 100vh;
     padding: calc(
         var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
-          48px
+          40px
       )
       20px 96px;
-    max-width: 960px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .da-hero {
+    width: 100%;
+    max-width: 760px;
     text-align: center;
-    margin-bottom: 28px;
+    margin-bottom: 36px;
   }
 
-  .da-brand {
-    margin: 0 0 8px;
-    font-size: clamp(1.75rem, 5vw, 2.5rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    color: var(--da-ink);
+  .da-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin: 0 0 14px;
   }
 
   .da-h1 {
-    margin: 0 0 12px;
-    font-size: clamp(1.05rem, 2.4vw, 1.25rem);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--da-muted);
+    margin: 0 0 16px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
   }
 
   .da-lead {
     margin: 0 auto;
-    max-width: 36rem;
-    font-size: 1.05rem;
-    line-height: 1.5;
-    color: var(--da-muted);
+    max-width: 580px;
+    font-family: var(--font-content);
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
   }
 
   .da-form {
+    width: 100%;
+    max-width: 560px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 20px 18px 22px;
-    border-radius: 16px;
-    border: 1px solid var(--da-line);
-    background: var(--da-surface);
-    backdrop-filter: blur(10px);
+    gap: 18px;
   }
 
   .da-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   .da-label {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--da-muted);
+    color: rgba(255, 255, 255, 0.88);
   }
 
   .da-field input {
     width: 100%;
     box-sizing: border-box;
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid var(--da-line);
-    background: #fff;
-    color: var(--da-ink);
-    font-size: 1.05rem;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 1rem;
     line-height: 1.3;
+    outline: none;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .da-field input::placeholder {
+    color: rgba(255, 255, 255, 0.38);
   }
 
   .da-field--main input {
-    font-size: 1.15rem;
-    padding: 16px 18px;
+    font-size: 1.05rem;
+    padding: 14px 16px;
   }
 
   .da-field input:focus {
-    outline: 2px solid color-mix(in srgb, var(--da-accent) 55%, transparent);
-    outline-offset: 1px;
-    border-color: color-mix(in srgb, var(--da-accent) 45%, var(--da-line));
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.18);
   }
 
   .da-more {
-    border-radius: 10px;
-    border: 1px dashed var(--da-line);
-    padding: 4px 12px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 4px 14px 10px;
   }
 
   .da-more summary {
     cursor: pointer;
     font-size: 0.9rem;
-    color: var(--da-muted);
-    padding: 8px 0;
+    color: rgba(255, 255, 255, 0.62);
+    padding: 10px 0;
     list-style: none;
   }
 
@@ -385,10 +387,14 @@ const openOptionalDetails = Boolean(prefillUrl);
     display: none;
   }
 
+  .da-more[open] summary {
+    color: rgba(255, 255, 255, 0.88);
+  }
+
   .da-more-fields {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     padding-bottom: 8px;
   }
 
@@ -401,25 +407,30 @@ const openOptionalDetails = Boolean(prefillUrl);
 
   .da-error {
     margin: 0;
-    color: #b42318;
+    color: #f87171;
     font-size: 0.95rem;
   }
 
   .da-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .da-submit {
     appearance: none;
     border: none;
     border-radius: 999px;
-    padding: 12px 28px;
-    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+    font-family: var(--font-primary);
+    font-size: 0.95rem;
     font-weight: 600;
-    color: #fff;
-    background: var(--da-accent);
+    color: #0b0512;
+    background: var(--brand-gradient, linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%));
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
     cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      filter 0.15s ease;
   }
 
   .da-submit:disabled {
@@ -428,17 +439,18 @@ const openOptionalDetails = Boolean(prefillUrl);
   }
 
   .da-submit:hover:not(:disabled) {
-    filter: brightness(1.05);
+    filter: brightness(1.06);
+    transform: translateY(-1px);
   }
 
   .da-unavailable {
     text-align: center;
-    color: var(--da-muted);
+    color: rgba(255, 255, 255, 0.68);
   }
 
   .da-results {
+    width: 100%;
     max-width: 640px;
-    margin: 0 auto;
   }
 
   .da-again {
@@ -447,7 +459,7 @@ const openOptionalDetails = Boolean(prefillUrl);
   }
 
   .da-again a {
-    color: var(--da-accent);
+    color: #c084fc;
     font-weight: 600;
     text-decoration: none;
   }
