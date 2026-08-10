@@ -6,7 +6,6 @@ import {
   initSidebarLayout,
   syncAdminSplitView,
   attachIosPullToRefresh,
-  pullRefreshContentRoot,
 } from './admin-ui.js?v=20260809b';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260808k';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260803a';
@@ -314,10 +313,10 @@ function bindPanelEvents(root) {
 
   bindDetailEvents(root);
 
-  attachIosPullToRefresh({
-    root: pullRefreshContentRoot(root, '.or-sidebar'),
-    onRefresh: () => loadOnlineReviewsTab({ keepSelection: true }),
-  });
+  const reviewsList = root.querySelector('#or-list, .or-list');
+  if (reviewsList instanceof HTMLElement) {
+    attachIosPullToRefresh(reviewsList, () => loadOnlineReviewsTab({ keepSelection: true }));
+  }
 }
 
 function bindDetailEvents(root) {

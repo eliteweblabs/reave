@@ -11595,13 +11595,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
           ariaLabel: 'Refresh inbox',
           title: 'Check for new mail',
           onClick: () => {
-            if (emailState.inboxRefreshing) return;
-            emailState.inboxRefreshing = true;
-            renderEmailPanel();
-            void loadEmailTab(true).finally(() => {
-              emailState.inboxRefreshing = false;
-              renderEmailPanel();
-            });
+            void refreshEmailInbox();
           },
         };
       }
@@ -11782,10 +11776,35 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   fillEmailSidebarList(list);
   attachIosPullToRefresh(list, () => {
     if (MAP.type !== 'email') return;
-    return loadEmailTab(true);
+    return refreshEmailInbox();
   });
   sidebar.appendChild(list);
   return sidebar;
+}
+
+/** Shared inbox reload for pull-to-refresh and the All-tab refresh control. */
+async function refreshEmailInbox() {
+  if (emailState.inboxRefreshing) return;
+  emailState.inboxRefreshing = true;
+  const root = getEmailPanel();
+  root?.querySelector('.em-filter-tab--refresh')?.classList.add('em-filter-tab--refreshing');
+  try {
+    await Promise.race([
+      loadEmailTab(true),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Inbox refresh timed out')), 12000);
+      }),
+    ]);
+  } catch (err) {
+    console.warn('[email] refresh failed', err);
+  } finally {
+    emailState.inboxRefreshing = false;
+    // loadEmailTab may have rebuilt list rows; clear the All-tab spinner in place.
+    const nextRoot = getEmailPanel();
+    const allTab = nextRoot?.querySelector('.em-filter-tab--refresh');
+    if (allTab) allTab.classList.remove('em-filter-tab--refreshing');
+    else renderEmailPanel({ preserveSidebar: true, preservePane: true });
+  }
 }
 
 function createSentListItem(ev) {

@@ -882,16 +882,26 @@ body.admin-split-view #chat-panel .ch-compose {
 }
 
 /* iOS pull-to-refresh (sidebar lists) */
-.ch-list.ios-ptr-host {
+.ios-ptr-host {
   position: relative;
   overscroll-behavior-y: contain;
+}
+.ch-list.ios-ptr-host,
+.de-list.ios-ptr-host {
   padding-top: 0;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   padding-bottom: var(--footer-scroll-pad);
 }
-.ch-list.ios-ptr-host .ios-ptr-content {
+.ch-list.ios-ptr-host .ios-ptr-content,
+.de-list.ios-ptr-host .ios-ptr-content {
   padding-top: 0.5rem;
+}
+/* While pulling/refreshing, stop the browser from claiming the pan gesture. */
+.ios-ptr-host.ios-ptr-active,
+.ios-ptr-host.ios-ptr-refreshing {
+  touch-action: none;
+  overscroll-behavior-y: none;
 }
 .ios-ptr-indicator {
   position: absolute;
@@ -912,10 +922,10 @@ body.admin-split-view #chat-panel .ch-compose {
   transform: translate3d(0, var(--ptr-y, 0), 0);
   will-change: transform;
 }
-.ch-list.ios-ptr-host:not(.ios-ptr-active):not(.ios-ptr-refreshing) .ios-ptr-content {
+.ios-ptr-host:not(.ios-ptr-active):not(.ios-ptr-refreshing) .ios-ptr-content {
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.ch-list.ios-ptr-refreshing .ios-ptr-indicator {
+.ios-ptr-host.ios-ptr-refreshing .ios-ptr-indicator {
   transition: height 0.2s ease;
 }
 .ios-ptr-spinner {
@@ -928,7 +938,7 @@ body.admin-split-view #chat-panel .ch-compose {
   opacity: var(--ptr-icon-opacity, 0);
   flex-shrink: 0;
 }
-.ch-list.ios-ptr-refreshing .ios-ptr-spinner {
+.ios-ptr-host.ios-ptr-refreshing .ios-ptr-spinner {
   animation: ios-ptr-spin 0.75s linear infinite;
   opacity: 1;
 }
