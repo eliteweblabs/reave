@@ -41,7 +41,7 @@ import {
   pullRefreshContentRoot,
   createInputClearAdornment,
   syncInputClearAdornment,
-} from './admin-ui.js?v=20260809b';
+} from './admin-ui.js?v=20260810a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {

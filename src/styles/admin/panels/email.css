@@ -1340,6 +1340,13 @@
 .wk-file-actions .de-share-btn {
   color: #0a84ff;
 }
+/* Email detail archive: between share and delete on ≥640px only (swipe on small).
+   Both classes so display:none outranks .ios-icon-btn { display: inline-flex }. */
+@media (max-width: 639px) {
+  #email-panel .de-header .em-archive-btn.ios-icon-btn {
+    display: none;
+  }
+}
 .wk-file-actions .ch-delete-btn {
   color: var(--muted);
 }

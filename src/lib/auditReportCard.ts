@@ -326,17 +326,38 @@ function stripMd(s: string): string {
 }
 
 function bulletsFromSection(section: string): string[] {
-  return section
-    .split('\n')
-    .map((line) => stripMd(line))
-    .filter((line) => line.length > 0 && !/^#{1,6}\s/.test(line) && line !== '---');
+  const out: string[] = [];
+  for (const raw of section.split('\n')) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === '---' || /^#{1,6}\s/.test(trimmed)) continue;
+
+    // Markdown table data rows → "404: /path — context"
+    const tableRow = trimmed.match(/^\|?\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]*)\|?\s*$/);
+    if (tableRow) {
+      const a = tableRow[1].trim();
+      const b = tableRow[2].trim();
+      const c = tableRow[3].trim();
+      // Skip header / separator rows.
+      if (/^[-:]+$/.test(a.replace(/\s/g, '')) || /status|url|context|code/i.test(a)) continue;
+      const line = c ? `${a}: ${b} — ${c}` : `${a}: ${b}`;
+      if (line.length > 2) out.push(stripMd(line));
+      continue;
+    }
+
+    const line = stripMd(trimmed);
+    if (line.length > 0) out.push(line);
+  }
+  return out;
 }
 
 function extractSection(body: string, heading: RegExp): string {
   // Wrap alternations so `|` cannot escape the heading atom.
   // Accept ## / ### / #### and bold-only headings agents sometimes write.
+  // Allow trailing title text after the match ("Broken Links Summary (4 confirmed…)").
+  // `\b` keeps a short alt like `SEO` from eating an unrelated longer title mid-word,
+  // but still permits "SEO Fundamentals" / "Broken Links Summary".
   const re = new RegExp(
-    `(?:^|\\n)(?:#{2,4}\\s+(?:${heading.source})\\s*|\\*\\*(?:${heading.source})\\*\\*\\s*)\\n([\\s\\S]*?)(?=\\n(?:#{2,4}\\s+|\\*\\*[^*]+\\*\\*\\s*$)|$)`,
+    `(?:^|\\n)(?:#{2,4}\\s+(?:${heading.source})\\b[^\\n]*|\\*\\*(?:${heading.source})\\b[^\\n]*\\*\\*\\s*)\\n([\\s\\S]*?)(?=\\n(?:#{2,4}\\s+|\\*\\*[^*]+\\*\\*\\s*$)|$)`,
     'i',
   );
   const m = body.match(re);
@@ -557,7 +578,7 @@ function assessChannel(
     };
   }
 
-  return { status: 'weak', summary: 'Needs a closer look', why };
+  return { status: 'weak', summary: why[0] || 'Listing needs cleanup', why };
 }
 
 function signalToGrade(signal: PresenceSignal): LetterGrade | null {
@@ -775,7 +796,11 @@ function domainGradeFromText(text: string): {
   }
   if (/whois|a record|nameserver|registrar|propagat/.test(lower)) {
     if (/lag|mismatch|issue|problem|warn/.test(lower)) {
-      return { grade: 'C', summary: 'DNS needs a closer look', why };
+      return {
+        grade: 'C',
+        summary: why[0] || 'DNS records have warnings that should be cleaned up.',
+        why,
+      };
     }
     return { grade: 'B', summary: 'Domain resolves', why };
   }
@@ -815,9 +840,13 @@ function plainLanguage(line: string, clientName = ''): string {
 const ROSY_FINDING_RE =
   /outstanding|excellent|perfect|strong|solid|looking (?:good|solid|great)|looks? great|no (?:major )?(?:issues?|problems?)|across both viewports|well (?:configured|optimized)|complete coverage|authentication looks complete/i;
 const WEAK_FINDING_RE =
-  /missing|fail|expired|invalid|critical|no confirmed|not (?:found|listed|claimed|configured|set|verified)|weak|risk|error|insecure|broken|none\b|gap|needs? (?:work|attention|update)|room to improve|poor|low contrast|too small|outdated|incomplete|inconsistent|unclaimed|inactive|stale|spam|thin|absent|unprotected|conflict|wrong hours|few reviews|unanswered|placeholder|could not|unavailable|blocks? (?:all )?crawler|noindex|dead link|404\b/i;
+  /missing|fail|expired|invalid|critical|no confirmed|not (?:found|listed|claimed|configured|set|verified)|weak|risk|error|insecure|broken|none\b|gap|needs? (?:work|attention|update)|room to improve|poor|low contrast|too small|outdated|incomplete|inconsistent|unclaimed|inactive|stale|spam|thin|absent|unprotected|conflict|wrong hours|few reviews|unanswered|placeholder|could not|unavailable|blocks? (?:all )?crawler|noindex|dead (?:link|ui)|404\b|500\b|empty anchors?/i;
 
 function isNegativeFinding(line: string): boolean {
+  // "0 broken links" / "no broken links" are praise, not failures.
+  if (/\b(?:0|no|zero)\s+broken\b/i.test(line) || /\blinks (?:look |are )?healthy\b/i.test(line)) {
+    return false;
+  }
   return WEAK_FINDING_RE.test(line);
 }
 
@@ -901,6 +930,31 @@ function primaryFindingForGrade(
   return primaryFinding(why, fallback);
 }
 
+/** Honest fallback when bullets are empty or only praise a weak grade — never "needs a closer look". */
+function concreteFindingFallback(
+  why: string[],
+  label: string,
+  score: number | null,
+  grade: LetterGrade | null,
+): string {
+  const usable = why.find(
+    (w) =>
+      w.length > 12 &&
+      !/^no detailed\b/i.test(w) &&
+      !/needs a closer look/i.test(w) &&
+      !/^not scored\b/i.test(w),
+  );
+  if (usable) return truncateFinding(usable);
+  if (score != null && grade) {
+    return `${label} scored ${score}/100 (grade ${grade}) — see technical notes for the supporting detail.`;
+  }
+  if (grade) {
+    return `${label} graded ${grade} — see technical notes for the supporting detail.`;
+  }
+  if (score != null) return `${label} scored ${score}/100.`;
+  return `${label} was reviewed; see technical notes for detail.`;
+}
+
 /**
  * Keep card copy honest when mobile/desktop numbers and the graded score disagree.
  * Near-perfect viewport scores must not sit next to a C without saying what dragged it down.
@@ -912,8 +966,7 @@ function findingAlignedToScore(
   score: number | null,
   grade: LetterGrade | null,
 ): string {
-  const fallback =
-    score != null ? `${label} scored ${score}/100.` : `${label} needs a closer look.`;
+  const fallback = concreteFindingFallback(why, label, score, grade);
   const ordered = prioritizeNegativeFirst(why);
   const negative = ordered.find((w) => isNegativeFinding(w) && w.length > 12);
   const pair = extractMobileDesktopPair(why.join('\n'));
@@ -1365,7 +1418,8 @@ export function buildAuditReportCard(input: {
   }
 
   const perfSection = extractSection(body, /Website Performance|Site Speed|Performance/);
-  const seoSection = extractSection(body, /SEO(?:\s+Fundamentals)?|Search(?:\s+Fundamentals)?/);
+  // Do not use bare "Search" — it steals "Search / Analytics" once trailing title text is allowed.
+  const seoSection = extractSection(body, /SEO(?:\s+Fundamentals)?|Search Fundamentals/);
   const a11ySection = extractSection(body, /Accessibility(?:\s*\(WCAG\))?/);
   const bpSection = extractSection(body, /Best Practices|Best\-Practices/);
   const sslSection = extractSection(body, /SSL\s*&\s*(?:Website\s+)?Security|Website Security|Security|SSL/);
@@ -1379,11 +1433,17 @@ export function buildAuditReportCard(input: {
     /Online Presence|Local Presence|Presence|Listings|Reputation|Social Spread/,
   );
   const uxSection = extractSection(body, /UX\s*&\s*UI|Playwright|Mobile Responsiveness|Mobile/);
+  // Prefer "Search / Analytics" / full title — bare "Tracking" invents empty cards from prose.
   const analyticsSection = extractSection(
     body,
-    /Search\s*\/\s*Analytics|Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking|Tracking/,
+    /Search\s*\/\s*Analytics|Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking/,
   );
-  const linksSection = extractSection(body, /Broken Links(?:\s*&\s*Crawl Health)?|Crawl Health|Links/);
+  // Agents often write "Broken Links Summary (N confirmed…)" — keep "Summary" optional.
+  // Bare "Links" is too greedy against unrelated headings.
+  const linksSection = extractSection(
+    body,
+    /Broken Links(?:\s*&\s*Crawl Health)?(?:\s+Summary)?|Crawl Health/,
+  );
   const leadSection = extractSection(body, /Lead Capture|Contact Forms?|Forms?/);
   const schemaSection = extractSection(
     body,
@@ -1725,23 +1785,37 @@ export function buildAuditReportCard(input: {
       midGrade?: LetterGrade;
     },
   ): ReportCardCategory => {
-    const lower = section.toLowerCase();
-    const hasSignal = section.trim().length > 0 || opts.present.test(body);
-    let grade: LetterGrade | null = null;
-    if (hasSignal) {
-      // Prefer the section text — scanning the whole body causes false D/F grades
-      // (e.g. "blocklists" in a clean writeup, or unrelated failures elsewhere).
-      const haystack = section.trim() ? lower : body.toLowerCase();
-      // Good before bad so "not listed on blocklists" / "clean" wins over substring traps.
-      if (opts.good.test(haystack)) {
-        grade = opts.goodGrade || 'B';
-      } else if (opts.bad.test(haystack)) {
-        grade = opts.badGrade || 'D';
-      } else if (section.trim() || opts.present.test(body)) {
-        grade = opts.midGrade || 'C';
-      }
+    const sectionText = section.trim();
+    // Never invent a grade from body-wide keyword hits when this section is missing.
+    // That produced fake B/D cards with "needs a closer look" while the real write-up
+    // sat under a slightly different heading (or wasn't written at all).
+    if (!sectionText) {
+      const meta = CATEGORY_BY_ID.get(id)!;
+      return {
+        id,
+        label: meta.label,
+        icon: meta.icon,
+        source: meta.source,
+        featured: meta.featured,
+        summary: opts.emptySummary,
+        finding: opts.emptySummary,
+        grade: null,
+        score: null,
+        why: [`No ${meta.label.toLowerCase()} section was written in this audit.`],
+        unavailable: true,
+      };
     }
-    return scoreCategory(id, null, section, grade, opts.emptySummary, undefined, clientName);
+    const lower = sectionText.toLowerCase();
+    let grade: LetterGrade | null = null;
+    // Good before bad so "not listed on blocklists" / "clean" wins over substring traps.
+    if (opts.good.test(lower)) {
+      grade = opts.goodGrade || 'B';
+    } else if (opts.bad.test(lower)) {
+      grade = opts.badGrade || 'D';
+    } else if (opts.present.test(lower) || sectionText.length > 0) {
+      grade = opts.midGrade || 'C';
+    }
+    return scoreCategory(id, null, sectionText, grade, opts.emptySummary, undefined, clientName);
   };
 
   const reputationCorpus =
@@ -1911,8 +1985,9 @@ export function buildAuditReportCard(input: {
         };
       }
       return heuristicSection('analytics', analyticsSection, {
-        bad: /no analytics|missing analytics|not (?:installed|configured)|no conversion|untracked|no goals/i,
-        good: /analytics (?:is )?installed|goals? configured|tracking (?:is )?working|ga4/i,
+        // Site-level gaps only. Agency GSC/GA access limits stay mid-grade with a clear finding.
+        bad: /no analytics|missing analytics|not (?:installed|configured)|no conversion|untracked|no goals|assumed not set up|not set up or not yet connected/i,
+        good: /analytics (?:is )?installed|goals? configured|tracking (?:is )?working|conversion goals? (?:are )?(?:set|configured)|reporting (?:is )?available/i,
         present: /analytics|conversion|gtm|ga4|tag manager|tracking|search console/i,
         emptySummary: 'Not scored in this audit',
       });
@@ -1927,9 +2002,9 @@ export function buildAuditReportCard(input: {
       clientName,
     ),
     heuristicSection('broken_links', linksSection, {
-      bad: /broken link|404|dead link|crawl (?:error|fail)|not crawled/i,
-      good: /no broken|0 broken|links (?:look |are )?healthy|crawl clean/i,
-      present: /broken link|check_links|crawl|404/i,
+      bad: /broken link|404|500\b|dead link|crawl (?:error|fail)|not crawled|empty anchors?/i,
+      good: /no broken|0 broken|links (?:look |are )?healthy|crawl clean|all (?:internal and external )?links resolve/i,
+      present: /broken link|check_links|crawl|404|empty anchor|redirect/i,
       emptySummary: 'Not scored in this audit',
       // Quick tier often skips crawl — don't invent a grade from "not crawled" alone as F
       badGrade: /not crawled|quick audit/i.test(linksSection) ? 'C' : 'D',
