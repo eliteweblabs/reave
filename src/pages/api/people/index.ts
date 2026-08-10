@@ -43,7 +43,7 @@ async function searchContacts(q: string | undefined, limit: number): Promise<Peo
       .map((c) => ({
         kind: 'contact' as const,
         uid: c.uid,
-        name: (c.name || '').trim() || 'Client',
+        name: (c.name || '').trim() || 'Contact',
         email: c.email?.trim() || undefined,
         company: c.company?.trim() || undefined,
         phone: c.phone?.trim() || undefined,
@@ -55,7 +55,7 @@ async function searchContacts(q: string | undefined, limit: number): Promise<Peo
   return result.data.contacts.map((c) => ({
     kind: 'contact' as const,
     uid: c.uid,
-    name: (c.name || '').trim() || 'Client',
+    name: (c.name || '').trim() || 'Contact',
     email: c.email?.trim() || undefined,
     company: c.company?.trim() || undefined,
     phone: c.phone?.trim() || undefined,

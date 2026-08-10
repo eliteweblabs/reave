@@ -10,7 +10,7 @@ with horizontal or vertical overflow.
 | `pwa.mp4` | PWA alerts & notices |
 | `scheduling.mp4` | Scheduling |
 | `voice.mp4` | Voice & call routing |
-| `clients.mp4` | Clients |
+| `clients.mp4` | Contacts |
 | `inbox.mp4` | Inbox |
 | `work.mp4` | Projects |
 | `documents.mp4` | Documents |

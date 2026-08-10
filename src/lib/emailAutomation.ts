@@ -288,7 +288,7 @@ function displayFirstName(input: { contactName?: string | null; from: string }):
   const attendee = attendeeFromEmail(input);
   const raw = (input.contactName || attendee.name || '').trim();
   if (!raw) return 'Client';
-  return raw.split(/\s+/)[0] || 'Client';
+  return raw.split(/\s+/)[0] || 'Contact';
 }
 
 export function toMeetingRequestReviewNotification(

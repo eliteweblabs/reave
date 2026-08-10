@@ -32,7 +32,7 @@ export function looksLikeClientReplyUrgency(opts: {
   const status = String(opts.status || '').toUpperCase();
   if (action === 'project_reply' || status === 'PROJECT_REPLY') return true;
   const note = `${opts.routeNote || ''} ${opts.summary || ''}`;
-  return /client replied/i.test(note);
+  return /(?:contact|client) replied/i.test(note);
 }
 
 /**
@@ -64,7 +64,7 @@ export function enforceNotificationNotJunk(opts: {
 
 /**
  * Patch used when explicitly marking junk — strips client-reply urgency so the
- * UI cannot show "junk · …" alongside a Client replied route / dashboard alert.
+ * UI cannot show "junk · …" alongside a Contact replied route / dashboard alert.
  */
 export function patchForMarkJunk(existing?: Pick<
   EmailInboxRecord,

@@ -58,7 +58,7 @@ export function auditPortalUrl(contactUid: string, jobSlug?: string, opts?: { ba
   });
 }
 
-/** Admin deep link to a client profile (Clients tab). */
+/** Admin deep link to a contact profile (Contacts tab). */
 export function adminClientProfileUrl(uid: string, opts?: { base?: string }): string {
   const origin = (opts?.base || siteBaseUrl()).replace(/\/+$/, '');
   return `${origin}/admin?tab=clients&client=${encodeURIComponent(uid)}`;

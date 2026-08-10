@@ -27,7 +27,7 @@ function displayFirstName(input: {
   const fromName = parseSenderName(input.from);
   const raw = (input.contactName || fromName || '').trim();
   if (!raw) return 'Client';
-  return raw.split(/\s+/)[0] || 'Client';
+  return raw.split(/\s+/)[0] || 'Contact';
 }
 
 export function previewMeetingProjectTitle(input: {

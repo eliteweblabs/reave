@@ -22,7 +22,7 @@ function companyDefaultIcons(company: Awaited<ReturnType<typeof getCompanyConfig
 
 export const GET: APIRoute = async ({ params, request }) => {
   const uid = (params.slug ?? '').trim();
-  let name = 'Client';
+  let name = 'Contact';
   const company = await getCompanyConfig(request);
   const defaultIcons = companyDefaultIcons(company);
 

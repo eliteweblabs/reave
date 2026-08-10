@@ -53,7 +53,7 @@ export const GET: APIRoute = async (context) => {
             token: `{${code}}`,
             label: camelToWords(rawKey),
             description: `Contact's ${camelToWords(rawKey).toLowerCase()} (from DB)`,
-            category: 'Client',
+            category: 'Contact',
           });
         }
       }

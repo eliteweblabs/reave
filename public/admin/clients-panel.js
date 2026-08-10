@@ -42,7 +42,7 @@ import {
   createInputClearAdornment,
   syncInputClearAdornment,
 } from './admin-ui.js?v=20260810a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   openMediaPicker,
@@ -59,10 +59,10 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260809a';
+} from './work-panel.js?v=20260810a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260810a';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
@@ -267,7 +267,7 @@ function attachPhoneFormatter(input) {
 function getClientsEditor() { return document.getElementById('clients-editor'); }
 
 function clientListTitle(c) {
-  return (c.company || '').trim() || (c.name || '').trim() || 'Client';
+  return (c.company || '').trim() || (c.name || '').trim() || 'Contact';
 }
 
 function clientListSubline(c) {
@@ -343,7 +343,7 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
       { id: 'personal', label: 'Personal', count: counts.personal },
     ],
     activeId: clientState.contactFilter,
-    ariaLabel: 'Client list filters',
+    ariaLabel: 'Contact list filters',
     savedScrollLeft,
     onSelect(tabId) {
       clientState.contactFilter = tabId;
@@ -444,7 +444,7 @@ function syncClientsListActiveState(opts = {}) {
   }
 }
 
-/** Prefill for new-client form when opened from email / other panels. */
+/** Prefill for new-contact form when opened from email / other panels. */
 let pendingNewClientPrefill = null;
 
 async function loadClientsTab(opts = {}) {
@@ -476,7 +476,7 @@ async function loadClientsTab(opts = {}) {
     return;
   }
 
-  mountPanelSkeleton(root, 'list', 'Loading clients…', { contentSelector: '.ch-sidebar' });
+  mountPanelSkeleton(root, 'list', 'Loading contacts…', { contentSelector: '.ch-sidebar' });
   try {
     await fetchClientsList();
   } catch (e) {
@@ -555,10 +555,10 @@ function fillClientsSidebarList(list) {
           : clientState.contactFilter === 'service'
             ? 'No service contacts yet.'
           : clientState.contactFilter === 'proposed'
-            ? 'No proposed clients yet.'
+            ? 'No proposed contacts yet.'
             : clientState.search.trim()
               ? 'No matches.'
-              : 'No clients yet.';
+              : 'No contacts yet.';
     empty.textContent = clientState.search.trim() && clientState.contactFilter === 'all'
       ? 'No matches.'
       : filterLabel;
@@ -576,8 +576,8 @@ function refreshClientsSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
     const visible = filterClientsForSidebar(clientState.clients);
-    const clientLabel = visible.length === 1 ? 'Client' : 'Clients';
-    searchInput.placeholder = `Search ${visible.length} ${clientLabel}`;
+    const contactLabel = visible.length === 1 ? 'Contact' : 'Contacts';
+    searchInput.placeholder = `Search ${visible.length} ${contactLabel}`;
   }
   fillClientsSidebarList(list);
 }
@@ -593,7 +593,7 @@ function startNewClient(opts = {}) {
   armTitleFocus('clients');
   shell.beginCreateDrawer({
     key: 'clients',
-    title: 'New Client',
+    title: 'New Contact',
     submitLabel: 'Add',
     onSubmit: async () => {
       const payload = newClientFormGetPayload?.();
@@ -628,7 +628,7 @@ function startNewClient(opts = {}) {
   renderClientsPane();
 }
 
-/** Switch to Clients and open the new-client form (optional email/name prefill). */
+/** Switch to Contacts and open the new-contact form (optional email/name prefill). */
 function navigateToNewClient(opts = {}) {
   pendingNewClientPrefill = {
     name: String(opts.name || '').trim(),
@@ -659,7 +659,7 @@ function renderClientsPane() {
     shell.appendEmptyDetailPane(pane, {
       mapKey: 'clients',
       iconName: 'users',
-      bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
+      bodyHtml: '<p>Select a contact to edit, or add a new one.</p>',
       btnLabel: 'Add New',
       onCreate: () => startNewClient(),
     });
@@ -679,12 +679,12 @@ function renderClientsEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const clientLabel = visibleCount === 1 ? 'Client' : 'Clients';
+  const contactLabel = visibleCount === 1 ? 'Contact' : 'Contacts';
   const subheader = listSearchSubheader({
     itemCount: visibleCount,
     search: {
       value: clientState.search,
-      placeholder: `Search ${visibleCount} ${clientLabel}`,
+      placeholder: `Search ${visibleCount} ${contactLabel}`,
       onInput: (value) => {
         clientState.search = value;
         scheduleClientSearch();
@@ -697,7 +697,7 @@ function renderClientsEditor() {
   const mapLink = document.createElement('a');
   mapLink.href = '/admin/client-map';
   mapLink.className = 'cl-client-map-link';
-  mapLink.textContent = 'Open client map';
+  mapLink.textContent = 'Open contact map';
   sidebar.appendChild(mapLink);
 
   const list = document.createElement('div');
@@ -748,7 +748,7 @@ function joinClientFullName(firstName, lastName, company = '') {
 }
 
 function clientDisplayLabel(draft) {
-  return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Client';
+  return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Contact';
 }
 
 function syncClientListAvatar(uid, patch = {}) {
@@ -778,7 +778,7 @@ function mountClientKindPill(parent, initialKind, onChange) {
     label: 'Type',
     value: normalizeClientKind(initialKind),
     options: CLIENT_KINDS.map((value) => ({ value, label: CLIENT_KIND_LABELS[value] })),
-    ariaLabel: 'Client type',
+    ariaLabel: 'Contact type',
     onChange,
   });
   parent.appendChild(pill.el);
@@ -981,7 +981,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   const hint = document.createElement('span');
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
-    ? 'Save the client first to upload logo and icon.'
+    ? 'Save the contact first to upload logo and icon.'
     : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Upload a file, pick from the Media library, or fetch logos from the website URL.';
 
   wrap.appendChild(uploads);
@@ -1151,7 +1151,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
 
   root.querySelector('#cl-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose client logo',
+      title: 'Choose contact logo',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-logo', uid);
@@ -1163,7 +1163,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
 
   root.querySelector('#cl-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose client icon',
+      title: 'Choose contact icon',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-icon', uid);
@@ -1430,7 +1430,7 @@ function renderEditClientForm(pane) {
         title: `${clientDisplayLabel(clientState.draft)} — portal`,
         recipient: {
           contactUid: uid,
-          name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Client',
+          name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Contact',
           email: clientState.draft.email,
           phone: clientState.draft.phone,
         },
@@ -1446,7 +1446,7 @@ function renderEditClientForm(pane) {
           agentBtn,
           shareBtn,
           paneDeleteIcon({
-            label: 'Delete client',
+            label: 'Delete contact',
             onClick: () => deleteClient(uid),
           }),
         ].filter(Boolean),
@@ -1720,7 +1720,7 @@ function renderEditClientForm(pane) {
 function clientBackLabel() {
   if (clientState.returnToWorkSlug) return 'Back to project';
   if (clientState.returnToScheduleUid) return 'Back to schedule';
-  return 'Back to clients';
+  return 'Back to contacts';
 }
 
 async function closeClientEditor(checkDirty = true) {
@@ -2069,7 +2069,7 @@ function createClientListItem(c) {
 
 function buildClientAgentPrompt(client, uid) {
   const label = clientDisplayLabel(client);
-  const lines = [`Client: ${label}`, `UID: ${uid}`];
+  const lines = [`Contact: ${label}`, `UID: ${uid}`];
   const person = joinClientFullName(client.firstName, client.lastName, '');
   if (person && person !== label) lines.push(`Name: ${person}`);
   if (client.company?.trim()) lines.push(`Company: ${client.company.trim()}`);

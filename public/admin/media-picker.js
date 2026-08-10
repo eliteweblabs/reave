@@ -1,7 +1,7 @@
 /**
  * Reusable media library picker — choose an image/file for branding, editors, and uploads.
  */
-import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260810a';
 import { closeOsDialogBackdrop, openOsDialogBackdrop } from './os-dialog.js?v=20260804c';
 
 const MEDIA_API = '/api/admin/media';

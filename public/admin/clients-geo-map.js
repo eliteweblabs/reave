@@ -2,7 +2,7 @@
  * Full-bleed admin client geo map — Mapbox markers with status toggles.
  */
 
-import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260810a';
 
 const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
 const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
@@ -94,12 +94,12 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   container.classList.add('cgm-root');
   container.innerHTML = `
-    <div class="cgm-map-host" id="cgm-map-host" role="img" aria-label="Client locations map"></div>
+    <div class="cgm-map-host" id="cgm-map-host" role="img" aria-label="Contact locations map"></div>
     <div class="cgm-chrome">
-      <a class="cgm-back" href="/admin/?tab=clients">← Clients</a>
+      <a class="cgm-back" href="/admin/?tab=clients">← Contacts</a>
       <div class="cgm-chrome-panel">
         <div class="cgm-chrome-top">
-          <h1 class="cgm-title">Client map</h1>
+          <h1 class="cgm-title">Contact map</h1>
           <p class="cgm-count" id="cgm-count" aria-live="polite"></p>
         </div>
         <div class="cgm-toggles" id="cgm-toggles" role="group" aria-label="Status toggles"></div>
@@ -115,7 +115,7 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cgm-map-empty';
-  emptyEl.textContent = 'No mapped clients for the statuses you have on.';
+  emptyEl.textContent = 'No mapped contacts for the statuses you have on.';
   mapHost.appendChild(emptyEl);
 
   const mapEl = document.createElement('div');
@@ -285,7 +285,7 @@ export function mountClientsGeoMap(container, opts = {}) {
           <strong>${escHtml(displayName(c))}</strong>
           <span class="cgm-popup-kind">${escHtml(CLIENT_KIND_LABELS[kind])}</span>
           ${c.address ? `<span class="cgm-popup-addr">${escHtml(c.address)}</span>` : ''}
-          <a href="/admin/?tab=clients&amp;client=${encodeURIComponent(c.uid)}">Open client</a>
+          <a href="/admin/?tab=clients&amp;client=${encodeURIComponent(c.uid)}">Open contact</a>
         </div>
       `;
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -343,7 +343,7 @@ export function mountClientsGeoMap(container, opts = {}) {
   }
 
   async function loadClients() {
-    setStatus('Loading clients…');
+    setStatus('Loading contacts…');
     try {
       const res = await adminFetch('/api/clients/map', { cache: 'no-store' });
       const data = await readAdminJson(res);

@@ -91,7 +91,7 @@ export async function recordVaultSubmitEngagement(opts: {
   contactName: string;
   labels: string[];
 }): Promise<EngagementEvent | null> {
-  const who = opts.contactName.trim() || 'Client';
+  const who = opts.contactName.trim() || 'Contact';
   const labels = opts.labels.map((l) => l.trim()).filter(Boolean);
   const labelSummary =
     labels.length === 0
@@ -130,7 +130,7 @@ export async function recordShareOpenEngagement(opts: {
   linkToken: string;
   destination?: string;
 }): Promise<EngagementEvent | null> {
-  const who = opts.contactName.trim() || 'Client';
+  const who = opts.contactName.trim() || 'Contact';
   const project = opts.jobTitle.trim() || opts.jobSlug;
   const dest = (opts.destination || '').toLowerCase();
   const kind = dest.includes('/deck')

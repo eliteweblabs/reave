@@ -272,7 +272,7 @@ async function handleListClients(params: Record<string, unknown>): Promise<SiriR
     if (clients.length === 0) {
       return {
         ok: true,
-        text: `No clients found matching "${query}"`,
+        text: `No contacts found matching "${query}"`,
         data: { clients: [] },
       };
     }
@@ -287,7 +287,7 @@ async function handleListClients(params: Record<string, unknown>): Promise<SiriR
 
     return {
       ok: true,
-      text: `Found ${clients.length} client${clients.length === 1 ? '' : 's'}:\n\n${lines.join('\n')}`,
+      text: `Found ${clients.length} contact${clients.length === 1 ? '' : 's'}:\n\n${lines.join('\n')}`,
       data: { clients },
     };
   }
@@ -308,7 +308,7 @@ async function handleListClients(params: Record<string, unknown>): Promise<SiriR
 
   return {
     ok: true,
-    text: `${clients.length} client${clients.length === 1 ? '' : 's'}:\n\n${lines.join('\n')}`,
+    text: `${clients.length} contact${clients.length === 1 ? '' : 's'}:\n\n${lines.join('\n')}`,
     data: { clients, total: result.data.total },
   };
 }
@@ -327,10 +327,10 @@ async function handleGetClient(params: Record<string, unknown>): Promise<SiriRes
   if (!result.found) {
     if (result.ambiguous?.length) {
       const names = result.ambiguous.map((c) => c.name).join(', ');
-      const msg = `Multiple clients match "${name}": ${names}. Please be more specific.`;
+      const msg = `Multiple contacts match "${name}": ${names}. Please be more specific.`;
       return { ok: false, error: msg, text: msg };
     }
-    const msg = `Client not found: ${name}. Would you like to add a new client?`;
+    const msg = `Contact not found: ${name}. Would you like to add a new contact?`;
     return { ok: false, error: msg, text: msg };
   }
 
@@ -375,7 +375,7 @@ async function handleCreateClient(params: Record<string, unknown>): Promise<Siri
   const summary = contactSummary(result.data);
   return {
     ok: true,
-    text: `Created client: ${summary.name}${summary.company ? ` (${summary.company})` : ''}`,
+    text: `Created contact: ${summary.name}${summary.company ? ` (${summary.company})` : ''}`,
     data: { client: summary },
   };
 }
@@ -451,7 +451,7 @@ async function resolveClientForProject(
 
     if (lookup.ambiguous?.length) {
       const names = lookup.ambiguous.map((c) => c.name).join(', ');
-      const msg = `Multiple clients match "${clientQuery}": ${names}. Please be more specific.`;
+      const msg = `Multiple contacts match "${clientQuery}": ${names}. Please be more specific.`;
       return { ok: false, error: msg, text: msg };
     }
   }
@@ -459,13 +459,13 @@ async function resolveClientForProject(
   const newName = buildPersonName(params);
   if (!newName) {
     const msg = clientQuery
-      ? `Client not found: ${clientQuery}. Provide first name and last name to create a new client.`
-      : 'Client first name and last name are required when no existing client is selected.';
+      ? `Contact not found: ${clientQuery}. Provide first name and last name to create a new contact.`
+      : 'Contact first name and last name are required when no existing contact is selected.';
     return { ok: false, error: msg, text: msg };
   }
 
   if (!String(params.name ?? '').trim() && (!firstName || !lastName)) {
-    const msg = 'First name and last name are required for a new client.';
+    const msg = 'First name and last name are required for a new contact.';
     return { ok: false, error: msg, text: msg };
   }
 
@@ -493,7 +493,7 @@ async function handleFindClient(params: Record<string, unknown>): Promise<SiriRe
   }
 
   const query = String(params.query ?? params.client ?? params.name ?? '').trim();
-  if (!query) return { ok: false, error: 'client or query is required' };
+  if (!query) return { ok: false, error: 'contact or query is required' };
 
   const result = await findClientStrictForSiri(query);
   if (!result.ok) return { ok: false, error: result.error };
@@ -501,12 +501,12 @@ async function handleFindClient(params: Record<string, unknown>): Promise<SiriRe
   if (!result.found) {
     if (result.ambiguous?.length) {
       const names = result.ambiguous.map((c) => c.name).join(', ');
-      const msg = `Multiple clients match "${query}": ${names}. Please be more specific.`;
+      const msg = `Multiple contacts match "${query}": ${names}. Please be more specific.`;
       return { ok: true, text: msg, data: { found: false, query, ambiguous: true } };
     }
     return {
       ok: true,
-      text: `Client not found: ${query}. Would you like to add a new client?`,
+      text: `Contact not found: ${query}. Would you like to add a new contact?`,
       data: { found: false, query },
     };
   }
@@ -601,7 +601,7 @@ async function handleCreateWork(params: Record<string, unknown>): Promise<SiriRe
 
   return {
     ok: true,
-    text: `Created work item: ${result.doc.title}\nStatus: ${result.doc.status}\nClient: ${result.doc.client}`,
+    text: `Created work item: ${result.doc.title}\nStatus: ${result.doc.status}\nContact: ${result.doc.client}`,
     data: { job: result.doc },
   };
 }

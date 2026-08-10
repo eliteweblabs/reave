@@ -37,9 +37,9 @@ import {
   showCopyButtonFeedback,
 } from './admin-ui.js?v=20260810a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260810a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initDocumentsPanel(). */
 let shell = {};
@@ -457,7 +457,7 @@ function renderEditForm(pane) {
           afterTitle: modeTabs,
           icons: [
             paneShareIcon({
-              label: 'Send to a client',
+              label: 'Send to a contact',
               onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
             }),
             paneDeleteIcon({

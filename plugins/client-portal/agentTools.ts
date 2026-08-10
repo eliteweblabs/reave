@@ -244,7 +244,7 @@ async function handle_get_client_submit_link(args: Record<string, unknown>, _ctx
     uid: target.uid,
     name: current.data.name,
     submit_url: submitUrl,
-    note: 'Send this link to the client — they can paste credentials or any handoff data directly from their browser. Entries appear in their Data tab.',
+    note: 'Send this link to the contact — they can paste credentials or any handoff data directly from their browser. Entries appear in their Data tab.',
   });
 }
 
@@ -263,7 +263,7 @@ async function handle_get_client_vcard_link(args: Record<string, unknown>, _ctx:
     name: current.data.name,
     vcard_url: `${clientPortalUrl(target.uid)}/card.vcf`,
     note:
-      'A real, always-live digital business card for THIS client to hand to their own customers/prospects (name, company, phone, email, website). Opening the link on a phone offers "Add to Contacts". Not staff-only — safe to send directly to the client. Do not create GitHub repos/files or invent a URL on the client\u2019s own website for this; this link is hosted by the app and always resolves.',
+      'A real, always-live digital business card for THIS contact to hand to their own customers/prospects (name, company, phone, email, website). Opening the link on a phone offers "Add to Contacts". Not staff-only — safe to send directly to the contact. Do not create GitHub repos/files or invent a URL on the client\u2019s own website for this; this link is hosted by the app and always resolves.',
   });
 }
 
@@ -282,7 +282,7 @@ async function handle_get_client_signature_link(args: Record<string, unknown>, _
     name: current.data.name,
     signature_url: `${clientPortalUrl(target.uid)}/signature.html`,
     note:
-      'A branded HTML email signature page for THIS client, built from their name/company/phone/email/website/logo. Open the link, click "Copy signature", then paste into Gmail Settings \u2192 General \u2192 Signature. Always live and self-updating (no separate generation/hosting step). Do not create GitHub repos/files or invent a URL on the client\u2019s own website for this.',
+      'A branded HTML email signature page for THIS contact, built from their name/company/phone/email/website/logo. Open the link, click "Copy signature", then paste into Gmail Settings \u2192 General \u2192 Signature. Always live and self-updating (no separate generation/hosting step). Do not create GitHub repos/files or invent a URL on the client\u2019s own website for this.',
   });
 }
 
@@ -373,12 +373,12 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'set_client_portal',
                 description:
-                  'Customize a client’s shareable portal page (every client already HAS a page; this sets optional content). Overview = headline/body/fields. Billing = automatic from Crater. Data tab = web-design handoff items (passwords, DNS, hosting) via the `data` param. The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the client by uid or by name (fuzzy-resolved; if ambiguous it returns candidates to confirm). Text updates merge; fields/data replace the prior list when provided. Set enabled:false to hide/revoke the page. Returns the shareable URL. Client-facing — does NOT expose the internal private notes field.',
+                  'Customize a client’s shareable portal page (every contact already HAS a page; this sets optional content). Overview = headline/body/fields. Billing = automatic from Crater. Data tab = web-design handoff items (passwords, DNS, hosting) via the `data` param. The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the contact by uid or by name (fuzzy-resolved; if ambiguous it returns candidates to confirm). Text updates merge; fields/data replace the prior list when provided. Set enabled:false to hide/revoke the page. Returns the shareable URL. Client-facing — does NOT expose the internal private notes field.',
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred if known)' },
-                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    name: { type: 'string', description: 'Contact name to resolve when uid is unknown' },
                     email: { type: 'string', description: 'Optional, improves name resolution' },
                     phone: { type: 'string', description: 'Optional, improves name resolution' },
                     headline: { type: 'string', description: 'Short title shown at the top of the portal' },
@@ -432,12 +432,12 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'get_client_portal',
                 description:
-                  'Get a client’s shareable portal link and its current custom content. Every client has a page by default, so the link is always valid unless the page was explicitly hidden (enabled:false). Identify by uid or name (fuzzy-resolved). Use to retrieve the link to send to a client or to review what they currently see.',
+                  'Get a client’s shareable portal link and its current custom content. Every contact has a page by default, so the link is always valid unless the page was explicitly hidden (enabled:false). Identify by uid or name (fuzzy-resolved). Use to retrieve the link to send to a contact or to review what they currently see.',
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred if known)' },
-                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    name: { type: 'string', description: 'Contact name to resolve when uid is unknown' },
                     email: { type: 'string' },
                     phone: { type: 'string' },
                   },
@@ -452,12 +452,12 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'get_client_submit_link',
                 description:
-                  'Get the data-submission link for a client (/c/:uid?submit). Send them this URL and they can paste hosting credentials, passwords, DNS records, or any other handoff info directly from their browser — entries are appended to their Data tab. Use this when you need to collect info FROM the client (e.g. "send John a link so he can give us his cPanel password"). Identify by uid or name (fuzzy-resolved).',
+                  'Get the data-submission link for a contact (/c/:uid?submit). Send them this URL and they can paste hosting credentials, passwords, DNS records, or any other handoff info directly from their browser — entries are appended to their Data tab. Use this when you need to collect info FROM the contact (e.g. "send John a link so he can give us his cPanel password"). Identify by uid or name (fuzzy-resolved).',
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred if known)' },
-                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    name: { type: 'string', description: 'Contact name to resolve when uid is unknown' },
                     email: { type: 'string' },
                     phone: { type: 'string' },
                   },
@@ -472,12 +472,12 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'get_client_vcard_link',
                 description:
-                  'Get a real, always-live link to THIS client\u2019s own digital business card (vCard) — for them to share with their own customers/prospects, e.g. "generate Reggie a vCard he can hand out". Built from their name/company/phone/email/website already on file; opening it on a phone offers "Add to Contacts". Different from the internal /c/:uid.vcf export (that one is staff-only, for saving the client to a staff member\u2019s own phone). Never fabricate a GitHub link or a URL on the client\u2019s own website for this — this tool\u2019s link is hosted by the app and is guaranteed to resolve. Identify by uid or name (fuzzy-resolved).',
+                  'Get a real, always-live link to THIS client\u2019s own digital business card (vCard) — for them to share with their own customers/prospects, e.g. "generate Reggie a vCard he can hand out". Built from their name/company/phone/email/website already on file; opening it on a phone offers "Add to Contacts". Different from the internal /c/:uid.vcf export (that one is staff-only, for saving the contact to a staff member\u2019s own phone). Never fabricate a GitHub link or a URL on the client\u2019s own website for this — this tool\u2019s link is hosted by the app and is guaranteed to resolve. Identify by uid or name (fuzzy-resolved).',
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred if known)' },
-                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    name: { type: 'string', description: 'Contact name to resolve when uid is unknown' },
                     email: { type: 'string' },
                     phone: { type: 'string' },
                   },
@@ -492,12 +492,12 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'get_client_signature_link',
                 description:
-                  'Get a real, always-live link to a branded HTML email signature for THIS client, e.g. "generate an email signature for this client". The page renders their name/company/phone/email/website/logo and has a "Copy signature" button to paste straight into Gmail/Outlook signature settings — no file to author or host yourself. Never fabricate a GitHub link or a URL on the client\u2019s own website for this — this tool\u2019s link is hosted by the app and is guaranteed to resolve. Identify by uid or name (fuzzy-resolved).',
+                  'Get a real, always-live link to a branded HTML email signature for THIS contact, e.g. "generate an email signature for this client". The page renders their name/company/phone/email/website/logo and has a "Copy signature" button to paste straight into Gmail/Outlook signature settings — no file to author or host yourself. Never fabricate a GitHub link or a URL on the client\u2019s own website for this — this tool\u2019s link is hosted by the app and is guaranteed to resolve. Identify by uid or name (fuzzy-resolved).',
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred if known)' },
-                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    name: { type: 'string', description: 'Contact name to resolve when uid is unknown' },
                     email: { type: 'string' },
                     phone: { type: 'string' },
                   },
@@ -512,12 +512,12 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'send_client_portal',
                 description:
-                  'Send a client their portal link directly to them via email (Resend) and/or SMS (Twilio). This is the "send the client link to <name>" command. Identify by uid or name (fuzzy-resolved). channel "auto" (default) emails them if an email is on file, otherwise texts them. Use the message field to add a short personal note. The page shows their details and any outstanding Crater invoices.',
+                  'Send a contact their portal link directly to them via email (Resend) and/or SMS (Twilio). This is the "send the contact link to <name>" command. Identify by uid or name (fuzzy-resolved). channel "auto" (default) emails them if an email is on file, otherwise texts them. Use the message field to add a short personal note. The page shows their details and any outstanding Crater invoices.',
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred if known)' },
-                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    name: { type: 'string', description: 'Contact name to resolve when uid is unknown' },
                     email: { type: 'string', description: 'Optional, improves name resolution' },
                     phone: { type: 'string', description: 'Optional, improves name resolution' },
                     channel: {

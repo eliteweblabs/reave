@@ -304,7 +304,7 @@ export async function notifyAdminAgentOfProjectReply(opts: {
   const post = getPostAlias();
   const projectLabel = displayProjectTitle(opts.jobTitle, opts.contactName);
   const messageLines = [
-    `🚨 URGENT — Client replied on a ${post.singular}`,
+    `🚨 URGENT — Contact replied on a ${post.singular}`,
     '',
     `Client: ${opts.contactName}`,
     `${post.singularTitle}: ${projectLabel}`,

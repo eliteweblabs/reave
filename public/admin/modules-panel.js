@@ -1,7 +1,7 @@
 /**
  * Admin modules monitor — live deployment status for optional feature modules.
  */
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260728q';
 
 const API = '/api/admin/deploy-status';
@@ -149,7 +149,7 @@ function renderPanel(data) {
     `<tbody>${modules.length ? modules.map(renderRow).join('') : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`}</tbody>` +
     `</table>` +
     `</div>` +
-    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Clients list) is always on and not listed here. Numeric IDs are for demo URLs: <code>?modules=[001,004]</code></p>` +
+    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts list) is always on and not listed here. Numeric IDs are for demo URLs: <code>?modules=[001,004]</code></p>` +
     `</div>`
   );
 }

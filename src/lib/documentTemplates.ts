@@ -20,17 +20,17 @@ export type Shortcode = {
   token: string;       // e.g. '{client.name}'
   label: string;       // e.g. 'Full name'
   description: string;
-  category: 'Client' | 'Date' | 'Company';
+  category: 'Contact' | 'Date' | 'Company';
 };
 
 export const SHORTCODES: Shortcode[] = [
-  { code: 'client.name',        token: '{client.name}',        label: 'Full name',        description: "Contact's full name",                  category: 'Client' },
-  { code: 'client.first_name',  token: '{client.first_name}',  label: 'First name',       description: "Contact's first name",                 category: 'Client' },
-  { code: 'client.last_name',   token: '{client.last_name}',   label: 'Last name',        description: "Contact's last name",                  category: 'Client' },
-  { code: 'client.email',       token: '{client.email}',       label: 'Email',            description: "Contact's email address",              category: 'Client' },
-  { code: 'client.phone',       token: '{client.phone}',       label: 'Phone',            description: "Contact's phone number",               category: 'Client' },
-  { code: 'client.company',     token: '{client.company}',     label: 'Company',          description: "Contact's company name",               category: 'Client' },
-  { code: 'client.company_str', token: '{client.company_str}', label: 'Company (inline)', description: '" · Company" or empty if none',        category: 'Client' },
+  { code: 'client.name',        token: '{client.name}',        label: 'Full name',        description: "Contact's full name",                  category: 'Contact' },
+  { code: 'client.first_name',  token: '{client.first_name}',  label: 'First name',       description: "Contact's first name",                 category: 'Contact' },
+  { code: 'client.last_name',   token: '{client.last_name}',   label: 'Last name',        description: "Contact's last name",                  category: 'Contact' },
+  { code: 'client.email',       token: '{client.email}',       label: 'Email',            description: "Contact's email address",              category: 'Contact' },
+  { code: 'client.phone',       token: '{client.phone}',       label: 'Phone',            description: "Contact's phone number",               category: 'Contact' },
+  { code: 'client.company',     token: '{client.company}',     label: 'Company',          description: "Contact's company name",               category: 'Contact' },
+  { code: 'client.company_str', token: '{client.company_str}', label: 'Company (inline)', description: '" · Company" or empty if none',        category: 'Contact' },
   { code: 'company.name',       token: '{company.name}',       label: 'Display name',     description: 'Your organization display name',       category: 'Company' },
   { code: 'company.legal_name', token: '{company.legal_name}', label: 'Legal name',       description: 'Legal entity name for contracts',      category: 'Company' },
   { code: 'company.domain',     token: '{company.domain}',     label: 'Domain',           description: 'Website hostname, e.g. example.com', category: 'Company' },

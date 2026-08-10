@@ -189,7 +189,7 @@ async function handle_resolve_contact(args: Record<string, unknown>, _ctx: ToolC
       return JSON.stringify({
         match: 'possible',
         candidates,
-        hint: 'Ask the user to confirm which client, then use contact_uid on create_work.',
+        hint: 'Ask the user to confirm which contact, then use contact_uid on create_work.',
       });
     }
     return JSON.stringify({ match: 'none', candidates: [] });
@@ -217,7 +217,7 @@ async function handle_resolve_contact(args: Record<string, unknown>, _ctx: ToolC
     return JSON.stringify({
       match: 'possible',
       candidates,
-      hint: 'Ask the user to confirm which client, then use contact_uid on create_work.',
+      hint: 'Ask the user to confirm which contact, then use contact_uid on create_work.',
     });
   }
 
@@ -399,7 +399,7 @@ async function handle_delete_contact(args: Record<string, unknown>, _ctx: ToolCo
   const { name: contactName, project_count, invoice_count, estimate_count, projects } = blockers.data;
   if ((project_count > 0 || invoice_count > 0 || estimate_count > 0) && !force) {
     const projectWarn = project_count > 0
-      ? `"${contactName}" has ${project_count} attached project(s). Deleting this client will permanently delete all attached projects.`
+      ? `"${contactName}" has ${project_count} attached project(s). Deleting this contact will permanently delete all attached projects.`
       : null;
     const billingReason =
       invoice_count > 0 && estimate_count > 0
@@ -451,7 +451,7 @@ export const contactsModule: AgentToolModule = {
             function: {
               name: 'resolve_contact',
               description:
-                'Find a client in contact-api by name, email, phone (last 4 digits ok), company, website/domain, or notes text (e.g. "guy with a mustache"). Returns match level and candidates when fuzzy — ask the user to confirm before create_work. Use q for free-text search across all those fields.',
+                'Find a contact in contact-api by name, email, phone (last 4 digits ok), company, website/domain, or notes text (e.g. "guy with a mustache"). Returns match level and candidates when fuzzy — ask the user to confirm before create_work. Use q for free-text search across all those fields.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -489,7 +489,7 @@ export const contactsModule: AgentToolModule = {
               function: {
                 name: 'create_contact',
                 description:
-                  'Add a new contact/client to the master contact-api. Use when the user wants to add a client or create a test client. For inquiry/audit prospects use kind "proposed". Returns the new contact uid and its portal_url.',
+                  'Add a new contact to the master contact-api. Use when the user wants to add a contact or create a test contact. For inquiry/audit prospects use kind "proposed". Returns the new contact uid and its portal_url.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -498,12 +498,12 @@ export const contactsModule: AgentToolModule = {
                     phone: { type: 'string' },
                     company: { type: 'string' },
                     notes: { type: 'string', description: 'Private internal notes (never shown on the client portal)' },
-                    website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
+                    website: { type: 'string', description: 'Contact website URL, e.g. https://example.com' },
                     kind: {
                       type: 'string',
                       enum: ['professional', 'service', 'personal', 'proposed'],
                       description:
-                        'Client type: professional (default project client), service (vendor/service provider), personal (non-project contact), or proposed (audit/prospect).',
+                        'Contact type: professional (default project client), service (vendor/service provider), personal (non-project contact), or proposed (audit/prospect).',
                     },
                   },
                   required: ['name'],
@@ -527,11 +527,11 @@ export const contactsModule: AgentToolModule = {
                     phone: { type: 'string' },
                     company: { type: 'string' },
                     notes: { type: 'string', description: 'Private internal notes' },
-                    website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
+                    website: { type: 'string', description: 'Contact website URL, e.g. https://example.com' },
                     kind: {
                       type: 'string',
                       enum: ['professional', 'service', 'personal', 'proposed'],
-                      description: 'Client type: professional (project client), service, personal, or proposed (audit/prospect).',
+                      description: 'Contact type: professional (project client), service, personal, or proposed (audit/prospect).',
                     },
                   },
                   additionalProperties: false,

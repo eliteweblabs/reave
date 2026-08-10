@@ -19,7 +19,7 @@
 
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
-  // Clients / entry points
+  // Contacts / entry points
   { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go · /digital-audit', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · @mentions · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
@@ -32,7 +32,7 @@ const SYSTEM_NODES = [
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
-  { id: 'contacts_dash', title: 'Clients editor', sub: '/admin/ · Clients tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
+  { id: 'contacts_dash', title: 'Contacts editor', sub: '/admin/ · Contacts tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.example.com · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
@@ -50,7 +50,7 @@ const SYSTEM_NODES = [
   { id: 'content_mgmt', title: 'Content management', sub: 'agent edits site · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
-  { id: 'client_map', title: 'Client geo map', sub: '/admin/client-map · Mapbox pins · status filters · /api/clients/map', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
+  { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · Mapbox pins · status filters · /api/clients/map', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
@@ -374,7 +374,7 @@ export const MAPS = {
   newsletter:{ id: 'newsletter',title: 'Newsletter', icon: '📰',  type: 'newsletter',    nodes: [],             edges: [],             groups: [] },
   work:      { id: 'work',      title: 'Projects',   icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
   schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
-  clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
+  clients:   { id: 'clients',   title: 'Contacts',   icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   social:    { id: 'social',    title: 'Social',     icon: '📣',  type: 'social',        nodes: [],             edges: [],             groups: [] },
   reviews:   { id: 'reviews',   title: 'Reviews',    icon: '⭐',  type: 'reviews',       nodes: [],             edges: [],             groups: [] },
   media:     { id: 'media',     title: 'Media',      icon: '🖼️', type: 'media',         nodes: [],             edges: [],             groups: [] },

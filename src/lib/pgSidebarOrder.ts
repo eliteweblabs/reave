@@ -1,5 +1,5 @@
 /**
- * Manual sidebar list order (chats, projects, knowledge, clients).
+ * Manual sidebar list order (chats, projects, knowledge, contacts).
  * Todos keep their own sort_order column on the todos table.
  */
 

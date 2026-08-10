@@ -6,7 +6,7 @@
  */
 
 import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260810a';
-import { escHtml } from './shared.js?v=20260808k';
+import { escHtml } from './shared.js?v=20260810a';
 
 /** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */
 export function setFilterNavScrollLeft(nav, left, { smooth = false } = {}) {
