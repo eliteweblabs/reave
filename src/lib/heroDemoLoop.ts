@@ -367,10 +367,10 @@ function createInvoiceSkeletonCard(): HTMLElement {
   return row;
 }
 
-/** Hold on the finished invoice before it swipes away. */
-const INVOICE_SIT_MS = 1000;
-/** Swipe duration — half the sit, so the exit reads snappier than the hold. */
-const INVOICE_SWIPE_MS = Math.round(INVOICE_SIT_MS / 2);
+/** Beat after the total pulse before the card swipes away. */
+const INVOICE_SIT_MS = 120;
+/** Swipe-off duration (CSS + wait). */
+const INVOICE_SWIPE_MS = 500;
 
 /**
  * After "View invoice": bounce a full-width skeleton invoice in, stagger a
@@ -442,10 +442,9 @@ async function playInvoicePaymentSkeleton(
     total.classList.add("home-hero-demo-sk-bone--total-pulse");
   }
 
-  await wait(900);
+  // Match the CSS pulse (unscaled) so we don't sit past the animation.
+  await sleep(850);
   if (!isAlive()) return;
-
-  // Hold, then swipe off to the right (half the sit) and fade.
   await wait(INVOICE_SIT_MS);
   if (!isAlive()) return;
 
