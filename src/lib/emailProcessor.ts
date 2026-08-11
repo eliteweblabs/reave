@@ -1459,6 +1459,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       body: otpPush.body,
       tag: `otp-${inboxRecord.id}`,
       emailId: inboxRecord.id,
+      verificationCode: verificationCode || undefined,
       kind: 'otp',
       urgent: true,
     }).catch((e) => console.warn('[email] otp push failed', e));

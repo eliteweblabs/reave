@@ -12940,7 +12940,23 @@ async function clipboardLooksLike(text) {
   }
 }
 
-async function copyEmailVerificationCode(code, nearEl) {
+/** One-tap fallback when iOS blocks clipboard writes without a fresh gesture. */
+async function promptCopyOtpCode(code) {
+  const text = String(code || '').trim();
+  if (!text) return false;
+  const ok = await osConfirm({
+    title: 'Verification code',
+    bodyHtml:
+      `<p class="admin-otp-code-display">${escHtml(text)}</p>` +
+      `<p>Tap Copy code, then paste in Safari.</p>`,
+    confirmLabel: 'Copy code',
+    cancelLabel: 'Not now',
+  });
+  if (!ok) return false;
+  return copyEmailVerificationCode(text, null, { fromPrompt: true });
+}
+
+async function copyEmailVerificationCode(code, nearEl, opts = {}) {
   const text = String(code || '').trim();
   if (!text) return false;
   let wrote = false;
@@ -12957,12 +12973,67 @@ async function copyEmailVerificationCode(code, nearEl) {
   // user gesture (e.g. auto-copy on open). Refuse to claim success if we can tell.
   const verified = await clipboardLooksLike(text);
   if (!wrote || verified === false) {
-    showChatToast('Tap the code to copy', nearEl);
+    if (opts.preferPromptOnFail && !opts.fromPrompt) return promptCopyOtpCode(text);
+    if (!opts.fromPrompt) showChatToast('Tap the code to copy', nearEl);
     return false;
   }
   if (nearEl) showCopyButtonFeedback(nearEl);
   else showChatToast('Copied — switch back to your browser to paste', nearEl);
   return true;
+}
+
+async function clearPendingOtpCopyStash() {
+  try {
+    const cache = await caches.open('reave-otp-v1');
+    await cache.delete('/pending-otp-copy');
+  } catch {
+    /* ignore */
+  }
+}
+
+let otpCopyInFlightCode = '';
+let otpCopyInFlightTimer = 0;
+
+async function handleOtpCopyFromPush(data) {
+  const code = String(data?.code || '').trim();
+  if (!code) return;
+  if (otpCopyInFlightCode === code) return;
+  otpCopyInFlightCode = code;
+  if (otpCopyInFlightTimer) clearTimeout(otpCopyInFlightTimer);
+  otpCopyInFlightTimer = window.setTimeout(() => {
+    otpCopyInFlightCode = '';
+    otpCopyInFlightTimer = 0;
+  }, 2500);
+  await clearPendingOtpCopyStash();
+  await copyEmailVerificationCode(code, null, { preferPromptOnFail: true });
+}
+
+async function handleOtpDeleteFromPush(data) {
+  const emailId = String(data?.emailId || '').trim();
+  const alertId = String(data?.alertId || '').trim();
+  if (emailId) {
+    let ev = emailState.allEvents.find((e) => e.id === emailId);
+    if (!ev) ev = { id: emailId, verificationCode: data?.code || null };
+    await deleteEmail(ev);
+    return;
+  }
+  if (alertId) await dismissPushAlertById(alertId).catch(() => undefined);
+}
+
+/** Cold-start path: SW stashes the code before openWindow. */
+async function consumePendingOtpCopy() {
+  try {
+    const cache = await caches.open('reave-otp-v1');
+    const res = await cache.match('/pending-otp-copy');
+    if (!res) return;
+    const data = await res.json();
+    await cache.delete('/pending-otp-copy');
+    if (!data?.code) return;
+    if (data.t && Date.now() - Number(data.t) > 120_000) return;
+    await handleOtpCopyFromPush(data);
+  } catch {
+    /* ignore */
+  }
 }
 
 function openEmailEvent(id) {
@@ -13502,11 +13573,15 @@ window.addEventListener('pageshow', () => {
   resumeClientDeepLinkFromUrl();
   queueTriageEmailFromUrl();
   void purgeExpiredOtpsQuietly();
+  void consumePendingOtpCopy();
 });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready
-    .then(() => refreshInboxBadgeQuiet())
+    .then(() => {
+      refreshInboxBadgeQuiet();
+      void consumePendingOtpCopy();
+    })
     .catch(() => undefined);
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet(true);
@@ -13514,6 +13589,8 @@ if ('serviceWorker' in navigator) {
     if (event.data?.type === 'reave-alert-dismiss' && event.data.alertId) {
       void dismissPushAlertById(event.data.alertId).catch(() => undefined);
     }
+    if (event.data?.type === 'reave-otp-copy') void handleOtpCopyFromPush(event.data);
+    if (event.data?.type === 'reave-otp-delete') void handleOtpDeleteFromPush(event.data);
   });
 }
 

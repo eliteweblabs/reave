@@ -379,7 +379,7 @@ export function formatOtpPushNotification(opts: {
   const code = opts.code?.trim();
   const title = `${purpose} — code ready`;
   const body = code
-    ? `Code ${code} — tap Copy code, then paste in Safari`
+    ? `Code ${code} — tap to copy, then paste in Safari`
     : 'Open the Email tab to copy your code — auto-deletes in 5 min';
   return { title, body };
 }

@@ -1,8 +1,10 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260810 — purge stale module caches on activate. */
+   v20260811 — OTP notification tap copies code to clipboard. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
+const OTP_COPY_CACHE = 'reave-otp-v1';
+const OTP_COPY_URL = '/pending-otp-copy';
 
 async function readBadgeCount() {
   try {
@@ -43,6 +45,105 @@ function notifyClientsInboxPush() {
   });
 }
 
+function notifyClientsDismissAlert(alertId) {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+    for (const client of clients) {
+      client.postMessage({ type: 'reave-alert-dismiss', alertId });
+    }
+  });
+}
+
+async function stashPendingOtpCopy(payload) {
+  try {
+    const cache = await caches.open(OTP_COPY_CACHE);
+    await cache.put(
+      OTP_COPY_URL,
+      new Response(JSON.stringify({ ...payload, t: Date.now() }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  } catch (e) {
+    console.warn('[sw] otp stash failed', e);
+  }
+}
+
+/** Focus an open admin window (or open one) and ask it to copy the OTP. */
+async function deliverOtpCopy(opts) {
+  const code = String(opts.code || '').trim();
+  if (!code) return;
+  const emailId = opts.emailId ? String(opts.emailId) : '';
+  const alertId = opts.alertId ? String(opts.alertId) : '';
+  const message = { type: 'reave-otp-copy', code, emailId, alertId };
+
+  await stashPendingOtpCopy({ code, emailId, alertId });
+
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of clients) {
+    client.postMessage(message);
+    if ('focus' in client) {
+      try {
+        await client.focus();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+  }
+  if (self.clients.openWindow) {
+    const opened = await self.clients.openWindow('/admin');
+    if (opened) {
+      try {
+        opened.postMessage(message);
+      } catch {
+        /* page reads the stash on boot */
+      }
+    }
+  }
+}
+
+async function deliverOtpDelete(opts) {
+  const emailId = opts.emailId ? String(opts.emailId) : '';
+  const alertId = opts.alertId ? String(opts.alertId) : '';
+  const message = { type: 'reave-otp-delete', emailId, alertId };
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of clients) {
+    client.postMessage(message);
+    if ('focus' in client) {
+      try {
+        await client.focus();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+  }
+  if (alertId) await notifyClientsDismissAlert(alertId);
+  if (self.clients.openWindow) {
+    const url = emailId
+      ? `/admin?tab=email&email=${encodeURIComponent(emailId)}`
+      : '/admin';
+    await self.clients.openWindow(url);
+  }
+}
+
+async function openNotificationUrl(absoluteUrl) {
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of clients) {
+    if ('focus' in client) {
+      client.postMessage({ type: 'reave-notification-open', url: absoluteUrl });
+      if ('navigate' in client) {
+        try {
+          await client.navigate(absoluteUrl);
+        } catch {
+          /* postMessage handler opens the target when navigate is unavailable */
+        }
+      }
+      return client.focus();
+    }
+  }
+  if (self.clients.openWindow) return self.clients.openWindow(absoluteUrl);
+}
+
 self.addEventListener('push', (event) => {
   let data = { title: 'New email', body: '', tag: 'inbox', url: '/admin?tab=email' };
   try {
@@ -54,8 +155,27 @@ self.addEventListener('push', (event) => {
   const badgeCount =
     data.badgeCount != null ? Math.max(0, Number(data.badgeCount) || 0) : null;
   const alertId = data.alertId ? String(data.alertId) : '';
+  const emailId = data.emailId ? String(data.emailId) : '';
+  const verificationCode = data.verificationCode ? String(data.verificationCode).trim() : '';
+  const kind = data.kind ? String(data.kind) : '';
   const tag = data.tag || 'inbox';
   const isAuditAlert = String(tag).toLowerCase().startsWith('siri-proposal-');
+  const isOtp = kind === 'otp' || String(tag).toLowerCase().startsWith('otp-');
+
+  let actions = [];
+  if (isOtp && verificationCode) {
+    actions = [
+      { action: 'copy', title: 'Copy code' },
+      { action: 'delete', title: 'Delete' },
+    ];
+  } else if (alertId) {
+    actions = isAuditAlert
+      ? [{ action: 'open', title: 'View' }]
+      : [
+          { action: 'archive', title: 'Archive' },
+          { action: 'open', title: 'View' },
+        ];
+  }
 
   const tasks = [
     self.registration.showNotification(data.title, {
@@ -63,15 +183,14 @@ self.addEventListener('push', (event) => {
       tag,
       icon: '/api/branding/icon?size=192',
       badge: '/api/branding/icon?size=192',
-      data: { url: data.url || '/admin?tab=email', alertId },
-      actions: alertId
-        ? isAuditAlert
-          ? [{ action: 'open', title: 'View' }]
-          : [
-              { action: 'archive', title: 'Archive' },
-              { action: 'open', title: 'View' },
-            ]
-        : [],
+      data: {
+        url: data.url || '/admin?tab=email',
+        alertId,
+        emailId,
+        verificationCode,
+        kind: isOtp ? 'otp' : kind,
+      },
+      actions,
     }),
     notifyClientsInboxPush(),
   ];
@@ -88,11 +207,38 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const alertId = event.notification.data?.alertId ? String(event.notification.data.alertId) : '';
-  const url = event.notification.data?.url || '/admin?tab=email';
+  const noteData = event.notification.data || {};
+  const alertId = noteData.alertId ? String(noteData.alertId) : '';
+  const emailId = noteData.emailId ? String(noteData.emailId) : '';
+  const verificationCode = noteData.verificationCode
+    ? String(noteData.verificationCode).trim()
+    : '';
+  const kind = noteData.kind ? String(noteData.kind) : '';
+  const tag = event.notification.tag ? String(event.notification.tag) : '';
+  const isOtp =
+    kind === 'otp' || tag.toLowerCase().startsWith('otp-') || Boolean(verificationCode);
+  const url = noteData.url || '/admin?tab=email';
   const absoluteUrl = new URL(url, self.location.origin).href;
+  const action = event.action || '';
 
-  if (event.action === 'archive' && alertId) {
+  if (isOtp && verificationCode && (action === 'copy' || action === '' || action === 'open')) {
+    event.waitUntil(
+      Promise.all([deliverOtpCopy({ code: verificationCode, emailId, alertId }), notifyClientsInboxPush()]),
+    );
+    return;
+  }
+
+  if (isOtp && action === 'delete') {
+    event.waitUntil(
+      Promise.all([
+        deliverOtpDelete({ emailId, alertId }),
+        notifyClientsInboxPush(),
+      ]),
+    );
+    return;
+  }
+
+  if (action === 'archive' && alertId) {
     event.waitUntil(
       Promise.all([
         notifyClientsDismissAlert(alertId),
@@ -103,35 +249,9 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   event.waitUntil(
-    Promise.all([
-      notifyClientsInboxPush(),
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
-        for (const client of clients) {
-          if ('focus' in client) {
-            client.postMessage({ type: 'reave-notification-open', url: absoluteUrl });
-            if ('navigate' in client) {
-              try {
-                await client.navigate(absoluteUrl);
-              } catch {
-                /* postMessage handler opens the target when navigate is unavailable */
-              }
-            }
-            return client.focus();
-          }
-        }
-        if (self.clients.openWindow) return self.clients.openWindow(absoluteUrl);
-      }),
-    ]),
+    Promise.all([notifyClientsInboxPush(), openNotificationUrl(absoluteUrl)]),
   );
 });
-
-function notifyClientsDismissAlert(alertId) {
-  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-    for (const client of clients) {
-      client.postMessage({ type: 'reave-alert-dismiss', alertId });
-    }
-  });
-}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
@@ -143,7 +263,11 @@ self.addEventListener('activate', (event) => {
       self.clients.claim(),
       restoreBadgeFromCache(),
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((key) => key !== BADGE_CACHE).map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter((key) => key !== BADGE_CACHE && key !== OTP_COPY_CACHE)
+            .map((key) => caches.delete(key)),
+        ),
       ),
     ]),
   );

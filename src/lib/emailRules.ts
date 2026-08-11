@@ -135,7 +135,7 @@ export const DEFAULT_RULES: EmailRule[] = [
     fields: ['subject', 'body'],
     notify: true,
     enabled: true,
-    summaryOverride: 'Verification code — open the Email tab and tap the code to copy.',
+    summaryOverride: 'Verification code — tap the push notification to copy.',
   },
 
   // ── 0b. AUTH / MAGIC LINKS (global — never junk) ────────────────────────
