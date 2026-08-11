@@ -4,6 +4,7 @@
 
 import { siriProposalSlugFromTag, workSlugFromAdminUrl } from './notificationFormat';
 import { storeAckEngagementEventsForJobSlug } from './engagementStore';
+import { scheduleReviewsBadgePush } from './pushBadgeSync';
 import { storeAckPushAlertsForWorkSlug } from './pushAlertStore';
 
 const PROJECT_LINKED_TYPES = new Set([
@@ -72,6 +73,7 @@ export async function storeAckNotificationsForDeletedWork(
     storeAckEngagementEventsForJobSlug(trimmed),
     storeAckPushAlertsForWorkSlug(trimmed),
   ]);
+  if (engagement > 0 || pushAlerts > 0) scheduleReviewsBadgePush();
   return { engagement, pushAlerts };
 }
 

@@ -171,6 +171,10 @@
 }
 .panel-list-subheader--stacked .em-filter-tabs {
   margin: 0;
+}
+/* Full-width only for standalone strips — email's --scroll strip must keep
+   width:auto so the trailing spacer can extend scrollWidth past Draft/Sent. */
+.panel-list-subheader--stacked .em-filter-tabs:not(.em-filter-tabs--scroll) {
   width: 100%;
 }
 .panel-list-subheader--stacked > .em-filter-tabs {

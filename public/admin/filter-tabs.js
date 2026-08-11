@@ -5,7 +5,7 @@
  * CSS: .em-filter-tabs, .em-filter-tab (see email.css + editor.css stacked subheader)
  */
 
-import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260810a';
+import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260811a';
 import { escHtml } from './shared.js?v=20260810a';
 
 /** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */
@@ -14,17 +14,24 @@ export function setFilterNavScrollLeft(nav, left, { smooth = false } = {}) {
   nav.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
 }
 
-/** Scroll a filter tab into the tab strip only when it is clipped. No-op if fully visible. */
-export function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
+/**
+ * Scroll a filter tab into the tab strip only when it is clipped. No-op if fully visible.
+ * @param {number} [rightInset] — pinned overlay width (e.g. Draft/Sent) excluded from the
+ *   visible range so tabs aren't considered "in view" while sitting under the pin.
+ */
+export function scrollFilterTabIntoViewIfNeeded(nav, tabEl, rightInset = 0) {
   if (!nav || !tabEl) return;
   const navRect = nav.getBoundingClientRect();
   const tabRect = tabEl.getBoundingClientRect();
-  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
+  const inset = Math.max(0, Number(rightInset) || 0);
+  const visibleLeft = navRect.left;
+  const visibleRight = navRect.right - inset;
+  if (tabRect.left >= visibleLeft && tabRect.right <= visibleRight) return;
   let delta = 0;
-  if (tabRect.left < navRect.left) {
-    delta = tabRect.left - navRect.left;
-  } else if (tabRect.right > navRect.right) {
-    delta = tabRect.right - navRect.right;
+  if (tabRect.left < visibleLeft) {
+    delta = tabRect.left - visibleLeft;
+  } else if (tabRect.right > visibleRight) {
+    delta = tabRect.right - visibleRight;
   }
   if (delta) setFilterNavScrollLeft(nav, nav.scrollLeft + delta, { smooth: false });
 }
@@ -37,11 +44,15 @@ export function captureFilterTabsScroll(root) {
   );
 }
 
-export function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
+export function mountFilterTabsScroll(nav, savedScrollLeft = 0, rightInset = 0) {
   if (!nav) return;
   requestAnimationFrame(() => {
     setFilterNavScrollLeft(nav, savedScrollLeft, { smooth: false });
-    scrollFilterTabIntoViewIfNeeded(nav, nav.querySelector('.em-filter-tab.active'));
+    scrollFilterTabIntoViewIfNeeded(
+      nav,
+      nav.querySelector('.em-filter-tab.active'),
+      rightInset,
+    );
   });
 }
 
@@ -79,6 +90,14 @@ export function syncEmailFilterFixedTabWidth(wrap) {
   };
   apply();
   requestAnimationFrame(apply);
+}
+
+/** Trailing spacer so the last scroll tab can clear pinned Draft/Sent + edge fade. */
+function createEmailFilterScrollSpacer() {
+  const spacer = document.createElement('span');
+  spacer.className = 'em-filter-tabs-scroll-spacer';
+  spacer.setAttribute('aria-hidden', 'true');
+  return spacer;
 }
 
 /**
@@ -293,9 +312,11 @@ export function mountListFilterTabsWrap(opts) {
     fixedNav.appendChild(btn);
   }
 
+  scrollNav.appendChild(createEmailFilterScrollSpacer());
   wrap.appendChild(scrollNav);
   wrap.appendChild(fixedNav);
-  mountFilterTabsScroll(scrollNav, savedScrollLeft);
+  syncEmailFilterFixedTabWidth(wrap);
+  mountFilterTabsScroll(scrollNav, savedScrollLeft, getFilterFixedTabWidth(wrap));
   return wrap;
 }
 
@@ -331,6 +352,7 @@ export function applyEmailFilterTabsScroll(wrap, savedScrollLeft = 0, filterId =
   if (!nav) return;
   const run = () => {
     syncEmailFilterFixedTabWidth(wrap);
+    const fixedWidth = getFilterFixedTabWidth(wrap);
     const activeTab = nav.querySelector('.em-filter-tab.active');
     const shouldCenter = centerActive && emailFilterShouldCenter(filterId);
     if (shouldCenter && activeTab) {
@@ -338,7 +360,7 @@ export function applyEmailFilterTabsScroll(wrap, savedScrollLeft = 0, filterId =
       return;
     }
     setFilterNavScrollLeft(nav, savedScrollLeft, { smooth: false });
-    scrollFilterTabIntoViewIfNeeded(nav, activeTab);
+    scrollFilterTabIntoViewIfNeeded(nav, activeTab, fixedWidth);
   };
   requestAnimationFrame(() => requestAnimationFrame(run));
 }

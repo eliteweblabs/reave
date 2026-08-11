@@ -3,11 +3,14 @@
  */
 
 import { storeUpdateEmailInbox } from './emailInboxStore';
+import { scheduleReviewsBadgePush } from './pushBadgeSync';
 import { storeAckPushAlertsForEmail } from './pushAlertStore';
 
 export type DismissEmailNotificationsOpts = {
   /** When false, skip setting automationAckAt (e.g. row is about to be deleted). Default true. */
   markAutomationAck?: boolean;
+  /** When false, skip scheduling a PWA icon badge sync push. Default true. */
+  syncBadge?: boolean;
 };
 
 /** Dismiss push alerts and automation review banners tied to an inbox message. */
@@ -27,6 +30,12 @@ export async function dismissEmailRelatedNotifications(
       markAutomationAck: true,
     }).catch(() => null);
     automationAcked = Boolean(updated?.automationAckAt);
+  }
+
+  // Always coalesce a badge sync — callers invoke this when a review surface
+  // changed (ack / archive / delete). Debouncing absorbs bulk dismissals.
+  if (opts?.syncBadge !== false) {
+    scheduleReviewsBadgePush();
   }
 
   return { pushAlertsAcked, automationAcked };

@@ -39,7 +39,7 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260810a';
+} from './admin-ui.js?v=20260811a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 

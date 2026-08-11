@@ -41,7 +41,7 @@ import {
   pullRefreshContentRoot,
   createInputClearAdornment,
   syncInputClearAdornment,
-} from './admin-ui.js?v=20260810a';
+} from './admin-ui.js?v=20260811a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
@@ -61,7 +61,7 @@ import {
   flushClientVaultSave,
 } from './work-panel.js?v=20260810c';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
-import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260811a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260811a';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';

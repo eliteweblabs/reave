@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260811 — OTP notification tap copies code to clipboard. */
+   v20260811c — Badge-sync push updates the icon count without a lasting tray alert. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -18,7 +18,6 @@ async function readBadgeCount() {
 }
 
 async function writeBadgeCount(n) {
-  if (!('setAppBadge' in navigator)) return;
   try {
     const cache = await caches.open(BADGE_CACHE);
     if (n <= 0) {
@@ -27,7 +26,7 @@ async function writeBadgeCount(n) {
       return;
     }
     await cache.put(BADGE_URL, new Response(String(n)));
-    await navigator.setAppBadge(n);
+    if ('setAppBadge' in navigator) await navigator.setAppBadge(n);
   } catch (e) {
     console.warn('[sw] badge failed', e);
   }
@@ -51,6 +50,31 @@ function notifyClientsDismissAlert(alertId) {
       client.postMessage({ type: 'reave-alert-dismiss', alertId });
     }
   });
+}
+
+async function closeMatchingNotifications(filter) {
+  try {
+    const notes = await self.registration.getNotifications();
+    const alertId = filter?.alertId ? String(filter.alertId) : '';
+    const emailId = filter?.emailId ? String(filter.emailId) : '';
+    const tag = filter?.tag ? String(filter.tag) : '';
+    for (const note of notes) {
+      const data = note.data || {};
+      if (alertId && String(data.alertId || '') === alertId) {
+        note.close();
+        continue;
+      }
+      if (emailId && String(data.emailId || '') === emailId) {
+        note.close();
+        continue;
+      }
+      if (tag && String(note.tag || '') === tag) {
+        note.close();
+      }
+    }
+  } catch (e) {
+    console.warn('[sw] close notifications failed', e);
+  }
 }
 
 async function stashPendingOtpCopy(payload) {
@@ -144,6 +168,60 @@ async function openNotificationUrl(absoluteUrl) {
   if (self.clients.openWindow) return self.clients.openWindow(absoluteUrl);
 }
 
+/** Archive from the OS notification when no admin window is open. */
+async function archiveAlertFromSw(alertId) {
+  const id = String(alertId || '').trim();
+  if (!id) return;
+  try {
+    const res = await fetch(`/api/admin/alerts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      credentials: 'include',
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data?.badgeCount != null) {
+        await writeBadgeCount(Math.max(0, Number(data.badgeCount) || 0));
+      }
+    }
+  } catch (e) {
+    console.warn('[sw] archive alert failed', e);
+  }
+}
+
+/**
+ * Badge-only sync push after dismissals. iOS requires showNotification for
+ * userVisibleOnly subscriptions, but this is not a real alert — update the
+ * icon badge, satisfy the push handler, then always close so dismiss/archive
+ * does not leave another "pending reviews" banner in the tray.
+ */
+async function presentBadgeSyncNotification(data, badgeCount) {
+  const count = badgeCount != null ? Math.max(0, Number(badgeCount) || 0) : null;
+  if (count != null) await writeBadgeCount(count);
+
+  await self.registration.showNotification(data.title || 'Inbox updated', {
+    body: data.body || '',
+    tag: 'reave-badge-sync',
+    silent: true,
+    icon: '/api/branding/icon?size=192',
+    badge: '/api/branding/icon?size=192',
+    data: {
+      url: data.url || '/admin?tab=dashboard',
+      badgeOnly: true,
+      kind: 'badge-sync',
+    },
+  });
+
+  try {
+    const notes = await self.registration.getNotifications({ tag: 'reave-badge-sync' });
+    for (const note of notes) note.close();
+  } catch {
+    /* ignore */
+  }
+
+  await notifyClientsInboxPush();
+}
+
 self.addEventListener('push', (event) => {
   let data = { title: 'New email', body: '', tag: 'inbox', url: '/admin?tab=email' };
   try {
@@ -161,6 +239,13 @@ self.addEventListener('push', (event) => {
   const tag = data.tag || 'inbox';
   const isAuditAlert = String(tag).toLowerCase().startsWith('siri-proposal-');
   const isOtp = kind === 'otp' || String(tag).toLowerCase().startsWith('otp-');
+  const isBadgeSync =
+    data.badgeOnly === true || kind === 'badge-sync' || String(tag) === 'reave-badge-sync';
+
+  if (isBadgeSync) {
+    event.waitUntil(presentBadgeSyncNotification(data, badgeCount));
+    return;
+  }
 
   let actions = [];
   if (isOtp && verificationCode) {
@@ -202,6 +287,10 @@ self.addEventListener('push', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'reave-badge-sync') {
     event.waitUntil(writeBadgeCount(Number(event.data.count) || 0));
+    return;
+  }
+  if (event.data?.type === 'reave-close-notifications') {
+    event.waitUntil(closeMatchingNotifications(event.data));
   }
 });
 
@@ -217,9 +306,18 @@ self.addEventListener('notificationclick', (event) => {
   const tag = event.notification.tag ? String(event.notification.tag) : '';
   const isOtp =
     kind === 'otp' || tag.toLowerCase().startsWith('otp-') || Boolean(verificationCode);
-  const url = noteData.url || '/admin?tab=email';
+  const isBadgeSync =
+    noteData.badgeOnly === true || kind === 'badge-sync' || tag === 'reave-badge-sync';
+  const url = noteData.url || (isBadgeSync ? '/admin?tab=dashboard' : '/admin?tab=email');
   const absoluteUrl = new URL(url, self.location.origin).href;
   const action = event.action || '';
+
+  if (isBadgeSync) {
+    event.waitUntil(
+      Promise.all([notifyClientsInboxPush(), openNotificationUrl(absoluteUrl)]),
+    );
+    return;
+  }
 
   if (isOtp && verificationCode && (action === 'copy' || action === '' || action === 'open')) {
     event.waitUntil(
@@ -240,10 +338,19 @@ self.addEventListener('notificationclick', (event) => {
 
   if (action === 'archive' && alertId) {
     event.waitUntil(
-      Promise.all([
-        notifyClientsDismissAlert(alertId),
-        notifyClientsInboxPush(),
-      ]),
+      (async () => {
+        const clients = await self.clients.matchAll({
+          type: 'window',
+          includeUncontrolled: true,
+        });
+        if (clients.length) {
+          await notifyClientsDismissAlert(alertId);
+        } else {
+          // No open admin window — dismiss on the server and set the badge here.
+          await archiveAlertFromSw(alertId);
+        }
+        await notifyClientsInboxPush();
+      })(),
     );
     return;
   }

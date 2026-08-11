@@ -25,7 +25,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260810a';
+} from './admin-ui.js?v=20260811a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260728j';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
