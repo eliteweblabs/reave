@@ -841,13 +841,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
   }
 
-  .home-hero-demo-action--primary {
+  /* Simulated pointer hover — applied by the demo loop, not at render. */
+  .home-hero-demo-action--hover {
     background: rgba(255, 255, 255, 0.16);
     border-color: rgba(255, 255, 255, 0.28);
-  }
-
-  .home-hero-demo-action--secondary {
-    background: rgba(255, 255, 255, 0.06);
   }
 
   .home-hero-demo-action--pressed {

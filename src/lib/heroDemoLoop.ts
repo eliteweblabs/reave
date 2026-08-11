@@ -40,7 +40,14 @@ const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 /** Outro fade when a mock conversation ends — keep in sync with CSS. */
 const SCENE_EXIT_MS = 350;
-const ACTION_PRESS_MS = 900;
+/** Dwell after action chips appear before the hover scan starts. */
+const ACTION_APPEAR_MS = 420;
+/** How long each chip stays “hovered” during the scan. */
+const ACTION_HOVER_MS = 320;
+/** Hold on the chosen chip after the scan, before the click. */
+const ACTION_HOVER_SETTLE_MS = 280;
+/** Simulated click / press duration. */
+const ACTION_PRESS_MS = 520;
 /** Full hero background bright pulse after a simulated action click. */
 const SECTION_PULSE_MS = 1000;
 const SLASH_PICKER_ARROW_MS = 380;
@@ -300,8 +307,9 @@ function renderActions(actions: HeroDemoAction[]): HTMLElement {
   for (const action of actions) {
     const chip = document.createElement("span");
     chip.className = "home-hero-demo-action";
-    if (action.variant === "primary") chip.classList.add("home-hero-demo-action--primary");
-    if (action.variant === "secondary") chip.classList.add("home-hero-demo-action--secondary");
+    // Primary marks the intended click target for the demo loop — no visual
+    // pre-highlight; hover/press classes are applied during the scan.
+    if (action.variant === "primary") chip.dataset.heroPrimary = "1";
     if (action.effect) chip.dataset.heroEffect = action.effect;
     chip.textContent = action.label;
     wrap.appendChild(chip);
@@ -1648,7 +1656,7 @@ async function playAssistantTurn(
     relayout(true);
 
     if (turn.actions?.length) {
-      await wait(ACTION_PRESS_MS + 400);
+      await wait(ACTION_APPEAR_MS);
       if (!isAlive()) return priorAssistantRow;
       await simulateActionPress(
         priorAssistantRow,
@@ -1711,12 +1719,57 @@ async function playAssistantTurn(
   }
 
   if (turn.actions?.length) {
-    await wait(ACTION_PRESS_MS + 400);
+    await wait(ACTION_APPEAR_MS);
     if (!isAlive()) return typing;
     await simulateActionPress(typing, sceneEl, root, relayout, reducedMotion, isAlive);
   }
 
   return typing;
+}
+
+function clearActionHover(chips: HTMLElement[]): void {
+  for (const chip of chips) chip.classList.remove("home-hero-demo-action--hover");
+}
+
+/**
+ * Hover scan across action chips (L→R or R→L, random), then press the intended
+ * target. Chips start neutral — nothing is pre-highlighted at render.
+ */
+async function simulateActionHoverScan(
+  chips: HTMLElement[],
+  target: HTMLElement,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  if (chips.length === 0) return;
+
+  if (reducedMotion || chips.length === 1) {
+    target.classList.add("home-hero-demo-action--hover");
+    await wait(reducedMotion ? 180 : ACTION_HOVER_SETTLE_MS);
+    if (!isAlive()) return;
+    return;
+  }
+
+  const ltr = Math.random() < 0.5;
+  const order = ltr ? chips.slice() : chips.slice().reverse();
+
+  for (const chip of order) {
+    clearActionHover(chips);
+    chip.classList.add("home-hero-demo-action--hover");
+    await wait(ACTION_HOVER_MS);
+    if (!isAlive()) return;
+  }
+
+  // If the scan ended on a different chip, settle on the intended one.
+  if (order[order.length - 1] !== target) {
+    clearActionHover(chips);
+    target.classList.add("home-hero-demo-action--hover");
+    await wait(ACTION_HOVER_SETTLE_MS);
+    if (!isAlive()) return;
+  } else {
+    await wait(ACTION_HOVER_SETTLE_MS * 0.6);
+    if (!isAlive()) return;
+  }
 }
 
 async function simulateActionPress(
@@ -1727,15 +1780,23 @@ async function simulateActionPress(
   reducedMotion: boolean,
   isAlive: () => boolean,
 ): Promise<void> {
+  const chips = [
+    ...row.querySelectorAll<HTMLElement>(".home-hero-demo-action"),
+  ];
+  if (chips.length === 0) return;
+
   const withEffect = row.querySelector<HTMLElement>(".home-hero-demo-action[data-hero-effect]");
-  const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
-  const target = withEffect ?? primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
-  if (!target) return;
+  const primary = row.querySelector<HTMLElement>(".home-hero-demo-action[data-hero-primary]");
+  const target = withEffect ?? primary ?? chips[0]!;
+
+  await simulateActionHoverScan(chips, target, reducedMotion, isAlive);
+  if (!isAlive()) return;
+
+  clearActionHover(chips);
+  target.classList.add("home-hero-demo-action--pressed");
 
   const hero = row.closest<HTMLElement>(".home-hero");
   const effect = target.dataset.heroEffect;
-
-  target.classList.add("home-hero-demo-action--pressed");
 
   if (hero && !reducedMotion) {
     hero.classList.remove("home-hero--action-pulse");
