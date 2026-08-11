@@ -11,6 +11,7 @@ import { techStackModule } from './core/techStack';
 import { playwrightAuditModule } from './core/playwrightAudit';
 import { chatsModule } from './core/chats';
 import { sshModule } from './core/ssh';
+import { wpModule } from './core/wp';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -32,8 +33,13 @@ import type { AgentToolModule } from './types';
  *
  * SSH remote execution (`exec_ssh`) lives in `core/ssh.ts` — enabled when
  * KINSTA_SSH_HOST + KINSTA_SSH_USER + KINSTA_SSH_PRIVATE_KEY are set. Used
- * for WP-CLI commands on Kinsta WordPress environments (fix noindex, install
- * plugins, update options, flush cache, etc.).
+ * for WP-CLI commands on Kinsta WordPress environments.
+ *
+ * WordPress remote management (`exec_wp`) lives in `core/wp.ts` — enabled when
+ * REAVE_WP_API_KEY is set. Calls the reave-connect plugin REST API across all
+ * managed WordPress sites with a single shared API key. Supports enable/disable
+ * indexing, install/activate plugins, flush cache, update options, and more.
+ * Plugin auto-updates from https://reave.app/api/wp-update/reave-connect/
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -46,6 +52,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   playwrightAuditModule,
   chatsModule,
   sshModule,
+  wpModule,
 ];
 
 /** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */
