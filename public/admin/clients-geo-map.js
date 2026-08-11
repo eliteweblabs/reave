@@ -178,14 +178,15 @@ export function mountClientsGeoMap(container, opts = {}) {
       .cgm-toggle-label { font-size:.86rem; font-weight:600; }
       .cgm-toggle-count { margin-left:auto; font-size:.75rem; color:#8b949e; font-variant-numeric:tabular-nums; }
       .cgm-toggle:not(.is-on) { opacity:.55; }
-      .cgm-pin { position:relative; width:36px; height:44px; padding:0; border:none; background:transparent; cursor:pointer;
+      .cgm-pin { position:relative; width:36px; height:42px; padding:0; border:none; background:transparent; cursor:pointer;
         filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
-      .cgm-pin-face { position:absolute; top:0; left:50%; transform:translateX(-50%); width:32px; height:32px; border-radius:50%;
+      .cgm-pin-face { position:absolute; top:4px; left:50%; transform:translateX(-50%); width:32px; height:32px; border-radius:50%;
         border:2.5px solid var(--cgm-kind,#2563eb); background:#fff; overflow:hidden; display:flex; align-items:center; justify-content:center; z-index:1; }
       .cgm-pin-face--initial { background:var(--cgm-kind,#2563eb); color:#fff; font-size:.85rem; font-weight:700; }
       .cgm-pin-icon { width:100%; height:100%; object-fit:cover; display:block; }
-      .cgm-pin-tip { position:absolute; left:50%; bottom:2px; width:12px; height:12px; transform:translateX(-50%) rotate(45deg);
-        background:var(--cgm-kind,#2563eb); border-radius:0 0 2px 0; }
+      /* Tip tucked under the face — circle sits on the diamond so the pin reads as one shape. */
+      .cgm-pin-tip { position:absolute; left:50%; top:22px; width:14px; height:14px; transform:translateX(-50%) rotate(45deg);
+        background:var(--cgm-kind,#2563eb); border-radius:0 0 2px 0; z-index:0; }
       .cgm-status { position:absolute; z-index:6; left:50%; bottom:max(1rem, env(safe-area-inset-bottom)); transform:translateX(-50%);
         max-width:min(420px, calc(100vw - 2rem)); padding:.7rem .95rem; border-radius:10px; border:1px solid rgba(48,54,61,.95);
         background:rgba(22,27,34,.92); font-size:.88rem; }
@@ -499,8 +500,8 @@ export function mountClientsGeoMap(container, opts = {}) {
           icon: leaflet.divIcon({
             className: '',
             html: pin.outerHTML,
-            iconSize: [36, 44],
-            iconAnchor: [18, 44],
+            iconSize: [36, 42],
+            iconAnchor: [18, 42],
           }),
         });
         marker.bindPopup(popupHtml(c));

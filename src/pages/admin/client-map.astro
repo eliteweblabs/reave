@@ -273,7 +273,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
       .cgm-pin {
         position: relative;
         width: 36px;
-        height: 44px;
+        height: 42px;
         padding: 0;
         border: none;
         background: transparent;
@@ -283,7 +283,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
 
       .cgm-pin-face {
         position: absolute;
-        top: 0;
+        top: 4px;
         left: 50%;
         transform: translateX(-50%);
         width: 32px;
@@ -312,15 +312,17 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         display: block;
       }
 
+      /* Tip tucked under the face — circle sits on the diamond so the pin reads as one shape. */
       .cgm-pin-tip {
         position: absolute;
         left: 50%;
-        bottom: 2px;
-        width: 12px;
-        height: 12px;
+        top: 22px;
+        width: 14px;
+        height: 14px;
         transform: translateX(-50%) rotate(45deg);
         background: var(--cgm-kind, #2563eb);
         border-radius: 0 0 2px 0;
+        z-index: 0;
       }
 
       .cgm-pin.is-active {
