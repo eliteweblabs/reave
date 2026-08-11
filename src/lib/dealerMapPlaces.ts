@@ -15,6 +15,10 @@ export type DealerPlace = {
   lng: number;
   phone?: string;
   website?: string;
+  /** Favicon / Places photo URL for pin face (may be relative). */
+  logoUrl?: string;
+  /** Places photo resource name for /api/dealer-map/photo */
+  photoName?: string;
   rating?: number;
   userRatingCount?: number;
   /** Demo estimate of used-car lot size (not from Google). */
@@ -40,6 +44,7 @@ type RawPlace = {
   userRatingCount?: number;
   types?: string[];
   primaryType?: string;
+  photos?: Array<{ name?: string }>;
 };
 
 const FIELD_MASK = [
@@ -53,6 +58,7 @@ const FIELD_MASK = [
   'places.userRatingCount',
   'places.types',
   'places.primaryType',
+  'places.photos',
 ].join(',');
 
 function cleanAddress(address: string | undefined): string {
@@ -80,7 +86,6 @@ export function estimateDealerInventory(
 ): { inventoryEstimate: number; inventoryBucket: DealerInventoryBucket } {
   const reviews = Number.isFinite(userRatingCount) ? Math.max(0, Number(userRatingCount)) : 0;
   const jitter = (hashPlaceId(placeId) % 40) - 12; // -12 … +27
-  // Small lots cluster under ~20 reviews; mid under ~80; large above that.
   const base =
     reviews <= 0
       ? 28 + (hashPlaceId(placeId) % 90)
@@ -93,6 +98,17 @@ export function estimateDealerInventory(
   const inventoryBucket: DealerInventoryBucket =
     inventoryEstimate <= 50 ? '1-50' : inventoryEstimate <= 100 ? '51-100' : '101-200';
   return { inventoryEstimate, inventoryBucket };
+}
+
+function faviconFromWebsite(website: string | undefined): string | undefined {
+  if (!website) return undefined;
+  try {
+    const host = new URL(website).hostname;
+    if (!host) return undefined;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;
+  } catch {
+    return undefined;
+  }
 }
 
 function toDealerPlace(raw: RawPlace | undefined): DealerPlace | null {
@@ -115,6 +131,12 @@ function toDealerPlace(raw: RawPlace | undefined): DealerPlace | null {
   );
 
   const rating = Number(raw?.rating);
+  const website = String(raw?.websiteUri ?? '').trim() || undefined;
+  const photoName = String(raw?.photos?.[0]?.name ?? '').trim() || undefined;
+  const favicon = faviconFromWebsite(website);
+  const logoUrl =
+    favicon ||
+    (photoName ? `/api/dealer-map/photo?name=${encodeURIComponent(photoName)}&size=64` : undefined);
 
   return {
     placeId,
@@ -123,7 +145,9 @@ function toDealerPlace(raw: RawPlace | undefined): DealerPlace | null {
     lat,
     lng,
     phone: String(raw?.nationalPhoneNumber ?? '').trim() || undefined,
-    website: String(raw?.websiteUri ?? '').trim() || undefined,
+    website,
+    logoUrl,
+    photoName,
     rating: Number.isFinite(rating) ? rating : undefined,
     userRatingCount: Number.isFinite(userRatingCount) ? userRatingCount : undefined,
     inventoryEstimate,
@@ -139,7 +163,6 @@ function normalizeBounds(bounds: DealerMapBounds): DealerMapBounds | null {
   if (![south, west, north, east].every(Number.isFinite)) return null;
   if (south < -90 || north > 90 || south >= north) return null;
   if (west < -180 || east > 180 || west >= east) return null;
-  // Reject continent-scale boxes — Places returns noise and burns quota.
   const latSpan = north - south;
   const lngSpan = east - west;
   if (latSpan > 4 || lngSpan > 4) return null;
@@ -169,13 +192,12 @@ function biasRadiusMeters(bounds: DealerMapBounds): number {
   };
   const corner = { lat: bounds.north, lng: bounds.east };
   const halfDiag = haversineMeters(center, corner);
-  return Math.max(1500, Math.min(50_000, Math.round(halfDiag * 1.15)));
+  return Math.max(2000, Math.min(50_000, Math.round(halfDiag * 1.25)));
 }
 
 /**
- * Search used-car dealerships near the viewport.
- * Uses Text Search + locationBias circle (restriction rectangles often reject
- * metro-sized viewports; bias + client-side filter works more reliably).
+ * Search used-car dealerships near the viewport center.
+ * Returns Places hits within the bias radius (client filters to the map view).
  */
 export async function searchUsedCarDealersInBounds(
   boundsInput: DealerMapBounds,
@@ -241,25 +263,11 @@ export async function searchUsedCarDealersInBounds(
   const dealers: DealerPlace[] = [];
   const seen = new Set<string>();
 
-  // Soft padding so pins near the edge of the view still show.
-  const padLat = (bounds.north - bounds.south) * 0.08;
-  const padLng = (bounds.east - bounds.west) * 0.08;
-  const filterBounds = {
-    south: bounds.south - padLat,
-    north: bounds.north + padLat,
-    west: bounds.west - padLng,
-    east: bounds.east + padLng,
-  };
-
   for (const raw of data?.places ?? []) {
     const place = toDealerPlace(raw);
     if (!place || seen.has(place.placeId)) continue;
-    if (
-      place.lat < filterBounds.south ||
-      place.lat > filterBounds.north ||
-      place.lng < filterBounds.west ||
-      place.lng > filterBounds.east
-    ) {
+    // Keep anything inside the search circle — client clips to the viewport.
+    if (haversineMeters(center, { lat: place.lat, lng: place.lng }) > radius * 1.15) {
       continue;
     }
     seen.add(place.placeId);
@@ -273,4 +281,63 @@ export async function searchUsedCarDealersInBounds(
   );
 
   return { ok: true, dealers };
+}
+
+/** Stream a Places photo (pin-sized) — keeps the Maps API key server-side. */
+export async function fetchDealerPlacePhoto(
+  photoName: string,
+  size = 64,
+): Promise<{ ok: true; body: ArrayBuffer; contentType: string } | { ok: false; status: number; error: string }> {
+  const name = String(photoName ?? '')
+    .trim()
+    .replace(/^\/+/, '');
+  if (!name.startsWith('places/') || !name.includes('/photos/')) {
+    return { ok: false, status: 400, error: 'Invalid photo name' };
+  }
+
+  const apiKey = getGoogleMapsApiKey();
+  if (!apiKey) {
+    return { ok: false, status: 503, error: 'GOOGLE_MAPS_API_KEY is not configured' };
+  }
+
+  const px = Math.max(32, Math.min(256, Math.round(Number(size) || 64)));
+  const url =
+    `https://places.googleapis.com/v1/${name}/media` +
+    `?maxHeightPx=${px}&maxWidthPx=${px}&skipHttpRedirect=true`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { 'X-Goog-Api-Key': apiKey },
+    });
+  } catch {
+    return { ok: false, status: 502, error: 'Photo request failed' };
+  }
+
+  if (!response.ok) {
+    return { ok: false, status: response.status === 429 ? 429 : 502, error: `Photo ${response.status}` };
+  }
+
+  // skipHttpRedirect returns JSON with photoUri, or may return the image directly.
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = (await response.json().catch(() => null)) as { photoUri?: string } | null;
+    const photoUri = data?.photoUri;
+    if (!photoUri) return { ok: false, status: 502, error: 'No photoUri' };
+    try {
+      const img = await fetch(photoUri);
+      if (!img.ok) return { ok: false, status: 502, error: `Photo fetch ${img.status}` };
+      const body = await img.arrayBuffer();
+      return {
+        ok: true,
+        body,
+        contentType: img.headers.get('content-type') || 'image/jpeg',
+      };
+    } catch {
+      return { ok: false, status: 502, error: 'Photo fetch failed' };
+    }
+  }
+
+  const body = await response.arrayBuffer();
+  return { ok: true, body, contentType: contentType || 'image/jpeg' };
 }

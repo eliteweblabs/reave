@@ -26,7 +26,9 @@ const BUCKET_COLORS = {
 
 /** Below this zoom, Places search is skipped (region too large). */
 const MIN_SEARCH_ZOOM = 9;
-const SEARCH_DEBOUNCE_MS = 550;
+const SEARCH_DEBOUNCE_MS = 450;
+/** Popup tip clears the 44px pin (was overlapping at offset 18). */
+const POPUP_OFFSET_PX = 52;
 
 /** Default: Metro West Boston — close enough that Places search runs immediately. */
 const DEFAULT_CENTER = { lng: -71.4162, lat: 42.2793 }; // Framingham / MetroWest
@@ -165,8 +167,10 @@ export function mountDealerGeoMap(container, opts = {}) {
       .dgm-pin { position:relative; width:36px; height:44px; padding:0; border:none; background:transparent; cursor:pointer;
         filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
       .dgm-pin-face { position:absolute; top:0; left:50%; transform:translateX(-50%); width:32px; height:32px; border-radius:50%;
-        border:2.5px solid var(--dgm-bucket,#2563eb); background:var(--dgm-bucket,#2563eb); color:#fff; font-size:.72rem; font-weight:700;
+        border:2.5px solid var(--dgm-bucket,#2563eb); background:#fff; color:#fff; font-size:.72rem; font-weight:700;
         overflow:hidden; display:flex; align-items:center; justify-content:center; z-index:1; }
+      .dgm-pin-face--initial { background:var(--dgm-bucket,#2563eb); }
+      .dgm-pin-icon { width:100%; height:100%; object-fit:cover; display:block; }
       .dgm-pin-tip { position:absolute; left:50%; bottom:2px; width:12px; height:12px; transform:translateX(-50%) rotate(45deg);
         background:var(--dgm-bucket,#2563eb); border-radius:0 0 2px 0; }
       .dgm-status { position:absolute; z-index:6; left:50%; bottom:max(1rem, env(safe-area-inset-bottom)); transform:translateX(-50%);
@@ -249,16 +253,51 @@ export function mountDealerGeoMap(container, opts = {}) {
     return Array.from(dealersById.values());
   }
 
+  /** Pads the current map bounds so edge pins stay while panning a little. */
+  function viewBoundsPadded() {
+    const b = getBounds();
+    if (!b) return null;
+    const padLat = (b.north - b.south) * 0.12;
+    const padLng = (b.east - b.west) * 0.12;
+    return {
+      south: b.south - padLat,
+      north: b.north + padLat,
+      west: b.west - padLng,
+      east: b.east + padLng,
+    };
+  }
+
+  function inView(d, vb) {
+    if (!vb) return true;
+    return d.lat >= vb.south && d.lat <= vb.north && d.lng >= vb.west && d.lng <= vb.east;
+  }
+
   function visibleDealers() {
-    return allDealers().filter((d) => enabledBuckets[bucketOf(d)]);
+    const vb = viewBoundsPadded();
+    return allDealers().filter((d) => enabledBuckets[bucketOf(d)] && inView(d, vb));
   }
 
   function bucketCounts() {
     const counts = { '1-50': 0, '51-100': 0, '101-200': 0 };
+    const vb = viewBoundsPadded();
     for (const d of allDealers()) {
+      if (!inView(d, vb)) continue;
       counts[bucketOf(d)] += 1;
     }
     return counts;
+  }
+
+  /** Drop dealers far from the current view so the cache follows the map. */
+  function pruneFarDealers() {
+    const b = getBounds();
+    if (!b || dealersById.size < 30) return;
+    const center = { lat: (b.south + b.north) / 2, lng: (b.west + b.east) / 2 };
+    const maxDeg = Math.max(b.north - b.south, b.east - b.west) * 2.5;
+    for (const [id, d] of dealersById) {
+      if (Math.abs(d.lat - center.lat) > maxDeg || Math.abs(d.lng - center.lng) > maxDeg) {
+        dealersById.delete(id);
+      }
+    }
   }
 
   function setStatus(msg, { error = false, loading = false } = {}) {
@@ -361,7 +400,29 @@ export function mountDealerGeoMap(container, opts = {}) {
 
     const face = document.createElement('span');
     face.className = 'dgm-pin-face';
-    face.textContent = pinInitial(d.name);
+    const logoUrl = typeof d.logoUrl === 'string' ? d.logoUrl.trim() : '';
+    if (logoUrl) {
+      const img = document.createElement('img');
+      img.className = 'dgm-pin-icon';
+      img.src = logoUrl;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      img.addEventListener(
+        'error',
+        () => {
+          face.replaceChildren();
+          face.textContent = pinInitial(d.name);
+          face.classList.add('dgm-pin-face--initial');
+        },
+        { once: true },
+      );
+      face.appendChild(img);
+    } else {
+      face.textContent = pinInitial(d.name);
+      face.classList.add('dgm-pin-face--initial');
+    }
 
     const tip = document.createElement('span');
     tip.className = 'dgm-pin-tip';
@@ -443,7 +504,7 @@ export function mountDealerGeoMap(container, opts = {}) {
             iconAnchor: [18, 44],
           }),
         });
-        marker.bindPopup(popupHtml(d));
+        marker.bindPopup(popupHtml(d), { offset: [0, -POPUP_OFFSET_PX], maxWidth: 280 });
         marker.on('click', () => {
           activeId = d.placeId;
         });
@@ -459,7 +520,11 @@ export function mountDealerGeoMap(container, opts = {}) {
         });
         const marker = new mapboxgl.Marker({ element: pin, anchor: 'bottom' })
           .setLngLat([d.lng, d.lat])
-          .setPopup(new mapboxgl.Popup({ offset: 18, maxWidth: '260px' }).setHTML(popupHtml(d)))
+          .setPopup(
+            new mapboxgl.Popup({ offset: POPUP_OFFSET_PX, maxWidth: '280px', anchor: 'bottom' }).setHTML(
+              popupHtml(d),
+            ),
+          )
           .addTo(map);
         markers.set(d.placeId, marker);
       }
@@ -478,17 +543,21 @@ export function mountDealerGeoMap(container, opts = {}) {
     const bounds = getBounds();
     if (!bounds) return;
 
+    // Always refresh pins for the current view (cached + bucket filters).
+    renderMarkers();
+
     if (bounds.zoom < MIN_SEARCH_ZOOM) {
       setStatus('Zoom in to search for used-car dealerships.', { loading: true });
-      renderMarkers();
       return;
     }
 
+    const centerLat = (bounds.south + bounds.north) / 2;
+    const centerLng = (bounds.west + bounds.east) / 2;
+    // ~1km / half-zoom grid so small pans still re-query nearby lots.
     const key = [
-      bounds.south.toFixed(3),
-      bounds.west.toFixed(3),
-      bounds.north.toFixed(3),
-      bounds.east.toFixed(3),
+      centerLat.toFixed(2),
+      centerLng.toFixed(2),
+      (Math.round(bounds.zoom * 2) / 2).toFixed(1),
     ].join(',');
     if (key === lastSearchKey) return;
     lastSearchKey = key;
@@ -496,7 +565,6 @@ export function mountDealerGeoMap(container, opts = {}) {
     const seq = ++searchSeq;
     searching = true;
     setStatus('Searching dealerships…', { loading: true });
-    renderMarkers();
 
     try {
       const qs = new URLSearchParams({
@@ -515,10 +583,15 @@ export function mountDealerGeoMap(container, opts = {}) {
       for (const d of list) {
         if (d?.placeId) dealersById.set(d.placeId, d);
       }
+      pruneFarDealers();
+      renderMarkers();
+      const inViewCount = visibleDealers().length;
       setStatus(
         list.length
-          ? `Found ${list.length} in view${dealersById.size > list.length ? ` · ${dealersById.size} cached` : ''}`
-          : 'No used-car dealers in this view.',
+          ? `Found ${list.length} nearby · ${inViewCount} in view`
+          : inViewCount
+            ? `${inViewCount} in view (no new results)`
+            : 'No used-car dealers in this view.',
         { loading: false },
       );
       window.setTimeout(() => {
@@ -538,6 +611,8 @@ export function mountDealerGeoMap(container, opts = {}) {
 
   function scheduleSearch() {
     if (searchTimer) window.clearTimeout(searchTimer);
+    // Re-paint cached pins immediately while the debounced Places call runs.
+    renderMarkers();
     searchTimer = window.setTimeout(() => {
       searchTimer = 0;
       void searchViewport();
