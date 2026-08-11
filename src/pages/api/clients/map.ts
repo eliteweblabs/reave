@@ -60,9 +60,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const result = await listContacts({ limit });
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
+  // Higher concurrency — map needs portal geo for every contact; default 12
+  // feels hung when the book is large.
   const withLinks = await attachPortalLinksForList(
     result.data.contacts.filter((c) => !c.archived),
-    { forMap: true },
+    { forMap: true, concurrency: 32 },
   );
 
   const clients = withLinks.map(mapClientEntry).sort(compareClientsForList);

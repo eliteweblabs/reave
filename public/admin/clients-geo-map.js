@@ -353,9 +353,16 @@ export function mountClientsGeoMap(container, opts = {}) {
   }
 
   async function loadClients() {
-    setStatus('Loading clients…');
+    countEl.textContent = 'Loading pins…';
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller
+      ? window.setTimeout(() => controller.abort(), 45000)
+      : 0;
     try {
-      const res = await adminFetch('/api/clients/map', { cache: 'no-store' });
+      const res = await adminFetch('/api/clients/map', {
+        cache: 'no-store',
+        signal: controller?.signal,
+      });
       const data = await readAdminJson(res);
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || `HTTP ${res.status}`);
@@ -370,17 +377,28 @@ export function mountClientsGeoMap(container, opts = {}) {
         located: data.counts?.located ?? clients.filter((c) => c.located).length,
       };
       setStatus('');
-      // Refresh counts on the already-mounted toggles.
       for (const row of togglesEl.querySelectorAll('.cgm-toggle')) {
         const k = row.getAttribute('data-kind');
         if (k) syncToggleRow(/** @type {HTMLElement} */ (row), k);
       }
       renderCount();
-      await ensureMap();
       if (mapReady) renderMarkers({ refit: true });
+      else void ensureMap();
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e), true);
+      const aborted =
+        (e && typeof e === 'object' && 'name' in e && e.name === 'AbortError') ||
+        (e instanceof Error && /abort/i.test(e.message));
+      setStatus(
+        aborted
+          ? 'Timed out loading clients — try refreshing.'
+          : e instanceof Error
+            ? e.message
+            : String(e),
+        true,
+      );
       renderCount();
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
     }
   }
 
@@ -397,10 +415,11 @@ export function mountClientsGeoMap(container, opts = {}) {
     window.removeEventListener('resize', resize);
   }
 
-  // Mount toggles immediately so a slow/failed fetch never blanks the controls.
+  // Map + toggles first — never wait on the clients fetch to paint geography.
   renderToggles();
   renderCount();
   window.addEventListener('resize', resize);
+  void ensureMap();
   void loadClients();
 
   return { destroy, reload: loadClients, resize };
