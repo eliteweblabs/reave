@@ -2258,7 +2258,25 @@ function bindSwipeRowContextMenu(row, contentEl, actions) {
   contentEl.addEventListener('contextmenu', handler);
 }
 
-function attachSwipeRow(row, contentEl, revealPx) {
+/** Match .swipe-act { width: 3.25rem } — old 72px fallback left a visible void. */
+const SWIPE_ACT_WIDTH_FALLBACK_PX = 52;
+
+function measureSwipeRevealPx(actionsEl, actionCount) {
+  const count = Math.max(1, actionCount || 0);
+  const measured = actionsEl?.offsetWidth || 0;
+  if (measured > 0) return measured;
+  const first = actionsEl?.querySelector?.('.swipe-act');
+  if (first) {
+    const w = first.getBoundingClientRect().width || first.offsetWidth || 0;
+    if (w > 0) return w * count;
+  }
+  return SWIPE_ACT_WIDTH_FALLBACK_PX * count;
+}
+
+function attachSwipeRow(row, contentEl, revealPxOrGet) {
+  const getRevealPx =
+    typeof revealPxOrGet === 'function' ? revealPxOrGet : () => Number(revealPxOrGet) || 0;
+  let revealPx = Math.max(0, getRevealPx());
   let startX = 0;
   let swipeStartY = 0;
   let baseX = 0;
@@ -2271,6 +2289,11 @@ function attachSwipeRow(row, contentEl, revealPx) {
   let hintUnlockTimer = null;
   /** @type {'horizontal' | 'vertical' | null} */
   let axis = null;
+
+  function refreshRevealPx() {
+    const next = getRevealPx();
+    if (next > 0) revealPx = next;
+  }
 
   function currentTx() {
     const m = contentEl.style.transform.match(/translate3d\(([-\d.]+)px/);
@@ -2321,6 +2344,7 @@ function attachSwipeRow(row, contentEl, revealPx) {
 
   function playHint() {
     if (hintLock || !row.isConnected) return Promise.resolve();
+    refreshRevealPx();
     hintLock = true;
     row.classList.add('swipe-hint-lock', 'swipe-hint-active');
     row.style.pointerEvents = 'none';
@@ -2351,6 +2375,9 @@ function attachSwipeRow(row, contentEl, revealPx) {
     const listEl = row.closest('.ch-list, .de-list, .em-list');
     if (listEl && isListInSelectionMode(listEl)) return;
     if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
+    // Remeasure when the row is actually visible (panel may have been display:none
+    // at create time, which made offsetWidth 0 and inflated the reveal void).
+    refreshRevealPx();
     startX = clientX;
     swipeStartY = clientY;
     baseX = open ? -revealPx : 0;
@@ -2521,8 +2548,7 @@ export function createSwipeRow(contentEl, actions) {
   bindSwipeRowContextMenu(row, content, actions);
 
   requestAnimationFrame(() => {
-    const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
-    attachSwipeRow(row, content, revealPx);
+    attachSwipeRow(row, content, () => measureSwipeRevealPx(actionsEl, actions.length));
     maybeScheduleSwipeHint(row);
     const list = row.closest('.ch-list, .de-list, .em-list');
     const ctrl = list ? listSelectionControllers.get(list) : null;

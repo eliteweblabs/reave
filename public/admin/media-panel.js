@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260804c';
-import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260810a';
+import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260811a';
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =

@@ -31,11 +31,11 @@ import {
   updateDeBtnLabel,
   createCopyIconBtn,
   looksLikeHttpUrl,
-} from './admin-ui.js?v=20260810a';
+} from './admin-ui.js?v=20260811a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260811a';
-import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260811a';
 import {
   createDetailChrome,
   createDetailFormScroll,

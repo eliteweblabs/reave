@@ -106,7 +106,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260810a';
+} from './admin-ui.js?v=20260811a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
@@ -117,7 +117,7 @@ import {
   mountListFilterTabsWrap,
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
-} from './filter-tabs.js?v=20260807b';
+} from './filter-tabs.js?v=20260811a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -11103,7 +11103,8 @@ async function archiveEmail(ev) {
   closeOpenSwipeRow();
   try {
     const patch = { action: 'filed', status: 'FILED' };
-    if (ev.category === 'review') patch.category = 'internal';
+    // Leave triage/junk buckets so the message lands in Archive only.
+    if (ev.category === 'review' || ev.category === 'junk') patch.category = 'internal';
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -11604,16 +11605,11 @@ function buildEmailSwipeActions(ev) {
 
   const actions = [
     swipeAgentAction(() => askAgentAboutEmail(ev)),
+    swipeArchiveAction({
+      label: 'Archive',
+      onClick: () => archiveEmail(ev),
+    }),
   ];
-
-  if (ev.category !== 'junk') {
-    actions.push(
-      swipeArchiveAction({
-        label: isEmailRouted(ev) ? 'Unarchive' : 'Archive',
-        onClick: () => (isEmailRouted(ev) ? unarchiveEmail(ev) : archiveEmail(ev)),
-      }),
-    );
-  }
 
   if (ev.category === 'receipt') {
     actions.push(

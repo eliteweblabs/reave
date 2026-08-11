@@ -57,9 +57,20 @@
   margin: 0;
   width: auto;
   max-width: none;
-  /* Reserve space so the last scroll tab clears the pinned Sent tab */
-  padding-right: calc(var(--em-filter-fixed-tab-width, 4.75rem) + 0.35rem);
+  /* Spacer at end of the flex row clears pinned Draft/Sent (see .em-filter-tabs-scroll-spacer) */
+  padding-right: 0;
   box-sizing: border-box;
+}
+/* Trailing scroll extent — sized to the measured pinned strip + fade so the last
+   category tab can scroll fully clear of Draft/Sent instead of chopping mid-label. */
+.em-filter-tabs-scroll-spacer {
+  flex: 0 0 auto;
+  width: calc(
+    var(--em-filter-fixed-tab-width, 7.5rem) + var(--filter-tab-fade-w, 6px) + 0.35rem
+  );
+  height: 1px;
+  pointer-events: none;
+  visibility: hidden;
 }
 .em-filter-tabs-fixed {
   position: absolute;
