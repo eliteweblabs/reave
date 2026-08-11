@@ -6,7 +6,7 @@
 import BrandLogoMarquee from "../BrandLogoMarquee.astro";
 import FeaturesPricingSection from "./FeaturesPricingSection.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
-import { listMarketingSpotlightFeatures } from "../../lib/marketingFeatures";
+import { listDemoLoaderFeatures } from "../../lib/marketingFeatures";
 import {
   Users,
   PanelsTopLeft,
@@ -42,8 +42,11 @@ const { showLogoStack = true, embedded = false, showPricing = false } = Astro.pr
 const company = await getCompanyConfig(Astro.request);
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
-/** Spotlight chips from modules API catalog (`marketingFeatures.ts`). */
-const heroChips = listMarketingSpotlightFeatures();
+/** Same `features` payload as GET /api/demo/loader. */
+const apiFeatures = listDemoLoaderFeatures();
+/** Duplicate for a seamless repeating chip slideshow. */
+const CHIP_LOOP_COPIES = 2;
+const heroChipLoop = Array.from({ length: CHIP_LOOP_COPIES }, () => apiFeatures).flat();
 
 type IconComponent = typeof Users;
 
@@ -378,24 +381,39 @@ const customPrompts: PromptExample[] = [
         </a>
         <a class="fx-btn fx-btn--ghost brand-btn-glass" href={quoteHref}>Get a quote</a>
       </div>
-      <div class="fx-chips" data-feature-chips>
-        {
-          heroChips.map((chip) =>
-            chip.href ? (
-              <a
-                class:list={["fx-chip", chip.kind === "nav" && "fx-chip--link"]}
-                href={chip.href}
-                data-feature-id={chip.id}
-              >
-                {chip.label}
-              </a>
-            ) : (
-              <span class="fx-chip" data-feature-id={chip.id}>
-                {chip.label}
-              </span>
-            ),
-          )
-        }
+      <div
+        class="fx-chips"
+        data-feature-chips
+        aria-label="Platform features"
+        style={`--fx-chip-loop: ${CHIP_LOOP_COPIES}`}
+      >
+        <div class="fx-chips-track">
+          {
+            heroChipLoop.map((chip, index) => {
+              const duplicate = index >= apiFeatures.length;
+              const classes = ["fx-chip", chip.kind === "nav" && "fx-chip--link"];
+              return chip.href ? (
+                <a
+                  class:list={classes}
+                  href={chip.href}
+                  data-feature-id={chip.id}
+                  tabindex={duplicate ? -1 : undefined}
+                  aria-hidden={duplicate ? "true" : undefined}
+                >
+                  {chip.label}
+                </a>
+              ) : (
+                <span
+                  class:list={classes}
+                  data-feature-id={chip.id}
+                  aria-hidden={duplicate ? "true" : undefined}
+                >
+                  {chip.label}
+                </span>
+              );
+            })
+          }
+        </div>
       </div>
     </section>
 
@@ -810,13 +828,60 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-chips {
+    --fx-chip-loop: 2;
+    position: relative;
+    width: min(100%, 720px);
+    margin-inline: auto;
+    overflow: hidden;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 8%,
+      #000 92%,
+      transparent
+    );
+  }
+
+  .fx-chips-track {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-wrap: nowrap;
+    align-items: center;
     gap: 8px;
+    width: max-content;
+    animation: fx-chips-scroll 70s linear infinite;
+  }
+
+  .fx-chips:hover .fx-chips-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes fx-chips-scroll {
+    to {
+      transform: translateX(calc(-100% / var(--fx-chip-loop)));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fx-chips {
+      mask-image: none;
+      width: 100%;
+      overflow: visible;
+    }
+
+    .fx-chips-track {
+      flex-wrap: wrap;
+      justify-content: center;
+      width: auto;
+      animation: none;
+    }
+
+    .fx-chips-track [aria-hidden="true"] {
+      display: none;
+    }
   }
 
   .fx-chip {
+    flex: 0 0 auto;
     font-size: 0.74rem;
     font-weight: 600;
     letter-spacing: 0.01em;
@@ -825,6 +890,7 @@ const customPrompts: PromptExample[] = [
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
+    white-space: nowrap;
   }
 
   .fx-chip--link {
