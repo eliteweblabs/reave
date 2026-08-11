@@ -5,6 +5,14 @@ import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCata
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
 import { FEATURE_BLURBS, type FeatureId } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
+import {
+  listDemoLoaderFeatures,
+  listMarketingFeaturesForModule,
+  type DemoLoaderFeature,
+} from './marketingFeatures';
+
+export type { DemoLoaderFeature } from './marketingFeatures';
+export { listDemoLoaderFeatures } from './marketingFeatures';
 
 export type DemoLoaderModule = {
   moduleId: string;
@@ -16,6 +24,8 @@ export type DemoLoaderModule = {
   inProduction: boolean;
   /** Ready for demo — deploy playbook status is deployed. */
   toggleable: boolean;
+  /** Marketing feature ids that depend on this module. */
+  features: string[];
 };
 
 export type DemoLoaderIncludedCard = {
@@ -148,10 +158,16 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         status: m.status,
         inProduction: productionFeatures.has(m.feature),
         toggleable: deployed && Boolean(moduleId),
+        features: listMarketingFeaturesForModule(m.feature).map((f) => f.id),
       };
     })
     .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId))
     .sort(byTitle);
+}
+
+/** Culled marketing features (core + module-dependent + nav) for chips / slideshow. */
+export function listDemoLoaderMarketingFeatures(): DemoLoaderFeature[] {
+  return listDemoLoaderFeatures();
 }
 
 export function listDemoLoaderIncludedCards(): DemoLoaderIncludedCard[] {

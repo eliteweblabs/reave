@@ -6,6 +6,7 @@
 import BrandLogoMarquee from "../BrandLogoMarquee.astro";
 import FeaturesPricingSection from "./FeaturesPricingSection.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { listMarketingSpotlightFeatures } from "../../lib/marketingFeatures";
 import {
   Users,
   PanelsTopLeft,
@@ -41,6 +42,8 @@ const { showLogoStack = true, embedded = false, showPricing = false } = Astro.pr
 const company = await getCompanyConfig(Astro.request);
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
+/** Spotlight chips from modules API catalog (`marketingFeatures.ts`). */
+const heroChips = listMarketingSpotlightFeatures();
 
 type IconComponent = typeof Users;
 
@@ -375,16 +378,24 @@ const customPrompts: PromptExample[] = [
         </a>
         <a class="fx-btn fx-btn--ghost brand-btn-glass" href={quoteHref}>Get a quote</a>
       </div>
-      <div class="fx-chips">
-        <span class="fx-chip">Always-on AI agent</span>
-        <span class="fx-chip">CMS-less website editing</span>
-        <span class="fx-chip">Siri-ready</span>
-        <span class="fx-chip">White labeled</span>
-        <span class="fx-chip">Read receipts & engagement</span>
-        <span class="fx-chip">Plug in only what you need</span>
-        <a class="fx-chip fx-chip--link" href="/pricing">Installation tiers &amp; pricing</a>
-        <a class="fx-chip fx-chip--link" href="/modules">Optional modules</a>
-        <a class="fx-chip fx-chip--link" href="/platform">Tech stack</a>
+      <div class="fx-chips" data-feature-chips>
+        {
+          heroChips.map((chip) =>
+            chip.href ? (
+              <a
+                class:list={["fx-chip", chip.kind === "nav" && "fx-chip--link"]}
+                href={chip.href}
+                data-feature-id={chip.id}
+              >
+                {chip.label}
+              </a>
+            ) : (
+              <span class="fx-chip" data-feature-id={chip.id}>
+                {chip.label}
+              </span>
+            ),
+          )
+        }
       </div>
     </section>
 
