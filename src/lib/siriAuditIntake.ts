@@ -1,5 +1,5 @@
 /**
- * Create the inquiry project file immediately when a Siri audit shortcut fires,
+ * Create the audit project immediately when a Siri audit shortcut fires,
  * so the Work tab shows something in progress before the agent finishes.
  */
 
@@ -125,7 +125,7 @@ export async function createSiriAuditStubProject(
     title,
     contact_uid: contact.uid,
     contact_name: contact.name,
-    status: 'inquiry',
+    status: 'audit',
     source: 'siri_audit',
     record_origin: 'siri',
     tags: ['siri-audit', input.tier === 'full' ? 'full-audit' : 'quick-audit'],

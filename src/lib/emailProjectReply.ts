@@ -154,7 +154,9 @@ function pickJobFromList(jobs: WorkJobSummary[], preferredSlug?: string | null):
     const hit = jobs.find((j) => j.slug === preferredSlug);
     if (hit) return hit;
   }
-  const open = jobs.filter((j) => j.status === 'active' || j.status === 'inquiry');
+  const open = jobs.filter(
+    (j) => j.status === 'active' || j.status === 'audit' || j.status === 'inquiry',
+  );
   // Prefer a real titled job over a leftover "New Project" stub.
   const meaningful = (list: WorkJobSummary[]) =>
     list.filter((j) => !isPlaceholderProjectTitle(j.title));

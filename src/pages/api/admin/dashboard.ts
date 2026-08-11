@@ -151,7 +151,9 @@ export async function GET(context: APIContext): Promise<Response> {
   }
   const reviewsPending = automationNotifications.length;
 
-  const projectsPending = jobs.filter((j) => j.status === 'inquiry' || j.status === 'active').length;
+  const projectsPending = jobs.filter(
+    (j) => j.status === 'inquiry' || j.status === 'audit' || j.status === 'active',
+  ).length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;
 
   let clientsTotal: number | null = null;

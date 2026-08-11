@@ -24,8 +24,39 @@ import { extractContactFromInboundEmail, preferredContactName } from './emailCon
 import { serverEnv } from './serverEnv';
 import { extractWorkPreviewBullets } from './workChecklist';
 
-export const WORK_STATUSES = ['inquiry', 'active', 'archived'] as const;
+export const WORK_STATUSES = ['inquiry', 'audit', 'active', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
+
+const AUDIT_TAG_RE = /^(siri-audit|quick-audit|full-audit)$/i;
+
+/** Website audit projects (Siri quick/full audit tools) — live, not prospects. */
+export function isAuditWorkMeta(input: {
+  status?: string | null;
+  tags?: string[] | null;
+  source?: string | null;
+}): boolean {
+  if ((input.status || '').toLowerCase() === 'audit') return true;
+  if ((input.source || '').toLowerCase() === 'siri_audit') return true;
+  const tags = input.tags ?? [];
+  return tags.some((t) => AUDIT_TAG_RE.test(String(t || '')));
+}
+
+/**
+ * Audits stay on status `audit` (or `active` if promoted). Never inquiry/archived —
+ * they are refreshable live entities, not door-knock prospects.
+ */
+export function coerceAuditWorkStatus(
+  status: WorkStatus,
+  meta: { tags?: string[] | null; source?: string | null },
+  existing?: { status?: string | null; tags?: string[] | null; source?: string | null } | null,
+): WorkStatus {
+  const audit =
+    isAuditWorkMeta({ status, tags: meta.tags, source: meta.source }) ||
+    (existing ? isAuditWorkMeta(existing) : false);
+  if (!audit) return status;
+  if (status === 'active') return 'active';
+  return 'audit';
+}
 
 /** Legacy markdown/DB rows may still use "done" — treat as archived everywhere. */
 export function isWorkArchived(status: string | undefined | null): boolean {
@@ -252,6 +283,7 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
 
   const { source, record_origin } = splitMetaSource(meta);
   const tags = parseTags(meta.tags);
+  const status = coerceAuditWorkStatus(normalizeStatus(meta.status), { tags, source });
 
   return {
     slug,
@@ -259,7 +291,7 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     client: meta.client?.trim() || meta.contact_name?.trim() || '',
     contact_uid: meta.contact_uid?.trim() || '',
     contact_name: meta.contact_name?.trim() || meta.client?.trim() || '',
-    status: normalizeStatus(meta.status),
+    status,
     priority: normalizePriority(meta.priority),
     due_date: meta.due_date?.trim() || null,
     value: parseValue(meta.value),
@@ -282,7 +314,6 @@ function buildMarkdown(
   const now = new Date().toISOString();
   const title = input.title.trim();
   const body = (input.body ?? '').trim();
-  const status = normalizeStatus(input.status ?? existing?.status);
   const priority = normalizePriority(input.priority ?? existing?.priority);
   const recordOrigin = input.record_origin?.trim() || existing?.record_origin || 'manual';
   const leadSource = input.source?.trim() ?? existing?.source ?? '';
@@ -290,6 +321,11 @@ function buildMarkdown(
   const value =
     input.value !== undefined ? input.value : existing?.value ?? null;
   const tags = input.tags ?? existing?.tags ?? [];
+  const status = coerceAuditWorkStatus(
+    normalizeStatus(input.status ?? existing?.status),
+    { tags, source: leadSource },
+    existing,
+  );
   const sourceChatId = input.source_chat_id?.trim() || existing?.source_chat_id?.trim() || '';
   const created = existing?.created || now;
 
@@ -576,12 +612,26 @@ export async function storeWriteWork(
 
   if (isWorkDbConfigured()) {
     const { dbCreateWork, dbUpdateWork } = await import('./pgJobs');
+    const nextTags = input.tags ?? existingBefore?.tags ?? [];
+    const nextSource =
+      input.source !== undefined ? input.source.trim() : (existingBefore?.source ?? '');
+    const requestedStatus =
+      input.status != null
+        ? normalizeStatus(input.status)
+        : existingBefore
+          ? existingBefore.status
+          : normalizeStatus(undefined);
+    const status = coerceAuditWorkStatus(
+      requestedStatus,
+      { tags: nextTags, source: nextSource },
+      existingBefore,
+    );
     if (existingBefore) {
       result = await dbUpdateWork(slug, {
         title: input.title.trim(),
         client: contact.name,
         client_uid: contact.uid,
-        status: input.status != null ? normalizeStatus(input.status) : undefined,
+        status,
         priority: input.priority != null ? normalizePriority(input.priority) : undefined,
         due_date: input.due_date,
         value: input.value,
@@ -596,7 +646,7 @@ export async function storeWriteWork(
         title: input.title.trim(),
         client: contact.name,
         client_uid: contact.uid,
-        status: normalizeStatus(input.status),
+        status,
         priority: normalizePriority(input.priority),
         due_date: input.due_date ?? null,
         value: input.value ?? null,

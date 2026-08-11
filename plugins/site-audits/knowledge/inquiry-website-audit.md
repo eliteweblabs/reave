@@ -68,10 +68,13 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 ```
 create_work  OR  update_work
   title:     <catchy finding-based headline — see Title & slug conventions>
-  status:    inquiry
+  status:    audit
+  tags:      siri-audit, full-audit   # or quick-audit for street tier
   contact_uid: <confirmed uid>
   body:      <full markdown audit — see template below>
 ```
+
+Audits are live projects (not inquiries). Keep `status: audit` — never `inquiry` or `archived`.
 
 If the project already exists as a stub, use `update_work` with the full body instead of leaving the stub.
 

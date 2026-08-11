@@ -1,7 +1,7 @@
 /**
  * Shared Siri / Digital Audit proposal pipeline.
  *
- * Creates an inquiry stub immediately, then runs the knowledge agent in the
+ * Creates an audit stub immediately, then runs the knowledge agent in the
  * background with the audit playbook. Used by POST /api/siri and the public
  * Digital Audit page — do not duplicate this flow elsewhere.
  */
@@ -286,8 +286,9 @@ async function runProposalResearch(input: {
     'The business description may be just a name or include street, town, or other disambiguating details ' +
       '(e.g. "Joe\'s Pizza on Main Street in Portland"). Treat the full string as your search query.',
     '',
-    `An inquiry project already exists at slug **${input.jobSlug}** (stub body — audit in progress). ` +
-      'Do **not** call create_work. Use update_work on that slug with the full audit body and a new title.',
+    `An audit project already exists at slug **${input.jobSlug}** (stub body — audit in progress). ` +
+      'Do **not** call create_work. Use update_work on that slug with the full audit body and a new title. ' +
+      'Keep status "audit" (never inquiry or archived) and preserve tags siri-audit / quick-audit|full-audit.',
     '',
     ...givenLines,
     ...placesLines,
@@ -302,7 +303,7 @@ async function runProposalResearch(input: {
       'finds a clearer match that should replace it — new contacts must use kind "proposed". Use the business ' +
       'name as the contact name when no personal name is known.',
     auditToolsStep,
-    `4. update_work slug "${input.jobSlug}" with status "inquiry", contact_uid set, and a catchy finding-based title (5–12 words — ` +
+    `4. update_work slug "${input.jobSlug}" with status "audit", contact_uid set, and a catchy finding-based title (5–12 words — ` +
       'witty but professional, inspired by the top audit finding; do NOT include the business name because ' +
       'it already appears as the client name in the project list). Examples: "Antique shop, antique website — ' +
       'not in a good way", "Great reviews, terrible mobile score". Never use "Website Redesign — {Business Name}". ' +
