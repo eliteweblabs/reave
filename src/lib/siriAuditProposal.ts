@@ -75,6 +75,54 @@ function pickBusiness(params: AuditProposalParams): string {
   ).trim();
 }
 
+const SPOKEN_TITLE_MAX = 56;
+
+/**
+ * Short title for Siri to speak — prefer the Google Places match name
+ * (best autocomplete option), else a trimmed freeform cue without the
+ * long dictated description.
+ */
+export function spokenAuditBusinessTitle(
+  business: string,
+  placesListing?: PlacesListingRecord | null,
+): string {
+  if (placesListing?.status === 'matched') {
+    const placeName = placesListing.address?.split(',')[0]?.trim();
+    // Prefer establishment names; skip street-only first segments ("123 Main St").
+    if (placeName && !/^\d/.test(placeName)) return truncateSpokenTitle(placeName);
+  }
+  return shortenFreeformBusinessTitle(business);
+}
+
+function truncateSpokenTitle(value: string): string {
+  const oneLine = value.replace(/\s+/g, ' ').trim();
+  if (!oneLine || oneLine.length <= SPOKEN_TITLE_MAX) return oneLine;
+  const slice = oneLine.slice(0, SPOKEN_TITLE_MAX);
+  const atWord = slice.lastIndexOf(' ');
+  const clipped = (atWord >= 24 ? slice.slice(0, atWord) : slice).trim();
+  return clipped || oneLine.slice(0, SPOKEN_TITLE_MAX).trim();
+}
+
+/** Drop trailing "they sell…" style clauses people add when dictating. */
+function shortenFreeformBusinessTitle(business: string): string {
+  let s = business.replace(/\s+/g, ' ').trim();
+  if (!s) return s;
+
+  const clause = s.search(/\s+(?:they|that|which)\b/i);
+  if (clause > 0) s = s.slice(0, clause).trim();
+
+  return truncateSpokenTitle(s);
+}
+
+function auditStartedAck(tier: SiriAuditTier, spokenTitle: string): string {
+  const title = spokenTitle || 'that business';
+  const lead =
+    tier === 'full'
+      ? `Running a full audit on ${title}`
+      : `Running an audit on ${title}`;
+  return `${lead}. It will be available in the Reave app shortly.`;
+}
+
 /**
  * Start a quick or full audit: stub Work project + background research agent.
  */
@@ -141,10 +189,8 @@ export async function startAuditProposal(
     log.error('background research failed', e instanceof Error ? e : new Error(String(e)));
   });
 
-  const ack =
-    tier === 'full'
-      ? `Running full audit on ${label}. Watch the Work tab — project ${stub.slug} is in progress.`
-      : `Auditing ${label}. Watch the Work tab — project ${stub.slug} is in progress.`;
+  const spokenTitle = spokenAuditBusinessTitle(business, stub.placesListing);
+  const ack = auditStartedAck(tier, spokenTitle);
 
   return {
     ok: true,
@@ -152,7 +198,7 @@ export async function startAuditProposal(
     data: {
       started: true,
       tier,
-      label,
+      label: spokenTitle,
       slug: stub.slug,
       url: url || null,
       business: business || null,

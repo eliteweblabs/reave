@@ -254,7 +254,7 @@ Because Lighthouse alone can take up to ~2 minutes, this action returns immediat
 **Example response** (immediate ack — the real result comes later via push notification):
 
 ```
-Auditing Example Plumbing Co on Oak Street in Portland now. You'll get an alert in Admin when the audit and project are ready.
+Running an audit on Example Plumbing Co. It will be available in the Reave app shortly.
 ```
 
 **Siri phrase**: "audit" or "create proposal" or "research this business"
@@ -280,7 +280,7 @@ Auditing Example Plumbing Co on Oak Street in Portland now. You'll get an alert 
 **Example response**:
 
 ```
-Running full audit on Example Plumbing Co on Oak Street in Portland now. You'll get an alert in Admin when the audit and project are ready.
+Running a full audit on Example Plumbing Co. It will be available in the Reave app shortly.
 ```
 
 **Siri phrase**: "full audit"
