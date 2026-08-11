@@ -11826,7 +11826,7 @@ function emailSidebarEmptyInnerHtml() {
   }
   if (emailState.inboxFilter === 'routed') return 'No archived messages yet.';
   if (emailState.inboxFilter === 'receipt') {
-    return 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt, or use <strong>Find missing receipts</strong> above.';
+    return 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt.';
   }
   return (
     'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. ' +
@@ -11934,10 +11934,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
         renderEmailPanel({ preserveSidebar: true, preservePane: !clearedActive });
       },
     },
-    below:
-      emailState.inboxFilter === 'receipt' || emailState.inboxFilter === 'review'
-        ? [renderEmailFilterTabs(savedFilterScroll), renderFindMissingReceiptsBar()]
-        : renderEmailFilterTabs(savedFilterScroll),
+    below: renderEmailFilterTabs(savedFilterScroll),
   });
 
   const isSent = emailState.inboxFilter === 'sent';
