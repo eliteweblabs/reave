@@ -20,6 +20,7 @@
     "build": "astro build && node scripts/version-public-assets.mjs",
     "check": "astro check",
     "check:chat": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-resilience.ts",
+    "check:drain": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-agent-run-drain.ts",
     "check:notif-dedupe": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-dashboard-notification-dedupe.ts",
     "check:email-reply": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-reply.ts",
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
