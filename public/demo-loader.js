@@ -93,14 +93,6 @@
     return STATUS[m.status] || STATUS.development;
   }
 
-  function statusHint(m) {
-    if (m.status === 'development') return 'In development';
-    if (m.status === 'request') return 'Requested';
-    if (m.status === 'rejected') return 'Rejected';
-    if (m.status === 'deployed') return 'Ready';
-    return 'Preview only';
-  }
-
   function renderSwitch(checked, moduleId) {
     return (
       `<button type="button" class="dl-switch" role="switch" ` +
@@ -116,9 +108,6 @@
       `<span class="dl-badge dl-badge--included">Included</span>` +
       `<h3 class="dl-tile-label">${esc(card.label)}</h3>` +
       (card.blurb ? `<p class="dl-tile-blurb">${esc(card.blurb)}</p>` : '') +
-      `</div>` +
-      `<div class="dl-tile-foot">` +
-      `<span class="dl-tile-hint">Always on</span>` +
       `</div>` +
       `</article>`
     );
@@ -139,11 +128,9 @@
       `<h3 class="dl-tile-label">${esc(m.label)}</h3>` +
       (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
       `</div>` +
-      `<div class="dl-tile-foot">` +
       (canToggle ?
-        renderSwitch(checked, m.moduleId)
-      : `<span class="dl-tile-hint">${esc(statusHint(m))}</span>`) +
-      `</div>` +
+        `<div class="dl-tile-foot">${renderSwitch(checked, m.moduleId)}</div>`
+      : '') +
       `</article>`
     );
   }
