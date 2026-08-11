@@ -14,6 +14,8 @@ export const IOS_ICONS = {
   link: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
   download:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+  upload:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
   share:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
   reply:
@@ -88,10 +90,8 @@ let _agentIconClipSeq = 0;
 /** Hat-glasses agent icon; right eye winks via clipped lid rects (see .agent-icon CSS). */
 export function agentIconSvg(size = 20) {
   const clipId = `agent-eye-clip-${++_agentIconClipSeq}`;
-  const winkPeriod = 4 + Math.random() * 4;
-  const winkDelay = -(Math.random() * winkPeriod);
   return (
-    `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="--agent-wink-period:${winkPeriod.toFixed(2)}s;--agent-wink-delay:${winkDelay.toFixed(2)}s">` +
+    `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
     `<defs><clipPath id="${clipId}"><circle cx="17" cy="18" r="3"/></clipPath></defs>` +
     '<path d="M14 18a2 2 0 0 0-4 0"/>' +
     '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +
@@ -414,6 +414,10 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 28 : isFilterPurge ? 22 : 36);
   const ringRadius = opts.ringRadius ?? 18;
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
+
+  // Guard against double-binding (would arm then immediately confirm on one click).
+  if (btn.dataset.deleteConfirmBound === '1') return;
+  btn.dataset.deleteConfirmBound = '1';
 
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -1726,11 +1730,9 @@ function createListSelectionController(listEl, opts) {
     }
 
     if (typeof opts.onBulkDelete === 'function') {
-      deleteBtn = createIosIconBtn({
-        iconKey: 'trash',
+      deleteBtn = paneDeleteIcon({
         label: 'Delete',
         className: 'list-selection-bar-btn list-selection-bar-btn--delete',
-        confirmDelete: true,
         onClick: () => void runBulkDelete(),
       });
       actions.appendChild(deleteBtn);
@@ -2627,11 +2629,13 @@ export async function downloadBrandingImage(url, baseName) {
 }
 
 /** Canonical pane-header trash (two-step confirm). Use everywhere — not one-off SVGs. */
-export function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
+/** Canonical trash + timing-ring delete control. Use everywhere entity deletes appear. */
+export function paneDeleteIcon({ label, onClick, confirmDelete = true, className = '' } = {}) {
+  const classes = ['ios-icon-btn', 'ch-delete-btn', className].filter(Boolean).join(' ');
   return createIosIconBtn({
     iconKey: 'trash',
     label,
-    className: 'ios-icon-btn ch-delete-btn',
+    className: classes,
     confirmDelete,
     onClick,
   });

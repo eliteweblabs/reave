@@ -52,7 +52,7 @@ export function parseWorkJobInput(body: Record<string, unknown>): WorkJobInput |
   const record_origin = body.record_origin != null ? String(body.record_origin).trim() : undefined;
 
   if (!title) return { error: 'title is required' };
-  if (!contact_uid && !client) return { error: 'Select a client' };
+  if (!contact_uid && !client) return { error: 'Select a contact' };
 
   return {
     title,

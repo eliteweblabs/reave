@@ -19,7 +19,10 @@
   --font-secondary:
     "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
-  --font-content: "Mozilla Text", Georgia, "Times New Roman", serif;
+  /* Mozilla Text is sans — keep system sans in the fallback stack, not Georgia. */
+  --font-content:
+    "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
@@ -78,6 +81,15 @@
 .reave-bg-pattern {
   position: fixed;
   inset: 0;
+  /*
+   * iOS Safari can leave top/bottom strips when fixed layers only track the
+   * small viewport — pin to the large viewport + fill-available as well.
+   */
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  height: 100lvh;
+  min-height: -webkit-fill-available;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -95,6 +107,11 @@
 .site-bg-mesh {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  height: 100lvh;
+  min-height: -webkit-fill-available;
   z-index: 0;
   pointer-events: none;
   background:
@@ -116,35 +133,29 @@
   }
 }
 
-/** Count badges — brand gradient fill, white numeral */
+/** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {
   border-radius: 9999px;
-  background: var(--brand-gradient);
+  background: #ff3b30;
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: 0 0 0 1px var(--bg, #fff);
+  box-shadow: 0 0 0 1.5px var(--bg, #fff);
 }
 
-/** Footer: invert badge on the gradient-highlighted (active) tab */
+/** Keep iOS red on active / collapsed dashboard (no invert) */
 .footer-nav-btn.active .footer-nav-badge,
 .admin-footer-nav.footer-nav-collapsed
   #footer-nav-dashboard
-  .footer-nav-badge:not([hidden]) {
-  background: #fff;
-  color: var(--brand-magenta);
-  -webkit-text-fill-color: var(--brand-magenta);
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
-}
-
+  .footer-nav-badge:not([hidden]),
 body.footer-chat-inline-dashboard
   .admin-footer-nav.footer-nav-collapsed
   #footer-nav-dashboard
   .footer-nav-badge {
-  background: var(--brand-gradient);
+  background: #ff3b30;
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: 0 0 0 1px var(--bg, #fff);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
 }
 
 /** Subtle fade-in as elements enter the viewport (CSS scroll-driven animations). */

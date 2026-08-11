@@ -1,6 +1,6 @@
 # Siri Shortcuts Integration
 
-Control Reave through Siri using Apple Shortcuts. Say things like "Hey Siri, list my clients" or "Hey Siri, create work item" and interact with your business from anywhere.
+Control Reave through Siri using Apple Shortcuts. Say things like "Hey Siri, list my contacts" or "Hey Siri, create work item" and interact with your business from anywhere.
 
 ## How it Works
 
@@ -43,14 +43,14 @@ On your iPhone/iPad:
    - **Request Body**: JSON (see examples below)
    - **Headers**: Add header `X-Siri-Key` with value `your-key-from-railway`
 5. Add action: **Show Result** (displays the response)
-6. Name your shortcut (e.g., "List Clients")
-7. Tap the info button → Add to Siri → record a phrase like "list my clients"
+6. Name your shortcut (e.g., "List Contacts")
+7. Tap the info button → Add to Siri → record a phrase like "list my contacts"
 
-Now say "Hey Siri, list my clients" and it runs!
+Now say "Hey Siri, list my contacts" and it runs!
 
 ## Available Actions
 
-### List Clients
+### List Contacts
 
 **What it does**: Search or list all clients.
 
@@ -79,7 +79,7 @@ Tony Vello · Solid Builders · [email protected] · +1234567890
 Acme Corp · [email protected]
 ```
 
-**Siri phrase**: "list my clients" or "search clients for acme"
+**Siri phrase**: "list my contacts" or "search clients for acme"
 
 ### Get Client Details
 
@@ -96,7 +96,7 @@ Acme Corp · [email protected]
 ```
 
 **Parameters**:
-- `name` (required): Client name to search for (exact or whole-word match — "Tony" will not match "Tom")
+- `name` (required): Contact name to search for (exact or whole-word match — "Tony" will not match "Tom")
 
 **Example response** (format=text):
 
@@ -135,7 +135,7 @@ Client not found: Tony. Would you like to add a new client?
 ```
 
 **Parameters**:
-- `name` (required): Client name
+- `name` (required): Contact name
 - `email` (optional): Email address
 - `phone` (optional): Phone number (E.164 format)
 - `company` (optional): Company name
@@ -144,7 +144,7 @@ Client not found: Tony. Would you like to add a new client?
 **Example response**:
 
 ```
-✅ Created client: Jane Smith (Smith Industries)
+✅ Created contact: Jane Smith (Smith Industries)
 ```
 
 **Siri phrase**: "create client Jane Smith"
@@ -186,7 +186,7 @@ ACTIVE: Brand refresh · Local Cafe
 
 ### Find Client
 
-**What it does**: Look up a client by name. Returns `found: true/false` in JSON for Shortcuts conditionals.
+**What it does**: Look up a contact by name. Returns `found: true/false` in JSON for Shortcuts conditionals.
 
 **JSON body**:
 
@@ -199,7 +199,7 @@ ACTIVE: Brand refresh · Local Cafe
 
 ### Create Project
 
-**What it does**: Find or create a client, then create a work/project item in one call. Use with the **Create Reave Project** Siri shortcut.
+**What it does**: Find or create a contact, then create a work/project item in one call. Use with the **Create Reave Project** Siri shortcut.
 
 **JSON body**:
 
@@ -232,7 +232,7 @@ Created project Website redesign for Tony Vello. Status: active.
 
 ### Audit (quick — street speed)
 
-**What it does**: Say a business name — add street or town if the name is common — and it hands the job to the research agent: finds the real business and website, looks up or creates the client, runs a **fast audit** (Lighthouse, HTML/content, SSL, DNS, Google/social/reputation search), and files an "inquiry" project. Skips slow Playwright browser automation and link crawls so you get results faster on the street.
+**What it does**: Say a business name — add street or town if the name is common — and it hands the job to the research agent: finds the real business and website, looks up or creates the contact, runs a **fast audit** (Lighthouse, HTML/content, SSL, DNS, Google/social/reputation search), and files an "inquiry" project. Skips slow Playwright browser automation and link crawls so you get results faster on the street.
 
 Because Lighthouse alone can take up to ~2 minutes, this action returns immediately with an acknowledgment — the finished audit, new client, and new project land a little later in the **System alerts** chat thread with a push notification (requires `AGENT_ALERT_USER_ID` and web push set up). Siri won't sit there waiting.
 
@@ -261,7 +261,7 @@ Auditing Example Plumbing Co on Oak Street in Portland now. You'll get an alert 
 
 **Also accepts**: `"action": "create_proposal"` (same quick tier — backward compatible)
 
-**Requirement**: `ANTHROPIC_API_KEY` (for the research agent), `CONTACT_API_BASE_URL` (to create the client), and `AGENT_ALERT_USER_ID` (so the finished audit posts to System alerts with a push notification — without it the research still runs but there's nowhere to see the result land).
+**Requirement**: `ANTHROPIC_API_KEY` (for the research agent), `CONTACT_API_BASE_URL` (to create the contact), and `AGENT_ALERT_USER_ID` (so the finished audit posts to System alerts with a push notification — without it the research still runs but there's nowhere to see the result land).
 
 ### Full Audit (comprehensive)
 
@@ -309,7 +309,7 @@ Running full audit on Example Plumbing Co on Oak Street in Portland now. You'll 
 
 **Parameters**:
 - `title` (required): Work item title
-- `client` (required): Client name
+- `client` (required): Contact name
 - `status` (optional): `active`, `complete`, `paused`, `quote`, `archived` (default: `active`)
 - `priority` (optional): `low`, `medium`, `high`, `urgent` (default: `medium`)
 - `body` (optional): Detailed description
@@ -328,7 +328,7 @@ Client: Acme Corp
 
 ### Add To-Do
 
-**What it does**: Create a personal/work to-do (dynamic alert) — separate from client projects. Use when you want a reminder that is **not** a job with a client.
+**What it does**: Create a personal/work to-do (dynamic alert) — separate from client projects. Use when you want a reminder that is **not** a job with a contact.
 
 **JSON body**:
 
@@ -540,7 +540,7 @@ Claude: online
 
 Use **Ask for Input** to make shortcuts interactive:
 
-1. Add **Ask for Input** action → "What's the client name?"
+1. Add **Ask for Input** action → "What's the contact name?"
 2. Store result in variable `ClientName`
 3. In **Get Contents of URL**, use the variable in JSON:
 
@@ -574,7 +574,7 @@ Use **Shortcuts Automation** to trigger actions based on:
 Combine multiple API calls in one shortcut:
 
 1. **Get Contents of URL** → list_clients
-2. **Choose from List** → pick a client
+2. **Choose from List** → pick a contact
 3. **Get Contents of URL** → get_client with selected name
 4. **Show Result**
 
@@ -594,7 +594,7 @@ Runs every weekday at 9am:
 Accessible from Share Sheet when someone texts you their contact:
 
 1. **Receive** text from Share Sheet
-2. **Ask for Input** → "Client name?"
+2. **Ask for Input** → "Contact name?"
 3. **Ask for Input** → "Company?"
 4. Extract phone/email from shared text
 5. **Get Contents of URL** → create_client with all details
@@ -712,7 +712,7 @@ Example actions to add:
 
 **Time tracking** (requires `time_tracking` feature):
 
-- `start_time_tracking`: Prompt with the most recent project, or start on `query` ("yes" or project name). Creates a project when the client exists but no matching project is found.
+- `start_time_tracking`: Prompt with the most recent project, or start on `query` ("yes" or project name). Creates a project when the contact exists but no matching project is found.
 - `stop_time_tracking`: Stop the active timer and append logged hours to the project time log.
 - `time_tracking_status`: Report the running timer or suggest the most recent project.
 

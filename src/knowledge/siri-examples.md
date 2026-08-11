@@ -2,11 +2,11 @@
 
 Real-world shortcut configurations you can copy into the Shortcuts app.
 
-## Example 1: "List My Clients"
+## Example 1: "List My Contacts"
 
 **What it does**: Lists all clients (or searches if you add input).
 
-**Siri phrase**: "list my clients" or "show my clients"
+**Siri phrase**: "list my contacts" or "show my contacts"
 
 **Shortcut steps**:
 
@@ -33,9 +33,9 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 2: "Find Client" (with dynamic input)
 
-**What it does**: Asks for a client name, then shows their details.
+**What it does**: Asks for a contact name, then shows their details.
 
-**Siri phrase**: "find client" or "lookup client"
+**Siri phrase**: "find contact" or "lookup client"
 
 **Shortcut steps**:
 
@@ -80,14 +80,14 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 3: "Quick Add Client"
 
-**What it does**: Prompts for name, email, phone, company — creates the client.
+**What it does**: Prompts for name, email, phone, company — creates the contact.
 
 **Siri phrase**: "add client" or "new client"
 
 **Shortcut steps**:
 
 1. **Ask for Input**
-   - Prompt: "Client name?"
+   - Prompt: "Contact name?"
    - Variable: `Name`
 
 2. **Ask for Input**
@@ -129,7 +129,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 4: "Start Time Tracking"
 
-**What it does**: Asks which project (speaks the most recent), listens for "yes" or a project name like "Cooper Website", then starts a timer. Creates a new project when the client exists but the project does not.
+**What it does**: Asks which project (speaks the most recent), listens for "yes" or a project name like "Cooper Website", then starts a timer. Creates a new project when the contact exists but the project does not.
 
 **Requires**: `time_tracking` enabled in install config.
 
@@ -231,7 +231,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
    - Variable: `Title`
 
 2. **Ask for Input**
-   - Prompt: "Client name?"
+   - Prompt: "Contact name?"
    - Variable: `Client`
 
 3. **Ask from List**
@@ -262,7 +262,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 6c: "Add a To-Do"
 
-**What it does**: Creates a personal/work to-do (not a client project) from a dictated title.
+**What it does**: Creates a personal/work to-do (not a contact project) from a dictated title.
 
 **Siri phrase**: "add a to-do" or "new to-do"
 
@@ -412,7 +412,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 7b: "Audit" (quick street audit)
 
-**What it does**: Say a business name — add street or town if needed — and it kicks off the research agent in the background: finds the business and website, resolves/creates the client, runs a **fast audit** (Lighthouse, HTML, SSL, DNS, Google/social/reputation search — no Playwright or link crawl), and files a project with a write-up. Siri gets an immediate "auditing now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
+**What it does**: Say a business name — add street or town if needed — and it kicks off the research agent in the background: finds the business and website, resolves/creates the contact, runs a **fast audit** (Lighthouse, HTML, SSL, DNS, Google/social/reputation search — no Playwright or link crawl), and files a project with a write-up. Siri gets an immediate "auditing now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
 
 **Siri phrase**: "audit" or "create proposal" or "research this business"
 
@@ -466,7 +466,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 **What it does**: Sends a text message via Telnyx.
 
-**Siri phrase**: "text a client" or "send client sms"
+**Siri phrase**: "text a contact" or "send client sms"
 
 **Shortcut steps**:
 
@@ -583,7 +583,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ### From Safari (Save URL to Client)
 
-1. Browse a client's website
+1. Browse a contact's website
 2. Tap Share → your "Add Client Website" shortcut
 3. Shortcut extracts URL + page title
 4. Prompts for client name
@@ -628,7 +628,7 @@ Upload image separately via `/api/work/[slug]/files`, then reference in work bod
 ## Tips
 
 - **Pin to Home Screen**: Shortcuts with long names get truncated; use short names for Home Screen icons
-- **Use Folders**: Organize shortcuts into folders (e.g. "Reave", "Clients", "Work")
+- **Use Folders**: Organize shortcuts into folders (e.g. "Reave", "Contacts", "Work")
 - **Backup**: iCloud syncs shortcuts, but export critical ones (Share → Copy iCloud Link)
 - **Share with Team**: Share iCloud links with team members so they can import your shortcuts
 

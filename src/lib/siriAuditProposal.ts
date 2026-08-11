@@ -125,6 +125,7 @@ export async function startAuditProposal(
     label,
     tier,
     jobSlug: stub.slug,
+    contactUid: stub.contactUid,
     userId,
     triggerLabel: options.triggerLabel || 'Siri shortcut',
     bypassSleepMode: options.bypassSleepMode === true,
@@ -161,6 +162,7 @@ async function runProposalResearch(input: {
   label: string;
   tier: SiriAuditTier;
   jobSlug: string;
+  contactUid: string;
   userId: string | null;
   triggerLabel: string;
   bypassSleepMode: boolean;
@@ -213,9 +215,10 @@ async function runProposalResearch(input: {
       'to identify the correct business and find its website; use any location hints in the description to ' +
       'disambiguate common names. If no website can be found, say so in the audit and continue with whatever ' +
       'public info you can find.',
-    '2. resolve_contact for the client. If there is no match, create_contact with kind "proposed". If a match ' +
-      'exists but kindExplicit is false (never classified), update_contact with kind "proposed". Use the business ' +
-      'name as the contact name when no personal name is known, and save whatever phone/email/company was given.',
+    `2. Contact uid **${input.contactUid}** is already linked to the stub and marked proposed when unclassified. ` +
+      'Prefer update_contact on that uid to fill phone/email/company/website. Only create_contact if resolve_contact ' +
+      'finds a clearer match that should replace it — new contacts must use kind "proposed". Use the business ' +
+      'name as the contact name when no personal name is known.',
     auditToolsStep,
     `4. update_work slug "${input.jobSlug}" with status "inquiry", contact_uid set, and a catchy finding-based title (5–12 words — ` +
       'witty but professional, inspired by the top audit finding; do NOT include the business name because ' +

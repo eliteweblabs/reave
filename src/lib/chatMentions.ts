@@ -1,5 +1,5 @@
 /**
- * Structured @-mentions from agent chat — contacts (clients) and Clerk team users.
+ * Structured @-mentions from agent chat — contacts and Clerk team users.
  * Sent with the chat POST so the agent gets stable ids instead of fuzzy name resolve.
  */
 

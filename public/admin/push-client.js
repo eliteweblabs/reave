@@ -3,7 +3,7 @@
  */
 
 import { buildAdminNotice } from './admin-notice.js?v=20260807e';
-import { companyStaffAvatarUrl } from './shared.js?v=20260808k';
+import { companyStaffAvatarUrl } from './shared.js?v=20260810a';
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;

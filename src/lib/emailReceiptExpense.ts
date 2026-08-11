@@ -3,8 +3,17 @@
  */
 
 import type { EmailInboxRecord } from './emailInboxStore';
-import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
+import {
+  extractMonetaryAmountFromEmail,
+  formatUsdAmount,
+  looksLikeIncomingPayment,
+  looksLikePaymentNotification,
+} from './emailMoney';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import {
+  explainReceiptClassification,
+  type ClassificationAuditStep,
+} from './emailClassificationAudit';
 
 export type ReceiptExpenseReviewNotification = {
   id: string;
@@ -18,6 +27,8 @@ export type ReceiptExpenseReviewNotification = {
   amount: number | null;
   vendorLabel: string;
   awaitingTriage: false;
+  /** Decision path that produced the Tax receipt classification / title. */
+  auditTrail: ClassificationAuditStep[];
 };
 
 function isReceiptArchived(record: Pick<EmailInboxRecord, 'action' | 'status'>): boolean {
@@ -30,7 +41,16 @@ function isReceiptArchived(record: Pick<EmailInboxRecord, 'action' | 'status'>):
 export function isReceiptPendingExpenseReview(
   record: Pick<
     EmailInboxRecord,
-    'category' | 'action' | 'status' | 'automationAckAt' | 'automationKind' | 'subject' | 'summary'
+    | 'category'
+    | 'action'
+    | 'status'
+    | 'automationAckAt'
+    | 'automationKind'
+    | 'from'
+    | 'subject'
+    | 'summary'
+    | 'bodySnippet'
+    | 'bodyText'
   >,
 ): boolean {
   if (record.category !== 'receipt') return false;
@@ -41,10 +61,14 @@ export function isReceiptPendingExpenseReview(
   return true;
 }
 
-/** Alerts/deploy mail mis-tagged as receipt — skip dashboard banner when no dollar amount. */
+/**
+ * Mis-tagged as receipt — skip the Tax receipt → Expense banner.
+ * Incoming “Payment of $… from …” is income, not an expense receipt.
+ */
 function looksLikeMisfiledReceipt(
-  record: Pick<EmailInboxRecord, 'subject' | 'summary'>,
+  record: Pick<EmailInboxRecord, 'from' | 'subject' | 'summary' | 'bodySnippet' | 'bodyText'>,
 ): boolean {
+  if (looksLikeIncomingPayment(record) || looksLikePaymentNotification(record)) return true;
   if (extractMonetaryAmountFromEmail(record) != null) return false;
   const blob = [record.subject, record.summary].join(' ').toLowerCase();
   return /\b(build failed|deploy failed|deployment failed|railway|ci failed)\b/.test(blob);
@@ -87,6 +111,7 @@ export function toReceiptExpenseReviewNotification(
     amount: extractMonetaryAmountFromEmail(record),
     vendorLabel: receiptVendorLabel(record),
     awaitingTriage: false,
+    auditTrail: explainReceiptClassification(record),
   };
 }
 

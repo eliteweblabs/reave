@@ -133,7 +133,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (mode === 'create') {
-    const title = String(body.title ?? emailRecord.subject ?? '').trim() || 'New project';
+    const title = String(body.title ?? emailRecord.subject ?? '').trim() || 'Project inquiry';
 
     const contact = await ensureWorkContact({
       contact_uid: (body.contact_uid as string | undefined) ?? emailRecord.contactUid,

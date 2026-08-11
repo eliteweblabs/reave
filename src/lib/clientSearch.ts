@@ -14,7 +14,7 @@ import {
   type ContactRecord,
 } from './contactApi';
 
-/** Strip a leading "the " for alphabetical client list ordering. */
+/** Strip a leading "the " for alphabetical contact list ordering. */
 export function clientNameSortKey(name: string): string {
   return name.trim().replace(/^the\s+/i, '');
 }
@@ -25,7 +25,7 @@ export function compareClientNames(a: string, b: string): number {
   });
 }
 
-/** Title shown in the clients sidebar — company first, then contact name. */
+/** Title shown in the contacts sidebar — company first, then contact name. */
 export function clientListDisplayName(input: {
   name: string;
   company?: string | null;
@@ -421,7 +421,7 @@ export async function resolveWorkClientDecision(input: {
       status: 'needs_selection',
       reason: 'no_match',
       candidates: [],
-      hint: `contact_uid ${uid} was not found. Search again or create the client first.`,
+      hint: `contact_uid ${uid} was not found. Search again or create the contact first.`,
     };
   }
 
@@ -493,7 +493,7 @@ export async function resolveWorkClientDecision(input: {
       status: 'needs_selection',
       reason: 'ambiguous',
       candidates,
-      hint: 'Multiple possible clients matched. Ask the user to confirm which one, then re-call create_work with contact_uid.',
+      hint: 'Multiple possible contacts matched. Ask the user to confirm which one, then re-call create_work with contact_uid.',
     };
   }
 

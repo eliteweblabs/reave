@@ -84,7 +84,7 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
   // Contacts
   {
     slash: '/contact',
-    summary: 'Look up a client',
+    summary: 'Look up a contact',
     template: 'Who is [name]? Show their contact details and any open projects.',
     example: 'Who is Northwind Studio?',
   },

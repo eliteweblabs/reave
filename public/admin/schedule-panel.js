@@ -35,7 +35,7 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260810a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260810a';
 import { postLower } from './post-alias.js?v=20260805a';
 import {
   registerOsDialogDropdownRepositioner,
@@ -46,8 +46,8 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810b';
-import { navigateToClient } from './clients-panel.js?v=20260810b';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810c';
+import { navigateToClient } from './clients-panel.js?v=20260810c';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -1128,7 +1128,7 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
     if (!clients.length) {
       const empty = document.createElement('div');
       empty.className = 'sched-guest-empty';
-      empty.textContent = query.trim() ? 'No matching clients.' : 'No clients yet.';
+      empty.textContent = query.trim() ? 'No matching contacts.' : 'No contacts yet.';
       dropdown.appendChild(empty);
       setDropdownOpen(true);
       return;
@@ -1138,7 +1138,7 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
       btn.type = 'button';
       btn.className = 'sched-guest-option';
       btn.innerHTML =
-        `${escHtml(c.name || 'Client')}` +
+        `${escHtml(c.name || 'Contact')}` +
         `<span class="sub">${escHtml(workClientSubline(c))}</span>`;
       btn.addEventListener('mousedown', (ev) => ev.preventDefault());
       btn.addEventListener('click', () => pick(c));

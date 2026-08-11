@@ -9,7 +9,9 @@ import type { APIRoute } from 'astro';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { hasFeature } from '../../../lib/features';
 import {
+  getSiteAssistantPageContext,
   isSiteAssistantConfigured,
+  normalizeSiteAssistantPagePath,
   runSiteAssistantReply,
   type SiteAssistantTurn,
 } from '../../../lib/siteAssistant';
@@ -61,6 +63,17 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: 'Message is too long.' }, 400);
   }
   const history = parseHistory(body.history);
+  let pagePath = normalizeSiteAssistantPagePath(
+    typeof body.pagePath === 'string' ? body.pagePath : '',
+  );
+  if (!pagePath) {
+    try {
+      const referer = request.headers.get('referer');
+      if (referer) pagePath = normalizeSiteAssistantPagePath(new URL(referer).pathname);
+    } catch {
+      /* ignore malformed referer */
+    }
+  }
 
   const rate = checkPortalAssistantRateLimit(`site:${clientIp(request)}`);
   if (!rate.ok) {
@@ -81,6 +94,7 @@ export const POST: APIRoute = async ({ request }) => {
         domain: org.domain,
         siteUrl: org.siteUrl,
       },
+      page: getSiteAssistantPageContext(pagePath),
     },
     message,
     history,

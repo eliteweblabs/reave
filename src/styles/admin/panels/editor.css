@@ -279,9 +279,7 @@
   opacity: 0.35;
   cursor: default;
 }
-.list-selection-bar-btn--delete:not(:disabled) {
-  color: var(--danger, #e5484d);
-}
+/* Bulk-delete in the selection bar uses paneDeleteIcon (.ch-delete-btn). */
 .list-selection-mode .td-list-grip {
   display: none;
 }
@@ -1994,6 +1992,23 @@ button.de-placeholder-action:active {
 .wk-visit-plan-link:hover {
   background: rgba(121, 192, 255, 0.16);
 }
+.cl-client-map-link {
+  display: block;
+  flex-shrink: 0;
+  margin: 0.4rem 0.55rem 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(121, 192, 255, 0.32);
+  border-radius: var(--radius-input);
+  background: rgba(121, 192, 255, 0.08);
+  color: #79c0ff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.cl-client-map-link:hover {
+  background: rgba(121, 192, 255, 0.16);
+}
 .wk-status-auditing { color: #0a84ff; background: rgba(10, 132, 255, 0.14); }
 .wk-audit-progress {
   flex-shrink: 1;
@@ -2697,6 +2712,36 @@ button.de-placeholder-action:active {
 #clients-editor .de-fields .de-label,
 #clients-editor .de-pane > .cl-notes-label {
   width: 100%;
+}
+/* Bypass new-contact form → /admin/import-contacts (CardDAV / vCard / CSV). */
+#clients-editor .cl-import-carddav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input, 8px);
+  background: color-mix(in srgb, var(--surface-hover, rgba(127, 127, 127, 0.12)) 65%, transparent);
+  color: #0a84ff;
+  font: inherit;
+  font-size: max(16px, 0.92rem);
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#clients-editor .cl-import-carddav-btn:hover {
+  background: var(--surface-hover);
+}
+#clients-editor .cl-import-carddav-btn span {
+  flex: 1 1 auto;
+  text-align: center;
+}
+#clients-editor .cl-import-carddav-btn svg {
+  flex: 0 0 auto;
+  opacity: 0.9;
 }
 #clients-editor .detail-form-scroll {
   flex: 1 1 auto;

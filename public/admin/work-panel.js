@@ -32,9 +32,9 @@ import {
   createCopyIconBtn,
   looksLikeHttpUrl,
 } from './admin-ui.js?v=20260810a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260810b';
+import { clientState, clientMapController } from './clients-panel.js?v=20260810c';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import {
   createDetailChrome,
@@ -696,7 +696,7 @@ function renderWorkChecklistPanel(mountEl, opts) {
 
     const hint = document.createElement('p');
     hint.className = 'wk-billable-hint';
-    hint.textContent = `Use these as Crater line-item descriptions for ${clientName || title || 'this client'}.`;
+    hint.textContent = `Use these as Crater line-item descriptions for ${clientName || title || 'this contact'}.`;
     bill.appendChild(hint);
 
     section.appendChild(bill);
@@ -782,10 +782,9 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       noteInput.value = entry.note || '';
       noteInput.setAttribute('aria-label', 'Note');
 
-      const removeBtn = createIosIconBtn({
-        iconKey: 'trash',
+      const removeBtn = paneDeleteIcon({
         label: 'Remove time row',
-        className: 'ios-icon-btn wk-time-remove',
+        className: 'wk-time-remove',
         onClick: () => {
           entries.splice(index, 1);
           render();
@@ -894,7 +893,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
 
       const hint = document.createElement('p');
       hint.className = 'wk-billable-hint';
-      hint.textContent = `Bill ${opts.clientName || opts.title || 'this client'} using hours as quantity on each line item.`;
+      hint.textContent = `Bill ${opts.clientName || opts.title || 'this contact'} using hours as quantity on each line item.`;
       bill.appendChild(hint);
 
       wrap.appendChild(bill);
@@ -1133,7 +1132,7 @@ function mountClientDetailTabs(pane, activeTab, onSelect, opts = {}) {
     tabs: clientDetailTabs(opts),
     activeTab,
     onSelect,
-    ariaLabel: 'Client sections',
+    ariaLabel: 'Contact sections',
     tabClass: 'cl-detail-tab',
     tabsClass: 'cl-detail-tabs',
     dataAttr: 'clientTab',
@@ -1228,7 +1227,7 @@ async function mountClientAnalyticsSection(parent, uid) {
   const connectLink = document.createElement('a');
   connectLink.className = 'prof-btn-secondary';
   connectLink.href = `/api/admin/analytic-audit/connect?contact_uid=${encodeURIComponent(uid)}`;
-  connectLink.textContent = 'Connect Google (this client)';
+  connectLink.textContent = 'Connect Google (this contact)';
   connectRow.appendChild(connectLink);
   wrap.prepend(connectRow);
 
@@ -1244,7 +1243,7 @@ async function mountClientAnalyticsSection(parent, uid) {
       empty.className = 'dash-empty';
       empty.textContent =
         d.error ||
-        'No Plausible site id or GA4 property for this client. Add vault labels “Plausible site id” / “GA4 property id”, or connect Google.';
+        'No Plausible site id or GA4 property for this contact. Add vault labels “Plausible site id” / “GA4 property id”, or connect Google.';
       wrap.appendChild(empty);
       return;
     }
@@ -1309,7 +1308,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   const hint = document.createElement('p');
   hint.className = 'cl-vault-hint';
   hint.textContent =
-    'Passwords, DNS, hosting, and other account details shown on the client portal Data tab. The submit link lets clients add entries themselves.';
+    'Passwords, DNS, hosting, and other account details shown on the client portal Data tab. The submit link lets contacts add entries themselves.';
   wrap.appendChild(hint);
 
   const list = document.createElement('div');
@@ -1421,7 +1420,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     if (rows.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'cl-vault-empty';
-      empty.textContent = 'No vault entries yet. Add one or send the client submit link.';
+      empty.textContent = 'No vault entries yet. Add one or send the contact submit link.';
       list.appendChild(empty);
       return;
     }
@@ -1435,18 +1434,17 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       const cardTitle = document.createElement('div');
       cardTitle.className = 'cl-vault-card-title';
       cardTitle.textContent = entry.label || `Entry ${index + 1}`;
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'de-btn de-btn-secondary';
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.addEventListener('click', async () => {
-        rows.splice(index, 1);
-        renderVaultList();
-        try {
-          await saveClientVaultData(uid, readRowsFromDom());
-        } catch (e) {
-          shell.showChatToast(e.message || 'Vault save failed');
-        }
+      const deleteBtn = paneDeleteIcon({
+        label: `Delete ${entry.label || `entry ${index + 1}`}`,
+        onClick: async () => {
+          rows.splice(index, 1);
+          renderVaultList();
+          try {
+            await saveClientVaultData(uid, readRowsFromDom());
+          } catch (e) {
+            shell.showChatToast(e.message || 'Vault save failed');
+          }
+        },
       });
       head.appendChild(cardTitle);
       head.appendChild(deleteBtn);
@@ -1488,7 +1486,7 @@ function renderClientWorkSection(jobsWrap, jobs) {
   if (jobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty cl-jobs-empty';
-    empty.textContent = `No active ${postLower(2)} for this client.`;
+    empty.textContent = `No active ${postLower(2)} for this contact.`;
     jobsWrap.appendChild(empty);
     return;
   }
@@ -1636,8 +1634,8 @@ function beginNewProjectDrawer() {
       const slug = workState.activeSlug;
       if (!slug || slug === '__new__') {
         await shell.osAlert({
-          title: 'Pick a client',
-          bodyHtml: `A ${postLower(1)} needs a client before it can be created.`,
+          title: 'Pick a contact',
+          bodyHtml: `A ${postLower(1)} needs a contact before it can be created.`,
         });
         return;
       }
@@ -2007,7 +2005,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
     emailActionBtn = createIosIconBtn({
       iconKey: 'mail',
-      label: 'Email client',
+      label: 'Email contact',
       className: 'ios-icon-btn wk-client-action-btn',
       onClick: () => {
         if (selected?.email) window.location.href = `mailto:${selected.email}`;
@@ -2017,7 +2015,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
     callActionBtn = createIosIconBtn({
       iconKey: 'phone',
-      label: 'Call client',
+      label: 'Call contact',
       className: 'ios-icon-btn wk-client-action-btn',
       onClick: () => {
         if (selected?.phone) window.location.href = `tel:${selected.phone.replace(/[^\d+]/g, '')}`;
@@ -2027,7 +2025,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
     smsActionBtn = createIosIconBtn({
       iconKey: 'message',
-      label: 'Text client',
+      label: 'Text contact',
       className: 'ios-icon-btn wk-client-action-btn',
       onClick: () => {
         if (selected?.phone) window.location.href = `sms:${selected.phone.replace(/[^\d+]/g, '')}`;
@@ -2051,7 +2049,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Clients…';
+  searchInput.placeholder = 'Contacts…';
   searchInput.autocomplete = 'off';
   searchLabel.appendChild(searchInput);
   searchWrap.appendChild(searchLabel);
@@ -2064,7 +2062,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const newForm = document.createElement('div');
   newForm.className = 'wk-client-new';
   newForm.style.display = 'none';
-  newForm.innerHTML = '<span class="de-label">New client</span>';
+  newForm.innerHTML = '<span class="de-label">New contact</span>';
   const newName = document.createElement('input');
   newName.className = 'de-input';
   newName.placeholder = 'Full name (required)';
@@ -2081,7 +2079,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const newSave = document.createElement('button');
   newSave.type = 'button';
   newSave.className = 'de-btn de-btn-primary';
-  newSave.textContent = 'Create client';
+  newSave.textContent = 'Create contact';
   newActions.appendChild(newCancel);
   newActions.appendChild(newSave);
   newForm.appendChild(newName);
@@ -2097,11 +2095,11 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     newForm.style.display = 'none';
     readonlyBar.style.display = !showingNew && !changing ? 'flex' : 'none';
 
-    const name = selected?.name || 'No client';
+    const name = selected?.name || 'No contact';
     clientNameEl.textContent = name;
 
     profileLink.disabled = !has;
-    profileLink.setAttribute('aria-label', has ? `Open ${name} profile` : 'No client linked');
+    profileLink.setAttribute('aria-label', has ? `Open ${name} profile` : 'No contact linked');
     if (has) profileLink.title = `Open ${name} profile`;
     else profileLink.removeAttribute('title');
 
@@ -2163,7 +2161,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
     addBtn.className = 'wk-client-option wk-client-add';
-    addBtn.textContent = query.trim() ? `+ Add "${query.trim()}" as new client` : '+ Add new client';
+    addBtn.textContent = query.trim() ? `+ Add "${query.trim()}" as new client` : '+ Add new contact';
     addBtn.addEventListener('click', () => beginAddNewClient(query.trim()));
     dropdown.appendChild(addBtn);
     dropdown.style.display = 'block';
@@ -2187,7 +2185,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       const label = resolved.contact.company
         ? `${resolved.contact.name} (${resolved.contact.company})`
         : resolved.contact.name;
-      if (confirm(`"${label}" already exists. Use this client instead of creating a new one?`)) {
+      if (confirm(`"${label}" already exists. Use this contact instead of creating a new one?`)) {
         pick(resolved.contact);
         return;
       }
@@ -2265,7 +2263,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
   newSave.addEventListener('click', async () => {
     const name = newName.value.trim();
-    if (!name) { alert('Enter a client name.'); return; }
+    if (!name) { alert('Enter a contact name.'); return; }
     newSave.disabled = true;
     try {
       const resolved = await resolveClientMatches(name);
@@ -2273,7 +2271,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
         const label = resolved.contact.company
           ? `${resolved.contact.name} (${resolved.contact.company})`
           : resolved.contact.name;
-        if (confirm(`"${label}" already exists. Use this client instead of creating a new one?`)) {
+        if (confirm(`"${label}" already exists. Use this contact instead of creating a new one?`)) {
           pick(resolved.contact);
           return;
         }
@@ -2287,7 +2285,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       pick({ uid: data.uid, name: data.name });
     } catch (e) {
-      alert(`Failed to create client: ${e.message}`);
+      alert(`Failed to create contact: ${e.message}`);
     } finally {
       newSave.disabled = false;
     }
@@ -2516,7 +2514,7 @@ function createWorkBodyEditor(opts = {}) {
     let slug = opts.slug || null;
     if (!slug && opts.ensureSlug) slug = await opts.ensureSlug();
     if (!slug) {
-      showWorkEditorToast('Add a title and client before adding images.');
+      showWorkEditorToast('Add a title and contact before adding images.');
       return;
     }
 
@@ -2835,7 +2833,7 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
       wrap.innerHTML = '';
       const label = document.createElement('div');
       label.className = 'de-label';
-      label.textContent = 'Client comments';
+      label.textContent = 'Contact comments';
       wrap.appendChild(label);
 
       const list = document.createElement('div');
@@ -2858,7 +2856,7 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
             workCommentAvatarHtml(c.author, clientIconUrl) +
             `<div class="wk-comment-main">` +
             `<div class="wk-comment-head">` +
-            `<span class="wk-comment-author">${escHtml(c.authorName || (c.author === 'staff' ? 'Team' : 'Client'))}</span>` +
+            `<span class="wk-comment-author">${escHtml(c.authorName || (c.author === 'staff' ? 'Team' : 'Contact'))}</span>` +
             `<span class="wk-comment-time">${escHtml(when)}</span>` +
             `</div>` +
             `<div class="wk-comment-text">${escHtml(c.text)}</div>` +
@@ -2876,7 +2874,7 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
       replyTa.className = 'de-textarea wk-comment-reply';
       replyTa.rows = 3;
       replyTa.maxLength = 4000;
-      replyTa.placeholder = 'Write a reply to the client…';
+      replyTa.placeholder = 'Write a reply to the contact…';
       replyLabel.appendChild(replyTa);
       wrap.appendChild(replyLabel);
 
@@ -3066,12 +3064,12 @@ function renderEditWorkForm(pane) {
             jobSlug: slug,
             trackEl: linkTrackEl,
             shareLogEl,
-            title: `${data.contact_name || data.client || 'Client'} — ${
+            title: `${data.contact_name || data.client || 'Contact'} — ${
               isAuditWorkJob(data) ? 'Audit' : postTitle(2)
             }`,
             recipient: {
               contactUid: data.contact_uid,
-              name: data.contact_name || data.client || 'Client',
+              name: data.contact_name || data.client || 'Contact',
               email: data.contact_email,
               phone: data.contact_phone,
             },
@@ -3272,7 +3270,7 @@ async function openWork(slug) {
 
 async function createWork(slug, payload) {
   if (!payload.title) { alert('Enter a title.'); return; }
-  if (!payload.contact_uid) { alert('Select a client.'); return; }
+  if (!payload.contact_uid) { alert('Select a contact.'); return; }
   if (!slug) { alert('Could not derive a slug from the title.'); return; }
   const returnTodoId = workState.returnToTodoId;
   try {
@@ -3316,7 +3314,7 @@ async function createWork(slug, payload) {
 
 async function saveWork(slug, payload) {
   if (!payload.title) { alert('Title is required.'); return; }
-  if (!payload.contact_uid) { alert('Select a client.'); return; }
+  if (!payload.contact_uid) { alert('Select a contact.'); return; }
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
       method: 'PUT',
@@ -4152,7 +4150,7 @@ async function askAgentAboutWork(job) {
       `Title: ${job.title}`,
       `Slug: ${job.slug}`,
     ];
-    if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
+    if (job.contact_name || job.client) lines.push(`Contact: ${job.contact_name || job.client}`);
     if (job.status) lines.push(`Status: ${workStatusLabel(job.status, job)}`);
     lines.push('', `Please wait for instructions on how to work on this ${postLower(1)}.`);
     await shell.askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });

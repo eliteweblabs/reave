@@ -46,7 +46,7 @@ Background polling runs every 5 minutes (override with `UPTIMEROBOT_POLL_MINUTES
 
 ## Client linking
 
-Monitors auto-link to clients when the monitor URL matches the portal **Website URL** or **website** field.
+Monitors auto-link to contacts when the monitor URL matches the portal **Website URL** or **website** field.
 
 Manual override via Railway env:
 

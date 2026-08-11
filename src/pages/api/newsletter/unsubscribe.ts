@@ -8,22 +8,32 @@ import { verifyUnsubscribeToken } from '../../../lib/newsletterUnsubscribe';
 import { addUnsubscribe } from '../../../lib/newsletterStore';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { MOBILE_VIEWPORT_CONTENT } from '../../../lib/mobileViewport';
+import { escHtml } from '../../../lib/escHtml';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
 function page(title: string, message: string): Response {
   const html = `<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8" /><meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}" />
-<title>${title}</title>
+<title>${escHtml(title)}</title>
 <style>
   body{margin:0;background:#0a0a0b;color:#e5e5e7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px;touch-action:manipulation}
   .card{max-width:420px;text-align:center;background:#151517;border:1px solid #2a2a2e;border-radius:16px;padding:40px 32px}
   h1{font-size:20px;margin:0 0 12px}
   p{color:#a1a1aa;font-size:15px;line-height:1.6;margin:0}
 </style></head><body>
-<div class="card"><h1>${title}</h1><p>${message}</p></div>
+<div class="card"><h1>${escHtml(title)}</h1><p>${escHtml(message)}</p></div>
 </body></html>`;
   return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
+function rateLimited(): Response {
+  return new Response('Too many requests. Please try again later.', {
+    status: 429,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }
 
 async function unsubscribeFromToken(token: string | null, source: string): Promise<boolean> {
@@ -33,7 +43,13 @@ async function unsubscribeFromToken(token: string | null, source: string): Promi
   return addUnsubscribe(email, source);
 }
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, request }) => {
+  const rate = checkInMemoryRateLimit(`newsletter-unsub:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) return rateLimited();
+
   const token = url.searchParams.get('token');
   const company = await getCompanyConfig();
   const ok = await unsubscribeFromToken(token, 'link');
@@ -50,6 +66,17 @@ export const GET: APIRoute = async ({ url }) => {
 };
 
 export const POST: APIRoute = async ({ url, request }) => {
+  const rate = checkInMemoryRateLimit(`newsletter-unsub:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return new Response(JSON.stringify({ ok: false, error: 'Too many requests' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json', 'Retry-After': String(rate.retryAfterSeconds) },
+    });
+  }
+
   let token = url.searchParams.get('token');
   if (!token) {
     // Some clients POST the token in the body as form data.

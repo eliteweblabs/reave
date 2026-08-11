@@ -404,7 +404,7 @@ export function registerContactAuthorIcons(clients) {
   }
 }
 
-/** Best-effort client list fetch so work/todo rows can show contact icons. */
+/** Best-effort contact list fetch so work/todo rows can show contact icons. */
 export function prefetchContactAuthorIcons() {
   if (contactAuthorIconPrefetchPromise) return contactAuthorIconPrefetchPromise;
   contactAuthorIconPrefetchPromise = adminFetch('/api/clients')

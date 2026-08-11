@@ -42,15 +42,66 @@ import {
   createAgentBtn,
 } from './admin-ui.js?v=20260810a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260810b';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260810c';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};
 
+/** Built-in + common triage status tags offered in the rule editor autosuggest. */
+const KNOWN_RULE_STATUS_TAGS = [
+  'VERIFICATION_CODE',
+  'AUTH_LINK',
+  'ANTHROPIC_BILLING',
+  'RAILWAY_ALERT',
+  'DOWN',
+  'NEEDS_CHECK',
+  'RECEIPT',
+  'AUTO_ARCHIVED',
+  'DELETE',
+  'CUSTOM',
+];
+
+const RULE_STATUS_DATALIST_ID = 're-status-suggestions';
+
 export function initRulesPanel(deps) {
   shell = deps;
+}
+
+/** Unique status tags from known builtins + currently loaded rules (sorted). */
+function ruleStatusSuggestions() {
+  const seen = new Set();
+  const out = [];
+  for (const tag of KNOWN_RULE_STATUS_TAGS) {
+    const key = String(tag || '').trim().toUpperCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  for (const rule of ruleState.rules || []) {
+    const key = String(rule?.status || '').trim().toUpperCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function syncRuleStatusDatalist() {
+  let datalist = document.getElementById(RULE_STATUS_DATALIST_ID);
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = RULE_STATUS_DATALIST_ID;
+    document.body.appendChild(datalist);
+  }
+  datalist.replaceChildren();
+  for (const tag of ruleStatusSuggestions()) {
+    const opt = document.createElement('option');
+    opt.value = tag;
+    datalist.appendChild(opt);
+  }
+  return datalist;
 }
 
 // ---- extracted from os-map-loader.js:8260-8914 ----
@@ -382,7 +433,6 @@ function renderRuleEditPane(pane) {
     createPaneHeader({
       back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
       title: rule.title || rule.status || 'Rule',
-      subtitle: rule.status || '',
       beforeIcons: [agentBtn],
       icons: inDrawer
         ? []
@@ -405,12 +455,18 @@ function renderRuleEditPane(pane) {
   titleIn.addEventListener('input', () => { ruleState.dirty = true; });
   requestTitleFocus('rules', titleIn);
 
+  syncRuleStatusDatalist();
   const statusIn = document.createElement('input');
   statusIn.className = 'de-input';
   statusIn.type = 'text';
+  statusIn.setAttribute('list', RULE_STATUS_DATALIST_ID);
+  statusIn.setAttribute('autocomplete', 'off');
+  statusIn.setAttribute('spellcheck', 'false');
   statusIn.value = rule.status || '';
   statusIn.placeholder = 'DOWN, RECEIPT, …';
   statusIn.addEventListener('input', () => { ruleState.dirty = true; });
+  statusIn.addEventListener('change', () => { ruleState.dirty = true; });
+  statusIn.addEventListener('focus', () => { syncRuleStatusDatalist(); });
 
   const descIn = document.createElement('textarea');
   descIn.className = 're-textarea';
@@ -629,6 +685,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       baseline = current;
       ruleState.dirty = false;
       syncRuleListItem(rule.id, payload, data.rule);
+      syncRuleStatusDatalist();
       if (activeEl) shell.flashFormFieldSaved(activeEl);
     } catch (e) {
       console.warn('[rules] autosave failed', e);

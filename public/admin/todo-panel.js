@@ -37,10 +37,10 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260810a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260810b';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260810b';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260810c';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260810c';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260810a';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
 
@@ -729,10 +729,10 @@ function renderTodoEditPane(pane, isNew) {
         tab: 'work',
         jobSlug: linked.slug,
         trackEl: linkTrackEl,
-        title: `${linked.contact_name || linked.client || 'Client'} — ${postTitle(2)}`,
+        title: `${linked.contact_name || linked.client || 'Contact'} — ${postTitle(2)}`,
         recipient: {
           contactUid: linked.contact_uid,
-          name: linked.contact_name || linked.client || 'Client',
+          name: linked.contact_name || linked.client || 'Contact',
           email: linked.contact_email,
           phone: linked.contact_phone,
         },

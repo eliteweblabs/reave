@@ -42,7 +42,7 @@ import {
   createInputClearAdornment,
   syncInputClearAdornment,
 } from './admin-ui.js?v=20260810a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   openMediaPicker,
@@ -59,10 +59,10 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260810b';
+} from './work-panel.js?v=20260810c';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260810a';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
@@ -267,7 +267,7 @@ function attachPhoneFormatter(input) {
 function getClientsEditor() { return document.getElementById('clients-editor'); }
 
 function clientListTitle(c) {
-  return (c.company || '').trim() || (c.name || '').trim() || 'Client';
+  return (c.company || '').trim() || (c.name || '').trim() || 'Contact';
 }
 
 function clientListSubline(c) {
@@ -343,7 +343,7 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
       { id: 'personal', label: 'Personal', count: counts.personal },
     ],
     activeId: clientState.contactFilter,
-    ariaLabel: 'Client list filters',
+    ariaLabel: 'Contact list filters',
     savedScrollLeft,
     onSelect(tabId) {
       clientState.contactFilter = tabId;
@@ -444,7 +444,7 @@ function syncClientsListActiveState(opts = {}) {
   }
 }
 
-/** Prefill for new-client form when opened from email / other panels. */
+/** Prefill for new-contact form when opened from email / other panels. */
 let pendingNewClientPrefill = null;
 
 async function loadClientsTab(opts = {}) {
@@ -476,7 +476,7 @@ async function loadClientsTab(opts = {}) {
     return;
   }
 
-  mountPanelSkeleton(root, 'list', 'Loading clients…', { contentSelector: '.ch-sidebar' });
+  mountPanelSkeleton(root, 'list', 'Loading contacts…', { contentSelector: '.ch-sidebar' });
   try {
     await fetchClientsList();
   } catch (e) {
@@ -555,10 +555,10 @@ function fillClientsSidebarList(list) {
           : clientState.contactFilter === 'service'
             ? 'No service contacts yet.'
           : clientState.contactFilter === 'proposed'
-            ? 'No proposed clients yet.'
+            ? 'No proposed contacts yet.'
             : clientState.search.trim()
               ? 'No matches.'
-              : 'No clients yet.';
+              : 'No contacts yet.';
     empty.textContent = clientState.search.trim() && clientState.contactFilter === 'all'
       ? 'No matches.'
       : filterLabel;
@@ -576,8 +576,8 @@ function refreshClientsSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
     const visible = filterClientsForSidebar(clientState.clients);
-    const clientLabel = visible.length === 1 ? 'Client' : 'Clients';
-    searchInput.placeholder = `Search ${visible.length} ${clientLabel}`;
+    const contactLabel = visible.length === 1 ? 'Contact' : 'Contacts';
+    searchInput.placeholder = `Search ${visible.length} ${contactLabel}`;
   }
   fillClientsSidebarList(list);
 }
@@ -593,15 +593,15 @@ function startNewClient(opts = {}) {
   armTitleFocus('clients');
   shell.beginCreateDrawer({
     key: 'clients',
-    title: 'New Client',
+    title: 'New Contact',
     submitLabel: 'Add',
     onSubmit: async () => {
       const payload = newClientFormGetPayload?.();
       if (!payload) {
-        const titleInput = shell.getCreateDrawerPane()?.querySelector('.cl-title-input');
-        if (titleInput) {
-          shell.setFormFieldState(titleInput, 'invalid');
-          titleInput.focus({ preventScroll: true });
+        const companyInput = shell.getCreateDrawerPane()?.querySelector('.cl-company-input');
+        if (companyInput) {
+          shell.setFormFieldState(companyInput, 'invalid');
+          companyInput.focus({ preventScroll: true });
         }
         return;
       }
@@ -628,7 +628,7 @@ function startNewClient(opts = {}) {
   renderClientsPane();
 }
 
-/** Switch to Clients and open the new-client form (optional email/name prefill). */
+/** Switch to Contacts and open the new-contact form (optional email/name prefill). */
 function navigateToNewClient(opts = {}) {
   pendingNewClientPrefill = {
     name: String(opts.name || '').trim(),
@@ -659,7 +659,7 @@ function renderClientsPane() {
     shell.appendEmptyDetailPane(pane, {
       mapKey: 'clients',
       iconName: 'users',
-      bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
+      bodyHtml: '<p>Select a contact to edit, or add a new one.</p>',
       btnLabel: 'Add New',
       onCreate: () => startNewClient(),
     });
@@ -679,12 +679,12 @@ function renderClientsEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const clientLabel = visibleCount === 1 ? 'Client' : 'Clients';
+  const contactLabel = visibleCount === 1 ? 'Contact' : 'Contacts';
   const subheader = listSearchSubheader({
     itemCount: visibleCount,
     search: {
       value: clientState.search,
-      placeholder: `Search ${visibleCount} ${clientLabel}`,
+      placeholder: `Search ${visibleCount} ${contactLabel}`,
       onInput: (value) => {
         clientState.search = value;
         scheduleClientSearch();
@@ -693,6 +693,12 @@ function renderClientsEditor() {
     below: renderClientFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
+
+  const mapLink = document.createElement('a');
+  mapLink.href = '/admin/client-map';
+  mapLink.className = 'cl-client-map-link';
+  mapLink.textContent = 'Open contact map';
+  sidebar.appendChild(mapLink);
 
   const list = document.createElement('div');
   list.className = 'ch-list';
@@ -742,7 +748,7 @@ function joinClientFullName(firstName, lastName, company = '') {
 }
 
 function clientDisplayLabel(draft) {
-  return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Client';
+  return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Contact';
 }
 
 function syncClientListAvatar(uid, patch = {}) {
@@ -772,7 +778,7 @@ function mountClientKindPill(parent, initialKind, onChange) {
     label: 'Type',
     value: normalizeClientKind(initialKind),
     options: CLIENT_KINDS.map((value) => ({ value, label: CLIENT_KIND_LABELS[value] })),
-    ariaLabel: 'Client type',
+    ariaLabel: 'Contact type',
     onChange,
   });
   parent.appendChild(pill.el);
@@ -975,7 +981,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   const hint = document.createElement('span');
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
-    ? 'Save the client first to upload logo and icon.'
+    ? 'Save the contact first to upload logo and icon.'
     : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Upload a file, pick from the Media library, or fetch logos from the website URL.';
 
   wrap.appendChild(uploads);
@@ -1145,7 +1151,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
 
   root.querySelector('#cl-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose client logo',
+      title: 'Choose contact logo',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-logo', uid);
@@ -1157,7 +1163,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
 
   root.querySelector('#cl-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose client icon',
+      title: 'Choose contact icon',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-icon', uid);
@@ -1212,48 +1218,49 @@ function createClientFormScroll(pane) {
   return createDetailFormScroll(pane, 'cl-form-scroll');
 }
 
+function openCardDavImportFromNewClient() {
+  // Full navigation leaves the create drawer; import-contacts is a separate page.
+  window.location.assign('/admin/import-contacts');
+}
+
 function renderNewClientForm(pane) {
   clearClientFieldRegistry();
   pane.innerHTML = '';
 
-  const titleWrap = document.createElement('div');
-  titleWrap.className = 'cl-title-wrap';
-  const titleField = document.createElement('div');
-  titleField.className = 'cl-title-field';
-  const companyInput = document.createElement('input');
-  companyInput.className = 'cl-title-input';
-  companyInput.placeholder = 'Company name';
-  companyInput.value = clientState.draft?.company || '';
-  companyInput.setAttribute('aria-label', 'Company name');
-  const editHint = document.createElement('span');
-  editHint.className = 'cl-title-edit-hint';
-  editHint.innerHTML = IOS_ICONS.edit;
-  editHint.setAttribute('aria-hidden', 'true');
-  titleField.appendChild(companyInput);
-  titleField.appendChild(editHint);
-  titleWrap.appendChild(titleField);
-  syncClTitleInputWidth(companyInput);
-  companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
-
   const inDrawer = shell.isCreateDrawerOpen('clients');
-  const chrome = createDetailChrome(pane, 'cl-detail-chrome');
-  chrome.appendChild(
-    createPaneSubheader({
-      back: inDrawer
-        ? null
-        : {
-            label: clientBackLabel(),
-            onClick: () => closeClientEditor(false),
-          },
-      titleNode: titleWrap,
-    }).header,
-  );
-  requestTitleFocus('clients', companyInput);
+  if (!inDrawer) {
+    const chrome = createDetailChrome(pane, 'cl-detail-chrome');
+    chrome.appendChild(
+      createPaneSubheader({
+        back: {
+          label: clientBackLabel(),
+          onClick: () => closeClientEditor(false),
+        },
+        title: 'New Contact',
+      }).header,
+    );
+  }
 
   const scroll = createClientFormScroll(pane);
   const body = createDetailPanelBody();
   const fields = document.createElement('div');
   fields.className = 'de-fields';
+
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.className = 'cl-import-carddav-btn';
+  importBtn.innerHTML =
+    `${iosIcon('upload', 16)}<span>Import from CardDAV</span>${iosIcon('chevron-right', 16)}`;
+  importBtn.addEventListener('click', openCardDavImportFromNewClient);
+  fields.appendChild(importBtn);
+
+  const companyInput = document.createElement('input');
+  companyInput.className = 'de-input cl-company-input';
+  companyInput.placeholder = 'Company name';
+  companyInput.autocomplete = 'organization';
+  companyInput.value = clientState.draft?.company || '';
+  appendClientField(fields, 'Company name', companyInput);
+  requestTitleFocus('clients', companyInput);
 
   const firstNameInput = document.createElement('input');
   firstNameInput.className = 'de-input';
@@ -1424,7 +1431,7 @@ function renderEditClientForm(pane) {
         title: `${clientDisplayLabel(clientState.draft)} — portal`,
         recipient: {
           contactUid: uid,
-          name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Client',
+          name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Contact',
           email: clientState.draft.email,
           phone: clientState.draft.phone,
         },
@@ -1440,7 +1447,7 @@ function renderEditClientForm(pane) {
           agentBtn,
           shareBtn,
           paneDeleteIcon({
-            label: 'Delete client',
+            label: 'Delete contact',
             onClick: () => deleteClient(uid),
           }),
         ].filter(Boolean),
@@ -1535,7 +1542,7 @@ function renderEditClientForm(pane) {
               pickedAddress,
             );
           }
-          await saveNowRef();
+          await saveNowRef({ commitAddress: true });
         },
       );
 
@@ -1605,7 +1612,10 @@ function renderEditClientForm(pane) {
         scroll.appendChild(analyticsPanel);
       }
 
-      const getPayload = () => {
+      // Address is committed only on autocomplete pick, blur, clear, or flush.
+      // Keystroke debounce must not PATCH partial typed text — that races the
+      // select save and leaves the typed query after refresh.
+      const getPayload = ({ commitAddress = false } = {}) => {
         const firstName = firstNameInput.value.trim();
         const lastName = lastNameInput.value.trim();
         const company = companyInput.value.trim();
@@ -1615,15 +1625,17 @@ function renderEditClientForm(pane) {
           phone: phoneToStorage(phoneInput.value),
           company,
           website: websiteInput.value.trim(),
-          address: addressInput.value.trim(),
           notes: notesTa.value.trim(),
           kind: kindPill.getValue(),
         };
-        if (clientPendingGeo) payload.geo = clientPendingGeo;
-        else if (!payload.address) payload.geo = null;
+        if (commitAddress) {
+          payload.address = addressInput.value.trim();
+          if (clientPendingGeo) payload.geo = clientPendingGeo;
+          else if (!payload.address) payload.geo = null;
+        }
         return payload;
       };
-      clientState.autosaveGetPayload = getPayload;
+      clientState.autosaveGetPayload = () => getPayload({ commitAddress: true });
 
       const markDirty = () => {
         clientState.dirty =
@@ -1639,20 +1651,20 @@ function renderEditClientForm(pane) {
       };
       const queueAutosave = () => {
         markDirty();
-        scheduleClientAutosave(uid, getPayload);
+        scheduleClientAutosave(uid, () => getPayload({ commitAddress: false }));
       };
       queueAutosaveRef = queueAutosave;
-      const saveNow = async () => {
+      const saveNow = async ({ commitAddress = false } = {}) => {
         cancelClientAutosaveTimer();
         markDirty();
-        await autosaveClient(uid, getPayload());
+        await autosaveClient(uid, getPayload({ commitAddress }));
       };
       saveNowRef = saveNow;
       addressClearActions.fn = () => {
         cancelClientAutosaveTimer();
         clientPendingGeo = null;
         clientMapController?.setLocation(null, null, '');
-        void saveNowRef();
+        void saveNowRef({ commitAddress: true });
       };
       for (const el of [
         companyInput,
@@ -1666,23 +1678,33 @@ function renderEditClientForm(pane) {
       ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
-          if (el === addressInput && !addressInput.dataset.autocompletePick) {
-            clientPendingGeo = null;
-            if (!addressInput.value.trim()) {
-              clientMapController?.setLocation(null, null, '');
+          if (el === addressInput) {
+            if (!addressInput.dataset.autocompletePick) {
+              clientPendingGeo = null;
+              if (!addressInput.value.trim()) {
+                clientMapController?.setLocation(null, null, '');
+              }
             }
+            // Typing / post-pick synthetic input: do not debounce-save address.
+            // Persist on autocomplete pick, blur, clear button, or editor flush.
+            markDirty();
+            return;
           }
           queueAutosave();
         });
         el.addEventListener('blur', () => {
           clientActiveField = el;
           void (async () => {
-            if (el === addressInput && addressInput.value.trim()) {
-              const geo = await geocodeClientAddressPreview(addressInput.value);
-              if (geo) {
-                clientPendingGeo = geo;
-                clientMapController?.setLocation(geo.lat, geo.lng, addressInput.value.trim());
+            if (el === addressInput) {
+              if (addressInput.value.trim()) {
+                const geo = await geocodeClientAddressPreview(addressInput.value);
+                if (geo) {
+                  clientPendingGeo = geo;
+                  clientMapController?.setLocation(geo.lat, geo.lng, addressInput.value.trim());
+                }
               }
+              await saveNow({ commitAddress: true });
+              return;
             }
             await saveNow();
           })();
@@ -1699,7 +1721,7 @@ function renderEditClientForm(pane) {
 function clientBackLabel() {
   if (clientState.returnToWorkSlug) return 'Back to project';
   if (clientState.returnToScheduleUid) return 'Back to schedule';
-  return 'Back to clients';
+  return 'Back to contacts';
 }
 
 async function closeClientEditor(checkDirty = true) {
@@ -1835,8 +1857,10 @@ async function autosaveClient(uid, payload) {
   const draft = clientState.draft;
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
-  const geoUnchanged =
-    payload.geo === null
+  const addressInPayload = Object.prototype.hasOwnProperty.call(payload, 'address');
+  const geoUnchanged = !addressInPayload
+    ? true
+    : payload.geo === null
       ? !draft.geo
       : payload.geo == null || clientGeoMatches(payload.geo, draft.geo ?? null);
   const unchanged =
@@ -1845,7 +1869,7 @@ async function autosaveClient(uid, payload) {
     payload.phone === draft.phone &&
     payload.company === draft.company &&
     payload.website === draft.website &&
-    payload.address === draft.address &&
+    (!addressInPayload || payload.address === draft.address) &&
     payload.notes === draft.notes &&
     normalizeClientKind(payload.kind) === wasKind &&
     geoUnchanged;
@@ -1878,6 +1902,14 @@ async function autosaveClient(uid, payload) {
       firstName: data.firstName,
       lastName: data.lastName,
     });
+    const nextAddress = addressInPayload
+      ? (data.address ?? payload.address)
+      : draft.address;
+    const nextGeo = !addressInPayload
+      ? draft.geo
+      : payload.address
+        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
+        : (data.geo ?? null);
     Object.assign(clientState.draft, {
       name: payload.name,
       firstName: nameParts.firstName,
@@ -1886,10 +1918,8 @@ async function autosaveClient(uid, payload) {
       phone: payload.phone,
       company: payload.company,
       website: payload.website,
-      address: data.address ?? payload.address,
-      geo: payload.address
-        ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
-        : (data.geo ?? null),
+      address: nextAddress,
+      geo: nextGeo,
       notes: payload.notes,
       kind: normalizeClientKind(payload.kind),
       personal: normalizeClientKind(payload.kind) === 'personal',
@@ -1908,8 +1938,8 @@ async function autosaveClient(uid, payload) {
       logoSource: clientState.draft.logoSource,
       iconSource: clientState.draft.iconSource,
     });
-    clientPendingGeo = null;
-    if (clientMapController) {
+    if (addressInPayload) clientPendingGeo = null;
+    if (clientMapController && addressInPayload) {
       const geo = clientState.draft.geo;
       if (geo?.lat != null && geo?.lng != null) {
         clientMapController.setLocation(geo.lat, geo.lng, clientState.draft.address || '');
@@ -2061,7 +2091,7 @@ function createClientListItem(c) {
 
 function buildClientAgentPrompt(client, uid) {
   const label = clientDisplayLabel(client);
-  const lines = [`Client: ${label}`, `UID: ${uid}`];
+  const lines = [`Contact: ${label}`, `UID: ${uid}`];
   const person = joinClientFullName(client.firstName, client.lastName, '');
   if (person && person !== label) lines.push(`Name: ${person}`);
   if (client.company?.trim()) lines.push(`Company: ${client.company.trim()}`);

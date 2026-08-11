@@ -75,13 +75,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  {!adminShell && (
-    <div class="app-header-scrim" aria-hidden="true">
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-      <span class="app-header-scrim-blur"></span>
-    </div>
-  )}
+  <div class="app-header-scrim" aria-hidden="true">
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+    <span class="app-header-scrim-blur"></span>
+  </div>
 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
@@ -109,7 +107,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <div class="app-header-end topbar-end">
     {showHeaderSignIn && (
       <div class="topbar-auth-cluster">
-        <DeployStatusDot />
         <button
           type="button"
           class="app-header-signin"
@@ -159,14 +156,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
               <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
               <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
               {profileMenu.map((key) => (
-                <button
-                  type="button"
+                <a
+                  href={`/admin/?tab=${key}`}
                   id={`topbar-${key}-link`}
                   class="topbar-dropdown-item"
                   role="menuitem"
                 >
                   {PROFILE_MENU_LABELS[key]}
-                </button>
+                </a>
               ))}
               <div class="topbar-dropdown-divider"></div>
               <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
@@ -269,7 +266,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
 <script is:inline src={`/proximity-tooltip.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
-<script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+{userId && (
+  <script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+)}
 
 <script>
   /** iOS can report 0 for env(safe-area-inset-top) on fixed shells — probe and pin px when needed. */
@@ -424,8 +423,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   /*
    * Fixed transparent headers let page content scroll under the logo and nav.
    * The scrim blurs it out: stacked backdrop-filter layers with masks that ramp
-   * blur toward the top (radii compound across layers). Public pages only —
-   * admin has no under-header scroll content that needs this treatment.
+   * blur toward the top (radii compound across layers). Public pages always;
+   * admin only while the dashboard tab is open (content scrolls under the bar).
    */
   .app-header > .app-header-scrim {
     position: absolute;
@@ -435,6 +434,16 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     height: var(--app-header-scrim-h);
     z-index: 0;
     pointer-events: none;
+  }
+
+  .app-header--admin > .app-header-scrim {
+    display: none;
+  }
+
+  .app-header--admin.app-header--scrim > .app-header-scrim {
+    display: block;
+    /* Same top pin as public; trim the fade tail so dashboard content peeks sooner. */
+    height: calc(var(--app-header-scrim-h) - 20px);
   }
 
   .app-header-scrim-blur {
@@ -1152,7 +1161,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     gap: 0.45rem;
     width: 100%;
     padding: 0.5rem 0.55rem;
-    font: inherit;
+    /* Explicit UI sans — do not inherit marketing --font-content (serif fallbacks). */
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-size: 0.78rem;
     font-weight: 500;
     color: var(--muted, rgba(255, 255, 255, 0.62));
@@ -1210,8 +1220,15 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 </style>
 
-{!adminShell && (
+{showHeaderAccountMenu && (
   <script>
+    /**
+     * Account menu chrome for every page that renders the profile dropdown.
+     * Admin shell pages without os-map-loader (e.g. /admin/components) still
+     * need toggle + sign-out; settings links are real /admin/?tab=… anchors
+     * so they navigate even when the map SPA is not loaded. On /admin/,
+     * os-map-loader intercepts those anchors for in-app tab switches.
+     */
     function resetHeaderDropdownMenu(menu: HTMLElement | null) {
       if (!menu) return;
       menu.style.position = "";
@@ -1258,6 +1275,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     }
 
     function bindHeaderProfileMenu() {
+      // Admin map SPA owns toggle/sign-out via os-map-loader — leave it alone.
+      if (document.getElementById("admin-footer-nav")) return;
+
       const profileToggle = document.getElementById("topbar-profile-toggle");
       const profileMenu = document.getElementById("topbar-profile-menu");
       if (profileToggle && profileMenu && !profileToggle.dataset.bound) {

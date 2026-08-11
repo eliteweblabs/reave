@@ -64,13 +64,20 @@ const NEWSLETTER_RECEIVED_BOILERPLATE =
 const FAILED_OR_DUE_PAYMENT =
   /\b(?:failed\s+payment|payment\s+(?:failed|declined)|outstanding\s+balance|upcoming\s+(?:minimum\s+)?payment|minimum\s+payment(?:\s+requirement)?|past\s+due|amount\s+due|currently\s+due|balance\s+(?:currently\s+)?due|capital\s+(?:loan|minimum|repayment)|loan\s+repayment|we\s+will\s+debit)\b/i;
 
-/** Payment/receipt language — used with a detected dollar amount to auto-file tax receipts. */
+/**
+ * Expense / tax-receipt language — money you spent (not money someone paid you).
+ * "Payment of $… from …" is income and must not match here.
+ */
 const RECEIPT_HINT =
-  /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|payment\s+of|received\s+a\s+payment|you\s+(?:just\s+)?received\s+a\s+payment|amount\s+paid|you\s+paid|billing\s+statement|your\s+receipt\s+from|your\s+invoice\s+from)\b/i;
+  /\b(?:receipt|payment\s+confirm(?:ation|ed)?|payment\s+receipt|amount\s+paid|you\s+paid|billing\s+statement|your\s+receipt\s+from)\b/i;
 
-/** Strong payment wording that overrides newsletter boilerplate in the same message. */
+/** Strong expense wording that overrides newsletter boilerplate in the same message. */
 const STRONG_RECEIPT_HINT =
-  /\b(?:receipt|invoice|payment\s+confirm(?:ation|ed)?|payment\s+of|amount\s+paid|you\s+paid|received\s+a\s+payment)\b/i;
+  /\b(?:receipt|payment\s+confirm(?:ation|ed)?|payment\s+receipt|amount\s+paid|you\s+paid|your\s+receipt\s+from)\b/i;
+
+/** Incoming money — "Payment of $100 from Joel…", deposited funds, etc. Not an expense receipt. */
+const INCOMING_PAYMENT =
+  /\b(?:payment\s+of\s+\$[\d,]+(?:\.\d{2})?\s+from\b|received\s+a\s+payment|you\s+just\s+received(?:\s+a\s+payment)?|payment\s+from\b|sent\s+you\s+\$|money\s+(?:was\s+)?deposited)\b/i;
 
 const PAYMENT_PROCESSOR_FROM =
   /@(?:[\w.-]+\.)?(?:stripe|paypal|squareup|square|cash\.app)\.com\b/i;
@@ -94,9 +101,11 @@ export function looksLikeFailedOrDuePayment(ev: {
   return FAILED_OR_DUE_PAYMENT.test(paymentEmailText(ev));
 }
 
-/** Stripe/PayPal/Square completed-payment notifications — not dues or client work. */
-export function looksLikePaymentNotification(ev: {
-  from?: string;
+/**
+ * Money received from someone (income) — e.g. "Payment of $100.00 from Joel…".
+ * Not a tax/expense receipt (no due/invoice/outstanding required to refuse expense filing).
+ */
+export function looksLikeIncomingPayment(ev: {
   subject?: string;
   summary?: string;
   bodySnippet?: string;
@@ -105,39 +114,98 @@ export function looksLikePaymentNotification(ev: {
   const text = paymentEmailText(ev);
   if (!text.trim()) return false;
   if (FAILED_OR_DUE_PAYMENT.test(text)) return false;
-  // Completed payment subjects: "Payment of $200.00 from …"
-  if (/\bpayment\s+of\s+\$/i.test(text) && !FAILED_OR_DUE_PAYMENT.test(text)) return true;
-  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) {
-    // Processor domain alone is not enough (Stripe Capital / failed charges).
-    return STRONG_RECEIPT_HINT.test(text);
-  }
-  const amount = extractMonetaryAmountFromText(text);
-  if (amount == null) return false;
-  return /\b(?:received\s+a\s+payment|you\s+just\s+received|payment\s+from|sent\s+you\s+\$|money\s+(?:was\s+)?deposited)\b/i.test(
-    text,
-  );
+  return INCOMING_PAYMENT.test(text);
 }
 
-/** Auto-file as receipt when text has both a dollar amount and receipt/payment keywords. */
+/**
+ * Incoming payment notifications (Stripe/PayPal/etc. payouts / "payment from").
+ * Used to block auto-project creation — not to file tax receipts.
+ */
+export function looksLikePaymentNotification(ev: {
+  from?: string;
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): boolean {
+  if (looksLikeIncomingPayment(ev)) return true;
+  const text = paymentEmailText(ev);
+  if (!text.trim()) return false;
+  if (FAILED_OR_DUE_PAYMENT.test(text)) return false;
+  // Bare "Payment of $…" without "from" is still usually a payout notice, not "you paid".
+  if (/\bpayment\s+of\s+\$/i.test(text)) return true;
+  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) {
+    return INCOMING_PAYMENT.test(text) || /\b(?:payout|transfer\s+sent|deposit)\b/i.test(text);
+  }
+  return false;
+}
+
+export type AutoFileReceiptAuditStep = {
+  step: string;
+  decision: string;
+  detail?: string;
+};
+
+export type AutoFileReceiptResult = {
+  amount: number;
+  routeNote: string;
+  audit: AutoFileReceiptAuditStep[];
+};
+
+function receiptAuditStep(
+  step: string,
+  decision: string,
+  detail?: string,
+): AutoFileReceiptAuditStep {
+  return detail ? { step, decision, detail } : { step, decision };
+}
+
+/** Auto-file as tax/expense receipt when text has a dollar amount and expense-side keywords. */
 export function shouldAutoFileAsReceipt(ev: {
   from?: string;
   subject?: string;
   summary?: string;
   bodySnippet?: string;
   bodyText?: string;
-}): { amount: number; routeNote: string } | null {
+}): AutoFileReceiptResult | null {
   const text = paymentEmailText(ev);
   if (FAILED_OR_DUE_PAYMENT.test(text)) return null;
+  // "Payment of $… from …" / deposited funds = income, not a Crater expense receipt.
+  if (looksLikeIncomingPayment(ev) || looksLikePaymentNotification(ev)) return null;
   const amount = extractMonetaryAmountFromText(text);
   if (amount == null) return null;
-  if (looksLikePaymentNotification(ev)) {
-    return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
-  }
+  const amountStep = receiptAuditStep(
+    'amount',
+    `Extracted ${formatUsdAmount(amount)}`,
+    'Dollar amount detected in subject/summary/body',
+  );
+  const titleStep = receiptAuditStep(
+    'title',
+    `Dashboard label: Tax receipt — ${formatUsdAmount(amount)}`,
+    'Expense-side receipts (you paid / your receipt) use the Tax receipt banner for Crater logging',
+  );
   if (NEWSLETTER_RECEIVED_BOILERPLATE.test(text) && !STRONG_RECEIPT_HINT.test(text)) {
     return null;
   }
   if (RECEIPT_HINT.test(text)) {
-    return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+    return {
+      amount,
+      routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
+      audit: [
+        amountStep,
+        receiptAuditStep(
+          'payment_language',
+          'Expense receipt language with amount',
+          'Matched you paid / amount paid / your receipt / payment confirmation — not “payment from” income',
+        ),
+        receiptAuditStep(
+          'auto_file',
+          'Auto-filed as receipt',
+          'shouldAutoFileAsReceipt → category=receipt',
+        ),
+        titleStep,
+      ],
+    };
   }
   return null;
 }
@@ -195,20 +263,24 @@ export function suggestReceiptCandidate(ev: {
   const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
   const subject = String(ev.subject || '');
 
-  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) {
+  if (looksLikeIncomingPayment(ev) || looksLikePaymentNotification(ev)) {
+    return null;
+  }
+
+  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '') && STRONG_RECEIPT_HINT.test(text)) {
     return {
       amount,
       routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
-      reason: 'Payment processor sender',
+      reason: 'Payment processor sender with expense receipt language',
       score: 85,
     };
   }
 
-  if (/\b(receipt|invoice|payment confirmation|amount paid|you paid)\b/i.test(subject)) {
+  if (/\b(receipt|payment confirmation|payment receipt|amount paid|you paid)\b/i.test(subject)) {
     return {
       amount,
       routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
-      reason: 'Receipt or invoice in subject',
+      reason: 'Expense receipt language in subject',
       score: 80,
     };
   }
@@ -217,7 +289,7 @@ export function suggestReceiptCandidate(ev: {
     return {
       amount,
       routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
-      reason: 'Strong payment wording in message',
+      reason: 'Strong expense receipt wording in message',
       score: 75,
     };
   }

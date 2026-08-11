@@ -1,15 +1,18 @@
 ---
 /** Marketing-site wrapper — `/api/site/assistant`, engagement-delay FAB reveal. */
 import AssistantWidget from './AssistantWidget.astro';
+import { siteAssistantGreetingForPath } from '../lib/siteAssistant';
 
 export interface Props {
   brandTitle: string;
   supportPhone?: string;
   supportEmail?: string;
-  /** Slide the FAB in a few seconds after the user engages (marketing site). */
+  /** Current page path — used for a page-aware opening greeting. */
+  pagePath?: string;
+  /** Slide the FAB in horizontally a few seconds after the user engages (marketing site). */
   revealFabOnEngagement?: boolean;
   /**
-   * Slide the FAB away while homepage hero / contact are in view.
+   * Slide the FAB away horizontally while homepage hero / contact are in view.
    * Defaults on for the marketing site so the button doesn't cover those sections.
    */
   hideFabForHero?: boolean;
@@ -19,9 +22,12 @@ const {
   brandTitle,
   supportPhone = '',
   supportEmail = '',
+  pagePath = '',
   revealFabOnEngagement = false,
   hideFabForHero = true,
 } = Astro.props;
+
+const greeting = siteAssistantGreetingForPath(pagePath || Astro.url.pathname);
 ---
 
 <AssistantWidget
@@ -30,7 +36,7 @@ const {
   storageKey="sa-chat-site"
   brandTitle={brandTitle}
   headerTitle="Help & Support"
-  greeting="Hi. What can I assist you with today?"
+  greeting={greeting}
   fabLabel={`Get help from ${brandTitle}`}
   footerPrefix="Urgent?"
   supportPhone={supportPhone}

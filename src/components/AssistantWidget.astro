@@ -19,7 +19,7 @@ export interface Props {
   supportPhone?: string;
   supportEmail?: string;
   variant?: 'site' | 'portal';
-  /** Slide the FAB in a few seconds after the user engages (marketing site). */
+  /** Slide the FAB in horizontally a few seconds after the user engages (marketing site). */
   revealFabOnEngagement?: boolean;
   /** Hide the FAB while key page sections are at least 20% in view (marketing site). */
   hideFabForHero?: boolean;
@@ -167,7 +167,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
     border: 1px solid transparent;
     box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(168, 85, 247, 0.45)), 0 2px 8px rgba(0, 0, 0, 0.35);
-    transform: translateY(calc(100% + 28px));
+    transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     transition:
@@ -184,7 +184,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   }
 
   .aw-fab--site.is-visible {
-    transform: translateY(0);
+    transform: translateX(0);
     opacity: 1;
     visibility: visible;
     transition:
@@ -195,7 +195,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 
   .aw-fab--site.is-hero-occluding,
   .aw-fab--site.is-visible.is-hero-occluding {
-    transform: translateY(calc(100% + 28px));
+    transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -206,8 +206,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   }
 
   .aw-fab:active { transform: scale(0.93); }
-  .aw-fab--site:active { transform: translateY(0) scale(0.93); }
-  .aw-fab--site.is-visible:active { transform: translateY(0) scale(0.93); }
+  .aw-fab--site:active { transform: translateX(0) scale(0.93); }
+  .aw-fab--site.is-visible:active { transform: translateX(0) scale(0.93); }
   .aw-fab[aria-expanded='true'] {
     opacity: 0;
     visibility: hidden;
@@ -445,6 +445,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 </style>
 
 <script>
+  import { initFixedVisualViewportPin } from '../lib/fixedVisualViewportPin';
   import { initFloatingWidgetSectionHide } from '../lib/floatingWidgetSectionHide';
 
   type Turn = { role: 'user' | 'assistant'; content: string };
@@ -513,47 +514,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     }
   }
 
-  function initFabViewportPin(fab: HTMLElement) {
-    if (fab.dataset.vvPin === '1') return;
-    fab.dataset.vvPin = '1';
-
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    const FAB_INSET_PX = 12;
-    let safeBottom = 0;
-    let safeRight = 0;
-    const probe = document.createElement('div');
-    probe.style.cssText =
-      'position:fixed;bottom:0;right:0;height:0;padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);visibility:hidden;pointer-events:none';
-    document.body.appendChild(probe);
-    const probeStyle = getComputedStyle(probe);
-    safeBottom = parseFloat(probeStyle.paddingBottom) || 0;
-    safeRight = parseFloat(probeStyle.paddingRight) || 0;
-    probe.remove();
-
-    const sync = () => {
-      const layoutBottom = window.innerHeight;
-      const visualBottom = (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? layoutBottom);
-      const chrome = Math.max(0, Math.round(layoutBottom - visualBottom));
-      const layoutRight = window.innerWidth;
-      const visualRight =
-        (window.visualViewport?.offsetLeft ?? 0) + (window.visualViewport?.width ?? layoutRight);
-      const sideChrome = Math.max(0, Math.round(layoutRight - visualRight));
-
-      fab.style.bottom = `${chrome + safeBottom + FAB_INSET_PX}px`;
-      fab.style.right = `${sideChrome + safeRight + FAB_INSET_PX}px`;
-    };
-
-    vv.addEventListener('resize', sync, { passive: true });
-    vv.addEventListener('scroll', sync, { passive: true });
-    window.addEventListener('resize', sync, { passive: true });
-    window.addEventListener('orientationchange', sync, { passive: true });
-    sync();
-    requestAnimationFrame(sync);
-    window.setTimeout(sync, 150);
-  }
-
   function initAssistantWidget(root: HTMLElement) {
     const endpoint = root.dataset.endpoint || '';
     const storageKey = root.dataset.storageKey || '';
@@ -580,7 +540,12 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     if (fab.parentElement !== document.body) {
       document.body.appendChild(fab);
     }
-    initFabViewportPin(fab);
+    // CSS already uses 0.75rem (~12px) + safe-area; pin counters iOS chrome only.
+    initFixedVisualViewportPin(fab, {
+      axis: 'bottom-right',
+      includeSafeArea: true,
+      insetPx: 12,
+    });
     if (revealFab) initFabReveal(fab);
     if (hideFabForHero) {
       initFloatingWidgetSectionHide(fab, 'is-hero-occluding', heroSelector, contactSelector);
@@ -676,7 +641,11 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history: priorHistory }),
+          body: JSON.stringify({
+            message: text,
+            history: priorHistory,
+            pagePath: typeof location !== 'undefined' ? location.pathname : undefined,
+          }),
         });
         let data: { ok?: boolean; reply?: string; error?: string } = {};
         try {

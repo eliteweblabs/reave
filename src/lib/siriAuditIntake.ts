@@ -4,6 +4,11 @@
  */
 
 import {
+  getContact,
+  hasExplicitClientKind,
+  setContactKind,
+} from './contactApi';
+import {
   ensureWorkContact,
   isSafeWorkSlug,
   slugFromTitle,
@@ -75,6 +80,20 @@ export async function createSiriAuditStubProject(
     client: business,
   });
   if (!contact.ok) return { ok: false, error: contact.error };
+
+  // Deterministic proposed kind (same as demoLaunch) — do not rely on the
+  // research agent calling update_contact. Skip if already explicitly classified.
+  let shouldPropose = contact.created;
+  if (!shouldPropose) {
+    const existing = await getContact(contact.uid);
+    shouldPropose = existing.ok && !hasExplicitClientKind(existing.data);
+  }
+  if (shouldPropose) {
+    const kindResult = await setContactKind(contact.uid, 'proposed');
+    if (!kindResult.ok) {
+      console.warn('[siri-audit] set proposed kind failed:', kindResult.error);
+    }
+  }
 
   const slug = await uniqueAuditSlug(`auditing-${business}`);
   const startedAt = new Date().toISOString();

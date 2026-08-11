@@ -25,9 +25,9 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
       <div class="home-scroll">
         <HomeHeroSection siteContent={siteContent} />
 
-        {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showIntegrations && <HomeIntegrationsSection />}
         {homepage.showFeatures && <FeaturesPageContent embedded showLogoStack={false} />}
+        {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
       </div>
     </Layout>
@@ -40,6 +40,9 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
       :global(html),
       :global(body) {
         min-height: 100%;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+        min-height: 100lvh;
       }
 
       .home-scroll {

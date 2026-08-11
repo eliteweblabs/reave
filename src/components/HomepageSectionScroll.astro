@@ -57,7 +57,7 @@
 
         if (href === "#services" || href === "/#services") {
           event.preventDefault();
-          window.location.href = "/services";
+          window.location.href = "/#contact";
           return;
         }
 
@@ -99,7 +99,7 @@
       return;
     }
     if (fromQuery === "services" || fromHash === "services") {
-      window.location.replace("/services");
+      window.location.replace("/#contact");
       return;
     }
     if (fromQuery === "addons" || fromHash === "addons") {

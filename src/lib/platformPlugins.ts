@@ -101,7 +101,7 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     id: 'carddav',
     title: 'CardDAV Contact Sync',
     teaser:
-      'The master client list, live in the iPhone Contacts app — no Google account, no iCloud detour.',
+      'The master contact list, live in the iPhone Contacts app — no Google account, no iCloud detour.',
     body: 'One CardDAV account, set up once in iOS Settings, and every contact you add in the dashboard shows up on your phone exactly the way it always has.',
     bullets: [
       'No Google account or iCloud detour',
@@ -119,7 +119,7 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
       'HTML templates built for real inboxes — table layout, inline fallbacks, dark-mode support',
       'Resend API delivery from your domain — not a no-reply@ vendor address',
       'Automations on new contact, project complete, and timed follow-ups',
-      'Broadcast to all clients or a hand-picked list from admin',
+      'Broadcast to all contacts or a hand-picked list from admin',
       'CAN-SPAM footer and one-click unsubscribe on every marketing send',
     ],
   },

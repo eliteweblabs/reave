@@ -36,7 +36,8 @@ const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
-const SCENE_EXIT_MS = 500;
+/** Outro fade when a mock conversation ends — keep in sync with CSS. */
+const SCENE_EXIT_MS = 350;
 const ACTION_PRESS_MS = 900;
 /** Full hero background bright pulse after a simulated action click. */
 const SECTION_PULSE_MS = 1000;
@@ -463,6 +464,744 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
+/** Compact dashboard toast — same center-scale overshoot as the invoice card. */
+function createDashboardNotificationCard(title: string, detail: string): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-notif";
+
+  const dot = document.createElement("span");
+  dot.className = "home-hero-demo-sk-notif-dot";
+  dot.setAttribute("aria-hidden", "true");
+
+  const copy = document.createElement("div");
+  copy.className = "home-hero-demo-sk-notif-copy";
+
+  const titleEl = document.createElement("p");
+  titleEl.className = "home-hero-demo-sk-notif-title";
+  titleEl.textContent = title;
+
+  const detailEl = document.createElement("p");
+  detailEl.className = "home-hero-demo-sk-notif-detail";
+  detailEl.textContent = detail;
+
+  copy.appendChild(titleEl);
+  copy.appendChild(detailEl);
+  card.appendChild(dot);
+  card.appendChild(copy);
+  row.appendChild(card);
+  return row;
+}
+
+/** Contract artifact — line bones draw in, then a signature strokes at the bottom. */
+function createContractSkeletonCard(): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-contract";
+
+  const header = document.createElement("div");
+  header.className = "home-hero-demo-sk-contract-header";
+  header.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--title"></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--meta"></span>';
+
+  const body = document.createElement("div");
+  body.className = "home-hero-demo-sk-contract-body";
+  const widths = ["92%", "86%", "78%", "90%", "64%"];
+  for (const width of widths) {
+    const line = document.createElement("span");
+    line.className = "home-hero-demo-sk-contract-line";
+    line.style.setProperty("--hero-contract-line-w", width);
+    body.appendChild(line);
+  }
+
+  const signBlock = document.createElement("div");
+  signBlock.className = "home-hero-demo-sk-contract-sign";
+  signBlock.innerHTML =
+    '<span class="home-hero-demo-sk-contract-sign-label"></span>' +
+    '<svg class="home-hero-demo-sk-contract-signature" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path class="home-hero-demo-sk-contract-signature-path" d="M8 24 C18 8, 28 8, 36 20 C42 30, 48 30, 56 18 C64 6, 74 10, 82 22 C90 34, 102 28, 112 16 C120 8, 132 12, 148 22" />' +
+    "</svg>" +
+    '<span class="home-hero-demo-sk-contract-sign-rule"></span>';
+
+  card.appendChild(header);
+  card.appendChild(body);
+  card.appendChild(signBlock);
+  row.appendChild(card);
+  return row;
+}
+
+async function appendAssistantChat(
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  text: string,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  opts?: { status?: boolean; pauseMs?: number; priorRow?: HTMLElement | null },
+): Promise<HTMLElement | null> {
+  const isStatus = opts?.status === true || isStatusMessage(text);
+
+  // Status → reply in the same bubble (matches the main assistant turn path).
+  if (!isStatus && opts?.priorRow?.dataset.heroAwaitingReply === "1") {
+    await wait(ASSISTANT_RESPONSE_DELAY_MS);
+    if (!isAlive()) return opts.priorRow;
+    morphStatusToReply(opts.priorRow, { role: "assistant", text });
+    relayout(true);
+    if (opts.pauseMs != null) await wait(opts.pauseMs);
+    return opts.priorRow;
+  }
+
+  const typing = createTypingIndicator(root);
+  typing.classList.add("home-hero-demo-msg--enter");
+  sceneEl.appendChild(typing);
+  relayout(true);
+
+  await wait(reducedMotion ? 280 : TYPING_DOTS_MS);
+  if (!isAlive()) return null;
+
+  morphTypingToMessage(typing, { role: "assistant", text }, isStatus);
+  relayout(true);
+
+  if (isStatus) {
+    typing.dataset.heroAwaitingReply = "1";
+    await wait(opts?.pauseMs ?? STATUS_HOLD_MS);
+    if (!isAlive()) return typing;
+  } else if (opts?.pauseMs != null) {
+    await wait(opts.pauseMs);
+    if (!isAlive()) return typing;
+  }
+
+  return typing;
+}
+
+async function playDashboardNotification(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  title: string,
+  detail: string,
+): Promise<void> {
+  const row = createDashboardNotificationCard(title, detail);
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-notif");
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (card) {
+    if (reducedMotion) {
+      card.classList.add("home-hero-demo-sk-notif--settled");
+    } else {
+      void card.offsetWidth;
+      card.classList.add("home-hero-demo-sk-notif--pop");
+    }
+  }
+
+  await wait(reducedMotion ? 700 : 1100);
+  if (!isAlive()) return;
+}
+
+async function playContractSkeleton(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const row = createContractSkeletonCard();
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-contract");
+  const lines = Array.from(row.querySelectorAll<HTMLElement>(".home-hero-demo-sk-contract-line"));
+  const signature = row.querySelector<HTMLElement>(".home-hero-demo-sk-contract-signature");
+
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (card) {
+    if (reducedMotion) {
+      card.classList.add("home-hero-demo-sk-contract--settled");
+      for (const line of lines) line.classList.add("home-hero-demo-sk-contract-line--in");
+      signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+      await wait(900);
+      return;
+    }
+    void card.offsetWidth;
+    card.classList.add("home-hero-demo-sk-contract--pop");
+  }
+
+  await wait(720);
+  if (!isAlive()) return;
+
+  for (const line of lines) {
+    if (!isAlive()) return;
+    line.classList.add("home-hero-demo-sk-contract-line--in");
+    relayout(true);
+    await wait(140);
+  }
+
+  await wait(280);
+  if (!isAlive()) return;
+
+  signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+  await wait(1400);
+  if (!isAlive()) return;
+}
+
+/**
+ * After Silver template press: send proposal → viewed/accepted toasts →
+ * contract draw + signature. Ends with a hard cut like the invoice beat.
+ */
+async function playProposalFlow(
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const sendingRow = await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Sending Silver proposal to susie@susiescookies.com…",
+    reducedMotion,
+    isAlive,
+    { status: true, pauseMs: 900 },
+  );
+  if (!isAlive()) return;
+
+  await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Proposal sent to susie@susiescookies.com.",
+    reducedMotion,
+    isAlive,
+    { pauseMs: 900, priorRow: sendingRow },
+  );
+  if (!isAlive()) return;
+
+  await playDashboardNotification(
+    sceneEl,
+    relayout,
+    reducedMotion,
+    isAlive,
+    "Proposal viewed",
+    "Susie's Cookies",
+  );
+  if (!isAlive()) return;
+
+  await wait(650);
+  if (!isAlive()) return;
+
+  await playDashboardNotification(
+    sceneEl,
+    relayout,
+    reducedMotion,
+    isAlive,
+    "Proposal accepted",
+    "Susie's Cookies",
+  );
+  if (!isAlive()) return;
+
+  await wait(550);
+  if (!isAlive()) return;
+
+  const contractStatus = await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Sending contract…",
+    reducedMotion,
+    isAlive,
+    { status: true, pauseMs: 850 },
+  );
+  if (!isAlive()) return;
+
+  await appendAssistantChat(
+    root,
+    sceneEl,
+    relayout,
+    "Service agreement ready for signature.",
+    reducedMotion,
+    isAlive,
+    { pauseMs: 500, priorRow: contractStatus },
+  );
+  if (!isAlive()) return;
+
+  await playContractSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+  if (!isAlive()) return;
+
+  await wait(1200);
+  if (!isAlive()) return;
+
+  sceneEl.dataset.heroHardCut = "1";
+}
+
+const MAPBOX_CSS = "https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css";
+const MAPBOX_JS = "https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm";
+/** Dark basemap — static + GL share the same look. */
+const MAPBOX_STYLE = "mapbox/dark-v11";
+
+let mapboxLoadPromise: Promise<any> | null = null;
+
+function ensureMapboxCss() {
+  if (document.querySelector("link[data-hero-mapbox-css]")) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = MAPBOX_CSS;
+  link.setAttribute("data-hero-mapbox-css", "1");
+  document.head.appendChild(link);
+}
+
+async function loadMapboxGl(): Promise<any> {
+  ensureMapboxCss();
+  if (!mapboxLoadPromise) {
+    mapboxLoadPromise = import(/* @vite-ignore */ MAPBOX_JS).then((mod: any) => mod.default || mod);
+  }
+  return mapboxLoadPromise;
+}
+
+/**
+ * iOS Safari WebGL maps mis-size under ancestor transforms (our bubble pop /
+ * stack depth). Prefer Mapbox Static Images there — still Mapbox, no WebGL.
+ */
+function preferStaticMapbox(): boolean {
+  return isIOSDevice();
+}
+
+/** Mapbox Static Images URL — fills the letterbox via object-fit: cover. */
+function mapboxStaticUrl(opts: {
+  token: string;
+  lng: number;
+  lat: number;
+  zoom: number;
+  bearing?: number;
+  pitch?: number;
+  width: number;
+  height: number;
+}): string {
+  const width = Math.min(1280, Math.max(64, Math.round(opts.width)));
+  const height = Math.min(1280, Math.max(64, Math.round(opts.height)));
+  const bearing = opts.bearing ?? 0;
+  const pitch = opts.pitch ?? 0;
+  const path =
+    `${opts.lng},${opts.lat},${opts.zoom},${bearing},${pitch}/${width}x${height}@2x`;
+  return (
+    `https://api.mapbox.com/styles/v1/${MAPBOX_STYLE}/static/${path}` +
+    `?access_token=${encodeURIComponent(opts.token)}&attribution=false&logo=false`
+  );
+}
+
+function preloadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("map image failed"));
+    img.src = src;
+  });
+}
+
+/** Hide everything except land + water. No labels, roads, buildings, etc. */
+function stripMapToLandAndWater(map: any) {
+  const layers = map.getStyle()?.layers;
+  if (!Array.isArray(layers)) return;
+  for (const layer of layers) {
+    const id = String(layer.id || "");
+    const keep =
+      id === "background" ||
+      id === "land" ||
+      id === "national-park" ||
+      id.startsWith("landcover") ||
+      id.startsWith("landuse") ||
+      id.startsWith("water");
+    if (!keep) {
+      try {
+        map.setLayoutProperty(id, "visibility", "none");
+      } catch {
+        /* layer may not support layout visibility */
+      }
+    }
+  }
+}
+
+/** Default male stock headshot for the GPS person pin (field-checkin scene). */
+const GPS_PIN_FACE_FALLBACK = "/images/hero-demo/field-checkin.png";
+
+/** Fixed center reticle — not a Mapbox HTML marker (parent transforms break those). */
+function createGpsPinOverlay(faceUrl?: string): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "home-hero-demo-sk-gps-marker";
+  el.setAttribute("data-hero-gps-marker", "");
+  const src = (faceUrl || "").trim() || GPS_PIN_FACE_FALLBACK;
+  const safeSrc = src.replace(/"/g, "");
+  el.innerHTML =
+    '<span class="home-hero-demo-sk-gps-ring"></span>' +
+    '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--mid"></span>' +
+    '<span class="home-hero-demo-sk-gps-ring home-hero-demo-sk-gps-ring--late"></span>' +
+    '<span class="home-hero-demo-sk-gps-pin" aria-hidden="true">' +
+    `<img class="home-hero-demo-sk-gps-pin-face" src="${safeSrc}" alt="" loading="lazy" decoding="async" />` +
+    "</span>";
+  return el;
+}
+
+/** Agent-bubble letterbox for Mapbox fly-in — avatar + map + centered face pin. */
+function createGpsLocateCard(root: HTMLElement, faceUrl?: string): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--gps home-hero-demo-msg--enter";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-gps";
+
+  const viewport = document.createElement("div");
+  viewport.className = "home-hero-demo-sk-gps-viewport";
+
+  const mapEl = document.createElement("div");
+  mapEl.className = "home-hero-demo-sk-gps-map";
+  mapEl.setAttribute("data-hero-gps-map", "");
+
+  viewport.appendChild(mapEl);
+  viewport.appendChild(createGpsPinOverlay(faceUrl));
+  card.appendChild(viewport);
+
+  row.appendChild(cloneAvatar("assistant", root));
+  row.appendChild(card);
+  return row;
+}
+
+function gpsLetterboxSize(mapEl: HTMLElement): { width: number; height: number } {
+  const rect = mapEl.getBoundingClientRect();
+  // Static API max 1280; request retina via @2x. Floor so a pre-layout 0 doesn't 404.
+  const width = Math.max(320, Math.round(rect.width || mapEl.clientWidth || 320));
+  const height = Math.max(180, Math.round(rect.height || mapEl.clientHeight || 180));
+  return { width, height };
+}
+
+/**
+ * iOS-safe Mapbox path: Static Images + CSS fly/crossfade. Avoids WebGL canvas
+ * sizing bugs when the bubble/stack use CSS transforms.
+ */
+async function playGpsStaticFly(
+  mapEl: HTMLElement,
+  pinEl: HTMLElement | null,
+  card: HTMLElement | null,
+  opts: {
+    token: string;
+    target: [number, number];
+    start: [number, number];
+    endZoom: number;
+    endPitch: number;
+    endBearing: number;
+    flyMs: number;
+    markerAt: number;
+    reducedMotion: boolean;
+    isAlive: () => boolean;
+    relayout: Relayout;
+  },
+): Promise<void> {
+  const { width, height } = gpsLetterboxSize(mapEl);
+  const overviewUrl = mapboxStaticUrl({
+    token: opts.token,
+    lng: opts.start[0],
+    lat: opts.start[1],
+    zoom: 2.6,
+    width,
+    height,
+  });
+  const detailUrl = mapboxStaticUrl({
+    token: opts.token,
+    lng: opts.target[0],
+    lat: opts.target[1],
+    zoom: opts.endZoom,
+    bearing: opts.endBearing,
+    pitch: opts.endPitch,
+    width,
+    height,
+  });
+
+  const [overviewImg, detailImg] = await Promise.all([
+    preloadImage(overviewUrl),
+    preloadImage(detailUrl),
+  ]);
+  if (!opts.isAlive()) return;
+
+  mapEl.classList.add("home-hero-demo-sk-gps-map--static");
+  mapEl.replaceChildren();
+
+  const stage = document.createElement("div");
+  stage.className = "home-hero-demo-sk-gps-static-stage";
+
+  overviewImg.className = "home-hero-demo-sk-gps-static-img home-hero-demo-sk-gps-static-img--overview";
+  overviewImg.alt = "";
+  overviewImg.draggable = false;
+
+  detailImg.className = "home-hero-demo-sk-gps-static-img home-hero-demo-sk-gps-static-img--detail";
+  detailImg.alt = "";
+  detailImg.draggable = false;
+
+  stage.appendChild(overviewImg);
+  stage.appendChild(detailImg);
+  mapEl.appendChild(stage);
+
+  opts.relayout(true);
+
+  if (opts.reducedMotion) {
+    stage.classList.add("home-hero-demo-sk-gps-static-stage--settled");
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+    await wait(480);
+    return;
+  }
+
+  const flyMs = scaleMs(opts.flyMs);
+  stage.style.setProperty("--hero-gps-fly-ms", `${flyMs}ms`);
+  void stage.offsetWidth;
+  stage.classList.add("home-hero-demo-sk-gps-static-stage--fly");
+
+  await wait(opts.markerAt);
+  if (!opts.isAlive()) return;
+  pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+
+  await wait(Math.max(0, flyMs - opts.markerAt) + 120);
+  if (!opts.isAlive()) return;
+
+  stage.classList.add("home-hero-demo-sk-gps-static-stage--settled");
+  card?.classList.remove("home-hero-demo-sk-gps--pop");
+  card?.classList.add("home-hero-demo-sk-gps--settled");
+  opts.relayout(true);
+}
+
+/**
+ * Status-line GPS beat: Mapbox fly-in. iOS uses Static Images (WebGL mis-sizes
+ * under our transforms); desktop uses GL with land/water stripping. A fixed
+ * center pin appears mid-flight. Letterbox stays in the stack for later turns.
+ */
+async function playGpsLocateSkeleton(
+  root: HTMLElement,
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  mapboxToken: string,
+  faceUrl?: string,
+): Promise<void> {
+  const FLY_MS = 2600;
+  const MARKER_AT = Math.round(FLY_MS * 0.66);
+  const END_ZOOM = 13.4;
+  const END_PITCH = 48;
+  const END_BEARING = -22;
+  // Arbitrary coastal job site — not meant to match a real address.
+  const TARGET: [number, number] = [-70.255, 43.661];
+  const START: [number, number] = [-95.7, 37.1];
+
+  const row = createGpsLocateCard(root, faceUrl);
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-gps");
+  const mapEl = row.querySelector<HTMLElement>("[data-hero-gps-map]");
+  const pinEl = row.querySelector<HTMLElement>("[data-hero-gps-marker]");
+
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (card) {
+    void card.offsetWidth;
+    card.classList.add(reducedMotion ? "home-hero-demo-sk-gps--settled" : "home-hero-demo-sk-gps--pop");
+  }
+
+  if (!mapboxToken || !mapEl) {
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+    await wait(reducedMotion ? 400 : 900);
+    return;
+  }
+
+  // Let the bubble pop settle before measuring / painting map content.
+  await wait(reducedMotion ? 80 : 420);
+  if (!isAlive()) return;
+
+  const staticOpts = {
+    token: mapboxToken,
+    target: TARGET,
+    start: START,
+    endZoom: END_ZOOM,
+    endPitch: END_PITCH,
+    endBearing: END_BEARING,
+    flyMs: FLY_MS,
+    markerAt: scaleMs(MARKER_AT),
+    reducedMotion,
+    isAlive,
+    relayout,
+  };
+
+  if (preferStaticMapbox()) {
+    try {
+      await playGpsStaticFly(mapEl, pinEl, card, staticOpts);
+    } catch {
+      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+      card?.classList.remove("home-hero-demo-sk-gps--pop");
+      card?.classList.add("home-hero-demo-sk-gps--settled");
+      await wait(reducedMotion ? 400 : 900);
+    }
+    return;
+  }
+
+  let map: any = null;
+
+  const teardown = () => {
+    try {
+      map?.remove?.();
+    } catch {
+      /* ignore */
+    }
+    map = null;
+  };
+
+  // Scene resets remove the row — tear down the WebGL map when that happens.
+  const orphanWatch = new MutationObserver(() => {
+    if (!row.isConnected) {
+      teardown();
+      orphanWatch.disconnect();
+    }
+  });
+  orphanWatch.observe(sceneEl, { childList: true });
+
+  try {
+    const mapboxgl = await loadMapboxGl();
+    if (!isAlive()) {
+      teardown();
+      orphanWatch.disconnect();
+      return;
+    }
+
+    // Drop the pop transform before WebGL init — scale() ancestors break canvas size.
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+    relayout(true);
+    await wait(32);
+    if (!isAlive()) {
+      teardown();
+      orphanWatch.disconnect();
+      return;
+    }
+
+    mapboxgl.accessToken = mapboxToken;
+    map = new mapboxgl.Map({
+      container: mapEl,
+      style: `mapbox://styles/${MAPBOX_STYLE}`,
+      center: reducedMotion ? TARGET : START,
+      zoom: reducedMotion ? END_ZOOM : 2.4,
+      pitch: reducedMotion ? END_PITCH : 0,
+      bearing: reducedMotion ? END_BEARING : 0,
+      interactive: false,
+      attributionControl: false,
+      fadeDuration: 0,
+      fitBoundsOptions: { padding: 0 },
+    });
+
+    await new Promise<void>((resolve) => {
+      const done = () => resolve();
+      map.once("load", done);
+      window.setTimeout(done, 4000);
+    });
+    if (!isAlive()) {
+      teardown();
+      orphanWatch.disconnect();
+      return;
+    }
+
+    stripMapToLandAndWater(map);
+    mapEl.querySelectorAll(".mapboxgl-ctrl, .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib").forEach((node) => {
+      (node as HTMLElement).style.display = "none";
+    });
+
+    map.resize();
+    relayout(true);
+    requestAnimationFrame(() => map?.resize());
+
+    if (reducedMotion) {
+      map.jumpTo({
+        center: TARGET,
+        zoom: END_ZOOM,
+        pitch: END_PITCH,
+        bearing: END_BEARING,
+      });
+      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+      await wait(480);
+    } else {
+      const flyDuration = scaleMs(FLY_MS);
+      const flyDone = new Promise<void>((resolve) => {
+        map.once("moveend", () => resolve());
+        window.setTimeout(() => resolve(), flyDuration + 240);
+      });
+
+      map.flyTo({
+        center: TARGET,
+        zoom: END_ZOOM,
+        pitch: END_PITCH,
+        bearing: END_BEARING,
+        duration: flyDuration,
+        essential: true,
+        curve: 1.35,
+      });
+
+      await wait(scaleMs(MARKER_AT));
+      if (!isAlive()) {
+        teardown();
+        orphanWatch.disconnect();
+        return;
+      }
+
+      // Fixed center reticle — world flies under it; always letterbox-centered.
+      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+
+      await flyDone;
+      if (!isAlive()) {
+        teardown();
+        orphanWatch.disconnect();
+        return;
+      }
+
+      map.resize();
+      map.jumpTo({
+        center: TARGET,
+        zoom: END_ZOOM,
+        pitch: END_PITCH,
+        bearing: END_BEARING,
+      });
+      await wait(420);
+    }
+
+    relayout(true);
+    requestAnimationFrame(() => map?.resize());
+    // Leave the letterbox in the stack — later turns scroll it up naturally.
+  } catch {
+    teardown();
+    orphanWatch.disconnect();
+    // Desktop WebGL failed — same static path iOS uses.
+    if (isAlive() && mapEl.isConnected) {
+      try {
+        await playGpsStaticFly(mapEl, pinEl, card, staticOpts);
+        return;
+      } catch {
+        /* fall through */
+      }
+    }
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+  }
+}
+
 function createUserComposingShell(
   root: HTMLElement,
   kind: "voice" | "slash",
@@ -624,6 +1363,8 @@ function refreshStackLayout(viewport: HTMLElement, stack: HTMLElement) {
 
   stack.style.transform = `translateY(${targetY.toFixed(2)}px)`;
   messages.forEach((msg, i) => {
+    // Don't fight the outro — rewriting opacity mid-fade makes it look instant.
+    if (msg.closest(".home-hero-demo-scene--exit")) return;
     const depth = messageDepth(newest - i);
     if (depth <= 0) applyMessageFocus(msg);
     else applyMessageDepth(msg, depth);
@@ -720,12 +1461,15 @@ async function playAssistantTurn(
   reducedMotion: boolean,
   isAlive: () => boolean,
   priorAssistantRow: HTMLElement | null,
+  mapboxToken = "",
+  userAvatarUrl?: string,
 ): Promise<HTMLElement | null> {
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
+  const isGpsOnly = turn.effect === "gps-locate" && !turn.text.trim();
 
   // Status line → reply in the same bubble (no second bubble).
-  if (!isStatus && priorAssistantRow?.dataset.heroAwaitingReply === "1") {
+  if (!isStatus && !isGpsOnly && priorAssistantRow?.dataset.heroAwaitingReply === "1") {
     await wait(ASSISTANT_RESPONSE_DELAY_MS);
     if (!isAlive()) return priorAssistantRow;
     morphStatusToReply(priorAssistantRow, turn);
@@ -734,7 +1478,14 @@ async function playAssistantTurn(
     if (turn.actions?.length) {
       await wait(ACTION_PRESS_MS + 400);
       if (!isAlive()) return priorAssistantRow;
-      await simulateActionPress(priorAssistantRow, sceneEl, relayout, reducedMotion, isAlive);
+      await simulateActionPress(
+        priorAssistantRow,
+        sceneEl,
+        root,
+        relayout,
+        reducedMotion,
+        isAlive,
+      );
     }
 
     return priorAssistantRow;
@@ -742,6 +1493,27 @@ async function playAssistantTurn(
 
   await wait(ASSISTANT_RESPONSE_DELAY_MS);
   if (!isAlive()) return null;
+
+  // Visual-only GPS reply — typing dots, then the map bubble (no status copy).
+  if (isGpsOnly) {
+    const typing = createTypingIndicator(root);
+    typing.classList.add("home-hero-demo-msg--enter");
+    sceneEl.appendChild(typing);
+    relayout(true);
+    await wait(reducedMotion ? 320 : TYPING_DOTS_MS);
+    if (!isAlive()) return null;
+    typing.remove();
+    await playGpsLocateSkeleton(
+      root,
+      sceneEl,
+      relayout,
+      reducedMotion,
+      isAlive,
+      mapboxToken,
+      userAvatarUrl,
+    );
+    return null;
+  }
 
   const dotsMs = isStatus
     ? TYPING_DOTS_MS
@@ -769,7 +1541,7 @@ async function playAssistantTurn(
   if (turn.actions?.length) {
     await wait(ACTION_PRESS_MS + 400);
     if (!isAlive()) return typing;
-    await simulateActionPress(typing, sceneEl, relayout, reducedMotion, isAlive);
+    await simulateActionPress(typing, sceneEl, root, relayout, reducedMotion, isAlive);
   }
 
   return typing;
@@ -778,12 +1550,14 @@ async function playAssistantTurn(
 async function simulateActionPress(
   row: HTMLElement,
   sceneEl: HTMLElement,
+  root: HTMLElement,
   relayout: Relayout,
   reducedMotion: boolean,
   isAlive: () => boolean,
 ): Promise<void> {
+  const withEffect = row.querySelector<HTMLElement>(".home-hero-demo-action[data-hero-effect]");
   const primary = row.querySelector<HTMLElement>(".home-hero-demo-action--primary");
-  const target = primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
+  const target = withEffect ?? primary ?? row.querySelector<HTMLElement>(".home-hero-demo-action");
   if (!target) return;
 
   const hero = row.closest<HTMLElement>(".home-hero");
@@ -804,6 +1578,8 @@ async function simulateActionPress(
 
   if (effect === "invoice-payment") {
     await playInvoicePaymentSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+  } else if (effect === "proposal-flow") {
+    await playProposalFlow(root, sceneEl, relayout, reducedMotion, isAlive);
   }
 }
 
@@ -814,12 +1590,44 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
     return Promise.resolve();
   }
 
+  /*
+   * Fade the bubbles themselves. A scene-level class toggle was easy to miss —
+   * the depth pass already writes inline opacity on each message, so dissolving
+   * those values to 0 is what actually reads as an outro. Pin each bubble's
+   * current opacity with transition disabled, reflow, then ease to 0 over 350ms.
+   */
+  const ms = SCENE_EXIT_MS;
+  const messages = Array.from(sceneEl.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
+
+  sceneEl.style.setProperty("--hero-scene-exit-ms", `${ms}ms`);
   sceneEl.classList.add("home-hero-demo-scene--exit");
+
+  for (const msg of messages) {
+    const current = msg.style.opacity || getComputedStyle(msg).opacity || "1";
+    msg.style.transition = "none";
+    msg.style.opacity = current;
+  }
+  void sceneEl.offsetWidth;
+
+  for (const msg of messages) {
+    msg.style.transition = `opacity ${ms}ms ease`;
+    msg.style.opacity = "0";
+  }
+
+  // No message rows (shouldn't happen) — fall back to fading the scene wrapper.
+  if (!messages.length) {
+    sceneEl.style.transition = "none";
+    sceneEl.style.opacity = "1";
+    void sceneEl.offsetWidth;
+    sceneEl.style.transition = `opacity ${ms}ms ease`;
+    sceneEl.style.opacity = "0";
+  }
+
   return new Promise((resolve) => {
     window.setTimeout(() => {
       sceneEl.remove();
       resolve();
-    }, scaleMs(SCENE_EXIT_MS));
+    }, ms);
   });
 }
 
@@ -842,13 +1650,17 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const scenes = parseScenes(root.dataset.scenes);
   if (!scenes.length) return;
 
+  const mapboxToken = (root.dataset.mapboxToken || "").trim();
   const hero = root.closest<HTMLElement>(".home-hero");
   const viewport = root.querySelector<HTMLElement>("[data-hero-demo-viewport]");
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
   const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
+  // CTAs may be moved onto <body> by homeHeroCtaPin — fall back to a global lookup.
+  const copyEl =
+    hero?.querySelector<HTMLElement>("[data-hero-copy]") ??
+    document.querySelector<HTMLElement>("[data-hero-copy]");
   if (!viewport || !stack || !hero) return;
 
   depthBlurEnabled = !isSafariBrowser();
@@ -982,6 +1794,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
         reducedMotion,
         isAlive,
         lastAssistantRow,
+        mapboxToken,
+        scene.userAvatar,
       );
 
       if (sceneEl.dataset.heroHardCut === "1") {

@@ -153,7 +153,6 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/demo',
       '/demo-loader',
       '/about',
-      '/services',
       '/digital-audit',
       '/privacy',
       '/terms',
@@ -161,7 +160,7 @@ function fallbackReaveConfig(): SiteContentConfig {
     nav: {
       links: [],
       groups: [],
-      showDemoCta: true,
+      showDemoCta: false,
       showSignIn: true,
     },
     homepage: {

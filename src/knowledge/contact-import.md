@@ -12,7 +12,7 @@ Contacts can now flow both directions between REΛVE and external devices. This 
 
 ### Access
 
-Navigate to **Admin → Clients**, then click **Import Contacts** (or visit `/admin/import-contacts` directly).
+Navigate to **Admin → Contacts**, then click **Import Contacts** (or visit `/admin/import-contacts` directly).
 
 ### Supported Formats
 

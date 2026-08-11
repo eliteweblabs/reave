@@ -1,13 +1,14 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them, CTAs pinned to the bottom. Nothing shifts while the demo runs.
+ * under them, CTAs fixed to the viewport footer (slide away at Contact).
  */
 import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
 import { HERO_DEMO_SCENES } from "../../lib/heroDemoConversation";
 
@@ -24,6 +25,7 @@ const ctas = homepage.ctas ?? [];
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const userId = Astro.locals.auth()?.userId ?? null;
 const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
+const mapboxToken = getPublicMapboxAccessToken() || "";
 ---
 
 <section
@@ -45,7 +47,8 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
         class="home-hero-demo"
         data-hero-demo
         data-scenes={JSON.stringify(demoScenes)}
-        data-start-scene="reggie-payment"
+        data-start-scene="susie-proposal"
+        data-mapbox-token={mapboxToken}
         aria-live="polite"
         aria-atomic="false"
       >
@@ -95,7 +98,7 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     )
   }
 
-  <div class="home-hero-copy" data-hero-copy>
+  <div id="home-hero-copy" class="home-hero-copy" data-hero-copy>
     <div class="home-hero-cta">
       {
         ctas.map((cta) => (
@@ -115,6 +118,14 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
       }
     </div>
   </div>
+
+  {/* Reparent before paint so hero overflow cannot trap position:fixed on iOS. */}
+  <script is:inline>
+    (function () {
+      var el = document.getElementById("home-hero-copy");
+      if (el && el.parentElement !== document.body) document.body.appendChild(el);
+    })();
+  </script>
 </section>
 
 {
@@ -124,6 +135,73 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     </script>
   )
 }
+
+<script>
+  import "../../lib/homeHeroCtaPin.ts";
+</script>
+
+<style is:global>
+  /*
+   * CTAs live on <body> (inline reparent + homeHeroCtaPin). Keep the shell
+   * positioning global so scoped Astro CSS cannot fail after the move.
+   * visualViewport pin adjusts `bottom` so mobile Safari chrome does not
+   * drift them from the page-load footer spot; Contact toggles
+   * .is-contact-occluding to slide them out of view.
+   */
+  .home-hero-copy {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 940;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+    pointer-events: none;
+    /*
+     * No resting transform — iOS Safari can stop compositing position:fixed
+     * at the visual viewport while a transform is present, so the CTAs drift
+     * from their page-load footer spot during scroll.
+     */
+    transform: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
+  }
+
+  .home-hero-copy.is-contact-occluding {
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-copy {
+      transition: none;
+    }
+
+    .home-hero-copy.is-contact-occluding {
+      transform: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
+  .home-hero-copy :is(a, button) {
+    pointer-events: auto;
+  }
+</style>
 
 <style>
   .home-hero {
@@ -221,26 +299,6 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     filter: var(--brand-glow-filter);
   }
 
-  /* CTAs — pinned to viewport bottom */
-  .home-hero-copy {
-    position: absolute;
-    z-index: 5;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
-    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
-    text-align: center;
-    pointer-events: none;
-  }
-
-  .home-hero-copy :is(a, button) {
-    pointer-events: auto;
-  }
-
   .home-hero-title {
     margin: 0;
     font-family: var(--font-primary);
@@ -250,11 +308,13 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     line-height: 1.08;
     color: #fff;
     text-align: center;
-    text-wrap: balance;
+    /* Keep the headline on one line above small screens (brand column can wrap it otherwise). */
+    white-space: nowrap;
   }
 
-  /* One line once there's room; forced break only on narrow screens. */
-  .home-hero-title-break {
+  /* Forced mid-title break only on narrow screens.
+     :global — class lives on set:html markup, so scoped attrs never attach. */
+  .home-hero-title :global(.home-hero-title-break) {
     display: none;
   }
 
@@ -269,7 +329,12 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
       top: 40%;
     }
 
-    .home-hero-title-break {
+    .home-hero-title {
+      white-space: normal;
+      text-wrap: balance;
+    }
+
+    .home-hero-title :global(.home-hero-title-break) {
       display: inline;
     }
   }
@@ -452,12 +517,14 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     flex-direction: column;
     gap: 18px;
     padding-bottom: 2px;
-    transition: opacity 0.67s ease;
+    opacity: 1;
+    /* Duration set from JS (see --hero-scene-exit-ms / SCENE_EXIT_MS). */
+    transition: opacity var(--hero-scene-exit-ms, 350ms) ease;
   }
 
   .home-hero-demo-scene--exit {
     opacity: 0;
-    transition: opacity 0.67s ease;
+    transition: opacity var(--hero-scene-exit-ms, 350ms) ease;
   }
 
   .home-hero-demo-msg {
@@ -954,6 +1021,436 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     }
   }
 
+  /* Dashboard notification toast — same center-scale overshoot as the invoice. */
+  .home-hero-demo-sk-notif {
+    width: min(100%, 18.5rem);
+    margin-inline: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.78rem 0.9rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    transform-origin: center center;
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  .home-hero-demo-sk-notif--pop {
+    animation: heroDemoSkInvoicePop 0.7s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+  }
+
+  .home-hero-demo-sk-notif--settled {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .home-hero-demo-sk-notif-dot {
+    flex: none;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.28rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+  }
+
+  .home-hero-demo-sk-notif-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+  }
+
+  .home-hero-demo-sk-notif-title,
+  .home-hero-demo-sk-notif-detail {
+    margin: 0;
+    font-family: var(--font-primary);
+    line-height: 1.25;
+  }
+
+  .home-hero-demo-sk-notif-title {
+    font-size: 0.86rem;
+    font-weight: 650;
+    color: rgba(255, 255, 255, 0.94);
+  }
+
+  .home-hero-demo-sk-notif-detail {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* Contract card — line bones draw in, then signature strokes. */
+  .home-hero-demo-sk-contract {
+    width: 100%;
+    padding: 0.9rem 0.95rem 0.85rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    transform-origin: center center;
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  .home-hero-demo-sk-contract--pop {
+    animation: heroDemoSkInvoicePop 0.7s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+  }
+
+  .home-hero-demo-sk-contract--settled {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .home-hero-demo-sk-contract-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+  }
+
+  .home-hero-demo-sk-contract-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.42rem;
+    padding: 0.35rem 0 0.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .home-hero-demo-sk-contract-line {
+    display: block;
+    height: 0.38rem;
+    width: 0;
+    max-width: var(--hero-contract-line-w, 90%);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.16);
+    opacity: 0;
+    transition:
+      width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.28s ease;
+  }
+
+  .home-hero-demo-sk-contract-line--in {
+    width: var(--hero-contract-line-w, 90%);
+    opacity: 1;
+  }
+
+  .home-hero-demo-sk-contract-sign {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .home-hero-demo-sk-contract-sign-label {
+    display: block;
+    width: 22%;
+    height: 0.32rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .home-hero-demo-sk-contract-signature {
+    width: min(100%, 11.5rem);
+    height: 2.4rem;
+    overflow: visible;
+  }
+
+  .home-hero-demo-sk-contract-signature-path {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.92);
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 240;
+    stroke-dashoffset: 240;
+  }
+
+  .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path {
+    animation: heroDemoSkContractSign 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes heroDemoSkContractSign {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .home-hero-demo-sk-contract-sign-rule {
+    display: block;
+    width: 58%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  /* GPS map bubble — map bleeds edge-to-edge; chrome is just the clip + border. */
+  .home-hero-demo-msg--gps {
+    align-items: flex-end;
+  }
+
+  .home-hero-demo-sk-gps {
+    width: min(100%, 22rem);
+    padding: 0;
+    border-radius: 1rem;
+    border-bottom-left-radius: 0.28rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #0b0d10;
+    overflow: hidden;
+    transform-origin: bottom left;
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  .home-hero-demo-sk-gps--pop {
+    animation: heroDemoSkInvoicePop 0.7s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+  }
+
+  .home-hero-demo-sk-gps--settled {
+    opacity: 1;
+    transform: none;
+  }
+
+  .home-hero-demo-sk-gps-viewport {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 9.5rem;
+    max-height: 12rem;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #0b0d10;
+  }
+
+  .home-hero-demo-sk-gps-map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* WebGL canvas must fill the letterbox — iOS often leaves a dead bar otherwise. */
+  .home-hero-demo-sk-gps-map .mapboxgl-map,
+  .home-hero-demo-sk-gps-map .mapboxgl-canvas-container,
+  .home-hero-demo-sk-gps-map .mapboxgl-canvas {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .home-hero-demo-sk-gps-map .mapboxgl-canvas {
+    outline: none;
+  }
+
+  .home-hero-demo-sk-gps-map .mapboxgl-ctrl,
+  .home-hero-demo-sk-gps-map .mapboxgl-ctrl-logo,
+  .home-hero-demo-sk-gps-map .mapboxgl-ctrl-attrib {
+    display: none !important;
+  }
+
+  /* Static Images path (iOS / GL fallback) — overview zooms, detail crossfades in. */
+  .home-hero-demo-sk-gps-map--static {
+    overflow: hidden;
+  }
+
+  .home-hero-demo-sk-gps-static-stage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home-hero-demo-sk-gps-static-img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    object-fit: cover;
+    object-position: center;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+
+  .home-hero-demo-sk-gps-static-img--overview {
+    z-index: 0;
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .home-hero-demo-sk-gps-static-img--detail {
+    z-index: 1;
+    transform: scale(1.18);
+    opacity: 0;
+  }
+
+  .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--overview {
+    animation: heroDemoSkGpsStaticOverview var(--hero-gps-fly-ms, 2.6s)
+      cubic-bezier(0.22, 0.8, 0.28, 1) forwards;
+  }
+
+  .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--detail {
+    animation: heroDemoSkGpsStaticDetail var(--hero-gps-fly-ms, 2.6s)
+      cubic-bezier(0.22, 0.8, 0.28, 1) forwards;
+  }
+
+  .home-hero-demo-sk-gps-static-stage--settled .home-hero-demo-sk-gps-static-img--overview {
+    opacity: 0;
+    transform: scale(2.35);
+  }
+
+  .home-hero-demo-sk-gps-static-stage--settled .home-hero-demo-sk-gps-static-img--detail {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  @keyframes heroDemoSkGpsStaticOverview {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    55% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2.35);
+    }
+  }
+
+  @keyframes heroDemoSkGpsStaticDetail {
+    0%,
+    42% {
+      opacity: 0;
+      transform: scale(1.18);
+    }
+    72% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Fixed in the letterbox center — not a Mapbox HTML marker. */
+  .home-hero-demo-sk-gps-marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: -1.625rem 0 0 -1.625rem;
+    opacity: 0;
+    transform: scale(0.4);
+    pointer-events: none;
+  }
+
+  .home-hero-demo-sk-gps-marker--in {
+    animation: heroDemoSkGpsMarkerIn 0.45s cubic-bezier(0.22, 1.35, 0.36, 1) forwards;
+  }
+
+  @keyframes heroDemoSkGpsMarkerIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.35) translateY(-10px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Reverse-teardrop person pin — circular face, tip on map center. */
+  .home-hero-demo-sk-gps-pin {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    width: 2.35rem;
+    height: 2.9rem;
+    transform: translate(-50%, -100%);
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  }
+
+  .home-hero-demo-sk-gps-pin::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0.05rem;
+    width: 0.78rem;
+    height: 0.78rem;
+    background: #fff;
+    border-radius: 0.1rem;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .home-hero-demo-sk-gps-pin-face {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2.2rem;
+    height: 2.2rem;
+    margin-left: -1.1rem;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center 18%;
+    background: #94a3b8;
+    border: 2px solid #fff;
+    box-sizing: border-box;
+    display: block;
+  }
+
+  .home-hero-demo-sk-gps-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  /* Looping radar pulse — active target. */
+  .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
+    animation: heroDemoSkGpsRadar 2.1s ease-out infinite;
+  }
+
+  .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring--mid {
+    animation-delay: 0.7s;
+  }
+
+  .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring--late {
+    animation-delay: 1.4s;
+  }
+
+  @keyframes heroDemoSkGpsRadar {
+    0% {
+      opacity: 0.7;
+      transform: scale(0.35);
+    }
+    70% {
+      opacity: 0.2;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.9);
+    }
+  }
+
   .home-hero-demo-msg--user .home-hero-demo-bubble {
     color: rgba(255, 255, 255, 0.95);
     background: rgba(255, 255, 255, 0.12);
@@ -1062,18 +1559,61 @@ const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
     .home-hero-demo-sk-invoice--pop,
     .home-hero-demo-sk-invoice--exit,
     .home-hero-demo-sk-bone--total-pulse,
-    .home-hero-demo-sk-bone--total-pulse::after {
+    .home-hero-demo-sk-bone--total-pulse::after,
+    .home-hero-demo-sk-notif--pop,
+    .home-hero-demo-sk-contract--pop,
+    .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path,
+    .home-hero-demo-sk-gps--pop,
+    .home-hero-demo-sk-gps-marker--in,
+    .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
       animation: none;
     }
 
     .home-hero-demo-sk-invoice--pop,
-    .home-hero-demo-sk-invoice--settled {
+    .home-hero-demo-sk-invoice--settled,
+    .home-hero-demo-sk-notif--pop,
+    .home-hero-demo-sk-notif--settled,
+    .home-hero-demo-sk-contract--pop,
+    .home-hero-demo-sk-contract--settled {
       opacity: 1;
       transform: scale(1);
     }
 
+    .home-hero-demo-sk-contract-line {
+      transition: none;
+      width: var(--hero-contract-line-w, 90%);
+      opacity: 1;
+    }
+
+    .home-hero-demo-sk-contract-signature-path {
+      stroke-dashoffset: 0;
+    }
+
+    .home-hero-demo-sk-gps--pop,
+    .home-hero-demo-sk-gps--settled {
+      opacity: 1;
+      transform: none;
+    }
+
+    .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--overview,
+    .home-hero-demo-sk-gps-static-stage--fly .home-hero-demo-sk-gps-static-img--detail {
+      animation: none;
+    }
+
+    .home-hero-demo-sk-gps-marker--in,
+    .home-hero-demo-sk-gps-marker--active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
+      opacity: 0.35;
+      transform: scale(1.2);
+    }
+
     .home-hero-demo-sk-invoice-payments,
-    .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
+    .home-hero-demo-sk-invoice-payment [data-hero-sk-pay],
+    .home-hero-demo-sk-contract-line {
       transition: none;
     }
   }

@@ -29,9 +29,23 @@ import {
 import { getCompanyConfig } from './companyConfig';
 import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
-import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectReply';
+import {
+  detectProjectClientReply,
+  displayProjectTitle,
+  isLikelyClientThreadReply,
+} from './emailProjectReply';
 import { isSuggestedProjectMatch } from './emailAutomation';
-import { looksLikeFailedOrDuePayment, looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
+import {
+  looksLikeFailedOrDuePayment,
+  looksLikeIncomingPayment,
+  looksLikePaymentNotification,
+  shouldAutoFileAsReceipt,
+} from './emailMoney';
+import {
+  auditForMatchedRule,
+  classificationAuditStep,
+  type ClassificationAuditStep,
+} from './emailClassificationAudit';
 import {
   describeOtpPurpose,
   extractVerificationCodeFromEmail,
@@ -460,6 +474,16 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
+  const classificationAudit: ClassificationAuditStep[] = [
+    auditForMatchedRule(ruleResult.matched, ruleResult.status, {
+      from,
+      subject: email.subject ?? '',
+      text: bodyText,
+    }),
+  ];
+  const pushAudit = (step: string, decision: string, detail?: string) => {
+    classificationAudit.push(classificationAuditStep(step, decision, detail));
+  };
 
   const sender = await resolveSenderContact(senderEmail);
   let contactUid = sender.uid;
@@ -545,6 +569,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       html: email.html,
       verificationCode,
     });
+    pushAudit(
+      'ai',
+      `Trusted AI label: ${aiClassify.label}`,
+      `${Math.round(aiClassify.confidence * 100)}% confidence · ${aiClassify.reason || applied.routeNote}`,
+    );
     category = applied.category;
     action = applied.action;
     summary = applied.summary;
@@ -710,6 +739,14 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         category = 'receipt';
         action = 'receipt';
         routeNote = earlyReceipt.routeNote;
+        pushAudit(
+          'override',
+          'Receipt override beat junk/DELETE',
+          'Completed payment receipt wins over junk rule',
+        );
+        for (const step of earlyReceipt.audit) {
+          classificationAudit.push(classificationAuditStep(step.step, step.decision, step.detail));
+        }
       }
     }
 
@@ -785,7 +822,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           routeNote = routeNote || `Matched job "${job.title}" (no note extracted)`;
         } else if (category === 'client' && !contactUid) {
           category = 'review';
-          routeNote = 'Client-like mail but sender not in contacts';
+          routeNote = 'Contact-like mail but sender not in contacts';
           action = 'review';
         } else if (category === 'junk') {
           action = 'junk';
@@ -844,7 +881,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       jobs,
     });
     if (replyMatch) {
-      const threadedReply = isLikelyEmailReply({
+      const threadedReply = isLikelyClientThreadReply({
         subject: email.subject ?? '',
         headers: email.headers,
       });
@@ -853,23 +890,42 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         /\b(meet(ing)?|schedule|appointment|available|availability)\b/i.test(
           `${summary} ${schedulingNote} ${snippet(bodyText, 500)}`,
         );
-      if (looksLikeMeeting && !threadedReply) {
+      const projectLabel = displayProjectTitle(replyMatch.jobTitle, contactName);
+      // Meeting asks are not "client replies" — even with Re: headers or when the
+      // only open job is a leftover "New Project — …" stub. Apex / forwarded
+      // copies into inbound must keep the AI summary, not a reply framing.
+      if (looksLikeMeeting) {
         if (!jobSlug) {
           jobSlug = replyMatch.jobSlug;
           jobTitle = replyMatch.jobTitle;
         }
         routeNote =
           routeNote ||
-          `Meeting request from ${contactName ?? senderEmail} on "${replyMatch.jobTitle}"`;
-      } else {
+          `Meeting request from ${contactName ?? senderEmail} on "${projectLabel}"`;
+      } else if (threadedReply) {
         isProjectReply = true;
         category = 'client';
         action = 'project_reply';
         jobSlug = replyMatch.jobSlug;
         jobTitle = replyMatch.jobTitle;
-        routeNote = `🚨 Client replied on "${replyMatch.jobTitle}" — follow up ASAP. ${replyMatch.reason}`;
-        if (!summary.toLowerCase().includes('client replied')) {
-          summary = `Client replied on project ${replyMatch.jobTitle}: ${summary}`;
+        routeNote = `🚨 Contact replied on "${projectLabel}" — follow up ASAP. ${replyMatch.reason}`;
+        if (!summary.toLowerCase().includes('contact replied') && !summary.toLowerCase().includes('client replied')) {
+          summary = `Contact replied on project ${projectLabel}: ${summary}`;
+        }
+      } else {
+        // Outbound subject match without true thread headers — link quietly.
+        if (!jobSlug) {
+          jobSlug = replyMatch.jobSlug;
+          jobTitle = replyMatch.jobTitle;
+        }
+        routeNote =
+          routeNote ||
+          `Linked to project "${projectLabel}"`;
+        if (action !== 'filed' && action !== 'matched') {
+          action = 'matched';
+        }
+        if (category !== 'junk' && category !== 'alert') {
+          category = 'client';
         }
       }
     }
@@ -908,9 +964,27 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       action = 'receipt';
       inboxStatus = 'RECEIPT';
       routeNote = autoReceipt.routeNote;
+      pushAudit('late_receipt', 'Late auto-file as receipt', 'shouldAutoFileAsReceipt after rules/AI');
+      for (const step of autoReceipt.audit) {
+        if (!classificationAudit.some((s) => s.step === step.step && s.decision === step.decision)) {
+          classificationAudit.push(classificationAuditStep(step.step, step.decision, step.detail));
+        }
+      }
     } else if (category === 'receipt' && action === 'receipt' && !routeNote) {
       routeNote = 'Payment notification — filed as receipt';
+      pushAudit('auto_file', 'Filed as receipt', 'Payment notification — rule/AI already set receipt');
     }
+  }
+
+  if (category === 'receipt' && !classificationAudit.some((s) => s.step === 'title')) {
+    const amountLabel = routeNote?.startsWith('Tax receipt')
+      ? routeNote
+      : 'Tax receipt (pending expense log)';
+    pushAudit(
+      'title',
+      `Dashboard label: ${amountLabel}`,
+      'Expense-side receipts use the Tax receipt banner for Crater logging — not “Payment of $… from …” income',
+    );
   }
 
   // Ensure inboxStatus reflects receipt even when the early-override fired
@@ -919,14 +993,46 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     inboxStatus = 'RECEIPT';
   }
 
+  // Income notices must never stay filed as tax/expense receipts.
+  // "Payment of $… from …" is money received — the keyword is "from", not due/invoice.
+  const moneyEv = {
+    from,
+    subject: email.subject ?? '',
+    summary,
+    bodyText,
+    bodySnippet: snippet(bodyText),
+  };
+  if (
+    category === 'receipt' &&
+    (looksLikeIncomingPayment(moneyEv) || looksLikePaymentNotification(moneyEv))
+  ) {
+    category = 'internal';
+    action = 'classified';
+    inboxStatus = inboxStatus.toUpperCase() === 'RECEIPT' ? 'UNMATCHED' : inboxStatus;
+    routeNote = 'Incoming payment (income) — not a tax/expense receipt';
+    pushAudit(
+      'correction',
+      'Unfiled as tax receipt',
+      '"Payment of $… from …" / payment-received language is money in, not an expense',
+    );
+  }
+
   if (needsExplain) {
     // Prefer review visibility over silent junk when we're unsure.
+    // Always stamp needs_explain so meeting/project review banners do not
+    // appear alongside the triage "Explain" alert for the same email.
     if (category === 'junk' && action === 'junk') {
       category = 'review';
       action = 'needs_explain';
       if (inboxStatus.toUpperCase() === 'DELETE') inboxStatus = 'UNMATCHED';
-    } else if (action !== 'verification_code' && action !== 'activation_link' && action !== 'project_reply') {
-      if (action === 'classified' || action === 'junk') action = 'needs_explain';
+    } else if (
+      action !== 'verification_code' &&
+      action !== 'activation_link' &&
+      action !== 'project_reply'
+    ) {
+      if (category === 'junk') category = 'review';
+      action = 'needs_explain';
+      if (inboxStatus.toUpperCase() === 'DELETE') inboxStatus = 'UNMATCHED';
     }
   }
 
@@ -939,7 +1045,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   let skipAutoBook = false;
 
-  if (!suppressedAsJunk && hasFeature('scheduling') && action !== 'project_reply' && senderEmail.includes('@')) {
+  // Uncertain classification → triage Explain only. Do not also emit meeting
+  // automation / Confirm banners for the same inbound message.
+  if (
+    !needsExplain &&
+    !suppressedAsJunk &&
+    hasFeature('scheduling') &&
+    action !== 'project_reply' &&
+    senderEmail.includes('@')
+  ) {
     const followUp = await detectMeetingFollowUp({
       from,
       contactName,
@@ -964,6 +1078,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   }
 
   if (
+    !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
@@ -1006,7 +1121,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         contactName = contactResult.name;
         if (contactResult.created) {
           const companyBit = contactResult.company ? ` (${contactResult.company})` : '';
-          routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to clients`;
+          routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to contacts`;
         }
       } else if (contactResult && !contactResult.ok) {
         console.warn('[email] auto-book contact ensure failed', contactResult.error);
@@ -1030,6 +1145,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       }
     }
   } else if (
+    !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
@@ -1127,6 +1243,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     jobSlug,
     jobTitle,
     routeNote,
+    classificationAudit,
     proposedMeetingStart,
     schedulingNote,
     bookingUid,
@@ -1356,7 +1473,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }).catch((e) => console.warn('[email] triage push failed', e));
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
-      ? `🚨 Client reply: ${contactName ?? senderEmail}`
+      ? `🚨 Contact reply: ${contactName ?? senderEmail}`
       : automationKind === 'project_match_suggested'
         ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
         : automationKind === 'project_created'
@@ -1372,7 +1489,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           : isRailwayAlertStatus(ruleResult.status)
             ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
             : category === 'client'
-              ? `Client: ${contactName ?? senderEmail}`
+              ? `Contact: ${contactName ?? senderEmail}`
               : email.subject?.trim() || contactName || senderEmail || 'New email';
     const attachmentCount = attachments.length;
     const pushBody = isProjectReply
@@ -1387,12 +1504,22 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         : automationKind === 'meeting_followup'
           ? summary.slice(0, 240)
           : summary;
+    // Meeting/project automations already render typed review banners from the
+    // inbox row — phone push only, so the dashboard does not show two cards.
+    const hasTypedReviewBanner =
+      automationKind === 'meeting_booked' ||
+      automationKind === 'meeting_request' ||
+      automationKind === 'meeting_conflict' ||
+      automationKind === 'meeting_followup' ||
+      automationKind === 'project_created' ||
+      automationKind === 'project_match_suggested';
     sendInboxPushNotification({
       title: pushTitle,
       body: pushBody,
       tag: inboxRecord.id,
       emailId: inboxRecord.id,
       urgent: isProjectReply,
+      skipDashboardAlert: hasTypedReviewBanner,
     }).catch((e) => console.warn('[email] push failed', e));
   }
 

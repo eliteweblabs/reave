@@ -39,7 +39,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
   const c = res.data;
   const first = contactStringField(c.firstName);
   const last = contactStringField(c.lastName);
-  const full = contactStringField(c.name) || [first, last].filter(Boolean).join(' ') || 'Client';
+  const full = contactStringField(c.name) || [first, last].filter(Boolean).join(' ') || 'Contact';
 
   const lines = ['BEGIN:VCARD', 'VERSION:3.0'];
   lines.push(`N:${esc(last)};${esc(first)};;;`);

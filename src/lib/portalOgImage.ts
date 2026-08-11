@@ -55,7 +55,7 @@ export function safeRemoteImageUrl(raw: string): string | null {
 }
 
 export function portalShareMetaFromContact(uid: string, contact: ContactRecord, portal: ClientPortal): PortalShareMeta {
-  const displayName = contactStringField(contact.name) || 'Client';
+  const displayName = contactStringField(contact.name) || 'Contact';
   const company = contactStringField(contact.company);
   const brandTitle = company || displayName;
   const pageTitle = company ? `${displayName} · ${company}` : displayName;

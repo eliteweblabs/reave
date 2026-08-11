@@ -151,14 +151,14 @@
     },
     {
       "id": "clients",
-      "title": "Clients",
+      "title": "Contacts",
       "summary": "CRM-light contact records, portals, and CardDAV sync.",
       "optional": false,
-      "quoteLabel": "Clients / contacts",
+      "quoteLabel": "Contacts",
       "features": [
         {
           "id": "clients-reel",
-          "title": "Client roster",
+          "title": "Contact roster",
           "body": "Contacts and portals on the desktop OS. Record as clients.gif.",
           "scrollHeight": 120,
           "actions": [
@@ -170,7 +170,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Clients — laptop on the desk"
+              "text": "Contacts — laptop on the desk"
             }
           ]
         }

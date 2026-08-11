@@ -3,6 +3,7 @@
  */
 
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import { isPlaceholderProjectTitle } from './emailProjectReply';
 import {
   bookingAvailability,
   bookingCreate,
@@ -462,7 +463,7 @@ function projectContextPhrase(input: {
     return `the project files for the ${domain} rebuild`;
   }
   const title = input.jobTitle?.trim();
-  if (title && !/^new project$/i.test(title)) {
+  if (title && !isPlaceholderProjectTitle(title)) {
     return `your request about "${title}"`;
   }
   return 'your project request';

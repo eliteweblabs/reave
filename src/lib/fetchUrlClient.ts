@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { normalizePublicUrl } from './publicUrl';
+import { normalizePublicUrl, resolvePublicRedirectUrl } from './publicUrl';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -7,6 +7,7 @@ const USER_AGENT =
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_HTML_BYTES = 2_000_000;
 const CONTENT_CAP = 15_000;
+const MAX_REDIRECTS = 5;
 
 export type FetchUrlResult = {
   url: string;
@@ -64,15 +65,39 @@ export async function fetchUrl(urlInput: string, raw = false): Promise<FetchUrlR
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
+    const headers = {
+      'User-Agent': USER_AGENT,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    };
+
+    let current = url.toString();
+    let res: Response | null = null;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      res = await fetch(current, {
+        signal: controller.signal,
+        redirect: 'manual',
+        headers,
+      });
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location');
+        if (!location || hop >= MAX_REDIRECTS) {
+          return { ok: false, error: 'Too many redirects' };
+        }
+        const validated = resolvePublicRedirectUrl(location, current, false);
+        if (!validated) {
+          return { ok: false, error: 'Redirect target blocked (private or invalid URL)' };
+        }
+        current = validated.toString();
+        continue;
+      }
+      break;
+    }
+
+    if (!res) {
+      return { ok: false, error: 'Failed to fetch URL' };
+    }
 
     const buf = await res.arrayBuffer();
     if (buf.byteLength > MAX_HTML_BYTES) {
@@ -104,7 +129,7 @@ export async function fetchUrl(urlInput: string, raw = false): Promise<FetchUrlR
     return {
       ok: true,
       data: {
-        url: res.url || url.toString(),
+        url: current,
         status_code: res.status,
         title,
         content: outContent || '(empty page)',

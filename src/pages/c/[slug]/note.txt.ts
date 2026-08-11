@@ -37,7 +37,7 @@ export const GET: APIRoute = async ({ params, request }) => {
   const c = res.data;
   const lines: string[] = [];
 
-  lines.push(contactStringField(c.name) || 'Client');
+  lines.push(contactStringField(c.name) || 'Contact');
   const contactCompany = contactStringField(c.company);
   if (contactCompany) lines.push(contactCompany);
   lines.push('');

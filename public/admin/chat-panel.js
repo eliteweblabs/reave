@@ -40,14 +40,14 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260810a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
-import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260810b';
+import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260810c';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
-import { formatPhoneInput } from './clients-panel.js?v=20260810b';
+import { formatPhoneInput } from './clients-panel.js?v=20260810c';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
-// import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260728l';
+// import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initChatPanel(). */
 let shell = {};
@@ -787,7 +787,7 @@ async function openDocumentShareSheet(opts = {}) {
   const actionsEl = document.getElementById('reave-share-actions');
   if (titleEl) titleEl.textContent = `Send ${docTitle}`;
   if (subEl) {
-    subEl.textContent = `Choose a client to send "${docTitle}" to. They'll get a branded ${brandName} link to review and sign — no one else.`;
+    subEl.textContent = `Choose a contact to send "${docTitle}" to. They'll get a branded ${brandName} link to review and sign — no one else.`;
   }
   if (noteEl) noteEl.value = '';
   setReaveShareStatus('', null);
@@ -817,7 +817,7 @@ async function openDocumentShareSheet(opts = {}) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input reave-share-client-search-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search Clients…';
+  searchInput.placeholder = 'Search Contacts…';
   searchInput.autocomplete = 'off';
   const dropdown = document.createElement('div');
   dropdown.className = 'reave-share-client-list';
@@ -857,12 +857,12 @@ async function openDocumentShareSheet(opts = {}) {
   function pick(client) {
     state.recipient = {
       contactUid: client.uid,
-      name: client.name || 'Client',
+      name: client.name || 'Contact',
       email: client.email || undefined,
       phone: client.phone || undefined,
     };
     state.url = `${window.location.origin}/doc/${encodeURIComponent(client.uid)}/${encodeURIComponent(slug)}`;
-    selectedName.textContent = client.name || 'Client';
+    selectedName.textContent = client.name || 'Contact';
     selectedRow.style.display = 'flex';
     searchWrap.style.display = 'none';
     dropdown.style.display = 'none';
@@ -877,7 +877,7 @@ async function openDocumentShareSheet(opts = {}) {
   function renderDropdown(clients) {
     dropdown.innerHTML = '';
     if (!clients.length) {
-      dropdown.innerHTML = '<div class="de-empty reave-share-client-empty">No clients found</div>';
+      dropdown.innerHTML = '<div class="de-empty reave-share-client-empty">No contacts found</div>';
       return;
     }
     for (const c of clients) {

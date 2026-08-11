@@ -60,7 +60,7 @@ function displayFirstName(input: {
   const fromName = parseSenderName(input.from);
   const raw = (input.contactName || fromName || '').trim();
   if (!raw) return 'Client';
-  return raw.split(/\s+/)[0] || 'Client';
+  return raw.split(/\s+/)[0] || 'Contact';
 }
 
 export function buildAutoProjectNotificationTitle(input: {
@@ -112,7 +112,11 @@ export async function tryAutoCreateProjectFromInboundEmail(input: {
     return { ok: false, reason: 'contact_failed', error: contact.error };
   }
 
-  const title = input.subject.trim() || input.summary.trim().slice(0, 80) || 'New project';
+  const title =
+    input.subject.trim() ||
+    (input.contactName?.trim() ? `${input.contactName.trim()} inquiry` : '') ||
+    input.summary.trim().slice(0, 80) ||
+    'Project inquiry';
   let slug = slugFromTitle(title);
   if (!slug || !isSafeWorkSlug(slug)) slug = slugFromTitle(`${contact.name}-${Date.now()}`);
   if (!slug || !isSafeWorkSlug(slug)) {

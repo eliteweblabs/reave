@@ -38,6 +38,8 @@ const isProtectedAdminPage = createRouteMatcher([
   "/admin/doc(.*)",
   "/admin/profile(.*)",
   "/admin/components(.*)",
+  "/admin/client-map(.*)",
+  "/admin/visit-plan(.*)",
 ]);
 
 /** PWA assets must be fetchable without a session (manifest, install flow). */
@@ -90,9 +92,10 @@ function isFeatureBlockedPath(pathname: string): boolean {
   return false;
 }
 
-/** Old marketing routes → single-scroll homepage sections (/about and /services have their own pages). */
+/** Old marketing routes → single-scroll homepage sections (/about has its own page). */
 const HOME_SECTION_REDIRECTS: Record<string, string> = {
   "/contact": "contact",
+  "/services": "contact",
 };
 
 const appMiddleware = clerkMiddleware(async (auth, context, next) => {
@@ -161,15 +164,6 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
       new Response(null, {
         status: 301,
         headers: { Location: new URL("/about", url.origin).toString() },
-      }),
-    );
-  }
-
-  if (pathname.replace(/\/$/, "") === "" && url.searchParams.get("section") === "services") {
-    return applySecurityHeaders(
-      new Response(null, {
-        status: 301,
-        headers: { Location: new URL("/services", url.origin).toString() },
       }),
     );
   }

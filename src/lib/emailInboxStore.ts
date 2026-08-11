@@ -16,8 +16,13 @@ import {
   normalizeEmailAttachments,
   type EmailAttachmentMeta,
 } from './emailAttachments';
+import {
+  parseClassificationAudit,
+  type ClassificationAuditStep,
+} from './emailClassificationAudit';
 
 export type { EmailAttachmentMeta };
+export type { ClassificationAuditStep };
 
 export interface EmailInboxRecord {
   id: string;
@@ -48,6 +53,8 @@ export interface EmailInboxRecord {
   jobSlug: string | null;
   jobTitle: string | null;
   routeNote: string;
+  /** Ordered decision steps that produced category/status/title (for notification review). */
+  classificationAudit: ClassificationAuditStep[];
   proposedMeetingStart: string | null;
   schedulingNote: string;
   bookingUid: string | null;
@@ -94,6 +101,7 @@ export interface EmailInboxInput {
   jobSlug?: string | null;
   jobTitle?: string | null;
   routeNote?: string;
+  classificationAudit?: ClassificationAuditStep[];
   proposedMeetingStart?: string | null;
   schedulingNote?: string;
   bookingUid?: string | null;
@@ -167,6 +175,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_slug TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_title TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS route_note TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS classification_audit JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS proposed_meeting_start TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS scheduling_note TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_uid TEXT`,
@@ -202,7 +211,7 @@ const INDEX_SQL = [
 
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
-              proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
+              classification_audit, proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
               automation_ack_at, automation_triage_at, automation_triage_action, automation_triage_rule_id,
               automation_kind, verification_code, action_url, delete_after_at, attachments_json`;
 
@@ -271,6 +280,7 @@ type InboxRow = {
   job_slug?: string | null;
   job_title?: string | null;
   route_note?: string;
+  classification_audit?: unknown;
   proposed_meeting_start?: Date | string | null;
   scheduling_note?: string;
   booking_uid?: string | null;
@@ -343,6 +353,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     jobSlug: row.job_slug ?? null,
     jobTitle: row.job_title ?? null,
     routeNote: row.route_note ?? '',
+    classificationAudit: parseClassificationAudit(row.classification_audit),
     proposedMeetingStart: row.proposed_meeting_start
       ? new Date(row.proposed_meeting_start).toISOString()
       : null,
@@ -395,6 +406,9 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       jobSlug: e.jobSlug ?? null,
       jobTitle: e.jobTitle ?? null,
       routeNote: String(e.routeNote ?? ''),
+      classificationAudit: parseClassificationAudit(
+        (e as { classificationAudit?: unknown }).classificationAudit,
+      ),
       proposedMeetingStart: e.proposedMeetingStart ?? null,
       schedulingNote: String(e.schedulingNote ?? ''),
       bookingUid: e.bookingUid ?? null,
@@ -572,6 +586,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     jobSlug: input.jobSlug ?? null,
     jobTitle: input.jobTitle ?? null,
     routeNote: input.routeNote ?? '',
+    classificationAudit: parseClassificationAudit(input.classificationAudit),
     proposedMeetingStart: input.proposedMeetingStart ?? null,
     schedulingNote: input.schedulingNote ?? '',
     bookingUid: input.bookingUid ?? null,
@@ -635,10 +650,10 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         (id, from_address, subject, body_snippet, body_text, body_html, to_addrs, cc_addrs, bcc_addrs,
          reply_to_addrs, headers_json, message_id, resend_email_id, attachments_json,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
-         route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
+         route_note, classification_audit, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
          verification_code, action_url, delete_after_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14::jsonb,
-               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25::jsonb, $26, $27, $28, $29, $30, $31, $32, $33)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
@@ -665,6 +680,7 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         input.jobSlug ?? null,
         input.jobTitle ?? null,
         input.routeNote ?? '',
+        JSON.stringify(parseClassificationAudit(input.classificationAudit)),
         input.proposedMeetingStart ?? null,
         input.schedulingNote ?? '',
         input.bookingUid ?? null,
@@ -841,6 +857,7 @@ export type EmailInboxPatch = Partial<
     | 'jobSlug'
     | 'jobTitle'
     | 'routeNote'
+    | 'classificationAudit'
     | 'contactUid'
     | 'contactName'
     | 'automationKind'
@@ -881,6 +898,9 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.jobSlug !== undefined ? { jobSlug: patch.jobSlug } : {}),
     ...(patch.jobTitle !== undefined ? { jobTitle: patch.jobTitle } : {}),
     ...(patch.routeNote !== undefined ? { routeNote: patch.routeNote } : {}),
+    ...(patch.classificationAudit !== undefined
+      ? { classificationAudit: parseClassificationAudit(patch.classificationAudit) }
+      : {}),
     ...(patch.contactUid !== undefined ? { contactUid: patch.contactUid } : {}),
     ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),
     ...(patch.automationKind !== undefined ? { automationKind: patch.automationKind } : {}),
@@ -968,6 +988,10 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.routeNote !== undefined) {
       sets.push(`route_note = $${i++}`);
       vals.push(patch.routeNote);
+    }
+    if (patch.classificationAudit !== undefined) {
+      sets.push(`classification_audit = $${i++}::jsonb`);
+      vals.push(JSON.stringify(parseClassificationAudit(patch.classificationAudit)));
     }
     if (patch.contactUid !== undefined) {
       sets.push(`contact_uid = $${i++}`);

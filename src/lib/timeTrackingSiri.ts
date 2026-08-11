@@ -129,7 +129,7 @@ async function resolveClientFromQuery(query: string): Promise<
 
   if (search.ok && search.data.contacts.length > 1) {
     const names = search.data.contacts.map((c) => c.name).join(', ');
-    return { ok: false, error: `Multiple clients match "${q}": ${names}. Please be more specific.` };
+    return { ok: false, error: `Multiple contacts match "${q}": ${names}. Please be more specific.` };
   }
 
   return { ok: false, error: `No client found for "${q}". Add the client first or say the full project name.` };

@@ -110,7 +110,7 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260810a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260808k';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
   mountFilterTabsScroll,
@@ -133,7 +133,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260810b';
+} from './work-panel.js?v=20260810c';
 import {
   initTodoPanel,
   todoState,
@@ -146,12 +146,12 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260808a';
+} from './todo-panel.js?v=20260810a';
 import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260803g';
+} from './documents-panel.js?v=20260810a';
 import {
   initKnowledgePanel,
   knowledgeState,
@@ -174,7 +174,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260808c';
+} from './schedule-panel.js?v=20260810a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -187,7 +187,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260810b';
+} from './clients-panel.js?v=20260810c';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -251,7 +251,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
-} from './rules-panel.js?v=20260803g';
+} from './rules-panel.js?v=20260810a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -268,7 +268,7 @@ import {
   initModulesPanel,
   loadModulesTab,
   teardownModulesPanel,
-} from './modules-panel.js?v=20260806b';
+} from './modules-panel.js?v=20260810a';
 import {
   openMediaPicker,
   brandingMediaFilter,
@@ -317,6 +317,7 @@ const MAP_ICON_KEYS = {
   dashboard: 'layout-dashboard',
   system: 'monitor',
   tooling: 'wrench',
+  'email-triage': 'git-branch',
   todo: 'check-square',
   documents: 'file-text',
   knowledge: 'book-open',
@@ -414,6 +415,11 @@ const LEGACY_EMOJI_ICON = {
   '📬': 'mail',
   '💼': 'briefcase',
   '✅': 'check-square',
+  '🔀': 'git-branch',
+  '🔑': 'key',
+  '📅': 'calendar',
+  '❓': 'help-circle',
+  '📎': 'paperclip',
 };
 
 const NAV_ICON_PATHS = {
@@ -456,6 +462,10 @@ const NAV_ICON_PATHS = {
     '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
   settings:
     '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'git-branch':
+    '<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  paperclip:
+    '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.586-8.414"/>',
 };
 
 export function navIcon(name, size = 20) {
@@ -922,6 +932,12 @@ function syncCanvasVisibility() {
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
   setPanelDisplay('newsletter-editor', MAP.type === 'newsletter' ? 'flex' : 'none');
   setPanelDisplay('todo-editor', MAP.type === 'todo' ? 'flex' : 'none');
+  // Dashboard content scrolls under the transparent topbar — enable the same
+  // progressive blur scrim used on public pages (Header.astro app-header-scrim).
+  document.getElementById('topbar')?.classList.toggle(
+    'app-header--scrim',
+    MAP.type === 'dashboard',
+  );
 }
 
 // ---- health polling ----
@@ -3117,7 +3133,28 @@ function reviewAlertCopyHtml(item) {
     : escHtml(headline);
   const bodyHtml =
     body && body.toLowerCase() !== headline.toLowerCase() ? `<p>${escHtml(body)}</p>` : '';
-  return `<strong>${headlineLine}</strong>${bodyHtml}`;
+  const auditHtml = isReceiptExpenseNotification(item) ? classificationAuditTrailHtml(item) : '';
+  return `<strong>${headlineLine}</strong>${bodyHtml}${auditHtml}`;
+}
+
+/** Expandable decision path for receipt / classification notifications. */
+function classificationAuditTrailHtml(item) {
+  const steps = Array.isArray(item?.auditTrail) ? item.auditTrail : [];
+  if (!steps.length) return '';
+  const lis = steps
+    .map((step) => {
+      const decision = String(step?.decision || '').trim();
+      if (!decision) return '';
+      const detail = String(step?.detail || '').trim();
+      const detailHtml = detail
+        ? `<span class="admin-classification-audit-detail">${escHtml(detail)}</span>`
+        : '';
+      return `<li><span class="admin-classification-audit-decision">${escHtml(decision)}</span>${detailHtml}</li>`;
+    })
+    .filter(Boolean)
+    .join('');
+  if (!lis) return '';
+  return `<details class="admin-classification-audit"><summary>Why this classification</summary><ol>${lis}</ol></details>`;
 }
 
 let uptimePlatformSyncPollTimer = null;
@@ -4041,7 +4078,7 @@ function buildReviewAlertBanner(item) {
     }
   } else if (isProjectComment || isShareOpen || isContactForm || isDemoRequest) {
     actions.push({
-      label: isDemoRequest && !item.jobSlug ? 'View client' : `View ${postLower(1)}`,
+      label: isDemoRequest && !item.jobSlug ? 'View contact' : `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -4053,7 +4090,7 @@ function buildReviewAlertBanner(item) {
     });
   } else if ((isDeckView || isDemoLaunch) && item.contactUid) {
     actions.push({
-      label: 'View client',
+      label: 'View contact',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -4171,6 +4208,10 @@ function buildReviewAlertBanner(item) {
         dismissBtn.disabled = false;
       });
     },
+  });
+
+  notice.copy?.querySelectorAll?.('.admin-classification-audit')?.forEach((el) => {
+    el.addEventListener('click', (ev) => ev.stopPropagation());
   });
 
   bindReviewAlertSwipe(notice.root, item);
@@ -4681,7 +4722,7 @@ function renderAdminDashboard(data) {
 
   statsEl.appendChild(buildDashStat({
     value: stats.clients ?? '—',
-    label: 'Clients',
+    label: 'Contacts',
     hint: stats.clients == null ? 'contact-api off' : 'in CRM',
     muted: stats.clients == null,
     onClick: stats.clients == null ? null : () => setActiveMap('clients', { force: activeKey === 'clients' }),
@@ -6368,7 +6409,15 @@ function bindCompanyFontPreview(root, catalog) {
   }
 
   const sansFallback = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  const contentFallback = 'Georgia, "Times New Roman", serif';
+  const serifFallback = 'Georgia, "Times New Roman", serif';
+  const contentStack = (entry) => {
+    if (!entry) return '';
+    const serif =
+      entry.id === 'source-serif-4' ||
+      /\bserif\b/i.test(String(entry.family || '')) ||
+      /\bserif\b/i.test(String(entry.id || ''));
+    return `"${entry.family}", ${serif ? serifFallback : sansFallback}`;
+  };
 
   const update = () => {
     const primaryId = primarySelect.value;
@@ -6381,7 +6430,7 @@ function bindCompanyFontPreview(root, catalog) {
     if (href) fontLink.href = href;
     previewPrimary.style.fontFamily = primary ? `"${primary.family}", ${sansFallback}` : '';
     previewSecondary.style.fontFamily = secondary ? `"${secondary.family}", ${sansFallback}` : '';
-    previewContent.style.fontFamily = content ? `"${content.family}", ${contentFallback}` : '';
+    previewContent.style.fontFamily = contentStack(content);
   };
 
   primarySelect.addEventListener('change', update);
@@ -7556,9 +7605,9 @@ function syncFooterClientsNav() {
     create,
     save,
     icon: 'users',
-    label: 'Clients',
-    title: 'New client',
-    saveLabel: 'Save client',
+    label: 'Contacts',
+    title: 'New contact',
+    saveLabel: 'Save contact',
   });
 }
 
@@ -8276,7 +8325,7 @@ async function renderSearchResults(query) {
       const data = await res.json();
       const clients = Array.isArray(data.clients) ? data.clients : [];
       for (const client of clients) {
-        const name = client.displayName || client.name || client.uid || 'Client';
+        const name = client.displayName || client.name || client.uid || 'Contact';
         root.appendChild(buildSearchResultItem({
           label: name,
           sub: client.email || client.uid || '',
@@ -8292,7 +8341,7 @@ async function renderSearchResults(query) {
   if (!root.children.length) {
     const empty = document.createElement('div');
     empty.className = 'search-result-empty';
-    empty.textContent = q ? 'No Matches.' : 'Search Sections And Clients…';
+    empty.textContent = q ? 'No Matches.' : 'Search Sections And Contacts…';
     root.appendChild(empty);
   }
 }
@@ -8306,7 +8355,7 @@ function initSearchOverlay() {
     attachSlashSearchHint(
       field,
       input,
-      input.dataset.searchPlaceholderRaw || 'Search Sections And Clients…',
+      input.dataset.searchPlaceholderRaw || 'Search Sections And Contacts…',
     );
   }
 
@@ -8448,7 +8497,7 @@ function syncFooterNavCountTooltips() {
     { id: 'footer-nav-schedule', key: 'meetings', singular: 'meeting', plural: 'meetings' },
     { id: 'footer-nav-work', key: 'projects', singular: postAlias().singular, plural: postAlias().plural },
     { id: 'footer-nav-todo', key: 'todos', singular: 'to-do', plural: 'to-dos' },
-    { id: 'footer-nav-clients', key: 'clients', singular: 'client', plural: 'clients' },
+    { id: 'footer-nav-clients', key: 'clients', singular: 'contact', plural: 'contacts' },
   ];
 
   for (const { id, key, singular, plural } of defs) {
@@ -9387,7 +9436,7 @@ function formatEmailCategoryLabel(ev) {
   if (String(ev.category || '').toLowerCase() === 'auth_link' || ev.actionUrl) {
     return 'Activation link';
   }
-  if (isProjectReplyEmail(ev)) return 'Client reply';
+  if (isProjectReplyEmail(ev)) return 'Contact reply';
   if (isEmailProject(ev)) return postTitle(2);
   const cat = String(ev.category || 'review').toLowerCase();
   if (cat === 'project') return postTitle(2);
@@ -9669,7 +9718,7 @@ function applyEmailFromClientMatch(host, ev, match) {
     btn.type = 'button';
     btn.className = 'em-from-link';
     btn.textContent = fromDisplay;
-    btn.title = match.name ? `Open ${match.name}` : 'Open client profile';
+    btn.title = match.name ? `Open ${match.name}` : 'Open contact profile';
     btn.addEventListener('click', () => navigateToClient(match.uid));
     valueEl.replaceWith(btn);
     return;
@@ -9683,8 +9732,8 @@ function applyEmailFromClientMatch(host, ev, match) {
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.className = 'em-from-add';
-  addBtn.textContent = 'Add to client list';
-  addBtn.title = 'Create a client from this sender';
+  addBtn.textContent = 'Add to contacts';
+  addBtn.title = 'Create a contact from this sender';
   addBtn.addEventListener('click', () => {
     navigateToNewClient({
       email,
@@ -9724,7 +9773,7 @@ async function hydrateEmailFromClient(detail, ev) {
 function formatEmailAction(ev) {
   const bits = [];
   if (ev.action === 'project_reply' || ev.status === 'PROJECT_REPLY') {
-    bits.push('🚨 client reply');
+    bits.push('🚨 contact reply');
   } else if (ev.bookingUid) bits.push('booked');
   else if (ev.action) bits.push(ev.action);
   if (ev.jobTitle) bits.push(ev.jobTitle);
@@ -10569,7 +10618,7 @@ async function handleEmailProjectAddNew(ev, triggerEl) {
   try {
     await postEmailProject(ev, {
       mode: 'create',
-      title: (ev.subject || 'New project').trim(),
+      title: (ev.subject || ev.contactName || 'Project inquiry').trim(),
     });
   } catch (e) {
     if (triggerEl) {
@@ -10611,7 +10660,7 @@ async function populateEmailProjectMenu(ev, menu) {
       const empty = document.createElement('div');
       empty.className = 'em-project-menu-empty';
       empty.textContent = ev.contactUid
-        ? `No open ${postLower(2)} for this client`
+        ? `No open ${postLower(2)} for this contact`
         : `No open ${postLower(2)} yet`;
       menu.appendChild(empty);
       return;
@@ -11066,6 +11115,27 @@ async function markEmailReceipt(ev) {
   closeOpenSwipeRow();
   const amount = emailMonetaryAmount(ev);
   const routeNote = amount != null ? `Tax receipt — ${formatEmailUsd(amount)}` : 'Tax receipt';
+  const classificationAudit = [
+    {
+      step: 'source',
+      decision: 'Manually marked as receipt',
+      detail: 'Owner swipe / Receipt action in Email tab',
+    },
+    amount != null
+      ? { step: 'amount', decision: `Extracted ${formatEmailUsd(amount)}` }
+      : { step: 'amount', decision: 'No dollar amount detected' },
+    {
+      step: 'title',
+      decision: `Dashboard label: ${routeNote}`,
+      detail:
+        'Expense-side receipts use the Tax receipt banner for Crater logging — not “Payment of $… from …” income',
+    },
+    {
+      step: 'auto_file',
+      decision: 'Filed as receipt',
+      detail: 'category=receipt · status=RECEIPT',
+    },
+  ];
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'PATCH',
@@ -11075,6 +11145,7 @@ async function markEmailReceipt(ev) {
         action: 'receipt',
         status: 'RECEIPT',
         routeNote,
+        classificationAudit,
       }),
     });
     const data = await readApiJson(res);
@@ -11090,7 +11161,13 @@ async function unmarkEmailReceipt(ev) {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED', routeNote: '' }),
+      body: JSON.stringify({
+        category: 'review',
+        action: 'review',
+        status: 'UNMATCHED',
+        routeNote: '',
+        classificationAudit: [],
+      }),
     });
     const data = await readApiJson(res);
     applyEmailPatchResult(ev.id, data.event);
@@ -11395,7 +11472,7 @@ function createEmailListItem(ev) {
     `<span class="em-item-row em-item-header">` +
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       (isProjectReplyEmail(ev)
-        ? '<span class="em-status em-project-reply">Client reply</span>'
+        ? '<span class="em-status em-project-reply">Contact reply</span>'
         : `<span class="em-status ${isVerificationCodeEmail(ev) || isAuthLinkEmailRecord(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
       (emailMonetaryAmount(ev) && ev.category !== 'receipt'
         ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
@@ -12092,7 +12169,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   input.id = opts.inputId || 'em-compose-to';
   input.type = 'text';
   input.className = 'em-compose-to-input';
-  input.placeholder = 'Search Clients Or Type An Email…';
+  input.placeholder = 'Search Contacts Or Type An Email…';
   input.autocomplete = 'off';
   input.setAttribute('role', 'combobox');
   input.setAttribute('aria-autocomplete', 'list');
@@ -12123,7 +12200,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   });
 
   function syncPlaceholder() {
-    input.placeholder = recipients.length ? 'Add Another…' : 'Search Clients Or Type An Email…';
+    input.placeholder = recipients.length ? 'Add Another…' : 'Search Contacts Or Type An Email…';
   }
 
   function hasRecipient(email) {
@@ -12236,7 +12313,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
     if (!clients.length) {
       const empty = document.createElement('div');
       empty.className = 'em-compose-to-empty';
-      empty.textContent = q ? 'No matching clients.' : 'No clients yet.';
+      empty.textContent = q ? 'No matching contacts.' : 'No contacts yet.';
       dropdown.appendChild(empty);
       if (isValidEmailAddress(q) && !hasRecipient(q)) {
         const addBtn = document.createElement('button');
@@ -12266,7 +12343,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
         ? workClientSubline(c)
         : `${workClientSubline(c) || 'No contact details'} · No email on file`;
       btn.innerHTML =
-        `${escHtml(c.name || 'Client')}` +
+        `${escHtml(c.name || 'Contact')}` +
         `<span class="sub">${escHtml(subline)}</span>`;
       if (!email) {
         btn.classList.add('em-compose-to-option--no-email');
@@ -13136,8 +13213,8 @@ function renderEmailPane() {
   if (isMeetingPendingConfirm(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
-        `<button type="button" class="em-schedule-action-primary de-new-btn">Confirm</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-new-btn">Reschedule</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary">Confirm</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Reschedule</button>` +
       `</div>`;
   } else if (isProjectMatchSuggested(ev)) {
     const attachmentCount = Array.isArray(ev.attachments) ? ev.attachments.length : 0;
@@ -13152,14 +13229,14 @@ function renderEmailPane() {
         `<div class="em-book-card-note">Add this email's content to the project notes? ${escHtml(attachmentHint)}</div>` +
       `</div>` +
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
-        `<button type="button" class="em-schedule-action-primary de-new-btn em-project-match-add">Add to project</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-new-btn em-project-match-reject">Not this project</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary em-project-match-add">Add to project</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary em-project-match-reject">Not this project</button>` +
       `</div>`;
   } else if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions">` +
-        `<button type="button" class="em-schedule-action-primary de-new-btn" disabled>Checking availability…</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-new-btn">Suggest alternate time</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary" disabled>Checking availability…</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Suggest alternate time</button>` +
       `</div>`;
   }
   detailHtml +=
@@ -13168,11 +13245,19 @@ function renderEmailPane() {
       (Array.isArray(ev.to) && ev.to.length
         ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
         : '') +
-      (ev.contactName ? `<span><strong>Client</strong> ${escHtml(ev.contactName)}</span>` : '') +
+      (ev.contactName ? `<span><strong>Contact</strong> ${escHtml(ev.contactName)}</span>` : '') +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
     `</div>`;
+  if (ev.category === 'receipt' || (Array.isArray(ev.classificationAudit) && ev.classificationAudit.length)) {
+    const auditItem = {
+      type: ev.category === 'receipt' ? 'receipt_expense' : 'classification',
+      auditTrail: Array.isArray(ev.classificationAudit) ? ev.classificationAudit : [],
+    };
+    const auditHtml = classificationAuditTrailHtml(auditItem);
+    if (auditHtml) detailHtml += `<div class="em-detail-audit">${auditHtml}</div>`;
+  }
   const attachments = Array.isArray(ev.attachments) ? ev.attachments : [];
   if (attachments.length) {
     detailHtml +=

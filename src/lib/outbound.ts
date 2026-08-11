@@ -1,6 +1,6 @@
 /**
  * Outbound client messaging — send email (Resend) and SMS (Telnyx).
- * Used to deliver client portal links to clients on their own device.
+ * Used to deliver client portal links to contacts on their own device.
  */
 import { resolveEmailFrom } from './companyConfig';
 import { serverEnv } from './serverEnv';

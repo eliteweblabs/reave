@@ -11,7 +11,7 @@ import {
   type ClientPortal,
   type ContactRecord,
 } from './contactApi';
-import { normalizePublicUrl } from './publicUrl';
+import { normalizePublicUrl, resolvePublicRedirectUrl } from './publicUrl';
 import { isPortalWebsiteUrlFieldLabel, portalSiteUrl } from './siteMonitoring';
 import { refreshPortalBrandColors } from './portalBrandColors';
 
@@ -171,7 +171,9 @@ async function fetchHtmlOnce(
       const location = res.headers.get('location');
       if (!location || hop >= MAX_REDIRECTS) return { ok: false };
       if (/clerk\.accounts\.dev/i.test(location)) return { ok: false };
-      current = new URL(location, current).toString();
+      const validated = resolvePublicRedirectUrl(location, current, true);
+      if (!validated) return { ok: false };
+      current = validated.toString();
       continue;
     }
 
@@ -372,8 +374,10 @@ export async function setClientPortalAddress(
 
   if (address) {
     const coordsMissing = !geo || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng);
-    const addressChanged = address !== (portal.address ?? '').trim();
-    if (coordsMissing || addressChanged) {
+    // When the admin already sent coordinates (autocomplete pick), keep them.
+    // Re-geocoding on every address change raced pick saves and could overwrite
+    // the selected place with a slower partial-query result.
+    if (coordsMissing) {
       const { geocodeAddress } = await import('./mapbox');
       const geocoded = await geocodeAddress(address);
       if (geocoded) {
