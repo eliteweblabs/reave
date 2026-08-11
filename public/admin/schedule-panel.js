@@ -47,7 +47,7 @@ import {
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
 import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810c';
-import { navigateToClient } from './clients-panel.js?v=20260810c';
+import { navigateToClient } from './clients-panel.js?v=20260811a';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -986,15 +986,28 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
     }
   }
 
+  let pickInFlight = false;
+  let lastPickAt = 0;
+  let lastPickLabel = '';
   async function pick(description) {
-    addressInput.value = formatScheduleAddressLabel(description);
+    const label = formatScheduleAddressLabel(description);
+    const now = Date.now();
+    // pointerdown + click (and Enter→click) can both fire; only honor once.
+    if (pickInFlight || (label === lastPickLabel && now - lastPickAt < 600)) return;
+    pickInFlight = true;
+    lastPickLabel = label;
+    lastPickAt = now;
+    // Set synchronously before any await so blur handlers never persist the
+    // typed query, and so onPick can PATCH the selected label immediately.
+    addressInput.value = label;
     setDropdownOpen(false);
     addressInput.dataset.autocompletePick = '1';
     try {
-      if (typeof onPick === 'function') await onPick(addressInput.value);
+      if (typeof onPick === 'function') await onPick(label);
     } finally {
       addressInput.dispatchEvent(new Event('input', { bubbles: true }));
       delete addressInput.dataset.autocompletePick;
+      pickInFlight = false;
     }
   }
 
@@ -1013,8 +1026,16 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
       btn.type = 'button';
       btn.className = 'sched-guest-option';
       btn.textContent = formatScheduleAddressLabel(p.description);
-      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
-      btn.addEventListener('click', () => {
+      // pointerdown + preventDefault keeps focus on the input (avoids blur
+      // saving the typed query) and selects before click on touch devices.
+      btn.addEventListener('pointerdown', (ev) => {
+        if (ev.button != null && ev.button !== 0) return;
+        ev.preventDefault();
+        void pick(p.description);
+      });
+      // Enter key nav uses .click(); guard in pick() ignores the duplicate.
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         void pick(p.description);
       });
       dropdown.appendChild(btn);
