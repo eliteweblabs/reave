@@ -4,8 +4,10 @@
  */
 
 import {
+  HERO_DEMO_MENTION_PICKER,
   HERO_DEMO_SLASH_PICKER,
   type HeroDemoAction,
+  type HeroDemoMentionOption,
   type HeroDemoScene,
   type HeroDemoTurn,
 } from "./heroDemoConversation";
@@ -44,10 +46,14 @@ const SECTION_PULSE_MS = 1000;
 const SLASH_PICKER_ARROW_MS = 380;
 const SLASH_PICKER_SELECT_HOLD_MS = 520;
 const SLASH_PICKER_OPEN_MS = 200;
+const MENTION_PICKER_ARROW_MS = 320;
+const MENTION_PICKER_SELECT_HOLD_MS = 560;
+const MENTION_PICKER_OPEN_MS = 220;
 const USER_COMPOSE_MS = 520;
 const USER_CHAR_MS = 42;
 const USER_CHAR_MS_FAST = 14;
 const SLASH_CHAR_MS = 38;
+const MENTION_CHAR_MS = 36;
 /** Beat after the user finishes before the agent starts responding. */
 const ASSISTANT_RESPONSE_DELAY_MS = 420;
 /** Short generic typing dots — not the full "thinking" duration. */
@@ -1204,7 +1210,7 @@ async function playGpsLocateSkeleton(
 
 function createUserComposingShell(
   root: HTMLElement,
-  kind: "voice" | "slash",
+  kind: "voice" | "slash" | "mention",
   userAvatarUrl?: string,
 ): HTMLElement {
   const row = document.createElement("div");
@@ -1214,6 +1220,7 @@ function createUserComposingShell(
   const bubble = document.createElement("div");
   bubble.className = "home-hero-demo-bubble";
   if (kind === "slash") bubble.classList.add("home-hero-demo-bubble--slash");
+  if (kind === "mention") bubble.classList.add("home-hero-demo-bubble--mention");
 
   const text = document.createElement("p");
   text.className = "home-hero-demo-bubble-text home-hero-demo-bubble-text--cursor";
@@ -1288,6 +1295,121 @@ async function animateSlashPickerToTarget(
     await wait(i === targetIndex ? holdMs : arrowMs);
     if (!isAlive()) return;
   }
+}
+
+function mentionSubline(option: HeroDemoMentionOption): string {
+  return [option.company, option.email, option.phone].filter(Boolean).join(" · ");
+}
+
+function buildMentionPicker(options: HeroDemoMentionOption[]): HTMLElement {
+  const panel = document.createElement("div");
+  panel.className = "home-hero-demo-mention-picker";
+  panel.setAttribute("role", "listbox");
+  panel.setAttribute("aria-label", "Mention people");
+
+  const list = document.createElement("ul");
+  list.className = "home-hero-demo-mention-picker-list";
+
+  for (const option of options) {
+    const item = document.createElement("li");
+    item.className = "home-hero-demo-mention-option";
+
+    const kind = document.createElement("span");
+    kind.className = "home-hero-demo-mention-option-kind";
+    kind.textContent = "Contact";
+
+    const body = document.createElement("span");
+    body.className = "home-hero-demo-mention-option-body";
+
+    const name = document.createElement("span");
+    name.className = "home-hero-demo-mention-option-name";
+    name.textContent = `@${option.name}`;
+
+    const sub = mentionSubline(option);
+    body.appendChild(name);
+    if (sub) {
+      const summary = document.createElement("span");
+      summary.className = "home-hero-demo-mention-option-summary";
+      summary.textContent = sub;
+      body.appendChild(summary);
+    }
+
+    item.appendChild(kind);
+    item.appendChild(body);
+    list.appendChild(item);
+  }
+
+  panel.appendChild(list);
+  return panel;
+}
+
+function setMentionPickerHighlight(picker: HTMLElement, index: number) {
+  picker.querySelectorAll<HTMLElement>(".home-hero-demo-mention-option").forEach((item, i) => {
+    item.classList.toggle("active", i === index);
+    if (i === index) item.setAttribute("aria-selected", "true");
+    else item.removeAttribute("aria-selected");
+  });
+}
+
+/** Simulate ArrowDown until the intended contact is highlighted. */
+async function animateMentionPickerToTarget(
+  picker: HTMLElement,
+  options: HeroDemoMentionOption[],
+  targetName: string,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const targetIndex = options.findIndex((option) => option.name === targetName);
+  if (targetIndex < 0) {
+    await wait(reducedMotion ? 280 : MENTION_PICKER_SELECT_HOLD_MS);
+    return;
+  }
+
+  const arrowMs = reducedMotion ? 100 : MENTION_PICKER_ARROW_MS;
+  const holdMs = reducedMotion ? 220 : MENTION_PICKER_SELECT_HOLD_MS;
+
+  await wait(reducedMotion ? 80 : MENTION_PICKER_OPEN_MS);
+  if (!isAlive()) return;
+
+  for (let i = 0; i <= targetIndex; i++) {
+    setMentionPickerHighlight(picker, i);
+    await wait(i === targetIndex ? holdMs : arrowMs);
+    if (!isAlive()) return;
+  }
+}
+
+/**
+ * Parse a mention turn: prefix before `@`, the @Name token, and optional trailing copy.
+ * Prefer the longest spoofed contact name that matches after `@`.
+ */
+function parseMentionTurn(full: string): {
+  prefix: string;
+  mentionName: string;
+  query: string;
+  suffix: string;
+} {
+  const at = full.indexOf("@");
+  if (at < 0) {
+    return { prefix: "", mentionName: full.trim(), query: "", suffix: "" };
+  }
+  const prefix = full.slice(0, at);
+  const after = full.slice(at + 1);
+
+  let mentionName = "";
+  for (const option of HERO_DEMO_MENTION_PICKER) {
+    if (after.startsWith(option.name) && option.name.length > mentionName.length) {
+      mentionName = option.name;
+    }
+  }
+  if (!mentionName) {
+    const tokenEnd = after.search(/\s/);
+    mentionName = (tokenEnd < 0 ? after : after.slice(0, tokenEnd)).trim();
+  }
+
+  const suffix = after.slice(mentionName.length);
+  // Typed filter query is the first word of the contact name (matches the screenshot).
+  const query = mentionName.split(/\s/)[0] ?? mentionName;
+  return { prefix, mentionName, query, suffix };
 }
 
 async function typeText(
@@ -1442,6 +1564,56 @@ async function playUserTurn(
     await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive, relayout);
     const rest = full.slice(activeSlash.length);
     if (rest) await typeText(textEl, rest, charMs, isAlive, relayout);
+  } else if (kind === "mention") {
+    const { prefix, mentionName, query, suffix } = parseMentionTurn(full);
+    const options = HERO_DEMO_MENTION_PICKER.filter((option) =>
+      option.name.toLowerCase().startsWith(query.toLowerCase()),
+    );
+    const pickerOptions = options.length ? options : HERO_DEMO_MENTION_PICKER;
+
+    if (prefix) {
+      await typeText(textEl, prefix, charMs, isAlive, relayout);
+      if (!isAlive()) return;
+    }
+
+    await typeText(textEl, "@", MENTION_CHAR_MS, isAlive, relayout);
+    if (!isAlive()) return;
+
+    const picker = buildMentionPicker(pickerOptions);
+    row.appendChild(picker);
+    // Reserve space below so the downward dropdown stays in the demo lane.
+    row.style.paddingBottom = "12.5rem";
+    requestAnimationFrame(() => {
+      picker.classList.add("home-hero-demo-mention-picker--visible");
+    });
+    relayout(true);
+
+    if (query) {
+      await typeText(textEl, query, MENTION_CHAR_MS, isAlive, relayout);
+      if (!isAlive()) return;
+    }
+
+    await animateMentionPickerToTarget(
+      picker,
+      pickerOptions,
+      mentionName,
+      reducedMotion,
+      isAlive,
+    );
+    if (!isAlive()) return;
+
+    picker.classList.remove("home-hero-demo-mention-picker--visible");
+    picker.classList.add("home-hero-demo-mention-picker--exit");
+    await wait(280);
+    picker.remove();
+    row.style.paddingBottom = "";
+    relayout(true);
+
+    // Selection replaces the partial @query with the full @Name.
+    textEl.textContent = `${prefix}@${mentionName}`;
+    relayout();
+
+    if (suffix) await typeText(textEl, suffix, charMs, isAlive, relayout);
   } else {
     await typeText(textEl, full, charMs, isAlive, relayout);
   }

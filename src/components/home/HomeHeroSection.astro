@@ -728,6 +728,96 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     color: rgba(255, 255, 255, 0.48);
   }
 
+  /* @-mention picker — drops *below* the composing bubble (unlike slash). */
+  .home-hero-demo-mention-picker {
+    position: absolute;
+    right: calc(1.85rem + 0.55rem);
+    top: calc(100% + 8px);
+    z-index: 5;
+    width: min(20.5rem, calc(100vw - 2.5rem));
+    max-height: 12rem;
+    overflow-y: auto;
+    padding: 0.22rem 0;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(12, 12, 16, 0.96);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+    transform-origin: top right;
+    transition:
+      opacity 0.37s ease,
+      transform 0.37s ease;
+    pointer-events: none;
+  }
+
+  .home-hero-demo-mention-picker--visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .home-hero-demo-mention-picker--exit {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  .home-hero-demo-mention-picker-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .home-hero-demo-mention-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.38rem 0.7rem;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    transition: background 0.15s ease;
+  }
+
+  .home-hero-demo-mention-option.active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .home-hero-demo-mention-option-kind {
+    flex: none;
+    min-width: 2.6rem;
+    margin-top: 0.1rem;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .home-hero-demo-mention-option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .home-hero-demo-mention-option-name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .home-hero-demo-mention-option-summary {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.48);
+  }
+
   .home-hero-demo-actions {
     display: flex;
     flex-wrap: wrap;
@@ -1550,6 +1640,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
     /* Keep the user compose cursor — it's the typing affordance for the demo. */
     .home-hero-demo-slash-picker {
+      transition: none;
+    }
+
+    .home-hero-demo-mention-picker {
       transition: none;
     }
 

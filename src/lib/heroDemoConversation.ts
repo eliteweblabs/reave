@@ -13,7 +13,7 @@ export type HeroDemoAction = {
 export type HeroDemoTurn = {
   role: "user" | "assistant";
   text: string;
-  kind?: "voice" | "slash";
+  kind?: "voice" | "slash" | "mention";
   /** Shown below assistant copy — e.g. Review draft, View status. */
   actions?: HeroDemoAction[];
   /** Pause before this turn appears (ms). */
@@ -40,6 +40,47 @@ export const HERO_DEMO_SLASH_PICKER = [
   { slash: "/meeting", summary: "Today's calendar" },
   { slash: "/send", summary: "Send an email" },
 ] as const;
+
+export type HeroDemoMentionOption = {
+  name: string;
+  company: string;
+  email?: string;
+  phone?: string;
+};
+
+/**
+ * Spoofed contacts for the hero @-mention picker (demo only).
+ * Target pick for the Reggie payment scene is "The Solid Builder".
+ */
+export const HERO_DEMO_MENTION_PICKER: HeroDemoMentionOption[] = [
+  {
+    name: "The Bottle Shop Beverly",
+    company: "The Bottle Shop",
+    email: "alex@thebottleshopbeverly.com",
+    phone: "16175431000",
+  },
+  {
+    name: "The Cabot Theatre",
+    company: "The Cabot Performing Arts Center",
+    email: "info@thecabot.org",
+    phone: "9789273100",
+  },
+  {
+    name: "The Reading Studio",
+    company: "The Reading Studio",
+    email: "kdimauro@thereadingstudio.com",
+  },
+  {
+    name: "The Rustic Mandala",
+    company: "The Rustic Mandala",
+  },
+  {
+    name: "The Solid Builder",
+    company: "The Solid Builder",
+    email: "reggie@thesolidbuilder.com",
+    phone: "19788106088",
+  },
+];
 
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
@@ -328,8 +369,9 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     turns: [
       {
         role: "user",
-        text: "Reggie gave me $500 towards his bill.",
-        kind: "voice",
+        /** Typed with @-mention picker (see kind: "mention") — not a plain "ask about Reggie". */
+        text: "Add a $500 payment for @The Solid Builder",
+        kind: "mention",
       },
       {
         role: "assistant",
