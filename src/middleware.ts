@@ -40,7 +40,6 @@ const isProtectedAdminPage = createRouteMatcher([
   "/admin/doc(.*)",
   "/admin/profile(.*)",
   "/admin/components(.*)",
-  "/admin/client-map(.*)",
   "/admin/visit-plan(.*)",
 ]);
 
@@ -206,7 +205,8 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
       !normalizedPath.startsWith("/c/") &&
       !normalizedPath.startsWith("/doc/") &&
       !normalizedPath.startsWith("/focus") &&
-      !normalizedPath.startsWith("/go/");
+      !normalizedPath.startsWith("/go/") &&
+      normalizedPath !== "/dealer-map";
     if (isMarketingLike) {
       return featureBlockedResponse();
     }

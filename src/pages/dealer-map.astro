@@ -1,25 +1,13 @@
 ---
 /**
- * Standalone owner-only Mapbox map of contacts — full-bleed geographic pins
- * with independent status toggles. Outside the OS map SPA for now.
+ * Public demo map of used-car dealerships — searches Google Places for the
+ * current viewport. Unauthenticated; inventory buckets are demo estimates.
  */
 export const prerender = false;
 
-import ViewportMeta from "../../components/ViewportMeta.astro";
-import "../../styles/mobile-touch.css";
-import { isDeploymentOwner } from "../../lib/deploymentOwner";
-import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
-
-const { userId } = Astro.locals.auth();
-if (!userId) {
-  return Astro.redirect(
-    `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
-  );
-}
-
-if (!(await isDeploymentOwner(Astro))) {
-  return new Response("Forbidden", { status: 403 });
-}
+import ViewportMeta from "../components/ViewportMeta.astro";
+import "../styles/mobile-touch.css";
+import { getPublicMapboxAccessToken } from "../lib/mapboxAccessToken";
 
 const mapboxAccessToken = getPublicMapboxAccessToken() || "";
 const assetVersion = __PUBLIC_ASSET_VERSION__;
@@ -30,12 +18,12 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
   <head>
     <meta charset="UTF-8" />
     <ViewportMeta />
-    <title>Contact map</title>
+    <title>Used car dealer map</title>
     <meta name="robots" content="noindex, nofollow" />
-    <!--
-      is:inline keeps CSS in the HTML (no /_astro extract). JS also injects the
-      same critical rules + inline layout, so the map cannot go blank again.
-    -->
+    <meta
+      name="description"
+      content="Demo map of used-car dealerships — pans and zooms search Google Places live."
+    />
     <style is:inline>
       :root {
         --bg: #0d1117;
@@ -43,7 +31,6 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         --panel: rgba(22, 27, 34, 0.92);
         --panel-border: rgba(48, 54, 61, 0.95);
         --muted: #8b949e;
-        --surface-hover: rgba(177, 186, 196, 0.14);
         --radius-input: 10px;
       }
 
@@ -62,7 +49,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         color: var(--fg);
       }
 
-      .cgm-root {
+      .dgm-root {
         position: fixed;
         inset: 0;
         width: 100%;
@@ -70,8 +57,8 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         min-height: 100dvh;
       }
 
-      .cgm-map-host,
-      .cgm-map-canvas {
+      .dgm-map-host,
+      .dgm-map-canvas {
         position: absolute;
         inset: 0;
         width: 100%;
@@ -79,7 +66,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         min-height: 100%;
       }
 
-      .cgm-map-empty {
+      .dgm-map-empty {
         position: absolute;
         inset: 0;
         z-index: 2;
@@ -94,11 +81,9 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         pointer-events: none;
       }
 
-      .cgm-map-empty[hidden] {
-        display: none;
-      }
+      .dgm-map-empty[hidden] { display: none; }
 
-      .cgm-chrome {
+      .dgm-chrome {
         position: absolute;
         z-index: 3;
         top: max(0.75rem, env(safe-area-inset-top));
@@ -110,31 +95,9 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         pointer-events: none;
       }
 
-      .cgm-back,
-      .cgm-chrome-panel {
-        pointer-events: auto;
-      }
+      .dgm-chrome-panel { pointer-events: auto; }
 
-      .cgm-back {
-        align-self: flex-start;
-        display: inline-flex;
-        align-items: center;
-        padding: 0.45rem 0.7rem;
-        border: 1px solid var(--panel-border);
-        border-radius: var(--radius-input);
-        background: var(--panel);
-        backdrop-filter: blur(10px);
-        color: inherit;
-        text-decoration: none;
-        font-size: 0.88rem;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-      }
-
-      .cgm-back:hover {
-        background: rgba(28, 33, 40, 0.96);
-      }
-
-      .cgm-chrome-panel {
+      .dgm-chrome-panel {
         border: 1px solid var(--panel-border);
         border-radius: 14px;
         background: var(--panel);
@@ -143,34 +106,41 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         padding: 0.85rem 0.9rem;
       }
 
-      .cgm-chrome-top {
+      .dgm-chrome-top {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
         gap: 0.75rem;
-        margin-bottom: 0.7rem;
+        margin-bottom: 0.35rem;
       }
 
-      .cgm-title {
+      .dgm-title {
         margin: 0;
         font-size: 1.05rem;
         font-weight: 700;
       }
 
-      .cgm-count {
+      .dgm-count {
         margin: 0;
         color: var(--muted);
         font-size: 0.78rem;
         white-space: nowrap;
       }
 
-      .cgm-toggles {
+      .dgm-hint {
+        margin: 0 0 0.7rem;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+
+      .dgm-toggles {
         display: flex;
         flex-direction: column;
         gap: 0.15rem;
       }
 
-      .cgm-toggle {
+      .dgm-toggle {
         display: flex;
         align-items: center;
         gap: 0.65rem;
@@ -179,7 +149,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         user-select: none;
       }
 
-      .cgm-toggle-input {
+      .dgm-toggle-input {
         position: absolute;
         opacity: 0;
         width: 0;
@@ -187,7 +157,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         pointer-events: none;
       }
 
-      .cgm-toggle-track {
+      .dgm-toggle-track {
         flex-shrink: 0;
         width: 2.55rem;
         height: 1.45rem;
@@ -197,7 +167,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         transition: background 0.15s;
       }
 
-      .cgm-toggle-track::after {
+      .dgm-toggle-track::after {
         content: '';
         position: absolute;
         top: 0.14rem;
@@ -209,17 +179,17 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         transition: transform 0.15s;
       }
 
-      .cgm-toggle.is-on .cgm-toggle-track,
-      .cgm-toggle-input:checked + .cgm-toggle-track {
-        background: var(--cgm-kind, #2563eb);
+      .dgm-toggle.is-on .dgm-toggle-track,
+      .dgm-toggle-input:checked + .dgm-toggle-track {
+        background: var(--dgm-bucket, #2563eb);
       }
 
-      .cgm-toggle.is-on .cgm-toggle-track::after,
-      .cgm-toggle-input:checked + .cgm-toggle-track::after {
+      .dgm-toggle.is-on .dgm-toggle-track::after,
+      .dgm-toggle-input:checked + .dgm-toggle-track::after {
         transform: translateX(1.1rem);
       }
 
-      .cgm-toggle-meta {
+      .dgm-toggle-meta {
         display: flex;
         align-items: center;
         gap: 0.4rem;
@@ -227,30 +197,28 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         flex: 1;
       }
 
-      .cgm-toggle-dot {
+      .dgm-toggle-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
       }
 
-      .cgm-toggle-label {
+      .dgm-toggle-label {
         font-size: 0.86rem;
         font-weight: 600;
       }
 
-      .cgm-toggle-count {
+      .dgm-toggle-count {
         margin-left: auto;
         font-size: 0.75rem;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
 
-      .cgm-toggle:not(.is-on) {
-        opacity: 0.55;
-      }
+      .dgm-toggle:not(.is-on) { opacity: 0.55; }
 
-      .cgm-pin {
+      .dgm-pin {
         position: relative;
         width: 36px;
         height: 44px;
@@ -261,7 +229,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
       }
 
-      .cgm-pin-face {
+      .dgm-pin-face {
         position: absolute;
         top: 0;
         left: 50%;
@@ -269,8 +237,11 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         width: 32px;
         height: 32px;
         border-radius: 50%;
-        border: 2.5px solid var(--cgm-kind, #2563eb);
-        background: #fff;
+        border: 2.5px solid var(--dgm-bucket, #2563eb);
+        background: var(--dgm-bucket, #2563eb);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 700;
         overflow: hidden;
         display: flex;
         align-items: center;
@@ -278,43 +249,23 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         z-index: 1;
       }
 
-      .cgm-pin-face--initial {
-        background: var(--cgm-kind, #2563eb);
-        color: #fff;
-        font-size: 0.85rem;
-        font-weight: 700;
-      }
-
-      .cgm-pin-icon {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-
-      .cgm-pin-tip {
+      .dgm-pin-tip {
         position: absolute;
         left: 50%;
         bottom: 2px;
         width: 12px;
         height: 12px;
         transform: translateX(-50%) rotate(45deg);
-        background: var(--cgm-kind, #2563eb);
+        background: var(--dgm-bucket, #2563eb);
         border-radius: 0 0 2px 0;
       }
 
-      .cgm-pin.is-active {
+      .dgm-pin.is-active {
         z-index: 2;
         filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
       }
 
-      .cgm-pin.is-active .cgm-pin-face {
-        width: 36px;
-        height: 36px;
-        border-width: 3px;
-      }
-
-      .cgm-status {
+      .dgm-status {
         position: absolute;
         z-index: 4;
         left: 50%;
@@ -330,10 +281,14 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
       }
 
-      .cgm-status--error {
+      .dgm-status--error {
         border-color: rgba(248, 113, 113, 0.35);
         background: rgba(60, 20, 20, 0.92);
         color: #f87171;
+      }
+
+      .dgm-status--loading {
+        color: var(--muted);
       }
 
       .mapboxgl-ctrl-bottom-right {
@@ -341,7 +296,8 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         margin-right: 0.5rem;
       }
 
-      .mapboxgl-popup-content {
+      .mapboxgl-popup-content,
+      .leaflet-popup-content {
         padding: 0.7rem 0.8rem;
         border-radius: 10px;
         color: #0d1117;
@@ -349,13 +305,13 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         line-height: 1.35;
       }
 
-      .cgm-popup {
+      .dgm-popup {
         display: flex;
         flex-direction: column;
         gap: 0.2rem;
       }
 
-      .cgm-popup-kind {
+      .dgm-popup-meta {
         font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -363,12 +319,12 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         color: #57606a;
       }
 
-      .cgm-popup-addr {
+      .dgm-popup-addr {
         color: #57606a;
         font-size: 0.78rem;
       }
 
-      .cgm-popup a {
+      .dgm-popup a {
         margin-top: 0.25rem;
         color: #0969da;
         font-weight: 600;
@@ -378,12 +334,12 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
   </head>
   <body>
     <div
-      id="clients-geo-map"
+      id="dealer-geo-map"
       data-mapbox-token={mapboxAccessToken}
     ></div>
     <script is:inline define:vars={{ mapboxAccessToken }}>
       window.__mapboxAccessToken = mapboxAccessToken || "";
     </script>
-    <script is:inline type="module" src={`/admin/clients-geo-map.js?v=${assetVersion}`}></script>
+    <script is:inline type="module" src={`/dealer-map.js?v=${assetVersion}`}></script>
   </body>
 </html>
