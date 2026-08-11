@@ -10,6 +10,7 @@ import { getCompanyConfig } from '../lib/companyConfig';
 import { hasFeature } from '../lib/features';
 import { isSafeWorkSlug, storeReadWork } from '../lib/workStore';
 import { buildAuditReportCard, isAuditJob } from '../lib/auditReportCard';
+import { googlePlacesListedForContact } from '../lib/auditPlacesListing';
 import { getSiriAuditRun } from '../lib/siriAuditRuns';
 export const prerender = false;
 
@@ -36,12 +37,14 @@ if (auditsEnabled && runSlug && isSafeWorkSlug(runSlug)) {
       }))
   ) {
     clientName = (doc.contact_name || '').trim();
+    const googlePlacesListed = await googlePlacesListedForContact(doc.contact_uid);
     report = buildAuditReportCard({
       tags: doc.tags,
       source: doc.source,
       title: doc.title,
       body: doc.body || '',
       clientName,
+      googlePlacesListed,
     });
     runLabel = clientName || doc.title || runSlug;
     const activeRun = getSiriAuditRun(runSlug);

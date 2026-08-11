@@ -96,14 +96,101 @@ export async function autocompletePlaces(
   return predictions.slice(0, maxResults);
 }
 
-/** Best-effort address for a business or place name (first autocomplete match). */
-export async function lookupBusinessAddress(query: string): Promise<PlacePrediction | null> {
-  const establishment = await autocompletePlaces(query, {
-    maxResults: 1,
+const NAME_STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'llc',
+  'inc',
+  'ltd',
+  'co',
+  'company',
+  'corp',
+  'corporation',
+]);
+
+function normalizeBusinessTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter((t) => t.length > 1 && !NAME_STOP_WORDS.has(t));
+}
+
+/** True when Places text includes a street-level address (not just a city/region). */
+export function hasStreetAddress(description: string): boolean {
+  return /\b\d{1,6}\s+[A-Za-z0-9]/.test(description);
+}
+
+/**
+ * Exact-enough business+address match for audit / contact enrichment.
+ * Requires a street address in the Places prediction and strong name overlap
+ * with the lookup query (company / contact name).
+ */
+export function isExactBusinessAddressMatch(query: string, description: string): boolean {
+  const q = query.trim();
+  const d = description.trim();
+  if (q.length < 2 || d.length < 2) return false;
+  if (!hasStreetAddress(d)) return false;
+
+  const placeName = d.split(',')[0]?.trim() || d;
+  const qNorm = q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const nameNorm = placeName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!qNorm || !nameNorm) return false;
+  if (nameNorm === qNorm || nameNorm.startsWith(qNorm) || qNorm.startsWith(nameNorm)) {
+    return true;
+  }
+
+  const qTokens = normalizeBusinessTokens(q);
+  if (!qTokens.length) return nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
+
+  const nameHay = `${nameNorm} ${d.toLowerCase()}`;
+  const hits = qTokens.filter((t) => nameHay.includes(t)).length;
+  return hits >= Math.ceil(qTokens.length * 0.7);
+}
+
+export type BusinessAddressLookupResult =
+  | { status: 'matched'; place: PlacePrediction; query: string }
+  | { status: 'not_listed'; query: string }
+  | { status: 'unavailable'; query: string };
+
+/**
+ * Resolve a business address from Google Places with an exact-match gate.
+ * No street-level name match → `not_listed` (caller should surface this in audits).
+ */
+export async function lookupBusinessAddressMatch(
+  query: string,
+): Promise<BusinessAddressLookupResult> {
+  const q = query.trim();
+  if (q.length < 2) return { status: 'not_listed', query: q };
+  if (!getGoogleMapsApiKey()) return { status: 'unavailable', query: q };
+
+  const establishment = await autocompletePlaces(q, {
+    maxResults: 5,
     types: 'establishment',
   });
-  if (establishment[0]) return establishment[0];
+  const establishmentHit = establishment.find((p) =>
+    isExactBusinessAddressMatch(q, p.description),
+  );
+  if (establishmentHit) {
+    return { status: 'matched', place: establishmentHit, query: q };
+  }
 
-  const any = await autocompletePlaces(query, { maxResults: 1 });
-  return any[0] ?? null;
+  const any = await autocompletePlaces(q, { maxResults: 5 });
+  const anyHit = any.find((p) => isExactBusinessAddressMatch(q, p.description));
+  if (anyHit) return { status: 'matched', place: anyHit, query: q };
+
+  return { status: 'not_listed', query: q };
+}
+
+/** Best-effort address for a business or place name (exact street-level match only). */
+export async function lookupBusinessAddress(query: string): Promise<PlacePrediction | null> {
+  const result = await lookupBusinessAddressMatch(query);
+  return result.status === 'matched' ? result.place : null;
 }

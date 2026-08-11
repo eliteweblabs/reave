@@ -6,6 +6,8 @@
  * plain-language findings, scores, and sources — no jargon dump.
  */
 
+import { ensureGooglePlacesNotListedInAuditBody } from './auditPlacesListing';
+
 export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 /**
@@ -159,7 +161,7 @@ const CATEGORY_META: CategoryMeta[] = [
     id: 'local_listings',
     label: 'Maps & Directories',
     icon: 'pin',
-    source: 'Brave Search · Google Business · Apple Maps · Yelp',
+    source: 'Brave Search · Google Places API · Google Business · Apple Maps · Yelp · Bing Places',
   },
   {
     id: 'seo',
@@ -1390,10 +1392,22 @@ export function buildAuditReportCard(input: {
   body?: string | null;
   /** Business / contact name — used in client-facing headlines and findings. */
   clientName?: string | null;
+  /**
+   * When false, Google Places returned no exact address match at contact create.
+   * Forces Maps & Directories / GBP to missing so the client is always aware.
+   */
+  googlePlacesListed?: boolean | null;
 }): AuditReportCard | null {
-  const body = (input.body || '').trim();
+  let body = (input.body || '').trim();
   if (!isAuditJob({ ...input, body })) return null;
   const clientName = (input.clientName || '').trim();
+
+  // Deterministic Google Places miss — do not rely on agent prose alone.
+  if (input.googlePlacesListed === false) {
+    body = ensureGooglePlacesNotListedInAuditBody(body, {
+      businessName: clientName,
+    }).trim();
+  }
 
   const inProgress =
     /siri audit in progress/i.test(body) ||
@@ -1624,12 +1638,13 @@ export function buildAuditReportCard(input: {
     .join('\n');
   const presenceAudited = Boolean(
     presenceSection.trim() ||
-      /online presence|google (?:business|maps)|apple (?:business|maps)|yelp|instagram|facebook/i.test(
+      input.googlePlacesListed === false ||
+      /online presence|google (?:business|maps)|apple (?:business|maps)|yelp|bing\s*places|instagram|facebook/i.test(
         body,
       ),
   );
 
-  const gbp = assessChannel(
+  let gbp = assessChannel(
     presenceCorpus,
     {
       keywords: [
@@ -1637,6 +1652,7 @@ export function buildAuditReportCard(input: {
         /\bgbp\b|\bgmb\b/i,
         /maps\.google|goo\.gl\/maps|maps\.app\.goo/i,
         /\bgoogle maps\b/i,
+        /google places api/i,
       ],
       omittedAsMissing: true,
       omittedSummary: 'No Google Business listing found — local customers may not see you on Maps.',
@@ -1645,6 +1661,18 @@ export function buildAuditReportCard(input: {
     },
     presenceAudited,
   );
+  if (input.googlePlacesListed === false) {
+    gbp = {
+      status: 'missing',
+      summary: clientName
+        ? `${clientName} is not listed in the Google Places API.`
+        : 'Not listed in the Google Places API.',
+      why: [
+        'Google Places returned no exact street-level address match when the contact was created — they are not findable on Google Maps / Business Profile.',
+        ...gbp.why.filter((line) => !/not covered|not called out/i.test(line)).slice(0, 2),
+      ].slice(0, 4),
+    };
+  }
   const apple = assessChannel(
     presenceCorpus,
     {
@@ -1696,19 +1724,19 @@ export function buildAuditReportCard(input: {
         /yelp|bing\s*places|tripadvisor|yellow\s*pages|directories|citations?|listings?/i,
       ],
       omittedAsMissing: true,
-      omittedSummary: 'Directory listings look thin or inconsistent.',
+      omittedSummary: 'Yelp / Bing Places directory listings look thin or inconsistent.',
       omittedWhy:
-        'Other directories were not clearly documented as healthy, matching listings.',
+        'Yelp, Bing Places, or other directories were not clearly documented as healthy, matching listings.',
     },
     presenceAudited,
   );
 
-  // One client-facing card: Google + Apple Maps + Yelp/directories (coverage score, not binary).
+  // One client-facing card: Google + Apple Maps + Yelp/Bing directories (coverage score, not binary).
   const localListings = combineLocalListings(
     [
       { label: 'Google Business Profile', signal: gbp, weight: 45 },
       { label: 'Apple Maps', signal: apple, weight: 30 },
-      { label: 'Yelp & other directories', signal: listings, weight: 25 },
+      { label: 'Yelp & Bing Places', signal: listings, weight: 25 },
     ],
     clientName,
   );

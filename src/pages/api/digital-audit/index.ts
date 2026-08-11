@@ -13,6 +13,7 @@ import { isContactApiConfigured } from '../../../lib/contactApi';
 import { startAuditProposal } from '../../../lib/siriAuditProposal';
 import { isSafeWorkSlug, storeReadWork } from '../../../lib/workStore';
 import { buildAuditReportCard, isAuditJob } from '../../../lib/auditReportCard';
+import { googlePlacesListedForContact } from '../../../lib/auditPlacesListing';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
 import { getSiriAuditRun } from '../../../lib/siriAuditRuns';
@@ -151,12 +152,14 @@ export const GET: APIRoute = async ({ url }) => {
     return json({ ok: false, error: 'Not found' }, 404);
   }
 
+  const googlePlacesListed = await googlePlacesListedForContact(doc.contact_uid);
   const report = buildAuditReportCard({
     tags: doc.tags,
     source: doc.source,
     title: doc.title,
     body: doc.body || '',
     clientName: doc.contact_name || '',
+    googlePlacesListed,
   });
 
   const activeRun = getSiriAuditRun(slug);

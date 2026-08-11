@@ -224,6 +224,22 @@ export type ClientPortalGeo = {
 };
 
 /**
+ * Result of Google Places address lookup for a business contact.
+ * `not_listed` must surface in website audits — the business is not findable
+ * via the Google Places API (no exact street-level match).
+ */
+export type PlacesListingRecord = {
+  status: 'matched' | 'not_listed' | 'unavailable' | 'skipped';
+  /** Business name used for the Places query. */
+  query?: string;
+  /** Formatted address when matched. */
+  address?: string;
+  placeId?: string;
+  /** ISO timestamp of the last Places check. */
+  checkedAt: string;
+};
+
+/**
  * A handoff "Data" entry shared with a web-design client: a credential, a DNS
  * record, hosting info, etc. `password` is masked on the page (reveal/copy).
  */
@@ -309,6 +325,11 @@ export type ClientPortal = {
   addressWriteToken?: number;
   /** Geocoded coordinates for `address`. */
   geo?: ClientPortalGeo;
+  /**
+   * Latest Google Places listing check for this contact. When `not_listed`,
+   * audits must tell the client the business is missing from Google Places.
+   */
+  placesListing?: PlacesListingRecord;
   /** Normalized weekly opening hours (Google Places, or parsed from the Hours field). */
   hours?: BusinessHours;
   fields?: ClientPortalField[];
@@ -817,6 +838,28 @@ export async function deleteContact(
   }
 }
 
+function normalizePlacesListing(raw: unknown): PlacesListingRecord | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const row = raw as Record<string, unknown>;
+  const status = String(row.status ?? '').trim().toLowerCase();
+  if (
+    status !== 'matched' &&
+    status !== 'not_listed' &&
+    status !== 'unavailable' &&
+    status !== 'skipped'
+  ) {
+    return undefined;
+  }
+  const checkedAt = contactStringField(row.checkedAt) || new Date().toISOString();
+  return {
+    status,
+    query: contactStringField(row.query) || undefined,
+    address: contactStringField(row.address) || undefined,
+    placeId: contactStringField(row.placeId) || undefined,
+    checkedAt,
+  };
+}
+
 /** Pull the portal payload out of a contact's links, if present. */
 export function extractPortal(contact: ContactRecord): ClientPortal | null {
   const link = (contact.links ?? []).find((l) => l.system === PORTAL_SYSTEM);
@@ -848,6 +891,7 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
           }
         : undefined,
     hours: parseStoredBusinessHours(raw.hours) ?? undefined,
+    placesListing: normalizePlacesListing(raw.placesListing),
     updatedAt: contactStringField(raw.updatedAt) || undefined,
     fields: Array.isArray(raw.fields)
       ? raw.fields

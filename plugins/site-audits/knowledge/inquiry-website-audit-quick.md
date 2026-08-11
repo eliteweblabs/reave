@@ -46,7 +46,7 @@ Run these in parallel when possible:
 | `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** |
-| `brave_search` | Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, social handles, hours conflicts |
+| `brave_search` | Google Business Profile / Google Places, Apple Business Connect / Apple Maps, Yelp, Bing Places, reviews/reputation, social handles, hours conflicts |
 
 **Do not run in quick tier:** `playwright_audit`, `check_links`, `detect_tech_stack` (save for full audit).
 
@@ -128,12 +128,17 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - If shared/budget host + lean build + poor Lighthouse, note **server resource issue** under Performance (no separate hosting grade)
 
 ### Online Presence
-Write one bullet per channel (the client portal rolls Google / Apple / Yelp directories into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
+Write one bullet per channel (the client portal rolls Google / Apple / Yelp / Bing into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
 - Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
 - Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
+- Yelp: {Found / Missing / Incomplete} — {notes}
+- Bing Places: {Found / Missing / Incomplete} — {notes}
 - Reviews: {platform, stars, count} — {notes}
 - Social: {Instagram / Facebook / other}
-- Listings: {Yelp / Bing Places / other directories}
+
+**Google Places API (contact create):** When Places returns no exact address match (`placesListing.status = "not_listed"`), you MUST write:
+`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no exact address match).`
+Do not soften or omit this — the client must be 100% aware.
 
 ---
 

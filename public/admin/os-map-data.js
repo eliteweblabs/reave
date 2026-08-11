@@ -73,7 +73,7 @@ const SYSTEM_NODES = [
   { id: 'ga4', title: 'Google Analytics 4', sub: 'OAuth · Data API · admin dashboard toggle', icon: '📉', brand: 'googleanalytics', hue: 160, status: true, group: 'external', x: 1400, y: 1540 },
   { id: 'indexnow', title: 'IndexNow', sub: 'Bing/Yandex URL ping · owned sites only', icon: '⚡', hue: 50, status: true, group: 'external', x: 1400, y: 1660 },
   { id: 'bing_webmaster', title: 'Bing Webmaster', sub: 'placeholder · API later', icon: '🅱️', brand: 'bing', hue: 35, status: true, ghost: true, group: 'external', x: 1400, y: 1780 },
-  { id: 'google_places', title: 'Google Places', sub: 'review sync · address autocomplete · Place Details · /dealer-map search · GOOGLE_MAPS_API_KEY', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
+  { id: 'google_places', title: 'Google Places', sub: 'review sync · address autocomplete · Place Details · audit not-listed flag · /dealer-map search · GOOGLE_MAPS_API_KEY', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
   { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
   { id: 'ipwhois', title: 'ipwho.is', sub: 'IP → ASN/org hosting lookup · dns_check (FEATURES: site_audits)', icon: '🌐', hue: 190, status: true, group: 'external', x: 1400, y: 1900 },
   { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · REΛVE agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
