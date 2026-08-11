@@ -1,6 +1,7 @@
 ---
 /**
  * Sticky banner when enabled modules are not fully deployed, or when a demo suite is pending seed.
+ * Admin-only — do not mount from public Layout (homepage / marketing).
  */
 import { getDeployStatusClientSummary } from "../lib/deployModuleStatus";
 import { demoSuiteSummary, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from "../lib/demoSuite";

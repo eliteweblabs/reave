@@ -1,6 +1,5 @@
 ---
 import Header from "../components/Header.astro";
-import DeployStatusBanner from "../components/DeployStatusBanner.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import SiteFooter from "../components/SiteFooter.astro";
@@ -119,7 +118,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body data-user-id={userId ?? ""}>
-		<DeployStatusBanner />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
