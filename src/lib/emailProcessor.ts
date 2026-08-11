@@ -4,7 +4,7 @@
 
 import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
-import { classifyEmail, isAuthLinkRuleStatus, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
+import { classifyEmail, isAuthLinkRuleStatus, isSilentTriageStatus, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
@@ -485,6 +485,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     classificationAudit.push(classificationAuditStep(step, decision, detail));
   };
 
+  // Silent first-match (DELETE / notify:false) hard-stops triage — AI must not
+  // re-label Google/service mail as alert and re-open dashboard/push.
+  const ruleSilencesNotifications =
+    ruleResult.matched != null &&
+    (!ruleResult.notify || isSilentTriageStatus(ruleResult.status));
+
   const sender = await resolveSenderContact(senderEmail);
   let contactUid = sender.uid;
   let contactName = sender.name;
@@ -498,14 +504,24 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         )
       : [];
 
-  const agentFirst = shouldAgentFirstClassify({
-    hasContact: Boolean(contactUid),
-    clientKind,
-  });
+  const agentFirst =
+    !ruleSilencesNotifications &&
+    shouldAgentFirstClassify({
+      hasContact: Boolean(contactUid),
+      clientKind,
+    });
   const confidenceMin = aiConfidenceThreshold();
   let aiTrusted = false;
   let needsExplain = false;
   let aiClassify: AiClassifyResult | null = null;
+
+  if (ruleSilencesNotifications) {
+    pushAudit(
+      'rules',
+      `Silent rule short-circuit: ${ruleResult.status}`,
+      'notify:false / DELETE — skip agent-first AI override',
+    );
+  }
 
   if (agentFirst && aiEnabled()) {
     aiClassify = await runAiClassify(email, jobs, contactName, clientKind);
