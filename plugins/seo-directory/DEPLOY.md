@@ -30,7 +30,7 @@ Second-tier citation & directory campaigns beyond the defaults (Google Business 
 1. Create / confirm REΛVE BrightLocal agency account with API + Citation Builder access
 2. Add `BRIGHTLOCAL_API_KEY` on the Railway service (and local `.env` for dev)
 3. Enable `seo_directory` in install config `features[]`
-4. Set `moduleStatus.seo_directory` → `development` until Citation Builder create/track is live, then `deployed`
+4. On client installs only: set `moduleStatus.seo_directory` → `development` while wiring, then `deployed` (omit on config-reave — playbook defaultStatus covers product WIP)
 
 ## Checklist
 

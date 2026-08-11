@@ -19,7 +19,7 @@ Placeholder module — sales/ops reminder until productized. Not implemented; do
 ## External setup
 
 - Enable `event_ticketing` in install config `features[]` when ready to build
-- Keep `moduleStatus.event_ticketing` → `request` until shipping
+- Leave status at playbook `defaultStatus: request` until shipping (do not add moduleStatus on config-reave — that triggers the deploy banner)
 - Add a dedicated footer tab only if/when a tickets UI exists
 
 ## Scope to decide
