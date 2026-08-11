@@ -260,3 +260,101 @@ export function clerkUserDisplayName(user: {
   if (email) return email.split('@')[0] || email;
   return 'Team member';
 }
+
+export type ActiveMentionQuery = {
+  /** Index where the replaceable token starts (`@` for explicit, first query char for soft). */
+  start: number;
+  query: string;
+  /** True when the picker opened from to/from/for after an action verb (no `@` typed). */
+  soft?: boolean;
+};
+
+/** Active `@query` token ending at caret (token-scoped, not whole-string). */
+export function activeMentionAt(text: string, caret: number): ActiveMentionQuery | null {
+  const before = text.slice(0, Math.max(0, Math.min(caret, text.length)));
+  const match = before.match(/(?:^|[\s\n])@([^\s@]*)$/);
+  if (!match) return null;
+  const start = before.lastIndexOf('@');
+  if (start < 0) return null;
+  return { start, query: match[1] ?? '', soft: false };
+}
+
+/**
+ * Action verbs that commonly introduce a person/company recipient.
+ * Used with to/from/for so "send contract to The" opens mentions without `@`.
+ */
+const SOFT_MENTION_VERBS =
+  /\b(send|bill|text|email|invoice|pay|payment|add|apply|message|forward|remind|schedule)\b/i;
+
+/** Preposition + name fragment at the caret (single token — still typing the name). */
+const SOFT_MENTION_TAIL = /\b(to|from|for)\s+([A-Za-z][A-Za-z0-9'’.|-]*)$/i;
+
+/**
+ * Fragments that are almost never a contact search after to/from/for.
+ * Intentionally omits "the" — many CRM names start with "The …".
+ */
+const SOFT_MENTION_QUERY_STOPWORDS = new Set([
+  'a',
+  'an',
+  'my',
+  'our',
+  'your',
+  'this',
+  'that',
+  'me',
+  'us',
+  'them',
+  'him',
+  'her',
+  'it',
+  'all',
+  'each',
+  'every',
+  'approval',
+  'review',
+  'signing',
+  'signature',
+  'everyone',
+  'someone',
+  'anyone',
+  'today',
+  'tomorrow',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
+
+/**
+ * Soft mention: after send/bill/… + to/from/for, treat the name fragment as a
+ * people search even when the user has not typed `@`.
+ *
+ * Example: "send contract to The" → query "The".
+ */
+export function activeSoftMentionAt(text: string, caret: number): ActiveMentionQuery | null {
+  const before = text.slice(0, Math.max(0, Math.min(caret, text.length)));
+  if (!before || before.startsWith('/')) return null;
+  // Explicit @ token owns the caret.
+  if (/(?:^|[\s\n])@[^\s@]*$/.test(before)) return null;
+  if (!SOFT_MENTION_VERBS.test(before)) return null;
+
+  const match = before.match(SOFT_MENTION_TAIL);
+  if (!match) return null;
+
+  const query = match[2] ?? '';
+  if (query.length < 2) return null;
+  if (/^\d+$/.test(query)) return null;
+  if (SOFT_MENTION_QUERY_STOPWORDS.has(query.toLowerCase())) return null;
+
+  const start = before.length - query.length;
+  if (start < 0) return null;
+  return { start, query, soft: true };
+}
+
+/** Prefer an explicit `@` token; otherwise a soft to/from/for name fragment. */
+export function activeMentionQueryAt(text: string, caret: number): ActiveMentionQuery | null {
+  return activeMentionAt(text, caret) ?? activeSoftMentionAt(text, caret);
+}

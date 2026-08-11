@@ -1218,7 +1218,7 @@ async function playGpsLocateSkeleton(
 
 function createUserComposingShell(
   root: HTMLElement,
-  kind: "voice" | "slash" | "mention",
+  kind: "voice" | "slash" | "mention" | "soft-mention",
   userAvatarUrl?: string,
 ): HTMLElement {
   const row = document.createElement("div");
@@ -1228,7 +1228,9 @@ function createUserComposingShell(
   const bubble = document.createElement("div");
   bubble.className = "home-hero-demo-bubble";
   if (kind === "slash") bubble.classList.add("home-hero-demo-bubble--slash");
-  if (kind === "mention") bubble.classList.add("home-hero-demo-bubble--mention");
+  if (kind === "mention" || kind === "soft-mention") {
+    bubble.classList.add("home-hero-demo-bubble--mention");
+  }
 
   const text = document.createElement("p");
   text.className = "home-hero-demo-bubble-text home-hero-demo-bubble-text--cursor";
@@ -1324,7 +1326,7 @@ function buildMentionPicker(options: HeroDemoMentionOption[]): HTMLElement {
 
     const kind = document.createElement("span");
     kind.className = "home-hero-demo-mention-option-kind";
-    kind.textContent = "Contact";
+    kind.textContent = option.kind === "team" ? "Team" : "Contact";
 
     const body = document.createElement("span");
     body.className = "home-hero-demo-mention-option-body";
@@ -1415,9 +1417,85 @@ function parseMentionTurn(full: string): {
   }
 
   const suffix = after.slice(mentionName.length);
-  // Typed filter query is the first word of the contact name (matches the screenshot).
+  // Typed filter query is the first word of the contact name (matches "to The…").
   const query = mentionName.split(/\s/)[0] ?? mentionName;
   return { prefix, mentionName, query, suffix };
+}
+
+function filterMentionOptions(query: string): HeroDemoMentionOption[] {
+  const q = query.toLowerCase();
+  const filtered = HERO_DEMO_MENTION_PICKER.filter(
+    (option) =>
+      option.name.toLowerCase().startsWith(q) ||
+      option.company.toLowerCase().startsWith(q) ||
+      option.name.toLowerCase().includes(` ${q}`),
+  );
+  return filtered.length ? filtered : HERO_DEMO_MENTION_PICKER;
+}
+
+/** Type prefix → open picker → highlight target → insert @Name → type suffix. */
+async function playMentionPickerSegment(
+  textEl: HTMLElement,
+  row: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  charMs: number,
+  parsed: { prefix: string; mentionName: string; query: string; suffix: string },
+  soft: boolean,
+): Promise<void> {
+  const { prefix, mentionName, query, suffix } = parsed;
+  // Type a short filter fragment (e.g. "Sar", "The") — picker still targets the full name.
+  const typedQuery = query.length > 3 ? query.slice(0, 3) : query;
+  const pickerOptions = filterMentionOptions(typedQuery);
+  // Preserve anything already typed (e.g. a slash command) before this segment.
+  const beforeSegment = textEl.textContent ?? "";
+
+  if (prefix) {
+    await typeText(textEl, prefix, charMs, isAlive, relayout);
+    if (!isAlive()) return;
+  }
+
+  if (!soft) {
+    await typeText(textEl, "@", MENTION_CHAR_MS, isAlive, relayout);
+    if (!isAlive()) return;
+  }
+
+  const picker = buildMentionPicker(pickerOptions);
+  row.appendChild(picker);
+  // Reserve space below so the downward dropdown stays in the demo lane.
+  row.style.paddingBottom = "12.5rem";
+  requestAnimationFrame(() => {
+    picker.classList.add("home-hero-demo-mention-picker--visible");
+  });
+  relayout(true);
+
+  if (typedQuery) {
+    await typeText(textEl, typedQuery, MENTION_CHAR_MS, isAlive, relayout);
+    if (!isAlive()) return;
+  }
+
+  await animateMentionPickerToTarget(
+    picker,
+    pickerOptions,
+    mentionName,
+    reducedMotion,
+    isAlive,
+  );
+  if (!isAlive()) return;
+
+  picker.classList.remove("home-hero-demo-mention-picker--visible");
+  picker.classList.add("home-hero-demo-mention-picker--exit");
+  await wait(280);
+  picker.remove();
+  row.style.paddingBottom = "";
+  relayout(true);
+
+  // Selection replaces the partial query (and optional `@`) with the full @Name.
+  textEl.textContent = `${beforeSegment}${prefix}@${mentionName}`;
+  relayout();
+
+  if (suffix) await typeText(textEl, suffix, charMs, isAlive, relayout);
 }
 
 async function typeText(
@@ -1571,57 +1649,31 @@ async function playUserTurn(
     const slashBody = activeSlash.slice(1);
     await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive, relayout);
     const rest = full.slice(activeSlash.length);
-    if (rest) await typeText(textEl, rest, charMs, isAlive, relayout);
-  } else if (kind === "mention") {
-    const { prefix, mentionName, query, suffix } = parseMentionTurn(full);
-    const options = HERO_DEMO_MENTION_PICKER.filter((option) =>
-      option.name.toLowerCase().startsWith(query.toLowerCase()),
-    );
-    const pickerOptions = options.length ? options : HERO_DEMO_MENTION_PICKER;
-
-    if (prefix) {
-      await typeText(textEl, prefix, charMs, isAlive, relayout);
-      if (!isAlive()) return;
+    if (rest.includes("@")) {
+      await playMentionPickerSegment(
+        textEl,
+        row,
+        relayout,
+        reducedMotion,
+        isAlive,
+        charMs,
+        parseMentionTurn(rest),
+        true,
+      );
+    } else if (rest) {
+      await typeText(textEl, rest, charMs, isAlive, relayout);
     }
-
-    await typeText(textEl, "@", MENTION_CHAR_MS, isAlive, relayout);
-    if (!isAlive()) return;
-
-    const picker = buildMentionPicker(pickerOptions);
-    row.appendChild(picker);
-    // Reserve space below so the downward dropdown stays in the demo lane.
-    row.style.paddingBottom = "12.5rem";
-    requestAnimationFrame(() => {
-      picker.classList.add("home-hero-demo-mention-picker--visible");
-    });
-    relayout(true);
-
-    if (query) {
-      await typeText(textEl, query, MENTION_CHAR_MS, isAlive, relayout);
-      if (!isAlive()) return;
-    }
-
-    await animateMentionPickerToTarget(
-      picker,
-      pickerOptions,
-      mentionName,
+  } else if (kind === "mention" || kind === "soft-mention") {
+    await playMentionPickerSegment(
+      textEl,
+      row,
+      relayout,
       reducedMotion,
       isAlive,
+      charMs,
+      parseMentionTurn(full),
+      kind === "soft-mention",
     );
-    if (!isAlive()) return;
-
-    picker.classList.remove("home-hero-demo-mention-picker--visible");
-    picker.classList.add("home-hero-demo-mention-picker--exit");
-    await wait(280);
-    picker.remove();
-    row.style.paddingBottom = "";
-    relayout(true);
-
-    // Selection replaces the partial @query with the full @Name.
-    textEl.textContent = `${prefix}@${mentionName}`;
-    relayout();
-
-    if (suffix) await typeText(textEl, suffix, charMs, isAlive, relayout);
   } else {
     await typeText(textEl, full, charMs, isAlive, relayout);
   }

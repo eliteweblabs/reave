@@ -37,6 +37,7 @@ import {
   type AgentHelperCommand,
 } from '../../lib/agentHelperCommands';
 import {
+  activeMentionQueryAt,
   embedMentionTokens,
   mergeChatMentions,
   mentionKey,
@@ -1565,16 +1566,6 @@ function peopleSubline(person: PeopleSearchResult): string {
   return [person.email, person.username].filter(Boolean).join(' · ') || 'Team';
 }
 
-/** Active `@query` token ending at caret (token-scoped, not whole-string). */
-function activeMentionAt(text: string, caret: number): { start: number; query: string } | null {
-  const before = text.slice(0, Math.max(0, Math.min(caret, text.length)));
-  const match = before.match(/(?:^|[\s\n])@([^\s@]*)$/);
-  if (!match) return null;
-  const start = before.lastIndexOf('@');
-  if (start < 0) return null;
-  return { start, query: match[1] ?? '' };
-}
-
 function MentionsPanel({
   people,
   onPick,
@@ -1721,7 +1712,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     const el = inputRef.current;
     const value = el?.value ?? composer.getState().text ?? '';
     const caret = el?.selectionStart ?? value.length;
-    const active = activeMentionAt(value, caret) ?? (tokenStart >= 0 ? { start: tokenStart, query } : null);
+    const active = activeMentionQueryAt(value, caret) ?? (tokenStart >= 0 ? { start: tokenStart, query } : null);
     if (!active) return;
 
     const mention = peopleResultToMention(person);
@@ -1755,7 +1746,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
       closeMentions();
       return;
     }
-    const active = activeMentionAt(value, caret);
+    const active = activeMentionQueryAt(value, caret);
     if (!active) {
       closeMentions();
       return;

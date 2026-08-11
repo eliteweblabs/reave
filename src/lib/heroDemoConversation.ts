@@ -13,7 +13,11 @@ export type HeroDemoAction = {
 export type HeroDemoTurn = {
   role: "user" | "assistant";
   text: string;
-  kind?: "voice" | "slash" | "mention";
+  /**
+   * `mention` — types `@` then the picker.
+   * `soft-mention` — picker from to/from/for after send/bill/… (no `@` typed).
+   */
+  kind?: "voice" | "slash" | "mention" | "soft-mention";
   /** Shown below assistant copy — e.g. Review draft, View status. */
   actions?: HeroDemoAction[];
   /** Pause before this turn appears (ms). */
@@ -46,13 +50,32 @@ export type HeroDemoMentionOption = {
   company: string;
   email?: string;
   phone?: string;
+  kind?: "contact" | "team";
 };
 
 /**
- * Spoofed contacts for the hero @-mention picker (demo only).
- * Target pick for the Reggie payment scene is "The Solid Builder".
+ * Spoofed people for the hero @-mention picker (demo only).
+ * Includes "The …" contacts for soft-mention demos like "send contract to The".
  */
 export const HERO_DEMO_MENTION_PICKER: HeroDemoMentionOption[] = [
+  {
+    name: "Pete Alvarez",
+    company: "Field crew",
+    email: "pete@fieldcrew.demo",
+    kind: "team",
+  },
+  {
+    name: "Sarah Chen",
+    company: "Approvals",
+    email: "sarah@parkermktg.com",
+    kind: "team",
+  },
+  {
+    name: "Parker Marketing",
+    company: "Parker Marketing",
+    email: "sarah@parkermktg.com",
+    phone: "6175550142",
+  },
   {
     name: "The Bottle Shop Beverly",
     company: "The Bottle Shop",
@@ -88,7 +111,11 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     userAvatar: "/images/hero-demo/field-checkin.png",
     holdMs: 1000,
     turns: [
-      { role: "user", text: "Is Pete at the Franklin Street job?", kind: "voice" },
+      {
+        role: "user",
+        text: "Is @Pete Alvarez at the Franklin Street job?",
+        kind: "mention",
+      },
       {
         role: "assistant",
         /** Visual-only — Mapbox fly-in is the agent reply. */
@@ -120,6 +147,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     turns: [
       {
         role: "user",
+        /** New prospect / user-creation flow — plain name on purpose (no @mention). */
         text: "Generate a proposal for Susie's Cookies in Springfield.",
         kind: "voice",
       },
@@ -173,8 +201,9 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "user",
-        text: "Send it to Sarah for approval.",
-        kind: "voice",
+        /** Soft mention: "Send it to Sar…" opens the picker without typing `@`. */
+        text: "Send it to @Sarah Chen for approval.",
+        kind: "soft-mention",
         pauseMs: 2000,
       },
       {
@@ -191,17 +220,21 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     turns: [
       {
         role: "user",
-        text: "/document Send document nda-standard to Parker Marketing for signing.",
-        kind: "slash",
+        /**
+         * Soft-mention showcase: types "Send contract to The" (no `@`),
+         * picker suggests The Solid Builder, then inserts @The Solid Builder.
+         */
+        text: "Send contract to @The Solid Builder for signing.",
+        kind: "soft-mention",
       },
       {
         role: "assistant",
-        text: "NDA sent to Parker Marketing — Sarah Chen, sarah@parkermktg.com.",
+        text: "NDA sent to The Solid Builder — Reggie, reggie@thesolidbuilder.com.",
         pauseMs: 1500,
       },
       {
         role: "assistant",
-        text: "Sarah viewed the NDA document 2 minutes ago.",
+        text: "Reggie viewed the NDA document 2 minutes ago.",
         pauseMs: 1500,
         actions: [{ label: "View signing status", variant: "secondary" }],
       },
@@ -215,6 +248,24 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "Reminder set for Friday at 9 AM.",
         pauseMs: 1200,
+      },
+    ],
+  },
+  {
+    id: "slash-invoice",
+    userAvatar: "/images/hero-demo/henderson-billing.png",
+    holdMs: 900,
+    turns: [
+      {
+        role: "user",
+        text: "/invoice List recent invoices.",
+        kind: "slash",
+      },
+      {
+        role: "assistant",
+        text: "3 open invoices · $8,420 outstanding.",
+        pauseMs: 1400,
+        actions: [{ label: "View invoices", variant: "primary" }],
       },
     ],
   },
@@ -369,9 +420,9 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     turns: [
       {
         role: "user",
-        /** Typed with @-mention picker (see kind: "mention") — not a plain "ask about Reggie". */
+        /** Soft mention via payment + for — types "for The", not `@`. */
         text: "Add a $500 payment for @The Solid Builder",
-        kind: "mention",
+        kind: "soft-mention",
       },
       {
         role: "assistant",
