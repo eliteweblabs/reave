@@ -4,6 +4,7 @@
  */
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 import {
   deliverShare,
   type DeliverShareInput,
@@ -12,13 +13,6 @@ import {
 } from '../../../lib/shareDelivery';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const KINDS = new Set<ShareKind>(['portal', 'work', 'booking', 'document']);
 

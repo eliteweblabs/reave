@@ -5,6 +5,7 @@
 import type { APIContext } from 'astro';
 import { getCompanyBrandContext, getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 import {
   isVapiAdminConfigured,
   isVapiAdminPluginEnabled,
@@ -19,13 +20,6 @@ import {
 } from '../../../lib/vapiAssistantSync';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function vapiTemplatesFromCompany(company: Awaited<ReturnType<typeof getCompanyConfig>>) {
   return {

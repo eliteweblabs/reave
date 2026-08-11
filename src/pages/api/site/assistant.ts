@@ -8,6 +8,7 @@
 import type { APIRoute } from 'astro';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { hasFeature } from '../../../lib/features';
+import { json } from '../../../lib/apiJson';
 import {
   getSiteAssistantPageContext,
   isSiteAssistantConfigured,
@@ -23,13 +24,6 @@ export const prerender = false;
 const MAX_MESSAGE_CHARS = 2_000;
 const MAX_HISTORY_TURNS = 20;
 const MAX_HISTORY_TURN_CHARS = 4_000;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseHistory(raw: unknown): SiteAssistantTurn[] {
   if (!Array.isArray(raw)) return [];

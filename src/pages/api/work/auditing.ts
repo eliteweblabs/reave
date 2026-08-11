@@ -7,15 +7,9 @@ import { getAgentProgress } from '../../../lib/agentProgress';
 import { labelForAgentTool } from '../../../lib/agentToolLabels';
 import { listSiriAuditRuns, siriAuditThreadId } from '../../../lib/siriAuditRuns';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

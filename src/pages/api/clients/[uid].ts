@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   contactStringField,
   contactSummary,
@@ -31,13 +32,6 @@ import { syncContactToCrater } from '../../../lib/contactCraterSync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseClientPortalData(raw: unknown): ClientDataEntry[] | null {
   if (!Array.isArray(raw)) return null;

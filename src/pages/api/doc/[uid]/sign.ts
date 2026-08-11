@@ -26,6 +26,7 @@ import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import { serverEnv } from '../../../../lib/serverEnv';
 import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../lib/clientIp';
+import { escHtml } from '../../../../lib/escHtml';
 
 export const prerender = false;
 
@@ -44,14 +45,6 @@ function fmtDateLong(iso: string): string {
   return Number.isNaN(d.getTime())
     ? iso
     : d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
-}
-
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 /** Build the inline-styled signature block + audit table that gets permanently baked

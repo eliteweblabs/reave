@@ -9,15 +9,9 @@ import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
 import { storeAckPushAlert } from '../../../../lib/pushAlertStore';
 import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function emailIdFromAlertUrl(url?: string | null): string | null {
   const raw = url?.trim();

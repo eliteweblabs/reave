@@ -1,16 +1,10 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeMarkChatSeen } from '../../../../lib/chatStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 /**
  * POST /api/chats/:id/seen — record that the signed-in user has seen this

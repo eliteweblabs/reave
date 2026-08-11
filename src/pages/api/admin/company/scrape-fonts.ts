@@ -10,15 +10,9 @@ import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../../lib/
 import { normalizePublicUrl } from '../../../../lib/publicUrl';
 import { detectWebsiteFonts } from '../../../../lib/websiteFonts';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function websiteFromDomain(domain: string): string | null {
   const trimmed = domain.trim();

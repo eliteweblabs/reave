@@ -12,15 +12,9 @@ import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOr
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function enrichThreadsWithLinks(
   threads: Awaited<ReturnType<typeof storeListChatThreads>>,

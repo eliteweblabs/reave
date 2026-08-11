@@ -53,6 +53,7 @@ import SiteBackground from '../../components/SiteBackground.astro';
 import '../../styles/brand.css';
 import '../../styles/mobile-touch.css';
 import PortalOutreachSheet from '../../components/PortalOutreachSheet.astro';
+import { escHtml } from '../../lib/escHtml';
 
 const org = await getCompanyConfig(Astro.request);
 
@@ -123,16 +124,8 @@ const fmtDate = (s: string | null | undefined) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 function richText(s: string): string {
-  const escaped = escapeHtml(s);
+  const escaped = escHtml(s);
   const linked = escaped.replace(
     /(https?:\/\/[^\s<]+)/g,
     (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
@@ -162,7 +155,7 @@ function workBodyHtml(body: string, contactUid: string, jobSlug: string): string
     if (m) {
       const src = workFileUrlForPortal(m[2], contactUid, jobSlug);
       out.push(
-        `<img class="work-body-img" src="${escapeHtml(src)}" alt="${escapeHtml(m[1])}" loading="lazy" />`,
+        `<img class="work-body-img" src="${escHtml(src)}" alt="${escHtml(m[1])}" loading="lazy" />`,
       );
     } else if (trimmed) {
       out.push(richText(trimmed));

@@ -8,6 +8,7 @@ import { runDemoSeed } from '../../../../lib/demoSeedRunner';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { hasFeature } from '../../../../lib/features';
+import { json } from '../../../../lib/apiJson';
 import {
   parseDemoSuiteCookie,
   serializeDemoSuite,
@@ -16,13 +17,6 @@ import {
 import { DEMO_SUITE_COOKIE, DEMO_SUITE_COOKIE_MAX_AGE } from '../../../../lib/demoSuite';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

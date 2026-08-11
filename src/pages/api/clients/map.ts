@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import { compareClientsForList } from '../../../lib/clientSearch';
 import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 import {
   attachPortalLinksForList,
   CLIENT_KINDS,
@@ -18,13 +19,6 @@ import {
 } from '../../../lib/contactApi';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function mapClientEntry(c: ContactRecord) {
   const portal = extractPortal(c);

@@ -1,23 +1,14 @@
 import type { APIRoute } from 'astro';
 import { Resend } from 'resend';
 import { serverEnv } from '../../../lib/serverEnv';
-import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request }) => {
-  const brand = await getCompanyBrandContext(request);
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      service: `${brand.name.toLowerCase().replace(/\s+/g, '-')}-email-inbound`,
-      time: new Date().toISOString(),
-    }),
-    { headers: { 'Content-Type': 'application/json' } }
-  );
+export const GET: APIRoute = async () => {
+  return new Response('Not found', { status: 404 });
 };
 
 export const POST: APIRoute = async ({ request }) => {

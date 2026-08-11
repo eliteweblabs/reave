@@ -10,15 +10,9 @@ import { OAUTH_CONFIGS, callbackUrl, getOAuthCredentials } from '../../../../lib
 import { listConnections } from '../../../../lib/social/tokenStore.ts';
 import type { SocialPlatformId } from '../../../../lib/social/types.ts';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

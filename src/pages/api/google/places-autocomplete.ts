@@ -7,6 +7,7 @@ import type { APIContext } from 'astro';
 import { getGoogleMapsApiKey } from '../../../lib/googleMapsApiKey';
 import { resolvePlacesLocationBias, resolvePlacesRegionCodes } from '../../../lib/placesLocationBias';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
 
@@ -16,16 +17,6 @@ const PLACES_AUTOCOMPLETE_FIELD_MASK =
 function cleanAddress(address: string | undefined): string {
   if (!address) return '';
   return address.replace(/, USA$/i, '').trim();
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    },
-  });
 }
 
 export async function GET(context: APIContext): Promise<Response> {

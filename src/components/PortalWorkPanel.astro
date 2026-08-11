@@ -6,6 +6,7 @@
 import type { WorkJobComment } from '../lib/workComments';
 import type { WorkStatus } from '../lib/workStore';
 import PortalJobComments from './PortalJobComments.astro';
+import { escHtml } from '../lib/escHtml';
 
 export interface PortalWorkJobItem {
   slug: string;
@@ -62,15 +63,6 @@ const {
   trackToken = '',
   dwellMs = 4000,
 } = Astro.props;
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function fmtFileSize(bytes: number): string {
   const n = Number(bytes) || 0;
@@ -134,7 +126,7 @@ const filesEndpointBase = commentEndpointBase;
                           ) : (
                             <span class="work-file-doc" aria-hidden="true">PDF</span>
                           )}
-                          <span class="work-file-name">{escapeHtml(file.filename)}</span>
+                          <span class="work-file-name">{escHtml(file.filename)}</span>
                           <span class="work-file-size">{fmtFileSize(file.sizeBytes)}</span>
                         </a>
                       );
@@ -167,16 +159,8 @@ const filesEndpointBase = commentEndpointBase;
   )}
 </section>
 
-<script define:vars={{ commentEndpointBase, filesEndpointBase, expandSlug, trackToken, dwellMs }}>
-  function escHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
+<script type="module" define:vars={{ commentEndpointBase, filesEndpointBase, expandSlug, trackToken, dwellMs }}>
+  import { escHtml } from '/portal-shared.js';
   function fmtFileSize(bytes) {
     const n = Number(bytes) || 0;
     if (n < 1024) return `${n} B`;

@@ -7,15 +7,9 @@ import { dbGetUptimeMonitor } from '../../../../../lib/pgUptime';
 import { getUptimeIncidentsView } from '../../../../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../../../../lib/uptimerobotClient';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { json } from '../../../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async ({ params, locals }) => {
   const auth = await requireDashboardUser(context);

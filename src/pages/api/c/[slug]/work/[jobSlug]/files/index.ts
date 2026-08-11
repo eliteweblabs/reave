@@ -5,6 +5,7 @@
 
 import type { APIRoute } from 'astro';
 import { loadPortalJob } from '../../../../../../../lib/portalWorkAuth';
+import { json } from '../../../../../../../lib/apiJson';
 import {
   PROJECT_FILE_MAX_BYTES,
   PROJECT_UPLOAD_MEDIA_TYPES,
@@ -17,13 +18,6 @@ import { checkInMemoryRateLimit } from '../../../../../../../lib/inMemoryRateLim
 import { clientIp } from '../../../../../../../lib/clientIp';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function toPortalFiles(contactUid: string, jobSlug: string, files: ProjectFileSummary[]) {
   return files.map((file) => ({

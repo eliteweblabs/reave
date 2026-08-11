@@ -8,6 +8,7 @@ import { getContact } from '../../../../../../lib/contactApi';
 import { recordShareOpenEngagement } from '../../../../../../lib/engagementNotifications';
 import { recordProjectShareView } from '../../../../../../lib/linkTracking';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
+import { json } from '../../../../../../lib/apiJson';
 import {
   isLinkPreviewRequest,
   isStaffSession,
@@ -17,13 +18,6 @@ import { checkInMemoryRateLimit } from '../../../../../../lib/inMemoryRateLimit'
 import { clientIp } from '../../../../../../lib/clientIp';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
   const contactUid = (params.slug ?? '').trim();
