@@ -5,15 +5,9 @@
 import type { APIContext } from 'astro';
 import { listOutboundEmails } from '../../../lib/projectOutboundEmail';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

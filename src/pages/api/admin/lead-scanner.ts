@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { TRADES, loadConfig } from '@reave/plugin-real-estate-data';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
@@ -21,13 +22,6 @@ import {
 import { leadScannerStatusSummary } from '../../../lib/leadScannerScheduler';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function runWithImports(runId: string | null) {
   if (!runId) return null;

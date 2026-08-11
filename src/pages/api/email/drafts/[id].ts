@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 import {
   deleteEmailDraft,
   normalizeEmailDraftRecipients,
@@ -12,13 +13,6 @@ import {
 } from '../../../../lib/emailDraftStore';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseId(raw: string | undefined): string | null {
   const id = String(raw ?? '').trim();

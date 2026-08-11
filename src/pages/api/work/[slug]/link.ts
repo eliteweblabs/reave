@@ -5,6 +5,7 @@
 import type { APIContext } from 'astro';
 import { isSafeWorkSlug, storeReadWork } from '../../../../lib/workStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 import {
   createTrackedProjectLink,
   deleteTrackedLink,
@@ -16,13 +17,6 @@ import { qrCodeDataUrl } from '../../../../lib/qrCode';
 import { isAuditJob } from '../../../../lib/auditReportCard';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const CHANNELS = new Set<TrackedLinkChannel>(['share', 'email', 'sms', 'manual']);
 

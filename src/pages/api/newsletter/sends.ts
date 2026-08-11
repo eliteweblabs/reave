@@ -7,17 +7,11 @@ import { listNewsletterSends, type NewsletterSendStatus } from '../../../lib/new
 import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
 import { isNewsletterEnabled } from '../../../lib/newsletterEngine';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
 
 const STATUSES: NewsletterSendStatus[] = ['pending', 'sent', 'skipped', 'failed', 'canceled'];
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

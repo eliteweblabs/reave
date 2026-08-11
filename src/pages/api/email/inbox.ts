@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   emailInboxStorageBackend,
   storeListEmailInbox,
@@ -29,13 +30,6 @@ function enrichEmailEvent(event: EmailInboxListRecord) {
     monetaryAmount,
     hasMonetaryValue: monetaryAmount != null,
   };
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
 }
 
 export async function GET(context: APIContext): Promise<Response> {

@@ -9,15 +9,9 @@ import { hasFeature } from '../../../../lib/features';
 import { createUptimeMonitor } from '../../../../lib/uptimeMonitoring';
 import { enrichUptimeMonitorView } from '../../../../lib/uptimerobotClient';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 type BatchInput = { url?: unknown; friendlyName?: unknown };
 

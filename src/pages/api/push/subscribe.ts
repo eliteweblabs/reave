@@ -6,19 +6,13 @@
 import type { APIContext } from 'astro';
 import { isPushConfigured } from '../../../lib/webPush';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { json } from '../../../lib/apiJson';
 import {
   savePushSubscription,
   removePushSubscriptionByEndpoint,
 } from '../../../lib/pushSubscriptionStore';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const dashAuth = await requireDashboardUser(context);

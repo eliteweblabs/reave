@@ -1,17 +1,11 @@
 import type { APIRoute } from 'astro';
+import { json } from '../../../../../../lib/apiJson';
 import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
 import { storeAddWorkComment, storeListWorkComments } from '../../../../../../lib/workComments';
 import { checkInMemoryRateLimit } from '../../../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../../../lib/clientIp';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async ({ params }) => {
   const contactUid = (params.slug ?? '').trim();

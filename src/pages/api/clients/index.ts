@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   compareClientsForList,
   filterClientsByKind,
@@ -39,13 +40,6 @@ async function clientsWithPortalLinks(contacts: ContactRecord[]): Promise<Contac
   return attachPortalLinksForList(contacts.filter((c) => !c.archived));
 }
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

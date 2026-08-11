@@ -4,6 +4,7 @@
  */
 
 import type { APIRoute } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import {
   contactStringField,
   extractPortal,
@@ -24,13 +25,6 @@ import { portalSiteUrl } from '../../../../lib/siteMonitoring';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);

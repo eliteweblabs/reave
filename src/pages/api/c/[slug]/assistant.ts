@@ -12,6 +12,7 @@ import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
 import { isCraterConfigured, craterGetClientBilling } from '../../../../lib/craterClient';
 import { storeListWorkForContact } from '../../../../lib/workStore';
+import { json } from '../../../../lib/apiJson';
 import {
   isPortalAssistantConfigured,
   runPortalAssistantReply,
@@ -32,13 +33,6 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   active: 'In progress',
   done: 'Complete',
 };
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function clientIp(request: Request): string {
   const fwd = request.headers.get('x-forwarded-for');

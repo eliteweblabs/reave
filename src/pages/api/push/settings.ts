@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   formatAwakeSinceLabel,
   formatQuietEndLabel,
@@ -15,13 +16,6 @@ import {
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function sleepSettingsPayload(settings: Awaited<ReturnType<typeof getPushQuietHoursSettings>>) {
   const inQuietWindow = isWithinQuietWindow(settings);

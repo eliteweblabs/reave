@@ -23,6 +23,7 @@ import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/cha
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { getAliveAgentRunLease } from '../../../../lib/pgAgentRunLeases';
 import '../../../../lib/processDrain';
+import { json } from '../../../../lib/apiJson';
 
 export const prerender = false;
 
@@ -30,13 +31,6 @@ const INTERRUPTED_NOTE =
   '_(This response was interrupted before it finished — the run ended without saving a reply ' +
   '(often a deploy restart or dropped connection, not necessarily something you did). ' +
   'Send the message again and I\'ll redo the work.)_';
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

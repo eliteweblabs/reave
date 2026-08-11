@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import { buildAnalyticsDashboard } from '../../../../lib/analyticsDashboard';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { extractPortal, getContact } from '../../../../lib/contactApi';
+import { json } from '../../../../lib/apiJson';
 import {
   contactSubject,
   getIntegrationToken,
@@ -14,13 +15,6 @@ import { GOOGLE_WEBMASTER_PROVIDER } from '../../../../lib/googleWebmasterAuth';
 import { hasFeature } from '../../../../lib/features';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseRange(raw: string | null): number {
   const n = Number(raw);

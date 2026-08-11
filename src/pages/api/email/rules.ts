@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   emailRulesStorageBackend,
   parseExpiresAt,
@@ -17,13 +18,6 @@ import type { MatchMode, RuleField } from '../../../lib/emailRules';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
   const title = String(body.title ?? '').trim();

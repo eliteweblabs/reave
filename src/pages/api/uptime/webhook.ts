@@ -18,6 +18,7 @@
  */
 import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../lib/features';
+import { json } from '../../../lib/apiJson';
 import {
   handleUptimeWebhook,
   parseUptimeWebhook,
@@ -27,13 +28,6 @@ import {
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export const GET: APIRoute = async () => new Response('Not found', { status: 404 });
 

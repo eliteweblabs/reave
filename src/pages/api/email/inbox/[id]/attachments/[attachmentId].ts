@@ -8,15 +8,9 @@ import { Resend } from 'resend';
 import { storeGetEmailInbox } from '../../../../../../lib/emailInboxStore';
 import { serverEnv } from '../../../../../../lib/serverEnv';
 import { requireDashboardUser } from '../../../../../../lib/dashboardAuth';
+import { json } from '../../../../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function safeContentDisposition(filename: string): string {
   const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '') || 'attachment';

@@ -4,6 +4,7 @@
  */
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { json } from '../../../../lib/apiJson';
 import {
   agencySubject,
   contactSubject,
@@ -22,13 +23,6 @@ import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

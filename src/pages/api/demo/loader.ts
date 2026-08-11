@@ -3,6 +3,7 @@
  */
 import type { APIContext } from 'astro';
 import { listEnabledDeckIndustries } from '../../../lib/deckIndustriesStore';
+import { json } from '../../../lib/apiJson';
 import {
   defaultDemoLoaderModuleIds,
   listDemoLoaderIncludedCards,
@@ -16,17 +17,6 @@ import { DEMO_BASELINE_MODULE_IDS, mergeDemoModuleIds } from '../../../lib/demoM
 import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      ...(extraHeaders || {}),
-    },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   try {

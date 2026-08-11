@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import sharp from 'sharp';
+import { json } from '../../../../lib/apiJson';
 import {
   isMediaLibraryImageType,
   projectFileResponseHeaders,
@@ -14,13 +15,6 @@ import {
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const THUMB_SIZE = 256;
 

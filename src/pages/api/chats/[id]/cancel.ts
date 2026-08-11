@@ -1,16 +1,10 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { cancelAgentRun, isAgentRunActive } from '../../../../lib/agentRunControl';
 import { clearAgentProgress } from '../../../../lib/agentProgress';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 /** POST /api/chats/:id/cancel — stop an in-flight agent run for this thread. */
 export async function POST(context: APIContext): Promise<Response> {

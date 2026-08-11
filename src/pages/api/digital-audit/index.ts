@@ -17,19 +17,13 @@ import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
 import { getSiriAuditRun } from '../../../lib/siriAuditRuns';
 import type { SiriAuditTier } from '../../../lib/siriAuditRuns';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
 
 const MAX_FIELD = 500;
 const BOT_UA_RE =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function trimField(raw: unknown, max = MAX_FIELD): string {
   if (typeof raw !== 'string') return '';

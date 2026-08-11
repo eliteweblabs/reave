@@ -12,6 +12,7 @@ import { emailToMergeSource, mergeEmailIntoProjectBody, pickMergedProjectValue }
 import { importEmailAttachmentsToProject } from '../../../../../lib/emailProjectAttachments';
 import { markInboxEmailAsProject } from '../../../../../lib/emailProjectCategory';
 import { assignEmailToJob } from '../../../../../lib/projectLinks';
+import { json } from '../../../../../lib/apiJson';
 import {
   ensureWorkContact,
   isSafeWorkSlug,
@@ -23,13 +24,6 @@ import { parseWorkJobInput } from '../../../../../lib/workJobInput';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function markEmailLinked(
   id: string,

@@ -4,6 +4,7 @@
  * Posts to /api/c/:uid/work/:jobSlug/comments (author: client).
  */
 import type { WorkJobComment } from '../lib/workComments';
+import { escHtml } from '../lib/escHtml';
 
 interface Props {
   jobSlug: string;
@@ -22,15 +23,6 @@ const {
   clientAvatarUrl = '',
   staffAvatarUrl = '',
 } = Astro.props;
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function fmtCommentTime(iso: string): string {
   const d = new Date(iso);
@@ -69,10 +61,10 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
               </div>
               <div class="work-comment-main">
                 <header class="work-comment-head">
-                  <span class="work-comment-author">{escapeHtml(c.authorName)}</span>
+                  <span class="work-comment-author">{escHtml(c.authorName)}</span>
                   <time class="work-comment-time" datetime={c.createdAt}>{fmtCommentTime(c.createdAt)}</time>
                 </header>
-                <p class="work-comment-text">{escapeHtml(c.text)}</p>
+                <p class="work-comment-text">{escHtml(c.text)}</p>
               </div>
             </article>
           </li>
@@ -93,7 +85,9 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
   <button class="work-comment-submit" type="button">Post comment</button>
 </div>
 
-<script define:vars={{ commentEndpoint, clientAvatarUrl, staffAvatarUrl, jobSlug }}>
+<script type="module" define:vars={{ commentEndpoint, clientAvatarUrl, staffAvatarUrl, jobSlug }}>
+  import { escHtml } from '/portal-shared.js';
+
   (function initPortalJobComments() {
     const roots = [...document.querySelectorAll('[data-portal-comments]')].filter(
       (el) => el.getAttribute('data-job-slug') === jobSlug && el.dataset.commentsBound !== '1',
@@ -105,15 +99,6 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
       const submitBtn = root.querySelector('.work-comment-submit');
       const commentsRoot = root.querySelector('[data-comments-root]');
       if (!textarea || !submitBtn || !commentsRoot) continue;
-
-      function escHtml(s) {
-        return String(s)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      }
 
       function fmtTime(iso) {
         const d = new Date(iso);

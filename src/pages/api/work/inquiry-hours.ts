@@ -11,15 +11,9 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { backfillInquiryHours } from '../../../lib/contactHoursFromPlaces';
 import { getGoogleMapsApiKey } from '../../../lib/googleMapsApiKey';
 import { isContactApiConfigured } from '../../../lib/contactApi';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

@@ -10,19 +10,13 @@ import { recordDeckViewEngagement } from '../../../lib/engagementNotifications';
 import { isOwnerPreviewRequest, isStaffSession } from '../../../lib/staffSession';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
+import { json } from '../../../lib/apiJson';
 
 export const prerender = false;
 
 /** Link unfurls / crawlers that sometimes execute enough JS to hit this endpoint. */
 const BOT_UA_RE =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function dayBucket(): string {
   return new Date().toISOString().slice(0, 10);

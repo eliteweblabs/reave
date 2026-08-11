@@ -7,6 +7,7 @@ import { listAllDeployModules } from '../../../lib/deployModuleStatus';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { getInstallConfigClient } from '../../../lib/installConfig';
 import { isDemoMode } from '../../../lib/demoMode';
+import { json } from '../../../lib/apiJson';
 import {
   DEMO_SUITE_COOKIE,
   demoModuleCatalog,
@@ -23,13 +24,6 @@ import type { FeatureId } from '../../../lib/featureCatalog';
 export const prerender = false;
 
 const POLL_MS = 30_000;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function moduleNeedsAttention(m: {
   enabled: boolean;
