@@ -676,6 +676,14 @@ button.de-placeholder-action:active {
   }
   .de-doc-name { font-size: 0.88rem; }
 }
+/*
+ * Clients detail always shows back. The control often returns to a project or
+ * schedule referrer (not only the mobile list/detail swap), so it must stay
+ * visible on desktop split view as well.
+ */
+#clients-editor .de-back-btn.ios-icon-btn {
+  display: inline-flex;
+}
 .de-doc-name {
   flex: 1;
   min-width: 0;

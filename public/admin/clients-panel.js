@@ -59,7 +59,7 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260809a';
+} from './work-panel.js?v=20260810b';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260804b';
@@ -1714,7 +1714,8 @@ async function closeClientEditor(checkDirty = true) {
   clientState.returnToScheduleUid = null;
   clearClientLastActiveUid();
   syncClientDeepLinkUrl(null);
-  getClientsEditor()?.classList.remove('de-pane-active');
+  // Navigate to the referrer first so a failed hop cannot leave mobile on the
+  // list view after de-pane-active was already cleared.
   if (returnWorkSlug) {
     navigateToWork(returnWorkSlug);
     return;
@@ -1723,20 +1724,40 @@ async function closeClientEditor(checkDirty = true) {
     shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid });
     return;
   }
+  getClientsEditor()?.classList.remove('de-pane-active');
   syncClientsListActiveState();
   renderClientsPane();
 }
 
-async function openClient(uid) {
+async function openClient(uid, opts = {}) {
   if (uid === clientState.activeUid) {
+    let returnChanged = false;
+    if (opts.fromWorkSlug) {
+      clientState.returnToWorkSlug = opts.fromWorkSlug;
+      clientState.returnToScheduleUid = null;
+      returnChanged = true;
+    } else if (opts.fromScheduleUid) {
+      clientState.returnToScheduleUid = opts.fromScheduleUid;
+      clientState.returnToWorkSlug = null;
+      returnChanged = true;
+    }
     syncClientsListActiveState({ scroll: true });
     ensureClientMobilePaneOpen();
+    if (returnChanged) renderClientsPane();
     return;
   }
   await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
-  clientState.returnToWorkSlug = null;
-  clientState.returnToScheduleUid = null;
+  if (opts.fromWorkSlug) {
+    clientState.returnToWorkSlug = opts.fromWorkSlug;
+    clientState.returnToScheduleUid = null;
+  } else if (opts.fromScheduleUid) {
+    clientState.returnToScheduleUid = opts.fromScheduleUid;
+    clientState.returnToWorkSlug = null;
+  } else if (!opts.keepReturnSlug) {
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+  }
   clientState.activeUid = uid;
   clientState.detailTab = 'profile';
   clientState.dirty = false;
@@ -2137,7 +2158,7 @@ async function resumeClientDetailFromUrl() {
     return;
   }
   if (clientState.clients.some((c) => c.uid === clientUid)) {
-    await openClient(clientUid);
+    await openClient(clientUid, { keepReturnSlug: true });
     return;
   }
   pendingClientDeepLinkUid = clientUid;
