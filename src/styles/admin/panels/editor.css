@@ -2705,6 +2705,36 @@ button.de-placeholder-action:active {
 #clients-editor .de-pane > .cl-notes-label {
   width: 100%;
 }
+/* Bypass new-contact form → /admin/import-contacts (CardDAV / vCard / CSV). */
+#clients-editor .cl-import-carddav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input, 8px);
+  background: color-mix(in srgb, var(--surface-hover, rgba(127, 127, 127, 0.12)) 65%, transparent);
+  color: #0a84ff;
+  font: inherit;
+  font-size: max(16px, 0.92rem);
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#clients-editor .cl-import-carddav-btn:hover {
+  background: var(--surface-hover);
+}
+#clients-editor .cl-import-carddav-btn span {
+  flex: 1 1 auto;
+  text-align: center;
+}
+#clients-editor .cl-import-carddav-btn svg {
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
 #clients-editor .detail-form-scroll {
   flex: 1 1 auto;
   min-height: 0;
