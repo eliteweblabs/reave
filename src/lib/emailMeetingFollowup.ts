@@ -17,7 +17,7 @@ function displayFirstName(input: { contactName?: string | null; from: string }):
   const fromName = parseSenderName(input.from);
   const raw = (input.contactName || fromName || '').trim();
   if (!raw) return 'Client';
-  return raw.split(/\s+/)[0] || 'Client';
+  return raw.split(/\s+/)[0] || 'Contact';
 }
 
 function emailsMatch(a: string, b: string): boolean {

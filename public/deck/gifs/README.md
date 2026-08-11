@@ -10,7 +10,7 @@ Finger movement is not shown — screen recording only.
 | `pwa.gif` | phone-desk | PWA alerts & notices |
 | `scheduling.gif` | phone-hand | Scheduling |
 | `voice.gif` | phone-hand | Voice & call routing |
-| `clients.gif` | laptop | Clients |
+| `clients.gif` | laptop | Contacts |
 | `inbox.gif` | laptop | Inbox |
 | `work.gif` | laptop | Projects |
 | `documents.gif` | laptop | Documents |

@@ -1,5 +1,5 @@
 /**
- * GET /api/clients/map — owner-only client list with address/geo/icon for the map.
+ * GET /api/clients/map — owner-only contact list with address/geo/icon for the map.
  */
 
 import type { APIContext } from 'astro';

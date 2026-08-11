@@ -503,7 +503,7 @@ function rowToComment(row: JobCommentRow) {
     id: row.id,
     slug: row.job_slug,
     author: row.author,
-    authorName: row.author_name || (row.author === 'client' ? 'Client' : 'Team'),
+    authorName: row.author_name || (row.author === 'client' ? 'Contact' : 'Team'),
     text: row.body,
     createdAt: row.created_at,
     staffAckAt: row.staff_ack_at,

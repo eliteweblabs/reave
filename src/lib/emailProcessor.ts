@@ -822,7 +822,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           routeNote = routeNote || `Matched job "${job.title}" (no note extracted)`;
         } else if (category === 'client' && !contactUid) {
           category = 'review';
-          routeNote = 'Client-like mail but sender not in contacts';
+          routeNote = 'Contact-like mail but sender not in contacts';
           action = 'review';
         } else if (category === 'junk') {
           action = 'junk';
@@ -908,9 +908,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         action = 'project_reply';
         jobSlug = replyMatch.jobSlug;
         jobTitle = replyMatch.jobTitle;
-        routeNote = `🚨 Client replied on "${projectLabel}" — follow up ASAP. ${replyMatch.reason}`;
-        if (!summary.toLowerCase().includes('client replied')) {
-          summary = `Client replied on project ${projectLabel}: ${summary}`;
+        routeNote = `🚨 Contact replied on "${projectLabel}" — follow up ASAP. ${replyMatch.reason}`;
+        if (!summary.toLowerCase().includes('contact replied') && !summary.toLowerCase().includes('client replied')) {
+          summary = `Contact replied on project ${projectLabel}: ${summary}`;
         }
       } else {
         // Outbound subject match without true thread headers — link quietly.
@@ -1121,7 +1121,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         contactName = contactResult.name;
         if (contactResult.created) {
           const companyBit = contactResult.company ? ` (${contactResult.company})` : '';
-          routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to clients`;
+          routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to contacts`;
         }
       } else if (contactResult && !contactResult.ok) {
         console.warn('[email] auto-book contact ensure failed', contactResult.error);
@@ -1473,7 +1473,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }).catch((e) => console.warn('[email] triage push failed', e));
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
-      ? `🚨 Client reply: ${contactName ?? senderEmail}`
+      ? `🚨 Contact reply: ${contactName ?? senderEmail}`
       : automationKind === 'project_match_suggested'
         ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
         : automationKind === 'project_created'
@@ -1489,7 +1489,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           : isRailwayAlertStatus(ruleResult.status)
             ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
             : category === 'client'
-              ? `Client: ${contactName ?? senderEmail}`
+              ? `Contact: ${contactName ?? senderEmail}`
               : email.subject?.trim() || contactName || senderEmail || 'New email';
     const attachmentCount = attachments.length;
     const pushBody = isProjectReply

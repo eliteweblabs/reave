@@ -23,7 +23,7 @@ export async function loadPortalJob(contactUid: string, jobSlug: string) {
 
   return {
     ok: true as const,
-    contactName: contactStringField(contactRes.data.name) || 'Client',
+    contactName: contactStringField(contactRes.data.name) || 'Contact',
     job,
   };
 }

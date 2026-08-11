@@ -8,7 +8,7 @@ Copy-paste these JSON payloads into Apple Shortcuts → Get Contents of URL → 
 
 ---
 
-## List Clients
+## List Contacts
 
 ```json
 {
@@ -267,7 +267,7 @@ curl -X POST https://reave.app/api/siri \
   -H "Content-Type: application/json" \
   -d '{"action":"get_client","name":"Tony Vello","format":"text"}'
 
-# Create client
+# Create contact
 curl -X POST https://reave.app/api/siri \
   -H "X-Siri-Key: YOUR_KEY_HERE" \
   -H "Content-Type: application/json" \

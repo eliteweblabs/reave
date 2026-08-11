@@ -36,7 +36,7 @@ export const HERO_DEMO_SLASH_PICKER = [
   { slash: "/invoice", summary: "List recent invoices" },
   { slash: "/document", summary: "Send a document for signing" },
   { slash: "/work", summary: "List open jobs" },
-  { slash: "/contact", summary: "Look up a client" },
+  { slash: "/contact", summary: "Look up a contact" },
   { slash: "/meeting", summary: "Today's calendar" },
   { slash: "/send", summary: "Send an email" },
 ] as const;

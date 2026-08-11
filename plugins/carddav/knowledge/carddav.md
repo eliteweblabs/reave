@@ -1,6 +1,6 @@
 # CardDAV — native iOS Contacts sync
 
-Sync the master **contact-api** client list to iPhone/iPad **Contacts** without Google
+Sync the master **contact-api** contact list to iPhone/iPad **Contacts** without Google
 or iCloud for that account. The Reave Astro app exposes a CardDAV server at `/carddav`
 (RFC 6352) backed by the same contacts as the admin dashboard and API tools (`list_contacts`,
 `resolve_contact`, etc.).
@@ -92,7 +92,7 @@ When syncing contacts to iPhone, use the iOS setup tables above
 
 - **Do not share** `CARDDAV_PASSWORD` or API keys insecurely — refer to
   Railway → Reave service → Variables for secure credential management.
-- CardDAV is for **staff** syncing the master client list on a personal device — not
+- CardDAV is for **staff** syncing the master contact list on a personal device — not
   for sending links to clients (use **client portal** `/c/<uid>` for that).
 - If iOS fails to verify the account: confirm deploy is live, `carddav` is true in
   `service_status`, contact-api answers `ping_contact_api`, and username/password match

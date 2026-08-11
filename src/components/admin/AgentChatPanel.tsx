@@ -1488,7 +1488,7 @@ function peopleResultToMention(person: PeopleSearchResult): ChatMention {
 
 function peopleSubline(person: PeopleSearchResult): string {
   if (person.kind === 'contact') {
-    return [person.company, person.email, person.phone].filter(Boolean).join(' · ') || 'Client';
+    return [person.company, person.email, person.phone].filter(Boolean).join(' · ') || 'Contact';
   }
   return [person.email, person.username].filter(Boolean).join(' · ') || 'Team';
 }
@@ -1540,7 +1540,7 @@ function MentionsPanel({
                 ref={i === activeIdx ? activeRef : undefined}
                 onClick={() => onPick(person)}
               >
-                <span className="aui-mention-kind">{person.kind === 'contact' ? 'Client' : 'Team'}</span>
+                <span className="aui-mention-kind">{person.kind === 'contact' ? 'Contact' : 'Team'}</span>
                 <span className="aui-mention-body">
                   <span className="aui-helper-item-slash">@{person.name}</span>
                   {sub ? <span className="aui-helper-item-summary">{sub}</span> : null}

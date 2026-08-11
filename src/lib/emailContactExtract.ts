@@ -341,7 +341,7 @@ export async function ensureContactForMeetingEmail(input: {
     return {
       ok: true,
       uid: input.existingContactUid.trim(),
-      name: input.existingContactName?.trim() || 'Client',
+      name: input.existingContactName?.trim() || 'Contact',
       company: null,
       created: false,
     };

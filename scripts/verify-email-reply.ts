@@ -1,5 +1,5 @@
 /**
- * Guard: apex / forwarded inbound mail must not become "Client replied",
+ * Guard: apex / forwarded inbound mail must not become "Contact replied",
  * and placeholder "New Project — …" titles must not leak into copy.
  * Run: npm run check:email-reply
  */
