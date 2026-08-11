@@ -264,14 +264,21 @@ export async function enrichClientPortalBrand(
     const brand = await fetchClientBrandFromWebsite(website);
     if (!brand?.logoUrl && !brand?.iconUrl && !brand?.tagline) return;
 
+    // Re-read before write — address autocomplete can land while we scrape.
+    const latestRes = await getContact(contactUid.trim());
+    const latest = latestRes.ok ? extractPortal(latestRes.data) ?? portal : portal;
+
     const next: ClientPortal = {
-      ...portal,
-      website: portal.website || brand.website || website.replace(/\/$/, ''),
-      logoUrl: brand.logoUrl || portal.logoUrl,
-      logoSource: brand.logoUrl ? 'website' : portal.logoSource,
-      iconUrl: brand.iconUrl || portal.iconUrl,
-      iconSource: brand.iconUrl ? 'website' : portal.iconSource,
-      tagline: portal.tagline || brand.tagline,
+      ...latest,
+      website: latest.website || brand.website || website.replace(/\/$/, ''),
+      logoUrl: brand.logoUrl || latest.logoUrl,
+      logoSource: brand.logoUrl ? 'website' : latest.logoSource,
+      iconUrl: brand.iconUrl || latest.iconUrl,
+      iconSource: brand.iconUrl ? 'website' : latest.iconSource,
+      tagline: latest.tagline || brand.tagline,
+      address: latest.address,
+      geo: latest.geo,
+      addressWriteToken: latest.addressWriteToken,
       updatedAt: new Date().toISOString(),
     };
 
@@ -310,6 +317,17 @@ export async function setClientPortalWebsite(
 
   const portal = extractPortal(res.data) ?? {};
   const website = normalizeClientWebsiteInput(websiteInput);
+  const previous = normalizeClientWebsiteInput(
+    contactStringField(portal.website) || portalSiteUrl(portal) || '',
+  );
+
+  // Autosave sends website on every PATCH. Re-writing + force-enriching on an
+  // unchanged URL races address saves: enrichment re-spreads a stale portal and
+  // clobbers the autocomplete-selected street address after refresh.
+  if (website === previous) {
+    return { ok: true, website: previous };
+  }
+
   const fields = [...(portal.fields ?? [])];
   const idx = fields.findIndex((f) => isPortalWebsiteUrlFieldLabel(f.label));
 
@@ -321,10 +339,18 @@ export async function setClientPortalWebsite(
     fields.splice(idx, 1);
   }
 
+  // Re-read immediately before write so a concurrent address pick is not lost.
+  const latestRes = await getContact(uid);
+  const latestPortal = latestRes.ok ? extractPortal(latestRes.data) ?? portal : portal;
+
   const saved = await setContactPortal(uid, {
-    ...portal,
+    ...latestPortal,
     website: website || undefined,
     fields: fields.length ? fields : undefined,
+    // Preserve address fields from the freshest portal snapshot.
+    address: latestPortal.address,
+    geo: latestPortal.geo,
+    addressWriteToken: latestPortal.addressWriteToken,
     updatedAt: new Date().toISOString(),
   });
   if (!saved.ok) return { ok: false, error: saved.error };

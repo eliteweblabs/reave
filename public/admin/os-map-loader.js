@@ -174,7 +174,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260811b';
+} from './schedule-panel.js?v=20260811c';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -187,7 +187,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260811b';
+} from './clients-panel.js?v=20260811c';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,

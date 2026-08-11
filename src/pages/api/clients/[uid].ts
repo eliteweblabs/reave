@@ -135,16 +135,9 @@ async function saveClientPortalFields(
     if (!saved.ok) return { ok: false as const, error: saved.error };
   }
 
-  let website = '';
-  if (typeof body.website === 'string') {
-    const saved = await setClientPortalWebsite(uid, body.website);
-    if (!saved.ok) return { ok: false as const, error: saved.error };
-    website = saved.website;
-  } else {
-    const portal = extractPortal(contactData);
-    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
-  }
-
+  // Address before website: website saves can trigger brand/portal enrich that
+  // re-spreads portal metadata. Persisting the street address first means those
+  // enrichers re-read the selected address instead of the typed query.
   let address = '';
   let geo: ReturnType<typeof parseClientGeoInput> | null = null;
   let addressWriteToken: number | undefined;
@@ -168,6 +161,30 @@ async function saveClientPortalFields(
       typeof portal?.addressWriteToken === 'number' && Number.isFinite(portal.addressWriteToken)
         ? portal.addressWriteToken
         : undefined;
+  }
+
+  let website = '';
+  if (typeof body.website === 'string') {
+    const saved = await setClientPortalWebsite(uid, body.website);
+    if (!saved.ok) return { ok: false as const, error: saved.error };
+    website = saved.website;
+  } else {
+    const portal = extractPortal(contactData);
+    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
+  }
+
+  // If website enrich raced, re-read address so the PATCH response matches DB.
+  if (typeof body.address === 'string') {
+    const refreshed = await getContact(uid);
+    if (refreshed.ok) {
+      const portal = extractPortal(refreshed.data);
+      address = contactStringField(portal?.address) || address;
+      geo = portal?.geo ?? geo;
+      addressWriteToken =
+        typeof portal?.addressWriteToken === 'number' && Number.isFinite(portal.addressWriteToken)
+          ? portal.addressWriteToken
+          : addressWriteToken;
+    }
   }
 
   return { ok: true as const, website, address, geo, addressWriteToken };

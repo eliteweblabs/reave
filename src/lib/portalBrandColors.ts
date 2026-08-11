@@ -222,11 +222,16 @@ export async function persistPortalBrandColors(
 ): Promise<void> {
   if (!uid.trim()) return;
   try {
+    const latestRes = await getContact(uid.trim());
+    const latest = latestRes.ok ? extractPortal(latestRes.data) ?? portal : portal;
     await setContactPortal(uid.trim(), {
-      ...portal,
+      ...latest,
       brandPrimary: colors.primary,
       brandSecondary: colors.secondary,
       brandAccent: colors.accent,
+      address: latest.address,
+      geo: latest.geo,
+      addressWriteToken: latest.addressWriteToken,
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {

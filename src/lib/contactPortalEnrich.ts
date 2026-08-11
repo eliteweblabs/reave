@@ -283,28 +283,37 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
     }
 
     // ── 5. Merge with any existing portal (preserve manual changes) ────────
+    // Re-read after slow Brave/site fetches — address autocomplete often lands
+    // during this window; spreading a stale `existing` would wipe it.
+    const latestRes = await getContact(uid);
+    const latest = latestRes.ok ? extractPortal(latestRes.data) : existing;
+
     const portalHeadline =
+      latest?.headline ||
       existing?.headline ||
       (company !== name ? company : siteTitle || company);
 
-    const portalBody = existing?.body || bodyParagraph || undefined;
+    const portalBody = latest?.body || existing?.body || bodyParagraph || undefined;
 
     // Merge fields: keep existing, append newly discovered ones (no dupes)
-    const existingLabels = new Set(
-      (existing?.fields ?? []).map((f) => f.label.toLowerCase()),
-    );
+    const baseFields = latest?.fields ?? existing?.fields ?? [];
+    const existingLabels = new Set(baseFields.map((f) => f.label.toLowerCase()));
     const mergedFields = [
-      ...(existing?.fields ?? []),
+      ...baseFields,
       ...fields.filter((f) => !existingLabels.has(f.label.toLowerCase())),
     ];
 
     await setContactPortal(uid, {
-      ...(existing ?? {}),
-      enabled: existing?.enabled !== false,
+      ...(latest ?? existing ?? {}),
+      enabled: (latest ?? existing)?.enabled !== false,
       headline: portalHeadline,
       body: portalBody,
       fields: mergedFields.length > 0 ? mergedFields : undefined,
-      website: existing?.website || resolvedWebsite || undefined,
+      website: latest?.website || existing?.website || resolvedWebsite || undefined,
+      // Never clobber a newer admin address pick with a stale enrich snapshot.
+      address: latest?.address ?? existing?.address,
+      geo: latest?.geo ?? existing?.geo,
+      addressWriteToken: latest?.addressWriteToken ?? existing?.addressWriteToken,
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {

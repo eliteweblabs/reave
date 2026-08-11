@@ -62,7 +62,7 @@ import {
 } from './work-panel.js?v=20260810c';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260811a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260811b';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260811c';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
@@ -1679,15 +1679,21 @@ function renderEditClientForm(pane) {
         const firstName = firstNameInput.value.trim();
         const lastName = lastNameInput.value.trim();
         const company = companyInput.value.trim();
+        const website = websiteInput.value.trim();
         const payload = {
           name: joinClientFullName(firstName, lastName, company),
           email: emailInput.value.trim(),
           phone: phoneToStorage(phoneInput.value),
           company,
-          website: websiteInput.value.trim(),
           notes: notesTa.value.trim(),
           kind: kindPill.getValue(),
         };
+        // Only PATCH website when it changed — unchanged website used to force
+        // brand/portal enrich on every autosave, which rewrote stale portal
+        // metadata and wiped the autocomplete-selected address.
+        if (website !== (clientState.draft.website || '')) {
+          payload.website = website;
+        }
         if (commitAddress) {
           payload.address =
             address != null ? String(address).trim() : addressInput.value.trim();
@@ -1961,6 +1967,7 @@ async function autosaveClient(uid, payload) {
   if (!draft) return false;
   const wasKind = normalizeClientKind(draft.kind);
   const addressInPayload = Object.prototype.hasOwnProperty.call(payload, 'address');
+  const websiteInPayload = Object.prototype.hasOwnProperty.call(payload, 'website');
   const geoUnchanged = !addressInPayload
     ? true
     : payload.geo === null
@@ -1971,7 +1978,7 @@ async function autosaveClient(uid, payload) {
     payload.email === draft.email &&
     payload.phone === draft.phone &&
     payload.company === draft.company &&
-    payload.website === draft.website &&
+    (!websiteInPayload || payload.website === draft.website) &&
     (!addressInPayload || payload.address === draft.address) &&
     payload.notes === draft.notes &&
     normalizeClientKind(payload.kind) === wasKind &&
@@ -2028,7 +2035,7 @@ async function autosaveClient(uid, payload) {
       email: payload.email,
       phone: payload.phone,
       company: payload.company,
-      website: payload.website,
+      website: websiteInPayload ? payload.website : draft.website,
       address: nextAddress,
       addressWriteToken: clientAddressWriteToken,
       geo: nextGeo,
