@@ -11,13 +11,17 @@ const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
  * @param {object} opts
  * @param {string} opts.title
  * @param {string} [opts.hint]
+ * @param {string} [opts.emptyHint] — shown when the library has no items at all
+ * @param {string} [opts.emptyFilteredHint] — shown when items exist but none pass filter
  * @param {(item: object) => void|Promise<void>} opts.onPick
  * @param {(item: object) => boolean} [opts.filter] — return false to hide item
  */
 export function openMediaPicker(opts) {
   const title = opts.title || 'Choose from library';
-  const hint =
-    opts.hint || 'Pick a file from the media library, or upload one from the Media tab first.';
+  const hint = opts.hint || 'Pick a file from the media library.';
+  const emptyHint =
+    opts.emptyHint ||
+    'No matching files in the library yet. Upload one from the Media tab, or close and use the file picker on this form.';
   const filter = typeof opts.filter === 'function' ? opts.filter : () => true;
 
   const backdrop = document.getElementById('os-dialog-backdrop');
@@ -38,7 +42,7 @@ export function openMediaPicker(opts) {
     titleEl.textContent = title;
     actionsEl.innerHTML = '';
     bodyEl.innerHTML =
-      `<p class="prof-hint prof-hint--block">${escHtml(hint)}</p>` +
+      `<p class="prof-hint prof-hint--block" id="ml-picker-hint">${escHtml(hint)}</p>` +
       `<div class="ml-picker-grid" id="ml-picker-grid"><p class="prof-hint">Loading…</p></div>`;
 
     openOsDialogBackdrop();
@@ -53,11 +57,20 @@ export function openMediaPicker(opts) {
         const res = await adminFetch(`${MEDIA_API}?limit=200`);
         const json = await readAdminJson(res);
         if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-        const items = (Array.isArray(json.items) ? json.items : []).filter(filter);
+        const allItems = Array.isArray(json.items) ? json.items : [];
+        const items = allItems.filter(filter);
         const grid = bodyEl.querySelector('#ml-picker-grid');
+        const hintEl = bodyEl.querySelector('#ml-picker-hint');
         if (!(grid instanceof HTMLElement)) return;
         if (!items.length) {
-          grid.innerHTML = '<p class="prof-hint">No suitable images in the library yet. Upload one from the Media tab first.</p>';
+          // Empty copy replaces the hint so we don't stack the same instruction twice.
+          if (hintEl instanceof HTMLElement) hintEl.remove();
+          grid.classList.add('ml-picker-grid--empty');
+          const msg = allItems.length
+            ? opts.emptyFilteredHint ||
+              'None of the library files match this picker. Try a different file type or upload a new one from the Media tab.'
+            : emptyHint;
+          grid.innerHTML = `<p class="ml-picker-empty">${escHtml(msg)}</p>`;
           return;
         }
         grid.innerHTML = items

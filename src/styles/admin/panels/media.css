@@ -585,6 +585,20 @@
   margin-top: 0.65rem;
 }
 
+.ml-picker-grid--empty {
+  display: block;
+  max-height: none;
+  overflow: visible;
+}
+
+.ml-picker-empty {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .ml-picker-item {
   display: flex;
   flex-direction: column;

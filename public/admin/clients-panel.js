@@ -48,7 +48,7 @@ import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
-} from './media-picker.js?v=20260807a';
+} from './media-picker.js?v=20260811a';
 import {
   navigateToWork,
   mountClientWorkSection,
@@ -1154,6 +1154,11 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
   root.querySelector('#cl-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose contact logo',
+      hint: 'Choose a PNG, JPEG, or WebP under 2 MB.',
+      emptyHint:
+        'No logos in the library yet. Close and upload a file here, or add one from the Media tab.',
+      emptyFilteredHint:
+        'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-logo', uid);
@@ -1166,6 +1171,11 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
   root.querySelector('#cl-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose contact icon',
+      hint: 'Choose a PNG, JPEG, or WebP under 2 MB.',
+      emptyHint:
+        'No icons in the library yet. Close and upload a file here, or add one from the Media tab.',
+      emptyFilteredHint:
+        'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-icon', uid);

@@ -49,7 +49,7 @@ import {
   imageMediaFilter,
   projectFileMediaFilter,
   fetchMediaAsFile,
-} from './media-picker.js?v=20260807a';
+} from './media-picker.js?v=20260811a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
