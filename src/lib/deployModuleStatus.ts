@@ -182,10 +182,12 @@ export function shouldShowDeployBanner(feature: FeatureId): boolean {
   if (isDemoMode()) return demoShouldShowDeployBanner(feature);
   // Only installs that explicitly track moduleStatus (new client rollouts) show the banner.
   // Production configs like config-reave.json omit moduleStatus — modules are live or disabled via features[].
+  // Banner is for production-level setup in progress only (`development`), not wishlist
+  // (`request`) or finished/rejected modules. Product WIP stays on playbook defaultStatus.
   const raw = getInstallConfigSync().moduleStatus?.[feature];
   if (raw === undefined) return false;
   const status = normalizeStatus(raw, 'development');
-  return status !== 'deployed' && status !== 'rejected';
+  return status === 'development';
 }
 
 export function getUndeployedEnabledModules(): DeployModuleSnapshot[] {
