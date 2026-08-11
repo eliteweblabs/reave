@@ -30,7 +30,7 @@ const SYSTEM_NODES = [
 
   // App hub (Railway / hosting)
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
   { id: 'contacts_dash', title: 'Contacts editor', sub: '/admin/ · Contacts tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },

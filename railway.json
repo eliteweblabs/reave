@@ -6,6 +6,7 @@
   },
   "deploy": {
     "healthcheckPath": "/api/health/live",
-    "healthcheckTimeout": 300
+    "healthcheckTimeout": 300,
+    "drainingSeconds": 600
   }
 }
