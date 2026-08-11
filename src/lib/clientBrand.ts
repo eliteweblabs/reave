@@ -361,14 +361,41 @@ export async function setClientPortalAddress(
   uid: string,
   addressInput: string,
   geoInput?: ClientPortal['geo'] | null,
+  writeToken?: number | null,
 ): Promise<
-  | { ok: true; address: string; geo?: ClientPortal['geo'] }
+  | {
+      ok: true;
+      address: string;
+      geo?: ClientPortal['geo'];
+      addressWriteToken?: number;
+      stale?: boolean;
+    }
   | { ok: false; error: string }
 > {
   const res = await getContact(uid);
   if (!res.ok) return { ok: false, error: res.error };
 
   const portal = extractPortal(res.data) ?? {};
+  const existingToken =
+    typeof portal.addressWriteToken === 'number' && Number.isFinite(portal.addressWriteToken)
+      ? portal.addressWriteToken
+      : 0;
+  const incomingToken =
+    typeof writeToken === 'number' && Number.isFinite(writeToken) ? writeToken : null;
+
+  // Client abort does not cancel server work. A typed-blur PATCH that started
+  // before an autocomplete pick can finish geocoding later and clobber the
+  // selected address — reject older tokens so the pick always wins.
+  if (incomingToken != null && incomingToken < existingToken) {
+    return {
+      ok: true,
+      stale: true,
+      address: contactStringField(portal.address) || '',
+      geo: portal.geo,
+      addressWriteToken: existingToken,
+    };
+  }
+
   const address = addressInput.trim();
   let geo = geoInput ?? undefined;
 
@@ -393,9 +420,33 @@ export async function setClientPortalAddress(
     geo = undefined;
   }
 
+  // Re-check token after slow geocode — a newer pick may have landed meanwhile.
+  if (incomingToken != null) {
+    const latest = await getContact(uid);
+    if (latest.ok) {
+      const latestPortal = extractPortal(latest.data) ?? {};
+      const latestToken =
+        typeof latestPortal.addressWriteToken === 'number' &&
+        Number.isFinite(latestPortal.addressWriteToken)
+          ? latestPortal.addressWriteToken
+          : 0;
+      if (incomingToken < latestToken) {
+        return {
+          ok: true,
+          stale: true,
+          address: contactStringField(latestPortal.address) || '',
+          geo: latestPortal.geo,
+          addressWriteToken: latestToken,
+        };
+      }
+    }
+  }
+
+  const nextToken = incomingToken != null ? incomingToken : existingToken + 1;
   const nextPortal: Record<string, unknown> = {
     ...portal,
     updatedAt: new Date().toISOString(),
+    addressWriteToken: nextToken,
   };
   if (address) {
     nextPortal.address = address;
@@ -409,7 +460,12 @@ export async function setClientPortalAddress(
   const saved = await setContactPortal(uid, nextPortal as ClientPortal);
   if (!saved.ok) return { ok: false, error: saved.error };
 
-  return { ok: true, address, geo: address ? geo : undefined };
+  return {
+    ok: true,
+    address,
+    geo: address ? geo : undefined,
+    addressWriteToken: nextToken,
+  };
 }
 
 export { parseClientGeoInput };

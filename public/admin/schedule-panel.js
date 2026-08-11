@@ -47,7 +47,7 @@ import {
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
 import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810c';
-import { navigateToClient } from './clients-panel.js?v=20260811a';
+import { navigateToClient } from './clients-panel.js?v=20260811b';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -989,6 +989,7 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
   let pickInFlight = false;
   let lastPickAt = 0;
   let lastPickLabel = '';
+  let clearPickFlagTimer = null;
   async function pick(description) {
     const label = formatScheduleAddressLabel(description);
     const now = Date.now();
@@ -997,6 +998,10 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
     pickInFlight = true;
     lastPickLabel = label;
     lastPickAt = now;
+    if (clearPickFlagTimer) {
+      clearTimeout(clearPickFlagTimer);
+      clearPickFlagTimer = null;
+    }
     // Set synchronously before any await so blur handlers never persist the
     // typed query, and so onPick can PATCH the selected label immediately.
     addressInput.value = label;
@@ -1006,8 +1011,13 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
       if (typeof onPick === 'function') await onPick(label);
     } finally {
       addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-      delete addressInput.dataset.autocompletePick;
-      pickInFlight = false;
+      // Keep the pick flag briefly so deferred blur (iOS blur-before-click)
+      // still sees the selection and skips saving the typed query.
+      clearPickFlagTimer = setTimeout(() => {
+        clearPickFlagTimer = null;
+        delete addressInput.dataset.autocompletePick;
+        pickInFlight = false;
+      }, 400);
     }
   }
 
@@ -1026,17 +1036,23 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
       btn.type = 'button';
       btn.className = 'sched-guest-option';
       btn.textContent = formatScheduleAddressLabel(p.description);
+      const description = p.description;
+      // mousedown preventDefault: older Safari focus-change path.
+      btn.addEventListener('mousedown', (ev) => {
+        if (ev.button != null && ev.button !== 0) return;
+        ev.preventDefault();
+      });
       // pointerdown + preventDefault keeps focus on the input (avoids blur
       // saving the typed query) and selects before click on touch devices.
       btn.addEventListener('pointerdown', (ev) => {
         if (ev.button != null && ev.button !== 0) return;
         ev.preventDefault();
-        void pick(p.description);
+        void pick(description);
       });
       // Enter key nav uses .click(); guard in pick() ignores the duplicate.
       btn.addEventListener('click', (ev) => {
         ev.preventDefault();
-        void pick(p.description);
+        void pick(description);
       });
       dropdown.appendChild(btn);
     }
@@ -1097,6 +1113,7 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
 
   return () => {
     clearTimeout(schedAddressSearchTimer);
+    if (clearPickFlagTimer) clearTimeout(clearPickFlagTimer);
     addressInput.removeEventListener('input', onInput);
     addressInput.removeEventListener('blur', onBlur);
     detachKeyNav();

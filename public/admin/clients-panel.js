@@ -62,7 +62,7 @@ import {
 } from './work-panel.js?v=20260810c';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260811a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260811a';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260811b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
@@ -128,6 +128,10 @@ let clientPendingGeo = null;
 let destroyClientAddressAutocomplete = null;
 /** Bumped on autocomplete pick so an in-flight blur save cannot overwrite it. */
 let clientAddressCommitGen = 0;
+/** Monotonic token sent with address PATCHes; server rejects older tokens. */
+let clientAddressWriteToken = 0;
+/** Pending deferred address-blur save (iOS fires blur before option click). */
+let clientAddressBlurTimer = null;
 
 function destroyClientMap() {
   if (clientMapController) {
@@ -143,7 +147,23 @@ function clearClientFieldRegistry() {
     destroyClientAddressAutocomplete();
     destroyClientAddressAutocomplete = null;
   }
+  if (clientAddressBlurTimer) {
+    clearTimeout(clientAddressBlurTimer);
+    clientAddressBlurTimer = null;
+  }
   clientPendingGeo = null;
+}
+
+function nextClientAddressWriteToken() {
+  clientAddressWriteToken += 1;
+  return clientAddressWriteToken;
+}
+
+function cancelClientAddressBlurSave() {
+  if (clientAddressBlurTimer) {
+    clearTimeout(clientAddressBlurTimer);
+    clientAddressBlurTimer = null;
+  }
 }
 
 const CLIENT_FIELD_VALID = 'de-field-valid';
@@ -1391,6 +1411,10 @@ function renderEditClientForm(pane) {
         company: contact.company || '',
         website: data.website || contact.website || '',
         address: data.address || '',
+        addressWriteToken:
+          typeof data.addressWriteToken === 'number' && Number.isFinite(data.addressWriteToken)
+            ? data.addressWriteToken
+            : 0,
         geo: data.geo || null,
         notes: contact.notes || '',
         kind: clientKindFromRecord({ kind: data.kind, personal: data.personal ?? contact.personal }),
@@ -1406,6 +1430,11 @@ function renderEditClientForm(pane) {
       };
       clientState.dirty = false;
       clientState.autosaveGetPayload = null;
+      clientAddressWriteToken = Math.max(
+        clientAddressWriteToken,
+        Number(clientState.draft.addressWriteToken) || 0,
+      );
+      cancelClientAddressBlurSave();
       syncClientListAvatar(uid, {
         logoUrl: clientState.draft.logoUrl,
         iconUrl: clientState.draft.iconUrl,
@@ -1545,11 +1574,17 @@ function renderEditClientForm(pane) {
         getClientsEditor() || document.body,
         async (pickedAddress) => {
           cancelClientAutosaveTimer();
+          cancelClientAddressBlurSave();
           clientActiveField = addressInput;
           const commitGen = ++clientAddressCommitGen;
-          // Persist the selected label immediately — waiting on geocode let
-          // blur/keystroke races PATCH the typed query and win the race.
-          await saveNowRef({ commitAddress: true, address: pickedAddress });
+          const writeToken = nextClientAddressWriteToken();
+          // Persist the selected dropdown label immediately — never the typed
+          // query. Waiting on geocode let blur races PATCH typed text and win.
+          await saveNowRef({
+            commitAddress: true,
+            address: pickedAddress,
+            addressWriteToken: writeToken,
+          });
           if (commitGen !== clientAddressCommitGen) return;
           clientPendingGeo = await geocodeClientAddressPreview(pickedAddress);
           if (commitGen !== clientAddressCommitGen) return;
@@ -1565,6 +1600,7 @@ function renderEditClientForm(pane) {
               commitAddress: true,
               address: pickedAddress,
               geo: clientPendingGeo,
+              addressWriteToken: writeToken,
             });
           }
         },
@@ -1639,7 +1675,7 @@ function renderEditClientForm(pane) {
       // Address is committed only on autocomplete pick, blur, clear, or flush.
       // Keystroke debounce must not PATCH partial typed text — that races the
       // select save and leaves the typed query after refresh.
-      const getPayload = ({ commitAddress = false, address, geo } = {}) => {
+      const getPayload = ({ commitAddress = false, address, geo, addressWriteToken } = {}) => {
         const firstName = firstNameInput.value.trim();
         const lastName = lastNameInput.value.trim();
         const company = companyInput.value.trim();
@@ -1655,6 +1691,8 @@ function renderEditClientForm(pane) {
         if (commitAddress) {
           payload.address =
             address != null ? String(address).trim() : addressInput.value.trim();
+          payload.addressWriteToken =
+            addressWriteToken != null ? addressWriteToken : nextClientAddressWriteToken();
           if (geo !== undefined) {
             if (geo) payload.geo = geo;
             else if (!payload.address) payload.geo = null;
@@ -1685,18 +1723,27 @@ function renderEditClientForm(pane) {
         scheduleClientAutosave(uid, () => getPayload({ commitAddress: false }));
       };
       queueAutosaveRef = queueAutosave;
-      const saveNow = async ({ commitAddress = false, address, geo } = {}) => {
+      const saveNow = async ({ commitAddress = false, address, geo, addressWriteToken } = {}) => {
         cancelClientAutosaveTimer();
         markDirty();
-        await autosaveClient(uid, getPayload({ commitAddress, address, geo }));
+        await autosaveClient(
+          uid,
+          getPayload({ commitAddress, address, geo, addressWriteToken }),
+        );
       };
       saveNowRef = saveNow;
       addressClearActions.fn = () => {
         cancelClientAutosaveTimer();
+        cancelClientAddressBlurSave();
         clientAddressCommitGen += 1;
         clientPendingGeo = null;
         clientMapController?.setLocation(null, null, '');
-        void saveNowRef({ commitAddress: true, address: '', geo: null });
+        void saveNowRef({
+          commitAddress: true,
+          address: '',
+          geo: null,
+          addressWriteToken: nextClientAddressWriteToken(),
+        });
       };
       for (const el of [
         companyInput,
@@ -1728,20 +1775,37 @@ function renderEditClientForm(pane) {
           clientActiveField = el;
           void (async () => {
             if (el === addressInput) {
-              // Skip if a dropdown pick is in flight — blur often races the
-              // option pointerdown and would otherwise PATCH the typed query.
-              if (addressInput.dataset.autocompletePick) return;
+              // iOS (and some desktop cases) fire blur *before* the dropdown
+              // option's pointerdown/click. Defer so pick can claim commitGen
+              // and write the selected label instead of the typed query.
+              cancelClientAddressBlurSave();
               const blurGen = clientAddressCommitGen;
-              if (addressInput.value.trim()) {
-                const geo = await geocodeClientAddressPreview(addressInput.value);
-                if (blurGen !== clientAddressCommitGen) return;
-                if (geo) {
-                  clientPendingGeo = geo;
-                  clientMapController?.setLocation(geo.lat, geo.lng, addressInput.value.trim());
-                }
-              }
-              if (blurGen !== clientAddressCommitGen) return;
-              await saveNow({ commitAddress: true });
+              const typedSnapshot = addressInput.value.trim();
+              clientAddressBlurTimer = setTimeout(() => {
+                clientAddressBlurTimer = null;
+                void (async () => {
+                  if (blurGen !== clientAddressCommitGen) return;
+                  if (addressInput.dataset.autocompletePick) return;
+                  // Prefer the live field value (pick may have replaced typed text
+                  // even if commitGen wasn't bumped yet in an older path).
+                  const value = addressInput.value.trim() || typedSnapshot;
+                  if (value) {
+                    const geo = await geocodeClientAddressPreview(value);
+                    if (blurGen !== clientAddressCommitGen) return;
+                    if (geo) {
+                      clientPendingGeo = geo;
+                      clientMapController?.setLocation(geo.lat, geo.lng, value);
+                    }
+                  }
+                  if (blurGen !== clientAddressCommitGen) return;
+                  if (addressInput.dataset.autocompletePick) return;
+                  await saveNow({
+                    commitAddress: true,
+                    address: addressInput.value.trim() || typedSnapshot,
+                    addressWriteToken: nextClientAddressWriteToken(),
+                  });
+                })();
+              }, 350);
               return;
             }
             await saveNow();
@@ -1882,6 +1946,7 @@ function scheduleClientAutosave(uid, getPayload) {
 async function flushClientAutosave() {
   await flushClientVaultSave();
   cancelClientAutosaveTimer();
+  cancelClientAddressBlurSave();
   const uid = clientState.activeUid;
   if (!uid || uid === '__new__' || !clientState.autosaveGetPayload) return;
   await autosaveClient(uid, clientState.autosaveGetPayload());
@@ -1948,6 +2013,14 @@ async function autosaveClient(uid, payload) {
       : payload.address
         ? (data.geo ?? clientPendingGeo ?? clientState.draft.geo)
         : (data.geo ?? null);
+    if (addressInPayload) {
+      const returnedToken = Number(data.addressWriteToken);
+      if (Number.isFinite(returnedToken)) {
+        clientAddressWriteToken = Math.max(clientAddressWriteToken, returnedToken);
+      } else if (typeof payload.addressWriteToken === 'number') {
+        clientAddressWriteToken = Math.max(clientAddressWriteToken, payload.addressWriteToken);
+      }
+    }
     Object.assign(clientState.draft, {
       name: payload.name,
       firstName: nameParts.firstName,
@@ -1957,6 +2030,7 @@ async function autosaveClient(uid, payload) {
       company: payload.company,
       website: payload.website,
       address: nextAddress,
+      addressWriteToken: clientAddressWriteToken,
       geo: nextGeo,
       notes: payload.notes,
       kind: normalizeClientKind(payload.kind),

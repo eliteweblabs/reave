@@ -301,6 +301,12 @@ export type ClientPortal = {
   brandAccent?: string;
   /** Client street / mailing address (shown on admin client page + optional portal). */
   address?: string;
+  /**
+   * Monotonic token for address writes. Concurrent PATCHes (typed blur vs
+   * autocomplete pick) can finish out of order after Mapbox geocode; the server
+   * ignores writes whose token is older than the portal's current token.
+   */
+  addressWriteToken?: number;
   /** Geocoded coordinates for `address`. */
   geo?: ClientPortalGeo;
   /** Normalized weekly opening hours (Google Places, or parsed from the Hours field). */
@@ -825,6 +831,10 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
     website: contactStringField(raw.website) || undefined,
     tagline: contactStringField(raw.tagline) || undefined,
     address: contactStringField(raw.address) || undefined,
+    addressWriteToken:
+      typeof raw.addressWriteToken === 'number' && Number.isFinite(raw.addressWriteToken)
+        ? raw.addressWriteToken
+        : undefined,
     geo:
       raw.geo &&
       typeof raw.geo === 'object' &&

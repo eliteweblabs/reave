@@ -147,20 +147,30 @@ async function saveClientPortalFields(
 
   let address = '';
   let geo: ReturnType<typeof parseClientGeoInput> | null = null;
+  let addressWriteToken: number | undefined;
   if (typeof body.address === 'string') {
     const geoInput =
       body.geo === null ? null : body.geo != null ? parseClientGeoInput(body.geo) : undefined;
-    const saved = await setClientPortalAddress(uid, body.address, geoInput);
+    const writeToken =
+      typeof body.addressWriteToken === 'number' && Number.isFinite(body.addressWriteToken)
+        ? body.addressWriteToken
+        : null;
+    const saved = await setClientPortalAddress(uid, body.address, geoInput, writeToken);
     if (!saved.ok) return { ok: false as const, error: saved.error };
     address = saved.address;
     geo = saved.geo ?? null;
+    addressWriteToken = saved.addressWriteToken;
   } else {
     const portal = extractPortal(contactData);
     address = contactStringField(portal?.address) || '';
     geo = portal?.geo ?? null;
+    addressWriteToken =
+      typeof portal?.addressWriteToken === 'number' && Number.isFinite(portal.addressWriteToken)
+        ? portal.addressWriteToken
+        : undefined;
   }
 
-  return { ok: true as const, website, address, geo };
+  return { ok: true as const, website, address, geo, addressWriteToken };
 }
 
 async function clientPortalBranding(uid: string) {
@@ -231,6 +241,10 @@ export const GET: APIRoute = async (context) => {
     kind: getClientKind(contact),
     website,
     address: contactStringField(portal?.address) || '',
+    addressWriteToken:
+      typeof portal?.addressWriteToken === 'number' && Number.isFinite(portal.addressWriteToken)
+        ? portal.addressWriteToken
+        : undefined,
     geo: portal?.geo ?? null,
     logoUrl,
     iconUrl,
@@ -288,6 +302,7 @@ export const PATCH: APIRoute = async (context) => {
     kind: getClientKind(savedContact),
     website: portalSaved.website,
     address: portalSaved.address,
+    addressWriteToken: portalSaved.addressWriteToken,
     geo: portalSaved.geo,
     logoUrl: branding.logoUrl,
     iconUrl: branding.iconUrl,
@@ -345,6 +360,7 @@ export const PUT: APIRoute = async (context) => {
     kind: getClientKind(savedContact),
     website: portalSaved.website,
     address: portalSaved.address,
+    addressWriteToken: portalSaved.addressWriteToken,
     geo: portalSaved.geo,
     logoUrl: branding.logoUrl,
     iconUrl: branding.iconUrl,
