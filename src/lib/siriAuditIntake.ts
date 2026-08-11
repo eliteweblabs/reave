@@ -7,7 +7,9 @@ import {
   getContact,
   hasExplicitClientKind,
   setContactKind,
+  type PlacesListingRecord,
 } from './contactApi';
+import { enrichContactAddressFromPlaces } from './contactAddressFromPlaces';
 import {
   ensureWorkContact,
   isSafeWorkSlug,
@@ -69,7 +71,14 @@ async function uniqueAuditSlug(base: string): Promise<string> {
 export async function createSiriAuditStubProject(
   input: SiriAuditStubInput,
 ): Promise<
-  | { ok: true; slug: string; title: string; contactUid: string; contactName: string }
+  | {
+      ok: true;
+      slug: string;
+      title: string;
+      contactUid: string;
+      contactName: string;
+      placesListing: PlacesListingRecord | null;
+    }
   | { ok: false; error: string }
 > {
   const business = input.business.trim();
@@ -95,6 +104,19 @@ export async function createSiriAuditStubProject(
     }
   }
 
+  // Await Places lookup so "not listed" is known before research starts and can
+  // be forced into the finished audit (agent prose alone is not enough).
+  let placesListing: PlacesListingRecord | null = null;
+  try {
+    const places = await enrichContactAddressFromPlaces(contact.uid);
+    placesListing = places.listing;
+  } catch (e) {
+    console.warn(
+      '[siri-audit] Places address lookup failed',
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   const slug = await uniqueAuditSlug(`auditing-${business}`);
   const startedAt = new Date().toISOString();
   const title = stubTitle(business);
@@ -118,5 +140,6 @@ export async function createSiriAuditStubProject(
     title: written.doc.title,
     contactUid: contact.uid,
     contactName: contact.name,
+    placesListing,
   };
 }

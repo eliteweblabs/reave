@@ -268,7 +268,7 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     if (!saved.ok) return JSON.stringify({ error: saved.error });
   }
 
-  await enrichContactAddressFromPlaces(uid);
+  const places = await enrichContactAddressFromPlaces(uid);
 
   const website = typeof args.website === 'string' ? args.website.trim() : '';
   if (website) {
@@ -289,6 +289,9 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     website: website || null,
     kind,
     portal_url: clientPortalUrl(uid),
+    /** Google Places exact address match — when not_listed, audits must surface it. */
+    placesListing: places.listing,
+    googlePlacesListed: places.listing.status === 'matched',
   });
 }
 

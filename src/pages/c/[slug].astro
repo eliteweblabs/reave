@@ -45,6 +45,7 @@ import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
 import PortalAuditPanel from '../../components/PortalAuditPanel.astro';
 import { buildAuditReportCard, isAuditJob } from '../../lib/auditReportCard';
+import { googlePlacesListedFlag } from '../../lib/auditPlacesListing';
 import SiteFooter from '../../components/SiteFooter.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -277,6 +278,7 @@ const portalJobsBuilt: PortalJobBuilt[] = await Promise.all(
       title: job.title,
       body: bodyRaw,
       clientName: company || displayName,
+      googlePlacesListed: googlePlacesListedFlag(portal?.placesListing),
     });
     const isAudit = Boolean(auditReport) || isAuditJob({
       tags: job.tags,

@@ -6,7 +6,12 @@
  * Digital Audit page — do not duplicate this flow elsewhere.
  */
 
-import { isContactApiConfigured } from './contactApi';
+import {
+  extractPortal,
+  getContact,
+  isContactApiConfigured,
+  type PlacesListingRecord,
+} from './contactApi';
 import { runKnowledgeAgent } from './agentRunner';
 import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from './adminAgentAlert';
 import { createLogger } from './logger';
@@ -18,6 +23,8 @@ import {
   type SiriAuditTier,
 } from './siriAuditRuns';
 import { clearAgentProgress } from './agentProgress';
+import { ensureGooglePlacesNotListedInAuditBody } from './auditPlacesListing';
+import { storeReadWork, storeWriteWork } from './workStore';
 
 const log = createLogger('siri-proposal');
 
@@ -129,6 +136,7 @@ export async function startAuditProposal(
     userId,
     triggerLabel: options.triggerLabel || 'Siri shortcut',
     bypassSleepMode: options.bypassSleepMode === true,
+    placesListing: stub.placesListing,
   }).catch((e) => {
     log.error('background research failed', e instanceof Error ? e : new Error(String(e)));
   });
@@ -166,6 +174,7 @@ async function runProposalResearch(input: {
   userId: string | null;
   triggerLabel: string;
   bypassSleepMode: boolean;
+  placesListing?: PlacesListingRecord | null;
 }): Promise<void> {
   const givenLines = [
     input.business ? `Business name: ${input.business}` : null,
@@ -179,23 +188,49 @@ async function runProposalResearch(input: {
     input.tier === 'full' ? 'inquiry-website-audit' : 'inquiry-website-audit-quick';
   const tierLabel = input.tier === 'full' ? 'Full audit' : 'Quick audit (street)';
 
+  const directorySearch =
+    'Google Business Profile / Google Places, Apple Business Connect / Apple Maps, Yelp, Bing Places, reviews/reputation, social';
+
   const auditToolsStep =
     input.tier === 'full'
       ? '3. Run the **full** audit tool sequence on the website: fetch_url, seo_inventory (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD), ' +
-        'lighthouse_audit, ssl_check, check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
+        `lighthouse_audit, ssl_check, check_links, dns_check, brave_search (${directorySearch}), ` +
         'playwright_audit (Playwright / Chromium real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
         '(gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps and plausible_stats or ga4_stats when site_id/property_id is known — ' +
         'always pass explicit site_url; never company domain). Run read-only tools in parallel when possible. ' +
         'Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry. ' +
         'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections. ' +
-        'In the SEO and Search Rich Results sections, quote seo_inventory findings and copy Problem → Impact pitches into Opportunities.'
+        'In the SEO and Search Rich Results sections, quote seo_inventory findings and copy Problem → Impact pitches into Opportunities. ' +
+        'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places so the Maps & Directories score stays accurate.'
       : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, seo_inventory ' +
         '(og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD — required for customer pitches), ' +
         'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
-        '(Google Business Profile, Yelp, reviews/reputation, social). Do **not** run playwright_audit, check_links, ' +
+        `(${directorySearch}). Do **not** run playwright_audit, check_links, ` +
         'detect_tech_stack, or Search/Analytics tools — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
         'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry. ' +
-        'Quote seo_inventory checklist items and Problem → Impact pitches in SEO / Opportunities.';
+        'Quote seo_inventory checklist items and Problem → Impact pitches in SEO / Opportunities. ' +
+        'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places.';
+
+  const placesLines: string[] = [];
+  if (input.placesListing?.status === 'not_listed') {
+    const q = input.placesListing.query || input.business;
+    placesLines.push(
+      '',
+      'CRITICAL — Google Places API (already checked when the contact was created):',
+      `Google Places returned **no exact address match** for "${q}". ` +
+        `${input.business || 'This business'} is **not listed in the Google Places API**. ` +
+        'You MUST state this explicitly in the Online Presence section as ' +
+        '`Google Business Profile: Missing — not listed in the Google Places API (no exact address match)` ' +
+        'and include a Problem → Solution opportunity about claiming / creating their Google Business Profile. ' +
+        'Do not soften or omit this — the client must be 100% aware.',
+    );
+  } else if (input.placesListing?.status === 'matched' && input.placesListing.address) {
+    placesLines.push(
+      '',
+      `Google Places API matched an address when the contact was created: ${input.placesListing.address}. ` +
+        'Still verify Google Business Profile completeness (hours, photos, claim status) via brave_search.',
+    );
+  }
 
   const userText = [
     `${input.triggerLabel} "${tierLabel}" was triggered with only the raw information below — there is no one ` +
@@ -209,6 +244,7 @@ async function runProposalResearch(input: {
       'Do **not** call create_work. Use update_work on that slug with the full audit body and a new title.',
     '',
     ...givenLines,
+    ...placesLines,
     '',
     `Follow the ${tierLabel.toLowerCase()} playbook (read_knowledge slug "${knowledgeSlug}" first):`,
     '1. If no URL was given, use brave_search with the full business description (plus phone/email if provided) ' +
@@ -256,6 +292,19 @@ async function runProposalResearch(input: {
     }
   }
 
+  // Hard guarantee: if Places had no exact address match, the finished audit
+  // body always says so — even when the agent softens or omits the finding.
+  await ensurePlacesNotListedOnAuditWork({
+    jobSlug: input.jobSlug,
+    contactUid: input.contactUid,
+    business: input.business,
+    placesListing: input.placesListing,
+  }).catch((e) =>
+    log.warn('places audit inject failed', {
+      err: e instanceof Error ? e.message : String(e),
+    }),
+  );
+
   await notifyAdminAgentOfSiriProposalComplete({
     label: input.label,
     reply,
@@ -268,4 +317,47 @@ async function runProposalResearch(input: {
       err: e instanceof Error ? e.message : String(e),
     }),
   );
+}
+
+async function ensurePlacesNotListedOnAuditWork(input: {
+  jobSlug: string;
+  contactUid: string;
+  business: string;
+  placesListing?: PlacesListingRecord | null;
+}): Promise<void> {
+  let listing = input.placesListing ?? null;
+  if (listing?.status !== 'not_listed' && input.contactUid) {
+    const contact = await getContact(input.contactUid);
+    if (contact.ok) {
+      listing = extractPortal(contact.data)?.placesListing ?? listing;
+    }
+  }
+  if (listing?.status !== 'not_listed') return;
+
+  const doc = await storeReadWork(input.jobSlug);
+  if (!doc?.body?.trim()) return;
+  if (/siri audit in progress/i.test(doc.body)) return;
+
+  const nextBody = ensureGooglePlacesNotListedInAuditBody(doc.body, {
+    businessName: input.business || doc.contact_name || '',
+    query: listing.query,
+  });
+  if (nextBody === doc.body) return;
+
+  const written = await storeWriteWork(input.jobSlug, {
+    title: doc.title,
+    contact_uid: doc.contact_uid || input.contactUid,
+    contact_name: doc.contact_name,
+    status: doc.status,
+    priority: doc.priority,
+    due_date: doc.due_date,
+    value: doc.value,
+    tags: doc.tags,
+    source: doc.source,
+    source_chat_id: doc.source_chat_id,
+    body: nextBody,
+  });
+  if (!written.ok) {
+    log.warn('places audit inject write failed', { err: written.error });
+  }
 }
