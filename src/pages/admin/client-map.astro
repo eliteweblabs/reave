@@ -33,10 +33,10 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
     <title>Contact map</title>
     <meta name="robots" content="noindex, nofollow" />
     <!--
-      Styles must be global: the map chrome/pins are built in clients-geo-map.js,
-      so Astro scoped selectors never match those nodes (black map + native checkboxes).
+      is:inline keeps CSS in the HTML (no /_astro extract). JS also injects the
+      same critical rules + inline layout, so the map cannot go blank again.
     -->
-    <style is:global>
+    <style is:inline>
       :root {
         --bg: #0d1117;
         --fg: #e9eef6;
