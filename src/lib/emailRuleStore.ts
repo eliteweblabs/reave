@@ -10,7 +10,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
-import { DEFAULT_RULES, NOTIFY_ON_UNMATCHED, type EmailRule, type MatchMode, type RuleField } from './emailRules';
+import {
+  DEFAULT_RULES,
+  NOTIFY_ON_UNMATCHED,
+  isAuthLinkRuleStatus,
+  isSilentTriageStatus,
+  isVerificationCodeRuleStatus,
+  type EmailRule,
+  type MatchMode,
+  type RuleField,
+} from './emailRules';
 
 export interface EmailRuleRecord extends EmailRule {
   id: string;
@@ -370,42 +379,115 @@ export async function loadEmailRulesConfig(): Promise<EmailRulesConfig> {
 /** Phrases that wrongly filed income (“Payment of $… from …”) as tax receipts. */
 const INCOME_MISFILE_PHRASES = new Set(['payment of $', 'your invoice from']);
 
+/**
+ * Bare "Security alert" on NEEDS_CHECK stomped sender-specific Google DELETE rules
+ * (same phrase, earlier sort order). Strip it from persisted copies on load.
+ */
+const NEEDS_CHECK_STRIP_PHRASES = new Set(['security alert']);
+
 /** Insert any new DEFAULT_RULES statuses missing from persisted config (e.g. RAILWAY_ALERT). */
 async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
   const present = new Set(config.rules.map((r) => r.status.toUpperCase()));
   const missing = DEFAULT_RULES.filter((r) => !present.has(r.status.toUpperCase()));
   const receiptDefault = DEFAULT_RULES.find((r) => r.status === 'RECEIPT');
+  const needsCheckDefault = DEFAULT_RULES.find((r) => r.status === 'NEEDS_CHECK');
 
-  let receiptPhrasesFixed = false;
+  let phrasesFixed = false;
   const rules = config.rules.map((r) => {
-    if (r.status.toUpperCase() !== 'RECEIPT') return r;
-    const nextPhrases = r.phrases.filter((p) => !INCOME_MISFILE_PHRASES.has(p.trim().toLowerCase()));
-    if (nextPhrases.length === r.phrases.length) return r;
-    receiptPhrasesFixed = true;
-    return {
-      ...r,
-      phrases: nextPhrases.length ? nextPhrases : (receiptDefault?.phrases ?? nextPhrases),
-      description: receiptDefault?.description ?? r.description,
-      title: receiptDefault ? ruleTitleFromDefaults(receiptDefault) : r.title,
-    };
+    const status = r.status.toUpperCase();
+    if (status === 'RECEIPT') {
+      const nextPhrases = r.phrases.filter((p) => !INCOME_MISFILE_PHRASES.has(p.trim().toLowerCase()));
+      if (nextPhrases.length === r.phrases.length) return r;
+      phrasesFixed = true;
+      return {
+        ...r,
+        phrases: nextPhrases.length ? nextPhrases : (receiptDefault?.phrases ?? nextPhrases),
+        description: receiptDefault?.description ?? r.description,
+        title: receiptDefault ? ruleTitleFromDefaults(receiptDefault) : r.title,
+      };
+    }
+    if (status === 'NEEDS_CHECK') {
+      const nextPhrases = r.phrases.filter(
+        (p) => !NEEDS_CHECK_STRIP_PHRASES.has(p.trim().toLowerCase()),
+      );
+      if (nextPhrases.length === r.phrases.length) return r;
+      phrasesFixed = true;
+      return {
+        ...r,
+        phrases: nextPhrases.length ? nextPhrases : (needsCheckDefault?.phrases ?? nextPhrases),
+        description: needsCheckDefault?.description ?? r.description,
+      };
+    }
+    return r;
   });
 
-  if (!missing.length && !receiptPhrasesFixed) return config;
+  if (!missing.length && !phrasesFixed) {
+    const elevated = elevateSenderSilentRules(rules);
+    if (!elevated.changed) return config;
+    const mergedElevated: EmailRulesConfig = { ...config, rules: elevated.rules };
+    await persistConfig(mergedElevated);
+    return mergedElevated;
+  }
 
+  const withMissing: EmailRuleRecord[] = [
+    ...rules,
+    ...missing.map((r, i) => ({
+      ...r,
+      id: randomUUID(),
+      title: ruleTitleFromDefaults(r),
+      sortOrder: rules.length + i,
+    })),
+  ];
+  const elevated = elevateSenderSilentRules(withMissing);
   const merged: EmailRulesConfig = {
     ...config,
-    rules: [
-      ...rules,
-      ...missing.map((r, i) => ({
-        ...r,
-        id: randomUUID(),
-        title: ruleTitleFromDefaults(r),
-        sortOrder: rules.length + i,
-      })),
-    ],
+    rules: elevated.rules,
   };
   await persistConfig(merged);
   return merged;
+}
+
+/**
+ * Sender-specific silent rules (from + DELETE/notify:false) belong just after
+ * OTP/auth — otherwise a broad NEEDS_CHECK earlier in the table always wins.
+ */
+function elevateSenderSilentRules(rules: EmailRuleRecord[]): {
+  rules: EmailRuleRecord[];
+  changed: boolean;
+} {
+  const pinned = rules.filter(
+    (r) => isVerificationCodeRuleStatus(r.status) || isAuthLinkRuleStatus(r.status),
+  );
+  const elevate = rules.filter(
+    (r) =>
+      r.enabled &&
+      r.fields.includes('from') &&
+      (!r.notify || isSilentTriageStatus(r.status)) &&
+      !isVerificationCodeRuleStatus(r.status) &&
+      !isAuthLinkRuleStatus(r.status),
+  );
+  if (!elevate.length) return { rules, changed: false };
+
+  const elevateIds = new Set(elevate.map((r) => r.id));
+  const rest = rules.filter(
+    (r) =>
+      !elevateIds.has(r.id) &&
+      !isVerificationCodeRuleStatus(r.status) &&
+      !isAuthLinkRuleStatus(r.status),
+  );
+
+  // Already correctly ordered? First non-pinned/non-elevated should not sit between
+  // pinned and elevate groups with a lower sort than elevate max while elevate is late.
+  const afterPinned = pinned.reduce((m, r) => Math.max(m, r.sortOrder), -1);
+  const firstRest = rest.reduce((m, r) => Math.min(m, r.sortOrder), Number.POSITIVE_INFINITY);
+  const allElevateBeforeRest = elevate.every((r) => r.sortOrder < firstRest);
+  const allElevateAfterPinned = elevate.every((r) => r.sortOrder > afterPinned);
+  if (allElevateBeforeRest && allElevateAfterPinned) {
+    return { rules, changed: false };
+  }
+
+  const ordered = [...pinned, ...elevate, ...rest].map((r, i) => ({ ...r, sortOrder: i }));
+  return { rules: ordered, changed: true };
 }
 
 /** Active enabled (and non-expired) rules in sort order for classification. */
@@ -480,20 +562,49 @@ export async function storeGetEmailRule(id: string): Promise<EmailRuleRecord | n
   return config.rules.find((r) => r.id === id) ?? null;
 }
 
+/**
+ * Sender-specific silent rules must beat broad alert catch-alls.
+ * Insert just after pinned OTP/auth rules; shift the rest down.
+ * Catch-all junk (no `from` field) still appends at the end.
+ */
+function shouldElevateNewRule(input: RuleInput): boolean {
+  if (!input.fields.includes('from')) return false;
+  if (!input.notify) return true;
+  return isSilentTriageStatus(input.status);
+}
+
+function sortOrderForNewRule(config: EmailRulesConfig, elevate: boolean): number {
+  if (!elevate) {
+    return config.rules.reduce((m, r) => Math.max(m, r.sortOrder), -1) + 1;
+  }
+  let afterPinned = -1;
+  for (const r of config.rules) {
+    if (isVerificationCodeRuleStatus(r.status) || isAuthLinkRuleStatus(r.status)) {
+      afterPinned = Math.max(afterPinned, r.sortOrder);
+    }
+  }
+  const sortOrder = afterPinned + 1;
+  for (const r of config.rules) {
+    if (r.sortOrder >= sortOrder) r.sortOrder += 1;
+  }
+  return sortOrder;
+}
+
 export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleRecord | null> {
   const clean = sanitizeInput(input);
   if (!clean) return null;
   const config = await loadEmailRulesConfig();
-  const maxOrder = config.rules.reduce((m, r) => Math.max(m, r.sortOrder), -1);
   const now = new Date().toISOString();
+  const sortOrder = sortOrderForNewRule(config, shouldElevateNewRule(clean));
   const record: EmailRuleRecord = {
     id: randomUUID(),
-    sortOrder: maxOrder + 1,
+    sortOrder,
     ...clean,
     createdAt: now,
     updatedAt: now,
   };
   config.rules.push(record);
+  config.rules.sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)));
   if (!(await persistConfig(config))) return null;
   return record;
 }

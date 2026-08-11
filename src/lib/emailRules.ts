@@ -11,7 +11,8 @@
  * Instead, rules match subject and body language so they generalise across
  * any sending address.
  *
- * Rule order matters: first enabled match wins.
+ * Triage is sequential priority — never parallel.
+ * First enabled match wins; later rules are skipped (short-circuit).
  * `VERIFICATION_CODE` then `AUTH_LINK` are always evaluated first (regex via
  * emailOtpParser / emailAuthLinkParser) on every installation — even when
  * persisted sort order differs. Auth-link mail must never fall through to
@@ -20,6 +21,8 @@
  * Keep high-signal operational alerts (RAILWAY, DOWN, NEEDS_CHECK) ABOVE
  * catch-all filing rules (RECEIPT, AUTO_ARCHIVED, DELETE) so a Railway build
  * failure is never silently mis-classified as a receipt.
+ * Sender-specific silent rules (from-field DELETE / notify:false) are inserted
+ * just after OTP/auth so they beat broad alert catch-alls — not the reverse.
  */
 
 import { isAuthLinkEmail } from './emailAuthLinkParser';
@@ -217,9 +220,9 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'NEEDS_CHECK',
-    description: 'Security and auth alerts — flag for review.',
+    description:
+      'Security and auth alerts — flag for review. Deliberately omits bare "Security alert" so Google Account sign-in notices can be auto-junked by a sender-specific DELETE rule without fighting this catch-all.',
     phrases: [
-      'Security alert',
       'sign in was removed',
       'App password used',
       'unusual sign-in',
@@ -344,8 +347,8 @@ export function isUptimeRobotEmail(
 }
 
 /**
- * Classify an inbound email against the rule table. First matching enabled rule
- * (in table order) wins.
+ * Classify an inbound email against the rule table.
+ * First matching enabled rule (in table / sort order) wins; evaluation stops.
  */
 export function classifyEmail(
   email: InboundEmail,
@@ -377,8 +380,15 @@ export function classifyEmail(
   for (const rule of rules) {
     if (isVerificationCodeRuleStatus(rule.status) || isAuthLinkRuleStatus(rule.status)) continue;
     if (ruleMatches(rule, email)) {
+      // Short-circuit: do not evaluate remaining rules.
       return { status: rule.status, matched: rule, notify: rule.notify };
     }
   }
   return { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
+}
+
+/** True when a matched rule means silent file/junk — no dashboard or push. */
+export function isSilentTriageStatus(status: string): boolean {
+  const s = status.toUpperCase();
+  return s === 'DELETE' || s === 'JUNK' || s === 'AUTO_ARCHIVED' || s === 'RECEIPT';
 }

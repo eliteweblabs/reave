@@ -132,7 +132,7 @@ import {
   storeDeleteEmailRule,
   storeListEmailRules,
 } from '../../emailRuleStore';
-import type { RuleField } from '../../emailRules';
+import type { MatchMode, RuleField } from '../../emailRules';
 import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
 import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
@@ -381,6 +381,18 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     forwardRaw != null && String(forwardRaw).trim() ? String(forwardRaw).trim() : null;
   const statusRaw = String(args.status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
   const status = statusRaw || 'DELETE';
+
+  // Sender + subject/body phrases: match across from+subject+body.
+  // When both are present, require ALL phrases (sender AND "Security alert") so
+  // we don't junk every message from accounts.google.com.
+  const hasExtraPhrases = extra.length > 0;
+  const fields: RuleField[] = sender
+    ? hasExtraPhrases
+      ? (['from', 'subject', 'body'] as RuleField[])
+      : (['from'] as RuleField[])
+    : (['subject', 'body'] as RuleField[]);
+  const matchMode: MatchMode = sender && hasExtraPhrases ? 'all' : 'any';
+
   const rule = await storeCreateEmailRule({
     title,
     status,
@@ -388,8 +400,8 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       ? 'Auto-junk + forward — created by agent from inbox triage'
       : 'Auto-junk — created by agent from inbox triage',
     phrases,
-    matchMode: 'any',
-    fields: sender ? (['from'] as RuleField[]) : (['subject', 'body'] as RuleField[]),
+    matchMode,
+    fields,
     notify: false,
     enabled: true,
     expiresAt,
@@ -404,8 +416,10 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       status: rule.status,
       phrases: rule.phrases,
       fields: rule.fields,
+      matchMode: rule.matchMode,
       forwardTo: rule.forwardTo ?? null,
       expiresAt: rule.expiresAt ?? null,
+      sortOrder: rule.sortOrder,
     },
   });
 }
@@ -546,7 +560,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create a triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Optional forward_to relays matched mail to an external address via Resend. Rules are indefinite by default. When the user mentions an expiration ("for 7 days", "until Friday", "expires next month"), set expires_at (ISO) or expires_in_days. Skips if an enabled rule already matches the same sender phrase.',
+                'Create a triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls) so first-match triage honors them. When both sender and phrases are set, matchMode is "all" across from+subject+body. Optional forward_to relays matched mail via Resend. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO) or expires_in_days. Skips if an enabled rule already matches the same sender phrase.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -557,7 +571,8 @@ export const emailInboxModule: AgentToolModule = {
                   phrases: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Optional extra match phrases (subject/body). sender is always added when provided.',
+                    description:
+                      'Optional extra match phrases (subject/body). Combined with sender when both are set (AND).',
                   },
                   title: {
                     type: 'string',
