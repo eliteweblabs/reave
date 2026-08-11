@@ -68,19 +68,17 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
   lines.push(
     '',
-    'Railway deploy failure webhook — incident handler will acquire a repo lock and auto-investigate.',
-    'Duplicate webhooks/emails for the same GitHub repo are suppressed while an incident is open.',
+    'Auto-repair chat will open with Railway logs — agent should fix without waiting.',
   );
   return lines.join('\n');
 }
 
 /**
- * Railway project webhook → admin System alerts chat.
+ * Railway project webhook → admin repair chat + deploy indicator.
  *
- * Deploy failures are investigated silently by the highest-tier model
- * (RAILWAY_ALERT_MODEL). NO push notification is sent — the owner should
- * never be buzzed on their phone for a build failure. Results land in the
- * System alerts chat thread for async review.
+ * Deploy failures always open a new chat with Railway logs and auto-run the
+ * agent to fix (typos / lockfile / collisions). Full incident lock + verify
+ * loop runs when RAILWAY_INCIDENT_HANDLER=1. No phone push for build failures.
  */
 export async function handleRailwayWebhook(opts: {
   ingressKey: string | null;
@@ -130,14 +128,13 @@ export async function handleRailwayWebhook(opts: {
 
   const svc = body.resource?.service?.name ?? 'service';
   const proj = body.resource?.project?.name ?? 'project';
+  const env = body.resource?.environment?.name ?? undefined;
+  const deploymentId =
+    body.resource?.deployment?.id ??
+    (typeof body.details?.id === 'string' ? body.details.id : undefined);
   const failedSha =
     typeof body.details?.commitHash === 'string' ? body.details.commitHash : null;
   await markDeployFailed(`Deploy failed — ${svc} (${proj})`, failedSha);
-
-  if (!isRailwayIncidentHandlerEnabled()) {
-    console.info('[railway-webhook] deploy failure logged — incident handler disabled');
-    return { ok: true, status: 200, message: 'handler_disabled' };
-  }
 
   const text = formatRailwayDeployAlert(body);
   if (!serverEnv('AGENT_ALERT_USER_ID')?.trim()) {
@@ -145,20 +142,43 @@ export async function handleRailwayWebhook(opts: {
     return { ok: true, status: 200, message: 'no alert target' };
   }
 
-  const result = await handleDeployFailure({
+  // Full incident handler: repo lock + verify loop (also opens the repair chat).
+  if (isRailwayIncidentHandlerEnabled()) {
+    const result = await handleDeployFailure({
+      source: 'webhook',
+      message: text,
+      project: body.resource?.project?.name,
+      service: body.resource?.service?.name,
+      environment: body.resource?.environment?.name,
+      deploymentId,
+      commitSha: failedSha ?? undefined,
+    });
+
+    const msg = result.suppressed
+      ? `suppressed:${result.reason}`
+      : result.handled
+        ? `incident:${result.incidentId ?? result.reason}`
+        : 'failed';
+
+    return { ok: true, status: 200, message: msg };
+  }
+
+  // Always open a repair chat with logs and auto-fix — even when the
+  // heavier incident lock/verify loop is off.
+  const { openDeployFailureRepairChat } = await import('./deployFailureChat');
+  const opened = await openDeployFailureRepairChat({
     source: 'webhook',
     message: text,
     project: body.resource?.project?.name,
     service: body.resource?.service?.name,
-    environment: body.resource?.environment?.name,
-    deploymentId: body.resource?.deployment?.id ?? (typeof body.details?.id === 'string' ? body.details.id : undefined),
+    environment: env,
+    deploymentId,
+    autoRun: true,
   });
 
-  const msg = result.suppressed
-    ? `suppressed:${result.reason}`
-    : result.handled
-      ? `incident:${result.incidentId ?? result.reason}`
-      : 'failed';
-
-  return { ok: true, status: 200, message: msg };
+  return {
+    ok: true,
+    status: 200,
+    message: opened.threadId ? `repair_chat:${opened.threadId}` : 'repair_chat_failed',
+  };
 }

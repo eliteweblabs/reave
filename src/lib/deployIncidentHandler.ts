@@ -4,7 +4,7 @@
  * One active incident per GitHub repo — duplicate emails/webhooks for the same
  * repo are suppressed so the agent never runs parallel repairs.
  */
-import { postToSystemAlertsThread } from './systemAlertsThread';
+import { openDeployFailureRepairChat, DEPLOY_FAILURE_REPAIR_MODEL } from './deployFailureChat';
 import { resolveDeployTarget, deployDedupKey, type DeployServiceTarget } from './deployServiceMap';
 import {
   dbAcquireDeployIncident,
@@ -20,7 +20,6 @@ import { createLogger } from './logger';
 
 const log = createLogger('deploy-incident');
 
-const RAILWAY_ALERT_MODEL = 'claude-opus-4-6';
 const VERIFY_DELAY_MS = 90_000;
 const VERIFY_MAX_ATTEMPTS = 2;
 
@@ -126,8 +125,6 @@ function buildInvestigationMessage(opts: {
   baseMessage: string;
 }): string {
   const lines = [
-    opts.baseMessage,
-    '',
     `INCIDENT ${opts.incident.id.slice(0, 8)} — repo lock acquired for ${opts.target.repo}`,
     `Project: ${opts.incident.project ?? '?'}`,
     `Service: ${opts.incident.service ?? '?'}`,
@@ -135,15 +132,9 @@ function buildInvestigationMessage(opts: {
     opts.incident.deployment_id ? `Deployment: ${opts.incident.deployment_id}` : null,
     opts.incident.commit_sha ? `Commit: ${opts.incident.commit_sha}` : null,
     '',
-    'MANDATORY PLAYBOOK — read_knowledge slug "railway-build-failure-triage" first, then:',
-    `1. check_deployment_status(repo:"${opts.target.repo}"${opts.target.healthUrl ? `, health_url:"${opts.target.healthUrl}"` : ''})`,
-    `2. get_git_status(repo:"${opts.target.repo}", with_files via get_recent_commits)`,
-    '3. If rollout teardown / false alarm → end with "✅ RESOLVED — rollout teardown"',
-    '4. If real failure → read changed files, fix via write_github_file(branch:"main"), report commit SHA',
-    '5. End EVERY reply with exactly one line:',
-    '   ✅ RESOLVED — <reason>   OR   🚨 UNRESOLVED — <what you tried + owner action>',
-    '',
-    'Do NOT ask the owner to fix it. Do NOT stop at diagnosis. Duplicate alerts for this repo are blocked until you close this incident.',
+    'MANDATORY — read_knowledge slug "railway-build-failure-triage", then fix in this turn.',
+    `check_deployment_status(repo:"${opts.target.repo}"${opts.target.healthUrl ? `, health_url:"${opts.target.healthUrl}"` : ''})`,
+    'Duplicate alerts for this repo are blocked until you close this incident.',
   ].filter(Boolean);
   return lines.join('\n');
 }
@@ -232,16 +223,22 @@ async function runInvestigation(opts: {
       await dbUpdateDeployIncident(incidentId, { status: 'investigating' });
     }
 
-    const alertText = buildInvestigationMessage({
+    const playbookExtra = buildInvestigationMessage({
       incident: opts.incident,
       target: opts.target,
       baseMessage: opts.message,
     });
 
-    const { agentReply, threadId } = await postToSystemAlertsThread({
-      message: alertText,
+    const { agentReply, threadId } = await openDeployFailureRepairChat({
+      source: opts.incident.source,
+      message: opts.message,
+      project: opts.incident.project ?? undefined,
+      service: opts.incident.service ?? undefined,
+      environment: opts.incident.environment ?? undefined,
+      deploymentId: opts.incident.deployment_id ?? undefined,
       emailId: opts.emailId,
-      model: RAILWAY_ALERT_MODEL,
+      playbookExtra,
+      model: DEPLOY_FAILURE_REPAIR_MODEL,
       autoRun: serverEnv('AGENT_ALERT_AUTO_RUN') !== '0',
     });
 

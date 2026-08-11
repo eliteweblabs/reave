@@ -314,7 +314,8 @@ export async function clearDeployStarted(): Promise<void> {
   await setDeployFlightIdle();
 }
 
-/** Called from Railway deploy-failure webhook — surfaces until live again or TTL. */
+/** Called from Railway deploy-failure webhook — red indicator until a later success or TTL.
+ * Does not lock chat: Railway keeps serving the previous successful deploy. */
 export async function markDeployFailed(reason?: string, failedSha?: string | null): Promise<void> {
   deployingOverride = null;
   failedOverride = {
@@ -620,7 +621,10 @@ export function isDeployChatLockEnabled(): boolean {
   return Boolean(deployedSha());
 }
 
-const CHAT_LOCK_STATES = new Set<DeployState>(['deploying', 'failed']);
+/** Only lock while a deploy is in flight. Failed builds keep the previous
+ * Railway deployment live — locking chat there strands the owner in a dead
+ * zone where they cannot ask the agent to fix the failure. */
+const CHAT_LOCK_STATES = new Set<DeployState>(['deploying']);
 
 /** True when new user chat sends should be rejected until the deploy settles. */
 export function isChatLockedForDeploy(snapshot: DeployStatusSnapshot | null | undefined): boolean {
@@ -630,10 +634,6 @@ export function isChatLockedForDeploy(snapshot: DeployStatusSnapshot | null | un
 
 /** User-facing reason for the chat lock (API + composer banner). */
 export function chatDeployLockMessage(snapshot: DeployStatusSnapshot): string {
-  if (snapshot.state === 'failed') {
-    const reason = snapshot.failed_reason ?? 'Deploy failed';
-    return `${reason} — new messages are paused until the website is live again.`;
-  }
   if (snapshot.state === 'deploying') {
     const c = snapshot.latest_commit;
     const short = c?.short_sha ?? snapshot.deployed_short ?? '';

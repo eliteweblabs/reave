@@ -656,18 +656,12 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
       return;
     }
 
-    await postToSystemAlertsThread({
+    const { openDeployFailureRepairChat } = await import('./deployFailureChat');
+    await openDeployFailureRepairChat({
+      source: 'email',
       message,
       emailId: opts.emailId,
-      autoRun: false,
-      push: {
-        title: truncateChatTitle(`Railway: ${opts.summary}`),
-        body: opts.summary,
-        tag: opts.emailId ?? 'railway-alert',
-        url: opts.emailId
-          ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
-          : '/admin?tab=email',
-      },
+      autoRun: true,
     });
     return;
   }

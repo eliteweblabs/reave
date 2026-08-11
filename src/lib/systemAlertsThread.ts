@@ -50,6 +50,8 @@ export async function postToSystemAlertsThread(opts: {
   autoRun?: boolean;
   emailId?: string;
   model?: string;
+  /** Deploy auto-repair must not wait for quiet hours to end. */
+  bypassSleep?: boolean;
   push?: {
     title: string;
     body: string;
@@ -64,7 +66,7 @@ export async function postToSystemAlertsThread(opts: {
   const userId = agentAlertUserId();
   if (!userId) return {};
 
-  if (await isSleepModeActive()) {
+  if (!opts.bypassSleep && (await isSleepModeActive())) {
     log.info('sleep mode — system alert suppressed');
     return {};
   }
