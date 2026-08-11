@@ -32,8 +32,11 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
     <ViewportMeta />
     <title>Contact map</title>
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="stylesheet" href="/admin-shell.css" />
-    <style>
+    <!--
+      is:inline keeps CSS in the HTML (no /_astro extract). JS also injects the
+      same critical rules + inline layout, so the map cannot go blank again.
+    -->
+    <style is:inline>
       :root {
         --bg: #0d1117;
         --fg: #e9eef6;
@@ -50,6 +53,8 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         margin: 0;
         width: 100%;
         height: 100%;
+        min-height: 100%;
+        min-height: 100dvh;
         overflow: hidden;
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif;
@@ -58,15 +63,20 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
       }
 
       .cgm-root {
-        position: relative;
+        position: fixed;
+        inset: 0;
         width: 100%;
         height: 100%;
+        min-height: 100dvh;
       }
 
       .cgm-map-host,
       .cgm-map-canvas {
         position: absolute;
         inset: 0;
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
       }
 
       .cgm-map-empty {

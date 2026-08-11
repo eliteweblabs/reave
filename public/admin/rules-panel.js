@@ -104,6 +104,22 @@ function syncRuleStatusDatalist() {
   return datalist;
 }
 
+const RULES_VIEW_KEY = 'admin.rules.view';
+
+function readRulesView() {
+  try {
+    const v = sessionStorage.getItem(RULES_VIEW_KEY);
+    if (v === 'list' || v === 'flow') return v;
+  } catch {}
+  return 'flow';
+}
+
+function writeRulesView(view) {
+  try {
+    sessionStorage.setItem(RULES_VIEW_KEY, view);
+  } catch {}
+}
+
 // ---- extracted from os-map-loader.js:8260-8914 ----
 let ruleState = {
   rules: [],
@@ -112,7 +128,20 @@ let ruleState = {
   search: '',
   activeId: null,
   dirty: false,
+  /** @type {'flow' | 'list'} n8n-style priority map vs sidebar list */
+  view: readRulesView(),
 };
+
+function phraseSummary(phrases, max = 3) {
+  if (!phrases?.length) return '(any phrase)';
+  const shown = phrases.slice(0, max);
+  const tail = phrases.length > max ? ` +${phrases.length - max}` : '';
+  return shown.map((p) => `"${p}"`).join(' · ') + tail;
+}
+
+function fieldsSummary(fields) {
+  return (fields || ['subject', 'body']).join(', ');
+}
 
 function getRuleEditor() {
   return document.getElementById('rule-editor');
@@ -301,25 +330,225 @@ function renderRulesPane() {
   } else {
     shell.clearEditorFooterSave();
     pane.innerHTML = '';
-    shell.appendEmptyDetailPane(pane, {
-      mapKey: 'rules',
-      iconName: 'zap',
-      bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
-      onCreate: () => void startNewRule(),
+    if (ruleState.view === 'list') {
+      shell.appendEmptyDetailPane(pane, {
+        mapKey: 'rules',
+        iconName: 'zap',
+        bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
+        onCreate: () => void startNewRule(),
+      });
+    }
+  }
+  // Keep flow row highlight in sync when editor opens/closes.
+  if (ruleState.view === 'flow') {
+    root.querySelectorAll('.re-flow-row').forEach((el) => {
+      el.classList.toggle('re-flow-row--active', el.dataset.id === String(ruleState.activeId));
     });
   }
   flushTitleFocus('rules');
+}
+
+function setRulesView(view) {
+  if (view !== 'flow' && view !== 'list') return;
+  if (ruleState.view === view) return;
+  ruleState.view = view;
+  writeRulesView(view);
+  renderRulesEditor();
+}
+
+function orderedRulesForFlow() {
+  return [...ruleState.rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+function createRulesViewPicker() {
+  return createSlidingPillSelect({
+    value: ruleState.view,
+    options: [
+      { value: 'flow', label: 'Flow' },
+      { value: 'list', label: 'List' },
+    ],
+    ariaLabel: 'Rules view',
+    onChange: (next) => setRulesView(next),
+  });
+}
+
+function createFlowRuleCard(rule, index) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = `re-flow-row${rule.enabled === false || isRuleExpired(rule) ? ' re-flow-row--off' : ''}${String(ruleState.activeId) === String(rule.id) ? ' re-flow-row--active' : ''}`;
+  row.dataset.id = rule.id;
+  row.setAttribute('aria-label', `Priority ${index + 1}: ${rule.title || rule.status}`);
+
+  const pri = document.createElement('span');
+  pri.className = 're-flow-pri';
+  pri.textContent = `#${index + 1}`;
+  pri.title = 'Evaluation priority — lower number wins first';
+
+  const when = document.createElement('span');
+  when.className = 're-flow-node re-flow-node--when';
+  when.innerHTML = `
+    <span class="re-flow-badge">When</span>
+    <span class="re-flow-title">${escHtml(rule.title || rule.status)}</span>
+    <span class="re-flow-sub">${escHtml(phraseSummary(rule.phrases))}</span>
+    <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)}`)}</span>`;
+
+  const arrow = document.createElement('span');
+  arrow.className = 're-flow-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '→';
+
+  const then = document.createElement('span');
+  then.className = `re-flow-node re-flow-node--then${rule.notify ? ' re-flow-node--alert' : ' re-flow-node--quiet'}`;
+  const action = rule.notify ? 'Notify' : 'Silent';
+  then.innerHTML = `
+    <span class="re-flow-badge">Then</span>
+    <span class="re-flow-title">${escHtml(action)}</span>
+    <span class="re-flow-sub">${escHtml(`status → ${rule.status || '—'}`)}</span>
+    <span class="re-flow-meta">${escHtml(ruleSubline(rule))}</span>`;
+
+  row.append(pri, when, arrow, then);
+  row.addEventListener('click', () => openRuleEditor(rule.id));
+  return row;
+}
+
+function renderRulesFlowShell(root) {
+  const shellEl = document.createElement('div');
+  shellEl.className = 're-flow-shell';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 're-flow-toolbar';
+
+  const left = document.createElement('div');
+  left.className = 're-flow-toolbar-left';
+  left.appendChild(createRulesViewPicker().el);
+
+  const hint = document.createElement('p');
+  hint.className = 're-flow-hint';
+  hint.textContent = 'First match wins · top = highest priority';
+  left.appendChild(hint);
+  toolbar.appendChild(left);
+
+  const right = document.createElement('div');
+  right.className = 're-flow-toolbar-right';
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'dash-panel-btn';
+  addBtn.textContent = '+ Rule';
+  addBtn.addEventListener('click', () => void startNewRule());
+  right.appendChild(addBtn);
+  toolbar.appendChild(right);
+  shellEl.appendChild(toolbar);
+
+  if (ruleState.storage === 'files') {
+    const warn = document.createElement('div');
+    warn.className = 're-warn-inline';
+    warn.textContent = 'Using local file storage — set DATABASE_URL on Railway for production.';
+    shellEl.appendChild(warn);
+  }
+
+  const settings = document.createElement('div');
+  settings.className = 're-settings re-flow-settings';
+  const notifyLb = document.createElement('label');
+  notifyLb.className = 're-check';
+  const notifyCb = document.createElement('input');
+  notifyCb.type = 'checkbox';
+  notifyCb.checked = ruleState.notifyOnUnmatched;
+  notifyCb.addEventListener('change', async (e) => {
+    const next = e.target.checked;
+    try {
+      const res = await fetch('/api/email/rules', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifyOnUnmatched: next }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      ruleState.notifyOnUnmatched = next;
+      const elseSub = shellEl.querySelector('.re-flow-else .re-flow-sub');
+      if (elseSub) elseSub.textContent = next ? 'Notify by default' : 'Stay silent';
+    } catch (err) {
+      e.target.checked = !next;
+      alert(`Could not save setting: ${err.message}`);
+    }
+  });
+  notifyLb.append(notifyCb, document.createTextNode(' Notify when no rule matches'));
+  settings.appendChild(notifyLb);
+  shellEl.appendChild(settings);
+
+  const scroll = document.createElement('div');
+  scroll.className = 're-flow-scroll';
+
+  const trigger = document.createElement('div');
+  trigger.className = 're-flow-trigger';
+  trigger.innerHTML = `
+    <span class="re-flow-badge">Trigger</span>
+    <span class="re-flow-title">Inbound email</span>
+    <span class="re-flow-sub">Resend webhook · /api/email/inbound</span>`;
+  scroll.appendChild(trigger);
+
+  const spine = document.createElement('div');
+  spine.className = 're-flow-spine';
+  spine.setAttribute('aria-hidden', 'true');
+  spine.textContent = '↓ evaluate in order';
+  scroll.appendChild(spine);
+
+  const rows = document.createElement('div');
+  rows.className = 're-flow-rows';
+  const ordered = orderedRulesForFlow();
+  if (!ordered.length) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No rules yet — create one to see the flow.';
+    rows.appendChild(empty);
+  } else {
+    ordered.forEach((rule, i) => rows.appendChild(createFlowRuleCard(rule, i)));
+  }
+  scroll.appendChild(rows);
+
+  const elseRow = document.createElement('div');
+  elseRow.className = 're-flow-else';
+  elseRow.innerHTML = `
+    <span class="re-flow-node re-flow-node--when re-flow-node--else">
+      <span class="re-flow-badge">Else</span>
+      <span class="re-flow-title">No rule matched</span>
+      <span class="re-flow-sub">${escHtml(ruleState.notifyOnUnmatched ? 'Notify by default' : 'Stay silent')}</span>
+    </span>
+    <span class="re-flow-arrow" aria-hidden="true">→</span>
+    <span class="re-flow-node re-flow-node--then ${ruleState.notifyOnUnmatched ? 're-flow-node--alert' : 're-flow-node--quiet'}">
+      <span class="re-flow-badge">Then</span>
+      <span class="re-flow-title">${escHtml(ruleState.notifyOnUnmatched ? 'Notify' : 'Silent')}</span>
+      <span class="re-flow-sub">status → UNMATCHED</span>
+    </span>`;
+  scroll.appendChild(elseRow);
+  shellEl.appendChild(scroll);
+  root.appendChild(shellEl);
 }
 
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
-  const { rules, notifyOnUnmatched, storage } = ruleState;
   root.innerHTML = '';
+  root.classList.toggle('re-view-flow', ruleState.view === 'flow');
+  root.classList.toggle('re-view-list', ruleState.view === 'list');
+
+  if (ruleState.view === 'flow') {
+    renderRulesFlowShell(root);
+    const pane = document.createElement('div');
+    pane.className = 'de-pane';
+    root.appendChild(pane);
+    renderRulesPane();
+    return;
+  }
+
+  const { rules, notifyOnUnmatched, storage } = ruleState;
 
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
+
+  const viewBar = document.createElement('div');
+  viewBar.className = 're-list-view-bar';
+  viewBar.appendChild(createRulesViewPicker().el);
+  sidebar.appendChild(viewBar);
 
   const subheader = listSearchSubheader({
     itemCount: rules.length,

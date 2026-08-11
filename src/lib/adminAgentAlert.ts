@@ -17,6 +17,7 @@ import { createLogger } from './logger';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from './workStore';
 import { getPostAlias } from './postAlias';
 import { displayProjectTitle } from './emailProjectReply';
+import { isSilentTriageStatus } from './emailRules';
 
 const log = createLogger('admin-agent');
 
@@ -37,6 +38,9 @@ export function shouldAgentAlertForInboundEmail(opts: {
   isUptimeRobot?: boolean;
 }): boolean {
   if (!agentAlertUserId()) return false;
+  // First-match silent rules must not open System alerts / push.
+  if (isSilentTriageStatus(opts.status)) return false;
+  if (opts.category === 'junk') return false;
   if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return false;
   if (opts.isUptimeRobot && hasFeature('uptime_monitoring')) return false;
   return true;

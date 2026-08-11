@@ -21,7 +21,8 @@
     "real_estate_data",
     "online_reviews",
     "wayback_machine",
-    "stock_photos"
+    "stock_photos",
+    "seo_directory"
   ],
   "footerNav": [
     "__system__",
@@ -53,5 +54,8 @@
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,
-  "siteContentKey": "reave"
+  "siteContentKey": "reave",
+  "moduleStatus": {
+    "seo_directory": "development"
+  }
 }

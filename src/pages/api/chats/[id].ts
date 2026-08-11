@@ -36,6 +36,7 @@ import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress
 import {
   cancelAgentRun,
   clearAgentRun,
+  isAgentRunActive,
   registerAgentRun,
 } from '../../../lib/agentRunControl';
 import {
@@ -65,6 +66,9 @@ import {
   flushDeferredDeploy,
   formatFlushFailureNote,
 } from '../../../lib/deferredDeploy';
+import { getAliveAgentRunLease } from '../../../lib/pgAgentRunLeases';
+import { isProcessDraining } from '../../../lib/processDrain';
+import '../../../lib/processDrain';
 
 export const prerender = false;
 
@@ -309,6 +313,18 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
   const { ownerUserId, thread } = loaded;
 
+  if (isProcessDraining()) {
+    return json(
+      {
+        ok: false,
+        draining: true,
+        error:
+          'This server is shutting down for a deploy — wait a moment and send again once the new version is live.',
+      },
+      503,
+    );
+  }
+
   const deployStatus = await getDeployStatus();
   if (isChatLockedForDeploy(deployStatus)) {
     return json(
@@ -317,6 +333,20 @@ export async function POST(context: APIContext): Promise<Response> {
         deploy_locked: true,
         deploy_state: deployStatus!.state,
         error: chatDeployLockMessage(deployStatus!),
+      },
+      503,
+    );
+  }
+
+  // A draining replica may still own this turn — don't start a second run on
+  // the new container while the first is finishing and writing its reply.
+  if (!isAgentRunActive(userId, id) && (await getAliveAgentRunLease(userId, id))) {
+    return json(
+      {
+        ok: false,
+        run_in_progress: true,
+        error:
+          'A reply for this chat is still finishing after a deploy — hang tight, it will land when the previous run completes.',
       },
       503,
     );
@@ -490,7 +520,7 @@ export async function POST(context: APIContext): Promise<Response> {
           });
         }
         clearAgentProgress(userId, id);
-        clearAgentRun(userId, id);
+        clearAgentRun(userId, id, runSignal);
         await finishTurnDeployFlush(ownerUserId, userId, id);
       }
     });
@@ -534,7 +564,7 @@ export async function POST(context: APIContext): Promise<Response> {
     reply = interruptedReplyText(userId, id, { cancelled: runSignal.aborted, errorMessage: msg });
   } finally {
     clearAgentProgress(userId, id);
-    clearAgentRun(userId, id);
+    clearAgentRun(userId, id, runSignal);
   }
 
   const persisted = await persistAssistantReply(ownerUserId, id, reply, agentUsage);

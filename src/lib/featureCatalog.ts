@@ -33,6 +33,7 @@ export const FEATURE_IDS = [
   'content_management',
   'stock_photos',
   'wordpress_content',
+  'seo_directory',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -67,6 +68,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   content_management: 'Website content management',
   stock_photos: 'Pexels stock photos',
   wordpress_content: 'WordPress content plugin',
+  seo_directory: 'SEO Directory API Kit',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -99,6 +101,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   content_management: 'Update your site through the agent, no CMS',
   stock_photos: 'Royalty-free search for pages, decks, and newsletters',
   wordpress_content: 'Agent updates posts, pages, and media on a WordPress site',
+  seo_directory:
+    'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, and Bing',
 };
 
 export const CORE_FEATURE_NOTE =

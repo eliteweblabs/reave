@@ -249,6 +249,12 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'seo-directory',
+    label: 'SEO Directory API Kit',
+    modules: ['seo_directory'],
+    kind: 'capability',
+  },
+  {
     id: 'fleet-tracking',
     label: 'Fleet GPS tracking',
     modules: ['fleet_tracking'],
