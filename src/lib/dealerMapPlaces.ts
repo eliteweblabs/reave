@@ -142,7 +142,7 @@ function normalizeBounds(bounds: DealerMapBounds): DealerMapBounds | null {
   // Reject continent-scale boxes — Places returns noise and burns quota.
   const latSpan = north - south;
   const lngSpan = east - west;
-  if (latSpan > 8 || lngSpan > 8) return null;
+  if (latSpan > 4 || lngSpan > 4) return null;
   return { south, west, north, east };
 }
 
@@ -161,9 +161,21 @@ function haversineMeters(
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** Approx half-diagonal of the viewport, clamped to Places circle max (50 km). */
+function biasRadiusMeters(bounds: DealerMapBounds): number {
+  const center = {
+    lat: (bounds.south + bounds.north) / 2,
+    lng: (bounds.west + bounds.east) / 2,
+  };
+  const corner = { lat: bounds.north, lng: bounds.east };
+  const halfDiag = haversineMeters(center, corner);
+  return Math.max(1500, Math.min(50_000, Math.round(halfDiag * 1.15)));
+}
+
 /**
- * Search used-car dealerships inside the viewport rectangle.
- * Uses Text Search with a used-car query + locationRestriction.
+ * Search used-car dealerships near the viewport.
+ * Uses Text Search + locationBias circle (restriction rectangles often reject
+ * metro-sized viewports; bias + client-side filter works more reliably).
  */
 export async function searchUsedCarDealersInBounds(
   boundsInput: DealerMapBounds,
@@ -186,14 +198,17 @@ export async function searchUsedCarDealersInBounds(
     lat: (bounds.south + bounds.north) / 2,
     lng: (bounds.west + bounds.east) / 2,
   };
+  const radius = biasRadiusMeters(bounds);
 
   const body = {
-    textQuery: 'used car dealer',
+    textQuery: 'used car dealership',
+    includedType: 'car_dealer',
     maxResultCount: 20,
-    locationRestriction: {
-      rectangle: {
-        low: { latitude: bounds.south, longitude: bounds.west },
-        high: { latitude: bounds.north, longitude: bounds.east },
+    rankPreference: 'DISTANCE',
+    locationBias: {
+      circle: {
+        center: { latitude: center.lat, longitude: center.lng },
+        radius,
       },
     },
   };
@@ -226,15 +241,24 @@ export async function searchUsedCarDealersInBounds(
   const dealers: DealerPlace[] = [];
   const seen = new Set<string>();
 
+  // Soft padding so pins near the edge of the view still show.
+  const padLat = (bounds.north - bounds.south) * 0.08;
+  const padLng = (bounds.east - bounds.west) * 0.08;
+  const filterBounds = {
+    south: bounds.south - padLat,
+    north: bounds.north + padLat,
+    west: bounds.west - padLng,
+    east: bounds.east + padLng,
+  };
+
   for (const raw of data?.places ?? []) {
     const place = toDealerPlace(raw);
     if (!place || seen.has(place.placeId)) continue;
-    // Keep pins that fall inside the requested box (API can soft-bias).
     if (
-      place.lat < bounds.south ||
-      place.lat > bounds.north ||
-      place.lng < bounds.west ||
-      place.lng > bounds.east
+      place.lat < filterBounds.south ||
+      place.lat > filterBounds.north ||
+      place.lng < filterBounds.west ||
+      place.lng > filterBounds.east
     ) {
       continue;
     }

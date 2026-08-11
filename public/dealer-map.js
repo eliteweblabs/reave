@@ -28,6 +28,11 @@ const BUCKET_COLORS = {
 const MIN_SEARCH_ZOOM = 9;
 const SEARCH_DEBOUNCE_MS = 550;
 
+/** Default: Metro West Boston — close enough that Places search runs immediately. */
+const DEFAULT_CENTER = { lng: -71.4162, lat: 42.2793 }; // Framingham / MetroWest
+/** ~80% of a useful local zoom range (street ≈ 14–15; this is city/suburb). */
+const DEFAULT_ZOOM = 11.5;
+
 let mapboxLoadPromise = null;
 let leafletLoadPromise = null;
 
@@ -558,7 +563,7 @@ export function mountDealerGeoMap(container, opts = {}) {
     map = L.map(mapEl, {
       zoomControl: true,
       attributionControl: true,
-    }).setView([39.8283, -98.5795], 4.5);
+    }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], DEFAULT_ZOOM);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
       maxZoom: 19,
@@ -588,8 +593,8 @@ export function mountDealerGeoMap(container, opts = {}) {
     map = new gl.Map({
       container: mapEl,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-98.5795, 39.8283],
-      zoom: 4.2,
+      center: [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
+      zoom: DEFAULT_ZOOM,
       attributionControl: true,
     });
     map.addControl(new gl.NavigationControl({ visualizePitch: false }), 'bottom-right');
