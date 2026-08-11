@@ -78,6 +78,43 @@ const PPTX_MEDIA_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
 
+/** Empty-state welcome lines, keyed by local time of day (like Claude's rotating greetings). */
+const CHAT_WELCOME_BY_PERIOD = {
+  morning: [
+    'Good morning. What are we working on today?',
+    'Morning! Ready when you are.',
+    "Good morning — what'll it be?",
+  ],
+  afternoon: [
+    'Good afternoon. What can I help with?',
+    'Afternoon. What are we working on?',
+    'Hey — what should we tackle?',
+  ],
+  evening: [
+    'Good evening. What are we working on?',
+    'Evening! How can I help?',
+    "Good evening — what's on the agenda?",
+  ],
+  late: [
+    "Burning the midnight oil? What's up?",
+    'Still going? What can I help with?',
+    'Late one — what are we working on?',
+  ],
+} as const;
+
+function chatWelcomePeriod(date = new Date()): keyof typeof CHAT_WELCOME_BY_PERIOD {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'late';
+}
+
+function pickChatWelcomeGreeting(date = new Date()): string {
+  const pool = CHAT_WELCOME_BY_PERIOD[chatWelcomePeriod(date)];
+  return pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
+}
+
 function normalizeChatImageMediaType(file: File): string {
   const type = (file.type || '').toLowerCase();
   if (type === 'image/jpg' || type === 'image/jpeg') return 'image/jpeg';
@@ -2493,6 +2530,7 @@ function AgentChatThreadBody({
   pendingMentionsRef: RefObject<ChatMention[]>;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
+  const [welcomeGreeting] = useState(() => pickChatWelcomeGreeting());
   const focusComposerRef = useRef<(() => void) | null>(null);
   const autoFocusDoneRef = useRef(false);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -2557,7 +2595,7 @@ function AgentChatThreadBody({
     <ThreadPrimitive.Root className="aui-thread">
       <AuiIf condition={(s) => s.thread.messages.length === 0}>
         <div className="aui-empty-state">
-          <h1 className="aui-empty-heading">How can I help you today?</h1>
+          <h1 className="aui-empty-heading">{welcomeGreeting}</h1>
           <ClaudeComposer
             centered
             threadId={threadId}
