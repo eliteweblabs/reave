@@ -8,20 +8,30 @@ const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
 const LEAFLET_CSS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
 const LEAFLET_JS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/+esm';
 
-/** @typedef {'1-50' | '51-100' | '101-200'} InventoryBucket */
+/** @typedef {'1-50' | '51-100' | '101-200' | '201-500' | '500+'} InventoryBucket */
 
-const INVENTORY_BUCKETS = /** @type {const} */ (['1-50', '51-100', '101-200']);
+const INVENTORY_BUCKETS = /** @type {const} */ ([
+  '1-50',
+  '51-100',
+  '101-200',
+  '201-500',
+  '500+',
+]);
 
 const BUCKET_LABELS = {
   '1-50': '1–50 cars',
   '51-100': '51–100 cars',
   '101-200': '101–200 cars',
+  '201-500': '201–500 cars',
+  '500+': '500+ cars',
 };
 
 const BUCKET_COLORS = {
   '1-50': '#2563eb',
   '51-100': '#16a34a',
   '101-200': '#d97706',
+  '201-500': '#7c3aed',
+  '500+': '#dc2626',
 };
 
 /** Below this zoom, Places search is skipped (region too large). */
@@ -112,6 +122,8 @@ export function mountDealerGeoMap(container, opts = {}) {
     '1-50': true,
     '51-100': true,
     '101-200': true,
+    '201-500': true,
+    '500+': true,
   };
   let destroyed = false;
   let mapReady = false;
@@ -143,13 +155,20 @@ export function mountDealerGeoMap(container, opts = {}) {
         padding:1.5rem; text-align:center; color:#8b949e; font-size:.95rem; background:rgba(13,17,23,.55); pointer-events:none; }
       .dgm-map-empty[hidden] { display:none !important; }
       .dgm-chrome { position:absolute; z-index:5; top:max(.75rem, env(safe-area-inset-top));
-        left:max(.75rem, env(safe-area-inset-left)); display:flex; flex-direction:column; gap:.55rem;
-        width:min(320px, calc(100vw - 1.5rem)); pointer-events:none; }
+        left:max(.75rem, env(safe-area-inset-left)); right:max(.75rem, env(safe-area-inset-right));
+        width:auto; max-width:none; pointer-events:none; }
       .dgm-chrome-panel { pointer-events:auto; border:1px solid rgba(48,54,61,.95); border-radius:14px; background:rgba(22,27,34,.92);
-        backdrop-filter:blur(12px); padding:.85rem .9rem; box-shadow:0 12px 32px rgba(0,0,0,.35); }
-      .dgm-chrome-top { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; margin-bottom:.35rem; }
+        backdrop-filter:blur(12px); padding:0; box-shadow:0 12px 32px rgba(0,0,0,.35); overflow:hidden; }
+      .dgm-chrome-header { display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+        width:100%; padding:.75rem .9rem; border:none; background:transparent; color:inherit; cursor:pointer; text-align:left; font:inherit; }
+      .dgm-chrome-header:hover { background:rgba(177,186,196,.08); }
+      .dgm-chrome-header-text { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; flex:1; min-width:0; }
       .dgm-title { margin:0; font-size:1.05rem; font-weight:700; }
       .dgm-count { margin:0; color:#8b949e; font-size:.78rem; white-space:nowrap; }
+      .dgm-chevron { flex-shrink:0; width:18px; height:18px; color:#8b949e; transition:transform .18s ease; }
+      .dgm-chrome-panel.is-collapsed .dgm-chevron { transform:rotate(-90deg); }
+      .dgm-chrome-body { padding:0 .9rem .85rem; }
+      .dgm-chrome-panel.is-collapsed .dgm-chrome-body { display:none; }
       .dgm-hint { margin:0 0 .7rem; color:#8b949e; font-size:.72rem; line-height:1.35; }
       .dgm-toggles { display:flex; flex-direction:column; gap:.15rem; }
       .dgm-toggle { display:flex; align-items:center; gap:.65rem; padding:.4rem .15rem; cursor:pointer; user-select:none; }
@@ -189,22 +208,36 @@ export function mountDealerGeoMap(container, opts = {}) {
   container.innerHTML = `
     <div class="dgm-map-host" id="dgm-map-host" role="img" aria-label="Used car dealership map"></div>
     <div class="dgm-chrome">
-      <div class="dgm-chrome-panel">
-        <div class="dgm-chrome-top">
-          <h1 class="dgm-title">Dealer map</h1>
-          <p class="dgm-count" id="dgm-count" aria-live="polite">—</p>
+      <div class="dgm-chrome-panel" id="dgm-panel">
+        <button type="button" class="dgm-chrome-header" id="dgm-collapse" aria-expanded="true" aria-controls="dgm-chrome-body">
+          <span class="dgm-chrome-header-text">
+            <h1 class="dgm-title">Dealer map</h1>
+            <p class="dgm-count" id="dgm-count" aria-live="polite">—</p>
+          </span>
+          <svg class="dgm-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <div class="dgm-chrome-body" id="dgm-chrome-body">
+          <p class="dgm-hint">Used-car lots from Google Places for the area you zoom to. Lot sizes are demo estimates.</p>
+          <div class="dgm-toggles" id="dgm-toggles" role="group" aria-label="Inventory size"></div>
         </div>
-        <p class="dgm-hint">Used-car lots from Google Places for the area you zoom to. Lot sizes are demo estimates.</p>
-        <div class="dgm-toggles" id="dgm-toggles" role="group" aria-label="Inventory size"></div>
       </div>
     </div>
     <div class="dgm-status" id="dgm-status" hidden></div>
   `;
 
   const mapHost = /** @type {HTMLElement} */ (container.querySelector('#dgm-map-host'));
+  const panelEl = /** @type {HTMLElement} */ (container.querySelector('#dgm-panel'));
+  const collapseBtn = /** @type {HTMLButtonElement} */ (container.querySelector('#dgm-collapse'));
   const togglesEl = /** @type {HTMLElement} */ (container.querySelector('#dgm-toggles'));
   const countEl = /** @type {HTMLElement} */ (container.querySelector('#dgm-count'));
   const statusEl = /** @type {HTMLElement} */ (container.querySelector('#dgm-status'));
+
+  collapseBtn.addEventListener('click', () => {
+    const collapsed = panelEl.classList.toggle('is-collapsed');
+    collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  });
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'dgm-map-empty';
@@ -278,7 +311,7 @@ export function mountDealerGeoMap(container, opts = {}) {
   }
 
   function bucketCounts() {
-    const counts = { '1-50': 0, '51-100': 0, '101-200': 0 };
+    const counts = { '1-50': 0, '51-100': 0, '101-200': 0, '201-500': 0, '500+': 0 };
     const vb = viewBoundsPadded();
     for (const d of allDealers()) {
       if (!inView(d, vb)) continue;

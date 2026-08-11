@@ -5,7 +5,7 @@
 
 import { getGoogleMapsApiKey } from './googleMapsApiKey';
 
-export type DealerInventoryBucket = '1-50' | '51-100' | '101-200';
+export type DealerInventoryBucket = '1-50' | '51-100' | '101-200' | '201-500' | '500+';
 
 export type DealerPlace = {
   placeId: string;
@@ -78,25 +78,37 @@ function hashPlaceId(placeId: string): number {
 
 /**
  * Places does not expose lot size. For this demo we map review volume + a
- * place-id hash into 1–200 so the inventory toggles have something to filter.
+ * place-id hash into inventory buckets so the toggles have something to filter.
  */
 export function estimateDealerInventory(
   placeId: string,
   userRatingCount?: number,
 ): { inventoryEstimate: number; inventoryBucket: DealerInventoryBucket } {
   const reviews = Number.isFinite(userRatingCount) ? Math.max(0, Number(userRatingCount)) : 0;
-  const jitter = (hashPlaceId(placeId) % 40) - 12; // -12 … +27
+  const jitter = (hashPlaceId(placeId) % 55) - 18;
   const base =
     reviews <= 0
-      ? 28 + (hashPlaceId(placeId) % 90)
+      ? 35 + (hashPlaceId(placeId) % 160)
       : reviews < 20
-        ? 12 + reviews * 1.8
+        ? 15 + reviews * 2.2
         : reviews < 80
-          ? 48 + (reviews - 20) * 0.85
-          : 100 + Math.min(95, (reviews - 80) * 0.55);
-  const inventoryEstimate = Math.max(1, Math.min(200, Math.round(base + jitter)));
+          ? 55 + (reviews - 20) * 1.4
+          : reviews < 200
+            ? 140 + (reviews - 80) * 1.1
+            : reviews < 500
+              ? 280 + (reviews - 200) * 0.7
+              : 520 + Math.min(280, (reviews - 500) * 0.35);
+  const inventoryEstimate = Math.max(1, Math.min(900, Math.round(base + jitter)));
   const inventoryBucket: DealerInventoryBucket =
-    inventoryEstimate <= 50 ? '1-50' : inventoryEstimate <= 100 ? '51-100' : '101-200';
+    inventoryEstimate <= 50
+      ? '1-50'
+      : inventoryEstimate <= 100
+        ? '51-100'
+        : inventoryEstimate <= 200
+          ? '101-200'
+          : inventoryEstimate <= 500
+            ? '201-500'
+            : '500+';
   return { inventoryEstimate, inventoryBucket };
 }
 

@@ -88,30 +88,49 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         z-index: 3;
         top: max(0.75rem, env(safe-area-inset-top));
         left: max(0.75rem, env(safe-area-inset-left));
-        display: flex;
-        flex-direction: column;
-        gap: 0.55rem;
-        width: min(320px, calc(100vw - 1.5rem));
+        right: max(0.75rem, env(safe-area-inset-right));
+        width: auto;
+        max-width: none;
         pointer-events: none;
       }
 
-      .dgm-chrome-panel { pointer-events: auto; }
-
       .dgm-chrome-panel {
+        pointer-events: auto;
         border: 1px solid var(--panel-border);
         border-radius: 14px;
         background: var(--panel);
         backdrop-filter: blur(12px);
         box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-        padding: 0.85rem 0.9rem;
+        padding: 0;
+        overflow: hidden;
       }
 
-      .dgm-chrome-top {
+      .dgm-chrome-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.75rem 0.9rem;
+        border: none;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+      }
+
+      .dgm-chrome-header:hover {
+        background: rgba(177, 186, 196, 0.08);
+      }
+
+      .dgm-chrome-header-text {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
         gap: 0.75rem;
-        margin-bottom: 0.35rem;
+        flex: 1;
+        min-width: 0;
       }
 
       .dgm-title {
@@ -125,6 +144,26 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         color: var(--muted);
         font-size: 0.78rem;
         white-space: nowrap;
+      }
+
+      .dgm-chevron {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        color: var(--muted);
+        transition: transform 0.18s ease;
+      }
+
+      .dgm-chrome-panel.is-collapsed .dgm-chevron {
+        transform: rotate(-90deg);
+      }
+
+      .dgm-chrome-body {
+        padding: 0 0.9rem 0.85rem;
+      }
+
+      .dgm-chrome-panel.is-collapsed .dgm-chrome-body {
+        display: none;
       }
 
       .dgm-hint {
