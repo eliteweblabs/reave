@@ -1,11 +1,12 @@
 /**
- * GET /api/demo/loader — public demo loader catalog (modules + industries).
+ * GET /api/demo/loader — public demo loader catalog (modules + features + industries).
  */
 import type { APIContext } from 'astro';
 import { listEnabledDeckIndustries } from '../../../lib/deckIndustriesStore';
 import {
   defaultDemoLoaderModuleIds,
   listDemoLoaderIncludedCards,
+  listDemoLoaderMarketingFeatures,
   listDemoLoaderModules,
   listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
@@ -41,6 +42,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const modules = listDemoLoaderModules();
     const sections = listDemoLoaderSections(modules);
     const included = listDemoLoaderIncludedCards();
+    const features = listDemoLoaderMarketingFeatures();
     const industries = await listEnabledDeckIndustries();
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
     const demoSiteUrl = getPublicDemoSiteUrl();
@@ -50,6 +52,8 @@ export async function GET(context: APIContext): Promise<Response> {
       modules,
       sections,
       included,
+      /** Culled marketing features; each lists module FeatureIds it depends on. */
+      features,
       baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
       industries: industries
         .map((i) => ({ slug: i.slug, label: i.label }))

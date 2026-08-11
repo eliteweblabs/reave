@@ -1,7 +1,8 @@
 ---
 /**
- * Fixed viewport background — gradient mesh + brand chevron pattern.
- * Used by Layout.astro (marketing pages) and the client portal.
+ * Viewport atmosphere — gradient mesh + brand chevron pattern.
+ * Layers are position:fixed but inset past Safari’s edge-sampling band
+ * (see brand.css) so iPhone does not letterbox them with black chin/forehead.
  */
 import ReaveBgPattern from "./ReaveBgPattern.astro";
 ---
