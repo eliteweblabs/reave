@@ -40,6 +40,7 @@ const isProtectedAdminPage = createRouteMatcher([
   "/admin/doc(.*)",
   "/admin/profile(.*)",
   "/admin/components(.*)",
+  "/admin/client-map(.*)",
   "/admin/visit-plan(.*)",
 ]);
 
