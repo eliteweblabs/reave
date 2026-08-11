@@ -80,8 +80,9 @@ const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
+/** Help chat FAB on secondary marketing pages only — homepage traffic rarely opens it. */
 const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+  !isIndexPage && hasFeature("portal_assistant") && isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
