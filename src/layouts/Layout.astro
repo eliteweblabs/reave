@@ -121,7 +121,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
-			<h1 class="sr-only">{company.name}</h1>
+			{/*
+			  Fallback page title for layouts that do not render their own h1.
+			  Skip on the homepage — HomeHeroSection already provides the real h1,
+			  and a second one breaks the heading outline (and reads as a smaller
+			  title before later section headlines).
+			*/}
+			{!isIndexPage && <h1 class="sr-only">{company.name}</h1>}
 			<slot />
 			<div class="site-foot-wrap">
 				<SiteFooter showLegalLinks={showLegalLinks} />

@@ -395,9 +395,19 @@ const customPrompts: PromptExample[] = [
 <div class:list={["fx-page", embedded && "fx-page--embedded"]} data-features-content>
     <section class="fx-hero scroll-fade-in">
       <p class="fx-kicker">The Business OS</p>
-      <h1 class="fx-h1">
-        Runs the whole business — not a pile of separate apps.
-      </h1>
+      {/*
+        Standalone /features keeps this as the page h1. On the homepage it is
+        embedded under HomeHeroSection's h1, so demote to h2 — same visual class.
+      */}
+      {embedded ? (
+        <h2 class="fx-h1">
+          Runs the whole business — not a pile of separate apps.
+        </h2>
+      ) : (
+        <h1 class="fx-h1">
+          Runs the whole business — not a pile of separate apps.
+        </h1>
+      )}
       <p class="fx-lead">
         Contacts, billing, projects, inbox, scheduling, newsletters, social metrics,
         website editing, and white-label branding — one login, one AI agent that is Siri capable,
