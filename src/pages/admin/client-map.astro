@@ -32,8 +32,11 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
     <ViewportMeta />
     <title>Contact map</title>
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="stylesheet" href="/admin-shell.css" />
-    <style>
+    <!--
+      Styles must be global: the map chrome/pins are built in clients-geo-map.js,
+      so Astro scoped selectors never match those nodes (black map + native checkboxes).
+    -->
+    <style is:global>
       :root {
         --bg: #0d1117;
         --fg: #e9eef6;
