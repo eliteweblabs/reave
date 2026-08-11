@@ -59,7 +59,7 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260810a';
+} from './work-panel.js?v=20260810c';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260807b';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260810a';
@@ -598,10 +598,10 @@ function startNewClient(opts = {}) {
     onSubmit: async () => {
       const payload = newClientFormGetPayload?.();
       if (!payload) {
-        const titleInput = shell.getCreateDrawerPane()?.querySelector('.cl-title-input');
-        if (titleInput) {
-          shell.setFormFieldState(titleInput, 'invalid');
-          titleInput.focus({ preventScroll: true });
+        const companyInput = shell.getCreateDrawerPane()?.querySelector('.cl-company-input');
+        if (companyInput) {
+          shell.setFormFieldState(companyInput, 'invalid');
+          companyInput.focus({ preventScroll: true });
         }
         return;
       }
@@ -1218,48 +1218,49 @@ function createClientFormScroll(pane) {
   return createDetailFormScroll(pane, 'cl-form-scroll');
 }
 
+function openCardDavImportFromNewClient() {
+  // Full navigation leaves the create drawer; import-contacts is a separate page.
+  window.location.assign('/admin/import-contacts');
+}
+
 function renderNewClientForm(pane) {
   clearClientFieldRegistry();
   pane.innerHTML = '';
 
-  const titleWrap = document.createElement('div');
-  titleWrap.className = 'cl-title-wrap';
-  const titleField = document.createElement('div');
-  titleField.className = 'cl-title-field';
-  const companyInput = document.createElement('input');
-  companyInput.className = 'cl-title-input';
-  companyInput.placeholder = 'Company name';
-  companyInput.value = clientState.draft?.company || '';
-  companyInput.setAttribute('aria-label', 'Company name');
-  const editHint = document.createElement('span');
-  editHint.className = 'cl-title-edit-hint';
-  editHint.innerHTML = IOS_ICONS.edit;
-  editHint.setAttribute('aria-hidden', 'true');
-  titleField.appendChild(companyInput);
-  titleField.appendChild(editHint);
-  titleWrap.appendChild(titleField);
-  syncClTitleInputWidth(companyInput);
-  companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
-
   const inDrawer = shell.isCreateDrawerOpen('clients');
-  const chrome = createDetailChrome(pane, 'cl-detail-chrome');
-  chrome.appendChild(
-    createPaneSubheader({
-      back: inDrawer
-        ? null
-        : {
-            label: clientBackLabel(),
-            onClick: () => closeClientEditor(false),
-          },
-      titleNode: titleWrap,
-    }).header,
-  );
-  requestTitleFocus('clients', companyInput);
+  if (!inDrawer) {
+    const chrome = createDetailChrome(pane, 'cl-detail-chrome');
+    chrome.appendChild(
+      createPaneSubheader({
+        back: {
+          label: clientBackLabel(),
+          onClick: () => closeClientEditor(false),
+        },
+        title: 'New Contact',
+      }).header,
+    );
+  }
 
   const scroll = createClientFormScroll(pane);
   const body = createDetailPanelBody();
   const fields = document.createElement('div');
   fields.className = 'de-fields';
+
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.className = 'cl-import-carddav-btn';
+  importBtn.innerHTML =
+    `${iosIcon('upload', 16)}<span>Import from CardDAV</span>${iosIcon('chevron-right', 16)}`;
+  importBtn.addEventListener('click', openCardDavImportFromNewClient);
+  fields.appendChild(importBtn);
+
+  const companyInput = document.createElement('input');
+  companyInput.className = 'de-input cl-company-input';
+  companyInput.placeholder = 'Company name';
+  companyInput.autocomplete = 'organization';
+  companyInput.value = clientState.draft?.company || '';
+  appendClientField(fields, 'Company name', companyInput);
+  requestTitleFocus('clients', companyInput);
 
   const firstNameInput = document.createElement('input');
   firstNameInput.className = 'de-input';
@@ -1735,7 +1736,8 @@ async function closeClientEditor(checkDirty = true) {
   clientState.returnToScheduleUid = null;
   clearClientLastActiveUid();
   syncClientDeepLinkUrl(null);
-  getClientsEditor()?.classList.remove('de-pane-active');
+  // Navigate to the referrer first so a failed hop cannot leave mobile on the
+  // list view after de-pane-active was already cleared.
   if (returnWorkSlug) {
     navigateToWork(returnWorkSlug);
     return;
@@ -1744,20 +1746,40 @@ async function closeClientEditor(checkDirty = true) {
     shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid });
     return;
   }
+  getClientsEditor()?.classList.remove('de-pane-active');
   syncClientsListActiveState();
   renderClientsPane();
 }
 
-async function openClient(uid) {
+async function openClient(uid, opts = {}) {
   if (uid === clientState.activeUid) {
+    let returnChanged = false;
+    if (opts.fromWorkSlug) {
+      clientState.returnToWorkSlug = opts.fromWorkSlug;
+      clientState.returnToScheduleUid = null;
+      returnChanged = true;
+    } else if (opts.fromScheduleUid) {
+      clientState.returnToScheduleUid = opts.fromScheduleUid;
+      clientState.returnToWorkSlug = null;
+      returnChanged = true;
+    }
     syncClientsListActiveState({ scroll: true });
     ensureClientMobilePaneOpen();
+    if (returnChanged) renderClientsPane();
     return;
   }
   await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
-  clientState.returnToWorkSlug = null;
-  clientState.returnToScheduleUid = null;
+  if (opts.fromWorkSlug) {
+    clientState.returnToWorkSlug = opts.fromWorkSlug;
+    clientState.returnToScheduleUid = null;
+  } else if (opts.fromScheduleUid) {
+    clientState.returnToScheduleUid = opts.fromScheduleUid;
+    clientState.returnToWorkSlug = null;
+  } else if (!opts.keepReturnSlug) {
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+  }
   clientState.activeUid = uid;
   clientState.detailTab = 'profile';
   clientState.dirty = false;
@@ -2166,7 +2188,7 @@ async function resumeClientDetailFromUrl() {
     return;
   }
   if (clientState.clients.some((c) => c.uid === clientUid)) {
-    await openClient(clientUid);
+    await openClient(clientUid, { keepReturnSlug: true });
     return;
   }
   pendingClientDeepLinkUid = clientUid;
