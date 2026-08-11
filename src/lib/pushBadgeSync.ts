@@ -3,6 +3,8 @@
  * dashboard notifications go away (dismiss / archive / delete / triage).
  *
  * Debounced so bulk dismissals coalesce into one quiet badge-sync push.
+ * The service worker treats these as badge-only (show then immediate close)
+ * so owners are not notified again for a count refresh.
  */
 
 import { cachedCompanyBrandName } from './companyConfig';

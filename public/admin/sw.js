@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260811b — Sync app icon badge when dashboard notifications go away. */
+   v20260811c — Badge-sync push updates the icon count without a lasting tray alert. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -190,18 +190,14 @@ async function archiveAlertFromSw(alertId) {
 }
 
 /**
- * Badge-only sync push after dismissals. Always calls showNotification (iOS
- * userVisibleOnly), then closes it immediately when the admin app is already
- * open so the tray doesn't spam while the owner works the dashboard.
+ * Badge-only sync push after dismissals. iOS requires showNotification for
+ * userVisibleOnly subscriptions, but this is not a real alert — update the
+ * icon badge, satisfy the push handler, then always close so dismiss/archive
+ * does not leave another "pending reviews" banner in the tray.
  */
 async function presentBadgeSyncNotification(data, badgeCount) {
   const count = badgeCount != null ? Math.max(0, Number(badgeCount) || 0) : null;
   if (count != null) await writeBadgeCount(count);
-
-  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  const appOpen = clients.some(
-    (c) => c.visibilityState === 'visible' || ('focused' in c && c.focused),
-  );
 
   await self.registration.showNotification(data.title || 'Inbox updated', {
     body: data.body || '',
@@ -216,13 +212,11 @@ async function presentBadgeSyncNotification(data, badgeCount) {
     },
   });
 
-  if (appOpen) {
-    try {
-      const notes = await self.registration.getNotifications({ tag: 'reave-badge-sync' });
-      for (const note of notes) note.close();
-    } catch {
-      /* ignore */
-    }
+  try {
+    const notes = await self.registration.getNotifications({ tag: 'reave-badge-sync' });
+    for (const note of notes) note.close();
+  } catch {
+    /* ignore */
   }
 
   await notifyClientsInboxPush();

@@ -54,7 +54,7 @@ export async function sendPushNotification(payload: {
   kind?: PushAlertKind;
   /**
    * Badge-only sync after dismissals — service worker updates the icon badge and
-   * suppresses a lasting tray entry when the admin app is already open.
+   * closes the required userVisibleOnly notification immediately (no tray spam).
    */
   badgeOnly?: boolean;
   /** Inbox row id — used by the service worker for OTP delete / deep links. */
