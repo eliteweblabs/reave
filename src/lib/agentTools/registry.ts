@@ -9,6 +9,7 @@ import { contactsModule } from './core/contacts';
 import { outboundModule } from './core/outbound';
 import { techStackModule } from './core/techStack';
 import { playwrightAuditModule } from './core/playwrightAudit';
+import { chatsModule } from './core/chats';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -24,6 +25,9 @@ import type { AgentToolModule } from './types';
  *
  * Pexels stock photo search lives in `plugins/stock-photos/` (feature-gated
  * `stock_photos` + `PEXELS_API_KEY`).
+ *
+ * Chat management tools (list, get, archive, unarchive, rename, delete, search)
+ * live in `core/chats.ts` — always-on when DATABASE_URL is configured.
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -34,6 +38,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   outboundModule,
   techStackModule,
   playwrightAuditModule,
+  chatsModule,
 ];
 
 /** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */
