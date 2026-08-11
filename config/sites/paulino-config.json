@@ -1,0 +1,44 @@
+{
+  "key": "paulino",
+  "pages": ["/", "/privacy", "/terms"],
+  "nav": {
+    "links": [
+      { "href": "/admin", "label": "Dashboard" }
+    ],
+    "groups": [
+      {
+        "id": "site",
+        "label": "Site",
+        "links": [
+          { "href": "/admin", "label": "Dashboard", "primary": true }
+        ]
+      }
+    ],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Paulino Auto Group",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true,
+    "ctas": [{ "href": "/admin", "label": "Open Dashboard", "variant": "primary" }]
+  },
+  "landing": {
+    "title": "Paulino Auto Group | REΛVE",
+    "description": "Paulino Auto Group business OS — dispositions, inventory wizard, and dealership operations.",
+    "themeColor": "#0b1f33",
+    "eyebrow": "Dealership OS",
+    "name": "Paulino Auto Group",
+    "role": "Auto Group",
+    "tagline": "Inventory, dispositions, and dealership workflows on REΛVE.",
+    "contact": {
+      "heading": "Contact",
+      "officeLines": ["Fitchburg, MA"]
+    }
+  }
+}
