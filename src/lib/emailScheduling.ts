@@ -9,6 +9,7 @@ import {
   bookingCreate,
   bookingGet,
   bookingList,
+  bookingTimezone,
   isBookingConfigured,
   type AvailabilitySlot,
   type BookingSummary,
@@ -40,14 +41,16 @@ export type ScheduleCheckResult = {
   durationMinutes: number;
 };
 
+/** Format in BOOKING_TIMEZONE — Railway containers are UTC, so never rely on system TZ. */
 function formatWhen(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: bookingTimezone(),
     });
   } catch {
     return iso;
@@ -57,11 +60,12 @@ function formatWhen(iso: string): string {
 /** Human-readable meeting time for notifications and copy. */
 export function formatMeetingWhenLabel(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString('en-US', {
       month: 'long',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: bookingTimezone(),
     });
   } catch {
     return formatWhen(iso);

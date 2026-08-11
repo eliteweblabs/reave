@@ -10,6 +10,7 @@
 import type { APIContext } from 'astro';
 import {
   bookingCreate,
+  bookingTimezone,
   publicBookingPageUrl,
   resolveBookingAddress,
 } from '../../../../../lib/bookingClient';
@@ -585,12 +586,13 @@ export async function POST(context: APIContext): Promise<Response> {
 
 function formatWhenLabel(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: bookingTimezone(),
     });
   } catch {
     return iso;
