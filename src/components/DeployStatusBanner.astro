@@ -19,14 +19,12 @@ const modules: BannerModule[] = deployStatus.modules.map((m) => ({
   status: m.status,
 }));
 
-const statusTone: Record<string, string> = {
-  development: "#854d0e",
-  request: "#1e3a8a",
-};
-
-const statusBg: Record<string, string> = {
-  development: "#fef9c3",
-  request: "#dbeafe",
+/** Human-readable status for lead copy and pills. */
+const STATUS_LABEL: Record<string, string> = {
+  development: "in development",
+  request: "requested",
+  rejected: "rejected",
+  deployed: "deployed",
 };
 
 const hasDeployBanner = deployStatus.hasBanner;
@@ -56,7 +54,7 @@ const hasBanner = hasDeployBanner || showDemoSuite;
         <p class="deploy-status-banner__lead">
           <strong>Deployment in progress</strong> —{" "}
           {modules.length === 1
-            ? `${modules[0]!.label} is ${modules[0]!.status}.`
+            ? `${modules[0]!.label} is ${STATUS_LABEL[modules[0]!.status] ?? modules[0]!.status}.`
             : `${modules.length} modules need setup.`}
         </p>
       )}
@@ -65,10 +63,9 @@ const hasBanner = hasDeployBanner || showDemoSuite;
           {modules.map((m) => (
             <li>
               <span
-                class="deploy-status-banner__pill"
-                style={`background:${statusBg[m.status] ?? "#fef3c7"};color:${statusTone[m.status] ?? "#92400e"}`}
+                class={`deploy-status-banner__pill deploy-status-banner__pill--${m.status}`}
               >
-                {m.label} · {m.status}
+                {m.label} · {STATUS_LABEL[m.status] ?? m.status}
               </span>
             </li>
           ))}
@@ -108,15 +105,31 @@ const hasBanner = hasDeployBanner || showDemoSuite;
     right: 0;
     z-index: 99990;
     padding: 0.65rem 2.5rem 0.65rem 1rem;
-    background: linear-gradient(180deg, #422006 0%, #292524 100%);
-    color: #fef3c7;
-    font: 500 0.82rem/1.45 ui-sans-serif, system-ui, sans-serif;
-    border-bottom: 1px solid #78350f;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    font: 500 0.82rem/1.45 var(--font-primary, "Space Grotesk", system-ui, sans-serif);
+    color: #fdf4ff;
+    background:
+      linear-gradient(
+        105deg,
+        rgba(99, 102, 241, 0.92) 0%,
+        rgba(192, 38, 211, 0.94) 48%,
+        rgba(244, 114, 182, 0.9) 100%
+      );
+    border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow:
+      0 8px 28px rgba(192, 38, 211, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+    backdrop-filter: blur(16px) saturate(1.35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.35);
   }
 
   .deploy-status-banner__lead {
     margin: 0 0 0.35rem;
+  }
+
+  .deploy-status-banner__lead a {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .deploy-status-banner__list {
@@ -130,10 +143,19 @@ const hasBanner = hasDeployBanner || showDemoSuite;
 
   .deploy-status-banner__pill {
     display: inline-block;
-    padding: 0.1rem 0.45rem;
+    padding: 0.15rem 0.55rem;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
+    color: #4a044e;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 1px 8px rgba(99, 102, 241, 0.2);
+  }
+
+  .deploy-status-banner__pill--request {
+    color: #312e81;
+    background: rgba(224, 231, 255, 0.95);
   }
 
   .deploy-status-banner__dismiss {
@@ -141,12 +163,17 @@ const hasBanner = hasDeployBanner || showDemoSuite;
     top: 0.4rem;
     right: 0.5rem;
     border: none;
-    background: transparent;
-    color: #fde68a;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
     font-size: 1.25rem;
     line-height: 1;
     cursor: pointer;
-    padding: 0.15rem 0.35rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.4rem;
+  }
+
+  .deploy-status-banner__dismiss:hover {
+    background: rgba(255, 255, 255, 0.28);
   }
 
   body:has(.deploy-status-banner) .app-header {
