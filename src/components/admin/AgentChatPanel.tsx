@@ -75,6 +75,8 @@ const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
 const DEPLOY_CHAT_LOCK_POLL_MS_ACTIVE = 5_000;
 const DEPLOY_CHAT_LOCK_POLL_MS_IDLE = 15_000;
 const DEPLOY_CHAT_RELOAD_KEY = 'reave:deploy-reload-sha';
+/** Survive deploy-lock UI swap + the post-deploy hard reload. */
+const DEPLOY_CHAT_DRAFT_KEY = 'reave:deploy-chat-draft';
 const PPTX_MEDIA_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
@@ -1107,6 +1109,39 @@ function createChatAdapter(
   };
 }
 
+type DeployChatDraftPayload = { threadId: string; text: string };
+
+function saveDeployChatDraft(threadId: string, text: string): void {
+  try {
+    // Never wipe a prior snapshot with an empty string (lock timing races).
+    if (!text) return;
+    const payload: DeployChatDraftPayload = { threadId, text };
+    sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(payload));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function readDeployChatDraft(threadId: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DeployChatDraftPayload;
+    if (!parsed || parsed.threadId !== threadId || typeof parsed.text !== 'string') return null;
+    return parsed.text;
+  } catch {
+    return null;
+  }
+}
+
+function clearDeployChatDraft(): void {
+  try {
+    sessionStorage.removeItem(DEPLOY_CHAT_DRAFT_KEY);
+  } catch {
+    /* private mode */
+  }
+}
+
 function PendingDraftBoot({
   draft,
   autoSend,
@@ -1124,6 +1159,49 @@ function PendingDraftBoot({
     composer.setText(draft);
     if (autoSend && !deployChatLocked) void composer.send();
   }, [autoSend, composer, deployChatLocked, draft]);
+  return null;
+}
+
+/** Rehydrate composer text saved across a deploy lock / post-deploy reload. */
+function DeployDraftBoot({
+  threadId,
+  deployChatLocked,
+}: {
+  threadId: string;
+  deployChatLocked: boolean;
+}) {
+  const composer = useComposerRuntime();
+  const wasLockedRef = useRef(deployChatLocked);
+  const didInitialRestoreRef = useRef(false);
+
+  // Snapshot while locked so the hard reload that follows "live" still has the draft.
+  useLayoutEffect(() => {
+    if (!deployChatLocked) return;
+    const text = composer.getState().text ?? '';
+    saveDeployChatDraft(threadId, text);
+  }, [composer, deployChatLocked, threadId]);
+
+  useEffect(() => {
+    const wasLocked = wasLockedRef.current;
+    wasLockedRef.current = deployChatLocked;
+
+    // After a hard reload the runtime is empty — pull the snapshot back once.
+    if (!didInitialRestoreRef.current && !deployChatLocked) {
+      didInitialRestoreRef.current = true;
+      const saved = readDeployChatDraft(threadId);
+      if (saved) {
+        const current = composer.getState().text ?? '';
+        if (!current.trim()) composer.setText(saved);
+        clearDeployChatDraft();
+      }
+    }
+
+    // In-session unlock (no reload): runtime kept the text; drop the snapshot.
+    if (wasLocked && !deployChatLocked) {
+      clearDeployChatDraft();
+    }
+  }, [composer, deployChatLocked, threadId]);
+
   return null;
 }
 
@@ -2030,6 +2108,9 @@ function ClaudeComposer({
   const showRunning = isRunning || useExternalProgress;
   const sendBtnRef = useRef<HTMLButtonElement | null>(null);
   const sentByTouchRef = useRef(false);
+  /** Last typed value — survives the deploy-lock swap if runtime text is briefly empty. */
+  const typedDraftRef = useRef('');
+  const [pausedDraft, setPausedDraft] = useState('');
   useCapComposerAttachments();
 
   const setInputRef = useCallback(
@@ -2050,6 +2131,20 @@ function ClaudeComposer({
     if (!showRunning && !deployChatLocked) return;
     propsRef.current?.onComposeFocus?.(false);
   }, [showRunning, deployChatLocked, propsRef]);
+
+  // Persist draft as soon as the lock UI takes over (and again while reloading).
+  useLayoutEffect(() => {
+    if (!deployChatLocked) {
+      setPausedDraft('');
+      return;
+    }
+    const fromRuntime = composer.getState().text ?? '';
+    const text = fromRuntime || typedDraftRef.current;
+    if (text && !fromRuntime) composer.setText(text);
+    typedDraftRef.current = text;
+    setPausedDraft(text);
+    saveDeployChatDraft(threadId, text);
+  }, [composer, deployChatLocked, threadId]);
 
   // iOS Safari blurs the focused textarea on the touch that targets Send —
   // often before `click` — which closes the keyboard and reflows the pinned
@@ -2134,6 +2229,12 @@ function ClaudeComposer({
                 : 'Deploy in progress — new messages are paused until the new version is live.')}
           </p>
         </div>
+        {pausedDraft.trim() ? (
+          <div className="aui-composer-card aui-composer-card-deploy-paused">
+            <p className="aui-composer-deploy-draft-label">Draft saved — will restore when live</p>
+            <pre className="aui-composer-deploy-draft-text">{pausedDraft}</pre>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -2183,6 +2284,7 @@ function ClaudeComposer({
             }}
             onInput={(e) => {
               const value = e.currentTarget.value;
+              typedDraftRef.current = value;
               const caret = e.currentTarget.selectionStart ?? value.length;
               helpers.onInput(value);
               mentions.onInput(value, caret);
@@ -2689,6 +2791,7 @@ function AgentChatThread({
         autoSend={pendingAutoSend}
         deployChatLocked={deployChatLock.locked}
       />
+      <DeployDraftBoot threadId={threadId} deployChatLocked={deployChatLock.locked} />
       <AgentChatThreadBody
         propsRef={propsRef}
         threadId={threadId}
