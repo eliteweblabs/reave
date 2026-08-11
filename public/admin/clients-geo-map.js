@@ -87,18 +87,22 @@ function pinIconUrl(c) {
   return logo || '';
 }
 
-/** Viewport px — Mapbox measures the container once; % height often collapses to ~300px. */
+/**
+ * Layout-viewport px for Mapbox (avoids % height collapsing to ~300px).
+ * Prefer layout size over visualViewport alone — on iOS Safari, vv.height is
+ * shorter than the fixed containing block while the toolbar is up, which left
+ * a solid black chin under the map canvas.
+ */
 function viewportSize() {
   const vv = window.visualViewport;
-  const w = Math.max(
-    1,
-    Math.floor(vv?.width || window.innerWidth || document.documentElement.clientWidth || 1),
-  );
-  const h = Math.max(
-    1,
-    Math.floor(vv?.height || window.innerHeight || document.documentElement.clientHeight || 1),
-  );
-  return { w, h };
+  const layoutW = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+  const layoutH = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+  const visualW = vv ? Math.ceil((vv.offsetLeft || 0) + vv.width) : 0;
+  const visualH = vv ? Math.ceil((vv.offsetTop || 0) + vv.height) : 0;
+  return {
+    w: Math.max(1, Math.floor(Math.max(layoutW, visualW, vv?.width || 0))),
+    h: Math.max(1, Math.floor(Math.max(layoutH, visualH, vv?.height || 0))),
+  };
 }
 
 /**
@@ -135,9 +139,9 @@ export function mountClientsGeoMap(container, opts = {}) {
     const style = document.createElement('style');
     style.id = 'cgm-critical-css';
     style.textContent = `
-      html, body { margin:0; width:100%; height:100%; min-height:100%; min-height:100dvh; overflow:hidden; background:#0d1117; color:#e9eef6;
+      html, body { margin:0; width:100%; height:100%; min-height:100%; min-height:-webkit-fill-available; min-height:100dvh; min-height:100lvh; overflow:hidden; background-color:#0d1117; color:#e9eef6;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-      .cgm-root { position:fixed; inset:0; width:100%; height:100%; min-height:100dvh; }
+      .cgm-root { position:fixed; inset:0; width:auto; height:auto; min-width:100%; min-height:-webkit-fill-available; min-height:100lvh; }
       .cgm-map-host, .cgm-map-canvas { position:absolute; inset:0; width:100%; height:100%; min-height:100%; }
       .cgm-map-empty { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center;
         padding:1.5rem; text-align:center; color:#8b949e; font-size:.95rem; background:rgba(13,17,23,.55); pointer-events:none; }
@@ -194,6 +198,9 @@ export function mountClientsGeoMap(container, opts = {}) {
       .cgm-popup { display:flex; flex-direction:column; gap:.2rem; }
       .mapboxgl-popup-content, .leaflet-popup-content { color:#0d1117; font-size:.85rem; line-height:1.35; }
       .leaflet-container { width:100%; height:100%; background:#0d1117; }
+      .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right, .leaflet-bottom {
+        bottom: max(.35rem, env(safe-area-inset-bottom, 0px));
+      }
     `;
     document.head.appendChild(style);
   }
@@ -255,24 +262,38 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   function sizeMapShell() {
     const { w, h } = viewportSize();
-    document.documentElement.style.width = `${w}px`;
-    document.documentElement.style.height = `${h}px`;
+    // Keep document at least layout-tall — shrinking html/body to visualViewport
+    // height made Safari sample an opaque black chin under the map.
+    document.documentElement.style.width = '100%';
+    document.documentElement.style.height = '100%';
+    document.documentElement.style.minHeight = `${h}px`;
     document.body.style.margin = '0';
     document.body.style.overflow = 'hidden';
-    document.body.style.width = `${w}px`;
-    document.body.style.height = `${h}px`;
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    document.body.style.minHeight = `${h}px`;
+    document.body.style.backgroundColor = '#0d1117';
+    // Fixed inset:0 tracks the layout viewport; do not override with short vv px.
     container.style.position = 'fixed';
-    container.style.inset = '0';
-    container.style.width = `${w}px`;
-    container.style.height = `${h}px`;
+    container.style.top = '0';
+    container.style.right = '0';
+    container.style.bottom = '0';
+    container.style.left = '0';
+    container.style.width = 'auto';
+    container.style.height = 'auto';
+    container.style.minWidth = '100%';
+    container.style.minHeight = `${h}px`;
+    const rect = container.getBoundingClientRect();
+    const mw = Math.max(1, Math.floor(rect.width || w));
+    const mh = Math.max(1, Math.floor(rect.height || h));
     for (const el of [mapHost, mapEl]) {
       el.style.position = 'absolute';
       el.style.top = '0';
       el.style.left = '0';
       el.style.right = 'auto';
       el.style.bottom = 'auto';
-      el.style.width = `${w}px`;
-      el.style.height = `${h}px`;
+      el.style.width = `${mw}px`;
+      el.style.height = `${mh}px`;
     }
   }
 
@@ -703,14 +724,18 @@ export function mountClientsGeoMap(container, opts = {}) {
     map = null;
     mapReady = false;
     window.removeEventListener('resize', resize);
+    window.removeEventListener('orientationchange', resize);
     window.visualViewport?.removeEventListener?.('resize', resize);
+    window.visualViewport?.removeEventListener?.('scroll', resize);
   }
 
   renderToggles();
   renderCount();
   sizeMapShell();
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
   window.visualViewport?.addEventListener?.('resize', resize);
+  window.visualViewport?.addEventListener?.('scroll', resize);
   void ensureMap();
   void loadClients();
 

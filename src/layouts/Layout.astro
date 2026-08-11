@@ -150,11 +150,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	/*
 	 * iPhone Safari (esp. 26 Liquid Glass) paints solid “forehead/chin” bars from
 	 * body background-color and from position:fixed layers on the viewport edges.
-	 * Keep a stable scrolling shell (no 100dvh/100lvh on html/body — that reflows
-	 * the layout viewport and makes position:fixed headers shear). Paint the
-	 * atmosphere on body itself instead of full-bleed fixed mesh layers.
+	 * Keep a stable scrolling shell (no 100dvh/100lvh *height* on html/body — that
+	 * reflows the layout viewport and makes position:fixed headers shear). Paint the
+	 * atmosphere on body itself instead of full-bleed fixed mesh layers. Body uses
+	 * min-height (not height:100%) so a 100lvh hero can grow the paint box.
 	 */
 	html {
+		height: 100%;
 		background-color: #050505;
 	}
 
@@ -162,7 +164,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	body {
 		margin: 0;
 		width: 100%;
-		height: 100%;
 		font-family: var(--font-content);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
@@ -186,6 +187,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	body {
+		/*
+		 * Grow with content (hero is 100lvh) instead of locking height:100%.
+		 * A short body left a black chin under the fold on iOS Safari when the
+		 * large viewport exceeded the percentage box. Avoid 100dvh/100lvh on
+		 * html/body height — that reflows the layout viewport and shears fixed headers.
+		 */
+		min-height: 100%;
 		position: relative;
 		/*
 		 * Mesh lives on body (not a position:fixed layer) so Safari does not treat
