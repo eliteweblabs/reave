@@ -108,7 +108,7 @@ import {
   iosIcon,
 } from './admin-ui.js?v=20260810a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { installPwaNavGuard } from './push-client.js?v=20260810a';
+import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260810a';
 import {
@@ -133,7 +133,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260810a';
+} from './work-panel.js?v=20260810c';
 import {
   initTodoPanel,
   todoState,
@@ -187,7 +187,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260810a';
+} from './clients-panel.js?v=20260810c';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -11826,7 +11826,7 @@ function emailSidebarEmptyInnerHtml() {
   }
   if (emailState.inboxFilter === 'routed') return 'No archived messages yet.';
   if (emailState.inboxFilter === 'receipt') {
-    return 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt, or use <strong>Find missing receipts</strong> above.';
+    return 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt.';
   }
   return (
     'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. ' +
@@ -11934,10 +11934,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
         renderEmailPanel({ preserveSidebar: true, preservePane: !clearedActive });
       },
     },
-    below:
-      emailState.inboxFilter === 'receipt' || emailState.inboxFilter === 'review'
-        ? [renderEmailFilterTabs(savedFilterScroll), renderFindMissingReceiptsBar()]
-        : renderEmailFilterTabs(savedFilterScroll),
+    below: renderEmailFilterTabs(savedFilterScroll),
   });
 
   const isSent = emailState.inboxFilter === 'sent';

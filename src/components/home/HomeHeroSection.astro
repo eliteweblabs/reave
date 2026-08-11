@@ -161,6 +161,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     gap: 18px;
     padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
     text-align: center;
+    /* No fill — a opaque/translucent bg here becomes Safari’s bottom chin tint. */
+    background-color: transparent;
     pointer-events: none;
     /*
      * No resting transform — iOS Safari can stop compositing position:fixed

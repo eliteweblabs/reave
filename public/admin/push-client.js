@@ -534,9 +534,13 @@ function applySleepModeSettingsPayload(data) {
   syncTopbarSleepToggle(data);
 }
 
-/** Brief mobile reveal of the awake-since time after tapping "Awake". */
-let awakeLabelRevealTimer = null;
-const AWAKE_LABEL_REVEAL_MS = 2500;
+/** Brief mobile reveal of until/awake-since time after tapping the compact label. */
+let sleepLabelRevealTimer = null;
+const SLEEP_LABEL_REVEAL_MS = 2500;
+
+function getQuietEndTime(data) {
+  return data?.quietEndLabel || '7:00 AM';
+}
 
 function getAwakeSinceTime(data) {
   return (
@@ -547,8 +551,14 @@ function getAwakeSinceTime(data) {
 }
 
 function formatTopbarSleepLabel(data, enabled, { compact = false, revealTime = false } = {}) {
-  const until = data?.quietEndLabel || '7:00 AM';
-  if (enabled) return `Sleeping until ${until}`;
+  const until = getQuietEndTime(data);
+  if (enabled) {
+    if (compact) {
+      if (revealTime) return until;
+      return 'Sleeping';
+    }
+    return `Sleeping until ${until}`;
+  }
   const since = getAwakeSinceTime(data);
   if (compact) {
     if (revealTime && since) return since;
@@ -573,10 +583,10 @@ function formatAwakeSinceFromSettings(settings) {
   }
 }
 
-function clearAwakeLabelReveal() {
-  if (awakeLabelRevealTimer) {
-    clearTimeout(awakeLabelRevealTimer);
-    awakeLabelRevealTimer = null;
+function clearSleepLabelReveal() {
+  if (sleepLabelRevealTimer) {
+    clearTimeout(sleepLabelRevealTimer);
+    sleepLabelRevealTimer = null;
   }
   const label = document.getElementById('topbar-sleep-toggle-label');
   if (label) delete label.dataset.revealing;
@@ -593,7 +603,7 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
   wrap.hidden = !inWindow;
   topbar?.classList.toggle('topbar-has-sleep-toggle', inWindow);
   if (!inWindow) {
-    clearAwakeLabelReveal();
+    clearSleepLabelReveal();
     if (label) {
       label.classList.remove('topbar-sleep-toggle-label--tap');
       label.removeAttribute('role');
@@ -605,21 +615,25 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
 
   const enabled = data?.settings?.sleepModeEnabled !== false;
   const compact = isMobileViewport();
+  const until = getQuietEndTime(data);
   const since = getAwakeSinceTime(data);
-  const revealing = !enabled && label?.dataset.revealing === '1';
-  if (!compact || enabled) clearAwakeLabelReveal();
+  const revealing = label?.dataset.revealing === '1';
+  if (!compact) clearSleepLabelReveal();
 
   if (label) {
     label.textContent = formatTopbarSleepLabel(data, enabled, {
       compact,
       revealTime: revealing,
     });
-    const tappable = compact && !enabled && Boolean(since);
+    const tappable = compact && (enabled || Boolean(since));
     label.classList.toggle('topbar-sleep-toggle-label--tap', tappable);
     if (tappable) {
       label.setAttribute('role', 'button');
       label.setAttribute('tabindex', '0');
-      label.setAttribute('title', 'Tap to show when you woke');
+      label.setAttribute(
+        'title',
+        enabled ? 'Tap to show when sleep ends' : 'Tap to show when you woke',
+      );
     } else {
       label.removeAttribute('role');
       label.removeAttribute('tabindex');
@@ -630,7 +644,7 @@ function syncTopbarSleepToggle(data = sleepModeCache) {
   btn.setAttribute(
     'aria-label',
     enabled
-      ? `Sleep mode on until ${data?.quietEndLabel || 'quiet hours end'} — tap to allow AI and alerts tonight`
+      ? `Sleep mode on until ${until} — tap to allow AI and alerts tonight`
       : since
         ? `Sleep mode off since ${since} — tap to pause AI and alerts again`
         : 'Sleep mode off tonight — tap to pause AI and alerts again',
@@ -647,21 +661,21 @@ async function refreshTopbarSleepToggle() {
   }
 }
 
-function revealAwakeSinceOnLabel() {
+function revealSleepLabelTime() {
   const label = document.getElementById('topbar-sleep-toggle-label');
   if (!label || !label.classList.contains('topbar-sleep-toggle-label--tap')) return;
   if (!isMobileViewport()) return;
-  const since = getAwakeSinceTime(sleepModeCache);
-  if (!since) return;
+  const enabled = sleepModeCache?.settings?.sleepModeEnabled !== false;
+  if (!enabled && !getAwakeSinceTime(sleepModeCache)) return;
 
   label.dataset.revealing = '1';
   syncTopbarSleepToggle(sleepModeCache);
-  if (awakeLabelRevealTimer) clearTimeout(awakeLabelRevealTimer);
-  awakeLabelRevealTimer = setTimeout(() => {
-    awakeLabelRevealTimer = null;
+  if (sleepLabelRevealTimer) clearTimeout(sleepLabelRevealTimer);
+  sleepLabelRevealTimer = setTimeout(() => {
+    sleepLabelRevealTimer = null;
     delete label.dataset.revealing;
     syncTopbarSleepToggle(sleepModeCache);
-  }, AWAKE_LABEL_REVEAL_MS);
+  }, SLEEP_LABEL_REVEAL_MS);
 }
 
 function initTopbarSleepToggle() {
@@ -672,7 +686,7 @@ function initTopbarSleepToggle() {
 
   btn.addEventListener('click', async () => {
     if (btn.disabled) return;
-    clearAwakeLabelReveal();
+    clearSleepLabelReveal();
     const nextEnabled = btn.getAttribute('aria-checked') !== 'true';
     btn.disabled = true;
     try {
@@ -693,13 +707,13 @@ function initTopbarSleepToggle() {
       if (!label.classList.contains('topbar-sleep-toggle-label--tap')) return;
       ev.preventDefault();
       ev.stopPropagation();
-      revealAwakeSinceOnLabel();
+      revealSleepLabelTime();
     });
     label.addEventListener('keydown', (ev) => {
       if (!label.classList.contains('topbar-sleep-toggle-label--tap')) return;
       if (ev.key !== 'Enter' && ev.key !== ' ') return;
       ev.preventDefault();
-      revealAwakeSinceOnLabel();
+      revealSleepLabelTime();
     });
   }
 

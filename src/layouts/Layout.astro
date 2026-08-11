@@ -1,6 +1,5 @@
 ---
 import Header from "../components/Header.astro";
-import DeployStatusBanner from "../components/DeployStatusBanner.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import SiteFooter from "../components/SiteFooter.astro";
@@ -119,7 +118,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body data-user-id={userId ?? ""}>
-		<DeployStatusBanner />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
@@ -149,6 +147,16 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		box-sizing: border-box;
 	}
 
+	/*
+	 * Stable scrolling shell — do not bind html/body height to 100dvh/100lvh.
+	 * Dynamic viewport units reflow the layout viewport when Safari chrome
+	 * shows/hides and make position:fixed headers shear (see 36f62604).
+	 * Atmosphere stays on .site-bg-mesh (inset past Safari edge-sample bands).
+	 */
+	html {
+		background-color: #050505;
+	}
+
 	html,
 	body {
 		margin: 0;
@@ -167,9 +175,11 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * never fall back to the browser's white default — which otherwise
 		 * causes white text (styled for a dark background) to render invisibly
 		 * on a white page. Pages can still override this per-element as needed.
+		 * Use background-color (not the background shorthand) so Safari’s
+		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background: #050505;
+		background-color: #050505;
 		color: #e5e5e5;
 	}
 
