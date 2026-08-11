@@ -220,18 +220,22 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: relative;
     z-index: 0;
     width: 100%;
+    max-width: 100%;
     isolation: isolate;
     /*
-     * Stable fold height — prefer svh so iOS URL-bar show/hide during drag
-     * does not resize the hero (that was the old visualViewport --home-hero-vh pin).
+     * Full device fold — 100lvh is the large (chrome-collapsed) viewport and
+     * stays stable while the URL bar shows/hides (unlike dvh). Fallbacks cover
+     * older WebKit; do not lock to svh or the island/home-indicator strips
+     * read as black letterbox bars against the body fill.
      */
     min-height: 100vh;
     min-height: -webkit-fill-available;
     min-height: 100dvh;
-    min-height: 100svh;
+    min-height: 100lvh;
     height: 100vh;
+    height: -webkit-fill-available;
     height: 100dvh;
-    height: 100svh;
+    height: 100lvh;
     overflow: hidden;
     scroll-margin-top: 0;
   }
