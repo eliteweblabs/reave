@@ -7,6 +7,10 @@
  * after it, and nothing left alive to write one. The chat would sit there
  * looking permanently unanswered.
  *
+ * Durable agent_run_leases (heartbeated while a turn runs) let a new replica
+ * see that the draining process is still working — we must not insert the
+ * interrupted note underneath a lease that is still alive.
+ *
  * The client calls this when it observes that combination — no active run, no
  * progress, trailing user message — and we append an honest note so the thread
  * always ends with an assistant turn the user (and the model, next turn) can see.
@@ -17,6 +21,8 @@ import { isAgentRunActive } from '../../../../lib/agentRunControl';
 import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/chatStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { getAliveAgentRunLease } from '../../../../lib/pgAgentRunLeases';
+import '../../../../lib/processDrain';
 
 export const prerender = false;
 
@@ -41,9 +47,13 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
 
   // A live run will write its own reply (the chat endpoint guarantees it), so
-  // never insert a note underneath one that is still working.
+  // never insert a note underneath one that is still working — locally or on a
+  // draining replica that still holds a fresh lease.
   if (isAgentRunActive(userId, id) || getAgentProgress(userId, id)) {
     return json({ ok: true, reconciled: false, reason: 'run_active' });
+  }
+  if (await getAliveAgentRunLease(userId, id)) {
+    return json({ ok: true, reconciled: false, reason: 'run_lease_active' });
   }
 
   const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
