@@ -145,16 +145,23 @@ export function mountClientsGeoMap(container, opts = {}) {
       .cgm-chrome { position:absolute; z-index:5; top:max(.75rem, env(safe-area-inset-top));
         left:max(.75rem, env(safe-area-inset-left)); display:flex; flex-direction:column; gap:.55rem;
         width:min(320px, calc(100vw - 1.5rem)); pointer-events:none; }
-      .cgm-back, .cgm-chrome-panel { pointer-events:auto; }
-      .cgm-back { align-self:flex-start; display:inline-flex; align-items:center; padding:.45rem .7rem;
-        border:1px solid rgba(48,54,61,.95); border-radius:10px; background:rgba(22,27,34,.92);
-        color:inherit; text-decoration:none; font-size:.88rem; backdrop-filter:blur(10px); }
-      .cgm-chrome-panel { border:1px solid rgba(48,54,61,.95); border-radius:14px; background:rgba(22,27,34,.92);
-        backdrop-filter:blur(12px); padding:.85rem .9rem; box-shadow:0 12px 32px rgba(0,0,0,.35); }
-      .cgm-chrome-top { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; margin-bottom:.7rem; }
-      .cgm-title { margin:0; font-size:1.05rem; font-weight:700; }
-      .cgm-count { margin:0; color:#8b949e; font-size:.78rem; white-space:nowrap; }
-      .cgm-toggles { display:flex; flex-direction:column; gap:.15rem; }
+      .cgm-chrome-panel { pointer-events:auto; border:1px solid rgba(48,54,61,.95); border-radius:14px;
+        background:rgba(22,27,34,.92); backdrop-filter:blur(12px); padding:.55rem .65rem;
+        box-shadow:0 12px 32px rgba(0,0,0,.35); }
+      .cgm-toolbar { display:flex; align-items:center; gap:.5rem; min-height:2rem; }
+      .cgm-back { display:inline-flex; align-items:center; padding:.35rem .55rem; border-radius:8px;
+        color:inherit; text-decoration:none; font-size:.88rem; flex-shrink:0; }
+      .cgm-back:hover { background:rgba(177,186,196,.14); }
+      .cgm-count { margin:0; margin-right:auto; color:#8b949e; font-size:.78rem; white-space:nowrap; min-width:0;
+        overflow:hidden; text-overflow:ellipsis; }
+      .cgm-settings-btn { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+        width:2rem; height:2rem; padding:0; border:none; border-radius:8px; background:transparent;
+        color:inherit; cursor:pointer; }
+      .cgm-settings-btn:hover, .cgm-settings-btn[aria-expanded="true"] { background:rgba(177,186,196,.14); }
+      .cgm-settings-btn svg { display:block; }
+      .cgm-filters { margin-top:.45rem; padding-top:.35rem; border-top:1px solid rgba(48,54,61,.95); }
+      .cgm-filters[hidden] { display:none !important; }
+      .cgm-toggles { display:flex; flex-direction:column; gap:.1rem; }
       .cgm-toggle { display:flex; align-items:center; gap:.65rem; padding:.4rem .15rem; cursor:pointer; user-select:none; }
       .cgm-toggle-input { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
       .cgm-toggle-track { flex-shrink:0; width:2.55rem; height:1.45rem; border-radius:999px; background:#30363d; position:relative; transition:background .15s; }
@@ -163,7 +170,6 @@ export function mountClientsGeoMap(container, opts = {}) {
       .cgm-toggle.is-on .cgm-toggle-track, .cgm-toggle-input:checked + .cgm-toggle-track { background:var(--cgm-kind,#2563eb); }
       .cgm-toggle.is-on .cgm-toggle-track::after, .cgm-toggle-input:checked + .cgm-toggle-track::after { transform:translateX(1.1rem); }
       .cgm-toggle-meta { display:flex; align-items:center; gap:.4rem; min-width:0; flex:1; }
-      .cgm-toggle-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
       .cgm-toggle-label { font-size:.86rem; font-weight:600; }
       .cgm-toggle-count { margin-left:auto; font-size:.75rem; color:#8b949e; font-variant-numeric:tabular-nums; }
       .cgm-toggle:not(.is-on) { opacity:.55; }
@@ -186,17 +192,30 @@ export function mountClientsGeoMap(container, opts = {}) {
     document.head.appendChild(style);
   }
 
+  // IOS_ICONS.settings — keep in sync with public/admin/admin-ui.js
+  const SETTINGS_ICON =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+
   container.classList.add('cgm-root');
   container.innerHTML = `
     <div class="cgm-map-host" id="cgm-map-host" role="img" aria-label="Contact locations map"></div>
     <div class="cgm-chrome">
-      <a class="cgm-back" href="/admin/?tab=clients">← Contacts</a>
       <div class="cgm-chrome-panel">
-        <div class="cgm-chrome-top">
-          <h1 class="cgm-title">Contact map</h1>
+        <div class="cgm-toolbar">
+          <a class="cgm-back" href="/admin/?tab=clients">← Contacts</a>
           <p class="cgm-count" id="cgm-count" aria-live="polite">Loading…</p>
+          <button
+            type="button"
+            class="cgm-settings-btn"
+            id="cgm-settings-btn"
+            aria-expanded="false"
+            aria-controls="cgm-filters"
+            aria-label="Filter settings"
+          >${SETTINGS_ICON}</button>
         </div>
-        <div class="cgm-toggles" id="cgm-toggles" role="group" aria-label="Status toggles"></div>
+        <div class="cgm-filters" id="cgm-filters" hidden>
+          <div class="cgm-toggles" id="cgm-toggles" role="group" aria-label="Status toggles"></div>
+        </div>
       </div>
     </div>
     <div class="cgm-status" id="cgm-status" hidden></div>
@@ -204,8 +223,17 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   const mapHost = /** @type {HTMLElement} */ (container.querySelector('#cgm-map-host'));
   const togglesEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-toggles'));
+  const filtersEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-filters'));
+  const settingsBtn = /** @type {HTMLButtonElement} */ (container.querySelector('#cgm-settings-btn'));
   const countEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-count'));
   const statusEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-status'));
+
+  settingsBtn.addEventListener('click', () => {
+    const open = settingsBtn.getAttribute('aria-expanded') === 'true';
+    const next = !open;
+    settingsBtn.setAttribute('aria-expanded', next ? 'true' : 'false');
+    filtersEl.hidden = !next;
+  });
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cgm-map-empty';
@@ -325,7 +353,6 @@ export function mountClientsGeoMap(container, opts = {}) {
       const meta = document.createElement('span');
       meta.className = 'cgm-toggle-meta';
       meta.innerHTML = `
-        <span class="cgm-toggle-dot" style="background:${kindColor(kind)}"></span>
         <span class="cgm-toggle-label">${escHtml(CLIENT_KIND_LABELS[kind])}</span>
         <span class="cgm-toggle-count">${counts[kind] ?? 0}</span>
       `;
