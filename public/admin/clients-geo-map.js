@@ -143,15 +143,20 @@ export function mountClientsGeoMap(container, opts = {}) {
         padding:1.5rem; text-align:center; color:#8b949e; font-size:.95rem; background:rgba(13,17,23,.55); pointer-events:none; }
       .cgm-map-empty[hidden] { display:none !important; }
       .cgm-chrome { position:absolute; z-index:5; top:max(.75rem, env(safe-area-inset-top));
-        left:max(.75rem, env(safe-area-inset-left)); display:flex; flex-direction:column; gap:.55rem;
-        width:min(320px, calc(100vw - 1.5rem)); pointer-events:none; }
-      .cgm-chrome-panel { pointer-events:auto; border:1px solid rgba(48,54,61,.95); border-radius:14px;
-        background:rgba(22,27,34,.92); backdrop-filter:blur(12px); padding:.55rem .65rem;
+        left:max(.75rem, env(safe-area-inset-left)); right:max(.75rem, env(safe-area-inset-right));
+        display:flex; flex-direction:row; align-items:flex-start; gap:.55rem;
+        width:auto; max-width:360px; pointer-events:none; }
+      .cgm-back { pointer-events:auto; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center;
+        width:2.75rem; height:2.75rem; padding:0; border:1px solid rgba(48,54,61,.95); border-radius:14px;
+        background:rgba(22,27,34,.92); backdrop-filter:blur(12px); color:inherit; text-decoration:none;
         box-shadow:0 12px 32px rgba(0,0,0,.35); }
-      .cgm-toolbar { display:flex; align-items:center; gap:.5rem; min-height:2rem; }
-      .cgm-back { display:inline-flex; align-items:center; padding:.35rem .55rem; border-radius:8px;
-        color:inherit; text-decoration:none; font-size:.88rem; flex-shrink:0; }
-      .cgm-back:hover { background:rgba(177,186,196,.14); }
+      .cgm-back:hover { background:rgba(28,33,40,.96); }
+      .cgm-back svg { display:block; }
+      .cgm-chrome-panel { pointer-events:auto; flex:1 1 auto; min-width:0;
+        border:1px solid rgba(48,54,61,.95); border-radius:14px;
+        background:rgba(22,27,34,.92); backdrop-filter:blur(12px); padding:.45rem .65rem;
+        box-shadow:0 12px 32px rgba(0,0,0,.35); }
+      .cgm-toolbar { display:flex; align-items:center; gap:.5rem; min-height:1.85rem; }
       .cgm-count { margin:0; margin-right:auto; color:#8b949e; font-size:.78rem; white-space:nowrap; min-width:0;
         overflow:hidden; text-overflow:ellipsis; }
       .cgm-settings-btn { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
@@ -192,6 +197,9 @@ export function mountClientsGeoMap(container, opts = {}) {
     document.head.appendChild(style);
   }
 
+  // IOS_ICONS.chevron-left — keep in sync with public/admin/admin-ui.js
+  const BACK_ICON =
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
   // IOS_ICONS.settings — keep in sync with public/admin/admin-ui.js
   const SETTINGS_ICON =
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -200,9 +208,9 @@ export function mountClientsGeoMap(container, opts = {}) {
   container.innerHTML = `
     <div class="cgm-map-host" id="cgm-map-host" role="img" aria-label="Contact locations map"></div>
     <div class="cgm-chrome">
+      <a class="cgm-back" href="/admin/?tab=clients" aria-label="Back to Contacts" title="Contacts">${BACK_ICON}</a>
       <div class="cgm-chrome-panel">
         <div class="cgm-toolbar">
-          <a class="cgm-back" href="/admin/?tab=clients">← Contacts</a>
           <p class="cgm-count" id="cgm-count" aria-live="polite">Loading…</p>
           <button
             type="button"
