@@ -22,7 +22,8 @@
     "online_reviews",
     "wayback_machine",
     "stock_photos",
-    "seo_directory"
+    "seo_directory",
+    "event_ticketing"
   ],
   "footerNav": [
     "__system__",
@@ -56,6 +57,7 @@
   "chatFocusSkin": true,
   "siteContentKey": "reave",
   "moduleStatus": {
-    "seo_directory": "development"
+    "seo_directory": "development",
+    "event_ticketing": "request"
   }
 }

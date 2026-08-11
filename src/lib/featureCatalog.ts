@@ -34,6 +34,7 @@ export const FEATURE_IDS = [
   'stock_photos',
   'wordpress_content',
   'seo_directory',
+  'event_ticketing',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -69,6 +70,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   stock_photos: 'Pexels stock photos',
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',
+  event_ticketing: 'Event ticketing',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -103,6 +105,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   wordpress_content: 'Agent updates posts, pages, and media on a WordPress site',
   seo_directory:
     'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, and Bing',
+  event_ticketing:
+    'Ticket sales, QR check-in, and event inventory — reference only until productized',
 };
 
 export const CORE_FEATURE_NOTE =

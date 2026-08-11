@@ -40,6 +40,7 @@ const FEATURE_IDS_LIST = [
   'stock_photos',
   'wordpress_content',
   'seo_directory',
+  'event_ticketing',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
