@@ -77,15 +77,19 @@
 /**
  * Full-width brand chevron pattern overlay (ReaveBgPattern.astro).
  * One inline SVG instance — uniform scale only (preserveAspectRatio meet/slice).
- *
- * Absolute (document-attached), not position:fixed. Full-viewport fixed layers
- * sit on both iPhone Safari edges and trigger opaque forehead/chin tints
- * (WebKit scroll-pocket sampling). Mesh gradients are painted on body instead.
  */
 .reave-bg-pattern {
-  position: absolute;
-  inset: 0;
-  min-height: 100%;
+  position: fixed;
+  /*
+   * iPhone Safari samples position:fixed layers within ~4px of the top and
+   * ~3px of the bottom for opaque forehead/chin tints (Liquid Glass). Inset
+   * past that band so the atmosphere stays viewport-fixed without letterboxing.
+   * The uncovered strip sits under browser chrome / matches body fill.
+   */
+  top: 5px;
+  right: 0;
+  bottom: 4px;
+  left: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -99,13 +103,22 @@
   display: block;
 }
 
-/**
- * Mesh is painted on body in Layout / portal shells. Keep this hook so older
- * markup or portals that still render the node do not reintroduce a fixed
- * full-bleed edge layer on iPhone Safari.
- */
+/** Fixed site backdrop — gradient mesh + chevron pattern (SiteBackground.astro). */
 .site-bg-mesh {
-  display: none;
+  position: fixed;
+  top: 5px;
+  right: 0;
+  bottom: 4px;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* Gradients only — do not set a solid background-color Safari can sample. */
+  background-image:
+    radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.18) 0%, transparent 62%),
+    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
+  background-color: transparent;
+  background-repeat: no-repeat;
 }
 
 .site-bg-pattern {

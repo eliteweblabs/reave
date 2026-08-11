@@ -150,11 +150,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * iPhone Safari (esp. 26 Liquid Glass) paints solid “forehead/chin” tints from
-	 * body background-color and from position:fixed layers on the viewport edges.
-	 * Keep a stable scrolling shell (no 100dvh/100lvh on html/body — that reflows
-	 * the layout viewport and makes position:fixed headers shear). Paint the
-	 * atmosphere on body itself instead of full-bleed fixed mesh layers.
+	 * Stable scrolling shell — do not bind html/body height to 100dvh/100lvh.
+	 * Dynamic viewport units reflow the layout viewport when Safari chrome
+	 * shows/hides and make position:fixed headers shear (see 36f62604).
+	 * Atmosphere stays on .site-bg-mesh (inset past Safari edge-sample bands).
 	 */
 	html {
 		background-color: #050505;
@@ -178,25 +177,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * never fall back to the browser's white default — which otherwise
 		 * causes white text (styled for a dark background) to render invisibly
 		 * on a white page. Pages can still override this per-element as needed.
+		 * Use background-color (not the background shorthand) so Safari’s
+		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
 		background-color: #050505;
 		color: #e5e5e5;
-	}
-
-	body {
-		position: relative;
-		/*
-		 * Mesh lives on body (not a position:fixed layer) so Safari does not treat
-		 * a full-viewport fixed backdrop as an edge element and letterbox it with
-		 * opaque black scroll-pocket tints. background-color stays separate from
-		 * background-image — Safari samples background-color for chrome/overscroll.
-		 */
-		background-image:
-			radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.18) 0%, transparent 62%),
-			radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
-			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
-		background-repeat: no-repeat;
 	}
 
 	h1,
