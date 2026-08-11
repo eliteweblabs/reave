@@ -280,6 +280,15 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     feature: 'wayback_machine',
   },
 
+  // SEO Directory API Kit (plugin)
+  {
+    slash: '/seo-directory',
+    summary: 'SEO Directory API Kit status',
+    template: 'What is the SEO Directory API Kit status?',
+    example: 'What is the SEO Directory API Kit status?',
+    feature: 'seo_directory',
+  },
+
   // Site monitoring (plugin)
   {
     slash: '/monitor',

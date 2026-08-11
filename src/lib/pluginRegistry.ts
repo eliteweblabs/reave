@@ -31,6 +31,7 @@ import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
 import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
 import { wordpressContentPlugin } from '../../plugins/wordpress-content/manifest';
+import { seoDirectoryPlugin } from '../../plugins/seo-directory/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -56,6 +57,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   contentManagementPlugin,
   stockPhotosPlugin,
   wordpressContentPlugin,
+  seoDirectoryPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -158,6 +160,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['stock-photos'];
     case 'wordpress-content':
       return ['wordpress-content'];
+    case 'seo-directory':
+      return ['seo-directory'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'site-audits':

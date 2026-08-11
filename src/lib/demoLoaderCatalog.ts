@@ -128,6 +128,7 @@ export const DEMO_LOADER_SECTION_GROUPS: ReadonlyArray<{
       'namecom_dns',
       'site_monitoring',
       'wayback_machine',
+      'seo_directory',
     ],
   },
 ];

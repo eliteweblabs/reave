@@ -39,6 +39,7 @@ const FEATURE_IDS_LIST = [
   'content_management',
   'stock_photos',
   'wordpress_content',
+  'seo_directory',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

@@ -41,6 +41,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `demo/` | `demo` | `demo-setup.md` | yes |
 | `content-management/` | `content_management` | `content-management.md` | — (playbook only; uses dev_infra / code_dev tools) |
 | `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | — (stub; companion WP plugin + agent tools TBD) |
+| `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
