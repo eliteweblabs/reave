@@ -412,7 +412,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 7b: "Audit" (quick street audit)
 
-**What it does**: Say a business name — add street or town if needed — and it kicks off the research agent in the background: finds the business and website, resolves/creates the contact, runs a **fast audit** (Lighthouse, HTML, SSL, DNS, Google/social/reputation search — no Playwright or link crawl), and files a project with a write-up. Siri gets an immediate "auditing now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
+**What it does**: Say a business name — add street or town if needed — and it kicks off the research agent in the background: finds the business and website, resolves/creates the contact, runs a **fast audit** (Lighthouse, HTML, SSL, DNS, Google/social/reputation search — no Playwright or link crawl), and files a project with a write-up. Siri gets a short immediate ack ("Running an audit on … It will be available in the Reave app shortly."); the finished result (new client + new project + top findings) shows up a little later as a push notification.
 
 **Siri phrase**: "audit" or "create proposal" or "research this business"
 
