@@ -149,6 +149,17 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		box-sizing: border-box;
 	}
 
+	/*
+	 * iPhone Safari (esp. 26 Liquid Glass) paints solid “forehead/chin” tints from
+	 * body background-color and from position:fixed layers on the viewport edges.
+	 * Keep a stable scrolling shell (no 100dvh/100lvh on html/body — that reflows
+	 * the layout viewport and makes position:fixed headers shear). Paint the
+	 * atmosphere on body itself instead of full-bleed fixed mesh layers.
+	 */
+	html {
+		background-color: #050505;
+	}
+
 	html,
 	body {
 		margin: 0;
@@ -169,8 +180,23 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * on a white page. Pages can still override this per-element as needed.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background: #050505;
+		background-color: #050505;
 		color: #e5e5e5;
+	}
+
+	body {
+		position: relative;
+		/*
+		 * Mesh lives on body (not a position:fixed layer) so Safari does not treat
+		 * a full-viewport fixed backdrop as an edge element and letterbox it with
+		 * opaque black scroll-pocket tints. background-color stays separate from
+		 * background-image — Safari samples background-color for chrome/overscroll.
+		 */
+		background-image:
+			radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.18) 0%, transparent 62%),
+			radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
+			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
+		background-repeat: no-repeat;
 	}
 
 	h1,

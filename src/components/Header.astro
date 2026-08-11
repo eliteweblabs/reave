@@ -386,6 +386,12 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
+    /*
+     * No solid background-color / backdrop-filter on this fixed edge shell.
+     * iPhone Safari samples those for forehead tint; keep blur on absolute
+     * .app-header-scrim children only so the bar stays immersive, not a black strip.
+     */
+    background-color: transparent;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
       env(safe-area-inset-top, 0px)
