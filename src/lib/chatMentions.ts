@@ -1,6 +1,8 @@
 /**
  * Structured @-mentions from agent chat — contacts and Clerk team users.
- * Sent with the chat POST so the agent gets stable ids instead of fuzzy name resolve.
+ * Composer inserts plain `@Name` for readability; on send we embed durable
+ * `@[Name](contact:uid)` / `@[Name](user:id)` tokens so the agent always gets
+ * stable ids (not just fuzzy name resolve).
  */
 
 export type ChatContactMention = {
@@ -30,10 +32,29 @@ export type PeopleSearchUser = ChatUserMention & {
 
 export type PeopleSearchResult = PeopleSearchContact | PeopleSearchUser;
 
+/** Durable mention token: `@[Display Name](contact:uuid)` or `@[Display Name](user:id)`. */
+export const MENTION_TOKEN_RE =
+  /@\[([^\]\n]{1,256})\]\((contact|user):([^\s)]{1,128})\)/g;
+
 function optionalTrimmed(value: unknown): string | undefined {
   if (value == null) return undefined;
   const s = String(value).trim();
   return s || undefined;
+}
+
+export function mentionKey(m: ChatMention): string {
+  return m.kind === 'contact' ? `contact:${m.uid}` : `user:${m.userId}`;
+}
+
+/** Labels must not contain `]` or newlines or the token grammar breaks. */
+export function sanitizeMentionLabel(name: string): string {
+  return name.replace(/[\[\]\n\r]/g, '').trim() || 'Unknown';
+}
+
+export function serializeMentionToken(m: ChatMention): string {
+  const label = sanitizeMentionLabel(m.name);
+  if (m.kind === 'contact') return `@[${label}](contact:${m.uid})`;
+  return `@[${label}](user:${m.userId})`;
 }
 
 /** Validate and normalize mentions from a chat POST body. */
@@ -46,7 +67,7 @@ export function parseChatMentions(raw: unknown): ChatMention[] {
     if (!item || typeof item !== 'object') continue;
     const rec = item as Record<string, unknown>;
     const kind = String(rec.kind ?? '').trim();
-    const name = optionalTrimmed(rec.name) || 'Unknown';
+    const name = sanitizeMentionLabel(optionalTrimmed(rec.name) || 'Unknown');
 
     if (kind === 'contact') {
       const uid = optionalTrimmed(rec.uid);
@@ -82,13 +103,127 @@ export function parseChatMentions(raw: unknown): ChatMention[] {
   return out;
 }
 
-/** Keep mentions whose @DisplayName token still appears in the composed message. */
+/** Extract durable mention tokens from composed / stored message text. */
+export function parseMentionTokensFromText(text: string): ChatMention[] {
+  if (!text) return [];
+  const out: ChatMention[] = [];
+  const seen = new Set<string>();
+  for (const match of text.matchAll(MENTION_TOKEN_RE)) {
+    const label = sanitizeMentionLabel(match[1] ?? '');
+    const kind = match[2];
+    const id = (match[3] ?? '').trim();
+    if (!label || !id) continue;
+    if (kind === 'contact') {
+      const key = `contact:${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ kind: 'contact', uid: id, name: label });
+    } else if (kind === 'user') {
+      const key = `user:${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ kind: 'user', userId: id, name: label });
+    }
+  }
+  return out;
+}
+
+export function mergeChatMentions(...lists: ChatMention[][]): ChatMention[] {
+  const byKey = new Map<string, ChatMention>();
+  for (const list of lists) {
+    for (const m of list) {
+      const key = mentionKey(m);
+      const prev = byKey.get(key);
+      if (!prev) {
+        byKey.set(key, m);
+        continue;
+      }
+      // Prefer the copy that still has email/company extras.
+      if (prev.kind === 'contact' && m.kind === 'contact') {
+        byKey.set(key, {
+          kind: 'contact',
+          uid: m.uid,
+          name: m.name || prev.name,
+          email: m.email || prev.email,
+          company: m.company || prev.company,
+        });
+      } else if (prev.kind === 'user' && m.kind === 'user') {
+        byKey.set(key, {
+          kind: 'user',
+          userId: m.userId,
+          name: m.name || prev.name,
+          email: m.email || prev.email,
+        });
+      }
+    }
+  }
+  return [...byKey.values()];
+}
+
+function textHasMention(text: string, m: ChatMention): boolean {
+  if (text.includes(serializeMentionToken(m))) return true;
+  const plain = `@${m.name}`;
+  if (!text.includes(plain)) return false;
+  // Avoid treating `@[Name](…)` as a plain `@Name` hit on the label alone.
+  let from = 0;
+  while (from < text.length) {
+    const at = text.indexOf(plain, from);
+    if (at < 0) return false;
+    const after = text.slice(at + plain.length);
+    // Plain `@Name` is followed by end, whitespace, or punctuation — not `](`.
+    if (!after.startsWith('](')) return true;
+    from = at + plain.length;
+  }
+  return false;
+}
+
+/** Keep mentions whose plain @Name or durable token still appears in the message. */
 export function mentionsPresentInText(mentions: ChatMention[], text: string): ChatMention[] {
   if (!mentions.length || !text) return [];
-  return mentions.filter((m) => {
-    const token = `@${m.name}`;
-    return text.includes(token);
-  });
+  return mentions.filter((m) => textHasMention(text, m));
+}
+
+/**
+ * Rewrite plain `@Name` picks into durable `@[Name](contact:uid)` tokens so the
+ * UUID rides along in the message body (and survives if the side-channel is lost).
+ */
+export function embedMentionTokens(text: string, mentions: ChatMention[]): string {
+  if (!text || !mentions.length) return text;
+  const sorted = [...mentions].sort((a, b) => b.name.length - a.name.length);
+  let result = text;
+  for (const m of sorted) {
+    const token = serializeMentionToken(m);
+    if (result.includes(token)) continue;
+    const plain = `@${m.name}`;
+    let out = '';
+    let from = 0;
+    while (from < result.length) {
+      const at = result.indexOf(plain, from);
+      if (at < 0) {
+        out += result.slice(from);
+        break;
+      }
+      out += result.slice(from, at);
+      const afterStart = at + plain.length;
+      const after = result.slice(afterStart);
+      if (after.startsWith('](')) {
+        // Already inside / part of a token label — leave it.
+        out += plain;
+        from = afterStart;
+        continue;
+      }
+      out += token;
+      from = afterStart;
+    }
+    result = out;
+  }
+  return result;
+}
+
+/** Collapse durable tokens to `@Name` for UI / copy. */
+export function stripMentionTokensForDisplay(text: string): string {
+  if (!text || !text.includes('](')) return text;
+  return text.replace(MENTION_TOKEN_RE, '@$1');
 }
 
 /** One-line context for the agent system prompt. */

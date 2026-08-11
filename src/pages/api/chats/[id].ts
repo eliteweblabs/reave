@@ -31,7 +31,7 @@ import {
 } from '../../../lib/chatStore';
 import type { AgentUsageSummary } from '../../../lib/agentUsage';
 import { runKnowledgeAgent, runKnowledgeAgentStreaming } from '../../../lib/agentRunner';
-import { parseChatMentions } from '../../../lib/chatMentions';
+import { parseChatMentions, parseMentionTokensFromText, mergeChatMentions } from '../../../lib/chatMentions';
 import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
 import {
   cancelAgentRun,
@@ -307,7 +307,10 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   const modelOverride =
     body.model == null || body.model === '' ? undefined : String(body.model);
-  const mentions = parseChatMentions(body.mentions);
+  const mentions = mergeChatMentions(
+    parseChatMentions(body.mentions),
+    parseMentionTokensFromText(message),
+  );
 
   const loaded = await loadOwnerChatThread(userId, id);
   if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);

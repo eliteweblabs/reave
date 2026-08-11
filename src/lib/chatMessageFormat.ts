@@ -1,3 +1,5 @@
+import { stripMentionTokensForDisplay } from './chatMentions';
+
 export type StoredChatImage = { mediaType: string; data: string };
 export type StoredChatDoc = { mediaType: string; filename: string; data: string };
 
@@ -141,8 +143,8 @@ export function collapseProjectOpenPrompt(text: string): string {
   return lines.join('\n');
 }
 
-/** Collapse legacy verbose email dumps to a short reference for chat display. */
-export function userMessageDisplayText(text: string): string {
+/** Collapse inbox/project handoffs and verbose email dumps for chat UI. */
+function collapseUserMessageChrome(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return text;
 
@@ -178,6 +180,19 @@ export function userMessageDisplayText(text: string): string {
   }
 
   return text.length > 280 ? `${text.slice(0, 277)}…` : text;
+}
+
+/**
+ * Thread bubble text — keeps durable `@[Name](contact:uid)` tokens so the
+ * renderer can show linked mention chips.
+ */
+export function userMessageBubbleText(text: string): string {
+  return collapseUserMessageChrome(text);
+}
+
+/** Plain-text display / copy — collapses handoffs and strips mention tokens to `@Name`. */
+export function userMessageDisplayText(text: string): string {
+  return stripMentionTokensForDisplay(collapseUserMessageChrome(text));
 }
 
 export function serializeStoredChatContent(

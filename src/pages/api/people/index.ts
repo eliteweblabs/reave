@@ -4,10 +4,11 @@
 
 import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
-import { searchClientsEnhanced } from '../../../lib/clientSearch';
+import { clientListDisplayName, searchClientsEnhanced } from '../../../lib/clientSearch';
 import { isContactApiConfigured, listContacts } from '../../../lib/contactApi';
 import {
   clerkUserDisplayName,
+  sanitizeMentionLabel,
   type PeopleSearchResult,
 } from '../../../lib/chatMentions';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -43,7 +44,8 @@ async function searchContacts(q: string | undefined, limit: number): Promise<Peo
       .map((c) => ({
         kind: 'contact' as const,
         uid: c.uid,
-        name: (c.name || '').trim() || 'Contact',
+        // Company-first label — matches CRM sidebar and what users type after @.
+        name: sanitizeMentionLabel(clientListDisplayName(c)),
         email: c.email?.trim() || undefined,
         company: c.company?.trim() || undefined,
         phone: c.phone?.trim() || undefined,
@@ -55,7 +57,7 @@ async function searchContacts(q: string | undefined, limit: number): Promise<Peo
   return result.data.contacts.map((c) => ({
     kind: 'contact' as const,
     uid: c.uid,
-    name: (c.name || '').trim() || 'Contact',
+    name: sanitizeMentionLabel(clientListDisplayName(c)),
     email: c.email?.trim() || undefined,
     company: c.company?.trim() || undefined,
     phone: c.phone?.trim() || undefined,
@@ -79,7 +81,7 @@ async function searchTeamUsers(
       return {
         kind: 'user' as const,
         userId: user.id,
-        name: clerkUserDisplayName(user),
+        name: sanitizeMentionLabel(clerkUserDisplayName(user)),
         email,
         username: user.username?.trim() || undefined,
       };

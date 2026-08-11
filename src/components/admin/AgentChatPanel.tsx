@@ -37,14 +37,21 @@ import {
   type AgentHelperCommand,
 } from '../../lib/agentHelperCommands';
 import {
+  embedMentionTokens,
+  mergeChatMentions,
+  mentionKey,
   mentionsPresentInText,
+  parseMentionTokensFromText,
+  sanitizeMentionLabel,
+  serializeMentionToken,
+  stripMentionTokensForDisplay,
   type ChatMention,
   type PeopleSearchResult,
 } from '../../lib/chatMentions';
 import {
   parseStoredChatContent,
   storedChatPlainText,
-  userMessageDisplayText,
+  userMessageBubbleText,
   type StoredChatDoc,
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
@@ -462,7 +469,7 @@ function messageTextForCopy(
     else if (part.type === 'image') attachments.push('image');
     else if (part.type === 'file') attachments.push(part.filename || 'file');
   }
-  const text = textParts.join('');
+  const text = stripMentionTokensForDisplay(textParts.join(''));
   if (!attachments.length) return text;
   const summary = attachments.join(', ');
   if (!text.trim()) return `[${summary}]`;
@@ -630,7 +637,7 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     };
   }
   const { text, images, docs } = parseStoredChatContent(message.content);
-  const displayText = message.role === 'user' ? userMessageDisplayText(text) : text;
+  const displayText = message.role === 'user' ? userMessageBubbleText(text) : text;
   const content: Extract<ThreadMessageLike['content'], readonly unknown[]>[number][] = [];
   if (displayText) content.push({ type: 'text', text: displayText });
   for (const img of images) {
@@ -853,7 +860,7 @@ function createChatAdapter(
       const lastUser = [...options.messages].reverse().find((m) => m.role === 'user');
       if (!lastUser) throw new Error('No user message');
 
-      const text = (lastUser.content ?? [])
+      const textRaw = (lastUser.content ?? [])
         .filter((part) => part.type === 'text')
         .map((part) => ('text' in part ? part.text : ''))
         .join('\n')
@@ -862,7 +869,11 @@ function createChatAdapter(
       const images = extractImagesFromUserMessage(lastUser);
       const docs = extractDocsFromUserMessage(lastUser);
       const model = propsRef.current?.getModel?.();
-      const mentions = mentionsPresentInText(pendingMentionsRef.current ?? [], text);
+      const pending = pendingMentionsRef.current ?? [];
+      const fromPending = mentionsPresentInText(pending, textRaw);
+      // Embed durable @[Name](contact:uid) tokens so the UUID is in the message body.
+      const text = embedMentionTokens(textRaw, fromPending);
+      const mentions = mergeChatMentions(parseMentionTokensFromText(text), fromPending);
       pendingMentionsRef.current = [];
       const runStartedAt = Date.now();
 
@@ -1252,7 +1263,31 @@ function AssistantTextPart(props: { text?: string; status?: { type?: string } })
 }
 
 function UserTextPart(props: { text?: string }) {
-  return <span className="aui-text">{props.text}</span>;
+  const raw = props.text ?? '';
+  if (!raw.includes('](') || !raw.includes('@[')) {
+    return <span className="aui-text">{raw}</span>;
+  }
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  const re = /@\[([^\]\n]{1,256})\]\((contact|user):([^\s)]{1,128})\)/g;
+  for (const match of raw.matchAll(re)) {
+    const start = match.index ?? 0;
+    if (start > last) nodes.push(raw.slice(last, start));
+    const label = match[1] ?? '';
+    const kind = match[2] === 'user' ? 'team' : 'contact';
+    nodes.push(
+      <span
+        key={`${kind}:${match[3]}:${start}`}
+        className={`aui-mention-chip aui-mention-chip--${kind}`}
+        title={kind === 'contact' ? `Contact ${match[3]}` : `Team ${match[3]}`}
+      >
+        @{label}
+      </span>,
+    );
+    last = start + match[0].length;
+  }
+  if (last < raw.length) nodes.push(raw.slice(last));
+  return <span className="aui-text">{nodes}</span>;
 }
 
 function ChatImageLightbox({
@@ -1473,7 +1508,7 @@ function peopleResultToMention(person: PeopleSearchResult): ChatMention {
     return {
       kind: 'contact',
       uid: person.uid,
-      name: person.name,
+      name: sanitizeMentionLabel(person.name),
       email: person.email,
       company: person.company,
     };
@@ -1481,7 +1516,7 @@ function peopleResultToMention(person: PeopleSearchResult): ChatMention {
   return {
     kind: 'user',
     userId: person.userId,
-    name: person.name,
+    name: sanitizeMentionLabel(person.name),
     email: person.email,
   };
 }
@@ -1647,7 +1682,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
 
   const applyPerson = (person: PeopleSearchResult) => {
     const el = inputRef.current;
-    const value = el?.value ?? '';
+    const value = el?.value ?? composer.getState().text ?? '';
     const caret = el?.selectionStart ?? value.length;
     const active = activeMentionAt(value, caret) ?? (tokenStart >= 0 ? { start: tokenStart, query } : null);
     if (!active) return;
@@ -1655,16 +1690,14 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     const mention = peopleResultToMention(person);
     const before = value.slice(0, active.start);
     const after = value.slice(caret);
-    const insert = `@${mention.name} `;
+    // Durable token embeds the UUID in the composer text so the agent always receives it.
+    const insert = `${serializeMentionToken(mention)} `;
     const next = `${before}${insert}${after}`;
     const nextCaret = before.length + insert.length;
 
     const prev = pendingMentionsRef.current ?? [];
-    const key =
-      mention.kind === 'contact' ? `contact:${mention.uid}` : `user:${mention.userId}`;
-    const withoutDup = prev.filter((m) =>
-      m.kind === 'contact' ? `contact:${m.uid}` !== key : `user:${m.userId}` !== key,
-    );
+    const key = mentionKey(mention);
+    const withoutDup = prev.filter((m) => mentionKey(m) !== key);
     pendingMentionsRef.current = [...withoutDup, mention];
 
     composer.setText(next);
