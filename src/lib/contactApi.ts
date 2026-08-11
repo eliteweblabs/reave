@@ -411,6 +411,99 @@ export function contactSummary(c: ContactRecord) {
   };
 }
 
+/**
+ * Portal keys stripped from agent / list projections — binary uploads and
+ * concurrency tokens only. Prefer deny-lists so new portal fields flow through
+ * without another agent-tool rebuild.
+ */
+const PORTAL_BLOB_OMIT_KEYS = new Set([
+  'logoData',
+  'iconData',
+  'logoMediaType',
+  'iconMediaType',
+  'addressWriteToken',
+]);
+
+function sanitizePortalDocumentsForAgent(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((doc) => {
+    if (!doc || typeof doc !== 'object') return doc;
+    const {
+      html: _html,
+      content: _content,
+      signedHtml: _signedHtml,
+      filledHtml: _filledHtml,
+      ...rest
+    } = doc as Record<string, unknown>;
+    return rest;
+  });
+}
+
+/** Pass-through portal metadata for agents — omit blobs / write tokens only. */
+export function sanitizePortalForAgent(
+  metadata: Record<string, unknown> | ClientPortal | null | undefined,
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    if (PORTAL_BLOB_OMIT_KEYS.has(k) || v === undefined) continue;
+    out[k] = k === 'documents' ? sanitizePortalDocumentsForAgent(v) : v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+export type AgentContactScoreFields = {
+  _score?: number;
+  _matchReason?: string;
+  score?: number;
+};
+
+/**
+ * Full contact payload for agent tools. Spreads the contact-api record so new
+ * core fields appear automatically; portal is attached with blobs stripped.
+ * Does not cherry-pick name/email/phone — return the whole record.
+ */
+export function formatContactForAgent(
+  c: ContactRecord & AgentContactScoreFields,
+): Record<string, unknown> {
+  const {
+    links: _links,
+    _score,
+    _matchReason,
+    score: scoreField,
+    ...core
+  } = c as ContactRecord & AgentContactScoreFields & { links?: ContactLink[] };
+  const portal = sanitizePortalForAgent(extractPortal(c) ?? undefined);
+  return {
+    ...core,
+    kind: getClientKind(c),
+    kindExplicit: hasExplicitClientKind(c),
+    address: contactStringField(portal?.address) || null,
+    website: contactStringField(portal?.website) || null,
+    portal,
+    portal_url: clientPortalUrl(c.uid),
+    score: _score ?? scoreField ?? null,
+    matchReason: _matchReason ?? null,
+  };
+}
+
+/**
+ * Load the detail contact (with portal links) then format for agent tools.
+ * Use for confirmed resolve / create / update so address and portal fields
+ * are present even when list/resolve responses omit links.
+ */
+export async function hydrateContactForAgent(
+  c: ContactRecord & AgentContactScoreFields,
+): Promise<Record<string, unknown>> {
+  const full = await getContact(c.uid);
+  if (!full.ok) return formatContactForAgent(c);
+  return formatContactForAgent({
+    ...full.data,
+    _score: c._score ?? c.score,
+    _matchReason: c._matchReason,
+  });
+}
+
 /** Persist client kind on portal metadata (no contact-api schema change). */
 export async function setContactKind(
   uid: string,
@@ -677,30 +770,27 @@ export async function getContactLinks(
 }
 
 /**
- * Portal list projection — enough for personal flag + logo/icon URLs, without
- * base64 blobs, vault secrets, or signed document HTML.
+ * Portal list projection — pass through textual portal fields (address,
+ * website, hours, places, branding URLs, kind) via deny-list so new fields
+ * appear without another allowlist edit. Omits blobs, vault `data`, document
+ * bodies, and long portal `body` HTML.
  */
 export function slimPortalMetadataForList(
   metadata: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
   if (!metadata || typeof metadata !== 'object') return null;
-  const m = metadata as Record<string, unknown>;
+  const LIST_OMIT = new Set([
+    ...PORTAL_BLOB_OMIT_KEYS,
+    'data',
+    'documents',
+    'body',
+  ]);
   const out: Record<string, unknown> = {};
-  const kind = normalizeClientKind(m.clientKind);
-  if (kind && kind !== 'professional') out.clientKind = kind;
-  if (m.personal === true) out.personal = true;
-  const logoSource = contactStringField(m.logoSource);
-  const iconSource = contactStringField(m.iconSource);
-  const logoUrl = contactStringField(m.logoUrl);
-  const iconUrl = contactStringField(m.iconUrl);
-  const updatedAt = contactStringField(m.updatedAt);
-  const website = contactStringField(m.website);
-  if (logoSource) out.logoSource = logoSource;
-  if (iconSource) out.iconSource = iconSource;
-  if (logoUrl) out.logoUrl = logoUrl;
-  if (iconUrl) out.iconUrl = iconUrl;
-  if (updatedAt) out.updatedAt = updatedAt;
-  if (website) out.website = website;
+  for (const [k, v] of Object.entries(metadata)) {
+    if (LIST_OMIT.has(k) || v === undefined || v === null) continue;
+    if (typeof v === 'string' && !v.trim()) continue;
+    out[k] = v;
+  }
   return Object.keys(out).length ? out : null;
 }
 

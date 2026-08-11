@@ -6,9 +6,8 @@ import { websiteFromNotes } from './clientBrand';
 import {
   attachPortalLinksForList,
   contactIsPersonal,
+  formatContactForAgent,
   getContact,
-  getClientKind,
-  hasExplicitClientKind,
   listContacts,
   resolveContact,
   type ContactRecord,
@@ -149,20 +148,11 @@ function websiteMatchScore(contact: ContactRecord, q: string): number {
   return 0;
 }
 
+/** Agent / selection payload — full contact record (not a cherry-picked subset). */
 export function formatClientCandidate(
   c: ContactRecord & { _score?: number; _matchReason?: string; score?: number },
 ) {
-  return {
-    uid: c.uid,
-    name: c.name,
-    email: c.email ?? null,
-    phone: c.phone ?? null,
-    company: c.company ?? null,
-    kind: getClientKind(c),
-    kindExplicit: hasExplicitClientKind(c),
-    score: c._score ?? c.score ?? null,
-    matchReason: c._matchReason ?? null,
-  };
+  return formatContactForAgent(c);
 }
 
 /** Whole-word / exact match for Siri voice lookup — no prefix fuzzy hits (Tony ≠ Tom). */
@@ -478,12 +468,12 @@ export async function resolveWorkClientDecision(input: {
     .slice(0, 8)
     .map(formatClientCandidate);
 
-  if (candidates.length === 1 && (candidates[0]?.score ?? 0) >= 0.85) {
+  if (candidates.length === 1 && (Number(candidates[0]?.score) || 0) >= 0.85) {
     const only = candidates[0]!;
     return {
       status: 'resolved',
-      uid: only.uid,
-      name: only.name,
+      uid: String(only.uid ?? ''),
+      name: String(only.name ?? ''),
       match: 'likely',
     };
   }

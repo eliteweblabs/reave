@@ -46,26 +46,18 @@ import { setClientPortalWebsite } from '../../clientBrand';
 import { enrichContactAddressFromPlaces } from '../../contactAddressFromPlaces';
 import {
   isContactApiConfigured,
-  resolveContact,
   listContacts,
   createContact,
   updateContact,
   getContact,
-  setContactPortal,
   setContactKind,
   parseClientKindInput,
-  extractPortal,
-  clientPortalUrl,
-  type ClientPortal,
-  type ClientPortalField,
-  type ClientDataEntry,
+  formatContactForAgent,
+  hydrateContactForAgent,
+  attachPortalLinksForList,
 } from '../../contactApi';
 import {
-  extractClientSearchTerms,
-  formatClientCandidate,
-  primaryClientSearchTerm,
   resolveContactEnhanced,
-  resolveWorkClientDecision,
   searchClientsEnhanced,
 } from '../../clientSearch';
 import {
@@ -174,10 +166,10 @@ async function handle_resolve_contact(args: Record<string, unknown>, _ctx: ToolC
   if (q && !name && !email && !phone) {
     const searched = await searchClientsEnhanced(q, 8);
     if (!searched.ok) return JSON.stringify({ error: searched.error, status: searched.status });
-    const candidates = searched.data.contacts.map(formatClientCandidate);
-    if (candidates.length === 1 && (candidates[0]?.score ?? 0) >= 0.85) {
+    const candidates = await Promise.all(searched.data.contacts.map((c) => hydrateContactForAgent(c)));
+    if (candidates.length === 1 && (Number(candidates[0]?.score) || 0) >= 0.85) {
       const only = candidates[0]!;
-      const work_jobs = await storeListWork({ contact_uid: only.uid });
+      const work_jobs = await storeListWork({ contact_uid: String(only.uid ?? '') });
       return JSON.stringify({
         match: 'likely',
         contact: only,
@@ -201,13 +193,16 @@ async function handle_resolve_contact(args: Record<string, unknown>, _ctx: ToolC
   const contact = result.contact;
   const uid = contact?.uid ?? '';
   const work_jobs = uid ? await storeListWork({ contact_uid: uid }) : [];
-  const candidates = (result.candidates ?? []).map(formatClientCandidate);
+  const candidates = await Promise.all((result.candidates ?? []).map((c) => hydrateContactForAgent(c)));
 
   if ((result.match === 'exact' || result.match === 'likely') && contact?.uid) {
     return JSON.stringify({
       match: result.match,
       score: result.score,
-      contact: formatClientCandidate(contact),
+      contact: await hydrateContactForAgent({
+        ...contact,
+        score: result.score,
+      }),
       candidates,
       work_jobs,
     });
@@ -231,17 +226,9 @@ async function handle_list_contacts(args: Record<string, unknown>, _ctx: ToolCon
     ? await searchClientsEnhanced(q, limit)
     : await listContacts({ limit });
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
-  const contacts = result.data.contacts
-    .slice(0, 50)
-    .map((c) => ({
-      uid: c.uid,
-      name: c.name,
-      email: c.email ?? null,
-      phone: c.phone ?? null,
-      company: c.company ?? null,
-      matchReason: (c as { _matchReason?: string })._matchReason ?? null,
-      portal_url: clientPortalUrl(c.uid),
-    }));
+  const rows = result.data.contacts.slice(0, 50);
+  if (!q) await attachPortalLinksForList(rows);
+  const contacts = rows.map((c) => formatContactForAgent(c));
   return JSON.stringify({
     total: contacts.length,
     contacts,
@@ -280,15 +267,11 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
       .catch(() => {});
   }
 
+  const contact = await hydrateContactForAgent(result.data);
   return JSON.stringify({
     success: true,
-    uid,
-    name: result.data.name,
-    email: result.data.email ?? null,
-    phone: result.data.phone ?? null,
-    website: website || null,
+    ...contact,
     kind,
-    portal_url: clientPortalUrl(uid),
     /** Google Places exact address match — when not_listed, audits must surface it. */
     placesListing: places.listing,
     googlePlacesListed: places.listing.status === 'matched',
@@ -376,17 +359,11 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
     updatedContact = current.data;
   }
 
+  const contact = await hydrateContactForAgent(updatedContact!);
   return JSON.stringify({
     success: true,
-    uid: updatedContact!.uid,
-    name: updatedContact!.name,
-    email: updatedContact!.email ?? null,
-    phone: updatedContact!.phone ?? null,
-    company: updatedContact!.company ?? null,
-    notes: updatedContact!.notes ?? null,
-    website: website || null,
-    kind: savedKind ?? null,
-    portal_url: clientPortalUrl(updatedContact!.uid),
+    ...contact,
+    kind: savedKind ?? contact.kind ?? null,
     crater_synced: hasCoreFields ? true : undefined,
   });
 }
@@ -454,7 +431,7 @@ export const contactsModule: AgentToolModule = {
             function: {
               name: 'resolve_contact',
               description:
-                'Find a contact in contact-api by name, email, phone (last 4 digits ok), company, website/domain, or notes text (e.g. "guy with a mustache"). Returns match level and candidates when fuzzy — ask the user to confirm before create_work. Use q for free-text search across all those fields.',
+                'Find a contact in contact-api by name, email, phone (last 4 digits ok), company, website/domain, or notes text (e.g. "guy with a mustache"). Returns the full contact record (including address, website, notes, portal fields) plus match level and candidates when fuzzy — ask the user to confirm before create_work. Use q for free-text search across all those fields.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -476,7 +453,7 @@ export const contactsModule: AgentToolModule = {
               function: {
                 name: 'list_contacts',
                 description:
-                  'List or search ALL contacts in the master contact-api. Each result includes a portal_url. Optional `q` filters by name, email, company, phone (last 4 ok), website/domain, or notes text.',
+                  'List or search ALL contacts in the master contact-api. Each result is the full contact record (name, email, phone, company, notes, address, website, portal, portal_url, etc.). Optional `q` filters by name, email, company, phone (last 4 ok), website/domain, or notes text.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -492,7 +469,7 @@ export const contactsModule: AgentToolModule = {
               function: {
                 name: 'create_contact',
                 description:
-                  'Add a new contact to the master contact-api. Use when the user wants to add a contact or create a test contact. For inquiry/audit prospects use kind "proposed". Returns the new contact uid and its portal_url.',
+                  'Add a new contact to the master contact-api. Use when the user wants to add a contact or create a test contact. For inquiry/audit prospects use kind "proposed". Returns the full created contact record including portal_url.',
                 parameters: {
                   type: 'object',
                   properties: {
