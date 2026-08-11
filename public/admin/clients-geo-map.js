@@ -3,7 +3,7 @@
  * Critical layout is applied inline so Astro CSS bundling cannot blank the map.
  */
 
-import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260810a';
+import { escHtml, readAdminJson } from './shared.js?v=20260810a';
 
 const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
 const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
@@ -610,9 +610,12 @@ export function mountClientsGeoMap(container, opts = {}) {
       ? window.setTimeout(() => controller.abort(), 45000)
       : 0;
     try {
-      const res = await adminFetch('/api/clients/map', {
+      // Plain fetch — this page is public; adminFetch would bounce 401 → /sign-in.
+      const res = await fetch('/api/clients/map', {
+        credentials: 'same-origin',
         cache: 'no-store',
         signal: controller?.signal,
+        headers: { Accept: 'application/json' },
       });
       const data = await readAdminJson(res);
       if (!res.ok || !data?.ok) {

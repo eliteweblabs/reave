@@ -1,17 +1,18 @@
 /**
- * GET /api/clients/map — owner-only contact list with address/geo/icon for the map.
+ * GET /api/clients/map — public contact list for /admin/client-map.
+ * Rate-limited; omits email/phone/portal (map only needs name, geo, kind, icons).
  */
 
 import type { APIContext } from 'astro';
 import { compareClientsForList } from '../../../lib/clientSearch';
 import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import {
   attachPortalLinksForList,
   CLIENT_KINDS,
   contactStringField,
-  contactSummary,
   extractPortal,
+  getClientKind,
   isContactApiConfigured,
   listContacts,
   type ContactRecord,
@@ -26,6 +27,15 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const first = forwarded.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  return request.headers.get('x-real-ip')?.trim() || 'unknown';
+}
+
 function mapClientEntry(c: ContactRecord) {
   const portal = extractPortal(c);
   const address = contactStringField(portal?.address);
@@ -36,7 +46,10 @@ function mapClientEntry(c: ContactRecord) {
       ? { lat: portal.geo.lat, lng: portal.geo.lng }
       : null;
   return {
-    ...contactSummary(c),
+    uid: c.uid,
+    name: c.name,
+    company: contactStringField(c.company),
+    kind: getClientKind(c),
     address,
     geo,
     located: Boolean(geo),
@@ -47,8 +60,18 @@ function mapClientEntry(c: ContactRecord) {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
-  if (auth instanceof Response) return auth;
+  const ip = clientIp(context.request);
+  const limitHit = checkInMemoryRateLimit(`clients-map:${ip}`, {
+    windowMs: 60_000,
+    maxPerWindow: 30,
+  });
+  if (!limitHit.ok) {
+    return json(
+      { ok: false, error: 'Too many requests — wait a moment and try again.' },
+      429,
+    );
+  }
+
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }

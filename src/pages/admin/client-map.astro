@@ -1,25 +1,13 @@
 ---
 /**
- * Standalone owner-only Mapbox map of contacts — full-bleed geographic pins
- * with independent status toggles. Outside the OS map SPA for now.
+ * Standalone contact geo map — public URL under /admin (no auth), noindex,
+ * not linked from main nav. Full-bleed Mapbox pins with status toggles.
  */
 export const prerender = false;
 
 import ViewportMeta from "../../components/ViewportMeta.astro";
 import "../../styles/mobile-touch.css";
-import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
-
-const { userId } = Astro.locals.auth();
-if (!userId) {
-  return Astro.redirect(
-    `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
-  );
-}
-
-if (!(await isDeploymentOwner(Astro))) {
-  return new Response("Forbidden", { status: 403 });
-}
 
 const mapboxAccessToken = getPublicMapboxAccessToken() || "";
 const assetVersion = __PUBLIC_ASSET_VERSION__;

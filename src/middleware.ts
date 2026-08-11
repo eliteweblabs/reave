@@ -40,7 +40,7 @@ const isProtectedAdminPage = createRouteMatcher([
   "/admin/doc(.*)",
   "/admin/profile(.*)",
   "/admin/components(.*)",
-  "/admin/client-map(.*)",
+  // /admin/client-map is public (noindex, unlinked) — see client-map.astro
   "/admin/visit-plan(.*)",
 ]);
 
