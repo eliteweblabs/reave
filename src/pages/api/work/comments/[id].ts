@@ -4,6 +4,8 @@
 
 import type { APIContext } from 'astro';
 import { storeAckWorkComment } from '../../../../lib/workComments';
+import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
+import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -25,5 +27,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   const result = await storeAckWorkComment(commentId);
   if (!result.ok) return json({ ok: false, error: result.error }, 404);
-  return json({ ok: true, commentId });
+  scheduleReviewsBadgePush();
+  const badgeCount = await getReviewsPendingCount().catch(() => undefined);
+  return json({
+    ok: true,
+    commentId,
+    ...(badgeCount != null ? { badgeCount } : {}),
+  });
 }

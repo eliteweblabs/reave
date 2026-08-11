@@ -5,7 +5,9 @@
 import type { APIContext } from 'astro';
 import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 import { emailIdFromPushAlertTag } from '../../../../lib/notificationFormat';
+import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
 import { storeAckPushAlert } from '../../../../lib/pushAlertStore';
+import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -42,12 +44,19 @@ async function ackAlert(context: APIContext): Promise<Response> {
   const emailId =
     emailIdFromPushAlertTag(result.tag) || emailIdFromAlertUrl(result.url) || null;
   if (emailId) {
-    await dismissEmailRelatedNotifications(emailId, { markAutomationAck: true }).catch(
-      () => undefined,
-    );
+    await dismissEmailRelatedNotifications(emailId, {
+      markAutomationAck: true,
+      syncBadge: false,
+    }).catch(() => undefined);
   }
 
-  return json({ ok: true, alertId: result.id });
+  scheduleReviewsBadgePush();
+  const badgeCount = await getReviewsPendingCount().catch(() => undefined);
+  return json({
+    ok: true,
+    alertId: result.id,
+    ...(badgeCount != null ? { badgeCount } : {}),
+  });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {

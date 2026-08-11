@@ -4,6 +4,7 @@
  */
 
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
+import { scheduleReviewsBadgePush } from './pushBadgeSync';
 import { storeGetEmailInbox, storeListEmailInbox, storeUpdateEmailInbox } from './emailInboxStore';
 import { listReviewNotifications } from './emailAutomation';
 import { dedupeDashboardNotificationsByEmail } from './dashboardNotificationDedupe';
@@ -197,5 +198,6 @@ export async function triageNotification(
     action: input.action,
   });
 
+  scheduleReviewsBadgePush();
   return { ok: true, emailId, ruleId, knowledgeSlug, alsoResolved, event: event ?? undefined };
 }

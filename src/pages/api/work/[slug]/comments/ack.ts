@@ -5,6 +5,8 @@
 import type { APIContext } from 'astro';
 import { isSafeWorkSlug, storeReadWork } from '../../../../../lib/workStore';
 import { storeAckWorkCommentsForSlug } from '../../../../../lib/workComments';
+import { scheduleReviewsBadgePush } from '../../../../../lib/pushBadgeSync';
+import { getReviewsPendingCount } from '../../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -27,5 +29,11 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const result = await storeAckWorkCommentsForSlug(slug);
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, acked: result.acked });
+  if (result.acked > 0) scheduleReviewsBadgePush();
+  const badgeCount = await getReviewsPendingCount().catch(() => undefined);
+  return json({
+    ok: true,
+    acked: result.acked,
+    ...(badgeCount != null ? { badgeCount } : {}),
+  });
 }

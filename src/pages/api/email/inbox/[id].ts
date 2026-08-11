@@ -20,6 +20,8 @@ import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 import { parseEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../lib/emailUnsubscribe';
 import { fetchResendInboundEmailHeaders } from '../../../../lib/resendInboundEmail';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
+import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
+import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   explainReceiptClassification,
@@ -156,10 +158,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
       markAutomationAck: true,
     });
     if (!event) return json({ ok: false, error: 'Not found' }, 404);
+    await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
     const monetaryAmount = extractMonetaryAmountFromEmail(event);
+    const badgeCount = await getReviewsPendingCount().catch(() => undefined);
     return json({
       ok: true,
       event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
+      ...(badgeCount != null ? { badgeCount } : {}),
     });
   }
 
@@ -193,13 +198,24 @@ export async function PATCH(context: APIContext): Promise<Response> {
     markingJunk ? { ...storePatch, ...patchForMarkJunk(existing) } : storePatch,
   );
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
-  if (isEmailArchivedOrRemoved(storePatch) || markingJunk) {
+  const clearedReviewSurface =
+    Boolean(storePatch.markAutomationAck) ||
+    isEmailArchivedOrRemoved(storePatch) ||
+    markingJunk;
+  if (clearedReviewSurface) {
     await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
+    // dismissEmailRelatedNotifications schedules a badge push; ensure ack-only
+    // paths still fire even when there were no sibling push alerts to clear.
+    scheduleReviewsBadgePush();
   }
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  const badgeCount = clearedReviewSurface
+    ? await getReviewsPendingCount().catch(() => undefined)
+    : undefined;
   return json({
     ok: true,
     event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
+    ...(badgeCount != null ? { badgeCount } : {}),
   });
 }
 
@@ -213,5 +229,6 @@ export async function DELETE(context: APIContext): Promise<Response> {
   await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
   const deleted = await storeDeleteEmailInbox(id);
   if (!deleted) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true });
+  const badgeCount = await getReviewsPendingCount().catch(() => undefined);
+  return json({ ok: true, ...(badgeCount != null ? { badgeCount } : {}) });
 }

@@ -3586,7 +3586,7 @@ function restoreReviewAlertBanner(item) {
 async function ackPushAlertOnServer(alertId, tag) {
   const id = String(alertId || '').trim();
   const tagStr = String(tag || '').trim();
-  if (!id) return;
+  if (!id) return null;
 
   const qs = tagStr ? `?tag=${encodeURIComponent(tagStr)}` : '';
   const url = `/api/admin/alerts/${encodeURIComponent(id)}${qs}`;
@@ -3608,13 +3608,14 @@ async function ackPushAlertOnServer(alertId, tag) {
   }
 
   try {
-    await ack('PATCH');
+    return await ack('PATCH');
   } catch (e) {
     const msg = String(e?.message || e);
     if (msg.includes('Unexpected response') || msg.includes('Empty response')) {
-      await ack('POST');
+      return await ack('POST');
     } else if (msg.includes('Alert not found') || msg.includes('HTTP 404')) {
       /* Stale banner — treat as dismissed. */
+      return { missing: true };
     } else {
       throw e;
     }
@@ -3622,8 +3623,11 @@ async function ackPushAlertOnServer(alertId, tag) {
 }
 
 async function commitDismissReviewNotification(item) {
+  void closeOsNotificationsForReview(item);
+
   if (item?.alertId) {
-    await ackPushAlertOnServer(item.alertId, item.tag);
+    const data = await ackPushAlertOnServer(item.alertId, item.tag);
+    applyServerBadgeCount(data);
     return;
   }
   if (item?.engagementId) {
@@ -3633,6 +3637,7 @@ async function commitDismissReviewNotification(item) {
     });
     const data = await readApiJson(res);
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    applyServerBadgeCount(data);
     return;
   }
   if (item?.commentId) {
@@ -3642,6 +3647,7 @@ async function commitDismissReviewNotification(item) {
     });
     const data = await readApiJson(res);
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    applyServerBadgeCount(data);
     return;
   }
   if (!item?.emailId) return;
@@ -3672,6 +3678,11 @@ async function commitDismissReviewNotification(item) {
     if (idx !== -1) emailState.allEvents[idx] = data.event;
   }
   if (emailState.activeId === item.emailId) renderEmailPanel();
+  applyServerBadgeCount(data);
+  if (data.badgeCount == null) {
+    // Absolute count arrives via the debounced badge-sync push; refresh locally too.
+    void refreshInboxBadgeQuiet();
+  }
 }
 
 async function dismissReviewNotification(item, btn) {
@@ -3696,6 +3707,7 @@ async function dismissReviewNotification(item, btn) {
   try {
     removeReviewAlertBannerForItem(item);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+    void closeOsNotificationsForReview(item);
 
     // Start permission from this gesture (iOS); do not await the dialog.
     void ensureShakePermission();
@@ -4295,9 +4307,12 @@ async function dismissPushAlertById(alertId, tag) {
     await flushShakeUndoCommit();
   }
 
-  await ackPushAlertOnServer(id, tag);
+  const data = await ackPushAlertOnServer(id, tag);
   removeReviewAlertBanner(null, null, null, id);
-  syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  void closeOsNotificationsForReview({ alertId: id, tag });
+  if (!applyServerBadgeCount(data)) {
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  }
   if (MAP.type === 'dashboard') await loadAdminDashboard();
 }
 
@@ -9329,22 +9344,42 @@ async function writeCachedBadgeCount(n) {
 
 async function setAppIconBadge(n) {
   const count = Math.max(0, Number(n) || 0);
+  await writeCachedBadgeCount(count);
+  // Always update from the page context (iOS is more reliable here) and mirror
+  // into the service worker so background restore stays correct.
   try {
     const reg = await navigator.serviceWorker?.getRegistration('/admin/');
     if (reg?.active) {
       reg.active.postMessage({ type: 'reave-badge-sync', count });
-      await writeCachedBadgeCount(count);
-      return;
     }
   } catch {}
   if (!('setAppBadge' in navigator)) return;
   try {
-    await writeCachedBadgeCount(count);
     if (count > 0) await navigator.setAppBadge(count);
     else if ('clearAppBadge' in navigator) await navigator.clearAppBadge();
   } catch (e) {
     console.warn('[badge]', e);
   }
+}
+
+/** Close matching OS / tray notifications when a dashboard banner goes away. */
+async function closeOsNotificationsForReview(item) {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration('/admin/');
+    if (!reg?.active) return;
+    reg.active.postMessage({
+      type: 'reave-close-notifications',
+      alertId: item?.alertId ? String(item.alertId) : '',
+      emailId: item?.emailId ? String(item.emailId) : '',
+      tag: item?.tag ? String(item.tag) : '',
+    });
+  } catch {}
+}
+
+function applyServerBadgeCount(data) {
+  if (data?.badgeCount == null) return false;
+  syncReviewBadge(Math.max(0, Number(data.badgeCount) || 0));
+  return true;
 }
 
 async function syncInboxAppBadge(events, reviewsPending) {

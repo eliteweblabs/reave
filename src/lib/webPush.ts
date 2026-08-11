@@ -52,19 +52,25 @@ export async function sendPushNotification(payload: {
   /** Client reply and other high-priority alerts — may still deliver if allowUrgentDuringSleep. */
   urgent?: boolean;
   kind?: PushAlertKind;
+  /**
+   * Badge-only sync after dismissals — service worker updates the icon badge and
+   * suppresses a lasting tray entry when the admin app is already open.
+   */
+  badgeOnly?: boolean;
   /** Inbox row id — used by the service worker for OTP delete / deep links. */
   emailId?: string;
   /** OTP digits — service worker copies these on notification tap. */
   verificationCode?: string;
 }): Promise<void> {
-  const tag = payload.tag ?? 'inbox';
-  const url = payload.url ?? '/admin?tab=email';
+  const badgeOnly = Boolean(payload.badgeOnly);
+  const tag = payload.tag ?? (badgeOnly ? 'reave-badge-sync' : 'inbox');
+  const url = payload.url ?? (badgeOnly ? '/admin?tab=dashboard' : '/admin?tab=email');
   const formatted = formatNotificationPayload(payload.title, payload.body);
   const pushTitle = formatted.title;
   const pushBody = formatted.detail;
   const emailId = payload.emailId?.trim() || '';
   const verificationCode = payload.verificationCode?.trim() || '';
-  const kind = payload.kind ?? inferPushAlertKind(tag, url);
+  const kind = badgeOnly ? 'badge-sync' : (payload.kind ?? inferPushAlertKind(tag, url));
 
   const quiet = await isPushQuietHoursActive({
     bypassQuietHours: payload.bypassQuietHours,
@@ -72,10 +78,10 @@ export async function sendPushNotification(payload: {
   });
 
   let alertId: string | undefined;
-  if (!payload.skipDashboardAlert) {
+  if (!payload.skipDashboardAlert && !badgeOnly) {
     const alert = await storeCreatePushAlert({
       tag,
-      kind,
+      kind: kind === 'badge-sync' ? 'system' : kind,
       title: pushTitle,
       detail: pushBody,
       url,
@@ -101,6 +107,7 @@ export async function sendPushNotification(payload: {
     tag,
     url,
     kind,
+    ...(badgeOnly ? { badgeOnly: true } : {}),
     ...(alertId ? { alertId } : {}),
     ...(emailId ? { emailId } : {}),
     ...(verificationCode ? { verificationCode } : {}),
