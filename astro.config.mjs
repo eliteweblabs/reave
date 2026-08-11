@@ -64,4 +64,19 @@ export default defineConfig({
   adapter: node({
     mode: 'standalone',
   }),
+  /**
+   * Portfolio (and other `astro:assets` images) are resized/encoded on demand
+   * via `/_image` in SSR. Prefer modern formats with solid quality/size tradeoffs.
+   */
+  image: {
+    service: {
+      entrypoint: 'astro/assets/services/sharp',
+      config: {
+        webp: { quality: 80, effort: 5, alphaQuality: 90 },
+        avif: { quality: 65, effort: 4 },
+        jpeg: { quality: 82, mozjpeg: true },
+        png: { compressionLevel: 9 },
+      },
+    },
+  },
 });
