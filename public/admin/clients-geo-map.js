@@ -87,11 +87,18 @@ function pinIconUrl(c) {
   return logo || '';
 }
 
-function applyFill(el) {
-  el.style.position = 'absolute';
-  el.style.inset = '0';
-  el.style.width = '100%';
-  el.style.height = '100%';
+/** Viewport px — Mapbox measures the container once; % height often collapses to ~300px. */
+function viewportSize() {
+  const vv = window.visualViewport;
+  const w = Math.max(
+    1,
+    Math.floor(vv?.width || window.innerWidth || document.documentElement.clientWidth || 1),
+  );
+  const h = Math.max(
+    1,
+    Math.floor(vv?.height || window.innerHeight || document.documentElement.clientHeight || 1),
+  );
+  return { w, h };
 }
 
 /**
@@ -128,10 +135,10 @@ export function mountClientsGeoMap(container, opts = {}) {
     const style = document.createElement('style');
     style.id = 'cgm-critical-css';
     style.textContent = `
-      html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#0d1117; color:#e9eef6;
+      html, body { margin:0; width:100%; height:100%; min-height:100%; min-height:100dvh; overflow:hidden; background:#0d1117; color:#e9eef6;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-      .cgm-root { position:relative; width:100%; height:100%; }
-      .cgm-map-host, .cgm-map-canvas { position:absolute; inset:0; width:100%; height:100%; }
+      .cgm-root { position:fixed; inset:0; width:100%; height:100%; min-height:100dvh; }
+      .cgm-map-host, .cgm-map-canvas { position:absolute; inset:0; width:100%; height:100%; min-height:100%; }
       .cgm-map-empty { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center;
         padding:1.5rem; text-align:center; color:#8b949e; font-size:.95rem; background:rgba(13,17,23,.55); pointer-events:none; }
       .cgm-map-empty[hidden] { display:none !important; }
@@ -180,8 +187,6 @@ export function mountClientsGeoMap(container, opts = {}) {
   }
 
   container.classList.add('cgm-root');
-  applyFill(container);
-  container.style.position = 'relative';
   container.innerHTML = `
     <div class="cgm-map-host" id="cgm-map-host" role="img" aria-label="Contact locations map"></div>
     <div class="cgm-chrome">
@@ -201,7 +206,6 @@ export function mountClientsGeoMap(container, opts = {}) {
   const togglesEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-toggles'));
   const countEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-count'));
   const statusEl = /** @type {HTMLElement} */ (container.querySelector('#cgm-status'));
-  applyFill(mapHost);
 
   const emptyEl = document.createElement('div');
   emptyEl.className = 'cgm-map-empty';
@@ -210,17 +214,51 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   const mapEl = document.createElement('div');
   mapEl.className = 'cgm-map-canvas';
-  applyFill(mapEl);
   mapHost.appendChild(mapEl);
+
+  function sizeMapShell() {
+    const { w, h } = viewportSize();
+    document.documentElement.style.width = `${w}px`;
+    document.documentElement.style.height = `${h}px`;
+    document.body.style.margin = '0';
+    document.body.style.overflow = 'hidden';
+    document.body.style.width = `${w}px`;
+    document.body.style.height = `${h}px`;
+    container.style.position = 'fixed';
+    container.style.inset = '0';
+    container.style.width = `${w}px`;
+    container.style.height = `${h}px`;
+    for (const el of [mapHost, mapEl]) {
+      el.style.position = 'absolute';
+      el.style.top = '0';
+      el.style.left = '0';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.width = `${w}px`;
+      el.style.height = `${h}px`;
+    }
+  }
+
+  sizeMapShell();
 
   function visibleClients() {
     return clients.filter((c) => enabledKinds[normalizeKind(c.kind)]);
   }
 
   function locatedClients(list = visibleClients()) {
-    return list.filter(
-      (c) => c.geo && Number.isFinite(c.geo.lat) && Number.isFinite(c.geo.lng),
-    );
+    return list.filter((c) => {
+      const lat = c.geo?.lat;
+      const lng = c.geo?.lng;
+      return (
+        Number.isFinite(lat) &&
+        Number.isFinite(lng) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180 &&
+        !(lat === 0 && lng === 0)
+      );
+    });
   }
 
   function setStatus(msg, isError = false) {
@@ -377,21 +415,29 @@ export function mountClientsGeoMap(container, opts = {}) {
         map.setView([located[0].geo.lat, located[0].geo.lng], 13);
       } else {
         const bounds = leaflet.latLngBounds(located.map((c) => [c.geo.lat, c.geo.lng]));
-        map.fitBounds(bounds, { padding: [56, 56], maxZoom: 14 });
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [56, 56], maxZoom: 14 });
       }
       fitOnce = true;
       return;
     }
 
     if (!mapboxgl) return;
+    sizeMapShell();
+    map.resize?.();
     if (located.length === 1) {
-      map.flyTo({ center: [located[0].geo.lng, located[0].geo.lat], zoom: 13 });
+      map.jumpTo({ center: [located[0].geo.lng, located[0].geo.lat], zoom: 13 });
       fitOnce = true;
       return;
     }
     const bounds = new mapboxgl.LngLatBounds();
     for (const c of located) bounds.extend([c.geo.lng, c.geo.lat]);
-    map.fitBounds(bounds, { padding: 72, maxZoom: 14, duration: fitOnce ? 650 : 0 });
+    if (bounds.isEmpty()) return;
+    map.fitBounds(bounds, {
+      padding: 72,
+      maxZoom: 14,
+      minZoom: 2,
+      duration: fitOnce ? 650 : 0,
+    });
     fitOnce = true;
   }
 
@@ -451,6 +497,7 @@ export function mountClientsGeoMap(container, opts = {}) {
   async function ensureLeafletMap() {
     const L = await loadLeaflet();
     if (destroyed || !L) return false;
+    sizeMapShell();
     leaflet = L;
     map = L.map(mapEl, {
       zoomControl: true,
@@ -465,7 +512,11 @@ export function mountClientsGeoMap(container, opts = {}) {
     emptyEl.hidden = true;
     setStatus('Showing OpenStreetMap — Mapbox unavailable.', false);
     renderMarkers({ refit: true });
-    requestAnimationFrame(() => map?.invalidateSize?.());
+    requestAnimationFrame(() => {
+      sizeMapShell();
+      map?.invalidateSize?.();
+      fitBounds();
+    });
     return true;
   }
 
@@ -475,6 +526,7 @@ export function mountClientsGeoMap(container, opts = {}) {
     if (!gl || typeof gl.Map !== 'function') {
       throw new Error('Mapbox GL failed to load (no Map constructor)');
     }
+    sizeMapShell();
     mapboxgl = gl;
     gl.accessToken = token;
     map = new gl.Map({
@@ -506,8 +558,14 @@ export function mountClientsGeoMap(container, opts = {}) {
     mapReady = true;
     emptyEl.hidden = true;
     setStatus('');
+    sizeMapShell();
+    map.resize();
     renderMarkers({ refit: true });
-    requestAnimationFrame(() => map?.resize?.());
+    requestAnimationFrame(() => {
+      sizeMapShell();
+      map?.resize?.();
+      fitBounds();
+    });
     return true;
   }
 
@@ -594,6 +652,7 @@ export function mountClientsGeoMap(container, opts = {}) {
   }
 
   function resize() {
+    sizeMapShell();
     if (mapEngine === 'leaflet') map?.invalidateSize?.();
     else map?.resize?.();
   }
@@ -605,11 +664,14 @@ export function mountClientsGeoMap(container, opts = {}) {
     map = null;
     mapReady = false;
     window.removeEventListener('resize', resize);
+    window.visualViewport?.removeEventListener?.('resize', resize);
   }
 
   renderToggles();
   renderCount();
+  sizeMapShell();
   window.addEventListener('resize', resize);
+  window.visualViewport?.addEventListener?.('resize', resize);
   void ensureMap();
   void loadClients();
 
