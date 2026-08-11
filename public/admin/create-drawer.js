@@ -151,7 +151,7 @@ function setCreateDrawerSubmit(submitFn) {
 
 /** Point the user at the empty title field when a create is missing one. */
 function flagCreateDrawerTitleMissing() {
-  const field = getCreateDrawerPane()?.querySelector('.de-header-title-input, .cl-title-input');
+  const field = getCreateDrawerPane()?.querySelector('.de-header-title-input');
   if (!(field instanceof HTMLElement)) return;
   shell.setFormFieldState(field, 'invalid');
   field.focus({ preventScroll: true });

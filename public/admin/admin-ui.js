@@ -1259,13 +1259,16 @@ export function cancelTitleFocus() {
 }
 
 /**
- * Header title `<input>` with edit affordance.
+ * Shared editable pane-header title (bold `.de-doc-name` + pencil affordance).
+ * Prefer this (or `editableTitle` on createPaneHeader / createPaneSubheader)
+ * over one-off title inputs so work, todo, clients, chat rename, etc. match.
  * @returns {{ el: HTMLElement, input: HTMLInputElement }}
  */
 export function createEditableHeaderTitleInput(opts = {}) {
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'de-doc-name de-header-title-input';
+  if (opts.className) input.classList.add(...opts.className.split(/\s+/).filter(Boolean));
   if (opts.placeholder) input.placeholder = opts.placeholder;
   if (opts.value != null) input.value = opts.value;
   input.setAttribute('aria-label', opts.ariaLabel || opts.placeholder || 'Title');
@@ -1307,7 +1310,7 @@ export function createPaneSubheader(opts = {}) {
     header.appendChild(created.el);
   } else if (opts.titleNode) {
     header.appendChild(opts.titleNode);
-    const found = opts.titleNode.querySelector?.('.de-header-title-input, .cl-title-input');
+    const found = opts.titleNode.querySelector?.('.de-header-title-input');
     if (found instanceof HTMLInputElement) titleInput = found;
   } else if (opts.title != null && opts.title !== '') {
     const titleEl = document.createElement('span');

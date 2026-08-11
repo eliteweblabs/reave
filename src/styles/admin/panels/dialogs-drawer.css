@@ -196,8 +196,7 @@
   flex: 1 1 auto;
   min-height: 12rem;
 }
-.de-pane--drawer .de-header-title-input,
-.de-pane--drawer .cl-title-input {
+.de-pane--drawer .de-header-title-input {
   font-size: max(16px, 1.05rem);
   font-weight: 700;
 }
@@ -218,7 +217,6 @@
 .de-pane--drawer .de-textarea::placeholder,
 .de-pane--drawer .re-textarea::placeholder,
 .de-pane--drawer .de-header-title-input::placeholder,
-.de-pane--drawer .cl-title-input::placeholder,
 .de-pane--drawer .wk-md-surface:empty::before {
   font-weight: 400;
 }

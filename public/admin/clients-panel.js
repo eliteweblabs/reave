@@ -2,16 +2,13 @@
  * clients panel — extracted from os-map-loader.js
  */
 import {
-  IOS_ICONS,
   iosIcon,
-  createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
   createPaneSubheader,
-  wrapEditableHeaderTitle,
   armTitleFocus,
   requestTitleFocus,
   flushTitleFocus,
@@ -737,12 +734,6 @@ function renderClientsEditor() {
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
-function syncClTitleInputWidth(input) {
-  if (!input) return;
-  const text = input.value || input.placeholder || 'M';
-  input.style.width = `${Math.max(text.length, 4)}ch`;
-}
-
 function splitClientNameParts(contact) {
   const full = (contact.name || '').trim();
   const company = (contact.company || '').trim();
@@ -1441,25 +1432,6 @@ function renderEditClientForm(pane) {
       });
       pane.innerHTML = '';
 
-      const titleWrap = document.createElement('div');
-      titleWrap.className = 'cl-title-wrap';
-      const titleField = document.createElement('div');
-      titleField.className = 'cl-title-field';
-      const companyInput = document.createElement('input');
-      companyInput.className = 'cl-title-input';
-      companyInput.value = clientState.draft.company || '';
-      companyInput.placeholder = 'Company name';
-      companyInput.setAttribute('aria-label', 'Company name');
-      const editHint = document.createElement('span');
-      editHint.className = 'cl-title-edit-hint';
-      editHint.innerHTML = IOS_ICONS.edit;
-      editHint.setAttribute('aria-hidden', 'true');
-      titleField.appendChild(companyInput);
-      titleField.appendChild(editHint);
-      titleWrap.appendChild(titleField);
-      syncClTitleInputWidth(companyInput);
-      companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
-
       const agentBtn = createAgentBtn({
         label: 'Agent',
         title: 'Send to Agent',
@@ -1478,12 +1450,16 @@ function renderEditClientForm(pane) {
         },
       });
 
-      const { header } = createPaneSubheader({
+      const { header, titleInput: companyInput } = createPaneSubheader({
         back: {
           label: clientBackLabel(),
           onClick: () => closeClientEditor(),
         },
-        titleNode: titleWrap,
+        editableTitle: {
+          value: clientState.draft.company || '',
+          placeholder: 'Company name',
+          ariaLabel: 'Company name',
+        },
         icons: [
           agentBtn,
           shareBtn,
