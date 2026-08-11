@@ -81,15 +81,6 @@
 .reave-bg-pattern {
   position: fixed;
   inset: 0;
-  /*
-   * iOS Safari can leave top/bottom strips when fixed layers only track the
-   * small viewport — pin to the large viewport + fill-available as well.
-   */
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
-  height: 100lvh;
-  min-height: -webkit-fill-available;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -107,11 +98,6 @@
 .site-bg-mesh {
   position: fixed;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
-  height: 100lvh;
-  min-height: -webkit-fill-available;
   z-index: 0;
   pointer-events: none;
   background:

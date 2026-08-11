@@ -43,10 +43,6 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     <meta charset="UTF-8" />
     <ViewportMeta />
     <meta name="theme-color" content={themeColor} />
-    <!-- Edge-to-edge on iPhone Safari / Add to Home Screen — matches client portal. -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="generator" content={Astro.generator} />
     <Favicon />
     <title>{title}</title>
@@ -81,16 +77,9 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   html,
   body.landing-body {
     margin: 0;
-    width: 100%;
-    height: 100%;
-    height: 100dvh;
     min-height: 100%;
-    min-height: 100dvh;
-    min-height: -webkit-fill-available;
-    min-height: 100lvh;
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
-    color-scheme: dark;
     color: #fff;
     background: linear-gradient(180deg, #01061d, #01092b);
   }
