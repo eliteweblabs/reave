@@ -10,6 +10,7 @@ import { osAlert } from './os-dialog.js?v=20260728q';
 export const PIPELINE_FUNCTIONS = [
   { id: 'normalize', label: 'Normalize message', sub: 'Body · attachments · OTP extract' },
   { id: 'rules', label: 'Keyword rules', sub: 'First match wins · sort order' },
+  { id: 'agent_rule', label: 'Agent (else)', sub: 'No match → draft rule form' },
   { id: 'contact', label: 'Resolve sender', sub: 'Contacts · client kind · open jobs' },
   { id: 'ai', label: 'AI classify / triage', sub: 'Agent-first or rules-first' },
   { id: 'override', label: 'Receipt / OTP overrides', sub: 'Money heuristics · auth links' },
@@ -26,6 +27,7 @@ export const PIPELINE_FUNCTIONS = [
  * @param {() => HTMLElement | null} deps.getRuleEditor
  * @param {() => Promise<void>} deps.reloadRules
  * @param {() => { el: HTMLElement }} deps.createRulesViewPicker
+ * @param {(proposed: object) => void | Promise<void>} [deps.openProposedRule]
  * @param {() => string} [deps.inboundAddressExample]
  */
 export function createEmailTriageLab(deps) {
@@ -508,7 +510,7 @@ export function createEmailTriageLab(deps) {
     left.appendChild(deps.createRulesViewPicker().el);
     const hint = document.createElement('p');
     hint.className = 're-flow-hint';
-    hint.textContent = 'Same processInboundEmail path · dry-run · drag rules to set priority';
+    hint.textContent = 'Flow = live ladder · try an email · first match wins · Agent drafts a rule when nothing matches';
     left.appendChild(hint);
     toolbar.appendChild(left);
 
@@ -738,12 +740,28 @@ export function createEmailTriageLab(deps) {
         });
 
         const elseCard = document.createElement('div');
-        elseCard.className = 're-lab-pipe-card re-lab-pipe-card--else';
-        elseCard.dataset.stage = 'rules';
+        elseCard.className = 're-lab-pipe-card re-lab-pipe-card--else re-lab-pipe-card--agent';
+        elseCard.dataset.stage = 'agent_rule';
+        elseCard.dataset.kind = 'agent_rule';
+        const proposed = state.sim?.proposedRule || state.sim?.result?.proposedRule;
         elseCard.innerHTML = `
           <span class="re-flow-badge">Else</span>
-          <span class="re-lab-pipe-title">UNMATCHED</span>
-          <span class="re-lab-pipe-sub">${ruleState().notifyOnUnmatched ? 'Notify by default' : 'Stay silent'}</span>`;
+          <span class="re-lab-pipe-main">
+            <span class="re-lab-pipe-title">Agent</span>
+            <span class="re-lab-pipe-sub">${
+              proposed
+                ? escHtml(`Propose → ${proposed.title || proposed.status}`)
+                : 'No match → agent fills a rule form'
+            }</span>
+          </span>`;
+        if (proposed) {
+          elseCard.classList.add('re-lab-pipe-card--matched');
+          elseCard.style.cursor = 'pointer';
+          elseCard.title = 'Open agent-proposed rule';
+          elseCard.addEventListener('click', () => {
+            void deps.openProposedRule?.(proposed);
+          });
+        }
         pipeList.appendChild(elseCard);
 
         const spine2 = document.createElement('div');

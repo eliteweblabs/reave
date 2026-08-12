@@ -52,6 +52,8 @@ export type SimulateInboundEmailResult = {
   steps: TriagePlaybackStep[];
   ruleEvaluations: RuleEvaluation[];
   classificationAudit: ClassificationAuditStep[];
+  /** Agent-drafted rule when nothing in the ladder matched. */
+  proposedRule?: import('./emailProposeRule').ProposedEmailRule | null;
   /** Rules in the order used for this simulation (after optional override). */
   rulesUsed: Array<Pick<EmailRuleRecord, 'id' | 'title' | 'status' | 'sortOrder' | 'enabled' | 'notify'>>;
 };
@@ -295,9 +297,32 @@ function stepsFromAuditAndResult(
     });
   }
 
+  if (!result.ruleEvaluations?.some((e) => e.outcome === 'matched')) {
+    steps.push({
+      id: 'fn-agent-rule',
+      stage: 'agent_rule',
+      label: 'Agent (no rule matched)',
+      kind: 'function',
+      status: result.proposedRule ? 'would' : 'ran',
+      decision: result.proposedRule
+        ? `Propose rule → ${result.proposedRule.title}`
+        : 'No keyword rule matched — propose a triage rule',
+      detail: result.proposedRule
+        ? [
+            result.proposedRule.status,
+            result.proposedRule.notify ? 'Notify' : 'Silent',
+            (result.proposedRule.phrases || []).slice(0, 4).map((p) => `"${p}"`).join(', '),
+            result.proposedRule.reason,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : 'AI draft unavailable',
+    });
+  }
+
   const interestingAudit = audit.filter(
     (s) =>
-      !['simulate', 'rules', 'persist'].includes(s.step) &&
+      !['simulate', 'rules', 'persist', 'agent'].includes(s.step) &&
       !s.step.startsWith('rules'),
   );
   for (const [i, s] of interestingAudit.entries()) {
@@ -440,6 +465,7 @@ export async function simulateInboundEmail(
     steps,
     ruleEvaluations: ruleEvals,
     classificationAudit: result.classificationAudit || [],
+    proposedRule: result.proposedRule ?? null,
     rulesUsed: rulesForClassify.map((r) => ({
       id: r.id,
       title: r.title,
