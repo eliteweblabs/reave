@@ -100,21 +100,41 @@
   :root {
     --site-top-fade: linear-gradient(
       180deg,
-      #050208 0%,
-      #0c0614 36%,
+      #030106 0%,
+      #0a0510 28%,
+      #0c0614 52%,
       #0c0614 100%
     );
+    /*
+     * Asymmetric mesh — brightest at the header logo (top-left), casting down
+     * and right. No mirrored left/right pairs; overall opacity kept low.
+     */
     --site-mesh-glow:
-      radial-gradient(ellipse 130% 95% at 50% -12%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-      radial-gradient(ellipse 85% 75% at 14% 8%, rgba(192, 38, 211, 0.18) 0%, transparent 58%),
-      radial-gradient(ellipse 90% 80% at 88% 14%, rgba(99, 102, 241, 0.2) 0%, transparent 56%),
-      radial-gradient(ellipse 100% 85% at 48% 28%, rgba(192, 38, 211, 0.15) 0%, transparent 68%),
-      radial-gradient(ellipse 75% 60% at 6% 52%, rgba(99, 102, 241, 0.1) 0%, transparent 55%),
-      radial-gradient(ellipse 80% 65% at 94% 68%, rgba(255, 0, 255, 0.12) 0%, transparent 52%),
-      radial-gradient(ellipse 110% 70% at 32% 105%, rgba(192, 38, 211, 0.08) 0%, transparent 54%);
+      radial-gradient(
+        ellipse 48% 165% at 10% 3%,
+        rgba(244, 114, 182, 0.2) 0%,
+        rgba(192, 38, 211, 0.11) 22%,
+        rgba(99, 102, 241, 0.04) 48%,
+        transparent 68%
+      ),
+      radial-gradient(
+        ellipse 72% 130% at 16% 34%,
+        rgba(192, 38, 211, 0.09) 0%,
+        rgba(99, 102, 241, 0.04) 38%,
+        transparent 62%
+      ),
+      radial-gradient(
+        ellipse 55% 70% at 42% 58%,
+        rgba(99, 102, 241, 0.05) 0%,
+        transparent 58%
+      ),
+      radial-gradient(
+        ellipse 50% 40% at 81% 76%,
+        rgba(99, 102, 241, 0.04) 0%,
+        transparent 54%
+      );
     --site-mesh-bottom:
-      radial-gradient(ellipse 95% 60% at 68% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%),
-      radial-gradient(ellipse 85% 55% at 18% 100%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+      radial-gradient(ellipse 80% 45% at 58% 100%, rgba(192, 38, 211, 0.07) 0%, transparent 52%);
     --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom), var(--site-top-fade);
   }
 
@@ -122,6 +142,7 @@
     -webkit-mask-image: none;
     mask-image: none;
     background-size: 320px 320px;
+    --site-bg-pattern-opacity: 0.065;
   }
 }
 
@@ -182,6 +203,7 @@
    */
   z-index: 1;
   mix-blend-mode: soft-light;
+  opacity: var(--site-bg-pattern-opacity, 0.085);
   /*
    * Hide the chevron tile in the status-bar + header band — even soft-light
    * texture on #000 reads as a seam against the OS chrome.
