@@ -2,9 +2,36 @@
  * Email triage Lab — compose a message, drag rule priority, play the same
  * processInboundEmail dry-run the Agent uses (POST /api/email/simulate).
  */
-import { iosIcon } from './admin-ui.js?v=20260812b';
+import { iosIcon } from './admin-ui.js?v=20260812c';
 import { escHtml } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260728q';
+
+/** Mirror of src/lib/emailBody.looksLikeHtml for client-side preview. */
+function looksLikeHtml(text) {
+  const t = String(text || '').trimStart();
+  if (!t) return false;
+  if (/^<!DOCTYPE\s/i.test(t) || /^<html[\s>]/i.test(t)) return true;
+  return /^<[a-z!/]/i.test(t) && /<\/[a-z][^>]*>/i.test(t);
+}
+
+function resolveLabHtml(html, text) {
+  const fromHtml = String(html || '').trim();
+  if (fromHtml) return fromHtml;
+  const fromText = String(text || '').trim();
+  return looksLikeHtml(fromText) ? fromText : '';
+}
+
+/** True for HTML markup or minified CSS dumps that are useless as “plain text”. */
+function looksLikeMarkupBlob(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (looksLikeHtml(t)) return true;
+  const punct = (t.match(/[{};]/g) || []).length;
+  if (punct >= 20 && /[{}]/.test(t)) return true;
+  // Long unbroken lines = minified source, not readable prose.
+  if (t.length > 1500 && (t.match(/\S{120,}/g) || []).length > 0) return true;
+  return false;
+}
 
 /** Fixed downstream stages (production order) — not user-reorderable. */
 export const PIPELINE_FUNCTIONS = [
@@ -37,6 +64,10 @@ export function createEmailTriageLab(deps) {
     cc: '',
     subject: '',
     text: '',
+    /** Sanitized HTML body when loaded from inbox (or pasted markup). */
+    html: '',
+    /** Body pane: render HTML when available, else edit source. */
+    bodyMode: /** @type {'preview' | 'source'} */ ('source'),
     attachments: /** @type {{ id: string, filename: string, contentType: string, size: number }[]} */ ([]),
     skipGates: true,
     /** Local rule id order for dry-run (may differ from saved until Save order). */
@@ -227,7 +258,17 @@ export function createEmailTriageLab(deps) {
     state.to = root.querySelector('[data-lab-to]')?.value?.trim() || '';
     state.cc = root.querySelector('[data-lab-cc]')?.value?.trim() || '';
     state.subject = root.querySelector('[data-lab-subject]')?.value || '';
-    state.text = root.querySelector('[data-lab-body]')?.value || '';
+    const bodyIn = root.querySelector('[data-lab-body]');
+    // Preview hides the textarea — don't clobber html/text from an empty field.
+    if (bodyIn && bodyIn.offsetParent !== null) {
+      const bodyVal = bodyIn.value || '';
+      state.text = bodyVal;
+      if (looksLikeHtml(bodyVal)) state.html = bodyVal;
+    }
+    const modeBtn = root.querySelector('[data-lab-body-mode].is-active');
+    if (modeBtn?.dataset.labBodyMode === 'preview' || modeBtn?.dataset.labBodyMode === 'source') {
+      state.bodyMode = modeBtn.dataset.labBodyMode;
+    }
     state.skipGates = Boolean(root.querySelector('[data-lab-skip-gates]')?.checked);
   }
 
@@ -252,9 +293,15 @@ export function createEmailTriageLab(deps) {
       ? ccRaw.map(String).filter(Boolean).join(', ')
       : String(ccRaw || '').trim();
     state.subject = String(record.subject || '');
-    state.text = String(
+    const text = String(
       record.bodyText || record.text || record.bodySnippet || record.summary || '',
     );
+    const html = resolveLabHtml(record.bodyHtml || record.html || '', text);
+    state.html = html;
+    // Keep readable plain text for keywords; drop CSS/HTML blobs when we have HTML.
+    state.text = html && looksLikeMarkupBlob(text) ? '' : text;
+    if (!state.text && !html) state.text = text;
+    state.bodyMode = html ? 'preview' : 'source';
     state.attachments = Array.isArray(record.attachments)
       ? record.attachments.map((a, i) => ({
           id: String(a.id || `att-${i}`),
@@ -298,6 +345,7 @@ export function createEmailTriageLab(deps) {
           cc: state.cc,
           subject: state.subject,
           text: state.text,
+          html: state.html || undefined,
           attachments: state.attachments,
           ruleOrder: state.ruleOrder,
           skipGates: state.skipGates,
@@ -524,15 +572,29 @@ export function createEmailTriageLab(deps) {
     const preserveForm = opts.preserveForm === true;
     let saved = null;
     if (preserveForm) {
+      const bodyIn = root.querySelector('[data-lab-body]');
+      const bodyVisible = Boolean(bodyIn && bodyIn.offsetParent !== null);
+      const bodyVal = bodyVisible ? bodyIn.value || '' : state.text;
+      let nextHtml = state.html;
+      if (bodyVisible && looksLikeHtml(bodyVal)) nextHtml = bodyVal;
+      const modeBtn = root.querySelector('[data-lab-body-mode].is-active');
+      const bodyMode =
+        modeBtn?.dataset.labBodyMode === 'preview' || modeBtn?.dataset.labBodyMode === 'source'
+          ? modeBtn.dataset.labBodyMode
+          : state.bodyMode;
       saved = {
         from: root.querySelector('[data-lab-from]')?.value || '',
         fromName: root.querySelector('[data-lab-from-name]')?.value || '',
         to: root.querySelector('[data-lab-to]')?.value || state.to,
         cc: root.querySelector('[data-lab-cc]')?.value || state.cc,
         subject: root.querySelector('[data-lab-subject]')?.value || state.subject,
-        text: root.querySelector('[data-lab-body]')?.value || state.text,
+        text: bodyVal,
+        html: nextHtml,
+        bodyMode,
         skipGates: Boolean(root.querySelector('[data-lab-skip-gates]')?.checked ?? state.skipGates),
       };
+      state.html = nextHtml;
+      state.bodyMode = bodyMode;
     }
 
     syncRuleOrderFromState();
@@ -669,16 +731,104 @@ export function createEmailTriageLab(deps) {
     subLb.appendChild(subIn);
     form.appendChild(subLb);
 
-    const bodyLb = document.createElement('label');
-    bodyLb.className = 'de-label';
-    bodyLb.textContent = 'Body';
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'de-label re-lab-body-field';
+    const bodyHead = document.createElement('div');
+    bodyHead.className = 're-lab-body-head';
+    const bodyTitle = document.createElement('span');
+    bodyTitle.className = 're-lab-field-label';
+    bodyTitle.textContent = 'Body';
+    bodyHead.appendChild(bodyTitle);
+
+    const bodyText = saved?.text ?? state.text;
+    const bodyHtml = resolveLabHtml(saved?.html ?? state.html, bodyText);
+    state.html = bodyHtml;
+    let bodyMode = saved?.bodyMode ?? state.bodyMode;
+    if (bodyHtml && bodyMode !== 'source' && bodyMode !== 'preview') bodyMode = 'preview';
+    if (!bodyHtml) bodyMode = 'source';
+    state.bodyMode = bodyMode;
+
     const bodyIn = document.createElement('textarea');
     bodyIn.className = 'de-input re-textarea';
     bodyIn.dataset.labBody = '1';
     bodyIn.rows = 8;
-    bodyIn.value = saved?.text ?? state.text;
-    bodyLb.appendChild(bodyIn);
-    form.appendChild(bodyLb);
+    // Prefer plain text in Source; fall back to HTML so the pane isn't blank.
+    bodyIn.value = bodyText || bodyHtml;
+    bodyIn.placeholder = bodyHtml
+      ? 'Edit HTML or plain text used for this dry-run'
+      : 'Message body';
+
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 're-lab-body-html';
+    const frame = document.createElement('iframe');
+    frame.className = 're-lab-body-frame';
+    frame.title = 'Email body preview';
+    frame.sandbox = 'allow-popups allow-popups-to-escape-sandbox';
+    previewWrap.appendChild(frame);
+
+    const syncBodyPanes = () => {
+      const showPreview = state.bodyMode === 'preview' && Boolean(resolveLabHtml(state.html, bodyIn.value));
+      previewWrap.hidden = !showPreview;
+      bodyIn.hidden = showPreview;
+      bodyHead.querySelectorAll('[data-lab-body-mode]').forEach((btn) => {
+        btn.classList.toggle('is-active', btn.dataset.labBodyMode === state.bodyMode);
+      });
+      if (showPreview) {
+        frame.srcdoc = resolveLabHtml(state.html, bodyIn.value);
+      }
+    };
+
+    if (bodyHtml) {
+      const modeToggle = document.createElement('div');
+      modeToggle.className = 're-lab-body-mode';
+      modeToggle.setAttribute('role', 'group');
+      modeToggle.setAttribute('aria-label', 'Body view');
+      for (const mode of [
+        { id: 'preview', label: 'Preview' },
+        { id: 'source', label: 'Source' },
+      ]) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 're-lab-body-mode-btn';
+        btn.dataset.labBodyMode = mode.id;
+        btn.textContent = mode.label;
+        btn.addEventListener('click', () => {
+          if (state.bodyMode === 'source') {
+            const val = bodyIn.value || '';
+            if (looksLikeHtml(val)) {
+              state.html = val;
+              // Keep keyword text empty when Source is markup-only.
+              if (!state.text || looksLikeHtml(state.text)) state.text = '';
+            } else {
+              state.text = val;
+            }
+          }
+          state.bodyMode = /** @type {'preview' | 'source'} */ (mode.id);
+          if (mode.id === 'source') {
+            bodyIn.value = state.text || state.html || '';
+          }
+          syncBodyPanes();
+        });
+        modeToggle.appendChild(btn);
+      }
+      bodyHead.appendChild(modeToggle);
+    }
+
+    bodyIn.addEventListener('input', () => {
+      state.text = bodyIn.value || '';
+      if (looksLikeHtml(bodyIn.value || '')) {
+        state.html = bodyIn.value;
+        // Offer preview once the user pastes markup.
+        if (!bodyHead.querySelector('.re-lab-body-mode')) {
+          state.bodyMode = 'preview';
+          renderLabShell(root, { preserveForm: true });
+        }
+      }
+    });
+
+    bodyWrap.append(bodyHead, previewWrap, bodyIn);
+    form.appendChild(bodyWrap);
+    syncBodyPanes();
 
     const attBlock = document.createElement('div');
     attBlock.className = 're-lab-attachments';
