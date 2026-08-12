@@ -4,7 +4,6 @@
  * Gated by the `vapi` feature in install config. Not part of the default Reave install;
  * enable only when the customer purchases the Vapi add-on.
  */
-import { getInstallConfigSync } from './installConfig';
 import { getCompanyConfig, type CompanyConfig } from './companyConfig';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
@@ -48,20 +47,9 @@ export function isVapiAdminConfigured(company?: Pick<CompanyConfig, 'vapiAssista
 }
 
 /**
- * Live Speak Agent Widget (Vapi web SDK). Requires the `vapi` upsell plugin.
- * Set `homepageVoice: true` in install config when the customer opts in.
+ * Live Speak Agent Widget (Vapi web SDK). Disabled until the public widget is
+ * built and tested — admin Vapi sync remains available via the vapi plugin.
  */
-export function isHomepageVoiceWidgetEnabled(company?: Pick<CompanyConfig, 'vapiAssistantId'>): boolean {
-  if (!isVapiAdminPluginEnabled()) return false;
-
-  const installVoice = getInstallConfigSync().homepageVoice;
-  if (installVoice === false) return false;
-  if (installVoice === true) {
-    return Boolean(vapiPublicKey() && resolveVapiAssistantId(company));
-  }
-
-  const explicit = serverEnv('PUBLIC_INSTALL_HOMEPAGE_VOICE')?.trim().toLowerCase();
-  if (explicit === '0' || explicit === 'false') return false;
-  if (explicit === '1' || explicit === 'true') return true;
-  return Boolean(vapiPublicKey() && resolveVapiAssistantId(company));
+export function isHomepageVoiceWidgetEnabled(_company?: Pick<CompanyConfig, 'vapiAssistantId'>): boolean {
+  return false;
 }

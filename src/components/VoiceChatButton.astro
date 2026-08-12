@@ -1581,6 +1581,7 @@ const positionClasses = {
 
   const container = document.getElementById('vapi-widget-container');
   if (container) {
+    container.classList.add('is-mounted');
     initFloatingWidgetSectionHide(
       container,
       'is-section-occluding',
@@ -1595,14 +1596,18 @@ const positionClasses = {
   .vapi-widget-container {
     position: fixed;
     z-index: 9999;
-    opacity: 0;
+    /* display:none until mounted — opacity:0 still tints iOS 26 Safari chrome. */
+    display: none;
+  }
+
+  .vapi-widget-container.is-mounted {
+    display: block;
     animation: fadeIn 0.5s ease-in-out 1.5s forwards;
+    opacity: 0;
   }
 
   .vapi-widget-container.is-section-occluding {
-    opacity: 0 !important;
-    visibility: hidden;
-    pointer-events: none;
+    display: none !important;
     animation: none;
   }
 

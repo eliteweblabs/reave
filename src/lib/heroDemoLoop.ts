@@ -552,8 +552,14 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
-/** Compact dashboard toast — same center-scale overshoot as the invoice card. */
-function createDashboardNotificationCard(title: string, detail: string): HTMLElement {
+type DashboardNotificationIcon = { iconEmoji?: string; iconUrl?: string };
+
+/** Compact dashboard toast — mirrors admin review alerts (brand icon + copy). */
+function createDashboardNotificationCard(
+  title: string,
+  detail: string,
+  icon?: DashboardNotificationIcon,
+): HTMLElement {
   const row = document.createElement("div");
   row.className =
     "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
@@ -563,14 +569,31 @@ function createDashboardNotificationCard(title: string, detail: string): HTMLEle
   const card = document.createElement("div");
   card.className = "home-hero-demo-sk-notif";
 
-  const dot = document.createElement("span");
-  dot.className = "home-hero-demo-sk-notif-dot";
-  dot.setAttribute("aria-hidden", "true");
+  const head = document.createElement("div");
+  head.className = "home-hero-demo-sk-notif-head";
+
+  const iconUrl = icon?.iconUrl?.trim();
+  const iconEmoji = icon?.iconEmoji?.trim();
+  if (iconUrl) {
+    const brand = document.createElement("img");
+    brand.className = "home-hero-demo-sk-notif-icon";
+    brand.src = iconUrl;
+    brand.alt = "";
+    brand.setAttribute("aria-hidden", "true");
+    head.appendChild(brand);
+  } else if (iconEmoji) {
+    const brand = document.createElement("span");
+    brand.className =
+      "home-hero-demo-sk-notif-icon home-hero-demo-sk-notif-icon--emoji";
+    brand.textContent = iconEmoji;
+    brand.setAttribute("aria-hidden", "true");
+    head.appendChild(brand);
+  }
 
   const copy = document.createElement("div");
   copy.className = "home-hero-demo-sk-notif-copy";
 
-  const titleEl = document.createElement("p");
+  const titleEl = document.createElement("strong");
   titleEl.className = "home-hero-demo-sk-notif-title";
   titleEl.textContent = title;
 
@@ -580,8 +603,8 @@ function createDashboardNotificationCard(title: string, detail: string): HTMLEle
 
   copy.appendChild(titleEl);
   copy.appendChild(detailEl);
-  card.appendChild(dot);
-  card.appendChild(copy);
+  head.appendChild(copy);
+  card.appendChild(head);
   row.appendChild(card);
   return row;
 }
@@ -680,8 +703,9 @@ async function playDashboardNotification(
   isAlive: () => boolean,
   title: string,
   detail: string,
+  icon?: DashboardNotificationIcon,
 ): Promise<void> {
-  const row = createDashboardNotificationCard(title, detail);
+  const row = createDashboardNotificationCard(title, detail, icon);
   const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-notif");
   sceneEl.appendChild(row);
   relayout(true);
@@ -781,8 +805,9 @@ async function playProposalFlow(
     relayout,
     reducedMotion,
     isAlive,
-    "Proposal viewed",
+    "👀 Proposal viewed",
     "Susie's Cookies",
+    { iconEmoji: "🍪" },
   );
   if (!isAlive()) return;
 
@@ -794,8 +819,9 @@ async function playProposalFlow(
     relayout,
     reducedMotion,
     isAlive,
-    "Proposal accepted",
+    "✅ Proposal accepted",
     "Susie's Cookies",
+    { iconEmoji: "🍪" },
   );
   if (!isAlive()) return;
 
@@ -1510,7 +1536,6 @@ function filterMentionOptions(query: string): HeroDemoMentionOption[] {
 /** Type prefix → open picker → highlight target → insert @Name → type suffix. */
 async function playMentionPickerSegment(
   textEl: HTMLElement,
-  row: HTMLElement,
   relayout: Relayout,
   reducedMotion: boolean,
   isAlive: () => boolean,
@@ -1535,14 +1560,14 @@ async function playMentionPickerSegment(
     if (!isAlive()) return;
   }
 
+  const bubble = textEl.closest<HTMLElement>(".home-hero-demo-bubble");
+  if (!bubble) return;
+
   const picker = buildMentionPicker(pickerOptions);
-  row.appendChild(picker);
-  // Reserve space below so the downward dropdown stays in the demo lane.
-  row.style.paddingBottom = "12.5rem";
+  bubble.appendChild(picker);
   requestAnimationFrame(() => {
     picker.classList.add("home-hero-demo-mention-picker--visible");
   });
-  relayout(true);
 
   if (typedQuery) {
     await typeText(textEl, typedQuery, MENTION_CHAR_MS, isAlive, relayout);
@@ -1562,8 +1587,6 @@ async function playMentionPickerSegment(
   picker.classList.add("home-hero-demo-mention-picker--exit");
   await wait(280);
   picker.remove();
-  row.style.paddingBottom = "";
-  relayout(true);
 
   // Selection replaces the partial query (and optional `@`) with a mention chip.
   fillBubbleText(textEl, `${beforeSegment}${prefix}@${mentionName}`);
@@ -1726,7 +1749,6 @@ async function playUserTurn(
     if (rest.includes("@")) {
       await playMentionPickerSegment(
         textEl,
-        row,
         relayout,
         reducedMotion,
         isAlive,
@@ -1740,7 +1762,6 @@ async function playUserTurn(
   } else if (kind === "mention" || kind === "soft-mention") {
     await playMentionPickerSegment(
       textEl,
-      row,
       relayout,
       reducedMotion,
       isAlive,
@@ -1975,7 +1996,29 @@ async function simulateActionPress(
     await playInvoicePaymentSkeleton(sceneEl, relayout, reducedMotion, isAlive);
   } else if (effect === "proposal-flow") {
     await playProposalFlow(root, sceneEl, relayout, reducedMotion, isAlive);
+  } else {
+    const label = (target.textContent || "Open").trim() || "Open";
+    await playActionPlaceholder(sceneEl, relayout, reducedMotion, isAlive, label);
   }
+}
+
+/** Generic beat when a demo action chip has no bespoke skeleton yet. */
+async function playActionPlaceholder(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  label: string,
+): Promise<void> {
+  await playDashboardNotification(
+    sceneEl,
+    relayout,
+    reducedMotion,
+    isAlive,
+    label,
+    "Opening…",
+  );
+  await wait(reducedMotion ? 400 : 650);
 }
 
 function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
@@ -2179,6 +2222,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
+      const hadActionChips = Boolean(turn.actions?.length);
       lastAssistantRow = await playAssistantTurn(
         turn,
         root,
@@ -2190,6 +2234,13 @@ export function initHeroDemoLoop(root: HTMLElement) {
         mapboxToken,
         scene.userAvatar,
       );
+
+      // The chip press is the user's choice — don't follow with a mock user bubble.
+      if (hadActionChips) {
+        while (i + 1 < scene.turns.length && scene.turns[i + 1]!.role === "user") {
+          i++;
+        }
+      }
 
       if (sceneEl.dataset.heroHardCut === "1") {
         // Invoice already swiped away — fade the remaining chat, then next scene.

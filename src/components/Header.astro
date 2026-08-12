@@ -81,12 +81,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  {/*
-    TEMP: header blur/scrim removed so iOS Safari can show the raw body mesh +
-    repeating pattern through the status-bar safe area with no backdrop-filter
-    or safe-area JS in the way. Restore .app-header-scrim when debugging is done.
-  */}
-
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
     href={logoHref}
@@ -397,11 +391,10 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     align-items: stretch;
     min-height: 0;
     /*
-     * TEMP: no backdrop-filter / scrim on this fixed shell (marketing edge debug).
-     * Opaque canvas fill so iOS 26 Safari Liquid Glass samples purple, not black.
-     * Padding uses var(--safe-top) — probed in JS when env() lies on fixed shells.
+     * No background on this fixed shell — iOS 26 Safari samples it for Liquid
+     * Glass. The black→purple fade is on html/body (fixed). Padding uses
+     * var(--safe-top) — probed in JS when env() lies on fixed shells.
      */
-    background-color: var(--site-canvas, #0c0614);
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
       var(--safe-top)
@@ -435,8 +428,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     overflow: visible;
     z-index: 1;
   }
-
-  /* TEMP: .app-header-scrim / blur layers removed (markup + styles). */
 
   .app-header--admin::before {
     content: none;

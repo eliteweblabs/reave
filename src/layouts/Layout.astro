@@ -1,14 +1,11 @@
 ---
 import Header from "../components/Header.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
-import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
-import SiteCanvasFill from "../components/SiteCanvasFill.astro";
-import SafariChromeTint from "../components/SafariChromeTint.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
@@ -39,7 +36,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Defaults to --site-canvas purple. */
+	/** Initial `<meta name="theme-color">`. Defaults to --site-status-bar black. */
   themeColor?: string;
 }
 
@@ -50,7 +47,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#0c0614",
+  themeColor = "#000000",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -124,8 +121,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body data-user-id={userId ?? ""}>
-		<SiteCanvasFill />
-		<SafariChromeTint />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
@@ -142,7 +137,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 			</div>
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
-		{marketingNav && <SiteVoiceWidget />}
 		{
 			showSiteAssistant && (
 				<SiteAssistantWidget
@@ -153,10 +147,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 				/>
 			)
 		}
-		<script>
-			import { bindIosSafariChromeFill } from "../lib/iosSafariChromeFill";
-			bindIosSafariChromeFill();
-		</script>
 	</body>
 </html>
 
@@ -177,9 +167,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * viewport and shears position:fixed headers. Use min-height only so the
 	 * paint box is at least one device tall and can still grow with content.
 	 *
-	 * background-color MUST be the purple canvas (--site-canvas), not near-black —
-	 * Safari samples it for the status-bar / home-indicator strips, and #050505
-	 * reads as a disconnected black letterbox against the mesh.
+	 * background-color on html is true black (--site-status-bar) so the iOS
+	 * inset matches; body keeps --site-canvas for the fold below the fade.
+	 * Atmosphere is viewport-fixed so the black→purple band stays under the
+	 * status bar while content scrolls.
 	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);
@@ -212,7 +203,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100dvh;
 		min-height: 100lvh;
 		min-height: var(--device-height);
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-status-bar, #000000);
+		background-image: var(--site-mesh-atmosphere);
+		background-repeat: no-repeat;
+		background-attachment: fixed;
 	}
 
 	html,
@@ -253,17 +247,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: var(--device-height);
 		position: relative;
 		/*
-		 * Mesh on body (not a z-index:-1 ::before). A negative-z pseudo sits
-		 * behind body's opaque background-color and the atmosphere vanishes —
-		 * that was the flat black fold. Pre-Astro-7 stops, on body itself.
+		 * Viewport-fixed atmosphere: black at the top (matches the status-bar
+		 * inset), easing into purple glows. Content scrolls over this layer.
 		 */
-		background-image:
-			radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-			radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-			radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
-			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+		background-image: var(--site-mesh-atmosphere);
 		background-repeat: no-repeat;
-		background-attachment: scroll;
+		background-attachment: fixed;
 	}
 
 	h1,
@@ -324,5 +313,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		max-width: 920px;
 		margin: 0 auto;
 		padding: 0 24px calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+	}
+
+	/*
+	 * Page content above the fixed chevron pattern (z-index 1) so text is not
+	 * clipped by the tile layer when it slides under the transparent header.
+	 */
+	main#main-content {
+		position: relative;
+		z-index: 2;
 	}
 </style>
