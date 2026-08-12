@@ -170,11 +170,12 @@ import {
   rememberScheduleAddress,
   mountScheduleAddressAutocomplete,
   isScheduleAddressError,
+  isAddressPickerSheetOpen,
   ensureScheduleAddress,
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260811c';
+} from './schedule-panel.js?v=20260812b';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -187,7 +188,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260812a';
+} from './clients-panel.js?v=20260812b';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -10261,7 +10262,7 @@ function showEmailScheduleDialog(ev, check) {
       resolve(value);
     };
     const onKey = (evKey) => {
-      if (evKey.key === 'Escape') finish(false);
+      if (evKey.key === 'Escape' && !isAddressPickerSheetOpen()) finish(false);
     };
 
     titleEl.textContent = check.available ? 'Schedule meeting' : 'Time conflict';

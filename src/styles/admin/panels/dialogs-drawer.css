@@ -221,6 +221,87 @@
   font-weight: 400;
 }
 
+/* Address picker — stacks above OS dialog so schedule/create can open it */
+#address-picker-backdrop {
+  z-index: calc(var(--ios-sheet-z, 6000) + 50);
+}
+#address-picker-backdrop .ios-sheet {
+  --ios-sheet-bg: var(--panel);
+  --ios-sheet-fg: var(--fg);
+  --ios-sheet-border: var(--panel-border);
+  --ios-sheet-muted: var(--muted);
+  --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
+  --ios-sheet-close-bg: var(--surface-hover);
+  --ios-sheet-close-hover: var(--surface-hover-strong);
+  max-height: min(70dvh, 520px);
+}
+#address-picker-backdrop .ios-sheet-header {
+  padding: 0 1rem;
+  touch-action: none;
+}
+.address-picker-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  overflow: hidden;
+}
+.address-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: max(16px, 0.95rem);
+}
+.address-picker-search:focus {
+  outline: none;
+  border-bottom-color: #0a84ff;
+}
+.address-picker-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.address-picker-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.address-picker-option:last-child {
+  border-bottom: none;
+}
+.address-picker-option:hover,
+.address-picker-option:focus-visible,
+.address-picker-option.active {
+  background: var(--surface-hover-strong);
+}
+.address-picker-empty {
+  padding: 1.1rem 1rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  text-align: center;
+}
+
 /* Reave share sheet — nested under OS dialog (--ios-sheet-z) */
 #reave-share-backdrop {
   z-index: var(--ios-sheet-z-nested, 5900);
