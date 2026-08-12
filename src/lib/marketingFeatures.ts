@@ -26,8 +26,9 @@ export type MarketingFeature = {
 };
 
 /**
- * Concrete product capabilities + nav chips.
- * Capabilities map to zero or more FeatureIds; nav chips link to related pages.
+ * Concrete product capabilities (+ optional nav chips).
+ * Capabilities map to zero or more FeatureIds; do not add page/attribute links here
+ * unless they are intentional green nav chips (e.g. pricing).
  */
 export const MARKETING_FEATURES: readonly MarketingFeature[] = [
   // —— Core / always-on ——
@@ -123,14 +124,6 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     label: 'Agentic web search',
     modules: [],
     kind: 'capability',
-  },
-  {
-    id: 'plug-in-what-you-need',
-    label: 'Plug in only what you need',
-    modules: [],
-    kind: 'capability',
-    href: '/modules',
-    spotlight: true,
   },
 
   // —— Module-dependent ——
@@ -316,22 +309,6 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     modules: [],
     kind: 'nav',
     href: '/pricing',
-    spotlight: true,
-  },
-  {
-    id: 'nav-modules',
-    label: 'Optional modules',
-    modules: [],
-    kind: 'nav',
-    href: '/modules',
-    spotlight: true,
-  },
-  {
-    id: 'nav-platform',
-    label: 'Tech stack',
-    modules: [],
-    kind: 'nav',
-    href: '/platform',
     spotlight: true,
   },
 ];
