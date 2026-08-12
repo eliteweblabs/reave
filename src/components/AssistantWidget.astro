@@ -553,7 +553,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     if (fab.parentElement !== document.body) {
       document.body.appendChild(fab);
     }
-    // CSS already uses 0.75rem (~12px) + safe-area; pin counters iOS chrome only.
+    // CSS already uses 0.75rem + safe-area; pin only lifts for the keyboard.
     initFixedVisualViewportPin(fab, {
       axis: 'bottom-right',
       includeSafeArea: true,

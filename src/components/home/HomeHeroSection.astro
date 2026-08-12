@@ -144,9 +144,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   /*
    * CTAs live on <body> (inline reparent + homeHeroCtaPin). Keep the shell
    * positioning global so scoped Astro CSS cannot fail after the move.
-   * visualViewport pin adjusts `bottom` so mobile Safari chrome does not
-   * drift them from the page-load footer spot; Contact toggles
-   * .is-contact-occluding to slide them out of view.
+   * Stay layout-fixed at the page-load footer — do not JS-chase the URL bar
+   * (that bounce). Contact toggles .is-contact-occluding to slide them away.
    */
   .home-hero-copy {
     position: fixed;
@@ -205,6 +204,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-copy :is(a, button) {
     pointer-events: auto;
+  }
+
+  /*
+   * Fixed-dock glass: skip backdrop-filter. On iOS Safari it composites on a
+   * separate layer from the solid primary pill, so the pair tears/misaligns
+   * while the URL bar animates.
+   */
+  .home-hero-copy .home-hero-btn--ghost {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.12);
   }
 </style>
 
@@ -358,6 +368,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    align-items: center;
     gap: 12px;
     margin-top: 4px;
   }
