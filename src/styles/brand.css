@@ -65,9 +65,8 @@
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
-  /* Half of the original 512px tile — denser repeating chevrons. */
   --reave-bg-pattern-url: url("/reave-bg-pattern.svg");
-  --reave-bg-pattern-tile: 256px;
+  --reave-bg-pattern-tile: 400%;
   --brand-gradient: linear-gradient(
     145deg,
     var(--brand-pink) 0%,
@@ -90,6 +89,63 @@
   --brand-glass-shadow-hover:
     inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 28px rgba(0, 0, 0, 0.22);
   --home-section-padding-y: 80px;
+}
+
+/*
+ * Desktop — organic multi-blob mesh (no iOS status-bar black cap). Wide screens
+ * were showing hard horizontal bands from the mobile linear fade + black cap.
+ */
+@media (min-width: 769px) {
+  :root {
+    /*
+     * Base wash — long vertical taper; top band stays near-black so the
+     * corner logo glow is not flattened. Mid/page runs ~20% lighter.
+     */
+    --site-top-fade: linear-gradient(
+      180deg,
+      #030106 0%,
+      #040208 16%,
+      #08040f 38%,
+      #0e0816 58%,
+      #110a1a 78%,
+      #130c1e 92%,
+      #0c0614 100%
+    );
+    /*
+     * Logo light — circular gradient centered on the viewport top-left; only the
+     * southeast quadrant is visible (135° sweep down/right). Unchanged intensity.
+     */
+    --site-mesh-glow:
+      radial-gradient(
+        circle farthest-corner at 0 0,
+        rgba(244, 114, 182, 0.22) 0%,
+        rgba(192, 38, 211, 0.13) 16%,
+        rgba(99, 102, 241, 0.05) 38%,
+        transparent 58%
+      );
+    /*
+     * Page lift — transparent for the first ~20vmin from the corner (logo band),
+     * then a long, soft brighten so the chevron pattern reads on the rest of
+     * the viewport (~20% lighter than the old flat canvas).
+     */
+    --site-mesh-lift:
+      radial-gradient(
+        circle 140vmax at 0 0,
+        transparent 0,
+        transparent 20vmin,
+        rgba(26, 16, 40, 0.38) 48%,
+        rgba(30, 20, 46, 0.22) 72%,
+        rgba(32, 22, 50, 0.1) 100%
+      );
+    --site-mesh-bottom:
+      radial-gradient(ellipse 90% 50% at 55% 100%, rgba(192, 38, 211, 0.07) 0%, transparent 68%);
+    --site-mesh-atmosphere:
+      var(--site-mesh-glow), var(--site-mesh-lift), var(--site-mesh-bottom), var(--site-top-fade);
+  }
+
+  .site-bg-pattern {
+    --site-bg-pattern-opacity: 0.08;
+  }
 }
 
 /** Frosted outline pill buttons on dark marketing surfaces. */
@@ -128,7 +184,22 @@
   background-image: var(--reave-bg-pattern-url);
   background-repeat: repeat;
   background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
-  background-position: center;
+  background-position: center center;
+}
+
+/**
+ * Mesh is painted on a fixed div in SiteBackground.astro — not on html/body
+ * (background-attachment: fixed janks on scroll and exposes black bars).
+ */
+.site-bg-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--site-canvas);
+  background-image: var(--site-mesh-atmosphere);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 /**
@@ -149,22 +220,7 @@
    */
   z-index: 1;
   mix-blend-mode: soft-light;
-  /*
-   * Hide the chevron tile in the status-bar + header band — even soft-light
-   * texture on #000 reads as a seam against the OS chrome.
-   */
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)),
-    #000 calc(var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)) + 80px)
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)),
-    #000 calc(var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)) + 80px)
-  );
+  opacity: var(--site-bg-pattern-opacity, 0.085);
 }
 
 @media (prefers-color-scheme: dark) {

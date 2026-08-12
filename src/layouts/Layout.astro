@@ -204,9 +204,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100lvh;
 		min-height: var(--device-height);
 		background-color: var(--site-status-bar, #000000);
-		background-image: var(--site-mesh-atmosphere);
-		background-repeat: no-repeat;
-		background-attachment: fixed;
 	}
 
 	html,
@@ -247,13 +244,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: var(--device-height);
 		position: relative;
 		background-color: var(--site-status-bar, #000000);
-		/*
-		 * Viewport-fixed atmosphere: black at the top (matches the status-bar
-		 * inset), easing into purple glows. Content scrolls over this layer.
-		 */
-		background-image: var(--site-mesh-atmosphere);
-		background-repeat: no-repeat;
-		background-attachment: fixed;
 	}
 
 	h1,
@@ -323,5 +313,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	main#main-content {
 		position: relative;
 		z-index: 2;
+	}
+
+	@media (min-width: 769px) {
+		html,
+		body {
+			background-color: var(--site-canvas, #0c0614);
+		}
 	}
 </style>

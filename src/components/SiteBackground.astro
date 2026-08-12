@@ -1,9 +1,9 @@
 ---
 /**
- * Site atmosphere — CSS-tiled chevron pattern (viewport-fixed).
- * Mesh gradients live on `body` in Layout.
+ * Site atmosphere — fixed CSS layers only (no JS, no background-attachment: fixed).
  */
 import ReaveBgPattern from "./ReaveBgPattern.astro";
 ---
 
-<ReaveBgPattern class="site-bg-pattern" opacity={0.085} />
+<div class="site-bg-atmosphere" aria-hidden="true"></div>
+<ReaveBgPattern class="site-bg-pattern" />
