@@ -233,6 +233,8 @@
   --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
   --ios-sheet-close-bg: var(--surface-hover);
   --ios-sheet-close-hover: var(--surface-hover-strong);
+  /* Fixed height so the sheet doesn't jump as Places results arrive. */
+  height: min(70dvh, 520px);
   max-height: min(70dvh, 520px);
 }
 #address-picker-backdrop .ios-sheet-header {
