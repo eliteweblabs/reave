@@ -138,8 +138,6 @@
   }
 
   .site-bg-pattern {
-    -webkit-mask-image: none;
-    mask-image: none;
     --site-bg-pattern-opacity: 0.065;
   }
 }
@@ -180,7 +178,11 @@
   background-image: var(--reave-bg-pattern-url);
   background-repeat: repeat;
   background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
-  background-position: center;
+  /*
+   * Anchor tiles to the viewport origin — center + oversized tiles left a band
+   * of empty/misaligned repeat at the top of the document.
+   */
+  background-position: 0 0;
 }
 
 /**
@@ -202,22 +204,6 @@
   z-index: 1;
   mix-blend-mode: soft-light;
   opacity: var(--site-bg-pattern-opacity, 0.085);
-  /*
-   * Hide the chevron tile in the status-bar + header band — even soft-light
-   * texture on #000 reads as a seam against the OS chrome.
-   */
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)),
-    #000 calc(var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)) + 80px)
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)),
-    #000 calc(var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)) + 80px)
-  );
 }
 
 @media (prefers-color-scheme: dark) {
