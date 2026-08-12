@@ -40,6 +40,24 @@
   --site-mesh-bottom:
     radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
   --site-mesh-atmosphere: var(--site-mesh-top), var(--site-mesh-bottom);
+  /*
+   * Top vignette — pure black under the status bar, fading out just past the
+   * header logo. Radial center sits below the fold so the hero icon reads as
+   * casting light upward (lighter at top-center, darker at the sides).
+   */
+  --site-top-vignette-height: calc(
+    var(--app-header-offset, calc(3.25rem + env(safe-area-inset-top, 0px))) +
+      clamp(16px, 3vh, 36px)
+  );
+  --site-top-vignette:
+    radial-gradient(
+      ellipse 70% 165% at 50% calc(100% + 30vh),
+      transparent 0%,
+      rgba(0, 0, 0, 0.08) 32%,
+      rgba(0, 0, 0, 0.45) 58%,
+      rgba(0, 0, 0, 0.82) 80%,
+      #000 100%
+    );
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
@@ -127,6 +145,18 @@
    */
   z-index: 1;
   mix-blend-mode: soft-light;
+}
+
+/** Black-to-transparent top scrim — sits above the chevron tile, below content. */
+.site-top-vignette {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--site-top-vignette-height);
+  pointer-events: none;
+  z-index: 1;
+  background: var(--site-top-vignette);
 }
 
 @media (prefers-color-scheme: dark) {

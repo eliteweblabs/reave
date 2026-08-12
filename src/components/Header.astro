@@ -392,7 +392,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     min-height: 0;
     /*
      * No background on this fixed shell — iOS 26 Safari samples it for Liquid
-     * Glass. The status-bar inset is painted by ::before (mesh, not flat black).
+     * Glass. The status-bar inset is painted by ::before (pure black).
      * Padding uses var(--safe-top) — probed in JS when env() lies on fixed shells.
      */
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
@@ -415,8 +415,9 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   /*
    * Status-bar / notch inset — no scrollable content can live here on load, so
-   * paint the same top mesh as html/body. Absolute child keeps the fixed shell
-   * itself transparent for Liquid Glass sampling on the row band below.
+   * paint solid black to match .site-top-vignette and the OS safe area.
+   * Absolute child keeps the fixed shell itself transparent for Liquid Glass
+   * sampling on the row band below.
    */
   .app-header:not(.app-header--admin)::before {
     content: "";
@@ -425,9 +426,8 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     left: 0;
     right: 0;
     height: var(--safe-top);
-    background-color: var(--site-canvas, #0c0614);
-    background-image: var(--site-mesh-top);
-    background-repeat: no-repeat;
+    /* Pure black — matches .site-top-vignette and the iOS status-bar safe area. */
+    background-color: #000;
     pointer-events: none;
     z-index: 0;
   }

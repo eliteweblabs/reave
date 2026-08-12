@@ -6,6 +6,7 @@ import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
+import SiteTopVignette from "../components/SiteTopVignette.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
@@ -122,6 +123,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	</head>
 	<body data-user-id={userId ?? ""}>
 		<SiteBackground />
+		<SiteTopVignette />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
 			{/*
