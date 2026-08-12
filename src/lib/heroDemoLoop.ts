@@ -481,7 +481,7 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
-/** Compact dashboard toast — same center-scale overshoot as the invoice card. */
+/** Compact dashboard toast — mirrors production `.admin-setup-alert` chrome. */
 function createDashboardNotificationCard(title: string, detail: string): HTMLElement {
   const row = document.createElement("div");
   row.className =
@@ -492,9 +492,11 @@ function createDashboardNotificationCard(title: string, detail: string): HTMLEle
   const card = document.createElement("div");
   card.className = "home-hero-demo-sk-notif";
 
-  const dot = document.createElement("span");
-  dot.className = "home-hero-demo-sk-notif-dot";
-  dot.setAttribute("aria-hidden", "true");
+  // Contact brand mark — Susie's Cookies (same left slot as admin-setup-alert-brand).
+  const brand = document.createElement("span");
+  brand.className = "home-hero-demo-sk-notif-brand";
+  brand.setAttribute("aria-hidden", "true");
+  brand.textContent = "🍪";
 
   const copy = document.createElement("div");
   copy.className = "home-hero-demo-sk-notif-copy";
@@ -509,7 +511,7 @@ function createDashboardNotificationCard(title: string, detail: string): HTMLEle
 
   copy.appendChild(titleEl);
   copy.appendChild(detailEl);
-  card.appendChild(dot);
+  card.appendChild(brand);
   card.appendChild(copy);
   row.appendChild(card);
   return row;
@@ -705,13 +707,14 @@ async function playProposalFlow(
   );
   if (!isAlive()) return;
 
+  // Match production push copy from notifyAdminAgentOfShareOpen / engagement alerts.
   await playDashboardNotification(
     sceneEl,
     relayout,
     reducedMotion,
     isAlive,
-    "Proposal viewed",
-    "Susie's Cookies",
+    "👀 Susie's Cookies opened proposal",
+    "Silver proposal",
   );
   if (!isAlive()) return;
 
@@ -723,8 +726,8 @@ async function playProposalFlow(
     relayout,
     reducedMotion,
     isAlive,
-    "Proposal accepted",
-    "Susie's Cookies",
+    "✅ Susie's Cookies accepted proposal",
+    "Silver proposal",
   );
   if (!isAlive()) return;
 
