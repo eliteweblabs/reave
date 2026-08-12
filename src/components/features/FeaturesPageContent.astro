@@ -40,8 +40,6 @@ interface Props {
 const { showLogoStack = true, embedded = false, showPricing = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
-const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
-const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
 /** Same `features` payload as GET /api/demo/loader. */
 const apiFeatures = listDemoLoaderFeatures();
 
@@ -413,13 +411,6 @@ const customPrompts: PromptExample[] = [
         website editing, and white-label branding — one login, one AI agent that is Siri capable,
         and a dead simple client portal with passwordless MagicLinks. Add industry spec plugins to supercharge your workflows.
       </p>
-      <div class="fx-cta-row">
-        <a class="fx-btn fx-btn--primary" href="/demo-loader">
-          Demo now
-          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-        </a>
-        <a class="fx-btn fx-btn--ghost brand-btn-glass" href={quoteHref}>Get a quote</a>
-      </div>
       <div class="fx-chips" data-feature-chips aria-label="Platform features">
         {
           chipRowLayouts.map((layout) => (
@@ -836,7 +827,8 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-lead {
-    margin: 0 auto 28px;
+    /* Extra space where the hero CTAs used to sit (+ a bit more breathing room). */
+    margin: 0 auto 96px;
     max-width: 560px;
     font-size: 1.02rem;
     line-height: 1.65;
