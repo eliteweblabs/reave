@@ -1510,7 +1510,6 @@ function filterMentionOptions(query: string): HeroDemoMentionOption[] {
 /** Type prefix → open picker → highlight target → insert @Name → type suffix. */
 async function playMentionPickerSegment(
   textEl: HTMLElement,
-  row: HTMLElement,
   relayout: Relayout,
   reducedMotion: boolean,
   isAlive: () => boolean,
@@ -1535,14 +1534,14 @@ async function playMentionPickerSegment(
     if (!isAlive()) return;
   }
 
+  const bubble = textEl.closest<HTMLElement>(".home-hero-demo-bubble");
+  if (!bubble) return;
+
   const picker = buildMentionPicker(pickerOptions);
-  row.appendChild(picker);
-  // Reserve space below so the downward dropdown stays in the demo lane.
-  row.style.paddingBottom = "12.5rem";
+  bubble.appendChild(picker);
   requestAnimationFrame(() => {
     picker.classList.add("home-hero-demo-mention-picker--visible");
   });
-  relayout(true);
 
   if (typedQuery) {
     await typeText(textEl, typedQuery, MENTION_CHAR_MS, isAlive, relayout);
@@ -1562,8 +1561,6 @@ async function playMentionPickerSegment(
   picker.classList.add("home-hero-demo-mention-picker--exit");
   await wait(280);
   picker.remove();
-  row.style.paddingBottom = "";
-  relayout(true);
 
   // Selection replaces the partial query (and optional `@`) with a mention chip.
   fillBubbleText(textEl, `${beforeSegment}${prefix}@${mentionName}`);
@@ -1726,7 +1723,6 @@ async function playUserTurn(
     if (rest.includes("@")) {
       await playMentionPickerSegment(
         textEl,
-        row,
         relayout,
         reducedMotion,
         isAlive,
@@ -1740,7 +1736,6 @@ async function playUserTurn(
   } else if (kind === "mention" || kind === "soft-mention") {
     await playMentionPickerSegment(
       textEl,
-      row,
       relayout,
       reducedMotion,
       isAlive,
