@@ -38,6 +38,68 @@ function looksLikeMarkupBlob(text) {
   return false;
 }
 
+/** Display label for a rule match field (SQL-ish). */
+function ruleFieldLabel(field) {
+  if (field === 'from') return 'sender';
+  return String(field || '').trim() || 'body';
+}
+
+/** Bracket a phrase list: `['a', 'b', +3]`. */
+function formatRulePhraseList(phrases, max = 4) {
+  const list = (Array.isArray(phrases) ? phrases : [])
+    .map((p) => String(p || '').trim())
+    .filter(Boolean);
+  if (!list.length) return '[]';
+  const shown = list.slice(0, max).map((p) => `'${p}'`);
+  const tail = list.length > max ? `, +${list.length - max}` : '';
+  return `[${shown.join(', ')}${tail}]`;
+}
+
+/**
+ * SQL-ish WHEN line for a keyword rule card.
+ * Reflects live matching: phrases/except share the selected fields haystack.
+ * e.g. `When sender IS ['a@b.com'] AND NOT ['unsubscribe']`
+ *      `When (subject OR body) CONTAINS ANY ['otp', 'login code', +3]`
+ */
+export function formatRuleWhenClause(rule) {
+  const fields = (rule?.fields?.length ? rule.fields : ['subject', 'body']).map(ruleFieldLabel);
+  const fieldExpr = fields.length === 1 ? fields[0] : `(${fields.join(' OR ')})`;
+  const phrases = (rule?.phrases || []).map((p) => String(p || '').trim()).filter(Boolean);
+  const except = (rule?.exceptPhrases || []).map((p) => String(p || '').trim()).filter(Boolean);
+  const allMode = rule?.matchMode === 'all';
+
+  let positive;
+  if (!phrases.length) {
+    positive = `${fieldExpr} (no phrases)`;
+  } else if (!allMode && fields.length === 1 && fields[0] === 'sender' && phrases.length === 1) {
+    positive = `sender IS ${formatRulePhraseList(phrases, 1)}`;
+  } else if (!allMode && phrases.length === 1) {
+    positive = `${fieldExpr} ${formatRulePhraseList(phrases, 1)}`;
+  } else {
+    positive = `${fieldExpr} CONTAINS ${allMode ? 'ALL' : 'ANY'} ${formatRulePhraseList(phrases)}`;
+  }
+
+  const parts = [`When ${positive}`];
+  if (except.length) {
+    parts.push(
+      fields.length === 1
+        ? `AND NOT ${fields[0]} ${formatRulePhraseList(except)}`
+        : `AND NOT ${formatRulePhraseList(except)}`,
+    );
+  }
+  return parts.join(' ');
+}
+
+/** Scope · process · notify/silent meta under the WHEN clause. */
+export function formatRuleLabMeta(rule) {
+  const scope = rule?.scope === 'universal' ? 'Universal' : 'Personal';
+  const status = String(rule?.status || '—').trim() || '—';
+  const notify = rule?.notify ? 'Notify' : 'Silent';
+  const bits = [scope, status, notify];
+  if (rule?.enabled === false) bits.push('Off');
+  return bits.join(' · ');
+}
+
 /** Fixed downstream stages (production order) — not user-reorderable. */
 export const PIPELINE_FUNCTIONS = [
   { id: 'normalize', label: 'Normalize message', sub: 'Body · attachments · OTP extract' },
@@ -149,6 +211,8 @@ export function createEmailTriageLab(deps) {
       rule.title,
       rule.status,
       rule.description,
+      formatRuleWhenClause(rule),
+      formatRuleLabMeta(rule),
       rule.scope === 'universal' ? 'Universal' : 'Personal',
       rule.forwardTo,
       rule.notify ? 'Notify' : 'Silent',
@@ -1097,12 +1161,14 @@ export function createEmailTriageLab(deps) {
           toggle.type = 'button';
           toggle.className = 're-lab-pipe-card-toggle';
           toggle.setAttribute('aria-expanded', 'false');
+          const whenClause = formatRuleWhenClause(rule);
+          const labMeta = formatRuleLabMeta(rule);
+          toggle.setAttribute('aria-label', `Priority ${i + 1}: ${whenClause}`);
           toggle.innerHTML = `
             <span class="re-lab-pri">#${i + 1}</span>
             <span class="re-lab-pipe-main">
-              <span class="re-flow-badge">When</span>
-              <span class="re-lab-pipe-title">${escHtml(rule.title || rule.status)}</span>
-              <span class="re-lab-pipe-sub">${escHtml(rule.scope === 'universal' ? 'Universal' : 'Personal')} · ${escHtml(rule.status)} · ${rule.notify ? 'Notify' : 'Silent'}${rule.enabled === false ? ' · Off' : ''}</span>
+              <span class="re-lab-pipe-title">${escHtml(whenClause)}</span>
+              <span class="re-lab-pipe-sub">${escHtml(labMeta)}</span>
             </span>
             <span class="re-lab-pipe-chevron" aria-hidden="true">${iosIcon('chevron-down', 16)}</span>`;
           toggle.addEventListener('click', () => {

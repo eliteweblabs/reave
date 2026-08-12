@@ -2009,9 +2009,11 @@ button.de-placeholder-action:active {
   min-width: 0;
 }
 .re-lab-pipe-title {
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 650;
-  line-height: 1.3;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: none;
 }
 .re-lab-pipe-sub {
   font-size: 0.74rem;
