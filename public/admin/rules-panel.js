@@ -46,8 +46,8 @@ import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
-import { createEmailTriageLab } from './email-triage-lab.js?v=20260812c';
-import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812c';
+import { createEmailTriageLab } from './email-triage-lab.js?v=20260812d';
+import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812d';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};
@@ -107,24 +107,6 @@ function syncRuleStatusDatalist() {
   return datalist;
 }
 
-const RULES_VIEW_KEY = 'admin.rules.view';
-
-function readRulesView() {
-  try {
-    const v = sessionStorage.getItem(RULES_VIEW_KEY);
-    // Lab folded into Flow — migrate old preference.
-    if (v === 'lab') return 'flow';
-    if (v === 'list' || v === 'flow') return v;
-  } catch {}
-  return 'flow';
-}
-
-function writeRulesView(view) {
-  try {
-    sessionStorage.setItem(RULES_VIEW_KEY, view);
-  } catch {}
-}
-
 // ---- extracted from os-map-loader.js:8260-8914 ----
 let ruleState = {
   rules: [],
@@ -135,8 +117,8 @@ let ruleState = {
   scopeFilter: 'all',
   activeId: null,
   dirty: false,
-  /** @type {'flow' | 'list'} Flow = ladder + try-email; List = classic editor */
-  view: readRulesView(),
+  /** Unified Flow lab (try-email + accordion rule editor). */
+  view: 'flow',
 };
 
 /** @type {ReturnType<typeof createEmailTriageLab> | null} */
@@ -146,7 +128,6 @@ function getTriageLab() {
   if (!triageLab) {
     triageLab = createEmailTriageLab({
       getRuleState: () => ruleState,
-      setRulesView,
       getRuleEditor,
       reloadRules: async () => {
         const res = await fetch('/api/email/rules', { cache: 'no-store' });
@@ -156,7 +137,11 @@ function getTriageLab() {
         ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
         ruleState.storage = data.storage || 'files';
       },
-      createRulesViewPicker,
+      toggleRuleEditor: (id) => openRuleEditor(id),
+      renderRuleForm: (container) => renderRuleEditPane(container, { accordion: true }),
+      getActiveRuleId: () => ruleState.activeId,
+      startNewRule: () => startNewRule(),
+      flushRuleAutosave: () => flushRuleAutosave(),
       inboundAddressExample: () =>
         String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
         'inbox@inbound.example.com',
@@ -429,63 +414,12 @@ function syncRulesSidebarActiveState(opts = {}) {
 }
 
 function renderRulesPane() {
-  const root = getRuleEditor();
-  if (!root) return;
-  let pane = root.querySelector('.de-pane');
-  if (!pane) {
-    renderRulesEditor();
-    return;
-  }
-  const { activeId } = ruleState;
-
-  if (activeId) {
-    pane.innerHTML = '';
-    renderRuleEditPane(pane);
-    shell.mountCreateDrawerChrome(pane);
-  } else {
-    shell.clearEditorFooterSave();
-    pane.innerHTML = '';
-    if (ruleState.view === 'list') {
-      shell.appendEmptyDetailPane(pane, {
-        mapKey: 'rules',
-        iconName: 'zap',
-        bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
-        onCreate: () => void startNewRule(),
-      });
-    }
-  }
-  // Keep flow row highlight in sync when editor opens/closes.
-  if (ruleState.view === 'flow') {
-    root.querySelectorAll('.re-flow-row').forEach((el) => {
-      el.classList.toggle('re-flow-row--active', el.dataset.id === String(ruleState.activeId));
-    });
-  }
+  getTriageLab().syncExpandedRule();
   flushTitleFocus('rules');
-}
-
-function setRulesView(view) {
-  if (view !== 'flow' && view !== 'list') return;
-  if (ruleState.view === view) return;
-  if (ruleState.view === 'flow') triageLab?.destroy();
-  ruleState.view = view;
-  writeRulesView(view);
-  renderRulesEditor();
 }
 
 function orderedRulesForFlow() {
   return [...ruleState.rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-}
-
-function createRulesViewPicker() {
-  return createSlidingPillSelect({
-    value: ruleState.view === 'list' ? 'list' : 'flow',
-    options: [
-      { value: 'flow', label: 'Flow' },
-      { value: 'list', label: 'List' },
-    ],
-    ariaLabel: 'Rules view',
-    onChange: (next) => setRulesView(next),
-  });
 }
 
 function createFlowRuleCard(rule, index) {
@@ -616,11 +550,10 @@ function renderRulesFlowShell(root) {
 
   const left = document.createElement('div');
   left.className = 're-flow-toolbar-left';
-  left.appendChild(createRulesViewPicker().el);
 
   const hint = document.createElement('p');
   hint.className = 're-flow-hint';
-  hint.textContent = 'First match wins · drag ⋮⋮ to set priority · try an email on Flow';
+  hint.textContent = 'First match wins · drag ⋮⋮ to set priority · tap a rule to edit';
   left.appendChild(hint);
   toolbar.appendChild(left);
 
@@ -723,117 +656,15 @@ function renderRulesFlowShell(root) {
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
-  const savedSidebarScroll = shell.captureSidebarListScroll(root);
   root.innerHTML = '';
-  root.classList.toggle('re-view-flow', ruleState.view === 'flow');
-  root.classList.toggle('re-view-list', ruleState.view === 'list');
-  root.classList.remove('re-view-lab');
-
-  // Flow is the working system (try-email ladder + Agent else).
-  if (ruleState.view === 'flow') {
-    getTriageLab().render(root);
-    return;
-  }
-
-  const { rules, notifyOnUnmatched, storage } = ruleState;
-
-  const sidebar = document.createElement('div');
-  sidebar.className = 'ch-sidebar';
-
-  const viewBar = document.createElement('div');
-  viewBar.className = 're-list-view-bar';
-  viewBar.appendChild(createRulesViewPicker().el);
-  sidebar.appendChild(viewBar);
-
-  const subheader = listSearchSubheader({
-    itemCount: rules.length,
-    search: {
-      value: ruleState.search,
-      placeholder: `Search ${rules.length} ${rules.length === 1 ? 'Rule' : 'Rules'}`,
-      onInput: (value) => {
-        ruleState.search = value;
-        refreshRulesSidebarList();
-      },
-    },
-  });
-  if (subheader) sidebar.appendChild(subheader.el);
-
-  const scopeFilter = createSlidingPillSelect({
-    value: ruleState.scopeFilter,
-    ariaLabel: 'Filter by rule scope',
-    options: [
-      { value: 'all', label: 'All' },
-      { value: 'universal', label: 'Universal' },
-      { value: 'personal', label: 'Personal' },
-    ],
-    onChange: (value) => {
-      ruleState.scopeFilter = value;
-      refreshRulesSidebarList();
-    },
-  });
-  const scopeBar = document.createElement('div');
-  scopeBar.className = 're-scope-filter';
-  scopeBar.appendChild(scopeFilter.el);
-  sidebar.appendChild(scopeBar);
-
-  const hint = document.createElement('div');
-  hint.className = 'de-empty';
-  hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = 'First match wins · Universal = all installs · Personal = this install';
-  sidebar.appendChild(hint);
-
-  if (storage === 'files') {
-    const warn = document.createElement('div');
-    warn.className = 're-warn-inline';
-    warn.textContent = 'Using local file storage — set DATABASE_URL on Railway for production.';
-    sidebar.appendChild(warn);
-  }
-
-  const settings = document.createElement('div');
-  settings.className = 're-settings';
-  const notifyLb = document.createElement('label');
-  notifyLb.className = 're-check';
-  const notifyCb = document.createElement('input');
-  notifyCb.type = 'checkbox';
-  notifyCb.checked = notifyOnUnmatched;
-  notifyCb.addEventListener('change', async (e) => {
-    const next = e.target.checked;
-    try {
-      const res = await fetch('/api/email/rules', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notifyOnUnmatched: next }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      ruleState.notifyOnUnmatched = next;
-    } catch (err) {
-      e.target.checked = !next;
-      alert(`Could not save setting: ${err.message}`);
-    }
-  });
-  notifyLb.append(notifyCb, document.createTextNode(' Notify when no rule matches'));
-  settings.appendChild(notifyLb);
-  sidebar.appendChild(settings);
-
-  const list = document.createElement('div');
-  list.className = 'ch-list';
-  bindSwipeListScroll(list);
-  bindListMultiSelect(list, { onBulkDelete: bulkDeleteRules });
-  fillRulesSidebarList(list);
-  sidebar.appendChild(list);
-  root.appendChild(sidebar);
-
-  const pane = document.createElement('div');
-  pane.className = 'de-pane';
-  root.appendChild(pane);
-  renderRulesPane();
-  shell.finishSidebarListScroll(root, savedSidebarScroll);
+  root.classList.remove('re-view-flow', 're-view-list', 'de-pane-active');
+  getTriageLab().render(root);
 }
 
 async function openRuleEditor(id) {
+  // Tap the open rule again to collapse the accordion.
   if (String(id) === String(ruleState.activeId)) {
-    syncRulesSidebarActiveState({ scroll: true });
-    if (!shell.isCreateDrawerOpen('rules')) getRuleEditor()?.classList.add('de-pane-active');
+    await closeRuleEditor(true);
     return;
   }
   await flushRuleAutosave();
@@ -842,9 +673,9 @@ async function openRuleEditor(id) {
   }
   ruleState.activeId = id;
   ruleState.dirty = false;
-  if (!shell.isCreateDrawerOpen('rules')) getRuleEditor()?.classList.add('de-pane-active');
-  syncRulesSidebarActiveState({ scroll: true });
-  renderRulesPane();
+  shell.clearEditorFooterSave();
+  getRuleEditor()?.classList.remove('de-pane-active');
+  getTriageLab().syncExpandedRule();
 }
 
 async function closeRuleEditor(checkDirty = true) {
@@ -854,11 +685,11 @@ async function closeRuleEditor(checkDirty = true) {
   ruleState.dirty = false;
   shell.clearEditorFooterSave();
   getRuleEditor()?.classList.remove('de-pane-active');
-  syncRulesSidebarActiveState();
-  renderRulesPane();
+  getTriageLab().syncExpandedRule();
 }
 
-function renderRuleEditPane(pane) {
+function renderRuleEditPane(pane, opts = {}) {
+  const accordion = opts.accordion === true;
   const rule = ruleState.rules.find((r) => r.id === ruleState.activeId);
   if (!rule) {
     pane.innerHTML = '<div class="de-loading de-error">Rule not found.</div>';
@@ -870,26 +701,40 @@ function renderRuleEditPane(pane) {
     onClick: () => askAgentAboutRule(rule),
   });
 
-  const inDrawer = shell.isCreateDrawerOpen('rules');
-  pane.appendChild(
-    createPaneHeader({
-      back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
-      title: rule.title || rule.status || 'Rule',
-      subtitle: ruleHitsSubline(rule),
-      beforeIcons: [agentBtn],
-      icons: inDrawer
-        ? []
-        : [
-            paneDeleteIcon({
-              label: 'Delete rule',
-              onClick: () => deleteRule(rule.id),
-            }),
-          ],
-    }).root,
-  );
+  if (accordion) {
+    const actions = document.createElement('div');
+    actions.className = 're-lab-rule-actions';
+    const hits = document.createElement('span');
+    hits.className = 're-lab-rule-hits';
+    hits.textContent = ruleHitsSubline(rule) || 'Edit rule';
+    const deleteBtn = paneDeleteIcon({
+      label: 'Delete rule',
+      onClick: () => deleteRule(rule.id),
+    });
+    actions.append(hits, agentBtn, deleteBtn);
+    pane.appendChild(actions);
+  } else {
+    const inDrawer = shell.isCreateDrawerOpen('rules');
+    pane.appendChild(
+      createPaneHeader({
+        back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
+        title: rule.title || rule.status || 'Rule',
+        subtitle: ruleHitsSubline(rule),
+        beforeIcons: [agentBtn],
+        icons: inDrawer
+          ? []
+          : [
+              paneDeleteIcon({
+                label: 'Delete rule',
+                onClick: () => deleteRule(rule.id),
+              }),
+            ],
+      }).root,
+    );
+  }
 
   const form = document.createElement('div');
-  form.className = 're-form-scroll';
+  form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
 
   const titleIn = document.createElement('input');
   titleIn.className = 'de-input';
@@ -1168,6 +1013,7 @@ function renderRuleEditPane(pane) {
     expireInCb,
     expireInSecs,
   };
+  const inDrawer = !accordion && shell.isCreateDrawerOpen('rules');
   bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
   shell.clearEditorFooterSave();
 }
@@ -1222,19 +1068,31 @@ function serializeRulePayload(payload) {
 function syncRuleListItem(id, payload, savedRule) {
   const rule = ruleState.rules.find((r) => r.id === id);
   if (rule) Object.assign(rule, payload, savedRule || {});
-  const item = getRuleEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(id)}"]`);
-  if (!item) return;
-  const titleEl = item.querySelector('.ch-item-title');
-  if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
-  const dateEl = item.querySelector('.ch-item-date');
-  if (dateEl) {
-    dateEl.textContent = formatRuleHitLabel(rule || { hitCount: savedRule?.hitCount });
+  const root = getRuleEditor();
+  const item = root?.querySelector(`.ch-list-item[data-id="${CSS.escape(id)}"]`);
+  if (item) {
+    const titleEl = item.querySelector('.ch-item-title');
+    if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
+    const dateEl = item.querySelector('.ch-item-date');
+    if (dateEl) {
+      dateEl.textContent = formatRuleHitLabel(rule || { hitCount: savedRule?.hitCount });
+    }
+    const subEl = item.querySelector('.de-item-slug');
+    if (subEl && rule) {
+      subEl.innerHTML = `<span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span> ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}`;
+    }
+    item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
   }
-  const subEl = item.querySelector('.de-item-slug');
-  if (subEl && rule) {
-    subEl.innerHTML = `<span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span> ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}`;
+  const card = root?.querySelector(`.re-lab-pipe-card[data-rule-id="${CSS.escape(String(id))}"]`);
+  if (card && rule) {
+    const titleEl = card.querySelector('.re-lab-pipe-title');
+    if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
+    const subEl = card.querySelector('.re-lab-pipe-sub');
+    if (subEl) {
+      subEl.textContent = `${ruleScopeLabel(rule)} · ${rule.status || '—'} · ${rule.notify ? 'Notify' : 'Silent'}${rule.enabled === false ? ' · Off' : ''}`;
+    }
+    card.classList.toggle('re-lab-pipe-card--off', rule.enabled === false || isRuleExpired(rule));
   }
-  item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
 }
 
 function bindRuleAutosave(rule, inputs, opts = {}) {
@@ -1452,6 +1310,7 @@ async function deleteRule(id) {
 
 async function startNewRule() {
   armTitleFocus('rules');
+  await flushRuleAutosave();
   if (ruleState.dirty && !(await confirmDiscardChanges())) {
     cancelTitleFocus();
     return;
@@ -1479,37 +1338,8 @@ async function startNewRule() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    const newId = data.rule.id;
-    ruleState.activeId = newId;
+    ruleState.activeId = data.rule.id;
     ruleState.dirty = false;
-    // The rule row has to exist before its form can be edited, so Cancel here
-    // means "delete the placeholder I just made".
-    shell.beginCreateDrawer({
-      key: 'rules',
-      title: 'New Rule',
-      submitLabel: 'Add',
-      onSubmit: async () => {
-        const pane = shell.getCreateDrawerPane();
-        const titleIn = pane?.querySelector('.re-form-scroll > label.de-label .de-input');
-        if (!titleIn?.value.trim()) {
-          if (titleIn) {
-            shell.setFormFieldState(titleIn, 'invalid');
-            titleIn.focus({ preventScroll: true });
-          }
-          return;
-        }
-        await flushRuleAutosave();
-        shell.finishCreateDrawer();
-        getRuleEditor()?.classList.add('de-pane-active');
-        syncRulesSidebarActiveState({ scroll: true });
-        renderRulesPane();
-      },
-      onDismiss: () => {
-        void deleteRule(newId);
-      },
-    });
-    // `loadRulesTab` renders the pane for the id set above; opening the editor
-    // on top of that would re-render and drop the auto-focused title field.
     await loadRulesTab();
   } catch (e) {
     cancelTitleFocus();
@@ -1518,13 +1348,12 @@ async function startNewRule() {
 }
 
 /**
- * Open Rules → Flow and prefill Try-an-email from an inbox record (notification deep link).
+ * Open Rules and prefill Try-an-email from an inbox record (notification deep link).
  * @param {object} emailRecord
  * @param {{ run?: boolean }} [opts]
  */
 async function openRulesLabWithEmail(emailRecord, opts = {}) {
   if (!emailRecord || typeof emailRecord !== 'object') return;
-  setRulesView('flow');
   await loadRulesTab();
   const lab = getTriageLab();
   await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });
