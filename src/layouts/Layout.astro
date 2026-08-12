@@ -167,10 +167,9 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * viewport and shears position:fixed headers. Use min-height only so the
 	 * paint box is at least one device tall and can still grow with content.
 	 *
-	 * background-color on html is true black (--site-status-bar) so the iOS
-	 * inset matches; body keeps --site-canvas for the fold below the fade.
-	 * Atmosphere is viewport-fixed so the black→purple band stays under the
-	 * status bar while content scrolls.
+	 * html/body use --site-canvas so overscroll matches the atmosphere.
+	 * Atmosphere is a viewport-fixed layer (SiteBackground); theme-color can
+	 * stay --site-status-bar for OS chrome without painting page bands.
 	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);
@@ -203,7 +202,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100dvh;
 		min-height: 100lvh;
 		min-height: var(--device-height);
-		background-color: var(--site-status-bar, #000000);
+		background-color: var(--site-canvas, #0c0614);
 	}
 
 	html,
@@ -227,7 +226,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: var(--site-status-bar, #000000);
+		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}
@@ -243,7 +242,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100lvh;
 		min-height: var(--device-height);
 		position: relative;
-		background-color: var(--site-status-bar, #000000);
+		background-color: var(--site-canvas, #0c0614);
 	}
 
 	h1,

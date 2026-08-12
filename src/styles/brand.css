@@ -24,44 +24,19 @@
     "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   /*
-   * iOS status-bar inset reads as true black — do not fight it with purple.
-   * The page atmosphere fades #000 → --site-canvas, then magenta/indigo glows.
+   * Soft radial atmosphere on a deep purple canvas — no stepped linear fades.
+   * (The old black-cap + #000→#05020a→#08040f→canvas stops read as horizontal
+   * tone bands on mobile.) theme-color / chrome can stay true black separately.
    */
   --site-canvas: #0c0614;
   --site-status-bar: #000000;
-  /*
-   * Solid black through status bar + header row, then ease into purple.
-   * --site-top-black-end ≈ safe-top + logo band (+ small buffer).
-   */
-  --site-top-black-end: calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px);
-  --site-top-fade: linear-gradient(
-    180deg,
-    var(--site-status-bar) 0px,
-    var(--site-status-bar) var(--site-top-black-end),
-    #05020a calc(var(--site-top-black-end) + 72px),
-    #08040f calc(var(--site-top-black-end) + 120px),
-    var(--site-canvas) calc(var(--site-top-black-end) + 200px),
-    var(--site-canvas) 100%
-  );
-  /*
-   * Opaque black cap sits above the purple glow layers so radials cannot tint
-   * the status-bar inset (that mismatch reads as a hard line on iOS).
-   */
-  --site-top-black-cap: linear-gradient(
-    180deg,
-    var(--site-status-bar) 0px,
-    var(--site-status-bar) var(--site-top-black-end),
-    rgba(0, 0, 0, 0.72) calc(var(--site-top-black-end) + 56px),
-    rgba(0, 0, 0, 0) calc(var(--site-top-black-end) + 140px)
-  );
   --site-mesh-glow:
-    radial-gradient(ellipse 100% 50% at 50% 28%, rgba(192, 38, 211, 0.18) 0%, transparent 72%),
-    radial-gradient(ellipse 80% 55% at 12% 24%, rgba(255, 0, 255, 0.22) 0%, transparent 62%),
-    radial-gradient(ellipse 70% 50% at 88% 26%, rgba(99, 102, 241, 0.22) 0%, transparent 58%);
+    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
+    radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%);
   --site-mesh-bottom:
     radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
-  --site-mesh-atmosphere:
-    var(--site-top-black-cap), var(--site-mesh-glow), var(--site-mesh-bottom), var(--site-top-fade);
+  --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom);
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
@@ -92,28 +67,13 @@
 }
 
 /*
- * Desktop — organic multi-blob mesh (no iOS status-bar black cap). Wide screens
- * were showing hard horizontal bands from the mobile linear fade + black cap.
+ * Desktop — corner-pinned logo glow + soft page lift (no linear band stack).
  */
 @media (min-width: 769px) {
   :root {
     /*
-     * Base wash — long vertical taper; top band stays near-black so the
-     * corner logo glow is not flattened. Mid/page runs ~20% lighter.
-     */
-    --site-top-fade: linear-gradient(
-      180deg,
-      #030106 0%,
-      #040208 16%,
-      #08040f 38%,
-      #0e0816 58%,
-      #110a1a 78%,
-      #130c1e 92%,
-      #0c0614 100%
-    );
-    /*
      * Logo light — circular gradient centered on the viewport top-left; only the
-     * southeast quadrant is visible (135° sweep down/right). Unchanged intensity.
+     * southeast quadrant is visible (135° sweep down/right).
      */
     --site-mesh-glow:
       radial-gradient(
@@ -126,7 +86,7 @@
     /*
      * Page lift — transparent for the first ~20vmin from the corner (logo band),
      * then a long, soft brighten so the chevron pattern reads on the rest of
-     * the viewport (~20% lighter than the old flat canvas).
+     * the viewport (~20% lighter than the flat canvas).
      */
     --site-mesh-lift:
       radial-gradient(
@@ -140,7 +100,7 @@
     --site-mesh-bottom:
       radial-gradient(ellipse 90% 50% at 55% 100%, rgba(192, 38, 211, 0.07) 0%, transparent 68%);
     --site-mesh-atmosphere:
-      var(--site-mesh-glow), var(--site-mesh-lift), var(--site-mesh-bottom), var(--site-top-fade);
+      var(--site-mesh-glow), var(--site-mesh-lift), var(--site-mesh-bottom);
   }
 
   .site-bg-pattern {
