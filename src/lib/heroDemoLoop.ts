@@ -40,14 +40,17 @@ const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 /** Outro fade when a mock conversation ends — keep in sync with CSS. */
 const SCENE_EXIT_MS = 350;
-/** Dwell after action chips appear before the hover scan starts. */
-const ACTION_APPEAR_MS = 420;
-/** How long each chip stays “hovered” during the scan. */
-const ACTION_HOVER_MS = 320;
+/** Dwell after action chips appear (all idle) before the hover scan starts. */
+const ACTION_APPEAR_MS = 700;
+/** How long each chip stays “hovered” during a random hop. */
+const ACTION_HOVER_MS = 260;
 /** Hold on the chosen chip after the scan, before the click. */
-const ACTION_HOVER_SETTLE_MS = 280;
+const ACTION_HOVER_SETTLE_MS = 420;
 /** Simulated click / press duration. */
 const ACTION_PRESS_MS = 520;
+/** Random hops before settling on the intended chip (inclusive range). */
+const ACTION_HOVER_HOPS_MIN = 4;
+const ACTION_HOVER_HOPS_MAX = 7;
 /** Full hero background bright pulse after a simulated action click. */
 const SECTION_PULSE_MS = 1000;
 const SLASH_PICKER_ARROW_MS = 380;
@@ -1783,9 +1786,19 @@ function clearActionHover(chips: HTMLElement[]): void {
   for (const chip of chips) chip.classList.remove("home-hero-demo-action--hover");
 }
 
+/** Pick the next hop — never the same chip twice in a row when alternatives exist. */
+function pickRandomHoverChip(
+  chips: HTMLElement[],
+  previous: HTMLElement | null,
+): HTMLElement {
+  if (chips.length === 1) return chips[0]!;
+  const pool = previous ? chips.filter((chip) => chip !== previous) : chips;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
 /**
- * Hover scan across action chips (L→R or R→L, random), then press the intended
- * target. Chips start neutral — nothing is pre-highlighted at render.
+ * Randomly hop the hover highlight across action chips, then settle on the
+ * intended target. Chips render muted — nothing is pre-highlighted.
  */
 async function simulateActionHoverScan(
   chips: HTMLElement[],
@@ -1796,31 +1809,46 @@ async function simulateActionHoverScan(
   if (chips.length === 0) return;
 
   if (reducedMotion || chips.length === 1) {
+    clearActionHover(chips);
     target.classList.add("home-hero-demo-action--hover");
     await wait(reducedMotion ? 180 : ACTION_HOVER_SETTLE_MS);
-    if (!isAlive()) return;
+    if (!isAlive()) {
+      clearActionHover(chips);
+      return;
+    }
     return;
   }
 
-  const ltr = Math.random() < 0.5;
-  const order = ltr ? chips.slice() : chips.slice().reverse();
+  const hopSpan = ACTION_HOVER_HOPS_MAX - ACTION_HOVER_HOPS_MIN + 1;
+  const hops = ACTION_HOVER_HOPS_MIN + Math.floor(Math.random() * hopSpan);
 
-  for (const chip of order) {
+  let previous: HTMLElement | null = null;
+  for (let i = 0; i < hops; i++) {
+    // Last hop prefers a non-target so settling on the choice reads clearly.
+    let chip: HTMLElement;
+    if (i === hops - 1 && chips.length > 1) {
+      const others = chips.filter((c) => c !== target && c !== previous);
+      const pool = others.length > 0 ? others : chips.filter((c) => c !== previous);
+      chip = pool[Math.floor(Math.random() * pool.length)] ?? pickRandomHoverChip(chips, previous);
+    } else {
+      chip = pickRandomHoverChip(chips, previous);
+    }
+
     clearActionHover(chips);
     chip.classList.add("home-hero-demo-action--hover");
+    previous = chip;
     await wait(ACTION_HOVER_MS);
-    if (!isAlive()) return;
+    if (!isAlive()) {
+      clearActionHover(chips);
+      return;
+    }
   }
 
-  // If the scan ended on a different chip, settle on the intended one.
-  if (order[order.length - 1] !== target) {
+  clearActionHover(chips);
+  target.classList.add("home-hero-demo-action--hover");
+  await wait(ACTION_HOVER_SETTLE_MS);
+  if (!isAlive()) {
     clearActionHover(chips);
-    target.classList.add("home-hero-demo-action--hover");
-    await wait(ACTION_HOVER_SETTLE_MS);
-    if (!isAlive()) return;
-  } else {
-    await wait(ACTION_HOVER_SETTLE_MS * 0.6);
-    if (!isAlive()) return;
   }
 }
 

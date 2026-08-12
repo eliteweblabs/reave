@@ -842,22 +842,34 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     font-size: 0.72rem;
     font-weight: 600;
     line-height: 1.2;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.9);
-    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.48);
+    transition:
+      transform 0.18s ease,
+      background 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.18s ease;
   }
 
-  /* Simulated pointer hover — applied by the demo loop, not at render. */
+  /*
+   * Simulated pointer hover — applied by the demo loop only after chips appear
+   * idle. Idle chips stay muted so nothing looks pre-selected.
+   */
   .home-hero-demo-action--hover {
-    background: rgba(255, 255, 255, 0.16);
-    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.42);
+    color: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 
   .home-hero-demo-action--pressed {
     transform: scale(0.96);
-    background: rgba(255, 255, 255, 0.22);
-    border-color: rgba(255, 255, 255, 0.38);
+    background: rgba(255, 255, 255, 0.26);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
   }
 
   /* Artifact cards — full chat width, no avatar gutter. */
