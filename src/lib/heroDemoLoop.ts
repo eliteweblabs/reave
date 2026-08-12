@@ -2035,10 +2035,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  // Footer CTAs are outside the hero (HomeStickyCtas on <body>).
-  const copyEl =
-    hero?.querySelector<HTMLElement>("[data-hero-copy]") ??
-    document.querySelector<HTMLElement>("[data-hero-copy]");
+  // CTAs are a sibling of the chat stack inside .home-hero-demo.
+  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]");
   if (!viewport || !stack || !hero) return;
 
   depthBlurEnabled = !isSafariBrowser();

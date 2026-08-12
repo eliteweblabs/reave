@@ -9,7 +9,6 @@ import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
 import SiteCanvasFill from "../components/SiteCanvasFill.astro";
 import SafariChromeTint from "../components/SafariChromeTint.astro";
-import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
@@ -142,8 +141,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 				<SiteFooter showLegalLinks={showLegalLinks} />
 			</div>
 		</main>
-		{/* Homepage CTAs — footer dock outside <main>/hero so fixed positioning is stable. */}
-		{isIndexPage && <HomeStickyCtas siteContent={siteContent} />}
 		{marketingNav && <HomepageSectionScroll />}
 		{marketingNav && <SiteVoiceWidget />}
 		{

@@ -1,9 +1,10 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them. CTAs live in HomeStickyCtas (footer dock), not here.
+ * under them. CTAs sit below the mock chat as siblings inside .home-hero-demo.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
+import HomeStickyCtas from "./HomeStickyCtas.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -21,6 +22,7 @@ const company = await getCompanyConfig(Astro.request);
 const demoScenes = HERO_DEMO_SCENES;
 const homepage = siteContent.homepage;
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
+const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;
 const userId = Astro.locals.auth()?.userId ?? null;
 const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
 const mapboxToken = getPublicMapboxAccessToken() || "";
@@ -73,6 +75,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         <div class="home-hero-demo-viewport" data-hero-demo-viewport>
           <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
         </div>
+        {showHeroCtas && <HomeStickyCtas siteContent={siteContent} />}
+      </div>
+    )
+  }
+
+  {
+    !showHeroDemo && showHeroCtas && (
+      <div class="home-hero-cta-dock">
+        <HomeStickyCtas siteContent={siteContent} />
       </div>
     )
   }
@@ -248,7 +259,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  /* Chat — between headline and footer CTAs; recedes under the brand block */
+  /* Chat column — viewport stack + CTAs as siblings; recedes under the brand block */
   .home-hero-demo {
     position: absolute;
     z-index: 8;
@@ -257,15 +268,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    /*
-     * CTAs are fixed at bottom: 10px + safe-area. --home-hero-copy-h is only
-     * their height, so add that offset + 10px so the newest turn sits ~10px
-     * above the button tops (not flush / overlapping on notched devices).
-     */
-    bottom: calc(
-      var(--home-hero-copy-h, 88px) + 20px +
-        var(--viable-bottom, env(safe-area-inset-bottom, 0px))
-    );
+    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     min-height: 140px;
     overflow: visible;
     pointer-events: none;
@@ -302,7 +308,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: absolute;
     z-index: 12;
     left: 50%;
-    bottom: calc(var(--home-hero-copy-h, 88px) + 10px);
+    bottom: calc(
+      var(--home-hero-copy-h, 88px) + 20px +
+        var(--viable-bottom, env(safe-area-inset-bottom, 0px))
+    );
     transform: translateX(-50%);
     display: inline-flex;
     align-items: center;
@@ -348,9 +357,23 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-demo-viewport {
     position: relative;
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
+    min-height: 0;
     overflow: visible;
+  }
+
+  /* CTAs when there is no mock chat — pinned to the hero footer. */
+  .home-hero-cta-dock {
+    position: absolute;
+    z-index: 9;
+    left: 0;
+    right: 0;
+    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+    pointer-events: none;
   }
 
   /*
