@@ -173,11 +173,29 @@ function stripStatusEllipsis(text: string): string {
   return text;
 }
 
-/** One rect per rendered line box of the bubble's text. */
+/**
+ * One rect per rendered line box of the bubble's text.
+ * `Range#getClientRects()` returns a box per inline fragment (mention chips,
+ * punctuation runs, etc.), so merge fragments that share a line before measuring.
+ */
 function bubbleLineRects(textEl: HTMLElement): DOMRect[] {
   const range = document.createRange();
   range.selectNodeContents(textEl);
-  return Array.from(range.getClientRects());
+  const lines: DOMRect[] = [];
+  for (const rect of range.getClientRects()) {
+    if (rect.width <= 0 && rect.height <= 0) continue;
+    const line = lines.find((l) => Math.abs(l.top - rect.top) < 1);
+    if (!line) {
+      lines.push(new DOMRect(rect.left, rect.top, rect.width, rect.height));
+      continue;
+    }
+    const left = Math.min(line.left, rect.left);
+    const right = Math.max(line.right, rect.right);
+    const top = Math.min(line.top, rect.top);
+    const bottom = Math.max(line.bottom, rect.bottom);
+    lines[lines.indexOf(line)] = new DOMRect(left, top, right - left, bottom - top);
+  }
+  return lines;
 }
 
 /**
