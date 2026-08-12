@@ -647,12 +647,18 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     color: rgba(255, 255, 255, 0.48);
   }
 
+  /* Composing bubble is the mock input — anchor overlays here, not in document flow. */
+  .home-hero-demo-msg--composing .home-hero-demo-bubble {
+    position: relative;
+    overflow: visible;
+  }
+
   /* @-mention picker — drops *below* the composing bubble (unlike slash). */
   .home-hero-demo-mention-picker {
     position: absolute;
-    right: calc(1.85rem + 0.55rem);
+    right: 0;
     top: calc(100% + 8px);
-    z-index: 5;
+    z-index: 20;
     width: min(20.5rem, calc(100vw - 2.5rem));
     max-height: 12rem;
     overflow-y: auto;
