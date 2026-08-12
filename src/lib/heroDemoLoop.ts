@@ -552,8 +552,14 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
-/** Compact dashboard toast — same center-scale overshoot as the invoice card. */
-function createDashboardNotificationCard(title: string, detail: string): HTMLElement {
+type DashboardNotificationIcon = { iconEmoji?: string; iconUrl?: string };
+
+/** Compact dashboard toast — mirrors admin review alerts (brand icon + copy). */
+function createDashboardNotificationCard(
+  title: string,
+  detail: string,
+  icon?: DashboardNotificationIcon,
+): HTMLElement {
   const row = document.createElement("div");
   row.className =
     "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
@@ -563,14 +569,31 @@ function createDashboardNotificationCard(title: string, detail: string): HTMLEle
   const card = document.createElement("div");
   card.className = "home-hero-demo-sk-notif";
 
-  const dot = document.createElement("span");
-  dot.className = "home-hero-demo-sk-notif-dot";
-  dot.setAttribute("aria-hidden", "true");
+  const head = document.createElement("div");
+  head.className = "home-hero-demo-sk-notif-head";
+
+  const iconUrl = icon?.iconUrl?.trim();
+  const iconEmoji = icon?.iconEmoji?.trim();
+  if (iconUrl) {
+    const brand = document.createElement("img");
+    brand.className = "home-hero-demo-sk-notif-icon";
+    brand.src = iconUrl;
+    brand.alt = "";
+    brand.setAttribute("aria-hidden", "true");
+    head.appendChild(brand);
+  } else if (iconEmoji) {
+    const brand = document.createElement("span");
+    brand.className =
+      "home-hero-demo-sk-notif-icon home-hero-demo-sk-notif-icon--emoji";
+    brand.textContent = iconEmoji;
+    brand.setAttribute("aria-hidden", "true");
+    head.appendChild(brand);
+  }
 
   const copy = document.createElement("div");
   copy.className = "home-hero-demo-sk-notif-copy";
 
-  const titleEl = document.createElement("p");
+  const titleEl = document.createElement("strong");
   titleEl.className = "home-hero-demo-sk-notif-title";
   titleEl.textContent = title;
 
@@ -580,8 +603,8 @@ function createDashboardNotificationCard(title: string, detail: string): HTMLEle
 
   copy.appendChild(titleEl);
   copy.appendChild(detailEl);
-  card.appendChild(dot);
-  card.appendChild(copy);
+  head.appendChild(copy);
+  card.appendChild(head);
   row.appendChild(card);
   return row;
 }
@@ -680,8 +703,9 @@ async function playDashboardNotification(
   isAlive: () => boolean,
   title: string,
   detail: string,
+  icon?: DashboardNotificationIcon,
 ): Promise<void> {
-  const row = createDashboardNotificationCard(title, detail);
+  const row = createDashboardNotificationCard(title, detail, icon);
   const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-notif");
   sceneEl.appendChild(row);
   relayout(true);
@@ -781,8 +805,9 @@ async function playProposalFlow(
     relayout,
     reducedMotion,
     isAlive,
-    "Proposal viewed",
+    "👀 Proposal viewed",
     "Susie's Cookies",
+    { iconEmoji: "🍪" },
   );
   if (!isAlive()) return;
 
@@ -794,8 +819,9 @@ async function playProposalFlow(
     relayout,
     reducedMotion,
     isAlive,
-    "Proposal accepted",
+    "✅ Proposal accepted",
     "Susie's Cookies",
+    { iconEmoji: "🍪" },
   );
   if (!isAlive()) return;
 
