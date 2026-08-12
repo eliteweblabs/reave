@@ -1468,28 +1468,29 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  /* Reverse-teardrop person pin — circular face, tip on map center. */
+  /* Reverse-teardrop person pin — circular face, triangular tip on map center. */
   .home-hero-demo-sk-gps-pin {
     position: absolute;
     left: 50%;
     top: 50%;
     z-index: 2;
     width: 2.35rem;
-    height: 2.9rem;
+    height: 2.85rem;
     transform: translate(-50%, -100%);
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
   }
 
+  /* Triangle tip — base tucked under the face so only a clean point shows. */
   .home-hero-demo-sk-gps-pin::before {
     content: "";
     position: absolute;
     left: 50%;
-    bottom: 0.05rem;
-    width: 0.78rem;
-    height: 0.78rem;
+    bottom: 0;
+    width: 0.7rem;
+    height: 0.85rem;
     background: #fff;
-    border-radius: 0.1rem;
-    transform: translateX(-50%) rotate(45deg);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform: translateX(-50%);
   }
 
   .home-hero-demo-sk-gps-pin-face {
@@ -1506,6 +1507,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     border: 2px solid #fff;
     box-sizing: border-box;
     display: block;
+    z-index: 1;
   }
 
   .home-hero-demo-sk-gps-ring {

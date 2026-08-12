@@ -195,9 +195,10 @@ export function mountDealerGeoMap(container, opts = {}) {
         overflow:hidden; display:flex; align-items:center; justify-content:center; z-index:1; }
       .dgm-pin-face--initial { background:var(--dgm-bucket,#2563eb); }
       .dgm-pin-icon { width:100%; height:100%; object-fit:cover; display:block; }
-      /* Tip tucked under the face — circle sits on the diamond so the pin reads as one shape. */
-      .dgm-pin-tip { position:absolute; left:50%; top:22px; width:14px; height:14px; transform:translateX(-50%) rotate(45deg);
-        background:var(--dgm-bucket,#2563eb); border-radius:0 0 2px 0; z-index:0; }
+      /* Triangle tip — base tucked under the face so only a clean point shows. */
+      .dgm-pin-tip { position:absolute; left:50%; bottom:0; width:12px; height:10px; transform:translateX(-50%);
+        background:var(--dgm-bucket,#2563eb); clip-path:polygon(0 0, 100% 0, 50% 100%); z-index:0; }
+      .dgm-pin.is-active { z-index:2; filter:drop-shadow(0 3px 8px rgba(0,0,0,.45)); }
       .dgm-status { position:absolute; z-index:6; left:50%; bottom:max(1rem, env(safe-area-inset-bottom)); transform:translateX(-50%);
         max-width:min(420px, calc(100vw - 2rem)); padding:.7rem .95rem; border-radius:10px; border:1px solid rgba(48,54,61,.95);
         background:rgba(22,27,34,.92); font-size:.88rem; }

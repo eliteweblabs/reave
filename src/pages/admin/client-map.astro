@@ -317,16 +317,16 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         display: block;
       }
 
-      /* Tip tucked under the face — circle sits on the diamond so the pin reads as one shape. */
+      /* Triangle tip — base tucked under the face so only a clean point shows. */
       .cgm-pin-tip {
         position: absolute;
         left: 50%;
-        top: 22px;
-        width: 14px;
-        height: 14px;
-        transform: translateX(-50%) rotate(45deg);
+        bottom: 0;
+        width: 12px;
+        height: 10px;
+        transform: translateX(-50%);
         background: var(--cgm-kind, #2563eb);
-        border-radius: 0 0 2px 0;
+        clip-path: polygon(0 0, 100% 0, 50% 100%);
         z-index: 0;
       }
 
