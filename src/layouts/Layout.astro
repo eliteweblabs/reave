@@ -7,6 +7,8 @@ import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
+import SafariChromeTint from "../components/SafariChromeTint.astro";
+import SafariScrollRunway from "../components/SafariScrollRunway.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
@@ -48,7 +50,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#0c0614",
+  themeColor = "#2a1245",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -122,6 +124,9 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body data-user-id={userId ?? ""}>
+		{/* Must be first — spacer + inline pin before paint for iOS Safari chrome. */}
+		<SafariScrollRunway />
+		<SafariChromeTint />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
@@ -165,13 +170,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * atmosphere on body itself instead of full-bleed fixed mesh layers. Body uses
 	 * min-height (not height:100%) so a 100lvh hero can grow the paint box.
 	 *
-	 * background-color MUST be the purple canvas (--site-canvas), not near-black —
-	 * Safari samples it for the status-bar / home-indicator strips, and #050505
-	 * reads as a disconnected black letterbox against the mesh.
+	 * background-color MUST be a visible purple canvas (--site-canvas).
+	 * iOS 26 Safari ignores theme-color and falls back to this (or to fixed
+	 * edge samples) for status-bar / toolbar Liquid Glass tint. Near-black
+	 * (#050505 / #0c0614) reads as a disconnected black letterbox.
 	 */
 	html {
 		height: 100%;
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-canvas, #2a1245);
 	}
 
 	html,
@@ -195,7 +201,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-canvas, #2a1245);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}

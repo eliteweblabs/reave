@@ -3,6 +3,7 @@
  */
 import {
   IOS_ICONS,
+  iosIcon,
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
@@ -40,11 +41,12 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   createAgentBtn,
-} from './admin-ui.js?v=20260811a';
+} from './admin-ui.js?v=20260812a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260811c';
+import { createEmailTriageLab } from './email-triage-lab.js?v=20260812b';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};
@@ -109,7 +111,7 @@ const RULES_VIEW_KEY = 'admin.rules.view';
 function readRulesView() {
   try {
     const v = sessionStorage.getItem(RULES_VIEW_KEY);
-    if (v === 'list' || v === 'flow') return v;
+    if (v === 'list' || v === 'flow' || v === 'lab') return v;
   } catch {}
   return 'flow';
 }
@@ -128,9 +130,35 @@ let ruleState = {
   search: '',
   activeId: null,
   dirty: false,
-  /** @type {'flow' | 'list'} n8n-style priority map vs sidebar list */
+  /** @type {'flow' | 'list' | 'lab'} n8n-style priority map vs sidebar list vs triage lab */
   view: readRulesView(),
 };
+
+/** @type {ReturnType<typeof createEmailTriageLab> | null} */
+let triageLab = null;
+
+function getTriageLab() {
+  if (!triageLab) {
+    triageLab = createEmailTriageLab({
+      getRuleState: () => ruleState,
+      setRulesView,
+      getRuleEditor,
+      reloadRules: async () => {
+        const res = await fetch('/api/email/rules', { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        ruleState.rules = data.rules || [];
+        ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
+        ruleState.storage = data.storage || 'files';
+      },
+      createRulesViewPicker,
+      inboundAddressExample: () =>
+        String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
+        'inbox@inbound.example.com',
+    });
+  }
+  return triageLab;
+}
 
 function phraseSummary(phrases, max = 3) {
   if (!phrases?.length) return '(any phrase)';
@@ -372,8 +400,9 @@ function renderRulesPane() {
 }
 
 function setRulesView(view) {
-  if (view !== 'flow' && view !== 'list') return;
+  if (view !== 'flow' && view !== 'list' && view !== 'lab') return;
   if (ruleState.view === view) return;
+  if (ruleState.view === 'lab') triageLab?.destroy();
   ruleState.view = view;
   writeRulesView(view);
   renderRulesEditor();
@@ -389,6 +418,7 @@ function createRulesViewPicker() {
     options: [
       { value: 'flow', label: 'Flow' },
       { value: 'list', label: 'List' },
+      { value: 'lab', label: 'Lab' },
     ],
     ariaLabel: 'Rules view',
     onChange: (next) => setRulesView(next),
@@ -396,11 +426,22 @@ function createRulesViewPicker() {
 }
 
 function createFlowRuleCard(rule, index) {
-  const row = document.createElement('button');
-  row.type = 'button';
+  const row = document.createElement('div');
   row.className = `re-flow-row${rule.enabled === false || isRuleExpired(rule) ? ' re-flow-row--off' : ''}${String(ruleState.activeId) === String(rule.id) ? ' re-flow-row--active' : ''}`;
   row.dataset.id = rule.id;
   row.setAttribute('aria-label', `Priority ${index + 1}: ${rule.title || rule.status}`);
+
+  const grip = document.createElement('button');
+  grip.type = 'button';
+  grip.className = 're-flow-grip';
+  grip.title = 'Drag to reorder priority';
+  grip.setAttribute('aria-label', 'Drag to reorder');
+  grip.innerHTML = iosIcon('grip', 16);
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 're-flow-row-main';
+  openBtn.addEventListener('click', () => openRuleEditor(rule.id));
 
   const pri = document.createElement('span');
   pri.className = 're-flow-pri';
@@ -429,9 +470,77 @@ function createFlowRuleCard(rule, index) {
     <span class="re-flow-sub">${escHtml(`status → ${rule.status || '—'}`)}</span>
     <span class="re-flow-meta">${escHtml(ruleSubline(rule))}</span>`;
 
-  row.append(pri, when, arrow, then);
-  row.addEventListener('click', () => openRuleEditor(rule.id));
+  openBtn.append(pri, when, arrow, then);
+  row.append(grip, openBtn);
   return row;
+}
+
+async function persistFlowRuleOrder(ids) {
+  try {
+    const res = await fetch('/api/email/rules/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    ruleState.rules = data.rules || ruleState.rules;
+    renderRulesEditor();
+  } catch (e) {
+    await osAlert(`Could not save rule order: ${e.message}`);
+    renderRulesEditor();
+  }
+}
+
+function attachFlowRuleReorder(rowsEl) {
+  let dragEl = null;
+  let moved = false;
+  rowsEl.querySelectorAll('.re-flow-grip').forEach((grip) => {
+    grip.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const row = grip.closest('.re-flow-row');
+      if (!row) return;
+      dragEl = row;
+      moved = false;
+      row.classList.add('re-flow-row--dragging');
+      grip.setPointerCapture(ev.pointerId);
+
+      const onMove = (moveEv) => {
+        if (!dragEl) return;
+        moved = true;
+        const siblings = [...rowsEl.querySelectorAll(':scope > .re-flow-row')].filter(
+          (n) => n !== dragEl,
+        );
+        for (const sib of siblings) {
+          const rect = sib.getBoundingClientRect();
+          if (moveEv.clientY < rect.top + rect.height / 2) {
+            rowsEl.insertBefore(dragEl, sib);
+            return;
+          }
+        }
+        rowsEl.appendChild(dragEl);
+      };
+
+      const onUp = (upEv) => {
+        grip.releasePointerCapture(upEv.pointerId);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        dragEl?.classList.remove('re-flow-row--dragging');
+        if (dragEl && moved) {
+          const ids = [...rowsEl.querySelectorAll(':scope > .re-flow-row')].map(
+            (el) => el.dataset.id,
+          );
+          void persistFlowRuleOrder(ids.filter(Boolean));
+        }
+        dragEl = null;
+        moved = false;
+      };
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  });
 }
 
 function renderRulesFlowShell(root) {
@@ -447,18 +556,23 @@ function renderRulesFlowShell(root) {
 
   const hint = document.createElement('p');
   hint.className = 're-flow-hint';
-  hint.textContent = 'First match wins · top = highest priority';
+  hint.textContent = 'First match wins · drag ⋮⋮ to set priority · Lab to try an email';
   left.appendChild(hint);
   toolbar.appendChild(left);
 
   const right = document.createElement('div');
   right.className = 're-flow-toolbar-right';
+  const labBtn = document.createElement('button');
+  labBtn.type = 'button';
+  labBtn.className = 'dash-panel-btn';
+  labBtn.textContent = 'Try email';
+  labBtn.addEventListener('click', () => setRulesView('lab'));
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.className = 'dash-panel-btn';
   addBtn.textContent = '+ Rule';
   addBtn.addEventListener('click', () => void startNewRule());
-  right.appendChild(addBtn);
+  right.append(labBtn, addBtn);
   toolbar.appendChild(right);
   shellEl.appendChild(toolbar);
 
@@ -511,7 +625,7 @@ function renderRulesFlowShell(root) {
   const spine = document.createElement('div');
   spine.className = 're-flow-spine';
   spine.setAttribute('aria-hidden', 'true');
-  spine.textContent = '↓ evaluate in order';
+  spine.textContent = '↓ evaluate in order · drag to reorder';
   scroll.appendChild(spine);
 
   const rows = document.createElement('div');
@@ -524,6 +638,7 @@ function renderRulesFlowShell(root) {
     rows.appendChild(empty);
   } else {
     ordered.forEach((rule, i) => rows.appendChild(createFlowRuleCard(rule, i)));
+    attachFlowRuleReorder(rows);
   }
   scroll.appendChild(rows);
 
@@ -553,6 +668,12 @@ function renderRulesEditor() {
   root.innerHTML = '';
   root.classList.toggle('re-view-flow', ruleState.view === 'flow');
   root.classList.toggle('re-view-list', ruleState.view === 'list');
+  root.classList.toggle('re-view-lab', ruleState.view === 'lab');
+
+  if (ruleState.view === 'lab') {
+    getTriageLab().render(root);
+    return;
+  }
 
   if (ruleState.view === 'flow') {
     renderRulesFlowShell(root);

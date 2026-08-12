@@ -63,7 +63,8 @@ body {
   scroll-padding-bottom: var(--footer-scroll-pad);
 }
 
-/* Floating header clearance — transparent top bar; inset on columns, not panel shells. */
+/* Floating header clearance — transparent top bar; inset on columns, not panel shells.
+ * Content always clears the measured header height (safe-area + logo row + alerts). */
 #chat-panel > .ch-sidebar,
 #chat-panel > .ch-pane,
 #email-panel > .ch-sidebar,
@@ -88,6 +89,8 @@ body {
 #rule-editor > .de-sidebar,
 #rule-editor > .de-pane,
 #rule-editor > .ch-sidebar,
+#rule-editor > .re-flow-shell,
+#rule-editor > .re-lab-shell,
 .de-pane {
   padding-top: var(
     --topbar-measured-h,

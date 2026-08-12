@@ -346,6 +346,108 @@ export function isUptimeRobotEmail(
   return hay.includes('uptimerobot') || hay.includes('is down') || hay.includes('monitor is down');
 }
 
+/** Per-rule outcome while walking the priority ladder (first match wins). */
+export type RuleEvaluationOutcome =
+  | 'matched'
+  | 'no_match'
+  | 'skipped_after_match'
+  | 'disabled'
+  | 'pinned_checked';
+
+export type RuleEvaluation = {
+  rule: EmailRule;
+  /** Index in the evaluation walk (OTP/auth may appear before table order). */
+  order: number;
+  outcome: RuleEvaluationOutcome;
+};
+
+export type RuleEvaluationResult = {
+  classification: Classification;
+  evaluations: RuleEvaluation[];
+};
+
+/**
+ * Walk the rule table exactly as production triage does and record every rule's
+ * outcome. OTP then AUTH_LINK are always checked first (pinned); remaining
+ * enabled rules follow array / sort order; first match short-circuits.
+ */
+export function evaluateEmailRules(
+  email: InboundEmail,
+  rules: EmailRule[] = DEFAULT_RULES,
+  notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED,
+): RuleEvaluationResult {
+  const evaluations: RuleEvaluation[] = [];
+  let order = 0;
+  let matched: EmailRule | null = null;
+
+  const pushEval = (rule: EmailRule, outcome: RuleEvaluationOutcome) => {
+    evaluations.push({ rule, order: order++, outcome });
+  };
+
+  // Global OTP rule — always first, regardless of persisted sort_order.
+  const verificationRule = rules.find(
+    (r) => r.enabled && isVerificationCodeRuleStatus(r.status),
+  );
+  if (verificationRule) {
+    if (matchesVerificationCodeRule(verificationRule, email)) {
+      pushEval(verificationRule, 'matched');
+      matched = verificationRule;
+    } else {
+      pushEval(verificationRule, 'pinned_checked');
+    }
+  }
+
+  // Global auth-link rule — before DELETE/junk (footers often match unsubscribe).
+  const authLinkRule = rules.find((r) => r.enabled && isAuthLinkRuleStatus(r.status));
+  if (!matched && authLinkRule) {
+    if (matchesAuthLinkRule(authLinkRule, email)) {
+      pushEval(authLinkRule, 'matched');
+      matched = authLinkRule;
+    } else {
+      pushEval(authLinkRule, 'pinned_checked');
+    }
+  } else if (matched && authLinkRule) {
+    pushEval(authLinkRule, 'skipped_after_match');
+  }
+
+  for (const rule of rules) {
+    if (isVerificationCodeRuleStatus(rule.status) || isAuthLinkRuleStatus(rule.status)) {
+      // Already recorded in the pinned pass (or disabled / missing from pin find).
+      if (
+        !evaluations.some(
+          (e) =>
+            e.rule === rule ||
+            (e.rule.status === rule.status &&
+              e.rule.phrases.join('\0') === rule.phrases.join('\0')),
+        )
+      ) {
+        pushEval(rule, rule.enabled ? 'skipped_after_match' : 'disabled');
+      }
+      continue;
+    }
+    if (matched) {
+      pushEval(rule, rule.enabled ? 'skipped_after_match' : 'disabled');
+      continue;
+    }
+    if (!rule.enabled) {
+      pushEval(rule, 'disabled');
+      continue;
+    }
+    if (ruleMatches(rule, email)) {
+      pushEval(rule, 'matched');
+      matched = rule;
+    } else {
+      pushEval(rule, 'no_match');
+    }
+  }
+
+  const classification: Classification = matched
+    ? { status: matched.status, matched, notify: matched.notify }
+    : { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
+
+  return { classification, evaluations };
+}
+
 /**
  * Classify an inbound email against the rule table.
  * First matching enabled rule (in table / sort order) wins; evaluation stops.
@@ -355,36 +457,7 @@ export function classifyEmail(
   rules: EmailRule[] = DEFAULT_RULES,
   notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED
 ): Classification {
-  // Global OTP rule — always first, regardless of persisted sort_order.
-  const verificationRule = rules.find(
-    (r) => r.enabled && isVerificationCodeRuleStatus(r.status),
-  );
-  if (verificationRule && matchesVerificationCodeRule(verificationRule, email)) {
-    return {
-      status: verificationRule.status,
-      matched: verificationRule,
-      notify: verificationRule.notify,
-    };
-  }
-
-  // Global auth-link rule — before DELETE/junk (footers often match unsubscribe).
-  const authLinkRule = rules.find((r) => r.enabled && isAuthLinkRuleStatus(r.status));
-  if (authLinkRule && matchesAuthLinkRule(authLinkRule, email)) {
-    return {
-      status: authLinkRule.status,
-      matched: authLinkRule,
-      notify: authLinkRule.notify,
-    };
-  }
-
-  for (const rule of rules) {
-    if (isVerificationCodeRuleStatus(rule.status) || isAuthLinkRuleStatus(rule.status)) continue;
-    if (ruleMatches(rule, email)) {
-      // Short-circuit: do not evaluate remaining rules.
-      return { status: rule.status, matched: rule, notify: rule.notify };
-    }
-  }
-  return { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
+  return evaluateEmailRules(email, rules, notifyOnUnmatched).classification;
 }
 
 /** True when a matched rule means silent file/junk — no dashboard or push. */

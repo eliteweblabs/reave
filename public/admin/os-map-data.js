@@ -287,7 +287,8 @@ const EMAIL_TRIAGE_NODES = [
 
   // Classify
   { id: 'et_contact', title: 'Resolve sender', sub: 'contact-api · client kind', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
-  { id: 'et_rules', title: 'Keyword rules', sub: 'First match wins · sort order', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
+  { id: 'et_rules', title: 'Keyword rules', sub: 'First match wins · Flow drag + Lab', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
+  { id: 'et_lab', title: 'Triage Lab', sub: 'Dry-run compose · play steps', icon: '🧪', hue: 70, status: true, group: 'et_classify', x: 600, y: 330 },
   { id: 'et_agent', title: 'Agent-first AI', sub: 'Unknown / Service · confidence', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
   { id: 'et_legacy', title: 'Rules + AI triage', sub: 'Known professional / personal', icon: '🧠', brand: 'anthropic', hue: 280, status: true, group: 'et_classify', x: 600, y: 540 },
 
@@ -320,6 +321,8 @@ const EMAIL_TRIAGE_EDGES = [
   { from: 'et_gates', to: 'et_inbox', label: 'sleep deferred', dashed: true },
 
   { from: 'et_contact', to: 'et_rules' },
+  { from: 'et_rules', to: 'et_lab', label: 'try email', dashed: true },
+  { from: 'et_lab', to: 'et_rules', label: 'same classifyEmail', dashed: true },
   { from: 'et_contact', to: 'et_agent', label: 'unknown / service' },
   { from: 'et_contact', to: 'et_legacy', label: 'known client' },
   { from: 'et_rules', to: 'et_otp', label: 'OTP · AUTH_LINK' },
@@ -353,7 +356,7 @@ const EMAIL_TRIAGE_EDGES = [
 const EMAIL_TRIAGE_GROUPS = [
   { id: 'et_source', title: 'Source', hue: 300, members: ['et_mailbox', 'et_copy'] },
   { id: 'et_ingest', title: 'Ingest', hue: 150, members: ['et_resend', 'et_webhook', 'et_gates'] },
-  { id: 'et_classify', title: 'Classify', hue: 265, members: ['et_contact', 'et_rules', 'et_agent', 'et_legacy'] },
+  { id: 'et_classify', title: 'Classify', hue: 265, members: ['et_contact', 'et_rules', 'et_lab', 'et_agent', 'et_legacy'] },
   { id: 'et_decide', title: 'Decide', hue: 200, members: ['et_confidence', 'et_trusted', 'et_explain', 'et_dedupe'] },
   { id: 'et_automate', title: 'Automate', hue: 120, members: ['et_otp', 'et_meeting', 'et_project', 'et_file', 'et_sort'] },
   { id: 'et_surfaces', title: 'Surfaces', hue: 45, members: ['et_inbox', 'et_dash', 'et_push', 'et_chat'] },
