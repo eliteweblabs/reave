@@ -1067,21 +1067,62 @@ function renderRuleEditPane(pane) {
   expiresAtIn.disabled = !expiresCb.checked;
   expiresAtIn.style.marginTop = '0.4rem';
 
+  const expireInLb = document.createElement('label');
+  expireInLb.className = 're-check re-expire-in';
+  const expireInCb = document.createElement('input');
+  expireInCb.type = 'checkbox';
+  expireInCb.checked = false;
+  const expireInSecs = document.createElement('input');
+  expireInSecs.className = 'de-input re-expire-in-secs';
+  expireInSecs.type = 'number';
+  expireInSecs.min = '1';
+  expireInSecs.step = '1';
+  expireInSecs.placeholder = '300';
+  expireInSecs.value = '300';
+  expireInSecs.disabled = true;
+  expireInSecs.setAttribute('aria-label', 'Seconds until this rule expires');
+  expireInLb.append(
+    expireInCb,
+    document.createTextNode(' Expire in '),
+    expireInSecs,
+    document.createTextNode(' seconds'),
+  );
+
   const expiresWrap = document.createElement('div');
   expiresWrap.className = 're-expires-field';
   expiresWrap.appendChild(expiresLb);
   expiresWrap.appendChild(expiresAtIn);
+  expiresWrap.appendChild(expireInLb);
 
   const syncExpiresUi = () => {
+    if (expiresCb.checked && expireInCb.checked) {
+      // Absolute date wins when toggling Expires on.
+      expireInCb.checked = false;
+    }
     expiresAtIn.disabled = !expiresCb.checked;
+    expireInSecs.disabled = !expireInCb.checked;
     if (expiresCb.checked && !expiresAtIn.value) {
       expiresAtIn.value = defaultRuleExpiresLocalValue();
     }
     ruleState.dirty = true;
   };
+  const syncExpireInUi = () => {
+    if (expireInCb.checked && expiresCb.checked) {
+      expiresCb.checked = false;
+    }
+    expiresAtIn.disabled = !expiresCb.checked;
+    expireInSecs.disabled = !expireInCb.checked;
+    if (expireInCb.checked && (!expireInSecs.value || Number(expireInSecs.value) < 1)) {
+      expireInSecs.value = '300';
+    }
+    ruleState.dirty = true;
+  };
   expiresCb.addEventListener('change', syncExpiresUi);
+  expireInCb.addEventListener('change', syncExpireInUi);
   expiresAtIn.addEventListener('input', () => { ruleState.dirty = true; });
   expiresAtIn.addEventListener('change', () => { ruleState.dirty = true; });
+  expireInSecs.addEventListener('input', () => { ruleState.dirty = true; });
+  expireInSecs.addEventListener('change', () => { ruleState.dirty = true; });
 
   appendRuleField(form, 'Title', titleIn);
   appendRuleField(form, 'Applies to', scopeWrap);
@@ -1114,6 +1155,8 @@ function renderRuleEditPane(pane) {
     forwardIn,
     expiresCb,
     expiresAtIn,
+    expireInCb,
+    expireInSecs,
   };
   bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
   shell.clearEditorFooterSave();
@@ -1131,6 +1174,15 @@ function collectRulePayload(inputs) {
   const notifyPush = !!inputs.pushCb.checked;
   const notifyDashboard = !!inputs.dashCb.checked;
   const scopeRb = inputs.scopeWrap.querySelector('input[type=radio]:checked');
+  let expiresAt = null;
+  if (inputs.expireInCb?.checked) {
+    const secs = Math.floor(Number(inputs.expireInSecs?.value));
+    if (Number.isFinite(secs) && secs > 0) {
+      expiresAt = new Date(Date.now() + secs * 1000).toISOString();
+    }
+  } else if (inputs.expiresCb.checked) {
+    expiresAt = fromRuleDatetimeLocalValue(inputs.expiresAtIn.value);
+  }
   return {
     title: inputs.titleIn.value.trim(),
     scope: scopeRb?.value === 'universal' ? 'universal' : 'personal',
@@ -1146,7 +1198,7 @@ function collectRulePayload(inputs) {
     notifyActions,
     enabled: inputs.enabledCb.checked,
     forwardTo: inputs.forwardIn.value.trim() || null,
-    expiresAt: inputs.expiresCb.checked ? fromRuleDatetimeLocalValue(inputs.expiresAtIn.value) : null,
+    expiresAt,
   };
 }
 
@@ -1197,6 +1249,8 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     inputs.forwardIn,
     inputs.expiresCb,
     inputs.expiresAtIn,
+    inputs.expireInCb,
+    inputs.expireInSecs,
   ];
 
   const flush = async () => {
@@ -1218,7 +1272,13 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
       return;
     }
-    if (inputs.expiresCb.checked && !payload.expiresAt) {
+    if (inputs.expireInCb?.checked) {
+      const secs = Math.floor(Number(inputs.expireInSecs?.value));
+      if (!Number.isFinite(secs) || secs < 1 || !payload.expiresAt) {
+        shell.setFormFieldState(inputs.expireInSecs, 'invalid');
+        return;
+      }
+    } else if (inputs.expiresCb.checked && !payload.expiresAt) {
       shell.setFormFieldState(inputs.expiresAtIn, 'invalid');
       return;
     }
@@ -1234,7 +1294,16 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      baseline = current;
+      // Relative TTL is write-time only — switch to absolute so autosave doesn't keep extending.
+      if (inputs.expireInCb?.checked && data.rule?.expiresAt) {
+        inputs.expireInCb.checked = false;
+        inputs.expireInSecs.disabled = true;
+        inputs.expiresCb.checked = true;
+        inputs.expiresAtIn.disabled = false;
+        inputs.expiresAtIn.value = toRuleDatetimeLocalValue(data.rule.expiresAt);
+        payload.expiresAt = data.rule.expiresAt;
+      }
+      baseline = serializeRulePayload(payload);
       ruleState.dirty = false;
       syncRuleListItem(rule.id, payload, data.rule);
       syncRuleStatusDatalist();

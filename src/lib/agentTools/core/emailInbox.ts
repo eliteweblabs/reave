@@ -306,6 +306,12 @@ function resolveRuleExpiresAt(args: Record<string, unknown>): string | null | un
   if (expiresRaw != null && String(expiresRaw).trim() !== '') {
     return parseExpiresAt(expiresRaw);
   }
+  const secsRaw = args.expires_in_seconds ?? args.expiresInSeconds;
+  if (secsRaw != null && secsRaw !== '') {
+    const secs = Number(secsRaw);
+    if (!Number.isFinite(secs) || secs <= 0) return undefined;
+    return new Date(Date.now() + secs * 1000).toISOString();
+  }
   const daysRaw = args.expires_in_days ?? args.expiresInDays;
   if (daysRaw == null || daysRaw === '') return null;
   const days = Number(daysRaw);
@@ -355,7 +361,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
 
   const expiresAt = resolveRuleExpiresAt(args);
   if (expiresAt === undefined) {
-    return JSON.stringify({ error: 'expires_at / expires_in_days is invalid' });
+    return JSON.stringify({ error: 'expires_at / expires_in_seconds / expires_in_days is invalid' });
   }
 
   const config = await storeListEmailRules();
@@ -573,7 +579,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create a triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls) so first-match triage honors them. When both sender and phrases are set, matchMode is "all" across from+subject+body. Optional forward_to relays matched mail via Resend. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO) or expires_in_days. Default scope is personal (this install only); pass scope=universal only when the user explicitly wants a shared catalog rule for all Reave installs. Skips if an enabled rule already matches the same sender phrase.',
+                'Create a triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls) so first-match triage honors them. When both sender and phrases are set, matchMode is "all" across from+subject+body. Optional forward_to relays matched mail via Resend. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Default scope is personal (this install only); pass scope=universal only when the user explicitly wants a shared catalog rule for all Reave installs. Skips if an enabled rule already matches the same sender phrase.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -616,6 +622,11 @@ export const emailInboxModule: AgentToolModule = {
                     type: 'string',
                     description:
                       'Optional ISO timestamp when the rule should stop matching. Omit for indefinite. Use when the user gives a specific end date/time.',
+                  },
+                  expires_in_seconds: {
+                    type: 'number',
+                    description:
+                      'Optional relative TTL in seconds from now (e.g. 300 for five minutes). Omit for indefinite.',
                   },
                   expires_in_days: {
                     type: 'number',
