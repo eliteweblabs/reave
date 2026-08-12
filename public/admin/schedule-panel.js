@@ -47,7 +47,7 @@ import {
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
 import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810c';
-import { navigateToClient } from './clients-panel.js?v=20260812a';
+import { navigateToClient } from './clients-panel.js?v=20260812b';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -767,7 +767,8 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
       resolve(value);
     };
     const onKey = (ev) => {
-      if (ev.key === 'Escape') finish(null);
+      // Address picker sheet owns Escape while open — don't dismiss this dialog.
+      if (ev.key === 'Escape' && !isAddressPickerSheetOpen()) finish(null);
     };
 
     titleEl.textContent = 'Meeting address';
@@ -816,8 +817,11 @@ function formatScheduleAddressLabel(text) {
 }
 
 function mountScheduleAddressAutocomplete(addressInput) {
-  const portal = document.getElementById('os-dialog-backdrop');
-  return mountAddressAutocomplete(addressInput, portal);
+  return mountAddressAutocomplete(addressInput);
+}
+
+function isAddressPickerSheetOpen() {
+  return !!document.getElementById('address-picker-backdrop')?.classList.contains('open');
 }
 
 // Shared arrow-key navigation for autosuggest dropdowns. The active option is
@@ -829,6 +833,7 @@ function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
   const onClose = typeof options.onClose === 'function' ? options.onClose : null;
 
   function isOpen() {
+    if (typeof options.isOpen === 'function') return options.isOpen();
     // Fixed-position dropdowns have offsetParent === null; display is the source of truth.
     return dropdown.style.display !== 'none';
   }
@@ -954,171 +959,249 @@ function bindDropdownReposition(anchorInput, repositionFn) {
   };
 }
 
-function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
-  if (!dropdownPortal || !addressInput) return () => {};
+const ADDRESS_PICKER_ID = 'address-picker-backdrop';
 
-  const dropdown = document.createElement('div');
-  dropdown.className = 'sched-guest-dropdown';
-  dropdown.style.display = 'none';
-  dropdownPortal.appendChild(dropdown);
+/** @type {{ addressInput: HTMLInputElement, onPick?: Function } | null} */
+let addressPickerBinding = null;
+let addressPickerSheetReady = false;
+let addressPickerSuppressOpen = false;
+let addressPickerPickInFlight = false;
+let addressPickerLastPickAt = 0;
+let addressPickerLastPickLabel = '';
+let addressPickerClearPickTimer = null;
+let addressPickerFocusTimer = null;
 
-  let unbindReposition = null;
+function getAddressPickerEls() {
+  const backdrop = document.getElementById(ADDRESS_PICKER_ID);
+  const searchInput = document.getElementById('address-picker-search');
+  const list = document.getElementById('address-picker-list');
+  if (!backdrop || !searchInput || !list) return null;
+  return { backdrop, searchInput, list };
+}
 
-  function positionDropdown() {
-    positionFixedDropdown(dropdown, addressInput);
+function renderAddressPickerList(predictions, query) {
+  const els = getAddressPickerEls();
+  if (!els) return;
+  const { list } = els;
+  list.innerHTML = '';
+  if (!predictions.length) {
+    const empty = document.createElement('div');
+    empty.className = 'address-picker-empty';
+    empty.textContent = query.trim()
+      ? 'No matching addresses.'
+      : 'Type to search addresses.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const p of predictions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'address-picker-option';
+    btn.setAttribute('role', 'option');
+    btn.textContent = formatScheduleAddressLabel(p.description);
+    const description = p.description;
+    btn.addEventListener('mousedown', (ev) => {
+      if (ev.button != null && ev.button !== 0) return;
+      ev.preventDefault();
+    });
+    btn.addEventListener('pointerdown', (ev) => {
+      if (ev.button != null && ev.button !== 0) return;
+      ev.preventDefault();
+      void pickAddressFromSheet(description);
+    });
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      void pickAddressFromSheet(description);
+    });
+    list.appendChild(btn);
+  }
+}
+
+async function runAddressPickerSearch() {
+  const els = getAddressPickerEls();
+  if (!els || !addressPickerBinding) return;
+  const q = els.searchInput.value.trim();
+  if (q.length < 2) {
+    renderAddressPickerList([], q);
+    return;
+  }
+  try {
+    const params = new URLSearchParams({ input: q, types: 'address' });
+    const res = await adminFetch(`/api/google/places-autocomplete?${params}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.errorMessage || `HTTP ${res.status}`);
+    // Ignore stale responses if the query changed mid-flight.
+    if (els.searchInput.value.trim() !== q) return;
+    renderAddressPickerList(data.predictions || [], q);
+  } catch (e) {
+    if (e.message === 'Session expired') return;
+    els.list.innerHTML = `<div class="address-picker-empty">${escHtml(e.message)}</div>`;
+  }
+}
+
+function scheduleAddressPickerSearch() {
+  clearTimeout(schedAddressSearchTimer);
+  const els = getAddressPickerEls();
+  if (!els) return;
+  if (!els.searchInput.value.trim()) {
+    renderAddressPickerList([], '');
+    return;
+  }
+  schedAddressSearchTimer = setTimeout(runAddressPickerSearch, 300);
+}
+
+async function pickAddressFromSheet(description) {
+  const els = getAddressPickerEls();
+  const binding = addressPickerBinding;
+  if (!els || !binding) return;
+  const label = formatScheduleAddressLabel(description);
+  const now = Date.now();
+  if (
+    addressPickerPickInFlight ||
+    (label === addressPickerLastPickLabel && now - addressPickerLastPickAt < 600)
+  ) {
+    return;
+  }
+  addressPickerPickInFlight = true;
+  addressPickerLastPickLabel = label;
+  addressPickerLastPickAt = now;
+  if (addressPickerClearPickTimer) {
+    clearTimeout(addressPickerClearPickTimer);
+    addressPickerClearPickTimer = null;
   }
 
-  function setDropdownOpen(open) {
-    if (open) {
-      positionDropdown();
-      dropdown.style.display = 'block';
-      addressInput.setAttribute('aria-expanded', 'true');
-      if (!unbindReposition) {
-        unbindReposition = bindDropdownReposition(addressInput, positionDropdown);
+  // Set synchronously before any await so blur/close handlers never persist
+  // the typed query, and so onPick can PATCH the selected label immediately.
+  binding.addressInput.value = label;
+  els.searchInput.value = label;
+  binding.addressInput.dataset.autocompletePick = '1';
+  els.searchInput.dataset.autocompletePick = '1';
+  addressPickerSuppressOpen = true;
+  window.IosSheet?.close(ADDRESS_PICKER_ID);
+
+  try {
+    if (typeof binding.onPick === 'function') await binding.onPick(label);
+  } finally {
+    binding.addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+    addressPickerClearPickTimer = setTimeout(() => {
+      addressPickerClearPickTimer = null;
+      delete binding.addressInput.dataset.autocompletePick;
+      delete els.searchInput.dataset.autocompletePick;
+      addressPickerPickInFlight = false;
+      addressPickerSuppressOpen = false;
+    }, 400);
+  }
+}
+
+function ensureAddressPickerSheet() {
+  const els = getAddressPickerEls();
+  if (!els) return null;
+  if (addressPickerSheetReady) return els;
+  addressPickerSheetReady = true;
+
+  const { backdrop, searchInput, list } = els;
+  searchInput.addEventListener('input', () => {
+    if (searchInput.dataset.autocompletePick) return;
+    scheduleAddressPickerSearch();
+  });
+  attachAutosuggestKeyboardNav(searchInput, list, {
+    optionSelector: '.address-picker-option',
+    isOpen: () => backdrop.classList.contains('open'),
+    onClose: () => window.IosSheet?.close(ADDRESS_PICKER_ID),
+  });
+  backdrop.addEventListener('ios-sheet-close', () => {
+    const binding = addressPickerBinding;
+    addressPickerBinding = null;
+    binding?.addressInput?.setAttribute('aria-expanded', 'false');
+    clearTimeout(schedAddressSearchTimer);
+    clearTimeout(addressPickerFocusTimer);
+    addressPickerFocusTimer = null;
+    if (!binding) return;
+    const wasPick = !!searchInput.dataset.autocompletePick;
+    // Sync freeform text when the sheet is dismissed without a Places pick.
+    // Picks own the suppress-open lifecycle so a slow onPick cannot reopen the sheet.
+    if (!wasPick) {
+      const next = searchInput.value;
+      if (binding.addressInput.value !== next) {
+        binding.addressInput.value = next;
+        binding.addressInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
-      return;
-    }
-    dropdown.style.display = 'none';
-    addressInput.setAttribute('aria-expanded', 'false');
-    if (unbindReposition) {
-      unbindReposition();
-      unbindReposition = null;
-    }
-  }
-
-  let pickInFlight = false;
-  let lastPickAt = 0;
-  let lastPickLabel = '';
-  let clearPickFlagTimer = null;
-  async function pick(description) {
-    const label = formatScheduleAddressLabel(description);
-    const now = Date.now();
-    // pointerdown + click (and Enter→click) can both fire; only honor once.
-    if (pickInFlight || (label === lastPickLabel && now - lastPickAt < 600)) return;
-    pickInFlight = true;
-    lastPickLabel = label;
-    lastPickAt = now;
-    if (clearPickFlagTimer) {
-      clearTimeout(clearPickFlagTimer);
-      clearPickFlagTimer = null;
-    }
-    // Set synchronously before any await so blur handlers never persist the
-    // typed query, and so onPick can PATCH the selected label immediately.
-    addressInput.value = label;
-    setDropdownOpen(false);
-    addressInput.dataset.autocompletePick = '1';
-    try {
-      if (typeof onPick === 'function') await onPick(label);
-    } finally {
-      addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-      // Keep the pick flag briefly so deferred blur (iOS blur-before-click)
-      // still sees the selection and skips saving the typed query.
-      clearPickFlagTimer = setTimeout(() => {
-        clearPickFlagTimer = null;
-        delete addressInput.dataset.autocompletePick;
-        pickInFlight = false;
+      addressPickerSuppressOpen = true;
+      setTimeout(() => {
+        addressPickerSuppressOpen = false;
       }, 400);
     }
+  });
+  return els;
+}
+
+function openAddressPickerSheet(addressInput, onPick) {
+  const els = ensureAddressPickerSheet();
+  if (!els || !addressInput || addressPickerSuppressOpen) return;
+  if (
+    els.backdrop.classList.contains('open') &&
+    addressPickerBinding?.addressInput === addressInput
+  ) {
+    return;
   }
 
-  function renderDropdown(predictions, query) {
-    dropdown.innerHTML = '';
-    if (!predictions.length) {
-      const empty = document.createElement('div');
-      empty.className = 'sched-guest-empty';
-      empty.textContent = query.trim() ? 'No matching addresses.' : 'Type to search addresses.';
-      dropdown.appendChild(empty);
-      setDropdownOpen(true);
-      return;
-    }
-    for (const p of predictions) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'sched-guest-option';
-      btn.textContent = formatScheduleAddressLabel(p.description);
-      const description = p.description;
-      // mousedown preventDefault: older Safari focus-change path.
-      btn.addEventListener('mousedown', (ev) => {
-        if (ev.button != null && ev.button !== 0) return;
-        ev.preventDefault();
-      });
-      // pointerdown + preventDefault keeps focus on the input (avoids blur
-      // saving the typed query) and selects before click on touch devices.
-      btn.addEventListener('pointerdown', (ev) => {
-        if (ev.button != null && ev.button !== 0) return;
-        ev.preventDefault();
-        void pick(description);
-      });
-      // Enter key nav uses .click(); guard in pick() ignores the duplicate.
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        void pick(description);
-      });
-      dropdown.appendChild(btn);
-    }
-    setDropdownOpen(true);
-  }
+  addressPickerBinding = { addressInput, onPick };
+  els.searchInput.value = addressInput.value || '';
+  delete els.searchInput.dataset.autocompletePick;
+  renderAddressPickerList([], els.searchInput.value);
+  addressInput.setAttribute('aria-expanded', 'true');
+  window.IosSheet?.open(ADDRESS_PICKER_ID);
 
-  async function runSearch() {
-    const q = addressInput.value.trim();
-    if (q.length < 2) {
-      setDropdownOpen(false);
-      dropdown.innerHTML = '';
-      return;
-    }
-    try {
-      const params = new URLSearchParams({ input: q, types: 'address' });
-      const res = await adminFetch(`/api/google/places-autocomplete?${params}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.errorMessage || `HTTP ${res.status}`);
-      renderDropdown(data.predictions || [], q);
-    } catch (e) {
-      if (e.message === 'Session expired') return;
-      dropdown.innerHTML = `<div class="sched-guest-empty">${escHtml(e.message)}</div>`;
-      setDropdownOpen(true);
-    }
-  }
+  clearTimeout(addressPickerFocusTimer);
+  addressPickerFocusTimer = setTimeout(() => {
+    addressPickerFocusTimer = null;
+    els.searchInput.focus({ preventScroll: true });
+    if (els.searchInput.value.trim().length >= 2) scheduleAddressPickerSearch();
+  }, 60);
+}
 
-  function scheduleSearch() {
-    clearTimeout(schedAddressSearchTimer);
-    const q = addressInput.value.trim();
-    if (!q) {
-      setDropdownOpen(false);
-      dropdown.innerHTML = '';
-      return;
-    }
-    schedAddressSearchTimer = setTimeout(runSearch, 300);
-  }
+/**
+ * Address autocomplete via bottom sheet (avoids fixed-dropdown / keyboard
+ * positioning bugs). `dropdownPortal` is ignored — kept for call-site compat.
+ */
+function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
+  if (!addressInput) return () => {};
+  if (!ensureAddressPickerSheet()) return () => {};
 
-  const onInput = () => {
-    if (addressInput.dataset.autocompletePick) return;
-    scheduleSearch();
-  };
-  const onBlur = () => {
-    setTimeout(() => {
-      if (!dropdown.contains(document.activeElement)) setDropdownOpen(false);
-    }, 150);
-  };
+  const open = () => openAddressPickerSheet(addressInput, onPick);
+  const onFocus = () => open();
+  const onClick = () => open();
 
+  const wasReadOnly = addressInput.readOnly;
+  const prevInputMode = addressInput.getAttribute('inputmode');
+  addressInput.readOnly = true;
+  addressInput.setAttribute('inputmode', 'none');
   addressInput.autocomplete = 'off';
   addressInput.setAttribute('role', 'combobox');
+  addressInput.setAttribute('aria-haspopup', 'dialog');
   addressInput.setAttribute('aria-autocomplete', 'list');
   addressInput.setAttribute('aria-expanded', 'false');
-  addressInput.addEventListener('input', onInput);
-  addressInput.addEventListener('blur', onBlur);
-  const detachKeyNav = attachAutosuggestKeyboardNav(addressInput, dropdown, {
-    optionSelector: '.sched-guest-option',
-    onClose: () => setDropdownOpen(false),
-  });
+  addressInput.setAttribute('aria-controls', 'address-picker-list');
+  addressInput.addEventListener('focus', onFocus);
+  addressInput.addEventListener('click', onClick);
 
   return () => {
-    clearTimeout(schedAddressSearchTimer);
-    if (clearPickFlagTimer) clearTimeout(clearPickFlagTimer);
-    addressInput.removeEventListener('input', onInput);
-    addressInput.removeEventListener('blur', onBlur);
-    detachKeyNav();
-    setDropdownOpen(false);
-    dropdown.remove();
+    addressInput.removeEventListener('focus', onFocus);
+    addressInput.removeEventListener('click', onClick);
+    addressInput.readOnly = wasReadOnly;
+    if (prevInputMode == null) addressInput.removeAttribute('inputmode');
+    else addressInput.setAttribute('inputmode', prevInputMode);
+    addressInput.removeAttribute('aria-haspopup');
+    addressInput.removeAttribute('aria-controls');
+    addressInput.setAttribute('aria-expanded', 'false');
+    if (addressPickerBinding?.addressInput === addressInput) {
+      addressPickerSuppressOpen = true;
+      window.IosSheet?.close(ADDRESS_PICKER_ID);
+      addressPickerBinding = null;
+      setTimeout(() => {
+        addressPickerSuppressOpen = false;
+      }, 400);
+    }
   };
 }
 
@@ -1287,7 +1370,7 @@ function openScheduleCreateDialog(initial = {}) {
       resolve(value);
     };
     const onKey = (evKey) => {
-      if (evKey.key === 'Escape') finish(false);
+      if (evKey.key === 'Escape' && !isAddressPickerSheetOpen()) finish(false);
     };
 
     titleEl.textContent = 'New event';
@@ -2159,6 +2242,7 @@ export {
   rememberScheduleAddress,
   mountScheduleAddressAutocomplete,
   isScheduleAddressError,
+  isAddressPickerSheetOpen,
   ensureScheduleAddress,
   scheduleDateKey,
   openScheduleCreateDialog,

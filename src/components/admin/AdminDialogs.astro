@@ -38,3 +38,24 @@ import IosBottomSheet from '../IosBottomSheet.astro';
   <div class="reave-share-actions" id="reave-share-actions"></div>
   <p class="reave-share-status" id="reave-share-status" hidden role="status"></p>
 </IosBottomSheet>
+
+<IosBottomSheet
+  id="address-picker-backdrop"
+  title="Address"
+  titleId="address-picker-title"
+  dismissible={true}
+  class="address-picker-sheet"
+  sheetClass="address-picker-panel"
+  bodyClass="address-picker-body"
+>
+  <input
+    id="address-picker-search"
+    class="address-picker-search"
+    type="search"
+    placeholder="Business or street address"
+    autocomplete="off"
+    autocapitalize="words"
+    enterkeyhint="search"
+  />
+  <div id="address-picker-list" class="address-picker-list" role="listbox" aria-labelledby="address-picker-title"></div>
+</IosBottomSheet>
