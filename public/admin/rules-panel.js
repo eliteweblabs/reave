@@ -50,7 +50,7 @@ import {
   createEmailTriageLab,
   formatRuleWhenClause,
   formatRuleLabMeta,
-} from './email-triage-lab.js?v=20260812g';
+} from './email-triage-lab.js?v=20260812h';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
