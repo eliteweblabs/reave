@@ -2,7 +2,12 @@
  * Email triage Lab — compose a message, drag rule priority, play the same
  * processInboundEmail dry-run the Agent uses (POST /api/email/simulate).
  */
-import { iosIcon } from './admin-ui.js?v=20260812d';
+import {
+  iosIcon,
+  listSearchSubheader,
+  createSlidingPillSelect,
+  matchesListSearch,
+} from './admin-ui.js?v=20260812e';
 import { escHtml } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260728q';
 
@@ -125,6 +130,58 @@ export function createEmailTriageLab(deps) {
   function orderedRules() {
     const byId = new Map((ruleState().rules || []).map((r) => [r.id, r]));
     return state.ruleOrder.map((id) => byId.get(id)).filter(Boolean);
+  }
+
+  function isRulesFilterActive() {
+    const rs = ruleState();
+    return Boolean(String(rs.search || '').trim()) || (rs.scopeFilter && rs.scopeFilter !== 'all');
+  }
+
+  function ruleMatchesLabFilter(rule) {
+    if (!rule) return false;
+    const rs = ruleState();
+    // Keep the open accordion visible while filtering.
+    if (rs.activeId != null && String(rule.id) === String(rs.activeId)) return true;
+    if (rs.scopeFilter === 'universal' && rule.scope !== 'universal') return false;
+    if (rs.scopeFilter === 'personal' && rule.scope === 'universal') return false;
+    return matchesListSearch(
+      rs.search,
+      rule.title,
+      rule.status,
+      rule.description,
+      rule.scope === 'universal' ? 'Universal' : 'Personal',
+      rule.forwardTo,
+      rule.notify ? 'Notify' : 'Silent',
+      ...(rule.phrases || []),
+      ...(rule.exceptPhrases || []),
+    );
+  }
+
+  function applyRulesFilter(root = deps.getRuleEditor()) {
+    if (!root) return;
+    const cards = [...root.querySelectorAll('.re-lab-pipe-card--rule')];
+    let visible = 0;
+    for (const card of cards) {
+      const rule = orderedRules().find((r) => String(r.id) === String(card.dataset.ruleId));
+      const show = ruleMatchesLabFilter(rule);
+      card.hidden = !show;
+      if (show) visible += 1;
+    }
+    const empty = root.querySelector('[data-lab-rules-empty]');
+    if (empty) {
+      empty.hidden = visible > 0;
+      empty.textContent = isRulesFilterActive() ? 'No matching rules.' : 'No rules yet.';
+    }
+    const filterActive = isRulesFilterActive();
+    root.querySelectorAll('.re-lab-pipe-card--rule .re-lab-grip').forEach((grip) => {
+      grip.disabled = filterActive;
+      grip.title = filterActive ? 'Clear filter to reorder' : 'Drag to reorder';
+    });
+    const searchInput = root.querySelector('.re-lab-rules-filter .panel-list-search');
+    if (searchInput instanceof HTMLInputElement) {
+      const n = orderedRules().length;
+      searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
+    }
   }
 
   async function ensureContacts(q = '') {
@@ -422,6 +479,7 @@ export function createEmailTriageLab(deps) {
         }
       }
     });
+    applyRulesFilter(root);
   }
 
   function attachRuleReorder(listEl) {
@@ -432,8 +490,9 @@ export function createEmailTriageLab(deps) {
       grip.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
+        if (isRulesFilterActive() || grip.disabled) return;
         const row = grip.closest('.re-lab-pipe-card');
-        if (!row || row.dataset.locked === '1') return;
+        if (!row || row.dataset.locked === '1' || row.hidden) return;
         dragEl = row;
         moved = false;
         row.classList.add('re-lab-dragging');
@@ -950,6 +1009,41 @@ export function createEmailTriageLab(deps) {
         continue;
       }
       if (fn.id === 'rules') {
+        const filterBar = document.createElement('div');
+        filterBar.className = 're-lab-rules-filter';
+        const ruleCount = orderedRules().length;
+        const search = listSearchSubheader({
+          itemCount: ruleCount,
+          search: {
+            value: ruleState().search || '',
+            placeholder: `Search ${ruleCount} ${ruleCount === 1 ? 'Rule' : 'Rules'}`,
+            ariaLabel: 'Filter rules by title, status, or keywords',
+            onInput: (value) => {
+              ruleState().search = value;
+              applyRulesFilter(root);
+            },
+          },
+        });
+        if (search?.el) filterBar.appendChild(search.el);
+        const scopeFilter = createSlidingPillSelect({
+          value: ruleState().scopeFilter || 'all',
+          ariaLabel: 'Filter by rule scope',
+          options: [
+            { value: 'all', label: 'All' },
+            { value: 'universal', label: 'Universal' },
+            { value: 'personal', label: 'Personal' },
+          ],
+          onChange: (value) => {
+            ruleState().scopeFilter = value;
+            applyRulesFilter(root);
+          },
+        });
+        const scopeBar = document.createElement('div');
+        scopeBar.className = 're-scope-filter re-lab-scope-filter';
+        scopeBar.appendChild(scopeFilter.el);
+        filterBar.appendChild(scopeBar);
+        pipeList.appendChild(filterBar);
+
         const spine = document.createElement('div');
         spine.className = 're-flow-spine';
         spine.textContent = '↓ keyword rules (drag to reorder)';
@@ -1003,6 +1097,13 @@ export function createEmailTriageLab(deps) {
           card.append(head, accordionBody);
           pipeList.appendChild(card);
         });
+
+        const rulesEmpty = document.createElement('div');
+        rulesEmpty.className = 'de-empty';
+        rulesEmpty.dataset.labRulesEmpty = '1';
+        rulesEmpty.textContent = 'No rules yet.';
+        rulesEmpty.hidden = orderedRules().length > 0;
+        pipeList.appendChild(rulesEmpty);
 
         const elseCard = document.createElement('div');
         elseCard.className = 're-lab-pipe-card re-lab-pipe-card--else re-lab-pipe-card--agent';
@@ -1151,6 +1252,7 @@ export function createEmailTriageLab(deps) {
     root.appendChild(shellEl);
     syncPlayButtons();
     syncExpandedRule(root);
+    applyRulesFilter(root);
     void ensureContacts();
   }
 

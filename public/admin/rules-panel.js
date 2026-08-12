@@ -46,8 +46,8 @@ import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
-import { createEmailTriageLab } from './email-triage-lab.js?v=20260812d';
-import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812d';
+import { createEmailTriageLab } from './email-triage-lab.js?v=20260812e';
+import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};

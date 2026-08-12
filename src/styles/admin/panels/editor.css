@@ -1685,6 +1685,18 @@ button.de-placeholder-action:active {
 .re-lab-pipeline {
   border-left: none;
 }
+.re-lab-rules-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.15rem 0 0.35rem;
+}
+.re-lab-rules-filter .panel-list-subheader {
+  padding: 0;
+}
+.re-lab-scope-filter {
+  padding: 0;
+}
 .re-lab-play {
   border-bottom: none;
   border-top: 1px solid var(--panel-border);
