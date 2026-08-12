@@ -601,7 +601,7 @@ export const emailInboxModule: AgentToolModule = {
                   },
                   title: {
                     type: 'string',
-                    description: 'Optional rule title shown in admin Rules UI',
+                    description: 'Optional rule title shown in admin Email Lab',
                   },
                   status: {
                     type: 'string',

@@ -89,7 +89,7 @@ export const RULE_NOTIFY_ACTION_LABELS: Record<RuleNotifyAction, string> = {
   activate: 'Activate',
   explain: 'Explain',
   expense: 'Expense',
-  rules: 'Rules',
+  rules: 'Email Lab',
 };
 
 export interface EmailRule {

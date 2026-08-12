@@ -257,7 +257,7 @@ import {
   ruleState,
   loadRulesTab,
   openRulesLabWithEmail,
-} from './rules-panel.js?v=20260812h';
+} from './rules-panel.js?v=20260812i';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -329,7 +329,7 @@ const MAP_ICON_KEYS = {
   knowledge: 'book-open',
   chats: 'agent',
   email: 'mail',
-  rules: 'zap',
+  rules: 'flask',
   newsletter: 'send',
   work: 'briefcase',
   schedule: 'calendar',
@@ -412,6 +412,7 @@ const LEGACY_EMOJI_ICON = {
   '💬': 'agent',
   '📋': 'file-text',
   '⚡': 'zap',
+  '🧪': 'flask',
   '📚': 'book-open',
   '🔧': 'wrench',
   '👥': 'users',
@@ -442,6 +443,7 @@ const NAV_ICON_PATHS = {
   'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
   'book-open': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
   zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  flask: '<path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
   briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
   calendar: '<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
   'calendar-check':
@@ -3032,7 +3034,7 @@ async function explainUncertainEmailFromAlert(item, btn) {
   }
 }
 
-/** Open Rules Flow with this notification’s email prefilled in Try-an-email. */
+/** Open Email Lab with this notification’s email prefilled in Try-an-email. */
 async function openRulesLabFromNotification(item, btn) {
   const emailId = String(item?.emailId || '').trim();
   if (!emailId) return;
@@ -3054,7 +3056,7 @@ async function openRulesLabFromNotification(item, btn) {
   } catch (e) {
     console.warn('[rules] open from notification failed', e);
     await osAlert({
-      title: 'Could not open Rules',
+      title: 'Could not open Email Lab',
       bodyHtml: escHtml(e?.message || String(e)),
     });
   } finally {
@@ -4074,7 +4076,7 @@ function buildReviewAlertBanner(item) {
     archive: 'Archive',
     view: 'View',
     open: 'View',
-    rules: 'Rules',
+    rules: 'Email Lab',
   };
   const pushNotifyAction = (key, extras = {}) => {
     const { label, primary, iconKey, ...rest } = extras;
@@ -4311,7 +4313,7 @@ function buildReviewAlertBanner(item) {
     });
   }
 
-  // Agent → Rules Flow with this email prefilled in Try-an-email.
+  // Agent → Email Lab with this email prefilled in Try-an-email.
   if (
     item.emailId &&
     (isPushAlert ||
@@ -4324,7 +4326,7 @@ function buildReviewAlertBanner(item) {
       isEmailAutomationReview(item) ||
       emailAwaitingTriage)
   ) {
-    const already = actions.some((a) => a.label === 'Rules');
+    const already = actions.some((a) => a.label === 'Email Lab' || a.label === 'Rules');
     if (!already) {
       pushNotifyAction('rules', {
         primary: false,
@@ -13655,6 +13657,7 @@ function loadPositions() {
 /** Legacy tab key from older installs / deep links. */
 function resolveMapKey(key) {
   if (key === 'home') return 'dashboard';
+  if (key === 'email-lab' || key === 'lab') return 'rules';
   return key;
 }
 

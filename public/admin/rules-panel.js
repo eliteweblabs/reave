@@ -865,7 +865,7 @@ function renderRuleEditPane(pane, opts = {}) {
     ['activate', 'Activate'],
     ['explain', 'Explain'],
     ['expense', 'Expense'],
-    ['rules', 'Rules'],
+    ['rules', 'Email Lab'],
   ];
   const actionCbs = [];
   for (const [val, lab] of actionDefs) {

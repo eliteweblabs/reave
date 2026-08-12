@@ -5,7 +5,7 @@
  *
  * Run: npm run check:email-triage
  *
- * For full pipeline dry-runs (contacts / AI / notify), use Admin → Rules → Flow
+ * For full pipeline dry-runs (contacts / AI / notify), use Admin → Email Lab
  * or POST /api/email/simulate with skipGates.
  */
 import assert from 'node:assert/strict';

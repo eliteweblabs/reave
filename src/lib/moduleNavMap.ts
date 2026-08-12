@@ -49,7 +49,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   knowledge: 'Knowledge',
   chats: 'Sessions',
   email: 'Inbox',
-  rules: 'Rules',
+  rules: 'Email Lab',
   newsletter: 'Newsletter',
   work: 'Projects',
   schedule: 'Schedule',
