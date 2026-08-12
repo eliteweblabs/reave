@@ -423,7 +423,7 @@ function syncClientDeepLinkUrl(uid) {
 }
 
 function ensureClientMobilePaneOpen() {
-  if (!shell.isMobileTabs() || !clientState.activeUid) return;
+  if (!shell.isAdminPaneMobile?.() || !clientState.activeUid) return;
   getClientsEditor()?.classList.add('de-pane-active');
 }
 
@@ -527,7 +527,7 @@ async function loadClientsTab(opts = {}) {
   }
 
   renderClientsEditor();
-  if (clientState.activeUid && shell.isMobileTabs()) getClientsEditor()?.classList.add('de-pane-active');
+  if (clientState.activeUid && shell.isAdminPaneMobile?.()) getClientsEditor()?.classList.add('de-pane-active');
 }
 
 function scheduleClientSearch() {

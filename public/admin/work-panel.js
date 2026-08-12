@@ -3289,7 +3289,7 @@ function renderEditWorkForm(pane) {
 }
 
 function activateWorkPaneOnMobile() {
-  if (workState.activeSlug && shell.isMobileTabs?.()) {
+  if (workState.activeSlug && shell.isAdminPaneMobile?.()) {
     getWorkEditor()?.classList.add('de-pane-active');
   }
 }

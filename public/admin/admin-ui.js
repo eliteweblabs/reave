@@ -773,7 +773,7 @@ export function createSlidingPillSelect(opts = {}) {
     ariaLabel = '',
     onChange,
     className = '',
-    scrollable = options.length >= 4,
+    scrollable = options.length >= 3,
   } = opts;
 
   const wrap = document.createElement('div');
@@ -1472,7 +1472,14 @@ const SIDEBAR_PANEL_IDS = [
   'schedule-panel',
   'todo-editor',
 ];
-const SIDEBAR_MQ = window.matchMedia('(min-width: 640px)');
+/** Below 1024px, list/detail editors use single-pane navigation (not side-by-side). */
+export const ADMIN_SPLIT_VIEW_MQ = window.matchMedia('(min-width: 1024px)');
+export const ADMIN_PANE_MQ = window.matchMedia('(max-width: 1023px)');
+const SIDEBAR_MQ = ADMIN_SPLIT_VIEW_MQ;
+
+export function isAdminPaneMobile() {
+  return ADMIN_PANE_MQ.matches;
+}
 
 let _sidebarDrag = null;
 

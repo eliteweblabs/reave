@@ -79,6 +79,8 @@ import {
   initSidebarLayout,
   syncAdminSplitView,
   scanPanelSidebars,
+  isAdminPaneMobile,
+  ADMIN_PANE_MQ,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   createSwipeRow,
@@ -106,7 +108,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260811a';
+} from './admin-ui.js?v=20260812a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -10188,6 +10190,7 @@ initClientsPanel({
   createPortalShareBtn,
   askAgentWithPrompt,
   isMobileTabs,
+  isAdminPaneMobile,
   MAP,
   activeKey,
   navIcon,
@@ -10266,6 +10269,7 @@ initWorkPanel({
   showChatToast,
   copyChatText,
   isMobileTabs,
+  isAdminPaneMobile,
 });
 
 function buildAgentContentPrompt(intro, metaLines, body) {
@@ -13740,7 +13744,7 @@ async function boot() {
   initKeyboardShortcuts();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
-  MOBILE_TABS_MQ.addEventListener('change', () => {
+  ADMIN_PANE_MQ.addEventListener('change', () => {
     syncAdminSplitView(MAP?.type);
     scanPanelSidebars();
   });
