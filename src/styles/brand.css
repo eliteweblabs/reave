@@ -84,17 +84,16 @@
  * Full-width brand chevron pattern overlay (ReaveBgPattern.astro).
  * One inline SVG instance — uniform scale only (preserveAspectRatio meet/slice).
  *
- * Absolute (document-attached), not position:fixed. Full-viewport fixed layers
- * sit on both iPhone Safari edges and trigger opaque forehead/chin letterbox
- * bars (WebKit scroll-pocket sampling). Mesh gradients are painted on body.
+ * Viewport-fixed (a6c0532f) so the chevrons stay put while the page scrolls.
+ * Inset past iPhone Safari’s ~4px/~3px edge-sample band so Liquid Glass does
+ * not letterbox a full-bleed fixed layer. Mesh stays on body background-image.
  */
 .reave-bg-pattern {
-  position: absolute;
-  inset: 0;
-  min-height: 100%;
-  /* Cover the large viewport when body grows with a 100lvh hero. */
-  min-height: 100lvh;
-  min-height: var(--device-height, 100lvh);
+  position: fixed;
+  top: 5px;
+  right: 0;
+  bottom: 4px;
+  left: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -106,27 +105,6 @@
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/** 2×2 half-size grid — each tile cover-fills its cell (50% smaller chevrons). */
-.reave-bg-pattern--tiles-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  place-items: stretch;
-}
-
-.reave-bg-pattern__tile {
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-}
-
-.reave-bg-pattern__tile .reave-bg-pattern__svg {
-  width: 100%;
-  height: 100%;
 }
 
 /**
