@@ -154,7 +154,6 @@ function getTriageLab() {
         ruleState.storage = data.storage || 'files';
       },
       createRulesViewPicker,
-      openProposedRule: (proposed) => void openProposedRuleEditor(proposed),
       inboundAddressExample: () =>
         String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
         'inbox@inbound.example.com',
@@ -691,13 +690,13 @@ function renderRulesFlowShell(root) {
     <span class="re-flow-node re-flow-node--when re-flow-node--else">
       <span class="re-flow-badge">Else</span>
       <span class="re-flow-title">Agent</span>
-      <span class="re-flow-sub">No match → agent fills a rule form</span>
+      <span class="re-flow-sub">No match → agent handles this mail</span>
     </span>
     <span class="re-flow-arrow" aria-hidden="true">→</span>
     <span class="re-flow-node re-flow-node--then re-flow-node--alert">
       <span class="re-flow-badge">Then</span>
-      <span class="re-flow-title">Propose rule</span>
-      <span class="re-flow-sub">Same fields as Rules · owner accepts</span>
+      <span class="re-flow-title">Classify / notify</span>
+      <span class="re-flow-sub">Teach from dashboard if wrong → new rule</span>
     </span>`;
   scroll.appendChild(elseRow);
   shellEl.appendChild(scroll);
@@ -1294,53 +1293,6 @@ async function deleteRule(id) {
     await loadRulesTab();
   } catch (e) {
     alert(`Delete failed: ${e.message}`);
-  }
-}
-
-async function openProposedRuleEditor(proposed) {
-  if (!proposed || typeof proposed !== 'object') return;
-  armTitleFocus('rules');
-  if (ruleState.dirty && !(await confirmDiscardChanges())) {
-    cancelTitleFocus();
-    return;
-  }
-  try {
-    const channels = {
-      notifyPush: proposed.notifyPush != null ? !!proposed.notifyPush : !!proposed.notify,
-      notifyDashboard:
-        proposed.notifyDashboard != null ? !!proposed.notifyDashboard : !!proposed.notify,
-    };
-    const res = await fetch('/api/email/rules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: String(proposed.title || 'Agent proposal').slice(0, 120),
-        status: String(proposed.status || 'REVIEW').slice(0, 64),
-        description: proposed.description || proposed.reason || 'Drafted by agent when no rule matched',
-        phrases: Array.isArray(proposed.phrases) ? proposed.phrases : [],
-        exceptPhrases: Array.isArray(proposed.exceptPhrases) ? proposed.exceptPhrases : [],
-        matchMode: proposed.matchMode === 'all' ? 'all' : 'any',
-        fields: Array.isArray(proposed.fields) && proposed.fields.length
-          ? proposed.fields
-          : ['subject', 'body'],
-        notify: channels.notifyPush || channels.notifyDashboard,
-        notifyPush: channels.notifyPush,
-        notifyDashboard: channels.notifyDashboard,
-        notifyActions: Array.isArray(proposed.notifyActions) ? proposed.notifyActions : ['view', 'archive'],
-        enabled: true,
-        expiresAt: null,
-        forwardTo: proposed.forwardTo || null,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    await loadRulesTab();
-    // Stay on Flow; open the new rule in List for the form, or switch briefly.
-    setRulesView('list');
-    openRuleEditor(data.rule.id);
-  } catch (e) {
-    cancelTitleFocus();
-    alert(`Could not open proposed rule: ${e.message}`);
   }
 }
 

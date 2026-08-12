@@ -52,8 +52,6 @@ export type SimulateInboundEmailResult = {
   steps: TriagePlaybackStep[];
   ruleEvaluations: RuleEvaluation[];
   classificationAudit: ClassificationAuditStep[];
-  /** Agent-drafted rule when nothing in the ladder matched. */
-  proposedRule?: import('./emailProposeRule').ProposedEmailRule | null;
   /** Rules in the order used for this simulation (after optional override). */
   rulesUsed: Array<Pick<EmailRuleRecord, 'id' | 'title' | 'status' | 'sortOrder' | 'enabled' | 'notify'>>;
 };
@@ -299,24 +297,18 @@ function stepsFromAuditAndResult(
 
   if (!result.ruleEvaluations?.some((e) => e.outcome === 'matched')) {
     steps.push({
-      id: 'fn-agent-rule',
-      stage: 'agent_rule',
-      label: 'Agent (no rule matched)',
+      id: 'fn-agent-else',
+      stage: 'agent_else',
+      label: 'Agent (else)',
       kind: 'function',
-      status: result.proposedRule ? 'would' : 'ran',
-      decision: result.proposedRule
-        ? `Propose rule → ${result.proposedRule.title}`
-        : 'No keyword rule matched — propose a triage rule',
-      detail: result.proposedRule
-        ? [
-            result.proposedRule.status,
-            result.proposedRule.notify ? 'Notify' : 'Silent',
-            (result.proposedRule.phrases || []).slice(0, 4).map((p) => `"${p}"`).join(', '),
-            result.proposedRule.reason,
-          ]
-            .filter(Boolean)
-            .join(' · ')
-        : 'AI draft unavailable',
+      status: result.needsExplain ? 'would' : 'ran',
+      decision: result.needsExplain
+        ? 'Agent uncertain — Explain banner'
+        : result.aiClassify
+          ? `Agent handled → ${result.aiClassify.label} (${Math.round(result.aiClassify.confidence * 100)}%)`
+          : 'Agent handles unmatched mail',
+      detail:
+        'No keyword rule matched. Teach/correct from the dashboard only if this should become a permanent rule.',
     });
   }
 
@@ -465,7 +457,6 @@ export async function simulateInboundEmail(
     steps,
     ruleEvaluations: ruleEvals,
     classificationAudit: result.classificationAudit || [],
-    proposedRule: result.proposedRule ?? null,
     rulesUsed: rulesForClassify.map((r) => ({
       id: r.id,
       title: r.title,

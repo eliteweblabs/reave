@@ -28,7 +28,6 @@ import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
 import { detectMeetingFollowUp } from './emailMeetingFollowup';
 import { attendeeFromEmail, buildNewProjectAckEmail, formatMeetingWhenLabel, parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
-import { proposeEmailFilterRule } from './emailProposeRule';
 import { sendInboxPushNotification } from './webPush';
 import {
   notifyAdminAgentOfEmailAlert,
@@ -116,8 +115,6 @@ export interface ProcessedEmailResult {
   verificationCode?: string | null;
   actionUrl?: string | null;
   needsExplain?: boolean;
-  /** When no keyword rule matched — agent-drafted rule for the owner to accept. */
-  proposedRule?: import('./emailProposeRule').ProposedEmailRule | null;
   wouldNotify?: boolean;
   wouldAgentAlert?: boolean;
   wouldForwardTo?: string | null;
@@ -1346,25 +1343,16 @@ export async function processInboundEmail(
 
   let inboxRecord: EmailInboxRecord | null = null;
 
-  // Last ladder step: no keyword rule → agent drafts a rule (same form as Admin → Rules).
-  let proposedRule: import('./emailProposeRule').ProposedEmailRule | null = null;
+  // No keyword rule → agent (AI classify / Explain) handles this mail.
+  // Rules are only added when the owner teaches/corrects — not auto-drafted here.
   if (ruleResult.matched == null) {
-    proposedRule = await proposeEmailFilterRule(email).catch((e) => {
-      console.warn('[email] propose rule failed', e);
-      return null;
-    });
-    if (proposedRule) {
-      pushAudit(
-        'agent',
-        `Proposed rule: ${proposedRule.title}`,
-        proposedRule.reason || `${proposedRule.status} · ${(proposedRule.phrases || []).slice(0, 3).join(', ')}`,
-      );
-      if (dryRun) {
-        pushAudit('agent', 'Would open rule form for owner to accept', proposedRule.status);
-      }
-    } else {
-      pushAudit('agent', 'No keyword rule matched — agent rule proposal unavailable');
-    }
+    pushAudit(
+      'agent',
+      needsExplain
+        ? 'No keyword rule — agent triage (uncertain → Explain)'
+        : 'No keyword rule — agent handles this message',
+      'Teach/correct from the dashboard if this should become a permanent rule',
+    );
   }
 
   if (dryRun) {
@@ -1821,7 +1809,6 @@ export async function processInboundEmail(
     verificationCode,
     actionUrl: isAuthLink ? authActionUrl : null,
     needsExplain,
-    proposedRule,
     wouldNotify,
     wouldAgentAlert: Boolean(automationKind) || isProjectReply || agentWillAlert,
     wouldForwardTo: forwardTo,

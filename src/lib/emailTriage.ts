@@ -198,13 +198,13 @@ export function feedbackActionLabel(action: EmailTriageFeedbackAction): string {
 export function feedbackActionDescription(action: EmailTriageFeedbackAction): string {
   switch (action) {
     case 'expected':
-      return 'Auto-file similar mail without notifying you.';
+      return 'Auto-file similar mail without notifying you (creates a quiet rule).';
     case 'important':
-      return 'Always push and surface similar mail for review.';
+      return 'Always push and surface similar mail for review (creates an alert rule).';
     case 'ignore':
-      return 'Suppress similar mail entirely.';
+      return 'Suppress similar mail entirely (creates a silent DELETE rule).';
     case 'teach':
-      return 'Save a note to knowledge and alert for similar cases.';
+      return 'Save a note to knowledge and create an alert rule for similar cases.';
     default:
       return '';
   }
