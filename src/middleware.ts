@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "astro";
-import { clerkMiddleware } from "@clerk/astro/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
 import { isModuleRuntimeAllowed } from "./lib/deployModuleStatus";
 import {
@@ -34,6 +34,21 @@ function maybePruneRateLimitStore(): void {
 function isHealthLiveProbe(pathname: string): boolean {
   return pathname.replace(/\/$/, "") === "/api/health/live";
 }
+
+/** Admin HTML sub-pages that require a session (not the main PWA shell). */
+const isProtectedAdminPage = createRouteMatcher([
+  "/admin/doc(.*)",
+  "/admin/profile(.*)",
+  "/admin/components(.*)",
+  // /admin/client-map is public (noindex, unlinked) — see client-map.astro
+  "/admin/visit-plan(.*)",
+]);
+
+/** PWA assets must be fetchable without a session (manifest, install flow). */
+const isPublicAdminAsset = createRouteMatcher([
+  "/admin/manifest.webmanifest",
+  "/admin/sw.js",
+]);
 
 /** Service worker scripts must revalidate every load so fixes reach installed PWAs. */
 function isServiceWorkerScript(pathname: string): boolean {
@@ -85,7 +100,7 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
   "/services": "contact",
 };
 
-const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
+const appMiddleware = clerkMiddleware(async (auth, context, next) => {
   maybePruneRateLimitStore();
   const url = new URL(context.request.url);
   const { pathname } = url;
@@ -198,8 +213,15 @@ const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
     }
   }
 
-  // Auth gates for admin sub-pages live on each route (Clerk Astro v4 removed
-  // createRouteMatcher). clerkMiddleware still hydrates locals.auth().
+  if (isProtectedAdminPage(context.request) && !isPublicAdminAsset(context.request)) {
+    const { userId } = auth();
+    if (!userId) {
+      const returnTo = encodeURIComponent(pathname + new URL(context.request.url).search);
+      return applySecurityHeaders(
+        context.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`),
+      );
+    }
+  }
 
   const response = await next();
   if (isServiceWorkerScript(pathname) || isAdminHotReloadAsset(pathname)) {
