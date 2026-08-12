@@ -412,14 +412,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     flex-direction: column;
     gap: 18px;
     padding-bottom: 2px;
-    opacity: 1;
-    /* Duration set from JS (see --hero-scene-exit-ms / SCENE_EXIT_MS). */
-    transition: opacity var(--hero-scene-exit-ms, 350ms) ease;
   }
 
+  /* Marker only — per-message opacity is staggered in heroDemoLoop.ts. */
   .home-hero-demo-scene--exit {
-    opacity: 0;
-    transition: opacity var(--hero-scene-exit-ms, 350ms) ease;
+    pointer-events: none;
   }
 
   .home-hero-demo-msg {

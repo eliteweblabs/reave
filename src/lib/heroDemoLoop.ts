@@ -42,6 +42,8 @@ const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
 /** Outro fade when a mock conversation ends — keep in sync with CSS. */
 const SCENE_EXIT_MS = 350;
+/** Delay between each bubble when the outro runs bottom → top. */
+const SCENE_EXIT_STAGGER_MS = 150;
 /** Dwell after action chips appear (all idle) before the hover scan starts. */
 const ACTION_APPEAR_MS = 700;
 /** How long each chip stays “hovered” during a random hop. */
@@ -2029,10 +2031,10 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
   }
 
   /*
-   * Fade the bubbles themselves. A scene-level class toggle was easy to miss —
-   * the depth pass already writes inline opacity on each message, so dissolving
-   * those values to 0 is what actually reads as an outro. Pin each bubble's
-   * current opacity with transition disabled, reflow, then ease to 0 over 350ms.
+   * Fade the bubbles themselves, bottom → top with a stagger. A scene-level
+   * opacity toggle would dissolve everything at once — the depth pass already
+   * writes inline opacity on each message, so pin those values, reflow, then
+   * ease each row to 0 with an increasing delay.
    */
   const ms = SCENE_EXIT_MS;
   const messages = Array.from(sceneEl.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
@@ -2047,8 +2049,11 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
   }
   void sceneEl.offsetWidth;
 
-  for (const msg of messages) {
-    msg.style.transition = `opacity ${ms}ms ease`;
+  const bottomUp = [...messages].reverse();
+  for (let i = 0; i < bottomUp.length; i++) {
+    const msg = bottomUp[i]!;
+    const delay = i * SCENE_EXIT_STAGGER_MS;
+    msg.style.transition = `opacity ${ms}ms ease ${delay}ms`;
     msg.style.opacity = "0";
   }
 
@@ -2061,11 +2066,14 @@ function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
     sceneEl.style.opacity = "0";
   }
 
+  const totalMs =
+    messages.length > 0 ? ms + (messages.length - 1) * SCENE_EXIT_STAGGER_MS : ms;
+
   return new Promise((resolve) => {
     window.setTimeout(() => {
       sceneEl.remove();
       resolve();
-    }, ms);
+    }, totalMs);
   });
 }
 
