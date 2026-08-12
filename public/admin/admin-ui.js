@@ -94,6 +94,8 @@ let _agentIconClipSeq = 0;
  * Hat-glasses agent icon.
  * Right eye winks on hover via clipped lid rects; both eyes close when
  * `html.reave-agent-asleep` is set (sleep mode) — see .agent-icon CSS.
+ * Sleep mode swaps the day hat for a floppy sock nightcap; waking plays a
+ * brief hat-swap via `html.reave-agent-waking` (push-client).
  */
 export function agentIconSvg(size = 20) {
   const seq = ++_agentIconClipSeq;
@@ -106,7 +108,16 @@ export function agentIconSvg(size = 20) {
     `<clipPath id="${clipRight}"><circle cx="17" cy="18" r="3"/></clipPath>` +
     `</defs>` +
     '<path d="M14 18a2 2 0 0 0-4 0"/>' +
+    /* Day fedora — hidden while asleep / flying on during wake swap */
+    '<g class="agent-hat-day">' +
     '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +
+    '</g>' +
+    /* Sock nightcap + pom — shown while asleep / tossed off on wake */
+    '<g class="agent-hat-sleep">' +
+    '<path d="M5 11c1.1-5.4 3.9-7.9 7.2-7.9s6.1 2.5 7.2 7.9"/>' +
+    '<path d="M15.2 3.9c1.9-.9 4.1-.4 5.6 1.9"/>' +
+    '<circle cx="21.3" cy="6.2" r="1.2"/>' +
+    '</g>' +
     '<path d="M2 11h20"/>' +
     '<circle cx="7" cy="18" r="3"/>' +
     '<circle cx="17" cy="18" r="3"/>' +

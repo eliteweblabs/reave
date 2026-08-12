@@ -925,6 +925,67 @@
   0%, 100% { transform: translateY(3px); }
   45%, 55% { transform: translateY(0); }
 }
+/* Wake: toss the sock nightcap, drop the day hat back on. */
+@keyframes agent-hat-sleep-off {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(5px, -7px) rotate(22deg) scale(0.55);
+  }
+}
+@keyframes agent-hat-day-on {
+  0% {
+    opacity: 0;
+    transform: translate(0, -9px) rotate(-8deg) scale(0.65);
+  }
+  62% {
+    opacity: 1;
+    transform: translate(0, 1px) rotate(2deg) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+}
+.agent-icon .agent-hat-day,
+.agent-icon .agent-hat-sleep {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.agent-icon .agent-hat-sleep {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.agent-icon .agent-hat-day {
+  opacity: 1;
+  visibility: visible;
+}
+/* Sleep mode: sock nightcap on, day hat off. */
+html.reave-agent-asleep .agent-icon .agent-hat-day {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.reave-agent-asleep .agent-icon .agent-hat-sleep {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: none;
+}
+/* Waking: brief hat swap (html.reave-agent-waking from push-client). */
+html.reave-agent-waking .agent-icon .agent-hat-sleep {
+  visibility: visible;
+  pointer-events: none;
+  animation: agent-hat-sleep-off 0.42s ease-in forwards;
+}
+html.reave-agent-waking .agent-icon .agent-hat-day {
+  visibility: visible;
+  pointer-events: none;
+  animation: agent-hat-day-on 0.5s ease-out forwards;
+}
 .agent-icon .agent-eye-lid-top,
 .agent-icon .agent-eye-lid-left-top {
   transform: translateY(-3px);
@@ -997,8 +1058,18 @@ html.reave-agent-asleep
   .agent-icon .agent-eye-lid-top,
   .agent-icon .agent-eye-lid-bottom,
   .agent-icon .agent-eye-lid-left-top,
-  .agent-icon .agent-eye-lid-left-bottom {
+  .agent-icon .agent-eye-lid-left-bottom,
+  html.reave-agent-waking .agent-icon .agent-hat-sleep,
+  html.reave-agent-waking .agent-icon .agent-hat-day {
     animation: none !important;
+  }
+  html.reave-agent-waking .agent-icon .agent-hat-sleep {
+    opacity: 0;
+    visibility: hidden;
+  }
+  html.reave-agent-waking .agent-icon .agent-hat-day {
+    opacity: 1;
+    visibility: visible;
   }
 }
 .em-btn-group-segment.em-agent-btn {

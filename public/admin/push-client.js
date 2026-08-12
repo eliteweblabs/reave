@@ -592,9 +592,39 @@ function clearSleepLabelReveal() {
   if (label) delete label.dataset.revealing;
 }
 
+/** Clears the wake hat-swap class after the CSS animation finishes. */
+let agentWakingTimer = null;
+const AGENT_WAKING_MS = 520;
+
 function syncAgentAsleepClass(data = sleepModeCache) {
   const active = Boolean(data?.active);
-  document.documentElement.classList.toggle('reave-agent-asleep', active);
+  const root = document.documentElement;
+  const wasAsleep = root.classList.contains('reave-agent-asleep');
+
+  if (wasAsleep && !active) {
+    // Toss the sock nightcap → day hat (see .agent-hat-* in email.css).
+    if (agentWakingTimer) {
+      clearTimeout(agentWakingTimer);
+      agentWakingTimer = null;
+    }
+    root.classList.remove('reave-agent-asleep');
+    root.classList.remove('reave-agent-waking');
+    // Restart CSS animation if the user toggles awake again mid-swap.
+    void root.offsetWidth;
+    root.classList.add('reave-agent-waking');
+    agentWakingTimer = setTimeout(() => {
+      agentWakingTimer = null;
+      root.classList.remove('reave-agent-waking');
+    }, AGENT_WAKING_MS);
+    return;
+  }
+
+  if (active && agentWakingTimer) {
+    clearTimeout(agentWakingTimer);
+    agentWakingTimer = null;
+  }
+  if (active) root.classList.remove('reave-agent-waking');
+  root.classList.toggle('reave-agent-asleep', active);
 }
 
 /** Brief pulse on the header sleep chip so a sleeping agent icon can point at it. */
