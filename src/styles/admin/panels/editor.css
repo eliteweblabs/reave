@@ -1636,6 +1636,12 @@ button.de-placeholder-action:active {
 }
 .re-lab-from-email {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.re-lab-field-label {
+  display: block;
 }
 .re-lab-suggest-box {
   position: absolute;

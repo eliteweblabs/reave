@@ -2,7 +2,7 @@
  * Email triage Lab — compose a message, drag rule priority, play the same
  * processInboundEmail dry-run the Agent uses (POST /api/email/simulate).
  */
-import { iosIcon } from './admin-ui.js?v=20260812a';
+import { iosIcon } from './admin-ui.js?v=20260812b';
 import { escHtml } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260728q';
 
@@ -50,6 +50,10 @@ export function createEmailTriageLab(deps) {
     dirtyOrder: false,
     inboundExample: '',
     running: false,
+    /** Bumps to ignore stale contact-fetch opens after dismiss/select. */
+    suggestGen: 0,
+    suggestOpen: false,
+    _suggestOutsideBound: null,
   };
 
   function inboundExample() {
@@ -371,7 +375,35 @@ export function createEmailTriageLab(deps) {
     });
   }
 
-  function renderContactSuggestions(box, input) {
+  function unbindSuggestOutside() {
+    if (!state._suggestOutsideBound) return;
+    document.removeEventListener('pointerdown', state._suggestOutsideBound, true);
+    state._suggestOutsideBound = null;
+  }
+
+  function closeContactSuggestions(box) {
+    state.suggestGen += 1;
+    state.suggestOpen = false;
+    if (box) {
+      box.hidden = true;
+      box.replaceChildren();
+    }
+    unbindSuggestOutside();
+  }
+
+  function bindSuggestOutside(box, wrap) {
+    unbindSuggestOutside();
+    state._suggestOutsideBound = (ev) => {
+      const t = ev.target;
+      if (!(t instanceof Node)) return;
+      if (wrap.contains(t) || box.contains(t)) return;
+      closeContactSuggestions(box);
+    };
+    document.addEventListener('pointerdown', state._suggestOutsideBound, true);
+  }
+
+  function renderContactSuggestions(box, input, wrap, gen) {
+    if (gen !== state.suggestGen) return;
     const q = (input.value || '').trim().toLowerCase();
     const matches = state.contacts
       .filter(
@@ -383,24 +415,37 @@ export function createEmailTriageLab(deps) {
       .slice(0, 8);
     box.replaceChildren();
     if (!matches.length) {
-      box.hidden = true;
+      closeContactSuggestions(box);
       return;
     }
+    state.suggestOpen = true;
     box.hidden = false;
+    bindSuggestOutside(box, wrap);
     for (const c of matches) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 're-lab-suggest';
       btn.innerHTML = `<strong>${escHtml(c.name)}</strong><span>${escHtml(c.email)}</span>`;
-      btn.addEventListener('click', () => {
+      // pointerdown + preventDefault: avoid input blur/refocus races; label must
+      // not wrap this button or a pick re-focuses From and reopens the list.
+      btn.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
         const nameIn = deps.getRuleEditor()?.querySelector('[data-lab-from-name]');
         const emailIn = deps.getRuleEditor()?.querySelector('[data-lab-from]');
         if (nameIn) nameIn.value = c.name || '';
         if (emailIn) emailIn.value = c.email || '';
-        box.hidden = true;
+        closeContactSuggestions(box);
+        emailIn?.blur();
       });
       box.appendChild(btn);
     }
+  }
+
+  async function openContactSuggestions(box, input, wrap) {
+    const gen = ++state.suggestGen;
+    await ensureContacts(input.value);
+    renderContactSuggestions(box, input, wrap, gen);
   }
 
   function outcomeBannerHtml() {
@@ -433,6 +478,7 @@ export function createEmailTriageLab(deps) {
   }
 
   function renderLabShell(root, opts = {}) {
+    closeContactSuggestions(root.querySelector('.re-lab-suggest-box'));
     const preserveForm = opts.preserveForm === true;
     let saved = null;
     if (preserveForm) {
@@ -512,9 +558,11 @@ export function createEmailTriageLab(deps) {
     nameIn.value = saved?.fromName ?? state.fromName;
     nameWrap.appendChild(nameIn);
 
-    const emailWrap = document.createElement('label');
+    const emailWrap = document.createElement('div');
     emailWrap.className = 'de-label re-lab-from-email';
-    emailWrap.textContent = 'From email';
+    const emailLabel = document.createElement('span');
+    emailLabel.className = 're-lab-field-label';
+    emailLabel.textContent = 'From email';
     const emailIn = document.createElement('input');
     emailIn.className = 'de-input';
     emailIn.type = 'email';
@@ -528,17 +576,20 @@ export function createEmailTriageLab(deps) {
     const suggest = document.createElement('div');
     suggest.className = 're-lab-suggest-box';
     suggest.hidden = true;
-    emailWrap.append(emailIn, suggest);
+    // Suggest box is a sibling of the input, not inside a <label>, so picking
+    // a contact cannot re-focus the field and reopen the menu.
+    emailWrap.append(emailLabel, emailIn, suggest);
     emailIn.addEventListener('focus', () => {
-      void ensureContacts(emailIn.value).then(() => renderContactSuggestions(suggest, emailIn));
+      void openContactSuggestions(suggest, emailIn, emailWrap);
     });
     emailIn.addEventListener('input', () => {
-      void ensureContacts(emailIn.value).then(() => renderContactSuggestions(suggest, emailIn));
+      void openContactSuggestions(suggest, emailIn, emailWrap);
     });
-    emailIn.addEventListener('blur', () => {
-      setTimeout(() => {
-        suggest.hidden = true;
-      }, 150);
+    emailIn.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closeContactSuggestions(suggest);
+      }
     });
     fromRow.append(nameWrap, emailWrap);
     form.appendChild(fromRow);
@@ -827,6 +878,7 @@ export function createEmailTriageLab(deps) {
     },
     destroy() {
       stopPlayback();
+      closeContactSuggestions(deps.getRuleEditor()?.querySelector('.re-lab-suggest-box'));
     },
     getState: () => state,
   };
