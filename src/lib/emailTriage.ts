@@ -161,6 +161,7 @@ export async function createTriageFeedback(opts: {
     fields,
     notify,
     enabled: true,
+    scope: 'personal',
   });
 
   return { ruleId: rule?.id ?? null, knowledgeSlug };

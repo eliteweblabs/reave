@@ -130,6 +130,8 @@ let ruleState = {
   notifyOnUnmatched: true,
   storage: 'files',
   search: '',
+  /** @type {'all' | 'universal' | 'personal'} */
+  scopeFilter: 'all',
   activeId: null,
   dirty: false,
   /** @type {'flow' | 'list'} Flow = ladder + try-email; List = classic editor */
@@ -160,6 +162,14 @@ function getTriageLab() {
     });
   }
   return triageLab;
+}
+
+function ruleScope(rule) {
+  return rule?.scope === 'universal' ? 'universal' : 'personal';
+}
+
+function ruleScopeLabel(rule) {
+  return ruleScope(rule) === 'universal' ? 'Universal' : 'Personal';
 }
 
 function phraseSummary(phrases, max = 3) {
@@ -278,7 +288,7 @@ function formatRuleNotifyLabel(rule) {
 }
 
 function ruleSubline(rule) {
-  const bits = [];
+  const bits = [ruleScopeLabel(rule)];
   if (rule.status) bits.push(rule.status);
   bits.push(formatRuleNotifyLabel(rule));
   bits.push(formatRuleHitLabel(rule));
@@ -333,7 +343,7 @@ function createRuleListItem(rule, activeId) {
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
       <span class="ch-item-date">${escHtml(formatRuleHitLabel(rule))}</span>
     </span>
-    <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
+    <span class="de-item-slug"><span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span> ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}</span>`;
   btn.addEventListener('click', () => openRuleEditor(rule.id));
   return btn;
 }
@@ -351,16 +361,19 @@ function fillRulesSidebarList(list) {
   const { rules, activeId } = ruleState;
   const ordered = [...rules]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .filter((rule) =>
-      matchesListSearch(
+    .filter((rule) => {
+      if (ruleState.scopeFilter === 'universal' && ruleScope(rule) !== 'universal') return false;
+      if (ruleState.scopeFilter === 'personal' && ruleScope(rule) !== 'personal') return false;
+      return matchesListSearch(
         ruleState.search,
         rule.title,
         rule.status,
         ruleSubline(rule),
         rule.description,
+        ruleScopeLabel(rule),
         ...(rule.exceptPhrases || []),
-      ),
-    );
+      );
+    });
   list.replaceChildren();
   for (const rule of ordered) {
     list.appendChild(createRuleSwipeRow(rule, activeId));
@@ -368,7 +381,9 @@ function fillRulesSidebarList(list) {
   if (ordered.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = ruleState.search.trim() ? 'No matches.' : 'No rules yet.';
+    empty.textContent = ruleState.search.trim() || ruleState.scopeFilter !== 'all'
+      ? 'No matches.'
+      : 'No rules yet.';
     list.appendChild(empty);
   }
 }
@@ -499,6 +514,7 @@ function createFlowRuleCard(rule, index) {
   when.className = 're-flow-node re-flow-node--when';
   when.innerHTML = `
     <span class="re-flow-badge">When</span>
+    <span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span>
     <span class="re-flow-title">${escHtml(rule.title || rule.status)}</span>
     <span class="re-flow-sub">${escHtml(flowWhenSubline(rule))}</span>
     <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)} · ${formatRuleHitLabel(rule)}`)}</span>`;
@@ -741,10 +757,28 @@ function renderRulesEditor() {
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
+  const scopeFilter = createSlidingPillSelect({
+    value: ruleState.scopeFilter,
+    ariaLabel: 'Filter by rule scope',
+    options: [
+      { value: 'all', label: 'All' },
+      { value: 'universal', label: 'Universal' },
+      { value: 'personal', label: 'Personal' },
+    ],
+    onChange: (value) => {
+      ruleState.scopeFilter = value;
+      refreshRulesSidebarList();
+    },
+  });
+  const scopeBar = document.createElement('div');
+  scopeBar.className = 're-scope-filter';
+  scopeBar.appendChild(scopeFilter.el);
+  sidebar.appendChild(scopeBar);
+
   const hint = document.createElement('div');
   hint.className = 'de-empty';
   hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = 'First match wins · inbound email triage';
+  hint.textContent = 'First match wins · Universal = all installs · Personal = this install';
   sidebar.appendChild(hint);
 
   if (storage === 'files') {
@@ -862,6 +896,40 @@ function renderRuleEditPane(pane) {
   titleIn.value = rule.title || '';
   titleIn.addEventListener('input', () => { ruleState.dirty = true; });
   requestTitleFocus('rules', titleIn);
+
+  const scopeWrap = document.createElement('div');
+  scopeWrap.className = 're-checks re-scope-radios';
+  const scopeHint = document.createElement('p');
+  scopeHint.className = 're-scope-hint';
+  const syncScopeHint = (value) => {
+    scopeHint.textContent =
+      value === 'universal'
+        ? 'Universal — shared catalog for every Reave install (seeded from the repo). Edits apply on this install; add new catalog rules to DEFAULT_RULES to ship everywhere on deploy.'
+        : 'Personal — this install only. Teach/correct and custom filters usually stay here.';
+  };
+  let scopeValue = ruleScope(rule);
+  for (const [val, lab] of [
+    ['personal', 'Personal (this install)'],
+    ['universal', 'Universal (all installs)'],
+  ]) {
+    const lb = document.createElement('label');
+    lb.className = 're-check';
+    const rb = document.createElement('input');
+    rb.type = 'radio';
+    rb.name = `re-scope-${rule.id}`;
+    rb.value = val;
+    rb.checked = scopeValue === val;
+    rb.addEventListener('change', () => {
+      if (!rb.checked) return;
+      scopeValue = val;
+      syncScopeHint(val);
+      ruleState.dirty = true;
+    });
+    lb.append(rb, document.createTextNode(` ${lab}`));
+    scopeWrap.appendChild(lb);
+  }
+  syncScopeHint(scopeValue);
+  scopeWrap.appendChild(scopeHint);
 
   syncRuleStatusDatalist();
   const statusIn = document.createElement('input');
@@ -1016,6 +1084,7 @@ function renderRuleEditPane(pane) {
   expiresAtIn.addEventListener('change', () => { ruleState.dirty = true; });
 
   appendRuleField(form, 'Title', titleIn);
+  appendRuleField(form, 'Applies to', scopeWrap);
   appendRuleField(form, 'Status tag', statusIn);
   appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Keywords / phrases', phrasesIn);
@@ -1031,6 +1100,7 @@ function renderRuleEditPane(pane) {
 
   const ruleInputs = {
     titleIn,
+    scopeWrap,
     statusIn,
     descIn,
     phrasesIn,
@@ -1060,8 +1130,10 @@ function collectRulePayload(inputs) {
   });
   const notifyPush = !!inputs.pushCb.checked;
   const notifyDashboard = !!inputs.dashCb.checked;
+  const scopeRb = inputs.scopeWrap.querySelector('input[type=radio]:checked');
   return {
     title: inputs.titleIn.value.trim(),
+    scope: scopeRb?.value === 'universal' ? 'universal' : 'personal',
     status: inputs.statusIn.value.trim(),
     description: inputs.descIn.value.trim(),
     phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -1097,7 +1169,9 @@ function syncRuleListItem(id, payload, savedRule) {
     dateEl.textContent = formatRuleHitLabel(rule || { hitCount: savedRule?.hitCount });
   }
   const subEl = item.querySelector('.de-item-slug');
-  if (subEl && rule) subEl.textContent = ruleSubline(rule);
+  if (subEl && rule) {
+    subEl.innerHTML = `<span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span> ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}`;
+  }
   item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
 }
 
@@ -1109,6 +1183,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
 
   const allFields = () => [
     inputs.titleIn,
+    ...inputs.scopeWrap.querySelectorAll('input[type=radio]'),
     inputs.statusIn,
     inputs.descIn,
     inputs.phrasesIn,
@@ -1309,6 +1384,7 @@ async function startNewRule() {
       body: JSON.stringify({
         title: 'New rule',
         status: 'CUSTOM',
+        scope: 'personal',
         description: '',
         phrases: [],
         exceptPhrases: [],

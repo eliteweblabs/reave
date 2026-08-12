@@ -737,7 +737,7 @@ export function createEmailTriageLab(deps) {
             <span class="re-lab-pipe-main">
               <span class="re-flow-badge">When</span>
               <span class="re-lab-pipe-title">${escHtml(rule.title || rule.status)}</span>
-              <span class="re-lab-pipe-sub">${escHtml(rule.status)} · ${rule.notify ? 'Notify' : 'Silent'}${rule.enabled === false ? ' · Off' : ''}</span>
+              <span class="re-lab-pipe-sub">${escHtml(rule.scope === 'universal' ? 'Universal' : 'Personal')} · ${escHtml(rule.status)} · ${rule.notify ? 'Notify' : 'Silent'}${rule.enabled === false ? ' · Off' : ''}</span>
             </span>`;
           pipeList.appendChild(card);
         });

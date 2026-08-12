@@ -1305,6 +1305,36 @@ button.de-placeholder-action:active {
   line-height: 1.4;
 }
 .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.re-scope-filter {
+  padding: 0 0.65rem 0.55rem;
+}
+.re-scope-pill {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+  border: 1px solid var(--panel-border);
+  color: var(--muted, #8b949e);
+}
+.re-scope-pill--universal {
+  color: #58a6ff;
+  border-color: color-mix(in srgb, #58a6ff 45%, var(--panel-border));
+}
+.re-scope-pill--personal {
+  color: var(--muted, #8b949e);
+}
+.re-scope-hint {
+  flex: 1 1 100%;
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted, #8b949e);
+}
 .re-warn-inline {
   font-size: 0.72rem;
   color: #f85149;

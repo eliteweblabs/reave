@@ -44,6 +44,20 @@ export function isAuthLinkRuleStatus(status: string): boolean {
 
 export type MatchMode = 'any' | 'all';
 export type RuleField = 'subject' | 'body' | 'from';
+/** Where a rule applies: every Reave install (repo catalog) vs this install only. */
+export type EmailRuleScope = 'universal' | 'personal';
+
+export function normalizeEmailRuleScope(
+  raw: unknown,
+  fallback: EmailRuleScope = 'personal',
+): EmailRuleScope {
+  const v = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (v === 'universal' || v === 'global' || v === 'shared' || v === 'all') return 'universal';
+  if (v === 'personal' || v === 'local' || v === 'install') return 'personal';
+  return fallback;
+}
 
 /** Action buttons on push / dashboard alerts for a matched rule. */
 export type RuleNotifyAction =
@@ -78,6 +92,11 @@ export const RULE_NOTIFY_ACTION_LABELS: Record<RuleNotifyAction, string> = {
 export interface EmailRule {
   /** Short status label surfaced in the notification, e.g. "DOWN". */
   status: string;
+  /**
+   * `universal` — shared catalog for all Reave installs (seeded from this repo).
+   * `personal` — this install only (teach/correct and custom rules default here).
+   */
+  scope?: EmailRuleScope;
   description?: string;
   /** Case-insensitive substrings; matched against the selected `fields`. */
   phrases: string[];
@@ -163,6 +182,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: VERIFICATION_CODE_STATUS,
+    scope: 'universal',
     description:
       'One-time passwords and login codes — regex match on subject/body (OTP, verification code, access code, 4–8 digit codes). Copy-to-clipboard UX in the Email tab; auto-deleted after 5 minutes; not overridden by junk or security-alert rules.',
     phrases: [
@@ -189,6 +209,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: AUTH_LINK_STATUS,
+    scope: 'universal',
     description:
       'Magic sign-in / activation / one-click login links — CTA URL scraped for dashboard Activate; auto-deleted after use or TTL; never filed as junk (transactional footers often match DELETE).',
     phrases: [
@@ -215,6 +236,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'ANTHROPIC_BILLING',
+    scope: 'universal',
     description:
       'Anthropic/Claude API disabled for lack of usage credits — also means AI email triage/summaries are degraded until fixed. Canned summary avoids dumping the raw boilerplate email as the notification preview.',
     phrases: [
@@ -233,6 +255,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'RAILWAY_ALERT',
+    scope: 'universal',
     description: 'Railway deploy/build failures — inbox alert, high priority.',
     phrases: [
       'Build failed for',
@@ -251,6 +274,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'DOWN',
+    scope: 'universal',
     description: 'Uptime/monitoring alerts — website or service down.',
     phrases: [
       'UptimeRobot',
@@ -267,6 +291,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'NEEDS_CHECK',
+    scope: 'universal',
     description:
       'Security and auth alerts — flag for review. Deliberately omits bare "Security alert" so Google Account sign-in notices can be auto-junked by a sender-specific DELETE rule without fighting this catch-all.',
     phrases: [
@@ -286,6 +311,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'RECEIPT',
+    scope: 'universal',
     description:
       'Expense tax receipts (you paid / your receipt) — auto-file silently. Not income like “Payment of $… from …”.',
     phrases: [
@@ -303,6 +329,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'AUTO_ARCHIVED',
+    scope: 'universal',
     description: 'Routine vendor invoices — file silently, no alert.',
     phrases: [
       'Your Google Workspace monthly invoice',
@@ -318,6 +345,7 @@ export const DEFAULT_RULES: EmailRule[] = [
 
   {
     status: 'DELETE',
+    scope: 'universal',
     description: 'Marketing trash — file silently, no alert.',
     phrases: [
       'unsubscribe',

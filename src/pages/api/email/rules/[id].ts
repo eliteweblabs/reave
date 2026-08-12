@@ -14,7 +14,11 @@ import {
   type RuleInput,
 } from '../../../../lib/emailRuleStore';
 import type { MatchMode, RuleField, RuleNotifyAction } from '../../../../lib/emailRules';
-import { coalesceRuleNotifyFields, normalizeNotifyActions } from '../../../../lib/emailRules';
+import {
+  coalesceRuleNotifyFields,
+  normalizeEmailRuleScope,
+  normalizeNotifyActions,
+} from '../../../../lib/emailRules';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -69,6 +73,7 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
     body.notifyDashboard !== undefined ||
     body.notify_dashboard !== undefined;
   const legacyNotify = body.notify === true || body.notify === 'true';
+  const hasScope = body.scope !== undefined && body.scope !== null && body.scope !== '';
   return {
     title,
     status,
@@ -89,6 +94,7 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
         : body.forward_to !== undefined
           ? String(body.forward_to)
           : null,
+    ...(hasScope ? { scope: normalizeEmailRuleScope(body.scope, 'personal') } : {}),
   };
 }
 

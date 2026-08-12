@@ -17,8 +17,10 @@ import {
   isAuthLinkRuleStatus,
   isSilentTriageStatus,
   isVerificationCodeRuleStatus,
+  normalizeEmailRuleScope,
   normalizeNotifyActions,
   type EmailRule,
+  type EmailRuleScope,
   type MatchMode,
   type RuleField,
   type RuleNotifyAction,
@@ -29,6 +31,8 @@ export interface EmailRuleRecord extends EmailRule {
   /** Display title on the Rules canvas. */
   title: string;
   sortOrder: number;
+  /** Always set on persisted rows — universal (all installs) or personal (this install). */
+  scope: EmailRuleScope;
   /** ISO timestamp when the rule stops matching; null/undefined = indefinite. */
   expiresAt?: string | null;
   /** Times this rule was the first match on inbound mail (approx; since counting started). */
@@ -43,6 +47,8 @@ export interface EmailRulesConfig {
   notifyOnUnmatched: boolean;
   /** ISO timestamp — ignore inbound mail sent before this (see inboundEmailSince.ts). */
   inboundSince?: string | null;
+  /** One-time: catalog statuses backfilled to universal after scope column landed. */
+  scopeSeeded?: boolean;
   rules: EmailRuleRecord[];
 }
 
@@ -56,6 +62,7 @@ INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
   ON CONFLICT (id) DO NOTHING;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS inbound_since TIMESTAMPTZ;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_hits_seeded BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_scope_seeded BOOLEAN NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS email_rules (
   id          UUID PRIMARY KEY,
@@ -81,6 +88,7 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS except_phrases JSONB NOT NULL D
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_push BOOLEAN;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_dashboard BOOLEAN;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_actions JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'personal';
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -127,6 +135,7 @@ function seedFromDefaults(): EmailRulesConfig {
       id: randomUUID(),
       title: ruleTitleFromDefaults(r),
       sortOrder: i,
+      scope: normalizeEmailRuleScope(r.scope, 'universal'),
     })),
   };
 }
@@ -211,6 +220,7 @@ function rowToRecord(row: {
   notify_actions?: unknown;
   hit_count?: number | null;
   last_matched_at?: Date | string | null;
+  scope?: string | null;
 }): EmailRuleRecord {
   const notifyFields = coalesceRuleNotifyFields({
     notify: !!row.notify,
@@ -223,11 +233,16 @@ function rowToRecord(row: {
   const notifyDashboard =
     row.notify_dashboard == null ? !!row.notify : notifyFields.notifyDashboard;
   const notifyActions = normalizeNotifyActions(row.notify_actions);
+  const defaultStatuses = new Set(DEFAULT_RULES.map((r) => r.status.toUpperCase()));
+  const scopeFallback: EmailRuleScope = defaultStatuses.has(String(row.status || '').toUpperCase())
+    ? 'universal'
+    : 'personal';
   return {
     id: row.id,
     sortOrder: row.sort_order,
     title: row.title,
     status: row.status,
+    scope: normalizeEmailRuleScope(row.scope, scopeFallback),
     description: row.description ?? undefined,
     phrases: Array.isArray(row.phrases) ? row.phrases.map(String) : [],
     exceptPhrases: Array.isArray(row.except_phrases)
@@ -260,6 +275,7 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         data.inboundSince === null || data.inboundSince === undefined
           ? null
           : String(data.inboundSince),
+      scopeSeeded: data.scopeSeeded === true,
       rules: data.rules.map((r, i) => {
         const notifyFields = coalesceRuleNotifyFields({
           notify: !!r.notify,
@@ -270,11 +286,16 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         const notifyPush = r.notifyPush == null ? !!r.notify : notifyFields.notifyPush;
         const notifyDashboard =
           r.notifyDashboard == null ? !!r.notify : notifyFields.notifyDashboard;
+        const defaultStatuses = new Set(DEFAULT_RULES.map((d) => d.status.toUpperCase()));
+        const scopeFallback: EmailRuleScope = defaultStatuses.has(String(r.status || '').toUpperCase())
+          ? 'universal'
+          : 'personal';
         return {
           id: String(r.id || randomUUID()),
           title: String(r.title || r.status || 'Rule'),
           sortOrder: typeof r.sortOrder === 'number' ? r.sortOrder : i,
           status: String(r.status || 'RULE'),
+          scope: normalizeEmailRuleScope(r.scope, scopeFallback),
           description: r.description ? String(r.description) : undefined,
           phrases: Array.isArray(r.phrases) ? r.phrases.map(String) : [],
           exceptPhrases: Array.isArray(r.exceptPhrases)
@@ -343,20 +364,26 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     if (!pool) return null;
 
     await seedHitCountsFromInbox(pool);
+    await seedRuleScopesOnce(pool);
 
-    const cfgRes = await pool.query<{ notify_on_unmatched: boolean; inbound_since: Date | string | null }>(
-      `SELECT notify_on_unmatched, inbound_since FROM email_triage_config WHERE id = 1`
+    const cfgRes = await pool.query<{
+      notify_on_unmatched: boolean;
+      inbound_since: Date | string | null;
+      rule_scope_seeded: boolean;
+    }>(
+      `SELECT notify_on_unmatched, inbound_since, rule_scope_seeded FROM email_triage_config WHERE id = 1`
     );
     const notifyOnUnmatched = cfgRes.rows[0]?.notify_on_unmatched ?? NOTIFY_ON_UNMATCHED;
     const inboundSinceRaw = cfgRes.rows[0]?.inbound_since;
     const inboundSince = inboundSinceRaw
       ? new Date(inboundSinceRaw).toISOString()
       : null;
+    const scopeSeeded = cfgRes.rows[0]?.rule_scope_seeded === true;
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
               expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
-              except_phrases, notify_push, notify_dashboard, notify_actions
+              except_phrases, notify_push, notify_dashboard, notify_actions, scope
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -369,6 +396,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     return {
       notifyOnUnmatched,
       inboundSince,
+      scopeSeeded,
       rules: rows.map(rowToRecord),
     };
   } catch (e) {
@@ -398,8 +426,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
            expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
-           except_phrases, notify_push, notify_dashboard, notify_actions)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21)`,
+           except_phrases, notify_push, notify_dashboard, notify_actions, scope)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
         [
           r.id,
           r.sortOrder,
@@ -426,6 +454,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           notifyPush,
           notifyDashboard,
           JSON.stringify(notifyActions),
+          normalizeEmailRuleScope(r.scope, 'personal'),
         ]
       );
     }
@@ -520,6 +549,30 @@ async function seedHitCountsFromInbox(pool: pg.Pool): Promise<void> {
   }
 }
 
+/**
+ * One-time: mark DEFAULT_RULES catalog statuses as universal after the scope column lands.
+ * Owner can still demote a catalog rule to personal afterward.
+ */
+async function seedRuleScopesOnce(pool: pg.Pool): Promise<void> {
+  try {
+    const flag = await pool.query<{ rule_scope_seeded: boolean }>(
+      `SELECT rule_scope_seeded FROM email_triage_config WHERE id = 1`,
+    );
+    if (flag.rows[0]?.rule_scope_seeded) return;
+
+    const statuses = DEFAULT_RULES.map((r) => r.status.toUpperCase());
+    await pool.query(
+      `UPDATE email_rules SET scope = 'universal' WHERE upper(status) = ANY($1::text[])`,
+      [statuses],
+    );
+    await pool.query(
+      `UPDATE email_triage_config SET rule_scope_seeded = true, updated_at = now() WHERE id = 1`,
+    );
+  } catch (e) {
+    console.error('[email-rules] scope seed failed', e);
+  }
+}
+
 export async function loadEmailRulesConfig(): Promise<EmailRulesConfig> {
   let config: EmailRulesConfig;
   if (emailRulesStorageBackend() === 'postgres') {
@@ -546,40 +599,67 @@ async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesC
   const missing = DEFAULT_RULES.filter((r) => !present.has(r.status.toUpperCase()));
   const receiptDefault = DEFAULT_RULES.find((r) => r.status === 'RECEIPT');
   const needsCheckDefault = DEFAULT_RULES.find((r) => r.status === 'NEEDS_CHECK');
+  const defaultStatuses = new Set(DEFAULT_RULES.map((r) => r.status.toUpperCase()));
 
   let phrasesFixed = false;
-  const rules = config.rules.map((r) => {
+  let scopeFixed = false;
+  let rules = config.rules.map((r) => {
+    let next = r;
     const status = r.status.toUpperCase();
     if (status === 'RECEIPT') {
       const nextPhrases = r.phrases.filter((p) => !INCOME_MISFILE_PHRASES.has(p.trim().toLowerCase()));
-      if (nextPhrases.length === r.phrases.length) return r;
-      phrasesFixed = true;
-      return {
-        ...r,
-        phrases: nextPhrases.length ? nextPhrases : (receiptDefault?.phrases ?? nextPhrases),
-        description: receiptDefault?.description ?? r.description,
-        title: receiptDefault ? ruleTitleFromDefaults(receiptDefault) : r.title,
-      };
+      if (nextPhrases.length !== r.phrases.length) {
+        phrasesFixed = true;
+        next = {
+          ...next,
+          phrases: nextPhrases.length ? nextPhrases : (receiptDefault?.phrases ?? nextPhrases),
+          description: receiptDefault?.description ?? next.description,
+          title: receiptDefault ? ruleTitleFromDefaults(receiptDefault) : next.title,
+        };
+      }
     }
     if (status === 'NEEDS_CHECK') {
-      const nextPhrases = r.phrases.filter(
+      const nextPhrases = next.phrases.filter(
         (p) => !NEEDS_CHECK_STRIP_PHRASES.has(p.trim().toLowerCase()),
       );
-      if (nextPhrases.length === r.phrases.length) return r;
-      phrasesFixed = true;
-      return {
-        ...r,
-        phrases: nextPhrases.length ? nextPhrases : (needsCheckDefault?.phrases ?? nextPhrases),
-        description: needsCheckDefault?.description ?? r.description,
+      if (nextPhrases.length !== next.phrases.length) {
+        phrasesFixed = true;
+        next = {
+          ...next,
+          phrases: nextPhrases.length ? nextPhrases : (needsCheckDefault?.phrases ?? nextPhrases),
+          description: needsCheckDefault?.description ?? next.description,
+        };
+      }
+    }
+    if (next.scope !== 'universal' && next.scope !== 'personal') {
+      scopeFixed = true;
+      next = {
+        ...next,
+        scope: defaultStatuses.has(status) ? 'universal' : 'personal',
       };
     }
-    return r;
+    return next;
   });
 
-  if (!missing.length && !phrasesFixed) {
+  // File backend one-time: promote catalog statuses to universal.
+  if (!config.scopeSeeded) {
+    const promoted = rules.map((r) =>
+      defaultStatuses.has(r.status.toUpperCase()) && r.scope !== 'universal'
+        ? { ...r, scope: 'universal' as const }
+        : r,
+    );
+    if (promoted.some((r, i) => r.scope !== rules[i].scope)) {
+      scopeFixed = true;
+      rules = promoted;
+    }
+  }
+
+  const scopeSeeded = true;
+
+  if (!missing.length && !phrasesFixed && !scopeFixed && config.scopeSeeded) {
     const elevated = elevateSenderSilentRules(rules);
-    if (!elevated.changed) return config;
-    const mergedElevated: EmailRulesConfig = { ...config, rules: elevated.rules };
+    if (!elevated.changed) return { ...config, rules, scopeSeeded };
+    const mergedElevated: EmailRulesConfig = { ...config, rules: elevated.rules, scopeSeeded };
     await persistConfig(mergedElevated);
     return mergedElevated;
   }
@@ -591,11 +671,13 @@ async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesC
       id: randomUUID(),
       title: ruleTitleFromDefaults(r),
       sortOrder: rules.length + i,
+      scope: normalizeEmailRuleScope(r.scope, 'universal') as EmailRuleScope,
     })),
   ];
   const elevated = elevateSenderSilentRules(withMissing);
   const merged: EmailRulesConfig = {
     ...config,
+    scopeSeeded,
     rules: elevated.rules,
   };
   await persistConfig(merged);
@@ -680,6 +762,8 @@ export type RuleInput = {
   expiresAt?: string | null;
   /** Optional address to auto-forward matched mail to (Resend outbound). */
   forwardTo?: string | null;
+  /** universal = all Reave installs (catalog); personal = this install only. */
+  scope?: EmailRuleScope;
 };
 
 function normalizeForwardTo(raw: unknown): string | null {
@@ -721,6 +805,9 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
     enabled: input.enabled !== false,
     expiresAt,
     forwardTo,
+    ...(input.scope !== undefined
+      ? { scope: normalizeEmailRuleScope(input.scope, 'personal') }
+      : {}),
   };
 }
 
@@ -771,6 +858,7 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
     id: randomUUID(),
     sortOrder,
     ...clean,
+    scope: normalizeEmailRuleScope(clean.scope, 'personal'),
     hitCount: 0,
     lastMatchedAt: null,
     createdAt: now,
@@ -789,7 +877,12 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
   const idx = config.rules.findIndex((r) => r.id === id);
   if (idx < 0) return null;
   const prev = config.rules[idx];
-  config.rules[idx] = { ...prev, ...clean, updatedAt: new Date().toISOString() };
+  config.rules[idx] = {
+    ...prev,
+    ...clean,
+    scope: clean.scope ?? prev.scope ?? 'personal',
+    updatedAt: new Date().toISOString(),
+  };
   if (!(await persistConfig(config))) return null;
   return config.rules[idx];
 }
