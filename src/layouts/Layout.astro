@@ -315,4 +315,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		margin: 0 auto;
 		padding: 0 24px calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
 	}
+
+	/*
+	 * Page content above the fixed chevron pattern (z-index 1) so text is not
+	 * clipped by the tile layer when it slides under the transparent header.
+	 */
+	main#main-content {
+		position: relative;
+		z-index: 2;
+	}
 </style>

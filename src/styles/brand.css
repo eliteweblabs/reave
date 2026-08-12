@@ -108,6 +108,12 @@
 }
 
 .site-bg-pattern {
+  /*
+   * Stay above body background-color but below scrolling page content
+   * (.home-scroll z-index: 2). When z-index matched content at 1, iOS Safari
+   * sometimes composited the fixed tile layer over text sliding under the
+   * transparent header — reads as a dark band clipping headlines.
+   */
   z-index: 1;
   mix-blend-mode: soft-light;
 }
