@@ -414,7 +414,7 @@ const ADMIN_PRIMARY_PAGE_SET = new Set(ADMIN_PRIMARY_PAGE_KEYS);
 const ADMIN_SETTINGS_PAGE_SET = new Set(ADMIN_SETTINGS_PAGE_KEYS);
 
 /**
- * Special-page chrome: header back chevron instead of the wordmark.
+ * Special-page chrome: header back chevron beside the wordmark.
  * Canvas maps (`special: true`) and dashboard-grid destinations.
  * Override per map with `special: true` / `special: false`.
  * Styles: src/styles/admin/special-page.css. Standalone: AdminSpecialLayout.astro.

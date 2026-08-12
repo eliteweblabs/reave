@@ -7,17 +7,13 @@
  * `isSpecialAdminPage` in `public/admin/os-map-data.js`.
  */
 
-html.admin-special-page .app-header.app-header--admin .app-header-logo,
-body.admin-special-page .app-header.app-header--admin .app-header-logo {
-  display: none;
-}
-
 .app-header-back.ios-icon-btn {
   display: none;
   flex-shrink: 0;
   width: 2.75rem;
   height: 2.75rem;
   margin-left: -0.45rem;
+  margin-right: -0.15rem;
   text-decoration: none;
   color: var(--nav-chevron);
 }

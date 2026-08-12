@@ -29,7 +29,7 @@ interface Props {
   portalBrand?: PortalBrandColors | null;
   /** Public site content config (nav, homepage). */
   siteContent?: SiteContentConfig;
-  /** Replace the wordmark with a back chevron (AdminSpecialLayout / special pages). */
+  /** Show a back chevron beside the wordmark (AdminSpecialLayout / special pages). */
   specialPage?: boolean;
   /** Back target when special-page chrome is showing. */
   backHref?: string;
@@ -93,16 +93,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   id={adminShell ? "topbar" : undefined}
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
-  <a
-    href={logoHref}
-    class="app-header-logo brand"
-    aria-label={logoAriaLabel}
-  >
-    <span class="app-header-logo-clip" aria-hidden="true">
-      <BrandLogoInline company={company} />
-    </span>
-  </a>
-
   {adminShell && (
     <a
       id="admin-special-back"
@@ -115,6 +105,16 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
     </a>
   )}
+
+  <a
+    href={logoHref}
+    class="app-header-logo brand"
+    aria-label={logoAriaLabel}
+  >
+    <span class="app-header-logo-clip" aria-hidden="true">
+      <BrandLogoInline company={company} />
+    </span>
+  </a>
 
   <!-- Detail pane title/back/actions: public/admin/pane-header.js (createPaneHeader) -->
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>

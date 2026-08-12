@@ -1,7 +1,7 @@
 /**
  * Special admin pages — node canvases and dashboard-grid destinations.
  *
- * They share one chrome template: header back chevron instead of the wordmark.
+ * They share one chrome template: header back chevron beside the wordmark.
  * Edit styles in `src/styles/admin/special-page.css`. Standalone routes use
  * `src/layouts/AdminSpecialLayout.astro`. SPA maps use the same class via
  * `isSpecialAdminPage` in `public/admin/os-map-data.js` (keep these key lists
