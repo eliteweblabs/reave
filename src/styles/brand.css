@@ -29,6 +29,17 @@
    * disconnected letterbox bar against the gradients on background-image.
    */
   --site-canvas: #0c0614;
+  /*
+   * Shared atmosphere mesh — keep html, body, and the header safe-area fill in
+   * sync so iOS status-bar inset matches scrollY=0 and does not flash black.
+   */
+  --site-mesh-top:
+    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
+    radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%);
+  --site-mesh-bottom:
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+  --site-mesh-atmosphere: var(--site-mesh-top), var(--site-mesh-bottom);
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;

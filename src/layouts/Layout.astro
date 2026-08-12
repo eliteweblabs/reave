@@ -203,6 +203,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100lvh;
 		min-height: var(--device-height);
 		background-color: var(--site-canvas, #0c0614);
+		/*
+		 * Mesh on html as well as body — viewport-fit=cover puts the status-bar
+		 * strip on the root canvas; flat background-color alone reads as black.
+		 */
+		background-image: var(--site-mesh-atmosphere);
+		background-repeat: no-repeat;
 	}
 
 	html,
@@ -247,11 +253,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * behind body's opaque background-color and the atmosphere vanishes —
 		 * that was the flat black fold. Pre-Astro-7 stops, on body itself.
 		 */
-		background-image:
-			radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-			radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-			radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
-			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+		background-image: var(--site-mesh-atmosphere);
 		background-repeat: no-repeat;
 		background-attachment: scroll;
 	}
