@@ -412,7 +412,7 @@ const billingSections: BillingSectionBlock[] = portalBillingView
 const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = brandTitle;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
-const themeColor = '#2a1245';
+const themeColor = '#050505';
 const portalUrl = uid ? `${origin}/c/${encodeURIComponent(uid)}` : origin;
 const ogDescription = clientTagline || `${brandTitle} client portal`;
 const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : LOGO_ICON_OG_PATH;
@@ -1018,12 +1018,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       :root { color-scheme: dark; }
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       html {
-        background-color: #2a1245;
+        background-color: #050505;
       }
       html, body {
         margin: 0;
         min-height: 100%;
-        background-color: #2a1245;
+        background-color: #050505;
         color: #fff;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -1031,12 +1031,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       body {
         position: relative;
-        /* Mesh on body — avoids iPhone Safari forehead/chin letterbox from fixed layers. */
+        /* Localized mid-fold glows on a near-black stage — not a top-edge purple fog. */
         background-image:
-          radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-          radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-          radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
-          radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+          radial-gradient(ellipse 70% 50% at 50% 38%, rgba(192, 38, 211, 0.14) 0%, transparent 65%),
+          radial-gradient(ellipse 80% 55% at 15% 22%, rgba(255, 0, 255, 0.12) 0%, transparent 62%),
+          radial-gradient(ellipse 70% 50% at 85% 28%, rgba(99, 102, 241, 0.12) 0%, transparent 58%),
+          radial-gradient(ellipse 90% 55% at 50% 100%, rgba(192, 38, 211, 0.1) 0%, transparent 55%);
         background-repeat: no-repeat;
       }
       button,

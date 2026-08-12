@@ -40,7 +40,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Defaults to --site-canvas purple. */
+	/** Initial `<meta name="theme-color">`. Defaults to near-black stage. */
   themeColor?: string;
 }
 
@@ -51,7 +51,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#2a1245",
+  themeColor = "#050505",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -177,10 +177,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * viewport and shears position:fixed headers. Use min-height only so the
 	 * paint box is at least one device tall and can still grow with content.
 	 *
-	 * background-color MUST be a visible purple canvas (--site-canvas).
-	 * iOS 26 Safari ignores theme-color and falls back to this (or to fixed
-	 * edge samples) for status-bar / toolbar Liquid Glass tint. Near-black
-	 * (#050505 / #0c0614) reads as a disconnected black letterbox.
+	 * Canvas is near-black (--site-canvas). Purple belongs in localized mesh
+	 * glows — a purple flat fill reads as a fog across the whole fold.
 	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);
@@ -207,7 +205,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100dvh;
 		min-height: 100lvh;
 		min-height: var(--device-height);
-		background-color: var(--site-canvas, #2a1245);
+		background-color: var(--site-canvas, #050505);
 	}
 
 	html,
@@ -231,7 +229,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: var(--site-canvas, #2a1245);
+		background-color: var(--site-canvas, #050505);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}
@@ -251,11 +249,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * Viewport-locked atmosphere: stays pinned to the device fold while the
-	 * document scrolls (Safari runway pin, section scroll). Solid canvas color
-	 * on the fixed layer so Liquid Glass edge samples match the viable area —
-	 * not a black letterbox. Mesh is background-image only (Safari samples
-	 * background-color for chrome tint).
+	 * Viewport-locked atmosphere on a near-black stage. Glows sit mid-fold
+	 * (behind the mark / CTAs), not smeared across the top safe-area — that
+	 * top-edge wash was the purple fog. Solid canvas color on the fixed layer
+	 * so Liquid Glass edge samples match the page.
 	 */
 	body::before {
 		content: "";
@@ -269,12 +266,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		height: var(--device-height);
 		z-index: -1;
 		pointer-events: none;
-		background-color: var(--site-canvas, #2a1245);
+		background-color: var(--site-canvas, #050505);
 		background-image:
-			radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-			radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-			radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
-			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+			radial-gradient(ellipse 70% 50% at 50% 38%, rgba(192, 38, 211, 0.14) 0%, transparent 65%),
+			radial-gradient(ellipse 80% 55% at 15% 22%, rgba(255, 0, 255, 0.12) 0%, transparent 62%),
+			radial-gradient(ellipse 70% 50% at 85% 28%, rgba(99, 102, 241, 0.12) 0%, transparent 58%),
+			radial-gradient(ellipse 90% 55% at 50% 100%, rgba(192, 38, 211, 0.1) 0%, transparent 55%);
 		background-repeat: no-repeat;
 	}
 
