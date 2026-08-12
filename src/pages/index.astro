@@ -23,7 +23,6 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
   ) : (
     <Layout>
       <div class="home-scroll">
-        <div class="safari-home-runway" aria-hidden="true"></div>
         <HomeHeroSection siteContent={siteContent} />
 
         {homepage.showIntegrations && <HomeIntegrationsSection />}
@@ -37,71 +36,7 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
 
 {
   !isLanding && (
-    <script is:inline>
-      (function () {
-        try {
-          if (!CSS.supports("-webkit-touch-callout", "none")) return;
-          if (!window.matchMedia("(max-width: 767.98px)").matches) return;
-          if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-          var offset = 64;
-          function pin() {
-            if (window.scrollY < offset) window.scrollTo(0, offset);
-          }
-          requestAnimationFrame(function () {
-            requestAnimationFrame(pin);
-          });
-          window.addEventListener("load", pin);
-          window.addEventListener("pageshow", pin);
-          window.addEventListener("scroll", function () {
-            if (window.scrollY > 0 && window.scrollY < offset) window.scrollTo(0, offset);
-          }, { passive: true });
-        } catch (_) {}
-      })();
-    </script>
-  )
-}
-
-{
-  !isLanding && (
     <style>
-      .safari-home-runway {
-        display: none;
-        width: 100%;
-        pointer-events: none;
-      }
-
-      /*
-       * iOS 26 Safari Liquid Glass — at scrollY=0 the status/toolbar chrome
-       * falls back to black. A short purple runway + non-zero scroll gives
-       * Safari real page pixels to composite (see 1ar.io/safari-26-liquid-glass).
-       */
-      @supports (-webkit-touch-callout: none) {
-        @media (max-width: 767.98px) {
-          :root {
-            --safari-home-scroll-offset: 64px;
-          }
-
-          :global(html) {
-            overflow-y: scroll;
-          }
-
-          .safari-home-runway {
-            display: block;
-            height: var(--safari-home-scroll-offset);
-            background-color: var(--site-canvas, #0c0614);
-            background-image:
-              radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-              radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-              radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%);
-            background-repeat: no-repeat;
-          }
-
-          :global(body) {
-            min-height: calc(100dvh + var(--safari-home-scroll-offset));
-          }
-        }
-      }
-
       /*
        * Homepage shell — full device paint box; bottom pad uses the viable
        * (safe-area) inset so the last section clears the home indicator.
@@ -117,7 +52,6 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
 
       .home-scroll {
         position: relative;
-        z-index: 1;
         padding-bottom: calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
       }
     </style>
