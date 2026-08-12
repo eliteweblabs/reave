@@ -291,7 +291,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    bottom: calc(var(--home-hero-copy-h, 88px) + 16px);
+    /*
+     * CTAs are fixed at bottom: 10px + safe-area. --home-hero-copy-h is only
+     * their height, so add that offset + 10px so the newest turn sits ~10px
+     * above the button tops (not flush / overlapping on notched devices).
+     */
+    bottom: calc(
+      var(--home-hero-copy-h, 88px) + 20px +
+        var(--viable-bottom, env(safe-area-inset-bottom, 0px))
+    );
     min-height: 140px;
     overflow: visible;
     pointer-events: none;
