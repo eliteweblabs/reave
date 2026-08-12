@@ -372,7 +372,9 @@ function pickJobSlug(
   const sub = subject.toLowerCase();
   const byTitle = jobs.find((j) => sub.includes(j.title.toLowerCase().slice(0, 20)));
   if (byTitle) return byTitle;
-  const active = jobs.filter((j) => j.status === 'active' || j.status === 'inquiry');
+  const active = jobs.filter(
+    (j) => j.status === 'active' || j.status === 'audit' || j.status === 'inquiry',
+  );
   if (active.length === 1) return active[0]!;
   return null;
 }

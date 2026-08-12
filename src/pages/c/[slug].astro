@@ -224,8 +224,10 @@ const updatedAt = fmtDate(portal?.updatedAt);
 
 const CLIENT_WORK_STATUS: Record<string, string> = {
   inquiry: 'Submitted',
+  audit: 'Audit',
   active: 'In progress',
   done: 'Complete',
+  archived: 'Complete',
 };
 
 // Jobs linked to this client (non-archived only — internal archive stays hidden).

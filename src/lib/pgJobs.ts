@@ -6,6 +6,7 @@
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import {
+  coerceAuditWorkStatus,
   fileReadWork,
   listWorkFileSlugs,
   normalizeWorkPriority,
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   title VARCHAR(500) NOT NULL,
   client VARCHAR(255) NOT NULL,
   client_uid VARCHAR(255),
-  status VARCHAR(50) DEFAULT 'inquiry' CHECK (status IN ('inquiry', 'active', 'archived')),
+  status VARCHAR(50) DEFAULT 'inquiry' CHECK (status IN ('inquiry', 'audit', 'active', 'archived')),
   priority VARCHAR(50) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
   due_date DATE,
   value NUMERIC(12,2),
@@ -111,7 +112,15 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_client_viewed_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_jobs_client_viewed ON jobs(last_client_viewed_at DESC NULLS LAST);
 UPDATE jobs SET status = 'archived' WHERE status = 'done';
 ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
-ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('inquiry', 'active', 'archived'));
+ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('inquiry', 'audit', 'active', 'archived'));
+-- Siri / website audit projects are live audits, not door-knock inquiries.
+UPDATE jobs
+SET status = 'audit'
+WHERE status = 'inquiry'
+  AND (
+    lower(coalesce(source, '')) = 'siri_audit'
+    OR tags && ARRAY['siri-audit', 'quick-audit', 'full-audit']::text[]
+  );
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -125,7 +134,10 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     client: row.client,
     contact_uid: row.client_uid ?? '',
     contact_name: row.client,
-    status: normalizeWorkStatus(row.status),
+    status: coerceAuditWorkStatus(normalizeWorkStatus(row.status), {
+      tags,
+      source: row.source ?? '',
+    }),
     priority: normalizeWorkPriority(row.priority),
     due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
     value: row.value != null ? Number(row.value) : null,

@@ -128,7 +128,7 @@ async function openProjectSuggestions(contactUid: string | null | undefined) {
     contact_uid: contactUid?.trim() || undefined,
   });
   return jobs
-    .filter((j) => j.status === 'inquiry' || j.status === 'active')
+    .filter((j) => j.status === 'inquiry' || j.status === 'audit' || j.status === 'active')
     .slice(0, 12)
     .map((j) => ({ slug: j.slug, title: j.title, status: j.status }));
 }

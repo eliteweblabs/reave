@@ -1369,11 +1369,13 @@ function scoreCategory(
 }
 
 export function isAuditJob(input: {
+  status?: string | null;
   tags?: string[] | null;
   source?: string | null;
   title?: string | null;
   body?: string | null;
 }): boolean {
+  if ((input.status || '').toLowerCase() === 'audit') return true;
   const tags = input.tags ?? [];
   if (tags.some((t) => AUDIT_TAG_RE.test(t))) return true;
   if ((input.source || '').toLowerCase() === 'siri_audit') return true;

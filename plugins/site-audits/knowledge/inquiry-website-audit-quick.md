@@ -59,10 +59,13 @@ Run these in parallel when possible:
 ```
 create_work  OR  update_work
   title:     <catchy finding-based headline — see full playbook Title & slug conventions>
-  status:    inquiry
+  status:    audit
+  tags:      siri-audit, quick-audit
   contact_uid: <confirmed uid>
   body:      <markdown audit — see template below>
 ```
+
+Audits are live projects (not inquiries). Keep `status: audit` — never `inquiry` or `archived`.
 
 ### 5. Link and summarize
 

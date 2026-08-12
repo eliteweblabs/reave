@@ -90,18 +90,31 @@ export function iosIcon(key, size = 20) {
 
 let _agentIconClipSeq = 0;
 
-/** Hat-glasses agent icon; right eye winks via clipped lid rects (see .agent-icon CSS). */
+/**
+ * Hat-glasses agent icon.
+ * Right eye winks on hover via clipped lid rects; both eyes close when
+ * `html.reave-agent-asleep` is set (sleep mode) — see .agent-icon CSS.
+ */
 export function agentIconSvg(size = 20) {
-  const clipId = `agent-eye-clip-${++_agentIconClipSeq}`;
+  const seq = ++_agentIconClipSeq;
+  const clipLeft = `agent-eye-clip-l-${seq}`;
+  const clipRight = `agent-eye-clip-r-${seq}`;
   return (
     `<svg class="agent-icon" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
-    `<defs><clipPath id="${clipId}"><circle cx="17" cy="18" r="3"/></clipPath></defs>` +
+    `<defs>` +
+    `<clipPath id="${clipLeft}"><circle cx="7" cy="18" r="3"/></clipPath>` +
+    `<clipPath id="${clipRight}"><circle cx="17" cy="18" r="3"/></clipPath>` +
+    `</defs>` +
     '<path d="M14 18a2 2 0 0 0-4 0"/>' +
     '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +
     '<path d="M2 11h20"/>' +
     '<circle cx="7" cy="18" r="3"/>' +
     '<circle cx="17" cy="18" r="3"/>' +
-    `<g clip-path="url(#${clipId})">` +
+    `<g clip-path="url(#${clipLeft})">` +
+    '<rect class="agent-eye-lid agent-eye-lid-left-top" x="4" y="15" width="6" height="3" fill="currentColor" stroke="none"/>' +
+    '<rect class="agent-eye-lid agent-eye-lid-left-bottom" x="4" y="18" width="6" height="3" fill="currentColor" stroke="none"/>' +
+    '</g>' +
+    `<g clip-path="url(#${clipRight})">` +
     '<rect class="agent-eye-lid agent-eye-lid-top" x="14" y="15" width="6" height="3" fill="currentColor" stroke="none"/>' +
     '<rect class="agent-eye-lid agent-eye-lid-bottom" x="14" y="18" width="6" height="3" fill="currentColor" stroke="none"/>' +
     '</g></svg>'

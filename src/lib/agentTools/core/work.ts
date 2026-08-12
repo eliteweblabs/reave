@@ -679,12 +679,13 @@ export const workModule: AgentToolModule = {
                   body: {
                     type: 'string',
                     description:
-                      'Markdown project notes. For website/inquiry audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Run website audit tools, then write a full body with separate headings for Performance, Accessibility, Best Practices, SEO (the four Lighthouse categories — not wrapped under Website), plus SSL, Broken Links, Content, DNS, Online Presence, Opportunities (Problem → Solution pairs), and Action Items; 1,200+ quick / 1,500+ full chars. Online Presence must include separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings (portal combines Google/Apple/Yelp into one Maps & Directories coverage score). Do not create short prospect stubs.',
+                      'Markdown project notes. For website audits: call read_knowledge first — "inquiry-website-audit-quick" for street-speed audits (no Playwright/links), "inquiry-website-audit" for full audits. Set status "audit" with tags siri-audit + quick-audit|full-audit. Run website audit tools, then write a full body with separate headings for Performance, Accessibility, Best Practices, SEO (the four Lighthouse categories — not wrapped under Website), plus SSL, Broken Links, Content, DNS, Online Presence, Opportunities (Problem → Solution pairs), and Action Items; 1,200+ quick / 1,500+ full chars. Online Presence must include separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings (portal combines Google/Apple/Yelp into one Maps & Directories coverage score). Do not create short prospect stubs.',
                   },
                   status: {
                     type: 'string',
                     enum: [...WORK_STATUSES],
-                    description: 'Defaults to inquiry',
+                    description:
+                      'Defaults to inquiry for prospects. Use audit for website audits (never inquiry/archived for audits).',
                   },
                   priority: {
                     type: 'string',
@@ -793,7 +794,8 @@ export const workModule: AgentToolModule = {
                   status: {
                     type: 'string',
                     enum: [...WORK_STATUSES],
-                    description: 'New status',
+                    description:
+                      'New status. Website audits must stay "audit" (not inquiry/archived).',
                   },
                   priority: {
                     type: 'string',
@@ -811,7 +813,8 @@ export const workModule: AgentToolModule = {
                   tags: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Replace tags list',
+                    description:
+                      'Replace tags list. For audits keep siri-audit and quick-audit|full-audit.',
                   },
                   source: {
                     type: 'string',

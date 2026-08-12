@@ -10580,7 +10580,9 @@ async function fetchOpenJobsForEmail(ev) {
   const qs = ev.contactUid ? `?contact_uid=${encodeURIComponent(ev.contactUid)}` : '';
   const res = await fetch(`/api/work${qs}`, { cache: 'no-store' });
   const data = await readApiJson(res);
-  return (data.jobs || []).filter((j) => j.status === 'inquiry' || j.status === 'active');
+  return (data.jobs || []).filter(
+    (j) => j.status === 'inquiry' || j.status === 'audit' || j.status === 'active',
+  );
 }
 
 async function runEmailProjectAction(ev, payload, errorTitle) {

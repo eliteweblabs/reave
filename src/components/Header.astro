@@ -640,6 +640,66 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     cursor: wait;
   }
 
+  /* Nudge when the user taps a sleeping agent icon — points at the wake toggle. */
+  @keyframes topbar-sleep-toggle-nudge {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    18% {
+      transform: translate(-50%, -50%) scale(1.07);
+    }
+    36% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    54% {
+      transform: translate(-50%, -50%) scale(1.07);
+    }
+    72% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes topbar-sleep-switch-pulse {
+    0%,
+    100% {
+      box-shadow: none;
+    }
+    40%,
+    55% {
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.45);
+    }
+  }
+
+  .topbar-sleep-toggle.topbar-sleep-toggle--nudge {
+    z-index: 6;
+    animation: topbar-sleep-toggle-nudge 0.85s ease;
+    box-shadow:
+      0 0 0 2px rgba(99, 102, 241, 0.55),
+      0 10px 28px rgba(99, 102, 241, 0.28);
+  }
+
+  .topbar-sleep-toggle.topbar-sleep-toggle--nudge .topbar-sleep-toggle-switch {
+    animation: topbar-sleep-switch-pulse 0.85s ease;
+  }
+
+  /* Panel context normally hides the sleep chip — briefly reveal it for the nudge. */
+  .app-header--admin.topbar-has-panel-context
+    .topbar-sleep-toggle.topbar-sleep-toggle--nudge-reveal {
+    display: inline-flex !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .topbar-sleep-toggle.topbar-sleep-toggle--nudge {
+      animation: none;
+    }
+
+    .topbar-sleep-toggle.topbar-sleep-toggle--nudge .topbar-sleep-toggle-switch {
+      animation: none;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.45);
+    }
+  }
+
   .app-header--admin.topbar-has-panel-context .topbar-end {
     margin-left: 0;
   }

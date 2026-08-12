@@ -2186,6 +2186,7 @@ button.de-placeholder-action:active {
   flex-shrink: 0;
 }
 .wk-status-inquiry { color: #79c0ff; background: rgba(121, 192, 255, 0.12); }
+.wk-status-audit { color: #0a84ff; background: rgba(10, 132, 255, 0.14); }
 .wk-visit-plan-link {
   display: block;
   flex-shrink: 0;

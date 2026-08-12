@@ -47,7 +47,9 @@ export async function logOutboundEmailForProject(opts: {
         jobSlug = jobs[0]!.slug;
         jobTitle = jobs[0]!.title;
       } else if (jobs.length > 1) {
-        const active = jobs.filter((j) => j.status === 'active' || j.status === 'inquiry');
+        const active = jobs.filter(
+          (j) => j.status === 'active' || j.status === 'audit' || j.status === 'inquiry',
+        );
         if (active.length === 1) {
           jobSlug = active[0]!.slug;
           jobTitle = active[0]!.title;

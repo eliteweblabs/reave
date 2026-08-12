@@ -73,6 +73,7 @@ export function initWorkPanel(deps) {
 
 const WORK_STATUS_LABELS = {
   inquiry: 'Prospect',
+  audit: 'Audit',
   active: 'Active',
   archived: 'Archived',
 };
@@ -81,6 +82,7 @@ const AUDIT_TAG_RE = /^(siri-audit|quick-audit|full-audit)$/i;
 
 function isAuditWorkJob(job) {
   if (!job) return false;
+  if (String(job.status || '').toLowerCase() === 'audit') return true;
   const tags = Array.isArray(job.tags) ? job.tags : [];
   if (tags.some((t) => AUDIT_TAG_RE.test(String(t || '')))) return true;
   if (String(job.source || '').toLowerCase() === 'siri_audit') return true;
@@ -90,7 +92,7 @@ function isAuditWorkJob(job) {
 function workStatusDisplayLabel(job) {
   if (!job) return WORK_STATUS_LABELS.inquiry;
   if (isWorkArchivedStatus(job.status)) return WORK_STATUS_LABELS.archived;
-  if (isAuditWorkJob(job)) return 'Audit';
+  if (isAuditWorkJob(job)) return WORK_STATUS_LABELS.audit;
   if ((job.status || 'inquiry') === 'inquiry') return 'Prospect';
   return WORK_STATUS_LABELS[job.status] || job.status || 'Prospect';
 }
@@ -133,7 +135,7 @@ const TODO_PRIORITY_LABELS = {
 
 let workState = {
   jobs: [],
-  statuses: ['inquiry', 'active', 'archived'],
+  statuses: ['inquiry', 'audit', 'active', 'archived'],
   priorities: ['low', 'normal', 'high', 'urgent'],
   search: '',
   statusFilter: 'all',
@@ -1822,8 +1824,17 @@ function renderWorkEditor() {
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
-function workStatusPillOptions() {
-  return workState.statuses.map((s) => ({ value: s, label: WORK_STATUS_LABELS[s] || s }));
+function workStatusPillOptions(draft) {
+  const statuses = workState.statuses || [];
+  // Audits are live refreshable entities — not inquiry prospects and not archived.
+  if (isAuditWorkJob(draft)) {
+    return statuses
+      .filter((s) => s === 'audit' || s === 'active')
+      .map((s) => ({ value: s, label: WORK_STATUS_LABELS[s] || s }));
+  }
+  return statuses
+    .filter((s) => s !== 'audit')
+    .map((s) => ({ value: s, label: WORK_STATUS_LABELS[s] || s }));
 }
 
 function workPriorityPillOptions() {
@@ -2768,7 +2779,7 @@ function renderNewWorkForm(pane) {
   statusPill = createSlidingPillSelect({
     label: 'Status',
     value: workState.draft?.status || 'inquiry',
-    options: workStatusPillOptions(),
+    options: workStatusPillOptions(workState.draft),
     ariaLabel: 'Status',
     onChange: () => queueWorkAutosave(statusPill.el),
   });
@@ -2986,15 +2997,18 @@ function renderEditWorkForm(pane) {
     },
   });
 
-  const archiveBtn = createIosIconBtn({
-    iconKey: 'archive',
-    label:
-      (workState.draft?.status || listJob?.status) === 'archived'
-        ? `Unarchive ${postLower(1)}`
-        : `Archive ${postLower(1)}`,
-    className: 'ios-icon-btn wk-archive-btn',
-    onClick: () => void archiveWork(slug),
-  });
+  const isAuditProject = isAuditWorkJob(workState.draft || listJob);
+  const archiveBtn = isAuditProject
+    ? null
+    : createIosIconBtn({
+        iconKey: 'archive',
+        label:
+          (workState.draft?.status || listJob?.status) === 'archived'
+            ? `Unarchive ${postLower(1)}`
+            : `Archive ${postLower(1)}`,
+        className: 'ios-icon-btn wk-archive-btn',
+        onClick: () => void archiveWork(slug),
+      });
 
   const deleteBtn = paneDeleteIcon({
     label: `Delete ${postLower(1)}`,
@@ -3003,7 +3017,9 @@ function renderEditWorkForm(pane) {
 
   const headerActions = document.createElement('div');
   headerActions.className = 'de-header-actions';
-  headerActions.append(agentBtn, archiveBtn, deleteBtn);
+  headerActions.append(agentBtn);
+  if (archiveBtn) headerActions.appendChild(archiveBtn);
+  headerActions.appendChild(deleteBtn);
   header.appendChild(headerActions);
   const chrome = createWorkDetailChrome(pane);
   chrome.appendChild(header);
@@ -3049,12 +3065,14 @@ function renderEditWorkForm(pane) {
       workState.dirty = false;
       titleInput.value = workState.draft.title;
 
-      archiveBtn.setAttribute(
-        'aria-label',
-        data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
-      );
-      archiveBtn.title =
-        data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`;
+      if (archiveBtn) {
+        archiveBtn.setAttribute(
+          'aria-label',
+          data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
+        );
+        archiveBtn.title =
+          data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`;
+      }
 
       // Share depends on contact_uid — splice in after Agent without rebuilding the row.
       headerActions?.querySelectorAll('.de-share-btn').forEach((el) => el.remove());
@@ -3076,7 +3094,7 @@ function renderEditWorkForm(pane) {
           })
         : null;
       if (shareBtn && headerActions) {
-        headerActions.insertBefore(shareBtn, archiveBtn);
+        headerActions.insertBefore(shareBtn, archiveBtn || deleteBtn);
       }
 
       clearWorkDetailScrollBody(scroll);
@@ -3135,7 +3153,7 @@ function renderEditWorkForm(pane) {
       statusPill = createSlidingPillSelect({
         label: 'Status',
         value: workState.draft.status,
-        options: workStatusPillOptions(),
+        options: workStatusPillOptions(workState.draft),
         ariaLabel: 'Status',
         onChange: () => queueWorkAutosave(statusPill.el),
       });
@@ -3361,7 +3379,7 @@ async function bulkArchiveWork(slugs) {
   await flushWorkAutosave();
   for (const slug of slugs) {
     const job = workState.jobs.find((j) => j.slug === slug);
-    if (!job || job.status === 'archived') continue;
+    if (!job || job.status === 'archived' || isAuditWorkJob(job)) continue;
     try {
       const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
@@ -3432,6 +3450,11 @@ async function archiveWork(jobOrSlug) {
   if (!slug) return;
 
   const listJob = workState.jobs.find((j) => j.slug === slug);
+  const draftOrJob = workState.activeSlug === slug ? workState.draft || listJob : listJob;
+  if (isAuditWorkJob(draftOrJob || jobOrSlug)) {
+    alert('Audits stay live and cannot be archived.');
+    return;
+  }
   const currentStatus =
     workState.activeSlug === slug ? workState.draft?.status : listJob?.status;
   const unarchive = currentStatus === 'archived';
@@ -4260,16 +4283,21 @@ function createWorkListItem(job) {
 }
 
 function createWorkSwipeRow(job) {
-  return createSwipeRow(createWorkListItem(job), [
-    swipeAgentAction(() => askAgentAboutWork(job)),
-    swipeArchiveAction({
-      label: isWorkArchivedStatus(job.status) ? 'Unarchive' : 'Archive',
-      onClick: () => archiveWork(job),
-    }),
+  const actions = [swipeAgentAction(() => askAgentAboutWork(job))];
+  if (!isAuditWorkJob(job)) {
+    actions.push(
+      swipeArchiveAction({
+        label: isWorkArchivedStatus(job.status) ? 'Unarchive' : 'Archive',
+        onClick: () => archiveWork(job),
+      }),
+    );
+  }
+  actions.push(
     swipeDeleteAction({
       onClick: () => deleteWork(job.slug),
     }),
-  ]);
+  );
+  return createSwipeRow(createWorkListItem(job), actions);
 }
 export {
   workState,

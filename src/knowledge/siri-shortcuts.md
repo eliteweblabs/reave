@@ -232,7 +232,7 @@ Created project Website redesign for Tony Vello. Status: active.
 
 ### Audit (quick — street speed)
 
-**What it does**: Say a business name — add street or town if the name is common — and it hands the job to the research agent: finds the real business and website, looks up or creates the contact, runs a **fast audit** (Lighthouse, HTML/content, SSL, DNS, Google/social/reputation search), and files an "inquiry" project. Skips slow Playwright browser automation and link crawls so you get results faster on the street.
+**What it does**: Say a business name — add street or town if the name is common — and it hands the job to the research agent: finds the real business and website, looks up or creates the contact, runs a **fast audit** (Lighthouse, HTML/content, SSL, DNS, Google/social/reputation search), and files an audit project (status `audit`, not inquiry). Skips slow Playwright browser automation and link crawls so you get results faster on the street.
 
 Because Lighthouse alone can take up to ~2 minutes, this action returns immediately with an acknowledgment — the finished audit, new client, and new project land a little later in the **System alerts** chat thread with a push notification (requires `AGENT_ALERT_USER_ID` and web push set up). Siri won't sit there waiting.
 
