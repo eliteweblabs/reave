@@ -105,35 +105,20 @@
       #0c0614 100%
     );
     /*
-     * Asymmetric mesh — brightest at the header logo (top-left), casting down
-     * and right. No mirrored left/right pairs; overall opacity kept low.
+     * Logo light — circular gradient centered on the viewport top-left; only the
+     * southeast quadrant is visible (135° sweep down/right). Not a directional
+     * beam — just the natural arc from a corner-pinned circle.
      */
     --site-mesh-glow:
       radial-gradient(
-        ellipse 48% 165% at 10% 3%,
-        rgba(244, 114, 182, 0.2) 0%,
-        rgba(192, 38, 211, 0.11) 22%,
-        rgba(99, 102, 241, 0.04) 48%,
-        transparent 68%
-      ),
-      radial-gradient(
-        ellipse 72% 130% at 16% 34%,
-        rgba(192, 38, 211, 0.09) 0%,
-        rgba(99, 102, 241, 0.04) 38%,
-        transparent 62%
-      ),
-      radial-gradient(
-        ellipse 55% 70% at 42% 58%,
-        rgba(99, 102, 241, 0.05) 0%,
+        circle farthest-corner at 0 0,
+        rgba(244, 114, 182, 0.22) 0%,
+        rgba(192, 38, 211, 0.13) 16%,
+        rgba(99, 102, 241, 0.05) 38%,
         transparent 58%
-      ),
-      radial-gradient(
-        ellipse 50% 40% at 81% 76%,
-        rgba(99, 102, 241, 0.04) 0%,
-        transparent 54%
       );
     --site-mesh-bottom:
-      radial-gradient(ellipse 80% 45% at 58% 100%, rgba(192, 38, 211, 0.07) 0%, transparent 52%);
+      radial-gradient(ellipse 80% 45% at 58% 100%, rgba(192, 38, 211, 0.05) 0%, transparent 52%);
     --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom), var(--site-top-fade);
   }
 
