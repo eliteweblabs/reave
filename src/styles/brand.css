@@ -167,6 +167,21 @@
 }
 
 /**
+ * Mesh is painted on a fixed div in SiteBackground.astro — not on html/body
+ * (background-attachment: fixed janks on scroll and exposes black bars).
+ */
+.site-bg-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--site-canvas);
+  background-image: var(--site-mesh-atmosphere);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/**
  * Mesh is painted on body in Layout / portal shells. Keep this hook so older
  * markup or portals that still render the node do not reintroduce a fixed
  * full-bleed edge layer on iPhone Safari.
