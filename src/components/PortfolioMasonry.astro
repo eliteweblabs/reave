@@ -479,15 +479,16 @@ const items: PortfolioItem[] = [
     transform: translateY(0);
   }
 
-  /* Tablet + phone: 4-col grid — only 2×4 (tall) and 4×2 (landscape) */
+  /* Tablet + phone: 4-col — only full-width 4×2 (two panoramas stacked)
+     and half-width 2×2 (paired squares like Luxemeds / Vasodyn). */
   @media (max-width: 960px) {
     .portfolio-masonry {
       --masonry-cols: 4;
-      --brick-ratio: 1;
-      --brick-max: 9999px;
+      --brick-ratio: 0.85;
+      --brick-max: min(120px, calc((100svh - 160px) / 5.5));
     }
 
-    /* Landscape / wide desktop sizes → full-width 4×2 */
+    /* Wide desktop sizes → full width, height of two old panorama strips */
     .masonry-item--2x1,
     .masonry-item--3x2,
     .masonry-item--4x1 {
@@ -495,12 +496,12 @@ const items: PortfolioItem[] = [
       grid-row: span 2;
     }
 
-    /* Portrait / square desktop sizes → half-width 2×4 */
+    /* Tall / square desktop sizes → half-width squares, paired side by side */
     .masonry-item--1x1,
     .masonry-item--1x2,
     .masonry-item--2x2 {
       grid-column: span 2;
-      grid-row: span 4;
+      grid-row: span 2;
     }
   }
 </style>
