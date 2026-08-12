@@ -72,7 +72,7 @@ export async function PUT(context: APIContext): Promise<Response> {
 
   const model = normalizeAgentModelInput(String(raw));
   if (!model) {
-    return json({ ok: false, error: 'Unknown model. Try sonnet, opus, or haiku.' }, 400);
+    return json({ ok: false, error: 'Unknown model. Try auto, sonnet, opus, or haiku.' }, 400);
   }
 
   const ok = await setStoredAgentModel(model);

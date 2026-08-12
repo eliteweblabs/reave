@@ -204,7 +204,7 @@ export async function runSiteAssistantReply(opts: {
     };
   }
 
-  const model = await resolveAgentModel();
+  const model = await resolveAgentModel(null, { userText: opts.message });
   const system = buildSystemPrompt(opts.context);
   const messages = [
     ...trimHistory(opts.history ?? []),

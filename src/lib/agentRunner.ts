@@ -1,4 +1,4 @@
-import { labelForAgentModel, resolveAgentModel } from './agentModel';
+import { isAgentModelAuto, labelForAgentModel, resolveAgentModel } from './agentModel';
 import { isBraveConfigured } from './braveClient';
 import { isPexelsConfigured } from './pexelsClient';
 import { buildTools, runTool } from './agentTools';
@@ -195,10 +195,12 @@ async function currentDateTimeLine(): Promise<string> {
   return `Current date and time: ${formatted} (${timeZone})`;
 }
 
-async function runtimeContextLine(model: string): Promise<string> {
+async function runtimeContextLine(model: string, preference?: string | null): Promise<string> {
+  const pref = preference?.trim();
+  const viaAuto = pref && isAgentModelAuto(pref) ? ` via Auto` : '';
   return [
     await currentDateTimeLine(),
-    `Runtime model: ${labelForAgentModel(model)} (${model}). If asked which model or version you are, report this exactly — do not guess.`,
+    `Runtime model: ${labelForAgentModel(model)} (${model})${viaAuto}. If asked which model or version you are, report this exactly — do not guess.`,
   ].join('\n');
 }
 
@@ -646,7 +648,11 @@ async function runKnowledgeAgentInner(
     return { text: 'LLM is not configured. Set ANTHROPIC_API_KEY.', usage: null };
   }
 
-  const model = await resolveAgentModel(modelOverride);
+  const model = await resolveAgentModel(modelOverride, {
+    userText,
+    hasImages: images.length > 0,
+    hasDocs: docs.length > 0,
+  });
   const usageAcc = createAgentUsageAccumulator(model);
   const agentCtx = getAgentContext();
   const finishRun = async (text: string): Promise<AgentRunResult> => {
@@ -846,7 +852,7 @@ async function runKnowledgeAgentInner(
   const mentionsLine = formatMentionsContextLine(getAgentContext().mentions ?? []);
   if (mentionsLine) sysParts.push(mentionsLine);
 
-  const system = cachedSystemBlocks(sysParts.join('\n'), await runtimeContextLine(model));
+  const system = cachedSystemBlocks(sysParts.join('\n'), await runtimeContextLine(model, modelOverride));
   const cachedTools = withToolPromptCaching(tools);
   const messages: AnthropicMessage[] = await Promise.all([
     ...trimTurnsForAgent(priorTurns).map(async (turn) => ({
