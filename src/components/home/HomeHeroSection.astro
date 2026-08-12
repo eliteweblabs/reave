@@ -1,7 +1,7 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them. CTAs sit below the mock chat as siblings inside .home-hero-demo.
+ * under them. CTAs are viewport-fixed at the hero footer (see HomeStickyCtas).
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import HomeStickyCtas from "./HomeStickyCtas.astro";
@@ -75,18 +75,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         <div class="home-hero-demo-viewport" data-hero-demo-viewport>
           <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
         </div>
-        {showHeroCtas && <HomeStickyCtas siteContent={siteContent} />}
+        {showHeroCtas && <div class="home-sticky-ctas-spacer" aria-hidden="true" />}
       </div>
     )
   }
 
-  {
-    !showHeroDemo && showHeroCtas && (
-      <div class="home-hero-cta-dock">
-        <HomeStickyCtas siteContent={siteContent} />
-      </div>
-    )
-  }
+  {showHeroCtas && <HomeStickyCtas siteContent={siteContent} />}
 
   {
     showHeroDemo && showDemoControls && (
@@ -376,16 +370,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     overflow: visible;
   }
 
-  /* CTAs when there is no mock chat — pinned to the hero footer. */
-  .home-hero-cta-dock {
-    position: absolute;
-    z-index: 9;
-    left: 0;
-    right: 0;
-    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
-    display: flex;
-    justify-content: center;
-    padding: 0 20px;
+  /* Reserve the CTA band in the chat column — buttons are viewport-fixed. */
+  .home-sticky-ctas-spacer {
+    flex: none;
+    width: 100%;
+    height: var(--home-hero-copy-h, 88px);
+    min-height: var(--home-hero-copy-h, 88px);
     pointer-events: none;
   }
 

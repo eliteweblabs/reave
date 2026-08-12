@@ -2095,7 +2095,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  // CTAs are a sibling of the chat stack inside .home-hero-demo.
+  // CTAs are viewport-fixed under .home-hero (data-hero-copy).
   const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 

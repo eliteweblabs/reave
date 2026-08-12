@@ -1,5 +1,5 @@
 /**
- * Homepage hero CTAs — in-flow below the mock chat. Fade/slide when #contact
+ * Homepage hero CTAs — viewport-fixed at the hero footer; hide when #contact
  * scrolls into view.
  */
 import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
