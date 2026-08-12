@@ -1,0 +1,28 @@
+---
+/**
+ * Fixed full-viewport canvas underlay — paints even when html/body layout boxes
+ * are shorter than the hardware fold (iOS Safari scrollY=0 black letterboxing).
+ */
+---
+
+<div class="site-canvas-fill" aria-hidden="true"></div>
+
+<style is:global>
+  .site-canvas-fill {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-color: var(--site-canvas, #0c0614);
+    /*
+     * Mesh atmosphere on body — same stops as Layout.astro so the underlay
+     * matches the scrollable canvas when the root box ends early.
+     */
+    background-image:
+      radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
+      radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
+      radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+    background-repeat: no-repeat;
+  }
+</style>
