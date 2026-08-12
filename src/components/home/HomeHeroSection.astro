@@ -232,6 +232,19 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: none;
   }
 
+  @media (max-width: 768px) {
+    .home-hero {
+      /*
+       * 100lvh is taller than the visible fold while the Safari toolbar is
+       * showing, so CTAs at the demo column bottom sit under the address bar.
+       * dvh tracks the live visible height instead.
+       */
+      min-height: 100dvh;
+      height: 100dvh;
+      max-height: 100dvh;
+    }
+  }
+
   @media (max-width: 640px) {
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */
