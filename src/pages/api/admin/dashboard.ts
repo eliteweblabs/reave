@@ -11,18 +11,10 @@ import {
   storeEmailInboxDigest,
   storeListEmailInbox,
 } from '../../../lib/emailInboxStore';
-import { dedupeDashboardNotificationsByEmail } from '../../../lib/dashboardNotificationDedupe';
-import { listReviewNotifications } from '../../../lib/emailAutomation';
-import { listReceiptExpenseNotifications } from '../../../lib/emailReceiptExpense';
 import {
-  listProjectCommentNotifications,
-} from '../../../lib/workCommentNotifications';
-import {
-  listEngagementNotifications,
-} from '../../../lib/engagementNotifications';
-import {
-  listPushAlertNotifications,
-} from '../../../lib/pushAlertNotifications';
+  loadDashboardReviewNotifications,
+  scheduleHealStaleDashboardReviewSlugs,
+} from '../../../lib/dashboardReviewNotifications';
 import { getDeployStatus } from '../../../lib/deployStatus';
 import { syncRecentUptimeIncidentsToPushAlerts } from '../../../lib/uptimePushAlertSync';
 import {
@@ -41,10 +33,6 @@ import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import {
-  healStaleWorkNotificationSlugs,
-  partitionNotificationsByExistingWork,
-} from '../../../lib/notificationWorkLinks';
 
 export const prerender = false;
 
@@ -122,34 +110,9 @@ export async function GET(context: APIContext): Promise<Response> {
   const digest = computeInboxDigest(events, true);
   const emailsTotal = inboxDigest.visible;
   const projectsTotal = jobs.length;
-  const [
-    emailNotifications,
-    receiptExpenseNotifications,
-    commentNotifications,
-    engagementNotifications,
-    pushAlertNotifications,
-  ] = await Promise.all([
-    Promise.resolve(listReviewNotifications(events)),
-    Promise.resolve(listReceiptExpenseNotifications(events)),
-    listProjectCommentNotifications(),
-    listEngagementNotifications(),
-    listPushAlertNotifications(),
-  ]);
-  const validWorkSlugs = new Set(jobs.map((j) => j.slug));
-  const mergedNotifications = dedupeDashboardNotificationsByEmail([
-    ...emailNotifications,
-    ...receiptExpenseNotifications,
-    ...commentNotifications,
-    ...engagementNotifications,
-    ...pushAlertNotifications,
-  ]).sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-  const { kept: automationNotifications, staleSlugs } = partitionNotificationsByExistingWork(
-    mergedNotifications,
-    validWorkSlugs,
-  );
-  if (staleSlugs.size > 0) {
-    void healStaleWorkNotificationSlugs(staleSlugs);
-  }
+  const { notifications: automationNotifications, staleSlugs } =
+    await loadDashboardReviewNotifications({ events, jobs });
+  scheduleHealStaleDashboardReviewSlugs(staleSlugs);
   const reviewsPending = automationNotifications.length;
 
   const projectsPending = jobs.filter(
