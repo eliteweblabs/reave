@@ -163,20 +163,47 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * iPhone Safari (esp. 26 Liquid Glass) paints solid “forehead/chin” bars from
-	 * body background-color and from position:fixed layers on the viewport edges.
-	 * Keep a stable scrolling shell (no 100dvh/100lvh *height* on html/body — that
-	 * reflows the layout viewport and makes position:fixed headers shear). Paint the
-	 * atmosphere on body itself instead of full-bleed fixed mesh layers. Body uses
-	 * min-height (not height:100%) so a 100lvh hero can grow the paint box.
+	 * Device canvas + viable area
+	 * -----------------------------
+	 * --device-height: full hardware fold (large viewport), including the strips
+	 * under the status bar / home indicator when viewport-fit=cover is on.
+	 * --viable-*: the interactive content box inside env(safe-area-inset-*).
+	 * Background paint must cover --device-height; chrome/content pad to --viable-*.
+	 *
+	 * Do NOT lock html/body to height:100dvh/100lvh — that reflows the layout
+	 * viewport and shears position:fixed headers. Use min-height only so the
+	 * paint box is at least one device tall and can still grow with content.
 	 *
 	 * background-color MUST be a visible purple canvas (--site-canvas).
 	 * iOS 26 Safari ignores theme-color and falls back to this (or to fixed
 	 * edge samples) for status-bar / toolbar Liquid Glass tint. Near-black
 	 * (#050505 / #0c0614) reads as a disconnected black letterbox.
 	 */
+	:root {
+		--safe-top: env(safe-area-inset-top, 0px);
+		--safe-right: env(safe-area-inset-right, 0px);
+		--safe-bottom: env(safe-area-inset-bottom, 0px);
+		--safe-left: env(safe-area-inset-left, 0px);
+		--device-height: 100vh;
+		--device-height: -webkit-fill-available;
+		--device-height: 100dvh;
+		--device-height: 100lvh;
+		--viable-top: var(--safe-top);
+		--viable-right: var(--safe-right);
+		--viable-bottom: var(--safe-bottom);
+		--viable-left: var(--safe-left);
+		--viable-height: calc(
+			var(--device-height) - var(--safe-top) - var(--safe-bottom)
+		);
+	}
+
 	html {
 		height: 100%;
+		min-height: 100%;
+		min-height: -webkit-fill-available;
+		min-height: 100dvh;
+		min-height: 100lvh;
+		min-height: var(--device-height);
 		background-color: var(--site-canvas, #2a1245);
 	}
 
@@ -208,28 +235,44 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	body {
 		/*
-		 * Grow with content (hero is 100lvh) instead of locking height:100%.
-		 * A short body left a black chin under the fold on iOS Safari when the
-		 * large viewport exceeded the percentage box. Avoid 100dvh/100lvh on
-		 * html/body height — that reflows the layout viewport and shears fixed headers.
+		 * At least one full device tall so notch / home-indicator strips paint
+		 * with --site-canvas. Grow with content beyond the fold. Avoid height
+		 * locks (100dvh/100lvh) — those shear fixed headers on iOS Safari.
 		 */
 		min-height: 100%;
+		min-height: -webkit-fill-available;
+		min-height: 100dvh;
+		min-height: 100lvh;
+		min-height: var(--device-height);
 		position: relative;
-		/*
-		 * Mesh lives on body (not a position:fixed layer) so Safari does not treat
-		 * a full-viewport fixed backdrop as an edge element and letterbox it with
-		 * opaque black scroll-pocket tints. background-color stays separate from
-		 * background-image — Safari samples background-color for chrome/overscroll.
-		 * Top stops sit at y≈0 so the header / status-bar band gets the same glow
-		 * as the rest of the hero (not a flat black forehead).
-		 */
+	}
+
+	/*
+	 * Viewport-locked atmosphere: stays pinned to the device fold while the
+	 * document scrolls (Safari runway pin, section scroll). Solid canvas color
+	 * on the fixed layer so Liquid Glass edge samples match the viable area —
+	 * not a black letterbox. Mesh is background-image only (Safari samples
+	 * background-color for chrome tint).
+	 */
+	body::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		height: -webkit-fill-available;
+		height: 100dvh;
+		height: 100lvh;
+		height: var(--device-height);
+		z-index: -1;
+		pointer-events: none;
+		background-color: var(--site-canvas, #2a1245);
 		background-image:
 			radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
 			radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
 			radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
 			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
 		background-repeat: no-repeat;
-		background-attachment: scroll;
 	}
 
 	h1,
@@ -289,6 +332,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	.site-foot-wrap {
 		max-width: 920px;
 		margin: 0 auto;
-		padding: 0 24px calc(24px + env(safe-area-inset-bottom, 0px));
+		padding: 0 24px calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
 	}
 </style>

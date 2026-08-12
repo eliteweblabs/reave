@@ -163,7 +163,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     flex-direction: column;
     align-items: center;
     gap: 18px;
-    padding: 0 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    /* Viable-area bottom inset — canvas paint extends under the home indicator. */
+    padding: 0 20px calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
     text-align: center;
     pointer-events: none;
     /*
@@ -236,19 +237,20 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     max-width: 100%;
     isolation: isolate;
     /*
-     * Full device fold — 100lvh is the large (chrome-collapsed) viewport and
-     * stays stable while the URL bar shows/hides (unlike dvh). Fallbacks cover
-     * older WebKit; do not lock to svh or the island/home-indicator strips
-     * read as black letterbox bars against the body fill.
+     * Full device fold — matches Layout --device-height (100lvh). Large
+     * viewport stays stable while the URL bar shows/hides; body::before paints
+     * the same height so safe-area strips match the viable canvas color.
      */
     min-height: 100vh;
     min-height: -webkit-fill-available;
     min-height: 100dvh;
     min-height: 100lvh;
+    min-height: var(--device-height, 100lvh);
     height: 100vh;
     height: -webkit-fill-available;
     height: 100dvh;
     height: 100lvh;
+    height: var(--device-height, 100lvh);
     overflow: hidden;
     scroll-margin-top: 0;
   }

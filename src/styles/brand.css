@@ -95,6 +95,7 @@
   min-height: 100%;
   /* Cover the large viewport when body grows with a 100lvh hero. */
   min-height: 100lvh;
+  min-height: var(--device-height, 100lvh);
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
