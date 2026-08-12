@@ -25,10 +25,11 @@
     sans-serif;
   /*
    * Solid canvas iOS 26 Safari samples for status-bar / toolbar Liquid Glass.
-   * Must read as purple (not near-black) — Safari ignores theme-color and does
-   * not sample background-image gradients for chrome tint.
+   * Must read as clearly purple (not near-black) — Safari ignores theme-color
+   * and does not sample background-image gradients for chrome tint. Tuned to
+   * the hero mesh so the scrollY=0 fallback doesn't look like a black letterbox.
    */
-  --site-canvas: #180a28;
+  --site-canvas: #2a1245;
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
