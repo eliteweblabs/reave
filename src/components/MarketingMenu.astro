@@ -2,7 +2,6 @@
 /**
  * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
-import DeployStatusDot from "./DeployStatusDot.astro";
 import { ArrowRight, LayoutDashboard, X } from "lucide-astro";
 import {
   marketingNavActivePath,
@@ -51,7 +50,6 @@ const showSignIn = siteContent.nav.showSignIn !== false;
   </nav>
 
   <div class="marketing-nav-actions">
-    <DeployStatusDot />
     {
       showDemoCta && demoCta && (
         <a class="marketing-nav-cta" href={demoCta.href}>

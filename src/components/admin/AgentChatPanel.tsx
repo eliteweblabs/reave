@@ -1289,10 +1289,26 @@ function useDeployChatLock(): DeployChatLockState {
     });
   }, []);
 
+  const canPollDeployIndicator = useCallback(() => {
+    // Owner-only endpoint (unless DEPLOY_STATUS_PUBLIC) — never hit it signed out / non-owner.
+    if (typeof document === 'undefined') return false;
+    if (document.body?.dataset?.isOwner === '1') return true;
+    // Public marketing pages have no data-is-owner; rely on header events only.
+    return false;
+  }, []);
+
   const refresh = useCallback(async () => {
     if (reloadScheduledRef.current) return;
+    if (!canPollDeployIndicator()) {
+      applyPayload(null);
+      return;
+    }
     try {
       const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
+      if (res.status === 401 || res.status === 403) {
+        applyPayload(null);
+        return;
+      }
       const data = (await res.json()) as {
         ok?: boolean;
         deploy?: DeployIndicatorPayload | null;
@@ -1306,21 +1322,22 @@ function useDeployChatLock(): DeployChatLockState {
       // Keep the existing lock state on transient network errors so a blip
       // doesn't unlock the composer while a deploy is still in flight.
     }
-  }, [applyPayload]);
+  }, [applyPayload, canPollDeployIndicator]);
 
   useEffect(() => {
-    void refresh();
-
     let timer: ReturnType<typeof setTimeout> | null = null;
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      if (reloadScheduledRef.current || document.hidden) return;
+      if (reloadScheduledRef.current || document.hidden || !canPollDeployIndicator()) return;
       const ms = lockedRef.current ? DEPLOY_CHAT_LOCK_POLL_MS_ACTIVE : DEPLOY_CHAT_LOCK_POLL_MS_IDLE;
       timer = setTimeout(() => {
         void refresh().finally(schedule);
       }, ms);
     };
-    schedule();
+
+    if (canPollDeployIndicator()) {
+      void refresh().finally(schedule);
+    }
 
     const onVis = () => {
       if (document.hidden) {
@@ -1328,6 +1345,7 @@ function useDeployChatLock(): DeployChatLockState {
         timer = null;
         return;
       }
+      if (!canPollDeployIndicator()) return;
       void refresh().finally(schedule);
     };
 
@@ -1345,7 +1363,7 @@ function useDeployChatLock(): DeployChatLockState {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('reave:deploy-indicator', onDeployEvent);
     };
-  }, [applyPayload, refresh]);
+  }, [applyPayload, canPollDeployIndicator, refresh]);
 
   return state;
 }

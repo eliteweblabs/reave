@@ -7,6 +7,8 @@ import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
 import type { SiteContentConfig } from "../lib/siteContent";
+import { isDeploymentOwner } from "../lib/deploymentOwner";
+import { serverEnv } from "../lib/serverEnv";
 import {
   Shield,
   LayoutDashboard,
@@ -44,6 +46,10 @@ const profileIconSrc = companyStaffAvatarUrl(company);
 
 const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
+/** Owner-only bulb matches /api/deploy/indicator (unless DEPLOY_STATUS_PUBLIC). */
+const showDeployIndicator =
+  serverEnv("DEPLOY_STATUS_PUBLIC") === "1" ||
+  (Boolean(userId) && (await isDeploymentOwner(Astro)));
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 const inAdminRoute = adminShell || path.startsWith("/admin");
@@ -134,7 +140,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
           </button>
           <div class="topbar-profile-cluster">
-            <DeployStatusDot />
+            {showDeployIndicator && <DeployStatusDot />}
             <div class="app-header-menu topbar-menu topbar-profile-menu">
               <button
                 type="button"
@@ -175,7 +181,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
         </>
       ) : (
         <div class="topbar-profile-cluster">
-          <DeployStatusDot />
+          {showDeployIndicator && <DeployStatusDot />}
           <div class="app-header-menu topbar-menu topbar-profile-menu">
           <button
             type="button"
@@ -266,7 +272,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
 <script is:inline src={`/proximity-tooltip.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
-{userId && (
+{showDeployIndicator && (
   <script is:inline src={`/deploy-indicator.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
 

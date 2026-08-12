@@ -13723,7 +13723,7 @@ document.addEventListener('visibilitychange', () => {
     syncInboxBadgePoll();
     syncChatRunningPoll();
     syncWorkAuditingPoll();
-    startDeployPoll();
+    if (userId) startDeployPoll();
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();
   }

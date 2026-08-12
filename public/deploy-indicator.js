@@ -17,6 +17,16 @@
   /** After 401/403, never poll again — endpoint is owner-only unless DEPLOY_STATUS_PUBLIC. */
   let deployAuthDenied = false;
 
+  /** Soft sign-out: Clerk cleared the session but this page still has the poller. */
+  function clerkSessionGone() {
+    try {
+      const clerk = window.Clerk;
+      return Boolean(clerk?.loaded && !clerk.user);
+    } catch {
+      return false;
+    }
+  }
+
   function hideDeployDot() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot) return;
@@ -28,6 +38,13 @@
   async function refreshDeployDot() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot || deployAuthDenied) return;
+    if (clerkSessionGone()) {
+      deployAuthDenied = true;
+      stopDeployPoll();
+      hideDeployDot();
+      publishDeployIndicator(null);
+      return;
+    }
     try {
       const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
       if (res.status === 401 || res.status === 403) {
@@ -94,7 +111,8 @@
   function initDeployIndicator() {
     const dot = document.getElementById('topbar-deploy-dot');
     if (!dot || dot.dataset.deployBound) return;
-    if (deployAuthDenied) {
+    if (deployAuthDenied || clerkSessionGone()) {
+      deployAuthDenied = true;
       hideDeployDot();
       return;
     }
