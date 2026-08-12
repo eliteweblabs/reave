@@ -12,22 +12,13 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-/** iOS Safari Liquid Glass runway floor — never rest at scrollY=0 on mobile. */
-function safariScrollRunwayFloor(): number {
-  const raw = getComputedStyle(document.documentElement)
-    .getPropertyValue("--safari-scroll-offset")
-    .trim();
-  const n = Number.parseFloat(raw);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
-
 /** Scrollport + target scroll-margin, matching native scrollIntoView insets. */
 export function getHomepageSectionScrollTop(el: HTMLElement): number {
   const rootStyles = getComputedStyle(document.documentElement);
   const padTop = Number.parseFloat(rootStyles.scrollPaddingTop) || 0;
   const marginTop = Number.parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
   const top = el.getBoundingClientRect().top + window.scrollY - padTop - marginTop;
-  return Math.max(safariScrollRunwayFloor(), top);
+  return Math.max(0, top);
 }
 
 function easeInOutCubic(t: number): number {
