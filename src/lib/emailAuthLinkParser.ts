@@ -33,10 +33,22 @@ const CTA_LABEL_LOOSE =
 
 /** Path / host hints that the href is the auth action. */
 const AUTH_HREF =
-  /(?:\/(?:login|log-in|signin|sign-in|sign_in|auth|authenticate|verify|verification|activate|activation|magic|session|sso|oauth|callback|confirm|invite)|[?&](?:token|magic|otp|code|auth)=)/i;
+  /(?:\/(?:login|log-in|signin|sign-in|sign_in|auth|authenticate|verify|verification|activate|activation|magic(?:-?link)?|session|sso|oauth|callback|confirm|invite)|[?&](?:token|magic|otp|code|auth)=)/i;
 
+/**
+ * Never treat these as the activation CTA.
+ * Note: do NOT skip every URL containing `#` — Claude and others put the
+ * magic-link nonce in the fragment (`…/magic-link#token`).
+ */
 const SKIP_HREF =
-  /(?:unsubscribe|preferences|prefcenter|email-settings|manage[-_]?subscription|opt[-_]?out|privacy|terms|mailto:|javascript:|tel:|sms:|#|facebook\.com\/sharer|twitter\.com\/intent|linkedin\.com\/sharing|play\.google\.com|apps\.apple\.com)/i;
+  /(?:unsubscribe|preferences|prefcenter|email-settings|manage[-_]?subscription|opt[-_]?out|privacy|terms|mailto:|javascript:|tel:|sms:|facebook\.com\/sharer|twitter\.com\/intent|linkedin\.com\/sharing|play\.google\.com|apps\.apple\.com)/i;
+
+/** Static assets / tracking pixels — logos are often the first absolute URL in HTML mail. */
+const STATIC_ASSET_HREF =
+  /\.(?:png|jpe?g|gif|webp|svg|ico|bmp|avif|css|js|woff2?|ttf|eot|mp4|webm|pdf)(?:[?#]|$)/i;
+
+const STATIC_ASSET_PATH =
+  /\/(?:images?|img|static|assets|media|cdn-cgi|email-assets|icons?|logos?)\//i;
 
 const BARE_URL =
   /https?:\/\/[^\s<>"')\]]+/gi;
@@ -58,16 +70,63 @@ function decodeHtmlEntities(raw: string): string {
     .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)));
 }
 
+function isStaticAssetUrl(url: string): boolean {
+  if (STATIC_ASSET_HREF.test(url)) return true;
+  try {
+    const u = new URL(url);
+    const path = u.pathname;
+    if (STATIC_ASSET_PATH.test(path)) return true;
+    // Bare logo/chip filenames without a clear auth path.
+    if (/\b(?:logo|chip|pixel|spacer|beacon|tracking)\b/i.test(path) && !AUTH_HREF.test(url)) {
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/** Opaque nonce / hash typical of magic links (Claude uses `#token` fragments). */
+function authTokenSignal(url: string): number {
+  try {
+    const u = new URL(url);
+    const hash = u.hash.replace(/^#/, '');
+    if (hash.length >= 8) {
+      // Strong: non-empty fragment that looks like a token (not #pricing).
+      if (/[A-Za-z0-9]{8,}/.test(hash) || /[:._\-*]/.test(hash)) return 60;
+      if (hash.length >= 16) return 50;
+    }
+    const hay = `${u.pathname}${u.search}${hash ? `#${hash}` : ''}`;
+    // Long opaque path/query segments (UUID, base64url, hex).
+    if (
+      /[A-Fa-f0-9]{24,}/.test(hay) ||
+      /[A-Za-z0-9_-]{20,}/.test(hay) ||
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(hay)
+    ) {
+      return 35;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 0;
+}
+
 function normalizeUrl(raw: string): string | null {
   const cleaned = decodeHtmlEntities(raw.trim())
     .replace(/^['"]+|['"]+$/g, '')
     .replace(/[),.;]+$/g, '');
   if (!cleaned) return null;
   if (SKIP_HREF.test(cleaned)) return null;
+  if (isStaticAssetUrl(cleaned)) return null;
   try {
     const u = new URL(cleaned);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
     if (!u.hostname.includes('.')) return null;
+    // Drop empty / placeholder fragments only (`https://x.com/#`), keep real tokens.
+    if (u.hash === '#' || u.hash === '#/') {
+      u.hash = '';
+    }
+    if (isStaticAssetUrl(u.toString())) return null;
     return u.toString();
   } catch {
     return null;
@@ -82,11 +141,13 @@ function scoreHref(url: string, label = ''): number {
   if (/claude\.ai|anthropic\.com|accounts\.google|clerk\.|auth0\.|okta\.|vercel\.com|github\.com|supabase\.|railway\.app/i.test(url)) {
     score += 15;
   }
-  // Prefer longer opaque tokens (magic links).
+  score += authTokenSignal(url);
+  // Prefer longer opaque tokens (magic links) — but not image paths.
   try {
-    const path = new URL(url).pathname;
-    if (path.length > 24) score += 10;
-    if (/[A-Za-z0-9_-]{16,}/.test(path + new URL(url).search)) score += 10;
+    const u = new URL(url);
+    const path = u.pathname;
+    if (path.length > 24 && !STATIC_ASSET_PATH.test(path)) score += 10;
+    if (/[A-Za-z0-9_-]{16,}/.test(path + u.search + u.hash)) score += 10;
   } catch {
     /* ignore */
   }
