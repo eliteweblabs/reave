@@ -2,7 +2,12 @@
  * Email triage Lab — compose a message, drag rule priority, play the same
  * processInboundEmail dry-run the Agent uses (POST /api/email/simulate).
  */
-import { iosIcon } from './admin-ui.js?v=20260812c';
+import {
+  iosIcon,
+  listSearchSubheader,
+  createSlidingPillSelect,
+  matchesListSearch,
+} from './admin-ui.js?v=20260812f';
 import { escHtml } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260728q';
 
@@ -50,10 +55,13 @@ export const PIPELINE_FUNCTIONS = [
 /**
  * @param {object} deps
  * @param {() => object} deps.getRuleState
- * @param {(view: string) => void} deps.setRulesView
  * @param {() => HTMLElement | null} deps.getRuleEditor
  * @param {() => Promise<void>} deps.reloadRules
- * @param {() => { el: HTMLElement }} deps.createRulesViewPicker
+ * @param {(ruleId: string) => void | Promise<void>} deps.toggleRuleEditor
+ * @param {(container: HTMLElement) => void} deps.renderRuleForm
+ * @param {() => string | null} deps.getActiveRuleId
+ * @param {() => void | Promise<void>} [deps.startNewRule]
+ * @param {() => Promise<void>} [deps.flushRuleAutosave]
  * @param {() => string} [deps.inboundAddressExample]
  */
 export function createEmailTriageLab(deps) {
@@ -122,6 +130,75 @@ export function createEmailTriageLab(deps) {
   function orderedRules() {
     const byId = new Map((ruleState().rules || []).map((r) => [r.id, r]));
     return state.ruleOrder.map((id) => byId.get(id)).filter(Boolean);
+  }
+
+  function isRulesFilterActive() {
+    const rs = ruleState();
+    return Boolean(String(rs.search || '').trim()) || (rs.scopeFilter && rs.scopeFilter !== 'all');
+  }
+
+  function ruleMatchesLabFilter(rule) {
+    if (!rule) return false;
+    const rs = ruleState();
+    // Keep the open accordion visible while filtering.
+    if (rs.activeId != null && String(rule.id) === String(rs.activeId)) return true;
+    if (rs.scopeFilter === 'universal' && rule.scope !== 'universal') return false;
+    if (rs.scopeFilter === 'personal' && rule.scope === 'universal') return false;
+    return matchesListSearch(
+      rs.search,
+      rule.title,
+      rule.status,
+      rule.description,
+      rule.scope === 'universal' ? 'Universal' : 'Personal',
+      rule.forwardTo,
+      rule.notify ? 'Notify' : 'Silent',
+      ...(rule.phrases || []),
+      ...(rule.exceptPhrases || []),
+    );
+  }
+
+  function applyRulesFilter(root = deps.getRuleEditor()) {
+    if (!root) return;
+    const rs = ruleState();
+    const searchInput = root.querySelector('.re-lab-rules-filter .panel-list-search');
+    if (searchInput instanceof HTMLInputElement) {
+      rs.search = searchInput.value;
+    }
+    const cards = [...root.querySelectorAll('.re-lab-pipe-card--rule')];
+    let visible = 0;
+    for (const card of cards) {
+      const rule = orderedRules().find((r) => String(r.id) === String(card.dataset.ruleId));
+      const show = ruleMatchesLabFilter(rule);
+      card.hidden = !show;
+      card.classList.toggle('re-lab-pipe-card--filtered-out', !show);
+      if (show) visible += 1;
+    }
+    const empty = root.querySelector('[data-lab-rules-empty]');
+    if (empty) {
+      empty.hidden = visible > 0;
+      empty.textContent = isRulesFilterActive() ? 'No matching rules.' : 'No rules yet.';
+    }
+    const filterActive = isRulesFilterActive();
+    root.querySelectorAll('.re-lab-pipe-card--rule .re-lab-grip').forEach((grip) => {
+      grip.disabled = filterActive;
+      grip.title = filterActive ? 'Clear filter to reorder' : 'Drag to reorder';
+    });
+    if (searchInput instanceof HTMLInputElement) {
+      const n = orderedRules().length;
+      searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
+    }
+  }
+
+  function bindRulesFilterInput(input, root) {
+    if (!(input instanceof HTMLInputElement) || input.dataset.labRulesFilterBound === '1') return;
+    input.dataset.labRulesFilterBound = '1';
+    const run = () => {
+      ruleState().search = input.value;
+      applyRulesFilter(root);
+    };
+    input.addEventListener('input', run);
+    input.addEventListener('change', run);
+    input.addEventListener('search', run);
   }
 
   async function ensureContacts(q = '') {
@@ -320,6 +397,7 @@ export function createEmailTriageLab(deps) {
   async function runSimulation() {
     const root = deps.getRuleEditor();
     if (!root || state.running) return;
+    await deps.flushRuleAutosave?.();
     readForm(root);
     const fromEmail =
       state.from.match(/<([^>]+)>/)?.[1]?.trim() ||
@@ -371,6 +449,7 @@ export function createEmailTriageLab(deps) {
   }
 
   async function persistRuleOrder() {
+    await deps.flushRuleAutosave?.();
     try {
       const res = await fetch('/api/email/rules/reorder', {
         method: 'POST',
@@ -389,6 +468,37 @@ export function createEmailTriageLab(deps) {
     }
   }
 
+  function syncExpandedRule(root = deps.getRuleEditor()) {
+    if (!root) return;
+    const activeId = deps.getActiveRuleId?.() ?? null;
+    root.querySelectorAll('.re-lab-pipe-card--rule').forEach((card) => {
+      const open = Boolean(activeId && card.dataset.ruleId === String(activeId));
+      card.classList.toggle('re-lab-pipe-card--open', open);
+      const toggle = card.querySelector('.re-lab-pipe-card-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const bodyEl = card.querySelector('.re-lab-pipe-card-body');
+      if (!bodyEl) return;
+      if (open) {
+        if (bodyEl.dataset.mounted !== '1') {
+          bodyEl.innerHTML = '';
+          deps.renderRuleForm(bodyEl);
+          bodyEl.dataset.mounted = '1';
+        }
+        bodyEl.hidden = false;
+        requestAnimationFrame(() => {
+          card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        });
+      } else {
+        bodyEl.hidden = true;
+        if (bodyEl.dataset.mounted === '1') {
+          bodyEl.innerHTML = '';
+          delete bodyEl.dataset.mounted;
+        }
+      }
+    });
+    applyRulesFilter(root);
+  }
+
   function attachRuleReorder(listEl) {
     let dragEl = null;
     let moved = false;
@@ -397,8 +507,9 @@ export function createEmailTriageLab(deps) {
       grip.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
+        if (isRulesFilterActive() || grip.disabled) return;
         const row = grip.closest('.re-lab-pipe-card');
-        if (!row || row.dataset.locked === '1') return;
+        if (!row || row.dataset.locked === '1' || row.hidden) return;
         dragEl = row;
         moved = false;
         row.classList.add('re-lab-dragging');
@@ -609,16 +720,21 @@ export function createEmailTriageLab(deps) {
     toolbar.className = 're-flow-toolbar';
     const left = document.createElement('div');
     left.className = 're-flow-toolbar-left';
-    left.appendChild(deps.createRulesViewPicker().el);
     const hint = document.createElement('p');
     hint.className = 're-flow-hint';
     hint.textContent =
-      'Flow = live ladder · try an email · first match wins · Agent handles unmatched · teach creates rules';
+      'Try an email · tap a rule to edit · drag to set priority · first match wins';
     left.appendChild(hint);
     toolbar.appendChild(left);
 
     const right = document.createElement('div');
     right.className = 're-flow-toolbar-right re-lab-toolbar-actions';
+    const newRuleBtn = document.createElement('button');
+    newRuleBtn.type = 'button';
+    newRuleBtn.className = 'dash-panel-btn';
+    newRuleBtn.dataset.labNewRule = '1';
+    newRuleBtn.textContent = 'New rule';
+    newRuleBtn.addEventListener('click', () => void deps.startNewRule?.());
     const saveOrder = document.createElement('button');
     saveOrder.type = 'button';
     saveOrder.className = 'dash-panel-btn';
@@ -633,20 +749,23 @@ export function createEmailTriageLab(deps) {
     runBtn.dataset.labRun = '1';
     runBtn.textContent = 'Run triage';
     runBtn.addEventListener('click', () => void runSimulation());
-    right.append(saveOrder, runBtn);
+    right.append(newRuleBtn, saveOrder, runBtn);
     toolbar.appendChild(right);
     shellEl.appendChild(toolbar);
 
     const body = document.createElement('div');
     body.className = 're-lab-body';
 
-    // ── Compose ──
+    // ── Compose (collapsible so the pipeline stays on one screen) ──
     const compose = document.createElement('section');
     compose.className = 're-lab-compose';
-    compose.innerHTML = `<header class="re-lab-section-head">
+    const composeDetails = document.createElement('details');
+    composeDetails.className = 're-lab-compose-details';
+    composeDetails.open = true;
+    composeDetails.innerHTML = `<summary class="re-lab-section-head re-lab-compose-summary">
       <h2>Try an email</h2>
       <p>Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.</p>
-    </header>`;
+    </summary>`;
 
     const form = document.createElement('div');
     form.className = 're-lab-form';
@@ -877,7 +996,8 @@ export function createEmailTriageLab(deps) {
     gatesLb.append(gatesCb, document.createTextNode(' Skip inbound gates (sleep / cutoff / allowlist)'));
     form.appendChild(gatesLb);
 
-    compose.appendChild(form);
+    composeDetails.appendChild(form);
+    compose.appendChild(composeDetails);
     body.appendChild(compose);
 
     // ── Pipeline ──
@@ -885,7 +1005,7 @@ export function createEmailTriageLab(deps) {
     pipe.className = 're-lab-pipeline';
     pipe.innerHTML = `<header class="re-lab-section-head">
       <h2>Pipeline</h2>
-      <p>Drag rules to set priority. Downstream functions stay in the Agent’s fixed order.</p>
+      <p>Drag to set priority · tap a rule to edit · downstream stays in Agent order.</p>
     </header>`;
 
     const pipeList = document.createElement('div');
@@ -906,6 +1026,42 @@ export function createEmailTriageLab(deps) {
         continue;
       }
       if (fn.id === 'rules') {
+        const filterBar = document.createElement('div');
+        filterBar.className = 're-lab-rules-filter';
+        const ruleCount = orderedRules().length;
+        const search = listSearchSubheader({
+          itemCount: ruleCount,
+          search: {
+            value: ruleState().search || '',
+            placeholder: `Search ${ruleCount} ${ruleCount === 1 ? 'Rule' : 'Rules'}`,
+            ariaLabel: 'Filter rules by title, status, or keywords',
+            onInput: (value) => {
+              ruleState().search = value;
+              applyRulesFilter(root);
+            },
+          },
+        });
+        if (search?.el) filterBar.appendChild(search.el);
+        if (search?.input) bindRulesFilterInput(search.input, root);
+        const scopeFilter = createSlidingPillSelect({
+          value: ruleState().scopeFilter || 'all',
+          ariaLabel: 'Filter by rule scope',
+          options: [
+            { value: 'all', label: 'All' },
+            { value: 'universal', label: 'Universal' },
+            { value: 'personal', label: 'Personal' },
+          ],
+          onChange: (value) => {
+            ruleState().scopeFilter = value;
+            applyRulesFilter(root);
+          },
+        });
+        const scopeBar = document.createElement('div');
+        scopeBar.className = 're-scope-filter re-lab-scope-filter';
+        scopeBar.appendChild(scopeFilter.el);
+        filterBar.appendChild(scopeBar);
+        pipeList.appendChild(filterBar);
+
         const spine = document.createElement('div');
         spine.className = 're-flow-spine';
         spine.textContent = '↓ keyword rules (drag to reorder)';
@@ -917,22 +1073,58 @@ export function createEmailTriageLab(deps) {
           card.dataset.kind = 'rule';
           card.dataset.stage = 'rules';
           card.dataset.ruleId = rule.id;
+          const show = ruleMatchesLabFilter(rule);
+          card.hidden = !show;
+          card.classList.toggle('re-lab-pipe-card--filtered-out', !show);
           if (rule.enabled === false) card.classList.add('re-lab-pipe-card--off');
           const matched =
             state.sim?.ruleEvaluations?.find(
               (e) => (e.rule?.id || e.ruleId) === rule.id || e.rule?.status === rule.status,
             )?.outcome === 'matched';
           if (matched) card.classList.add('re-lab-pipe-card--matched');
-          card.innerHTML = `
-            <button type="button" class="re-lab-grip" aria-label="Drag to reorder" title="Drag to reorder">${iosIcon('grip', 16)}</button>
+
+          const head = document.createElement('div');
+          head.className = 're-lab-pipe-card-head';
+
+          const grip = document.createElement('button');
+          grip.type = 'button';
+          grip.className = 're-lab-grip';
+          grip.setAttribute('aria-label', 'Drag to reorder');
+          grip.title = 'Drag to reorder';
+          grip.innerHTML = iosIcon('grip', 16);
+
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 're-lab-pipe-card-toggle';
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.innerHTML = `
             <span class="re-lab-pri">#${i + 1}</span>
             <span class="re-lab-pipe-main">
               <span class="re-flow-badge">When</span>
               <span class="re-lab-pipe-title">${escHtml(rule.title || rule.status)}</span>
               <span class="re-lab-pipe-sub">${escHtml(rule.scope === 'universal' ? 'Universal' : 'Personal')} · ${escHtml(rule.status)} · ${rule.notify ? 'Notify' : 'Silent'}${rule.enabled === false ? ' · Off' : ''}</span>
-            </span>`;
+            </span>
+            <span class="re-lab-pipe-chevron" aria-hidden="true">${iosIcon('chevron-down', 16)}</span>`;
+          toggle.addEventListener('click', () => {
+            void deps.toggleRuleEditor(rule.id);
+          });
+
+          head.append(grip, toggle);
+
+          const accordionBody = document.createElement('div');
+          accordionBody.className = 're-lab-pipe-card-body';
+          accordionBody.hidden = true;
+
+          card.append(head, accordionBody);
           pipeList.appendChild(card);
         });
+
+        const rulesEmpty = document.createElement('div');
+        rulesEmpty.className = 'de-empty';
+        rulesEmpty.dataset.labRulesEmpty = '1';
+        rulesEmpty.textContent = 'No rules yet.';
+        rulesEmpty.hidden = orderedRules().length > 0;
+        pipeList.appendChild(rulesEmpty);
 
         const elseCard = document.createElement('div');
         elseCard.className = 're-lab-pipe-card re-lab-pipe-card--else re-lab-pipe-card--agent';
@@ -1080,6 +1272,8 @@ export function createEmailTriageLab(deps) {
     shellEl.appendChild(body);
     root.appendChild(shellEl);
     syncPlayButtons();
+    syncExpandedRule(root);
+    applyRulesFilter(root);
     void ensureContacts();
   }
 
@@ -1094,6 +1288,7 @@ export function createEmailTriageLab(deps) {
       if (root) renderLabShell(root, { preserveForm: false });
       if (opts.run !== false) await runSimulation();
     },
+    syncExpandedRule,
     destroy() {
       stopPlayback();
       closeContactSuggestions(deps.getRuleEditor()?.querySelector('.re-lab-suggest-box'));
