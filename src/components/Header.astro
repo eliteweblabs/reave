@@ -75,13 +75,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   ]}
   id={adminShell ? "topbar" : undefined}
 >
-  <div class="app-header-scrim" aria-hidden="true">
-    <!-- Flat forehead blur into the status-bar safe area (no progressive mask). -->
-    <span class="app-header-scrim-flat"></span>
-    <span class="app-header-scrim-blur"></span>
-    <span class="app-header-scrim-blur"></span>
-    <span class="app-header-scrim-blur"></span>
-  </div>
+  {/*
+    TEMP: header blur/scrim removed so iOS Safari can show the raw body mesh +
+    repeating pattern through the status-bar safe area with no backdrop-filter
+    or safe-area JS in the way. Restore .app-header-scrim when debugging is done.
+  */}
 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   <a
@@ -273,18 +271,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 )}
 
 <script>
-  /** iOS can report 0 for env(safe-area-inset-top) on fixed shells — probe and pin px when needed. */
-  function syncAppHeaderSafeArea() {
-    const probe = document.createElement("div");
-    probe.style.cssText =
-      "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
-    document.documentElement.appendChild(probe);
-    const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
-    probe.remove();
-    // Always pin — header padding/scrim use var(--safe-top), and iOS can report
-    // 0 from env() on the fixed shell even when the probe sees a real inset.
-    document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
-  }
+  /*
+   * TEMP: syncAppHeaderSafeArea disabled while isolating iOS Safari safe-area
+   * atmosphere. Header padding uses env(safe-area-inset-top) only — no JS
+   * writes to --safe-top. Restore the probe if logo/chrome sit under the notch.
+   */
 
   /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
   function syncTopbarMeasuredHeight() {
@@ -313,14 +304,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     window.visualViewport?.addEventListener("resize", syncTopbarMeasuredHeight, { passive: true });
   }
 
-  syncAppHeaderSafeArea();
   bindTopbarHeightObserver();
   document.addEventListener("astro:page-load", () => {
-    syncAppHeaderSafeArea();
     bindTopbarHeightObserver();
     syncTopbarMeasuredHeight();
   });
-  window.visualViewport?.addEventListener("resize", syncAppHeaderSafeArea, { passive: true });
 </script>
 
 <style is:global>
@@ -328,8 +316,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     --app-header-h: 3.25rem;
     --safe-top: env(safe-area-inset-top, 0px);
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
-    /* Chrome band plus the tail the scrim fades out over, below the bar. */
-    --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 3.75rem);
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
@@ -389,15 +375,13 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     align-items: stretch;
     min-height: 0;
     /*
-     * No solid background-color / backdrop-filter on this fixed edge shell.
-     * iPhone Safari samples those for forehead tint; keep blur on absolute
-     * .app-header-scrim children only so the bar stays immersive, not a black strip.
+     * TEMP: fully transparent shell — no background, no backdrop-filter, no
+     * scrim. Body mesh + repeating pattern must show through the safe area.
      */
     background-color: transparent;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
-    /* var(--safe-top) — probed in JS when env() lies on fixed shells. */
     padding:
-      var(--safe-top)
+      env(safe-area-inset-top, 0px)
       var(--app-header-inline-pad)
       0
       var(--app-header-inline-pad);
@@ -429,97 +413,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     z-index: 1;
   }
 
-  /*
-   * Fixed transparent headers let page content scroll under the logo and nav.
-   * The scrim blurs it out: stacked backdrop-filter layers with masks that ramp
-   * blur toward the top (radii compound across layers). Public pages always;
-   * admin only while the dashboard tab is open (content scrolls under the bar).
-   */
-  .app-header > .app-header-scrim {
-    position: absolute;
-    top: calc(-1 * var(--safe-top));
-    left: calc(-1 * var(--app-header-inline-pad));
-    right: calc(-1 * var(--app-header-inline-pad));
-    height: var(--app-header-scrim-h);
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .app-header--admin > .app-header-scrim {
-    display: none;
-  }
-
-  .app-header--admin.app-header--scrim > .app-header-scrim {
-    display: block;
-    /* Same top pin as public; trim the fade tail so dashboard content peeks sooner. */
-    height: calc(var(--app-header-scrim-h) - 20px);
-  }
-
-  /*
-   * Flat blur across the status-bar / notch band. Progressive masks below fade
-   * out under the logo row; this layer stays full-strength into the forehead
-   * so the safe-area does not read as an empty black strip.
-   */
-  .app-header-scrim-flat {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: calc(var(--safe-top) + 1.25rem);
-    /* Safari needs a painted surface before backdrop-filter composites. */
-    background: rgba(12, 6, 20, 0.001);
-    transform: translateZ(0);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-  }
-
-  .app-header-scrim-blur {
-    position: absolute;
-    inset: 0;
-    /* Safari needs a painted surface before backdrop-filter composites. */
-    background: rgba(0, 0, 0, 0.001);
-    transform: translateZ(0);
-    -webkit-mask-image: var(--app-header-scrim-mask);
-    mask-image: var(--app-header-scrim-mask);
-  }
-
-  /* Soft progressive blur: each layer starts later and adds a small radius so
-   * content going under the bar eases out instead of snapping into heavy blur. */
-  .app-header-scrim-blur:nth-child(2) {
-    --app-header-scrim-mask: linear-gradient(
-      to top,
-      transparent 0%,
-      rgba(0, 0, 0, 0.35) 22%,
-      #000 55%,
-      #000 100%
-    );
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-  }
-
-  .app-header-scrim-blur:nth-child(3) {
-    --app-header-scrim-mask: linear-gradient(
-      to top,
-      transparent 18%,
-      rgba(0, 0, 0, 0.4) 42%,
-      #000 72%,
-      #000 100%
-    );
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-  }
-
-  .app-header-scrim-blur:nth-child(4) {
-    --app-header-scrim-mask: linear-gradient(
-      to top,
-      transparent 40%,
-      rgba(0, 0, 0, 0.45) 68%,
-      #000 92%,
-      #000 100%
-    );
-    -webkit-backdrop-filter: blur(7px);
-    backdrop-filter: blur(7px);
-  }
+  /* TEMP: .app-header-scrim / blur layers removed (markup + styles). */
 
   .app-header--admin::before {
     content: none;
