@@ -7,6 +7,11 @@ interface Props {
   allowSignUp?: boolean;
   /** Open automatically once the page loads (e.g. signed-out /admin visit). */
   autoOpen?: boolean;
+  /**
+   * When false, required auth — no backdrop / close / Escape / swipe dismiss.
+   * Defaults to `!autoOpen` (auto-opened gates on protected pages are locked).
+   */
+  dismissible?: boolean;
   /** Current page path+query — Clerk hash routing keeps sign-in/sign-up in the sheet. */
   authPath?: string;
 }
@@ -15,8 +20,12 @@ const {
   fallbackRedirectUrl = '/admin/',
   allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === '1',
   autoOpen = false,
+  dismissible: dismissibleProp,
   authPath = '/sign-in',
 } = Astro.props;
+
+/** Required sign-in (auto-open on protected pages) must stay until auth succeeds. */
+const dismissible = dismissibleProp ?? !autoOpen;
 
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
@@ -67,7 +76,7 @@ const clerkAppearance = {
 };
 ---
 
-<IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={true} class="sign-in-sheet">
+<IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={dismissible} class="sign-in-sheet">
   {/*
     Mount Clerk client-side only. Never SSR-mount <SignIn> on /admin when the
     browser already has a Clerk user but the server cookie is missing — Clerk

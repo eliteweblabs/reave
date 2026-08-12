@@ -71,8 +71,13 @@
     el.dispatchEvent(new CustomEvent('ios-sheet-close', { bubbles: true }));
   }
 
+  function isDismissible(backdrop) {
+    return backdrop?.dataset?.sheetDismiss !== 'false';
+  }
+
   function closeAll() {
     document.querySelectorAll('.ios-sheet-backdrop.' + OPEN_CLASS).forEach((backdrop) => {
+      if (!isDismissible(backdrop)) return;
       close(/** @type {HTMLElement} */ (backdrop));
     });
   }
@@ -80,6 +85,8 @@
   function bindDragDismiss(backdrop) {
     const sheet = backdrop.querySelector('.ios-sheet');
     if (!sheet || backdrop.dataset.dragBound === '1') return;
+    // Required sheets (e.g. Clerk on protected pages) cannot swipe away.
+    if (!isDismissible(backdrop)) return;
     backdrop.dataset.dragBound = '1';
 
     const body = sheet.querySelector('.ios-sheet-body');
@@ -221,12 +228,12 @@
     const closeBtn = ev.target.closest('[data-ios-sheet-close]');
     if (closeBtn) {
       const backdrop = closeBtn.closest('.ios-sheet-backdrop');
-      if (backdrop?.id) close(backdrop.id);
+      if (backdrop?.id && isDismissible(backdrop)) close(backdrop.id);
       return;
     }
 
     const backdrop = ev.target.closest('.ios-sheet-backdrop');
-    if (backdrop && ev.target === backdrop && backdrop.dataset.sheetDismiss !== 'false') {
+    if (backdrop && ev.target === backdrop && isDismissible(backdrop)) {
       close(backdrop.id);
     }
   });
