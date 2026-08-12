@@ -50,7 +50,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#180a28",
+  themeColor = "#2a1245",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -177,7 +177,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 */
 	html {
 		height: 100%;
-		background-color: var(--site-canvas, #180a28);
+		background-color: var(--site-canvas, #2a1245);
 	}
 
 	html,
@@ -201,7 +201,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: var(--site-canvas, #180a28);
+		background-color: var(--site-canvas, #2a1245);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}

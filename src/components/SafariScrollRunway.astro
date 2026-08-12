@@ -2,11 +2,11 @@
 /**
  * iOS 26 Safari Liquid Glass — initial-load scroll runway.
  *
- * At scrollY = 0 Safari often paints status-bar / toolbar chrome from the
- * fallback root color (reads as black bars) instead of real page pixels.
- * Once the document has non-zero scroll, it composites the visible page and
- * the edges match. This spacer + instant pin gives mobile Safari a stable
- * non-zero scrollY on first paint without shifting the hero visually.
+ * At scrollY = 0 Safari paints status/toolbar chrome from the fallback root
+ * color (black bars). User scroll fixes it because Liquid Glass then composites
+ * real page pixels. A 64px spacer + repeated pin keeps mobile Safari off 0
+ * once the hero has laid out (early scrollTo is a no-op while the document
+ * is still shorter than the runway).
  */
 const RUNWAY_PX = 64;
 ---
@@ -17,22 +17,42 @@ const RUNWAY_PX = 64;
   style={`--safari-scroll-offset:${RUNWAY_PX}px`}
 ></div>
 
-{/* Runs before deferred modules so the first frame is already pinned. */}
+{/*
+  Inline + retries: first parse is before the 100lvh hero exists, so a single
+  scrollTo(64) often clamps to 0. Keep pinning across rAF / DOMContentLoaded / load.
+*/}
 <script is:inline define:vars={{ RUNWAY_PX }}>
   (function () {
     try {
       if (!CSS.supports("-webkit-touch-callout", "none")) return;
       if (!window.matchMedia("(max-width: 767.98px)").matches) return;
       if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-      if (window.scrollY < RUNWAY_PX) {
-        window.scrollTo(0, RUNWAY_PX);
+
+      var tries = 0;
+      var maxTries = 80;
+
+      function pin() {
+        if (window.scrollY < RUNWAY_PX) {
+          // Plain scrollTo — options/`instant` can throw on older WebKit.
+          window.scrollTo(0, RUNWAY_PX);
+        }
+        tries += 1;
+        if (tries < maxTries && window.scrollY < RUNWAY_PX) {
+          window.requestAnimationFrame(pin);
+        }
       }
+
+      pin();
+      document.addEventListener("DOMContentLoaded", pin);
+      window.addEventListener("load", pin);
+      window.addEventListener("pageshow", pin);
     } catch (_) {}
   })();
 </script>
 
 <script>
   const MQ = "(max-width: 767.98px)";
+  const RUNWAY_FALLBACK = 64;
 
   function isMobileSafari(): boolean {
     return (
@@ -47,34 +67,28 @@ const RUNWAY_PX = 64;
       .getPropertyValue("--safari-scroll-offset")
       .trim();
     const n = Number.parseFloat(raw);
-    return Number.isFinite(n) && n > 0 ? n : 0;
+    return Number.isFinite(n) && n > 0 ? n : RUNWAY_FALLBACK;
   }
 
   function pinRunway(): void {
     if (!isMobileSafari()) return;
     const y = runwayPx();
-    if (y <= 0) return;
-    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-    if (window.scrollY < y) {
-      window.scrollTo({ top: y, left: 0, behavior: "instant" as ScrollBehavior });
-    }
+    if (window.scrollY < y) window.scrollTo(0, y);
   }
 
   function onScroll(): void {
     if (!isMobileSafari()) return;
     const y = runwayPx();
-    if (y <= 0) return;
     // Resting at 0 recreates the black initial-load chrome — keep a floor.
-    if (window.scrollY > 0 && window.scrollY < y) {
-      window.scrollTo({ top: y, left: 0, behavior: "instant" as ScrollBehavior });
-    }
+    if (window.scrollY > 0 && window.scrollY < y) window.scrollTo(0, y);
   }
 
   pinRunway();
-  window.addEventListener("load", pinRunway, { once: true });
+  window.addEventListener("load", pinRunway);
   window.addEventListener("pageshow", pinRunway);
   document.addEventListener("astro:page-load", pinRunway);
   window.addEventListener("scroll", onScroll, { passive: true });
+  window.visualViewport?.addEventListener("resize", pinRunway, { passive: true });
 </script>
 
 <style is:global>
