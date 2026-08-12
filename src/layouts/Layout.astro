@@ -197,7 +197,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	html {
-		height: 100%;
+		/*
+		 * Do NOT set height:100% — on iOS Safari that locks the root to a short
+		 * initial containing block, so the inspector shows <html>/<body> ending
+		 * above the toolbar and color-scheme:dark paints the gap black.
+		 * min-height through 100lvh fills the large (chrome-collapsed) viewport
+		 * so the canvas paints under the status bar and home indicator too.
+		 */
 		min-height: 100%;
 		min-height: -webkit-fill-available;
 		min-height: 100dvh;
@@ -234,9 +240,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	body {
 		/*
-		 * At least one full device tall so notch / home-indicator strips paint
-		 * with --site-canvas. Grow with content beyond the fold. Avoid height
-		 * locks (100dvh/100lvh) — those shear fixed headers on iOS Safari.
+		 * Same fill stack as html. Grow with content beyond the fold.
+		 * Avoid height locks (100dvh/100lvh) — those shear fixed headers.
 		 */
 		min-height: 100%;
 		min-height: -webkit-fill-available;

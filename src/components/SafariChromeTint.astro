@@ -2,13 +2,14 @@
 /**
  * iOS 26 Safari Liquid Glass chrome tint probes.
  *
- * Safari 26 ignores theme-color. It samples background-color on position:fixed
- * elements within ~4px of the top / ~3px of the bottom (full-width, ≥3px tall).
- * Transparent fixed chrome at those edges (header, CTA dock) makes the status
- * bar and home-indicator strips fall back to solid black under color-scheme:dark.
+ * Safari 26 ignores theme-color. It samples background-color on the topmost
+ * position:fixed element within ~4px of the top / ~3px of the bottom.
+ * Our marketing header is position:fixed; top:0 with NO background — that
+ * sits above a z-index:1 probe and Safari samples transparent → solid black
+ * under color-scheme:dark (the bars in Web Inspector outside <html>/<body>).
  *
- * These probes sit mostly off-screen with an explicit purple canvas color so
- * Liquid Glass tints match the page atmosphere. Hidden outside iOS Safari.
+ * Probes use an opaque --site-canvas fill and z-index above the header so
+ * they win the edge sample. Mostly off-screen; only a few px peek in.
  */
 ---
 
@@ -23,10 +24,13 @@
     left: 0;
     width: 100%;
     height: 12px;
-    /* Must be a real color — transparent here recreates the black bars. */
+    /* Must be opaque — transparent recreates the black bars. */
     background-color: var(--site-canvas, #0c0614);
-    /* Above the root paint, below UI chrome. Off-screen strip is not visible. */
-    z-index: 1;
+    /*
+     * Above .app-header (2000) and sticky CTAs (940). The peek strip is under
+     * system chrome / just above the toolbar, so it is not a visible UI bar.
+     */
+    z-index: 2500;
   }
 
   .safari-chrome-tint--top {
