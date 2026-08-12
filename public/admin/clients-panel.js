@@ -294,7 +294,16 @@ function clientListTitle(c) {
 function clientListSubline(c) {
   const company = (c.company || '').trim();
   const name = (c.name || '').trim();
-  if (company && name && name.toLowerCase() !== company.toLowerCase()) return name;
+  // Only show name as a person subline when it is distinct from the business title
+  // (not a variant like "Pink Elephant LLC" under "Pink Elephant Painting").
+  if (
+    company &&
+    name &&
+    name.toLowerCase() !== company.toLowerCase() &&
+    !namesReferToSameBusiness(name, company)
+  ) {
+    return name;
+  }
   return c.email || c.phone || `${c.uid.slice(0, 8)}…`;
 }
 
@@ -712,25 +721,111 @@ function renderClientsEditor() {
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
+/**
+ * Legal / trade tokens that mark a string as a business title, not a person.
+ * Used so contact-api's naive name split ("Pink" / "Elephant LLC") never lands
+ * in the First/Last profile fields.
+ */
+const BUSINESS_NAME_TOKEN_RE =
+  /\b(?:llc|l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|corp\.?|corporation|co\.?|company|llp|pllc|p\.?c\.?|plc|gmbh|group|holdings|partners|associates|enterprises|industries|services|solutions|studio|studios|agency|consulting|construction|contracting|painting|painters|plumbing|electric(?:al)?|roofing|landscaping|cleaning|properties|realty|restaurant|cafe|clinic|media|productions?)\b/i;
+
+function naiveSplitPersonName(full) {
+  const parts = String(full || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
+/** Strip legal/trade suffixes and punctuation for fuzzy business-title compare. */
+function normalizeBusinessNameCore(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(BUSINESS_NAME_TOKEN_RE, ' ')
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isBusinessTitle(value) {
+  const s = String(value || '').trim();
+  return !!s && BUSINESS_NAME_TOKEN_RE.test(s);
+}
+
+/** True when two labels refer to the same business (incl. LLC vs trade-name variants). */
+function namesReferToSameBusiness(a, b) {
+  if (!a || !b) return false;
+  if (a.toLowerCase() === b.toLowerCase()) return true;
+  const ca = normalizeBusinessNameCore(a);
+  const cb = normalizeBusinessNameCore(b);
+  if (!ca || !cb) return false;
+  if (ca === cb) return true;
+  const ta = ca.split(' ');
+  const tb = cb.split(' ');
+  // Require multi-word cores so a lone "Pink" never matches "Pink Elephant".
+  if (ta.length < 2 || tb.length < 2) return false;
+  return ca.startsWith(`${cb} `) || cb.startsWith(`${ca} `) || ca.startsWith(cb) || cb.startsWith(ca);
+}
+
 function splitClientNameParts(contact) {
   const full = (contact.name || '').trim();
   const company = (contact.company || '').trim();
+  const first = (contact.firstName || '').trim();
+  const last = (contact.lastName || '').trim();
+  const person = [first, last].filter(Boolean).join(' ');
 
-  // Business-only: stored name mirrors the company title — leave contact blank even
-  // when contact-api derived first/last by splitting the business name.
-  if (company && full && full.toLowerCase() === company.toLowerCase()) {
+  // Business-only: name is the company (or a close business variant) — leave
+  // First/Last blank even when contact-api derived them by splitting the title.
+  if (company && full && namesReferToSameBusiness(full, company)) {
     return { firstName: '', lastName: '' };
   }
 
-  const first = (contact.firstName || '').trim();
-  const last = (contact.lastName || '').trim();
+  // First/Last themselves are the company (or its naive split / variant).
+  if (company && person) {
+    const naiveCompany = naiveSplitPersonName(company);
+    const isNaiveCompanySplit =
+      first.toLowerCase() === naiveCompany.firstName.toLowerCase() &&
+      last.toLowerCase() === naiveCompany.lastName.toLowerCase();
+    if (
+      isNaiveCompanySplit ||
+      namesReferToSameBusiness(person, company) ||
+      (full && namesReferToSameBusiness(person, full) && isBusinessTitle(person))
+    ) {
+      return { firstName: '', lastName: '' };
+    }
+  }
+
+  // No company field: stored name is a business title that was split into person fields.
+  if (!company && full && isBusinessTitle(full)) {
+    const naive = naiveSplitPersonName(full);
+    const isNaiveFullSplit =
+      (!first && !last) ||
+      (first.toLowerCase() === naive.firstName.toLowerCase() &&
+        last.toLowerCase() === naive.lastName.toLowerCase()) ||
+      (person && person.toLowerCase() === full.toLowerCase());
+    if (isNaiveFullSplit) return { firstName: '', lastName: '' };
+  }
+
   if (first || last) return { firstName: first, lastName: last };
 
   if (!full) return { firstName: '', lastName: '' };
 
-  const parts = full.split(/\s+/);
-  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
-  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+  // Don't invent First/Last by splitting a business title.
+  if (isBusinessTitle(full)) return { firstName: '', lastName: '' };
+
+  return naiveSplitPersonName(full);
+}
+
+/** Company for the profile header — prefer stored company, else a business-only name. */
+function resolveClientCompany(contact, firstName = '', lastName = '') {
+  const company = (contact.company || '').trim();
+  if (company) return company;
+  const full = (contact.name || '').trim();
+  // After splitClientNameParts blanks person fields for a business title, promote name.
+  if (full && !firstName && !lastName && isBusinessTitle(full)) return full;
+  return '';
 }
 
 function joinClientFullName(firstName, lastName, company = '') {
@@ -1371,13 +1466,14 @@ function renderEditClientForm(pane) {
       if (!ok) throw new Error(data.error || 'Failed to load');
       const contact = data.contact ?? data;
       const { firstName, lastName } = splitClientNameParts(contact);
+      const company = resolveClientCompany(contact, firstName, lastName);
       clientState.draft = {
         name: contact.name || '',
         firstName,
         lastName,
         email: contact.email || '',
         phone: contact.phone || '',
-        company: contact.company || '',
+        company,
         website: data.website || contact.website || '',
         address: data.address || '',
         addressWriteToken:
@@ -2204,7 +2300,7 @@ async function fetchClientRecordForAgent(uid) {
     lastName,
     email: contact.email || '',
     phone: contact.phone || '',
-    company: contact.company || '',
+    company: resolveClientCompany(contact, firstName, lastName),
     website: body.website || contact.website || '',
     address: body.address || '',
     notes: contact.notes || '',

@@ -39,7 +39,7 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260810a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260811c';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260812a';
 
 /** Injected by os-map-loader via initDocumentsPanel(). */
 let shell = {};

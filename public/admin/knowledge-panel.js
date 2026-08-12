@@ -41,7 +41,7 @@ import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260811c';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260812a';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
 let shell = {};

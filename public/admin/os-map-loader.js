@@ -187,7 +187,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260811c';
+} from './clients-panel.js?v=20260812a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
