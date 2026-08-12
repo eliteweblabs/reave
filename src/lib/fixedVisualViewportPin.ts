@@ -1,9 +1,13 @@
 /**
- * Keep a position:fixed element glued to the visible viewport edge on iOS Safari.
+ * Keep a position:fixed element usable above the on-screen keyboard on iOS Safari.
  *
- * Mobile Safari's layout viewport and visualViewport diverge while the URL bar
- * shows/hides; plain `bottom: 0` then drifts mid-page. Syncing from
- * visualViewport keeps the element at the same on-screen edge it had on load.
+ * Do NOT chase the URL bar. Mobile Safari fires visualViewport scroll/resize while
+ * the chrome animates; writing `bottom`/`right` every frame is what makes fixed
+ * header/footer chrome bounce. Layout-fixed + CSS safe-area already holds the
+ * page-load footer spot once the element is on <body> with no transform ancestor.
+ *
+ * Only apply an inline offset when the visual viewport shrinks by a keyboard-sized
+ * amount; otherwise clear inline edges so stylesheet values win.
  */
 
 export type FixedVisualViewportPinAxis = "bottom" | "bottom-right";
@@ -19,6 +23,9 @@ export type FixedVisualViewportPinOptions = {
    */
   includeSafeArea?: boolean;
 };
+
+/** URL bar deltas are ~40–100px; keyboards are much larger. */
+const KEYBOARD_CHROME_MIN_PX = 140;
 
 export function initFixedVisualViewportPin(
   el: HTMLElement,
@@ -47,13 +54,20 @@ export function initFixedVisualViewportPin(
     probe.remove();
   }
 
+  let raf = 0;
   const sync = () => {
     const layoutBottom = window.innerHeight;
     const visualBottom =
       (window.visualViewport?.offsetTop ?? 0) +
       (window.visualViewport?.height ?? layoutBottom);
     const chrome = Math.max(0, Math.round(layoutBottom - visualBottom));
-    el.style.bottom = `${chrome + safeBottom + insetPx}px`;
+
+    if (chrome >= KEYBOARD_CHROME_MIN_PX) {
+      el.style.bottom = `${chrome + safeBottom + insetPx}px`;
+    } else {
+      // Drop the chase so CSS `bottom` (safe-area / 4px Liquid Glass gap) stays put.
+      el.style.bottom = "";
+    }
 
     if (axis === "bottom-right") {
       const layoutRight = window.innerWidth;
@@ -61,15 +75,25 @@ export function initFixedVisualViewportPin(
         (window.visualViewport?.offsetLeft ?? 0) +
         (window.visualViewport?.width ?? layoutRight);
       const sideChrome = Math.max(0, Math.round(layoutRight - visualRight));
-      el.style.right = `${sideChrome + safeRight + insetPx}px`;
+      if (chrome >= KEYBOARD_CHROME_MIN_PX) {
+        el.style.right = `${sideChrome + safeRight + insetPx}px`;
+      } else {
+        el.style.right = "";
+      }
     }
   };
 
-  vv.addEventListener("resize", sync, { passive: true });
-  vv.addEventListener("scroll", sync, { passive: true });
-  window.addEventListener("resize", sync, { passive: true });
-  window.addEventListener("orientationchange", sync, { passive: true });
+  const schedule = () => {
+    if (raf) return;
+    raf = window.requestAnimationFrame(() => {
+      raf = 0;
+      sync();
+    });
+  };
+
+  // resize/orientation only — visualViewport *scroll* is the URL-bar/rubber-band path.
+  vv.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("orientationchange", schedule, { passive: true });
   sync();
-  requestAnimationFrame(sync);
-  window.setTimeout(sync, 150);
 }

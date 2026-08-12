@@ -644,6 +644,17 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     filter: var(--brand-glow-filter);
   }
 
+  /*
+   * drop-shadow filters on fixed header chrome smear/tear during iOS Safari
+   * scroll (reads as the wordmark "bouncing" with purple artifacts). Keep the
+   * glow on fine-pointer hover devices only.
+   */
+  @media (hover: none), (pointer: coarse) {
+    .app-header-logo-clip :global(svg) {
+      filter: none;
+    }
+  }
+
   .app-header-logo-img {
     display: block;
     height: var(--app-header-logo-h);

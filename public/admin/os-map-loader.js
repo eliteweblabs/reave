@@ -251,7 +251,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
-} from './rules-panel.js?v=20260810b';
+} from './rules-panel.js?v=20260812a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -9909,6 +9909,7 @@ initRulesPanel({
   AUTOSAVE_DEBOUNCE_MS,
   beginCreateDrawer,
   finishCreateDrawer,
+  companyBrand,
 });
 
 initNewsletterPanel({});

@@ -2,8 +2,9 @@
  * Keep homepage hero CTAs ("How's it Work?", "Demo") fixed to the viewport
  * footer while scrolling, and slide them away at Contact like the live chat FAB.
  *
- * On mobile Safari the buttons must be body-reparented + visualViewport-pinned
- * or they drift from their page-load footer position while the URL bar animates.
+ * Body-reparent so hero overflow cannot trap position:fixed. Do not chase the
+ * URL bar via visualViewport — that bounce is worse than a stable layout-fixed
+ * footer. The shared pin only lifts for keyboard-sized viewport shrinks.
  */
 import { initFixedVisualViewportPin } from "./fixedVisualViewportPin";
 import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
@@ -20,7 +21,7 @@ export function initHomeHeroCtaPin(copy?: HTMLElement | null): void {
     document.body.appendChild(el);
   }
 
-  // Safe-area is already in .home-hero-copy padding — only counter browser chrome.
+  // Safe-area is already in .home-hero-copy padding — pin is keyboard-only.
   initFixedVisualViewportPin(el, {
     axis: "bottom",
     includeSafeArea: false,

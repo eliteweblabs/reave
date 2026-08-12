@@ -4,7 +4,15 @@
 
 import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
-import { classifyEmail, isAuthLinkRuleStatus, isSilentTriageStatus, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
+import {
+  evaluateEmailRules,
+  isAuthLinkRuleStatus,
+  isSilentTriageStatus,
+  isUptimeRobotEmail,
+  isVerificationCodeRuleStatus,
+  type InboundEmail,
+  type RuleEvaluation,
+} from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
@@ -90,7 +98,36 @@ export interface ProcessedEmailResult {
   action: string;
   from: string;
   record: EmailInboxRecord | null;
+  /** Present when triage ran with dryRun — no inbox/push/booking side effects. */
+  dryRun?: boolean;
+  classificationAudit?: ClassificationAuditStep[];
+  ruleEvaluations?: RuleEvaluation[];
+  summary?: string;
+  routeNote?: string;
+  contactUid?: string | null;
+  contactName?: string | null;
+  clientKind?: ClientKind | null;
+  jobSlug?: string | null;
+  jobTitle?: string | null;
+  automationKind?: string | null;
+  verificationCode?: string | null;
+  actionUrl?: string | null;
+  needsExplain?: boolean;
+  wouldNotify?: boolean;
+  wouldAgentAlert?: boolean;
+  wouldForwardTo?: string | null;
+  aiClassify?: AiClassifyResult | null;
+  proposedMeetingStart?: string | null;
+  deleteAfterAt?: string | null;
 }
+
+export type ProcessInboundOptions = {
+  /** Classify/route only — skip persist, push, forward, booking, contact create, project create. */
+  dryRun?: boolean;
+  /** Override live rule table (same `classifyEmail` / `evaluateEmailRules` path). */
+  rules?: import('./emailRules').EmailRule[];
+  notifyOnUnmatched?: boolean;
+};
 
 function snippet(text: string, max = 500): string {
   return inboxPreviewSnippet(text, max);
@@ -460,7 +497,11 @@ async function sendAutoProjectAckEmail(opts: {
   }
 }
 
-export async function processInboundEmail(email: InboundEmail): Promise<ProcessedEmailResult> {
+export async function processInboundEmail(
+  email: InboundEmail,
+  options?: ProcessInboundOptions,
+): Promise<ProcessedEmailResult> {
+  const dryRun = options?.dryRun === true;
   const from = email.from ?? '';
   const senderEmail = parseSenderEmail(from);
   const bodyText = normalizeEmailBody(email.text, email.html);
@@ -474,8 +515,14 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       html: email.html,
     })?.code ?? null;
 
-  const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
-  const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
+  const loaded = await loadActiveEmailRules();
+  const rules = options?.rules ?? loaded.rules;
+  const notifyOnUnmatched =
+    options?.notifyOnUnmatched !== undefined
+      ? options.notifyOnUnmatched
+      : loaded.notifyOnUnmatched;
+  const ruleWalk = evaluateEmailRules(email, rules, notifyOnUnmatched);
+  const ruleResult = ruleWalk.classification;
   const classificationAudit: ClassificationAuditStep[] = [
     auditForMatchedRule(ruleResult.matched, ruleResult.status, {
       from,
@@ -483,6 +530,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       text: bodyText,
     }),
   ];
+  if (dryRun) {
+    classificationAudit.unshift(
+      classificationAuditStep(
+        'simulate',
+        'Dry-run — no inbox, push, forward, or booking side effects',
+        'Same classifyEmail / processInboundEmail path the Agent uses',
+      ),
+    );
+  }
   const pushAudit = (step: string, decision: string, detail?: string) => {
     classificationAudit.push(classificationAuditStep(step, decision, detail));
   };
@@ -562,17 +618,21 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let inboxStatusOverride: string | null = null;
   const receivedAt = new Date().toISOString();
 
-  const forwardTo = ruleResult.matched?.forwardTo?.trim();
+  const forwardTo = ruleResult.matched?.forwardTo?.trim() || null;
   if (forwardTo) {
-    const { forwardEmail } = await import('./emailForward');
-    const fwd = await forwardEmail(email, forwardTo);
-    if (!fwd.ok) {
-      console.warn('[email] rule forward failed', {
-        from,
-        subject: email.subject,
-        forwardTo,
-        error: fwd.error,
-      });
+    if (dryRun) {
+      pushAudit('forward', `Would forward to ${forwardTo}`, 'Dry-run — Resend forward skipped');
+    } else {
+      const { forwardEmail } = await import('./emailForward');
+      const fwd = await forwardEmail(email, forwardTo);
+      if (!fwd.ok) {
+        console.warn('[email] rule forward failed', {
+          from,
+          subject: email.subject,
+          forwardTo,
+          error: fwd.error,
+        });
+      }
     }
   }
 
@@ -650,16 +710,25 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     ) {
       const job = pickJobSlug(applied.aiJobSlug, jobs, email.subject ?? '');
       if (job && applied.aiNote?.trim()) {
-        const appended = await storeAppendWorkNote(job.slug, applied.aiNote.trim(), {
-          subject: email.subject ?? '',
-          from: senderEmail,
-        });
-        if (appended.ok) {
+        if (dryRun) {
           jobSlug = job.slug;
           jobTitle = job.title;
           action = 'filed';
           category = 'client';
-          routeNote = `Appended to job "${job.title}"`;
+          routeNote = `Would append to job "${job.title}"`;
+          pushAudit('job', `Would append note to "${job.title}"`, 'Dry-run — job body not modified');
+        } else {
+          const appended = await storeAppendWorkNote(job.slug, applied.aiNote.trim(), {
+            subject: email.subject ?? '',
+            from: senderEmail,
+          });
+          if (appended.ok) {
+            jobSlug = job.slug;
+            jobTitle = job.title;
+            action = 'filed';
+            category = 'client';
+            routeNote = `Appended to job "${job.title}"`;
+          }
         }
       } else if (job) {
         jobSlug = job.slug;
@@ -820,18 +889,26 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         }
         const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
         if (job && category === 'client' && ai.note_to_append?.trim()) {
-          const appended = await storeAppendWorkNote(job.slug, ai.note_to_append.trim(), {
-            subject: email.subject ?? '',
-            from: senderEmail,
-          });
-          if (appended.ok) {
+          if (dryRun) {
             jobSlug = job.slug;
             jobTitle = job.title;
             action = 'filed';
-            routeNote = `Appended to job "${job.title}"`;
+            routeNote = `Would append to job "${job.title}"`;
+            pushAudit('job', `Would append note to "${job.title}"`, 'Dry-run — job body not modified');
           } else {
-            action = 'review';
-            routeNote = `Job match ${job.slug} but append failed: ${appended.error}`;
+            const appended = await storeAppendWorkNote(job.slug, ai.note_to_append.trim(), {
+              subject: email.subject ?? '',
+              from: senderEmail,
+            });
+            if (appended.ok) {
+              jobSlug = job.slug;
+              jobTitle = job.title;
+              action = 'filed';
+              routeNote = `Appended to job "${job.title}"`;
+            } else {
+              action = 'review';
+              routeNote = `Job match ${job.slug} but append failed: ${appended.error}`;
+            }
           }
         } else if (job && category === 'client') {
           jobSlug = job.slug;
@@ -1103,63 +1180,82 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     hasFeature('scheduling') &&
     action !== 'project_reply'
   ) {
-    // Ensure the sender's contact first (exact-email resolve / create) so the
-    // booking service receives a definite contact uid and skips its fuzzy name
-    // match — otherwise a sender like "joel.martinez" can loosely match an
-    // unrelated contact ("Martin …") and the auto-book silently fails.
-    const contactResult = await ensureContactForMeetingEmail({
-      from,
-      bodyText,
-      summary,
-      existingContactUid: contactUid,
-      existingContactName: contactName,
-    });
-    const confirmContactUid = contactResult?.ok ? contactResult.uid : undefined;
-
-    const autoBook = await tryAutoBookInboundMeeting({
-      proposedStart: proposedMeetingStart,
-      from,
-      contactName,
-      subject: email.subject ?? '',
-      schedulingNote,
-      summary,
-      bodyText,
-      durationMinutes: proposedMeetingDurationMinutes,
-      confirmContactUid,
-    });
-    if (autoBook.ok) {
-      action = 'booked';
-      bookingUid = autoBook.bookingUid;
-      bookingStart = autoBook.bookingStart;
-      routeNote = autoBook.routeNote;
-      automationKind = 'meeting_booked';
-
-      if (contactResult?.ok) {
-        contactUid = contactResult.uid;
-        contactName = contactResult.name;
-        if (contactResult.created) {
-          const companyBit = contactResult.company ? ` (${contactResult.company})` : '';
-          routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to contacts`;
-        }
-      } else if (contactResult && !contactResult.ok) {
-        console.warn('[email] auto-book contact ensure failed', contactResult.error);
-      }
-
-      if (summary && !summary.toLowerCase().includes('scheduled automatically')) {
-        summary = `${summary} Meeting scheduled automatically for ${autoBook.whenLabel}.`;
-      }
-    } else if (proposedMeetingStart) {
-      automationKind = autoBook.reason === 'unavailable' ? 'meeting_conflict' : 'meeting_request';
+    if (dryRun) {
+      // Same gate as production — skip contact create + calendar write.
+      automationKind = 'meeting_request';
       routeNote =
-        autoBook.error ||
-        (autoBook.reason === 'unavailable'
-          ? 'Requested meeting time conflicts with an existing booking'
-          : 'Meeting request needs your review');
+        routeNote ||
+        `Would attempt auto-book for ${proposedMeetingStart} (dry-run — booking skipped)`;
       if (action !== 'filed' && action !== 'matched' && action !== 'project_reply') {
         action = 'review';
       }
       if (category !== 'junk' && category !== 'alert') {
         category = 'client';
+      }
+      pushAudit(
+        'meeting',
+        'Would attempt meeting auto-book',
+        `proposed ${proposedMeetingStart} · dry-run skips ensureContact + calendar write`,
+      );
+    } else {
+      // Ensure the sender's contact first (exact-email resolve / create) so the
+      // booking service receives a definite contact uid and skips its fuzzy name
+      // match — otherwise a sender like "joel.martinez" can loosely match an
+      // unrelated contact ("Martin …") and the auto-book silently fails.
+      const contactResult = await ensureContactForMeetingEmail({
+        from,
+        bodyText,
+        summary,
+        existingContactUid: contactUid,
+        existingContactName: contactName,
+      });
+      const confirmContactUid = contactResult?.ok ? contactResult.uid : undefined;
+
+      const autoBook = await tryAutoBookInboundMeeting({
+        proposedStart: proposedMeetingStart,
+        from,
+        contactName,
+        subject: email.subject ?? '',
+        schedulingNote,
+        summary,
+        bodyText,
+        durationMinutes: proposedMeetingDurationMinutes,
+        confirmContactUid,
+      });
+      if (autoBook.ok) {
+        action = 'booked';
+        bookingUid = autoBook.bookingUid;
+        bookingStart = autoBook.bookingStart;
+        routeNote = autoBook.routeNote;
+        automationKind = 'meeting_booked';
+
+        if (contactResult?.ok) {
+          contactUid = contactResult.uid;
+          contactName = contactResult.name;
+          if (contactResult.created) {
+            const companyBit = contactResult.company ? ` (${contactResult.company})` : '';
+            routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to contacts`;
+          }
+        } else if (contactResult && !contactResult.ok) {
+          console.warn('[email] auto-book contact ensure failed', contactResult.error);
+        }
+
+        if (summary && !summary.toLowerCase().includes('scheduled automatically')) {
+          summary = `${summary} Meeting scheduled automatically for ${autoBook.whenLabel}.`;
+        }
+      } else if (proposedMeetingStart) {
+        automationKind = autoBook.reason === 'unavailable' ? 'meeting_conflict' : 'meeting_request';
+        routeNote =
+          autoBook.error ||
+          (autoBook.reason === 'unavailable'
+            ? 'Requested meeting time conflicts with an existing booking'
+            : 'Meeting request needs your review');
+        if (action !== 'filed' && action !== 'matched' && action !== 'project_reply') {
+          action = 'review';
+        }
+        if (category !== 'junk' && category !== 'alert') {
+          category = 'client';
+        }
       }
     }
   } else if (
@@ -1237,122 +1333,132 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     inboxStatus = fixed.status;
   }
 
-  const record = await storeRecordEmailInbox({
-    from,
-    subject: email.subject ?? '',
-    bodySnippet: snippet(bodyText) || attachmentSummaryFallback(attachments),
-    bodyText,
-    bodyHtml,
-    to: email.to,
-    cc: email.cc,
-    bcc: email.bcc,
-    replyTo: email.replyTo,
-    headers: email.headers,
-    messageId: email.messageId,
-    resendEmailId: email.resendEmailId,
-    attachments,
-    status: inboxStatus,
-    action,
-    notified: false,
-    summary,
-    category,
-    contactUid,
-    contactName,
-    jobSlug,
-    jobTitle,
-    routeNote,
-    classificationAudit,
-    proposedMeetingStart,
-    schedulingNote,
-    bookingUid,
-    bookingStart,
-    automationKind,
-    verificationCode,
-    actionUrl: isAuthLink ? authActionUrl : null,
-    deleteAfterAt,
-  }).catch((e) => {
-    console.warn('[email] inbox log failed', e);
-    return null;
-  });
+  let inboxRecord: EmailInboxRecord | null = null;
 
-  let inboxRecord = record;
-
-  if (inboxRecord?.id && suppressDuplicateMeetingAlert) {
-    const updated = await storeUpdateEmailInbox(inboxRecord.id, {
-      acceptAutomationDecision: true,
-      markAutomationAck: true,
-      automationKind: null,
-      routeNote,
-    });
-    if (updated) inboxRecord = updated;
-    automationKind = null;
-  }
-
-  if (inboxRecord?.id && bookingUid && !jobSlug) {
-    const meetingProject = await ensureProjectForMeetingEmail({
-      emailId: inboxRecord.id,
+  if (dryRun) {
+    if (suppressDuplicateMeetingAlert) {
+      automationKind = null;
+      pushAudit('dedupe', 'Would suppress duplicate meeting alert', routeNote);
+    }
+    pushAudit('persist', 'Would write inbox row', `${inboxStatus} · ${category} · ${action}`);
+  } else {
+    const record = await storeRecordEmailInbox({
       from,
       subject: email.subject ?? '',
-      summary,
+      bodySnippet: snippet(bodyText) || attachmentSummaryFallback(attachments),
       bodyText,
-      bodySnippet: snippet(bodyText),
-      receivedAt: inboxRecord.receivedAt,
+      bodyHtml,
+      to: email.to,
+      cc: email.cc,
+      bcc: email.bcc,
+      replyTo: email.replyTo,
+      headers: email.headers,
+      messageId: email.messageId,
+      resendEmailId: email.resendEmailId,
+      attachments,
+      status: inboxStatus,
+      action,
+      notified: false,
+      summary,
+      category,
       contactUid,
       contactName,
-      resendEmailId: email.resendEmailId,
       jobSlug,
+      jobTitle,
+      routeNote,
+      classificationAudit,
+      proposedMeetingStart,
+      schedulingNote,
       bookingUid,
       bookingStart,
+      automationKind,
+      verificationCode,
+      actionUrl: isAuthLink ? authActionUrl : null,
+      deleteAfterAt,
+    }).catch((e) => {
+      console.warn('[email] inbox log failed', e);
+      return null;
     });
-    if (meetingProject.ok) {
-      jobSlug = meetingProject.slug;
-      jobTitle = meetingProject.title;
-      contactUid = meetingProject.contactUid;
-      contactName = meetingProject.contactName;
+
+    inboxRecord = record;
+
+    if (inboxRecord?.id && suppressDuplicateMeetingAlert) {
       const updated = await storeUpdateEmailInbox(inboxRecord.id, {
-        jobSlug,
-        jobTitle,
-        contactUid,
-        contactName,
+        acceptAutomationDecision: true,
+        markAutomationAck: true,
+        automationKind: null,
+        routeNote,
       });
       if (updated) inboxRecord = updated;
-    } else {
-      console.warn('[email] meeting project attach failed', meetingProject.error);
+      automationKind = null;
     }
-  }
 
-  if (inboxRecord?.id && jobSlug) {
-    linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
-      console.warn('[email] project link failed', e),
-    );
-
-    const deferAttachments = automationKind === 'project_match_suggested';
-    if (email.resendEmailId && !deferAttachments) {
-      void importEmailAttachmentsToProject({
+    if (inboxRecord?.id && bookingUid && !jobSlug) {
+      const meetingProject = await ensureProjectForMeetingEmail({
         emailId: inboxRecord.id,
+        from,
+        subject: email.subject ?? '',
+        summary,
+        bodyText,
+        bodySnippet: snippet(bodyText),
+        receivedAt: inboxRecord.receivedAt,
+        contactUid,
+        contactName,
         resendEmailId: email.resendEmailId,
         jobSlug,
-      })
-        .then(async (attachments) => {
-          if (!attachments.imported.length && !attachments.errors.length) return;
-          if (attachments.imported.length) {
-            const names = attachments.imported.map((f) => f.filename).join(', ');
-            const note = `${attachments.imported.length} file(s) imported from email: ${names}`;
-            if (isProjectReply) {
-              await storeUpdateEmailInbox(inboxRecord!.id, {
-                routeNote: `${routeNote} · ${note}`,
-              }).catch(() => undefined);
-            }
-          }
-          if (attachments.errors.length) {
-            console.warn('[email] attachment import errors', {
-              jobSlug,
-              emailId: inboxRecord!.id,
-              errors: attachments.errors,
-            });
-          }
+        bookingUid,
+        bookingStart,
+      });
+      if (meetingProject.ok) {
+        jobSlug = meetingProject.slug;
+        jobTitle = meetingProject.title;
+        contactUid = meetingProject.contactUid;
+        contactName = meetingProject.contactName;
+        const updated = await storeUpdateEmailInbox(inboxRecord.id, {
+          jobSlug,
+          jobTitle,
+          contactUid,
+          contactName,
+        });
+        if (updated) inboxRecord = updated;
+      } else {
+        console.warn('[email] meeting project attach failed', meetingProject.error);
+      }
+    }
+
+    if (inboxRecord?.id && jobSlug) {
+      linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
+        console.warn('[email] project link failed', e),
+      );
+
+      const deferAttachments = automationKind === 'project_match_suggested';
+      if (email.resendEmailId && !deferAttachments) {
+        void importEmailAttachmentsToProject({
+          emailId: inboxRecord.id,
+          resendEmailId: email.resendEmailId,
+          jobSlug,
         })
-        .catch((e) => console.warn('[email] attachment import failed', e));
+          .then(async (importedAtts) => {
+            if (!importedAtts.imported.length && !importedAtts.errors.length) return;
+            if (importedAtts.imported.length) {
+              const names = importedAtts.imported.map((f) => f.filename).join(', ');
+              const note = `${importedAtts.imported.length} file(s) imported from email: ${names}`;
+              if (isProjectReply) {
+                await storeUpdateEmailInbox(inboxRecord!.id, {
+                  routeNote: `${routeNote} · ${note}`,
+                }).catch(() => undefined);
+              }
+            }
+            if (importedAtts.errors.length) {
+              console.warn('[email] attachment import errors', {
+                jobSlug,
+                emailId: inboxRecord!.id,
+                errors: importedAtts.errors,
+              });
+            }
+          })
+          .catch((e) => console.warn('[email] attachment import failed', e));
+      }
     }
   }
 
@@ -1380,7 +1486,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     paymentNotification ||
     (aiTrusted && aiClassify != null && aiClassify.label !== 'project' && aiClassify.label !== 'client');
 
-  if (inboxRecord?.id && !automationKind && !jobSlug && !blockAutoProject) {
+  if (dryRun) {
+    if (!automationKind && !jobSlug && !blockAutoProject) {
+      pushAudit(
+        'project',
+        'Would evaluate auto-create project',
+        'Dry-run — project create + ack email skipped',
+      );
+    }
+  } else if (inboxRecord?.id && !automationKind && !jobSlug && !blockAutoProject) {
     const autoProject = await tryAutoCreateProjectFromInboundEmail({
       from,
       subject: email.subject ?? '',
@@ -1447,136 +1561,187 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     isUptimeRobot: isUptimeRobotEmail(email),
   });
 
-  if (inboxRecord && (notify || verificationCode || isAuthLink || needsExplain) && !inboxRecord.notified) {
-    await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
+  const wouldNotify =
+    notify || Boolean(verificationCode) || isAuthLink || needsExplain;
+
+  if (dryRun) {
+    if (verificationCode || isVerificationCode) {
+      pushAudit('push', 'Would send OTP push', otpPurpose || 'Verification code');
+    } else if (isAuthLink) {
+      pushAudit('push', 'Would send auth-link push', authLinkPurpose || 'Activation link');
+    } else if (needsExplain) {
+      pushAudit('push', 'Would send uncertain-email triage push');
+    } else if (notify && !agentWillAlert) {
+      pushAudit('push', 'Would send inbox push', summary.slice(0, 120));
+    } else if (!wouldNotify) {
+      pushAudit('push', 'No push notification', 'Silent / junk / filed without notify');
+    }
+    if (automationKind) {
+      pushAudit('agent', `Would alert agent for automation: ${automationKind}`);
+    } else if (isProjectReply) {
+      pushAudit('agent', 'Would alert agent for project reply');
+    } else if (agentWillAlert) {
+      pushAudit('agent', `Would alert agent for ${ruleResult.status}`);
+    }
+  } else {
+    if (inboxRecord && wouldNotify && !inboxRecord.notified) {
+      await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
+    }
+
+    if (inboxRecord && (verificationCode || isVerificationCode)) {
+      const otpPush = formatOtpPushNotification({
+        code: verificationCode,
+        purpose: otpPurpose ?? 'Verification code',
+      });
+      sendInboxPushNotification({
+        title: otpPush.title,
+        body: otpPush.body,
+        tag: `otp-${inboxRecord.id}`,
+        emailId: inboxRecord.id,
+        verificationCode: verificationCode || undefined,
+        kind: 'otp',
+        urgent: true,
+      }).catch((e) => console.warn('[email] otp push failed', e));
+    } else if (inboxRecord && isAuthLink) {
+      const authPush = formatAuthLinkPushNotification({
+        purpose: authLinkPurpose ?? 'Activation link',
+        hasUrl: Boolean(authActionUrl),
+      });
+      sendInboxPushNotification({
+        title: authPush.title,
+        body: authPush.body,
+        tag: `auth-${inboxRecord.id}`,
+        emailId: inboxRecord.id,
+        kind: 'auth_link',
+        urgent: true,
+      }).catch((e) => console.warn('[email] auth-link push failed', e));
+    } else if (inboxRecord && needsExplain) {
+      const guess = aiClassify
+        ? `${aiClassify.label} at ${Math.round(aiClassify.confidence * 100)}%`
+        : 'rules fallback';
+      sendInboxPushNotification({
+        title: 'Uncertain email — ask agent',
+        body: `${(email.subject || summary || 'Inbound mail').slice(0, 120)} · ${guess}. Tap Explain.`,
+        tag: `triage-${inboxRecord.id}`,
+        emailId: inboxRecord.id,
+        kind: 'triage',
+        urgent: false,
+      }).catch((e) => console.warn('[email] triage push failed', e));
+    } else if (inboxRecord && notify && !agentWillAlert) {
+      const pushTitle = isProjectReply
+        ? `🚨 Contact reply: ${contactName ?? senderEmail}`
+        : automationKind === 'project_match_suggested'
+          ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
+          : automationKind === 'project_created'
+          ? `New project: ${contactName ?? jobTitle ?? senderEmail}`
+          : automationKind === 'meeting_followup'
+            ? 'Meeting follow-up'
+            : automationKind === 'meeting_conflict'
+              ? 'Meeting time conflict'
+              : automationKind === 'meeting_request'
+                ? 'Meeting request'
+                : automationKind === 'meeting_booked'
+            ? 'Meeting scheduled automatically'
+            : isRailwayAlertStatus(ruleResult.status)
+              ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
+              : category === 'client'
+                ? `Contact: ${contactName ?? senderEmail}`
+                : email.subject?.trim() || contactName || senderEmail || 'New email';
+      const attachmentCount = attachments.length;
+      const pushBody = isProjectReply
+        ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
+        : automationKind === 'project_match_suggested'
+          ? `Looks like "${jobTitle ?? 'a project'}" — add content${attachmentCount ? ` and ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}?`.slice(
+              0,
+              240,
+            )
+          : automationKind === 'project_created'
+          ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
+          : automationKind === 'meeting_followup'
+            ? summary.slice(0, 240)
+            : summary;
+      // Meeting/project automations already render typed review banners from the
+      // inbox row — phone push only, so the dashboard does not show two cards.
+      const hasTypedReviewBanner =
+        automationKind === 'meeting_booked' ||
+        automationKind === 'meeting_request' ||
+        automationKind === 'meeting_conflict' ||
+        automationKind === 'meeting_followup' ||
+        automationKind === 'project_created' ||
+        automationKind === 'project_match_suggested';
+      sendInboxPushNotification({
+        title: pushTitle,
+        body: pushBody,
+        tag: inboxRecord.id,
+        emailId: inboxRecord.id,
+        urgent: isProjectReply,
+        skipDashboardAlert: hasTypedReviewBanner,
+      }).catch((e) => console.warn('[email] push failed', e));
+    }
+
+    if (inboxRecord && automationKind) {
+      const whenLabel =
+        bookingStart || proposedMeetingStart
+          ? formatMeetingWhenLabel(bookingStart || proposedMeetingStart!)
+          : schedulingNote || null;
+      notifyAdminAgentOfEmailAutomation({
+        automationKind,
+        contactName,
+        jobTitle,
+        jobSlug,
+        whenLabel,
+        summary,
+        subject: email.subject ?? '',
+        from,
+        emailId: inboxRecord.id,
+      }).catch((e) => console.warn('[email] automation alert failed', e));
+    }
+
+    if (inboxRecord && isProjectReply) {
+      notifyAdminAgentOfProjectReply({
+        contactName: contactName ?? senderEmail,
+        jobTitle: jobTitle ?? 'project',
+        summary,
+        emailId: inboxRecord.id,
+      }).catch((e) => console.warn('[email] project reply agent alert failed', e));
+    } else if (agentWillAlert) {
+      notifyAdminAgentOfEmailAlert({
+        status: ruleResult.status,
+        from,
+        subject: email.subject ?? '',
+        summary,
+        category,
+        emailId: inboxRecord?.id,
+      }).catch((e) => console.warn('[email] agent alert failed', e));
+    }
   }
 
-  if (inboxRecord && (verificationCode || isVerificationCode)) {
-    const otpPush = formatOtpPushNotification({
-      code: verificationCode,
-      purpose: otpPurpose ?? 'Verification code',
-    });
-    sendInboxPushNotification({
-      title: otpPush.title,
-      body: otpPush.body,
-      tag: `otp-${inboxRecord.id}`,
-      emailId: inboxRecord.id,
-      verificationCode: verificationCode || undefined,
-      kind: 'otp',
-      urgent: true,
-    }).catch((e) => console.warn('[email] otp push failed', e));
-  } else if (inboxRecord && isAuthLink) {
-    const authPush = formatAuthLinkPushNotification({
-      purpose: authLinkPurpose ?? 'Activation link',
-      hasUrl: Boolean(authActionUrl),
-    });
-    sendInboxPushNotification({
-      title: authPush.title,
-      body: authPush.body,
-      tag: `auth-${inboxRecord.id}`,
-      emailId: inboxRecord.id,
-      kind: 'auth_link',
-      urgent: true,
-    }).catch((e) => console.warn('[email] auth-link push failed', e));
-  } else if (inboxRecord && needsExplain) {
-    const guess = aiClassify
-      ? `${aiClassify.label} at ${Math.round(aiClassify.confidence * 100)}%`
-      : 'rules fallback';
-    sendInboxPushNotification({
-      title: 'Uncertain email — ask agent',
-      body: `${(email.subject || summary || 'Inbound mail').slice(0, 120)} · ${guess}. Tap Explain.`,
-      tag: `triage-${inboxRecord.id}`,
-      emailId: inboxRecord.id,
-      kind: 'triage',
-      urgent: false,
-    }).catch((e) => console.warn('[email] triage push failed', e));
-  } else if (inboxRecord && notify && !agentWillAlert) {
-    const pushTitle = isProjectReply
-      ? `🚨 Contact reply: ${contactName ?? senderEmail}`
-      : automationKind === 'project_match_suggested'
-        ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
-        : automationKind === 'project_created'
-        ? `New project: ${contactName ?? jobTitle ?? senderEmail}`
-        : automationKind === 'meeting_followup'
-          ? 'Meeting follow-up'
-          : automationKind === 'meeting_conflict'
-            ? 'Meeting time conflict'
-            : automationKind === 'meeting_request'
-              ? 'Meeting request'
-              : automationKind === 'meeting_booked'
-          ? 'Meeting scheduled automatically'
-          : isRailwayAlertStatus(ruleResult.status)
-            ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
-            : category === 'client'
-              ? `Contact: ${contactName ?? senderEmail}`
-              : email.subject?.trim() || contactName || senderEmail || 'New email';
-    const attachmentCount = attachments.length;
-    const pushBody = isProjectReply
-      ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
-      : automationKind === 'project_match_suggested'
-        ? `Looks like "${jobTitle ?? 'a project'}" — add content${attachmentCount ? ` and ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}?`.slice(
-            0,
-            240,
-          )
-        : automationKind === 'project_created'
-        ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
-        : automationKind === 'meeting_followup'
-          ? summary.slice(0, 240)
-          : summary;
-    // Meeting/project automations already render typed review banners from the
-    // inbox row — phone push only, so the dashboard does not show two cards.
-    const hasTypedReviewBanner =
-      automationKind === 'meeting_booked' ||
-      automationKind === 'meeting_request' ||
-      automationKind === 'meeting_conflict' ||
-      automationKind === 'meeting_followup' ||
-      automationKind === 'project_created' ||
-      automationKind === 'project_match_suggested';
-    sendInboxPushNotification({
-      title: pushTitle,
-      body: pushBody,
-      tag: inboxRecord.id,
-      emailId: inboxRecord.id,
-      urgent: isProjectReply,
-      skipDashboardAlert: hasTypedReviewBanner,
-    }).catch((e) => console.warn('[email] push failed', e));
-  }
-
-  if (inboxRecord && automationKind) {
-    const whenLabel =
-      bookingStart || proposedMeetingStart
-        ? formatMeetingWhenLabel(bookingStart || proposedMeetingStart!)
-        : schedulingNote || null;
-    notifyAdminAgentOfEmailAutomation({
-      automationKind,
-      contactName,
-      jobTitle,
-      jobSlug,
-      whenLabel,
-      summary,
-      subject: email.subject ?? '',
-      from,
-      emailId: inboxRecord.id,
-    }).catch((e) => console.warn('[email] automation alert failed', e));
-  }
-
-  if (inboxRecord && isProjectReply) {
-    notifyAdminAgentOfProjectReply({
-      contactName: contactName ?? senderEmail,
-      jobTitle: jobTitle ?? 'project',
-      summary,
-      emailId: inboxRecord.id,
-    }).catch((e) => console.warn('[email] project reply agent alert failed', e));
-  } else if (agentWillAlert) {
-    notifyAdminAgentOfEmailAlert({
-      status: ruleResult.status,
-      from,
-      subject: email.subject ?? '',
-      summary,
-      category,
-      emailId: inboxRecord?.id,
-    }).catch((e) => console.warn('[email] agent alert failed', e));
-  }
-
-  return { ok: true, category, status: inboxStatus, action, from, record: inboxRecord };
+  return {
+    ok: true,
+    category,
+    status: inboxStatus,
+    action,
+    from,
+    record: inboxRecord,
+    dryRun: dryRun || undefined,
+    classificationAudit,
+    ruleEvaluations: ruleWalk.evaluations,
+    summary,
+    routeNote,
+    contactUid,
+    contactName,
+    clientKind,
+    jobSlug,
+    jobTitle,
+    automationKind,
+    verificationCode,
+    actionUrl: isAuthLink ? authActionUrl : null,
+    needsExplain,
+    wouldNotify,
+    wouldAgentAlert: Boolean(automationKind) || isProjectReply || agentWillAlert,
+    wouldForwardTo: forwardTo,
+    aiClassify,
+    proposedMeetingStart,
+    deleteAfterAt,
+  };
 }
