@@ -7,8 +7,6 @@ import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
-import SiteCanvasFill from "../components/SiteCanvasFill.astro";
-import SafariChromeTint from "../components/SafariChromeTint.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
@@ -124,8 +122,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body data-user-id={userId ?? ""}>
-		<SiteCanvasFill />
-		<SafariChromeTint />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">
@@ -153,10 +149,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 				/>
 			)
 		}
-		<script>
-			import { bindIosSafariChromeFill } from "../lib/iosSafariChromeFill";
-			bindIosSafariChromeFill();
-		</script>
 	</body>
 </html>
 

@@ -397,11 +397,10 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     align-items: stretch;
     min-height: 0;
     /*
-     * TEMP: no backdrop-filter / scrim on this fixed shell (marketing edge debug).
-     * Opaque canvas fill so iOS 26 Safari Liquid Glass samples purple, not black.
+     * No background-color / backdrop-filter on this fixed shell — iOS 26 Safari
+     * samples it for Liquid Glass tint. Visual glass lives on absolute children.
      * Padding uses var(--safe-top) — probed in JS when env() lies on fixed shells.
      */
-    background-color: var(--site-canvas, #0c0614);
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
       var(--safe-top)
