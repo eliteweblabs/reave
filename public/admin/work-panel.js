@@ -31,8 +31,10 @@ import {
   updateDeBtnLabel,
   createCopyIconBtn,
   looksLikeHttpUrl,
-} from './admin-ui.js?v=20260811a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
+  contactAvatarHtml,
+  mountContactAvatars,
+} from './admin-ui.js?v=20260811d';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260811c';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260811a';
@@ -1961,6 +1963,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
         uid: initial.contact_uid,
         name: initial.contact_name || initial.client || '',
         logoUrl: initial.contact_logo_url || '',
+        iconUrl: initial.contact_icon_url || '',
         email: initial.contact_email || '',
         phone: initial.contact_phone || '',
       }
@@ -1992,6 +1995,10 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     profileLink = document.createElement('button');
     profileLink.type = 'button';
     profileLink.className = 'wk-client-name-link';
+
+    const avatarEl = document.createElement('span');
+    avatarEl.className = 'cl-list-avatar-wrap wk-client-avatar';
+    profileLink.appendChild(avatarEl);
 
     clientNameEl = document.createElement('span');
     clientNameEl.className = 'wk-client-name';
@@ -2109,6 +2116,16 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     const name = selected?.name || 'No contact';
     clientNameEl.textContent = name;
 
+    const avatarHost = profileLink.querySelector('.wk-client-avatar');
+    if (avatarHost) {
+      const iconUrl = resolveContactBrandIconUrl(
+        selected?.uid,
+        selected?.iconUrl || selected?.logoUrl || '',
+      );
+      avatarHost.innerHTML = contactAvatarHtml({ iconUrl, iconSize: 16 });
+      mountContactAvatars(avatarHost);
+    }
+
     profileLink.disabled = !has;
     profileLink.setAttribute('aria-label', has ? `Open ${name} profile` : 'No contact linked');
     if (has) profileLink.title = `Open ${name} profile`;
@@ -2147,7 +2164,14 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
   function pick(client) {
     const prevUid = selected?.uid || '';
-    selected = { uid: client.uid, name: client.name, logoUrl: client.logoUrl || '' };
+    selected = {
+      uid: client.uid,
+      name: client.name,
+      logoUrl: client.logoUrl || '',
+      iconUrl: client.iconUrl || '',
+      email: client.email || '',
+      phone: client.phone || '',
+    };
     showingNew = false;
     changing = false;
     dropdown.style.display = 'none';
@@ -2310,6 +2334,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   });
 
   syncView();
+  void ensureContactAuthorIconsReady();
 
   if (readOnly && selected?.uid) {
     const uid = selected.uid;
@@ -2319,6 +2344,11 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
         if (!data?.ok || selected?.uid !== uid) return;
         selected.email = data.email || '';
         selected.phone = data.phone || '';
+        selected.iconUrl = data.iconUrl || '';
+        selected.logoUrl = data.logoUrl || '';
+        if (data.company || data.name) {
+          selected.name = data.company || data.name;
+        }
         syncReadOnlyClientLink();
       })
       .catch(() => {});

@@ -1143,11 +1143,67 @@ export function pullRefreshContentRoot(scrollEl, listSelector) {
   return host.querySelector(':scope > .ios-ptr-content') || host;
 }
 
+function escAttr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Rounded-square contact avatar (list rows, work client bar, pane titles).
+ * Pass a branding URL when known; otherwise shows IOS_ICONS.user placeholder.
+ */
+export function contactAvatarHtml(opts = {}) {
+  const url = String(opts.iconUrl || opts.logoUrl || '').trim();
+  const size = Number(opts.iconSize) > 0 ? Number(opts.iconSize) : 18;
+  const extra = opts.className ? ` ${opts.className}` : '';
+  if (url) {
+    return (
+      `<span class="cl-list-avatar${extra}">` +
+      `<img class="cl-list-avatar-img" src="${escAttr(url)}" alt="" loading="lazy" decoding="async" />` +
+      `</span>`
+    );
+  }
+  return (
+    `<span class="cl-list-avatar cl-list-avatar--placeholder${extra}" aria-hidden="true">` +
+    iosIcon('user', size) +
+    `</span>`
+  );
+}
+
+/** Swap a broken contact avatar image back to the user placeholder. */
+export function bindContactAvatarFallback(img) {
+  if (!(img instanceof HTMLImageElement)) return;
+  img.addEventListener(
+    'error',
+    () => {
+      const host = img.closest('.cl-list-avatar-wrap') || img.closest('.cl-list-avatar');
+      if (host) host.innerHTML = contactAvatarHtml({ iconSize: 18 });
+    },
+    { once: true },
+  );
+}
+
+export function mountContactAvatars(root) {
+  root?.querySelectorAll?.('.cl-list-avatar-img').forEach(bindContactAvatarFallback);
+}
+
 /** Pencil icon beside editable pane titles (todo, work, chat rename, etc.). */
 export function wrapEditableHeaderTitle(titleEl, opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'de-header-title-field';
   if (opts.clickable) wrap.classList.add('de-header-title-field--clickable');
+
+  if (opts.leading != null && opts.leading !== false) {
+    const leading = document.createElement('span');
+    leading.className = 'de-header-title-leading';
+    if (typeof opts.leading === 'string') leading.innerHTML = opts.leading;
+    else if (opts.leading instanceof Node) leading.appendChild(opts.leading);
+    wrap.appendChild(leading);
+    mountContactAvatars(leading);
+  }
 
   const icon = document.createElement('span');
   icon.className = 'de-header-title-edit-icon';
@@ -1288,7 +1344,12 @@ export function createEditableHeaderTitleInput(opts = {}) {
   if (opts.placeholder) input.placeholder = opts.placeholder;
   if (opts.value != null) input.value = opts.value;
   input.setAttribute('aria-label', opts.ariaLabel || opts.placeholder || 'Title');
-  return { el: wrapEditableHeaderTitle(input), input };
+  return {
+    el: wrapEditableHeaderTitle(input, {
+      leading: opts.leading,
+    }),
+    input,
+  };
 }
 
 /**

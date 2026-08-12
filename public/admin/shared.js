@@ -421,15 +421,17 @@ export async function ensureContactAuthorIconsReady() {
   await prefetchContactAuthorIcons();
 }
 
-export function resolveContactAuthorIconUrl(contactUid, explicitIconUrl) {
+/** Contact icon/logo only — empty string when the contact has no branding. */
+export function resolveContactBrandIconUrl(contactUid, explicitIconUrl) {
   const direct = brandingPreviewUrl(explicitIconUrl);
   if (direct) return direct;
   const uid = (contactUid || '').trim();
-  if (uid) {
-    const cached = contactAuthorIconByUid.get(uid);
-    if (cached) return cached;
-  }
-  return companyStaffAvatarUrl();
+  if (!uid) return '';
+  return contactAuthorIconByUid.get(uid) || '';
+}
+
+export function resolveContactAuthorIconUrl(contactUid, explicitIconUrl) {
+  return resolveContactBrandIconUrl(contactUid, explicitIconUrl) || companyStaffAvatarUrl();
 }
 
 /** Sidebar list row avatar — client when linked, otherwise company icon. */

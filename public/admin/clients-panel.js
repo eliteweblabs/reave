@@ -38,8 +38,10 @@ import {
   pullRefreshContentRoot,
   createInputClearAdornment,
   syncInputClearAdornment,
-} from './admin-ui.js?v=20260811a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
+  contactAvatarHtml,
+  mountContactAvatars,
+} from './admin-ui.js?v=20260811d';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   openMediaPicker,
@@ -296,38 +298,14 @@ function clientListSubline(c) {
   return c.email || c.phone || `${c.uid.slice(0, 8)}…`;
 }
 
-const CLIENT_LIST_AVATAR_PLACEHOLDER =
-  '<span class="cl-list-avatar cl-list-avatar--placeholder" aria-hidden="true">' +
-  iosIcon('user', 18) +
-  '</span>';
-
-function bindClientAvatarFallback(img) {
-  if (!(img instanceof HTMLImageElement)) return;
-  img.addEventListener(
-    'error',
-    () => {
-      const host = img.closest('.cl-list-avatar-wrap') || img.closest('.cl-list-avatar');
-      if (host) host.innerHTML = CLIENT_LIST_AVATAR_PLACEHOLDER;
-    },
-    { once: true },
-  );
-}
-
 function clientListAvatarHtml(c) {
   const url =
     clientBrandingPreviewUrl(c.iconUrl) || clientBrandingPreviewUrl(c.logoUrl);
-  if (url) {
-    return (
-      `<span class="cl-list-avatar">` +
-      `<img class="cl-list-avatar-img" src="${escHtml(url)}" alt="" loading="lazy" decoding="async" />` +
-      `</span>`
-    );
-  }
-  return CLIENT_LIST_AVATAR_PLACEHOLDER;
+  return contactAvatarHtml({ iconUrl: url, iconSize: 18 });
 }
 
 function mountClientListAvatar(root) {
-  root?.querySelectorAll('.cl-list-avatar-img').forEach(bindClientAvatarFallback);
+  mountContactAvatars(root);
 }
 
 function filterClientsForSidebar(clients) {
@@ -1459,6 +1437,12 @@ function renderEditClientForm(pane) {
           value: clientState.draft.company || '',
           placeholder: 'Company name',
           ariaLabel: 'Company name',
+          leading: contactAvatarHtml({
+            iconUrl:
+              clientBrandingPreviewUrl(clientState.draft.iconUrl) ||
+              clientBrandingPreviewUrl(clientState.draft.logoUrl),
+            iconSize: 16,
+          }),
         },
         icons: [
           agentBtn,
