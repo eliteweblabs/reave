@@ -6,6 +6,8 @@
 import {
   HERO_DEMO_MENTION_PICKER,
   HERO_DEMO_SLASH_PICKER,
+  heroDemoMentionKind,
+  heroDemoMentionNames,
   type HeroDemoAction,
   type HeroDemoMentionOption,
   type HeroDemoScene,
@@ -248,6 +250,59 @@ function releaseBubbleWidthLock(row: HTMLElement): void {
   fitBubbleToRenderedText(bubble);
 }
 
+/** Build a mention chip matching the real agent chat look (demo-only styling). */
+function createMentionChip(name: string): HTMLElement {
+  const chip = document.createElement("span");
+  const kind = heroDemoMentionKind(name);
+  chip.className = `home-hero-demo-mention-chip home-hero-demo-mention-chip--${kind}`;
+  chip.textContent = `@${name}`;
+  return chip;
+}
+
+/**
+ * Fill a bubble text node, turning known `@Name` tokens into mention chips.
+ * Unknown `@…` stays plain text.
+ */
+function fillBubbleText(el: HTMLElement, text: string): void {
+  el.replaceChildren();
+  if (!text.includes("@")) {
+    el.textContent = text;
+    return;
+  }
+
+  const names = heroDemoMentionNames();
+  let i = 0;
+  while (i < text.length) {
+    const at = text.indexOf("@", i);
+    if (at < 0) {
+      el.appendChild(document.createTextNode(text.slice(i)));
+      break;
+    }
+    if (at > i) el.appendChild(document.createTextNode(text.slice(i, at)));
+
+    const after = text.slice(at + 1);
+    const match = names.find((name) => after.startsWith(name));
+    if (!match) {
+      el.appendChild(document.createTextNode("@"));
+      i = at + 1;
+      continue;
+    }
+
+    el.appendChild(createMentionChip(match));
+    i = at + 1 + match.length;
+  }
+}
+
+/** Append characters without wiping existing mention chips. */
+function appendBubbleChars(el: HTMLElement, chunk: string): void {
+  const last = el.lastChild;
+  if (last && last.nodeType === Node.TEXT_NODE) {
+    last.textContent = `${last.textContent ?? ""}${chunk}`;
+  } else {
+    el.appendChild(document.createTextNode(chunk));
+  }
+}
+
 function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: boolean): void {
   row.classList.remove("home-hero-demo-msg--typing");
   row.removeAttribute("aria-label");
@@ -263,14 +318,14 @@ function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: bo
   text.className = "home-hero-demo-bubble-text";
 
   if (isStatus) {
-    text.textContent = stripStatusEllipsis(turn.text);
+    fillBubbleText(text, stripStatusEllipsis(turn.text));
     const ellipsis = document.createElement("span");
     ellipsis.className = "home-hero-demo-ellipsis";
     ellipsis.setAttribute("aria-hidden", "true");
     text.appendChild(ellipsis);
     row.classList.add("home-hero-demo-msg--status");
   } else {
-    text.textContent = turn.text;
+    fillBubbleText(text, turn.text);
   }
 
   bubble.appendChild(text);
@@ -293,7 +348,7 @@ function morphStatusToReply(row: HTMLElement, turn: HeroDemoTurn): void {
 
   const text = document.createElement("p");
   text.className = "home-hero-demo-bubble-text";
-  text.textContent = turn.text;
+  fillBubbleText(text, turn.text);
   bubble.appendChild(text);
 
   if (turn.actions?.length) {
@@ -1409,9 +1464,9 @@ function parseMentionTurn(full: string): {
   const after = full.slice(at + 1);
 
   let mentionName = "";
-  for (const option of HERO_DEMO_MENTION_PICKER) {
-    if (after.startsWith(option.name) && option.name.length > mentionName.length) {
-      mentionName = option.name;
+  for (const name of heroDemoMentionNames()) {
+    if (after.startsWith(name) && name.length > mentionName.length) {
+      mentionName = name;
     }
   }
   if (!mentionName) {
@@ -1494,8 +1549,8 @@ async function playMentionPickerSegment(
   row.style.paddingBottom = "";
   relayout(true);
 
-  // Selection replaces the partial query (and optional `@`) with the full @Name.
-  textEl.textContent = `${beforeSegment}${prefix}@${mentionName}`;
+  // Selection replaces the partial query (and optional `@`) with a mention chip.
+  fillBubbleText(textEl, `${beforeSegment}${prefix}@${mentionName}`);
   relayout();
 
   if (suffix) await typeText(textEl, suffix, charMs, isAlive, relayout);
@@ -1510,7 +1565,7 @@ async function typeText(
 ): Promise<void> {
   for (const ch of chunk) {
     if (!isAlive()) return;
-    el.textContent += ch;
+    appendBubbleChars(el, ch);
     onTick?.();
     await wait(msPerChar);
   }
@@ -1682,6 +1737,8 @@ async function playUserTurn(
   }
 
   if (!isAlive()) return;
+  // Upgrade any remaining plain `@Name` tokens (e.g. voice turns) into chips.
+  fillBubbleText(textEl, full);
   textEl.classList.remove("home-hero-demo-bubble-text--cursor");
   row.classList.remove("home-hero-demo-msg--composing");
   releaseBubbleWidthLock(row);
