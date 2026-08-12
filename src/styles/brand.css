@@ -29,21 +29,39 @@
    */
   --site-canvas: #0c0614;
   --site-status-bar: #000000;
+  /*
+   * Solid black through status bar + header row, then ease into purple.
+   * --site-top-black-end ≈ safe-top + logo band (+ small buffer).
+   */
+  --site-top-black-end: calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px);
   --site-top-fade: linear-gradient(
     180deg,
     var(--site-status-bar) 0px,
-    var(--site-status-bar) 72px,
-    #06020c 140px,
-    var(--site-canvas) 260px,
+    var(--site-status-bar) var(--site-top-black-end),
+    #05020a calc(var(--site-top-black-end) + 72px),
+    #08040f calc(var(--site-top-black-end) + 120px),
+    var(--site-canvas) calc(var(--site-top-black-end) + 200px),
     var(--site-canvas) 100%
   );
+  /*
+   * Opaque black cap sits above the purple glow layers so radials cannot tint
+   * the status-bar inset (that mismatch reads as a hard line on iOS).
+   */
+  --site-top-black-cap: linear-gradient(
+    180deg,
+    var(--site-status-bar) 0px,
+    var(--site-status-bar) var(--site-top-black-end),
+    rgba(0, 0, 0, 0.72) calc(var(--site-top-black-end) + 56px),
+    rgba(0, 0, 0, 0) calc(var(--site-top-black-end) + 140px)
+  );
   --site-mesh-glow:
-    radial-gradient(ellipse 100% 50% at 50% 18%, rgba(192, 38, 211, 0.18) 0%, transparent 72%),
-    radial-gradient(ellipse 80% 55% at 12% 14%, rgba(255, 0, 255, 0.22) 0%, transparent 62%),
-    radial-gradient(ellipse 70% 50% at 88% 16%, rgba(99, 102, 241, 0.22) 0%, transparent 58%);
+    radial-gradient(ellipse 100% 50% at 50% 28%, rgba(192, 38, 211, 0.18) 0%, transparent 72%),
+    radial-gradient(ellipse 80% 55% at 12% 24%, rgba(255, 0, 255, 0.22) 0%, transparent 62%),
+    radial-gradient(ellipse 70% 50% at 88% 26%, rgba(99, 102, 241, 0.22) 0%, transparent 58%);
   --site-mesh-bottom:
     radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
-  --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom), var(--site-top-fade);
+  --site-mesh-atmosphere:
+    var(--site-top-black-cap), var(--site-mesh-glow), var(--site-mesh-bottom), var(--site-top-fade);
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
@@ -131,6 +149,22 @@
    */
   z-index: 1;
   mix-blend-mode: soft-light;
+  /*
+   * Hide the chevron tile in the status-bar + header band — even soft-light
+   * texture on #000 reads as a seam against the OS chrome.
+   */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)),
+    #000 calc(var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)) + 80px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)),
+    #000 calc(var(--site-top-black-end, calc(env(safe-area-inset-top, 0px) + 3.25rem + 36px)) + 80px)
+  );
 }
 
 @media (prefers-color-scheme: dark) {
