@@ -592,11 +592,64 @@ function clearSleepLabelReveal() {
   if (label) delete label.dataset.revealing;
 }
 
+function syncAgentAsleepClass(data = sleepModeCache) {
+  const active = Boolean(data?.active);
+  document.documentElement.classList.toggle('reave-agent-asleep', active);
+}
+
+/** Brief pulse on the header sleep chip so a sleeping agent icon can point at it. */
+let sleepToggleNudgeTimer = null;
+const SLEEP_TOGGLE_NUDGE_MS = 900;
+
+function nudgeTopbarSleepToggle() {
+  const wrap = document.getElementById('topbar-sleep-toggle');
+  if (!wrap || wrap.hidden) return;
+
+  const topbar = document.getElementById('topbar');
+  const revealForPanel = Boolean(topbar?.classList.contains('topbar-has-panel-context'));
+
+  wrap.classList.remove('topbar-sleep-toggle--nudge');
+  wrap.classList.remove('topbar-sleep-toggle--nudge-reveal');
+  // Restart CSS animation if the user taps again mid-nudge.
+  void wrap.offsetWidth;
+  if (revealForPanel) wrap.classList.add('topbar-sleep-toggle--nudge-reveal');
+  wrap.classList.add('topbar-sleep-toggle--nudge');
+
+  if (sleepToggleNudgeTimer) clearTimeout(sleepToggleNudgeTimer);
+  sleepToggleNudgeTimer = setTimeout(() => {
+    sleepToggleNudgeTimer = null;
+    wrap.classList.remove('topbar-sleep-toggle--nudge');
+    wrap.classList.remove('topbar-sleep-toggle--nudge-reveal');
+  }, SLEEP_TOGGLE_NUDGE_MS);
+}
+
+function isSleepingAgentControlTarget(target) {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('.agent-btn, .em-agent-btn, .swipe-act-agent')) return true;
+  return Boolean(target.closest('svg.agent-icon'));
+}
+
+function initAgentAsleepInteraction() {
+  if (typeof document === 'undefined' || window.__agentAsleepInteractionBound) return;
+  window.__agentAsleepInteractionBound = true;
+  document.addEventListener(
+    'pointerdown',
+    (ev) => {
+      if (!document.documentElement.classList.contains('reave-agent-asleep')) return;
+      if (!isSleepingAgentControlTarget(ev.target)) return;
+      nudgeTopbarSleepToggle();
+    },
+    true,
+  );
+}
+
 function syncTopbarSleepToggle(data = sleepModeCache) {
   const wrap = document.getElementById('topbar-sleep-toggle');
   const btn = document.getElementById('topbar-sleep-toggle-btn');
   const label = document.getElementById('topbar-sleep-toggle-label');
   const topbar = document.getElementById('topbar');
+  // Keep the asleep class in sync even if the topbar chip is missing.
+  syncAgentAsleepClass(data);
   if (!wrap || !btn) return;
 
   const inWindow = Boolean(data?.inQuietWindow);
@@ -679,6 +732,7 @@ function revealSleepLabelTime() {
 }
 
 function initTopbarSleepToggle() {
+  initAgentAsleepInteraction();
   const btn = document.getElementById('topbar-sleep-toggle-btn');
   const label = document.getElementById('topbar-sleep-toggle-label');
   if (!btn || btn.dataset.bound === '1') return;
