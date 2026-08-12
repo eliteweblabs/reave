@@ -366,12 +366,13 @@ const EMAIL_TRIAGE_GROUPS = [
 // ───────────────────────── exports ─────────────────────────
 export const MAPS = {
   dashboard: { id: 'dashboard', title: 'Dashboard', icon: 'layout-dashboard', type: 'dashboard', nodes: [],             edges: [],             groups: [] },
-  system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
-  tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
+  system:    { id: 'system',    title: 'System',     icon: '🖥️',  special: true, nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
+  tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  special: true, nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
   'email-triage': {
     id: 'email-triage',
     title: 'Email triage',
     icon: '🔀',
+    special: true,
     nodes: EMAIL_TRIAGE_NODES,
     edges: EMAIL_TRIAGE_EDGES,
     groups: EMAIL_TRIAGE_GROUPS,
@@ -402,6 +403,31 @@ export const MAPS = {
   'lead-scanner': { id: 'lead-scanner', title: 'Lead Scanner', icon: '📍', type: 'lead-scanner', nodes: [], edges: [], groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰' },
 };
+
+/** Footer / home tabs keep the wordmark. Keep in sync with src/lib/adminSpecialPages.ts. */
+export const ADMIN_PRIMARY_PAGE_KEYS = ['dashboard', 'chats', 'email', 'work', 'schedule', 'clients', 'todo'];
+
+/** Account pages keep the wordmark + their own pane back. Keep in sync with src/lib/adminSpecialPages.ts. */
+export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'industries', 'vapi', 'lead-scanner'];
+
+const ADMIN_PRIMARY_PAGE_SET = new Set(ADMIN_PRIMARY_PAGE_KEYS);
+const ADMIN_SETTINGS_PAGE_SET = new Set(ADMIN_SETTINGS_PAGE_KEYS);
+
+/**
+ * Special-page chrome: header back chevron instead of the wordmark.
+ * Canvas maps (`special: true`) and dashboard-grid destinations.
+ * Override per map with `special: true` / `special: false`.
+ * Styles: src/styles/admin/special-page.css. Standalone: AdminSpecialLayout.astro.
+ */
+export function isSpecialAdminPage(key, map = MAPS[key]) {
+  if (!key || key === 'finance') return false;
+  if (!map || map.link) return false;
+  if (map.special === true) return true;
+  if (map.special === false) return false;
+  if (ADMIN_PRIMARY_PAGE_SET.has(key)) return false;
+  if (ADMIN_SETTINGS_PAGE_SET.has(key) || ADMIN_SETTINGS_PAGE_SET.has(map.type)) return false;
+  return true;
+}
 
 /** Canvas maps grouped under the header "System" dropdown. */
 export const SYSTEM_MAP_KEYS = ['system', 'tooling', 'email-triage'];

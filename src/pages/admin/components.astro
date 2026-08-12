@@ -3,46 +3,27 @@
  * Living gallery of shared admin UI primitives (admin-ui.js + related chrome).
  * Use this page to verify toolbar / delete-confirm / icon pack consistency.
  */
-import Header from "../../components/Header.astro";
-import AdminHead from "../../components/admin/AdminHead.astro";
+import AdminSpecialLayout from "../../layouts/AdminSpecialLayout.astro";
 import AdminDialogs from "../../components/admin/AdminDialogs.astro";
-import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
-import { getCompanyConfig } from "../../lib/companyConfig";
-import { getInstallConfigClient } from "../../lib/installConfig";
-import "../../styles/brand.css";
-import "../../styles/admin/index.css";
 
 export const prerender = false;
 
-const { userId } = Astro.locals.auth();
-if (!userId) {
-  const returnTo = encodeURIComponent(Astro.url.pathname + Astro.url.search);
-  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
-}
-
-const company = await getCompanyConfig(Astro.request);
-const installConfigClient = getInstallConfigClient();
 const assetVersion = __PUBLIC_ASSET_VERSION__;
 ---
 
-<!doctype html>
-<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
-  <AdminHead companyName={company.name} fonts={company.fonts} />
-  <body data-user-id={userId}>
-    <Header adminShell profileMenu={installConfigClient.profileMenu} />
-    <main class="components-gallery" id="components-gallery-page">
-      <div class="components-gallery-intro">
-        <h1>Admin components</h1>
-        <p>
-          Shared UI primitives from <code>public/admin/admin-ui.js</code>. Change a component once —
-          every panel that uses it picks up the change. Open
-          <a href="/admin/">/admin/</a> for the map shell.
-        </p>
-      </div>
-      <div id="components-gallery"></div>
-    </main>
-    <AdminDialogs />
-    <script is:inline src={`/ios-sheet.js?v=${assetVersion}`} defer></script>
-    <script is:inline type="module" src={`/admin/components-gallery.js?v=${assetVersion}`}></script>
-  </body>
-</html>
+<AdminSpecialLayout title="Admin components">
+  <main class="components-gallery" id="components-gallery-page">
+    <div class="components-gallery-intro">
+      <h1>Admin components</h1>
+      <p>
+        Shared UI primitives from <code>public/admin/admin-ui.js</code>. Change a component once —
+        every panel that uses it picks up the change. Open
+        <a href="/admin/">/admin/</a> for the map shell.
+      </p>
+    </div>
+    <div id="components-gallery"></div>
+  </main>
+  <AdminDialogs />
+  <script is:inline src={`/ios-sheet.js?v=${assetVersion}`} defer></script>
+  <script is:inline type="module" src={`/admin/components-gallery.js?v=${assetVersion}`}></script>
+</AdminSpecialLayout>

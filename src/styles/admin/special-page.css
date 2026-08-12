@@ -1,0 +1,40 @@
+/*
+ * Shared chrome for special admin pages (node canvases + dashboard-grid
+ * destinations). Toggle via `html.admin-special-page` / `body.admin-special-page`.
+ *
+ * Edit this file to restyle every special page at once. Standalone routes wrap
+ * with `src/layouts/AdminSpecialLayout.astro`. SPA maps opt in through
+ * `isSpecialAdminPage` in `public/admin/os-map-data.js`.
+ */
+
+html.admin-special-page .app-header.app-header--admin .app-header-logo,
+body.admin-special-page .app-header.app-header--admin .app-header-logo {
+  display: none;
+}
+
+.app-header-back.ios-icon-btn {
+  display: none;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-left: -0.45rem;
+  text-decoration: none;
+  color: var(--nav-chevron);
+}
+
+.app-header-back.ios-icon-btn svg {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+html.admin-special-page .app-header-back.ios-icon-btn,
+body.admin-special-page .app-header-back.ios-icon-btn {
+  display: inline-flex;
+}
+
+html.admin-special-page .app-header-back.ios-icon-btn:hover,
+body.admin-special-page .app-header-back.ios-icon-btn:hover {
+  color: var(--nav-chevron-hover);
+  background: var(--surface-hover);
+}

@@ -17,6 +17,7 @@ import DeployStatusBanner from "../../components/DeployStatusBanner.astro";
 import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from "../../lib/companyConfig";
 import { getInstallConfigClient } from "../../lib/installConfig";
+import { isSpecialAdminPageKey } from "../../lib/adminSpecialPages";
 import { enabledFeatures } from "../../lib/features";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -41,12 +42,23 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
 const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
 const githubRepo = githubRepoSlug();
+const specialPage = isSpecialAdminPageKey(
+  Astro.url.searchParams.get("tab") || Astro.url.searchParams.get("map"),
+);
 ---
 
 <!doctype html>
-<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
+<html
+  lang="en"
+  class:list={[{ "admin-special-page": specialPage }]}
+  style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
+>
   <AdminHead companyName={company.name} fonts={company.fonts} />
-  <body data-user-id={userId ?? ""} data-is-owner={isOwner ? "1" : ""}>
+  <body
+    class:list={[{ "admin-special-page": specialPage }]}
+    data-user-id={userId ?? ""}
+    data-is-owner={isOwner ? "1" : ""}
+  >
     <DeployStatusBanner />
     <Header
       adminShell

@@ -7,10 +7,13 @@ import type { ResolvedBrandFonts } from "../../lib/brandFonts";
 interface Props {
   companyName: string;
   fonts: ResolvedBrandFonts;
+  /** Override the default "{company} Admin" document title. */
+  pageTitle?: string;
 }
 
-const { companyName, fonts } = Astro.props;
+const { companyName, fonts, pageTitle } = Astro.props;
 const appName = companyName || "Business OS";
+const docTitle = pageTitle?.trim() || `${appName} Admin`;
 ---
 
 <head>
@@ -25,7 +28,7 @@ const appName = companyName || "Business OS";
   <meta name="apple-mobile-web-app-title" content={appName} />
   <meta name="application-name" content={appName} />
   <link rel="manifest" href="/admin/manifest.webmanifest" />
-  <title>{appName} Admin</title>
+  <title>{docTitle}</title>
   <Favicon />
   <BrandFontHead fonts={fonts} />
   <link rel="stylesheet" href="/ios-sheet.css" />

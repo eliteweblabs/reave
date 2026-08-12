@@ -1,4 +1,5 @@
 @import './tokens.css';
+@import './special-page.css';
 @import './shell.css';
 @import './panels/editor.css';
 @import './panels/chat.css';

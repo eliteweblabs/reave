@@ -1,4 +1,4 @@
-import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
+import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT, isSpecialAdminPage } from '/admin/os-map-data.js';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 import { postTitle, postLower, postNew, postSave, postTitleLabel, postAlias, postCountLabel } from '/admin/post-alias.js?v=20260805a';
@@ -772,6 +772,7 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncProfileMenuActive();
   syncTopbarPanelContext();
+  syncSpecialPageChrome();
   syncAdminSplitView(MAP?.type);
   if (prevType === 'email' && MAP.type !== 'email' && emailState.composing) {
     void leaveEmailCompose();
@@ -8807,14 +8808,32 @@ function initTopbarMenus() {
   const logoLink = document.querySelector('.app-header-logo');
   if (logoLink && !logoLink.dataset.bound) {
     logoLink.dataset.bound = '1';
-    logoLink.addEventListener('click', (ev) => {
-      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
-      ev.preventDefault();
-      closeTopbarMenus();
-      closeSearchOverlay();
-      setActiveMap('dashboard', { force: true, refreshDashboard: true });
-    });
+    logoLink.addEventListener('click', onAdminHomeClick);
   }
+  const specialBack = document.getElementById('admin-special-back');
+  if (specialBack && !specialBack.dataset.bound) {
+    specialBack.dataset.bound = '1';
+    specialBack.addEventListener('click', onAdminHomeClick);
+  }
+}
+
+function onAdminHomeClick(ev) {
+  if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+  ev.preventDefault();
+  closeTopbarMenus();
+  closeSearchOverlay();
+  const href = ev.currentTarget instanceof HTMLAnchorElement ? ev.currentTarget.getAttribute('href') : '';
+  if (href && href !== '/admin/' && href !== '/admin/?tab=dashboard' && !href.startsWith('/admin/?tab=dashboard')) {
+    window.location.href = href;
+    return;
+  }
+  setActiveMap('dashboard', { force: true, refreshDashboard: true });
+}
+
+function syncSpecialPageChrome() {
+  const on = isSpecialAdminPage(activeKey);
+  document.documentElement.classList.toggle('admin-special-page', on);
+  document.body.classList.toggle('admin-special-page', on);
 }
 
 async function refreshDeployDot() {
@@ -13750,6 +13769,7 @@ async function boot() {
   syncFooterNav();
   syncProfileMenuActive();
   syncTopbarPanelContext();
+  syncSpecialPageChrome();
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
 }

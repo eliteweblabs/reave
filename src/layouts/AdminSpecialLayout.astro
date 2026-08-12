@@ -1,0 +1,67 @@
+---
+/**
+ * Shared shell for special admin pages (node canvases’ standalone cousins,
+ * dashboard-tile destinations, galleries). Header shows a back chevron
+ * instead of the wordmark — restyle all of them in
+ * `src/styles/admin/special-page.css`.
+ *
+ * SPA maps on `/admin/` use the same chrome via `html.admin-special-page`.
+ */
+import Header from "../components/Header.astro";
+import AdminFooterNav from "../components/AdminFooterNav.astro";
+import AdminHead from "../components/admin/AdminHead.astro";
+import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { getInstallConfigClient } from "../lib/installConfig";
+import "../styles/brand.css";
+import "../styles/admin/index.css";
+
+interface Props {
+  /** Browser tab title. Defaults to "{company} Admin". */
+  title?: string;
+  backHref?: string;
+  backLabel?: string;
+  showFooterNav?: boolean;
+  requireAuth?: boolean;
+  bodyClass?: string;
+}
+
+const {
+  title,
+  backHref = "/admin/?tab=dashboard",
+  backLabel = "Back to dashboard",
+  showFooterNav = false,
+  requireAuth = true,
+  bodyClass = "",
+} = Astro.props;
+
+const { userId } = Astro.locals.auth();
+if (requireAuth && !userId) {
+  return Astro.redirect(
+    `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
+  );
+}
+
+const company = await getCompanyConfig(Astro.request);
+const installConfigClient = getInstallConfigClient();
+---
+
+<!doctype html>
+<html
+  lang="en"
+  class="admin-special-page"
+  style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
+>
+  <AdminHead companyName={company.name} fonts={company.fonts} pageTitle={title} />
+  <body class:list={["admin-special-page", bodyClass]} data-user-id={userId ?? ""}>
+    <Header
+      adminShell
+      specialPage
+      backHref={backHref}
+      backLabel={backLabel}
+      profileMenu={installConfigClient.profileMenu}
+    />
+    <slot />
+    {showFooterNav && <AdminFooterNav />}
+  </body>
+</html>
