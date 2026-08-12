@@ -50,9 +50,9 @@ const ACTION_HOVER_MS = 260;
 const ACTION_HOVER_SETTLE_MS = 420;
 /** Simulated click / press duration. */
 const ACTION_PRESS_MS = 520;
-/** Random hops before settling on the intended chip (inclusive range). */
-const ACTION_HOVER_HOPS_MIN = 4;
-const ACTION_HOVER_HOPS_MAX = 7;
+/** Random hops before settling on the intended chip (inclusive range, capped to chip count). */
+const ACTION_HOVER_HOPS_MIN = 2;
+const ACTION_HOVER_HOPS_MAX = 4;
 const SLASH_PICKER_ARROW_MS = 380;
 const SLASH_PICKER_SELECT_HOLD_MS = 520;
 const SLASH_PICKER_OPEN_MS = 200;
@@ -1859,12 +1859,17 @@ function clearActionHover(chips: HTMLElement[]): void {
   for (const chip of chips) chip.classList.remove("home-hero-demo-action--hover");
 }
 
-/** Pick the next hop — never the same chip twice in a row when alternatives exist. */
+/** Pick the next hop — prefer unvisited chips; never the same chip twice in a row. */
 function pickRandomHoverChip(
   chips: HTMLElement[],
   previous: HTMLElement | null,
+  visited: ReadonlySet<HTMLElement> = new Set(),
 ): HTMLElement {
   if (chips.length === 1) return chips[0]!;
+  const unvisited = chips.filter((chip) => !visited.has(chip) && chip !== previous);
+  if (unvisited.length > 0) {
+    return unvisited[Math.floor(Math.random() * unvisited.length)]!;
+  }
   const pool = previous ? chips.filter((chip) => chip !== previous) : chips;
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
@@ -1892,24 +1897,36 @@ async function simulateActionHoverScan(
     return;
   }
 
-  const hopSpan = ACTION_HOVER_HOPS_MAX - ACTION_HOVER_HOPS_MIN + 1;
-  const hops = ACTION_HOVER_HOPS_MIN + Math.floor(Math.random() * hopSpan);
+  const cappedMax = Math.min(ACTION_HOVER_HOPS_MAX, chips.length);
+  const cappedMin = Math.min(ACTION_HOVER_HOPS_MIN, cappedMax);
+  const hopSpan = cappedMax - cappedMin + 1;
+  const hops = cappedMin + Math.floor(Math.random() * hopSpan);
 
   let previous: HTMLElement | null = null;
+  const visited = new Set<HTMLElement>();
   for (let i = 0; i < hops; i++) {
-    // Last hop prefers a non-target so settling on the choice reads clearly.
+    // Last hop prefers an unvisited non-target so settling on the choice reads clearly.
     let chip: HTMLElement;
     if (i === hops - 1 && chips.length > 1) {
-      const others = chips.filter((c) => c !== target && c !== previous);
-      const pool = others.length > 0 ? others : chips.filter((c) => c !== previous);
-      chip = pool[Math.floor(Math.random() * pool.length)] ?? pickRandomHoverChip(chips, previous);
+      const others = chips.filter(
+        (c) => c !== target && c !== previous && !visited.has(c),
+      );
+      const pool =
+        others.length > 0
+          ? others
+          : chips.filter((c) => c !== target && c !== previous);
+      chip =
+        pool.length > 0
+          ? pool[Math.floor(Math.random() * pool.length)]!
+          : pickRandomHoverChip(chips, previous, visited);
     } else {
-      chip = pickRandomHoverChip(chips, previous);
+      chip = pickRandomHoverChip(chips, previous, visited);
     }
 
     clearActionHover(chips);
     chip.classList.add("home-hero-demo-action--hover");
     previous = chip;
+    visited.add(chip);
     await wait(ACTION_HOVER_MS);
     if (!isAlive()) {
       clearActionHover(chips);
@@ -2035,10 +2052,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  // Footer CTAs are outside the hero (HomeStickyCtas on <body>).
-  const copyEl =
-    hero?.querySelector<HTMLElement>("[data-hero-copy]") ??
-    document.querySelector<HTMLElement>("[data-hero-copy]");
+  // CTAs are a sibling of the chat stack inside .home-hero-demo.
+  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 
   depthBlurEnabled = !isSafariBrowser();

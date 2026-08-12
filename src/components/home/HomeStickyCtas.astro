@@ -1,7 +1,8 @@
 ---
 /**
- * Homepage CTA dock — fixed to the viewport footer (not inside the hero).
- * Sits 10px above the lowest safe position; slides away at #contact.
+ * Homepage hero CTAs — sibling of the mock chat stack inside .home-hero-demo
+ * so the lane ends just above the buttons. Falls back to .home-hero-cta-dock
+ * when the demo chat is off.
  */
 import { ArrowRight } from "lucide-astro";
 import type { SiteContentConfig } from "../../lib/siteContent";
@@ -48,28 +49,17 @@ if (ctas.length === 0) return;
 </script>
 
 <style is:global>
-  /*
-   * Footer dock on <body> (rendered outside <main>). Layout-fixed only —
-   * do not chase visualViewport / URL bar. Contact adds .is-contact-occluding.
-   */
   .home-sticky-ctas {
-    position: fixed;
-    top: auto;
-    left: 0;
-    right: 0;
-    /*
-     * Lowest safe position + 10px. Safe-area clears the home indicator;
-     * 10px sits the pills just above that floor. No extra 24px pad.
-     */
-    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
-    z-index: 940;
+    position: relative;
+    flex: none;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0 20px;
+    width: 100%;
+    padding: 0;
     text-align: center;
     pointer-events: none;
-    transform: none;
     transition:
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.4s ease,
