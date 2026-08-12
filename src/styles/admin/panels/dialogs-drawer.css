@@ -189,6 +189,13 @@
 .de-pane--drawer .re-form-scroll {
   padding-bottom: 1rem;
 }
+/* New Contact (and any create flow without an in-pane title row) sits flush
+   under the Cancel/Add bar — give the scroll column extra headroom. Flows
+   with .de-header between the bar and scroll keep their existing inset. */
+.de-pane--drawer > .de-drawer-bar + .re-form-scroll,
+.de-pane--drawer > .de-drawer-bar + .detail-form-scroll {
+  padding-top: 1.15rem;
+}
 .de-pane--drawer .re-form-scroll .de-textarea,
 .de-pane--drawer .re-form-scroll > .de-textarea {
   margin: 0;
