@@ -1,0 +1,113 @@
+---
+/**
+ * iOS 26 Safari Liquid Glass — initial-load scroll runway.
+ *
+ * At scrollY = 0 Safari often paints status-bar / toolbar chrome from the
+ * fallback root color (reads as black bars) instead of real page pixels.
+ * Once the document has non-zero scroll, it composites the visible page and
+ * the edges match. This spacer + instant pin gives mobile Safari a stable
+ * non-zero scrollY on first paint without shifting the hero visually.
+ */
+const RUNWAY_PX = 64;
+---
+
+<div
+  class="safari-scroll-runway"
+  aria-hidden="true"
+  style={`--safari-scroll-offset:${RUNWAY_PX}px`}
+></div>
+
+{/* Runs before deferred modules so the first frame is already pinned. */}
+<script is:inline define:vars={{ RUNWAY_PX }}>
+  (function () {
+    try {
+      if (!CSS.supports("-webkit-touch-callout", "none")) return;
+      if (!window.matchMedia("(max-width: 767.98px)").matches) return;
+      if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+      if (window.scrollY < RUNWAY_PX) {
+        window.scrollTo(0, RUNWAY_PX);
+      }
+    } catch (_) {}
+  })();
+</script>
+
+<script>
+  const MQ = "(max-width: 767.98px)";
+
+  function isMobileSafari(): boolean {
+    return (
+      typeof CSS !== "undefined" &&
+      CSS.supports("-webkit-touch-callout", "none") &&
+      window.matchMedia(MQ).matches
+    );
+  }
+
+  function runwayPx(): number {
+    const raw = getComputedStyle(document.documentElement)
+      .getPropertyValue("--safari-scroll-offset")
+      .trim();
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function pinRunway(): void {
+    if (!isMobileSafari()) return;
+    const y = runwayPx();
+    if (y <= 0) return;
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    if (window.scrollY < y) {
+      window.scrollTo({ top: y, left: 0, behavior: "instant" as ScrollBehavior });
+    }
+  }
+
+  function onScroll(): void {
+    if (!isMobileSafari()) return;
+    const y = runwayPx();
+    if (y <= 0) return;
+    // Resting at 0 recreates the black initial-load chrome — keep a floor.
+    if (window.scrollY > 0 && window.scrollY < y) {
+      window.scrollTo({ top: y, left: 0, behavior: "instant" as ScrollBehavior });
+    }
+  }
+
+  pinRunway();
+  window.addEventListener("load", pinRunway, { once: true });
+  window.addEventListener("pageshow", pinRunway);
+  document.addEventListener("astro:page-load", pinRunway);
+  window.addEventListener("scroll", onScroll, { passive: true });
+</script>
+
+<style is:global>
+  :root {
+    --safari-scroll-offset: 0px;
+  }
+
+  .safari-scroll-runway {
+    display: none;
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /*
+   * iOS Safari only. Document stays scrollable (do not overflow:hidden the
+   * root) so Liquid Glass can composite page pixels behind chrome.
+   */
+  @supports (-webkit-touch-callout: none) {
+    @media (width < 768px) {
+      :root {
+        --safari-scroll-offset: 64px;
+      }
+
+      html {
+        overflow-y: scroll;
+      }
+
+      .safari-scroll-runway {
+        display: block;
+        height: var(--safari-scroll-offset);
+        flex-shrink: 0;
+      }
+    }
+  }
+</style>
