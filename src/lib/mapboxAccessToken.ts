@@ -1,8 +1,8 @@
 import { serverEnv } from './serverEnv';
 
 /**
- * Resolve Mapbox access token from env (server-side geocoding / directions).
- * PUBLIC_MAPBOX_ACCESS_TOKEN is used for client map rendering when set.
+ * Server-side Mapbox token (geocoding / directions APIs).
+ * Prefers MAPBOX_ACCESS_TOKEN; falls back to PUBLIC_MAPBOX_ACCESS_TOKEN.
  */
 export function getMapboxAccessToken(): string | undefined {
   const candidates = [
@@ -17,7 +17,10 @@ export function getMapboxAccessToken(): string | undefined {
   return undefined;
 }
 
-/** Token safe to expose to authenticated admin UI (map rendering). */
+/**
+ * Browser-safe Mapbox token for map rendering.
+ * Only PUBLIC_MAPBOX_ACCESS_TOKEN — never falls back to server-only MAPBOX_ACCESS_TOKEN.
+ */
 export function getPublicMapboxAccessToken(): string | undefined {
   const key = serverEnv('PUBLIC_MAPBOX_ACCESS_TOKEN');
   if (typeof key === 'string' && key.trim() !== '') return key.trim();

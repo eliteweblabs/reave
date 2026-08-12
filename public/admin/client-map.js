@@ -195,7 +195,7 @@ export function createClientMap(container, opts = {}) {
         mapShell.classList.add('cl-map-shell--leaflet');
         metaEl.hidden = false;
         metaEl.textContent =
-          'OpenStreetMap preview — set MAPBOX_ACCESS_TOKEN for Mapbox tiles and driving directions.';
+          'OpenStreetMap preview — set PUBLIC_MAPBOX_ACCESS_TOKEN for Mapbox tiles and driving directions.';
       }
 
       mapLoadFailed = false;
@@ -324,7 +324,7 @@ export function createClientMap(container, opts = {}) {
     if (!currentGeo) return;
     if (mapEngine !== 'mapbox') {
       metaEl.hidden = false;
-      metaEl.textContent = 'Driving directions require MAPBOX_ACCESS_TOKEN.';
+      metaEl.textContent = 'Driving directions require PUBLIC_MAPBOX_ACCESS_TOKEN (or server MAPBOX_ACCESS_TOKEN).';
       return;
     }
     metaEl.hidden = false;
