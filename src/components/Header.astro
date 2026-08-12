@@ -290,6 +290,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   /** Pin the opaque-black band to the real header bottom (env() lies on fixed shells). */
   function syncSiteTopBlackEnd() {
+    if (!window.matchMedia("(max-width: 768.98px)").matches) return;
     const header = document.querySelector(".app-header:not(.app-header--admin)");
     if (!header) return;
     const row = header.querySelector(".app-header-row");

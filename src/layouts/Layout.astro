@@ -324,4 +324,11 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		position: relative;
 		z-index: 2;
 	}
+
+	@media (min-width: 769px) {
+		html,
+		body {
+			background-color: var(--site-canvas, #0c0614);
+		}
+	}
 </style>
