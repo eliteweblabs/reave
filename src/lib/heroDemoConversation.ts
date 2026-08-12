@@ -37,12 +37,16 @@ export type HeroDemoScene = {
 
 /** Slash commands shown in the hero demo picker when the user types "/". */
 export const HERO_DEMO_SLASH_PICKER = [
-  { slash: "/invoice", summary: "List recent invoices" },
-  { slash: "/document", summary: "Send a document for signing" },
+  { slash: "/knowledge", summary: "List knowledge docs" },
+  { slash: "/inbox", summary: "List inbox emails" },
+  { slash: "/todo", summary: "List personal todos" },
   { slash: "/work", summary: "List open jobs" },
   { slash: "/contact", summary: "Look up a contact" },
+  { slash: "/invoice", summary: "List recent invoices" },
+  { slash: "/document", summary: "Send a document for signing" },
   { slash: "/meeting", summary: "Today's calendar" },
   { slash: "/send", summary: "Send an email" },
+  { slash: "/portal", summary: "Get a client portal link" },
 ] as const;
 
 export type HeroDemoMentionOption = {

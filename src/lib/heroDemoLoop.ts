@@ -1378,8 +1378,12 @@ function buildSlashPicker(): HTMLElement {
 function setSlashPickerHighlight(picker: HTMLElement, index: number) {
   picker.querySelectorAll<HTMLElement>(".home-hero-demo-slash-option").forEach((item, i) => {
     item.classList.toggle("active", i === index);
-    if (i === index) item.setAttribute("aria-selected", "true");
-    else item.removeAttribute("aria-selected");
+    if (i === index) {
+      item.setAttribute("aria-selected", "true");
+      item.scrollIntoView({ block: "nearest" });
+    } else {
+      item.removeAttribute("aria-selected");
+    }
   });
 }
 
