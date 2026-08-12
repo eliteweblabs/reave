@@ -1016,6 +1016,7 @@ function renderRuleEditPane(pane) {
     ['activate', 'Activate'],
     ['explain', 'Explain'],
     ['expense', 'Expense'],
+    ['rules', 'Rules'],
   ];
   const actionCbs = [];
   for (const [val, lab] of actionDefs) {
@@ -1515,6 +1516,20 @@ async function startNewRule() {
     alert(`Could not create rule: ${e.message}`);
   }
 }
+
+/**
+ * Open Rules → Flow and prefill Try-an-email from an inbox record (notification deep link).
+ * @param {object} emailRecord
+ * @param {{ run?: boolean }} [opts]
+ */
+async function openRulesLabWithEmail(emailRecord, opts = {}) {
+  if (!emailRecord || typeof emailRecord !== 'object') return;
+  setRulesView('flow');
+  await loadRulesTab();
+  const lab = getTriageLab();
+  await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });
+}
+
 export {
   ruleState,
   loadRulesTab,
@@ -1525,4 +1540,5 @@ export {
   ruleSubline,
   formatRuleHitLabel,
   startNewRule,
+  openRulesLabWithEmail,
 };

@@ -1292,6 +1292,8 @@ function useDeployChatLock(): DeployChatLockState {
   const canPollDeployIndicator = useCallback(() => {
     // Owner-only endpoint (unless DEPLOY_STATUS_PUBLIC) — never hit it signed out / non-owner.
     if (typeof document === 'undefined') return false;
+    const uid = document.body?.dataset?.userId?.trim();
+    if (document.body?.dataset?.userId !== undefined && !uid) return false;
     if (document.body?.dataset?.isOwner === '1') return true;
     // Public marketing pages have no data-is-owner; rely on header events only.
     return false;

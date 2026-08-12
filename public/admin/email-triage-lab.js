@@ -55,6 +55,8 @@ export function createEmailTriageLab(deps) {
     suggestGen: 0,
     suggestOpen: false,
     _suggestOutsideBound: null,
+    /** Inbox email id when compose was loaded from a notification / deep link. */
+    sourceEmailId: null,
   };
 
   function inboundExample() {
@@ -227,6 +229,45 @@ export function createEmailTriageLab(deps) {
     state.subject = root.querySelector('[data-lab-subject]')?.value || '';
     state.text = root.querySelector('[data-lab-body]')?.value || '';
     state.skipGates = Boolean(root.querySelector('[data-lab-skip-gates]')?.checked);
+  }
+
+  function loadFromInboxEmail(record) {
+    if (!record || typeof record !== 'object') return;
+    const rawFrom = String(record.from || '').trim();
+    const angle = rawFrom.match(/^(.*?)\s*<([^>]+)>\s*$/);
+    let fromName = '';
+    let fromEmail = rawFrom;
+    if (angle) {
+      fromName = angle[1].replace(/^["']|["']$/g, '').trim();
+      fromEmail = angle[2].trim();
+    }
+    state.fromName = fromName;
+    state.from = fromName && fromEmail ? `${fromName} <${fromEmail}>` : fromEmail;
+    const toRaw = record.to;
+    state.to = Array.isArray(toRaw)
+      ? toRaw.map(String).filter(Boolean).join(', ')
+      : String(toRaw || state.to || inboundExample()).trim();
+    const ccRaw = record.cc;
+    state.cc = Array.isArray(ccRaw)
+      ? ccRaw.map(String).filter(Boolean).join(', ')
+      : String(ccRaw || '').trim();
+    state.subject = String(record.subject || '');
+    state.text = String(
+      record.bodyText || record.text || record.bodySnippet || record.summary || '',
+    );
+    state.attachments = Array.isArray(record.attachments)
+      ? record.attachments.map((a, i) => ({
+          id: String(a.id || `att-${i}`),
+          filename: String(a.filename || a.name || `file-${i + 1}`),
+          contentType: String(a.contentType || a.content_type || 'application/octet-stream'),
+          size: Number(a.size) || 0,
+        }))
+      : [];
+    state.skipGates = true;
+    state.sim = null;
+    state.playIndex = -1;
+    state.sourceEmailId = String(record.id || '').trim() || null;
+    stopPlayback();
   }
 
   async function runSimulation() {
@@ -509,7 +550,8 @@ export function createEmailTriageLab(deps) {
     left.appendChild(deps.createRulesViewPicker().el);
     const hint = document.createElement('p');
     hint.className = 're-flow-hint';
-    hint.textContent = 'Flow = live ladder · try an email · first match wins · Agent drafts a rule when nothing matches';
+    hint.textContent =
+      'Flow = live ladder · try an email · first match wins · Agent handles unmatched · teach creates rules';
     left.appendChild(hint);
     toolbar.appendChild(left);
 
@@ -894,6 +936,13 @@ export function createEmailTriageLab(deps) {
   return {
     render(root) {
       renderLabShell(root, { preserveForm: false });
+    },
+    /** Prefill Try-an-email from an inbox record, then re-render (and optionally run). */
+    async loadInboxEmail(record, opts = {}) {
+      loadFromInboxEmail(record);
+      const root = deps.getRuleEditor();
+      if (root) renderLabShell(root, { preserveForm: false });
+      if (opts.run !== false) await runSimulation();
     },
     destroy() {
       stopPlayback();

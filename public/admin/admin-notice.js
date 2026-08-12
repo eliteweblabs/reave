@@ -25,6 +25,7 @@ export const NOTICE_ACTION_ICONS = {
   activate: 'link',
   explain: 'sparkles',
   expense: 'receipt',
+  rules: 'agent',
 };
 
 /**

@@ -67,7 +67,8 @@ export type RuleNotifyAction =
   | 'copy'
   | 'activate'
   | 'explain'
-  | 'expense';
+  | 'expense'
+  | 'rules';
 
 export const RULE_NOTIFY_ACTIONS: readonly RuleNotifyAction[] = [
   'view',
@@ -77,6 +78,7 @@ export const RULE_NOTIFY_ACTIONS: readonly RuleNotifyAction[] = [
   'activate',
   'explain',
   'expense',
+  'rules',
 ] as const;
 
 export const RULE_NOTIFY_ACTION_LABELS: Record<RuleNotifyAction, string> = {
@@ -87,6 +89,7 @@ export const RULE_NOTIFY_ACTION_LABELS: Record<RuleNotifyAction, string> = {
   activate: 'Activate',
   explain: 'Explain',
   expense: 'Expense',
+  rules: 'Rules',
 };
 
 export interface EmailRule {

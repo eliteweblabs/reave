@@ -17,6 +17,19 @@
   /** After 401/403, never poll again — endpoint is owner-only unless DEPLOY_STATUS_PUBLIC. */
   let deployAuthDenied = false;
 
+  function deployDotEl() {
+    return document.getElementById('topbar-deploy-dot');
+  }
+
+  function isDeployStatusPublic() {
+    return deployDotEl()?.dataset?.deployPublic === '1';
+  }
+
+  function serverUserId() {
+    if (document.body?.dataset?.userId === undefined) return null;
+    return document.body.dataset.userId.trim() || '';
+  }
+
   /** Soft sign-out: Clerk cleared the session but this page still has the poller. */
   function clerkSessionGone() {
     try {
@@ -27,8 +40,38 @@
     }
   }
 
+  /**
+   * Whether the client may call /api/deploy/indicator.
+   * @returns {boolean|null} true = poll, false = stop, null = wait (Clerk not ready)
+   */
+  function canPollDeployIndicator() {
+    if (deployAuthDenied) return false;
+    if (isDeployStatusPublic()) return true;
+
+    const uid = serverUserId();
+    if (uid !== null && !uid) return false;
+
+    if (document.body?.dataset?.isOwner !== undefined) {
+      return document.body.dataset.isOwner === '1';
+    }
+
+    if (clerkSessionGone()) return false;
+    const clerk = window.Clerk;
+    if (clerk && !clerk.loaded) return null;
+    if (clerk?.loaded && !clerk.user) return false;
+
+    return uid !== null ? Boolean(uid) : true;
+  }
+
+  function denyDeployPoll() {
+    deployAuthDenied = true;
+    stopDeployPoll();
+    hideDeployDot();
+    publishDeployIndicator(null);
+  }
+
   function hideDeployDot() {
-    const dot = document.getElementById('topbar-deploy-dot');
+    const dot = deployDotEl();
     if (!dot) return;
     dot.hidden = true;
     dot.classList.remove('tooltip-open');
@@ -36,22 +79,20 @@
   }
 
   async function refreshDeployDot() {
-    const dot = document.getElementById('topbar-deploy-dot');
+    const dot = deployDotEl();
     if (!dot || deployAuthDenied) return;
-    if (clerkSessionGone()) {
-      deployAuthDenied = true;
-      stopDeployPoll();
-      hideDeployDot();
-      publishDeployIndicator(null);
+
+    const allowed = canPollDeployIndicator();
+    if (allowed === false) {
+      denyDeployPoll();
       return;
     }
+    if (allowed === null) return;
+
     try {
       const res = await fetch('/api/deploy/indicator', { cache: 'no-store' });
       if (res.status === 401 || res.status === 403) {
-        deployAuthDenied = true;
-        stopDeployPoll();
-        hideDeployDot();
-        publishDeployIndicator(null);
+        denyDeployPoll();
         return;
       }
       const data = await res.json();
@@ -88,6 +129,17 @@
 
   async function pollDeployDot() {
     if (document.hidden || deployAuthDenied) return;
+    const allowed = canPollDeployIndicator();
+    if (allowed === false) {
+      denyDeployPoll();
+      return;
+    }
+    if (allowed === null) {
+      deployPollTimer = setTimeout(() => {
+        void pollDeployDot();
+      }, 250);
+      return;
+    }
     await refreshDeployDot();
     if (deployAuthDenied || document.hidden) return;
     deployPollTimer = setTimeout(() => {
@@ -98,6 +150,11 @@
   function startDeployPoll() {
     stopDeployPoll();
     if (document.hidden || deployAuthDenied) return;
+    const allowed = canPollDeployIndicator();
+    if (allowed === false) {
+      denyDeployPoll();
+      return;
+    }
     void pollDeployDot();
   }
 
@@ -109,11 +166,11 @@
   }
 
   function initDeployIndicator() {
-    const dot = document.getElementById('topbar-deploy-dot');
+    const dot = deployDotEl();
     if (!dot || dot.dataset.deployBound) return;
-    if (deployAuthDenied || clerkSessionGone()) {
-      deployAuthDenied = true;
-      hideDeployDot();
+    const allowed = canPollDeployIndicator();
+    if (allowed === false) {
+      denyDeployPoll();
       return;
     }
     dot.dataset.deployBound = '1';
@@ -125,6 +182,20 @@
     startDeployPoll();
   }
 
+  function bindClerkResume() {
+    if (document.documentElement.dataset.deployClerkBound) return;
+    document.documentElement.dataset.deployClerkBound = '1';
+    window.addEventListener(
+      'clerk-loaded',
+      () => {
+        if (!deployDotEl()) return;
+        if (canPollDeployIndicator() === false) denyDeployPoll();
+        else startDeployPoll();
+      },
+      true,
+    );
+  }
+
   window.DeployIndicator = {
     refresh: refreshDeployDot,
     startPoll: startDeployPoll,
@@ -132,7 +203,9 @@
     init: initDeployIndicator,
   };
 
-  if (document.getElementById('topbar-deploy-dot')) {
+  bindClerkResume();
+
+  if (deployDotEl()) {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initDeployIndicator);
     } else {
@@ -141,22 +214,28 @@
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.getElementById('topbar-deploy-dot')) return;
+    if (!deployDotEl()) return;
     if (document.hidden) stopDeployPoll();
     else startDeployPoll();
+  });
+
+  window.addEventListener('pageshow', (ev) => {
+    if (!deployDotEl()) return;
+    if (ev.persisted && canPollDeployIndicator() === false) denyDeployPoll();
+    else if (!document.hidden) startDeployPoll();
   });
 
   if (!document.documentElement.dataset.deployTooltipBound) {
     document.documentElement.dataset.deployTooltipBound = '1';
     document.addEventListener('click', () => {
-      const dot = document.getElementById('topbar-deploy-dot');
+      const dot = deployDotEl();
       if (!dot?.classList.contains('tooltip-open')) return;
       dot.classList.remove('tooltip-open');
       window.ProximityTooltip?.sync?.();
     });
     document.addEventListener('keydown', (ev) => {
       if (ev.key !== 'Escape') return;
-      const dot = document.getElementById('topbar-deploy-dot');
+      const dot = deployDotEl();
       if (!dot?.classList.contains('tooltip-open')) return;
       dot.classList.remove('tooltip-open');
       window.ProximityTooltip?.hide?.();

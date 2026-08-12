@@ -256,6 +256,7 @@ import {
   initRulesPanel,
   ruleState,
   loadRulesTab,
+  openRulesLabWithEmail,
 } from './rules-panel.js?v=20260812c';
 import {
   initNewsletterPanel,
@@ -3031,6 +3032,36 @@ async function explainUncertainEmailFromAlert(item, btn) {
   }
 }
 
+/** Open Rules Flow with this notification’s email prefilled in Try-an-email. */
+async function openRulesLabFromNotification(item, btn) {
+  const emailId = String(item?.emailId || '').trim();
+  if (!emailId) return;
+  if (btn) btn.disabled = true;
+  try {
+    let ev = emailState.allEvents.find((e) => e.id === emailId);
+    if (!ev) {
+      ev = {
+        id: emailId,
+        from: item.from,
+        subject: item.subject,
+        summary: item.detail,
+        bodySnippet: item.detail,
+      };
+    }
+    const full = await fetchFullEmailRecord(ev);
+    setActiveMap('rules', { force: true });
+    await openRulesLabWithEmail(full, { run: true });
+  } catch (e) {
+    console.warn('[rules] open from notification failed', e);
+    await osAlert({
+      title: 'Could not open Rules',
+      bodyHtml: escHtml(e?.message || String(e)),
+    });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function authLinkPurposeLabel(item) {
   const title = String(item?.title || '').trim();
   const stripped = title.replace(/\s*[—–-]\s*ready to activate\s*$/i, '').trim();
@@ -4043,6 +4074,7 @@ function buildReviewAlertBanner(item) {
     archive: 'Archive',
     view: 'View',
     open: 'View',
+    rules: 'Rules',
   };
   const pushNotifyAction = (key, extras = {}) => {
     const { label, primary, iconKey, ...rest } = extras;
@@ -4101,6 +4133,12 @@ function buildReviewAlertBanner(item) {
     if (key === 'view' || key === 'open') {
       pushNotifyAction(key, {
         onClick: () => openReviewNotificationTarget(item),
+      });
+      return;
+    }
+    if (key === 'rules') {
+      pushNotifyAction('rules', {
+        onClick: (btn) => void openRulesLabFromNotification(item, btn),
       });
     }
   };
@@ -4271,6 +4309,28 @@ function buildReviewAlertBanner(item) {
       label: 'Triage',
       onClick: () => void openNotificationTriageDialog(item),
     });
+  }
+
+  // Agent → Rules Flow with this email prefilled in Try-an-email.
+  if (
+    item.emailId &&
+    (isPushAlert ||
+      isOtp ||
+      isAuthLink ||
+      isTriageExplain ||
+      isReceiptExpense ||
+      isMeetingFollowup ||
+      isMeetingRequest ||
+      isEmailAutomationReview(item) ||
+      emailAwaitingTriage)
+  ) {
+    const already = actions.some((a) => a.label === 'Rules');
+    if (!already) {
+      pushNotifyAction('rules', {
+        primary: false,
+        onClick: (btn) => void openRulesLabFromNotification(item, btn),
+      });
+    }
   }
 
   const notice = buildAdminNotice({
@@ -13679,6 +13739,8 @@ async function boot() {
   if (userId) {
     syncEmailPoll();
     syncInboxBadgePoll();
+  }
+  if (isDeploymentOwnerClient) {
     startDeployPoll();
   }
   syncChatRunningPoll();
@@ -13735,7 +13797,7 @@ document.addEventListener('visibilitychange', () => {
     syncInboxBadgePoll();
     syncChatRunningPoll();
     syncWorkAuditingPoll();
-    if (userId) startDeployPoll();
+    if (isDeploymentOwnerClient) startDeployPoll();
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();
   }
