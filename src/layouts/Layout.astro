@@ -47,7 +47,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#0c0614",
+  themeColor = "#000000",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -167,9 +167,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * viewport and shears position:fixed headers. Use min-height only so the
 	 * paint box is at least one device tall and can still grow with content.
 	 *
-	 * background-color MUST be the purple canvas (--site-canvas), not near-black —
-	 * Safari samples it for the status-bar / home-indicator strips, and #050505
-	 * reads as a disconnected black letterbox against the mesh.
+	 * background-color on html is true black (--site-status-bar) so the iOS
+	 * inset matches; body keeps --site-canvas for the fold below the fade.
+	 * Atmosphere is viewport-fixed so the black→purple band stays under the
+	 * status bar while content scrolls.
 	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);
@@ -202,13 +203,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100dvh;
 		min-height: 100lvh;
 		min-height: var(--device-height);
-		background-color: var(--site-canvas, #0c0614);
-		/*
-		 * Mesh on html as well as body — viewport-fit=cover puts the status-bar
-		 * strip on the root canvas; flat background-color alone reads as black.
-		 */
+		background-color: var(--site-status-bar, #000000);
 		background-image: var(--site-mesh-atmosphere);
 		background-repeat: no-repeat;
+		background-attachment: fixed;
 	}
 
 	html,
@@ -249,13 +247,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: var(--device-height);
 		position: relative;
 		/*
-		 * Mesh on body (not a z-index:-1 ::before). A negative-z pseudo sits
-		 * behind body's opaque background-color and the atmosphere vanishes —
-		 * that was the flat black fold. Pre-Astro-7 stops, on body itself.
+		 * Viewport-fixed atmosphere: black at the top (matches the status-bar
+		 * inset), easing into purple glows. Content scrolls over this layer.
 		 */
 		background-image: var(--site-mesh-atmosphere);
 		background-repeat: no-repeat;
-		background-attachment: scroll;
+		background-attachment: fixed;
 	}
 
 	h1,
