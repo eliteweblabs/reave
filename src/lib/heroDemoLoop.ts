@@ -53,8 +53,6 @@ const ACTION_PRESS_MS = 520;
 /** Random hops before settling on the intended chip (inclusive range). */
 const ACTION_HOVER_HOPS_MIN = 4;
 const ACTION_HOVER_HOPS_MAX = 7;
-/** Full hero background bright pulse after a simulated action click. */
-const SECTION_PULSE_MS = 1000;
 const SLASH_PICKER_ARROW_MS = 380;
 const SLASH_PICKER_SELECT_HOLD_MS = 520;
 const SLASH_PICKER_OPEN_MS = 200;
@@ -1932,15 +1930,7 @@ async function simulateActionPress(
   clearActionHover(chips);
   target.classList.add("home-hero-demo-action--pressed");
 
-  const hero = row.closest<HTMLElement>(".home-hero");
   const effect = target.dataset.heroEffect;
-
-  if (hero && !reducedMotion) {
-    hero.classList.remove("home-hero--action-pulse");
-    void hero.offsetWidth;
-    hero.classList.add("home-hero--action-pulse");
-    window.setTimeout(() => hero.classList.remove("home-hero--action-pulse"), SECTION_PULSE_MS);
-  }
 
   await wait(ACTION_PRESS_MS);
   if (!isAlive()) return;
