@@ -271,11 +271,21 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 )}
 
 <script>
-  /*
-   * TEMP: syncAppHeaderSafeArea disabled while isolating iOS Safari safe-area
-   * atmosphere. Header padding uses env(safe-area-inset-top) only — no JS
-   * writes to --safe-top. Restore the probe if logo/chrome sit under the notch.
+  /**
+   * iOS can report 0 for env(safe-area-inset-top) on fixed shells (admin body
+   * is position:fixed). Probe a throwaway node and pin --safe-top in px so the
+   * logo clears the notch and content padding-top (--topbar-measured-h) matches
+   * the real header bottom.
    */
+  function syncAppHeaderSafeArea() {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
+    document.documentElement.appendChild(probe);
+    const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+    probe.remove();
+    document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+  }
 
   /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
   function syncTopbarMeasuredHeight() {
@@ -304,11 +314,17 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     window.visualViewport?.addEventListener("resize", syncTopbarMeasuredHeight, { passive: true });
   }
 
+  syncAppHeaderSafeArea();
   bindTopbarHeightObserver();
   document.addEventListener("astro:page-load", () => {
+    syncAppHeaderSafeArea();
     bindTopbarHeightObserver();
     syncTopbarMeasuredHeight();
   });
+  window.visualViewport?.addEventListener("resize", () => {
+    syncAppHeaderSafeArea();
+    syncTopbarMeasuredHeight();
+  }, { passive: true });
 </script>
 
 <style is:global>
@@ -375,14 +391,14 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     align-items: stretch;
     min-height: 0;
     /*
-     * TEMP: no background / backdrop-filter on this fixed shell.
-     * Do NOT set background-color: transparent — iOS 26 Safari samples that
-     * as a black Liquid Glass tint. Leave background unset; SafariChromeTint
-     * + body --site-canvas own the status-bar color.
+     * TEMP: no background / backdrop-filter / scrim on this fixed shell
+     * (marketing edge debug). Do NOT set background-color: transparent —
+     * iOS 26 Safari samples that as a black Liquid Glass tint.
+     * Padding uses var(--safe-top) — probed in JS when env() lies on fixed shells.
      */
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
-      env(safe-area-inset-top, 0px)
+      var(--safe-top)
       var(--app-header-inline-pad)
       0
       var(--app-header-inline-pad);
