@@ -2,7 +2,7 @@
  * Register admin PWA service worker, Web Push subscriptions, and setup alerts.
  */
 
-import { buildAdminNotice } from './admin-notice.js?v=20260807e';
+import { buildAdminNotice } from './admin-notice.js?v=20260812c';
 import { companyStaffAvatarUrl } from './shared.js?v=20260810a';
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';

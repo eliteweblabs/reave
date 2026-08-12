@@ -109,7 +109,11 @@ import {
 } from './admin-ui.js?v=20260811a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
-import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260807e';
+import {
+  buildAdminNotice,
+  appendAdminNoticeAction,
+  NOTICE_ACTION_ICONS,
+} from './admin-notice.js?v=20260812c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
@@ -4030,12 +4034,30 @@ function buildReviewAlertBanner(item) {
     ? item.actions.map((a) => String(a || '').trim().toLowerCase()).filter(Boolean)
     : [];
 
+  const notifyActionLabels = {
+    copy: 'Copy code',
+    activate: 'Activate',
+    delete: 'Delete',
+    explain: 'Explain',
+    expense: 'Expense',
+    archive: 'Archive',
+    view: 'View',
+    open: 'View',
+  };
+  const pushNotifyAction = (key, extras = {}) => {
+    const { label, primary, iconKey, ...rest } = extras;
+    actions.push({
+      label: label || notifyActionLabels[key] || key,
+      iconKey: iconKey || NOTICE_ACTION_ICONS[key],
+      primary: primary ?? actions.length === 0,
+      ...rest,
+    });
+  };
+
   const pushCustomAction = (key) => {
     if (key === 'copy') {
       if (item.verificationCode) {
-        actions.push({
-          label: 'Copy code',
-          primary: actions.length === 0,
+        pushNotifyAction('copy', {
           onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
         });
       }
@@ -4043,42 +4065,32 @@ function buildReviewAlertBanner(item) {
     }
     if (key === 'activate') {
       if (item.actionUrl) {
-        actions.push({
-          label: 'Activate',
-          primary: actions.length === 0,
+        pushNotifyAction('activate', {
           onClick: (btn) => void activateAuthLinkFromReviewAlert(item, btn),
         });
       }
       return;
     }
     if (key === 'delete') {
-      actions.push({
-        label: 'Delete',
-        primary: actions.length === 0,
+      pushNotifyAction('delete', {
         onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
       });
       return;
     }
     if (key === 'explain') {
-      actions.push({
-        label: 'Explain',
-        primary: actions.length === 0,
+      pushNotifyAction('explain', {
         onClick: (btn) => void explainUncertainEmailFromAlert(item, btn),
       });
       return;
     }
     if (key === 'expense') {
-      actions.push({
-        label: 'Expense',
-        primary: actions.length === 0,
+      pushNotifyAction('expense', {
         onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
       });
       return;
     }
     if (key === 'archive') {
-      actions.push({
-        label: 'Archive',
-        primary: actions.length === 0,
+      pushNotifyAction('archive', {
         onClick: (actionBtn) =>
           void (isReceiptExpense
             ? archiveReceiptFromAlert(item, actionBtn)
@@ -4087,9 +4099,7 @@ function buildReviewAlertBanner(item) {
       return;
     }
     if (key === 'view' || key === 'open') {
-      actions.push({
-        label: 'View',
-        primary: actions.length === 0,
+      pushNotifyAction(key, {
         onClick: () => openReviewNotificationTarget(item),
       });
     }
@@ -4099,80 +4109,74 @@ function buildReviewAlertBanner(item) {
     customActions.forEach(pushCustomAction);
   } else if (isOtp) {
     if (item.verificationCode) {
-      actions.push({
-        label: 'Copy code',
+      pushNotifyAction('copy', {
         primary: true,
         onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
       });
     } else {
-      actions.push({
-        label: 'View',
+      pushNotifyAction('view', {
         primary: true,
         onClick: () => openReviewNotificationTarget(item),
       });
     }
-    actions.push({
-      label: 'Delete',
+    pushNotifyAction('delete', {
+      primary: false,
       onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
     });
   } else if (isAuthLink) {
     if (item.actionUrl) {
-      actions.push({
-        label: 'Activate',
+      pushNotifyAction('activate', {
         primary: true,
         onClick: (btn) => void activateAuthLinkFromReviewAlert(item, btn),
       });
     } else {
-      actions.push({
-        label: 'View',
+      pushNotifyAction('view', {
         primary: true,
         onClick: () => openReviewNotificationTarget(item),
       });
     }
-    actions.push({
-      label: 'Delete',
+    pushNotifyAction('delete', {
+      primary: false,
       onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
     });
   } else if (isTriageExplain) {
-    actions.push({
-      label: 'Explain',
+    pushNotifyAction('explain', {
       primary: true,
       onClick: (btn) => void explainUncertainEmailFromAlert(item, btn),
     });
-    actions.push({
-      label: 'View',
+    pushNotifyAction('view', {
+      primary: false,
       onClick: () => openReviewNotificationTarget(item),
     });
-    actions.push({
-      label: 'Archive',
+    pushNotifyAction('archive', {
+      primary: false,
       onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
     });
   } else if (isPushAlert) {
-    actions.push({
-      label: 'View',
+    pushNotifyAction('view', {
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
     if (!isAuditPushAlert(item)) {
-      actions.push({
-        label: 'Archive',
+      pushNotifyAction('archive', {
+        primary: false,
         onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
       });
     }
   } else if (isProjectComment || isShareOpen || isContactForm || isDemoRequest) {
-    actions.push({
+    pushNotifyAction('view', {
       label: isDemoRequest && !item.jobSlug ? 'View contact' : `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isVaultEntry) {
-    actions.push({
+    pushNotifyAction('view', {
       label: 'View vault',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if ((isDeckView || isDemoLaunch) && item.contactUid) {
-    actions.push({
+    pushNotifyAction('view', {
       label: 'View contact',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
@@ -4188,13 +4192,13 @@ function buildReviewAlertBanner(item) {
       onClick: (btn) => void rejectSuggestedProjectMatch(item, btn),
     });
   } else if (isProject) {
-    actions.push({
+    pushNotifyAction('view', {
       label: `View ${postLower(1)}`,
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isMeetingFollowup) {
-    actions.push({
+    pushNotifyAction('view', {
       label: 'View email',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
@@ -4219,18 +4223,26 @@ function buildReviewAlertBanner(item) {
           btn,
         ),
     });
-    actions.push({
-      label: item.type === 'meeting_conflict' ? 'Suggest alternate' : 'View email',
-      onClick: () => {
-        if (item.type === 'meeting_conflict' && item.emailId) {
-          const inboxEv = emailState.allEvents.find((e) => e.id === item.emailId);
-          if (inboxEv) openScheduleFromEmail(inboxEv);
-          else setActiveMap('email', { force: true, emailId: item.emailId });
-          return;
-        }
-        openReviewNotificationTarget(item);
-      },
-    });
+    if (item.type === 'meeting_conflict') {
+      actions.push({
+        label: 'Suggest alternate',
+        onClick: () => {
+          if (item.emailId) {
+            const inboxEv = emailState.allEvents.find((e) => e.id === item.emailId);
+            if (inboxEv) openScheduleFromEmail(inboxEv);
+            else setActiveMap('email', { force: true, emailId: item.emailId });
+            return;
+          }
+          openReviewNotificationTarget(item);
+        },
+      });
+    } else {
+      pushNotifyAction('view', {
+        label: 'View email',
+        primary: false,
+        onClick: () => openReviewNotificationTarget(item),
+      });
+    }
   } else if (isAutoBookedMeeting) {
     actions.push({
       label: 'Confirm',
@@ -4242,15 +4254,14 @@ function buildReviewAlertBanner(item) {
       onClick: () => rescheduleScheduledMeeting(item),
     });
   } else if (isReceiptExpense) {
-    actions.push({
-      label: 'Expense',
+    pushNotifyAction('expense', {
       primary: true,
       disabled: item.amount == null,
       title: item.amount == null ? 'No dollar amount detected on this email' : undefined,
       onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
     });
-    actions.push({
-      label: 'Archive',
+    pushNotifyAction('archive', {
+      primary: false,
       onClick: (btn) => void archiveReceiptFromAlert(item, btn),
     });
   }
