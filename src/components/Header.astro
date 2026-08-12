@@ -285,6 +285,19 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
     probe.remove();
     document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    syncSiteTopBlackEnd();
+  }
+
+  /** Pin the opaque-black band to the real header bottom (env() lies on fixed shells). */
+  function syncSiteTopBlackEnd() {
+    const header = document.querySelector(".app-header:not(.app-header--admin)");
+    if (!header) return;
+    const row = header.querySelector(".app-header-row");
+    if (!row) return;
+    const end = Math.ceil(row.getBoundingClientRect().bottom) + 36;
+    if (end > 0) {
+      document.documentElement.style.setProperty("--site-top-black-end", `${end}px`);
+    }
   }
 
   /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
@@ -316,14 +329,17 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   syncAppHeaderSafeArea();
   bindTopbarHeightObserver();
+  requestAnimationFrame(syncSiteTopBlackEnd);
   document.addEventListener("astro:page-load", () => {
     syncAppHeaderSafeArea();
     bindTopbarHeightObserver();
     syncTopbarMeasuredHeight();
+    requestAnimationFrame(syncSiteTopBlackEnd);
   });
   window.visualViewport?.addEventListener("resize", () => {
     syncAppHeaderSafeArea();
     syncTopbarMeasuredHeight();
+    syncSiteTopBlackEnd();
   }, { passive: true });
 </script>
 

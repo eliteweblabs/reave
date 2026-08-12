@@ -230,7 +230,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-status-bar, #000000);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}
@@ -246,6 +246,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100lvh;
 		min-height: var(--device-height);
 		position: relative;
+		background-color: var(--site-status-bar, #000000);
 		/*
 		 * Viewport-fixed atmosphere: black at the top (matches the status-bar
 		 * inset), easing into purple glows. Content scrolls over this layer.
