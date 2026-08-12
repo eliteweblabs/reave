@@ -105,10 +105,18 @@ const paragraphs = content
   }
 
   .portal-outreach-sheet .ios-sheet {
-    max-height: min(72dvh, 420px);
+    height: fit-content;
+    max-height: min(85dvh, 720px);
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
     font: inherit;
+  }
+
+  .portal-outreach-sheet .ios-sheet-body {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: calc(min(85dvh, 720px) - 5.75rem);
   }
 
   .portal-outreach-copy {

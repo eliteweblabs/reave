@@ -2118,6 +2118,71 @@ export function buildAuditReportCard(input: {
   };
 }
 
+function categoryEffectiveScore(cat: ReportCardCategory): number {
+  if (cat.score != null && !Number.isNaN(cat.score)) return cat.score;
+  return gradeToScore(cat.grade) ?? 100;
+}
+
+function worstWeakCategory(categories: ReportCardCategory[]): ReportCardCategory | null {
+  const weak = categories.filter((c) => c.grade === 'D' || c.grade === 'F');
+  if (!weak.length) return null;
+  return weak.slice().sort((a, b) => {
+    const scoreDiff = categoryEffectiveScore(a) - categoryEffectiveScore(b);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (GRADE_RANK[a.grade!] ?? 0) - (GRADE_RANK[b.grade!] ?? 0);
+  })[0]!;
+}
+
+function headlineForWeakCategory(cat: ReportCardCategory, clientName = ''): string {
+  const name = clientName.trim();
+  switch (cat.id) {
+    case 'local_listings':
+      if (cat.score != null && cat.score <= 0) {
+        return name
+          ? `${name} is invisible where local customers actually search.`
+          : 'Invisible where local customers actually search.';
+      }
+      return name
+        ? `${name} is hard to find where local customers actually search.`
+        : 'Hard to find where local customers actually search.';
+    case 'social':
+      return name
+        ? `${name} is quiet where customers look for a brand.`
+        : 'Quiet where customers look for a brand.';
+    case 'performance':
+    case 'mobile':
+      return 'The site is costing attention before customers ever reach the offer.';
+    case 'security':
+    case 'email':
+    case 'domain_reputation':
+      return name
+        ? `Trust signals are soft — customers and inboxes may not believe ${name}.`
+        : 'Trust signals are soft — customers and inboxes may not believe the brand.';
+    case 'reviews':
+      return 'Reputation is not doing enough work to win the next customer.';
+    case 'seo':
+    case 'schema':
+      return name
+        ? `${name} is harder to discover in search than it should be.`
+        : 'Harder to discover in search than it should be.';
+    case 'domain':
+      return 'Domain or DNS issues could take the site or email offline.';
+    case 'analytics':
+      return 'There is no clear picture of which visits turn into customers.';
+    case 'broken_links':
+      return 'Broken pages and links are leaking trust and search visibility.';
+    case 'content':
+    case 'lead_capture':
+      return 'The site is not converting visitors into leads as well as it could.';
+    case 'accessibility':
+      return 'Accessibility gaps mean some customers struggle to use the site.';
+    default:
+      return name
+        ? `${name}'s online presence has a weak spot in ${cat.label.toLowerCase()}.`
+        : `A weak spot showed up in ${cat.label.toLowerCase()}.`;
+  }
+}
+
 function buildDiagnosticHeadline(
   categories: ReportCardCategory[],
   overall: LetterGrade | null,
@@ -2125,37 +2190,21 @@ function buildDiagnosticHeadline(
 ): string {
   const name = clientName.trim();
   const weak = categories.filter((c) => c.grade === 'D' || c.grade === 'F');
-  const has = (id: ReportCardCategoryId) => weak.some((c) => c.id === id);
-  if (has('local_listings')) {
-    const listings = weak.find((c) => c.id === 'local_listings');
-    if (listings?.score != null && listings.score <= 0) {
-      return name
-        ? `${name} is invisible where local customers actually search.`
-        : 'Invisible where local customers actually search.';
-    }
-    return name
-      ? `${name} is hard to find where local customers actually search.`
-      : 'Hard to find where local customers actually search.';
-  }
-  if (has('social')) {
-    return name
-      ? `${name} is quiet where customers look for a brand.`
-      : 'Quiet where customers look for a brand.';
-  }
-  if (has('performance') || has('mobile')) {
-    return 'The site is costing attention before customers ever reach the offer.';
-  }
-  if (has('security') || has('email') || has('domain_reputation')) {
-    return name
-      ? `Trust signals are soft — customers and inboxes may not believe ${name}.`
-      : 'Trust signals are soft — customers and inboxes may not believe the brand.';
-  }
-  if (has('reviews')) {
-    return 'Reputation is not doing enough work to win the next customer.';
-  }
+
   if (weak.length >= 3) {
+    const worst = worstWeakCategory(weak);
+    const scores = weak.map(categoryEffectiveScore);
+    const minScore = Math.min(...scores);
+    const tiedAtWorst = scores.filter((s) => s === minScore).length;
+    if (worst && tiedAtWorst === 1) {
+      return headlineForWeakCategory(worst, clientName);
+    }
     return 'Several core systems need attention before growth work will stick.';
   }
+
+  const worst = worstWeakCategory(weak);
+  if (worst) return headlineForWeakCategory(worst, clientName);
+
   if (overall === 'A' || overall === 'B') {
     return 'The foundation looks solid — a few focused fixes would still raise the grade.';
   }
