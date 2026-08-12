@@ -1950,6 +1950,13 @@ button.de-placeholder-action:active {
   border-color: rgba(251, 191, 36, 0.3);
   background: rgba(251, 191, 36, 0.06);
 }
+.re-lab-pipe-card--rule[hidden],
+.re-lab-pipe-card--rule.re-lab-pipe-card--filtered-out {
+  display: none !important;
+}
+[data-lab-rules-empty][hidden] {
+  display: none !important;
+}
 .re-lab-pipe-card--else {
   grid-template-columns: minmax(0, 1fr);
   border-style: dashed;

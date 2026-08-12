@@ -7,7 +7,7 @@ import {
   listSearchSubheader,
   createSlidingPillSelect,
   matchesListSearch,
-} from './admin-ui.js?v=20260812e';
+} from './admin-ui.js?v=20260812f';
 import { escHtml } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260728q';
 
@@ -159,12 +159,18 @@ export function createEmailTriageLab(deps) {
 
   function applyRulesFilter(root = deps.getRuleEditor()) {
     if (!root) return;
+    const rs = ruleState();
+    const searchInput = root.querySelector('.re-lab-rules-filter .panel-list-search');
+    if (searchInput instanceof HTMLInputElement) {
+      rs.search = searchInput.value;
+    }
     const cards = [...root.querySelectorAll('.re-lab-pipe-card--rule')];
     let visible = 0;
     for (const card of cards) {
       const rule = orderedRules().find((r) => String(r.id) === String(card.dataset.ruleId));
       const show = ruleMatchesLabFilter(rule);
       card.hidden = !show;
+      card.classList.toggle('re-lab-pipe-card--filtered-out', !show);
       if (show) visible += 1;
     }
     const empty = root.querySelector('[data-lab-rules-empty]');
@@ -177,11 +183,22 @@ export function createEmailTriageLab(deps) {
       grip.disabled = filterActive;
       grip.title = filterActive ? 'Clear filter to reorder' : 'Drag to reorder';
     });
-    const searchInput = root.querySelector('.re-lab-rules-filter .panel-list-search');
     if (searchInput instanceof HTMLInputElement) {
       const n = orderedRules().length;
       searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
     }
+  }
+
+  function bindRulesFilterInput(input, root) {
+    if (!(input instanceof HTMLInputElement) || input.dataset.labRulesFilterBound === '1') return;
+    input.dataset.labRulesFilterBound = '1';
+    const run = () => {
+      ruleState().search = input.value;
+      applyRulesFilter(root);
+    };
+    input.addEventListener('input', run);
+    input.addEventListener('change', run);
+    input.addEventListener('search', run);
   }
 
   async function ensureContacts(q = '') {
@@ -1025,6 +1042,7 @@ export function createEmailTriageLab(deps) {
           },
         });
         if (search?.el) filterBar.appendChild(search.el);
+        if (search?.input) bindRulesFilterInput(search.input, root);
         const scopeFilter = createSlidingPillSelect({
           value: ruleState().scopeFilter || 'all',
           ariaLabel: 'Filter by rule scope',
@@ -1055,6 +1073,9 @@ export function createEmailTriageLab(deps) {
           card.dataset.kind = 'rule';
           card.dataset.stage = 'rules';
           card.dataset.ruleId = rule.id;
+          const show = ruleMatchesLabFilter(rule);
+          card.hidden = !show;
+          card.classList.toggle('re-lab-pipe-card--filtered-out', !show);
           if (rule.enabled === false) card.classList.add('re-lab-pipe-card--off');
           const matched =
             state.sim?.ruleEvaluations?.find(
