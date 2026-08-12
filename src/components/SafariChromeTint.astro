@@ -12,8 +12,8 @@
  */
 ---
 
-<div class="safari-chrome-tint safari-chrome-tint--top" aria-hidden="true"></div>
-<div class="safari-chrome-tint safari-chrome-tint--bottom" aria-hidden="true"></div>
+<div class="safari-chrome-tint safari-chrome-tint--top" aria-hidden="true" style="background-color: #0c0614"></div>
+<div class="safari-chrome-tint safari-chrome-tint--bottom" aria-hidden="true" style="background-color: #0c0614"></div>
 
 <script is:inline>
   (function () {
@@ -54,12 +54,12 @@
 
   .safari-chrome-tint--top {
     top: 0;
-    height: max(12px, calc(env(safe-area-inset-top, 0px) + 4px));
+    height: max(20px, calc(env(safe-area-inset-top, 0px) + 8px));
   }
 
   .safari-chrome-tint--bottom {
     bottom: 0;
-    height: max(12px, calc(env(safe-area-inset-bottom, 0px) + 4px));
+    height: max(20px, calc(env(safe-area-inset-bottom, 0px) + 8px));
   }
 
   /* iOS Safari (incl. 26 Liquid Glass). Keep off iPad/desktop widths. */
