@@ -5,7 +5,7 @@
 import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
 import { classifyEmail, isAuthLinkRuleStatus, isSilentTriageStatus, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
-import { loadActiveEmailRules } from './emailRuleStore';
+import { incrementEmailRuleHit, loadActiveEmailRules, type EmailRuleRecord } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
 import { importEmailAttachmentsToProject } from './emailProjectAttachments';
@@ -476,6 +476,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
+  const matchedId = (ruleResult.matched as EmailRuleRecord | null)?.id;
+  if (matchedId) {
+    void incrementEmailRuleHit(matchedId).catch((e) => {
+      console.error('[email] rule hit increment failed', e);
+    });
+  }
   const classificationAudit: ClassificationAuditStep[] = [
     auditForMatchedRule(ruleResult.matched, ruleResult.status, {
       from,

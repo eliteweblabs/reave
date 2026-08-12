@@ -28,6 +28,10 @@ export interface EmailRuleRecord extends EmailRule {
   sortOrder: number;
   /** ISO timestamp when the rule stops matching; null/undefined = indefinite. */
   expiresAt?: string | null;
+  /** Times this rule was the first match on inbound mail (approx; since counting started). */
+  hitCount?: number;
+  /** ISO timestamp of the most recent match. */
+  lastMatchedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -48,6 +52,7 @@ CREATE TABLE IF NOT EXISTS email_triage_config (
 INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
   ON CONFLICT (id) DO NOTHING;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS inbound_since TIMESTAMPTZ;
+ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_hits_seeded BOOLEAN NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS email_rules (
   id          UUID PRIMARY KEY,
@@ -67,6 +72,8 @@ CREATE TABLE IF NOT EXISTS email_rules (
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS summary_override TEXT;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS forward_to TEXT;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS hit_count INT NOT NULL DEFAULT 0;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS last_matched_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -191,6 +198,8 @@ function rowToRecord(row: {
   updated_at?: Date | string | null;
   summary_override?: string | null;
   forward_to?: string | null;
+  hit_count?: number | null;
+  last_matched_at?: Date | string | null;
 }): EmailRuleRecord {
   return {
     id: row.id,
@@ -204,6 +213,8 @@ function rowToRecord(row: {
     notify: !!row.notify,
     enabled: !!row.enabled,
     expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+    hitCount: Math.max(0, Number(row.hit_count) || 0),
+    lastMatchedAt: row.last_matched_at ? new Date(row.last_matched_at).toISOString() : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
     summaryOverride: row.summary_override ?? undefined,
@@ -233,6 +244,8 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         notify: !!r.notify,
         enabled: r.enabled !== false,
         expiresAt: r.expiresAt ? String(r.expiresAt) : null,
+        hitCount: Math.max(0, Number(r.hitCount) || 0),
+        lastMatchedAt: r.lastMatchedAt ? String(r.lastMatchedAt) : null,
         createdAt: r.createdAt ? String(r.createdAt) : undefined,
         updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
         summaryOverride: r.summaryOverride ? String(r.summaryOverride) : undefined,
@@ -284,6 +297,8 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     const pool = await ensureSchema();
     if (!pool) return null;
 
+    await seedHitCountsFromInbox(pool);
+
     const cfgRes = await pool.query<{ notify_on_unmatched: boolean; inbound_since: Date | string | null }>(
       `SELECT notify_on_unmatched, inbound_since FROM email_triage_config WHERE id = 1`
     );
@@ -295,7 +310,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-              expires_at, created_at, updated_at, summary_override, forward_to
+              expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -333,8 +348,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-           expires_at, created_at, updated_at, summary_override, forward_to)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15)`,
+           expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17)`,
         [
           r.id,
           r.sortOrder,
@@ -351,6 +366,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.updatedAt ? new Date(r.updatedAt) : null,
           r.summaryOverride ?? null,
           r.forwardTo?.trim() || null,
+          Math.max(0, Number(r.hitCount) || 0),
+          r.lastMatchedAt ? new Date(r.lastMatchedAt) : null,
         ]
       );
     }
@@ -362,6 +379,86 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
       await getPgPool()?.query('ROLLBACK');
     } catch {}
     return false;
+  }
+}
+
+/**
+ * Best-effort archival seed from inbox classification_audit.
+ * Only assigns counts to statuses that map to exactly one rule (ambiguous DELETE/etc. skipped).
+ * Runs once per install (email_triage_config.rule_hits_seeded).
+ */
+async function seedHitCountsFromInbox(pool: pg.Pool): Promise<void> {
+  try {
+    const flag = await pool.query<{ rule_hits_seeded: boolean }>(
+      `SELECT rule_hits_seeded FROM email_triage_config WHERE id = 1`
+    );
+    if (flag.rows[0]?.rule_hits_seeded) return;
+
+    // Inbox table may not exist yet on fresh installs.
+    const inboxExists = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_name = 'email_inbox'
+       ) AS exists`
+    );
+    if (!inboxExists.rows[0]?.exists) {
+      await pool.query(
+        `UPDATE email_triage_config SET rule_hits_seeded = true, updated_at = now() WHERE id = 1`
+      );
+      return;
+    }
+
+    const { rows: rules } = await pool.query<{ id: string; status: string }>(
+      `SELECT id, status FROM email_rules`
+    );
+    const byStatus = new Map<string, string[]>();
+    for (const r of rules) {
+      const key = String(r.status || '').toUpperCase();
+      if (!key) continue;
+      const list = byStatus.get(key) || [];
+      list.push(r.id);
+      byStatus.set(key, list);
+    }
+
+    const { rows: counts } = await pool.query<{ status: string; hits: string; last_at: Date | string | null }>(
+      `SELECT UPPER(TRIM(BOTH FROM substring(elem->>'decision' from '^Matched (.+) rule$'))) AS status,
+              COUNT(*)::text AS hits,
+              MAX(received_at) AS last_at
+       FROM email_inbox,
+            LATERAL jsonb_array_elements(
+              CASE
+                WHEN jsonb_typeof(classification_audit) = 'array' THEN classification_audit
+                ELSE '[]'::jsonb
+              END
+            ) AS elem
+       WHERE elem->>'step' = 'rules'
+         AND elem->>'decision' ~ '^Matched .+ rule$'
+       GROUP BY 1`
+    );
+
+    for (const row of counts) {
+      const status = String(row.status || '').toUpperCase();
+      const ids = byStatus.get(status);
+      if (!ids || ids.length !== 1) continue;
+      const hits = Math.max(0, parseInt(row.hits, 10) || 0);
+      if (hits <= 0) continue;
+      await pool.query(
+        `UPDATE email_rules
+         SET hit_count = GREATEST(COALESCE(hit_count, 0), $2),
+             last_matched_at = COALESCE(
+               last_matched_at,
+               $3::timestamptz
+             )
+         WHERE id = $1`,
+        [ids[0], hits, row.last_at ? new Date(row.last_at).toISOString() : null],
+      );
+    }
+
+    await pool.query(
+      `UPDATE email_triage_config SET rule_hits_seeded = true, updated_at = now() WHERE id = 1`
+    );
+  } catch (e) {
+    console.error('[email-rules] hit seed from inbox failed', e);
   }
 }
 
@@ -600,6 +697,8 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
     id: randomUUID(),
     sortOrder,
     ...clean,
+    hitCount: 0,
+    lastMatchedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -667,4 +766,39 @@ export async function storeSetInboundSince(iso: string): Promise<boolean> {
   if (config.inboundSince) return true;
   config.inboundSince = parsed.toISOString();
   return persistConfig(config);
+}
+
+/** Bump first-match hit counter for a rule (fire-and-forget safe). */
+export async function incrementEmailRuleHit(id: string): Promise<void> {
+  const ruleId = String(id || '').trim();
+  if (!ruleId) return;
+
+  if (emailRulesStorageBackend() === 'postgres') {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return;
+      await pool.query(
+        `UPDATE email_rules
+         SET hit_count = COALESCE(hit_count, 0) + 1,
+             last_matched_at = now()
+         WHERE id = $1`,
+        [ruleId],
+      );
+      return;
+    } catch (e) {
+      console.error('[email-rules] hit increment failed', e);
+      return;
+    }
+  }
+
+  try {
+    const config = await loadFromFile();
+    const rule = config.rules.find((r) => r.id === ruleId);
+    if (!rule) return;
+    rule.hitCount = Math.max(0, Number(rule.hitCount) || 0) + 1;
+    rule.lastMatchedAt = new Date().toISOString();
+    await saveToFile(config);
+  } catch (e) {
+    console.error('[email-rules] file hit increment failed', e);
+  }
 }

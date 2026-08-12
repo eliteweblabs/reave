@@ -186,10 +186,33 @@ function defaultRuleExpiresLocalValue() {
   return toRuleDatetimeLocalValue(d.toISOString());
 }
 
+function ruleHitCount(rule) {
+  return Math.max(0, Number(rule?.hitCount) || 0);
+}
+
+function formatRuleHitLabel(rule) {
+  const n = ruleHitCount(rule);
+  return n === 1 ? '1 hit' : `${n} hits`;
+}
+
+function formatRuleLastMatchedLabel(rule) {
+  if (!rule?.lastMatchedAt) return null;
+  const label = shell.formatChatDate?.(rule.lastMatchedAt);
+  return label ? `last ${label}` : null;
+}
+
+function ruleHitsSubline(rule) {
+  const bits = [formatRuleHitLabel(rule)];
+  const last = formatRuleLastMatchedLabel(rule);
+  if (last) bits.push(last);
+  return bits.join(' · ');
+}
+
 function ruleSubline(rule) {
   const bits = [];
   if (rule.status) bits.push(rule.status);
   bits.push(rule.notify ? 'Notify' : 'Silent');
+  bits.push(formatRuleHitLabel(rule));
   if (!rule.enabled) bits.push('Off');
   if (rule.expiresAt) {
     bits.push(isRuleExpired(rule) ? 'Expired' : `Until ${formatRuleExpiresLabel(rule.expiresAt)}`);
@@ -239,7 +262,7 @@ function createRuleListItem(rule, activeId) {
   btn.innerHTML = `
     <span class="ch-item-row">
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
-      <span class="ch-item-date">${escHtml(shell.formatChatDate(rule.updatedAt || rule.createdAt))}</span>
+      <span class="ch-item-date">${escHtml(formatRuleHitLabel(rule))}</span>
     </span>
     <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
   btn.addEventListener('click', () => openRuleEditor(rule.id));
@@ -390,7 +413,7 @@ function createFlowRuleCard(rule, index) {
     <span class="re-flow-badge">When</span>
     <span class="re-flow-title">${escHtml(rule.title || rule.status)}</span>
     <span class="re-flow-sub">${escHtml(phraseSummary(rule.phrases))}</span>
-    <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)}`)}</span>`;
+    <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)} · ${formatRuleHitLabel(rule)}`)}</span>`;
 
   const arrow = document.createElement('span');
   arrow.className = 're-flow-arrow';
@@ -662,6 +685,7 @@ function renderRuleEditPane(pane) {
     createPaneHeader({
       back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
       title: rule.title || rule.status || 'Rule',
+      subtitle: ruleHitsSubline(rule),
       beforeIcons: [agentBtn],
       icons: inDrawer
         ? []
@@ -848,8 +872,7 @@ function syncRuleListItem(id, payload, savedRule) {
   if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
   const dateEl = item.querySelector('.ch-item-date');
   if (dateEl) {
-    const when = (savedRule && (savedRule.updatedAt || savedRule.createdAt)) || (rule && (rule.updatedAt || rule.createdAt));
-    dateEl.textContent = shell.formatChatDate(when);
+    dateEl.textContent = formatRuleHitLabel(rule || { hitCount: savedRule?.hitCount });
   }
   const subEl = item.querySelector('.de-item-slug');
   if (subEl && rule) subEl.textContent = ruleSubline(rule);
@@ -1117,5 +1140,6 @@ export {
   formatRuleExpiresLabel,
   toRuleDatetimeLocalValue,
   ruleSubline,
+  formatRuleHitLabel,
   startNewRule,
 };
