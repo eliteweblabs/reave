@@ -47,6 +47,7 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, moun
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
 import { createEmailTriageLab } from './email-triage-lab.js?v=20260812b';
+import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812c';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};
@@ -1019,13 +1020,21 @@ function renderRuleEditPane(pane) {
   const actionCbs = [];
   for (const [val, lab] of actionDefs) {
     const lb = document.createElement('label');
-    lb.className = 're-check';
+    lb.className = 're-check re-check--action';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = val;
     cb.checked = selectedActions.has(val);
     cb.addEventListener('change', () => { ruleState.dirty = true; });
-    lb.append(cb, document.createTextNode(` ${lab}`));
+    const iconKey = NOTICE_ACTION_ICONS[val];
+    const icon = document.createElement('span');
+    icon.className = 're-action-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = iconKey ? iosIcon(iconKey, 16) : '';
+    const text = document.createElement('span');
+    text.className = 're-action-label';
+    text.textContent = lab;
+    lb.append(cb, icon, text);
     notifyActionsWrap.appendChild(lb);
     actionCbs.push(cb);
   }

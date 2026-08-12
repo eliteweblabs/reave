@@ -32,6 +32,9 @@
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
+  /* Half of the original 512px tile — denser repeating chevrons. */
+  --reave-bg-pattern-url: url("/reave-bg-pattern.svg");
+  --reave-bg-pattern-tile: 256px;
   --brand-gradient: linear-gradient(
     145deg,
     var(--brand-pink) 0%,
@@ -81,52 +84,18 @@
 }
 
 /**
- * Full-width brand chevron pattern overlay (ReaveBgPattern.astro).
- * One inline SVG instance — uniform scale only (preserveAspectRatio meet/slice).
- *
- * Absolute (document-attached), not position:fixed. Full-viewport fixed layers
- * sit on both iPhone Safari edges and trigger opaque forehead/chin letterbox
- * bars (WebKit scroll-pocket sampling). Mesh gradients are painted on body.
+ * Tiled brand chevron pattern — fixed, CSS background-image only.
+ * No inline SVG, no 600% scale hacks, no JS. Wikipedia-simple.
  */
 .reave-bg-pattern {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  min-height: 100%;
-  /* Cover the large viewport when body grows with a 100lvh hero. */
-  min-height: 100lvh;
-  min-height: var(--device-height, 100lvh);
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-}
-
-.reave-bg-pattern__svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/** 2×2 half-size grid — each tile cover-fills its cell (50% smaller chevrons). */
-.reave-bg-pattern--tiles-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  place-items: stretch;
-}
-
-.reave-bg-pattern__tile {
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-}
-
-.reave-bg-pattern__tile .reave-bg-pattern__svg {
-  width: 100%;
-  height: 100%;
+  background-image: var(--reave-bg-pattern-url);
+  background-repeat: repeat;
+  background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
+  background-position: center;
 }
 
 /**

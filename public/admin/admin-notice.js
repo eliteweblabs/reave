@@ -8,14 +8,29 @@
  * Styles live on `.admin-setup-alert*` in src/styles/admin/shell.css.
  */
 
-import { iosIcon } from './admin-ui.js?v=20260811a';
+import { iosIcon } from './admin-ui.js?v=20260812c';
 
 export const ADMIN_NOTICE_DISMISS_SVG = iosIcon('x', 16);
 
 /**
+ * IOS_ICONS keys for email-rule / dashboard notify actions.
+ * Matches the client-portal share sheet stroke set (eye, copy, …).
+ */
+export const NOTICE_ACTION_ICONS = {
+  view: 'eye',
+  open: 'eye',
+  archive: 'archive',
+  delete: 'trash',
+  copy: 'copy',
+  activate: 'link',
+  explain: 'sparkles',
+  expense: 'receipt',
+};
+
+/**
  * Append an action button to a notice toolbar.
  * @param {HTMLElement} toolbar
- * @param {{ label: string, primary?: boolean, danger?: boolean, disabled?: boolean, title?: string, onClick: (btn: HTMLButtonElement) => void }} opts
+ * @param {{ label: string, iconKey?: string, primary?: boolean, danger?: boolean, disabled?: boolean, title?: string, onClick: (btn: HTMLButtonElement) => void }} opts
  * @returns {HTMLButtonElement}
  */
 export function appendAdminNoticeAction(toolbar, opts) {
@@ -24,10 +39,18 @@ export function appendAdminNoticeAction(toolbar, opts) {
   const variants = [];
   if (opts.primary) variants.push('admin-setup-alert-btn--primary');
   if (opts.danger) variants.push('admin-setup-alert-btn--danger');
+  const iconKey = opts.iconKey || null;
+  if (iconKey) variants.push('admin-setup-alert-btn--icon');
   btn.className = `admin-setup-alert-btn${variants.length ? ` ${variants.join(' ')}` : ''}`.trim();
-  btn.textContent = opts.label;
+  if (iconKey) {
+    btn.innerHTML = iosIcon(iconKey, 18);
+    btn.setAttribute('aria-label', opts.label);
+    btn.title = opts.title || opts.label;
+  } else {
+    btn.textContent = opts.label;
+    if (opts.title) btn.title = opts.title;
+  }
   if (opts.disabled) btn.disabled = true;
-  if (opts.title) btn.title = opts.title;
   btn.addEventListener('click', (ev) => {
     ev.stopPropagation();
     opts.onClick(btn);
@@ -47,7 +70,7 @@ export function appendAdminNoticeAction(toolbar, opts) {
  *   iconFallbackUrl?: string | null,
  *   modifiers?: string[],
  *   attrs?: Record<string, string | null | undefined>,
- *   actions?: Array<{ label: string, primary?: boolean, danger?: boolean, disabled?: boolean, title?: string, onClick: (btn: HTMLButtonElement) => void }>,
+ *   actions?: Array<{ label: string, iconKey?: string, primary?: boolean, danger?: boolean, disabled?: boolean, title?: string, onClick: (btn: HTMLButtonElement) => void }>,
  *   onDismiss?: (btn: HTMLButtonElement, ev: Event) => void,
  *   dismissLabel?: string,
  *   onCopyClick?: () => void,

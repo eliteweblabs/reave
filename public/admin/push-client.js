@@ -2,7 +2,7 @@
  * Register admin PWA service worker, Web Push subscriptions, and setup alerts.
  */
 
-import { buildAdminNotice } from './admin-notice.js?v=20260807e';
+import { buildAdminNotice } from './admin-notice.js?v=20260812c';
 import { companyStaffAvatarUrl } from './shared.js?v=20260810a';
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
@@ -474,17 +474,18 @@ export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
 
   await registerAdminServiceWorker();
 
-  const activeAlert = await syncAdminSetupAlerts();
+  await syncAdminSetupAlerts();
 
   try {
     const enabled = await isAdminPushEnabled();
     if (enabled) ensureTestPushMenuItem();
     else removeTestPushMenuItem();
-    // Keep the compact bell as a fallback when the inline alert was dismissed.
-    btn.hidden = enabled || activeAlert === 'push' || activeAlert === 'pwa';
+    // Keep the header bell visible whenever push is off — even while the
+    // setup banner is up — so the header control isn't blank during the nag.
+    btn.hidden = enabled;
   } catch {
     removeTestPushMenuItem();
-    btn.hidden = activeAlert === 'push' || activeAlert === 'pwa';
+    btn.hidden = false;
   }
 }
 

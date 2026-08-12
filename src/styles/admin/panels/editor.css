@@ -1304,6 +1304,23 @@ button.de-placeholder-action:active {
   cursor: pointer;
   line-height: 1.4;
 }
+.re-check--action {
+  align-items: center;
+}
+.re-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  line-height: 0;
+}
+.re-action-icon svg {
+  display: block;
+}
+.re-action-label {
+  min-width: 0;
+}
 .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .re-expires-field {
   margin-top: 0.55rem;

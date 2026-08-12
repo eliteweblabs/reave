@@ -105,6 +105,48 @@ export const HERO_DEMO_MENTION_PICKER: HeroDemoMentionOption[] = [
   },
 ];
 
+/**
+ * Extra people referenced in demo copy (assistant replies, SMS lists) who are
+ * not in the @-picker — still rendered as mention chips when prefixed with `@`.
+ */
+export const HERO_DEMO_MENTION_EXTRAS: HeroDemoMentionOption[] = [
+  {
+    name: "Reggie",
+    company: "The Solid Builder",
+    email: "reggie@thesolidbuilder.com",
+  },
+  {
+    name: "Mike Torres",
+    company: "Field crew",
+    kind: "team",
+  },
+  {
+    name: "Jordan Hale",
+    company: "Field crew",
+    kind: "team",
+  },
+  {
+    name: "Ava Brooks",
+    company: "Field crew",
+    kind: "team",
+  },
+];
+
+/** Longest-first names for parsing `@Name` tokens in demo bubble text. */
+export function heroDemoMentionNames(): string[] {
+  const names = new Set<string>();
+  for (const option of HERO_DEMO_MENTION_PICKER) names.add(option.name);
+  for (const option of HERO_DEMO_MENTION_EXTRAS) names.add(option.name);
+  return [...names].sort((a, b) => b.length - a.length);
+}
+
+export function heroDemoMentionKind(name: string): "contact" | "team" {
+  const option =
+    HERO_DEMO_MENTION_PICKER.find((o) => o.name === name) ??
+    HERO_DEMO_MENTION_EXTRAS.find((o) => o.name === name);
+  return option?.kind === "team" ? "team" : "contact";
+}
+
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",
@@ -124,7 +166,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Pete checked in at Franklin Street at 8:42 AM. On site now.",
+        text: "@Pete Alvarez checked in at Franklin Street at 8:42 AM. On site now.",
         pauseMs: 1600,
       },
       {
@@ -135,7 +177,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "SMS sent to Mike Torres, Jordan Hale, and Ava Brooks.",
+        text: "SMS sent to @Mike Torres, @Jordan Hale, and @Ava Brooks.",
         pauseMs: 1200,
       },
     ],
@@ -208,7 +250,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Approval request sent to Sarah Chen.",
+        text: "Approval request sent to @Sarah Chen.",
         pauseMs: 1300,
       },
     ],
@@ -229,12 +271,12 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "NDA sent to The Solid Builder — Reggie, reggie@thesolidbuilder.com.",
+        text: "NDA sent to @The Solid Builder — @Reggie, reggie@thesolidbuilder.com.",
         pauseMs: 1500,
       },
       {
         role: "assistant",
-        text: "Reggie viewed the NDA document 2 minutes ago.",
+        text: "@Reggie viewed the NDA document 2 minutes ago.",
         pauseMs: 1500,
         actions: [{ label: "View signing status", variant: "secondary" }],
       },
@@ -426,12 +468,12 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "Looking up open invoices for The Solid Builder…",
+        text: "Looking up open invoices for @The Solid Builder…",
         pauseMs: 700,
       },
       {
         role: "assistant",
-        text: "Great — two open invoices for The Solid Builder. Which one should I apply the $500 to?",
+        text: "Great — two open invoices for @The Solid Builder. Which one should I apply the $500 to?",
         pauseMs: 1500,
         actions: [
           { label: "Website redesign", variant: "primary" },

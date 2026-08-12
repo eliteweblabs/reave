@@ -141,42 +141,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     scroll-margin-top: 0;
   }
 
-  /*
-   * Ambient bright pulse when the demo simulates an action-button click.
-   * Sits behind headline, chat, and CTAs but covers the full hero section.
-   */
-  .home-hero::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    opacity: 0;
-    background:
-      radial-gradient(ellipse 90% 70% at 50% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 62%),
-      radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.08) 0%, transparent 58%),
-      radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.08) 0%, transparent 55%),
-      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.05) 0%, transparent 52%);
-  }
-
-  .home-hero--action-pulse::before {
-    animation: heroActionPulse 1s ease-out forwards;
-  }
-
-  @keyframes heroActionPulse {
-    0% {
-      opacity: 0;
-    }
-    22% {
-      opacity: 0.5;
-    }
-    100% {
-      opacity: 0;
-    }
-  }
-
   /* Icon + headline — highest layer, dead centre of the viewport */
   .home-hero-brand {
+    /* Soft circular halo behind icon + title. Light mode: white. */
+    --home-hero-brand-glow-rgb: 0, 0, 0;
     position: absolute;
     z-index: 10;
     left: 50%;
@@ -191,7 +159,33 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     pointer-events: none;
   }
 
+  .home-hero-brand::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    z-index: 0;
+    width: min(150%, 560px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(
+      circle,
+      rgba(var(--home-hero-brand-glow-rgb), 0.55) 0%,
+      rgba(var(--home-hero-brand-glow-rgb), 0.28) 40%,
+      rgba(var(--home-hero-brand-glow-rgb), 0) 72%
+    );
+    pointer-events: none;
+  }
+
+  /* White halo once light theme is wired (data-theme="light" on :root). */
+  :root[data-theme="light"] .home-hero-brand {
+    --home-hero-brand-glow-rgb: 255, 255, 255;
+  }
+
   .home-hero-icon-wrap {
+    position: relative;
+    z-index: 1;
     flex: none;
     width: clamp(150px, 32vw, 240px);
     height: clamp(150px, 32vw, 240px);
@@ -207,6 +201,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-title {
+    position: relative;
+    z-index: 1;
     margin: 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
@@ -261,7 +257,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    bottom: calc(var(--home-hero-copy-h, 88px) + 16px);
+    /*
+     * CTAs are fixed at bottom: 10px + safe-area. --home-hero-copy-h is only
+     * their height, so add that offset + 10px so the newest turn sits ~10px
+     * above the button tops (not flush / overlapping on notched devices).
+     */
+    bottom: calc(
+      var(--home-hero-copy-h, 88px) + 20px +
+        var(--viable-bottom, env(safe-area-inset-bottom, 0px))
+    );
     min-height: 140px;
     overflow: visible;
     pointer-events: none;
@@ -482,6 +486,22 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-demo-bubble-text {
     margin: 0;
+  }
+
+  /* Inline @mention chips — mirrors .aui-mention-chip on the dark demo surface. */
+  .home-hero-demo-mention-chip {
+    display: inline;
+    padding: 0.05em 0.18em;
+    border-radius: 0.3em;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #c4b5fd;
+    background: rgba(139, 92, 246, 0.22);
+  }
+
+  .home-hero-demo-mention-chip--team {
+    color: #93c5fd;
+    background: rgba(59, 130, 246, 0.22);
   }
 
   .home-hero-demo-ellipsis {
@@ -1498,10 +1518,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .home-hero--action-pulse::before {
-      animation: none;
-    }
-
     .home-hero-demo-msg--enter,
     .home-hero-demo-scene--exit {
       animation: none;
