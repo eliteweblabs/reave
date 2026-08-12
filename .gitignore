@@ -16,6 +16,10 @@ backups/
 !.cursor/rules/
 !.cursor/rules/**
 
+# Local cloud-agent handoff dumps (contain secrets) — NO-COMMIT
+cloud-agent-settings-export.md
+cloud-agent-settings-export.json
+
 # clerk configuration (can include secrets)
 /.clerk/
 
