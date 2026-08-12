@@ -662,7 +662,11 @@ export const workModule: AgentToolModule = {
               parameters: {
                 type: 'object',
                 properties: {
-                  title: { type: 'string', description: 'Job title, e.g. "New website for Acme"' },
+                  title: {
+                    type: 'string',
+                    description:
+                      'Job title, 2–7 words summarizing the work (e.g. "Homepage copy refresh"). When creating from an email, write a short summary of the email content — do not copy the subject line.',
+                  },
                   contact_uid: {
                     type: 'string',
                     description: 'Confirmed client uid — preferred once the user picks or confirms a match',

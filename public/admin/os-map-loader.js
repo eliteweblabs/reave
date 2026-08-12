@@ -10808,7 +10808,6 @@ async function handleEmailProjectAddNew(ev, triggerEl) {
   try {
     await postEmailProject(ev, {
       mode: 'create',
-      title: (ev.subject || ev.contactName || 'Project inquiry').trim(),
     });
   } catch (e) {
     if (triggerEl) {

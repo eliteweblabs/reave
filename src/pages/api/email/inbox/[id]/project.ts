@@ -4,11 +4,17 @@
  *    | { mode: 'link', slug }
  *
  * Email content is merged into project notes via Claude (not raw append).
+ * New-project titles are a 2–7 word summary of the email — not the subject line.
  */
 
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/emailInboxStore';
-import { emailToMergeSource, mergeEmailIntoProjectBody, pickMergedProjectValue } from '../../../../../lib/emailProjectMerge';
+import {
+  emailToMergeSource,
+  mergeEmailIntoProjectBody,
+  pickMergedProjectValue,
+  resolveNewProjectTitle,
+} from '../../../../../lib/emailProjectMerge';
 import { importEmailAttachmentsToProject } from '../../../../../lib/emailProjectAttachments';
 import { markInboxEmailAsProject } from '../../../../../lib/emailProjectCategory';
 import { assignEmailToJob } from '../../../../../lib/projectLinks';
@@ -133,7 +139,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (mode === 'create') {
-    const title = String(body.title ?? emailRecord.subject ?? '').trim() || 'Project inquiry';
+    const requestedTitle = String(body.title ?? '').trim();
 
     const contact = await ensureWorkContact({
       contact_uid: (body.contact_uid as string | undefined) ?? emailRecord.contactUid,
@@ -144,6 +150,20 @@ export async function POST(context: APIContext): Promise<Response> {
       summary: emailRecord.summary,
     });
     if (!contact.ok) return json({ ok: false, error: contact.error }, 400);
+
+    const { body: mergedBody, value: extractedValue, usedAi, suggestedTitle } =
+      await mergeEmailIntoProjectBody({
+        existingBody: '',
+        email,
+        projectTitle: requestedTitle,
+        isNewProject: true,
+      });
+
+    const title = resolveNewProjectTitle({
+      requestedTitle,
+      email,
+      generatedTitle: suggestedTitle,
+    });
 
     const parsed = parseWorkJobInput({
       title,
@@ -163,13 +183,6 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!slug) slug = slugFromTitle(title);
     if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
     if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists', slug }, 409);
-
-    const { body: mergedBody, value: extractedValue, usedAi } = await mergeEmailIntoProjectBody({
-      existingBody: '',
-      email,
-      projectTitle: title,
-      isNewProject: true,
-    });
 
     const mergedValue = pickMergedProjectValue(null, extractedValue);
 

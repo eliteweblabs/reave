@@ -24,6 +24,7 @@
     "check:drain": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-agent-run-drain.ts",
     "check:notif-dedupe": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-dashboard-notification-dedupe.ts",
     "check:email-reply": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-reply.ts",
+    "check:email-project-title": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-project-title.ts",
     "check:email-triage": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-triage-scenarios.ts",
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",

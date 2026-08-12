@@ -92,7 +92,84 @@ function emailFullText(email: EmailMergeSource): string {
   return [email.summary, email.bodyText, email.bodySnippet, email.subject].filter(Boolean).join('\n');
 }
 
-function parseMergeResponse(raw: string): { body: string; value: number | null } | null {
+const TITLE_MIN_WORDS = 2;
+const TITLE_MAX_WORDS = 7;
+const DEFAULT_PROJECT_TITLE = 'Project inquiry';
+
+function normalizeTitleKey(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/^(?:re|fwd|fw)\s*:\s*/gi, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** True when `title` is just the email subject (including Re:/Fwd: variants). */
+export function isEmailSubjectTitle(title: string, subject: string): boolean {
+  const a = normalizeTitleKey(title);
+  const b = normalizeTitleKey(subject);
+  return Boolean(a && b && a === b);
+}
+
+/** Last-resort 2–7 word title from summary/body — never the raw subject line. */
+export function fallbackProjectTitleFromEmail(email: EmailMergeSource): string {
+  const raw =
+    email.summary?.trim() || email.bodyText?.trim() || email.bodySnippet?.trim() || '';
+  const stripped = raw
+    .replace(
+      /^(?:hi|hello|hey|dear|thanks|thank you|good morning|good afternoon)\b[\s,!]*/i,
+      '',
+    )
+    .replace(/^[^a-z0-9]+/i, '')
+    .trim();
+  const words = stripped.split(/\s+/).filter(Boolean).slice(0, TITLE_MAX_WORDS);
+  if (words.length >= TITLE_MIN_WORDS) {
+    const candidate = words.join(' ').replace(/[.,;:!?]+$/, '');
+    if (candidate && !isEmailSubjectTitle(candidate, email.subject)) return candidate;
+  }
+  return DEFAULT_PROJECT_TITLE;
+}
+
+/** Clamp an AI title to 2–7 words and reject copies of the email subject. */
+export function normalizeGeneratedProjectTitle(
+  raw: string | null | undefined,
+  email: EmailMergeSource,
+): string {
+  const fallback = fallbackProjectTitleFromEmail(email);
+  let t = String(raw ?? '')
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/[.!?]+$/g, '')
+    .trim();
+  if (!t || isEmailSubjectTitle(t, email.subject)) return fallback;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length < TITLE_MIN_WORDS) return fallback;
+  if (words.length > TITLE_MAX_WORDS) t = words.slice(0, TITLE_MAX_WORDS).join(' ');
+  return t;
+}
+
+/**
+ * Prefer an explicit title only when it is not the email subject.
+ * Otherwise use the generated 2–7 word summary.
+ */
+export function resolveNewProjectTitle(opts: {
+  requestedTitle?: string | null;
+  email: EmailMergeSource;
+  generatedTitle?: string | null;
+}): string {
+  const requested = String(opts.requestedTitle ?? '').trim();
+  if (requested && !isEmailSubjectTitle(requested, opts.email.subject)) {
+    return requested;
+  }
+  return normalizeGeneratedProjectTitle(opts.generatedTitle, opts.email);
+}
+
+function parseMergeResponse(raw: string): {
+  body: string;
+  value: number | null;
+  title: string | null;
+} | null {
   const trimmed = raw
     .trim()
     .replace(/^```(?:json|markdown|md)?\n?/i, '')
@@ -100,17 +177,18 @@ function parseMergeResponse(raw: string): { body: string; value: number | null }
     .trim();
 
   try {
-    const parsed = JSON.parse(trimmed) as { body?: unknown; value?: unknown };
+    const parsed = JSON.parse(trimmed) as { body?: unknown; value?: unknown; title?: unknown };
     if (typeof parsed.body !== 'string' || !parsed.body.trim()) return null;
     let value: number | null = null;
     if (parsed.value != null && parsed.value !== '') {
       const n = parseDollarAmount(String(parsed.value));
       if (n) value = n;
     }
-    return { body: parsed.body.trim(), value };
+    const title = typeof parsed.title === 'string' ? parsed.title.trim() : null;
+    return { body: parsed.body.trim(), value, title };
   } catch {
     if (!trimmed) return null;
-    return { body: trimmed, value: null };
+    return { body: trimmed, value: null, title: null };
   }
 }
 
@@ -124,19 +202,30 @@ export function pickMergedProjectValue(
   return undefined;
 }
 
+export type EmailProjectMergeResult = {
+  body: string;
+  value: number | null;
+  usedAi: boolean;
+  /** 2–7 word title from email content (new projects only). */
+  suggestedTitle?: string;
+};
+
 export async function mergeEmailIntoProjectBody(opts: {
   existingBody: string;
   email: EmailMergeSource;
   projectTitle: string;
   isNewProject: boolean;
-}): Promise<{ body: string; value: number | null; usedAi: boolean }> {
+}): Promise<EmailProjectMergeResult> {
   const { existingBody, email, projectTitle, isNewProject } = opts;
   const regexValue = extractBudgetFromText(emailFullText(email));
+  const hasRealTitle =
+    Boolean(projectTitle.trim()) && !isEmailSubjectTitle(projectTitle, email.subject);
 
-  const fallback = () => ({
+  const fallback = (): EmailProjectMergeResult => ({
     body: isNewProject ? fallbackCreateBody(email) : fallbackMergeBody(existingBody, email),
     value: regexValue,
     usedAi: false,
+    suggestedTitle: isNewProject ? fallbackProjectTitleFromEmail(email) : undefined,
   });
 
   const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
@@ -144,10 +233,14 @@ export async function mergeEmailIntoProjectBody(opts: {
   if (await isSleepModeActive()) return fallback();
 
   const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
-  const jsonFooter =
-    'Respond with ONLY valid JSON (no markdown fences): {"body":"<markdown notes>","value":8500}\n' +
-    '- body: markdown project notes as described above\n' +
-    '- value: total project budget in USD as a number when clearly stated in the email (e.g. "$8,500 budget"), otherwise null';
+  const jsonFooter = isNewProject
+    ? 'Respond with ONLY valid JSON (no markdown fences): {"body":"<markdown notes>","value":8500,"title":"Homepage copy refresh"}\n' +
+      '- body: markdown project notes as described above\n' +
+      '- value: total project budget in USD as a number when clearly stated in the email (e.g. "$8,500 budget"), otherwise null\n' +
+      '- title: 2–7 word project name summarizing the work requested from the email body/summary. Do NOT copy or lightly rephrase the email subject. Title Case, no quotes, no trailing period.'
+    : 'Respond with ONLY valid JSON (no markdown fences): {"body":"<markdown notes>","value":8500}\n' +
+      '- body: markdown project notes as described above\n' +
+      '- value: total project budget in USD as a number when clearly stated in the email (e.g. "$8,500 budget"), otherwise null';
 
   const checkboxRules =
     '- Action items MUST use GitHub-flavored markdown checkboxes under a "## Action items" heading: `- [ ] Task description` (always unchecked when new).\n' +
@@ -160,6 +253,7 @@ Use short sections only when they add clarity (e.g. Overview, Scope, Timeline, B
 Extract facts: what they want, deadlines, budget, links, decisions, action items.
 ${checkboxRules}
 Omit fluff, greetings, and duplicate lines.
+Also write a short project title (2–7 words) that names the work itself — never the email subject line.
 ${jsonFooter}`
     : `You maintain project notes for a web design/dev business. Merge a new inbound email into EXISTING notes intelligently.
 Rules:
@@ -172,7 +266,14 @@ ${checkboxRules}
 ${jsonFooter}`;
 
   const user = isNewProject
-    ? [`Project title: ${projectTitle}`, '', 'Inbound email:', emailContextBlock(email)].join('\n')
+    ? [
+        hasRealTitle
+          ? `Project title: ${projectTitle}`
+          : 'Propose a 2–7 word project title from the email content. Do not use the Subject line.',
+        '',
+        'Inbound email:',
+        emailContextBlock(email),
+      ].join('\n')
     : [
         `Project title: ${projectTitle}`,
         '',
@@ -217,7 +318,14 @@ ${jsonFooter}`;
     if (!parsed) return fallback();
 
     const value = parsed.value ?? regexValue;
-    return { body: parsed.body, value, usedAi: true };
+    return {
+      body: parsed.body,
+      value,
+      usedAi: true,
+      suggestedTitle: isNewProject
+        ? normalizeGeneratedProjectTitle(parsed.title, email)
+        : undefined,
+    };
   } catch (e) {
     console.warn('[email-project-merge] failed', e);
     return fallback();

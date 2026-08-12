@@ -8,6 +8,7 @@ import {
   emailToMergeSource,
   mergeEmailIntoProjectBody,
   pickMergedProjectValue,
+  resolveNewProjectTitle,
 } from './emailProjectMerge';
 import { importEmailAttachmentsToProject } from './emailProjectAttachments';
 import { assignEmailToJob } from './projectLinks';
@@ -112,20 +113,6 @@ export async function tryAutoCreateProjectFromInboundEmail(input: {
     return { ok: false, reason: 'contact_failed', error: contact.error };
   }
 
-  const title =
-    input.subject.trim() ||
-    (input.contactName?.trim() ? `${input.contactName.trim()} inquiry` : '') ||
-    input.summary.trim().slice(0, 80) ||
-    'Project inquiry';
-  let slug = slugFromTitle(title);
-  if (!slug || !isSafeWorkSlug(slug)) slug = slugFromTitle(`${contact.name}-${Date.now()}`);
-  if (!slug || !isSafeWorkSlug(slug)) {
-    return { ok: false, reason: 'create_failed', error: 'Invalid project slug' };
-  }
-  if (await storeReadWork(slug)) {
-    slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
-  }
-
   const email = emailToMergeSource({
     from: input.from,
     subject: input.subject,
@@ -135,12 +122,26 @@ export async function tryAutoCreateProjectFromInboundEmail(input: {
     receivedAt: input.receivedAt,
   });
 
-  const { body: mergedBody, value: extractedValue } = await mergeEmailIntoProjectBody({
-    existingBody: '',
+  const { body: mergedBody, value: extractedValue, suggestedTitle } =
+    await mergeEmailIntoProjectBody({
+      existingBody: '',
+      email,
+      projectTitle: '',
+      isNewProject: true,
+    });
+
+  const title = resolveNewProjectTitle({
     email,
-    projectTitle: title,
-    isNewProject: true,
+    generatedTitle: suggestedTitle,
   });
+  let slug = slugFromTitle(title);
+  if (!slug || !isSafeWorkSlug(slug)) slug = slugFromTitle(`${contact.name}-${Date.now()}`);
+  if (!slug || !isSafeWorkSlug(slug)) {
+    return { ok: false, reason: 'create_failed', error: 'Invalid project slug' };
+  }
+  if (await storeReadWork(slug)) {
+    slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+  }
 
   const parsed = parseWorkJobInput({
     title,
