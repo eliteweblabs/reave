@@ -719,6 +719,7 @@ function renderClientsEditor() {
   root.appendChild(pane);
   renderClientsPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
+  shell.scanPanelSidebars?.();
 }
 
 /**

@@ -108,7 +108,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260812a';
+} from './admin-ui.js?v=20260812b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -10191,6 +10191,7 @@ initClientsPanel({
   askAgentWithPrompt,
   isMobileTabs,
   isAdminPaneMobile,
+  scanPanelSidebars,
   MAP,
   activeKey,
   navIcon,
@@ -10270,6 +10271,7 @@ initWorkPanel({
   copyChatText,
   isMobileTabs,
   isAdminPaneMobile,
+  scanPanelSidebars,
 });
 
 function buildAgentContentPrompt(intro, metaLines, body) {

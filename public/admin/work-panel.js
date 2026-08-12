@@ -1824,6 +1824,7 @@ function renderWorkEditor() {
   root.appendChild(pane);
   renderWorkPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
+  shell.scanPanelSidebars?.();
 }
 
 function workStatusPillOptions(draft) {

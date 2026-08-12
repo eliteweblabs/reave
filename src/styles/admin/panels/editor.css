@@ -48,8 +48,8 @@
   z-index: 2;
 }
 
-/* Single-pane list/detail navigation below 1024px (see admin-ui.js ADMIN_PANE_MQ). */
-@media (max-width: 1023px) {
+/* Single-pane list/detail navigation below 640px (see admin-ui.js ADMIN_PANE_MQ). */
+@media (max-width: 639px) {
   #doc-editor {
     flex-direction: column;
   }
@@ -513,7 +513,7 @@ button.de-empty-action:active {
   min-width: 0;
 }
 /* Must follow .de-pane { display: flex } — otherwise mobile hide at ~637 is overridden. */
-@media (max-width: 1023px) {
+@media (max-width: 639px) {
   #doc-editor:not(.de-pane-active) .de-pane,
   #knowledge-editor:not(.de-pane-active) .de-pane,
   #work-editor:not(.de-pane-active) .de-pane,
@@ -635,7 +635,7 @@ button.de-placeholder-action:active {
   width: 14px;
   height: 14px;
 }
-@media (max-width: 1023px) {
+@media (max-width: 639px) {
   /* settings-subheader keeps its own topbar padding-top — do not override. */
   .pane-header.de-header:not(.settings-subheader),
   .pane-header:not(.settings-subheader) > .de-header {
@@ -667,12 +667,12 @@ button.de-placeholder-action:active {
   position: relative;
   z-index: 3;
 }
-/* Split-view panels: back when list/detail swap (below 1024px). Needs both
+/* Split-view panels: back when list/detail swap (below 640px). Needs both
    classes so display:none outranks .ios-icon-btn { display: inline-flex }. */
 .de-back-btn.ios-icon-btn {
   display: none;
 }
-@media (max-width: 1023px) {
+@media (max-width: 639px) {
   .de-back-btn.ios-icon-btn {
     display: inline-flex;
   }
@@ -1268,7 +1268,7 @@ button.de-placeholder-action:active {
   .nl-log-row { grid-template-columns: 60px 1fr; grid-auto-rows: auto; }
   .nl-log-subj, .nl-log-src, .nl-log-when { grid-column: 2; text-align: left; }
 }
-@media (max-width: 1023px) {
+@media (max-width: 639px) {
   #knowledge-editor,
   #work-editor,
   #todo-editor,
@@ -2452,7 +2452,7 @@ button.de-placeholder-action:active {
 #work-editor .wk-client-readonly-bar {
   padding-top: 0.2rem;
 }
-@media (max-width: 1023px) {
+@media (max-width: 639px) {
   /* Shared logo clearance for detail panes — one token, not per-panel tuck. */
   #clients-editor.de-pane-active .de-pane,
   #work-editor.de-pane-active .de-pane,

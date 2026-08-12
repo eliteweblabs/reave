@@ -133,7 +133,7 @@ const SK_LIST_WIDTHS = [
 ];
 
 function isMobileListPanelViewport() {
-  return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
 }
 
 function listItemSkeletonRows(count = SK_LIST_WIDTHS.length) {

@@ -1450,6 +1450,8 @@ const SIDEBAR_W_STORE = 'reave-sidebar-w';
 const SIDEBAR_DEFAULT_W = 260;
 const SIDEBAR_MIN_W = 200;
 const SIDEBAR_MAX_W = 520;
+/** Detail pane needs at least this much width beside the sidebar in split view. */
+const DETAIL_PANE_MIN_W = 340;
 const SPLIT_VIEW_TYPES = new Set([
   'email',
   'chats',
@@ -1472,9 +1474,9 @@ const SIDEBAR_PANEL_IDS = [
   'schedule-panel',
   'todo-editor',
 ];
-/** Below 1024px, list/detail editors use single-pane navigation (not side-by-side). */
-export const ADMIN_SPLIT_VIEW_MQ = window.matchMedia('(min-width: 1024px)');
-export const ADMIN_PANE_MQ = window.matchMedia('(max-width: 1023px)');
+/** Split view (list + detail side-by-side) and sidebar resize at ≥640px. */
+export const ADMIN_SPLIT_VIEW_MQ = window.matchMedia('(min-width: 640px)');
+export const ADMIN_PANE_MQ = window.matchMedia('(max-width: 639px)');
 const SIDEBAR_MQ = ADMIN_SPLIT_VIEW_MQ;
 
 export function isAdminPaneMobile() {
@@ -1489,10 +1491,23 @@ function readSidebarWidthVar() {
   return Number.isFinite(n) ? n : SIDEBAR_DEFAULT_W;
 }
 
+function maxSidebarWidthForViewport() {
+  if (!SIDEBAR_MQ.matches) return SIDEBAR_MAX_W;
+  return Math.min(
+    SIDEBAR_MAX_W,
+    Math.max(SIDEBAR_MIN_W, window.innerWidth - DETAIL_PANE_MIN_W),
+  );
+}
+
 function applySidebarWidth(px) {
-  const w = Math.round(Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, px)));
+  const w = Math.round(Math.max(SIDEBAR_MIN_W, Math.min(maxSidebarWidthForViewport(), px)));
   document.documentElement.style.setProperty('--sidebar-w', `${w}px`);
   return w;
+}
+
+function clampSidebarWidthToViewport() {
+  if (!SIDEBAR_MQ.matches || _sidebarDrag) return;
+  applySidebarWidth(readSidebarWidthVar());
 }
 
 /** Desktop split-view panels: sidebar + main pane both visible. */
@@ -1502,8 +1517,8 @@ export function syncAdminSplitView(mapType) {
 }
 
 export function mountSidebarResizer(sidebar) {
-  if (!sidebar || sidebar.dataset.resizerMounted === '1') return;
-  if (!SIDEBAR_MQ.matches) return;
+  if (!sidebar || !SIDEBAR_MQ.matches) return;
+  if (sidebar.querySelector('.ch-sidebar-resizer')) return;
   sidebar.dataset.resizerMounted = '1';
   const handle = document.createElement('div');
   handle.className = 'ch-sidebar-resizer';
@@ -1582,6 +1597,12 @@ export function initSidebarLayout() {
   bindSidebarResizeDrag();
   observePanelSidebars();
   scanPanelSidebars();
+  clampSidebarWidthToViewport();
+  SIDEBAR_MQ.addEventListener('change', () => {
+    clampSidebarWidthToViewport();
+    scanPanelSidebars();
+  });
+  window.addEventListener('resize', clampSidebarWidthToViewport);
 }
 
 // ---- List multi-select (icon click + long-press on touch) ----
