@@ -45,6 +45,36 @@ export function isAuthLinkRuleStatus(status: string): boolean {
 export type MatchMode = 'any' | 'all';
 export type RuleField = 'subject' | 'body' | 'from';
 
+/** Action buttons on push / dashboard alerts for a matched rule. */
+export type RuleNotifyAction =
+  | 'view'
+  | 'archive'
+  | 'delete'
+  | 'copy'
+  | 'activate'
+  | 'explain'
+  | 'expense';
+
+export const RULE_NOTIFY_ACTIONS: readonly RuleNotifyAction[] = [
+  'view',
+  'archive',
+  'delete',
+  'copy',
+  'activate',
+  'explain',
+  'expense',
+] as const;
+
+export const RULE_NOTIFY_ACTION_LABELS: Record<RuleNotifyAction, string> = {
+  view: 'View',
+  archive: 'Archive',
+  delete: 'Delete',
+  copy: 'Copy code',
+  activate: 'Activate',
+  explain: 'Explain',
+  expense: 'Expense',
+};
+
 export interface EmailRule {
   /** Short status label surfaced in the notification, e.g. "DOWN". */
   status: string;
@@ -59,8 +89,20 @@ export interface EmailRule {
   /** "any" = at least one phrase, "all" = every phrase. */
   matchMode: MatchMode;
   fields: RuleField[];
-  /** Whether a match should send a push/inbox alert. */
+  /**
+   * Legacy master switch — true when push and/or dashboard should fire.
+   * Prefer `notifyPush` / `notifyDashboard`; kept in sync on save.
+   */
   notify: boolean;
+  /** Phone / PWA push notification. Defaults to `notify` when unset. */
+  notifyPush?: boolean;
+  /** Dismissible dashboard review banner. Defaults to `notify` when unset. */
+  notifyDashboard?: boolean;
+  /**
+   * Buttons on the resulting alert. Empty/omitted → status-based defaults
+   * (OTP → Copy+Delete, auth → Activate+Delete, else View+Archive).
+   */
+  notifyActions?: RuleNotifyAction[];
   enabled: boolean;
   /**
    * Canned one-line summary used for the notification/summary when no better
@@ -468,7 +510,11 @@ export function evaluateEmailRules(
   }
 
   const classification: Classification = matched
-    ? { status: matched.status, matched, notify: matched.notify }
+    ? {
+        status: matched.status,
+        matched,
+        notify: resolveRuleNotifyChannels(matched).notify,
+      }
     : { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
 
   return { classification, evaluations };
@@ -490,4 +536,87 @@ export function classifyEmail(
 export function isSilentTriageStatus(status: string): boolean {
   const s = status.toUpperCase();
   return s === 'DELETE' || s === 'JUNK' || s === 'AUTO_ARCHIVED' || s === 'RECEIPT';
+}
+
+export function normalizeNotifyActions(raw: unknown): RuleNotifyAction[] {
+  if (!Array.isArray(raw)) return [];
+  const allowed = new Set<string>(RULE_NOTIFY_ACTIONS);
+  const out: RuleNotifyAction[] = [];
+  for (const item of raw) {
+    const key = String(item || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_');
+    const mapped =
+      key === 'copy_code' || key === 'copy-code'
+        ? 'copy'
+        : key === 'open'
+          ? 'view'
+          : key;
+    if (!allowed.has(mapped)) continue;
+    if (!out.includes(mapped as RuleNotifyAction)) out.push(mapped as RuleNotifyAction);
+  }
+  return out;
+}
+
+export function defaultNotifyActionsForRule(rule: Pick<EmailRule, 'status'>): RuleNotifyAction[] {
+  if (isVerificationCodeRuleStatus(rule.status)) return ['copy', 'delete'];
+  if (isAuthLinkRuleStatus(rule.status)) return ['activate', 'delete'];
+  if (String(rule.status || '').toUpperCase() === 'RECEIPT') return ['expense', 'archive'];
+  return ['view', 'archive'];
+}
+
+export function resolveRuleNotifyActions(
+  rule: EmailRule | null | undefined,
+): RuleNotifyAction[] {
+  if (!rule) return ['view', 'archive'];
+  if (Array.isArray(rule.notifyActions) && rule.notifyActions.length) {
+    return normalizeNotifyActions(rule.notifyActions);
+  }
+  return defaultNotifyActionsForRule(rule);
+}
+
+export function resolveRuleNotifyChannels(
+  rule: EmailRule | null | undefined,
+  fallbackNotify = false,
+): { push: boolean; dashboard: boolean; notify: boolean } {
+  if (!rule) {
+    return { push: fallbackNotify, dashboard: fallbackNotify, notify: fallbackNotify };
+  }
+  const push = rule.notifyPush != null ? !!rule.notifyPush : !!rule.notify;
+  const dashboard = rule.notifyDashboard != null ? !!rule.notifyDashboard : !!rule.notify;
+  return { push, dashboard, notify: push || dashboard };
+}
+
+/** Sync legacy `notify` with channel flags for persistence. */
+export function coalesceRuleNotifyFields(input: {
+  notify?: boolean;
+  notifyPush?: boolean | null;
+  notifyDashboard?: boolean | null;
+  notifyActions?: unknown;
+}): {
+  notify: boolean;
+  notifyPush: boolean;
+  notifyDashboard: boolean;
+  notifyActions: RuleNotifyAction[];
+} {
+  const actions = normalizeNotifyActions(input.notifyActions);
+  const push =
+    input.notifyPush != null
+      ? !!input.notifyPush
+      : input.notify != null
+        ? !!input.notify
+        : false;
+  const dashboard =
+    input.notifyDashboard != null
+      ? !!input.notifyDashboard
+      : input.notify != null
+        ? !!input.notify
+        : false;
+  return {
+    notify: push || dashboard,
+    notifyPush: push,
+    notifyDashboard: dashboard,
+    notifyActions: actions,
+  };
 }

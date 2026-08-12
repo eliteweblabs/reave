@@ -248,7 +248,26 @@ self.addEventListener('push', (event) => {
   }
 
   let actions = [];
-  if (isOtp && verificationCode) {
+  const customActions = Array.isArray(data.actions)
+    ? data.actions.map(String).map((s) => s.trim().toLowerCase()).filter(Boolean)
+    : [];
+  if (customActions.length) {
+    const titles = {
+      copy: 'Copy code',
+      delete: 'Delete',
+      archive: 'Archive',
+      view: 'View',
+      open: 'View',
+      activate: 'Activate',
+      explain: 'Explain',
+      expense: 'Expense',
+    };
+    // Chromium shows at most ~2 action buttons.
+    actions = customActions.slice(0, 2).map((action) => ({
+      action: action === 'view' ? 'open' : action,
+      title: titles[action] || action,
+    }));
+  } else if (isOtp && verificationCode) {
     actions = [
       { action: 'copy', title: 'Copy code' },
       { action: 'delete', title: 'Delete' },
@@ -327,6 +346,16 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   if (isOtp && action === 'delete') {
+    event.waitUntil(
+      Promise.all([
+        deliverOtpDelete({ emailId, alertId }),
+        notifyClientsInboxPush(),
+      ]),
+    );
+    return;
+  }
+
+  if (action === 'delete' && emailId) {
     event.waitUntil(
       Promise.all([
         deliverOtpDelete({ emailId, alertId }),

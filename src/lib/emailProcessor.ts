@@ -10,6 +10,8 @@ import {
   isSilentTriageStatus,
   isUptimeRobotEmail,
   isVerificationCodeRuleStatus,
+  resolveRuleNotifyActions,
+  resolveRuleNotifyChannels,
   type InboundEmail,
   type RuleEvaluation,
 } from './emailRules';
@@ -1552,10 +1554,33 @@ export async function processInboundEmail(
     }
   }
 
+  const matchedRule = ruleResult.matched as EmailRuleRecord | null;
+  const channels = resolveRuleNotifyChannels(
+    matchedRule,
+    ruleResult.notify || needsExplain,
+  );
+  // OTP / auth / explain still want an alert path unless the matched rule
+  // explicitly turns both channels off.
+  const forceKindNotify =
+    Boolean(verificationCode) || isVerificationCode || isAuthLink || needsExplain;
+  const channelsEffective = forceKindNotify
+    ? {
+        push: matchedRule ? channels.push : true,
+        dashboard: matchedRule ? channels.dashboard : true,
+        notify: matchedRule ? channels.notify : true,
+      }
+    : channels;
+  let notifyActions = resolveRuleNotifyActions(matchedRule);
+  if (!matchedRule) {
+    if (isVerificationCode || verificationCode) notifyActions = ['copy', 'delete'];
+    else if (isAuthLink) notifyActions = ['activate', 'delete'];
+    else if (needsExplain) notifyActions = ['explain', 'view', 'archive'];
+  }
+
   const notify = shouldSendInboxPush({
     category,
     action,
-    ruleNotify: ruleResult.notify || needsExplain,
+    ruleNotify: channelsEffective.notify || needsExplain,
     ruleStatus: ruleResult.status,
     isProjectReply,
     automationKind,
@@ -1568,19 +1593,29 @@ export async function processInboundEmail(
   });
 
   const wouldNotify =
-    notify || Boolean(verificationCode) || isAuthLink || needsExplain;
+    (notify && channelsEffective.notify) ||
+    ((Boolean(verificationCode) || isAuthLink || needsExplain) && channelsEffective.notify);
 
   if (dryRun) {
-    if (verificationCode || isVerificationCode) {
-      pushAudit('push', 'Would send OTP push', otpPurpose || 'Verification code');
-    } else if (isAuthLink) {
-      pushAudit('push', 'Would send auth-link push', authLinkPurpose || 'Activation link');
-    } else if (needsExplain) {
-      pushAudit('push', 'Would send uncertain-email triage push');
-    } else if (notify && !agentWillAlert) {
-      pushAudit('push', 'Would send inbox push', summary.slice(0, 120));
+    const channelLabel = [
+      channelsEffective.push ? 'push' : null,
+      channelsEffective.dashboard ? 'dashboard' : null,
+    ]
+      .filter(Boolean)
+      .join('+') || 'none';
+    if ((verificationCode || isVerificationCode) && channelsEffective.notify) {
+      pushAudit('push', `Would send OTP (${channelLabel})`, otpPurpose || 'Verification code');
+    } else if (isAuthLink && channelsEffective.notify) {
+      pushAudit('push', `Would send auth-link (${channelLabel})`, authLinkPurpose || 'Activation link');
+    } else if (needsExplain && channelsEffective.notify) {
+      pushAudit('push', `Would send uncertain-email triage (${channelLabel})`);
+    } else if (notify && channelsEffective.notify && !agentWillAlert) {
+      pushAudit('push', `Would send inbox alert (${channelLabel})`, summary.slice(0, 120));
     } else if (!wouldNotify) {
       pushAudit('push', 'No push notification', 'Silent / junk / filed without notify');
+    }
+    if (notifyActions.length) {
+      pushAudit('push', `Actions: ${notifyActions.join(', ')}`);
     }
     if (automationKind) {
       pushAudit('agent', `Would alert agent for automation: ${automationKind}`);
@@ -1594,46 +1629,66 @@ export async function processInboundEmail(
       await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
     }
 
-    if (inboxRecord && (verificationCode || isVerificationCode)) {
+    const deliver = (opts: {
+      title: string;
+      body: string;
+      tag: string;
+      kind?: 'otp' | 'auth_link' | 'triage' | 'email';
+      verificationCode?: string;
+      urgent?: boolean;
+      skipDashboardAlert?: boolean;
+    }) => {
+      if (!channelsEffective.notify || !inboxRecord) return;
+      sendInboxPushNotification({
+        title: opts.title,
+        body: opts.body,
+        tag: opts.tag,
+        emailId: inboxRecord.id,
+        verificationCode: opts.verificationCode,
+        kind: opts.kind,
+        urgent: opts.urgent,
+        skipDashboardAlert: opts.skipDashboardAlert || !channelsEffective.dashboard,
+        skipPhonePush: !channelsEffective.push,
+        actions: notifyActions,
+      }).catch((e) => console.warn('[email] push failed', e));
+    };
+
+    if (inboxRecord && (verificationCode || isVerificationCode) && channelsEffective.notify) {
       const otpPush = formatOtpPushNotification({
         code: verificationCode,
         purpose: otpPurpose ?? 'Verification code',
       });
-      sendInboxPushNotification({
+      deliver({
         title: otpPush.title,
         body: otpPush.body,
         tag: `otp-${inboxRecord.id}`,
-        emailId: inboxRecord.id,
-        verificationCode: verificationCode || undefined,
         kind: 'otp',
+        verificationCode: verificationCode || undefined,
         urgent: true,
-      }).catch((e) => console.warn('[email] otp push failed', e));
-    } else if (inboxRecord && isAuthLink) {
+      });
+    } else if (inboxRecord && isAuthLink && channelsEffective.notify) {
       const authPush = formatAuthLinkPushNotification({
         purpose: authLinkPurpose ?? 'Activation link',
         hasUrl: Boolean(authActionUrl),
       });
-      sendInboxPushNotification({
+      deliver({
         title: authPush.title,
         body: authPush.body,
         tag: `auth-${inboxRecord.id}`,
-        emailId: inboxRecord.id,
         kind: 'auth_link',
         urgent: true,
-      }).catch((e) => console.warn('[email] auth-link push failed', e));
-    } else if (inboxRecord && needsExplain) {
+      });
+    } else if (inboxRecord && needsExplain && channelsEffective.notify) {
       const guess = aiClassify
         ? `${aiClassify.label} at ${Math.round(aiClassify.confidence * 100)}%`
         : 'rules fallback';
-      sendInboxPushNotification({
+      deliver({
         title: 'Uncertain email — ask agent',
         body: `${(email.subject || summary || 'Inbound mail').slice(0, 120)} · ${guess}. Tap Explain.`,
         tag: `triage-${inboxRecord.id}`,
-        emailId: inboxRecord.id,
         kind: 'triage',
-        urgent: false,
-      }).catch((e) => console.warn('[email] triage push failed', e));
-    } else if (inboxRecord && notify && !agentWillAlert) {
+      });
+    } else if (inboxRecord && notify && channelsEffective.notify && !agentWillAlert) {
       const pushTitle = isProjectReply
         ? `🚨 Contact reply: ${contactName ?? senderEmail}`
         : automationKind === 'project_match_suggested'
@@ -1675,14 +1730,13 @@ export async function processInboundEmail(
         automationKind === 'meeting_followup' ||
         automationKind === 'project_created' ||
         automationKind === 'project_match_suggested';
-      sendInboxPushNotification({
+      deliver({
         title: pushTitle,
         body: pushBody,
         tag: inboxRecord.id,
-        emailId: inboxRecord.id,
         urgent: isProjectReply,
         skipDashboardAlert: hasTypedReviewBanner,
-      }).catch((e) => console.warn('[email] push failed', e));
+      });
     }
 
     if (inboxRecord && automationKind) {

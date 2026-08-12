@@ -35,6 +35,8 @@ export type PushAlertReviewNotification = {
   verificationCode?: string | null;
   actionUrl?: string | null;
   deleteAfterAt?: string | null;
+  /** Optional action button ids from the matching email rule. */
+  actions?: string[];
 };
 
 async function resolvePushAlertDisplayName(alert: PushAlert): Promise<string | undefined> {
@@ -77,6 +79,7 @@ export async function toPushAlertReviewNotification(
     alertId: alert.id,
     url: alert.url,
     tag: alert.tag,
+    ...(alert.actions?.length ? { actions: alert.actions } : {}),
     ...(inbox
       ? {
           emailId: inbox.id,

@@ -47,6 +47,8 @@ export async function sendPushNotification(payload: {
   badgeCount?: number;
   /** When true, skip creating a dismissible dashboard alert (default false). */
   skipDashboardAlert?: boolean;
+  /** When true, skip phone/PWA push (dashboard alert only). */
+  skipPhonePush?: boolean;
   /** When true, deliver even during sleep mode / quiet hours. */
   bypassQuietHours?: boolean;
   /** Client reply and other high-priority alerts — may still deliver if allowUrgentDuringSleep. */
@@ -61,6 +63,8 @@ export async function sendPushNotification(payload: {
   emailId?: string;
   /** OTP digits — service worker copies these on notification tap. */
   verificationCode?: string;
+  /** Optional action button ids (view, archive, delete, copy, …). */
+  actions?: string[];
 }): Promise<void> {
   const badgeOnly = Boolean(payload.badgeOnly);
   const tag = payload.tag ?? (badgeOnly ? 'reave-badge-sync' : 'inbox');
@@ -71,6 +75,9 @@ export async function sendPushNotification(payload: {
   const emailId = payload.emailId?.trim() || '';
   const verificationCode = payload.verificationCode?.trim() || '';
   const kind = badgeOnly ? 'badge-sync' : (payload.kind ?? inferPushAlertKind(tag, url));
+  const actions = Array.isArray(payload.actions)
+    ? payload.actions.map(String).map((s) => s.trim()).filter(Boolean)
+    : [];
 
   const quiet = await isPushQuietHoursActive({
     bypassQuietHours: payload.bypassQuietHours,
@@ -85,11 +92,12 @@ export async function sendPushNotification(payload: {
       title: pushTitle,
       detail: pushBody,
       url,
+      actions,
     }).catch(() => null);
     alertId = alert?.id;
   }
 
-  if (quiet) return;
+  if (payload.skipPhonePush || quiet) return;
 
   if (!isPushConfigured() || !(await configureWebPush())) return;
 
@@ -111,6 +119,7 @@ export async function sendPushNotification(payload: {
     ...(alertId ? { alertId } : {}),
     ...(emailId ? { emailId } : {}),
     ...(verificationCode ? { verificationCode } : {}),
+    ...(actions.length ? { actions } : {}),
     ...(badgeCount != null ? { badgeCount } : {}),
   });
 
@@ -148,17 +157,23 @@ export async function sendInboxPushNotification(payload: {
   kind?: PushAlertKind;
   /** When true, phone push only — no second dashboard banner. */
   skipDashboardAlert?: boolean;
+  /** When true, dashboard only — no phone push. */
+  skipPhonePush?: boolean;
+  actions?: string[];
 }): Promise<void> {
   const url = payload.emailId
     ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
     : '/admin?tab=email';
-  const { kind, skipDashboardAlert, emailId, verificationCode, ...rest } = payload;
+  const { kind, skipDashboardAlert, skipPhonePush, emailId, verificationCode, actions, ...rest } =
+    payload;
   return sendPushNotification({
     ...rest,
     url,
     kind,
     skipDashboardAlert,
+    skipPhonePush,
     emailId,
     verificationCode,
+    actions,
   });
 }

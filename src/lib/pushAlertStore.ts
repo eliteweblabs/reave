@@ -31,6 +31,8 @@ export type PushAlert = {
   url: string;
   createdAt: string;
   staffAckAt: string | null;
+  /** Optional action button ids from the matching email rule. */
+  actions?: string[];
 };
 
 export type CreatePushAlertInput = {
@@ -41,6 +43,7 @@ export type CreatePushAlertInput = {
   url?: string;
   /** When set, used instead of now() — e.g. uptime incident created_at for backfill. */
   createdAt?: string;
+  actions?: string[];
 };
 
 const SCHEMA_SQL = `
@@ -54,6 +57,7 @@ CREATE TABLE IF NOT EXISTS admin_push_alerts (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   staff_ack_at  TIMESTAMPTZ
 );
+ALTER TABLE admin_push_alerts ADD COLUMN IF NOT EXISTS actions JSONB NOT NULL DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS admin_push_alerts_pending_idx
   ON admin_push_alerts (staff_ack_at, created_at DESC);
 `;
@@ -96,6 +100,11 @@ function writeFileAlerts(alerts: PushAlert[]): void {
   writeFileSync(FILE_PATH, JSON.stringify(alerts.slice(0, MAX_FILE_ALERTS), null, 2), 'utf8');
 }
 
+function normalizeAlertActions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(String).map((s) => s.trim()).filter(Boolean);
+}
+
 function rowToAlert(row: {
   id: string;
   tag: string;
@@ -105,7 +114,9 @@ function rowToAlert(row: {
   url: string;
   created_at: Date | string;
   staff_ack_at: Date | string | null;
+  actions?: unknown;
 }): PushAlert {
+  const actions = normalizeAlertActions(row.actions);
   return {
     id: row.id,
     tag: row.tag,
@@ -115,6 +126,7 @@ function rowToAlert(row: {
     url: row.url,
     createdAt: new Date(row.created_at).toISOString(),
     staffAckAt: row.staff_ack_at ? new Date(row.staff_ack_at).toISOString() : null,
+    ...(actions.length ? { actions } : {}),
   };
 }
 
@@ -192,6 +204,7 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
   const detail = (input.detail ?? '').trim().slice(0, 240);
   const url = (input.url ?? '/admin?tab=dashboard').slice(0, 500);
   const createdAt = input.createdAt?.trim() || new Date().toISOString();
+  const actions = normalizeAlertActions(input.actions);
 
   try {
     const pool = await ensureSchema();
@@ -205,11 +218,12 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
         url: string;
         created_at: Date | string;
         staff_ack_at: Date | string | null;
+        actions: unknown;
       }>(
-        `INSERT INTO admin_push_alerts (id, tag, kind, title, detail, url, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz)
-         RETURNING id, tag, kind, title, detail, url, created_at, staff_ack_at`,
-        [id, tag, kind, title, detail, url, createdAt],
+        `INSERT INTO admin_push_alerts (id, tag, kind, title, detail, url, created_at, actions)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8::jsonb)
+         RETURNING id, tag, kind, title, detail, url, created_at, staff_ack_at, actions`,
+        [id, tag, kind, title, detail, url, createdAt, JSON.stringify(actions)],
       );
       return rows[0] ? rowToAlert(rows[0]) : null;
     }
@@ -226,6 +240,7 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
     url,
     createdAt,
     staffAckAt: null,
+    ...(actions.length ? { actions } : {}),
   };
   const alerts = readFileAlerts();
   alerts.unshift(alert);
@@ -252,8 +267,9 @@ export async function storeListPendingPushAlerts(opts?: {
         url: string;
         created_at: Date | string;
         staff_ack_at: Date | string | null;
+        actions: unknown;
       }>(
-        `SELECT id, tag, kind, title, detail, url, created_at, staff_ack_at
+        `SELECT id, tag, kind, title, detail, url, created_at, staff_ack_at, actions
          FROM admin_push_alerts
          WHERE staff_ack_at IS NULL AND created_at >= $1::timestamptz
          ORDER BY created_at DESC

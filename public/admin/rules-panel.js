@@ -249,10 +249,36 @@ function ruleHitsSubline(rule) {
   return bits.join(' · ');
 }
 
+function ruleNotifyChannels(rule) {
+  const push = rule.notifyPush != null ? !!rule.notifyPush : !!rule.notify;
+  const dashboard = rule.notifyDashboard != null ? !!rule.notifyDashboard : !!rule.notify;
+  return { push, dashboard, notify: push || dashboard };
+}
+
+function ruleNotifyActions(rule) {
+  if (Array.isArray(rule.notifyActions) && rule.notifyActions.length) {
+    return rule.notifyActions.map(String);
+  }
+  const status = String(rule.status || '').toUpperCase();
+  if (status === 'VERIFICATION_CODE') return ['copy', 'delete'];
+  if (status === 'AUTH_LINK') return ['activate', 'delete'];
+  if (status === 'RECEIPT') return ['expense', 'archive'];
+  return ['view', 'archive'];
+}
+
+function formatRuleNotifyLabel(rule) {
+  const ch = ruleNotifyChannels(rule);
+  if (!ch.notify) return 'Silent';
+  const bits = [];
+  if (ch.push) bits.push('Push');
+  if (ch.dashboard) bits.push('Dashboard');
+  return bits.join('+') || 'Notify';
+}
+
 function ruleSubline(rule) {
   const bits = [];
   if (rule.status) bits.push(rule.status);
-  bits.push(rule.notify ? 'Notify' : 'Silent');
+  bits.push(formatRuleNotifyLabel(rule));
   bits.push(formatRuleHitLabel(rule));
   if (!rule.enabled) bits.push('Off');
   if (rule.expiresAt) {
@@ -482,8 +508,8 @@ function createFlowRuleCard(rule, index) {
   arrow.textContent = '→';
 
   const then = document.createElement('span');
-  then.className = `re-flow-node re-flow-node--then${rule.notify ? ' re-flow-node--alert' : ' re-flow-node--quiet'}`;
-  const action = rule.notify ? 'Notify' : 'Silent';
+  then.className = `re-flow-node re-flow-node--then${ruleNotifyChannels(rule).notify ? ' re-flow-node--alert' : ' re-flow-node--quiet'}`;
+  const action = formatRuleNotifyLabel(rule);
   then.innerHTML = `
     <span class="re-flow-badge">Then</span>
     <span class="re-flow-title">${escHtml(action)}</span>
@@ -903,13 +929,58 @@ function renderRuleEditPane(pane) {
     fieldsWrap.appendChild(lb);
   }
 
-  const notifyLb = document.createElement('label');
-  notifyLb.className = 're-check';
-  const notifyCb = document.createElement('input');
-  notifyCb.type = 'checkbox';
-  notifyCb.checked = !!rule.notify;
-  notifyCb.addEventListener('change', () => { ruleState.dirty = true; });
-  notifyLb.append(notifyCb, document.createTextNode(' Send push alert'));
+  const notifyChannelsWrap = document.createElement('div');
+  notifyChannelsWrap.className = 're-checks';
+  const channels = ruleNotifyChannels(rule);
+  const pushLb = document.createElement('label');
+  pushLb.className = 're-check';
+  const pushCb = document.createElement('input');
+  pushCb.type = 'checkbox';
+  pushCb.checked = channels.push;
+  pushCb.addEventListener('change', () => { ruleState.dirty = true; syncNotifyActionsEnabled(); });
+  pushLb.append(pushCb, document.createTextNode(' Push'));
+  const dashLb = document.createElement('label');
+  dashLb.className = 're-check';
+  const dashCb = document.createElement('input');
+  dashCb.type = 'checkbox';
+  dashCb.checked = channels.dashboard;
+  dashCb.addEventListener('change', () => { ruleState.dirty = true; syncNotifyActionsEnabled(); });
+  dashLb.append(dashCb, document.createTextNode(' Dashboard'));
+  notifyChannelsWrap.append(pushLb, dashLb);
+
+  const notifyActionsWrap = document.createElement('div');
+  notifyActionsWrap.className = 're-checks';
+  const selectedActions = new Set(ruleNotifyActions(rule));
+  const actionDefs = [
+    ['view', 'View'],
+    ['archive', 'Archive'],
+    ['delete', 'Delete'],
+    ['copy', 'Copy code'],
+    ['activate', 'Activate'],
+    ['explain', 'Explain'],
+    ['expense', 'Expense'],
+  ];
+  const actionCbs = [];
+  for (const [val, lab] of actionDefs) {
+    const lb = document.createElement('label');
+    lb.className = 're-check';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = val;
+    cb.checked = selectedActions.has(val);
+    cb.addEventListener('change', () => { ruleState.dirty = true; });
+    lb.append(cb, document.createTextNode(` ${lab}`));
+    notifyActionsWrap.appendChild(lb);
+    actionCbs.push(cb);
+  }
+  const syncNotifyActionsEnabled = () => {
+    const on = pushCb.checked || dashCb.checked;
+    actionCbs.forEach((cb) => {
+      cb.disabled = !on;
+    });
+    notifyActionsWrap.style.opacity = on ? '' : '0.55';
+  };
+  syncNotifyActionsEnabled();
 
   const enabledLb = document.createElement('label');
   enabledLb.className = 're-check';
@@ -964,7 +1035,8 @@ function renderRuleEditPane(pane) {
   appendRuleField(form, 'Match mode', matchSel);
   appendRuleField(form, 'Search in', fieldsWrap);
   appendRuleField(form, 'Forward to', forwardIn);
-  form.appendChild(notifyLb);
+  appendRuleField(form, 'Notify', notifyChannelsWrap);
+  appendRuleField(form, 'Alert buttons', notifyActionsWrap);
   form.appendChild(enabledLb);
   form.appendChild(expiresWrap);
   pane.appendChild(form);
@@ -977,7 +1049,9 @@ function renderRuleEditPane(pane) {
     exceptIn,
     matchSel,
     fieldsWrap,
-    notifyCb,
+    pushCb,
+    dashCb,
+    notifyActionsWrap,
     enabledCb,
     forwardIn,
     expiresCb,
@@ -992,6 +1066,12 @@ function collectRulePayload(inputs) {
   inputs.fieldsWrap.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     if (cb.checked) fields.push(cb.value);
   });
+  const notifyActions = [];
+  inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]').forEach((cb) => {
+    if (cb.checked) notifyActions.push(cb.value);
+  });
+  const notifyPush = !!inputs.pushCb.checked;
+  const notifyDashboard = !!inputs.dashCb.checked;
   return {
     title: inputs.titleIn.value.trim(),
     status: inputs.statusIn.value.trim(),
@@ -1000,7 +1080,10 @@ function collectRulePayload(inputs) {
     exceptPhrases: inputs.exceptIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
     matchMode: inputs.matchSel.value,
     fields: fields.length ? fields : ['subject', 'body'],
-    notify: inputs.notifyCb.checked,
+    notify: notifyPush || notifyDashboard,
+    notifyPush,
+    notifyDashboard,
+    notifyActions,
     enabled: inputs.enabledCb.checked,
     forwardTo: inputs.forwardIn.value.trim() || null,
     expiresAt: inputs.expiresCb.checked ? fromRuleDatetimeLocalValue(inputs.expiresAtIn.value) : null,
@@ -1044,7 +1127,9 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     inputs.exceptIn,
     inputs.matchSel,
     ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
-    inputs.notifyCb,
+    inputs.pushCb,
+    inputs.dashCb,
+    ...inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.enabledCb,
     inputs.forwardIn,
     inputs.expiresCb,
@@ -1242,6 +1327,9 @@ async function startNewRule() {
         matchMode: 'any',
         fields: ['subject', 'body'],
         notify: true,
+        notifyPush: true,
+        notifyDashboard: true,
+        notifyActions: ['view', 'archive'],
         enabled: true,
         expiresAt: null,
       }),

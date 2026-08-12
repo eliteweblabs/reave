@@ -13,7 +13,8 @@ import {
   storeUpdateEmailRule,
   type RuleInput,
 } from '../../../../lib/emailRuleStore';
-import type { MatchMode, RuleField } from '../../../../lib/emailRules';
+import type { MatchMode, RuleField, RuleNotifyAction } from '../../../../lib/emailRules';
+import { coalesceRuleNotifyFields, normalizeNotifyActions } from '../../../../lib/emailRules';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -45,6 +46,29 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
   const expiresRaw = body.expiresAt !== undefined ? body.expiresAt : body.expires_at;
   const expiresAt = parseExpiresAt(expiresRaw ?? null);
   if (expiresAt === undefined) return null;
+  const actionsRaw = body.notifyActions !== undefined ? body.notifyActions : body.notify_actions;
+  const notifyFields = coalesceRuleNotifyFields({
+    notify: body.notify === true || body.notify === 'true',
+    notifyPush:
+      body.notifyPush !== undefined
+        ? body.notifyPush === true || body.notifyPush === 'true'
+        : body.notify_push !== undefined
+          ? body.notify_push === true || body.notify_push === 'true'
+          : null,
+    notifyDashboard:
+      body.notifyDashboard !== undefined
+        ? body.notifyDashboard === true || body.notifyDashboard === 'true'
+        : body.notify_dashboard !== undefined
+          ? body.notify_dashboard === true || body.notify_dashboard === 'true'
+          : null,
+    notifyActions: actionsRaw,
+  });
+  const hasChannelKey =
+    body.notifyPush !== undefined ||
+    body.notify_push !== undefined ||
+    body.notifyDashboard !== undefined ||
+    body.notify_dashboard !== undefined;
+  const legacyNotify = body.notify === true || body.notify === 'true';
   return {
     title,
     status,
@@ -53,7 +77,10 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
     exceptPhrases,
     matchMode: (body.matchMode === 'all' ? 'all' : 'any') as MatchMode,
     fields,
-    notify: body.notify === true || body.notify === 'true',
+    notify: hasChannelKey ? notifyFields.notify : legacyNotify,
+    notifyPush: hasChannelKey ? notifyFields.notifyPush : legacyNotify,
+    notifyDashboard: hasChannelKey ? notifyFields.notifyDashboard : legacyNotify,
+    notifyActions: normalizeNotifyActions(actionsRaw) as RuleNotifyAction[],
     enabled: body.enabled !== false && body.enabled !== 'false',
     expiresAt,
     forwardTo:

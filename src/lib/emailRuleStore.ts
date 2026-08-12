@@ -13,12 +13,15 @@ import { serverEnv } from './serverEnv';
 import {
   DEFAULT_RULES,
   NOTIFY_ON_UNMATCHED,
+  coalesceRuleNotifyFields,
   isAuthLinkRuleStatus,
   isSilentTriageStatus,
   isVerificationCodeRuleStatus,
+  normalizeNotifyActions,
   type EmailRule,
   type MatchMode,
   type RuleField,
+  type RuleNotifyAction,
 } from './emailRules';
 
 export interface EmailRuleRecord extends EmailRule {
@@ -75,6 +78,9 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS forward_to TEXT;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS hit_count INT NOT NULL DEFAULT 0;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS last_matched_at TIMESTAMPTZ;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS except_phrases JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_push BOOLEAN;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_dashboard BOOLEAN;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_actions JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -200,9 +206,23 @@ function rowToRecord(row: {
   summary_override?: string | null;
   forward_to?: string | null;
   except_phrases?: unknown;
+  notify_push?: boolean | null;
+  notify_dashboard?: boolean | null;
+  notify_actions?: unknown;
   hit_count?: number | null;
   last_matched_at?: Date | string | null;
 }): EmailRuleRecord {
+  const notifyFields = coalesceRuleNotifyFields({
+    notify: !!row.notify,
+    notifyPush: row.notify_push,
+    notifyDashboard: row.notify_dashboard,
+    notifyActions: row.notify_actions,
+  });
+  // Legacy rows: notify_push/dashboard null → inherit notify boolean.
+  const notifyPush = row.notify_push == null ? !!row.notify : notifyFields.notifyPush;
+  const notifyDashboard =
+    row.notify_dashboard == null ? !!row.notify : notifyFields.notifyDashboard;
+  const notifyActions = normalizeNotifyActions(row.notify_actions);
   return {
     id: row.id,
     sortOrder: row.sort_order,
@@ -215,7 +235,10 @@ function rowToRecord(row: {
       : [],
     matchMode: normalizeMatchMode(row.match_mode),
     fields: normalizeFields(row.fields),
-    notify: !!row.notify,
+    notify: notifyPush || notifyDashboard,
+    notifyPush,
+    notifyDashboard,
+    notifyActions,
     enabled: !!row.enabled,
     expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     hitCount: Math.max(0, Number(row.hit_count) || 0),
@@ -237,28 +260,42 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         data.inboundSince === null || data.inboundSince === undefined
           ? null
           : String(data.inboundSince),
-      rules: data.rules.map((r, i) => ({
-        id: String(r.id || randomUUID()),
-        title: String(r.title || r.status || 'Rule'),
-        sortOrder: typeof r.sortOrder === 'number' ? r.sortOrder : i,
-        status: String(r.status || 'RULE'),
-        description: r.description ? String(r.description) : undefined,
-        phrases: Array.isArray(r.phrases) ? r.phrases.map(String) : [],
-        exceptPhrases: Array.isArray(r.exceptPhrases)
-          ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
-          : [],
-        matchMode: normalizeMatchMode(r.matchMode),
-        fields: normalizeFields(r.fields),
-        notify: !!r.notify,
-        enabled: r.enabled !== false,
-        expiresAt: r.expiresAt ? String(r.expiresAt) : null,
-        hitCount: Math.max(0, Number(r.hitCount) || 0),
-        lastMatchedAt: r.lastMatchedAt ? String(r.lastMatchedAt) : null,
-        createdAt: r.createdAt ? String(r.createdAt) : undefined,
-        updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
-        summaryOverride: r.summaryOverride ? String(r.summaryOverride) : undefined,
-        forwardTo: r.forwardTo ? String(r.forwardTo).trim() : null,
-      })),
+      rules: data.rules.map((r, i) => {
+        const notifyFields = coalesceRuleNotifyFields({
+          notify: !!r.notify,
+          notifyPush: r.notifyPush,
+          notifyDashboard: r.notifyDashboard,
+          notifyActions: r.notifyActions,
+        });
+        const notifyPush = r.notifyPush == null ? !!r.notify : notifyFields.notifyPush;
+        const notifyDashboard =
+          r.notifyDashboard == null ? !!r.notify : notifyFields.notifyDashboard;
+        return {
+          id: String(r.id || randomUUID()),
+          title: String(r.title || r.status || 'Rule'),
+          sortOrder: typeof r.sortOrder === 'number' ? r.sortOrder : i,
+          status: String(r.status || 'RULE'),
+          description: r.description ? String(r.description) : undefined,
+          phrases: Array.isArray(r.phrases) ? r.phrases.map(String) : [],
+          exceptPhrases: Array.isArray(r.exceptPhrases)
+            ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
+            : [],
+          matchMode: normalizeMatchMode(r.matchMode),
+          fields: normalizeFields(r.fields),
+          notify: notifyPush || notifyDashboard,
+          notifyPush,
+          notifyDashboard,
+          notifyActions: normalizeNotifyActions(r.notifyActions),
+          enabled: r.enabled !== false,
+          expiresAt: r.expiresAt ? String(r.expiresAt) : null,
+          hitCount: Math.max(0, Number(r.hitCount) || 0),
+          lastMatchedAt: r.lastMatchedAt ? String(r.lastMatchedAt) : null,
+          createdAt: r.createdAt ? String(r.createdAt) : undefined,
+          updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
+          summaryOverride: r.summaryOverride ? String(r.summaryOverride) : undefined,
+          forwardTo: r.forwardTo ? String(r.forwardTo).trim() : null,
+        };
+      }),
     };
   } catch {
     return null;
@@ -319,7 +356,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
               expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
-              except_phrases
+              except_phrases, notify_push, notify_dashboard, notify_actions
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -354,12 +391,15 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
     );
     await pool.query('DELETE FROM email_rules');
     for (const r of config.rules) {
+      const notifyPush = r.notifyPush != null ? !!r.notifyPush : !!r.notify;
+      const notifyDashboard = r.notifyDashboard != null ? !!r.notifyDashboard : !!r.notify;
+      const notifyActions = normalizeNotifyActions(r.notifyActions);
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
            expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
-           except_phrases)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18)`,
+           except_phrases, notify_push, notify_dashboard, notify_actions)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21)`,
         [
           r.id,
           r.sortOrder,
@@ -369,7 +409,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           JSON.stringify(r.phrases),
           r.matchMode,
           JSON.stringify(r.fields),
-          r.notify,
+          notifyPush || notifyDashboard,
           r.enabled,
           r.expiresAt ? new Date(r.expiresAt) : null,
           r.createdAt ? new Date(r.createdAt) : null,
@@ -383,6 +423,9 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
               ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
               : [],
           ),
+          notifyPush,
+          notifyDashboard,
+          JSON.stringify(notifyActions),
         ]
       );
     }
@@ -629,6 +672,9 @@ export type RuleInput = {
   matchMode: MatchMode;
   fields: RuleField[];
   notify: boolean;
+  notifyPush?: boolean;
+  notifyDashboard?: boolean;
+  notifyActions?: RuleNotifyAction[];
   enabled: boolean;
   /** ISO timestamp or null for indefinite. */
   expiresAt?: string | null;
@@ -654,6 +700,12 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
   if (expiresAt === undefined) return null;
   const forwardTo = normalizeForwardTo(input.forwardTo);
   if (input.forwardTo != null && String(input.forwardTo).trim() && !forwardTo) return null;
+  const notifyFields = coalesceRuleNotifyFields({
+    notify: input.notify,
+    notifyPush: input.notifyPush,
+    notifyDashboard: input.notifyDashboard,
+    notifyActions: input.notifyActions,
+  });
   return {
     title,
     status,
@@ -662,7 +714,10 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
     exceptPhrases,
     matchMode: normalizeMatchMode(input.matchMode),
     fields: normalizeFields(input.fields),
-    notify: !!input.notify,
+    notify: notifyFields.notify,
+    notifyPush: notifyFields.notifyPush,
+    notifyDashboard: notifyFields.notifyDashboard,
+    notifyActions: notifyFields.notifyActions,
     enabled: input.enabled !== false,
     expiresAt,
     forwardTo,

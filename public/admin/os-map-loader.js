@@ -4025,8 +4025,78 @@ function buildReviewAlertBanner(item) {
   const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
 
   const actions = [];
+  const customActions = Array.isArray(item?.actions)
+    ? item.actions.map((a) => String(a || '').trim().toLowerCase()).filter(Boolean)
+    : [];
 
-  if (isOtp) {
+  const pushCustomAction = (key) => {
+    if (key === 'copy') {
+      if (item.verificationCode) {
+        actions.push({
+          label: 'Copy code',
+          primary: actions.length === 0,
+          onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
+        });
+      }
+      return;
+    }
+    if (key === 'activate') {
+      if (item.actionUrl) {
+        actions.push({
+          label: 'Activate',
+          primary: actions.length === 0,
+          onClick: (btn) => void activateAuthLinkFromReviewAlert(item, btn),
+        });
+      }
+      return;
+    }
+    if (key === 'delete') {
+      actions.push({
+        label: 'Delete',
+        primary: actions.length === 0,
+        onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
+      });
+      return;
+    }
+    if (key === 'explain') {
+      actions.push({
+        label: 'Explain',
+        primary: actions.length === 0,
+        onClick: (btn) => void explainUncertainEmailFromAlert(item, btn),
+      });
+      return;
+    }
+    if (key === 'expense') {
+      actions.push({
+        label: 'Expense',
+        primary: actions.length === 0,
+        onClick: (btn) => void logReceiptExpenseFromAlert(item, btn),
+      });
+      return;
+    }
+    if (key === 'archive') {
+      actions.push({
+        label: 'Archive',
+        primary: actions.length === 0,
+        onClick: (actionBtn) =>
+          void (isReceiptExpense
+            ? archiveReceiptFromAlert(item, actionBtn)
+            : dismissReviewNotification(item, actionBtn)),
+      });
+      return;
+    }
+    if (key === 'view' || key === 'open') {
+      actions.push({
+        label: 'View',
+        primary: actions.length === 0,
+        onClick: () => openReviewNotificationTarget(item),
+      });
+    }
+  };
+
+  if (customActions.length && (isPushAlert || isOtp || isAuthLink || isTriageExplain || isReceiptExpense)) {
+    customActions.forEach(pushCustomAction);
+  } else if (isOtp) {
     if (item.verificationCode) {
       actions.push({
         label: 'Copy code',
