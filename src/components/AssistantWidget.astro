@@ -468,12 +468,25 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       .replace(/'/g, '&#39;');
   }
 
+  function isSafeHttpUrl(url: string): boolean {
+    const trimmed = url.trim();
+    if (!trimmed || /^(javascript|vbscript|data):/i.test(trimmed)) return false;
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
   function formatReply(raw: string): string {
     let out = escapeHtml(raw);
     out = out.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
       const clean = url.replace(/[.,)]+$/, '');
       const trail = url.slice(clean.length);
-      return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
+      if (!isSafeHttpUrl(clean)) return url;
+      const href = clean.replace(/"/g, '&quot;');
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
     });
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     return out.replace(/\n/g, '<br />');

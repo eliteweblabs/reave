@@ -9402,19 +9402,19 @@ async function syncInboxAppBadge(events, reviewsPending) {
 
 async function refreshFooterBadgesQuiet() {
   try {
-    const [dashRes, inboxRes] = await Promise.all([
-      adminFetch('/api/admin/dashboard'),
+    const [badgeRes, inboxRes] = await Promise.all([
+      adminFetch('/api/admin/badges'),
       adminFetch('/api/email/inbox?limit=100'),
     ]);
 
     const inboxOk = inboxRes.ok;
     let dashStats = null;
 
-    if (dashRes.ok) {
-      const dash = await dashRes.json();
-      if (dash.ok) {
-        dashStats = dash.stats;
-        syncDashboardFooterBadgesWithoutReview(dash.stats);
+    if (badgeRes.ok) {
+      const badges = await badgeRes.json();
+      if (badges.ok) {
+        dashStats = badges.stats;
+        syncDashboardFooterBadgesWithoutReview(badges.stats);
       }
     }
 

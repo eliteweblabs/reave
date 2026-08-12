@@ -1,3 +1,5 @@
+import { isSafeLinkHref } from './safeLinkUrl';
+
 /**
  * Parse structured button blocks embedded in assistant chat messages.
  *
@@ -42,13 +44,21 @@ export function extractStructuredResponses(text: string): StructuredChatResponse
   return responses;
 }
 
+/** Reject javascript:/data: and other unsafe agent-supplied hrefs. */
+export function sanitizeChatButtonHref(href: string): string | null {
+  const trimmed = href.trim();
+  if (!trimmed || !isSafeLinkHref(trimmed)) return null;
+  return trimmed;
+}
+
 export function isButtonResponse(data: unknown): data is ChatButtonResponse {
+  if (!data || typeof data !== 'object') return false;
+  const btn = data as ChatButtonResponse;
   return (
-    !!data &&
-    typeof data === 'object' &&
-    (data as ChatButtonResponse).type === 'button' &&
-    typeof (data as ChatButtonResponse).label === 'string' &&
-    typeof (data as ChatButtonResponse).href === 'string'
+    btn.type === 'button' &&
+    typeof btn.label === 'string' &&
+    typeof btn.href === 'string' &&
+    sanitizeChatButtonHref(btn.href) !== null
   );
 }
 
@@ -106,11 +116,12 @@ export function openChatButtonHref(href: string): boolean {
 }
 
 export function getButtonProps(response: ChatButtonResponse) {
-  const { kind } = classifyChatButtonHref(response.href);
+  const href = sanitizeChatButtonHref(response.href) ?? '#';
+  const { kind } = classifyChatButtonHref(href);
   const internal = kind === 'admin' || kind === 'portal';
   return {
     label: response.label,
-    href: response.href,
+    href,
     variant: response.variant || 'primary',
     size: response.size || 'md',
     target: response.target || (internal ? '_self' : '_blank'),

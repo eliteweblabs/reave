@@ -72,6 +72,30 @@ async function jobTitle(slug: string): Promise<string> {
   return doc?.title ?? slug;
 }
 
+async function jobTitlesBatch(slugs: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(slugs.map((s) => s.trim()).filter(Boolean))];
+  const titles = new Map<string, string>();
+  if (!unique.length) return titles;
+
+  const pool = await ensureSchema();
+  if (!pool) {
+    for (const slug of unique) {
+      titles.set(slug, await jobTitle(slug));
+    }
+    return titles;
+  }
+
+  const { rows } = await pool.query<{ slug: string; title: string }>(
+    `SELECT slug, title FROM jobs WHERE slug = ANY($1::text[])`,
+    [unique],
+  );
+  for (const row of rows) titles.set(row.slug, row.title);
+  for (const slug of unique) {
+    if (!titles.has(slug)) titles.set(slug, slug);
+  }
+  return titles;
+}
+
 export async function unlinkProjectItem(
   jobSlug: string,
   linkType: ProjectLinkType,
@@ -182,13 +206,9 @@ export async function listJobsForItems(
        ORDER BY created_at DESC`,
       [linkType, ids],
     );
-    const titleCache = new Map<string, string>();
+    const titleCache = await jobTitlesBatch(rows.map((row) => row.job_slug));
     for (const row of rows) {
-      let title = titleCache.get(row.job_slug);
-      if (!title) {
-        title = await jobTitle(row.job_slug);
-        titleCache.set(row.job_slug, title);
-      }
+      const title = titleCache.get(row.job_slug) ?? row.job_slug;
       const list = out.get(row.link_id) ?? [];
       list.push({ slug: row.job_slug, title });
       out.set(row.link_id, list);

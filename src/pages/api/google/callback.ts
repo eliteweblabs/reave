@@ -1,119 +1,21 @@
 import type { APIRoute } from 'astro';
 
-export const GET: APIRoute = async ({ url }) => {
-  const code = url.searchParams.get('code');
-  const error = url.searchParams.get('error');
-
-  if (error || !code) {
-    return new Response(
-      `<html><body style="font-family:sans-serif;padding:2rem">
-        <h2>❌ Google authorization failed</h2>
-        <p>${error || 'No code returned'}</p>
-        <a href="/admin">← Back to Admin</a>
-      </body></html>`,
-      { status: 400, headers: { 'Content-Type': 'text/html' } }
-    );
-  }
-
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const railwayToken = process.env.RAILWAY_API_TOKEN;
-  const serviceId = process.env.RAILWAY_SERVICE_ID;
-  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
-
-  if (!clientId || !clientSecret) {
-    return new Response(JSON.stringify({ error: 'Google credentials not configured' }), { status: 500 });
-  }
-
-  // Exchange code for tokens
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: 'https://reave.app/api/google/callback',
-      grant_type: 'authorization_code',
-    }),
+/**
+ * Legacy Google OAuth callback — disabled. Tokens must not be exchanged or
+ * displayed here; use Admin → Analytics → Connect instead.
+ */
+export const GET: APIRoute = async () => {
+  const body = `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Google OAuth deprecated</title></head>
+<body style="font-family:sans-serif;padding:2rem;max-width:520px;margin:auto">
+  <h2>Google OAuth endpoint deprecated</h2>
+  <p>This legacy callback is no longer used. Connect Google Search Console from <strong>Admin → Analytics</strong>.</p>
+  <p><a href="/admin?map=analytics">Open Analytics in Admin</a></p>
+</body>
+</html>`;
+  return new Response(body, {
+    status: 410,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
-
-  const tokens = await tokenRes.json();
-
-  if (!tokens.refresh_token) {
-    return new Response(
-      `<html><body style="font-family:sans-serif;padding:2rem">
-        <h2>⚠️ No refresh token returned</h2>
-        <p>Google only returns a refresh token on first authorization.</p>
-        <p>Token response: <pre>${JSON.stringify(tokens, null, 2)}</pre></p>
-        <p>Revoke access at <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a> and try again.</p>
-        <a href="/admin">← Back to Admin</a>
-      </body></html>`,
-      { status: 400, headers: { 'Content-Type': 'text/html' } }
-    );
-  }
-
-  // Store refresh token in Railway via GraphQL
-  let railwaySaveError = '';
-  let railwaySaveOk = false;
-
-  if (railwayToken && serviceId && environmentId) {
-    const mutation = `
-      mutation UpsertVariables($input: VariableCollectionUpsertInput!) {
-        variableCollectionUpsert(input: $input)
-      }
-    `;
-    try {
-      const rrRes = await fetch('https://backboard.railway.app/graphql/v2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${railwayToken}`,
-        },
-        body: JSON.stringify({
-          query: mutation,
-          variables: {
-            input: {
-              serviceId,
-              environmentId,
-              variables: { GOOGLE_REFRESH_TOKEN: tokens.refresh_token },
-            },
-          },
-        }),
-      });
-      const rrJson = await rrRes.json();
-      if (rrJson.errors) {
-        railwaySaveError = JSON.stringify(rrJson.errors);
-      } else {
-        railwaySaveOk = true;
-      }
-    } catch (e: any) {
-      railwaySaveError = e?.message || 'Unknown error';
-    }
-  } else {
-    railwaySaveError = `Missing env: railwayToken=${!!railwayToken} serviceId=${serviceId} environmentId=${environmentId}`;
-  }
-
-  if (!railwaySaveOk) {
-    return new Response(
-      `<html><body style="font-family:sans-serif;padding:2rem;max-width:600px;margin:auto">
-        <h2>⚠️ Token received but Railway save failed</h2>
-        <p>Your refresh token was returned by Google but could not be saved to Railway automatically.</p>
-        <p><strong>Error:</strong> <code>${railwaySaveError}</code></p>
-        <p>Please add this variable to Railway manually:</p>
-        <pre style="background:#f3f4f6;padding:1rem;border-radius:.4rem;word-break:break-all">GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}</pre>
-        <a href="/admin" style="background:#4f46e5;color:#fff;padding:.6rem 1.2rem;border-radius:.4rem;text-decoration:none">← Back to Admin</a>
-      </body></html>`,
-      { headers: { 'Content-Type': 'text/html' } }
-    );
-  }
-
-  return new Response(
-    `<html><body style="font-family:sans-serif;padding:2rem;max-width:500px;margin:auto">
-      <h2>✅ Google Search Console connected!</h2>
-      <p>Refresh token saved to Railway. REΛVE can now access Search Console on your behalf.</p>
-      <p style="margin-top:1.5rem"><a href="/admin" style="background:#4f46e5;color:#fff;padding:.6rem 1.2rem;border-radius:.4rem;text-decoration:none">← Back to Admin</a></p>
-    </body></html>`,
-    { headers: { 'Content-Type': 'text/html' } }
-  );
 };

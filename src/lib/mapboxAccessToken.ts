@@ -19,14 +19,7 @@ export function getMapboxAccessToken(): string | undefined {
 
 /** Token safe to expose to authenticated admin UI (map rendering). */
 export function getPublicMapboxAccessToken(): string | undefined {
-  const candidates = [
-    serverEnv('PUBLIC_MAPBOX_ACCESS_TOKEN'),
-    serverEnv('MAPBOX_ACCESS_TOKEN'),
-  ];
-
-  for (const key of candidates) {
-    if (typeof key === 'string' && key.trim() !== '') return key.trim();
-  }
-
+  const key = serverEnv('PUBLIC_MAPBOX_ACCESS_TOKEN');
+  if (typeof key === 'string' && key.trim() !== '') return key.trim();
   return undefined;
 }

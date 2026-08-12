@@ -489,6 +489,17 @@ export function formatNotificationDebugHtml(record) {
 
 const LINKIFY_TRAILING_PUNCT = /[.,;:!?)]+$/;
 
+function isSafeHttpUrl(url) {
+  const trimmed = String(url).trim();
+  if (!trimmed || /^(javascript|vbscript|data):/i.test(trimmed)) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Turn plain-text URLs into safe anchor tags (used by work, documents, email panels). */
 export function linkifyPlainText(str) {
   const escaped = escHtml(str);
@@ -502,7 +513,9 @@ export function linkifyPlainText(str) {
         url = raw.slice(0, -trailing.length);
       }
     }
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}`;
+    if (!isSafeHttpUrl(url)) return raw;
+    const href = url.replace(/"/g, '&quot;');
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}`;
   });
 }
 

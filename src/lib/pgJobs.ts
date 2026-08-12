@@ -48,6 +48,13 @@ const JOB_COLUMNS = `
   id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body, created_at, updated_at, last_client_viewed_at
 `;
 
+/** List queries: omit full body; preview uses a truncated slice. */
+const JOB_LIST_COLUMNS = `
+  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id,
+  LEFT(body, 800) AS body,
+  created_at, updated_at, last_client_viewed_at
+`;
+
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS jobs (
   id SERIAL PRIMARY KEY,
@@ -121,6 +128,7 @@ WHERE status = 'inquiry'
     lower(coalesce(source, '')) = 'siri_audit'
     OR tags && ARRAY['siri-audit', 'quick-audit', 'full-audit']::text[]
   );
+CREATE INDEX IF NOT EXISTS idx_jobs_updated_at ON jobs (updated_at DESC);
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -236,7 +244,7 @@ export async function dbListWork(opts?: {
     const q = opts?.q?.trim() || null;
 
     const { rows } = await pool.query<JobRow>(
-      `SELECT ${JOB_COLUMNS}
+      `SELECT ${JOB_LIST_COLUMNS}
        FROM jobs
        WHERE ($1::text IS NULL OR status = $1)
          AND ($2::text IS NULL OR client_uid = $2)
@@ -428,7 +436,7 @@ export async function dbListJobsBySourceChatId(chatId: string): Promise<WorkJobS
     const pool = await ensureSchema();
     if (!pool) return null;
     const { rows } = await pool.query<JobRow>(
-      `SELECT ${JOB_COLUMNS} FROM jobs WHERE source_chat_id = $1 ORDER BY updated_at DESC`,
+      `SELECT ${JOB_LIST_COLUMNS} FROM jobs WHERE source_chat_id = $1 ORDER BY updated_at DESC`,
       [chatId.trim()],
     );
     return rows.map(rowToSummary);

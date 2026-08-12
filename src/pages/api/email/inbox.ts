@@ -48,10 +48,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const limit = Math.min(Math.max(Number(limitRaw) || 100, 1), 500);
   const showJunk = context.url.searchParams.get('junk') === '1';
 
-  const allForDigest = await storeListEmailInbox(limit, { hideJunk: true, forDigest: true });
-  const events = showJunk
-    ? await storeListEmailInbox(limit, { hideJunk: false })
-    : allForDigest;
+  const events = await storeListEmailInbox(limit, { hideJunk: !showJunk });
 
   const brand = await getCompanyBrandContext(context.request);
   const reviewsPending = await getReviewsPendingCount();
@@ -60,7 +57,7 @@ export async function GET(context: APIContext): Promise<Response> {
     ok: true,
     events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
     digest: {
-      ...computeInboxDigest(allForDigest, !showJunk),
+      ...computeInboxDigest(events, !showJunk),
       reviewsPending,
     },
     storage: emailInboxStorageBackend(),

@@ -1,6 +1,10 @@
 import type { MouseEvent } from 'react';
 import type { ChatButtonResponse } from '../lib/chatResponseRenderer';
-import { classifyChatButtonHref, openChatButtonHref } from '../lib/chatResponseRenderer';
+import {
+  classifyChatButtonHref,
+  openChatButtonHref,
+  sanitizeChatButtonHref,
+} from '../lib/chatResponseRenderer';
 
 export type ChatButtonProps = {
   label: string;
@@ -32,9 +36,10 @@ export function ChatButton({
     .filter(Boolean)
     .join(' ');
 
+  const safeHref = sanitizeChatButtonHref(href) ?? '#';
   const { kind } =
     typeof window !== 'undefined'
-      ? classifyChatButtonHref(href, window.location.origin)
+      ? classifyChatButtonHref(safeHref, window.location.origin)
       : { kind: 'external' as const };
   const internal = kind === 'admin' || kind === 'portal';
   const resolvedTarget = internal ? '_self' : target;
@@ -43,12 +48,12 @@ export function ChatButton({
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!internal) return;
     event.preventDefault();
-    openChatButtonHref(href);
+    openChatButtonHref(safeHref);
   };
 
   return (
     <a
-      href={href}
+      href={safeHref}
       target={resolvedTarget}
       rel={resolvedTarget === '_blank' ? 'noopener noreferrer' : undefined}
       className={classes}

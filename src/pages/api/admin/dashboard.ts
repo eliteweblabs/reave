@@ -85,10 +85,11 @@ export type DashboardUpcomingTodo = {
   assignee: string | null;
 };
 
-async function loadUpcomingTodos(limit = 24): Promise<DashboardUpcomingTodo[]> {
-  if (!isTodoDbConfigured()) return [];
-  const todos = await storeListTodos({ status: 'open' });
-  return todos
+async function loadUpcomingTodosFromOpen(
+  allOpen: Awaited<ReturnType<typeof storeListTodos>>,
+  limit = 24,
+): Promise<DashboardUpcomingTodo[]> {
+  return allOpen
     .filter((t): t is typeof t & { due_date: string } => Boolean(t.due_date))
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, limit)
@@ -172,15 +173,14 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const eventsToday = await loadEventsToday();
   const eventsNext24h = await loadEventsNext24Hours();
-  const upcomingTodos = await loadUpcomingTodos();
-  const schedulingConfigured = isBookingConfigured();
-
-  // Count open todos from DB (not legacy markdown files)
   let todosOpen = 0;
+  let upcomingTodos: DashboardUpcomingTodo[] = [];
   if (isTodoDbConfigured()) {
     const allOpen = await storeListTodos({ status: 'open' });
     todosOpen = allOpen.length;
+    upcomingTodos = await loadUpcomingTodosFromOpen(allOpen);
   }
+  const schedulingConfigured = isBookingConfigured();
 
   let meetingsTotal: number | null = null;
   if (schedulingConfigured) {
