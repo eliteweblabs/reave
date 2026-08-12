@@ -820,16 +820,13 @@ export function createEmailTriageLab(deps) {
     const body = document.createElement('div');
     body.className = 're-lab-body';
 
-    // ── Compose (collapsible so the pipeline stays on one screen) ──
+    // ── Compose (left column beside the pipeline) ──
     const compose = document.createElement('section');
     compose.className = 're-lab-compose';
-    const composeDetails = document.createElement('details');
-    composeDetails.className = 're-lab-compose-details';
-    composeDetails.open = true;
-    composeDetails.innerHTML = `<summary class="re-lab-section-head re-lab-compose-summary">
+    compose.innerHTML = `<header class="re-lab-section-head">
       <h2>Try an email</h2>
       <p>Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.</p>
-    </summary>`;
+    </header>`;
 
     const form = document.createElement('div');
     form.className = 're-lab-form';
@@ -1060,8 +1057,7 @@ export function createEmailTriageLab(deps) {
     gatesLb.append(gatesCb, document.createTextNode(' Skip inbound gates (sleep / cutoff / allowlist)'));
     form.appendChild(gatesLb);
 
-    composeDetails.appendChild(form);
-    compose.appendChild(composeDetails);
+    compose.appendChild(form);
     body.appendChild(compose);
 
     // ── Pipeline ──

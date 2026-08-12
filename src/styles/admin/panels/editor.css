@@ -1642,10 +1642,15 @@ button.de-placeholder-action:active {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
   gap: 0;
   padding-bottom: var(--footer-scroll-pad, 5rem);
+}
+@media (max-width: 960px) {
+  .re-lab-body {
+    grid-template-columns: 1fr;
+  }
 }
 .re-lab-compose,
 .re-lab-pipeline,
@@ -1653,37 +1658,11 @@ button.de-placeholder-action:active {
   padding: 1rem max(1rem, env(safe-area-inset-right, 0px)) 1.25rem max(1rem, env(safe-area-inset-left, 0px));
   border-bottom: 1px solid var(--panel-border);
 }
-.re-lab-compose-details {
-  margin: 0;
-}
-.re-lab-compose-summary {
-  list-style: none;
-  cursor: pointer;
-  display: grid;
-  gap: 0.2rem;
-}
-.re-lab-compose-summary::-webkit-details-marker {
-  display: none;
-}
-.re-lab-compose-summary::after {
-  content: '';
-  display: inline-block;
-  width: 0.55rem;
-  height: 0.55rem;
-  margin-top: -1.6rem;
-  margin-left: auto;
-  border-right: 2px solid var(--muted, rgba(255, 255, 255, 0.45));
-  border-bottom: 2px solid var(--muted, rgba(255, 255, 255, 0.45));
-  transform: rotate(45deg);
-  transition: transform 0.15s ease;
-  justify-self: end;
-}
-.re-lab-compose-details[open] > .re-lab-compose-summary::after {
-  transform: rotate(225deg);
-  margin-top: -1.35rem;
-}
 .re-lab-pipeline {
-  border-left: none;
+  border-left: 1px solid var(--panel-border);
+}
+@media (max-width: 960px) {
+  .re-lab-pipeline { border-left: none; }
 }
 .re-lab-rules-filter {
   display: flex;
@@ -1698,6 +1677,7 @@ button.de-placeholder-action:active {
   padding: 0;
 }
 .re-lab-play {
+  grid-column: 1 / -1;
   border-bottom: none;
   border-top: 1px solid var(--panel-border);
 }
