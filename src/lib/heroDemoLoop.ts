@@ -2036,7 +2036,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
   // CTAs are a sibling of the chat stack inside .home-hero-demo.
-  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]");
+  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
   if (!viewport || !stack || !hero) return;
 
   depthBlurEnabled = !isSafariBrowser();
