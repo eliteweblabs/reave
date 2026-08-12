@@ -46,7 +46,11 @@ import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
-import { createEmailTriageLab } from './email-triage-lab.js?v=20260812f';
+import {
+  createEmailTriageLab,
+  formatRuleWhenClause,
+  formatRuleLabMeta,
+} from './email-triage-lab.js?v=20260812g';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -1086,10 +1090,16 @@ function syncRuleListItem(id, payload, savedRule) {
   const card = root?.querySelector(`.re-lab-pipe-card[data-rule-id="${CSS.escape(String(id))}"]`);
   if (card && rule) {
     const titleEl = card.querySelector('.re-lab-pipe-title');
-    if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
+    if (titleEl) titleEl.textContent = formatRuleWhenClause(rule);
     const subEl = card.querySelector('.re-lab-pipe-sub');
-    if (subEl) {
-      subEl.textContent = `${ruleScopeLabel(rule)} · ${rule.status || '—'} · ${rule.notify ? 'Notify' : 'Silent'}${rule.enabled === false ? ' · Off' : ''}`;
+    if (subEl) subEl.textContent = formatRuleLabMeta(rule);
+    const toggle = card.querySelector('.re-lab-pipe-card-toggle');
+    const pri = card.querySelector('.re-lab-pri')?.textContent?.replace(/^#/, '') || '';
+    if (toggle) {
+      toggle.setAttribute(
+        'aria-label',
+        `Priority ${pri || '?'}: ${formatRuleWhenClause(rule)}`,
+      );
     }
     card.classList.toggle('re-lab-pipe-card--off', rule.enabled === false || isRuleExpired(rule));
   }
