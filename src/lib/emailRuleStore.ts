@@ -635,6 +635,39 @@ export async function storeSetNotifyOnUnmatched(notify: boolean): Promise<boolea
   return persistConfig(config);
 }
 
+/**
+ * Persist a new priority order for rules. `ids` must include every rule id
+ * exactly once (OTP/AUTH_LINK may still be pinned first at classify time).
+ */
+export async function storeReorderEmailRules(
+  ids: string[],
+): Promise<{ ok: true; rules: EmailRuleRecord[] } | { ok: false; error: string }> {
+  const cleanIds = ids.map((id) => String(id || '').trim()).filter(Boolean);
+  if (!cleanIds.length) return { ok: false, error: 'ids array required' };
+
+  const config = await loadEmailRulesConfig();
+  const byId = new Map(config.rules.map((r) => [r.id, r]));
+  if (cleanIds.length !== byId.size) {
+    return { ok: false, error: 'ids must include every rule exactly once' };
+  }
+  const seen = new Set<string>();
+  const ordered: EmailRuleRecord[] = [];
+  for (const id of cleanIds) {
+    if (seen.has(id)) return { ok: false, error: `duplicate rule id: ${id}` };
+    const rule = byId.get(id);
+    if (!rule) return { ok: false, error: `unknown rule id: ${id}` };
+    seen.add(id);
+    ordered.push(rule);
+  }
+
+  const now = new Date().toISOString();
+  // Honor the explicit drag order — do not re-run silent-rule elevation here
+  // (that runs on load/seed; Lab/Flow persist what the owner just arranged).
+  config.rules = ordered.map((r, i) => ({ ...r, sortOrder: i, updatedAt: now }));
+  if (!(await persistConfig(config))) return { ok: false, error: 'Failed to save rule order' };
+  return { ok: true, rules: config.rules };
+}
+
 export async function storeGetInboundSince(): Promise<string | null> {
   const config = await loadEmailRulesConfig();
   return config.inboundSince ?? null;
