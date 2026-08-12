@@ -3,8 +3,10 @@
  * Site atmosphere — chevron pattern overlay.
  * Gradient mesh is painted on `body` (Layout / portal) so iPhone Safari does
  * not sample a position:fixed full-bleed layer for forehead/chin letterbox bars.
+ *
+ * tiles={2}: half-size repeating chevrons (was one cover-scaled giant mark).
  */
 import ReaveBgPattern from "./ReaveBgPattern.astro";
 ---
 
-<ReaveBgPattern class="site-bg-pattern" fit="cover" opacity={0.085} />
+<ReaveBgPattern class="site-bg-pattern" fit="cover" opacity={0.085} tiles={2} />

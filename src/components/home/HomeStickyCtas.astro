@@ -1,0 +1,154 @@
+---
+/**
+ * Homepage CTA dock — fixed to the viewport footer (not inside the hero).
+ * Sits 10px above the lowest safe position; slides away at #contact.
+ */
+import { ArrowRight } from "lucide-astro";
+import type { SiteContentConfig } from "../../lib/siteContent";
+
+interface Props {
+  siteContent: SiteContentConfig;
+}
+
+const { siteContent } = Astro.props;
+const ctas = siteContent.homepage.ctas ?? [];
+if (ctas.length === 0) return;
+---
+
+<div
+  id="home-sticky-ctas"
+  class="home-sticky-ctas"
+  data-home-sticky-ctas
+  data-hero-copy
+>
+  <div class="home-sticky-ctas__row">
+    {
+      ctas.map((cta) => (
+        <a
+          class:list={[
+            "home-sticky-ctas__btn",
+            cta.variant === "primary"
+              ? "home-sticky-ctas__btn--primary"
+              : "home-sticky-ctas__btn--ghost brand-btn-glass",
+          ]}
+          href={cta.href}
+        >
+          {cta.label}
+          {cta.variant === "primary" && (
+            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+          )}
+        </a>
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  import "../../lib/homeStickyCtas.ts";
+</script>
+
+<style is:global>
+  /*
+   * Footer dock on <body> (rendered outside <main>). Layout-fixed only —
+   * do not chase visualViewport / URL bar. Contact adds .is-contact-occluding.
+   */
+  .home-sticky-ctas {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    /*
+     * Lowest safe position + 10px. Safe-area clears the home indicator;
+     * 10px sits the pills just above that floor. No extra 24px pad.
+     */
+    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+    z-index: 940;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 20px;
+    text-align: center;
+    pointer-events: none;
+    transform: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
+  }
+
+  .home-sticky-ctas.is-contact-occluding {
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-sticky-ctas {
+      transition: none;
+    }
+
+    .home-sticky-ctas.is-contact-occluding {
+      transform: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
+  .home-sticky-ctas :is(a, button) {
+    pointer-events: auto;
+  }
+
+  .home-sticky-ctas__row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .home-sticky-ctas__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.78rem 1.4rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      transform 0.15s ease,
+      filter 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .home-sticky-ctas__btn--primary {
+    color: #0b0512;
+    background: var(--brand-gradient);
+    box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
+  }
+
+  .home-sticky-ctas__btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  .home-sticky-ctas__btn--ghost {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .home-sticky-ctas__btn--ghost:hover {
+    transform: translateY(-1px);
+  }
+</style>

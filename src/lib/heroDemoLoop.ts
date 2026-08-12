@@ -1970,7 +1970,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  // CTAs may be moved onto <body> by homeHeroCtaPin — fall back to a global lookup.
+  // Footer CTAs are outside the hero (HomeStickyCtas on <body>).
   const copyEl =
     hero?.querySelector<HTMLElement>("[data-hero-copy]") ??
     document.querySelector<HTMLElement>("[data-hero-copy]");

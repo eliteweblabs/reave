@@ -1,9 +1,8 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them, CTAs fixed to the viewport footer (slide away at Contact).
+ * under them. CTAs live in HomeStickyCtas (footer dock), not here.
  */
-import { ArrowRight } from "lucide-astro";
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
@@ -21,7 +20,6 @@ const siteContent = siteContentProp ?? getSiteContent();
 const company = await getCompanyConfig(Astro.request);
 const demoScenes = HERO_DEMO_SCENES;
 const homepage = siteContent.homepage;
-const ctas = homepage.ctas ?? [];
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const userId = Astro.locals.auth()?.userId ?? null;
 const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
@@ -97,35 +95,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       </div>
     )
   }
-
-  <div id="home-hero-copy" class="home-hero-copy" data-hero-copy>
-    <div class="home-hero-cta">
-      {
-        ctas.map((cta) => (
-          <a
-            class:list={[
-              "home-hero-btn",
-              cta.variant === "primary" ? "home-hero-btn--primary" : "home-hero-btn--ghost brand-btn-glass",
-            ]}
-            href={cta.href}
-          >
-            {cta.label}
-            {cta.variant === "primary" && (
-              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-            )}
-          </a>
-        ))
-      }
-    </div>
-  </div>
-
-  {/* Reparent before paint so hero overflow cannot trap position:fixed on iOS. */}
-  <script is:inline>
-    (function () {
-      var el = document.getElementById("home-hero-copy");
-      if (el && el.parentElement !== document.body) document.body.appendChild(el);
-    })();
-  </script>
 </section>
 
 {
@@ -135,89 +104,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     </script>
   )
 }
-
-<script>
-  import "../../lib/homeHeroCtaPin.ts";
-</script>
-
-<style is:global>
-  /*
-   * CTAs live on <body> (inline reparent + homeHeroCtaPin). Keep the shell
-   * positioning global so scoped Astro CSS cannot fail after the move.
-   * Stay layout-fixed at the page-load footer — do not JS-chase the URL bar
-   * (that bounce). Contact toggles .is-contact-occluding to slide them away.
-   */
-  .home-hero-copy {
-    position: fixed;
-    top: auto;
-    left: 0;
-    right: 0;
-    /*
-     * iOS 26 samples fixed layers within ~3px of the bottom for toolbar tint.
-     * Sit just outside that band. Do not set background-color (even transparent)
-     * — that was painting the solid black chin under Liquid Glass.
-     */
-    bottom: 4px;
-    z-index: 940;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
-    /* Viable-area bottom inset — canvas paint extends under the home indicator. */
-    padding: 0 20px calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
-    text-align: center;
-    pointer-events: none;
-    /*
-     * No resting transform — iOS Safari can stop compositing position:fixed
-     * at the visual viewport while a transform is present, so the CTAs drift
-     * from their page-load footer spot during scroll.
-     */
-    transform: none;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0s;
-  }
-
-  .home-hero-copy.is-contact-occluding {
-    transform: translateY(calc(100% + 28px));
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0.55s;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .home-hero-copy {
-      transition: none;
-    }
-
-    .home-hero-copy.is-contact-occluding {
-      transform: none;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-  }
-
-  .home-hero-copy :is(a, button) {
-    pointer-events: auto;
-  }
-
-  /*
-   * Fixed-dock glass: skip backdrop-filter. On iOS Safari it composites on a
-   * separate layer from the solid primary pill, so the pair tears/misaligns
-   * while the URL bar animates.
-   */
-  .home-hero-copy .home-hero-btn--ghost {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: rgba(255, 255, 255, 0.12);
-  }
-</style>
 
 <style>
   .home-hero {
@@ -366,50 +252,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  .home-hero-cta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    margin-top: 4px;
-  }
-
-  .home-hero-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0.78rem 1.4rem;
-    border-radius: 999px;
-    font-family: var(--font-primary);
-    font-size: 0.92rem;
-    font-weight: 600;
-    text-decoration: none;
-    white-space: nowrap;
-    transition:
-      transform 0.15s ease,
-      filter 0.15s ease,
-      background 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .home-hero-btn--primary {
-    color: #0b0512;
-    background: var(--brand-gradient);
-    box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
-  }
-
-  .home-hero-btn--primary:hover {
-    filter: brightness(1.06);
-    transform: translateY(-1px);
-    text-decoration: none;
-  }
-
-  .home-hero-btn--ghost:hover {
-    transform: translateY(-1px);
-  }
-
-  /* Chat — between headline and CTAs; recedes under the brand block */
+  /* Chat — between headline and footer CTAs; recedes under the brand block */
   .home-hero-demo {
     position: absolute;
     z-index: 8;
