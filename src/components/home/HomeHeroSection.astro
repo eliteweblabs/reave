@@ -177,6 +177,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   /* Icon + headline — highest layer, dead centre of the viewport */
   .home-hero-brand {
+    /* Soft circular halo behind icon + title. Light mode: white. */
+    --home-hero-brand-glow-rgb: 0, 0, 0;
     position: absolute;
     z-index: 10;
     left: 50%;
@@ -191,7 +193,33 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     pointer-events: none;
   }
 
+  .home-hero-brand::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    z-index: 0;
+    width: min(150%, 560px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(
+      circle,
+      rgba(var(--home-hero-brand-glow-rgb), 0.55) 0%,
+      rgba(var(--home-hero-brand-glow-rgb), 0.28) 40%,
+      rgba(var(--home-hero-brand-glow-rgb), 0) 72%
+    );
+    pointer-events: none;
+  }
+
+  /* White halo once light theme is wired (data-theme="light" on :root). */
+  :root[data-theme="light"] .home-hero-brand {
+    --home-hero-brand-glow-rgb: 255, 255, 255;
+  }
+
   .home-hero-icon-wrap {
+    position: relative;
+    z-index: 1;
     flex: none;
     width: clamp(150px, 32vw, 240px);
     height: clamp(150px, 32vw, 240px);
@@ -207,6 +235,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-title {
+    position: relative;
+    z-index: 1;
     margin: 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
