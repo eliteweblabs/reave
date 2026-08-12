@@ -41,14 +41,14 @@
   "chatFocusSkin": true,
   "siteContentKey": "paulino",
   "moduleStatus": {
-    "client_portal": "development",
-    "web_handoff": "development",
+    "client_portal": "deployed",
+    "web_handoff": "deployed",
     "billing": "deployed",
-    "documents": "development",
+    "documents": "deployed",
     "voice": "request",
     "carddav": "request",
     "dealership_wizard": "deployed",
-    "time_tracking": "development",
+    "time_tracking": "deployed",
     "online_reviews": "request",
     "site_audits": "request",
     "stock_photos": "request"
