@@ -37,7 +37,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. */
+	/** Initial `<meta name="theme-color">`. Defaults to --site-canvas purple. */
   themeColor?: string;
 }
 
@@ -48,7 +48,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#050505",
+  themeColor = "#0c0614",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -92,6 +92,9 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta charset="UTF-8" />
 		<ViewportMeta />
 		<meta name="theme-color" content={themeColor} />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="generator" content={Astro.generator} />
 
 		<!-- Favicons -->
@@ -161,10 +164,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * reflows the layout viewport and makes position:fixed headers shear). Paint the
 	 * atmosphere on body itself instead of full-bleed fixed mesh layers. Body uses
 	 * min-height (not height:100%) so a 100lvh hero can grow the paint box.
+	 *
+	 * background-color MUST be the purple canvas (--site-canvas), not near-black —
+	 * Safari samples it for the status-bar / home-indicator strips, and #050505
+	 * reads as a disconnected black letterbox against the mesh.
 	 */
 	html {
 		height: 100%;
-		background-color: #050505;
+		background-color: var(--site-canvas, #0c0614);
 	}
 
 	html,
@@ -188,7 +195,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: #050505;
+		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}
@@ -207,11 +214,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * a full-viewport fixed backdrop as an edge element and letterbox it with
 		 * opaque black scroll-pocket tints. background-color stays separate from
 		 * background-image — Safari samples background-color for chrome/overscroll.
+		 * Top stops sit at y≈0 so the header / status-bar band gets the same glow
+		 * as the rest of the hero (not a flat black forehead).
 		 */
 		background-image:
-			radial-gradient(ellipse 80% 55% at 15% 20%, rgba(255, 0, 255, 0.18) 0%, transparent 62%),
-			radial-gradient(ellipse 70% 50% at 85% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 58%),
-			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.12) 0%, transparent 55%);
+			radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
+			radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
+			radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
+			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
 		background-repeat: no-repeat;
 		background-attachment: scroll;
 	}

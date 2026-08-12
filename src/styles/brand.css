@@ -23,6 +23,12 @@
   --font-content:
     "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
+  /*
+   * Solid canvas Safari samples for status-bar / home-indicator chrome.
+   * Must match the purple mesh atmosphere — near-black (#050505) reads as a
+   * disconnected letterbox bar against the gradients on background-image.
+   */
+  --site-canvas: #0c0614;
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
