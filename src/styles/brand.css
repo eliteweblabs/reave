@@ -24,11 +24,11 @@
     "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   /*
-   * Near-black stage — purple lives in the mesh glows and brand marks, not the
-   * flat canvas. A purple --site-canvas washed the whole fold into a fog.
-   * Edge chrome samples this same near-black, so forehead/chin match the page.
+   * Solid canvas Safari samples for status-bar / home-indicator chrome.
+   * Must match the purple mesh atmosphere — near-black (#050505) reads as a
+   * disconnected letterbox bar against the gradients on background-image.
    */
-  --site-canvas: #050505;
+  --site-canvas: #0c0614;
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;

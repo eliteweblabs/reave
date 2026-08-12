@@ -40,7 +40,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Defaults to near-black stage. */
+	/** Initial `<meta name="theme-color">`. Defaults to --site-canvas purple. */
   themeColor?: string;
 }
 
@@ -51,7 +51,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#050505",
+  themeColor = "#0c0614",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -177,8 +177,9 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * viewport and shears position:fixed headers. Use min-height only so the
 	 * paint box is at least one device tall and can still grow with content.
 	 *
-	 * Canvas is near-black (--site-canvas). Purple belongs in localized mesh
-	 * glows — a purple flat fill reads as a fog across the whole fold.
+	 * background-color MUST be the purple canvas (--site-canvas), not near-black —
+	 * Safari samples it for the status-bar / home-indicator strips, and #050505
+	 * reads as a disconnected black letterbox against the mesh.
 	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);
@@ -205,7 +206,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		min-height: 100dvh;
 		min-height: 100lvh;
 		min-height: var(--device-height);
-		background-color: var(--site-canvas, #050505);
+		background-color: var(--site-canvas, #0c0614);
 	}
 
 	html,
@@ -229,7 +230,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * chrome/overscroll sampling stays predictable on iOS 26+.
 		 * TODO: replace with a proper color-mode/theme variable system.
 		 */
-		background-color: var(--site-canvas, #050505);
+		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}
@@ -249,10 +250,9 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * Viewport-locked atmosphere on a near-black stage. Glows sit mid-fold
-	 * (behind the mark / CTAs), not smeared across the top safe-area — that
-	 * top-edge wash was the purple fog. Solid canvas color on the fixed layer
-	 * so Liquid Glass edge samples match the page.
+	 * Viewport-locked atmosphere (pre-Astro-7 mesh stops). Solid canvas on the
+	 * fixed layer so Liquid Glass edge samples match the page; mesh is
+	 * background-image only.
 	 */
 	body::before {
 		content: "";
@@ -266,12 +266,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		height: var(--device-height);
 		z-index: -1;
 		pointer-events: none;
-		background-color: var(--site-canvas, #050505);
+		background-color: var(--site-canvas, #0c0614);
 		background-image:
-			radial-gradient(ellipse 70% 50% at 50% 38%, rgba(192, 38, 211, 0.14) 0%, transparent 65%),
-			radial-gradient(ellipse 80% 55% at 15% 22%, rgba(255, 0, 255, 0.12) 0%, transparent 62%),
-			radial-gradient(ellipse 70% 50% at 85% 28%, rgba(99, 102, 241, 0.12) 0%, transparent 58%),
-			radial-gradient(ellipse 90% 55% at 50% 100%, rgba(192, 38, 211, 0.1) 0%, transparent 55%);
+			radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
+			radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
+			radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
+			radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
 		background-repeat: no-repeat;
 	}
 
