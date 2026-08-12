@@ -1705,6 +1705,53 @@ button.de-placeholder-action:active {
 .re-lab-field-label {
   display: block;
 }
+.re-lab-body-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.re-lab-body-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.re-lab-body-mode {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--btn-group-track-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+}
+.re-lab-body-mode-btn {
+  margin: 0;
+  padding: 0.2rem 0.55rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.re-lab-body-mode-btn.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+}
+.re-lab-body-html {
+  margin: 0;
+}
+.re-lab-body-frame {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  height: min(50vh, 520px);
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  background: #fff;
+}
 .re-lab-suggest-box {
   position: absolute;
   z-index: 20;
