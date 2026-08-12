@@ -330,7 +330,6 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "28 on backorder. You're below the reorder point of 50.",
         pauseMs: 1500,
-        actions: [{ label: "Create reorder PO", variant: "primary" }],
       },
       {
         role: "user",
