@@ -97,17 +97,23 @@
  */
 @media (min-width: 769px) {
   :root {
+    /*
+     * Base wash — long vertical taper; top band stays near-black so the
+     * corner logo glow is not flattened. Mid/page runs ~20% lighter.
+     */
     --site-top-fade: linear-gradient(
       180deg,
       #030106 0%,
-      #0a0510 28%,
-      #0c0614 52%,
+      #040208 16%,
+      #08040f 38%,
+      #0e0816 58%,
+      #110a1a 78%,
+      #130c1e 92%,
       #0c0614 100%
     );
     /*
      * Logo light — circular gradient centered on the viewport top-left; only the
-     * southeast quadrant is visible (135° sweep down/right). Not a directional
-     * beam — just the natural arc from a corner-pinned circle.
+     * southeast quadrant is visible (135° sweep down/right). Unchanged intensity.
      */
     --site-mesh-glow:
       radial-gradient(
@@ -117,13 +123,28 @@
         rgba(99, 102, 241, 0.05) 38%,
         transparent 58%
       );
+    /*
+     * Page lift — transparent for the first ~20vmin from the corner (logo band),
+     * then a long, soft brighten so the chevron pattern reads on the rest of
+     * the viewport (~20% lighter than the old flat canvas).
+     */
+    --site-mesh-lift:
+      radial-gradient(
+        circle 140vmax at 0 0,
+        transparent 0,
+        transparent 20vmin,
+        rgba(26, 16, 40, 0.38) 48%,
+        rgba(30, 20, 46, 0.22) 72%,
+        rgba(32, 22, 50, 0.1) 100%
+      );
     --site-mesh-bottom:
-      radial-gradient(ellipse 80% 45% at 58% 100%, rgba(192, 38, 211, 0.05) 0%, transparent 52%);
-    --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom), var(--site-top-fade);
+      radial-gradient(ellipse 90% 50% at 55% 100%, rgba(192, 38, 211, 0.07) 0%, transparent 68%);
+    --site-mesh-atmosphere:
+      var(--site-mesh-glow), var(--site-mesh-lift), var(--site-mesh-bottom), var(--site-top-fade);
   }
 
   .site-bg-pattern {
-    --site-bg-pattern-opacity: 0.065;
+    --site-bg-pattern-opacity: 0.08;
   }
 }
 
