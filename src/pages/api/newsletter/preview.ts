@@ -3,6 +3,7 @@
  * Body: { templateId, subject?, heading?, body?, ctaUrl?, ctaLabel?, firstName? }
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -14,12 +15,6 @@ import {
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function toParagraphs(raw: unknown): string[] | undefined {
   if (Array.isArray(raw)) return raw.map((p) => String(p)).filter(Boolean);

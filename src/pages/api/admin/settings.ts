@@ -2,6 +2,7 @@
  * GET/PATCH /api/admin/settings — install-wide admin settings (OTP TTL, recently viewed, etc.).
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   clampOtpTtlMinutes,
   clampRecentlyViewedDays,
@@ -13,12 +14,6 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 function parseOptionalBool(raw: unknown): boolean | undefined {
   if (raw === undefined) return undefined;

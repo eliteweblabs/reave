@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { hasFeature } from '../../../../lib/features';
 import { isSafeWorkSlug, storeReadWork } from '../../../../lib/workStore';
 import { storeListTimeEntries, storeSaveTimeEntries, sumTimeEntryHours } from '../../../../lib/timeEntries';
@@ -15,12 +16,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureDisabled(): Response {
   return json({ ok: false, error: 'Time tracking is not enabled on this install' }, 404);

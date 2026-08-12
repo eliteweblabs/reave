@@ -6,17 +6,12 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { normalizeTravelMode, planInquiryVisits } from '../../../lib/visitPlanner';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function intParam(params: URLSearchParams, name: string): number | undefined {
   const raw = params.get(name);

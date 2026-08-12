@@ -2,17 +2,12 @@
  * GET /api/mapbox/geocode — geocode a street address (admin).
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { resolveAddressCoordinates } from '../../../lib/mapbox';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);

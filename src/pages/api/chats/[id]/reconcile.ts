@@ -16,6 +16,7 @@
  * always ends with an assistant turn the user (and the model, next turn) can see.
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { getAgentProgress } from '../../../../lib/agentProgress';
 import { isAgentRunActive } from '../../../../lib/agentRunControl';
 import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
@@ -31,12 +32,6 @@ const INTERRUPTED_NOTE =
   '(often a deploy restart or dropped connection, not necessarily something you did). ' +
   'Send the message again and I\'ll redo the work.)_';
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

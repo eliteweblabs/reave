@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
@@ -48,12 +49,6 @@ import {
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function loadEventsToday(): Promise<DashboardEvent[]> {
   if (!isBookingConfigured()) return [];

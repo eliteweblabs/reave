@@ -38,6 +38,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { findClientStrictForSiri, searchClientsEnhanced } from '../../../lib/clientSearch';
 import { enrichContactAddressFromPlaces } from '../../../lib/contactAddressFromPlaces';
 import {
@@ -99,15 +100,6 @@ type SiriResponse = {
   error?: string;
 };
 
-function json(body: SiriResponse, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    },
-  });
-}
 
 function textResponse(text: string, status = 200): Response {
   return new Response(text, {

@@ -4,6 +4,7 @@
  * PUT  — replace full list { industries: [{ slug?, label, enabled?, sortOrder? }] }
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   deckIndustriesStorageBackend,
@@ -14,12 +15,6 @@ import {
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

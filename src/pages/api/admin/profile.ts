@@ -1,15 +1,10 @@
 import type { APIContext } from "astro";
+import { json } from '../../../lib/apiJson';
 import { clerkClient } from "@clerk/astro/server";
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

@@ -4,6 +4,7 @@
  * Stamps last_client_viewed_at for Recently Viewed; optionally marks a tracked share open.
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../../../../lib/apiJson';
 import { getContact } from '../../../../../../lib/contactApi';
 import { recordShareOpenEngagement } from '../../../../../../lib/engagementNotifications';
 import { recordProjectShareView } from '../../../../../../lib/linkTracking';
@@ -18,12 +19,6 @@ import { clientIp } from '../../../../../../lib/clientIp';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
   const contactUid = (params.slug ?? '').trim();

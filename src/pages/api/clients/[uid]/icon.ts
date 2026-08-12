@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import {
   clearClientPortalIcon,
   getClientPortalIconBlob,
@@ -9,12 +10,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const uid = (context.params.uid ?? '').trim();

@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 import { emailIdFromPushAlertTag } from '../../../../lib/notificationFormat';
 import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
@@ -12,12 +13,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function emailIdFromAlertUrl(url?: string | null): string | null {
   const raw = url?.trim();

@@ -117,7 +117,8 @@ export function escHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /** Shimmer skeleton — `kind`: 'list' | 'dashboard-home' | 'dashboard'. */

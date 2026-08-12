@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   isKapRecordingMediaType,
   kapRecordingViewUrl,
@@ -17,12 +18,6 @@ import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function isKapUploadAuthorized(request: Request): boolean {
   const expected = serverEnv('KAP_UPLOAD_KEY')?.trim();

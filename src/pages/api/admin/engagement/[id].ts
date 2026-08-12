@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { storeAckEngagementEvent } from '../../../../lib/engagementStore';
 import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
 import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
@@ -10,12 +11,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function PATCH(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

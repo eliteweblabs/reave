@@ -3,6 +3,7 @@
  * POST /api/admin/online-reviews — create, update, sync, save config
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
 import { getCompanyConfig } from '../../../lib/companyConfig';
@@ -28,12 +29,6 @@ import {
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureGate(): Response | null {
   if (!hasFeature('online_reviews')) {

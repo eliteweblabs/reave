@@ -4,6 +4,7 @@
  */
 
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { createHash } from 'crypto';
 import { getContact } from '../../../lib/contactApi';
 import { recordDeckViewEngagement } from '../../../lib/engagementNotifications';
@@ -17,12 +18,6 @@ export const prerender = false;
 const BOT_UA_RE =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function dayBucket(): string {
   return new Date().toISOString().slice(0, 10);

@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
 import { simulateInboundEmail } from '../../../lib/emailSimulate';
@@ -11,12 +12,6 @@ import type { InboundEmail } from '../../../lib/emailRules';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function asStringList(raw: unknown): string[] | undefined {
   if (raw == null) return undefined;

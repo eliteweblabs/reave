@@ -5,6 +5,7 @@
  * ?force=1 runs even if disabled or outside scan hour.
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { hasFeature } from '../../../lib/features';
 import { runLeadScanner } from '../../../lib/leadScannerEngine';
 import { ensureLeadScannerScheduler, leadScannerPollSecret } from '../../../lib/leadScannerScheduler';
@@ -12,12 +13,6 @@ import { authorizePollOrOwner } from '../../../lib/pollRouteAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const key = context.url.searchParams.get('key')?.trim() ?? null;

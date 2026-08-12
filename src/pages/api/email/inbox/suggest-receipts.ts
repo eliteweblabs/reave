@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import {
   storeGetEmailInbox,
   storeListEmailInboxReceiptScan,
@@ -15,12 +16,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseDays(raw: string | null): number {
   const n = Number(raw);

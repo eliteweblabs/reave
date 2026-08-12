@@ -5,6 +5,7 @@
  * to register with the provider. Never exposes raw tokens.
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { requestOrigin } from '../../../../lib/requestOrigin.ts';
 import { OAUTH_CONFIGS, callbackUrl, getOAuthCredentials } from '../../../../lib/social/oauth.ts';
 import { listConnections } from '../../../../lib/social/tokenStore.ts';
@@ -13,12 +14,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../../lib/apiJson';
 import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
   setStoredCompanyIcon,
@@ -24,12 +25,6 @@ export const prerender = false;
 
 type ApplyTarget = 'company-logo' | 'company-icon' | 'client-logo' | 'client-icon';
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseTarget(raw: unknown): ApplyTarget | null {
   const t = typeof raw === 'string' ? raw.trim() : '';

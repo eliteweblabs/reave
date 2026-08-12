@@ -2,6 +2,7 @@
  * GET /api/uptime/monitors — list monitors + current status from DB.
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { hasFeature } from '../../../lib/features';
 import { createUptimeMonitor, getUptimeMonitorsView } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
@@ -10,12 +11,6 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async ({ locals }) => {
   const auth = await requireDashboardUser(context);

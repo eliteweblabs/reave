@@ -2,6 +2,7 @@
  * GET /api/admin/deploy-status — module deployment catalog for this install (auth required).
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { demoModuleIdForFeature } from '../../../lib/demoModuleCatalog';
 import { listAllDeployModules } from '../../../lib/deployModuleStatus';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -24,12 +25,6 @@ export const prerender = false;
 
 const POLL_MS = 30_000;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function moduleNeedsAttention(m: {
   enabled: boolean;
