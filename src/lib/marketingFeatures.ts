@@ -301,16 +301,6 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     modules: ['namecom_dns'],
     kind: 'capability',
   },
-
-  // —— Nav chips (green links in the hero) ——
-  {
-    id: 'nav-pricing',
-    label: 'Installation tiers & pricing',
-    modules: [],
-    kind: 'nav',
-    href: '/pricing',
-    spotlight: true,
-  },
 ];
 
 export type DemoLoaderFeature = {
