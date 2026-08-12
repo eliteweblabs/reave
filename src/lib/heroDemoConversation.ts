@@ -1,5 +1,5 @@
 /** Crafted hero demo scenes — multi-turn conversations with optional action chips. */
-export type HeroDemoActionEffect = "invoice-payment" | "proposal-flow";
+export type HeroDemoActionEffect = "invoice-payment" | "invoice-review" | "proposal-flow";
 /** Plays during an assistant turn (e.g. status line) before the scene continues. */
 export type HeroDemoTurnEffect = "gps-locate";
 
@@ -243,7 +243,13 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "Draft invoice INV-0042 is ready for review.",
         pauseMs: 1700,
-        actions: [{ label: "Review draft", variant: "primary" }],
+        actions: [
+          {
+            label: "Review draft",
+            variant: "primary",
+            effect: "invoice-review",
+          },
+        ],
       },
       {
         role: "assistant",

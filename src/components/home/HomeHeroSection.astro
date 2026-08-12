@@ -1036,6 +1036,89 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
+  /* Review draft — same invoice chrome; sections start collapsed and fill L→R. */
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-lines--pending {
+    border-top: 1px solid transparent;
+    padding: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    gap: 0;
+    transition:
+      max-height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.3s ease,
+      padding 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.3s ease,
+      gap 0.4s ease;
+  }
+
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-lines--open {
+    max-height: 12rem;
+    opacity: 1;
+    padding: 0.4rem 0 0.12rem;
+    border-top-color: rgba(255, 255, 255, 0.1);
+    gap: 0.42rem;
+  }
+
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-line {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateX(-8px);
+    transition:
+      max-height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.26s ease,
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.28s ease;
+  }
+
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-line--in {
+    max-height: 1.45rem;
+    opacity: 1;
+    transform: none;
+  }
+
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-line--scan {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    margin-inline: -0.22rem;
+    padding-inline: 0.22rem;
+  }
+
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-footer--pending {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding-top: 0;
+    border-top-color: transparent;
+    transition:
+      max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.3s ease,
+      padding 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.3s ease;
+  }
+
+  .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-footer--open {
+    max-height: 2.6rem;
+    opacity: 1;
+    padding-top: 0.4rem;
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .home-hero-demo-sk-invoice--review [data-hero-sk-draw] {
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    transition:
+      transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.26s ease;
+  }
+
+  .home-hero-demo-sk-invoice--review [data-hero-sk-draw].home-hero-demo-sk-bone--draw-in {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+
   /* Dashboard notification toast — mirrors admin review alerts (see shell.css). */
   .home-hero-demo-sk-notif {
     width: min(100%, 18.5rem);
@@ -1643,8 +1726,27 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
     .home-hero-demo-sk-invoice-payments,
     .home-hero-demo-sk-invoice-payment [data-hero-sk-pay],
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-lines--pending,
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-lines--open,
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-line,
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-footer--pending,
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-footer--open,
+    .home-hero-demo-sk-invoice--review [data-hero-sk-draw],
     .home-hero-demo-sk-contract-line {
       transition: none;
+    }
+
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-lines--open,
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-line--in,
+    .home-hero-demo-sk-invoice--review .home-hero-demo-sk-invoice-footer--open {
+      max-height: none;
+      opacity: 1;
+      transform: none;
+    }
+
+    .home-hero-demo-sk-invoice--review [data-hero-sk-draw] {
+      transform: scaleX(1);
+      opacity: 1;
     }
   }
 </style>

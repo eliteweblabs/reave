@@ -554,6 +554,227 @@ async function playInvoicePaymentSkeleton(
   sceneEl.dataset.heroHardCut = "1";
 }
 
+/** Fake draft line items — widths only; bones stay illegible. */
+const REVIEW_LINE_ITEMS = [
+  { lineW: "78%", amtW: "2.4rem" },
+  { lineW: "54%", amtW: "1.85rem" },
+  { lineW: "86%", amtW: "2.55rem" },
+  { lineW: "46%", amtW: "1.7rem" },
+  { lineW: "71%", amtW: "2.15rem" },
+  { lineW: "62%", amtW: "2.0rem" },
+] as const;
+
+/**
+ * Invoice card for the Review draft beat — header/client start as the
+ * document frame; line items and footer are filled in by the player.
+ */
+function createInvoiceReviewCard(): HTMLElement {
+  const row = document.createElement("div");
+  row.className =
+    "home-hero-demo-msg home-hero-demo-msg--assistant home-hero-demo-msg--artifact";
+  row.setAttribute("role", "listitem");
+  row.setAttribute("aria-hidden", "true");
+
+  const card = document.createElement("div");
+  card.className = "home-hero-demo-sk-invoice home-hero-demo-sk-invoice--review";
+
+  const header = document.createElement("div");
+  header.className = "home-hero-demo-sk-invoice-header";
+  header.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--title" data-hero-sk-draw></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--meta" data-hero-sk-draw></span>';
+
+  const client = document.createElement("div");
+  client.className = "home-hero-demo-sk-invoice-client";
+  client.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--client" data-hero-sk-draw></span>';
+
+  const lines = document.createElement("div");
+  lines.className =
+    "home-hero-demo-sk-invoice-lines home-hero-demo-sk-invoice-lines--pending";
+
+  const footer = document.createElement("div");
+  footer.className =
+    "home-hero-demo-sk-invoice-footer home-hero-demo-sk-invoice-footer--pending";
+  footer.innerHTML =
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--label" data-hero-sk-draw></span>' +
+    '<span class="home-hero-demo-sk-bone home-hero-demo-sk-bone--total" data-hero-sk-draw data-hero-sk-total></span>';
+
+  card.appendChild(header);
+  card.appendChild(client);
+  card.appendChild(lines);
+  card.appendChild(footer);
+  row.appendChild(card);
+
+  return row;
+}
+
+function appendReviewLineItem(lines: HTMLElement, spec: { lineW: string; amtW: string }): HTMLElement {
+  const line = document.createElement("div");
+  line.className = "home-hero-demo-sk-invoice-line";
+  const desc = document.createElement("span");
+  desc.className = "home-hero-demo-sk-bone home-hero-demo-sk-bone--line";
+  desc.dataset.heroSkDraw = "";
+  desc.style.maxWidth = spec.lineW;
+  const amt = document.createElement("span");
+  amt.className = "home-hero-demo-sk-bone home-hero-demo-sk-bone--amt";
+  amt.dataset.heroSkDraw = "";
+  amt.style.width = spec.amtW;
+  line.appendChild(desc);
+  line.appendChild(amt);
+  lines.appendChild(line);
+  return line;
+}
+
+/**
+ * After "Review draft": bounce an invoice in, draw the header L→R, then add
+ * line items one by one (desc then amount) as if scanning the document.
+ * Swipes off and leaves the chat in place for the approval follow-up.
+ */
+async function playInvoiceReviewSkeleton(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const row = createInvoiceReviewCard();
+  const card = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice");
+  const lines = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice-lines");
+  const footer = row.querySelector<HTMLElement>(".home-hero-demo-sk-invoice-footer");
+  const headerBones = Array.from(
+    row.querySelectorAll<HTMLElement>(".home-hero-demo-sk-invoice-header [data-hero-sk-draw]"),
+  );
+  const clientBone = row.querySelector<HTMLElement>(
+    ".home-hero-demo-sk-invoice-client [data-hero-sk-draw]",
+  );
+  const footerBones = Array.from(
+    row.querySelectorAll<HTMLElement>(".home-hero-demo-sk-invoice-footer [data-hero-sk-draw]"),
+  );
+  const total = row.querySelector<HTMLElement>("[data-hero-sk-total]");
+
+  const revealAll = () => {
+    for (const bone of [...headerBones, clientBone, ...footerBones]) {
+      bone?.classList.add("home-hero-demo-sk-bone--draw-in");
+    }
+    lines?.classList.remove("home-hero-demo-sk-invoice-lines--pending");
+    lines?.classList.add("home-hero-demo-sk-invoice-lines--open");
+    footer?.classList.remove("home-hero-demo-sk-invoice-footer--pending");
+    footer?.classList.add("home-hero-demo-sk-invoice-footer--open");
+    if (lines) {
+      for (const spec of REVIEW_LINE_ITEMS) {
+        const line = appendReviewLineItem(lines, spec);
+        line.classList.add("home-hero-demo-sk-invoice-line--in");
+        for (const bone of line.querySelectorAll<HTMLElement>("[data-hero-sk-draw]")) {
+          bone.classList.add("home-hero-demo-sk-bone--draw-in");
+        }
+      }
+    }
+  };
+
+  sceneEl.appendChild(row);
+  relayout(true);
+
+  if (card) {
+    if (reducedMotion) {
+      card.classList.add("home-hero-demo-sk-invoice--settled");
+      revealAll();
+      relayout(true);
+      await wait(700);
+      row.remove();
+      relayout(true);
+      return;
+    }
+    void card.offsetWidth;
+    card.classList.add("home-hero-demo-sk-invoice--pop");
+  }
+
+  await wait(780);
+  if (!isAlive()) return;
+
+  for (const bone of headerBones) {
+    if (!isAlive()) return;
+    bone.classList.add("home-hero-demo-sk-bone--draw-in");
+    await wait(130);
+  }
+
+  if (clientBone) {
+    clientBone.classList.add("home-hero-demo-sk-bone--draw-in");
+    await wait(150);
+  }
+  if (!isAlive()) return;
+
+  if (lines) {
+    void lines.offsetHeight;
+    lines.classList.remove("home-hero-demo-sk-invoice-lines--pending");
+    lines.classList.add("home-hero-demo-sk-invoice-lines--open");
+    relayout(true);
+    await wait(70);
+  }
+
+  for (const spec of REVIEW_LINE_ITEMS) {
+    if (!isAlive() || !lines) return;
+    const line = appendReviewLineItem(lines, spec);
+    void line.offsetWidth;
+    line.classList.add("home-hero-demo-sk-invoice-line--in");
+    line.classList.add("home-hero-demo-sk-invoice-line--scan");
+    relayout(true);
+    await wait(45);
+
+    for (const bone of line.querySelectorAll<HTMLElement>("[data-hero-sk-draw]")) {
+      if (!isAlive()) return;
+      bone.classList.add("home-hero-demo-sk-bone--draw-in");
+      await wait(120);
+    }
+
+    line.classList.remove("home-hero-demo-sk-invoice-line--scan");
+    await wait(35);
+  }
+
+  if (!isAlive()) return;
+
+  if (footer) {
+    void footer.offsetHeight;
+    footer.classList.remove("home-hero-demo-sk-invoice-footer--pending");
+    footer.classList.add("home-hero-demo-sk-invoice-footer--open");
+    relayout(true);
+    await wait(60);
+  }
+
+  for (const bone of footerBones) {
+    if (!isAlive()) return;
+    bone.classList.add("home-hero-demo-sk-bone--draw-in");
+    await wait(130);
+  }
+
+  await wait(180);
+  if (!isAlive()) return;
+
+  if (total) {
+    total.classList.remove("home-hero-demo-sk-bone--total-pulse");
+    void total.offsetWidth;
+    total.classList.add("home-hero-demo-sk-bone--total-pulse");
+  }
+
+  await sleep(850);
+  if (!isAlive()) return;
+  await wait(INVOICE_SIT_MS);
+  if (!isAlive()) return;
+
+  if (card) {
+    card.classList.remove("home-hero-demo-sk-invoice--pop");
+    card.classList.add("home-hero-demo-sk-invoice--settled");
+    void card.offsetWidth;
+    card.classList.remove("home-hero-demo-sk-invoice--settled");
+    card.style.setProperty("--hero-sk-invoice-exit-ms", `${scaleMs(INVOICE_SWIPE_MS)}ms`);
+    card.classList.add("home-hero-demo-sk-invoice--exit");
+  }
+  await wait(INVOICE_SWIPE_MS);
+  if (!isAlive()) return;
+
+  row.remove();
+  relayout(true);
+}
+
 type DashboardNotificationIcon = { iconEmoji?: string; iconUrl?: string };
 
 /** Compact dashboard toast — mirrors admin review alerts (brand icon + copy). */
@@ -2000,6 +2221,8 @@ async function simulateActionPress(
 
   if (effect === "invoice-payment") {
     await playInvoicePaymentSkeleton(sceneEl, relayout, reducedMotion, isAlive);
+  } else if (effect === "invoice-review") {
+    await playInvoiceReviewSkeleton(sceneEl, relayout, reducedMotion, isAlive);
   } else if (effect === "proposal-flow") {
     await playProposalFlow(root, sceneEl, relayout, reducedMotion, isAlive);
   } else {
