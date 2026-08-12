@@ -153,16 +153,19 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     top: auto;
     left: 0;
     right: 0;
-    bottom: 0;
+    /*
+     * iOS 26 samples fixed layers within ~3px of the bottom for toolbar tint.
+     * Sit just outside that band. Do not set background-color (even transparent)
+     * — that was painting the solid black chin under Liquid Glass.
+     */
+    bottom: 4px;
     z-index: 940;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 18px;
-    padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    padding: 0 20px calc(24px + env(safe-area-inset-bottom, 0px));
     text-align: center;
-    /* No fill — a opaque/translucent bg here becomes Safari’s bottom chin tint. */
-    background-color: transparent;
     pointer-events: none;
     /*
      * No resting transform — iOS Safari can stop compositing position:fixed

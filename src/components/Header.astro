@@ -375,10 +375,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     align-items: stretch;
     min-height: 0;
     /*
-     * TEMP: fully transparent shell — no background, no backdrop-filter, no
-     * scrim. Body mesh + repeating pattern must show through the safe area.
+     * TEMP: no background / backdrop-filter on this fixed shell.
+     * Do NOT set background-color: transparent — iOS 26 Safari samples that
+     * as a black Liquid Glass tint. Leave background unset; SafariChromeTint
+     * + body --site-canvas own the status-bar color.
      */
-    background-color: transparent;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
       env(safe-area-inset-top, 0px)
