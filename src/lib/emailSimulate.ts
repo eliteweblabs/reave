@@ -204,9 +204,17 @@ function stepsFromRuleEvaluations(evaluations: RuleEvaluation[]): TriagePlayback
       kind: 'rule' as const,
       status,
       decision,
-      detail: ev.rule.phrases?.length
-        ? `Phrases: ${ev.rule.phrases.slice(0, 4).map((p) => `"${p}"`).join(', ')}`
-        : ev.rule.description,
+      detail: (() => {
+        const bits: string[] = [];
+        if (ev.rule.phrases?.length) {
+          bits.push(`Phrases: ${ev.rule.phrases.slice(0, 4).map((p) => `"${p}"`).join(', ')}`);
+        }
+        if (ev.rule.exceptPhrases?.length) {
+          bits.push(`Except: ${ev.rule.exceptPhrases.slice(0, 3).map((p) => `"${p}"`).join(', ')}`);
+        }
+        if (!bits.length && ev.rule.description) return ev.rule.description;
+        return bits.join(' · ') || ev.rule.description;
+      })(),
       ruleId: (ev.rule as EmailRuleRecord).id,
     };
   });

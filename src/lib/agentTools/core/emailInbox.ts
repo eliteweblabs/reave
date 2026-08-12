@@ -322,6 +322,7 @@ async function handle_list_email_filter_rules(_args: Record<string, unknown>, _c
     status: r.status,
     description: r.description ?? null,
     phrases: r.phrases,
+    exceptPhrases: r.exceptPhrases ?? [],
     fields: r.fields,
     matchMode: r.matchMode,
     enabled: r.enabled,
@@ -343,6 +344,11 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
   const extra = Array.isArray(args.phrases)
     ? (args.phrases as unknown[]).map((p) => String(p).trim()).filter(Boolean)
     : [];
+  const exceptExtra = Array.isArray(args.except_phrases)
+    ? (args.except_phrases as unknown[]).map((p) => String(p).trim()).filter(Boolean)
+    : Array.isArray(args.exceptPhrases)
+      ? (args.exceptPhrases as unknown[]).map((p) => String(p).trim()).filter(Boolean)
+      : [];
   const phrases = [...new Set([...(sender ? [sender] : []), ...extra])];
   if (!phrases.length) return JSON.stringify({ error: 'sender or phrases required' });
 
@@ -400,6 +406,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       ? 'Auto-junk + forward — created by agent from inbox triage'
       : 'Auto-junk — created by agent from inbox triage',
     phrases,
+    exceptPhrases: exceptExtra,
     matchMode,
     fields,
     notify: false,
@@ -573,6 +580,12 @@ export const emailInboxModule: AgentToolModule = {
                     items: { type: 'string' },
                     description:
                       'Optional extra match phrases (subject/body). Combined with sender when both are set (AND).',
+                  },
+                  except_phrases: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      'Optional NOT / except phrases — if any appear in the searched fields, the rule does not match.',
                   },
                   title: {
                     type: 'string',

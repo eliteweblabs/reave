@@ -51,6 +51,11 @@ export interface EmailRule {
   description?: string;
   /** Case-insensitive substrings; matched against the selected `fields`. */
   phrases: string[];
+  /**
+   * Case-insensitive substrings that veto a match — if any appear in the
+   * selected `fields`, the rule does not fire (NOT / except clause).
+   */
+  exceptPhrases?: string[];
   /** "any" = at least one phrase, "all" = every phrase. */
   matchMode: MatchMode;
   fields: RuleField[];
@@ -324,18 +329,39 @@ function matchesAuthLinkRule(rule: EmailRule, email: InboundEmail): boolean {
   });
 }
 
+function ruleHaystack(rule: EmailRule, email: InboundEmail): string {
+  return rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
+}
+
+function normalizePhraseList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((p) => String(p).trim()).filter(Boolean);
+}
+
+/** Phrases from `exceptPhrases` that appear in the rule's selected fields. */
+export function blockedByExceptPhrases(rule: EmailRule, email: InboundEmail): string[] {
+  const except = normalizePhraseList(rule.exceptPhrases);
+  if (!except.length) return [];
+  const haystack = ruleHaystack(rule, email);
+  return except.filter((p) => haystack.includes(p.toLowerCase()));
+}
+
 function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
   if (!rule.enabled) return false;
   if (isVerificationCodeRuleStatus(rule.status)) {
-    return matchesVerificationCodeRule(rule, email);
+    if (!matchesVerificationCodeRule(rule, email)) return false;
+    return blockedByExceptPhrases(rule, email).length === 0;
   }
   if (isAuthLinkRuleStatus(rule.status)) {
-    return matchesAuthLinkRule(rule, email);
+    if (!matchesAuthLinkRule(rule, email)) return false;
+    return blockedByExceptPhrases(rule, email).length === 0;
   }
   if (rule.phrases.length === 0) return false;
-  const haystack = rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
+  const haystack = ruleHaystack(rule, email);
   const hits = rule.phrases.map((p) => haystack.includes(p.toLowerCase()));
-  return rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
+  const positive = rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
+  if (!positive) return false;
+  return blockedByExceptPhrases(rule, email).length === 0;
 }
 
 /** Whether inbound mail is a UptimeRobot notification (email path — webhooks are preferred). */
@@ -389,7 +415,7 @@ export function evaluateEmailRules(
     (r) => r.enabled && isVerificationCodeRuleStatus(r.status),
   );
   if (verificationRule) {
-    if (matchesVerificationCodeRule(verificationRule, email)) {
+    if (ruleMatches(verificationRule, email)) {
       pushEval(verificationRule, 'matched');
       matched = verificationRule;
     } else {
@@ -400,7 +426,7 @@ export function evaluateEmailRules(
   // Global auth-link rule — before DELETE/junk (footers often match unsubscribe).
   const authLinkRule = rules.find((r) => r.enabled && isAuthLinkRuleStatus(r.status));
   if (!matched && authLinkRule) {
-    if (matchesAuthLinkRule(authLinkRule, email)) {
+    if (ruleMatches(authLinkRule, email)) {
       pushEval(authLinkRule, 'matched');
       matched = authLinkRule;
     } else {

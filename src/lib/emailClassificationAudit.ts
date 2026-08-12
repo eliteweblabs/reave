@@ -99,9 +99,13 @@ export function auditForMatchedRule(
   }
   const phrases = matchedRulePhrases(rule, email);
   const phraseBits = phrases.slice(0, 3).map((p) => `"${p}" in ${fieldHitLabel(p, email)}`);
+  const except = Array.isArray(rule.exceptPhrases) ? rule.exceptPhrases.filter(Boolean) : [];
   const detail = [
     rule.description?.trim(),
     phraseBits.length ? `Matched ${phraseBits.join(', ')}` : null,
+    except.length
+      ? `Except cleared (${except.slice(0, 3).map((p) => `"${p}"`).join(', ')})`
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');

@@ -74,6 +74,7 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS summary_override TEXT;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS forward_to TEXT;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS hit_count INT NOT NULL DEFAULT 0;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS last_matched_at TIMESTAMPTZ;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS except_phrases JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -198,6 +199,7 @@ function rowToRecord(row: {
   updated_at?: Date | string | null;
   summary_override?: string | null;
   forward_to?: string | null;
+  except_phrases?: unknown;
   hit_count?: number | null;
   last_matched_at?: Date | string | null;
 }): EmailRuleRecord {
@@ -208,6 +210,9 @@ function rowToRecord(row: {
     status: row.status,
     description: row.description ?? undefined,
     phrases: Array.isArray(row.phrases) ? row.phrases.map(String) : [],
+    exceptPhrases: Array.isArray(row.except_phrases)
+      ? row.except_phrases.map(String).map((p) => p.trim()).filter(Boolean)
+      : [],
     matchMode: normalizeMatchMode(row.match_mode),
     fields: normalizeFields(row.fields),
     notify: !!row.notify,
@@ -239,6 +244,9 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         status: String(r.status || 'RULE'),
         description: r.description ? String(r.description) : undefined,
         phrases: Array.isArray(r.phrases) ? r.phrases.map(String) : [],
+        exceptPhrases: Array.isArray(r.exceptPhrases)
+          ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
+          : [],
         matchMode: normalizeMatchMode(r.matchMode),
         fields: normalizeFields(r.fields),
         notify: !!r.notify,
@@ -310,7 +318,8 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-              expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at
+              expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
+              except_phrases
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -348,8 +357,9 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-           expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17)`,
+           expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
+           except_phrases)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18)`,
         [
           r.id,
           r.sortOrder,
@@ -368,6 +378,11 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.forwardTo?.trim() || null,
           Math.max(0, Number(r.hitCount) || 0),
           r.lastMatchedAt ? new Date(r.lastMatchedAt) : null,
+          JSON.stringify(
+            Array.isArray(r.exceptPhrases)
+              ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
+              : [],
+          ),
         ]
       );
     }
@@ -609,6 +624,8 @@ export type RuleInput = {
   status: string;
   description?: string;
   phrases: string[];
+  /** Phrases that veto a match (NOT clause). */
+  exceptPhrases?: string[];
   matchMode: MatchMode;
   fields: RuleField[];
   notify: boolean;
@@ -632,6 +649,7 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
   const status = input.status.trim().toUpperCase().replace(/\s+/g, '_');
   if (!title || !status) return null;
   const phrases = input.phrases.map((p) => p.trim()).filter(Boolean);
+  const exceptPhrases = (input.exceptPhrases ?? []).map((p) => p.trim()).filter(Boolean);
   const expiresAt = parseExpiresAt(input.expiresAt ?? null);
   if (expiresAt === undefined) return null;
   const forwardTo = normalizeForwardTo(input.forwardTo);
@@ -641,6 +659,7 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
     status,
     description: input.description?.trim() || undefined,
     phrases,
+    exceptPhrases,
     matchMode: normalizeMatchMode(input.matchMode),
     fields: normalizeFields(input.fields),
     notify: !!input.notify,

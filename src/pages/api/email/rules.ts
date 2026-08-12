@@ -25,17 +25,21 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function parsePhraseList(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(String).map((s) => s.trim()).filter(Boolean);
+  return String(raw ?? '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
   const title = String(body.title ?? '').trim();
   const status = String(body.status ?? '').trim();
   if (!title || !status) return null;
-  const phrasesRaw = body.phrases;
-  const phrases = Array.isArray(phrasesRaw)
-    ? phrasesRaw.map(String)
-    : String(phrasesRaw ?? '')
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean);
+  const phrases = parsePhraseList(body.phrases);
+  const exceptRaw = body.exceptPhrases !== undefined ? body.exceptPhrases : body.except_phrases;
+  const exceptPhrases = parsePhraseList(exceptRaw);
   const fieldsRaw = body.fields;
   const fields = Array.isArray(fieldsRaw) ? (fieldsRaw as RuleField[]) : (['subject', 'body'] as RuleField[]);
   const expiresRaw = body.expiresAt !== undefined ? body.expiresAt : body.expires_at;
@@ -46,6 +50,7 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
     status,
     description: body.description != null ? String(body.description) : undefined,
     phrases,
+    exceptPhrases,
     matchMode: (body.matchMode === 'all' ? 'all' : 'any') as MatchMode,
     fields,
     notify: body.notify === true || body.notify === 'true',

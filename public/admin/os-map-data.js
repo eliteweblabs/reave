@@ -287,7 +287,7 @@ const EMAIL_TRIAGE_NODES = [
 
   // Classify
   { id: 'et_contact', title: 'Resolve sender', sub: 'contact-api · client kind', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
-  { id: 'et_rules', title: 'Keyword rules', sub: 'First match wins · Flow drag + Lab', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
+  { id: 'et_rules', title: 'Keyword rules', sub: 'First match · except/NOT · Flow + Lab', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
   { id: 'et_lab', title: 'Triage Lab', sub: 'Dry-run compose · play steps', icon: '🧪', hue: 70, status: true, group: 'et_classify', x: 600, y: 330 },
   { id: 'et_agent', title: 'Agent-first AI', sub: 'Unknown / Service · confidence', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
   { id: 'et_legacy', title: 'Rules + AI triage', sub: 'Known professional / personal', icon: '🧠', brand: 'anthropic', hue: 280, status: true, group: 'et_classify', x: 600, y: 540 },

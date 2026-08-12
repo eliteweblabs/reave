@@ -167,6 +167,19 @@ function phraseSummary(phrases, max = 3) {
   return shown.map((p) => `"${p}"`).join(' · ') + tail;
 }
 
+function exceptSummary(phrases, max = 2) {
+  if (!phrases?.length) return '';
+  const shown = phrases.slice(0, max).map((p) => `!"${p}"`);
+  const tail = phrases.length > max ? ` +${phrases.length - max}` : '';
+  return shown.join(' · ') + tail;
+}
+
+function flowWhenSubline(rule) {
+  const positive = phraseSummary(rule.phrases);
+  const except = exceptSummary(rule.exceptPhrases);
+  return except ? `${positive} · except ${except}` : positive;
+}
+
 function fieldsSummary(fields) {
   return (fields || ['subject', 'body']).join(', ');
 }
@@ -311,7 +324,14 @@ function fillRulesSidebarList(list) {
   const ordered = [...rules]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     .filter((rule) =>
-      matchesListSearch(ruleState.search, rule.title, rule.status, ruleSubline(rule), rule.description),
+      matchesListSearch(
+        ruleState.search,
+        rule.title,
+        rule.status,
+        ruleSubline(rule),
+        rule.description,
+        ...(rule.exceptPhrases || []),
+      ),
     );
   list.replaceChildren();
   for (const rule of ordered) {
@@ -453,7 +473,7 @@ function createFlowRuleCard(rule, index) {
   when.innerHTML = `
     <span class="re-flow-badge">When</span>
     <span class="re-flow-title">${escHtml(rule.title || rule.status)}</span>
-    <span class="re-flow-sub">${escHtml(phraseSummary(rule.phrases))}</span>
+    <span class="re-flow-sub">${escHtml(flowWhenSubline(rule))}</span>
     <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)} · ${formatRuleHitLabel(rule)}`)}</span>`;
 
   const arrow = document.createElement('span');
@@ -855,6 +875,13 @@ function renderRuleEditPane(pane) {
   phrasesIn.value = (rule.phrases || []).join('\n');
   phrasesIn.addEventListener('input', () => { ruleState.dirty = true; });
 
+  const exceptIn = document.createElement('textarea');
+  exceptIn.className = 're-textarea';
+  exceptIn.rows = 3;
+  exceptIn.placeholder = 'One phrase per line — if any appear, this rule does not match';
+  exceptIn.value = (rule.exceptPhrases || []).join('\n');
+  exceptIn.addEventListener('input', () => { ruleState.dirty = true; });
+
   const matchSel = document.createElement('select');
   matchSel.className = 'de-input';
   matchSel.innerHTML = '<option value="any">Any phrase matches</option><option value="all">All phrases must match</option>';
@@ -933,6 +960,7 @@ function renderRuleEditPane(pane) {
   appendRuleField(form, 'Status tag', statusIn);
   appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Keywords / phrases', phrasesIn);
+  appendRuleField(form, 'Except (NOT)', exceptIn);
   appendRuleField(form, 'Match mode', matchSel);
   appendRuleField(form, 'Search in', fieldsWrap);
   appendRuleField(form, 'Forward to', forwardIn);
@@ -946,6 +974,7 @@ function renderRuleEditPane(pane) {
     statusIn,
     descIn,
     phrasesIn,
+    exceptIn,
     matchSel,
     fieldsWrap,
     notifyCb,
@@ -968,6 +997,7 @@ function collectRulePayload(inputs) {
     status: inputs.statusIn.value.trim(),
     description: inputs.descIn.value.trim(),
     phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
+    exceptPhrases: inputs.exceptIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
     matchMode: inputs.matchSel.value,
     fields: fields.length ? fields : ['subject', 'body'],
     notify: inputs.notifyCb.checked,
@@ -1011,6 +1041,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     inputs.statusIn,
     inputs.descIn,
     inputs.phrasesIn,
+    inputs.exceptIn,
     inputs.matchSel,
     ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.notifyCb,
@@ -1207,6 +1238,7 @@ async function startNewRule() {
         status: 'CUSTOM',
         description: '',
         phrases: [],
+        exceptPhrases: [],
         matchMode: 'any',
         fields: ['subject', 'body'],
         notify: true,
