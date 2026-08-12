@@ -1824,6 +1824,7 @@ function renderWorkEditor() {
   root.appendChild(pane);
   renderWorkPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
+  shell.scanPanelSidebars?.();
 }
 
 function workStatusPillOptions(draft) {
@@ -3289,7 +3290,7 @@ function renderEditWorkForm(pane) {
 }
 
 function activateWorkPaneOnMobile() {
-  if (workState.activeSlug && shell.isMobileTabs?.()) {
+  if (workState.activeSlug && shell.isAdminPaneMobile?.()) {
     getWorkEditor()?.classList.add('de-pane-active');
   }
 }

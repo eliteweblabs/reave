@@ -48,7 +48,7 @@
   z-index: 2;
 }
 
-/* Mobile: single-pane navigation */
+/* Single-pane list/detail navigation below 640px (see admin-ui.js ADMIN_PANE_MQ). */
 @media (max-width: 639px) {
   #doc-editor {
     flex-direction: column;
@@ -667,7 +667,7 @@ button.de-placeholder-action:active {
   position: relative;
   z-index: 3;
 }
-/* Split-view panels: back only when list/detail swap (mobile). Needs both
+/* Split-view panels: back when list/detail swap (below 640px). Needs both
    classes so display:none outranks .ios-icon-btn { display: inline-flex }. */
 .de-back-btn.ios-icon-btn {
   display: none;

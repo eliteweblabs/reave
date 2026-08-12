@@ -112,6 +112,7 @@
   --sidebar-w: 260px;
   --sidebar-min-w: 200px;
   --sidebar-max-w: 520px;
+  /* Split view + resizable sidebar at ≥640px; clamped in admin-ui.js by viewport. */
   --sidebar-inset: 0.65rem;
   --filter-tab-fade-w: 6px;
   --detail-tab-fade-w: 1rem;
