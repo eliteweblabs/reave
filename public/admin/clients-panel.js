@@ -1533,12 +1533,6 @@ function renderEditClientForm(pane) {
           value: clientState.draft.company || '',
           placeholder: 'Company name',
           ariaLabel: 'Company name',
-          leading: contactAvatarHtml({
-            iconUrl:
-              clientBrandingPreviewUrl(clientState.draft.iconUrl) ||
-              clientBrandingPreviewUrl(clientState.draft.logoUrl),
-            iconSize: 16,
-          }),
         },
         icons: [
           agentBtn,
