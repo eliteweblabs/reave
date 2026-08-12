@@ -242,13 +242,6 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         actions: [{ label: "Review draft", variant: "primary" }],
       },
       {
-        role: "user",
-        /** Soft mention: "Send it to Sar…" opens the picker without typing `@`. */
-        text: "Send it to @Sarah Chen for approval.",
-        kind: "soft-mention",
-        pauseMs: 2000,
-      },
-      {
         role: "assistant",
         text: "Approval request sent to @Sarah Chen.",
         pauseMs: 1300,
@@ -278,18 +271,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "@Reggie viewed the NDA document 2 minutes ago.",
         pauseMs: 1500,
-        actions: [{ label: "View signing status", variant: "secondary" }],
-      },
-      {
-        role: "user",
-        text: "Remind me if it's not signed by Friday.",
-        kind: "voice",
-        pauseMs: 1900,
-      },
-      {
-        role: "assistant",
-        text: "Reminder set for Friday at 9 AM.",
-        pauseMs: 1200,
+        actions: [{ label: "View signing status", variant: "primary" }],
       },
     ],
   },

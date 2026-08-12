@@ -1970,7 +1970,29 @@ async function simulateActionPress(
     await playInvoicePaymentSkeleton(sceneEl, relayout, reducedMotion, isAlive);
   } else if (effect === "proposal-flow") {
     await playProposalFlow(root, sceneEl, relayout, reducedMotion, isAlive);
+  } else {
+    const label = (target.textContent || "Open").trim() || "Open";
+    await playActionPlaceholder(sceneEl, relayout, reducedMotion, isAlive, label);
   }
+}
+
+/** Generic beat when a demo action chip has no bespoke skeleton yet. */
+async function playActionPlaceholder(
+  sceneEl: HTMLElement,
+  relayout: Relayout,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+  label: string,
+): Promise<void> {
+  await playDashboardNotification(
+    sceneEl,
+    relayout,
+    reducedMotion,
+    isAlive,
+    label,
+    "Opening…",
+  );
+  await wait(reducedMotion ? 400 : 650);
 }
 
 function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
@@ -2174,6 +2196,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         continue;
       }
 
+      const hadActionChips = Boolean(turn.actions?.length);
       lastAssistantRow = await playAssistantTurn(
         turn,
         root,
@@ -2185,6 +2208,13 @@ export function initHeroDemoLoop(root: HTMLElement) {
         mapboxToken,
         scene.userAvatar,
       );
+
+      // The chip press is the user's choice — don't follow with a mock user bubble.
+      if (hadActionChips) {
+        while (i + 1 < scene.turns.length && scene.turns[i + 1]!.role === "user") {
+          i++;
+        }
+      }
 
       if (sceneEl.dataset.heroHardCut === "1") {
         // Invoice already swiped away — fade the remaining chat, then next scene.
