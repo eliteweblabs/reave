@@ -34,6 +34,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   data-home-section="home"
   aria-labelledby="home-hero-title"
 >
+  {/*
+    Document-flow (NOT position:fixed). iOS paints the status-bar inset black
+    (theme-color + color-scheme). This scrim matches that bar, then fades to
+    the page. Because it lives on the hero it scrolls away, so the notch /
+    Dynamic Island reveal the atmosphere and content underneath.
+  */}
+  <div class="home-hero-safe-fade" aria-hidden="true"></div>
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
       <BrandIconInline company={company} />
@@ -128,9 +135,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     max-width: 100%;
     isolation: isolate;
     /*
-     * Full device fold — matches Layout --device-height (100lvh). Large
-     * viewport stays stable while the URL bar shows/hides; body::before paints
-     * the same height so safe-area strips match the viable canvas color.
+     * Full hardware fold (100lvh), including behind the floating Safari
+     * toolbar. 100dvh is only the visible fold — the next section then peeks
+     * under the address bar. Chat/CTAs stay in the visible fold via
+     * (100lvh - 100dvh) on their bottom inset.
      */
     min-height: 100vh;
     min-height: -webkit-fill-available;
@@ -144,6 +152,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     height: var(--device-height, 100lvh);
     overflow: hidden;
     scroll-margin-top: 0;
+  }
+
+  /*
+   * Must stay position:absolute on the hero (scrolls with the page).
+   * A viewport-fixed cap was tried and removed: it never left the notch,
+   * so scrolled content could not show around the island.
+   */
+  .home-hero-safe-fade {
+    display: none;
   }
 
   /* Icon + headline — highest layer, dead centre of the viewport */
@@ -227,15 +244,21 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   @media (max-width: 768px) {
-    .home-hero {
-      /*
-       * 100lvh is taller than the visible fold while the Safari toolbar is
-       * showing, so CTAs at the demo column bottom sit under the address bar.
-       * dvh tracks the live visible height instead.
-       */
-      min-height: 100dvh;
-      height: 100dvh;
-      max-height: 100dvh;
+    .home-hero-safe-fade {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 6;
+      height: calc(env(safe-area-inset-top, 0px) + 64px);
+      pointer-events: none;
+      background: linear-gradient(
+        180deg,
+        #000 0%,
+        #000 env(safe-area-inset-top, 0px),
+        rgba(0, 0, 0, 0) 100%
+      );
     }
   }
 
@@ -275,7 +298,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+    /*
+     * 100lvh - 100dvh is the floating Safari toolbar. Zero on desktop.
+     * Keeps the lane in the visible fold while the hero itself fills 100lvh.
+     */
+    bottom: calc(
+      10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)) +
+        (100lvh - 100dvh)
+    );
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -317,7 +347,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     left: 50%;
     bottom: calc(
       var(--home-hero-copy-h, 88px) + 20px +
-        var(--viable-bottom, env(safe-area-inset-bottom, 0px))
+        var(--viable-bottom, env(safe-area-inset-bottom, 0px)) +
+        (100lvh - 100dvh)
     );
     transform: translateX(-50%);
     display: inline-flex;
