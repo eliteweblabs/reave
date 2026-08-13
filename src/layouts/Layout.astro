@@ -160,7 +160,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		--safe-right: env(safe-area-inset-right, 0px);
 		--safe-bottom: env(safe-area-inset-bottom, 0px);
 		--safe-left: env(safe-area-inset-left, 0px);
-		/* 100vh only — 100% / 100dvh / 100lvh can defeat viewport-fit=cover. */
 		--device-height: 100vh;
 		--viable-top: var(--safe-top);
 		--viable-right: var(--safe-right);
@@ -173,13 +172,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	html {
 		/*
-		 * Full-bleed Mobile Safari: height:100% (and 100dvh / 100lvh) silently
-		 * defeats viewport-fit=cover + black-translucent — content never
-		 * extends behind the notch. 100vh is the layout viewport that does.
-		 * Body uses min-height so long pages can still grow and scroll.
+		 * Do not lock html to 100vh. That sizes the document to Safari’s
+		 * layout viewport, which excludes the overlay status bar / toolbar —
+		 * scrolling content never enters the upper safe area. Let the
+		 * document grow; viewport-fit=cover then paints into the chrome.
 		 */
-		height: 100vh;
-		min-height: 100vh;
+		min-height: 100%;
+		overflow-y: scroll;
 		background-color: var(--site-canvas, #0c0614);
 	}
 
@@ -190,16 +189,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		font-family: var(--font-content);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
-		/*
-		 * Kill rubber-band overscroll so position:fixed header chrome does not
-		 * shear/clip under Safari (macOS + iOS). Matches admin shell.
-		 */
 		overscroll-behavior-y: none;
 		/*
-		 * Default every page to the dark homepage canvas so text never renders
-		 * on the browser’s white default. viewport-fit=cover extends this
-		 * background into the notch and home indicator; pad chrome with
-		 * env(safe-area-inset-*), not the wallpaper.
+		 * Explicit root color is Safari 26’s Liquid Glass fallback. Pad
+		 * header / CTAs with env(safe-area-inset-*), not the wallpaper.
 		 */
 		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
@@ -207,7 +200,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	body {
-		min-height: 100vh;
+		min-height: 100%;
 		position: relative;
 		background-color: var(--site-canvas, #0c0614);
 	}
@@ -275,7 +268,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). Negative top
 	 * margin pulls the hero under the in-flow sticky header so the first
-	 * screen stays 100vh without collapsing the header’s stick range.
+	 * screen stays one viewport tall without collapsing the header’s stick range.
 	 */
 	main#main-content {
 		position: relative;

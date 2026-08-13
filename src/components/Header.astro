@@ -395,12 +395,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public header: sticky to the layout viewport (`viewport-fit=cover` makes
-   * that the full screen, including the notch). Pad the logo/actions with
-   * env(safe-area-inset-*) so they sit below the status bar; do not pad the
-   * wallpaper. Overlay the hero by pulling main up — not a negative margin
-   * on this element (WebKit then treats the stick range as empty).
-   * Admin stays fixed.
+   * Public header: sticky, no background/backdrop-filter on this element
+   * (Safari 26 samples those for Liquid Glass and would hide scrolling
+   * pixels in the status bar). Pad the logo/actions below the notch.
+   * Overlay the hero by pulling main up — not a negative margin on this
+   * element (WebKit then treats the stick range as empty). Admin stays fixed.
    */
   .app-header {
     position: sticky;
@@ -411,6 +410,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
+    background: transparent;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
