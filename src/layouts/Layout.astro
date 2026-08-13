@@ -36,7 +36,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Defaults to Safari’s black safe-area chrome; the page edge fades from the same solid. */
+	/** Initial `<meta name="theme-color">`. Page canvas so iOS chrome can tint from the same purple. */
   themeColor?: string;
 }
 
@@ -47,7 +47,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-	themeColor = "#000000",
+	themeColor = "#0c0614",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -281,13 +281,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		position: relative;
 		z-index: 2;
 		margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem)));
-	}
-
-	@media (max-width: 768px) {
-		html,
-		body {
-			background-color: var(--site-status-bar, #000);
-		}
 	}
 
 	@media (min-width: 769px) {
