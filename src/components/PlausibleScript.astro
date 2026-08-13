@@ -1,0 +1,29 @@
+---
+/**
+ * PlausibleScript.astro
+ * ---------------------
+ * Injects the self-hosted Plausible Analytics tracking script into every page.
+ *
+ * Reads PLAUSIBLE_API_BASE_URL from env and the apex domain from company config.
+ * Renders nothing when either value is missing — safe on installs without Plausible.
+ *
+ * NOT an admin-editable setting — purely behind-the-scenes.
+ * Every REΛVE installation gets tracking automatically when the env var is set.
+ */
+import { getCompany } from "../lib/company";
+
+const plausibleBase = (import.meta.env.PLAUSIBLE_API_BASE_URL ?? "").replace(/\/+$/, "");
+const company = getCompany();
+const domain = company?.domain ?? "";
+const enabled = !!(plausibleBase && domain);
+---
+
+{enabled && (
+  <script
+    is:inline
+    defer
+    data-domain={domain}
+    src={`${plausibleBase}/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js`}
+  ></script>
+  <script is:inline>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+)}
