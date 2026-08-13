@@ -6,6 +6,12 @@ import { serverEnv } from './serverEnv';
 import { siteBaseUrl } from './requestOrigin';
 import { hasFeature } from './features';
 import { parseStoredBusinessHours, type BusinessHours } from './businessHours';
+import {
+  mergePortalDocuments,
+  mergePortalVaultData,
+  normalizeVaultEntries,
+} from './portalVault';
+import { splitClientNameParts } from './contactPersonName';
 
 export { siteBaseUrl } from './requestOrigin';
 
@@ -201,7 +207,7 @@ function nullableContactField(value: unknown): string | null {
 
 /** Normalize contact-api string fields so null/non-string values never reach .trim() or regex. */
 export function normalizeContactRecord(contact: ContactRecord): ContactRecord {
-  return {
+  const trimmed: ContactRecord = {
     ...contact,
     name: contactStringField(contact.name) || contact.uid,
     firstName: nullableContactField(contact.firstName),
@@ -210,6 +216,13 @@ export function normalizeContactRecord(contact: ContactRecord): ContactRecord {
     phone: nullableContactField(contact.phone),
     company: nullableContactField(contact.company),
     notes: nullableContactField(contact.notes),
+  };
+  // contact-api always splitName()s `name` — drop that when it is the company.
+  const person = splitClientNameParts(trimmed);
+  return {
+    ...trimmed,
+    firstName: person.firstName || null,
+    lastName: person.lastName || null,
   };
 }
 
@@ -244,6 +257,8 @@ export type PlacesListingRecord = {
  * record, hosting info, etc. `password` is masked on the page (reveal/copy).
  */
 export type ClientDataEntry = {
+  /** Stable id so concurrent portal writes can merge instead of clobbering rows. */
+  id?: string;
   label: string;
   value?: string;
   username?: string;
@@ -992,48 +1007,100 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
           }))
       : raw.fields,
     data: Array.isArray(raw.data)
-      ? raw.data
-          .filter((e) => e && contactStringField(e.label))
-          .map((e) => ({
-            ...e,
-            label: contactStringField(e.label),
-            value: contactStringField(e.value) || undefined,
-            username: contactStringField(e.username) || undefined,
-            password: contactStringField(e.password) || undefined,
-            url: contactStringField(e.url) || undefined,
-          }))
+      ? normalizeVaultEntries(
+          raw.data
+            .filter((e) => e && contactStringField(e.label))
+            .map((e) => ({
+              ...e,
+              id: contactStringField((e as ClientDataEntry).id) || undefined,
+              label: contactStringField(e.label),
+              value: contactStringField(e.value) || undefined,
+              username: contactStringField(e.username) || undefined,
+              password: contactStringField(e.password) || undefined,
+              url: contactStringField(e.url) || undefined,
+            })),
+        )
       : raw.data,
   };
+}
+
+export type SetContactPortalOpts = {
+  /**
+   * Vault row ids this writer loaded and may delete. Ids present in the latest
+   * portal but missing from both incoming `data` and this list are treated as
+   * concurrently added and kept. Omit to preserve any latest id not in incoming.
+   */
+  vaultKnownIds?: string[];
+};
+
+const portalWriteChains = new Map<string, Promise<unknown>>();
+
+function enqueuePortalWrite<T>(uid: string, work: () => Promise<T>): Promise<T> {
+  const next = (portalWriteChains.get(uid) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(work);
+  portalWriteChains.set(uid, next);
+  void next.finally(() => {
+    if (portalWriteChains.get(uid) === next) portalWriteChains.delete(uid);
+  });
+  return next;
 }
 
 /**
  * Create/replace the portal payload for a contact (upsert on system='portal').
  * NOTE: contact-api replaces metadata wholesale, so callers should pass the full
  * desired portal object (merge with existing first if doing partial updates).
+ *
+ * Vault rows (`data`) and signed documents are merged against the latest portal
+ * immediately before write so a stale snapshot cannot drop concurrently added
+ * items. Writes for the same contact are serialized in-process.
  */
 export async function setContactPortal(
   uid: string,
-  portal: ClientPortal
+  portal: ClientPortal,
+  opts?: SetContactPortalOpts,
 ): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
   const base = baseUrl();
   if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
   if (!uid?.trim()) return { ok: false, error: 'uid is required' };
+  return enqueuePortalWrite(uid.trim(), () => setContactPortalLocked(uid.trim(), portal, opts));
+}
 
-  const trimmedUid = uid.trim();
+async function setContactPortalLocked(
+  trimmedUid: string,
+  portal: ClientPortal,
+  opts?: SetContactPortalOpts,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+
   let metadata: ClientPortal = { ...portal, updatedAt: new Date().toISOString() };
+
+  let previousPortal: ClientPortal | null = null;
+  let contactName = trimmedUid;
+  const current = await getContact(trimmedUid);
+  if (current.ok) {
+    previousPortal = extractPortal(current.data);
+    contactName = contactStringField(current.data.name) || contactName;
+  }
+
+  const incomingHasData = Object.prototype.hasOwnProperty.call(portal, 'data');
+  metadata.data = mergePortalVaultData({
+    latest: previousPortal?.data,
+    incoming: incomingHasData ? portal.data : undefined,
+    knownIds: opts?.vaultKnownIds,
+  });
+
+  const incomingHasDocs = Object.prototype.hasOwnProperty.call(portal, 'documents');
+  metadata.documents = mergePortalDocuments(
+    previousPortal?.documents,
+    incomingHasDocs ? portal.documents : undefined,
+  );
 
   // Site monitoring sync (optional module) — merge watch metadata before save.
   try {
-    const { hasFeature } = await import('./features');
     const { syncSiteWatchForPortal } = await import('./siteMonitoring');
     if (hasFeature('site_monitoring')) {
-      let previousPortal: ClientPortal | null = null;
-      let contactName = trimmedUid;
-      const current = await getContact(trimmedUid);
-      if (current.ok) {
-        previousPortal = extractPortal(current.data);
-        contactName = contactStringField(current.data.name) || contactName;
-      }
       metadata = await syncSiteWatchForPortal({
         uid: trimmedUid,
         contactName,
@@ -1060,4 +1127,44 @@ export async function setContactPortal(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Append vault rows with retry so overlapping submits cannot replace each other. */
+export async function appendClientPortalData(
+  uid: string,
+  entries: ClientDataEntry[],
+): Promise<
+  { ok: true; data: ClientDataEntry[] } | { ok: false; error: string; status?: number }
+> {
+  const incoming = normalizeVaultEntries(entries);
+  if (!incoming.length) return { ok: false, error: 'No vault entries' };
+
+  let lastError = 'Could not save vault entries';
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const current = await getContact(uid);
+    if (!current.ok) return { ok: false, error: current.error, status: current.status };
+    const portal = extractPortal(current.data) ?? {};
+    const existing = normalizeVaultEntries(portal.data);
+    const have = new Set(existing.map((e) => e.id));
+    const missing = incoming.filter((e) => e.id && !have.has(e.id));
+    if (!missing.length) return { ok: true, data: existing };
+
+    const nextData = [...existing, ...missing];
+    const saved = await setContactPortal(
+      uid,
+      { ...portal, data: nextData, updatedAt: new Date().toISOString() },
+      { vaultKnownIds: nextData.map((e) => e.id).filter((id): id is string => Boolean(id)) },
+    );
+    if (!saved.ok) {
+      lastError = saved.error;
+      continue;
+    }
+
+    const verify = await getContact(uid);
+    if (!verify.ok) return { ok: true, data: nextData };
+    const after = normalizeVaultEntries(extractPortal(verify.data)?.data);
+    const afterIds = new Set(after.map((e) => e.id));
+    if (incoming.every((e) => e.id && afterIds.has(e.id))) return { ok: true, data: after };
+  }
+  return { ok: false, error: lastError };
 }

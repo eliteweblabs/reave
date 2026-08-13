@@ -3,7 +3,9 @@
   "pages": ["/", "/privacy", "/terms"],
   "nav": {
     "links": [
-      { "href": "/#inquiry", "label": "Get Started" },
+      { "href": "/#numbers", "label": "By the Numbers" },
+      { "href": "/#properties", "label": "Properties" },
+      { "href": "/#reviews", "label": "Reviews" },
       { "href": "/#contact", "label": "Contact" }
     ],
     "groups": [
@@ -32,31 +34,258 @@
     "ctas": [{ "href": "/#inquiry", "label": "Get Started", "variant": "primary" }]
   },
   "landing": {
+    "variant": "editorial",
     "title": "Tony Barletta Jr. | Loan Officer",
-    "description": "Work with Tony Barletta Jr., NMLS #18717. Licensed mortgage loan officer serving clients across multiple states.",
-    "ogImage": "/sites/tonybarlettajr/headshot.png",
-    "themeColor": "#01061d",
+    "description": "Tony Barletta Jr., NMLS #18717. Referral-driven mortgage lending across Massachusetts and 22 licensed states.",
+    "ogImage": "/sites/tonybarlettajr/og-image.jpg",
+    "themeColor": "#f4efe6",
     "photo": {
       "src": "/sites/tonybarlettajr/headshot.png",
       "alt": "Tony Barletta Jr.",
       "width": 449,
       "height": 449
     },
-    "eyebrow": "NMLS #18717",
+    "eyebrow": "NMLS #18717 · Loan Officer",
     "name": "Tony Barletta Jr.",
     "role": "Loan Officer",
     "tagline": "Guiding homebuyers and refinancers through the mortgage process with clear, personal service.",
-    "steps": {
-      "heading": "Your mortgage application in 5 simple steps",
+    "signature": "Tony Barletta Jr.",
+    "heroImage": "/sites/tonybarlettajr/hero.jpg",
+    "heroHeadline": "Guidance you can close on.",
+    "heroBody": "Two decades of mortgage work, built on referrals. Tony helps first-time buyers, repeat clients, and investors through conventional loans, refinances, and more complicated construction and remodeling scenarios.",
+    "scheduleUrl": "https://cal.com/tonybarlettajr",
+    "vcfHref": "/sites/tonybarlettajr/tony-barletta-jr.vcf",
+    "numbers": {
+      "heading": "A referral business, measured in closings.",
+      "intro": "Placeholder production figures for layout. Swap these for Tony’s actual volume when ready.",
+      "note": "Figures shown are placeholders pending actual production numbers.",
+      "stats": [
+        { "value": "20+", "label": "Years in lending" },
+        { "value": "$847M", "label": "Sample funded volume" },
+        { "value": "1,240", "label": "Sample families helped" },
+        { "value": "4.96", "label": "Public review average" },
+        { "value": "93", "label": "Published client reviews" },
+        { "value": "22", "label": "Licensed states" },
+        { "value": "18", "label": "Sample avg. days to close" },
+        { "value": "92%", "label": "Sample repeat / referral share" }
+      ]
+    },
+    "properties": {
+      "heading": "Sample homes across the North Shore and South Coast.",
+      "intro": "Featured Properties",
+      "note": "Dummy listings for design only — not active inventory.",
       "items": [
-        "Connect with Tony to discuss your goals",
-        "Review loan options and get pre-approved",
-        "Submit your application and documentation",
-        "Track underwriting and appraisal progress",
-        "Close on your new home or refinance"
+        {
+          "id": "p1",
+          "title": "Harborview Colonial",
+          "address": "18 Lothrop Street",
+          "city": "Beverly",
+          "state": "MA",
+          "zip": "01915",
+          "price": 1249000,
+          "beds": 4,
+          "baths": 3,
+          "sqft": 2860,
+          "year": 1924,
+          "type": "Single Family",
+          "district": "Beverly Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p1.jpg",
+          "lng": -70.8801,
+          "lat": 42.5588,
+          "featured": true
+        },
+        {
+          "id": "p2",
+          "title": "Marblehead Neck Residence",
+          "address": "42 Ocean Avenue",
+          "city": "Marblehead",
+          "state": "MA",
+          "zip": "01945",
+          "price": 2195000,
+          "beds": 5,
+          "baths": 4,
+          "sqft": 4120,
+          "year": 2008,
+          "type": "Single Family",
+          "district": "Marblehead Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p2.jpg",
+          "lng": -70.8432,
+          "lat": 42.5051,
+          "featured": true
+        },
+        {
+          "id": "p3",
+          "title": "Federal Street Townhome",
+          "address": "7 Federal Street",
+          "city": "Salem",
+          "state": "MA",
+          "zip": "01970",
+          "price": 875000,
+          "beds": 3,
+          "baths": 2.5,
+          "sqft": 2140,
+          "year": 1898,
+          "type": "Townhouse",
+          "district": "Salem Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p3.jpg",
+          "lng": -70.8956,
+          "lat": 42.5218,
+          "featured": true
+        },
+        {
+          "id": "p4",
+          "title": "Andover Green Colonial",
+          "address": "31 School Street",
+          "city": "Andover",
+          "state": "MA",
+          "zip": "01810",
+          "price": 1549000,
+          "beds": 5,
+          "baths": 3.5,
+          "sqft": 3680,
+          "year": 1996,
+          "type": "Single Family",
+          "district": "Andover Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p4.jpg",
+          "lng": -71.1412,
+          "lat": 42.6581,
+          "featured": true
+        },
+        {
+          "id": "p5",
+          "title": "Union Street Loft",
+          "address": "210 Union Street",
+          "city": "New Bedford",
+          "state": "MA",
+          "zip": "02740",
+          "price": 649000,
+          "beds": 2,
+          "baths": 2,
+          "sqft": 1680,
+          "year": 2019,
+          "type": "Condo",
+          "district": "New Bedford Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p5.jpg",
+          "lng": -70.9278,
+          "lat": 41.6354,
+          "featured": true
+        },
+        {
+          "id": "p6",
+          "title": "Dartmouth Farmhouse",
+          "address": "88 Chase Road",
+          "city": "Dartmouth",
+          "state": "MA",
+          "zip": "02747",
+          "price": 989000,
+          "beds": 4,
+          "baths": 3,
+          "sqft": 3020,
+          "year": 1978,
+          "type": "Single Family",
+          "district": "Dartmouth Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p6.jpg",
+          "lng": -70.9698,
+          "lat": 41.6139,
+          "featured": true
+        },
+        {
+          "id": "p7",
+          "title": "Manchester Cottage",
+          "address": "12 Bridge Street",
+          "city": "Manchester-by-the-Sea",
+          "state": "MA",
+          "zip": "01944",
+          "price": 1875000,
+          "beds": 4,
+          "baths": 3,
+          "sqft": 2940,
+          "year": 1912,
+          "type": "Single Family",
+          "district": "Manchester Essex Regional",
+          "image": "/sites/tonybarlettajr/properties/p7.jpg",
+          "lng": -70.7691,
+          "lat": 42.5776,
+          "featured": false
+        },
+        {
+          "id": "p8",
+          "title": "North Andover Contemporary",
+          "address": "55 Pleasant Street",
+          "city": "North Andover",
+          "state": "MA",
+          "zip": "01845",
+          "price": 1125000,
+          "beds": 4,
+          "baths": 2.5,
+          "sqft": 2750,
+          "year": 2014,
+          "type": "Single Family",
+          "district": "North Andover Public Schools",
+          "image": "/sites/tonybarlettajr/properties/p8.jpg",
+          "lng": -71.1348,
+          "lat": 42.6984,
+          "featured": true
+        }
+      ]
+    },
+    "map": {
+      "heading": "Filter by price, schools, year built, and more.",
+      "intro": "Search",
+      "note": "Sample listings on a live Mapbox map.",
+      "lng": -70.95,
+      "lat": 42.35,
+      "zoom": 8.1
+    },
+    "reviews": {
+      "heading": "Clients come back — and send their families.",
+      "intro": "Selected from public reviews. Tony holds a 4.96 rating across 93 published comments, with a business he describes as built on referrals.",
+      "items": [
+        {
+          "stars": "★★★★★",
+          "quote": "I can say for a 100% certainty that I would not have purchased my first home as of now if it wasn’t for Tony. He helped me every step of the way — not only getting approved, but finding the best programs I could qualify for.",
+          "cite": "Ilana · Pembroke, MA"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Working with Tony was a great experience again — third house purchased with Tony. Customer service was exemplary. They made the process easy.",
+          "cite": "Repeat client · Manchester, NH"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "I was 15–20 days outside of closing and being failed by another lender. Tony came in and literally saved us from losing the house.",
+          "cite": "Client · Nashua, NH"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Tony was able to help my mom refinance after four different banks said no. The sound of relief in her voice was a testament to the kind of person he is.",
+          "cite": "Public client review"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Because of Tony and his team, I felt completely confident throughout buying my first home. Transparent, easy to reach, patient, and diligent.",
+          "cite": "Chantel · Salem, MA"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "He gave us many options and some creative ways to make things fit the budget. Honest, factual information — always available, even for the simplest questions.",
+          "cite": "Martha Ferratusco · LinkedIn recommendation"
+        }
+      ]
+    },
+    "about": {
+      "heading": "Clear advice. Complicated files. Repeat business.",
+      "body": [
+        "Tony Barletta Jr. is a licensed mortgage loan originator, NMLS #18717, serving clients from Massachusetts with licenses in 22 states. Public profiles describe two decades in the business, including branch leadership, and a practice built on referrals through both high and low points in the market.",
+        "He is well versed in traditional financing and in construction and remodeling scenarios, and he pairs that with personal experience as a real estate investor. Clients consistently mention the same things: he explains the numbers in plain language, answers nights and weekends, walks people through the tech, and stays until the house is actually closed."
       ],
-      "ctaLabel": "Get Started",
-      "ctaHref": "#inquiry"
+      "highlights": [
+        "Licensed loan originator since 2011, NMLS #18717",
+        "4.96-star public rating from 93 reviews",
+        "First-time buyers, refinances, and repeat purchase clients",
+        "Construction, remodeling, and non-simple credit files",
+        "North Shore roots, New Bedford office, licensed nationwide in 22 states"
+      ]
     },
     "inquiry": {
       "heading": "Send an Inquiry",
@@ -78,6 +307,6 @@
       "nmlsLabel": "NMLS Consumer Access",
       "nmlsHref": "https://www.nmlsconsumeraccess.org/"
     },
-    "footer": "Tony Barletta Jr. NMLS #18717"
+    "footer": "Tony Barletta Jr. NMLS #18717 · tony@tonybarlettajr.com"
   }
 }

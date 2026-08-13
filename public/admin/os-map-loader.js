@@ -201,7 +201,6 @@ import {
   isShakeUndoPendingKey,
   pendingShakeUndoKey,
   queueShakeUndo,
-  shakeUndoLikelyAvailable,
 } from './shake-undo.js?v=20260810a';
 import {
   initChatPanel,
@@ -259,7 +258,7 @@ import {
   ruleState,
   loadRulesTab,
   openRulesLabWithEmail,
-} from './rules-panel.js?v=20260812i';
+} from './rules-panel.js?v=20260813b';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -3753,10 +3752,8 @@ async function dismissReviewNotification(item, btn) {
     // Start permission from this gesture (iOS); do not await the dialog.
     void ensureShakePermission();
 
-    const shakeHint = shakeUndoLikelyAvailable();
     await queueShakeUndo({
       key,
-      message: shakeHint ? 'Dismissed — Shake to Undo' : 'Notification dismissed',
       commit: async () => {
         pendingDismissKeys.delete(key);
         try {

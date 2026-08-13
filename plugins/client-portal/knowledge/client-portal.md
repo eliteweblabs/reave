@@ -59,8 +59,10 @@ there's no match or nothing on file, the Billing tab is omitted. Read-only.
 
 ## Data tab (web-design handoff)
 
-Populate via `set_client_portal`'s `data` array. Each entry: a `label` plus any
-of `value`, `username`, `password`, `url`. Passwords render **masked** with
+Populate via `set_client_portal`'s `data` array. Each call **adds or updates**
+vault items (it does not replace the whole list). Each entry: a `label` plus any
+of `value`, `username`, `password`, `url`. Pass `id` from `get_client_portal` to
+update an existing row. Passwords render **masked** with
 reveal/copy buttons. Example: WordPress admin login, DNS records, hosting
 credentials. **These are sensitive** — they live in `contact-postgres` (the
 portal `metadata`) and are visible to anyone with the unguessable link, so only

@@ -39,12 +39,40 @@ export type SiteHeroCta = {
   variant?: 'primary' | 'ghost';
 };
 
+export type SiteLandingProperty = {
+  id: string;
+  title: string;
+  address: string;
+  city: string;
+  state?: string;
+  zip?: string;
+  price: number;
+  beds: number;
+  baths: number;
+  sqft: number;
+  year: number;
+  type: string;
+  district: string;
+  image: string;
+  lng: number;
+  lat: number;
+  featured?: boolean;
+};
+
+export type SiteLandingReview = {
+  quote: string;
+  cite: string;
+  stars?: string;
+};
+
 /** Aggregated static marketing site — rendered when homepage.template === "landing". */
 export type SiteLandingConfig = {
   title?: string;
   description?: string;
   ogImage?: string;
   themeColor?: string;
+  /** "editorial" = Campion-style scrolling site. Default keeps the original navy landing. */
+  variant?: "default" | "editorial";
   photo?: {
     src: string;
     alt: string;
@@ -55,11 +83,47 @@ export type SiteLandingConfig = {
   name?: string;
   role?: string;
   tagline?: string;
+  signature?: string;
+  heroImage?: string;
+  heroHeadline?: string;
+  heroBody?: string;
+  scheduleUrl?: string;
+  vcfHref?: string;
   steps?: {
     heading: string;
     items: string[];
     ctaLabel?: string;
     ctaHref?: string;
+  };
+  numbers?: {
+    heading: string;
+    intro?: string;
+    note?: string;
+    stats: Array<{ value: string; label: string }>;
+  };
+  properties?: {
+    heading: string;
+    intro?: string;
+    note?: string;
+    items: SiteLandingProperty[];
+  };
+  map?: {
+    heading: string;
+    intro?: string;
+    note?: string;
+    lng?: number;
+    lat?: number;
+    zoom?: number;
+  };
+  reviews?: {
+    heading: string;
+    intro?: string;
+    items: SiteLandingReview[];
+  };
+  about?: {
+    heading: string;
+    body?: string[];
+    highlights?: string[];
   };
   inquiry?: {
     heading: string;

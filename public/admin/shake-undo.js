@@ -2,7 +2,7 @@
  * Shake-to-undo for reversible admin actions (e.g. dismissing a dashboard notification).
  *
  * Flow: optimistic UI → short undo window → commit. Shake (when motion is available)
- * or tapping Undo cancels the commit and runs the undo callback.
+ * or tapping Undo? cancels the commit and runs the undo callback.
  *
  * iOS 13+ requires DeviceMotionEvent.requestPermission() from a user gesture; call
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
@@ -122,33 +122,22 @@ function hideUndoToast() {
   toastTimer = null;
 }
 
-function showUndoToast(message, onUndo) {
+function showUndoToast(onUndo) {
   let toast = document.getElementById('ch-undo-toast');
   if (!toast) {
-    toast = document.createElement('div');
+    toast = document.createElement('button');
+    toast.type = 'button';
     toast.id = 'ch-undo-toast';
     toast.className = 'ch-toast ch-undo-toast';
-    toast.setAttribute('role', 'status');
     document.body.appendChild(toast);
   }
 
-  toast.replaceChildren();
-
-  const label = document.createElement('span');
-  label.className = 'ch-undo-toast-label';
-  label.textContent = message;
-
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'ch-undo-toast-btn';
-  btn.textContent = 'Undo';
-  btn.addEventListener('click', (e) => {
+  toast.textContent = 'Undo?';
+  toast.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     onUndo();
-  });
-
-  toast.append(label, btn);
+  };
   toast.classList.remove('ch-toast-anchored');
   toast.style.left = '';
   toast.style.top = '';
@@ -191,7 +180,7 @@ async function performPendingUndo() {
 
 /**
  * Queue a single undoable action. A new queue call commits any previous pending action first.
- * @param {{ key: string, commit: () => (void|Promise<void>), undo: () => (void|Promise<void>), message?: string }} opts
+ * @param {{ key: string, commit: () => (void|Promise<void>), undo: () => (void|Promise<void>) }} opts
  */
 export async function queueShakeUndo(opts) {
   const key = String(opts?.key || '').trim();
@@ -203,17 +192,12 @@ export async function queueShakeUndo(opts) {
 
   startShakeListening();
 
-  const shakeHint = shakeUndoLikelyAvailable() && motionPermissionCached() !== 'denied';
-  const message =
-    opts.message ||
-    (shakeHint ? 'Dismissed — Shake to Undo' : 'Notification dismissed');
-
   const timer = setTimeout(() => {
     void flushPendingCommit();
   }, UNDO_WINDOW_MS);
 
   pending = { key, commit, undo, timer };
-  showUndoToast(message, () => {
+  showUndoToast(() => {
     void performPendingUndo();
   });
 }

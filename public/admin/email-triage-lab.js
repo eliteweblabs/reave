@@ -90,12 +90,26 @@ export function formatRuleWhenClause(rule) {
   return parts.join(' ');
 }
 
+/** What the rule actually does to matched mail (not notification button chrome). */
+export function formatRuleProcessLabel(rule) {
+  const status = String(rule?.status || '').toUpperCase();
+  if (status === 'DELETE' || status === 'JUNK') return 'Delete';
+  if (status === 'AUTO_ARCHIVED') return 'Archive';
+  if (status === 'RECEIPT') return 'Receipt';
+  const push = rule?.notifyPush != null ? !!rule.notifyPush : !!rule.notify;
+  const dashboard = rule?.notifyDashboard != null ? !!rule.notifyDashboard : !!rule.notify;
+  if (!push && !dashboard) return 'Silent';
+  const bits = [];
+  if (push) bits.push('Push');
+  if (dashboard) bits.push('Dashboard');
+  return bits.join('+') || 'Silent';
+}
+
 /** Scope · process · notify/silent meta under the WHEN clause. */
 export function formatRuleLabMeta(rule) {
   const scope = rule?.scope === 'universal' ? 'Universal' : 'Personal';
   const status = String(rule?.status || '—').trim() || '—';
-  const notify = rule?.notify ? 'Notify' : 'Silent';
-  const bits = [scope, status, notify];
+  const bits = [scope, status, formatRuleProcessLabel(rule)];
   if (rule?.enabled === false) bits.push('Off');
   return bits.join(' · ');
 }

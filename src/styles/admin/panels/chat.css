@@ -853,39 +853,36 @@ body.admin-split-view #chat-panel .ch-compose {
   transform: translateY(0);
 }
 .ch-undo-toast {
-  display: flex;
+  appearance: none;
+  display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
+  justify-content: center;
   pointer-events: auto;
-  padding: 0.4rem 0.4rem 0.4rem 0.85rem;
-  max-width: min(22rem, calc(100vw - 1.5rem));
-}
-.ch-undo-toast-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ch-undo-toast-btn {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 0.3rem 0.65rem;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--accent, #0a84ff);
-  background: transparent;
+  top: calc(var(--safe-top) + 1.25rem);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-0.5rem);
+  padding: 0.78rem 1.4rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
+  font-family: var(--font-primary);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0b0512;
+  background: var(--brand-gradient);
+  box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
+  white-space: nowrap;
   cursor: pointer;
 }
-.ch-undo-toast-btn:hover {
-  background: var(--msg-action-hover, rgba(127, 127, 127, 0.12));
+.ch-undo-toast.ch-toast-visible {
+  transform: translateX(-50%) translateY(0);
 }
-.ch-undo-toast-btn:focus-visible {
-  outline: 2px solid var(--accent, #0a84ff);
-  outline-offset: 1px;
+.ch-undo-toast.ch-toast-visible:hover {
+  filter: brightness(1.06);
+  transform: translateX(-50%) translateY(-1px);
+}
+.ch-undo-toast:focus-visible {
+  outline: 2px solid var(--brand-indigo, #6366f1);
+  outline-offset: 2px;
 }
 .ch-context-menu {
   position: fixed;

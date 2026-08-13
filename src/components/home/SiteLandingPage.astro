@@ -1,5 +1,6 @@
 ---
 import type { SiteLandingConfig } from "../../lib/siteContent";
+import EditorialLandingPage from "./EditorialLandingPage.astro";
 
 interface Props {
   landing: SiteLandingConfig;
@@ -12,8 +13,14 @@ const inquiry = landing.inquiry;
 const contact = landing.contact;
 const licensed = landing.licensedStates;
 const year = new Date().getFullYear();
+const isEditorial = landing.variant === "editorial";
 ---
 
+{
+  isEditorial ? (
+    <EditorialLandingPage landing={landing} />
+  ) : (
+    <>
 <main class="page">
   <section class="hero">
     <div class="hero__content">
@@ -420,3 +427,6 @@ const year = new Date().getFullYear();
     }
   }
 </style>
+    </>
+  )
+}

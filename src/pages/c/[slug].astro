@@ -54,6 +54,7 @@ import SiteBackground from '../../components/SiteBackground.astro';
 import '../../styles/brand.css';
 import '../../styles/mobile-touch.css';
 import PortalOutreachSheet from '../../components/PortalOutreachSheet.astro';
+import { contactGreetingName, splitClientNameParts } from '../../lib/contactPersonName';
 
 const org = await getCompanyConfig(Astro.request);
 
@@ -426,11 +427,10 @@ const submitMode = !notFound && Astro.url.searchParams.has('submit');
 
 const showAssistant =
   !notFound && !submitMode && hasFeature('portal_assistant') && isPortalAssistantConfigured();
-const contactFirstName = contactStringField(contact?.firstName);
-const clientFirstName = contactFirstName;
-const outreachGreetingName = contactFirstName
-  ? contactFirstName
-  : company || (displayName !== 'Contact' ? displayName : '');
+// Form fields are First / Last / company title — never invent a first name
+// from the company (contact-api still splits that title into firstName).
+const clientFirstName = contact ? splitClientNameParts(contact).firstName : '';
+const outreachGreetingName = contact ? contactGreetingName(contact) : company;
 
 let portalBrand: PortalBrandColors | null = null;
 if (contact && uid) {
