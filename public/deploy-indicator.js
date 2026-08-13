@@ -3,8 +3,75 @@
   const DEPLOY_POLL_MS_LIVE = 15_000;
   const DEPLOY_POLL_MS_ACTIVE = 5_000;
   const DEPLOY_POLL_MS_ALERT = 60_000;
+  /** Keep in sync with src/lib/agentTones.ts — rising triad when a deploy goes live. */
+  const DEPLOY_TONE_AT_KEY = 'reave:deploy-tone-at';
+  const DEPLOY_TONE_DEBOUNCE_MS = 8_000;
   let deployPollTimer = null;
   let deployPollMs = DEPLOY_POLL_MS_LIVE;
+  let lastDeployTone = null;
+  let deployToneCtx = null;
+  let deployToneArmed = false;
+
+  function deployToneAudioContext() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!deployToneCtx || deployToneCtx.state === 'closed') deployToneCtx = new AC();
+    return deployToneCtx;
+  }
+
+  function armDeployDoneTone() {
+    if (deployToneArmed) return;
+    deployToneArmed = true;
+    const resume = () => {
+      const c = deployToneAudioContext();
+      if (c?.state === 'suspended') void c.resume().catch(() => undefined);
+    };
+    window.addEventListener('pointerdown', resume, { passive: true });
+    window.addEventListener('keydown', resume);
+  }
+
+  function playDeployDoneTone() {
+    const now = Date.now();
+    try {
+      const prev = Number(sessionStorage.getItem(DEPLOY_TONE_AT_KEY) || 0);
+      if (now - prev < DEPLOY_TONE_DEBOUNCE_MS) return;
+      sessionStorage.setItem(DEPLOY_TONE_AT_KEY, String(now));
+    } catch {
+      /* private mode */
+    }
+    const c = deployToneAudioContext();
+    if (!c) return;
+    if (c.state === 'suspended') void c.resume().catch(() => undefined);
+    const t = c.currentTime;
+    const notes = [
+      { freq: 523.25, start: 0, dur: 0.12 },
+      { freq: 659.25, start: 0.1, dur: 0.12 },
+      { freq: 783.99, start: 0.2, dur: 0.28 },
+    ];
+    const master = c.createGain();
+    master.gain.value = 1;
+    master.connect(c.destination);
+    for (const n of notes) {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = n.freq;
+      const t0 = t + n.start;
+      const t1 = t0 + n.dur;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.075, t0 + 0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(t0);
+      osc.stop(t1 + 0.02);
+    }
+  }
+
+  function maybePlayDeployLiveTone(tone) {
+    if (lastDeployTone === 'deploying' && tone === 'live') playDeployDoneTone();
+    lastDeployTone = tone || null;
+  }
 
   function publishDeployIndicator(deploy) {
     try {
@@ -115,6 +182,7 @@
           : tone === 'alert'
             ? DEPLOY_POLL_MS_ALERT
             : DEPLOY_POLL_MS_LIVE;
+      maybePlayDeployLiveTone(tone);
       publishDeployIndicator(data.deploy);
     } catch {
       const keepOpen = dot.classList.contains('tooltip-open');
@@ -174,6 +242,7 @@
       return;
     }
     dot.dataset.deployBound = '1';
+    armDeployDoneTone();
     dot.addEventListener('click', (ev) => {
       ev.stopPropagation();
       dot.classList.toggle('tooltip-open');

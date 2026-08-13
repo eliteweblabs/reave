@@ -59,6 +59,7 @@ import {
 import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
 import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
 import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
+import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -928,6 +929,7 @@ function createChatAdapter(
       };
 
       propsRef.current?.onAgentRunChange?.(true);
+      resumeAgentTones();
       emitProgress({ phase: 'thinking', round: 1 });
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
@@ -1104,6 +1106,7 @@ function createChatAdapter(
         onStreamedProgress(null);
         propsRef.current?.onAgentProgress?.(null);
         propsRef.current?.onAgentRunChange?.(false);
+        if (!options.abortSignal?.aborted) playChatDoneTone();
       }
     },
   };
@@ -1111,10 +1114,38 @@ function createChatAdapter(
 
 type DeployChatDraftPayload = { threadId: string; text: string };
 
+function messagePlainText(
+  message:
+    | { content?: ReadonlyArray<{ type: string; text?: string }> }
+    | null
+    | undefined,
+): string {
+  return (message?.content ?? [])
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text ?? '')
+    .join('');
+}
+
+function lastUserMessageText(
+  messages: ReadonlyArray<{ role: string; content?: ReadonlyArray<{ type: string; text?: string }> }>,
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role !== 'user') continue;
+    return messagePlainText(messages[i]);
+  }
+  return '';
+}
+
+/** True when `text` is just the last already-sent user bubble — not an unsent draft. */
+function isSentComposerEcho(text: string, lastUserText: string): boolean {
+  const a = text.trim();
+  return Boolean(a) && a === lastUserText.trim();
+}
+
 function saveDeployChatDraft(threadId: string, text: string): void {
   try {
     // Never wipe a prior snapshot with an empty string (lock timing races).
-    if (!text) return;
+    if (!text.trim()) return;
     const payload: DeployChatDraftPayload = { threadId, text };
     sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(payload));
   } catch {
@@ -1171,6 +1202,7 @@ function DeployDraftBoot({
   deployChatLocked: boolean;
 }) {
   const composer = useComposerRuntime();
+  const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   const wasLockedRef = useRef(deployChatLocked);
   const didInitialRestoreRef = useRef(false);
 
@@ -1178,8 +1210,12 @@ function DeployDraftBoot({
   useLayoutEffect(() => {
     if (!deployChatLocked) return;
     const text = composer.getState().text ?? '';
+    if (isSentComposerEcho(text, lastUserText)) {
+      clearDeployChatDraft();
+      return;
+    }
     saveDeployChatDraft(threadId, text);
-  }, [composer, deployChatLocked, threadId]);
+  }, [composer, deployChatLocked, lastUserText, threadId]);
 
   useEffect(() => {
     const wasLocked = wasLockedRef.current;
@@ -1191,9 +1227,13 @@ function DeployDraftBoot({
       didInitialRestoreRef.current = true;
       const saved = readDeployChatDraft(threadId);
       if (saved) {
-        const current = composer.getState().text ?? '';
-        if (!current.trim()) composer.setText(saved);
-        if (!deployChatLocked) clearDeployChatDraft();
+        if (isSentComposerEcho(saved, lastUserText)) {
+          clearDeployChatDraft();
+        } else {
+          const current = composer.getState().text ?? '';
+          if (!current.trim()) composer.setText(saved);
+          if (!deployChatLocked) clearDeployChatDraft();
+        }
       }
     }
 
@@ -1201,7 +1241,7 @@ function DeployDraftBoot({
     if (wasLocked && !deployChatLocked) {
       clearDeployChatDraft();
     }
-  }, [composer, deployChatLocked, threadId]);
+  }, [composer, deployChatLocked, lastUserText, threadId]);
 
   return null;
 }
@@ -1237,6 +1277,7 @@ function applyDeployChatLockPayload(
   // Railway all-clear: drop the composer banner and reload onto the new build.
   // Regular users will not refresh on their own — and stale tabs keep old assets.
   if (opts.wasLocked && !locked) {
+    if (deploy.tone === 'live' || deploy.state === 'live') playDeployDoneTone();
     let alreadyReloaded = false;
     try {
       alreadyReloaded = Boolean(
@@ -1260,7 +1301,7 @@ function applyDeployChatLockPayload(
     });
     window.setTimeout(() => {
       window.location.reload();
-    }, 450);
+    }, 900);
     return;
   }
 
@@ -2132,6 +2173,7 @@ function ClaudeComposer({
   const sentByTouchRef = useRef(false);
   /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
   const typedDraftRef = useRef('');
+  const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   useCapComposerAttachments();
 
   const setInputRef = useCallback(
@@ -2457,6 +2499,7 @@ function useRecoverInFlightRun(
       setRecoveryProgress(null);
       setRecoveryText('');
       propsRef.current?.onAgentRunChange?.(false);
+      playChatDoneTone();
       await propsRef.current?.onRefreshMessages?.();
     };
 
@@ -2826,6 +2869,10 @@ function AgentChatThread({
 export function AgentChatPanel(props: AgentChatPanelProps) {
   const propsRef = useRef(props);
   propsRef.current = props;
+
+  useEffect(() => {
+    armAgentTones();
+  }, []);
 
   const isFocus = props.variant === 'focus';
   const style = {
