@@ -23,6 +23,22 @@ export type LighthouseAuditSummary = {
   displayValue?: string;
 };
 
+export type CruxCategory = 'FAST' | 'AVERAGE' | 'SLOW';
+
+export type LighthouseFieldMetric = {
+  percentile: number;
+  category: CruxCategory;
+};
+
+/** Chrome UX Report (real-user) experience from PageSpeed Insights. */
+export type LighthouseFieldExperience = {
+  overall?: CruxCategory;
+  lcp?: LighthouseFieldMetric;
+  inp?: LighthouseFieldMetric;
+  cls?: LighthouseFieldMetric;
+  fcp?: LighthouseFieldMetric;
+};
+
 export type LighthouseStrategyResult = {
   strategy: LighthouseStrategy;
   scores: Partial<Record<LighthouseCategory, number>>;
@@ -35,6 +51,10 @@ export type LighthouseStrategyResult = {
   };
   opportunities: LighthouseAuditSummary[];
   diagnostics: LighthouseAuditSummary[];
+  /** Real-user experience for this URL (CrUX). */
+  pageExperience?: LighthouseFieldExperience;
+  /** Origin-level CrUX when the URL itself has too little traffic. */
+  originExperience?: LighthouseFieldExperience;
 };
 
 export type LighthouseAuditResponse =
@@ -50,6 +70,84 @@ type PsiAudit = {
 };
 
 type PsiCategory = { score?: number | null };
+
+type PsiCruxMetric = {
+  percentile?: number;
+  category?: string;
+};
+
+type PsiLoadingExperience = {
+  overall_category?: string;
+  metrics?: Record<string, PsiCruxMetric>;
+};
+
+function asCruxCategory(raw: string | undefined): CruxCategory | undefined {
+  const v = (raw || '').toUpperCase();
+  if (v === 'FAST' || v === 'AVERAGE' || v === 'SLOW') return v;
+  return undefined;
+}
+
+function pickFieldMetric(
+  metrics: Record<string, PsiCruxMetric> | undefined,
+  keys: string[],
+): LighthouseFieldMetric | undefined {
+  if (!metrics) return undefined;
+  for (const key of keys) {
+    const m = metrics[key];
+    if (!m || m.percentile == null || Number.isNaN(m.percentile)) continue;
+    const category = asCruxCategory(m.category);
+    if (!category) continue;
+    return { percentile: m.percentile, category };
+  }
+  return undefined;
+}
+
+function pickFieldExperience(
+  le: PsiLoadingExperience | undefined,
+): LighthouseFieldExperience | undefined {
+  if (!le) return undefined;
+  const overall = asCruxCategory(le.overall_category);
+  const metrics = le.metrics;
+  const lcp = pickFieldMetric(metrics, ['LARGEST_CONTENTFUL_PAINT_MS']);
+  const inp = pickFieldMetric(metrics, [
+    'INTERACTION_TO_NEXT_PAINT',
+    'EXPERIMENTAL_INTERACTION_TO_NEXT_PAINT',
+  ]);
+  const cls = pickFieldMetric(metrics, ['CUMULATIVE_LAYOUT_SHIFT_SCORE']);
+  const fcp = pickFieldMetric(metrics, ['FIRST_CONTENTFUL_PAINT_MS']);
+  const out: LighthouseFieldExperience = {
+    ...(overall ? { overall } : {}),
+    ...(lcp ? { lcp } : {}),
+    ...(inp ? { inp } : {}),
+    ...(cls ? { cls } : {}),
+    ...(fcp ? { fcp } : {}),
+  };
+  if (!out.overall && !out.lcp && !out.inp && !out.cls && !out.fcp) return undefined;
+  return out;
+}
+
+function formatCruxOverall(cat: CruxCategory): string {
+  if (cat === 'FAST') return 'Good';
+  if (cat === 'AVERAGE') return 'Needs Improvement';
+  return 'Poor';
+}
+
+function formatFieldMetricLine(exp: LighthouseFieldExperience): string | null {
+  const parts: string[] = [];
+  if (exp.lcp) parts.push(`LCP ${(exp.lcp.percentile / 1000).toFixed(1)} s (${formatCruxOverall(exp.lcp.category)})`);
+  if (exp.inp) parts.push(`INP ${Math.round(exp.inp.percentile)} ms (${formatCruxOverall(exp.inp.category)})`);
+  if (exp.cls) parts.push(`CLS ${(exp.cls.percentile / 100).toFixed(2)} (${formatCruxOverall(exp.cls.category)})`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+function formatFieldExperience(exp: LighthouseFieldExperience | undefined, label: string): string[] {
+  if (!exp) return [];
+  const overall = exp.overall ? formatCruxOverall(exp.overall) : 'N/A';
+  const lines = [`${label} — ${overall}`];
+  const metrics = formatFieldMetricLine(exp);
+  if (metrics) lines.push(`  ${metrics}`);
+  return lines;
+}
 
 function normalizeUrl(raw: string): string | null {
   const trimmed = raw.trim();
@@ -164,6 +262,8 @@ async function runOne(
       categories?: Record<string, PsiCategory>;
       audits?: Record<string, PsiAudit>;
     };
+    loadingExperience?: PsiLoadingExperience;
+    originLoadingExperience?: PsiLoadingExperience;
   };
   try {
     body = JSON.parse(text);
@@ -182,12 +282,16 @@ async function runOne(
   }
 
   const audits = lr.audits ?? {};
+  const pageExperience = pickFieldExperience(body.loadingExperience);
+  const originExperience = pickFieldExperience(body.originLoadingExperience);
   return {
     strategy,
     scores,
     metrics: pickMetrics(audits),
     opportunities: pickAudits(audits, 'opportunity', 5),
     diagnostics: pickAudits(audits, 'diagnostic', 3),
+    ...(pageExperience ? { pageExperience } : {}),
+    ...(originExperience ? { originExperience } : {}),
   };
 }
 
@@ -229,8 +333,24 @@ export async function lighthouseAudit(opts: {
 /** Compact text summary for tool output. */
 export function formatLighthouseResults(data: Extract<LighthouseAuditResponse, { ok: true }>): string {
   const lines: string[] = [`Lighthouse audit: ${data.url}`];
+  const fieldSource = data.results.find((r) => r.pageExperience || r.originExperience);
+  if (fieldSource) {
+    lines.push(
+      '',
+      'Real-user experience (Chrome UX Report) — this is what visitors actually get.',
+      'Lab mobile is a throttled stress test (even nytimes.com / reddit.com often score Poor there). Prefer field data for the verdict.',
+    );
+    lines.push(...formatFieldExperience(fieldSource.pageExperience, 'Field data (this URL)'));
+    lines.push(...formatFieldExperience(fieldSource.originExperience, 'Field data (origin)'));
+  } else {
+    lines.push(
+      '',
+      'No Chrome UX Report field data for this URL (common on low-traffic sites).',
+      'Lab mobile is a throttled stress test — report mobile AND desktop and do not treat a typical lab-mobile Poor as a failing site.',
+    );
+  }
   for (const r of data.results) {
-    lines.push(`\n${r.strategy.toUpperCase()}`);
+    lines.push(`\n${r.strategy.toUpperCase()} (lab)`);
     const scoreParts = Object.entries(r.scores).map(([k, v]) => `${k}: ${v}`);
     if (scoreParts.length) lines.push(`Scores — ${scoreParts.join(', ')}`);
     const m = r.metrics;

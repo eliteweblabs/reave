@@ -265,6 +265,21 @@ export function scoreToGrade(score: number | null | undefined): LetterGrade | nu
   return 'F';
 }
 
+/**
+ * Lighthouse lab performance uses a much harsher curve than academic 90/80/70.
+ * Google's own bands are Good 90+, Needs Improvement 50–89, Poor 0–49 — and
+ * even nytimes.com / reddit.com routinely land in the 20s–40s on *mobile lab*.
+ * Mapping that to F made every audit look like a failing site.
+ */
+export function labPerformanceToGrade(score: number | null | undefined): LetterGrade | null {
+  if (score == null || Number.isNaN(score)) return null;
+  if (score >= 90) return 'A';
+  if (score >= 70) return 'B';
+  if (score >= 45) return 'C';
+  if (score >= 25) return 'D';
+  return 'F';
+}
+
 export function gradeToScore(grade: LetterGrade | null | undefined): number | null {
   if (!grade) return null;
   return GRADE_SCORE[grade];
@@ -305,6 +320,10 @@ export function alignScoreAndGrade(
 }
 
 function finalizeCategory(cat: ReportCardCategory): ReportCardCategory {
+  if (cat.id === 'performance' && cat.score != null && !Number.isNaN(cat.score)) {
+    const clamped = Math.max(0, Math.min(100, Math.round(cat.score)));
+    return { ...cat, score: clamped, grade: labPerformanceToGrade(clamped) };
+  }
   const aligned = alignScoreAndGrade(cat.score, cat.grade);
   return { ...cat, score: aligned.score, grade: aligned.grade };
 }
@@ -413,7 +432,7 @@ function extractMobileDesktopPair(text: string): {
   // Common agent shapes:
   //   Mobile: 96 / 100 · Desktop: 96 / 100 — Outstanding…
   //   mobile performance: 42
-  //   Performance score: 42 / 78  (handled separately via named extractors)
+  //   Performance score: 42 / 78  (playbook mobile/desktop — see extractPlaybookPair)
   const mobile = findNumber(text, [
     /\bmobile\b[^\n]{0,40}?(?:performance|accessibility|seo|best[-\s]?practices?)?[^\n]{0,20}?[:=]\s*(\d{1,3})/i,
     /\bmobile\b(?:\s+(?:performance|accessibility|seo|best[-\s]?practices?|score))?\s*[:\-–]?\s*(\d{1,3})(?:\s*\/\s*100)?/i,
@@ -425,6 +444,81 @@ function extractMobileDesktopPair(text: string): {
     /(?:performance|accessibility)[^.\n]{0,40}?\bdesktop\b[^.\n]{0,20}?(\d{1,3})/i,
   ]);
   return { mobile, desktop };
+}
+
+/**
+ * Playbook line: `Performance score: {mobile} / {desktop}`.
+ * `88 / 100` is a single score, not two viewports — ignore those.
+ */
+function extractPlaybookMobileDesktopScores(text: string): {
+  mobile: number | null;
+  desktop: number | null;
+} {
+  const m = text.match(/performance(?:\s+score)?\s*[:=]\s*(\d{1,3})\s*\/\s*(\d{1,3})/i);
+  if (!m) return { mobile: null, desktop: null };
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if (Number.isNaN(a) || Number.isNaN(b) || a < 0 || a > 100 || b < 0 || b > 100) {
+    return { mobile: null, desktop: null };
+  }
+  if (b === 100) return { mobile: null, desktop: null };
+  return { mobile: a, desktop: b };
+}
+
+/** `MOBILE` / `DESKTOP` blocks from formatLighthouseResults. */
+function extractLabeledStrategyScores(
+  text: string,
+  category: 'performance' | 'accessibility',
+): { mobile: number | null; desktop: number | null } {
+  const scoreFrom = (block: string | undefined): number | null => {
+    if (!block) return null;
+    return findNumber(block, [new RegExp(`\\b${category}\\b\\s*[:=]\\s*(\\d{1,3})`, 'i')]);
+  };
+  const mobileBlock = text.match(
+    /(?:^|\n)\s*MOBILE(?:\s*\(lab\))?\s*\n([\s\S]*?)(?=\n\s*DESKTOP\b|\n\s*#{2,4}\s+|$)/i,
+  )?.[1];
+  const desktopBlock = text.match(
+    /(?:^|\n)\s*DESKTOP(?:\s*\(lab\))?\s*\n([\s\S]*?)(?=\n\s*MOBILE\b|\n\s*#{2,4}\s+|$)/i,
+  )?.[1];
+  return { mobile: scoreFrom(mobileBlock), desktop: scoreFrom(desktopBlock) };
+}
+
+function extractPerformanceViewportPair(text: string): {
+  mobile: number | null;
+  desktop: number | null;
+} {
+  const playbook = extractPlaybookMobileDesktopScores(text);
+  const labeled = extractLabeledStrategyScores(text, 'performance');
+  const pair = extractMobileDesktopPair(text);
+  return {
+    mobile: playbook.mobile ?? labeled.mobile ?? pair.mobile,
+    desktop: playbook.desktop ?? labeled.desktop ?? pair.desktop,
+  };
+}
+
+function cruxCategoryToScore(raw: string): number | null {
+  const cat = raw.toUpperCase().replace(/\s+/g, '_');
+  if (cat === 'FAST' || cat === 'GOOD') return 90;
+  if (cat === 'AVERAGE' || cat === 'NEEDS_IMPROVEMENT') return 68;
+  if (cat === 'SLOW' || cat === 'POOR') return 38;
+  return null;
+}
+
+/** Chrome UX Report / field-data line from lighthouse tool output or audit prose. */
+function extractCruxFieldScore(text: string): number | null {
+  if (!text.trim()) return null;
+  const patterns = [
+    /field data\s*\(this URL\)\s*[:=—\-–]\s*(FAST|AVERAGE|SLOW|GOOD|POOR|NEEDS\s+IMPROVEMENT)/i,
+    /field data\s*\(origin\)\s*[:=—\-–]\s*(FAST|AVERAGE|SLOW|GOOD|POOR|NEEDS\s+IMPROVEMENT)/i,
+    /real-user experience[^\n]{0,60}?[:=—\-–]\s*(FAST|AVERAGE|SLOW|GOOD|POOR|NEEDS\s+IMPROVEMENT)/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (!m) continue;
+    const n = cruxCategoryToScore(m[1]);
+    if (n != null) return n;
+  }
+  return null;
 }
 
 function averageScores(vals: Array<number | null | undefined>): number | null {
@@ -440,17 +534,18 @@ function extractMobileDesktopScore(text: string): number | null {
   return averageScores([mobile, desktop]);
 }
 
-/** Prefer explicit mobile/desktop performance scores; average when both exist. */
+/** Prefer field data, then mobile/desktop lab average, then a single generic score. */
 function extractPerformanceScore(text: string): number | null {
-  const pairScore = extractMobileDesktopScore(text);
-  const generic = findNumber(text, [
+  const crux = extractCruxFieldScore(text);
+  if (crux != null) return crux;
+  const { mobile, desktop } = extractPerformanceViewportPair(text);
+  const lab = averageScores([mobile, desktop]);
+  if (lab != null) return lab;
+  return findNumber(text, [
     /(?:scores?[^\n]{0,60})?\bperformance\s*[:=]\s*(\d{1,3})/i,
     /(?:performance|perf(?:ormance)?\s*score)\s*[:\-–]?\s*(\d{1,3})/i,
     /performance[^.\n]{0,40}?(\d{1,3})\s*\/\s*100/i,
   ]);
-  // Viewport pair wins when present — don't let a stray generic dilute 96/96.
-  if (pairScore != null) return pairScore;
-  return generic;
 }
 
 function extractNamedScore(text: string, names: RegExp): number | null {
@@ -967,25 +1062,38 @@ function findingAlignedToScore(
   label: string,
   score: number | null,
   grade: LetterGrade | null,
+  sectionText = '',
 ): string {
   const fallback = concreteFindingFallback(why, label, score, grade);
   const ordered = prioritizeNegativeFirst(why);
   const negative = ordered.find((w) => isNegativeFinding(w) && w.length > 12);
-  const pair = extractMobileDesktopPair(why.join('\n'));
+  const blob = `${sectionText}\n${why.join('\n')}`;
+  const pair =
+    /performance|speed/i.test(label)
+      ? extractPerformanceViewportPair(blob)
+      : extractMobileDesktopPair(blob);
   if (pair.mobile != null && pair.desktop != null && score != null) {
     const avg = Math.round((pair.mobile + pair.desktop) / 2);
+    if (score >= avg + 6) {
+      return truncateFinding(
+        `Real visitors score better than the lab test (overall ${score}/100). ` +
+          `Mobile lab ${pair.mobile}/100 · Desktop ${pair.desktop}/100.`,
+      );
+    }
     if (score <= avg - 6) {
       const context =
         `Mobile ${pair.mobile}/100 · Desktop ${pair.desktop}/100 — overall ${score}/100 ` +
         `after other ${label.toLowerCase()} issues called out in the audit.`;
       if (negative) {
-        // Issue first so a 180-char cap never eats the problem.
         const combined = `${negative} ${context}`;
         if (combined.length <= FINDING_MAX_CHARS) return combined;
         return truncateFinding(negative);
       }
       return truncateFinding(context);
     }
+    return truncateFinding(
+      `Mobile lab ${pair.mobile}/100 · Desktop ${pair.desktop}/100 (average ${score}/100).`,
+    );
   }
   return primaryFindingForGrade(ordered, fallback, grade);
 }
@@ -1077,9 +1185,14 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
           ? `The site scores ${cat.score}/100 on speed — the build looks lean, so the server/hosting is the bottleneck.`
           : 'The site feels slow even though the front-end build looks clean — likely a server resource issue.';
       }
+      if (cat.grade === 'F' || (cat.score != null && cat.score < 25)) {
+        return cat.score != null
+          ? `The site scores ${cat.score}/100 on speed — phones on a slow connection will struggle.`
+          : 'The site feels slow, especially on phones.';
+      }
       return cat.score != null
-        ? `The site scores ${cat.score}/100 on speed — people on phones will leave before it loads.`
-        : 'The site feels slow, especially on phones.';
+        ? `Lab speed averaged ${cat.score}/100 — not broken, but phones are slower than they should be.`
+        : 'Speed has room to improve, especially on phones.';
     },
     solution:
       'Speed fix: compress images, cut heavy scripts, and move off underpowered shared hosting when the build is already clean.',
@@ -1184,7 +1297,7 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     id: 'mobile',
     categoryId: 'mobile',
     categoryLabel: 'Mobile',
-    maxRank: 3,
+    maxRank: 2,
     problem: () => 'The site is awkward on phones — buttons, layout, or text get in the way.',
     solution: 'Mobile polish so the site feels natural on the devices most customers use.',
   },
@@ -1345,14 +1458,17 @@ function scoreCategory(
 ): ReportCardCategory {
   const meta = CATEGORY_BY_ID.get(id);
   const label = overrides?.label || meta?.label || id;
-  const grade = scoreToGrade(score) ?? fallbackGrade;
+  const grade =
+    id === 'performance' && score != null
+      ? labPerformanceToGrade(score)
+      : (scoreToGrade(score) ?? fallbackGrade);
   const why = clientFriendlyBullets(bulletsFromSection(section), 5, clientName);
   const summary =
     grade == null
       ? section.trim()
         ? `${label} notes on file`
         : emptySummary
-      : findingAlignedToScore(why, label, score, grade);
+      : findingAlignedToScore(why, label, score, grade, section);
   return {
     id,
     label,
@@ -1777,19 +1893,25 @@ export function buildAuditReportCard(input: {
   };
 
   const mobileFallback = (() => {
-    const lower = `${uxSection}\n${perfSection}\n${a11ySection}`.toLowerCase();
-    if (!uxSection.trim() && !/mobile|responsive|tap target|viewport|playwright/i.test(lower)) {
-      return null;
-    }
-    if (/not mobile|fails? mobile|broken on (?:phone|mobile)|overflow|tap target/.test(lower)) {
+    // Layout grade comes only from the UX / Mobile Responsiveness section —
+    // never from Lighthouse performance prose ("Mobile: 35") or a11y tap-target notes.
+    const lower = uxSection.toLowerCase();
+    if (!uxSection.trim()) return null;
+    if (
+      /not mobile[- ]friendly|fails? mobile|broken on (?:phone|mobile)|unusable on (?:phone|mobile)|horizontal (?:scroll|overflow)/.test(
+        lower,
+      )
+    ) {
       return 'D' as LetterGrade;
     }
-    if (/mobile[- ]friendly|responsive|adapts well|looks good on mobile/.test(lower)) {
+    if (
+      /mobile[- ]friendly|responsive|adapts(?: well)?|looks good on mobile|works (?:well )?on (?:phone|mobile)/.test(
+        lower,
+      )
+    ) {
       return 'B' as LetterGrade;
     }
-    return uxSection.trim() || /mobile|responsive|playwright/i.test(lower)
-      ? ('C' as LetterGrade)
-      : null;
+    return 'C' as LetterGrade;
   })();
 
   /** Prefer Playwright-attributed source when the audit body cites it. */
@@ -1985,7 +2107,7 @@ export function buildAuditReportCard(input: {
     scoreCategory(
       'mobile',
       null,
-      uxSection || (mobileFallback ? `${a11ySection}\n${perfSection}` : ''),
+      uxSection,
       mobileFallback,
       'Not scored in this audit',
       mobileSourceOverride ? { source: mobileSourceOverride } : undefined,
