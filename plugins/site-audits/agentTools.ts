@@ -342,7 +342,7 @@ export const siteAuditsModule: AgentToolModule = {
               function: {
                 name: 'lighthouse_audit',
                 description:
-                  'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default. Call at most once per audit; if it fails, proceed without retrying. Quick/street audits: pass category "performance" only to save PSI quota.',
+                  'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns lab performance/accessibility/best-practices/SEO (0–100) for mobile + desktop, Core Web Vitals, top opportunities, and Chrome UX Report field data when available. Lab mobile is a throttled stress test (nytimes.com often scores Poor there) — prefer field data for the verdict, otherwise report both viewports. Call at most once per audit; if it fails, proceed without retrying. Quick/street audits: pass category "performance" only to save PSI quota.',
                 parameters: {
                   type: 'object',
                   properties: {

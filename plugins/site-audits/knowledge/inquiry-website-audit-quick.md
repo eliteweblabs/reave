@@ -86,7 +86,9 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 ---
 
 ### Performance
-- Performance score: {mobile} / {desktop} OR "N/A — password-protected / API unavailable"
+- Performance score: {mobile} / {desktop} (Lighthouse lab) OR "N/A — password-protected / API unavailable"
+- Real-user experience (Chrome UX Report): {Good / Needs Improvement / Poor / N/A}
+- Prefer field data over lab-mobile. Lab mobile is a stress test (nytimes.com often ~20) — never grade the site as failing from the mobile lab number alone.
 
 ### Accessibility
 - Accessibility notes from fetch_url / any available score (quick tier may not run full Lighthouse a11y)

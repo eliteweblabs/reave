@@ -97,7 +97,9 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 ---
 
 ### Performance
-- Performance score: {mobile} / {desktop} (Lighthouse) OR "N/A — site password-protected / API unavailable"
+- Performance score: {mobile} / {desktop} (Lighthouse lab)
+- Real-user experience (Chrome UX Report): {Good / Needs Improvement / Poor / N/A}
+- Lab mobile is a throttled stress test — nytimes.com often scores ~20. Prefer field data for the verdict; if field data is missing, report **both** viewports and do not treat a typical lab-mobile Poor as a failing site.
 - {FCP, LCP, specific issues if from lighthouse}
 - {Platform bloat, render-blocking, JS/CSS notes if observable}
 

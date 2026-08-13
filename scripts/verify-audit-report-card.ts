@@ -1,0 +1,238 @@
+/**
+ * Synthetic checks for website-audit report-card scoring.
+ * Run: npm run check:audit-report
+ *
+ * Guards the bug where playbook `Performance score: {mobile} / {desktop}`
+ * was graded on the mobile lab number alone (F for almost every site,
+ * including nytimes.com / reddit.com).
+ */
+import assert from 'node:assert/strict';
+import { buildAuditReportCard, labPerformanceToGrade } from '../src/lib/auditReportCard.ts';
+import { formatLighthouseResults } from '../src/lib/lighthouseClient.ts';
+
+function playbook(opts: {
+  name: string;
+  mobile: number;
+  desktop: number;
+  crux?: string;
+  ux?: string;
+}) {
+  const crux = opts.crux
+    ? `- Real-user experience (Chrome UX Report): ${opts.crux}`
+    : '';
+  const ux =
+    opts.ux ??
+    `### UX & UI (Playwright)
+- Source: Playwright (headless Chromium) — desktop 1440×900 + mobile 375×812
+- Layout adapts; a few overflow elements and small tap targets on mobile
+
+### Mobile Responsiveness
+- Source: Playwright (headless Chromium) real-browser checks
+- Responsive layout; tap targets below 44px on the header nav`;
+  return `## Website Audit
+
+**Current Website:** example.com
+
+### Performance
+- Performance score: ${opts.mobile} / ${opts.desktop} (Lighthouse)
+${crux}
+- FCP 2.4 s · LCP 5.1 s
+- Render-blocking scripts and large images
+
+### Accessibility
+- Accessibility score: 88 / 100
+
+### Best Practices
+- Best Practices score: 79 / 100
+
+### SEO
+- SEO score: 92 / 100
+- SEO inventory grade: B (82/100)
+
+### SSL & Website Security
+- SSL: valid, Grade B
+
+${ux}
+
+### DNS & Email
+- SPF: pass
+- DKIM: pass
+- DMARC: pass
+`;
+}
+
+function card(name: string, body: string) {
+  const r = buildAuditReportCard({
+    title: `${name} audit`,
+    tags: ['siri-audit', 'quick-audit'],
+    source: 'siri_audit',
+    body,
+    clientName: name,
+  });
+  assert.ok(r, `${name}: expected a report card`);
+  return r;
+}
+
+{
+  assert.equal(labPerformanceToGrade(90), 'A');
+  assert.equal(labPerformanceToGrade(70), 'B');
+  assert.equal(labPerformanceToGrade(59), 'C');
+  assert.equal(labPerformanceToGrade(35), 'D');
+  assert.equal(labPerformanceToGrade(20), 'F');
+  console.log('ok — lab performance grade curve');
+}
+
+{
+  const r = card(
+    'Typical local 35/82',
+    playbook({ name: 'Typical', mobile: 35, desktop: 82 }),
+  );
+  const perf = r.categories.find((c) => c.id === 'performance');
+  const mobile = r.categories.find((c) => c.id === 'mobile');
+  assert.equal(perf?.score, 59, 'average 35/82');
+  assert.equal(perf?.grade, 'C', 'typical lab average is C, not F');
+  assert.match(perf?.finding || '', /Mobile lab 35\/100/);
+  assert.match(perf?.finding || '', /Desktop 82\/100/);
+  assert.equal(mobile?.grade, 'B', 'tap targets must not auto-D a responsive layout');
+  const speedIdea = r.ideas.find((i) => i.categoryId === 'performance');
+  assert.ok(speedIdea, 'C speed still offers a speed idea');
+  assert.equal(
+    /people on phones will leave/i.test(speedIdea!.problem),
+    false,
+    'do not claim phones bounce on a C average',
+  );
+  const mobileIdea = r.ideas.find((i) => i.categoryId === 'mobile');
+  assert.equal(mobileIdea, undefined, 'B mobile layout should not pitch awkward-on-phones');
+  console.log('ok — playbook 35/82 averages to C; layout stays B');
+}
+
+{
+  const r = card(
+    'NYT-like 20/76',
+    playbook({ name: 'NYT', mobile: 20, desktop: 76 }),
+  );
+  const perf = r.categories.find((c) => c.id === 'performance');
+  assert.equal(perf?.score, 48);
+  assert.equal(perf?.grade, 'C', 'nytimes-like lab average must not be F');
+  console.log('ok — nytimes-like 20/76 is C, not F');
+}
+
+{
+  const r = card(
+    'Reddit-like 22/71',
+    playbook({ name: 'Reddit', mobile: 22, desktop: 71 }),
+  );
+  const perf = r.categories.find((c) => c.id === 'performance');
+  assert.equal(perf?.score, 47);
+  assert.equal(perf?.grade, 'C');
+  console.log('ok — reddit-like 22/71 is C, not F');
+}
+
+{
+  const r = card(
+    'CrUX Good upgrades lab Poor',
+    playbook({ name: 'NYT field', mobile: 20, desktop: 76, crux: 'Good' }),
+  );
+  const perf = r.categories.find((c) => c.id === 'performance');
+  assert.equal(perf?.score, 90);
+  assert.equal(perf?.grade, 'A');
+  assert.match(perf?.finding || '', /Real visitors/i);
+  assert.match(perf?.finding || '', /20\/100/);
+  console.log('ok — Chrome UX Report Good beats lab-mobile Poor');
+}
+
+{
+  const r = card(
+    'Tool dump MOBILE then DESKTOP',
+    `## Website Audit
+### Performance
+Lighthouse audit: https://example.com
+
+MOBILE (lab)
+Scores — performance: 31, accessibility: 88, best-practices: 79, seo: 92
+
+DESKTOP (lab)
+Scores — performance: 84, accessibility: 88, best-practices: 79, seo: 92
+
+### SSL & Website Security
+- SSL: valid, Grade B
+`,
+  );
+  const perf = r.categories.find((c) => c.id === 'performance');
+  assert.equal(perf?.score, 58);
+  assert.equal(perf?.grade, 'C');
+  assert.match(perf?.finding || '', /Mobile lab 31\/100/);
+  assert.match(perf?.finding || '', /Desktop 84\/100/);
+  const mobile = r.categories.find((c) => c.id === 'mobile');
+  assert.equal(mobile, undefined, 'do not invent a Mobile tile from Lighthouse MOBILE scores');
+  console.log('ok — tool dump averages MOBILE/DESKTOP lab blocks');
+}
+
+{
+  const r = card(
+    'Labeled near-perfect viewports',
+    `## Website Audit
+### Performance
+- Mobile: 96 / 100 · Desktop: 96 / 100 — Outstanding
+### SSL & Website Security
+- SSL: valid, Grade B
+`,
+  );
+  const perf = r.categories.find((c) => c.id === 'performance');
+  assert.equal(perf?.grade, 'A');
+  assert.equal(perf?.score, 96);
+  const mobile = r.categories.find((c) => c.id === 'mobile');
+  assert.equal(mobile, undefined, 'performance Mobile: 96 is not a layout audit');
+  const mobileIdea = r.ideas.find((i) => i.categoryId === 'mobile');
+  assert.equal(mobileIdea, undefined, 'must not pitch awkward-on-phones for 96/96 speed');
+  console.log('ok — labeled 96/96 stays A and does not invent a mobile layout F');
+}
+
+{
+  const r = card(
+    'Broken on phones',
+    playbook({
+      name: 'Broken',
+      mobile: 80,
+      desktop: 90,
+      ux: `### Mobile Responsiveness
+- Broken on mobile — horizontal scroll, unusable on phone`,
+    }),
+  );
+  const mobile = r.categories.find((c) => c.id === 'mobile');
+  assert.equal(mobile?.grade, 'D');
+  console.log('ok — actual mobile layout breakage still grades D');
+}
+
+{
+  const text = formatLighthouseResults({
+    ok: true,
+    url: 'https://www.nytimes.com/',
+    results: [
+      {
+        strategy: 'mobile',
+        scores: { performance: 20 },
+        metrics: { lcp: '10.1 s' },
+        opportunities: [],
+        diagnostics: [],
+        pageExperience: { overall: 'AVERAGE' },
+        originExperience: { overall: 'FAST' },
+      },
+      {
+        strategy: 'desktop',
+        scores: { performance: 76 },
+        metrics: { lcp: '1.9 s' },
+        opportunities: [],
+        diagnostics: [],
+      },
+    ],
+  });
+  assert.match(text, /Field data \(this URL\) — Needs Improvement/);
+  assert.match(text, /Field data \(origin\) — Good/);
+  assert.match(text, /MOBILE \(lab\)/);
+  assert.match(text, /performance: 20/);
+  assert.match(text, /throttled stress test/);
+  console.log('ok — lighthouse formatter surfaces CrUX and labels lab scores');
+}
+
+console.log('all audit report-card checks passed');
