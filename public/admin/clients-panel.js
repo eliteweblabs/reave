@@ -727,8 +727,9 @@ function renderClientsEditor() {
  * Used so contact-api's naive name split ("Pink" / "Elephant LLC") never lands
  * in the First/Last profile fields.
  */
+// Keep in sync with src/lib/contactPersonName.ts
 const BUSINESS_NAME_TOKEN_RE =
-  /\b(?:llc|l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|corp\.?|corporation|co\.?|company|llp|pllc|p\.?c\.?|plc|gmbh|group|holdings|partners|associates|enterprises|industries|services|solutions|studio|studios|agency|consulting|construction|contracting|painting|painters|plumbing|electric(?:al)?|roofing|landscaping|cleaning|properties|realty|restaurant|cafe|clinic|media|productions?)\b/i;
+  /\b(?:llc|l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|corp\.?|corporation|co\.?|company|llp|pllc|p\.?c\.?|plc|gmbh|group|holdings|partners|associates|enterprises|industries|services|solutions|studio|studios|agency|consulting|construction|contracting|painting|painters|plumbing|electric(?:al)?|roofing|landscaping|cleaning|properties|realty|restaurant|cafe|clinic|media|productions?|daycare|day\s*care|grooming|groomers?|kennels?|veterinary|veterinarian|salon|spa|boutique)\b/i;
 
 function naiveSplitPersonName(full) {
   const parts = String(full || '')
@@ -767,7 +768,8 @@ function namesReferToSameBusiness(a, b) {
   const tb = cb.split(' ');
   // Require multi-word cores so a lone "Pink" never matches "Pink Elephant".
   if (ta.length < 2 || tb.length < 2) return false;
-  return ca.startsWith(`${cb} `) || cb.startsWith(`${ca} `) || ca.startsWith(cb) || cb.startsWith(ca);
+  // Word-boundary prefix only — "john s" must not match "john smith".
+  return ca.startsWith(`${cb} `) || cb.startsWith(`${ca} `);
 }
 
 function splitClientNameParts(contact) {
@@ -809,6 +811,21 @@ function splitClientNameParts(contact) {
     if (isNaiveFullSplit) return { firstName: '', lastName: '' };
   }
 
+  // contact-api split a long business title: "Four" / "Leggers Doggy Daycare…".
+  if (first && last.split(/\s+/).filter(Boolean).length >= 3) {
+    const naiveFull = naiveSplitPersonName(full);
+    const naiveCompany = naiveSplitPersonName(company);
+    const matchesFull =
+      full &&
+      first.toLowerCase() === naiveFull.firstName.toLowerCase() &&
+      last.toLowerCase() === naiveFull.lastName.toLowerCase();
+    const matchesCompany =
+      company &&
+      first.toLowerCase() === naiveCompany.firstName.toLowerCase() &&
+      last.toLowerCase() === naiveCompany.lastName.toLowerCase();
+    if (matchesFull || matchesCompany) return { firstName: '', lastName: '' };
+  }
+
   if (first || last) return { firstName: first, lastName: last };
 
   if (!full) return { firstName: '', lastName: '' };
@@ -826,6 +843,14 @@ function resolveClientCompany(contact, firstName = '', lastName = '') {
   const full = (contact.name || '').trim();
   // After splitClientNameParts blanks person fields for a business title, promote name.
   if (full && !firstName && !lastName && isBusinessTitle(full)) return full;
+  if (
+    full &&
+    !firstName &&
+    !lastName &&
+    naiveSplitPersonName(full).lastName.split(/\s+/).filter(Boolean).length >= 3
+  ) {
+    return full;
+  }
   return '';
 }
 

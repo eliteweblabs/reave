@@ -11,6 +11,7 @@ import {
   mergePortalVaultData,
   normalizeVaultEntries,
 } from './portalVault';
+import { splitClientNameParts } from './contactPersonName';
 
 export { siteBaseUrl } from './requestOrigin';
 
@@ -206,7 +207,7 @@ function nullableContactField(value: unknown): string | null {
 
 /** Normalize contact-api string fields so null/non-string values never reach .trim() or regex. */
 export function normalizeContactRecord(contact: ContactRecord): ContactRecord {
-  return {
+  const trimmed: ContactRecord = {
     ...contact,
     name: contactStringField(contact.name) || contact.uid,
     firstName: nullableContactField(contact.firstName),
@@ -215,6 +216,13 @@ export function normalizeContactRecord(contact: ContactRecord): ContactRecord {
     phone: nullableContactField(contact.phone),
     company: nullableContactField(contact.company),
     notes: nullableContactField(contact.notes),
+  };
+  // contact-api always splitName()s `name` — drop that when it is the company.
+  const person = splitClientNameParts(trimmed);
+  return {
+    ...trimmed,
+    firstName: person.firstName || null,
+    lastName: person.lastName || null,
   };
 }
 
