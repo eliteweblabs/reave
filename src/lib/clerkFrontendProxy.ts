@@ -26,17 +26,18 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   const proxyUrl = `${requestOrigin(request).replace(/\/$/, '')}/__clerk`;
 
   const headers = new Headers();
+  const allow = new Set([
+    'accept',
+    'accept-language',
+    'authorization',
+    'content-type',
+    'cookie',
+    'origin',
+    'referer',
+    'user-agent',
+  ]);
   for (const [key, value] of request.headers.entries()) {
-    const lower = key.toLowerCase();
-    if (
-      lower === 'host' ||
-      lower === 'connection' ||
-      lower === 'content-length' ||
-      lower === 'transfer-encoding'
-    ) {
-      continue;
-    }
-    headers.set(key, value);
+    if (allow.has(key.toLowerCase())) headers.set(key, value);
   }
   headers.set('Clerk-Proxy-Url', proxyUrl);
   headers.set('Clerk-Secret-Key', secret);
