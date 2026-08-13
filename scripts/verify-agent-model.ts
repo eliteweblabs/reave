@@ -39,5 +39,21 @@ assert.equal(
   pickAutoAgentModel({ userText: 'look at this pdf', hasDocs: true }),
   AUTO_AGENT_MODELS.default,
 );
+assert.equal(
+  pickAutoAgentModel({ userText: 'do we have Clerk?' }),
+  AUTO_AGENT_MODELS.default,
+);
+assert.equal(
+  pickAutoAgentModel({ userText: 'check if Clerk is wired' }),
+  AUTO_AGENT_MODELS.default,
+);
+assert.equal(
+  pickAutoAgentModel({ userText: 'is Vapi installed in this app' }),
+  AUTO_AGENT_MODELS.default,
+);
+assert.equal(
+  pickAutoAgentModel({ userText: 'check if we have Clerk' }),
+  AUTO_AGENT_MODELS.default,
+);
 
 console.log('ok: agent model auto routing');

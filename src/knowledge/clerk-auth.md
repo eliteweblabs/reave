@@ -1,0 +1,21 @@
+# Clerk authentication (core)
+
+Sign-in for this app is **Clerk** (`@clerk/astro`, `@clerk/backend`). That is always-on product, not an optional extra.
+
+## What is always wired
+
+- Admin sign-in sheets, passkeys, phone sign-in
+- Publishable key + frontend proxy (`src/lib/clerkFrontendProxy.ts`)
+- Session checks on admin routes
+- `AGENT_ALERT_USER_ID` is a Clerk user id (deployment owner)
+
+## What is optional (`clerk_auth` module)
+
+Admin **Backend / Platform API tools** (`clerk_list_users`, `clerk_get_user`, `clerk_list_sessions`, orgs, ban/unban, provision apps) live in `plugins/clerk-auth/`. They appear only when:
+
+1. `"clerk_auth"` is in the install `features` array, and
+2. `CLERK_SECRET_KEY` and/or `CLERK_PLATFORM_KEY` is set on the service
+
+If those tools are missing this turn, Clerk is still the auth system. Say "user-admin tools need clerk_auth + CLERK_SECRET_KEY" — never "we don't have Clerk."
+
+Platform API (create/list/delete Clerk apps) needs `CLERK_PLATFORM_KEY` (Pro/Enterprise). Backend user APIs need `CLERK_SECRET_KEY`.

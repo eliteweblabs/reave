@@ -1,0 +1,18 @@
+---
+description: Never claim a feature or integration is missing without searching the repo first
+alwaysApply: true
+---
+
+# Search before deny
+
+Do not answer "we don't have that", "that isn't wired", or "I don't have a tool for X" from the MCP/tool list, training data, or memory.
+
+**Missing from this session's tools ≠ missing from the product.** This app's sign-in is Clerk even when no Clerk MCP/backend tool is attached. Vapi, Railway, Resend, Crater, Cal.com, Telnyx, and other integrations are often in `package.json`, `src/`, `plugins/`, or git history while the matching live API tool is off (feature flag or unset key).
+
+Before claiming anything is absent:
+
+1. Grep the repo (`package.json`, `src/`, `plugins/`, `config/`).
+2. Check recent commits if the user says it was wired.
+3. Then distinguish: "no live API tool this turn" vs "not in the codebase."
+
+If the user contradicts you, search again immediately. Do not defend the earlier guess.

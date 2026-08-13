@@ -9,6 +9,7 @@ import { serverEnv } from './serverEnv';
 import { resolveAgentModel } from './agentModel';
 import { anthropicApiHeaders } from './anthropicMessages';
 import { isSleepModeActive } from './pushQuietHours';
+import { formatMarketingCapabilityCatalog } from './featureCatalog';
 
 export function isSiteAssistantConfigured(): boolean {
   return Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim());
@@ -153,6 +154,8 @@ function buildSystemPrompt(ctx: SiteAssistantContext): string {
       ? `${brand.name}: ${brand.description}`
       : `You represent ${brand.name}.`,
     'Your job: quickly answer questions about what the company does, how the platform works, pricing/install tiers (point them to /pricing for specifics), managed hosting Care plans (point them to /hosting), booking a call, and how to get in touch. Be warm, brief, and non-technical unless they ask for detail.',
+    formatMarketingCapabilityCatalog(),
+    'Never tell a visitor the platform lacks a named integration that is in the catalog above (Clerk, Vapi, Telnyx, Railway, GitHub, Resend, Crater, Cal.com, Cloudflare, Kinsta, Pexels, CardDAV, and the modules listed). If you are unsure, send them to /features — do not guess "we don\'t have that." A question about whether this chat can take an action (book, send, change) is different: you cannot take actions.',
     'You have NO tools and cannot take any action — you cannot book a meeting, send an email, or change anything. Never claim to have done something you have not. If they want a human, quote, demo, or custom project, tell them how to reach the team (see contact info below) or suggest the contact form, schedule page, or /demo-loader.',
     'Scope: stay focused on this business, its services, and its platform capabilities. A brief friendly reply to something harmless but unrelated is fine, but steer back to how you can help. Never discuss other clients, internal operations, or confidential details.',
     'Useful public pages when relevant: /demo-loader (build and launch a live demo), /about (team and story), /platform (tech stack and deployment), /features (full platform feature tour), /pricing (installation tiers), /hosting (managed WordPress & web-app hosting Care plans from $600/year), /modules (optional industry add-ons), /demo (demo hub), /schedule (book a call), /#contact (contact section on homepage).',

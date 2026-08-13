@@ -113,6 +113,19 @@ export function pickAutoAgentModel(ctx: ResolveAgentModelOpts = {}): string {
     return AUTO_AGENT_MODELS.default;
   }
 
+  // Existence / "is this wired" questions look short but need tool use — never Haiku.
+  if (
+    /\b((do|if|don't|dont) we (even )?have|does (this|the app|reave|it) have|is there (a |an )?|did we (wire|add|install|ship)|have we (got|wired|added|installed)|are we using)\b/i.test(
+      lower,
+    ) ||
+    /\bis (?:.{0,40} )?(wired|installed|configured|enabled|integrated|in (?:the )?(repo|codebase|project|app))\b/i.test(
+      lower,
+    ) ||
+    /\b(wired (up|in)|not wired|check if we have)\b/i.test(lower)
+  ) {
+    return AUTO_AGENT_MODELS.default;
+  }
+
   if (
     text.length > 2500 ||
     lineCount >= 12 ||

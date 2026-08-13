@@ -144,3 +144,28 @@ export const CORE_FEATURE_NOTE =
   'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, passkeys, and phone sign-in are always on.';
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
+
+/**
+ * Ground-truth inventory for the admin agent. A missing tool this turn is not
+ * the same as "the product does not include that" — keys and feature flags
+ * hide tools; they do not un-wire the codebase.
+ */
+export function formatAgentCapabilityInventory(enabledIds: Iterable<string>): string {
+  const enabled = new Set(enabledIds);
+  const lines = FEATURE_IDS.filter((id) => enabled.has(id)).map(
+    (id) => `- ${FEATURE_LABELS[id]} (${id}) — ${FEATURE_BLURBS[id]}`,
+  );
+  return [
+    `Always-on core: ${CORE_FEATURE_NOTE}`,
+    'Sign-in on every install is Clerk (@clerk/astro): sessions, passkeys, phone, publishable keys. That is core product, not an optional extra. The clerk_auth module only adds admin tools (list/manage users, sessions, orgs) when CLERK_SECRET_KEY is set.',
+    'Enabled optional modules on this install:',
+    lines.length ? lines.join('\n') : '- (none listed)',
+    'Modules exist in the product even when not listed here. A tool missing from this turn means the module is off or a key is unset — not that the codebase lacks the integration.',
+  ].join('\n');
+}
+
+/** Compact catalog for the public marketing-site chat (product capabilities, not this install's flags). */
+export function formatMarketingCapabilityCatalog(): string {
+  const modules = FEATURE_IDS.map((id) => FEATURE_LABELS[id]).join(', ');
+  return `${CORE_FEATURE_NOTE} Optional modules the platform ships: ${modules}. Sign-in is Clerk. Voice can be Vapi and/or Telnyx. Hosting/deploy is Railway. Mail is Resend. Billing is Crater. Scheduling is Cal.com.`;
+}

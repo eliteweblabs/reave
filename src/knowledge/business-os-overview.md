@@ -9,6 +9,7 @@ You are helping the owner of a solo web/app studio (~25 clients).
 - **Email:** inbound triage runs inside this app via a Resend webhook (see `email-rules.md`) — there is no separate email service.
 - **Stack direction:** API + Postgres truth; knowledge files are **playbooks**, not live financial data.
 - **Contacts:** Master list lives in contact-api. Staff can sync to iPhone via **CardDAV** (`carddav.md`); clients get shareable portal links (`client-portal.md`).
+- **Auth:** Sign-in is **Clerk** (`@clerk/astro`) on every install — sessions, passkeys, phone. That is core, not optional. Admin user/session/org tools are the `clerk_auth` module (`clerk-auth.md`) and need `CLERK_SECRET_KEY`. Do not say Clerk is not wired because those admin tools are off this turn.
 
 ## What to do when asked vague questions
 
