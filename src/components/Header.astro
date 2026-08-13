@@ -395,14 +395,13 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public/marketing headers are fixed at the layout viewport top. Do not sync
-   * visualViewport.offsetTop into `top` — that shove is what clipped the bar
-   * during Safari/macOS rubber-band overscroll. Layout html uses
-   * overscroll-behavior-y: none so the fixed chrome stays put.
+   * Public header sits on the page (absolute), not the visual viewport
+   * (fixed). iOS sizes position:fixed to the Safari chrome box — that is
+   * why the bar jumped and the canvas never reached the bottom of the
+   * phone. Admin stays fixed (shell is its own viewport).
    */
-
   .app-header {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
@@ -433,6 +432,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   .app-header--admin {
+    position: fixed;
     z-index: 20;
     background: transparent;
     border-bottom: none;

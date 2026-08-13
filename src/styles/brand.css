@@ -133,11 +133,12 @@
 }
 
 /**
- * Tiled brand chevron pattern — fixed, CSS background-image only.
- * No inline SVG, no 600% scale hacks, no JS. Wikipedia-simple.
+ * Page atmosphere — document flow (absolute on body), not position:fixed.
+ * iOS clips fixed layers to the visual viewport, so they never paint behind
+ * the Safari toolbar. Absolute + body min-height covers the hardware fold.
  */
 .reave-bg-pattern {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -147,12 +148,8 @@
   background-position: center center;
 }
 
-/**
- * Mesh is painted on a fixed div in SiteBackground.astro — not on html/body
- * (background-attachment: fixed janks on scroll and exposes black bars).
- */
 .site-bg-atmosphere {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
