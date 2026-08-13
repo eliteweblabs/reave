@@ -133,8 +133,10 @@
 }
 
 .or-platform--google { color: #4285f4; }
+.or-platform--apple { color: #1d1d1f; }
 .or-platform--yelp { color: #d32323; }
 .or-platform--facebook { color: #1877f2; }
+.or-platform--tripadvisor { color: #00af87; }
 
 .or-status {
   font-size: 0.65rem;

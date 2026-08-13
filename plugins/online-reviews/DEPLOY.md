@@ -4,7 +4,7 @@ defaultStatus: deployed
 stage: 3
 ---
 
-# Online reviews deployment
+# Reviews triage deployment
 
 ## Sibling services
 
@@ -24,5 +24,5 @@ stage: 3
 
 - [ ] Set `GOOGLE_MAPS_API_KEY` on Astro service
 - [ ] Configure Place ID and run `sync_google_reviews`
-- [ ] Verify inbox to-do workflow in Reviews tab
+- [ ] Verify triage workflow in Reviews tab
 - [ ] Set `moduleStatus.online_reviews` → `deployed` in install config

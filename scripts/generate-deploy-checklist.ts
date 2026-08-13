@@ -35,7 +35,7 @@ const FEATURE_LABELS: Record<string, string> = {
   demo: 'Demo mode',
   real_estate_data: 'Real estate data & lead scanner',
   inventory_sync: 'Multi-channel inventory sync',
-  online_reviews: 'Online reviews inbox',
+  online_reviews: 'Reviews triage',
   wayback_machine: 'Wayback Machine',
   content_management: 'Website content management',
   stock_photos: 'Pexels stock photos',

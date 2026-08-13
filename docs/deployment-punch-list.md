@@ -41,7 +41,7 @@ Check modules for this client, then run `npm run deploy:checklist`:
 | 020 | `demo` | Demo mode |
 | 021 | `real_estate_data` | Lead scanner |
 | 022 | `inventory_sync` | Inventory sync |
-| 023 | `online_reviews` | Google reviews inbox |
+| 023 | `online_reviews` | Reviews triage |
 | 024 | `wayback_machine` | Wayback Machine |
 | 025 | `content_management` | Website content management |
 | 026 | `stock_photos` | Pexels stock photos |

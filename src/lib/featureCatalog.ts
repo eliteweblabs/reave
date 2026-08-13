@@ -65,7 +65,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   demo: 'Demo mode',
   real_estate_data: 'Real estate data & lead scanner',
   inventory_sync: 'Multi-channel inventory sync',
-  online_reviews: 'Online reviews inbox',
+  online_reviews: 'Reviews triage',
   wayback_machine: 'Wayback Machine',
   content_management: 'Website content management',
   stock_photos: 'Pexels stock photos',
@@ -100,7 +100,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   demo: 'Seed script, quick-start wizard, and Railway testing installs',
   real_estate_data: 'Property facts, compliance, and daily geofence scan',
   inventory_sync: 'Shopify, WooCommerce, and Square via inventory-api',
-  online_reviews: 'Google sync + response to-do workflow',
+  online_reviews:
+    'Google™, Apple Maps, Yelp, Facebook, and Tripadvisor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
   content_management: 'Update your site through the agent, no CMS',
   stock_photos: 'Royalty-free search for pages, decks, and newsletters',

@@ -38,7 +38,7 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 020 | `demo` | Demo mode |
 | 021 | `real_estate_data` | Real estate data & lead scanner |
 | 022 | `inventory_sync` | Multi-channel inventory sync |
-| 023 | `online_reviews` | Online reviews inbox |
+| 023 | `online_reviews` | Reviews triage |
 | 024 | `wayback_machine` | Wayback Machine |
 | 025 | `content_management` | Website content management |
 | 026 | `stock_photos` | Pexels stock photos |

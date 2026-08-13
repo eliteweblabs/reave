@@ -28,7 +28,7 @@ Generated: 2026-08-05T00:20:53.084Z
 - [ ] **020** — Demo mode (`demo`)
 - [ ] **021** — Real estate data & lead scanner (`real_estate_data`)
 - [ ] **022** — Multi-channel inventory sync (`inventory_sync`)
-- [ ] **023** — Online reviews inbox (`online_reviews`)
+- [ ] **023** — Reviews triage (`online_reviews`)
 - [ ] **024** — Wayback Machine (`wayback_machine`)
 - [ ] **025** — Website content management (`content_management`)
 - [ ] **026** — Pexels stock photos (`stock_photos`)
@@ -465,11 +465,11 @@ Status: **pending** · Playbook: `plugins/inventory/DEPLOY.md`
 - [ ] Test agent inventory list/sync tools
 - [ ] Set `moduleStatus.inventory_sync` → `deployed` in install config
 
-### Online reviews inbox (`online_reviews`)
+### Reviews triage (`online_reviews`)
 
 Status: **pending** · Playbook: `plugins/online-reviews/DEPLOY.md`
 
-# Online reviews deployment
+# Reviews triage deployment
 
 ## Sibling services
 
@@ -489,7 +489,7 @@ Status: **pending** · Playbook: `plugins/online-reviews/DEPLOY.md`
 
 - [ ] Set `GOOGLE_MAPS_API_KEY` on Astro service
 - [ ] Configure Place ID and run `sync_google_reviews`
-- [ ] Verify inbox to-do workflow in Reviews tab
+- [ ] Verify triage workflow in Reviews tab
 - [ ] Set `moduleStatus.online_reviews` → `deployed` in install config
 
 

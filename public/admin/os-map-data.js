@@ -45,7 +45,7 @@ const SYSTEM_NODES = [
   { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
   { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
-  { id: 'online_reviews', title: 'Reviews inbox', sub: 'Google sync · response to-do (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
+  { id: 'online_reviews', title: 'Reviews triage', sub: 'Google™ · Apple Maps · Yelp · Facebook · Tripadvisor (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
   { id: 'analytic_audit', title: 'Analytic audit', sub: 'GSC · GA4 · Plausible · IndexNow (FEATURES: analytic_audit)', icon: '📊', brand: 'google', hue: 145, status: true, group: 'reave', x: 640, y: 804 },
   { id: 'seo_directory', title: 'SEO Directory API Kit', sub: 'second-tier citations · BrightLocal Citation Builder (FEATURES: seo_directory)', icon: '📂', hue: 200, status: true, group: 'reave', x: 640, y: 876 },
   { id: 'event_ticketing', title: 'Event ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },

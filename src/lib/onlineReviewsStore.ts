@@ -1,11 +1,18 @@
 /**
- * Online reviews inbox — Postgres store for fetched reviews + response workflow.
+ * Reviews triage — Postgres store for fetched reviews + response workflow.
  */
 import pg from 'pg';
 import { randomUUID } from 'crypto';
 import { getPgPool } from './pgPool';
 
-export const REVIEW_PLATFORMS = ['google', 'yelp', 'facebook', 'tripadvisor', 'other'] as const;
+export const REVIEW_PLATFORMS = [
+  'google',
+  'apple',
+  'yelp',
+  'facebook',
+  'tripadvisor',
+  'other',
+] as const;
 export type ReviewPlatform = (typeof REVIEW_PLATFORMS)[number];
 
 export const REVIEW_STATUSES = ['new', 'todo', 'responded', 'dismissed'] as const;
@@ -61,7 +68,7 @@ CREATE TABLE IF NOT EXISTS online_reviews_config (
 CREATE TABLE IF NOT EXISTS online_reviews (
   id               UUID PRIMARY KEY,
   platform         TEXT NOT NULL
-    CHECK (platform IN ('google', 'yelp', 'facebook', 'tripadvisor', 'other')),
+    CHECK (platform IN ('google', 'apple', 'yelp', 'facebook', 'tripadvisor', 'other')),
   external_id      TEXT,
   author_name      TEXT,
   rating           NUMERIC(2, 1),
@@ -81,6 +88,10 @@ CREATE TABLE IF NOT EXISTS online_reviews (
 
 CREATE INDEX IF NOT EXISTS idx_online_reviews_status ON online_reviews (status, reviewed_at DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_online_reviews_platform ON online_reviews (platform, reviewed_at DESC NULLS LAST);
+
+ALTER TABLE online_reviews DROP CONSTRAINT IF EXISTS online_reviews_platform_check;
+ALTER TABLE online_reviews ADD CONSTRAINT online_reviews_platform_check
+  CHECK (platform IN ('google', 'apple', 'yelp', 'facebook', 'tripadvisor', 'other'));
 `;
 
 let _schemaReady: Promise<void> | null = null;
