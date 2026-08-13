@@ -153,23 +153,13 @@
  */
 .site-bg-atmosphere {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
   background-color: var(--site-canvas);
   background-image: var(--site-mesh-atmosphere);
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  /*
-   * Large viewport from the layout top — once the scrolling hero fade
-   * leaves, this mesh is what shows in the status-bar inset (not a
-   * color-scheme black gap). Do not use inset:0; that sizes to the
-   * small viewport and leaves the notch unpainted.
-   */
-  height: 100lvh;
-  min-height: 100lvh;
 }
 
 /**
