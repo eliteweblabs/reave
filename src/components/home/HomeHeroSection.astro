@@ -35,10 +35,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   aria-labelledby="home-hero-title"
 >
   {/*
-    Document-flow (NOT position:fixed). iOS paints the status-bar inset black
-    (theme-color + color-scheme). This scrim matches that bar, then fades to
-    the page. Because it lives on the hero it scrolls away, so the notch /
-    Dynamic Island reveal the atmosphere and content underneath.
+    Document-flow veil (NOT position:fixed, NOT an opaque cap). Softens the
+    black status-bar inset into the page so the mesh/pattern stay visible
+    around the island. Scrolls away with the hero.
   */}
   <div class="home-hero-safe-fade" aria-hidden="true"></div>
   <div class="home-hero-brand" data-hero-brand>
@@ -251,12 +250,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       left: 0;
       right: 0;
       z-index: 6;
-      height: calc(env(safe-area-inset-top, 0px) + 64px);
+      height: calc(env(safe-area-inset-top, 0px) + 80px);
       pointer-events: none;
+      /*
+       * Veil only — a solid #000 stop through the inset painted an opaque
+       * bar that hid the page around the island. Fade from black at the
+       * top edge so the mesh shows through immediately.
+       */
       background: linear-gradient(
         180deg,
         #000 0%,
-        #000 env(safe-area-inset-top, 0px),
+        rgba(0, 0, 0, 0.45) calc(env(safe-area-inset-top, 0px) * 0.55),
         rgba(0, 0, 0, 0) 100%
       );
     }
