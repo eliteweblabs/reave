@@ -14,6 +14,7 @@ import { runWithDemoSuite } from "./lib/demoSuiteContext";
 import { isDemoMode } from "./lib/demoMode";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
+import { isClerkFrontendProxyPath, proxyClerkFrontendApi } from "./lib/clerkFrontendProxy";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
@@ -192,6 +193,7 @@ const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
       !normalizedPath.startsWith("/doc/") &&
       !normalizedPath.startsWith("/focus") &&
       !normalizedPath.startsWith("/go/") &&
+      !normalizedPath.startsWith("/__clerk") &&
       normalizedPath !== "/dealer-map";
     if (isMarketingLike) {
       return featureBlockedResponse();
@@ -211,9 +213,13 @@ const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
 });
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
-  if (isHealthLiveProbe(new URL(context.request.url).pathname)) {
+  const pathname = new URL(context.request.url).pathname;
+  if (isHealthLiveProbe(pathname)) {
     const response = await next();
     return applySecurityHeaders(response);
+  }
+  if (isClerkFrontendProxyPath(pathname)) {
+    return applySecurityHeaders(await proxyClerkFrontendApi(context.request));
   }
 
   const run = () => appMiddleware(context, next);
