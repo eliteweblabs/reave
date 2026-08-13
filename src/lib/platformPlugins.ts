@@ -1,3 +1,5 @@
+import { FEATURE_MARKETING } from './featureCatalog';
+
 /** Optional platform modules (the “last 10%”) — accordion content for /modules. */
 
 export type PlatformPlugin = {
@@ -115,13 +117,7 @@ export const PLATFORM_PLUGINS: PlatformPlugin[] = [
     teaser:
       'Google™, Apple Maps, Yelp, Facebook, and Tripadvisor in one to-do queue — draft the reply here, post it on the platform.',
     body: 'Customers leave ratings on the map or review site; you triage them in Reave (New → To-do → Responded or Dismissed) and paste the reply back on the platform. Apple Maps and Apple Business Connect are the same listing — Connect is the dashboard, Maps is where the stars show — so they are not two separate review products. Google Reviews work the same way on Google Maps / Business Profile. Sync pulls recent Google reviews via Places; the rest are added by hand until their APIs are wired. Bing Places is a citation/listing surface, not a review queue, so it stays with audits and the SEO Directory kit.',
-    bullets: [
-      'Google™ Reviews Triage — Places API sync for recent reviews',
-      'Apple Maps Reviews Triage — Apple Business Connect listing, added manually',
-      'Yelp Reviews Triage',
-      'Facebook Reviews Triage',
-      'Tripadvisor Reviews Triage',
-    ],
+    bullets: (FEATURE_MARKETING.online_reviews ?? []).map((c) => c.label),
   },
   {
     id: 'newsletter',

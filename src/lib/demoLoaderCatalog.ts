@@ -24,8 +24,8 @@ export type DemoLoaderModule = {
   inProduction: boolean;
   /** Ready for demo — deploy playbook status is deployed. */
   toggleable: boolean;
-  /** Marketing feature ids that depend on this module. */
-  features: string[];
+  /** Named capabilities from the module definition (FEATURE_MARKETING / MARKETING_FEATURES). */
+  features: Array<{ id: string; label: string }>;
 };
 
 export type DemoLoaderIncludedCard = {
@@ -159,7 +159,10 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         status: m.status,
         inProduction: productionFeatures.has(m.feature),
         toggleable: deployed && Boolean(moduleId),
-        features: listMarketingFeaturesForModule(m.feature).map((f) => f.id),
+        features: listMarketingFeaturesForModule(m.feature).map((f) => ({
+          id: f.id,
+          label: f.label,
+        })),
       };
     })
     .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId))

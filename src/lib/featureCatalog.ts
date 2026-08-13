@@ -40,6 +40,29 @@ export const FEATURE_IDS = [
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
 
+/** Named public-site chips owned by a module (not the module title itself). */
+export type ModuleMarketingCapability = {
+  id: string;
+  label: string;
+  href?: string;
+};
+
+/**
+ * Extra capabilities listed on a module. Flattened into GET /api/demo/loader
+ * `features`, which /features and the homepage chip row consume.
+ */
+export const FEATURE_MARKETING: Partial<
+  Record<FeatureId, readonly ModuleMarketingCapability[]>
+> = {
+  online_reviews: [
+    { id: 'google-reviews-triage', label: 'Google™ Reviews Triage', href: '/modules' },
+    { id: 'apple-maps-reviews-triage', label: 'Apple Maps Reviews Triage', href: '/modules' },
+    { id: 'yelp-reviews-triage', label: 'Yelp Reviews Triage', href: '/modules' },
+    { id: 'facebook-reviews-triage', label: 'Facebook Reviews Triage', href: '/modules' },
+    { id: 'tripadvisor-reviews-triage', label: 'Tripadvisor Reviews Triage', href: '/modules' },
+  ],
+};
+
 /** Short human titles for health output, docs, and demo module catalog. */
 export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client portal',
