@@ -160,8 +160,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		--safe-right: env(safe-area-inset-right, 0px);
 		--safe-bottom: env(safe-area-inset-bottom, 0px);
 		--safe-left: env(safe-area-inset-left, 0px);
+		/* 100vh only — 100% / 100dvh / 100lvh can defeat viewport-fit=cover. */
 		--device-height: 100vh;
-		--device-height: 100lvh;
 		--viable-top: var(--safe-top);
 		--viable-right: var(--safe-right);
 		--viable-bottom: var(--safe-bottom);
@@ -172,9 +172,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	html {
-		min-height: 100%;
+		/*
+		 * Full-bleed Mobile Safari: height:100% (and 100dvh / 100lvh) silently
+		 * defeats viewport-fit=cover + black-translucent — content never
+		 * extends behind the notch. 100vh is the layout viewport that does.
+		 * Body uses min-height so long pages can still grow and scroll.
+		 */
+		height: 100vh;
 		min-height: 100vh;
-		min-height: 100lvh;
 		background-color: var(--site-canvas, #0c0614);
 	}
 
@@ -202,9 +207,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	body {
-		min-height: 100%;
 		min-height: 100vh;
-		min-height: 100lvh;
 		position: relative;
 		background-color: var(--site-canvas, #0c0614);
 	}
@@ -272,7 +275,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). Negative top
 	 * margin pulls the hero under the in-flow sticky header so the first
-	 * screen stays 100lvh without collapsing the header’s stick range.
+	 * screen stays 100vh without collapsing the header’s stick range.
 	 */
 	main#main-content {
 		position: relative;

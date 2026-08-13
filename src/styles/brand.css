@@ -133,13 +133,19 @@
 }
 
 /*
- * Full-bleed wallpaper. viewport-fit=cover makes inset:0 cover the notch
- * and home indicator; do not pad or negatively inset this layer.
+ * Full-bleed wallpaper. Size with 100vh (not 100% / inset-bottom) so Safari
+ * does not fall back to a letterboxed ICB. viewport-fit=cover then lets this
+ * layer cover the notch and home indicator; pad chrome, not this layer.
  */
 .site-bg-atmosphere {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
   z-index: 0;
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
   pointer-events: none;
   background-color: var(--site-canvas);
   background-image: var(--site-mesh-atmosphere);
