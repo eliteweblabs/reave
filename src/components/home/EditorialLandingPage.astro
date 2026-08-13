@@ -1,0 +1,559 @@
+---
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const photo = landing.photo;
+const inquiry = landing.inquiry;
+const contact = landing.contact;
+const licensed = landing.licensedStates;
+const numbers = landing.numbers;
+const properties = landing.properties?.items ?? [];
+const featured = properties.filter((item) => item.featured !== false).slice(0, 6);
+const reviews = landing.reviews;
+const about = landing.about;
+const map = landing.map;
+const year = new Date().getFullYear();
+const signature = landing.signature || landing.name || "";
+const scheduleUrl = landing.scheduleUrl || "#contact";
+const vcfHref = landing.vcfHref || "";
+const mapboxToken = getPublicMapboxAccessToken() || "";
+const priceLabel = (value: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+---
+
+<header class="ed-header">
+  <a class="ed-signature" href="#top">{signature}</a>
+  <button class="ed-menu" type="button" aria-label="Open menu" data-ed-menu>Menu</button>
+  <nav class="ed-nav" data-ed-nav>
+    {numbers && <a href="#numbers">By the Numbers</a>}
+    {properties.length > 0 && <a href="#properties">Properties</a>}
+    {map && <a href="#map-search">Search</a>}
+    {reviews && <a href="#reviews">Reviews</a>}
+    {about && <a href="#about">About</a>}
+    <a href="#contact">Contact</a>
+  </nav>
+  {contact?.phone && (
+    <a class="ed-phone" href={contact.phoneHref || `tel:${contact.phone}`}>
+      {contact.phone}
+    </a>
+  )}
+</header>
+
+<main id="top">
+  <section class="ed-hero" style={landing.heroImage ? `background-image: linear-gradient(180deg, rgba(22,20,16,0.15), rgba(22,20,16,0.72)), url('${landing.heroImage}')` : undefined}>
+    <div class="ed-hero__inner">
+      {landing.eyebrow && <p class="ed-eyebrow">{landing.eyebrow}</p>}
+      <h1>{landing.heroHeadline || landing.name}</h1>
+      {landing.heroBody && <p>{landing.heroBody}</p>}
+      <div class="ed-actions">
+        <a class="ed-btn ed-btn--gold" href={scheduleUrl}>Schedule</a>
+        {vcfHref && (
+          <a class="ed-btn ed-btn--ghost" href={vcfHref} download>
+            Add to Contacts
+          </a>
+        )}
+        <a class="ed-btn ed-btn--ghost" href="#contact">Send an Inquiry</a>
+      </div>
+    </div>
+  </section>
+
+  {numbers && (
+    <section class="ed-numbers" id="numbers">
+      <div class="ed-wrap">
+        <p class="ed-eyebrow">By the Numbers</p>
+        <div class="ed-head">
+          <h2>{numbers.heading}</h2>
+          {numbers.intro && <p>{numbers.intro}</p>}
+        </div>
+        <div class="ed-stats">
+          {numbers.stats.map((stat) => (
+            <article>
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </article>
+          ))}
+        </div>
+        {numbers.note && <p class="ed-note">{numbers.note}</p>}
+      </div>
+    </section>
+  )}
+
+  {featured.length > 0 && (
+    <section id="properties">
+      <div class="ed-wrap">
+        <div class="ed-head">
+          <p class="ed-eyebrow">{landing.properties?.intro || "Featured Properties"}</p>
+          <h2>{landing.properties?.heading}</h2>
+          {landing.properties?.note && <p class="ed-note">{landing.properties.note}</p>}
+        </div>
+        <div class="ed-cards">
+          {featured.map((item) => (
+            <article class="ed-card">
+              <img src={item.image} alt={item.title} />
+              <div class="ed-card__body">
+                <p class="ed-price">{priceLabel(item.price)}</p>
+                <h3>{item.title}</h3>
+                <p class="ed-meta">
+                  {item.address}, {item.city}
+                </p>
+                <p class="ed-meta">
+                  {item.beds} bd · {item.baths} ba · {item.sqft.toLocaleString()} sf · Built {item.year}
+                </p>
+                <p class="ed-meta">{item.district}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {map && properties.length > 0 && (
+    <section class="ed-map-section" id="map-search">
+      <div class="ed-wrap">
+        <div class="ed-head">
+          <p class="ed-eyebrow">{map.intro || "Search"}</p>
+          <h2>{map.heading}</h2>
+          {map.note && <p class="ed-note">{map.note}</p>}
+        </div>
+        <div class="ed-filters">
+          <label>
+            Price
+            <select data-filter="price">
+              <option value="any">Any price</option>
+              <option value="under-800">Under $800k</option>
+              <option value="800-1500">$800k – $1.5M</option>
+              <option value="over-1500">Over $1.5M</option>
+            </select>
+          </label>
+          <label>
+            School district
+            <select data-filter="district" id="filter-district">
+              <option value="any">Any district</option>
+            </select>
+          </label>
+          <label>
+            Year built
+            <select data-filter="year">
+              <option value="any">Any year</option>
+              <option value="pre-1950">Before 1950</option>
+              <option value="1950-1999">1950 – 1999</option>
+              <option value="2000-plus">2000 and newer</option>
+            </select>
+          </label>
+          <label>
+            Property type
+            <select data-filter="type" id="filter-type">
+              <option value="any">Any type</option>
+            </select>
+          </label>
+          <label>
+            Bedrooms
+            <select data-filter="beds">
+              <option value="any">Any beds</option>
+              <option value="2">2+</option>
+              <option value="3">3+</option>
+              <option value="4">4+</option>
+              <option value="5">5+</option>
+            </select>
+          </label>
+        </div>
+        <p class="ed-actions">
+          <button class="ed-btn ed-btn--outline" id="reset-filters" type="button">Reset filters</button>
+          <span class="ed-note" id="result-count"></span>
+        </p>
+        <div class="ed-map-layout">
+          <div id="map"></div>
+          <div class="ed-results" id="map-results"></div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  {reviews && (
+    <section class="ed-reviews" id="reviews">
+      <div class="ed-wrap">
+        <div class="ed-head">
+          <p class="ed-eyebrow">Reviews</p>
+          <h2>{reviews.heading}</h2>
+          {reviews.intro && <p>{reviews.intro}</p>}
+        </div>
+        <div class="ed-review-grid">
+          {reviews.items.map((item) => (
+            <article class="ed-review">
+              {item.stars && <p class="ed-stars">{item.stars}</p>}
+              <blockquote>“{item.quote}”</blockquote>
+              <cite>{item.cite}</cite>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {about && (
+    <section id="about">
+      <div class="ed-wrap ed-about">
+        {photo?.src && (
+          <img src={photo.src} alt={photo.alt || landing.name || ""} width={photo.width || 449} height={photo.height || 449} />
+        )}
+        <div>
+          <p class="ed-eyebrow">About Tony</p>
+          <h2>{about.heading}</h2>
+          {about.body?.map((para) => <p>{para}</p>)}
+          {about.highlights && (
+            <ul class="ed-highlights">
+              {about.highlights.map((item) => <li>{item}</li>)}
+            </ul>
+          )}
+          <div class="ed-actions">
+            <a class="ed-btn ed-btn--gold" href={scheduleUrl}>Schedule a Call</a>
+            {vcfHref && (
+              <a class="ed-btn ed-btn--outline" href={vcfHref} download>
+                Add to Contacts
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section id="contact">
+    <div class="ed-wrap ed-contact">
+      <div>
+        <p class="ed-eyebrow">Contact</p>
+        <h2>{contact?.heading || "Start with a conversation."}</h2>
+        <p>
+          Call, email, save Tony’s card, or book time. For a written question, use the form — it goes to{" "}
+          {contact?.email ? <a href={`mailto:${contact.email}`}>{contact.email}</a> : "Tony"}.
+        </p>
+        <ul class="ed-contact-list">
+          {contact?.phone && (
+            <li>
+              <strong>Phone</strong>
+              <a href={contact.phoneHref || `tel:${contact.phone}`}>{contact.phone}</a>
+            </li>
+          )}
+          {contact?.email && (
+            <li>
+              <strong>Email</strong>
+              <a href={`mailto:${contact.email}`}>{contact.email}</a>
+            </li>
+          )}
+          {contact?.officeLines?.length ? (
+            <li>
+              <strong>Office</strong>
+              <address>
+                {contact.officeLines.map((line, i) => (
+                  <>
+                    {i > 0 && <br />}
+                    {line}
+                  </>
+                ))}
+              </address>
+            </li>
+          ) : null}
+          {licensed && (
+            <li>
+              <strong>NMLS</strong>
+              #18717 ·{" "}
+              <a href={licensed.nmlsHref} target="_blank" rel="noopener noreferrer">
+                nmlsconsumeraccess.org
+              </a>
+            </li>
+          )}
+        </ul>
+        <div class="ed-actions">
+          <a class="ed-btn ed-btn--gold" href={scheduleUrl}>Schedule</a>
+          {vcfHref && (
+            <a class="ed-btn ed-btn--outline" href={vcfHref} download>
+              Add to Contacts
+            </a>
+          )}
+        </div>
+        {licensed && (
+          <p class="ed-states">
+            <strong>Licensed states:</strong> {licensed.states}
+          </p>
+        )}
+      </div>
+
+      {inquiry && (
+        <form class="ed-form" id="inquiry" action="https://api.web3forms.com/submit" method="POST">
+          {inquiry.web3formsAccessKey && <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />}
+          <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
+          <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+          <h2>{inquiry.heading}</h2>
+          <p>{inquiry.intro}</p>
+          <label>
+            Name
+            <input type="text" name="name" required autocomplete="name" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required autocomplete="email" />
+          </label>
+          <label>
+            Phone
+            <input type="tel" name="phone" autocomplete="tel" />
+          </label>
+          <label>
+            Message
+            <textarea name="message" rows="5" required />
+          </label>
+          <button class="ed-btn ed-btn--gold" type="submit">{inquiry.submitLabel || "Send Inquiry"}</button>
+        </form>
+      )}
+    </div>
+  </section>
+</main>
+
+<footer class="ed-footer">
+  <p>
+    &copy; {year} {landing.footer || landing.name}
+  </p>
+  <p>Equal Housing Lender. Dummy listing and production figures are placeholders.</p>
+</footer>
+
+{map && properties.length > 0 && (
+  <>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js" is:inline></script>
+    <script is:inline define:vars={{ mapboxToken, properties, mapLng: map.lng ?? -70.95, mapLat: map.lat ?? 42.35, mapZoom: map.zoom ?? 8.1 }}>
+      window.PROPERTIES = properties;
+      window.SITE_CONFIG = { mapboxToken, mapLng, mapLat, mapZoom };
+    </script>
+    <script is:inline src="/sites/tonybarlettajr/landing-map.js"></script>
+  </>
+)}
+
+<script is:inline>
+  const toggle = document.querySelector("[data-ed-menu]");
+  const nav = document.querySelector("[data-ed-nav]");
+  toggle?.addEventListener("click", () => nav?.classList.toggle("is-open"));
+  nav?.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => nav.classList.remove("is-open"));
+  });
+</script>
+
+<style>
+  .ed-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1.5rem;
+    background: rgba(251, 248, 242, 0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(22, 20, 16, 0.12);
+  }
+  .ed-signature {
+    font-family: "Great Vibes", cursive;
+    font-size: clamp(1.8rem, 3vw, 2.35rem);
+    line-height: 1;
+    color: #161410;
+    text-decoration: none;
+  }
+  .ed-nav {
+    display: flex;
+    gap: 1.35rem;
+  }
+  .ed-nav a,
+  .ed-phone {
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #3d382f;
+    text-decoration: none;
+  }
+  .ed-phone { font-weight: 600; }
+  .ed-menu {
+    display: none;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+  }
+  .ed-hero {
+    min-height: 88vh;
+    display: grid;
+    place-items: end start;
+    color: #fffdf8;
+    background: #161410 center/cover no-repeat;
+  }
+  .ed-hero__inner {
+    padding: 0 7vw 6rem;
+    max-width: 42rem;
+  }
+  .ed-hero h1 {
+    margin: 0;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(3rem, 8vw, 6.2rem);
+    font-weight: 500;
+    line-height: 1.1;
+    color: #fff;
+  }
+  .ed-hero p { color: rgba(255, 253, 248, 0.86); font-size: 1.1rem; }
+  .ed-eyebrow {
+    margin: 0 0 0.75rem;
+    color: #8d6e3f;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .ed-numbers .ed-eyebrow { color: #b08d57; }
+  .ed-wrap {
+    width: min(1180px, calc(100% - 2.5rem));
+    margin: 0 auto;
+  }
+  section { padding: 5.5rem 0; }
+  .ed-head { max-width: 40rem; margin-bottom: 2.5rem; }
+  .ed-head h2, .ed-about h2, .ed-contact h2, .ed-form h2 {
+    margin: 0 0 0.75rem;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    font-weight: 500;
+  }
+  .ed-note { font-size: 0.85rem; font-style: italic; color: #7a7368; }
+  .ed-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+  .ed-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.9rem;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .ed-btn--gold { background: #b08d57; color: #fff; }
+  .ed-btn--ghost { background: transparent; border-color: rgba(255,255,255,0.55); color: #fff; }
+  .ed-btn--outline { background: transparent; border-color: #161410; color: #161410; }
+  .ed-numbers { background: #161410; color: #f4efe6; }
+  .ed-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .ed-stats article { padding: 2rem 1.5rem; background: #161410; }
+  .ed-stats strong {
+    display: block;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.2rem, 4vw, 3.4rem);
+    font-weight: 500;
+    color: #b08d57;
+  }
+  .ed-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .ed-card { background: #fffdf8; box-shadow: 0 24px 60px rgba(22,20,16,0.12); }
+  .ed-card img { width: 100%; height: 240px; object-fit: cover; }
+  .ed-card__body { padding: 1.15rem 1.2rem 1.4rem; }
+  .ed-price { margin: 0; font-family: "Cormorant Garamond", Georgia, serif; font-size: 1.7rem; }
+  .ed-card h3 { margin: 0.2rem 0 0.35rem; font-family: "Cormorant Garamond", Georgia, serif; font-size: 1.25rem; }
+  .ed-meta { margin: 0; color: #7a7368; font-size: 0.9rem; }
+  .ed-map-section { background: #f4efe6; }
+  .ed-filters { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.85rem; margin-bottom: 1.25rem; }
+  .ed-filters label, .ed-form label {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7a7368;
+  }
+  .ed-filters select, .ed-form input, .ed-form textarea {
+    width: 100%;
+    min-height: 2.7rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid rgba(22,20,16,0.12);
+    background: #fff;
+    color: #161410;
+    font: inherit;
+  }
+  .ed-map-layout { display: grid; grid-template-columns: 1.4fr 0.9fr; min-height: 620px; border: 1px solid rgba(22,20,16,0.12); background: #fff; }
+  #map { min-height: 620px; }
+  .ed-results { overflow: auto; max-height: 620px; border-left: 1px solid rgba(22,20,16,0.12); }
+  .ed-reviews { background: #fffdf8; }
+  .ed-review-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .ed-review { padding: 1.6rem; background: #f4efe6; }
+  .ed-stars { color: #8d6e3f; }
+  .ed-review blockquote {
+    margin: 0.75rem 0 1rem;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.25rem;
+  }
+  .ed-review cite { font-style: normal; font-size: 0.88rem; color: #7a7368; }
+  .ed-about, .ed-contact { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 3rem; align-items: center; }
+  .ed-about img {
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+    background: transparent;
+    filter: drop-shadow(0 18px 28px rgba(22, 20, 16, 0.18));
+  }
+  .ed-highlights { display: grid; gap: 0.65rem; padding: 0; list-style: none; }
+  .ed-highlights li { padding-left: 1.1rem; position: relative; }
+  .ed-highlights li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.7rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    background: #b08d57;
+  }
+  .ed-contact-list { padding: 0; margin: 0; list-style: none; }
+  .ed-contact-list li { padding: 0.85rem 0; border-bottom: 1px solid rgba(22,20,16,0.12); }
+  .ed-contact-list strong {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7a7368;
+  }
+  address { font-style: normal; }
+  .ed-form { display: grid; gap: 0.9rem; }
+  .ed-footer {
+    padding: 2.5rem 0 3rem;
+    border-top: 1px solid rgba(22,20,16,0.12);
+    text-align: center;
+    color: #7a7368;
+    font-size: 0.9rem;
+  }
+  .ed-states { margin-top: 1rem; }
+  @media (max-width: 980px) {
+    .ed-stats, .ed-cards, .ed-review-grid, .ed-filters, .ed-map-layout, .ed-about, .ed-contact {
+      grid-template-columns: 1fr;
+    }
+    .ed-nav {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      padding: 1rem 1.5rem;
+      background: #fbf8f2;
+    }
+    .ed-nav.is-open { display: flex; }
+    .ed-menu { display: block; }
+    .ed-phone { display: none; }
+    .ed-about img { max-width: none; }
+  }
+</style>

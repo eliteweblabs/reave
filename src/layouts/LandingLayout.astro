@@ -24,10 +24,11 @@ const {
 const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const landing = siteContent.landing ?? {};
+const isEditorial = landing.variant === "editorial";
 const title = titleProp ?? landing.title ?? company.name;
 const description = descriptionProp ?? landing.description ?? company.description;
 const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
-const themeColor = themeColorProp ?? landing.themeColor ?? "#01061d";
+const themeColor = themeColorProp ?? landing.themeColor ?? (isEditorial ? "#f4efe6" : "#01061d");
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -35,10 +36,13 @@ const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${origin}${ogIma
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
+const htmlStyle = isEditorial
+  ? undefined
+  : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
 ---
 
 <!doctype html>
-<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
+<html lang="en" style={htmlStyle}>
   <head>
     <meta charset="UTF-8" />
     <ViewportMeta />
@@ -53,22 +57,45 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageSafe} />
+    {isEditorial && <meta property="og:image:width" content="1200" />}
+    {isEditorial && <meta property="og:image:height" content="630" />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={landing.name ?? company.name} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageSafe} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    {isEditorial ? (
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Great+Vibes&family=Outfit:wght@400;500;600&display=swap"
+        rel="stylesheet"
+      />
+    ) : (
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+    )}
   </head>
-  <body class="landing-body">
+  <body class={isEditorial ? "editorial-body" : "landing-body"}>
     <slot />
   </body>
 </html>
 
+{isEditorial ? (
+<style is:global>
+  * { box-sizing: border-box; }
+  html, body.editorial-body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Outfit, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #161410;
+    background: #fbf8f2;
+  }
+  body.editorial-body a { color: inherit; }
+</style>
+) : (
 <style is:global>
   * {
     box-sizing: border-box;
@@ -93,3 +120,4 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     text-decoration: underline;
   }
 </style>
+)}
