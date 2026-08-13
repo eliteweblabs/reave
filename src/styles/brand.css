@@ -103,7 +103,7 @@
       var(--site-mesh-glow), var(--site-mesh-lift), var(--site-mesh-bottom);
   }
 
-  .site-bg-pattern {
+  .site-bg-atmosphere {
     --site-bg-pattern-opacity: 0.08;
   }
 }
@@ -132,18 +132,10 @@
   text-decoration: none;
 }
 
-/* Viewport wallpaper — sized to one screen, not the full document. */
-.reave-bg-pattern {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: var(--reave-bg-pattern-url);
-  background-repeat: repeat;
-  background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
-  background-position: center center;
-}
-
+/*
+ * One fixed viewport layer: canvas + mesh on the element, repeating chevron
+ * on ::after so the two stay sized and stacked together.
+ */
 .site-bg-atmosphere {
   position: fixed;
   inset: 0;
@@ -155,25 +147,27 @@
   background-size: 100% 100%;
 }
 
-/**
- * Mesh is painted on body in Layout / portal shells. Keep this hook so older
- * markup or portals that still render the node do not reintroduce a fixed
- * full-bleed edge layer on iPhone Safari.
- */
-.site-bg-mesh {
-  display: none;
-}
-
-.site-bg-pattern {
-  /*
-   * Stay above body background-color but below scrolling page content
-   * (.home-scroll z-index: 2). When z-index matched content at 1, iOS Safari
-   * sometimes composited the fixed tile layer over text sliding under the
-   * transparent header — reads as a dark band clipping headlines.
-   */
-  z-index: 1;
+.site-bg-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--reave-bg-pattern-url);
+  background-repeat: repeat;
+  background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
+  background-position: center center;
   mix-blend-mode: soft-light;
   opacity: var(--site-bg-pattern-opacity, 0.085);
+  pointer-events: none;
+}
+
+/**
+ * Standalone pattern / mesh nodes — folded into .site-bg-atmosphere::after.
+ * Hide leftovers so they cannot paint a second, document-sized layer.
+ */
+.reave-bg-pattern,
+.site-bg-pattern,
+.site-bg-mesh {
+  display: none;
 }
 
 @media (prefers-color-scheme: dark) {
