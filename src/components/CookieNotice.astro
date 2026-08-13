@@ -1,0 +1,139 @@
+---
+/**
+ * Implied-consent cookie bar. Shown until the visitor dismisses with X or scrolls.
+ * Feature-gated: cookie_notice.
+ */
+import { hasFeature } from "../lib/features";
+import { isModuleRuntimeAllowed } from "../lib/deployModuleStatus";
+
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+const show =
+  hasFeature("cookie_notice") &&
+  isModuleRuntimeAllowed("cookie_notice") &&
+  pathNorm !== "/cookies";
+---
+
+{
+  show && (
+    <div
+      id="cookie-notice"
+      class="cookie-notice"
+      role="status"
+      hidden
+      data-storage-key="reave_cookie_ok"
+    >
+      <p class="cookie-notice-copy">
+        You agree to our <a href="/cookies">cookie policy</a> by continuing on this website.
+      </p>
+      <button type="button" class="cookie-notice-dismiss" aria-label="Dismiss cookie notice">
+        <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M18 6 6 18"></path>
+          <path d="m6 6 12 12"></path>
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+{
+  show && (
+    <script is:inline>
+      (function () {
+        var root = document.getElementById("cookie-notice");
+        if (!root || root.dataset.initialized === "1") return;
+        root.dataset.initialized = "1";
+        var key = root.getAttribute("data-storage-key");
+        if (!key) return;
+        try {
+          if (localStorage.getItem(key) === "1") return;
+        } catch (e) {}
+        root.hidden = false;
+        function dismiss() {
+          try {
+            localStorage.setItem(key, "1");
+          } catch (e) {}
+          root.hidden = true;
+          window.removeEventListener("scroll", onScroll, true);
+        }
+        function onScroll() {
+          if ((window.scrollY || document.documentElement.scrollTop || 0) < 40) return;
+          dismiss();
+        }
+        var btn = root.querySelector(".cookie-notice-dismiss");
+        if (btn) btn.addEventListener("click", dismiss);
+        window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+      })();
+    </script>
+  )
+}
+
+<style>
+  .cookie-notice {
+    position: fixed;
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    z-index: 1000;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 0.85rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(12, 12, 14, 0.94);
+    backdrop-filter: blur(14px) saturate(1.1);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    color: rgba(255, 255, 255, 0.88);
+    font-family: var(--font-content, inherit);
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .cookie-notice[hidden] {
+    display: none !important;
+  }
+
+  .cookie-notice-copy {
+    margin: 0;
+    padding-right: 1.75rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .cookie-notice-copy a {
+    color: #c4b5fd;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .cookie-notice-copy a:hover {
+    color: #ddd6fe;
+  }
+
+  .cookie-notice-dismiss {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+  }
+
+  .cookie-notice-dismiss:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.08);
+  }
+</style>

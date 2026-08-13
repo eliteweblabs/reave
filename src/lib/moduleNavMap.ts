@@ -37,6 +37,8 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   wordpress_content: ['__system__'],
   seo_directory: ['analytics', '__system__'],
   event_ticketing: ['__system__'],
+  clerk_auth: ['__system__'],
+  cookie_notice: [],
 };
 
 /** Human labels for footerNav keys (monitor panel). */

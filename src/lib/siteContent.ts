@@ -220,6 +220,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/digital-audit',
       '/privacy',
       '/terms',
+      '/cookies',
     ],
     nav: {
       links: [],

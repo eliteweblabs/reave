@@ -2,10 +2,12 @@
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isTermsPage = pathNorm === "/terms";
 const isPrivacyPage = pathNorm === "/privacy";
+const isCookiesPage = pathNorm === "/cookies";
 
 const legalLinks = [
   { href: "/terms", label: "Terms", active: isTermsPage },
   { href: "/privacy", label: "Privacy", active: isPrivacyPage },
+  { href: "/cookies", label: "Cookies", active: isCookiesPage },
 ] as const;
 ---
 

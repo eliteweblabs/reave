@@ -1,6 +1,6 @@
 {
   "key": "demo-plumbing",
-  "pages": ["/", "/privacy", "/terms"],
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [
       { "href": "/admin", "label": "Dashboard" },
