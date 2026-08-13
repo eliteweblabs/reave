@@ -1,10 +1,10 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them. CTAs are viewport-fixed at the hero footer (see HomeStickyCtas).
+ * under them. CTAs are viewport-fixed at the page footer (see HomeStickyCtas
+ * in index.astro) — they cannot live in this section's stacking context.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
-import HomeStickyCtas from "./HomeStickyCtas.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -80,8 +80,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       </div>
     )
   }
-
-  {showHeroCtas && <HomeStickyCtas siteContent={siteContent} />}
 
   {
     showHeroDemo && showDemoControls && (
