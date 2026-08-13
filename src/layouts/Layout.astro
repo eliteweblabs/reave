@@ -36,7 +36,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Defaults to Safari’s black safe-area chrome; the page edge fades from the same solid. */
+	/** Initial `<meta name="theme-color">`. Page canvas so iOS chrome can tint from the same purple. */
   themeColor?: string;
 }
 
@@ -47,7 +47,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-	themeColor = "#000000",
+	themeColor = "#0c0614",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -160,8 +160,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		--safe-right: env(safe-area-inset-right, 0px);
 		--safe-bottom: env(safe-area-inset-bottom, 0px);
 		--safe-left: env(safe-area-inset-left, 0px);
+		/* 100vh only — 100% / 100dvh / 100lvh can defeat viewport-fit=cover. */
 		--device-height: 100vh;
-		--device-height: 100lvh;
 		--viable-top: var(--safe-top);
 		--viable-right: var(--safe-right);
 		--viable-bottom: var(--safe-bottom);
@@ -172,9 +172,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	html {
-		min-height: 100%;
+		/*
+		 * Full-bleed Mobile Safari: height:100% (and 100dvh / 100lvh) silently
+		 * defeats viewport-fit=cover + black-translucent — content never
+		 * extends behind the notch. 100vh is the layout viewport that does.
+		 * Body uses min-height so long pages can still grow and scroll.
+		 */
+		height: 100vh;
 		min-height: 100vh;
-		min-height: 100lvh;
 		background-color: var(--site-canvas, #0c0614);
 	}
 
@@ -191,13 +196,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 */
 		overscroll-behavior-y: none;
 		/*
-		 * Default every page to the dark theme (matches the homepage) so pages
-		 * never fall back to the browser's white default — which otherwise
-		 * causes white text (styled for a dark background) to render invisibly
-		 * on a white page. Pages can still override this per-element as needed.
-		 * Use background-color (not the background shorthand) so Safari’s
-		 * chrome/overscroll sampling stays predictable on iOS 26+.
-		 * TODO: replace with a proper color-mode/theme variable system.
+		 * Default every page to the dark homepage canvas so text never renders
+		 * on the browser’s white default. viewport-fit=cover extends this
+		 * background into the notch and home indicator; pad chrome with
+		 * env(safe-area-inset-*), not the wallpaper.
 		 */
 		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
@@ -205,9 +207,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	body {
-		min-height: 100%;
 		min-height: 100vh;
-		min-height: 100lvh;
 		position: relative;
 		background-color: var(--site-canvas, #0c0614);
 	}
@@ -275,19 +275,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). Negative top
 	 * margin pulls the hero under the in-flow sticky header so the first
-	 * screen stays 100lvh without collapsing the header’s stick range.
+	 * screen stays 100vh without collapsing the header’s stick range.
 	 */
 	main#main-content {
 		position: relative;
 		z-index: 2;
 		margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem)));
-	}
-
-	@media (max-width: 768px) {
-		html,
-		body {
-			background-color: var(--site-status-bar, #000);
-		}
 	}
 
 	@media (min-width: 769px) {

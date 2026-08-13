@@ -1,9 +1,7 @@
 ---
 /**
- * Homepage hero CTAs — pinned from the top of the large viewport so the
- * pills sit in the last --home-hero-copy-h of the screen (same band as the
- * mock chat footer). `bottom` + a fake Safari-toolbar inset letterboxed the
- * hero; `top: 100lvh` + a negative margin fills the screen instead.
+ * Homepage hero CTAs — full-bleed dock: `bottom: 0` so the layer reaches the
+ * screen edge (`viewport-fit=cover`); env(safe-area-inset-*) pads the pills.
  * Sibling of .home-scroll — .home-hero is isolation:isolate and would trap
  * position:fixed. No rest-state transform (WebKit clips the pill glow).
  */
@@ -53,13 +51,11 @@ if (ctas.length === 0) return;
 
 <style is:global>
   .home-sticky-ctas {
-    --home-hero-copy-h: 120px;
+    --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
     position: fixed;
     left: 0;
     right: 0;
-    top: 100vh;
-    top: 100lvh;
-    bottom: auto;
+    bottom: 0;
     z-index: 100;
     display: flex;
     flex-direction: column;
@@ -67,15 +63,17 @@ if (ctas.length === 0) return;
     align-items: center;
     width: min(100%, 540px);
     max-width: calc(100vw - 40px);
-    height: var(--home-hero-copy-h);
     margin-inline: auto;
-    margin-top: calc(-1 * var(--home-hero-copy-h));
     /*
+     * Wallpaper is full-bleed; only the tappable pills clear the home bar.
      * No rest-state transform — WebKit clips box-shadow on a transformed
-     * fixed layer (hard line under the Demo glow). Pin with top + height.
-     * Padding is only for the glow; do not reserve Safari toolbar space.
+     * fixed layer (hard line under the Demo glow).
      */
-    padding: 20px 28px 12px;
+    padding:
+      20px
+      max(28px, env(safe-area-inset-right, 0px))
+      calc(12px + env(safe-area-inset-bottom, 0px))
+      max(28px, env(safe-area-inset-left, 0px));
     overflow: visible;
     box-sizing: border-box;
     text-align: center;
