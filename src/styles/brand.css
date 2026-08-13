@@ -34,8 +34,13 @@
     radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
     radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
     radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%);
+  /*
+   * Lower-third wash — sit the ellipse in the viewport, not on the layer’s
+   * bottom edge. Safari clips this fixed wallpaper at the visual viewport,
+   * so a 50% 100% radial painted a hard purple line under the hero CTAs.
+   */
   --site-mesh-bottom:
-    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
+    radial-gradient(ellipse 90% 48% at 50% 62%, rgba(192, 38, 211, 0.12) 0%, transparent 72%);
   --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom);
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
@@ -148,6 +153,7 @@
   z-index: 0;
   width: auto;
   height: auto;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -173,6 +179,36 @@
   mix-blend-mode: soft-light;
   opacity: var(--site-bg-pattern-opacity, 0.085);
   pointer-events: none;
+}
+
+/*
+ * Mobile: dissolve the wallpaper into the canvas at the visual viewport
+ * bottom. Sibling of .site-bg-atmosphere (not a child) so Safari’s clip of
+ * the bled fixed layer cannot cut this fade. z-index 1 sits above the
+ * atmosphere (0) and under main (2) / sticky CTAs. Canvas — not black —
+ * so this is not a letterbox.
+ */
+.site-bg-atmosphere-veil {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .site-bg-atmosphere-veil {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 88px;
+    pointer-events: none;
+    background: linear-gradient(
+      to top,
+      var(--site-canvas) 0%,
+      color-mix(in srgb, var(--site-canvas) 70%, transparent) 28%,
+      transparent 100%
+    );
+  }
 }
 
 /**
