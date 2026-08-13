@@ -258,7 +258,7 @@ import {
   ruleState,
   loadRulesTab,
   openRulesLabWithEmail,
-} from './rules-panel.js?v=20260813a';
+} from './rules-panel.js?v=20260813b';
 import {
   initNewsletterPanel,
   loadNewsletterTab,

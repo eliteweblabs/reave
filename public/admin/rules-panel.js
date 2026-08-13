@@ -270,10 +270,10 @@ function ruleNotifyActions(rule) {
 }
 
 const RULE_PROCESS_OPTIONS = [
-  { value: 'delete', label: 'Delete this email (junk, no alert)' },
-  { value: 'archive', label: 'Archive silently' },
-  { value: 'receipt', label: 'File as receipt' },
-  { value: 'classify', label: 'Classify only — keep in inbox' },
+  { value: 'delete', label: 'Delete' },
+  { value: 'archive', label: 'Archive' },
+  { value: 'receipt', label: 'Receipt' },
+  { value: 'classify', label: 'Keep' },
 ];
 
 function ruleProcessValue(ruleOrStatus) {
@@ -311,7 +311,7 @@ function processHintText(process) {
   if (process === 'receipt') {
     return 'Matched mail is filed as a tax receipt. No alert.';
   }
-  return 'This labels the email. Turn on Notify below for an alert. Notification buttons do not process the mail.';
+  return 'Keep leaves the email in the inbox. Turn on Notify below for an alert. Notification buttons do not process the mail.';
 }
 
 function ruleSubline(rule) {
@@ -882,12 +882,10 @@ function renderRuleEditPane(pane, opts = {}) {
     fieldsWrap.appendChild(lb);
   }
 
-  const processSel = document.createElement('select');
-  processSel.className = 'de-input';
-  processSel.innerHTML = RULE_PROCESS_OPTIONS.map(
-    (o) => `<option value="${o.value}">${o.label}</option>`,
-  ).join('');
+  const processSel = document.createElement('input');
+  processSel.type = 'hidden';
   processSel.value = ruleProcessValue(rule);
+  let processPill = null;
 
   const notifyChannelsWrap = document.createElement('div');
   notifyChannelsWrap.className = 're-checks';
@@ -977,8 +975,21 @@ function renderRuleEditPane(pane, opts = {}) {
     const next = ruleProcessValue(statusIn.value);
     if (processSel.value !== next) {
       processSel.value = next;
+      processPill?.setValue(next);
       syncProcessUi({ fromStatus: true });
     }
+  });
+
+  processPill = createSlidingPillSelect({
+    label: 'Email processing action',
+    value: processSel.value,
+    options: RULE_PROCESS_OPTIONS,
+    ariaLabel: 'Email processing action',
+    scrollable: false,
+    onChange: (value) => {
+      processSel.value = value;
+      processSel.dispatchEvent(new Event('change', { bubbles: true }));
+    },
   });
 
   const enabledLb = document.createElement('label');
@@ -1074,17 +1085,19 @@ function renderRuleEditPane(pane, opts = {}) {
   appendRuleField(form, 'Except (NOT)', exceptIn);
   appendRuleField(form, 'Match mode', matchSel);
   appendRuleField(form, 'Search in', fieldsWrap);
-  processField = appendRuleField(
-    form,
-    'Then',
-    processSel,
-    processHintText(processSel.value),
-  );
+  const processFieldWrap = document.createElement('div');
+  processFieldWrap.className = 're-process-field';
+  const processHint = document.createElement('span');
+  processHint.className = 're-field-hint';
+  processHint.textContent = processHintText(processSel.value);
+  processFieldWrap.append(processPill.el, processHint, processSel);
+  form.appendChild(processFieldWrap);
+  processField = { wrap: processFieldWrap, hintEl: processHint };
   appendRuleField(
     form,
     'Status tag',
     statusIn,
-    'Inbox label. Then above sets DELETE / AUTO_ARCHIVED / RECEIPT for you.',
+    'Inbox label. Email processing action above sets DELETE / AUTO_ARCHIVED / RECEIPT for you.',
   );
   appendRuleField(form, 'Forward to', forwardIn);
   notifyField = appendRuleField(
