@@ -133,11 +133,12 @@
 }
 
 /**
- * Tiled brand chevron pattern — fixed, CSS background-image only.
- * No inline SVG, no 600% scale hacks, no JS. Wikipedia-simple.
+ * Page atmosphere — document flow (absolute on body), not position:fixed.
+ * iOS clips fixed layers to the visual viewport, so they never paint behind
+ * the Safari toolbar. Absolute + body min-height covers the hardware fold.
  */
 .reave-bg-pattern {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -147,29 +148,15 @@
   background-position: center center;
 }
 
-/**
- * Mesh is painted on a fixed div in SiteBackground.astro — not on html/body
- * (background-attachment: fixed janks on scroll and exposes black bars).
- */
 .site-bg-atmosphere {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: absolute;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
   background-color: var(--site-canvas);
   background-image: var(--site-mesh-atmosphere);
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  /*
-   * Large viewport from the layout top — once the scrolling hero fade
-   * leaves, this mesh is what shows in the status-bar inset (not a
-   * color-scheme black gap). Do not use inset:0; that sizes to the
-   * small viewport and leaves the notch unpainted.
-   */
-  height: 100lvh;
-  min-height: 100lvh;
 }
 
 /**

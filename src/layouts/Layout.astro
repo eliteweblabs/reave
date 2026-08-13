@@ -168,8 +168,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	 * paint box is at least one device tall and can still grow with content.
 	 *
 	 * html/body use --site-canvas so overscroll matches the atmosphere.
-	 * Atmosphere is a viewport-fixed layer (SiteBackground); theme-color can
-	 * stay --site-status-bar for OS chrome without painting page bands.
+	 * Atmosphere is a document-flow layer (SiteBackground), not position:fixed.
 	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);

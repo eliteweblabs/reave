@@ -134,21 +134,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     max-width: 100%;
     isolation: isolate;
     /*
-     * Full hardware fold (100lvh), including behind the floating Safari
-     * toolbar. 100dvh is only the visible fold — the next section then peeks
-     * under the address bar. Chat/CTAs stay in the visible fold via
-     * (100lvh - 100dvh) on their bottom inset.
+     * One screen, document flow. min-height only — a `height` lock plus
+     * 100dvh/100lvh fighting is why this never reached the bottom of the
+     * phone. 100lvh is the hardware fold (behind the Safari toolbar).
      */
     min-height: 100vh;
-    min-height: -webkit-fill-available;
-    min-height: 100dvh;
+    min-height: 100svh;
     min-height: 100lvh;
-    min-height: var(--device-height, 100lvh);
-    height: 100vh;
-    height: -webkit-fill-available;
-    height: 100dvh;
-    height: 100lvh;
-    height: var(--device-height, 100lvh);
     overflow: hidden;
     scroll-margin-top: 0;
   }
@@ -302,14 +294,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    /*
-     * 100lvh - 100dvh is the floating Safari toolbar. Zero on desktop.
-     * Keeps the lane in the visible fold while the hero itself fills 100lvh.
-     */
-    bottom: calc(
-      10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)) +
-        (100lvh - 100dvh)
-    );
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -351,8 +336,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     left: 50%;
     bottom: calc(
       var(--home-hero-copy-h, 88px) + 20px +
-        var(--viable-bottom, env(safe-area-inset-bottom, 0px)) +
-        (100lvh - 100dvh)
+        env(safe-area-inset-bottom, 0px)
     );
     transform: translateX(-50%);
     display: inline-flex;

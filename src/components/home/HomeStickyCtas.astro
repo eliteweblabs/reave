@@ -51,7 +51,7 @@ if (ctas.length === 0) return;
   .home-sticky-ctas {
     position: fixed;
     left: 50%;
-    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
     display: flex;
     flex-direction: column;
