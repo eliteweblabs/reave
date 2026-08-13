@@ -1113,6 +1113,7 @@ function createChatAdapter(
 }
 
 type DeployChatDraftPayload = { threadId: string; text: string; autoSend?: boolean };
+type DeployChatDraftEntry = { text: string; autoSend?: boolean };
 
 type DeployIndicatorPayload = {
   chatLocked?: boolean;
@@ -1155,16 +1156,52 @@ function isSentComposerEcho(text: string, lastUserText: string): boolean {
   return Boolean(a) && a === lastUserText.trim();
 }
 
-function readDeployChatDraftPayload(threadId: string): DeployChatDraftPayload | null {
+function readDeployChatDraftsMap(): Record<string, DeployChatDraftEntry> {
   try {
     const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DeployChatDraftPayload;
-    if (!parsed || parsed.threadId !== threadId || typeof parsed.text !== 'string') return null;
-    return parsed;
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as DeployChatDraftPayload | Record<string, DeployChatDraftEntry>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    // Legacy single-draft shape from the first deploy-lock snapshot.
+    if ('threadId' in parsed && typeof parsed.threadId === 'string' && typeof parsed.text === 'string') {
+      return {
+        [parsed.threadId]: {
+          text: parsed.text,
+          ...(parsed.autoSend ? { autoSend: true } : {}),
+        },
+      };
+    }
+    const out: Record<string, DeployChatDraftEntry> = {};
+    for (const [id, entry] of Object.entries(parsed as Record<string, DeployChatDraftEntry>)) {
+      if (entry && typeof entry.text === 'string') {
+        out[id] = {
+          text: entry.text,
+          ...(entry.autoSend ? { autoSend: true } : {}),
+        };
+      }
+    }
+    return out;
   } catch {
-    return null;
+    return {};
   }
+}
+
+function writeDeployChatDraftsMap(map: Record<string, DeployChatDraftEntry>): void {
+  try {
+    if (Object.keys(map).length === 0) {
+      sessionStorage.removeItem(DEPLOY_CHAT_DRAFT_KEY);
+      return;
+    }
+    sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(map));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function readDeployChatDraftPayload(threadId: string): DeployChatDraftPayload | null {
+  const entry = readDeployChatDraftsMap()[threadId];
+  if (!entry) return null;
+  return { threadId, text: entry.text, autoSend: entry.autoSend };
 }
 
 function saveDeployChatDraft(
@@ -1175,14 +1212,11 @@ function saveDeployChatDraft(
   try {
     // Never wipe a prior snapshot with an empty string (lock timing races).
     if (!text.trim()) return;
-    const prev = readDeployChatDraftPayload(threadId);
+    const all = readDeployChatDraftsMap();
+    const prev = all[threadId];
     const autoSend = opts?.autoSend ?? prev?.autoSend;
-    const payload: DeployChatDraftPayload = {
-      threadId,
-      text,
-      ...(autoSend ? { autoSend: true } : {}),
-    };
-    sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(payload));
+    all[threadId] = { text, ...(autoSend ? { autoSend: true } : {}) };
+    writeDeployChatDraftsMap(all);
   } catch {
     /* private mode / quota */
   }
@@ -1192,9 +1226,16 @@ function readDeployChatDraft(threadId: string): string | null {
   return readDeployChatDraftPayload(threadId)?.text ?? null;
 }
 
-function clearDeployChatDraft(): void {
+function clearDeployChatDraft(threadId?: string): void {
   try {
-    sessionStorage.removeItem(DEPLOY_CHAT_DRAFT_KEY);
+    if (!threadId) {
+      sessionStorage.removeItem(DEPLOY_CHAT_DRAFT_KEY);
+      return;
+    }
+    const all = readDeployChatDraftsMap();
+    if (!(threadId in all)) return;
+    delete all[threadId];
+    writeDeployChatDraftsMap(all);
   } catch {
     /* private mode */
   }
@@ -1252,7 +1293,7 @@ function DeployDraftBoot({
     if (!deployChatLocked) return;
     const text = composer.getState().text ?? '';
     if (isSentComposerEcho(text, lastUserText)) {
-      clearDeployChatDraft();
+      clearDeployChatDraft(threadId);
       onQueuedChange?.(false);
       return;
     }
@@ -1272,14 +1313,14 @@ function DeployDraftBoot({
         const saved = readDeployChatDraftPayload(threadId);
         if (saved) {
           if (isSentComposerEcho(saved.text, lastUserText)) {
-            clearDeployChatDraft();
+            clearDeployChatDraft(threadId);
             onQueuedChange?.(false);
           } else {
             const current = composer.getState().text ?? '';
             if (!current.trim()) composer.setText(saved.text);
             if (saved.autoSend) onQueuedChange?.(true);
             // Keep autoSend snapshots until the flush effect actually sends.
-            else if (!deployChatLocked) clearDeployChatDraft();
+            else if (!deployChatLocked) clearDeployChatDraft(threadId);
           }
         }
       }
@@ -1288,7 +1329,7 @@ function DeployDraftBoot({
     // In-session unlock (no reload): drop a regular typed snapshot. Queued
     // auto-sends stay until the flush effect below fires.
     if (wasLocked && !deployChatLocked && !readDeployChatDraftPayload(threadId)?.autoSend) {
-      clearDeployChatDraft();
+      clearDeployChatDraft(threadId);
     }
   }, [composer, deployChatLocked, lastUserText, onQueuedChange, skipRestore, threadId]);
 
@@ -1300,7 +1341,7 @@ function DeployDraftBoot({
     if (isSentComposerEcho(current, lastUserText)) composer.setText('');
     const saved = readDeployChatDraftPayload(threadId);
     if (saved && isSentComposerEcho(saved.text, lastUserText)) {
-      clearDeployChatDraft();
+      clearDeployChatDraft(threadId);
       onQueuedChange?.(false);
     }
   }, [composer, lastUserText, onQueuedChange, threadId]);
@@ -1313,13 +1354,13 @@ function DeployDraftBoot({
     if (!saved?.autoSend) return;
     const text = (composer.getState().text ?? '').trim() || saved.text.trim();
     if (!text || isSentComposerEcho(text, lastUserText)) {
-      clearDeployChatDraft();
+      clearDeployChatDraft(threadId);
       onQueuedChange?.(false);
       return;
     }
     flushedRef.current = true;
     if (!(composer.getState().text ?? '').trim()) composer.setText(saved.text);
-    clearDeployChatDraft();
+    clearDeployChatDraft(threadId);
     onQueuedChange?.(false);
     void composer.send();
   }, [
@@ -2304,9 +2345,9 @@ function ClaudeComposer({
     if (!showRunning) return;
     propsRef.current?.onComposeFocus?.(false);
     typedDraftRef.current = '';
-    clearDeployChatDraft();
+    clearDeployChatDraft(threadId);
     onQueuedChange?.(false);
-  }, [showRunning, propsRef, onQueuedChange]);
+  }, [showRunning, propsRef, onQueuedChange, threadId]);
 
   // Snapshot the current draft when sending locks so a post-deploy reload
   // can restore it. Keystrokes while locked are saved in onInput. Skip while
@@ -2319,7 +2360,7 @@ function ClaudeComposer({
     const candidate = fromRuntime || fallback;
     if (isSentComposerEcho(candidate, lastUserText)) {
       typedDraftRef.current = '';
-      clearDeployChatDraft();
+      clearDeployChatDraft(threadId);
       onQueuedChange?.(false);
       if (fromRuntime.trim()) composer.setText('');
       return;
@@ -2463,7 +2504,7 @@ function ClaudeComposer({
               const value = e.currentTarget.value;
               typedDraftRef.current = value;
               if (!value.trim()) {
-                clearDeployChatDraft();
+                clearDeployChatDraft(threadId);
                 onQueuedChange?.(false);
               } else if (deployChatLocked) saveDeployChatDraft(threadId, value);
               const caret = e.currentTarget.selectionStart ?? value.length;
