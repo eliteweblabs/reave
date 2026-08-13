@@ -1243,6 +1243,16 @@ function DeployDraftBoot({
     }
   }, [composer, deployChatLocked, lastUserText, threadId]);
 
+  // lastUserText can arrive after the first restore (thread hydrate). Drop
+  // a snapshot that is only the message already in the transcript.
+  useEffect(() => {
+    if (!lastUserText.trim()) return;
+    const current = composer.getState().text ?? '';
+    if (isSentComposerEcho(current, lastUserText)) composer.setText('');
+    const saved = readDeployChatDraft(threadId);
+    if (saved && isSentComposerEcho(saved, lastUserText)) clearDeployChatDraft();
+  }, [composer, lastUserText, threadId]);
+
   return null;
 }
 
@@ -2189,22 +2199,34 @@ function ClaudeComposer({
   }, [helpers.focusInput, onFocusInputReady]);
 
   // Running UI unmounts .aui-input. Drop compose-focus so the pane header is
-  // not left inert (share / archive / rename) until a hard refresh.
+  // not left inert (share / archive / rename) until a hard refresh. The send
+  // also clears leftover typed text so it cannot come back as a "draft".
   useEffect(() => {
     if (!showRunning) return;
     propsRef.current?.onComposeFocus?.(false);
+    typedDraftRef.current = '';
+    clearDeployChatDraft();
   }, [showRunning, propsRef]);
 
   // Snapshot the current draft when sending locks so a post-deploy reload
-  // can restore it. Keystrokes while locked are saved in onInput.
+  // can restore it. Keystrokes while locked are saved in onInput. Skip while
+  // a run is in flight — the input is unmounted and typedDraftRef still holds
+  // the message that was just sent.
   useLayoutEffect(() => {
-    if (!deployChatLocked) return;
+    if (!deployChatLocked || showRunning) return;
     const fromRuntime = composer.getState().text ?? '';
-    const text = fromRuntime || typedDraftRef.current || readDeployChatDraft(threadId) || '';
-    if (text && !fromRuntime) composer.setText(text);
-    typedDraftRef.current = text;
-    saveDeployChatDraft(threadId, text);
-  }, [composer, deployChatLocked, threadId]);
+    const fallback = typedDraftRef.current || readDeployChatDraft(threadId) || '';
+    const candidate = fromRuntime || fallback;
+    if (isSentComposerEcho(candidate, lastUserText)) {
+      typedDraftRef.current = '';
+      clearDeployChatDraft();
+      if (fromRuntime.trim()) composer.setText('');
+      return;
+    }
+    if (candidate && !fromRuntime) composer.setText(candidate);
+    typedDraftRef.current = candidate;
+    saveDeployChatDraft(threadId, candidate);
+  }, [composer, deployChatLocked, lastUserText, showRunning, threadId]);
 
   // iOS Safari blurs the focused textarea on the touch that targets Send —
   // often before `click` — which closes the keyboard and reflows the pinned
@@ -2334,7 +2356,8 @@ function ClaudeComposer({
             onInput={(e) => {
               const value = e.currentTarget.value;
               typedDraftRef.current = value;
-              if (deployChatLocked) saveDeployChatDraft(threadId, value);
+              if (!value.trim()) clearDeployChatDraft();
+              else if (deployChatLocked) saveDeployChatDraft(threadId, value);
               const caret = e.currentTarget.selectionStart ?? value.length;
               helpers.onInput(value);
               mentions.onInput(value, caret);
@@ -2566,10 +2589,7 @@ function lastAssistantMessageText(
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i];
     if (message.role !== 'assistant') continue;
-    return (message.content ?? [])
-      .filter((part) => part.type === 'text')
-      .map((part) => part.text ?? '')
-      .join('');
+    return messagePlainText(message);
   }
   return '';
 }
