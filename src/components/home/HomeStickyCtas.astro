@@ -53,29 +53,42 @@ if (ctas.length === 0) return;
 <style is:global>
   .home-sticky-ctas {
     position: fixed;
-    left: 50%;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 100;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: min(100%, 540px);
     max-width: calc(100vw - 40px);
-    /* Room for the primary pill’s 28px glow so it isn’t clipped to a hard edge. */
-    padding: 20px 28px 32px;
+    margin-inline: auto;
+    /*
+     * No transform here — WebKit clips box-shadow of a transformed fixed
+     * layer, which is the hard line under the Demo glow. Center with inset
+     * + margin instead. Padding holds the 28px glow; --safari-bottom-chrome
+     * lifts the pills above iOS 26’s compact tab bar (not in safe-area).
+     */
+    --safari-bottom-chrome: 0px;
+    padding: 20px 28px calc(24px + env(safe-area-inset-bottom, 0px) + var(--safari-bottom-chrome));
     overflow: visible;
     box-sizing: border-box;
     text-align: center;
     pointer-events: none;
-    transform: translateX(-50%);
     transition:
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.4s ease,
       visibility 0s linear 0s;
   }
 
+  @media (max-width: 768px) {
+    .home-sticky-ctas {
+      --safari-bottom-chrome: 4.5rem;
+    }
+  }
+
   .home-sticky-ctas.is-contact-occluding {
-    transform: translateX(-50%) translateY(calc(100% + 28px));
+    transform: translateY(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -91,7 +104,7 @@ if (ctas.length === 0) return;
     }
 
     .home-sticky-ctas.is-contact-occluding {
-      transform: translateX(-50%);
+      transform: none;
       opacity: 0;
       visibility: hidden;
       pointer-events: none;

@@ -270,12 +270,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * Page content above the fixed atmosphere (z-index 0) so text is not
-	 * clipped by the wallpaper when it slides under the transparent header.
+	 * Page content above the fixed atmosphere (z-index 0). Negative top
+	 * margin pulls the hero under the in-flow sticky header so the first
+	 * screen stays 100lvh without collapsing the header’s stick range.
 	 */
 	main#main-content {
 		position: relative;
 		z-index: 2;
+		margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem)));
 	}
 
 	@media (min-width: 769px) {
