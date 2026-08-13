@@ -395,11 +395,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public header: position:sticky + top:0 + env(safe-area-inset-top).
-   * Sticky is layout-viewport chrome, so it does not jump with the URL bar
-   * the way position:fixed does. Overlay the hero by pulling main up — do
-   * not put a negative margin on the sticky element itself (WebKit then
-   * treats the stick range as empty and the bar scrolls away).
+   * Public header: sticky to the layout viewport (`viewport-fit=cover` makes
+   * that the full screen, including the notch). Pad the logo/actions with
+   * env(safe-area-inset-*) so they sit below the status bar; do not pad the
+   * wallpaper. Overlay the hero by pulling main up — not a negative margin
+   * on this element (WebKit then treats the stick range as empty).
    * Admin stays fixed.
    */
   .app-header {
@@ -412,11 +412,11 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     align-items: stretch;
     min-height: 0;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
-    padding:
-      env(safe-area-inset-top, 0px)
-      var(--app-header-inline-pad)
-      0
-      var(--app-header-inline-pad);
+    padding-top: constant(safe-area-inset-top);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: var(--app-header-inline-pad);
+    padding-bottom: 0;
+    padding-left: var(--app-header-inline-pad);
     pointer-events: none;
     -webkit-user-select: none;
     user-select: none;

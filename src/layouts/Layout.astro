@@ -191,13 +191,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 */
 		overscroll-behavior-y: none;
 		/*
-		 * Default every page to the dark theme (matches the homepage) so pages
-		 * never fall back to the browser's white default — which otherwise
-		 * causes white text (styled for a dark background) to render invisibly
-		 * on a white page. Pages can still override this per-element as needed.
-		 * Use background-color (not the background shorthand) so Safari’s
-		 * chrome/overscroll sampling stays predictable on iOS 26+.
-		 * TODO: replace with a proper color-mode/theme variable system.
+		 * Default every page to the dark homepage canvas so text never renders
+		 * on the browser’s white default. viewport-fit=cover extends this
+		 * background into the notch and home indicator; pad chrome with
+		 * env(safe-area-inset-*), not the wallpaper.
 		 */
 		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
