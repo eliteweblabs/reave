@@ -854,6 +854,10 @@ function activateMapPanel(opts = {}) {
     loadWorkTab({ workSlug: opts.workSlug });
   } else if (MAP.type === 'schedule') {
     if (opts.scheduleUid) scheduleState.activeUid = opts.scheduleUid;
+    else {
+      const fromUrl = parseScheduleDeepLinkFromUrl();
+      if (fromUrl) scheduleState.activeUid = fromUrl;
+    }
     loadScheduleTab();
   } else if (MAP.type === 'clients') {
     loadClientsTab({ clientUid: opts.clientUid, newClient: opts.newClient });
@@ -3865,6 +3869,7 @@ function reviewAlertTone(item) {
   if (type === 'demo_request') return 'critical';
   if (type === 'push_alert' && item.alertKind === 'critical') return 'critical';
   if (type === 'push_alert' && item.alertKind === 'engagement') return 'client';
+  if (type === 'push_alert' && item.alertKind === 'calendar') return 'meeting';
   return 'alert';
 }
 
@@ -9001,6 +9006,14 @@ function parseWorkDeepLinkFromUrl() {
   }
 }
 
+function parseScheduleDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('booking')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function applyEmailInboxFilterForEvent(ev) {
   if (!ev) return;
   if (ev.category === 'junk') emailState.inboxFilter = 'junk';
@@ -9102,6 +9115,15 @@ function syncAdminTabUrl(key, opts = {}) {
       url.searchParams.delete('chat');
     }
 
+    if (key === 'schedule') {
+      const bookingUid =
+        opts.scheduleUid || scheduleState.activeUid || parseScheduleDeepLinkFromUrl() || null;
+      if (bookingUid) url.searchParams.set('booking', bookingUid);
+      else url.searchParams.delete('booking');
+    } else {
+      url.searchParams.delete('booking');
+    }
+
     const next = url.pathname + url.search + url.hash;
     const current = location.pathname + location.search + location.hash;
     if (next !== current) history.replaceState({}, '', next);
@@ -9122,6 +9144,12 @@ function resumeClientDeepLinkFromUrl() {
     return;
   }
   void resumeClientDetailFromUrl();
+}
+
+function resumeScheduleDeepLinkFromUrl() {
+  const bookingUid = parseScheduleDeepLinkFromUrl();
+  if (!bookingUid) return;
+  openScheduleTab({ uid: bookingUid, view: 'week' });
 }
 
 function resumeEmailDeepLinkFromUrl() {
@@ -9167,6 +9195,11 @@ function handleNotificationOpen(url) {
     const clientUid = u.searchParams.get('client')?.trim();
     if (tab === 'clients' && clientUid) {
       navigateToClient(clientUid);
+      return;
+    }
+    const bookingUid = u.searchParams.get('booking')?.trim();
+    if ((tab === 'schedule' || !tab) && bookingUid) {
+      openScheduleTab({ uid: bookingUid, view: 'week' });
       return;
     }
     if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
@@ -13818,6 +13851,7 @@ function loadActiveKey() {
     if (params.get('client')?.trim()) return 'clients';
     if (params.get('chat')?.trim()) return 'chats';
     if (params.get('slug')?.trim()) return 'work';
+    if (params.get('booking')?.trim()) return 'schedule';
     const tab = resolveMapKey(params.get('tab'));
     if (tab && MAPS[tab]) return tab;
   } catch {}
@@ -13913,6 +13947,7 @@ queueTriageEmailFromUrl();
 window.addEventListener('pageshow', () => {
   resumeEmailDeepLinkFromUrl();
   resumeClientDeepLinkFromUrl();
+  resumeScheduleDeepLinkFromUrl();
   queueTriageEmailFromUrl();
   void purgeExpiredOtpsQuietly();
   void consumePendingOtpCopy();

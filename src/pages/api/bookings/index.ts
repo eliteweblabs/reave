@@ -19,6 +19,7 @@ import {
 import { checkEmailMeetingSlot } from '../../../lib/emailScheduling';
 import { hasFeature } from '../../../lib/features';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
 
 export const prerender = false;
 
@@ -37,6 +38,8 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!hasFeature('scheduling')) {
     return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
   }
+
+  ensureCalendarReminderScheduler();
 
   if (!isBookingConfigured()) {
     return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);

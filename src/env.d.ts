@@ -226,6 +226,14 @@ interface ImportMetaEnv {
   CALCOM_EVENT_TYPE_ID?: string;
   /** Timezone for schedule display (default America/New_York). */
   BOOKING_TIMEZONE?: string;
+  /** Shared secret for /api/calendar/reminders/poll?key= */
+  CALENDAR_REMINDER_POLL_SECRET?: string;
+  /** Reminder poll interval in minutes (1–5, default 1). */
+  CALENDAR_REMINDER_POLL_MINUTES?: string;
+  /** Comma-separated reminder offsets in minutes (default 15). */
+  CALENDAR_REMINDER_MINUTES?: string;
+  /** Set to 0 to disable calendar booking reminders. */
+  CALENDAR_REMINDERS_ENABLED?: string;
   /** Default job-site address when callers omit one (optional). */
   BOOKING_DEFAULT_ADDRESS?: string;
   /** Vapi private API key — prebuild assistant sync (scripts/sync-vapi-assistant.ts). */

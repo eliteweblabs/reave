@@ -29,6 +29,7 @@ import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
 import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView, syncUptimeMonitorsFromApiIfStale } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
+import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
 import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
@@ -98,6 +99,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   ensureEmailCleanupScheduler();
+  ensureCalendarReminderScheduler();
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
   const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([

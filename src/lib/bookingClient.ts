@@ -481,6 +481,21 @@ export async function bookingCreate(input: {
   if (result.ok) {
     const confirmErr = bookingConfirmationError(result.data);
     if (confirmErr) return confirmErr;
+    const uid = result.data.booking?.uid?.trim();
+    const startTime = result.data.booking?.startTime?.trim() || rest.start;
+    if (uid && startTime) {
+      void import('./calendarReminderEngine')
+        .then((m) =>
+          m.scheduleBookingReminderSync({
+            uid,
+            startTime,
+            title: rest.name ? `Meeting with ${rest.name}` : undefined,
+            attendee: rest.name,
+            status: 'accepted',
+          }),
+        )
+        .catch(() => undefined);
+    }
     return {
       ok: true,
       data: {
@@ -497,11 +512,20 @@ export async function bookingCancel(
   uid: string,
   reason?: string,
 ): Promise<BookingResult<{ success?: boolean }>> {
-  return bookingFetch(`/api/booking/${encodeURIComponent(uid)}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: reason ? JSON.stringify({ cancellationReason: reason }) : undefined,
-  });
+  const result = await bookingFetch<{ success?: boolean }>(
+    `/api/booking/${encodeURIComponent(uid)}`,
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: reason ? JSON.stringify({ cancellationReason: reason }) : undefined,
+    },
+  );
+  if (result.ok) {
+    void import('./calendarReminderEngine')
+      .then((m) => m.scheduleBookingReminderCancel(uid))
+      .catch(() => undefined);
+  }
+  return result;
 }
 
 export async function bookingReschedule(
@@ -535,6 +559,15 @@ export async function bookingReschedule(
   if (result.ok) {
     const confirmErr = bookingConfirmationError(result.data);
     if (confirmErr) return confirmErr;
+    void import('./calendarReminderEngine')
+      .then((m) =>
+        m.scheduleBookingReminderSync({
+          uid,
+          startTime: input.start,
+          status: 'accepted',
+        }),
+      )
+      .catch(() => undefined);
   }
   return result;
 }

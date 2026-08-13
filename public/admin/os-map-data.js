@@ -30,8 +30,8 @@ const SYSTEM_NODES = [
 
   // App hub (Railway / hosting)
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
-  { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
+  { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views · calendar reminders', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
   { id: 'contacts_dash', title: 'Contacts editor', sub: '/admin/ · Contacts tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
@@ -42,7 +42,7 @@ const SYSTEM_NODES = [
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
   { id: 'inventory_api', title: 'inventory-api', sub: 'Shopify · Woo · Square stock (FEATURES: inventory_sync)', icon: '📦', brand: 'shopify', hue: 96, status: true, group: 'reave', x: 880, y: 624 },
   { id: 'fleet_api', title: 'fleet-api', sub: 'multi-vehicle GPS · location history (FEATURES: fleet_tracking)', icon: '🚚', hue: 55, status: true, group: 'reave', x: 880, y: 696 },
-  { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
+  { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list · 15m reminders (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
   { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews triage', sub: 'Google™ · Apple Maps · Yelp · Facebook · Tripadvisor (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
@@ -133,6 +133,8 @@ const SYSTEM_EDGES = [
   { from: 'uptimerobot', to: 'astro', label: 'uptime webhook', dashed: true },
   { from: 'astro', to: 'uptimerobot', label: 'getMonitors poll', dashed: true },
   { from: 'astro', to: 'calcom_api', label: 'bookings API', dashed: true },
+  { from: 'calcom_api', to: 'web_push', label: '15m reminder', dashed: true },
+  { from: 'calcom_api', to: 'app_pg', label: 'reminder queue', dashed: true },
   { from: 'web', to: 'calcom_api', label: '/form/schedule', dashed: true },
   { from: 'web', to: 'plausible', label: 'pageviews', dashed: true },
   { from: 'astro', to: 'analytic_audit', label: 'full audit · agent tools', dashed: true },

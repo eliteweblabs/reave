@@ -93,7 +93,7 @@ Schema for the app DB is created at runtime (`ensureSchema()` in `src/lib/*Store
 
 - **Schema drift** between runtime `ensureSchema()` and `supabase/migrations/` (e.g. `knowledge` vs `knowledge_entries`).
 - **Chat recovery API has no admin UI** — owner must call HTTP API manually after Clerk instance changes.
-- **Poll jobs** (newsletter, uptime, lead scanner) rely on in-process timers; external Railway cron is safer.
+- **Poll jobs** (newsletter, uptime, lead scanner, calendar reminders) rely on in-process timers; external Railway cron is safer.
 
 ### Medium
 
@@ -163,7 +163,7 @@ Do this at least once before go-live, then quarterly:
 ### Should pass
 
 - [ ] PITR enabled on production Postgres volumes
-- [ ] Railway cron hits `/api/newsletter/poll`, `/api/uptime/poll`, `/api/lead-scanner/poll` with poll secrets
+- [ ] Railway cron hits `/api/newsletter/poll`, `/api/uptime/poll`, `/api/lead-scanner/poll`, `/api/calendar/reminders/poll` with poll secrets
 - [ ] Chat recovery procedure documented for Clerk key/instance rotation (`GET`/`POST /api/admin/chats`)
 - [ ] Pre-migration manual backup tagged in offsite storage
 - [ ] Clerk organization export / break-glass owner access documented

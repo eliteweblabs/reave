@@ -20,6 +20,7 @@ export type PushAlertKind =
   | 'otp'
   | 'auth_link'
   | 'triage'
+  | 'calendar'
   | 'critical';
 
 export type PushAlert = {
@@ -138,6 +139,9 @@ function cutoffIso(maxAgeDays: number): string {
 export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
   const t = tag.toLowerCase();
   const u = url.toLowerCase();
+  if (t.startsWith('calendar-reminder-') || t.startsWith('calendar-') || u.includes('tab=schedule')) {
+    return 'calendar';
+  }
   if (t.startsWith('otp-')) return 'otp';
   if (t.startsWith('auth-')) return 'auth_link';
   if (t.startsWith('triage-')) return 'triage';
