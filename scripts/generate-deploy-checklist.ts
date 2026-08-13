@@ -184,7 +184,7 @@ function main(): void {
 
 Generated: ${new Date().toISOString()}
 
-> Contacts, email inbox, work/jobs, knowledge, personal to-dos, and chat are always on.
+> Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, passkeys, and phone sign-in are always on.
 
 ## Module picker (numeric ids for demo URLs)
 

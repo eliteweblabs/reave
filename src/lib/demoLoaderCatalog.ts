@@ -46,8 +46,9 @@ function byTitle(a: { label: string }, b: { label: string }): number {
 }
 
 /**
- * Always-on platform capabilities shown as marketing cards (not toggles).
- * Baseline portal modules + core agent tools that ship with every demo.
+ * Core OS — always-on platform capabilities shown as marketing cards (not toggles).
+ * This is the default baseline, not a FeatureId module: optional add-ons stay in
+ * FEATURE_IDS / the picker; these ship with every install and demo.
  * Keep alphabetical by label (UI sorts as a safeguard too).
  */
 export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
@@ -105,6 +106,16 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
     id: 'media-library',
     label: 'Media Library',
     blurb: 'Upload and reuse logos, photos, and PDFs for branding and content — pick once, use everywhere.',
+  },
+  {
+    id: 'passkeys',
+    label: 'Passkeys & Face ID',
+    blurb: 'Sign in with Face ID, Touch ID, or a device passkey after the first visit — no password on return.',
+  },
+  {
+    id: 'phone-sign-in',
+    label: 'Phone sign-in',
+    blurb: 'Sign in with a one-time code texted to your phone — separate from two-way business SMS.',
   },
   {
     id: 'portal-assistant',

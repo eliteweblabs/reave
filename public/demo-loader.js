@@ -183,7 +183,7 @@
     if (!included.length) return '';
     return (
       `<section class="dl-section" data-section="included">` +
-      `<h2 class="dl-section-title">Included modules</h2>` +
+      `<h2 class="dl-section-title">Core OS</h2>` +
       `<div class="dl-grid">${included.map(renderIncludedTile).join('')}</div>` +
       `</section>`
     );
