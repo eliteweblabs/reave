@@ -57,6 +57,8 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   const upstream = await fetch(target, init);
   const out = new Headers(upstream.headers);
   out.delete('content-encoding');
+  out.delete('content-length');
+  out.delete('transfer-encoding');
   return new Response(upstream.body, {
     status: upstream.status,
     headers: out,
