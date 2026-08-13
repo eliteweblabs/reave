@@ -395,31 +395,22 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public header sits on the page (absolute), not the visual viewport
-   * (fixed). iOS sizes position:fixed to the Safari chrome box — that is
-   * why the bar jumped and the canvas never reached the bottom of the
-   * phone. Admin stays fixed (shell is its own viewport).
+   * Public header: position:sticky (document flow), not fixed.
+   * Sticky pins to the layout viewport, so the bar does not jump when
+   * Safari’s toolbar shows or hides. Negative margin pulls the page up
+   * underneath so the hero can still be 100vh. Admin stays fixed.
    */
   .app-header {
-    position: absolute;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
     z-index: 2000;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    /*
-     * No background on this fixed shell — iOS 26 Safari samples it for Liquid
-     * Glass. Public pages pad with env(safe-area-inset-top); admin uses the
-     * probed --safe-top (env() is 0 on the fixed admin body).
-     */
+    margin-bottom: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h)));
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
-    /*
-     * Public header: CSS env() only. Do not use the JS-probed --safe-top —
-     * rewriting that on visualViewport resize is what bounced this bar.
-     */
     padding:
       env(safe-area-inset-top, 0px)
       var(--app-header-inline-pad)
@@ -433,7 +424,12 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
   .app-header--admin {
     position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 20;
+    width: auto;
+    margin-bottom: 0;
     background: transparent;
     border-bottom: none;
     padding-top: var(--safe-top);
