@@ -47,10 +47,12 @@ function parseClientPortalData(raw: unknown): ClientDataEntry[] | null {
     .map((e) => {
       const row = e as Record<string, unknown>;
       const entry: ClientDataEntry = { label: str(row.label) };
+      const id = str(row.id);
       const value = str(row.value);
       const username = str(row.username);
       const password = str(row.password);
       const url = str(row.url);
+      if (id) entry.id = id;
       if (value) entry.value = value;
       if (username) entry.username = username;
       if (password) entry.password = password;
@@ -60,21 +62,34 @@ function parseClientPortalData(raw: unknown): ClientDataEntry[] | null {
     .filter((e) => e.label);
 }
 
+function parseVaultKnownIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids = raw.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+  return ids;
+}
+
 async function saveClientPortalData(
   uid: string,
   raw: unknown,
   contactData: ContactRecord,
+  knownIds?: string[],
 ): Promise<{ ok: true; data: ClientDataEntry[] } | { ok: false; error: string }> {
   const parsed = parseClientPortalData(raw);
   if (parsed === null) return { ok: false, error: 'Invalid vault data' };
   const portal = extractPortal(contactData) ?? {};
-  const saved = await setContactPortal(uid, {
-    ...portal,
-    data: parsed,
-    updatedAt: new Date().toISOString(),
-  });
+  const saved = await setContactPortal(
+    uid,
+    {
+      ...portal,
+      data: parsed,
+      updatedAt: new Date().toISOString(),
+    },
+    { vaultKnownIds: knownIds },
+  );
   if (!saved.ok) return { ok: false, error: saved.error };
-  return { ok: true, data: parsed };
+  const refreshed = await getContact(uid);
+  const data = refreshed.ok ? extractPortal(refreshed.data)?.data ?? parsed : parsed;
+  return { ok: true, data };
 }
 
 function hasContactFieldPatch(body: Record<string, unknown>): boolean {
@@ -299,7 +314,12 @@ export const PATCH: APIRoute = async (context) => {
 
   let vaultData: ClientDataEntry[] | undefined;
   if (body.data !== undefined) {
-    const vaultSaved = await saveClientPortalData(uid, body.data, contact);
+    const vaultSaved = await saveClientPortalData(
+      uid,
+      body.data,
+      contact,
+      parseVaultKnownIds(body.vaultKnownIds),
+    );
     if (!vaultSaved.ok) return json({ ok: false, error: vaultSaved.error }, 400);
     vaultData = vaultSaved.data;
   }
@@ -357,7 +377,12 @@ export const PUT: APIRoute = async (context) => {
 
   let vaultData: ClientDataEntry[] | undefined;
   if (body.data !== undefined) {
-    const vaultSaved = await saveClientPortalData(uid, body.data, contact);
+    const vaultSaved = await saveClientPortalData(
+      uid,
+      body.data,
+      contact,
+      parseVaultKnownIds(body.vaultKnownIds),
+    );
     if (!vaultSaved.ok) return json({ ok: false, error: vaultSaved.error }, 400);
     vaultData = vaultSaved.data;
   }

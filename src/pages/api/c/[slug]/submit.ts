@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getContact, extractPortal, setContactPortal } from '../../../../lib/contactApi';
+import { getContact, extractPortal, appendClientPortalData } from '../../../../lib/contactApi';
 import { recordVaultSubmitEngagement } from '../../../../lib/engagementNotifications';
 import { hasFeature } from '../../../../lib/features';
 import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
@@ -94,7 +94,8 @@ export const POST: APIRoute = async ({ params, request }) => {
     });
   }
 
-  // Merge new entries into existing portal data (append, don't replace)
+  // Append — never replace. Overlapping submits merge by id so later writes
+  // cannot drop items that already landed.
   const existing = extractPortal(contactRes.data) ?? {};
   if (existing.enabled === false) {
     return new Response(JSON.stringify({ ok: false, error: 'Contact not found' }), {
@@ -103,12 +104,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     });
   }
 
-  const merged = {
-    ...existing,
-    data: [...(existing.data ?? []), ...newEntries],
-  };
-
-  const saveRes = await setContactPortal(uid, merged);
+  const saveRes = await appendClientPortalData(uid, newEntries);
   if (!saveRes.ok) {
     return new Response(JSON.stringify({ ok: false, error: saveRes.error }), {
       status: 502,
