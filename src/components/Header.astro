@@ -423,6 +423,23 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     -webkit-touch-callout: none;
   }
 
+  /*
+   * Public header sits on top of the atmosphere. Paint the safe-area the same
+   * solid Safari uses for the status bar, then fade into the page so the
+   * notch strip and the logo row do not meet at a hard purple/black line.
+   * (Content still does not draw *into* the status bar until scroll.)
+   */
+  @media (max-width: 768px) {
+    .app-header:not(.app-header--admin) {
+      background-image: linear-gradient(
+        to bottom,
+        var(--site-status-bar, #000) 0,
+        var(--site-status-bar, #000) env(safe-area-inset-top, 0px),
+        transparent calc(env(safe-area-inset-top, 0px) + var(--app-header-h) + 1.25rem)
+      );
+    }
+  }
+
   .app-header--admin {
     position: fixed;
     top: 0;
