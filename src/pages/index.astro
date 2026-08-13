@@ -37,17 +37,6 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
 {
   !isLanding && (
     <style>
-      /*
-       * Homepage shell — full device paint box; bottom pad uses the viable
-       * (safe-area) inset so the last section clears the home indicator.
-       */
-      :global(html),
-      :global(body) {
-        min-height: 100%;
-        min-height: 100svh;
-        min-height: 100lvh;
-      }
-
       .home-scroll {
         position: relative;
         padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));

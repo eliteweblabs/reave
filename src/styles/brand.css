@@ -132,11 +132,7 @@
   text-decoration: none;
 }
 
-/**
- * Page atmosphere — document flow (absolute on body), not position:fixed.
- * iOS clips fixed layers to the visual viewport, so they never paint behind
- * the Safari toolbar. Absolute + body min-height covers the hardware fold.
- */
+/* Page atmosphere — document flow on body, not a viewport-fixed overlay. */
 .reave-bg-pattern {
   position: absolute;
   inset: 0;

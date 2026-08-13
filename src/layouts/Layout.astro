@@ -155,30 +155,12 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		box-sizing: border-box;
 	}
 
-	/*
-	 * Device canvas + viable area
-	 * -----------------------------
-	 * --device-height: full hardware fold (large viewport), including the strips
-	 * under the status bar / home indicator when viewport-fit=cover is on.
-	 * --viable-*: the interactive content box inside env(safe-area-inset-*).
-	 * Background paint must cover --device-height; chrome/content pad to --viable-*.
-	 *
-	 * Do NOT lock html/body to height:100dvh/100lvh — that reflows the layout
-	 * viewport and shears position:fixed headers. Use min-height only so the
-	 * paint box is at least one device tall and can still grow with content.
-	 *
-	 * html/body use --site-canvas so overscroll matches the atmosphere.
-	 * Atmosphere is a document-flow layer (SiteBackground), not position:fixed.
-	 */
 	:root {
 		--safe-top: env(safe-area-inset-top, 0px);
 		--safe-right: env(safe-area-inset-right, 0px);
 		--safe-bottom: env(safe-area-inset-bottom, 0px);
 		--safe-left: env(safe-area-inset-left, 0px);
 		--device-height: 100vh;
-		--device-height: -webkit-fill-available;
-		--device-height: 100dvh;
-		--device-height: 100lvh;
 		--viable-top: var(--safe-top);
 		--viable-right: var(--safe-right);
 		--viable-bottom: var(--safe-bottom);
@@ -189,18 +171,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	html {
-		/*
-		 * Do NOT set height:100% — on iOS Safari that locks the root to a short
-		 * initial containing block, so the inspector shows <html>/<body> ending
-		 * above the toolbar and color-scheme:dark paints the gap black.
-		 * min-height through 100lvh fills the large (chrome-collapsed) viewport
-		 * so the canvas paints under the status bar and home indicator too.
-		 */
 		min-height: 100%;
-		min-height: -webkit-fill-available;
-		min-height: 100dvh;
-		min-height: 100lvh;
-		min-height: var(--device-height);
+		min-height: 100vh;
 		background-color: var(--site-canvas, #0c0614);
 	}
 
@@ -231,15 +203,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	body {
-		/*
-		 * Same fill stack as html. Grow with content beyond the fold.
-		 * Avoid height locks (100dvh/100lvh) — those shear fixed headers.
-		 */
 		min-height: 100%;
-		min-height: -webkit-fill-available;
-		min-height: 100dvh;
-		min-height: 100lvh;
-		min-height: var(--device-height);
+		min-height: 100vh;
 		position: relative;
 		background-color: var(--site-canvas, #0c0614);
 	}

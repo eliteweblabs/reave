@@ -34,11 +34,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   data-home-section="home"
   aria-labelledby="home-hero-title"
 >
-  {/*
-    Document-flow veil (NOT position:fixed, NOT an opaque cap). Softens the
-    black status-bar inset into the page so the mesh/pattern stay visible
-    around the island. Scrolls away with the hero.
-  */}
   <div class="home-hero-safe-fade" aria-hidden="true"></div>
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
@@ -133,23 +128,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: 100%;
     max-width: 100%;
     isolation: isolate;
-    /*
-     * One screen, document flow. min-height only — a `height` lock plus
-     * 100dvh/100lvh fighting is why this never reached the bottom of the
-     * phone. 100lvh is the hardware fold (behind the Safari toolbar).
-     */
     min-height: 100vh;
-    min-height: 100svh;
-    min-height: 100lvh;
     overflow: hidden;
     scroll-margin-top: 0;
   }
 
-  /*
-   * Must stay position:absolute on the hero (scrolls with the page).
-   * A viewport-fixed cap was tried and removed: it never left the notch,
-   * so scrolled content could not show around the island.
-   */
   .home-hero-safe-fade {
     display: none;
   }
@@ -242,19 +225,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       left: 0;
       right: 0;
       z-index: 6;
-      height: calc(env(safe-area-inset-top, 0px) + 80px);
+      height: 140px;
       pointer-events: none;
-      /*
-       * Veil only — a solid #000 stop through the inset painted an opaque
-       * bar that hid the page around the island. Fade from black at the
-       * top edge so the mesh shows through immediately.
-       */
-      background: linear-gradient(
-        180deg,
-        #000 0%,
-        rgba(0, 0, 0, 0.45) calc(env(safe-area-inset-top, 0px) * 0.55),
-        rgba(0, 0, 0, 0) 100%
-      );
+      background: linear-gradient(to bottom, #000, transparent);
     }
   }
 
