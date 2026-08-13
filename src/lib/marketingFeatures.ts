@@ -111,6 +111,18 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     href: '/features#feature-mobile',
   },
   {
+    id: 'passkeys',
+    label: 'Passkeys & Face ID',
+    modules: [],
+    kind: 'capability',
+  },
+  {
+    id: 'phone-sign-in',
+    label: 'Phone sign-in',
+    modules: [],
+    kind: 'capability',
+  },
+  {
     id: 'two-way-sms',
     label: 'Two-way SMS',
     modules: [],

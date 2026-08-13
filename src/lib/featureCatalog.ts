@@ -141,6 +141,6 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
 };
 
 export const CORE_FEATURE_NOTE =
-  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, and chat are always on.';
+  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, passkeys, and phone sign-in are always on.';
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);

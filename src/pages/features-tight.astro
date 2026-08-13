@@ -1,0 +1,67 @@
+---
+/**
+ * Temporary layout preview — founder dialogue + core features slice, tightened.
+ * Not in nav. noindex. Delete when the experiment is done.
+ */
+import Layout from "../layouts/Layout.astro";
+import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
+import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
+---
+
+<Layout
+  title="Features (tight preview)"
+  description="Temporary layout preview of the founder dialogue and core features tour."
+  noIndex
+>
+  <div class="tight-preview">
+    <HomeDialogueSection variant="editorial" id="dialogue-tight" />
+    <FeaturesPageContent showLogoStack={false} coreOnly tight />
+  </div>
+</Layout>
+
+<style>
+  .tight-preview :global(.home-dialogue) {
+    padding-top: calc(64px + 24px);
+    padding-bottom: 24px;
+  }
+
+  .tight-preview :global(.home-dialogue-inner) {
+    max-width: 760px;
+  }
+
+  .tight-preview :global(.home-dialogue-editorial-lede) {
+    margin-bottom: 12px;
+    font-size: clamp(1rem, 2.6vw, 1.15rem);
+    line-height: 1.3;
+  }
+
+  .tight-preview :global(.home-dialogue-editorial-pull) {
+    margin-bottom: 16px;
+    font-size: clamp(1.1rem, 3vw, 1.35rem);
+    line-height: 1.3;
+  }
+
+  .tight-preview :global(.home-dialogue-editorial-body) {
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .tight-preview :global(.home-dialogue-editorial-body p) {
+    margin-bottom: 10px;
+  }
+
+  .tight-preview :global(.home-dialogue-attribution--editorial) {
+    margin-top: 16px;
+    font-size: 0.8rem;
+  }
+
+  @media (min-width: 768px) {
+    .tight-preview :global(.home-dialogue-editorial-body) {
+      column-gap: 24px;
+    }
+  }
+
+  .tight-preview :global(.fx-page--tight) {
+    padding-top: 24px;
+  }
+</style>

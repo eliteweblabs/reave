@@ -94,7 +94,7 @@ const clerkAppearance = {
   </div>
 </IosBottomSheet>
 
-<script src="/ios-sheet.js" defer></script>
+<script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <style is:global>
   /* Match Clerk default theme to sheet light/dark (do not force theme: dark). */
@@ -123,6 +123,13 @@ const clerkAppearance = {
   #sign-in-sheet .cl-footerAction {
     background: transparent;
     box-shadow: none;
+  }
+
+  #sign-in-sheet.ios-sheet-keyboard .cl-rootBox,
+  #sign-in-sheet.ios-sheet-keyboard .cl-cardBox,
+  #sign-in-sheet.ios-sheet-keyboard .cl-card,
+  #sign-in-sheet.ios-sheet-keyboard .cl-scrollBox {
+    max-height: 100%;
   }
 
   .sign-in-session-stuck {

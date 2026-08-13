@@ -31,5 +31,5 @@ const docTitle = pageTitle?.trim() || `${appName} Admin`;
   <title>{docTitle}</title>
   <Favicon />
   <BrandFontHead fonts={fonts} />
-  <link rel="stylesheet" href="/ios-sheet.css" />
+  <link rel="stylesheet" href={`/ios-sheet.css?v=${__PUBLIC_ASSET_VERSION__}`} />
 </head>

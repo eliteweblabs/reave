@@ -42,6 +42,8 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
       { label: 'Media library', href: '/features#feature-media' },
       { label: 'White-label branding', href: '/features#feature-white-label' },
       { label: 'Mobile PWA & push alerts', href: '/features#feature-mobile' },
+      { label: 'Passkeys & Face ID' },
+      { label: 'Phone sign-in' },
     ],
   },
   {

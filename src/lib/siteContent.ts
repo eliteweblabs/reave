@@ -210,6 +210,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/',
       '/platform',
       '/features',
+      '/features-tight',
       '/compare',
       '/pricing',
       '/hosting',
