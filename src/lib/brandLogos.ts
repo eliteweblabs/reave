@@ -3,9 +3,9 @@
  * render a "logo wall" without hardcoding a list — drop a new SVG (with a
  * <title>) in the folder and it just shows up.
  *
- * Shared by any page/component that needs a folder-backed logo grid: the
- * "apps this platform replaces" wall on /features today, and anywhere else
- * a similar wall gets added later.
+ * Shared by any page/component that needs a folder-backed logo wall: the
+ * "apps this platform replaces" marquees on /features and the homepage, and
+ * anywhere else a similar wall gets added later.
  *
  * File naming: prefix a filename with a two-digit number (e.g. "01-gmail.svg")
  * to pin its position; unprefixed files sort alphabetically after the

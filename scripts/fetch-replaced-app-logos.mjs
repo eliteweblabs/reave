@@ -5,7 +5,7 @@
  * Each file is fetched from a pinned Simple Icons release
  * (https://simpleicons.org, CC0), then baked with the brand's fill color and
  * an accessible <title> so the icon works as a plain static asset — no CDN,
- * CSS mask, or JS color lookup needed at runtime. BrandLogoGrid.astro then
+ * CSS mask, or JS color lookup needed at runtime. BrandLogoMarquee.astro then
  * just renders every file it finds in that folder, so a fresh
  * `node scripts/fetch-replaced-app-logos.mjs` (or hand-placing any SVG with a
  * <title> in the folder — no code change either way) is all it takes to add

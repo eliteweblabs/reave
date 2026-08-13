@@ -184,65 +184,6 @@ html {
   text-decoration: underline;
 }
 
-.home-section-inner .card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-top: 8px;
-}
-
-.home-section-inner .card {
-  padding: 18px 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.home-section-inner .card h3 {
-  margin-top: 0;
-}
-
-.home-section-inner .card .text-fit {
-  display: flex;
-  container-type: inline-size;
-  width: 100%;
-  margin: 0 0 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  --captured-length: initial;
-  --support-sentinel: var(--captured-length, 9999px);
-  --max-font-size: 2.75rem;
-}
-
-.home-section-inner .card .text-fit > [aria-hidden] {
-  visibility: hidden;
-}
-
-.home-section-inner .card .text-fit > :not([aria-hidden]) {
-  flex-grow: 1;
-  container-type: inline-size;
-  min-width: 0;
-  --captured-length: 100cqi;
-  --available-space: var(--captured-length);
-}
-
-.home-section-inner .card .text-fit > :not([aria-hidden]) > * {
-  --support-sentinel: inherit;
-  --captured-length: 100cqi;
-  --ratio: tan(atan2(var(--available-space), var(--available-space) - var(--captured-length)));
-  --font-size: clamp(
-    1em,
-    1em * var(--ratio),
-    var(--max-font-size, infinity * 1px) - var(--support-sentinel)
-  );
-  inline-size: var(--available-space);
-  display: block;
-  font-size: var(--font-size);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-}
-
 @media (max-width: 768px) {
   .home-section {
     padding-left: 18px;
