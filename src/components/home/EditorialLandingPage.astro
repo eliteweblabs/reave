@@ -37,20 +37,21 @@ const priceLabel = (value: number) =>
     <span class="ed-menu__line"></span>
     <span class="ed-menu__line"></span>
   </button>
-  <nav class="ed-nav" id="ed-nav" data-ed-nav>
-    {numbers && <a href="#numbers">By the Numbers</a>}
-    {properties.length > 0 && <a href="#properties">Properties</a>}
-    {map && <a href="#map-search">Search</a>}
-    {reviews && <a href="#reviews">Reviews</a>}
-    {about && <a href="#about">About</a>}
-    <a href="#contact">Contact</a>
-    {contact?.phone && (
-      <a class="ed-nav__phone" href={contact.phoneHref || `tel:${contact.phone}`}>
-        {contact.phone}
-      </a>
-    )}
-  </nav>
 </header>
+<nav class="ed-nav" id="ed-nav" data-ed-nav>
+  {numbers && <a href="#numbers">By the Numbers</a>}
+  {properties.length > 0 && <a href="#properties">Properties</a>}
+  {map && <a href="#map-search">Search</a>}
+  {reviews && <a href="#reviews">Reviews</a>}
+  {about && <a href="#about">About</a>}
+  <a href="#contact">Contact</a>
+  <a href="/sign-in">Login</a>
+  {contact?.phone && (
+    <a class="ed-nav__phone" href={contact.phoneHref || `tel:${contact.phone}`}>
+      {contact.phone}
+    </a>
+  )}
+</nav>
 
 <main id="top">
   <section class="ed-hero" style={landing.heroImage ? `background-image: linear-gradient(180deg, rgba(22,20,16,0.15), rgba(22,20,16,0.72)), url('${landing.heroImage}')` : undefined}>
@@ -366,13 +367,12 @@ const priceLabel = (value: number) =>
   .ed-header {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 60;
     display: flex;
     align-items: center;
     gap: 1rem;
     padding: 0.85rem 1.5rem;
-    background: rgba(251, 248, 242, 0.92);
-    backdrop-filter: blur(16px);
+    background: #fbf8f2;
     border-bottom: 1px solid rgba(22, 20, 16, 0.12);
   }
   .ed-signature {
@@ -427,7 +427,7 @@ const priceLabel = (value: number) =>
     justify-content: center;
     gap: 1.35rem;
     padding: 6rem 1.5rem 2rem;
-    background: rgba(251, 248, 242, 0.97);
+    background: #fbf8f2;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -457,6 +457,7 @@ const priceLabel = (value: number) =>
   .ed-nav a:nth-child(5) { transition-delay: 0.16s; }
   .ed-nav a:nth-child(6) { transition-delay: 0.2s; }
   .ed-nav a:nth-child(7) { transition-delay: 0.24s; }
+  .ed-nav a:nth-child(8) { transition-delay: 0.28s; }
   .ed-nav__phone {
     margin-top: 0.75rem;
     font-family: Outfit, system-ui, sans-serif !important;

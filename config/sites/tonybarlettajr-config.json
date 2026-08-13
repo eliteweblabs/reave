@@ -6,7 +6,8 @@
       { "href": "/#numbers", "label": "By the Numbers" },
       { "href": "/#properties", "label": "Properties" },
       { "href": "/#reviews", "label": "Reviews" },
-      { "href": "/#contact", "label": "Contact" }
+      { "href": "/#contact", "label": "Contact" },
+      { "href": "/sign-in", "label": "Login" }
     ],
     "groups": [
       {
