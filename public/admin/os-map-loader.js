@@ -9992,6 +9992,78 @@ function isProjectReplyEmail(ev) {
   return ev.action === 'project_reply' || ev.status === 'PROJECT_REPLY';
 }
 
+const QUEUED_AGENT_OPENS_KEY = 'reave:queued-agent-opens';
+const DEPLOY_CHAT_DRAFT_KEY = 'reave:deploy-chat-draft';
+
+function isDeployChatLocked() {
+  try {
+    return Boolean(
+      window.__reaveLastDeployIndicatorReady && window.__reaveLastDeployIndicator?.chatLocked,
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readQueuedAgentOpens() {
+  try {
+    const raw = sessionStorage.getItem(QUEUED_AGENT_OPENS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeQueuedAgentOpens(list) {
+  try {
+    if (!list.length) sessionStorage.removeItem(QUEUED_AGENT_OPENS_KEY);
+    else sessionStorage.setItem(QUEUED_AGENT_OPENS_KEY, JSON.stringify(list));
+  } catch {
+    /* private mode */
+  }
+}
+
+function enqueueAgentOpen(prompt, opts = {}) {
+  const list = readQueuedAgentOpens();
+  list.push({
+    prompt,
+    sourceEmailId: opts.sourceEmailId?.trim?.() || opts.sourceEmailId || null,
+    sourceJobSlug: opts.sourceJobSlug || null,
+  });
+  writeQueuedAgentOpens(list);
+}
+
+/** Keep a per-thread auto-send so multiple Send-to-Agent taps during one deploy all flush. */
+function persistThreadAutoSend(threadId, text) {
+  if (!threadId || !String(text || '').trim()) return;
+  try {
+    const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
+    let map = {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.threadId === 'string' && typeof parsed.text === 'string') {
+        map = {
+          [parsed.threadId]: {
+            text: parsed.text,
+            ...(parsed.autoSend ? { autoSend: true } : {}),
+          },
+        };
+      } else if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        map = parsed;
+      }
+    }
+    map[threadId] = { text, autoSend: true };
+    sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(map));
+  } catch {
+    /* private mode */
+  }
+}
+
+function threadHasNoMessages(thread) {
+  return !thread?.last_role;
+}
+
 async function askAgentWithPrompt(prompt, opts = {}) {
   closeOpenSwipeRow();
   try {
@@ -10004,9 +10076,11 @@ async function askAgentWithPrompt(prompt, opts = {}) {
         existing = chatState.threads.find((t) => t.source_email_id === emailId);
       }
       if (existing) {
-        chatState.pendingDraft = null;
-        chatState.pendingAutoSend = false;
-        if (activeKey === 'chats' && chatState.activeId === existing.id) return;
+        const queueSend = threadHasNoMessages(existing);
+        chatState.pendingDraft = queueSend ? prompt : null;
+        chatState.pendingAutoSend = queueSend;
+        if (queueSend) persistThreadAutoSend(existing.id, prompt);
+        if (activeKey === 'chats' && chatState.activeId === existing.id && !queueSend) return;
         await openChat(existing.id, { force: true });
         return;
       }
@@ -10030,6 +10104,7 @@ async function askAgentWithPrompt(prompt, opts = {}) {
     chatState.pendingDraft = prompt;
     chatState.pendingAutoSend = true;
     chatState.disposableChatId = null;
+    persistThreadAutoSend(thread.id, prompt);
 
     if (activeKey === 'chats') {
       renderChatPanel();
@@ -10037,8 +10112,53 @@ async function askAgentWithPrompt(prompt, opts = {}) {
       setActiveMap('chats', { force: true, keepChatSession: true });
     }
   } catch (e) {
+    if (!opts.skipQueueOnFail && isDeployChatLocked()) {
+      enqueueAgentOpen(prompt, opts);
+      showChatToast('Queued — will send when the new version is live');
+      return;
+    }
+    if (opts.skipQueueOnFail) throw e;
     osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
   }
+}
+
+async function flushQueuedAgentOpens() {
+  if (flushQueuedAgentOpens.running) return;
+  if (isDeployChatLocked()) return;
+  const list = readQueuedAgentOpens();
+  if (!list.length) return;
+  flushQueuedAgentOpens.running = true;
+  writeQueuedAgentOpens([]);
+  const leftover = [];
+  try {
+    for (const item of list) {
+      try {
+        await askAgentWithPrompt(item.prompt, {
+          sourceEmailId: item.sourceEmailId,
+          sourceJobSlug: item.sourceJobSlug,
+          skipQueueOnFail: true,
+        });
+      } catch {
+        leftover.push(item);
+      }
+    }
+  } finally {
+    if (leftover.length) writeQueuedAgentOpens([...leftover, ...readQueuedAgentOpens()]);
+    flushQueuedAgentOpens.running = false;
+  }
+}
+
+function bindQueuedAgentOpens() {
+  if (document.documentElement.dataset.queuedAgentOpensBound) return;
+  document.documentElement.dataset.queuedAgentOpensBound = '1';
+  window.addEventListener('reave:deploy-indicator', (ev) => {
+    const deploy = ev.detail;
+    if (deploy?.chatLocked) return;
+    void flushQueuedAgentOpens();
+  });
+  window.addEventListener('pageshow', () => {
+    if (!isDeployChatLocked()) void flushQueuedAgentOpens();
+  });
 }
 
 initCreateDrawer({
@@ -13736,6 +13856,7 @@ async function boot() {
   buildTabs(tabOrder);
   initTopbarMenus();
   initDeployIndicator();
+  bindQueuedAgentOpens();
   initFooterNav();
   initFooterNavScrollCollapse();
   initChatComposeFocusLayout();

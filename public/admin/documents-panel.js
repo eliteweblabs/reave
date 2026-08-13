@@ -28,6 +28,7 @@ import {
   swipeClearAction,
   paneDeleteIcon,
   paneShareIcon,
+  createAgentBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -456,6 +457,9 @@ function renderEditForm(pane) {
           title: tpl?.title ?? slug,
           afterTitle: modeTabs,
           icons: [
+            createAgentBtn({
+              onClick: () => askAgentAboutDocument(tpl || { slug, title: tpl?.title ?? slug }),
+            }),
             paneShareIcon({
               label: 'Send to a contact',
               onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),

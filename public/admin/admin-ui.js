@@ -151,7 +151,7 @@ export function createAgentBtn(opts = {}) {
     onClick,
     className = 'agent-btn em-header-action-btn',
     label = 'Agent',
-    title,
+    title = 'Send to Agent',
   } = opts;
   const btn = createIosIconBtn({
     iconKey: 'agent',
@@ -159,7 +159,10 @@ export function createAgentBtn(opts = {}) {
     className,
     onClick,
   });
-  if (title != null) btn.title = title;
+  if (title != null) {
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+  }
   // Header agent glyph is 16px (matches panels that previously hand-rolled this).
   const svg = btn.querySelector('svg');
   if (svg) {
@@ -2099,7 +2102,7 @@ export function resyncListMultiSelect(listEl) {
 // ---- Swipe row actions (shared across inbox, chats, docs, etc.) ----
 
 const SWIPE_ACTIONS = {
-  agent: { iconKey: 'agent', className: 'swipe-act swipe-act-agent', label: 'Agent' },
+  agent: { iconKey: 'agent', className: 'swipe-act swipe-act-agent', label: 'Send to Agent' },
   archive: { iconKey: 'archive', className: 'swipe-act swipe-act-archive', label: 'Archive' },
   delete: { iconKey: 'trash', className: 'swipe-act swipe-act-delete', label: 'Delete' },
   junk: { iconKey: 'trash', className: 'swipe-act swipe-act-junk', label: 'Junk' },
