@@ -132,9 +132,9 @@
   text-decoration: none;
 }
 
-/* Page atmosphere — document flow on body, not a viewport-fixed overlay. */
+/* Viewport wallpaper — sized to one screen, not the full document. */
 .reave-bg-pattern {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -145,7 +145,7 @@
 }
 
 .site-bg-atmosphere {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
