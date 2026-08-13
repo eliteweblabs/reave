@@ -1,6 +1,6 @@
 /**
- * Homepage hero CTAs — viewport-fixed at the hero footer; hide when #contact
- * scrolls into view.
+ * Homepage hero CTAs — pinned from the top of the large viewport; hide when
+ * #contact scrolls into view.
  */
 import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
 

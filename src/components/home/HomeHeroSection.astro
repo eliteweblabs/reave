@@ -1,8 +1,9 @@
 ---
 /**
  * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them. CTAs are viewport-fixed at the page footer (see HomeStickyCtas
- * in index.astro) — they cannot live in this section's stacking context.
+ * under them. CTAs are pinned from the top of the large viewport (see
+ * HomeStickyCtas in index.astro) — they cannot live in this section's
+ * stacking context.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
@@ -34,7 +35,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   data-home-section="home"
   aria-labelledby="home-hero-title"
 >
-  <div class="home-hero-safe-fade" aria-hidden="true"></div>
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
       <BrandIconInline company={company} />
@@ -132,10 +132,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     scroll-margin-top: 0;
   }
 
-  .home-hero-safe-fade {
-    display: none;
-  }
-
   /* Icon + headline — highest layer, dead centre of the viewport */
   .home-hero-brand {
     /* Soft circular halo behind icon + title. Light mode: white. */
@@ -216,25 +212,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: none;
   }
 
-  @media (max-width: 768px) {
-    .home-hero {
-      /* Compact tab bar is not included in safe-area-inset-bottom. */
-      --safari-bottom-chrome: 4.5rem;
-      --home-hero-copy-h: calc(120px + var(--safari-bottom-chrome));
-    }
-    .home-hero-safe-fade {
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 6;
-      height: 140px;
-      pointer-events: none;
-      background: linear-gradient(to bottom, #000, transparent);
-    }
-  }
-
   @media (max-width: 640px) {
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */
@@ -271,7 +248,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--safari-bottom-chrome, 0px));
+    bottom: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -311,10 +288,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: absolute;
     z-index: 12;
     left: 50%;
-    bottom: calc(
-      var(--home-hero-copy-h, 88px) + 20px +
-        env(safe-area-inset-bottom, 0px)
-    );
+    bottom: calc(var(--home-hero-copy-h, 120px) + 12px);
     transform: translateX(-50%);
     display: inline-flex;
     align-items: center;

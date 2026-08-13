@@ -24,9 +24,10 @@
     "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   /*
-   * Soft radial atmosphere on a deep purple canvas — no stepped linear fades.
-   * (The old black-cap + #000→#05020a→#08040f→canvas stops read as horizontal
-   * tone bands on mobile.) theme-color / chrome can stay true black separately.
+   * Soft radial atmosphere on a deep purple canvas. iOS Safari paints the
+   * status bar / home-indicator safe areas black until you scroll — match
+   * that solid on the page edge, then fade into the canvas so there is no
+   * hard line. Do not use a tall black cap (that reads as a letterbox).
    */
   --site-canvas: #0c0614;
   --site-status-bar: #000000;
@@ -151,6 +152,31 @@
   background-image: var(--site-mesh-atmosphere);
   background-repeat: no-repeat;
   background-size: 100% 100%;
+}
+
+/*
+ * Mobile: solid --site-status-bar through the safe area, then a short fade
+ * into the mesh. Matches Safari’s black chrome at rest; no 4.5rem toolbar
+ * inset and no 140px black band.
+ */
+@media (max-width: 768px) {
+  .site-bg-atmosphere {
+    background-color: var(--site-canvas);
+    background-image:
+      linear-gradient(
+        to bottom,
+        var(--site-status-bar) 0,
+        var(--site-status-bar) env(safe-area-inset-top, 0px),
+        transparent calc(env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem) + 1.25rem)
+      ),
+      linear-gradient(
+        to top,
+        var(--site-status-bar) 0,
+        var(--site-status-bar) env(safe-area-inset-bottom, 0px),
+        transparent calc(env(safe-area-inset-bottom, 0px) + 3.25rem)
+      ),
+      var(--site-mesh-atmosphere);
+  }
 }
 
 .site-bg-atmosphere::after {
