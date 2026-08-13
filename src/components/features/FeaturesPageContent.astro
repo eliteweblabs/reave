@@ -35,9 +35,19 @@ interface Props {
   embedded?: boolean;
   /** Installation tier pricing block (lives on /pricing — not embedded here). */
   showPricing?: boolean;
+  /** Preview: only Baseline baked in → custom 10% (no hero, stack, closing). */
+  coreOnly?: boolean;
+  /** Preview: denser spacing; hide accordion body paragraphs. */
+  tight?: boolean;
 }
 
-const { showLogoStack = true, embedded = false, showPricing = false } = Astro.props;
+const {
+  showLogoStack = true,
+  embedded = false,
+  showPricing = false,
+  coreOnly = false,
+  tight = false,
+} = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
 /** Same `features` payload as GET /api/demo/loader (module extras from FEATURE_MARKETING). */
@@ -392,7 +402,9 @@ const customPrompts: PromptExample[] = [
 ];
 ---
 
-<div class:list={["fx-page", embedded && "fx-page--embedded"]} data-features-content>
+<div class:list={["fx-page", embedded && "fx-page--embedded", tight && "fx-page--tight"]} data-features-content>
+    {
+      !coreOnly && (
     <section class="fx-hero scroll-fade-in">
       <p class="fx-kicker">The Business OS</p>
       {/*
@@ -461,9 +473,11 @@ const customPrompts: PromptExample[] = [
         }
       </div>
     </section>
+      )
+    }
 
     {
-      showLogoStack && (
+      !coreOnly && showLogoStack && (
         <section class="fx-stack scroll-fade-in" aria-label="Apps this platform replaces">
           <p class="fx-stack-kicker">Replace the stack</p>
           <h2 class="fx-stack-h2">
@@ -487,7 +501,7 @@ const customPrompts: PromptExample[] = [
     }
 
     {
-      showPricing && <FeaturesPricingSection />
+      !coreOnly && showPricing && <FeaturesPricingSection />
     }
 
     <section class="fx-list scroll-fade-in" aria-label="Core features">
@@ -688,6 +702,8 @@ const customPrompts: PromptExample[] = [
       </div>
     </section>
 
+    {
+      !coreOnly && (
     <section class="fx-closing scroll-fade-in">
       <h2 class="fx-closing-h2">Ready to see it running?</h2>
       <p class="fx-closing-lead">
@@ -701,6 +717,8 @@ const customPrompts: PromptExample[] = [
         <a class="fx-btn fx-btn--ghost brand-btn-glass" href="/platform">See the stack</a>
       </div>
     </section>
+      )
+    }
 </div>
 
 <script>
@@ -1457,5 +1475,151 @@ const customPrompts: PromptExample[] = [
     margin: 0 0 24px;
     font-size: 0.96rem;
     color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* ---------- Tight preview (/features-tight) ---------- */
+
+  .fx-page--tight {
+    padding-top: calc(64px + 24px);
+    padding-bottom: 64px;
+  }
+
+  .fx-page--tight .fx-list-h2 {
+    margin-bottom: 8px;
+    font-size: clamp(1.2rem, 3.2vw, 1.55rem);
+  }
+
+  .fx-page--tight .fx-list-lead {
+    margin-bottom: 16px;
+    max-width: 540px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .fx-page--tight .acc-list {
+    gap: 6px;
+  }
+
+  .fx-page--tight .acc-item {
+    border-radius: 12px;
+  }
+
+  .fx-page--tight .acc-trigger {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .fx-page--tight .acc-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .fx-page--tight .acc-heading {
+    gap: 2px;
+  }
+
+  .fx-page--tight .acc-title {
+    font-size: 0.92rem;
+  }
+
+  .fx-page--tight .acc-teaser {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  .fx-page--tight .acc-panel-inner {
+    padding: 0 14px 14px 56px;
+  }
+
+  .fx-page--tight .acc-panel-inner > p {
+    display: none;
+  }
+
+  .fx-page--tight .acc-bullets {
+    margin-top: 0;
+    gap: 5px;
+  }
+
+  .fx-page--tight .acc-bullets li {
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .fx-page--tight .ninety-meter {
+    margin-bottom: 12px;
+  }
+
+  .fx-page--tight .ninety-meter-track {
+    height: 40px;
+    border-radius: 8px;
+  }
+
+  .fx-page--tight .portal-tabs {
+    margin: 0 0 12px;
+    gap: 8px;
+  }
+
+  .fx-page--tight .portal-tab {
+    padding: 8px 10px;
+  }
+
+  .fx-page--tight .fx-examples,
+  .fx-page--tight .fx-custom {
+    margin-top: 32px;
+  }
+
+  .fx-page--tight .fx-examples-h2,
+  .fx-page--tight .fx-custom-h2 {
+    margin-bottom: 8px;
+    font-size: clamp(1.15rem, 3vw, 1.45rem);
+  }
+
+  .fx-page--tight .fx-examples-lead,
+  .fx-page--tight .fx-custom-lead {
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+  }
+
+  .fx-page--tight .fx-prompt-grid {
+    gap: 8px;
+  }
+
+  .fx-page--tight .fx-prompt-card {
+    padding: 12px 14px 12px 38px;
+    border-radius: 12px;
+  }
+
+  .fx-page--tight .fx-prompt-icon {
+    left: 12px;
+    top: 13px;
+  }
+
+  .fx-page--tight .fx-prompt-text {
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .fx-page--tight .fx-prompt-note {
+    margin-top: 4px;
+    font-size: 0.72rem;
+  }
+
+  .fx-page--tight .fx-cta-row {
+    margin-top: 16px;
+    margin-bottom: 0;
+  }
+
+  @media (min-width: 640px) {
+    .fx-page--tight .fx-prompt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .fx-page--tight .acc-panel-inner {
+      padding-left: 14px;
+    }
   }
 </style>

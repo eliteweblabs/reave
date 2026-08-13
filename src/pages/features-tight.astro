@@ -1,0 +1,16 @@
+---
+/**
+ * Temporary layout preview — core features slice, tightened.
+ * Not in nav. noindex. Delete when the experiment is done.
+ */
+import Layout from "../layouts/Layout.astro";
+import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
+---
+
+<Layout
+  title="Features (tight preview)"
+  description="Temporary layout preview of the core features tour."
+  noIndex
+>
+  <FeaturesPageContent showLogoStack={false} coreOnly tight />
+</Layout>
