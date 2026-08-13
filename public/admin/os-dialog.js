@@ -73,6 +73,36 @@ export function bindOsDialogDismiss(backdrop, finish, showCancel) {
   }
 }
 
+function sanitizeDialogHtml(html) {
+  if (!html) return '';
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc
+      .querySelectorAll('script, iframe, object, embed, form, base, link, meta, svg')
+      .forEach((el) => el.remove());
+    doc.querySelectorAll('*').forEach((el) => {
+      for (const attr of [...el.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (/^on/.test(name)) el.removeAttribute(attr.name);
+        if (['href', 'src', 'action', 'formaction', 'xlink:href'].includes(name)) {
+          const v = attr.value.trim().replace(/\s+/g, '').toLowerCase();
+          if (
+            v.startsWith('javascript:') ||
+            v.startsWith('vbscript:') ||
+            v.startsWith('data:text/html') ||
+            v.startsWith('data:application/')
+          ) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      }
+    });
+    return doc.body.innerHTML;
+  } catch {
+    return '';
+  }
+}
+
 export function osDialog(opts) {
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
@@ -98,7 +128,7 @@ export function osDialog(opts) {
     };
 
     titleEl.textContent = opts.title || '';
-    bodyEl.innerHTML = opts.bodyHtml || '';
+    bodyEl.innerHTML = sanitizeDialogHtml(opts.bodyHtml || '');
     actionsEl.innerHTML = '';
 
     const mkBtn = (label, cls, value) => {

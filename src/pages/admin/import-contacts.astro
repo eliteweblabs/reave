@@ -3,12 +3,16 @@ export const prerender = false;
 
 import ViewportMeta from "../../components/ViewportMeta.astro";
 import "../../styles/mobile-touch.css";
+import { denyUnlessDeploymentOwner } from "../../lib/deploymentOwner";
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
   const returnTo = encodeURIComponent('/admin/import-contacts');
   return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
 }
+
+const denied = await denyUnlessDeploymentOwner(Astro);
+if (denied) return denied;
 
 const companyBrand = { contactsLabel: 'Contacts' };
 ---

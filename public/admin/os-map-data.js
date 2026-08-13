@@ -52,7 +52,7 @@ const SYSTEM_NODES = [
   { id: 'content_mgmt', title: 'Content management', sub: 'agent edits site · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
-  { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · public · noindex · Mapbox pins · /api/clients/map', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
+  { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · SSR data · noindex · Mapbox pins', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
   { id: 'dealer_map', title: 'Used-car dealer map', sub: '/dealer-map · public demo · Places search-on-zoom · inventory toggles · /api/dealer-map/places', icon: '🚗', hue: 28, status: true, group: 'reave', x: 400, y: 840 },
 
   // External APIs
@@ -151,7 +151,7 @@ const SYSTEM_EDGES = [
   { from: 'visit_planner', to: 'app_pg', label: 'open inquiries (jobs)', dashed: true },
   { from: 'visit_planner', to: 'contact_api', label: 'address · geo · hours', dashed: true },
   { from: 'visit_planner', to: 'google_places', label: 'Place Details hours backfill', dashed: true },
-  { from: 'astro', to: 'client_map', label: '/admin/client-map · /api/clients/map', dashed: true },
+  { from: 'astro', to: 'client_map', label: '/admin/client-map · SSR contact geo', dashed: true },
   { from: 'client_map', to: 'contact_api', label: 'address · geo · kind', dashed: true },
   { from: 'astro', to: 'dealer_map', label: '/dealer-map · /api/dealer-map/places', dashed: true },
   { from: 'dealer_map', to: 'google_places', label: 'used car dealer text search', dashed: true },

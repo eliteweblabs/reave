@@ -8,7 +8,7 @@ export const prerender = false;
 
 import ViewportMeta from "../../components/ViewportMeta.astro";
 import "../../styles/mobile-touch.css";
-import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import { denyUnlessDeploymentOwner } from "../../lib/deploymentOwner";
 import {
   ASSUMED_HOURS_LABEL,
   TRAVEL_MODES,
@@ -26,11 +26,8 @@ if (!userId) {
   return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
 }
 
-// The plan lists every prospect's address and phone, so match the owner-only
-// gate the backing API routes use.
-if (!(await isDeploymentOwner(Astro))) {
-  return new Response("Forbidden", { status: 403 });
-}
+const denied = await denyUnlessDeploymentOwner(Astro);
+if (denied) return denied;
 
 const params = Astro.url.searchParams;
 

@@ -39,6 +39,9 @@ const installConfigClient = {
   deployStatus: getDeployStatusClientSummary(),
 };
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
+if (userId && !isOwner) {
+  return new Response('Forbidden', { status: 403 });
+}
 const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
 const githubRepo = githubRepoSlug();

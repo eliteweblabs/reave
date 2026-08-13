@@ -23,6 +23,8 @@ interface Props {
   backLabel?: string;
   showFooterNav?: boolean;
   requireAuth?: boolean;
+  /** When true, only the deployment owner may view the page (403 otherwise). */
+  requireOwner?: boolean;
   bodyClass?: string;
 }
 
@@ -32,6 +34,7 @@ const {
   backLabel = "Back to dashboard",
   showFooterNav = false,
   requireAuth = true,
+  requireOwner = false,
   bodyClass = "",
 } = Astro.props;
 
@@ -40,6 +43,12 @@ if (requireAuth && !userId) {
   return Astro.redirect(
     `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
   );
+}
+
+if (requireOwner) {
+  const { denyUnlessDeploymentOwner } = await import("../lib/deploymentOwner");
+  const denied = await denyUnlessDeploymentOwner(Astro);
+  if (denied) return denied;
 }
 
 const company = await getCompanyConfig(Astro.request);

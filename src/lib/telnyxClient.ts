@@ -241,12 +241,26 @@ export function verifyTelnyxWebhook(opts: {
   }
 }
 
+function isProductionRuntime(): boolean {
+  const env = (serverEnv('RAILWAY_ENVIRONMENT') || serverEnv('NODE_ENV') || '').toLowerCase();
+  return env === 'production';
+}
+
 /**
  * Validate Telnyx webhook signature. Rejects unsigned webhooks unless
  * TELNYX_WEBHOOK_SKIP_VERIFY=1 (local/dev only). Returns an error Response or null.
  */
 export function authorizeTelnyxWebhook(request: Request, rawBody: string, logTag = 'telnyx'): Response | null {
   const skipVerify = serverEnv('TELNYX_WEBHOOK_SKIP_VERIFY') === '1';
+  if (skipVerify && isProductionRuntime()) {
+    console.error(
+      `[${logTag}] TELNYX_WEBHOOK_SKIP_VERIFY=1 is set in production — rejecting unsigned webhooks`,
+    );
+    return new Response('Unauthorized', { status: 401 });
+  }
+  if (skipVerify) {
+    console.warn(`[${logTag}] TELNYX_WEBHOOK_SKIP_VERIFY=1 — signature verification disabled (dev only)`);
+  }
   const publicKey = serverEnv('TELNYX_WEBHOOK_PUBLIC_KEY')?.trim();
   if (!publicKey) {
     console.error(`[${logTag}] TELNYX_WEBHOOK_PUBLIC_KEY not set`);

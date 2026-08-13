@@ -7,10 +7,13 @@ export const prerender = false;
 
 import ViewportMeta from "../../components/ViewportMeta.astro";
 import "../../styles/mobile-touch.css";
+import { loadClientsMapData } from "../../lib/clientsMapData";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 
 const mapboxAccessToken = getPublicMapboxAccessToken() || "";
 const assetVersion = __PUBLIC_ASSET_VERSION__;
+const mapResult = await loadClientsMapData();
+const initialMapPayload = mapResult.ok ? mapResult.data : { ok: false, error: mapResult.error };
 ---
 
 <!doctype html>
@@ -408,8 +411,9 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
       id="clients-geo-map"
       data-mapbox-token={mapboxAccessToken}
     ></div>
-    <script is:inline define:vars={{ mapboxAccessToken }}>
+    <script is:inline define:vars={{ mapboxAccessToken, initialMapPayload }}>
       window.__mapboxAccessToken = mapboxAccessToken || "";
+      window.__clientsMapPayload = initialMapPayload;
     </script>
     <script is:inline type="module" src={`/admin/clients-geo-map.js?v=${assetVersion}`}></script>
   </body>
