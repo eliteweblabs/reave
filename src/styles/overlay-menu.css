@@ -1,0 +1,262 @@
+/**
+ * Shared right-drawer overlay — marketing hamburger and account menu.
+ * Keep both entry points on this chrome; do not add a second flyout.
+ */
+.overlay-menu[hidden] {
+  display: none !important;
+}
+
+.overlay-menu:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  z-index: 2050;
+}
+
+.overlay-menu-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: overlay-menu-fade-in 0.28s ease-out;
+  touch-action: none;
+}
+
+/* Blur over a scrolling page forces full repaints every frame — skip on phone/PWA. */
+@media (max-width: 899px), (display-mode: standalone) {
+  .overlay-menu-backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.78);
+  }
+}
+
+.overlay-menu-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(420px, 100vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 8, 10, 0.96);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -24px 0 80px rgba(0, 0, 0, 0.45);
+  animation: overlay-menu-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes overlay-menu-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-menu-slide-in {
+  from {
+    opacity: 0.92;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.overlay-menu-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding:
+    calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 20px)
+    28px
+    24px;
+}
+
+.overlay-menu-group + .overlay-menu-group {
+  margin-top: 28px;
+}
+
+.overlay-menu-group-label {
+  margin: 0 0 10px;
+  font-family: var(--font-secondary, ui-sans-serif, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.overlay-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overlay-menu-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  touch-action: manipulation;
+  padding: 0.72rem 0.2rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-primary, ui-sans-serif, system-ui, sans-serif);
+  font-size: clamp(1.35rem, 4vw, 1.65rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.overlay-menu-link:hover,
+.overlay-menu-link.is-active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  text-decoration: none;
+}
+
+.overlay-menu-link--primary {
+  color: var(--brand-pink, #e879f9);
+}
+
+.overlay-menu-link--button {
+  font: inherit;
+}
+
+.overlay-menu-footer {
+  flex-shrink: 0;
+  padding:
+    16px 28px
+    calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.overlay-menu-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overlay-menu-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.overlay-menu-action {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.55rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--font-secondary, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.overlay-menu-action:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  text-decoration: none;
+}
+
+.overlay-menu-action--danger {
+  color: rgba(248, 113, 113, 0.92);
+}
+
+.overlay-menu-action--danger:hover:not(:disabled) {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+.overlay-menu-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.overlay-menu-action--icon {
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+.overlay-menu-action--icon svg {
+  display: block;
+}
+
+.overlay-menu-footer-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.75rem 1.2rem;
+  border-radius: 999px;
+  font-family: var(--font-primary, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0b0512;
+  background: var(--brand-gradient);
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(192, 38, 211, 0.32);
+}
+
+.overlay-menu-footer-cta:hover {
+  filter: brightness(1.06);
+  text-decoration: none;
+}
+
+html.overlay-menu-open,
+html.marketing-menu-open,
+html.account-menu-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.overlay-menu-open .app-header,
+html.marketing-menu-open .app-header,
+html.account-menu-open .app-header {
+  z-index: 2200;
+}
+
+html.overlay-menu-open .app-header-logo,
+html.overlay-menu-open .marketing-nav,
+html.account-menu-open .topbar-end {
+  position: relative;
+  z-index: 2100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-menu-backdrop,
+  .overlay-menu-panel {
+    animation: none;
+  }
+}

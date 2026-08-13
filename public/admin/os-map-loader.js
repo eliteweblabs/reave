@@ -2324,52 +2324,42 @@ function dashboardTabKeys(order) {
   return out;
 }
 
-function resetTopbarDropdownMenu(menu) {
-  if (!menu) return;
-  menu.style.position = '';
-  menu.style.top = '';
-  menu.style.left = '';
-  menu.style.right = '';
-  menu.style.zIndex = '';
+function closeMarketingOverlay() {
+  const marketing = document.querySelector('[data-marketing-menu]');
+  const toggle = document.querySelector('[data-marketing-menu-toggle]');
+  if (marketing) marketing.hidden = true;
+  toggle?.classList.remove('is-open');
+  toggle?.setAttribute('aria-expanded', 'false');
+  toggle?.setAttribute('aria-label', 'Open menu');
+  document.documentElement.classList.remove('marketing-menu-open');
 }
 
-/** Escape the admin header stacking context (same approach as tab dropdowns). */
-function positionTopbarDropdownMenu(menuEl, toggleEl) {
-  if (!menuEl || !toggleEl) return;
-  requestAnimationFrame(() => {
-    const rect = toggleEl.getBoundingClientRect();
-    const menuWidth = menuEl.offsetWidth || 188;
-    const left = Math.min(
-      Math.max(8, rect.right - menuWidth),
-      window.innerWidth - menuWidth - 8,
-    );
-    menuEl.style.position = 'fixed';
-    menuEl.style.top = `${rect.bottom + 6}px`;
-    menuEl.style.left = `${left}px`;
-    menuEl.style.right = 'auto';
-    menuEl.style.zIndex = '10000';
-  });
+function setAccountMenuOpen(open) {
+  const menu = document.getElementById('topbar-profile-menu');
+  const toggle = document.getElementById('topbar-profile-toggle');
+  if (!menu || !toggle) return;
+  if (open) closeMarketingOverlay();
+  menu.hidden = !open;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  document.documentElement.classList.toggle('account-menu-open', open);
+  document.documentElement.classList.toggle(
+    'overlay-menu-open',
+    open || Boolean(document.querySelector('.overlay-menu:not([hidden])')),
+  );
+  window.__syncOverlayMenuScrollLock?.();
 }
 
-function closeTopbarMenus(exceptMenu) {
-  for (const menu of document.querySelectorAll('.topbar-dropdown')) {
-    if (exceptMenu && menu === exceptMenu) continue;
-    menu.classList.remove('open');
-    resetTopbarDropdownMenu(menu);
-  }
-  document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
+function closeTopbarMenus() {
+  setAccountMenuOpen(false);
   syncFooterNav();
 }
 
-function toggleTopbarMenu(menuEl, toggleEl) {
-  if (!menuEl || !toggleEl) return;
-  const willOpen = !menuEl.classList.contains('open');
-  closeTopbarMenus(null);
-  if (willOpen) {
-    menuEl.classList.add('open');
-    toggleEl.setAttribute('aria-expanded', 'true');
-    positionTopbarDropdownMenu(menuEl, toggleEl);
-  }
+function toggleTopbarMenu() {
+  const menu = document.getElementById('topbar-profile-menu');
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  if (willOpen) setAccountMenuOpen(true);
+  else closeTopbarMenus();
   syncFooterNav();
 }
 
@@ -8752,7 +8742,6 @@ function initTopbarMenus() {
   if (!document.documentElement.dataset.topbarMenuBound) {
     document.documentElement.dataset.topbarMenuBound = '1';
     document.addEventListener('click', () => {
-      closeTopbarMenus();
       const deployDot = document.getElementById('topbar-deploy-dot');
       if (deployDot?.classList.contains('tooltip-open')) {
         deployDot.classList.remove('tooltip-open');
@@ -8777,8 +8766,14 @@ function initTopbarMenus() {
     profileToggle.dataset.bound = '1';
     profileToggle.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      toggleTopbarMenu(profileMenu, profileToggle);
+      toggleTopbarMenu();
     });
+  }
+
+  const backdrop = document.querySelector('[data-account-menu-backdrop]');
+  if (backdrop && !backdrop.dataset.bound) {
+    backdrop.dataset.bound = '1';
+    backdrop.addEventListener('click', () => closeTopbarMenus());
   }
 
   for (const key of window.__installConfig?.profileMenu || []) {

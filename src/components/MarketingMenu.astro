@@ -112,30 +112,30 @@ const showSignIn = siteContent.nav.showSignIn !== false;
   </div>
 </div>
 
-<div class="marketing-menu" data-marketing-menu hidden>
-  <div class="marketing-menu-backdrop" data-marketing-menu-backdrop aria-hidden="true"></div>
+<div class="overlay-menu" data-marketing-menu hidden>
+  <div class="overlay-menu-backdrop" data-marketing-menu-backdrop aria-hidden="true"></div>
   <div
     id="marketing-menu-panel"
-    class="marketing-menu-panel"
+    class="overlay-menu-panel"
     role="dialog"
     aria-modal="true"
     aria-label="Website menu"
   >
-    <div class="marketing-menu-scroll">
+    <div class="overlay-menu-scroll">
       {
         navGroups.map((group) => (
-          <section class="marketing-menu-group" aria-labelledby={`menu-${group.id}`}>
-            <h2 id={`menu-${group.id}`} class="marketing-menu-group-label">
+          <section class="overlay-menu-group" aria-labelledby={`menu-${group.id}`}>
+            <h2 id={`menu-${group.id}`} class="overlay-menu-group-label">
               {group.label}
             </h2>
-            <ul class="marketing-menu-list">
+            <ul class="overlay-menu-list">
               {group.links.map((link) => (
                 <li>
                   <a
                     href={link.href}
                     class:list={[
-                      "marketing-menu-link",
-                      link.primary && "marketing-menu-link--primary",
+                      "overlay-menu-link",
+                      link.primary && "overlay-menu-link--primary",
                       marketingNavActivePath(pathname, link.href) && "is-active",
                     ]}
                     target={link.external ? "_blank" : undefined}
@@ -153,11 +153,11 @@ const showSignIn = siteContent.nav.showSignIn !== false;
 
     </div>
 
-    <footer class="marketing-menu-footer">
-      <div class="marketing-menu-footer-row">
+    <footer class="overlay-menu-footer">
+      <div class="overlay-menu-footer-row">
         {
           !signedIn && showDemoCta && demoCta && (
-            <a class="marketing-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
+            <a class="overlay-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
               Demo now
               <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </a>
@@ -165,24 +165,24 @@ const showSignIn = siteContent.nav.showSignIn !== false;
         }
         {
           signedIn && showAccountNav && (
-            <nav class="marketing-menu-footer-actions" aria-label="Account actions">
+            <nav class="overlay-menu-footer-actions" aria-label="Account actions">
               <a
                 href="/admin/profile"
-                class="marketing-menu-action"
+                class="overlay-menu-action"
                 data-marketing-menu-link
               >
                 Profile
               </a>
               <button
                 type="button"
-                class="marketing-menu-action marketing-menu-action--danger"
+                class="overlay-menu-action overlay-menu-action--danger"
                 data-marketing-sign-out
               >
                 Sign out
               </button>
               <button
                 type="button"
-                class="marketing-menu-action"
+                class="overlay-menu-action"
                 disabled
                 aria-disabled="true"
                 title="Settings coming soon"
@@ -191,7 +191,7 @@ const showSignIn = siteContent.nav.showSignIn !== false;
               </button>
               <a
                 href="/admin/?tab=dashboard"
-                class="marketing-menu-action marketing-menu-action--icon"
+                class="overlay-menu-action overlay-menu-action--icon"
                 aria-label="Dashboard"
                 data-marketing-menu-link
               >
@@ -206,41 +206,27 @@ const showSignIn = siteContent.nav.showSignIn !== false;
 </div>
 
 <script>
-  /** Blocks background scroll on iOS without mutating body position (avoids PWA viewport thrash). */
-  let menuTouchBlocker: ((e: TouchEvent) => void) | null = null;
-
-  function setMarketingMenuScrollBlocked(block: boolean) {
-    const root = document.querySelector("[data-marketing-menu]");
-    const scroll = root?.querySelector(".marketing-menu-scroll");
-
-    if (block) {
-      if (menuTouchBlocker) return;
-      menuTouchBlocker = (e) => {
-        const target = e.target;
-        if (target instanceof Node && scroll?.contains(target)) return;
-        e.preventDefault();
-      };
-      document.addEventListener("touchmove", menuTouchBlocker, { passive: false });
-      return;
-    }
-
-    if (menuTouchBlocker) {
-      document.removeEventListener("touchmove", menuTouchBlocker);
-      menuTouchBlocker = null;
-    }
-  }
-
   function setMarketingMenuOpen(open: boolean) {
     const root = document.querySelector("[data-marketing-menu]");
     const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
     if (!root || !toggle) return;
 
+    if (open) {
+      const account = document.getElementById("topbar-profile-menu");
+      if (account) account.hidden = true;
+      document.getElementById("topbar-profile-toggle")?.setAttribute("aria-expanded", "false");
+      document.documentElement.classList.remove("account-menu-open");
+    }
     root.hidden = !open;
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     toggle.classList.toggle("is-open", open);
     document.documentElement.classList.toggle("marketing-menu-open", open);
-    setMarketingMenuScrollBlocked(open);
+    document.documentElement.classList.toggle(
+      "overlay-menu-open",
+      open || Boolean(document.querySelector(".overlay-menu:not([hidden])")),
+    );
+    (window as Window & { __syncOverlayMenuScrollLock?: () => void }).__syncOverlayMenuScrollLock?.();
   }
 
   function bindMarketingMenu() {
@@ -484,264 +470,6 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     .marketing-nav-cta {
       padding: 0.38rem 0.72rem;
       font-size: 0.76rem;
-    }
-  }
-
-  /* ---------- Overlay menu ---------- */
-
-  .marketing-menu[hidden] {
-    display: none !important;
-  }
-
-  .marketing-menu:not([hidden]) {
-    position: fixed;
-    inset: 0;
-    z-index: 2050;
-  }
-
-  .marketing-menu-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    animation: marketing-menu-fade-in 0.28s ease-out;
-    touch-action: none;
-  }
-
-  /* Blur over a scrolling page forces full repaints every frame — skip on phone/PWA. */
-  @media (max-width: 899px), (display-mode: standalone) {
-    .marketing-menu-backdrop {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: rgba(0, 0, 0, 0.78);
-    }
-  }
-
-  .marketing-menu-panel {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: min(420px, 100vw);
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: rgba(8, 8, 10, 0.96);
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: -24px 0 80px rgba(0, 0, 0, 0.45);
-    animation: marketing-menu-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  @keyframes marketing-menu-fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes marketing-menu-slide-in {
-    from {
-      opacity: 0.92;
-      transform: translateX(18px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  .marketing-menu-scroll {
-    flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    padding:
-      calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 20px)
-      28px
-      24px;
-  }
-
-  .marketing-menu-group + .marketing-menu-group {
-    margin-top: 28px;
-  }
-
-  .marketing-menu-group-label {
-    margin: 0 0 10px;
-    font-family: var(--font-secondary);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.42);
-  }
-
-  .marketing-menu-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .marketing-menu-link {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    touch-action: manipulation;
-    padding: 0.72rem 0.2rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    font-family: var(--font-primary);
-    font-size: clamp(1.35rem, 4vw, 1.65rem);
-    font-weight: 500;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    color: rgba(255, 255, 255, 0.92);
-    text-align: left;
-    text-decoration: none;
-    cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
-  }
-
-  .marketing-menu-link:hover,
-  .marketing-menu-link.is-active {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.04);
-    text-decoration: none;
-  }
-
-  .marketing-menu-link--primary {
-    color: var(--brand-pink);
-  }
-
-  .marketing-menu-link--button {
-    font: inherit;
-  }
-
-  .marketing-menu-footer {
-    flex-shrink: 0;
-    padding:
-      16px 28px
-      calc(16px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .marketing-menu-footer-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .marketing-menu-footer-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .marketing-menu-action {
-    flex: 1 1 0;
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 0.55rem 0.45rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.04);
-    font-family: var(--font-secondary);
-    font-size: 0.78rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    line-height: 1.1;
-    color: rgba(255, 255, 255, 0.82);
-    text-decoration: none;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-  }
-
-  .marketing-menu-action:hover:not(:disabled) {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.16);
-    text-decoration: none;
-  }
-
-  .marketing-menu-action--danger {
-    color: rgba(248, 113, 113, 0.92);
-  }
-
-  .marketing-menu-action--danger:hover:not(:disabled) {
-    color: #fca5a5;
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(248, 113, 113, 0.28);
-  }
-
-  .marketing-menu-action:disabled {
-    opacity: 0.42;
-    cursor: not-allowed;
-  }
-
-  .marketing-menu-action--icon {
-    flex: 0 0 auto;
-    width: 44px;
-    min-width: 44px;
-    padding: 0;
-  }
-
-  .marketing-menu-action--icon :global(svg) {
-    display: block;
-  }
-
-  .marketing-menu-footer-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0.75rem 1.2rem;
-    border-radius: 999px;
-    font-family: var(--font-primary);
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: #0b0512;
-    background: var(--brand-gradient);
-    text-decoration: none;
-    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.32);
-  }
-
-  .marketing-menu-footer-cta:hover {
-    filter: brightness(1.06);
-    text-decoration: none;
-  }
-
-  /* Keep the header (and hamburger → X toggle) above the menu overlay. */
-  :global(html.marketing-menu-open) {
-    overflow: hidden;
-    overscroll-behavior: none;
-  }
-
-  :global(html.marketing-menu-open) .app-header {
-    z-index: 2200;
-  }
-
-  /* Menu overlay is a fixed sibling inside the header row — sit above it. */
-  :global(html.marketing-menu-open .app-header-logo),
-  :global(html.marketing-menu-open .marketing-nav) {
-    position: relative;
-    z-index: 2100;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .marketing-menu-backdrop,
-    .marketing-menu-panel {
-      animation: none;
     }
   }
 </style>

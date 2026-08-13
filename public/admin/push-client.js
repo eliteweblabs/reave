@@ -821,12 +821,13 @@ function ensureTestPushMenuItem() {
   const menu = document.getElementById('topbar-profile-menu');
   if (!menu || document.getElementById('topbar-test-push-link')) return;
 
-  const divider = menu.querySelector('.topbar-dropdown-divider');
+  const list = menu.querySelector('.overlay-menu-list');
+  if (!list) return;
+
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.id = 'topbar-test-push-link';
-  btn.className = 'topbar-dropdown-item';
-  btn.setAttribute('role', 'menuitem');
+  btn.className = 'overlay-menu-link';
   btn.textContent = 'Test notification';
   btn.addEventListener('click', async (ev) => {
     ev.preventDefault();
@@ -845,8 +846,9 @@ function ensureTestPushMenuItem() {
     }
   });
 
-  if (divider) menu.insertBefore(btn, divider);
-  else menu.appendChild(btn);
+  const li = document.createElement('li');
+  li.appendChild(btn);
+  list.appendChild(li);
 }
 
 function removeTestPushMenuItem() {
