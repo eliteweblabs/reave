@@ -68,13 +68,20 @@ export function formatAuditReadyNotification(opts: {
   const prefix = opts.tier === 'full' ? 'Full Audit Ready' : 'Audit Ready';
   const name = opts.displayName.trim() || 'Project';
   const title = truncateNotificationText(`${prefix} > ${name}`, NOTIFICATION_TITLE_MAX);
-  const detail = truncateNotificationText(cleanNotificationExcerpt(opts.excerpt), NOTIFICATION_DETAIL_MAX);
+  const cleaned = cleanNotificationExcerpt(opts.excerpt);
+  const detail = truncateNotificationText(
+    cleaned || 'Research finished — open the project for the full audit.',
+    NOTIFICATION_DETAIL_MAX,
+  );
   return { title, detail };
 }
 
-/** Strip lightweight markdown and collapse whitespace for alert excerpts. */
+/** Strip chat-button JSON dumps, lightweight markdown, and collapse whitespace. */
 export function cleanNotificationExcerpt(text: string): string {
   return text
+    .replace(/```json\n?[\s\S]*?(?:\n?```|$)/gi, ' ')
+    .replace(/```[\s\S]*?(?:\n?```|$)/g, ' ')
+    .replace(/\{[^{}]*"type"\s*:\s*"button"[^{}]*\}/gi, ' ')
     .replace(/\*\*/g, '')
     .replace(/^#+\s+/gm, '')
     .replace(/\s+/g, ' ')

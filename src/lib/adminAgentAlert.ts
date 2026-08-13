@@ -7,6 +7,7 @@ import { getShareOpenChatAlerts } from './appSettingsStore';
 import { truncateChatTitle } from './chatTypes';
 import {
   bestWorkDisplayName,
+  cleanNotificationExcerpt,
   formatAuditReadyNotification,
 } from './notificationFormat';
 import { sendPushNotification } from './webPush';
@@ -157,16 +158,21 @@ function extractProposalSummary(reply: string, slug?: string | null): string {
   const trimmed = reply.trim();
   if (!trimmed) return 'Research finished — open the project for the full audit.';
 
+  let raw = trimmed;
   if (slug) {
     const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const match = trimmed.match(new RegExp(`Project:\\s*${escaped}\\s*\\n?([\\s\\S]*)`, 'i'));
-    if (match?.[1]?.trim()) return match[1].trim();
+    if (match?.[1]?.trim()) raw = match[1].trim();
+  }
+  if (raw === trimmed) {
+    const generic = trimmed.match(/Project:\s*[a-z0-9._-]+\s*\n([\s\S]*)/i);
+    if (generic?.[1]?.trim()) raw = generic[1].trim();
   }
 
-  const generic = trimmed.match(/Project:\s*[a-z0-9._-]+\s*\n([\s\S]*)/i);
-  if (generic?.[1]?.trim()) return generic[1].trim();
-
-  return trimmed.slice(0, 1200);
+  return (
+    cleanNotificationExcerpt(raw) ||
+    'Research finished — open the project for the full audit.'
+  );
 }
 
 async function formatAlertMessage(opts: {
