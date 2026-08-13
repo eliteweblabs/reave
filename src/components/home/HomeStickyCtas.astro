@@ -1,7 +1,10 @@
 ---
 /**
- * Homepage hero CTAs — viewport-fixed at the hero footer (same spot as the mock
- * chat column bottom). Spacer in .home-hero-demo preserves chat layout height.
+ * Homepage hero CTAs — viewport-fixed at the bottom of the screen (same spot
+ * as the mock chat column footer). Rendered as a sibling of .home-scroll, not
+ * inside .home-hero: that section is isolation:isolate + z-index:0, which
+ * traps nested position:fixed layers under later homepage sections.
+ * Spacer in .home-hero-demo preserves chat layout height.
  */
 import { ArrowRight } from "lucide-astro";
 import type { SiteContentConfig } from "../../lib/siteContent";
