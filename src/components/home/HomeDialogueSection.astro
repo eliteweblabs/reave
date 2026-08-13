@@ -194,7 +194,9 @@ const uid = `dialogue-${variant}-${id}`.replace(/[^a-zA-Z0-9_-]/g, "-");
     z-index: 1;
     width: 100%;
     padding: var(--home-section-padding-y) 24px;
-    scroll-margin-top: 8px;
+    scroll-margin-top: calc(
+      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px
+    );
   }
 
   .home-dialogue-showcase-label {

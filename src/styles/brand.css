@@ -29,7 +29,7 @@
    * (`viewport-fit=cover`). Safe-area insets pad header / CTAs, not the wallpaper.
    */
   --site-canvas: #0c0614;
-  --site-status-bar: #0c0614;
+  --site-status-bar: #000;
   --site-mesh-glow:
     radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
     radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
