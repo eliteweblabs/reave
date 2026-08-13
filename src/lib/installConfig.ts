@@ -41,6 +41,8 @@ const FEATURE_IDS_LIST = [
   'wordpress_content',
   'seo_directory',
   'event_ticketing',
+  'clerk_auth',
+  'cookie_notice',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

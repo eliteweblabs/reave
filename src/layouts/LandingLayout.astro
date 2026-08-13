@@ -6,6 +6,7 @@ import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import CookieNotice from "../components/CookieNotice.astro";
 
 export interface Props {
   title?: string;
@@ -79,6 +80,7 @@ const htmlStyle = isEditorial
   </head>
   <body class={isEditorial ? "editorial-body" : "landing-body"}>
     <slot />
+    <CookieNotice />
   </body>
 </html>
 

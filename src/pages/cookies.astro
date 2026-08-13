@@ -1,0 +1,171 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+const siteUrl = company.domain ? `https://${company.domain}` : Astro.url.origin;
+const supportMail = company.supportEmail || (company.domain ? `support@${company.domain}` : "");
+---
+
+<Layout
+  title="Cookie Policy"
+  description={`Cookie Policy for ${company.name} — how we use cookies and similar technologies.`}
+>
+  <div class="page">
+    <div class="doc">
+      <div class="doc-header">
+        <p class="doc-label">Legal</p>
+        <h1>Cookie Policy</h1>
+        <p class="doc-meta">{company.name} &mdash; Last updated August 13, 2026</p>
+      </div>
+
+      <div class="doc-body">
+        <section>
+          <h2>1. Agreement</h2>
+          <p>
+            By continuing to use this website — including scrolling, clicking, or dismissing the
+            cookie notice — you agree to this Cookie Policy. If you do not agree, leave the site and
+            delete cookies for this domain in your browser settings.
+          </p>
+        </section>
+
+        <section>
+          <h2>2. What we use</h2>
+          <p>
+            {company.legalName || company.name} ("we," "us," or "our") uses cookies and similar
+            storage only as needed to operate the platform
+            {company.domain ? ` at ${company.domain}` : ""}. We do not use advertising or targeting
+            cookies. Website analytics, when enabled, is cookieless.
+          </p>
+        </section>
+
+        <section>
+          <h2>3. Cookies and similar technologies</h2>
+          <ul>
+            <li>
+              <strong>Authentication</strong> — session cookies from our sign-in provider (Clerk) so
+              you stay logged in.
+            </li>
+            <li>
+              <strong>Security</strong> — short-lived state cookies during sign-in and third-party
+              connect flows (CSRF / OAuth).
+            </li>
+            <li>
+              <strong>Demo suite</strong> — <code>reave_demo_suite</code> remembers which demo
+              modules you selected (demo installs only).
+            </li>
+            <li>
+              <strong>Cookie notice</strong> — stored in your browser (<code>localStorage</code>),
+              not as a cookie, so we do not show the notice again after you continue or dismiss it.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>4. Your choices</h2>
+          <p>
+            You can block or delete cookies in your browser. Blocking essential cookies will break
+            sign-in and some security features. Clearing this site’s data will show the cookie
+            notice again.
+          </p>
+        </section>
+
+        <section>
+          <h2>5. More information</h2>
+          <p>
+            How we handle personal information is described in our
+            <a href="/privacy">Privacy Policy</a>. Questions?
+            {supportMail ? (
+              <> Reach us at <a href={`mailto:${supportMail}`}>{supportMail}</a></>
+            ) : " Contact us through the platform."}
+            {company.domain ? (
+              <> or visit <a href={siteUrl}>{company.domain}</a>.</>
+            ) : "."}
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  * { box-sizing: border-box; }
+
+  .page {
+    min-height: 100vh;
+    padding: calc(64px + 48px) 24px calc(48px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    justify-content: center;
+  }
+
+  .doc {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .doc-header {
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .doc-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .doc-meta {
+    font-size: 14px;
+    color: rgba(255,255,255,0.4);
+    margin: 0;
+  }
+
+  .doc-body section {
+    margin-bottom: 32px;
+  }
+
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 12px;
+  }
+
+  p, li {
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.75);
+    margin: 0 0 12px;
+  }
+
+  ul {
+    padding-left: 20px;
+    margin: 0 0 12px;
+  }
+
+  code {
+    font-size: 0.9em;
+    color: rgba(255,255,255,0.9);
+  }
+
+  a {
+    color: #a855f7;
+    text-decoration: none;
+  }
+
+  a:hover { text-decoration: underline; }
+
+  strong { color: rgba(255,255,255,0.9); }
+</style>

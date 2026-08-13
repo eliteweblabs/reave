@@ -28,20 +28,28 @@ const priceLabel = (value: number) =>
 
 <header class="ed-header">
   <a class="ed-signature" href="#top">{signature}</a>
-  <button class="ed-menu" type="button" aria-label="Open menu" data-ed-menu>Menu</button>
-  <nav class="ed-nav" data-ed-nav>
+  {contact?.phone && (
+    <a class="ed-phone" href={contact.phoneHref || `tel:${contact.phone}`}>
+      {contact.phone}
+    </a>
+  )}
+  <button class="ed-menu" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="ed-nav" data-ed-menu>
+    <span class="ed-menu__line"></span>
+    <span class="ed-menu__line"></span>
+  </button>
+  <nav class="ed-nav" id="ed-nav" data-ed-nav>
     {numbers && <a href="#numbers">By the Numbers</a>}
     {properties.length > 0 && <a href="#properties">Properties</a>}
     {map && <a href="#map-search">Search</a>}
     {reviews && <a href="#reviews">Reviews</a>}
     {about && <a href="#about">About</a>}
     <a href="#contact">Contact</a>
+    {contact?.phone && (
+      <a class="ed-nav__phone" href={contact.phoneHref || `tel:${contact.phone}`}>
+        {contact.phone}
+      </a>
+    )}
   </nav>
-  {contact?.phone && (
-    <a class="ed-phone" href={contact.phoneHref || `tel:${contact.phone}`}>
-      {contact.phone}
-    </a>
-  )}
 </header>
 
 <main id="top">
@@ -336,9 +344,21 @@ const priceLabel = (value: number) =>
 <script is:inline>
   const toggle = document.querySelector("[data-ed-menu]");
   const nav = document.querySelector("[data-ed-nav]");
-  toggle?.addEventListener("click", () => nav?.classList.toggle("is-open"));
+  const setOpen = (open) => {
+    toggle?.classList.toggle("is-open", open);
+    nav?.classList.toggle("is-open", open);
+    document.body.classList.toggle("ed-nav-open", open);
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    }
+  };
+  toggle?.addEventListener("click", () => setOpen(!toggle.classList.contains("is-open")));
   nav?.querySelectorAll("a").forEach((link) => {
-    link.addEventListener("click", () => nav.classList.remove("is-open"));
+    link.addEventListener("click", () => setOpen(false));
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
   });
 </script>
 
@@ -349,7 +369,6 @@ const priceLabel = (value: number) =>
     z-index: 40;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 1rem;
     padding: 0.85rem 1.5rem;
     background: rgba(251, 248, 242, 0.92);
@@ -362,27 +381,90 @@ const priceLabel = (value: number) =>
     line-height: 1;
     color: #161410;
     text-decoration: none;
+    margin-right: auto;
   }
-  .ed-nav {
-    display: flex;
-    gap: 1.35rem;
-  }
-  .ed-nav a,
   .ed-phone {
     font-size: 0.82rem;
+    font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #3d382f;
     text-decoration: none;
   }
-  .ed-phone { font-weight: 600; }
   .ed-menu {
-    display: none;
+    position: relative;
+    z-index: 50;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
     border: 0;
     background: transparent;
-    font: inherit;
     cursor: pointer;
   }
+  .ed-menu__line {
+    position: absolute;
+    left: 0.7rem;
+    width: 1.35rem;
+    height: 1.5px;
+    background: #161410;
+    transition: transform 0.35s ease;
+  }
+  .ed-menu__line:first-child { top: 1.05rem; }
+  .ed-menu__line:last-child { top: 1.55rem; }
+  .ed-menu.is-open .ed-menu__line:first-child {
+    transform: translateY(0.25rem) rotate(45deg);
+  }
+  .ed-menu.is-open .ed-menu__line:last-child {
+    transform: translateY(-0.25rem) rotate(-45deg);
+  }
+  .ed-nav {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.35rem;
+    padding: 6rem 1.5rem 2rem;
+    background: rgba(251, 248, 242, 0.97);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+  }
+  .ed-nav.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .ed-nav a {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    color: #161410;
+    text-decoration: none;
+    transform: translateY(0.5rem);
+    transition: transform 0.35s ease, opacity 0.35s ease;
+    opacity: 0;
+  }
+  .ed-nav.is-open a {
+    transform: none;
+    opacity: 1;
+  }
+  .ed-nav a:nth-child(2) { transition-delay: 0.04s; }
+  .ed-nav a:nth-child(3) { transition-delay: 0.08s; }
+  .ed-nav a:nth-child(4) { transition-delay: 0.12s; }
+  .ed-nav a:nth-child(5) { transition-delay: 0.16s; }
+  .ed-nav a:nth-child(6) { transition-delay: 0.2s; }
+  .ed-nav a:nth-child(7) { transition-delay: 0.24s; }
+  .ed-nav__phone {
+    margin-top: 0.75rem;
+    font-family: Outfit, system-ui, sans-serif !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  body.ed-nav-open { overflow: hidden; }
   .ed-hero {
     min-height: 88vh;
     display: grid;
@@ -541,18 +623,6 @@ const priceLabel = (value: number) =>
     .ed-stats, .ed-cards, .ed-review-grid, .ed-filters, .ed-map-layout, .ed-about, .ed-contact {
       grid-template-columns: 1fr;
     }
-    .ed-nav {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      flex-direction: column;
-      padding: 1rem 1.5rem;
-      background: #fbf8f2;
-    }
-    .ed-nav.is-open { display: flex; }
-    .ed-menu { display: block; }
     .ed-phone { display: none; }
     .ed-about img { max-width: none; }
   }

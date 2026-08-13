@@ -15,6 +15,7 @@ import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
+import CookieNotice from "../components/CookieNotice.astro";
 import "../styles/brand.css";
 
 export interface Props {
@@ -137,6 +138,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 			</div>
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
+		<CookieNotice />
 		{
 			showSiteAssistant && (
 				<SiteAssistantWidget

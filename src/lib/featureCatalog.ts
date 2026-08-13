@@ -36,6 +36,7 @@ export const FEATURE_IDS = [
   'seo_directory',
   'event_ticketing',
   'clerk_auth',
+  'cookie_notice',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -96,6 +97,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   seo_directory: 'SEO Directory API Kit',
   event_ticketing: 'Event ticketing',
   clerk_auth: 'Clerk Authentication',
+  cookie_notice: 'Cookie notice',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -135,6 +137,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Ticket sales, QR check-in, and event inventory — reference only until productized',
   clerk_auth:
     'Manage Clerk users, sessions, and organizations; provision client apps (Pro/Enterprise)',
+  cookie_notice: 'Implied-consent cookie bar and Cookie Policy at /cookies',
 };
 
 export const CORE_FEATURE_NOTE =

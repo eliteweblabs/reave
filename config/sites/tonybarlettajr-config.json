@@ -1,6 +1,6 @@
 {
   "key": "tonybarlettajr",
-  "pages": ["/", "/privacy", "/terms"],
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [
       { "href": "/#numbers", "label": "By the Numbers" },

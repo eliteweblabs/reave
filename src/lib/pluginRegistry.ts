@@ -33,6 +33,7 @@ import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
 import { wordpressContentPlugin } from '../../plugins/wordpress-content/manifest';
 import { seoDirectoryPlugin } from '../../plugins/seo-directory/manifest';
 import { clerkAuthPlugin } from '../../plugins/clerk-auth/manifest';
+import { cookieNoticePlugin } from '../../plugins/cookie-notice/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -60,6 +61,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   wordpressContentPlugin,
   seoDirectoryPlugin,
   clerkAuthPlugin,
+  cookieNoticePlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -172,6 +174,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['analytic-audit'];
     case 'clerk-auth':
       return ['clerk-setup-paulino'];
+    case 'cookie-notice':
+      return ['cookie-notice'];
     default:
       return [];
   }
