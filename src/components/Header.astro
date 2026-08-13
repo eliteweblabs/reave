@@ -66,7 +66,11 @@ const logoAriaLabel = inAdminRoute ? "Dashboard" : company.name || "Home";
 const backHref = backHrefProp || "/admin/?tab=dashboard";
 const backLabel = backLabelProp || "Back to dashboard";
 /** Always /admin after auth — never "/" (that looped SignIn → / → SignIn). */
-const signInRedirect = "/admin/";
+const requestedReturn = Astro.url.searchParams.get("redirect_url") || "";
+const signInRedirect =
+  requestedReturn.startsWith("/") && !requestedReturn.startsWith("//")
+    ? requestedReturn
+    : "/admin/";
 const signInAutoOpen =
   signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
 const showMarketingNav = marketingNav && !adminShell;

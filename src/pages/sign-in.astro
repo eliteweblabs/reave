@@ -8,7 +8,8 @@ import "../styles/mobile-touch.css";
 const company = await getCompanyConfig(Astro.request);
 const { userId } = Astro.locals.auth();
 if (userId) {
-  return Astro.redirect("/admin/");
+  const next = Astro.url.searchParams.get("redirect_url") || "/admin/";
+  return Astro.redirect(next.startsWith("/") ? next : "/admin/");
 }
 ---
 

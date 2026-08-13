@@ -30,6 +30,10 @@ import "../../styles/admin/index.css";
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = Astro.url.pathname + Astro.url.search;
+  return Astro.redirect(`/sign-in?redirect_url=${encodeURIComponent(returnTo)}`);
+}
 const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
 const staffAvatarUrl = companyStaffAvatarUrl(company);

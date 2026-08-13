@@ -47,11 +47,10 @@ export function bindClerkSsrSessionSync(opts = {}) {
   }
 
   window.addEventListener('clerk-loaded', run, true);
-  if (window.Clerk?.loaded) run();
-  else {
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.Clerk?.loaded) run();
-    });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
   }
 }
 
