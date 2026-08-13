@@ -72,7 +72,10 @@ const signInRedirect =
     ? requestedReturn
     : "/admin/";
 const signInAutoOpen =
-  signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
+  signInAutoOpenProp ||
+  Astro.url.searchParams.get("auth") === "sign-in" ||
+  path === "/sign-in" ||
+  path === "/admin/login";
 const showMarketingNav = marketingNav && !adminShell;
 const showHeaderSignIn = !userId && !showMarketingNav;
 /** Signed-in profile control in the header end cluster (admin shell or public pages). */
