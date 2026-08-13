@@ -176,9 +176,10 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * layout viewport, which excludes the overlay status bar / toolbar —
 		 * scrolling content never enters the upper safe area. Let the
 		 * document grow; viewport-fit=cover then paints into the chrome.
+		 * Do not set overscroll-behavior or overflow-y here — either one
+		 * kills iOS pull-to-refresh.
 		 */
 		min-height: 100%;
-		overflow-y: scroll;
 		background-color: var(--site-canvas, #0c0614);
 	}
 
@@ -189,7 +190,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		font-family: var(--font-content);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
-		overscroll-behavior-y: none;
 		/*
 		 * Explicit root color is Safari 26’s Liquid Glass fallback. Pad
 		 * header / CTAs with env(safe-area-inset-*), not the wallpaper.
