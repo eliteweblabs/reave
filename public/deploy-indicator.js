@@ -75,6 +75,8 @@
 
   function publishDeployIndicator(deploy) {
     try {
+      window.__reaveLastDeployIndicator = deploy ?? null;
+      window.__reaveLastDeployIndicatorReady = true;
       window.dispatchEvent(new CustomEvent('reave:deploy-indicator', { detail: deploy ?? null }));
     } catch {
       /* ignore */

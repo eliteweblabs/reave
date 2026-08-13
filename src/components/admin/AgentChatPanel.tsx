@@ -1112,7 +1112,20 @@ function createChatAdapter(
   };
 }
 
-type DeployChatDraftPayload = { threadId: string; text: string };
+type DeployChatDraftPayload = { threadId: string; text: string; autoSend?: boolean };
+
+type DeployIndicatorPayload = {
+  chatLocked?: boolean;
+  chatLockMessage?: string | null;
+  state?: string;
+  deployedShort?: string | null;
+  tone?: string;
+};
+
+type ReaveDeployWindow = Window & {
+  __reaveLastDeployIndicator?: DeployIndicatorPayload | null;
+  __reaveLastDeployIndicatorReady?: boolean;
+};
 
 function messagePlainText(
   message:
@@ -1142,11 +1155,33 @@ function isSentComposerEcho(text: string, lastUserText: string): boolean {
   return Boolean(a) && a === lastUserText.trim();
 }
 
-function saveDeployChatDraft(threadId: string, text: string): void {
+function readDeployChatDraftPayload(threadId: string): DeployChatDraftPayload | null {
+  try {
+    const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DeployChatDraftPayload;
+    if (!parsed || parsed.threadId !== threadId || typeof parsed.text !== 'string') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveDeployChatDraft(
+  threadId: string,
+  text: string,
+  opts?: { autoSend?: boolean },
+): void {
   try {
     // Never wipe a prior snapshot with an empty string (lock timing races).
     if (!text.trim()) return;
-    const payload: DeployChatDraftPayload = { threadId, text };
+    const prev = readDeployChatDraftPayload(threadId);
+    const autoSend = opts?.autoSend ?? prev?.autoSend;
+    const payload: DeployChatDraftPayload = {
+      threadId,
+      text,
+      ...(autoSend ? { autoSend: true } : {}),
+    };
     sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(payload));
   } catch {
     /* private mode / quota */
@@ -1154,15 +1189,7 @@ function saveDeployChatDraft(threadId: string, text: string): void {
 }
 
 function readDeployChatDraft(threadId: string): string | null {
-  try {
-    const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DeployChatDraftPayload;
-    if (!parsed || parsed.threadId !== threadId || typeof parsed.text !== 'string') return null;
-    return parsed.text;
-  } catch {
-    return null;
-  }
+  return readDeployChatDraftPayload(threadId)?.text ?? null;
 }
 
 function clearDeployChatDraft(): void {
@@ -1176,11 +1203,13 @@ function clearDeployChatDraft(): void {
 function PendingDraftBoot({
   draft,
   autoSend,
-  deployChatLocked,
+  threadId,
+  onQueuedChange,
 }: {
   draft?: string | null;
   autoSend?: boolean;
-  deployChatLocked?: boolean;
+  threadId: string;
+  onQueuedChange?: (queued: boolean) => void;
 }) {
   const composer = useComposerRuntime();
   const ran = useRef(false);
@@ -1188,8 +1217,13 @@ function PendingDraftBoot({
     if (ran.current || !draft) return;
     ran.current = true;
     composer.setText(draft);
-    if (autoSend && !deployChatLocked) void composer.send();
-  }, [autoSend, composer, deployChatLocked, draft]);
+    // Never auto-send here — lock state is unknown on first paint. Queue it
+    // so DeployDraftBoot can hold through the deploy and flush when live.
+    if (autoSend) {
+      saveDeployChatDraft(threadId, draft, { autoSend: true });
+      onQueuedChange?.(true);
+    }
+  }, [autoSend, composer, draft, onQueuedChange, threadId]);
   return null;
 }
 
@@ -1197,14 +1231,21 @@ function PendingDraftBoot({
 function DeployDraftBoot({
   threadId,
   deployChatLocked,
+  deployChatLockReady,
+  skipRestore,
+  onQueuedChange,
 }: {
   threadId: string;
   deployChatLocked: boolean;
+  deployChatLockReady: boolean;
+  skipRestore?: boolean;
+  onQueuedChange?: (queued: boolean) => void;
 }) {
   const composer = useComposerRuntime();
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   const wasLockedRef = useRef(deployChatLocked);
   const didInitialRestoreRef = useRef(false);
+  const flushedRef = useRef(false);
 
   // Snapshot while locked so the hard reload that follows "live" still has the draft.
   useLayoutEffect(() => {
@@ -1212,10 +1253,12 @@ function DeployDraftBoot({
     const text = composer.getState().text ?? '';
     if (isSentComposerEcho(text, lastUserText)) {
       clearDeployChatDraft();
+      onQueuedChange?.(false);
       return;
     }
     saveDeployChatDraft(threadId, text);
-  }, [composer, deployChatLocked, lastUserText, threadId]);
+    if (readDeployChatDraftPayload(threadId)?.autoSend) onQueuedChange?.(true);
+  }, [composer, deployChatLocked, lastUserText, onQueuedChange, threadId]);
 
   useEffect(() => {
     const wasLocked = wasLockedRef.current;
@@ -1225,23 +1268,29 @@ function DeployDraftBoot({
     // including while still deploying so the editable field is not blank.
     if (!didInitialRestoreRef.current) {
       didInitialRestoreRef.current = true;
-      const saved = readDeployChatDraft(threadId);
-      if (saved) {
-        if (isSentComposerEcho(saved, lastUserText)) {
-          clearDeployChatDraft();
-        } else {
-          const current = composer.getState().text ?? '';
-          if (!current.trim()) composer.setText(saved);
-          if (!deployChatLocked) clearDeployChatDraft();
+      if (!skipRestore) {
+        const saved = readDeployChatDraftPayload(threadId);
+        if (saved) {
+          if (isSentComposerEcho(saved.text, lastUserText)) {
+            clearDeployChatDraft();
+            onQueuedChange?.(false);
+          } else {
+            const current = composer.getState().text ?? '';
+            if (!current.trim()) composer.setText(saved.text);
+            if (saved.autoSend) onQueuedChange?.(true);
+            // Keep autoSend snapshots until the flush effect actually sends.
+            else if (!deployChatLocked) clearDeployChatDraft();
+          }
         }
       }
     }
 
-    // In-session unlock (no reload): runtime kept the text; drop the snapshot.
-    if (wasLocked && !deployChatLocked) {
+    // In-session unlock (no reload): drop a regular typed snapshot. Queued
+    // auto-sends stay until the flush effect below fires.
+    if (wasLocked && !deployChatLocked && !readDeployChatDraftPayload(threadId)?.autoSend) {
       clearDeployChatDraft();
     }
-  }, [composer, deployChatLocked, lastUserText, threadId]);
+  }, [composer, deployChatLocked, lastUserText, onQueuedChange, skipRestore, threadId]);
 
   // lastUserText can arrive after the first restore (thread hydrate). Drop
   // a snapshot that is only the message already in the transcript.
@@ -1249,21 +1298,47 @@ function DeployDraftBoot({
     if (!lastUserText.trim()) return;
     const current = composer.getState().text ?? '';
     if (isSentComposerEcho(current, lastUserText)) composer.setText('');
-    const saved = readDeployChatDraft(threadId);
-    if (saved && isSentComposerEcho(saved, lastUserText)) clearDeployChatDraft();
-  }, [composer, lastUserText, threadId]);
+    const saved = readDeployChatDraftPayload(threadId);
+    if (saved && isSentComposerEcho(saved.text, lastUserText)) {
+      clearDeployChatDraft();
+      onQueuedChange?.(false);
+    }
+  }, [composer, lastUserText, onQueuedChange, threadId]);
+
+  // Holding pattern: once the deploy lock is known and clear, send a queued
+  // project/email/client handoff that arrived while sending was paused.
+  useEffect(() => {
+    if (flushedRef.current || !deployChatLockReady || deployChatLocked) return;
+    const saved = readDeployChatDraftPayload(threadId);
+    if (!saved?.autoSend) return;
+    const text = (composer.getState().text ?? '').trim() || saved.text.trim();
+    if (!text || isSentComposerEcho(text, lastUserText)) {
+      clearDeployChatDraft();
+      onQueuedChange?.(false);
+      return;
+    }
+    flushedRef.current = true;
+    if (!(composer.getState().text ?? '').trim()) composer.setText(saved.text);
+    clearDeployChatDraft();
+    onQueuedChange?.(false);
+    void composer.send();
+  }, [
+    composer,
+    deployChatLockReady,
+    deployChatLocked,
+    lastUserText,
+    onQueuedChange,
+    threadId,
+  ]);
 
   return null;
 }
 
-type DeployChatLockState = { locked: boolean; message: string | null; liveReloading?: boolean };
-
-type DeployIndicatorPayload = {
-  chatLocked?: boolean;
-  chatLockMessage?: string | null;
-  state?: string;
-  deployedShort?: string | null;
-  tone?: string;
+type DeployChatLockState = {
+  locked: boolean;
+  message: string | null;
+  liveReloading?: boolean;
+  ready: boolean;
 };
 
 function applyDeployChatLockPayload(
@@ -1276,7 +1351,7 @@ function applyDeployChatLockPayload(
 ): void {
   if (!deploy) {
     opts.setWasLocked(false);
-    opts.setState({ locked: false, message: null });
+    opts.setState({ locked: false, message: null, ready: true });
     return;
   }
 
@@ -1300,13 +1375,14 @@ function applyDeployChatLockPayload(
 
     opts.setWasLocked(false);
     if (alreadyReloaded) {
-      opts.setState({ locked: false, message: null });
+      opts.setState({ locked: false, message: null, ready: true });
       return;
     }
 
     opts.setState({
       locked: true,
       liveReloading: true,
+      ready: true,
       message: 'New version is live — reloading…',
     });
     window.setTimeout(() => {
@@ -1316,13 +1392,28 @@ function applyDeployChatLockPayload(
   }
 
   opts.setWasLocked(locked);
-  opts.setState({ locked, message });
+  opts.setState({ locked, message, ready: true });
+}
+
+function readCachedDeployLock(): DeployChatLockState {
+  if (typeof window === 'undefined') return { locked: false, message: null, ready: false };
+  const w = window as ReaveDeployWindow;
+  if (!w.__reaveLastDeployIndicatorReady) {
+    return { locked: false, message: null, ready: false };
+  }
+  const deploy = w.__reaveLastDeployIndicator;
+  if (!deploy) return { locked: false, message: null, ready: true };
+  return {
+    locked: Boolean(deploy.chatLocked),
+    message: deploy.chatLockMessage ?? null,
+    ready: true,
+  };
 }
 
 function useDeployChatLock(): DeployChatLockState {
-  const [state, setState] = useState<DeployChatLockState>({ locked: false, message: null });
-  const wasLockedRef = useRef(false);
-  const lockedRef = useRef(false);
+  const [state, setState] = useState<DeployChatLockState>(readCachedDeployLock);
+  const wasLockedRef = useRef(state.locked);
+  const lockedRef = useRef(state.locked);
   const reloadScheduledRef = useRef(false);
 
   const applyPayload = useCallback((deploy: DeployIndicatorPayload | null | undefined) => {
@@ -1334,9 +1425,10 @@ function useDeployChatLock(): DeployChatLockState {
         wasLockedRef.current = locked;
       },
       setState: (next) => {
-        lockedRef.current = Boolean(next.locked);
-        if (next.liveReloading) reloadScheduledRef.current = true;
-        setState(next);
+        const merged = { ...next, ready: true };
+        lockedRef.current = Boolean(merged.locked);
+        if (merged.liveReloading) reloadScheduledRef.current = true;
+        setState(merged);
       },
     });
   }, []);
@@ -1391,6 +1483,8 @@ function useDeployChatLock(): DeployChatLockState {
 
     if (canPollDeployIndicator()) {
       void refresh().finally(schedule);
+    } else {
+      applyPayload(null);
     }
 
     const onVis = () => {
@@ -2159,6 +2253,8 @@ function ClaudeComposer({
   deployChatLocked = false,
   deployChatLockMessage = null,
   deployLiveReloading = false,
+  queuedSend = false,
+  onQueuedChange,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
@@ -2173,8 +2269,11 @@ function ClaudeComposer({
   deployChatLocked?: boolean;
   deployChatLockMessage?: string | null;
   deployLiveReloading?: boolean;
+  queuedSend?: boolean;
+  onQueuedChange?: (queued: boolean) => void;
 }) {
-  const helpers = useSlashHelpers(propsRef, commands, deployChatLocked);
+  const sendBlocked = deployChatLocked || queuedSend;
+  const helpers = useSlashHelpers(propsRef, commands, sendBlocked);
   const mentions = useMentions(pendingMentionsRef);
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -2206,7 +2305,8 @@ function ClaudeComposer({
     propsRef.current?.onComposeFocus?.(false);
     typedDraftRef.current = '';
     clearDeployChatDraft();
-  }, [showRunning, propsRef]);
+    onQueuedChange?.(false);
+  }, [showRunning, propsRef, onQueuedChange]);
 
   // Snapshot the current draft when sending locks so a post-deploy reload
   // can restore it. Keystrokes while locked are saved in onInput. Skip while
@@ -2220,13 +2320,14 @@ function ClaudeComposer({
     if (isSentComposerEcho(candidate, lastUserText)) {
       typedDraftRef.current = '';
       clearDeployChatDraft();
+      onQueuedChange?.(false);
       if (fromRuntime.trim()) composer.setText('');
       return;
     }
     if (candidate && !fromRuntime) composer.setText(candidate);
     typedDraftRef.current = candidate;
     saveDeployChatDraft(threadId, candidate);
-  }, [composer, deployChatLocked, lastUserText, showRunning, threadId]);
+  }, [composer, deployChatLocked, lastUserText, onQueuedChange, showRunning, threadId]);
 
   // iOS Safari blurs the focused textarea on the touch that targets Send —
   // often before `click` — which closes the keyboard and reflows the pinned
@@ -2234,7 +2335,7 @@ function ClaudeComposer({
   // blocks that blur and sends immediately, so one press sends and the
   // keyboard dismisses when the running/Stop composer replaces the input.
   useLayoutEffect(() => {
-    if (showRunning || deployChatLocked) return;
+    if (showRunning || sendBlocked) return;
     const btn = sendBtnRef.current;
     if (!btn) return;
     const onTouchStart = (e: TouchEvent) => {
@@ -2245,7 +2346,7 @@ function ClaudeComposer({
     };
     btn.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => btn.removeEventListener('touchstart', onTouchStart);
-  }, [composer, showRunning, deployChatLocked]);
+  }, [composer, showRunning, sendBlocked]);
 
   if (showRunning) {
     return (
@@ -2305,10 +2406,15 @@ function ClaudeComposer({
             {deployLiveReloading ? '🟢' : '🚀'}
           </span>
           <p className="aui-composer-deploy-lock-text">
-            {deployChatLockMessage ||
-              (deployLiveReloading
-                ? 'New version is live — reloading…'
-                : 'Deploy in progress — sending is paused until the new version is live.')}
+            {deployLiveReloading
+              ? deployChatLockMessage || 'New version is live — reloading…'
+              : queuedSend
+                ? (
+                    deployChatLockMessage ||
+                    'Deploy in progress — sending is paused until the new version is live.'
+                  ).replace('sending is paused until', 'holding this send until')
+                : deployChatLockMessage ||
+                  'Deploy in progress — sending is paused until the new version is live.'}
           </p>
         </div>
       ) : null}
@@ -2356,8 +2462,10 @@ function ClaudeComposer({
             onInput={(e) => {
               const value = e.currentTarget.value;
               typedDraftRef.current = value;
-              if (!value.trim()) clearDeployChatDraft();
-              else if (deployChatLocked) saveDeployChatDraft(threadId, value);
+              if (!value.trim()) {
+                clearDeployChatDraft();
+                onQueuedChange?.(false);
+              } else if (deployChatLocked) saveDeployChatDraft(threadId, value);
               const caret = e.currentTarget.selectionStart ?? value.length;
               helpers.onInput(value);
               mentions.onInput(value, caret);
@@ -2376,15 +2484,21 @@ function ClaudeComposer({
               <AttachIcon />
             </ComposerPrimitive.AddAttachment>
             <span className="aui-composer-hint">
-              {deployChatLocked
-                ? 'Keep typing — send unlocks when the new version is live'
-                : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
+              {queuedSend
+                ? 'Queued — this will send when the new version is live'
+                : deployChatLocked
+                  ? 'Keep typing — send unlocks when the new version is live'
+                  : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
             </span>
-            {deployChatLocked ? (
+            {sendBlocked ? (
               <button
                 type="button"
                 className="aui-composer-send"
-                aria-label="Send paused until the new version is live"
+                aria-label={
+                  queuedSend
+                    ? 'Send queued until the new version is live'
+                    : 'Send paused until the new version is live'
+                }
                 disabled
               >
                 <SendIcon />
@@ -2698,12 +2812,16 @@ function AgentChatThreadBody({
   streamedProgress,
   deployChatLock,
   pendingMentionsRef,
+  queuedSend,
+  onQueuedChange,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   threadId: string;
   streamedProgress: AgentProgress | null;
   deployChatLock: DeployChatLockState;
   pendingMentionsRef: RefObject<ChatMention[]>;
+  queuedSend: boolean;
+  onQueuedChange: (queued: boolean) => void;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const [welcomeGreeting] = useState(() => pickChatWelcomeGreeting());
@@ -2728,6 +2846,7 @@ function AgentChatThreadBody({
       if (!propsRef.current?.autoFocusComposer) return;
       // Auto-send drafts should not steal focus / open the keyboard.
       if (propsRef.current?.pendingAutoSend) return;
+      if (queuedSend) return;
       autoFocusDoneRef.current = true;
       // Double rAF: wait until the textarea is committed and laid out. On mobile,
       // a keyboard bridge may already be focused from the new-chat tap; focusing
@@ -2738,7 +2857,7 @@ function AgentChatThreadBody({
         });
       });
     },
-    [propsRef],
+    [propsRef, queuedSend],
   );
 
   useEffect(() => {
@@ -2785,6 +2904,8 @@ function AgentChatThreadBody({
             deployChatLocked={deployChatLock.locked}
             deployChatLockMessage={deployChatLock.message}
             deployLiveReloading={Boolean(deployChatLock.liveReloading)}
+            queuedSend={queuedSend}
+            onQueuedChange={onQueuedChange}
             onFocusInputReady={onFocusInputReady}
           />
         </div>
@@ -2827,6 +2948,8 @@ function AgentChatThreadBody({
                 deployChatLocked={deployChatLock.locked}
                 deployChatLockMessage={deployChatLock.message}
                 deployLiveReloading={Boolean(deployChatLock.liveReloading)}
+                queuedSend={queuedSend}
+                onQueuedChange={onQueuedChange}
                 onFocusInputReady={onFocusInputReady}
               />
               <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>
@@ -2850,6 +2973,9 @@ function AgentChatThread({
   pendingAutoSend?: boolean;
 }) {
   const deployChatLock = useDeployChatLock();
+  const [queuedSend, setQueuedSend] = useState(
+    () => Boolean(pendingAutoSend) || Boolean(readDeployChatDraftPayload(threadId)?.autoSend),
+  );
   const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
   const pendingMentionsRef = useRef<ChatMention[]>([]);
   const adapter = useMemo(
@@ -2872,15 +2998,24 @@ function AgentChatThread({
       <PendingDraftBoot
         draft={pendingDraft}
         autoSend={pendingAutoSend}
-        deployChatLocked={deployChatLock.locked}
+        threadId={threadId}
+        onQueuedChange={setQueuedSend}
       />
-      <DeployDraftBoot threadId={threadId} deployChatLocked={deployChatLock.locked} />
+      <DeployDraftBoot
+        threadId={threadId}
+        deployChatLocked={deployChatLock.locked}
+        deployChatLockReady={deployChatLock.ready}
+        skipRestore={Boolean(pendingDraft)}
+        onQueuedChange={setQueuedSend}
+      />
       <AgentChatThreadBody
         propsRef={propsRef}
         threadId={threadId}
         streamedProgress={streamedProgress}
         deployChatLock={deployChatLock}
         pendingMentionsRef={pendingMentionsRef}
+        queuedSend={queuedSend}
+        onQueuedChange={setQueuedSend}
       />
     </AssistantRuntimeProvider>
   );
