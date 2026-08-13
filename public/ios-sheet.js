@@ -1,23 +1,175 @@
 /**
  * iOS-style bottom sheet controller for the PWA.
  * Usage: data-ios-sheet-open="sheet-id" on triggers; IosSheet.open('sheet-id') from JS.
+ *
+ * Mobile Safari: overflow:hidden on html does not stop background scroll, and
+ * focusing an input pans position:fixed overlays with the visual viewport so
+ * the sheet jumps off the keyboard. Lock body with position:fixed, and while
+ * the keyboard is open pin the backdrop to visualViewport.
  */
 (function () {
   const LOCK_CLASS = 'ios-sheet-locked';
   const VISIBLE_CLASS = 'ios-sheet--visible';
   const OPEN_CLASS = 'open';
+  const KEYBOARD_CLASS = 'ios-sheet-keyboard';
+  /** URL bar deltas are ~40–100px; keyboards are much larger. */
+  const KEYBOARD_MIN_PX = 140;
 
   /** @type {Map<string, () => void>} */
   const closeHandlers = new Map();
 
+  let lockedScrollY = 0;
+  let keyboardRaf = 0;
+  let keyboardBound = false;
+  let touchMoveBound = false;
+
   function lockScroll() {
-    document.documentElement.classList.add(LOCK_CLASS);
+    if (!document.documentElement.classList.contains(LOCK_CLASS)) {
+      lockedScrollY = window.scrollY || window.pageYOffset || 0;
+      document.documentElement.classList.add(LOCK_CLASS);
+      const body = document.body;
+      body.style.position = 'fixed';
+      body.style.top = `-${lockedScrollY}px`;
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.width = '100%';
+    }
+    bindTouchMoveLock();
+    bindKeyboardLayout();
   }
 
   function unlockScroll() {
-    if (!document.querySelector('.ios-sheet-backdrop.' + OPEN_CLASS)) {
-      document.documentElement.classList.remove(LOCK_CLASS);
+    if (document.querySelector('.ios-sheet-backdrop.' + OPEN_CLASS)) return;
+    document.documentElement.classList.remove(LOCK_CLASS);
+    const body = document.body;
+    body.style.position = '';
+    body.style.top = '';
+    body.style.left = '';
+    body.style.right = '';
+    body.style.width = '';
+    window.scrollTo(0, lockedScrollY);
+    releaseKeyboardLayout();
+  }
+
+  function bindTouchMoveLock() {
+    if (touchMoveBound) return;
+    touchMoveBound = true;
+    document.addEventListener('touchmove', onLockTouchMove, { passive: false });
+  }
+
+  function onLockTouchMove(ev) {
+    if (!document.documentElement.classList.contains(LOCK_CLASS)) return;
+    const target = ev.target;
+    if (target instanceof Element && target.closest('.ios-sheet')) return;
+    ev.preventDefault();
+  }
+
+  function keyboardInset() {
+    const vv = window.visualViewport;
+    if (!vv) return 0;
+    return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  }
+
+  function clearBackdropPin(el) {
+    el.classList.remove(KEYBOARD_CLASS);
+    el.style.top = '';
+    el.style.left = '';
+    el.style.width = '';
+    el.style.height = '';
+    el.style.bottom = '';
+    el.style.right = '';
+  }
+
+  function pinBackdropToVisualViewport(el) {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    el.classList.add(KEYBOARD_CLASS);
+    el.style.top = `${vv.offsetTop}px`;
+    el.style.left = `${vv.offsetLeft}px`;
+    el.style.width = `${vv.width}px`;
+    el.style.height = `${vv.height}px`;
+    el.style.bottom = 'auto';
+    el.style.right = 'auto';
+  }
+
+  function scrollActiveFieldInSheet() {
+    const active = document.activeElement;
+    if (
+      !(active instanceof HTMLInputElement) &&
+      !(active instanceof HTMLTextAreaElement) &&
+      !(active instanceof HTMLSelectElement)
+    ) {
+      return;
     }
+    const body = active.closest('.ios-sheet-body');
+    if (!body) return;
+    const bodyRect = body.getBoundingClientRect();
+    const fieldRect = active.getBoundingClientRect();
+    const margin = 12;
+    if (fieldRect.bottom > bodyRect.bottom - margin || fieldRect.top < bodyRect.top + margin) {
+      body.scrollTop += fieldRect.top - bodyRect.top - margin;
+    }
+  }
+
+  function syncKeyboardLayout() {
+    const openBackdrops = document.querySelectorAll('.ios-sheet-backdrop.' + OPEN_CLASS);
+    if (!openBackdrops.length) {
+      document.documentElement.style.removeProperty('--ios-sheet-keyboard-inset');
+      return;
+    }
+
+    const inset = keyboardInset();
+    const keyboardOpen = inset >= KEYBOARD_MIN_PX;
+    if (keyboardOpen) {
+      document.documentElement.style.setProperty('--ios-sheet-keyboard-inset', `${inset}px`);
+    } else {
+      document.documentElement.style.removeProperty('--ios-sheet-keyboard-inset');
+    }
+
+    openBackdrops.forEach((el) => {
+      if (keyboardOpen) pinBackdropToVisualViewport(el);
+      else clearBackdropPin(el);
+    });
+
+    if (keyboardOpen) scrollActiveFieldInSheet();
+
+    if (document.documentElement.classList.contains(LOCK_CLASS) && window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function scheduleKeyboardLayout() {
+    if (keyboardRaf) return;
+    keyboardRaf = window.requestAnimationFrame(() => {
+      keyboardRaf = 0;
+      syncKeyboardLayout();
+    });
+  }
+
+  function bindKeyboardLayout() {
+    if (keyboardBound) {
+      scheduleKeyboardLayout();
+      return;
+    }
+    keyboardBound = true;
+    document.addEventListener('focusin', scheduleKeyboardLayout, true);
+    document.addEventListener('focusout', scheduleKeyboardLayout, true);
+    window.visualViewport?.addEventListener('resize', scheduleKeyboardLayout, { passive: true });
+    window.visualViewport?.addEventListener('scroll', scheduleKeyboardLayout, { passive: true });
+    window.addEventListener('resize', scheduleKeyboardLayout, { passive: true });
+    scheduleKeyboardLayout();
+  }
+
+  function releaseKeyboardLayout() {
+    document.querySelectorAll('.ios-sheet-backdrop').forEach(clearBackdropPin);
+    document.documentElement.style.removeProperty('--ios-sheet-keyboard-inset');
+    if (!keyboardBound) return;
+    keyboardBound = false;
+    document.removeEventListener('focusin', scheduleKeyboardLayout, true);
+    document.removeEventListener('focusout', scheduleKeyboardLayout, true);
+    window.visualViewport?.removeEventListener('resize', scheduleKeyboardLayout);
+    window.visualViewport?.removeEventListener('scroll', scheduleKeyboardLayout);
+    window.removeEventListener('resize', scheduleKeyboardLayout);
   }
 
   /**
@@ -26,17 +178,18 @@
    */
   function open(target, opts) {
     const el = typeof target === 'string' ? document.getElementById(target) : target;
-    if (!el || el.classList.contains(OPEN_CLASS)) return;
+    if (!el) return;
 
     if (opts?.onClose) closeHandlers.set(el.id, opts.onClose);
 
-    el.classList.add(OPEN_CLASS);
-    el.setAttribute('aria-hidden', 'false');
+    if (!el.classList.contains(OPEN_CLASS)) {
+      el.classList.add(OPEN_CLASS);
+      el.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => {
+        el.querySelector('.ios-sheet')?.classList.add(VISIBLE_CLASS);
+      });
+    }
     lockScroll();
-
-    requestAnimationFrame(() => {
-      el.querySelector('.ios-sheet')?.classList.add(VISIBLE_CLASS);
-    });
   }
 
   /**
@@ -60,6 +213,7 @@
     sheet?.classList.remove(VISIBLE_CLASS);
     el.classList.remove(OPEN_CLASS);
     el.setAttribute('aria-hidden', 'true');
+    clearBackdropPin(el);
     unlockScroll();
 
     const handler = closeHandlers.get(el.id);
@@ -214,6 +368,7 @@
     if (!(backdrop instanceof HTMLElement) || backdrop.dataset.sheetBound === '1') return;
     backdrop.dataset.sheetBound = '1';
     bindDragDismiss(backdrop);
+    if (backdrop.classList.contains(OPEN_CLASS)) lockScroll();
   }
 
   document.addEventListener('click', (ev) => {

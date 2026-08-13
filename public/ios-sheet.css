@@ -36,7 +36,11 @@
 
 html.ios-sheet-locked {
   overflow: hidden;
-  touch-action: none;
+}
+
+html.ios-sheet-locked body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .ios-sheet-backdrop {
@@ -47,6 +51,7 @@ html.ios-sheet-locked {
   align-items: flex-end;
   justify-content: center;
   padding: 0;
+  box-sizing: border-box;
   /* Lighter scrim so the frosted background blur reads as a slight blur
      rather than a flat dim. saturate() gives the iOS-style frosted look. */
   background: var(--ios-sheet-scrim);
@@ -57,6 +62,15 @@ html.ios-sheet-locked {
 
 .ios-sheet-backdrop.open {
   display: flex;
+}
+
+/*
+ * Keyboard: JS pins this backdrop to visualViewport. Cap the sheet to that
+ * box so iOS does not scroll the overlay to keep the focused field on screen.
+ */
+.ios-sheet-backdrop.open.ios-sheet-keyboard .ios-sheet {
+  max-height: 100%;
+  min-height: 0;
 }
 
 .ios-sheet {
@@ -78,6 +92,7 @@ html.ios-sheet-locked {
     opacity var(--ios-sheet-fade-duration) ease;
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  touch-action: pan-y;
 }
 
 .ios-sheet--visible {
@@ -159,6 +174,7 @@ html.ios-sheet-locked {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 1rem 1.15rem 1.25rem;
 }
 

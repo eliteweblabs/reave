@@ -132,7 +132,7 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
     <script>
       import '../admin/agent-chat-mount.tsx';
     </script>
-    <script src="/ios-sheet.js" defer></script>
+    <script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
     <script src="/focus/focus-chat.js" defer></script>
   </body>
 </html>
