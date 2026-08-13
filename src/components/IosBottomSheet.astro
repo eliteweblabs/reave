@@ -28,6 +28,8 @@ interface Props {
   sheetClass?: string;
   /** Extra class on .ios-sheet-body. */
   bodyClass?: string;
+  /** Render the sheet open on first paint (required sign-in). */
+  startOpen?: boolean;
 }
 
 const {
@@ -42,6 +44,7 @@ const {
   class: className = '',
   sheetClass = '',
   bodyClass = '',
+  startOpen = false,
 } = Astro.props;
 
 const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : { 'data-ios-sheet-close': true };
@@ -49,12 +52,12 @@ const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : 
 
 <div
   id={id}
-  class:list={['ios-sheet-backdrop', className]}
+  class:list={['ios-sheet-backdrop', className, { open: startOpen }]}
   role="presentation"
-  aria-hidden="true"
+  aria-hidden={startOpen ? 'false' : 'true'}
   data-sheet-dismiss={dismissible ? 'true' : 'false'}
 >
-  <div class:list={['ios-sheet', sheetClass]} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+  <div class:list={['ios-sheet', sheetClass, { 'ios-sheet--visible': startOpen }]} role="dialog" aria-modal="true" aria-labelledby={titleId}>
     <div class="ios-sheet-grabber" aria-hidden="true"></div>
     <header class="ios-sheet-header">
       {showClose && (

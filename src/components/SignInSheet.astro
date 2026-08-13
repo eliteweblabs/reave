@@ -76,7 +76,7 @@ const clerkAppearance = {
 };
 ---
 
-<IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={dismissible} class="sign-in-sheet">
+<IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={dismissible} startOpen={autoOpen} class="sign-in-sheet">
   {/*
     Mount Clerk client-side only. Never SSR-mount <SignIn> on /admin when the
     browser already has a Clerk user but the server cookie is missing — Clerk
@@ -331,6 +331,15 @@ const clerkAppearance = {
   function onClerkReady() {
     mountClerkAuth();
     bindClerkSsrSessionSync({ autoOpenSignIn });
+  }
+
+  if (autoOpenSignIn) {
+    const openSheet = () => window.IosSheet?.open('sign-in-sheet');
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', openSheet);
+    } else {
+      openSheet();
+    }
   }
 
   window.addEventListener('clerk-loaded', onClerkReady, true);

@@ -47,7 +47,7 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   const init: RequestInit = {
     method: request.method,
     headers,
-    redirect: 'manual',
+    redirect: rest.startsWith('npm/') ? 'follow' : 'manual',
   };
   if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
     init.body = request.body;
