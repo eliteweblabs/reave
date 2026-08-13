@@ -61,7 +61,8 @@ if (ctas.length === 0) return;
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    width: min(100%, 540px);
+    /* fit-content so this layer stays under Safari 26’s 80%-wide sampler. */
+    width: fit-content;
     max-width: calc(100vw - 40px);
     margin-inline: auto;
     /*
