@@ -133,15 +133,21 @@
 }
 
 /*
- * One fixed viewport layer: canvas + mesh on the element, repeating chevron
- * on ::after so the two stay sized and stacked together.
+ * One fixed viewport layer: canvas + mesh on the box, repeating chevron on
+ * ::after. Size with 100lvh (not inset:0) so iOS 26 paints behind the compact
+ * tab bar. A hair of transparency keeps Safari from clipping opaque fixed
+ * fills at the toolbar.
  */
 .site-bg-atmosphere {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 0;
+  height: 100vh;
+  height: 100lvh;
   pointer-events: none;
-  background-color: var(--site-canvas);
+  background-color: color-mix(in srgb, var(--site-canvas) 99%, transparent);
   background-image: var(--site-mesh-atmosphere);
   background-repeat: no-repeat;
   background-size: 100% 100%;
