@@ -640,9 +640,9 @@ export function chatDeployLockMessage(snapshot: DeployStatusSnapshot): string {
     const msg = truncateMessage(c?.message, 48);
     const bit = msg ? `: ${msg}` : '';
     const who = short ? `${short}${bit}` : 'new version';
-    return `Deploying ${who} — new messages are paused until the new version is live.`;
+    return `Deploying ${who} — sending is paused until the new version is live.`;
   }
-  return 'Deploy in progress — new messages are paused until the new version is live.';
+  return 'Deploy in progress — sending is paused until the new version is live.';
 }
 
 /** Prepend deploy banner to an agent reply when deploying, failed, or explicitly live. */

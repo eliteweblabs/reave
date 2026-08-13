@@ -789,32 +789,6 @@
   color: var(--muted);
 }
 
-.aui-composer-card-deploy-paused {
-  margin-top: 0.55rem;
-  opacity: 0.92;
-  pointer-events: none;
-}
-
-.aui-composer-deploy-draft-label {
-  margin: 0 0 0.35rem;
-  padding: 0.65rem 0.85rem 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.aui-composer-deploy-draft-text {
-  margin: 0;
-  padding: 0 0.85rem 0.75rem;
-  font: inherit;
-  font-size: 0.95rem;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--fg);
-}
-
 .aui-composer-stop {
   margin-left: auto;
   border: none;

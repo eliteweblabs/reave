@@ -1185,14 +1185,15 @@ function DeployDraftBoot({
     const wasLocked = wasLockedRef.current;
     wasLockedRef.current = deployChatLocked;
 
-    // After a hard reload the runtime is empty — pull the snapshot back once.
-    if (!didInitialRestoreRef.current && !deployChatLocked) {
+    // After a hard reload the runtime is empty — pull the snapshot back once,
+    // including while still deploying so the editable field is not blank.
+    if (!didInitialRestoreRef.current) {
       didInitialRestoreRef.current = true;
       const saved = readDeployChatDraft(threadId);
       if (saved) {
         const current = composer.getState().text ?? '';
         if (!current.trim()) composer.setText(saved);
-        clearDeployChatDraft();
+        if (!deployChatLocked) clearDeployChatDraft();
       }
     }
 
@@ -1919,6 +1920,7 @@ function isComposerFocusTarget(el: Element | null | undefined): boolean {
 function useSlashHelpers(
   propsRef: RefObject<AgentChatPanelProps>,
   commands: AgentHelperCommand[],
+  sendBlocked = false,
 ) {
   const composer = useComposerRuntime();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -2041,7 +2043,7 @@ function useSlashHelpers(
     }
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (composer.getState().canSend) void composer.send();
+      if (!sendBlocked && composer.getState().canSend) void composer.send();
       return;
     }
     if (e.key !== 'Enter' || e.shiftKey) return;
@@ -2054,10 +2056,10 @@ function useSlashHelpers(
     const matched = matchHelperCommand(composeText, commands);
     if (matched && composeText.trim().toLowerCase() === matched.slash) {
       composer.setText(matched.template);
-      void composer.send();
+      if (!sendBlocked) void composer.send();
       return;
     }
-    if (composer.getState().canSend) void composer.send();
+    if (!sendBlocked && composer.getState().canSend) void composer.send();
   };
 
   return {
@@ -2121,16 +2123,15 @@ function ClaudeComposer({
   deployChatLockMessage?: string | null;
   deployLiveReloading?: boolean;
 }) {
-  const helpers = useSlashHelpers(propsRef, commands);
+  const helpers = useSlashHelpers(propsRef, commands, deployChatLocked);
   const mentions = useMentions(pendingMentionsRef);
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
   const sendBtnRef = useRef<HTMLButtonElement | null>(null);
   const sentByTouchRef = useRef(false);
-  /** Last typed value — survives the deploy-lock swap if runtime text is briefly empty. */
+  /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
   const typedDraftRef = useRef('');
-  const [pausedDraft, setPausedDraft] = useState('');
   useCapComposerAttachments();
 
   const setInputRef = useCallback(
@@ -2145,24 +2146,21 @@ function ClaudeComposer({
     onFocusInputReady?.(helpers.focusInput);
   }, [helpers.focusInput, onFocusInputReady]);
 
-  // Running / deploy-lock UIs unmount .aui-input. Drop compose-focus so the pane
-  // header is not left inert (share / archive / rename) until a hard refresh.
+  // Running UI unmounts .aui-input. Drop compose-focus so the pane header is
+  // not left inert (share / archive / rename) until a hard refresh.
   useEffect(() => {
-    if (!showRunning && !deployChatLocked) return;
+    if (!showRunning) return;
     propsRef.current?.onComposeFocus?.(false);
-  }, [showRunning, deployChatLocked, propsRef]);
+  }, [showRunning, propsRef]);
 
-  // Persist draft as soon as the lock UI takes over (and again while reloading).
+  // Snapshot the current draft when sending locks so a post-deploy reload
+  // can restore it. Keystrokes while locked are saved in onInput.
   useLayoutEffect(() => {
-    if (!deployChatLocked) {
-      setPausedDraft('');
-      return;
-    }
+    if (!deployChatLocked) return;
     const fromRuntime = composer.getState().text ?? '';
-    const text = fromRuntime || typedDraftRef.current;
+    const text = fromRuntime || typedDraftRef.current || readDeployChatDraft(threadId) || '';
     if (text && !fromRuntime) composer.setText(text);
     typedDraftRef.current = text;
-    setPausedDraft(text);
     saveDeployChatDraft(threadId, text);
   }, [composer, deployChatLocked, threadId]);
 
@@ -2232,9 +2230,9 @@ function ClaudeComposer({
     );
   }
 
-  if (deployChatLocked) {
-    return (
-      <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+  return (
+    <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+      {deployChatLocked ? (
         <div
           className={`aui-composer-deploy-lock${deployLiveReloading ? ' aui-composer-deploy-lock--live' : ''}`}
           role="status"
@@ -2246,21 +2244,10 @@ function ClaudeComposer({
             {deployChatLockMessage ||
               (deployLiveReloading
                 ? 'New version is live — reloading…'
-                : 'Deploy in progress — new messages are paused until the new version is live.')}
+                : 'Deploy in progress — sending is paused until the new version is live.')}
           </p>
         </div>
-        {pausedDraft.trim() ? (
-          <div className="aui-composer-card aui-composer-card-deploy-paused">
-            <p className="aui-composer-deploy-draft-label">Draft saved — will restore when live</p>
-            <pre className="aui-composer-deploy-draft-text">{pausedDraft}</pre>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+      ) : null}
       {mentions.showMentions ? (
         <MentionsPanel
           people={mentions.people}
@@ -2289,7 +2276,7 @@ function ClaudeComposer({
             className="aui-input"
             placeholder="How can I help you today?"
             rows={1}
-            enterKeyHint="send"
+            enterKeyHint={deployChatLocked ? 'enter' : 'send'}
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
@@ -2305,6 +2292,7 @@ function ClaudeComposer({
             onInput={(e) => {
               const value = e.currentTarget.value;
               typedDraftRef.current = value;
+              if (deployChatLocked) saveDeployChatDraft(threadId, value);
               const caret = e.currentTarget.selectionStart ?? value.length;
               helpers.onInput(value);
               mentions.onInput(value, caret);
@@ -2323,27 +2311,39 @@ function ClaudeComposer({
               <AttachIcon />
             </ComposerPrimitive.AddAttachment>
             <span className="aui-composer-hint">
-              Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint
-              files
+              {deployChatLocked
+                ? 'Keep typing — send unlocks when the new version is live'
+                : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
             </span>
-            <ComposerPrimitive.Send
-              ref={sendBtnRef}
-              className="aui-composer-send"
-              aria-label="Send message"
-              // Desktop / stylus: keep focus so the composer doesn't reflow before
-              // click. Touch send is handled by the non-passive touchstart listener
-              // above (React's synthetic preventDefault is often too late on iOS).
-              onPointerDown={(e) => e.preventDefault()}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                if (!sentByTouchRef.current) return;
-                sentByTouchRef.current = false;
-                // Already sent in touchstart — block ComposerPrimitive.Send's click send.
-                e.preventDefault();
-              }}
-            >
-              <SendIcon />
-            </ComposerPrimitive.Send>
+            {deployChatLocked ? (
+              <button
+                type="button"
+                className="aui-composer-send"
+                aria-label="Send paused until the new version is live"
+                disabled
+              >
+                <SendIcon />
+              </button>
+            ) : (
+              <ComposerPrimitive.Send
+                ref={sendBtnRef}
+                className="aui-composer-send"
+                aria-label="Send message"
+                // Desktop / stylus: keep focus so the composer doesn't reflow before
+                // click. Touch send is handled by the non-passive touchstart listener
+                // above (React's synthetic preventDefault is often too late on iOS).
+                onPointerDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  if (!sentByTouchRef.current) return;
+                  sentByTouchRef.current = false;
+                  // Already sent in touchstart — block ComposerPrimitive.Send's click send.
+                  e.preventDefault();
+                }}
+              >
+                <SendIcon />
+              </ComposerPrimitive.Send>
+            )}
           </div>
         </ComposerPrimitive.Root>
       </ComposerPrimitive.AttachmentDropzone>
