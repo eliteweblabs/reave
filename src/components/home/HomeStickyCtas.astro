@@ -68,7 +68,8 @@ if (ctas.length === 0) return;
     /*
      * Wallpaper is full-bleed; only the tappable pills clear the home bar.
      * No rest-state transform — WebKit clips box-shadow on a transformed
-     * fixed layer (hard line under the Demo glow).
+     * fixed layer. A full-width seam under the pills is the atmosphere
+     * clip (see .site-bg-atmosphere-veil), not this wrapper.
      */
     padding:
       10px
@@ -142,7 +143,7 @@ if (ctas.length === 0) return;
   .home-sticky-ctas__btn--primary {
     color: #0b0512;
     background: var(--brand-gradient);
-    box-shadow: 0 4px 14px rgba(192, 38, 211, 0.3);
+    box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
   }
 
   .home-sticky-ctas__btn--primary:hover {
