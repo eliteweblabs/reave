@@ -26,10 +26,11 @@
   /*
    * Soft radial atmosphere on a deep purple canvas — no stepped linear fades.
    * (The old black-cap + #000→#05020a→#08040f→canvas stops read as horizontal
-   * tone bands on mobile.) theme-color / chrome can stay true black separately.
+   * tone bands on mobile.) theme-color matches the canvas so iOS does not
+   * letterbox with a black status-bar strip.
    */
   --site-canvas: #0c0614;
-  --site-status-bar: #000000;
+  --site-status-bar: #0c0614;
   --site-mesh-glow:
     radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
     radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),

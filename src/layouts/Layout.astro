@@ -36,7 +36,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Defaults to --site-status-bar black. */
+	/** Initial `<meta name="theme-color">`. Defaults to the site canvas so iOS does not letterbox with black chrome. */
   themeColor?: string;
 }
 
@@ -47,7 +47,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-  themeColor = "#000000",
+	themeColor = "#0c0614",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -161,6 +161,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		--safe-bottom: env(safe-area-inset-bottom, 0px);
 		--safe-left: env(safe-area-inset-left, 0px);
 		--device-height: 100vh;
+		--device-height: 100lvh;
 		--viable-top: var(--safe-top);
 		--viable-right: var(--safe-right);
 		--viable-bottom: var(--safe-bottom);
@@ -173,6 +174,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	html {
 		min-height: 100%;
 		min-height: 100vh;
+		min-height: 100lvh;
 		background-color: var(--site-canvas, #0c0614);
 	}
 
@@ -205,6 +207,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	body {
 		min-height: 100%;
 		min-height: 100vh;
+		min-height: 100lvh;
 		position: relative;
 		background-color: var(--site-canvas, #0c0614);
 	}

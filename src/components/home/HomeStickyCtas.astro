@@ -1,10 +1,11 @@
 ---
 /**
- * Homepage hero CTAs — viewport-fixed at the bottom of the screen (same spot
- * as the mock chat column footer). Rendered as a sibling of .home-scroll, not
- * inside .home-hero: that section is isolation:isolate + z-index:0, which
- * traps nested position:fixed layers under later homepage sections.
- * Spacer in .home-hero-demo preserves chat layout height.
+ * Homepage hero CTAs — pinned from the top of the large viewport so the
+ * pills sit in the last --home-hero-copy-h of the screen (same band as the
+ * mock chat footer). `bottom` + a fake Safari-toolbar inset letterboxed the
+ * hero; `top: 100lvh` + a negative margin fills the screen instead.
+ * Sibling of .home-scroll — .home-hero is isolation:isolate and would trap
+ * position:fixed. No rest-state transform (WebKit clips the pill glow).
  */
 import { ArrowRight } from "lucide-astro";
 import type { SiteContentConfig } from "../../lib/siteContent";
@@ -52,25 +53,29 @@ if (ctas.length === 0) return;
 
 <style is:global>
   .home-sticky-ctas {
+    --home-hero-copy-h: 120px;
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    top: 100vh;
+    top: 100lvh;
+    bottom: auto;
     z-index: 100;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
     width: min(100%, 540px);
     max-width: calc(100vw - 40px);
+    height: var(--home-hero-copy-h);
     margin-inline: auto;
+    margin-top: calc(-1 * var(--home-hero-copy-h));
     /*
-     * No transform here — WebKit clips box-shadow of a transformed fixed
-     * layer, which is the hard line under the Demo glow. Center with inset
-     * + margin instead. Padding holds the 28px glow; --safari-bottom-chrome
-     * lifts the pills above iOS 26’s compact tab bar (not in safe-area).
+     * No rest-state transform — WebKit clips box-shadow on a transformed
+     * fixed layer (hard line under the Demo glow). Pin with top + height.
+     * Padding is only for the glow; do not reserve Safari toolbar space.
      */
-    --safari-bottom-chrome: 0px;
-    padding: 20px 28px calc(24px + env(safe-area-inset-bottom, 0px) + var(--safari-bottom-chrome));
+    padding: 20px 28px 12px;
     overflow: visible;
     box-sizing: border-box;
     text-align: center;
@@ -79,12 +84,6 @@ if (ctas.length === 0) return;
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.4s ease,
       visibility 0s linear 0s;
-  }
-
-  @media (max-width: 768px) {
-    .home-sticky-ctas {
-      --safari-bottom-chrome: 4.5rem;
-    }
   }
 
   .home-sticky-ctas.is-contact-occluding {
