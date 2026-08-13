@@ -125,6 +125,18 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     modules: [],
     kind: 'capability',
   },
+  {
+    id: 'chat-shortcuts',
+    label: '/ Chat Shortcuts',
+    modules: [],
+    kind: 'capability',
+  },
+  {
+    id: 'chat-references',
+    label: '@ Chat References',
+    modules: [],
+    kind: 'capability',
+  },
 
   // —— Module-dependent ——
   {
