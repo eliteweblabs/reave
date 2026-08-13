@@ -115,6 +115,29 @@
   /* Split view + resizable sidebar at ≥640px; clamped in admin-ui.js by viewport. */
   --sidebar-inset: 0.65rem;
   --filter-tab-fade-w: 6px;
+  /* List-notice colors — email row chips (.em-cat-*) and filter-bar chips. */
+  --em-notice-alert: #60a5fa;
+  --em-notice-review: #fbbf24;
+  --em-notice-junk: #f87171;
+  --em-notice-client: #34d399;
+  --em-notice-internal: #a78bfa;
+  --em-notice-receipt: #34d399;
+  --em-notice-project: #c084fc;
+  --em-notice-book: #2dd4bf;
+  --em-notice-book-done: #34d399;
+  --em-notice-sent: #38bdf8;
+  --em-notice-draft: #94a3b8;
+  --em-notice-otp: #fcd34d;
+  --em-notice-working: #0a84ff;
+  --em-notice-audit: #0a84ff;
+  --em-notice-prospect: #79c0ff;
+  --em-notice-active: #3fb950;
+  --em-notice-archived: #d29922;
+  --em-notice-archive: #8b97a8;
+  --em-notice-done: #8b97a8;
+  --em-notice-service: #86efac;
+  --em-notice-proposed: #7dd3fc;
+  --em-notice-personal: #c4b5fd;
   --detail-tab-fade-w: 1rem;
   --detail-pad-x: max(1rem, env(safe-area-inset-left, 0px));
   --detail-pad-x-right: max(1rem, env(safe-area-inset-right, 0px));

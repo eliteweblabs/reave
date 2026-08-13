@@ -123,7 +123,7 @@ import {
   mountListFilterTabsWrap,
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
-} from './filter-tabs.js?v=20260811a';
+} from './filter-tabs.js?v=20260813a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,

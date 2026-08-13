@@ -43,6 +43,7 @@ import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=202
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260810a';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 
 /** Injected by os-map-loader via initTodoPanel(). */
 let shell = {};
@@ -415,58 +416,25 @@ function renderTodoPane() {
 
 function updateTodoFilterTabActiveState() {
   const root = getTodoEditor();
-  if (!root) return;
+  const tabs = root?.querySelector('.em-filter-tabs');
+  if (tabs) tabs.replaceWith(renderTodoFilterTabs());
+}
+
+function renderTodoFilterTabs() {
   const { todos, filter } = todoState;
   const openCount = todos.filter((t) => t.status === 'open').length;
   const doneCount = todos.filter((t) => t.status === 'done').length;
-  const labels = { open: `Open (${openCount})`, done: `Done (${doneCount})` };
-  root.querySelectorAll('.td-filter-tab').forEach((btn) => {
-    const key = btn.dataset.filter;
-    btn.classList.toggle('active', key === filter);
-    if (key && labels[key]) btn.textContent = labels[key];
-  });
-}
-
-function renderTodoEditor() {
-  const root = getTodoEditor();
-  if (!root) return;
-  const savedSidebarScroll = shell.captureSidebarListScroll(root);
-  const { todos, search, filter } = todoState;
-  root.innerHTML = '';
-
-  const sidebar = document.createElement('div');
-  sidebar.className = 'ch-sidebar';
-
-  const openCount = todos.filter((t) => t.status === 'open').length;
-  const doneCount = todos.filter((t) => t.status === 'done').length;
-  const subheader = listSearchAddNew({
-    itemCount: openCount,
-    search: {
-      value: search,
-      placeholder: todoSearchPlaceholder(),
-      onInput: (value) => {
-        todoState.search = value;
-        refreshTodoSidebarList();
-      },
-    },
-    addNew: false,
-  });
-  if (subheader) sidebar.appendChild(subheader.el);
-
-  const filterTabs = document.createElement('div');
-  filterTabs.className = 'td-filter-tabs';
-  for (const tab of [
-    { key: 'open', label: `Open (${openCount})` },
-    { key: 'done', label: `Done (${doneCount})` },
-  ]) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'td-filter-tab' + (filter === tab.key ? ' active' : '');
-    btn.dataset.filter = tab.key;
-    btn.textContent = tab.label;
-    btn.addEventListener('click', () => {
-      if (todoState.filter === tab.key) return;
-      todoState.filter = tab.key;
+  return mountListFilterTabs({
+    tabs: [
+      { id: 'open', label: 'Open', count: openCount },
+      { id: 'done', label: 'Done', count: doneCount },
+    ],
+    activeId: filter,
+    ariaLabel: 'To-do filters',
+    scroll: false,
+    onSelect(tabId) {
+      if (todoState.filter === tabId) return;
+      todoState.filter = tabId;
       const visible = filterTodoItems(todoState.todos);
       let cleared = false;
       if (
@@ -481,14 +449,37 @@ function renderTodoEditor() {
         getTodoEditor()?.classList.remove('de-pane-active');
         cleared = true;
       }
-      updateTodoFilterTabActiveState();
       refreshTodoSidebarList();
-      syncTodoSidebarActiveState();
       if (cleared) renderTodoPane();
-    });
-    filterTabs.appendChild(btn);
-  }
-  sidebar.appendChild(filterTabs);
+    },
+  });
+}
+
+function renderTodoEditor() {
+  const root = getTodoEditor();
+  if (!root) return;
+  const savedSidebarScroll = shell.captureSidebarListScroll(root);
+  const { todos, search } = todoState;
+  root.innerHTML = '';
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const openCount = todos.filter((t) => t.status === 'open').length;
+  const subheader = listSearchAddNew({
+    itemCount: openCount,
+    search: {
+      value: search,
+      placeholder: todoSearchPlaceholder(),
+      onInput: (value) => {
+        todoState.search = value;
+        refreshTodoSidebarList();
+      },
+    },
+    addNew: false,
+    below: renderTodoFilterTabs(),
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const list = document.createElement('div');
   list.className = 'ch-list';

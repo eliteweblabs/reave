@@ -118,19 +118,23 @@
 
 .sk-list-filters {
   display: flex;
-  gap: 0.25rem;
-  padding: 0.15rem;
-  border-radius: 8px;
+  gap: 0.3rem;
+  padding: 0.2rem;
+  border-radius: 999px;
   background: var(--btn-group-track-bg);
   pointer-events: none;
 }
 
 .sk-list-filter {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 1.35rem;
-  border-radius: 6px;
+  flex: 0 0 auto;
+  width: 3.6rem;
+  height: 1.4rem;
+  border-radius: 999px;
 }
+.sk-list-filter:nth-child(2) { width: 4.4rem; }
+.sk-list-filter:nth-child(3) { width: 4rem; }
+.sk-list-filter:nth-child(4) { width: 3.2rem; }
+.sk-list-filter:nth-child(5) { width: 3.8rem; }
 
 @media (max-width: 639px) {
   .sk-list-panel > .panel-list-subheader {

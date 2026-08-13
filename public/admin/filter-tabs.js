@@ -1,8 +1,9 @@
 /**
- * Shared list filter tabs — category navigation under search bars.
- * Used by email, chat, clients, and projects sidebars.
+ * Shared list filter chips — category navigation under search bars.
+ * Used by email, chat, clients, projects, and to-do sidebars.
  *
  * CSS: .em-filter-tabs, .em-filter-tab (see email.css + editor.css stacked subheader)
+ * Chip tones match email list notices (.em-cat-*) and sibling list tags.
  */
 
 import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260811a';
@@ -101,12 +102,43 @@ function createEmailFilterScrollSpacer() {
 }
 
 /**
+ * Tab id → chip tone. Email ids map 1:1 to list notices (.em-cat-alert, etc.).
+ * Other panels reuse the same palette where the list tags already match
+ * (chat Review/Project, client kinds, work statuses).
+ */
+const FILTER_TAB_TONES = {
+  alert: 'alert',
+  review: 'review',
+  book: 'book',
+  project: 'project',
+  receipt: 'receipt',
+  junk: 'junk',
+  routed: 'routed',
+  draft: 'draft',
+  sent: 'sent',
+  working: 'working',
+  archive: 'archive',
+  professional: 'client',
+  service: 'service',
+  proposed: 'proposed',
+  personal: 'personal',
+  audits: 'audit',
+  prospects: 'prospect',
+  inquiry: 'prospect',
+  active: 'active',
+  archived: 'archived',
+  open: 'active',
+  done: 'done',
+};
+
+/**
  * @param {{
  *   id: string,
  *   label: string,
  *   count?: number,
  *   active: boolean,
  *   variant?: 'default' | 'purge' | 'refresh' | 'draft' | 'sent',
+ *   tone?: string | null,
  *   refreshing?: boolean,
  *   onClick?: () => void,
  *   onConfirmDelete?: () => void,
@@ -121,6 +153,7 @@ export function createFilterTabButton(opts) {
     count,
     active,
     variant = 'default',
+    tone: toneOpt,
     refreshing = false,
     onClick,
     onConfirmDelete,
@@ -128,12 +161,18 @@ export function createFilterTabButton(opts) {
     title,
   } = opts;
 
+  const tone =
+    variant === 'purge' || variant === 'refresh'
+      ? null
+      : (toneOpt ?? FILTER_TAB_TONES[id] ?? null);
+
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.dataset.filter = id;
   btn.className =
     'em-filter-tab' +
     (active ? ' active' : '') +
+    (tone ? ` em-filter-tab--tone em-filter-tab--tone-${tone}` : '') +
     (variant === 'purge' ? ' em-filter-tab--purge' : '') +
     (variant === 'refresh' ? ' em-filter-tab--refresh' : '') +
     (variant === 'refresh' && refreshing ? ' em-filter-tab--refreshing' : '') +
@@ -156,8 +195,9 @@ export function createFilterTabButton(opts) {
     btn.addEventListener('click', () => onClick?.());
   } else {
     const countHtml =
-      count != null ? ` <span class="em-filter-count">${count}</span>` : '';
-    btn.innerHTML = `${escHtml(label)}${countHtml}`;
+      count != null ? `<span class="em-filter-count">${count}</span>` : '';
+    btn.innerHTML =
+      `<span class="em-filter-tab-label">${escHtml(label)}</span>${countHtml}`;
     btn.addEventListener('click', () => onClick?.());
   }
 
@@ -168,7 +208,7 @@ export function createFilterTabButton(opts) {
  * Standard scrollable filter tabs for list sidebars (clients, projects, chat).
  *
  * @param {{
- *   tabs: { id: string, label: string, count?: number }[],
+ *   tabs: { id: string, label: string, count?: number, tone?: string }[],
  *   activeId: string,
  *   ariaLabel: string,
  *   savedScrollLeft?: number,
@@ -213,6 +253,7 @@ export function mountListFilterTabs(opts) {
       count: tab.count,
       active: isActive,
       variant,
+      tone: tab.tone,
       refreshing: variantOpts?.refreshing,
       ariaLabel: variantOpts?.ariaLabel,
       title: variantOpts?.title,
@@ -244,8 +285,8 @@ export function mountListFilterTabs(opts) {
  * Email-style filter tabs: scroll area + pinned fixed tabs (Draft/Sent).
  *
  * @param {{
- *   scrollTabs: { id: string, label: string, count?: number }[],
- *   fixedTabs: { id: string, label: string, count?: number, variant?: 'draft' | 'sent' }[],
+ *   scrollTabs: { id: string, label: string, count?: number, tone?: string }[],
+ *   fixedTabs: { id: string, label: string, count?: number, variant?: 'draft' | 'sent', tone?: string }[],
  *   activeId: string,
  *   savedScrollLeft?: number,
  *   onSelect: (id: string) => void,
@@ -281,6 +322,7 @@ export function mountListFilterTabsWrap(opts) {
       count: tab.count,
       active: isActive,
       variant,
+      tone: tab.tone,
       refreshing: variantOpts?.refreshing,
       ariaLabel: variantOpts?.ariaLabel,
       title: variantOpts?.title,
@@ -307,6 +349,7 @@ export function mountListFilterTabsWrap(opts) {
       count: tab.count,
       active: isActive,
       variant: tab.variant ?? 'default',
+      tone: tab.tone,
       onClick: () => onSelect(tab.id),
     });
     fixedNav.appendChild(btn);
