@@ -40,7 +40,7 @@ interface Props {
 const { showLogoStack = true, embedded = false, showPricing = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
-/** Same `features` payload as GET /api/demo/loader. */
+/** Same `features` payload as GET /api/demo/loader (module extras from FEATURE_MARKETING). */
 const apiFeatures = listDemoLoaderFeatures();
 
 type Chip = (typeof apiFeatures)[number];

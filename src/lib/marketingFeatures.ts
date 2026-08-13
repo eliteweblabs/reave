@@ -2,7 +2,7 @@
  * Culled marketing features for hero chips / slideshow — dependent on modules.
  * Exposed on GET /api/demo/loader alongside the module catalog.
  */
-import type { FeatureId } from './featureCatalog';
+import { FEATURE_MARKETING, type FeatureId } from './featureCatalog';
 
 export type MarketingFeatureKind = 'capability' | 'nav';
 
@@ -25,10 +25,22 @@ export type MarketingFeature = {
   spotlight?: boolean;
 };
 
+/** Expand FEATURE_MARKETING entries into loader/site chips for one module. */
+function chipsForModule(moduleId: FeatureId): MarketingFeature[] {
+  return (FEATURE_MARKETING[moduleId] ?? []).map((item) => ({
+    id: item.id,
+    label: item.label,
+    modules: [moduleId],
+    kind: 'capability',
+    href: item.href,
+  }));
+}
+
 /**
  * Concrete product capabilities (+ optional nav chips).
  * Capabilities map to zero or more FeatureIds; do not add page/attribute links here
  * unless they are intentional green nav chips (e.g. pricing).
+ * Module-owned extras live in FEATURE_MARKETING and are spread in here.
  */
 export const MARKETING_FEATURES: readonly MarketingFeature[] = [
   // —— Core / always-on ——
@@ -283,12 +295,7 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     modules: ['real_estate_data'],
     kind: 'capability',
   },
-  {
-    id: 'online-reviews',
-    label: 'Online reviews inbox',
-    modules: ['online_reviews'],
-    kind: 'capability',
-  },
+  ...chipsForModule('online_reviews'),
   {
     id: 'wordpress-content',
     label: 'WordPress content plugin',

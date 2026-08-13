@@ -1,5 +1,5 @@
 /**
- * Online reviews inbox — fetch reviews + to-do response workflow.
+ * Reviews triage — fetch reviews + to-do response workflow.
  */
 import {
   createSlidingPillSelect,
@@ -25,9 +25,10 @@ let state = {
 
 const PLATFORM_LABELS = {
   google: 'Google',
+  apple: 'Apple Maps',
   yelp: 'Yelp',
   facebook: 'Facebook',
-  tripadvisor: 'TripAdvisor',
+  tripadvisor: 'Tripadvisor',
   other: 'Other',
 };
 
@@ -140,7 +141,13 @@ function renderDetail(review) {
   const links = state.companyReviewLinks || {};
   const platformLink =
     review.reviewUrl ||
-    (review.platform === 'google' ? links.google : review.platform === 'yelp' ? links.yelp : null);
+    (review.platform === 'google'
+      ? links.google
+      : review.platform === 'yelp'
+        ? links.yelp
+        : review.platform === 'facebook'
+          ? links.facebook
+          : null);
 
   return (
     `<div class="or-detail">` +

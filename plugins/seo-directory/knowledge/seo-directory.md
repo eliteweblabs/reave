@@ -52,7 +52,7 @@ Further tools (create location, order citations, campaign status, checklist CRUD
 ## Related modules
 
 - `site_audits` — discovers presence; does not push citations
-- `online_reviews` — review inbox (Google sync, etc.)
+- `online_reviews` — reviews triage (Google™, Apple Maps, Yelp, Facebook, Tripadvisor)
 - `analytic_audit` — Search Console / analytics / IndexNow
 
 When writing audits or proposals, treat Maps & Directories **defaults** separately from **SEO Directory API Kit** second-tier work.

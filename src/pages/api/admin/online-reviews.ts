@@ -92,6 +92,7 @@ export async function GET(context: APIContext): Promise<Response> {
     companyReviewLinks: {
       google: company.socialGoogleBusiness ?? null,
       yelp: company.socialYelp ?? null,
+      facebook: company.socialFacebook ?? null,
     },
   });
 }

@@ -395,10 +395,12 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public header: position:sticky (document flow), not fixed.
-   * Sticky pins to the layout viewport, so the bar does not jump when
-   * Safari’s toolbar shows or hides. Negative margin pulls the page up
-   * underneath so the hero can still be 100vh. Admin stays fixed.
+   * Public header: position:sticky + top:0 + env(safe-area-inset-top).
+   * Sticky is layout-viewport chrome, so it does not jump with the URL bar
+   * the way position:fixed does. Overlay the hero by pulling main up — do
+   * not put a negative margin on the sticky element itself (WebKit then
+   * treats the stick range as empty and the bar scrolls away).
+   * Admin stays fixed.
    */
   .app-header {
     position: sticky;
@@ -409,7 +411,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    margin-bottom: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h)));
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
       env(safe-area-inset-top, 0px)
@@ -420,6 +421,23 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+  }
+
+  /*
+   * Public header sits on top of the atmosphere. Paint the safe-area the same
+   * solid Safari uses for the status bar, then fade into the page so the
+   * notch strip and the logo row do not meet at a hard purple/black line.
+   * (Content still does not draw *into* the status bar until scroll.)
+   */
+  @media (max-width: 768px) {
+    .app-header:not(.app-header--admin) {
+      background-image: linear-gradient(
+        to bottom,
+        var(--site-status-bar, #000) 0,
+        var(--site-status-bar, #000) env(safe-area-inset-top, 0px),
+        transparent calc(env(safe-area-inset-top, 0px) + var(--app-header-h) + 1.25rem)
+      );
+    }
   }
 
   .app-header--admin {

@@ -266,7 +266,7 @@ import {
 import {
   initOnlineReviewsPanel,
   loadOnlineReviewsTab,
-} from './online-reviews-panel.js?v=20260803a';
+} from './online-reviews-panel.js?v=20260813a';
 import {
   initMediaPanel,
   loadMediaTab,
