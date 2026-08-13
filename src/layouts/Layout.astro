@@ -37,7 +37,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Page canvas so iOS chrome can tint from the same purple. */
+	/** Initial `<meta name="theme-color">`. Black so Safari chrome matches the sticky header. */
   themeColor?: string;
 }
 
@@ -48,7 +48,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-	themeColor = "#0c0614",
+	themeColor = "#000000",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -269,8 +269,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). Negative top
-	 * margin pulls the hero under the in-flow header so the first screen
-	 * stays full-bleed. Public header is not sticky — it scrolls away.
+	 * margin pulls the hero under the sticky header so the first screen
+	 * stays full-bleed.
 	 */
 	main#main-content {
 		position: relative;

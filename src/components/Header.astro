@@ -395,20 +395,21 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public header scrolls with the page (not sticky/fixed). Overlay the hero
-   * by pulling main up — keep z-index so the logo sits on the wallpaper.
-   * No background/backdrop-filter here: Safari 26 samples those for Liquid
-   * Glass. Pad the logo/actions below the notch. Admin stays fixed.
+   * Public header: sticky + solid black. Safari 26 samples this
+   * background-color into the status bar, so the notch strip and the bar
+   * are the same color (browserbase-style). Pad logo/actions below the
+   * notch. Overlay the hero by pulling main up. Admin stays fixed/transparent.
    */
   .app-header {
-    position: relative;
+    position: sticky;
+    top: 0;
     z-index: 2000;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    background: transparent;
+    background-color: #000;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
