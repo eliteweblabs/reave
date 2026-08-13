@@ -859,6 +859,12 @@ body.admin-split-view #chat-panel .ch-compose {
   pointer-events: auto;
   padding: 0.4rem 0.4rem 0.4rem 0.85rem;
   max-width: min(22rem, calc(100vw - 1.5rem));
+  top: calc(var(--safe-top) + 1.25rem);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-0.5rem);
+}
+.ch-undo-toast.ch-toast-visible {
+  transform: translateX(-50%) translateY(0);
 }
 .ch-undo-toast-label {
   flex: 1 1 auto;
