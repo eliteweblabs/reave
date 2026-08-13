@@ -9072,10 +9072,18 @@ function syncAdminTabUrl(key, opts = {}) {
 
     if (key === 'clients') {
       const clientUid = opts.clientUid || parseClientDeepLinkFromUrl() || clientState.activeUid || null;
-      if (clientUid && clientUid !== '__new__') url.searchParams.set('client', clientUid);
-      else url.searchParams.delete('client');
+      if (clientUid && clientUid !== '__new__') {
+        url.searchParams.set('client', clientUid);
+        const view = (opts.clientView || clientState.detailTab || '').trim();
+        if (view && view !== 'profile') url.searchParams.set('view', view);
+        else url.searchParams.delete('view');
+      } else {
+        url.searchParams.delete('client');
+        url.searchParams.delete('view');
+      }
     } else {
       url.searchParams.delete('client');
+      url.searchParams.delete('view');
     }
 
     if (key === 'work') {
