@@ -280,7 +280,7 @@ import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
-} from './media-picker.js?v=20260811a';
+} from './media-picker.js?v=20260813a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';

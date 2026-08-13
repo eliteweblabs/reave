@@ -32,9 +32,18 @@ export function openMediaPicker(opts) {
 
   return new Promise((resolve) => {
     let settled = false;
+    const onBackdropClick = (ev) => {
+      if (ev.target === backdrop) finish(null);
+    };
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish(null);
+    };
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      backdrop.dataset.sheetDismiss = 'false';
+      backdrop.removeEventListener('click', onBackdropClick);
+      document.removeEventListener('keydown', onKey);
       closeOsDialogBackdrop();
       resolve(value);
     };
@@ -46,6 +55,11 @@ export function openMediaPicker(opts) {
       `<div class="ml-picker-grid" id="ml-picker-grid"><p class="prof-hint">Loading…</p></div>`;
 
     openOsDialogBackdrop();
+    // OS alerts stay non-dismissible; this picker should cancel on backdrop / Escape.
+    backdrop.dataset.sheetDismiss = 'true';
+    backdrop.addEventListener('click', onBackdropClick);
+    backdrop.addEventListener('ios-sheet-close', () => finish(null), { once: true });
+    document.addEventListener('keydown', onKey);
     const closeBtn = backdrop.querySelector('[data-os-dialog-close]');
     if (closeBtn instanceof HTMLButtonElement) {
       closeBtn.hidden = false;
