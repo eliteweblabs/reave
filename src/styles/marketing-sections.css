@@ -1,7 +1,8 @@
 /* Shared marketing section styles for the single-scroll homepage. */
 
 html {
-  scroll-padding-top: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px);
+  /* Public header scrolls away — don’t reserve a stuck-bar offset. */
+  scroll-padding-top: 8px;
   scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -75,7 +76,7 @@ html {
   display: flex;
   flex-direction: column;
   align-items: center;
-  scroll-margin-top: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px);
+  scroll-margin-top: 8px;
 }
 
 .home-section--photo {

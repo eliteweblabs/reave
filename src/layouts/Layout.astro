@@ -267,8 +267,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). Negative top
-	 * margin pulls the hero under the in-flow sticky header so the first
-	 * screen stays one viewport tall without collapsing the header’s stick range.
+	 * margin pulls the hero under the in-flow header so the first screen
+	 * stays full-bleed. Public header is not sticky — it scrolls away.
 	 */
 	main#main-content {
 		position: relative;

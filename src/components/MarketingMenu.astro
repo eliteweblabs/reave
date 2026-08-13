@@ -721,13 +721,18 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     text-decoration: none;
   }
 
-  /* Keep the header (and hamburger → X toggle) above the menu overlay. */
+  /* Keep the header (and hamburger → X toggle) above the menu overlay.
+   * Pin only while the menu is open so the close control stays on screen. */
   :global(html.marketing-menu-open) {
     overflow: hidden;
     overscroll-behavior: none;
   }
 
-  :global(html.marketing-menu-open) .app-header {
+  :global(html.marketing-menu-open) .app-header:not(.app-header--admin) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 2200;
   }
 

@@ -395,15 +395,13 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public header: sticky, no background/backdrop-filter on this element
-   * (Safari 26 samples those for Liquid Glass and would hide scrolling
-   * pixels in the status bar). Pad the logo/actions below the notch.
-   * Overlay the hero by pulling main up — not a negative margin on this
-   * element (WebKit then treats the stick range as empty). Admin stays fixed.
+   * Public header scrolls with the page (not sticky/fixed). Overlay the hero
+   * by pulling main up — keep z-index so the logo sits on the wallpaper.
+   * No background/backdrop-filter here: Safari 26 samples those for Liquid
+   * Glass. Pad the logo/actions below the notch. Admin stays fixed.
    */
   .app-header {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 2000;
     width: 100%;
     display: flex;
