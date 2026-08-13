@@ -1178,16 +1178,38 @@ function createClientDetailPanel(tabId, activeTab) {
 }
 
 let clientVaultSaveTimer = null;
+let clientVaultSaveGen = 0;
 
-async function saveClientVaultData(uid, data) {
+function newVaultEntryId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+  } catch {
+    /* ignore */
+  }
+  return `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function vaultSaveBody(payload) {
+  if (Array.isArray(payload)) return { data: payload };
+  if (payload && Array.isArray(payload.data)) {
+    const body = { data: payload.data };
+    if (Array.isArray(payload.vaultKnownIds)) body.vaultKnownIds = payload.vaultKnownIds;
+    return body;
+  }
+  return null;
+}
+
+async function saveClientVaultData(uid, payload) {
+  const bodyPayload = vaultSaveBody(payload);
+  if (!bodyPayload) return null;
   const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data }),
+    body: JSON.stringify(bodyPayload),
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-  const saved = body.data || data;
+  const saved = body.data || bodyPayload.data;
   if (clientState.draft) clientState.draft.data = saved;
   return saved;
 }
@@ -1201,7 +1223,9 @@ async function flushClientVaultSave() {
   const getData = clientState.vaultGetData;
   if (!uid || uid === '__new__' || typeof getData !== 'function') return;
   try {
-    await saveClientVaultData(uid, getData());
+    const payload = getData();
+    if (!payload) return;
+    await saveClientVaultData(uid, payload);
   } catch (e) {
     console.warn('[clients] vault flush failed', e);
   }
@@ -1212,7 +1236,9 @@ function scheduleClientVaultSave(uid, getData) {
   clientVaultSaveTimer = setTimeout(async () => {
     clientVaultSaveTimer = null;
     try {
-      await saveClientVaultData(uid, getData());
+      const payload = getData();
+      if (!payload) return;
+      await saveClientVaultData(uid, payload);
     } catch (e) {
       console.warn('[clients] vault save failed', e);
       shell.showChatToast(e.message || 'Vault save failed');
@@ -1321,6 +1347,8 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   parent.appendChild(wrap);
 
   let rows = (entries || []).map((entry) => ({ ...entry }));
+  const knownIds = new Set(rows.map((r) => String(r.id || '').trim()).filter(Boolean));
+  const vaultGen = ++clientVaultSaveGen;
 
   function readRowsFromDom() {
     return rows.map((row, index) => {
@@ -1328,6 +1356,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       if (!card) return row;
       const getVal = (field) => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
       const next = { label: getVal('label') };
+      if (row.id) next.id = row.id;
       const value = getVal('value');
       const username = getVal('username');
       const password = getVal('password');
@@ -1340,11 +1369,16 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     }).filter((entry) => entry.label);
   }
 
-  function queueSave() {
-    scheduleClientVaultSave(uid, readRowsFromDom);
+  function vaultPayload() {
+    if (vaultGen !== clientVaultSaveGen) return null;
+    return { data: readRowsFromDom(), vaultKnownIds: [...knownIds] };
   }
 
-  clientState.vaultGetData = readRowsFromDom;
+  function queueSave() {
+    scheduleClientVaultSave(uid, vaultPayload);
+  }
+
+  clientState.vaultGetData = vaultPayload;
 
   function appendVaultField(card, label, field, value, opts = {}) {
     const row = document.createElement('div');
@@ -1411,7 +1445,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     row.appendChild(actions);
     input.addEventListener('input', queueSave);
     input.addEventListener('blur', () => {
-      void saveClientVaultData(uid, readRowsFromDom()).catch((e) => {
+      void saveClientVaultData(uid, vaultPayload()).catch((e) => {
         shell.showChatToast(e.message || 'Vault save failed');
       });
     });
@@ -1444,7 +1478,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
           rows.splice(index, 1);
           renderVaultList();
           try {
-            await saveClientVaultData(uid, readRowsFromDom());
+            await saveClientVaultData(uid, vaultPayload());
           } catch (e) {
             shell.showChatToast(e.message || 'Vault save failed');
           }
@@ -1473,7 +1507,9 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   }
 
   addBtn.addEventListener('click', () => {
-    rows.push({ label: '', url: '', username: '', password: '', value: '' });
+    const id = newVaultEntryId();
+    knownIds.add(id);
+    rows.push({ id, label: '', url: '', username: '', password: '', value: '' });
     renderVaultList();
     const firstInput = list.querySelector('[data-field="label"]');
     firstInput?.focus();

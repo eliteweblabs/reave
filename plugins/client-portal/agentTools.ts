@@ -180,6 +180,7 @@ import {
   resolvePortalTarget,
   workExtrasFromArgs,
 } from '../../src/lib/agentTools/shared';
+import { applyIncomingVaultEntries } from '../../src/lib/portalVault';
 
 async function handle_set_client_portal(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const target = await resolvePortalTarget(args);
@@ -197,7 +198,7 @@ async function handle_set_client_portal(args: Record<string, unknown>, _ctx: Too
     headline: typeof args.headline === 'string' ? args.headline.trim() : existing.headline,
     body: typeof args.body === 'string' ? args.body : existing.body,
     fields: fields !== undefined ? fields : existing.fields,
-    data: data !== undefined ? data : existing.data,
+    data: data !== undefined ? applyIncomingVaultEntries(existing.data, data) : existing.data,
   };
 
   const saved = await setContactPortal(target.uid, next);
@@ -373,7 +374,7 @@ export const clientPortalModule: AgentToolModule = {
               function: {
                 name: 'set_client_portal',
                 description:
-                  'Customize a client’s shareable portal page (every contact already HAS a page; this sets optional content). Overview = headline/body/fields. Billing = automatic from Crater. Data tab = web-design handoff items (passwords, DNS, hosting) via the `data` param. The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the contact by uid or by name (fuzzy-resolved; if ambiguous it returns candidates to confirm). Text updates merge; fields/data replace the prior list when provided. Set enabled:false to hide/revoke the page. Returns the shareable URL. Client-facing — does NOT expose the internal private notes field.',
+                  'Customize a client’s shareable portal page (every contact already HAS a page; this sets optional content). Overview = headline/body/fields. Billing = automatic from Crater. Data tab = web-design handoff items (passwords, DNS, hosting) via the `data` param. The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the contact by uid or by name (fuzzy-resolved; if ambiguous it returns candidates to confirm). Text updates merge. fields replace the prior Overview list when provided. data adds or updates Vault items and does NOT delete existing rows (pass `id` from get_client_portal to update a row). Set enabled:false to hide/revoke the page. Returns the shareable URL. Client-facing — does NOT expose the internal private notes field.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -402,11 +403,15 @@ export const clientPortalModule: AgentToolModule = {
                     data: {
                       type: 'array',
                       description:
-                        'Web-design handoff items shown in the client’s Vault tab (passwords, DNS records, hosting/login info, API keys, etc.). Each entry has a label plus any of: value, username, password, url (url holds URLs, API keys, tokens, or other credential values). Passwords are masked on the page (reveal/copy). Replaces the existing data list when provided.',
+                        'Web-design handoff items shown in the client’s Vault tab (passwords, DNS records, hosting/login info, API keys, etc.). Each entry has a label plus any of: value, username, password, url (url holds URLs, API keys, tokens, or other credential values). Passwords are masked on the page (reveal/copy). Adds to existing vault items (does not replace the list). Include `id` from get_client_portal to update an existing row. Delete items in Admin → contact → Vault.',
                       items: {
                         type: 'object',
                         properties: {
                           label: { type: 'string', description: 'e.g. "WordPress admin", "DNS — A record", "Hosting"' },
+                          id: {
+                            type: 'string',
+                            description: 'Existing vault item id from get_client_portal — pass to update that row instead of adding a duplicate',
+                          },
                           value: { type: 'string', description: 'Free-form value/notes (e.g. a DNS record or instructions)' },
                           username: { type: 'string' },
                           password: { type: 'string' },

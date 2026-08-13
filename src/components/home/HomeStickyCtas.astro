@@ -1,7 +1,10 @@
 ---
 /**
- * Homepage hero CTAs — viewport-fixed at the hero footer (same spot as the mock
- * chat column bottom). Spacer in .home-hero-demo preserves chat layout height.
+ * Homepage hero CTAs — viewport-fixed at the bottom of the screen (same spot
+ * as the mock chat column footer). Rendered as a sibling of .home-scroll, not
+ * inside .home-hero: that section is isolation:isolate + z-index:0, which
+ * traps nested position:fixed layers under later homepage sections.
+ * Spacer in .home-hero-demo preserves chat layout height.
  */
 import { ArrowRight } from "lucide-astro";
 import type { SiteContentConfig } from "../../lib/siteContent";
@@ -51,14 +54,16 @@ if (ctas.length === 0) return;
   .home-sticky-ctas {
     position: fixed;
     left: 50%;
-    bottom: calc(10px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: min(100%, 540px);
     max-width: calc(100vw - 40px);
-    padding: 0 20px;
+    /* Room for the primary pill’s 28px glow so it isn’t clipped to a hard edge. */
+    padding: 20px 28px 32px;
+    overflow: visible;
     box-sizing: border-box;
     text-align: center;
     pointer-events: none;

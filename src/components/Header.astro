@@ -296,12 +296,13 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 
 <script>
   /**
-   * iOS can report 0 for env(safe-area-inset-top) on fixed shells (admin body
-   * is position:fixed). Probe a throwaway node and pin --safe-top in px so the
-   * logo clears the notch and content padding-top (--topbar-measured-h) matches
-   * the real header bottom.
+   * Admin-only. iOS reports 0 for env(safe-area-inset-top) when body is
+   * position:fixed (the admin shell). Marketing pages must NOT write --safe-top
+   * from visualViewport — that is what makes the public header jump when the
+   * Safari toolbar shows and hides. Public chrome uses CSS env() only.
    */
   function syncAppHeaderSafeArea() {
+    if (!document.querySelector(".app-header--admin")) return;
     const probe = document.createElement("div");
     probe.style.cssText =
       "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
@@ -345,10 +346,6 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     bindTopbarHeightObserver();
     syncTopbarMeasuredHeight();
   });
-  window.visualViewport?.addEventListener("resize", () => {
-    syncAppHeaderSafeArea();
-    syncTopbarMeasuredHeight();
-  }, { passive: true });
 </script>
 
 <style is:global>
@@ -398,30 +395,24 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   /*
-   * Public/marketing headers are fixed at the layout viewport top. Do not sync
-   * visualViewport.offsetTop into `top` — that shove is what clipped the bar
-   * during Safari/macOS rubber-band overscroll. Layout html uses
-   * overscroll-behavior-y: none so the fixed chrome stays put.
+   * Public header: position:sticky (document flow), not fixed.
+   * Sticky pins to the layout viewport, so the bar does not jump when
+   * Safari’s toolbar shows or hides. Negative margin pulls the page up
+   * underneath so the hero can still be 100vh. Admin stays fixed.
    */
-
   .app-header {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
     z-index: 2000;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    /*
-     * No background on this fixed shell — iOS 26 Safari samples it for Liquid
-     * Glass. The black→purple fade is on html/body (fixed). Padding uses
-     * var(--safe-top) — probed in JS when env() lies on fixed shells.
-     */
+    margin-bottom: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h)));
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding:
-      var(--safe-top)
+      env(safe-area-inset-top, 0px)
       var(--app-header-inline-pad)
       0
       var(--app-header-inline-pad);
@@ -432,9 +423,16 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
   }
 
   .app-header--admin {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 20;
+    width: auto;
+    margin-bottom: 0;
     background: transparent;
     border-bottom: none;
+    padding-top: var(--safe-top);
   }
 
   /*

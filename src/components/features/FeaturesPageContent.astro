@@ -875,7 +875,7 @@ const customPrompts: PromptExample[] = [
     --fx-chip-duration: 70s;
     /* Mobile size stays 1×; grows linearly to 1.5× by the desktop chip layout (~1100px). */
     --fx-chip-scale: clamp(1, calc(1 + 0.5 * (100vw - 375px) / 725px), 1.5);
-    position: relative;
+    /* Marquee is in normal flow; sticky CTAs live outside .home-hero. */
     width: 100vw;
     max-width: 100vw;
     margin-left: calc(50% - 50vw);
@@ -957,7 +957,6 @@ const customPrompts: PromptExample[] = [
     min-width: 100%;
     animation: fx-chips-scroll var(--fx-chip-duration, 70s) linear infinite;
     animation-direction: var(--fx-chip-direction, normal);
-    will-change: transform;
   }
 
   .fx-chips:hover .fx-chips-track {

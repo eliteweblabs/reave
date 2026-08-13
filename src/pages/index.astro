@@ -2,6 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import LandingLayout from "../layouts/LandingLayout.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
+import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
 import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
@@ -30,6 +31,12 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
         {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
       </div>
+      {/*
+        Viewport-fixed chrome must sit outside .home-hero. That section is
+        isolation:isolate + z-index:0, so nested position:fixed buttons cannot
+        paint above later sections (feature chips use mask-image + transform).
+      */}
+      <HomeStickyCtas siteContent={siteContent} />
     </Layout>
   )
 }
@@ -37,22 +44,10 @@ const isLanding = homepage.template === "landing" && siteContent.landing;
 {
   !isLanding && (
     <style>
-      /*
-       * Homepage shell — full device paint box; bottom pad uses the viable
-       * (safe-area) inset so the last section clears the home indicator.
-       */
-      :global(html),
-      :global(body) {
-        min-height: 100%;
-        min-height: -webkit-fill-available;
-        min-height: 100dvh;
-        min-height: 100lvh;
-        min-height: var(--device-height, 100lvh);
-      }
-
       .home-scroll {
         position: relative;
-        padding-bottom: calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+        z-index: 0;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
       }
     </style>
   )
