@@ -1295,6 +1295,15 @@ button.de-placeholder-action:active {
   padding: 0 0.65rem 0.65rem;
   border-bottom: 1px solid var(--panel-border);
 }
+.re-field-hint {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.de-label[hidden] {
+  display: none !important;
+}
 .re-check {
   display: flex;
   align-items: flex-start;

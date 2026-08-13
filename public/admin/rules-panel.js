@@ -50,7 +50,8 @@ import {
   createEmailTriageLab,
   formatRuleWhenClause,
   formatRuleLabMeta,
-} from './email-triage-lab.js?v=20260812h';
+  formatRuleProcessLabel,
+} from './email-triage-lab.js?v=20260813a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -268,19 +269,55 @@ function ruleNotifyActions(rule) {
   return ['view', 'archive'];
 }
 
-function formatRuleNotifyLabel(rule) {
-  const ch = ruleNotifyChannels(rule);
-  if (!ch.notify) return 'Silent';
-  const bits = [];
-  if (ch.push) bits.push('Push');
-  if (ch.dashboard) bits.push('Dashboard');
-  return bits.join('+') || 'Notify';
+const RULE_PROCESS_OPTIONS = [
+  { value: 'delete', label: 'Delete this email (junk, no alert)' },
+  { value: 'archive', label: 'Archive silently' },
+  { value: 'receipt', label: 'File as receipt' },
+  { value: 'classify', label: 'Classify only — keep in inbox' },
+];
+
+function ruleProcessValue(ruleOrStatus) {
+  const status = String(
+    typeof ruleOrStatus === 'string' ? ruleOrStatus : ruleOrStatus?.status || '',
+  ).toUpperCase();
+  if (status === 'DELETE' || status === 'JUNK') return 'delete';
+  if (status === 'AUTO_ARCHIVED') return 'archive';
+  if (status === 'RECEIPT') return 'receipt';
+  return 'classify';
+}
+
+function statusForProcess(process, currentStatus) {
+  if (process === 'delete') return 'DELETE';
+  if (process === 'archive') return 'AUTO_ARCHIVED';
+  if (process === 'receipt') return 'RECEIPT';
+  const cur = String(currentStatus || '').toUpperCase();
+  if (cur === 'DELETE' || cur === 'JUNK' || cur === 'AUTO_ARCHIVED' || cur === 'RECEIPT') {
+    return 'CUSTOM';
+  }
+  return currentStatus || 'CUSTOM';
+}
+
+function processIsSilentFile(process) {
+  return process === 'delete' || process === 'archive' || process === 'receipt';
+}
+
+function processHintText(process) {
+  if (process === 'delete') {
+    return 'Matched mail is filed as junk and hidden from the inbox. No notification.';
+  }
+  if (process === 'archive') {
+    return 'Matched mail is filed as junk without an alert.';
+  }
+  if (process === 'receipt') {
+    return 'Matched mail is filed as a tax receipt. No alert.';
+  }
+  return 'This labels the email. Turn on Notify below for an alert. Notification buttons do not process the mail.';
 }
 
 function ruleSubline(rule) {
   const bits = [ruleScopeLabel(rule)];
   if (rule.status) bits.push(rule.status);
-  bits.push(formatRuleNotifyLabel(rule));
+  bits.push(formatRuleProcessLabel(rule));
   bits.push(formatRuleHitLabel(rule));
   if (!rule.enabled) bits.push('Off');
   if (rule.expiresAt) {
@@ -290,12 +327,20 @@ function ruleSubline(rule) {
   return bits.join(' · ');
 }
 
-function appendRuleField(parent, label, el) {
+function appendRuleField(parent, label, el, hint) {
   const wrap = document.createElement('label');
   wrap.className = 'de-label';
   wrap.textContent = label;
+  let hintEl = null;
+  if (hint) {
+    hintEl = document.createElement('span');
+    hintEl.className = 're-field-hint';
+    hintEl.textContent = hint;
+    wrap.appendChild(hintEl);
+  }
   wrap.appendChild(el);
   parent.appendChild(wrap);
+  return { wrap, hintEl };
 }
 
 async function loadRulesTab() {
@@ -464,11 +509,13 @@ function createFlowRuleCard(rule, index) {
   arrow.textContent = '→';
 
   const then = document.createElement('span');
-  then.className = `re-flow-node re-flow-node--then${ruleNotifyChannels(rule).notify ? ' re-flow-node--alert' : ' re-flow-node--quiet'}`;
-  const action = formatRuleNotifyLabel(rule);
+  const processLabel = formatRuleProcessLabel(rule);
+  const processKind = ruleProcessValue(rule);
+  const thenAlert = !processIsSilentFile(processKind) && ruleNotifyChannels(rule).notify;
+  then.className = `re-flow-node re-flow-node--then${thenAlert ? ' re-flow-node--alert' : ' re-flow-node--quiet'}`;
   then.innerHTML = `
     <span class="re-flow-badge">Then</span>
-    <span class="re-flow-title">${escHtml(action)}</span>
+    <span class="re-flow-title">${escHtml(processLabel)}</span>
     <span class="re-flow-sub">${escHtml(`status → ${rule.status || '—'}`)}</span>
     <span class="re-flow-meta">${escHtml(ruleSubline(rule))}</span>`;
 
@@ -835,6 +882,13 @@ function renderRuleEditPane(pane, opts = {}) {
     fieldsWrap.appendChild(lb);
   }
 
+  const processSel = document.createElement('select');
+  processSel.className = 'de-input';
+  processSel.innerHTML = RULE_PROCESS_OPTIONS.map(
+    (o) => `<option value="${o.value}">${o.label}</option>`,
+  ).join('');
+  processSel.value = ruleProcessValue(rule);
+
   const notifyChannelsWrap = document.createElement('div');
   notifyChannelsWrap.className = 're-checks';
   const channels = ruleNotifyChannels(rule);
@@ -889,13 +943,43 @@ function renderRuleEditPane(pane, opts = {}) {
     actionCbs.push(cb);
   }
   const syncNotifyActionsEnabled = () => {
-    const on = pushCb.checked || dashCb.checked;
+    const silent = processIsSilentFile(processSel.value);
+    const on = !silent && (pushCb.checked || dashCb.checked);
     actionCbs.forEach((cb) => {
       cb.disabled = !on;
     });
-    notifyActionsWrap.style.opacity = on ? '' : '0.55';
+    if (notifyField) notifyField.wrap.hidden = silent;
+    if (actionsField) actionsField.wrap.hidden = !on;
   };
-  syncNotifyActionsEnabled();
+
+  let notifyField = null;
+  let actionsField = null;
+  let processField = null;
+
+  const syncProcessUi = ({ fromStatus } = {}) => {
+    const process = processSel.value;
+    if (!fromStatus) {
+      statusIn.value = statusForProcess(process, statusIn.value);
+    }
+    if (processIsSilentFile(process)) {
+      pushCb.checked = false;
+      dashCb.checked = false;
+    }
+    if (processField?.hintEl) processField.hintEl.textContent = processHintText(process);
+    syncNotifyActionsEnabled();
+  };
+
+  processSel.addEventListener('change', () => {
+    ruleState.dirty = true;
+    syncProcessUi();
+  });
+  statusIn.addEventListener('input', () => {
+    const next = ruleProcessValue(statusIn.value);
+    if (processSel.value !== next) {
+      processSel.value = next;
+      syncProcessUi({ fromStatus: true });
+    }
+  });
 
   const enabledLb = document.createElement('label');
   enabledLb.className = 're-check';
@@ -985,15 +1069,37 @@ function renderRuleEditPane(pane, opts = {}) {
 
   appendRuleField(form, 'Title', titleIn);
   appendRuleField(form, 'Applies to', scopeWrap);
-  appendRuleField(form, 'Status tag', statusIn);
   appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Keywords / phrases', phrasesIn);
   appendRuleField(form, 'Except (NOT)', exceptIn);
   appendRuleField(form, 'Match mode', matchSel);
   appendRuleField(form, 'Search in', fieldsWrap);
+  processField = appendRuleField(
+    form,
+    'Then',
+    processSel,
+    processHintText(processSel.value),
+  );
+  appendRuleField(
+    form,
+    'Status tag',
+    statusIn,
+    'Inbox label. Then above sets DELETE / AUTO_ARCHIVED / RECEIPT for you.',
+  );
   appendRuleField(form, 'Forward to', forwardIn);
-  appendRuleField(form, 'Notify', notifyChannelsWrap);
-  appendRuleField(form, 'Alert buttons', notifyActionsWrap);
+  notifyField = appendRuleField(
+    form,
+    'Notify',
+    notifyChannelsWrap,
+    'Optional alert. Off = silent. Does not delete or archive the email.',
+  );
+  actionsField = appendRuleField(
+    form,
+    'Notification buttons',
+    notifyActionsWrap,
+    'Buttons on the Push/Dashboard alert only — they do not process the email.',
+  );
+  syncProcessUi({ fromStatus: true });
   form.appendChild(enabledLb);
   form.appendChild(expiresWrap);
   pane.appendChild(form);
@@ -1002,6 +1108,7 @@ function renderRuleEditPane(pane, opts = {}) {
     titleIn,
     scopeWrap,
     statusIn,
+    processSel,
     descIn,
     phrasesIn,
     exceptIn,
@@ -1115,6 +1222,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     inputs.titleIn,
     ...inputs.scopeWrap.querySelectorAll('input[type=radio]'),
     inputs.statusIn,
+    ...(inputs.processSel ? [inputs.processSel] : []),
     inputs.descIn,
     inputs.phrasesIn,
     inputs.exceptIn,
