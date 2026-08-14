@@ -1202,7 +1202,14 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       return;
     }
 
-    const payload = collectRulePayload(inputs);
+    let payload;
+    try {
+      payload = collectRulePayload(inputs);
+    } catch (e) {
+      console.warn('[rules] collect payload failed', e);
+      if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
+      return;
+    }
     const current = serializeRulePayload(payload);
     if (current === baseline) {
       ruleState.dirty = false;
@@ -1269,9 +1276,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
   const schedule = (el) => {
     activeEl = el;
     ruleState.dirty = serializeRulePayload(collectRulePayload(inputs)) !== baseline;
-    if (!el.classList.contains(shell.FORM_FIELD_INVALID) && !el.classList.contains(shell.FORM_FIELD_SAVED)) {
-      shell.setFormFieldState(el, null);
-    }
+    shell.setFormFieldState(el, null);
     clearTimeout(ruleAutosaveTimer);
     ruleAutosaveTimer = setTimeout(flush, shell.AUTOSAVE_DEBOUNCE_MS);
   };

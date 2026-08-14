@@ -389,6 +389,11 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     );
 
     if (rows.length === 0) {
+      // An in-flight rewrite used to DELETE the table first — don't treat that
+      // as a blank install or we re-seed catalog-only and wipe personal rules.
+      if (scopeSeeded) {
+        return { notifyOnUnmatched, inboundSince, scopeSeeded, rules: [] };
+      }
       const seeded = seedFromDefaults();
       await saveToPg(seeded);
       return seeded;
@@ -418,17 +423,39 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
        ON CONFLICT (id) DO UPDATE SET notify_on_unmatched = EXCLUDED.notify_on_unmatched, updated_at = now()`,
       [config.notifyOnUnmatched]
     );
-    await pool.query('DELETE FROM email_rules');
+    const keepIds: string[] = [];
     for (const r of config.rules) {
       const notifyPush = r.notifyPush != null ? !!r.notifyPush : !!r.notify;
       const notifyDashboard = r.notifyDashboard != null ? !!r.notifyDashboard : !!r.notify;
       const notifyActions = normalizeNotifyActions(r.notifyActions);
+      keepIds.push(r.id);
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
            expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
            except_phrases, notify_push, notify_dashboard, notify_actions, scope)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22)
+         ON CONFLICT (id) DO UPDATE SET
+           sort_order = EXCLUDED.sort_order,
+           title = EXCLUDED.title,
+           status = EXCLUDED.status,
+           description = EXCLUDED.description,
+           phrases = EXCLUDED.phrases,
+           match_mode = EXCLUDED.match_mode,
+           fields = EXCLUDED.fields,
+           notify = EXCLUDED.notify,
+           enabled = EXCLUDED.enabled,
+           expires_at = EXCLUDED.expires_at,
+           updated_at = EXCLUDED.updated_at,
+           summary_override = EXCLUDED.summary_override,
+           forward_to = EXCLUDED.forward_to,
+           hit_count = EXCLUDED.hit_count,
+           last_matched_at = EXCLUDED.last_matched_at,
+           except_phrases = EXCLUDED.except_phrases,
+           notify_push = EXCLUDED.notify_push,
+           notify_dashboard = EXCLUDED.notify_dashboard,
+           notify_actions = EXCLUDED.notify_actions,
+           scope = EXCLUDED.scope`,
         [
           r.id,
           r.sortOrder,
@@ -458,6 +485,11 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           normalizeEmailRuleScope(r.scope, 'personal'),
         ]
       );
+    }
+    if (keepIds.length) {
+      await pool.query(`DELETE FROM email_rules WHERE NOT (id = ANY($1::uuid[]))`, [keepIds]);
+    } else {
+      await pool.query('DELETE FROM email_rules');
     }
     await pool.query('COMMIT');
     return true;
@@ -675,137 +707,72 @@ function findCatalogRecord(rules: EmailRuleRecord[], status: string): EmailRuleR
 }
 
 /**
- * DEFAULT_RULES is the live catalog. Every load overwrites universal rows from
- * the repo so a deploy updates every install — no per-admin catalog edits.
- * Personal rules stay in the DB; their slots relative to catalog statuses are kept.
+ * DEFAULT_RULES is the live catalog. Overwrite catalog *content* from the repo
+ * so a deploy updates every install. Do not rebuild sort order here — that
+ * fought sender-silent elevation and rewrote the table on every request.
  */
 function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[]; changed: boolean } {
   const now = new Date().toISOString();
   let changed = false;
-  const chosen = new Map<string, EmailRuleRecord>();
+  const next = rules.map((r) => ({ ...r }));
+  const chosenIds = new Set<string>();
 
-  for (const def of DEFAULT_RULES) {
-    const key = def.status.toUpperCase();
+  for (let i = 0; i < DEFAULT_RULES.length; i++) {
+    const def = DEFAULT_RULES[i];
     const payload = catalogDefinition(def);
-    const existing = findCatalogRecord(rules, def.status);
+    const existing = findCatalogRecord(next, def.status);
     if (existing) {
-      const next: EmailRuleRecord = { ...existing, ...payload, scope: 'universal' };
+      chosenIds.add(existing.id);
       if (catalogDefinitionKey(existing) !== catalogDefinitionKey(payload) || existing.scope !== 'universal') {
+        const idx = next.findIndex((r) => r.id === existing.id);
+        next[idx] = { ...existing, ...payload, scope: 'universal', updatedAt: now };
         changed = true;
-        next.updatedAt = now;
       }
-      chosen.set(key, next);
     } else {
       changed = true;
-      chosen.set(key, {
+      const prevDef = i > 0 ? DEFAULT_RULES[i - 1] : null;
+      const prev = prevDef ? findCatalogRecord(next, prevDef.status) : undefined;
+      const sortOrder = prev ? prev.sortOrder + 1 : 0;
+      for (const r of next) {
+        if (r.sortOrder >= sortOrder) r.sortOrder += 1;
+      }
+      const record: EmailRuleRecord = {
         ...payload,
         id: randomUUID(),
-        sortOrder: rules.length + chosen.size,
+        sortOrder,
         hitCount: 0,
         lastMatchedAt: null,
         createdAt: now,
         updatedAt: now,
-      });
+      };
+      next.push(record);
+      chosenIds.add(record.id);
     }
   }
 
-  const chosenIds = new Set([...chosen.values()].map((r) => r.id));
-  const demoted = rules.map((r) => {
-    if (chosenIds.has(r.id)) return r;
-    if (r.scope !== 'universal') return r;
+  const demoted = next.map((r) => {
+    if (chosenIds.has(r.id) || r.scope !== 'universal') return r;
     changed = true;
     return { ...r, scope: 'personal' as const, updatedAt: now };
   });
-
-  const groups = new Map<string, EmailRuleRecord[]>();
-  let lastCatalog = '';
-  const sorted = [...demoted].sort(
-    (a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)),
-  );
-  for (const r of sorted) {
-    if (chosenIds.has(r.id)) {
-      lastCatalog = String(r.status || '').toUpperCase();
-      continue;
-    }
-    const list = groups.get(lastCatalog) || [];
-    list.push(r);
-    groups.set(lastCatalog, list);
-  }
-
-  const rebuilt: EmailRuleRecord[] = [];
-  for (const r of groups.get('') || []) rebuilt.push(r);
-  for (const def of DEFAULT_RULES) {
-    const cat = chosen.get(def.status.toUpperCase());
-    if (cat) rebuilt.push(cat);
-    for (const r of groups.get(def.status.toUpperCase()) || []) rebuilt.push(r);
-  }
-
-  const ordered = rebuilt.map((r, i) => {
-    if (r.sortOrder === i) return r;
-    changed = true;
-    return { ...r, sortOrder: i };
-  });
-  return { rules: ordered, changed };
+  demoted.sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)));
+  return { rules: demoted, changed };
 }
 
 /** Keep DEFAULT_RULES in sync on every load; persist only when the catalog drifted. */
 async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
   const synced = applyRepoCatalog(config.rules);
-  const elevated = elevateSenderSilentRules(synced.rules);
   const scopeSeeded = true;
-  if (!synced.changed && !elevated.changed && config.scopeSeeded) {
-    return { ...config, rules: elevated.rules, scopeSeeded };
+  if (!synced.changed && config.scopeSeeded) {
+    return { ...config, rules: synced.rules, scopeSeeded };
   }
   const merged: EmailRulesConfig = {
     ...config,
     scopeSeeded,
-    rules: elevated.rules,
+    rules: synced.rules,
   };
   await persistConfig(merged);
   return merged;
-}
-
-/**
- * Sender-specific silent rules (from + DELETE/notify:false) belong just after
- * OTP/auth — otherwise a broad NEEDS_CHECK earlier in the table always wins.
- */
-function elevateSenderSilentRules(rules: EmailRuleRecord[]): {
-  rules: EmailRuleRecord[];
-  changed: boolean;
-} {
-  const pinned = rules.filter(
-    (r) => isVerificationCodeRuleStatus(r.status) || isAuthLinkRuleStatus(r.status),
-  );
-  const elevate = rules.filter(
-    (r) =>
-      r.enabled &&
-      r.fields.includes('from') &&
-      (!r.notify || isSilentTriageStatus(r.status)) &&
-      !isVerificationCodeRuleStatus(r.status) &&
-      !isAuthLinkRuleStatus(r.status),
-  );
-  if (!elevate.length) return { rules, changed: false };
-
-  const elevateIds = new Set(elevate.map((r) => r.id));
-  const rest = rules.filter(
-    (r) =>
-      !elevateIds.has(r.id) &&
-      !isVerificationCodeRuleStatus(r.status) &&
-      !isAuthLinkRuleStatus(r.status),
-  );
-
-  // Already correctly ordered? First non-pinned/non-elevated should not sit between
-  // pinned and elevate groups with a lower sort than elevate max while elevate is late.
-  const afterPinned = pinned.reduce((m, r) => Math.max(m, r.sortOrder), -1);
-  const firstRest = rest.reduce((m, r) => Math.min(m, r.sortOrder), Number.POSITIVE_INFINITY);
-  const allElevateBeforeRest = elevate.every((r) => r.sortOrder < firstRest);
-  const allElevateAfterPinned = elevate.every((r) => r.sortOrder > afterPinned);
-  if (allElevateBeforeRest && allElevateAfterPinned) {
-    return { rules, changed: false };
-  }
-
-  const ordered = [...pinned, ...elevate, ...rest].map((r, i) => ({ ...r, sortOrder: i }));
-  return { rules: ordered, changed: true };
 }
 
 /** Active enabled (and non-expired) rules in sort order for classification. */
