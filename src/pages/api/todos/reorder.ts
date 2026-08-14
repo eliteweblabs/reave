@@ -2,41 +2,27 @@
  * POST /api/todos/reorder — persist manual list order { ids: number[] }
  */
 
-import type { APIContext } from 'astro';
+import { createReorderPostHandler } from '../../../lib/api/reorderHandler';
+import { jsonResponse } from '../../../lib/apiResponse';
 import { isTodoDbConfigured, storeReorderTodos } from '../../../lib/todoStore';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
-
-export async function POST(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
-  if (auth instanceof Response) return auth;
-  const { userId } = auth;
-  if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
-
-  let body: Record<string, unknown>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
-
-  const rawIds = body.ids;
-  if (!Array.isArray(rawIds)) return json({ ok: false, error: 'ids array required' }, 400);
-
-  const ids = rawIds
-    .map((id) => Number(id))
-    .filter((id) => Number.isInteger(id) && id > 0);
-  if (ids.length === 0) return json({ ok: false, error: 'ids array required' }, 400);
-
-  const result = await storeReorderTodos(ids);
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, todos: result.todos, count: result.todos.length });
-}
+export const POST = createReorderPostHandler({
+  field: 'ids',
+  parse: (raw) =>
+    raw
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0),
+  beforeReorder: () =>
+    isTodoDbConfigured()
+      ? null
+      : jsonResponse({ ok: false, error: 'To-do DB not configured' }, 503),
+  reorder: async (ids) => {
+    const result = await storeReorderTodos(ids);
+    if (!result.ok) return result;
+    return { ok: true as const, result: result.todos };
+  },
+  success: (_context, _auth, todos) =>
+    jsonResponse({ ok: true, todos: todos ?? [], count: todos?.length ?? 0 }),
+});

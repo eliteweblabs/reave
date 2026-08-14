@@ -7,6 +7,9 @@
  * `src/lib/portalAssistant.ts` for the system prompt and model call.
  */
 import type { APIRoute } from 'astro';
+import { parseAssistantHistory } from '../../../../lib/assistantHistory';
+import { jsonResponse, readJsonBody } from '../../../../lib/apiResponse';
+import { clientIp } from '../../../../lib/clientIp';
 import { getContact, extractPortal, contactStringField } from '../../../../lib/contactApi';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
@@ -33,58 +36,32 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   done: 'Complete',
 };
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
-
-function clientIp(request: Request): string {
-  const fwd = request.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]?.trim() || 'unknown';
-  return request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
-
-function parseHistory(raw: unknown): PortalAssistantTurn[] {
-  if (!Array.isArray(raw)) return [];
-  const out: PortalAssistantTurn[] = [];
-  for (const item of raw.slice(-MAX_HISTORY_TURNS)) {
-    if (!item || typeof item !== 'object') continue;
-    const rec = item as Record<string, unknown>;
-    const role = rec.role === 'assistant' ? 'assistant' : rec.role === 'user' ? 'user' : null;
-    const content = typeof rec.content === 'string' ? rec.content.trim() : '';
-    if (!role || !content) continue;
-    out.push({ role, content: content.slice(0, MAX_HISTORY_TURN_CHARS) });
-  }
-  return out;
-}
-
 export const POST: APIRoute = async ({ params, request }) => {
   if (!hasFeature('client_portal') || !hasFeature('portal_assistant') || !isPortalAssistantConfigured()) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
   const uid = (params.slug ?? '').trim();
-  if (!uid) return json({ ok: false, error: 'Missing contact id' }, 400);
+  if (!uid) return jsonResponse({ ok: false, error: 'Missing contact id' }, 400);
 
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
+  const parsed = await readJsonBody(request);
+  if (parsed instanceof Response) return parsed;
+  const { body } = parsed;
 
   const message = typeof body.message === 'string' ? body.message.trim() : '';
-  if (!message) return json({ ok: false, error: 'message is required' }, 400);
+  if (!message) return jsonResponse({ ok: false, error: 'message is required' }, 400);
   if (message.length > MAX_MESSAGE_CHARS) {
-    return json({ ok: false, error: 'Message is too long.' }, 400);
+    return jsonResponse({ ok: false, error: 'Message is too long.' }, 400);
   }
-  const history = parseHistory(body.history);
+  const history = parseAssistantHistory<PortalAssistantTurn>(
+    body.history,
+    MAX_HISTORY_TURNS,
+    MAX_HISTORY_TURN_CHARS,
+  );
 
   const rate = checkPortalAssistantRateLimit(`${uid}:${clientIp(request)}`);
   if (!rate.ok) {
-    return json(
+    return jsonResponse(
       { ok: false, error: "You're sending messages a bit fast — please wait a moment and try again." },
       429,
     );
@@ -92,11 +69,11 @@ export const POST: APIRoute = async ({ params, request }) => {
 
   const contactRes = await getContact(uid);
   if (!contactRes.ok || contactRes.data.archived) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
   const portal = extractPortal(contactRes.data) ?? {};
   if (portal.enabled === false) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
   const org = await getCompanyConfig(request);
@@ -157,6 +134,6 @@ export const POST: APIRoute = async ({ params, request }) => {
     history,
   });
 
-  if (!result.ok) return json({ ok: false, error: result.error }, 502);
-  return json({ ok: true, reply: result.reply });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 502);
+  return jsonResponse({ ok: true, reply: result.reply });
 };
