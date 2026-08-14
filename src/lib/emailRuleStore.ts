@@ -593,10 +593,53 @@ const INCOME_MISFILE_PHRASES = new Set(['payment of $', 'your invoice from']);
  */
 const NEEDS_CHECK_STRIP_PHRASES = new Set(['security alert']);
 
+/**
+ * Whether a catalog default is already represented in persisted rules.
+ * Unique statuses (RECEIPT, RAILWAY_ALERT, …) need one row. AUTO_ARCHIVED can
+ * have several catalog rows (invoices vs shipment tracking) — seed each phrase set.
+ */
+function defaultRuleAlreadySeeded(
+  rules: Array<{ status: string; phrases: string[] }>,
+  def: EmailRule,
+): boolean {
+  const status = def.status.toUpperCase();
+  const sameStatus = rules.filter((r) => r.status.toUpperCase() === status);
+  if (!sameStatus.length) return false;
+  if (status !== 'AUTO_ARCHIVED') return true;
+  const want = def.phrases.map((p) => p.trim().toLowerCase()).filter(Boolean);
+  return sameStatus.some((r) => {
+    const have = new Set(r.phrases.map((p) => p.trim().toLowerCase()));
+    return want.length > 0 && want.every((p) => have.has(p));
+  });
+}
+
+/** Insert missing catalog rows; filing AUTO_ARCHIVED extras go before RECEIPT. */
+function insertMissingDefaultRules(
+  rules: EmailRuleRecord[],
+  missing: EmailRule[],
+): EmailRuleRecord[] {
+  if (!missing.length) return rules;
+  const additions: EmailRuleRecord[] = missing.map((r) => ({
+    ...r,
+    id: randomUUID(),
+    title: ruleTitleFromDefaults(r),
+    sortOrder: 0,
+    scope: normalizeEmailRuleScope(r.scope, 'universal') as EmailRuleScope,
+  }));
+  const filing = additions.filter((r) => r.status.toUpperCase() === 'AUTO_ARCHIVED');
+  const other = additions.filter((r) => r.status.toUpperCase() !== 'AUTO_ARCHIVED');
+  const next = [...rules];
+  if (filing.length) {
+    const receiptIdx = next.findIndex((r) => r.status.toUpperCase() === 'RECEIPT');
+    next.splice(receiptIdx >= 0 ? receiptIdx : next.length, 0, ...filing);
+  }
+  next.push(...other);
+  return next.map((r, i) => ({ ...r, sortOrder: i }));
+}
+
 /** Insert any new DEFAULT_RULES statuses missing from persisted config (e.g. RAILWAY_ALERT). */
 async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
-  const present = new Set(config.rules.map((r) => r.status.toUpperCase()));
-  const missing = DEFAULT_RULES.filter((r) => !present.has(r.status.toUpperCase()));
+  const missing = DEFAULT_RULES.filter((r) => !defaultRuleAlreadySeeded(config.rules, r));
   const receiptDefault = DEFAULT_RULES.find((r) => r.status === 'RECEIPT');
   const needsCheckDefault = DEFAULT_RULES.find((r) => r.status === 'NEEDS_CHECK');
   const defaultStatuses = new Set(DEFAULT_RULES.map((r) => r.status.toUpperCase()));
@@ -664,16 +707,7 @@ async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesC
     return mergedElevated;
   }
 
-  const withMissing: EmailRuleRecord[] = [
-    ...rules,
-    ...missing.map((r, i) => ({
-      ...r,
-      id: randomUUID(),
-      title: ruleTitleFromDefaults(r),
-      sortOrder: rules.length + i,
-      scope: normalizeEmailRuleScope(r.scope, 'universal') as EmailRuleScope,
-    })),
-  ];
+  const withMissing = insertMissingDefaultRules(rules, missing);
   const elevated = elevateSenderSilentRules(withMissing);
   const merged: EmailRulesConfig = {
     ...config,

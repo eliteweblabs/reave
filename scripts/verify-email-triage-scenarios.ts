@@ -10,6 +10,11 @@
  */
 import assert from 'node:assert/strict';
 import {
+  looksLikeFailedOrDuePayment,
+  looksLikeShipmentNotice,
+  shouldAutoFileAsReceipt,
+} from '../src/lib/emailMoney';
+import {
   DEFAULT_RULES,
   evaluateEmailRules,
   type EmailRule,
@@ -150,6 +155,50 @@ const scenarios: Scenario[] = [
     expectNotify: false,
   },
   {
+    id: 'shipment-tracked',
+    label: 'Shipment tracked phrase → AUTO_ARCHIVED',
+    email: {
+      from: 'Amazon <auto-confirm@amazon.com>',
+      subject: 'Your package update',
+      text: 'Shipment tracked. Shipped: 1 Shoes item. Track your package.',
+    },
+    expectStatus: 'AUTO_ARCHIVED',
+    expectNotify: false,
+  },
+  {
+    id: 'shipment-tracking-from',
+    label: 'Amazon shipment-tracking@ → AUTO_ARCHIVED',
+    email: {
+      from: 'Amazon.com <shipment-tracking@amazon.com>',
+      subject: 'Your Amazon.com order of "Shoes" has shipped',
+      text: 'Your package has shipped. Shipped: 1 Shoes item. Amount: $27.99.',
+    },
+    expectStatus: 'AUTO_ARCHIVED',
+    expectNotify: false,
+  },
+  {
+    id: 'shipment-beats-receipt',
+    label: 'Shipping notice with receipt wording still AUTO_ARCHIVED',
+    email: {
+      from: 'Amazon.com <shipment-tracking@amazon.com>',
+      subject: 'Your Amazon.com order has shipped',
+      text: 'Your receipt from Amazon. You paid $27.99. Shipment tracking: Shipped: 1 Office item.',
+    },
+    expectStatus: 'AUTO_ARCHIVED',
+    expectNotify: false,
+  },
+  {
+    id: 'amazon-order-confirm',
+    label: 'Amazon auto-confirm order (not shipping) still RECEIPT',
+    email: {
+      from: 'Amazon.com <auto-confirm@amazon.com>',
+      subject: 'Your Amazon.com order of Office supplies',
+      text: 'Ordered: 1 Office item. You paid $10.55. Amount paid: $10.55. Payment confirmation.',
+    },
+    expectStatus: 'RECEIPT',
+    expectNotify: false,
+  },
+  {
     id: 'invoice-workspace',
     label: 'Google Workspace invoice → AUTO_ARCHIVED',
     email: {
@@ -209,6 +258,16 @@ const scenarios: Scenario[] = [
       from: 'Stripe Capital <noreply@stripe.com>',
       subject: 'Upcoming minimum payment',
       text: 'Your Stripe Capital loan has an outstanding balance. Payment failed — update your card.',
+    },
+    expectStatus: 'UNMATCHED',
+  },
+  {
+    id: 'stripe-capital-debit',
+    label: 'Stripe Capital debit initiated — not RECEIPT',
+    email: {
+      from: 'Stripe <noreply@stripe.com>',
+      subject: 'Your Stripe Capital debit of $157.00 is initiated',
+      text: '$157.00 debit initiated for your Stripe Capital loan payment for Eliteweblabs.',
     },
     expectStatus: 'UNMATCHED',
   },
@@ -326,6 +385,36 @@ function main() {
   }
 
   console.log('-'.repeat(90));
+
+  const amazonShip = {
+    from: 'Amazon.com <shipment-tracking@amazon.com>',
+    subject: 'Your Amazon.com order of "Shoes" has shipped',
+    summary: 'shipment tracking • Shipped: 1 Shoes item',
+    bodyText: 'Your package has shipped. Track your shipment.',
+  };
+  const stripeCapital = {
+    from: 'Stripe <noreply@stripe.com>',
+    subject: 'Your Stripe Capital debit of $157.00 is initiated',
+    summary: 'capital • $157.00 debit initiated for your Stripe Capital loan payment',
+    bodyText: '$157.00 debit initiated for your Stripe Capital loan payment for Eliteweblabs.',
+  };
+  const amazonOrder = {
+    from: 'Amazon.com <auto-confirm@amazon.com>',
+    subject: 'Your Amazon.com order',
+    summary: 'auto confirm • Ordered: 1 Office item',
+    bodyText: 'Ordered: 1 Office item. You paid $10.55. Amount paid: $10.55.',
+  };
+  try {
+    assert.equal(looksLikeShipmentNotice(amazonShip), true, 'amazon ship is shipment notice');
+    assert.equal(shouldAutoFileAsReceipt(amazonShip), null, 'amazon ship is not a receipt');
+    assert.equal(looksLikeFailedOrDuePayment(stripeCapital), true, 'stripe capital is due/debit');
+    assert.equal(shouldAutoFileAsReceipt(stripeCapital), null, 'stripe capital is not a receipt');
+    assert.ok(shouldAutoFileAsReceipt(amazonOrder), 'amazon order confirm is a receipt');
+  } catch (e) {
+    failed += 1;
+    console.error(`  !! ${(e as Error).message}`);
+  }
+
   if (failed) {
     console.error(`verify-email-triage-scenarios: ${failed} failure(s)`);
     process.exit(1);

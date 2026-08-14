@@ -9,6 +9,7 @@ import {
   looksLikeFailedOrDuePayment,
   looksLikeIncomingPayment,
   looksLikePaymentNotification,
+  looksLikeShipmentNotice,
   shouldAutoFileAsReceipt,
 } from './emailMoney';
 import { DEFAULT_RULES, type EmailRule, type InboundEmail } from './emailRules';
@@ -222,6 +223,14 @@ export function explainReceiptClassification(
           'payment_language',
           'Looks like failed/due payment',
           'Blocks auto-file as expense receipt',
+        ),
+      );
+    } else if (looksLikeShipmentNotice(emailLike)) {
+      steps.push(
+        classificationAuditStep(
+          'payment_language',
+          'Shipment tracking — not a tax receipt',
+          'Shipping / package-tracked notices auto-archive; they are not expense receipts',
         ),
       );
     } else if (looksLikeIncomingPayment(emailLike) || looksLikePaymentNotification(emailLike)) {
