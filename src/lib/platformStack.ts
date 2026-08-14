@@ -56,4 +56,6 @@ export const PLATFORM_STACK: StackTech[] = [
     role: 'Uptime monitoring',
     iconSrc: '/logos/stack/uptimerobot.svg',
   },
+  // Simple Icons dropped Playwright (Microsoft brand terms); letter fallback is intentional.
+  { slug: 'playwright', name: 'Playwright', color: '#2EAD33', role: 'Browser UX audits' },
 ];
