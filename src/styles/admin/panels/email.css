@@ -179,6 +179,9 @@
   color: var(--danger, #dc2626);
   border-color: color-mix(in srgb, var(--danger, #dc2626) 35%, transparent);
   background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
+  /* Icon sits in the right cap; clip the ring to the pill path. */
+  padding-right: 0;
+  overflow: hidden;
 }
 .em-filter-tab.em-filter-tab--purge:hover,
 .em-filter-tab.active.em-filter-tab--purge:hover {
@@ -190,6 +193,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: stretch;
+  aspect-ratio: 1;
+  width: auto;
+  margin-left: auto;
   flex-shrink: 0;
 }
 .em-filter-tab--purge .em-filter-purge-icon svg {
@@ -197,7 +204,8 @@
   height: 14px;
 }
 .em-filter-tab--purge .em-filter-purge-icon .delete-confirm-ring-holder {
-  inset: -5px;
+  /* Grow to the border box so the circle shares the pill's right radius. */
+  inset: -1px;
 }
 .em-filter-tab--purge .em-filter-purge-icon .delete-confirm-ring {
   display: block;

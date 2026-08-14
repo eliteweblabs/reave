@@ -445,7 +445,8 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const isFilterPurge = btn.classList.contains('em-filter-tab--purge');
   // Toolbar trash: CSS sizes the holder just outside the ~20px icon; path fills the viewBox.
   const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 28 : isFilterPurge ? 22 : 36);
-  const ringRadius = opts.ringRadius ?? 18;
+  /* Filter purge: fill the 44 viewBox so the stroke rides the pill cap. */
+  const ringRadius = opts.ringRadius ?? (isFilterPurge ? 20.75 : 18);
   ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
 
   // Guard against double-binding (would arm then immediately confirm on one click).
