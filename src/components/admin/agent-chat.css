@@ -530,7 +530,34 @@
   padding-block: 0.65rem;
 }
 
+.aui-composer-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.aui-composer-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  font: inherit;
+  font-size: max(16px, 0.95rem);
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+.aui-composer-highlight .aui-mention-chip {
+  /* Keep chip metrics aligned with the transparent textarea text. */
+  padding: 0.05em 0.12em;
+  margin: 0 -0.12em;
+}
+
 .aui-input {
+  position: relative;
+  z-index: 1;
   width: 100%;
   min-width: 0;
   min-height: 1.65em;
@@ -548,9 +575,15 @@
   caret-color: var(--fg);
 }
 
+.aui-input--chips {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
 .aui-input::placeholder {
   color: var(--muted);
   opacity: 0.75;
+  -webkit-text-fill-color: var(--muted);
 }
 
 .aui-composer-attachments {
