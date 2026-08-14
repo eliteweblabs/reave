@@ -1199,19 +1199,26 @@ function vaultSaveBody(payload) {
   return null;
 }
 
-async function saveClientVaultData(uid, payload) {
+async function saveClientVaultData(uid, payload, activeEl) {
   const bodyPayload = vaultSaveBody(payload);
   if (!bodyPayload) return null;
-  const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(bodyPayload),
-  });
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-  const saved = body.data || bodyPayload.data;
-  if (clientState.draft) clientState.draft.data = saved;
-  return saved;
+  if (activeEl) shell.setFormFieldState(activeEl, 'saving');
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyPayload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    const saved = body.data || bodyPayload.data;
+    if (clientState.draft) clientState.draft.data = saved;
+    if (activeEl) shell.flashFormFieldSaved(activeEl);
+    return saved;
+  } catch (e) {
+    if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
+    throw e;
+  }
 }
 
 async function flushClientVaultSave() {
@@ -1231,14 +1238,14 @@ async function flushClientVaultSave() {
   }
 }
 
-function scheduleClientVaultSave(uid, getData) {
+function scheduleClientVaultSave(uid, getData, activeEl) {
   clearTimeout(clientVaultSaveTimer);
   clientVaultSaveTimer = setTimeout(async () => {
     clientVaultSaveTimer = null;
     try {
       const payload = getData();
       if (!payload) return;
-      await saveClientVaultData(uid, payload);
+      await saveClientVaultData(uid, payload, activeEl);
     } catch (e) {
       console.warn('[clients] vault save failed', e);
       shell.showChatToast(e.message || 'Vault save failed');
@@ -1344,32 +1351,56 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   const knownIds = new Set(rows.map((r) => String(r.id || '').trim()).filter(Boolean));
   const vaultGen = ++clientVaultSaveGen;
 
-  function readRowsFromDom() {
-    return rows.map((row, index) => {
-      const card = list.children[index];
-      if (!card) return row;
-      const getVal = (field) => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
-      const next = { label: getVal('label') };
-      if (row.id) next.id = row.id;
-      const value = getVal('value');
-      const username = getVal('username');
-      const password = getVal('password');
-      const url = getVal('url');
-      if (value) next.value = value;
-      if (username) next.username = username;
-      if (password) next.password = password;
-      if (url) next.url = url;
-      return next;
-    }).filter((entry) => entry.label);
+  function readCardFields(card, row) {
+    const getVal = (field) => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
+    return {
+      id: row.id,
+      label: getVal('label'),
+      url: getVal('url'),
+      username: getVal('username'),
+      password: getVal('password'),
+      value: getVal('value'),
+    };
+  }
+
+  function syncRowsFromDom() {
+    const cards = [...list.querySelectorAll(':scope > .cl-vault-card')];
+    if (!cards.length) return;
+    rows = rows.map((row, index) => {
+      const card = cards[index];
+      return card ? readCardFields(card, row) : row;
+    });
+  }
+
+  function persistableRows() {
+    syncRowsFromDom();
+    return rows
+      .map((row) => {
+        const next = { label: (row.label || '').trim() };
+        if (row.id) next.id = row.id;
+        if (row.value) next.value = row.value;
+        if (row.username) next.username = row.username;
+        if (row.password) next.password = row.password;
+        if (row.url) next.url = row.url;
+        return next;
+      })
+      .filter((entry) => entry.label);
   }
 
   function vaultPayload() {
     if (vaultGen !== clientVaultSaveGen) return null;
-    return { data: readRowsFromDom(), vaultKnownIds: [...knownIds] };
+    return { data: persistableRows(), vaultKnownIds: [...knownIds] };
   }
 
-  function queueSave() {
-    scheduleClientVaultSave(uid, vaultPayload);
+  function cardHasLabel(el) {
+    const card = el?.closest?.('.cl-vault-card');
+    if (!card) return true;
+    return Boolean(card.querySelector('[data-field="label"]')?.value?.trim());
+  }
+
+  function queueSave(activeEl) {
+    if (activeEl && !cardHasLabel(activeEl)) return;
+    scheduleClientVaultSave(uid, vaultPayload, activeEl);
   }
 
   clientState.vaultGetData = vaultPayload;
@@ -1437,9 +1468,10 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     });
     actions.appendChild(copyBtn);
     row.appendChild(actions);
-    input.addEventListener('input', queueSave);
+    input.addEventListener('input', () => queueSave(input));
     input.addEventListener('blur', () => {
-      void saveClientVaultData(uid, vaultPayload()).catch((e) => {
+      if (!cardHasLabel(input)) return;
+      void saveClientVaultData(uid, vaultPayload(), input).catch((e) => {
         shell.showChatToast(e.message || 'Vault save failed');
       });
     });
@@ -1469,6 +1501,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       const deleteBtn = paneDeleteIcon({
         label: `Delete ${entry.label || `entry ${index + 1}`}`,
         onClick: async () => {
+          syncRowsFromDom();
           rows.splice(index, 1);
           renderVaultList();
           try {
@@ -1501,12 +1534,14 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   }
 
   addBtn.addEventListener('click', () => {
+    syncRowsFromDom();
     const id = newVaultEntryId();
     knownIds.add(id);
     rows.push({ id, label: '', url: '', username: '', password: '', value: '' });
     renderVaultList();
-    const firstInput = list.querySelector('[data-field="label"]');
-    firstInput?.focus();
+    const cards = list.querySelectorAll(':scope > .cl-vault-card');
+    cards[cards.length - 1]?.querySelector('[data-field="label"]')?.focus();
+    queueSave();
   });
 
   renderVaultList();
