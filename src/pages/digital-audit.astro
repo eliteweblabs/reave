@@ -9,7 +9,7 @@ import PortalAuditReportCard from '../components/PortalAuditReportCard.astro';
 import { getCompanyConfig } from '../lib/companyConfig';
 import { hasFeature } from '../lib/features';
 import { isSafeWorkSlug, storeReadWork } from '../lib/workStore';
-import { buildAuditReportCard, isAuditJob } from '../lib/auditReportCard';
+import { AUDIT_SCAN_STACK, buildAuditReportCard, isAuditJob } from '../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../lib/auditPlacesListing';
 import { getSiriAuditRun } from '../lib/siriAuditRuns';
 export const prerender = false;
@@ -159,6 +159,18 @@ const openOptionalDetails = Boolean(prefillUrl);
           </button>
         </div>
       </form>
+
+      <section class="da-stack" aria-label="Audit tech stack">
+        <p class="da-stack-kicker">How we scan</p>
+        <ul class="da-stack-list">
+          {AUDIT_SCAN_STACK.map((tool) => (
+            <li class="da-stack-item">
+              <span class="da-stack-name">{tool.name}</span>
+              <span class="da-stack-role">{tool.role}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
     ) : (
       <div class="da-results">
         <PortalAuditReportCard
@@ -417,6 +429,55 @@ const openOptionalDetails = Boolean(prefillUrl);
   .da-actions {
     display: flex;
     justify-content: flex-start;
+  }
+
+  .da-stack {
+    width: 100%;
+    max-width: 560px;
+    margin-top: 36px;
+    text-align: center;
+  }
+
+  .da-stack-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+    margin: 0 0 14px;
+  }
+
+  .da-stack-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .da-stack-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    text-align: left;
+  }
+
+  .da-stack-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .da-stack-role {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.48);
   }
 
   .da-submit {

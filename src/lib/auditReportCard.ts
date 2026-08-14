@@ -180,7 +180,7 @@ const CATEGORY_META: CategoryMeta[] = [
     id: 'mobile',
     label: 'Mobile Responsiveness',
     icon: 'mobile',
-    source: 'Mobile layout review',
+    source: 'Playwright (headless Chromium) · real-browser mobile layout',
   },
   {
     id: 'reviews',
@@ -222,7 +222,7 @@ const CATEGORY_META: CategoryMeta[] = [
     id: 'lead_capture',
     label: 'Lead Capture',
     icon: 'lead',
-    source: 'Homepage contact path review',
+    source: 'Playwright form checks · homepage contact path review',
   },
   {
     id: 'schema',
@@ -239,6 +239,16 @@ const CATEGORY_META: CategoryMeta[] = [
 ];
 
 const CATEGORY_BY_ID = new Map(CATEGORY_META.map((c) => [c.id, c]));
+
+/** Tools shown on /digital-audit and the report-card footer. */
+export const AUDIT_SCAN_STACK = [
+  { name: 'Google Lighthouse', role: 'Speed, SEO & accessibility' },
+  { name: 'Playwright', role: 'Real-browser UX' },
+  { name: 'SSL & DNS', role: 'Certificates & email auth' },
+  { name: 'Tech stack detection', role: 'CMS, analytics & tags' },
+  { name: 'Maps & directories', role: 'Google, Apple, Yelp' },
+  { name: 'Link crawl', role: 'Broken links & redirects' },
+] as const;
 
 const GRADE_SCORE: Record<LetterGrade, number> = {
   A: 95,
