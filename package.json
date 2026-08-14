@@ -31,6 +31,7 @@
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",
     "check:audit-report": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-report-card.ts",
+    "check:playwright-shots": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-playwright-issue-shots.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "icons:generate": "node scripts/generate-brand-icons.mjs",
     "logos:replaced-apps": "node scripts/fetch-replaced-app-logos.mjs",

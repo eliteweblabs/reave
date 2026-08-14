@@ -9,14 +9,22 @@
  *  - CTA button clickability
  *  - Contact form presence and basic usability
  *  - Tap target sizing (mobile)
- *  - Full-page and nav-state screenshots (PNG)
+ *  - Issue-state screenshots when a check fails (empty hamburger nav, overflow, …)
+ *  - Optional full-page / nav-state context shots (not used as issue evidence)
  *
  * Results are returned for both desktop (1440×900) and mobile (375×812) viewports.
- * Screenshots are returned as base64 PNG buffers so the caller can save them to
- * the project file repository.
+ * Failed-check PNGs are stashed for create_work / update_work to file on the project.
  */
 
-import { serverEnv } from './serverEnv';
+import {
+  classifyFormNoSubmit,
+  classifyHamburgerIssue,
+  classifyOverflow,
+  classifySmallTapTargets,
+  classifyUnclickableCtas,
+  issueShotFilename,
+  type PlaywrightIssueKind,
+} from './playwrightIssueDetect';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,6 +60,8 @@ export type ViewportResult = {
   /** Whether the hamburger/nav toggle was found and clicked open */
   hamburgerFound: boolean;
   hamburgerOpens: boolean;
+  /** Visible nav links after the hamburger tap (0 = empty / did not open) */
+  hamburgerLinkCount: number;
   navLinks: NavLink[];
   jsErrors: string[];
   overflowElements: number;
@@ -63,8 +73,20 @@ export type ViewportResult = {
   screenshotFullPage: string;
   /** Nav open/closed state screenshot as base64 PNG */
   screenshotNav: string;
+  /** Viewport shots taken at the moment a check failed */
+  issueScreenshots: PlaywrightIssueScreenshot[];
   /** Any non-JS warnings or notes collected during the session */
   notes: string[];
+};
+
+export type PlaywrightIssueScreenshot = {
+  id: string;
+  kind: PlaywrightIssueKind;
+  viewport: 'desktop' | 'mobile';
+  title: string;
+  detail: string;
+  filename: string;
+  pngBase64: string;
 };
 
 export type PlaywrightAuditResponse =
@@ -73,6 +95,7 @@ export type PlaywrightAuditResponse =
       url: string;
       audited_at: string;
       results: ViewportResult[];
+      issue_screenshots: PlaywrightIssueScreenshot[];
       summary: {
         totalNavLinks: number;
         brokenNavLinks: number;
@@ -130,6 +153,45 @@ async function loadPlaywright() {
   return pw;
 }
 
+const MAX_ISSUE_SHOTS = 6;
+
+async function captureIssueShot(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  viewport: 'desktop' | 'mobile',
+  issues: PlaywrightIssueScreenshot[],
+  meta: { kind: PlaywrightIssueKind; title: string; detail: string },
+): Promise<void> {
+  if (issues.length >= MAX_ISSUE_SHOTS) return;
+  try {
+    const buf: Buffer = await page.screenshot({ fullPage: false, type: 'png' });
+    if (!buf.length) return;
+    issues.push({
+      id: `${viewport}-${meta.kind}`,
+      kind: meta.kind,
+      viewport,
+      title: meta.title,
+      detail: meta.detail,
+      filename: issueShotFilename(viewport, meta.kind),
+      pngBase64: buf.toString('base64'),
+    });
+  } catch {
+    // Capture is best-effort — the structured finding still stands.
+  }
+}
+
+async function clearIssueOutlines(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+): Promise<void> {
+  await page.evaluate(() => {
+    for (const el of Array.from(document.querySelectorAll('[data-pw-issue]'))) {
+      el.removeAttribute('data-pw-issue');
+      (el as HTMLElement).style.outline = '';
+    }
+  }).catch(() => undefined);
+}
+
 // ---------------------------------------------------------------------------
 // Per-viewport audit
 // ---------------------------------------------------------------------------
@@ -146,6 +208,7 @@ async function auditViewport(
 
   const jsErrors: string[] = [];
   const notes: string[] = [];
+  const issueScreenshots: PlaywrightIssueScreenshot[] = [];
 
   const context = await browser.newContext({
     viewport: { width, height },
@@ -187,6 +250,7 @@ async function auditViewport(
   // -------------------------------------------------------------------------
   let hamburgerFound = false;
   let hamburgerOpens = false;
+  let hamburgerLinkCount = 0;
 
   // Common hamburger selectors
   const hamSelectors = [
@@ -211,19 +275,48 @@ async function auditViewport(
       const el = await page.$(sel);
       if (el && await el.isVisible()) {
         hamburgerFound = true;
-        // Screenshot before click (nav closed)
-        const beforeShot = await page.screenshot({ fullPage: false, type: 'png' }).catch(() => Buffer.alloc(0));
         await el.click({ timeout: 5_000 });
         await page.waitForTimeout(600);
-        // Check if nav expanded (look for a visible nav list)
-        const navVisible = await page.evaluate(() => {
-          const navLists = document.querySelectorAll('nav ul, [role="navigation"] ul, .nav-menu, .main-menu, [class*="nav-list"]');
-          return Array.from(navLists).some((el) => {
-            const rect = el.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0;
+        const navState = await page.evaluate(() => {
+          const listSels =
+            'nav ul, [role="navigation"] ul, .nav-menu, .main-menu, [class*="nav-list"], [class*="drawer"], [class*="offcanvas"], [class*="mobile-nav"]';
+          const lists = Array.from(document.querySelectorAll(listSels));
+          const panelVisible = lists.some((node) => {
+            const rect = node.getBoundingClientRect();
+            const style = getComputedStyle(node);
+            return (
+              rect.width > 0 &&
+              rect.height > 0 &&
+              style.visibility !== 'hidden' &&
+              style.display !== 'none'
+            );
           });
+          const linkSels =
+            'nav a, [role="navigation"] a, [class*="nav-menu"] a, [class*="mobile-nav"] a, [class*="drawer"] a, [class*="offcanvas"] a';
+          const visibleLinkCount = Array.from(document.querySelectorAll(linkSels)).filter((node) => {
+            const rect = node.getBoundingClientRect();
+            const style = getComputedStyle(node);
+            const text = (node.textContent || '').trim();
+            return (
+              !!text &&
+              rect.width > 0 &&
+              rect.height > 0 &&
+              style.visibility !== 'hidden' &&
+              style.opacity !== '0'
+            );
+          }).length;
+          return { panelVisible, visibleLinkCount };
         });
-        hamburgerOpens = navVisible;
+        hamburgerLinkCount = navState.visibleLinkCount;
+        hamburgerOpens = navState.visibleLinkCount > 0;
+        const hamIssue = classifyHamburgerIssue({
+          found: true,
+          panelVisible: navState.panelVisible,
+          visibleLinkCount: navState.visibleLinkCount,
+        });
+        if (hamIssue) {
+          await captureIssueShot(page, viewport, issueScreenshots, hamIssue);
+        }
         break;
       }
     } catch {
@@ -305,6 +398,26 @@ async function auditViewport(
     return count;
   }, width);
 
+  const overflowIssue = classifyOverflow(overflowElements);
+  if (overflowIssue) {
+    await page.evaluate((vw: number) => {
+      let marked = 0;
+      for (const el of Array.from(document.querySelectorAll('body *'))) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.right > vw + 20) {
+          if (marked === 0) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+          el.setAttribute('data-pw-issue', 'overflow');
+          (el as HTMLElement).style.outline = '3px solid #e11';
+          marked += 1;
+          if (marked >= 8) break;
+        }
+      }
+    }, width).catch(() => undefined);
+    await page.waitForTimeout(200);
+    await captureIssueShot(page, viewport, issueScreenshots, overflowIssue);
+    await clearIssueOutlines(page);
+  }
+
   // -------------------------------------------------------------------------
   // Sticky headers
   // -------------------------------------------------------------------------
@@ -343,6 +456,12 @@ async function auditViewport(
     return results.slice(0, 10);
   });
 
+  const unclickable = ctaButtons.filter((b) => !b.clickable);
+  const ctaIssue = classifyUnclickableCtas(unclickable.map((b) => b.text));
+  if (ctaIssue) {
+    await captureIssueShot(page, viewport, issueScreenshots, ctaIssue);
+  }
+
   // -------------------------------------------------------------------------
   // Forms
   // -------------------------------------------------------------------------
@@ -366,6 +485,12 @@ async function auditViewport(
     });
   });
 
+  const formsWithoutSubmit = forms.filter((f) => f.fieldCount > 0 && !f.hasSubmit).length;
+  const formIssue = classifyFormNoSubmit(formsWithoutSubmit);
+  if (formIssue) {
+    await captureIssueShot(page, viewport, issueScreenshots, formIssue);
+  }
+
   // -------------------------------------------------------------------------
   // Small tap targets (mobile only)
   // -------------------------------------------------------------------------
@@ -385,6 +510,26 @@ async function auditViewport(
       });
     });
     smallTapTargets.push(...targets.filter((t) => t.tooSmall).slice(0, 15));
+    const tapIssue = classifySmallTapTargets(smallTapTargets.length);
+    if (tapIssue) {
+      await page.evaluate(() => {
+        const els = document.querySelectorAll('a, button, [role="button"], input, select');
+        let marked = 0;
+        for (const el of Array.from(els)) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && (rect.width < 44 || rect.height < 44)) {
+            if (marked === 0) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+            el.setAttribute('data-pw-issue', 'tap');
+            (el as HTMLElement).style.outline = '3px solid #e11';
+            marked += 1;
+            if (marked >= 8) break;
+          }
+        }
+      }).catch(() => undefined);
+      await page.waitForTimeout(200);
+      await captureIssueShot(page, viewport, issueScreenshots, tapIssue);
+      await clearIssueOutlines(page);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -418,6 +563,7 @@ async function auditViewport(
     height,
     hamburgerFound,
     hamburgerOpens,
+    hamburgerLinkCount,
     navLinks,
     jsErrors,
     overflowElements,
@@ -427,6 +573,7 @@ async function auditViewport(
     smallTapTargets,
     screenshotFullPage,
     screenshotNav,
+    issueScreenshots,
     notes,
   };
 }
@@ -443,6 +590,7 @@ function buildEmptyResult(
     height,
     hamburgerFound: false,
     hamburgerOpens: false,
+    hamburgerLinkCount: 0,
     navLinks: [],
     jsErrors: [],
     overflowElements: 0,
@@ -452,6 +600,7 @@ function buildEmptyResult(
     smallTapTargets: [],
     screenshotFullPage: '',
     screenshotNav: '',
+    issueScreenshots: [],
     notes,
   };
 }
@@ -507,6 +656,8 @@ export async function playwrightAudit(opts: {
       results.push(result);
     }
 
+    const issue_screenshots = results.flatMap((r) => r.issueScreenshots);
+
     // Aggregate summary
     const allNavLinks = results.flatMap((r) => r.navLinks);
     const summary = {
@@ -524,6 +675,7 @@ export async function playwrightAudit(opts: {
       url,
       audited_at: new Date().toISOString(),
       results,
+      issue_screenshots,
       summary,
     };
   } finally {
@@ -556,7 +708,10 @@ export function formatPlaywrightResults(
 
     if (r.viewport === 'mobile') {
       lines.push(`  Hamburger found: ${r.hamburgerFound}`);
-      if (r.hamburgerFound) lines.push(`  Hamburger opens nav: ${r.hamburgerOpens}`);
+      if (r.hamburgerFound) {
+        lines.push(`  Hamburger opens nav: ${r.hamburgerOpens}`);
+        lines.push(`  Visible nav links after tap: ${r.hamburgerLinkCount}`);
+      }
     }
 
     if (r.navLinks.length) {
@@ -607,12 +762,27 @@ export function formatPlaywrightResults(
       lines.push(`  Notes: ${r.notes.join('; ')}`);
     }
 
+    if (r.issueScreenshots.length) {
+      lines.push(`  ISSUE SCREENSHOTS (${r.issueScreenshots.length}) — captured at the failed state:`);
+      for (const shot of r.issueScreenshots) {
+        lines.push(`    • ${shot.title} [${shot.filename}] — ${shot.detail}`);
+      }
+    }
+
     if (r.screenshotFullPage) {
-      lines.push(`  [Full-page screenshot captured — ${Math.round(r.screenshotFullPage.length * 0.75 / 1024)}KB PNG]`);
+      lines.push(`  [Context full-page screenshot captured — ${Math.round(r.screenshotFullPage.length * 0.75 / 1024)}KB PNG; not issue evidence]`);
     }
     if (r.screenshotNav) {
-      lines.push(`  [Nav screenshot captured]`);
+      lines.push(`  [Context nav screenshot captured; not issue evidence]`);
     }
+  }
+
+  const allIssues = data.issue_screenshots ?? data.results.flatMap((r) => r.issueScreenshots);
+  if (allIssues.length) {
+    lines.push(
+      `\nISSUE SCREENSHOTS will be filed on the project when create_work / update_work runs.`,
+      `Cite them in UX & UI — do not invent a screenshot gallery if none are listed above.`,
+    );
   }
 
   return lines.join('\n');

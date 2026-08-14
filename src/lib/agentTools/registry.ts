@@ -23,7 +23,7 @@ import type { AgentToolModule } from './types';
  * record management (most installs) simply omit the feature.
  *
  * Playwright UX/UI audit runs real headless Chromium — desktop + mobile nav,
- * JS errors, overflow, tap targets, CTAs, forms, and screenshots.
+ * JS errors, overflow, tap targets, CTAs, forms, and failed-state screenshots.
  *
  * Pexels stock photo search lives in `plugins/stock-photos/` (feature-gated
  * `stock_photos` + `PEXELS_API_KEY`).

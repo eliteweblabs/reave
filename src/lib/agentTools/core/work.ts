@@ -128,6 +128,11 @@ import {
   storeAddChatImagesToProject,
   storeListProjectFiles,
 } from '../../projectFiles';
+import {
+  attachPlaywrightIssueShots,
+  formatUxEvidenceMarkdown,
+  mergeUxEvidenceSection,
+} from '../../playwrightIssueShots';
 import { logOutboundEmailForProject } from '../../logOutboundEmailForProject';
 import { recordProjectOutboundEmail } from '../../projectOutboundEmail';
 import { getAgentContext } from '../../agentContext';
@@ -170,6 +175,37 @@ import {
   resolvePortalTarget,
   workExtrasFromArgs,
 } from '../shared';
+
+async function filePendingPlaywrightShots(slug: string): Promise<
+  { filename: string; url: string; title: string }[]
+> {
+  const ctx = getAgentContext();
+  const saved = await attachPlaywrightIssueShots(slug, ctx.playwrightShotRunId, {
+    uploadedBy: ctx.userId ?? null,
+    sourceRef: ctx.threadId ?? null,
+  });
+  if (!saved.length) return [];
+  const doc = await storeReadWork(slug);
+  if (doc) {
+    const nextBody = mergeUxEvidenceSection(doc.body, formatUxEvidenceMarkdown(saved));
+    if (nextBody !== doc.body) {
+      await storeWriteWork(slug, {
+        title: doc.title,
+        client: doc.client || doc.contact_name,
+        contact_uid: doc.contact_uid || undefined,
+        status: doc.status,
+        body: nextBody,
+        record_origin: doc.record_origin,
+        priority: doc.priority,
+        due_date: doc.due_date,
+        value: doc.value,
+        tags: doc.tags,
+        source: doc.source,
+      });
+    }
+  }
+  return saved.map((f) => ({ filename: f.filename, url: f.url, title: f.title }));
+}
 
 async function handle_list_work(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const statusRaw = String(args.status ?? '').trim().toLowerCase();
@@ -281,6 +317,7 @@ async function handle_create_work(args: Record<string, unknown>, _ctx: ToolConte
   if (!result.ok) return JSON.stringify({ error: result.error });
   const doc = result.doc;
   const linked = await linkWorkFromAgentContext(doc.slug);
+  const issueScreenshots = await filePendingPlaywrightShots(doc.slug);
   const linkedUid = doc.contact_uid?.trim() || '';
   return JSON.stringify({
     ok: true,
@@ -293,6 +330,7 @@ async function handle_create_work(args: Record<string, unknown>, _ctx: ToolConte
     client_match: resolution.match,
     linked_chat: threadId || null,
     linked: linked.chatLinked || !!threadId,
+    issue_screenshots: issueScreenshots,
     ...(linkedUid
       ? {
           profile_url: adminClientProfileUrl(linkedUid),
@@ -476,6 +514,7 @@ async function handle_update_work(args: Record<string, unknown>, _ctx: ToolConte
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
   const doc = result.doc;
+  const issueScreenshots = await filePendingPlaywrightShots(doc.slug);
   const contactUid = doc.contact_uid?.trim() || '';
   return JSON.stringify({
     ok: true,
@@ -486,6 +525,7 @@ async function handle_update_work(args: Record<string, unknown>, _ctx: ToolConte
     contact_name: doc.contact_name,
     status: doc.status,
     updated: doc.updated,
+    issue_screenshots: issueScreenshots,
     ...(contactUid
       ? {
           profile_url: adminClientProfileUrl(contactUid),

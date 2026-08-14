@@ -265,7 +265,7 @@ Running an audit on Example Plumbing Co. It will be available in the Reave app s
 
 ### Full Audit (comprehensive)
 
-**What it does**: Same as the quick audit, plus **Playwright** real-browser UX/UI checks (nav menus, JS errors, tap targets, screenshots), **broken link crawl**, and **tech stack detection**. Use when you're back at a desk and want the deepest report — not for on-the-street speed.
+**What it does**: Same as the quick audit, plus **Playwright** real-browser UX/UI checks (nav menus, JS errors, tap targets, **failed-state screenshots** — e.g. hamburger open with an empty menu), **broken link crawl**, and **tech stack detection**. Use when you're back at a desk and want the deepest report — not for on-the-street speed.
 
 **JSON body**:
 

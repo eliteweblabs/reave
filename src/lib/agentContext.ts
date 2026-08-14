@@ -34,6 +34,11 @@ export interface AgentRunContext {
    * after a PSI quota/rate-limit failure — retries burn the whole tool-round budget).
    */
   _toolOnce?: Record<string, true>;
+  /**
+   * Pending Playwright issue-screenshot run from playwright_audit in this turn.
+   * create_work / update_work file the PNGs onto the project automatically.
+   */
+  playwrightShotRunId?: string;
 }
 
 export const agentRunContext = new AsyncLocalStorage<AgentRunContext>();
