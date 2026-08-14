@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260813c — OTP tap copies in the open PWA; sheet only if clipboard write fails. */
+   v20260813d — OTP tap copies in a logged-in admin window, else /admin/copy (no login). */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -103,9 +103,19 @@ function otpCodeFromNotificationText(title, body) {
 
 function otpCopyPageUrl(code) {
   const trimmed = String(code || '').trim();
-  // Same document as the installed PWA start_url. iOS ignores openWindow to
-  // /admin/copy (a different page) and then nothing appears.
-  return trimmed ? `/admin/?copy=1#c=${encodeURIComponent(trimmed)}` : '/admin/?copy=1';
+  return trimmed ? `/admin/copy#c=${encodeURIComponent(trimmed)}` : '/admin/copy';
+}
+
+/** Sign-in (and other non-admin) windows cannot copy — don't treat them as a hit. */
+function clientCanCopyOtp(client) {
+  try {
+    const u = new URL(client.url, self.location.origin);
+    if (u.origin !== self.location.origin) return false;
+    const path = u.pathname.replace(/\/$/, '') || '/';
+    return path === '/admin' || path === '/admin/copy';
+  } catch {
+    return false;
+  }
 }
 
 /** Copy the OTP — never open the inbox or a sign-in URL. */
@@ -121,6 +131,7 @@ async function deliverOtpCopy(opts) {
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   let focused = false;
   for (const client of clients) {
+    if (!clientCanCopyOtp(client)) continue;
     client.postMessage(message);
     if (!focused && 'focus' in client) {
       try {

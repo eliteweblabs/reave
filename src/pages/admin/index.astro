@@ -31,6 +31,10 @@ export const prerender = false;
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
+  // OTP push tap — copy without signing in (code is already on-device).
+  if (Astro.url.searchParams.get('copy') === '1') {
+    return Astro.redirect('/admin/copy');
+  }
   const returnTo = Astro.url.pathname + Astro.url.search;
   return Astro.redirect(`/sign-in?redirect_url=${encodeURIComponent(returnTo)}`);
 }
