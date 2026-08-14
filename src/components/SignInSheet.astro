@@ -18,7 +18,7 @@ interface Props {
 
 const {
   fallbackRedirectUrl = '/admin/',
-  allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === '1',
+  allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP !== '0',
   autoOpen = false,
   dismissible: dismissibleProp,
   authPath = '/sign-in',
@@ -26,6 +26,7 @@ const {
 
 /** Required sign-in (auto-open on protected pages) must stay until auth succeeds. */
 const dismissible = dismissibleProp ?? !autoOpen;
+const startOnSignUp = allowSignUp && Astro.url.searchParams.get('mode') === 'sign-up';
 
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
@@ -66,9 +67,15 @@ const clerkAppearance = {
       background: 'transparent',
       boxShadow: 'none',
     },
-    footerAction: {
-      background: 'transparent',
-    },
+    footerAction: allowSignUp
+      ? { background: 'transparent' }
+      : { display: 'none', background: 'transparent' },
+    ...(allowSignUp
+      ? {}
+      : {
+          footerActionLink: { display: 'none' },
+          footerActionText: { display: 'none' },
+        }),
     header: { display: 'none' },
     headerTitle: { display: 'none' },
     headerSubtitle: { display: 'none' },
@@ -76,7 +83,7 @@ const clerkAppearance = {
 };
 ---
 
-<IosBottomSheet id="sign-in-sheet" title={allowSignUp ? 'Account' : 'Sign in'} dismissible={dismissible} startOpen={autoOpen} class="sign-in-sheet">
+<IosBottomSheet id="sign-in-sheet" title={startOnSignUp ? 'Sign up' : 'Sign in'} dismissible={dismissible} startOpen={autoOpen} class="sign-in-sheet">
   {/*
     Mount Clerk client-side only. Never SSR-mount <SignIn> on /admin when the
     browser already has a Clerk user but the server cookie is missing — Clerk
@@ -158,7 +165,7 @@ const clerkAppearance = {
   }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: autoOpen, fallbackRedirectUrl, authPath, allowSignUp, clerkAppearance }}>
+<script type="module" define:vars={{ autoOpenSignIn: autoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance }}>
   import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260813a';
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
@@ -308,25 +315,27 @@ const clerkAppearance = {
     if (stuck) stuck.hidden = true;
     root.hidden = false;
 
-    clerk.mountSignIn(root, {
+    const signUpPath = `${authPath}?mode=sign-up`;
+    const showSignUp =
+      allowSignUp &&
+      (startOnSignUp ||
+        new URLSearchParams(window.location.search).get('mode') === 'sign-up' ||
+        /^#\/?sign-up(\/|$)/i.test(window.location.hash));
+    const titleEl = document.getElementById('sign-in-sheet-title');
+    if (titleEl) titleEl.textContent = showSignUp ? 'Sign up' : 'Sign in';
+
+    const mountOpts = {
       routing: 'hash',
       signInUrl: authPath,
-      signUpUrl: authPath,
+      signUpUrl: allowSignUp ? signUpPath : authPath,
       fallbackRedirectUrl,
       appearance: clerkAppearance,
-    });
+    };
 
-    if (allowSignUp && clerk.mountSignUp) {
-      const signUpRoot = document.createElement('div');
-      signUpRoot.id = 'sign-up-clerk-root';
-      root.parentElement?.appendChild(signUpRoot);
-      clerk.mountSignUp(signUpRoot, {
-        routing: 'hash',
-        signInUrl: authPath,
-        signUpUrl: authPath,
-        fallbackRedirectUrl,
-        appearance: clerkAppearance,
-      });
+    if (showSignUp && clerk.mountSignUp) {
+      clerk.mountSignUp(root, mountOpts);
+    } else {
+      clerk.mountSignIn(root, mountOpts);
     }
 
     // After OTP inside the sheet, cookie appears before any navigation — sync once.
