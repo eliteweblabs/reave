@@ -4,13 +4,13 @@
  */
 
 import type { APIContext } from 'astro';
-import { inferLogoUploadMediaType } from '../../../../lib/companyLogo';
 import {
-  isMediaLibraryMediaType,
+  inferMediaLibraryType,
   MEDIA_LIBRARY_MAX_BYTES,
   storeAddMedia,
   storeListMedia,
 } from '../../../../lib/mediaLibrary';
+import { mediaDropFolderInfo } from '../../../../lib/mediaWebdav/auth';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -22,18 +22,6 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function inferMediaLibraryType(file: Pick<File, 'type' | 'name'>): string | null {
-  const type = file.type.trim().toLowerCase();
-  if (isMediaLibraryMediaType(type)) return type;
-  const logoType = inferLogoUploadMediaType(file);
-  if (logoType) return logoType;
-  const name = file.name.trim().toLowerCase();
-  if (name.endsWith('.gif')) return 'image/gif';
-  if (name.endsWith('.svg')) return 'image/svg+xml';
-  if (name.endsWith('.pdf')) return 'application/pdf';
-  return null;
-}
-
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
@@ -41,7 +29,12 @@ export async function GET(context: APIContext): Promise<Response> {
   const limitRaw = context.url.searchParams.get('limit');
   const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 200;
   const items = await storeListMedia(Number.isFinite(limit) ? limit : 200);
-  return json({ ok: true, items, count: items.length });
+  return json({
+    ok: true,
+    items,
+    count: items.length,
+    dropFolder: mediaDropFolderInfo(context.request),
+  });
 }
 
 export async function POST(context: APIContext): Promise<Response> {

@@ -6,6 +6,7 @@ import { getCompanyBrandContext } from './companyConfig';
 import { isContactApiConfigured } from './contactApi';
 import { isBookingConfigured, bookingPing } from './bookingClient';
 import { isCardDavConfigured } from './carddav/auth';
+import { isMediaWebdavConfigured } from './mediaWebdav/auth';
 import { isCraterConfigured, craterListInvoices } from './craterClient';
 import { isGithubConfigured, githubGetRepoAccess, githubRepoSlug } from './githubClient';
 import { listKnowledgeSlugs } from './localKnowledge';
@@ -49,6 +50,7 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           crater: isCraterConfigured(),
           contact_api: isContactApiConfigured(),
           carddav: isCardDavConfigured(),
+          media_webdav: isMediaWebdavConfigured(),
           anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
           railway: isRailwayConfigured(),
           kinsta: isKinstaConfigured(),

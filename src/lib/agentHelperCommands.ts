@@ -409,6 +409,14 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'How do I sync contacts to iPhone with CardDAV?',
     feature: 'carddav',
   },
+
+  // Media drop folder (core)
+  {
+    slash: '/media-drop',
+    summary: 'Mac / iPhone media folder setup',
+    template: 'How do I mount the media library as a folder on my Mac and iPhone?',
+    example: 'How do I mount the media library as a folder on my Mac and iPhone?',
+  },
 ];
 
 export const AGENT_HELPER_COMMANDS: AgentHelperCommand[] = HELPER_MANIFEST.map(toCommand);

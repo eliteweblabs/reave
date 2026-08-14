@@ -3,13 +3,13 @@
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260804c';
-import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260811a';
+import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260814a';
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =
   'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf';
 
-/** @type {{ items: any[], search: string, filter: 'all'|'images'|'documents', loading: boolean, uploading: boolean, selectedId: string|null, detailOpen: boolean }} */
+/** @type {{ items: any[], search: string, filter: 'all'|'images'|'documents', loading: boolean, uploading: boolean, selectedId: string|null, detailOpen: boolean, dropFolder: { configured?: boolean, url?: string, host?: string, path?: string, username?: string|null, authSource?: string|null } | null }} */
 let state = {
   items: [],
   search: '',
@@ -18,6 +18,7 @@ let state = {
   uploading: false,
   selectedId: null,
   detailOpen: false,
+  dropFolder: null,
 };
 
 export function initMediaPanel(_deps) {
@@ -213,6 +214,78 @@ function renderAttachmentDetails(item) {
   );
 }
 
+function dropFolderSetupHtml(kind) {
+  const drop = state.dropFolder || {};
+  const url = drop.url || `${location.origin}/webdav`;
+  const host = drop.host || location.host;
+  const user = drop.username || 'MEDIA_WEBDAV_USERNAME';
+  if (kind === 'mac') {
+    return (
+      `<p>Finder → <strong>Go → Connect to Server…</strong> (⌘K)</p>` +
+      `<ol>` +
+      `<li>Server Address: <code>${escHtml(url)}</code></li>` +
+      `<li>Connect as <strong>Registered User</strong></li>` +
+      `<li>Name: <code>${escHtml(user)}</code></li>` +
+      `<li>Password: <code>MEDIA_WEBDAV_PASSWORD</code> from Railway Variables (never share it in chat)</li>` +
+      `</ol>` +
+      `<p>The volume appears in the Finder sidebar. Drag JPEG, PNG, GIF, WebP, SVG, or PDF files in (max 10 MB). They show up here.</p>`
+    );
+  }
+  return (
+    `<p>iPhone/iPad <strong>Files</strong> app → Browse → <strong>•••</strong> → Connect to Server</p>` +
+    `<ol>` +
+    `<li>Server: <code>${escHtml(url)}</code></li>` +
+    `<li>Username: <code>${escHtml(user)}</code></li>` +
+    `<li>Password: <code>MEDIA_WEBDAV_PASSWORD</code> from Railway Variables</li>` +
+    `</ol>` +
+    `<p>The folder stays under <strong>Shared</strong>. Save or drag photos and PDFs into it.</p>` +
+    `<p class="prof-hint">Host is <code>${escHtml(host)}</code> — include <code>https://</code> and <code>/webdav</code>.</p>`
+  );
+}
+
+function renderDropFolderCard() {
+  const drop = state.dropFolder;
+  if (!drop) return '';
+  const configured = Boolean(drop.configured);
+  const url = drop.url || `${location.origin}/webdav`;
+  const user = drop.username || '';
+  const authHint =
+    drop.authSource === 'carddav'
+      ? 'Same username as CardDAV contacts'
+      : configured
+        ? 'MEDIA_WEBDAV_USERNAME'
+        : '';
+  const status = configured
+    ? `<span class="ml-drop-folder-status">Ready</span>`
+    : `<span class="ml-drop-folder-status ml-drop-folder-status--off">Needs credentials</span>`;
+  const body = configured
+    ? `<p class="ml-drop-folder-copy">Mount this library as a folder on your Mac or iPhone. Drag files in and they appear here.</p>` +
+      `<p class="ml-drop-folder-meta"><code>${escHtml(url)}</code>` +
+      (user ? ` · ${escHtml(user)}` : '') +
+      (authHint ? ` <span class="ml-drop-folder-hint">(${escHtml(authHint)})</span>` : '') +
+      `</p>`
+    : `<p class="ml-drop-folder-copy">Set <code>MEDIA_WEBDAV_USERNAME</code> and <code>MEDIA_WEBDAV_PASSWORD</code> on Railway — or reuse CardDAV credentials — then mount <code>${escHtml(url)}</code> in Finder or the Files app.</p>`;
+  return (
+    `<section class="ml-drop-folder" aria-label="Drop folder">` +
+    `<div class="ml-drop-folder-icon" aria-hidden="true">${iosIcon('folder', 22)}</div>` +
+    `<div class="ml-drop-folder-body">` +
+    `<div class="ml-drop-folder-title-row"><h2 class="ml-drop-folder-title">Drop folder</h2>${status}</div>` +
+    body +
+    `<div class="ml-drop-folder-actions">` +
+    (configured
+      ? `<button type="button" class="de-btn de-btn-secondary de-btn-with-icon" id="ml-drop-copy">` +
+        `<span class="de-btn-icon" aria-hidden="true">${deBtnIconSvg('copy', 16)}</span>` +
+        `<span class="de-btn-label">Copy URL</span>` +
+        `</button>`
+      : '') +
+    `<button type="button" class="de-btn de-btn-secondary" id="ml-drop-mac">Mac setup</button>` +
+    `<button type="button" class="de-btn de-btn-secondary" id="ml-drop-ios">iPhone setup</button>` +
+    `</div>` +
+    `</div>` +
+    `</section>`
+  );
+}
+
 function renderPanel() {
   const items = filteredItems();
   const empty = !state.loading && items.length === 0;
@@ -239,6 +312,7 @@ function renderPanel() {
     `<div class="ml-toolbar-filters" id="ml-filter-host"></div>` +
     `<input type="search" id="ml-search" class="ml-search prof-input" placeholder="Search media…" value="${escHtml(state.search)}" ${state.uploading ? 'disabled' : ''} />` +
     `</div>` +
+    renderDropFolderCard() +
     `</div>` +
     (state.loading
       ? `<div class="ml-grid ml-grid--loading"><p class="prof-hint">Loading…</p></div>`
@@ -258,6 +332,7 @@ async function fetchItems() {
     const json = await readAdminJson(res);
     if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
     state.items = Array.isArray(json.items) ? json.items : [];
+    state.dropFolder = json.dropFolder && typeof json.dropFolder === 'object' ? json.dropFolder : null;
   } catch (e) {
     await osAlert({ title: 'Could not load media', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
     state.items = [];
@@ -424,6 +499,33 @@ function bindPanelEvents(root) {
     if (!(search instanceof HTMLInputElement)) return;
     state.search = search.value;
     renderAndBind();
+  });
+
+  root.querySelector('#ml-drop-copy')?.addEventListener('click', async () => {
+    const url = state.dropFolder?.url || `${location.origin}/webdav`;
+    const btn = root.querySelector('#ml-drop-copy');
+    try {
+      await navigator.clipboard.writeText(url);
+      if (btn) {
+        const label = btn.querySelector('.de-btn-label');
+        if (label) {
+          const prev = label.textContent;
+          label.textContent = 'Copied!';
+          setTimeout(() => {
+            label.textContent = prev;
+          }, 1200);
+        }
+      }
+    } catch {
+      await osAlert({ title: 'Copy failed', bodyHtml: `<p>${escHtml(url)}</p>` });
+    }
+  });
+
+  root.querySelector('#ml-drop-mac')?.addEventListener('click', async () => {
+    await osAlert({ title: 'Mount on Mac', bodyHtml: dropFolderSetupHtml('mac') });
+  });
+  root.querySelector('#ml-drop-ios')?.addEventListener('click', async () => {
+    await osAlert({ title: 'Mount on iPhone', bodyHtml: dropFolderSetupHtml('ios') });
   });
 
   const uploadInput = root.querySelector('#ml-upload-input');

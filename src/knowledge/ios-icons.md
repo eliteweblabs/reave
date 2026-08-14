@@ -27,7 +27,7 @@ Do **not** invent a one-off SVG (or pull in another icon library) when the glyph
 2. Prefer Lucide path data so the set stays consistent.
 3. Consume via `IOS_ICONS['your-key']`, `iosIcon('your-key', size)`, or `createIosIconBtn({ iconKey: 'your-key' })`.
 
-Examples: `bell`, `bell-off`, `search`, `eye`, `eye-off`, `ban`, `chevron-down`, `paperclip`, `message-square`, `trash`, `edit`, `share`, `copy`, `check`, `plus`, `mail`, `phone`, `refresh`, chevrons, etc.
+Examples: `bell`, `bell-off`, `search`, `eye`, `eye-off`, `ban`, `chevron-down`, `paperclip`, `folder`, `message-square`, `trash`, `edit`, `share`, `copy`, `check`, `plus`, `mail`, `phone`, `refresh`, chevrons, etc.
 
 ## Astro / SSR / React
 

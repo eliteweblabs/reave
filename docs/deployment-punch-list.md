@@ -87,6 +87,7 @@ Not required for bare demo load; expected for real clients.
 | Maps / places | `GOOGLE_MAPS_API_KEY`, `PUBLIC_MAPBOX_ACCESS_TOKEN` |
 | Contacts PII gate | `DASHBOARD_KEY` |
 | CardDAV (if feature on) | `CARDDAV_USERNAME`, `CARDDAV_PASSWORD` |
+| Media drop folder | `MEDIA_WEBDAV_USERNAME`, `MEDIA_WEBDAV_PASSWORD` (or reuse CardDAV creds) |
 | Agent tools | `BRAVE_API_KEY`, `PEXELS_API_KEY`, `SIRI_API_KEY` |
 | Email tuning | `EMAIL_ALLOWED_*`, `EMAIL_AI_ENABLED` |
 | Cloudflare DNS (optional) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID` |

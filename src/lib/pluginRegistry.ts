@@ -121,6 +121,7 @@ export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'siri-examples',
   'siri-quick-reference',
   'siri-shortcuts',
+  'media-drop-folder',
 ]);
 
 /** @deprecated Prefer isDefaultKnowledgeSlug — core slugs only */

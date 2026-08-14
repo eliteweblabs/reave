@@ -6,6 +6,7 @@ import { getCompanyBrandContext } from './companyConfig';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isMaterialsApiConfigured } from './materialsClient';
 import { isCardDavConfigured } from './carddav/auth';
+import { isMediaWebdavConfigured } from './mediaWebdav/auth';
 import { isCraterConfigured } from './craterClient';
 import { isBookingConfigured } from './bookingClient';
 import { isVapiAdminConfigured } from './vapiPlugin';
@@ -783,6 +784,15 @@ async function runKnowledgeAgentInner(
     }
   } else {
     sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
+  }
+  if (isMediaWebdavConfigured()) {
+    sysParts.push(
+      `Media drop folder (WebDAV): The media library mounts as a folder at ${brand.siteUrl}webdav — drag JPEG/PNG/GIF/WebP/SVG/PDF (max 10 MB) from a Mac or iPhone and they appear in Admin → Media. Mac: Finder → Go → Connect to Server (⌘K) → https://${brand.domain || 'your-host'}/webdav as Registered User. iPhone: Files → Browse → ••• → Connect to Server → same URL. Credentials = MEDIA_WEBDAV_USERNAME / MEDIA_WEBDAV_PASSWORD, or CardDAV username/password if media vars are unset — never paste values in chat. Troubleshooting: ${brand.siteUrl}webdav should return 401 (not 404). For the playbook call read_knowledge slug "media-drop-folder".`,
+    );
+  } else {
+    sysParts.push(
+      `Media drop folder: Enable a Mac/iPhone folder for the media library by setting MEDIA_WEBDAV_USERNAME + MEDIA_WEBDAV_PASSWORD (or reuse CardDAV credentials). Call read_knowledge slug "media-drop-folder" for Finder and iOS Files setup.`,
+    );
   }
   if (isMaterialsApiConfigured()) {
     sysParts.push(

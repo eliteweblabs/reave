@@ -12,7 +12,7 @@ import {
   filenameForMediaType,
   projectFileResponseHeaders,
 } from './projectFiles';
-import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from './companyLogo';
+import { inferLogoUploadMediaType, isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from './companyLogo';
 import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 import { workDir } from './workStore';
 
@@ -65,6 +65,25 @@ export function isBrandSvgMediaType(mediaType: string): boolean {
 
 export function isBrandingApplyMediaType(mediaType: string): boolean {
   return isLogoUploadMediaType(mediaType) || isBrandSvgMediaType(mediaType);
+}
+
+/** Infer a library media type from a browser File or a WebDAV PUT. */
+export function inferMediaLibraryType(file: { type?: string; name: string }): string | null {
+  const type = (file.type || '').trim().toLowerCase();
+  if (isMediaLibraryMediaType(type)) return type;
+  const logoType = inferLogoUploadMediaType({
+    type: file.type || '',
+    name: file.name,
+  });
+  if (logoType) return logoType;
+  const name = file.name.trim().toLowerCase();
+  if (name.endsWith('.gif')) return 'image/gif';
+  if (name.endsWith('.svg')) return 'image/svg+xml';
+  if (name.endsWith('.pdf')) return 'application/pdf';
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.webp')) return 'image/webp';
+  return null;
 }
 
 export function mediaLibraryUrl(id: string): string {
@@ -225,6 +244,44 @@ function fileAddMedia(input: {
   return { ok: true, item: summary };
 }
 
+function fileUpdateMedia(
+  id: string,
+  input: {
+    mediaType: string;
+    dataBase64: string;
+    filename?: string;
+  },
+): { ok: true; item: MediaLibrarySummary } | { ok: false; error: string } {
+  const existing = fileGetMedia(id);
+  if (!existing) return { ok: false, error: 'Not found' };
+  const mediaType = input.mediaType.trim().toLowerCase();
+  if (!isMediaLibraryMediaType(mediaType)) {
+    return { ok: false, error: 'Unsupported file type' };
+  }
+  const dataBase64 = input.dataBase64.replace(/^data:[^;]+;base64,/, '').trim();
+  if (!dataBase64) return { ok: false, error: 'Empty file data' };
+  const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
+  if (sizeBytes < 1 || sizeBytes > MEDIA_LIBRARY_MAX_BYTES) {
+    return {
+      ok: false,
+      error: `File too large (max ${MEDIA_LIBRARY_MAX_BYTES / (1024 * 1024)} MB)`,
+    };
+  }
+  const filename = input.filename?.trim() || existing.filename;
+  const record: MediaLibraryRecord = {
+    ...existing,
+    filename,
+    mediaType,
+    sizeBytes,
+    dataBase64,
+    url: mediaLibraryUrl(existing.id),
+    thumbnailUrl: mediaLibraryThumbnailUrl(existing.id),
+  };
+  writeFileSync(mediaRecordPath(existing.id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  const { dataBase64: _d, ...summary } = record;
+  return { ok: true, item: summary };
+}
+
 function fileDeleteMedia(id: string): boolean {
   const trimmed = id.trim();
   if (!trimmed) return false;
@@ -371,6 +428,70 @@ async function dbAddMedia(input: {
   }
 }
 
+async function dbUpdateMedia(
+  id: string,
+  input: {
+    mediaType: string;
+    dataBase64: string;
+    filename?: string;
+  },
+): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string } | null> {
+  const mediaType = input.mediaType.trim().toLowerCase();
+  if (!isMediaLibraryMediaType(mediaType)) {
+    return { ok: false, error: 'Unsupported file type' };
+  }
+  const dataBase64 = input.dataBase64.replace(/^data:[^;]+;base64,/, '').trim();
+  if (!dataBase64) return { ok: false, error: 'Empty file data' };
+  const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
+  if (sizeBytes < 1 || sizeBytes > MEDIA_LIBRARY_MAX_BYTES) {
+    return {
+      ok: false,
+      error: `File too large (max ${MEDIA_LIBRARY_MAX_BYTES / (1024 * 1024)} MB)`,
+    };
+  }
+
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const filename = input.filename?.trim() || null;
+    const { rows } = await pool.query<{
+      id: string;
+      filename: string;
+      alt_text: string | null;
+      uploaded_by: string | null;
+      created_at: string;
+    }>(
+      `UPDATE media_library
+       SET media_type = $2,
+           size_bytes = $3,
+           data_base64 = $4,
+           filename = COALESCE($5, filename)
+       WHERE id = $1
+       RETURNING id, filename, alt_text, uploaded_by, created_at`,
+      [id.trim(), mediaType, sizeBytes, dataBase64, filename],
+    );
+    const row = rows[0];
+    if (!row) return { ok: false, error: 'Not found' };
+    return {
+      ok: true,
+      item: {
+        id: row.id,
+        filename: row.filename,
+        mediaType,
+        sizeBytes,
+        altText: row.alt_text,
+        uploadedBy: row.uploaded_by,
+        createdAt: row.created_at,
+        url: mediaLibraryUrl(row.id),
+        thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+      },
+    };
+  } catch (e) {
+    console.error('[media-library] update failed', e);
+    return { ok: false, error: 'Failed to save file' };
+  }
+}
+
 async function dbDeleteMedia(id: string): Promise<boolean | null> {
   try {
     const pool = await ensureSchema();
@@ -412,6 +533,22 @@ export async function storeAddMedia(input: {
     if (result) return result;
   }
   return fileAddMedia(input);
+}
+
+export async function storeUpdateMedia(
+  id: string,
+  input: {
+    mediaType: string;
+    dataBase64: string;
+    filename?: string;
+  },
+): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
+  if (!id.trim()) return { ok: false, error: 'Not found' };
+  if (isMediaLibraryDbConfigured()) {
+    const result = await dbUpdateMedia(id, input);
+    if (result) return result;
+  }
+  return fileUpdateMedia(id, input);
 }
 
 export async function storeDeleteMedia(id: string): Promise<boolean> {

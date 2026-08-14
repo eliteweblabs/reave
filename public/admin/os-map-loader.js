@@ -107,7 +107,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260812b';
+} from './admin-ui.js?v=20260814a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -269,7 +269,7 @@ import {
 import {
   initMediaPanel,
   loadMediaTab,
-} from './media-panel.js?v=20260810a';
+} from './media-panel.js?v=20260814a';
 import {
   initModulesPanel,
   loadModulesTab,
