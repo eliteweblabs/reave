@@ -1,0 +1,30 @@
+{
+  "features": [
+    "client_portal",
+    "web_handoff",
+    "documents",
+    "scheduling",
+    "site_audits",
+    "content_management"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "work",
+    "schedule",
+    "clients"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "siteContentKey": "barbersedge"
+}

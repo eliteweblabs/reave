@@ -1,0 +1,17 @@
+---
+import BarbersEdgeLayout from "../../layouts/BarbersEdgeLayout.astro";
+import BarbersEdgeProfile from "../../components/barbers-edge/BarbersEdgeProfile.astro";
+import { BARBERS_EDGE, getBarbersEdgeBarber } from "../../lib/barbersEdge";
+
+const barber = getBarbersEdgeBarber(Astro.params.slug ?? "");
+if (!barber) {
+  return Astro.redirect("/barbers");
+}
+---
+
+<BarbersEdgeLayout
+  title={`${barber.name} — ${BARBERS_EDGE.name}`}
+  description={`${barber.role} at Barber's Edge. ${barber.tagline}.`}
+>
+  <BarbersEdgeProfile barber={barber} />
+</BarbersEdgeLayout>

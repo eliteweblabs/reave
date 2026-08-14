@@ -1,0 +1,128 @@
+---
+import Favicon from "../components/Favicon.astro";
+import ViewportMeta from "../components/ViewportMeta.astro";
+import { BARBERS_EDGE } from "../lib/barbersEdge";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const canonical = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <meta name="theme-color" content="#f3eee4" />
+    <meta name="generator" content={Astro.generator} />
+    <Favicon />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Outfit:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="be-body">
+    <header class="be-header">
+      <a class="be-brand" href="/barbers">
+        <span class="be-mark" aria-hidden="true">B</span>
+        <span class="be-wordmark">{BARBERS_EDGE.name}</span>
+      </a>
+      <div class="be-actions">
+        <a class="be-phone" href={BARBERS_EDGE.phoneHref} aria-label={`Call ${BARBERS_EDGE.phone}`}>
+          <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+        </a>
+        <a class="be-book" href={BARBERS_EDGE.bookHref}>Book</a>
+      </div>
+    </header>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  * { box-sizing: border-box; }
+  html, body.be-body {
+    margin: 0;
+    min-height: 100%;
+    background: #f3eee4;
+    color: #161410;
+    font-family: Outfit, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.be-body a { color: inherit; }
+  .be-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    background: #f3eee4;
+  }
+  .be-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-decoration: none;
+    min-width: 0;
+  }
+  .be-mark {
+    width: 2rem;
+    height: 2rem;
+    border: 1.5px solid #161410;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .be-wordmark {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .be-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-shrink: 0;
+  }
+  .be-phone {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    place-items: center;
+    color: #161410;
+    text-decoration: none;
+  }
+  .be-book {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.15rem;
+    padding: 0 0.95rem;
+    background: #161410;
+    color: #fbf8f2;
+    text-decoration: none;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+</style>

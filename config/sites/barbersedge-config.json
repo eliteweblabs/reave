@@ -1,0 +1,55 @@
+{
+  "key": "barbersedge",
+  "pages": ["/", "/barbers", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [
+      { "href": "/barbers", "label": "Team" },
+      { "href": "/#contact", "label": "Contact" }
+    ],
+    "groups": [
+      {
+        "id": "site",
+        "label": "Site",
+        "links": [
+          { "href": "/barbers", "label": "Team", "primary": true },
+          { "href": "/admin", "label": "Dashboard" }
+        ]
+      }
+    ],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Barber's Edge",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true,
+    "ctas": [{ "href": "/barbers", "label": "Meet the team", "variant": "primary" }]
+  },
+  "landing": {
+    "variant": "editorial",
+    "title": "Barber's Edge | Beverly, MA",
+    "description": "Old-world ritual, modern fade. Barber's Edge on Rantoul Street in Beverly, Massachusetts.",
+    "themeColor": "#f3eee4",
+    "eyebrow": "Beverly, Massachusetts",
+    "name": "Barber's Edge",
+    "role": "Barbershop",
+    "tagline": "Old-world ritual, modern fade",
+    "signature": "Barber's Edge",
+    "heroHeadline": "How a barbershop was always meant to be.",
+    "heroBody": "Quality cuts in downtown Beverly — walk in or book a chair.",
+    "scheduleUrl": "https://www.thebarbersedge.com/",
+    "contact": {
+      "heading": "Find us",
+      "phone": "(978) 720-8194",
+      "phoneHref": "tel:+19787208194",
+      "email": "barbersedge350@gmail.com",
+      "officeLines": ["324 Rantoul St", "Beverly, MA 01915"]
+    },
+    "footer": "Barber's Edge — Beverly, MA"
+  }
+}

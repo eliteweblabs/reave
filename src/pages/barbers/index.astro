@@ -1,0 +1,79 @@
+---
+import BarbersEdgeLayout from "../../layouts/BarbersEdgeLayout.astro";
+import { BARBERS_EDGE, BARBERS_EDGE_BARBERS } from "../../lib/barbersEdge";
+---
+
+<BarbersEdgeLayout
+  title={`The team — ${BARBERS_EDGE.name}`}
+  description="Meet the barbers at Barber's Edge in Beverly, Massachusetts."
+>
+  <main class="be-team">
+    <p class="be-team__eyebrow">Meet the team</p>
+    <h1>The chairs</h1>
+    <ul>
+      {BARBERS_EDGE_BARBERS.map((barber) => (
+        <li>
+          <a href={`/barbers/${barber.slug}`}>
+            <span class="be-team__role">{barber.role}</span>
+            <strong>{barber.name}</strong>
+            <em>{barber.tagline}</em>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </main>
+</BarbersEdgeLayout>
+
+<style>
+  .be-team {
+    max-width: 32rem;
+    margin: 0 auto;
+    padding: 1.5rem 1.15rem calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+  .be-team__eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #9a8060;
+  }
+  .be-team h1 {
+    margin: 0 0 1.25rem;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 2.6rem;
+    font-weight: 600;
+  }
+  .be-team ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .be-team a {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.95rem 1rem;
+    background: #fffdf8;
+    border: 1px solid rgba(22, 20, 16, 0.1);
+    text-decoration: none;
+  }
+  .be-team__role {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #9a8060;
+  }
+  .be-team strong {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.45rem;
+    font-weight: 600;
+  }
+  .be-team em {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-style: italic;
+    color: #3d382f;
+  }
+</style>

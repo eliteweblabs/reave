@@ -27,6 +27,8 @@ export interface Props {
   heroSelector?: string;
   /** Contact section selector — first match is observed when present. */
   contactSelector?: string;
+  /** Visual-only chat — greeting and local replies, no API. */
+  mockOnly?: boolean;
 }
 
 const {
@@ -45,6 +47,7 @@ const {
   hideFabForHero = false,
   heroSelector = '.home-hero, .fx-hero, .demo-hero',
   contactSelector = '#contact, [data-home-section="contact"]',
+  mockOnly = false,
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
@@ -65,6 +68,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-sheet-id={sheetId}
   data-fab-id={fabId}
   data-reveal-fab={revealFabOnEngagement ? 'true' : undefined}
+  data-mock-only={mockOnly ? 'true' : undefined}
   data-hide-fab-for-hero={hideFabForHero ? 'true' : undefined}
   data-hero-selector={hideFabForHero ? heroSelector : undefined}
   data-contact-selector={hideFabForHero ? contactSelector : undefined}
@@ -532,6 +536,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     const storageKey = root.dataset.storageKey || '';
     const sheetId = root.dataset.sheetId || '';
     const revealFab = root.dataset.revealFab === 'true';
+    const mockOnly = root.dataset.mockOnly === 'true';
     const hideFabForHero = root.dataset.hideFabForHero === 'true';
     const heroSelector = root.dataset.heroSelector || '.home-hero, .fx-hero, .demo-hero';
     const contactSelector = root.dataset.contactSelector || '#contact, [data-home-section="contact"]';
@@ -547,7 +552,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     const form = root.querySelector<HTMLFormElement>('.aw-form');
     const input = root.querySelector<HTMLTextAreaElement>('.aw-input');
     const sendBtn = root.querySelector<HTMLButtonElement>('.aw-send');
-    if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn || !endpoint || !storageKey) return;
+    if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn || !storageKey) return;
+    if (!mockOnly && !endpoint) return;
 
     // Keep the FAB on <body> so no ancestor transform/filter breaks position:fixed.
     if (fab.parentElement !== document.body) {
@@ -649,6 +655,20 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       autosize();
       typingEl!.hidden = false;
       scrollToBottom();
+
+      if (mockOnly) {
+        window.setTimeout(() => {
+          typingEl!.hidden = true;
+          const reply = "Sounds good. Come through or book a time and we'll take care of you.";
+          renderMessage('assistant', reply);
+          history.push({ role: 'assistant', content: reply });
+          persist();
+          sending = false;
+          sendBtn!.disabled = false;
+          scrollToBottom();
+        }, 450);
+        return;
+      }
 
       try {
         const res = await fetch(endpoint, {
