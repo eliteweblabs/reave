@@ -767,6 +767,30 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     width: calc(var(--app-header-logo-h) * (926.878 / 262.015));
   }
 
+  .app-header-logo-name {
+    display: block;
+    max-width: 100%;
+    height: var(--app-header-logo-h);
+    overflow: hidden;
+    font-family: var(--font-primary);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: var(--app-header-logo-h);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    background-image: linear-gradient(
+      90deg,
+      var(--brand-pink, #f472b6) 0%,
+      var(--brand-magenta, #c026d3) 52%,
+      var(--brand-indigo, #6366f1) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
   .app-header--portal-brand .topbar-profile-btn--admin {
     background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.14);
     color: var(--portal-accent, #e9d5ff);
