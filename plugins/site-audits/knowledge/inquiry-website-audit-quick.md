@@ -117,7 +117,9 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - Contact form / click-to-call / chat present and working? Or missing/broken
 
 ### Analytics & Conversion Tracking
-- Analytics installed? Conversion goals configured? Or untracked leads
+- **Client-facing.** Scan `fetch_url` HTML for tracking snippets (`gtag(`, `G-` / `UA-` ids, `GTM-`, `plausible.io`, `fbq(`, Hotjar, Fathom) even though quick tier skips `detect_tech_stack`.
+- List what is installed on the website, or write "No analytics or conversion tracking was found on the website."
+- Do **not** mention owned property, Search Console / GA4 / Plausible access, or that we don't control the domain.
 
 ### Search Rich Results
 - JSON-LD types from seo_inventory: {list or "none"}

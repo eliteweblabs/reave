@@ -20,7 +20,7 @@ If any tool returns `error: "ANALYTICS_FAILED"` (quota, auth, unverified propert
 2. Do **not** invent clicks, impressions, or traffic numbers
 3. Do **not** retry the failed analytics tool
 4. Continue the rest of the audit (Lighthouse, SSL, etc.)
-5. That failed subsection must **not** be treated as client-portal diagnostic content (portal filters unavailable analytics)
+5. That failed subsection must **not** be treated as client-portal diagnostic content. The client **Analytics & Conversion Tracking** card is a site-install check (HTML / tech stack) — never write "no owned property", "we don't control this domain", or Search Console access notes there.
 
 ## Full audit tools (read path)
 
