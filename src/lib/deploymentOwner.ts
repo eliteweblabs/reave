@@ -68,9 +68,20 @@ export async function isDeploymentOwner(context: APIContext): Promise<boolean> {
   const { userId } = context.locals.auth();
   if (!userId) return false;
   if (isDeploymentOwnerId(userId)) return true;
+  // When AGENT_ALERT_USER_ID is configured, owner access is ID-only — do not
+  // fall back to username/email matching (prevents Clerk account squatting).
+  if (agentAlertUserId()) return false;
   const user = await getAuthUser(context);
   if (!user) return false;
   return isDeploymentOwnerUser(user);
+}
+
+/** Returns a 403 Response when the viewer is signed in but not the deployment owner. */
+export async function denyUnlessDeploymentOwner(context: APIContext): Promise<Response | null> {
+  const { userId } = context.locals.auth();
+  if (!userId) return null;
+  if (await isDeploymentOwner(context)) return null;
+  return new Response('Forbidden', { status: 403 });
 }
 
 export async function requireDeploymentOwner(
@@ -84,6 +95,12 @@ export async function requireDeploymentOwner(
     });
   }
   if (isDeploymentOwnerId(userId)) return { userId };
+  if (agentAlertUserId()) {
+    return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   const user = await getAuthUser(context);
   if (!user || !isDeploymentOwnerUser(user)) {
     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), {

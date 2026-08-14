@@ -664,6 +664,31 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   async function loadClients() {
     countEl.textContent = 'Loading pins…';
+
+    if (window.__clientsMapPayload) {
+      const data = window.__clientsMapPayload;
+      if (!data?.ok) {
+        setStatus(data?.error || 'Could not load contacts.', true);
+        return;
+      }
+      clients = Array.isArray(data.clients) ? data.clients : [];
+      counts = {
+        all: data.counts?.all ?? clients.length,
+        professional: data.counts?.professional ?? 0,
+        service: data.counts?.service ?? 0,
+        proposed: data.counts?.proposed ?? 0,
+        personal: data.counts?.personal ?? 0,
+        located: data.counts?.located ?? clients.filter((c) => c.located).length,
+      };
+      for (const row of togglesEl.querySelectorAll('.cgm-toggle')) {
+        const k = row.getAttribute('data-kind');
+        if (k) syncToggleRow(/** @type {HTMLElement} */ (row), k);
+      }
+      renderCount();
+      if (mapReady) renderMarkers({ refit: true });
+      return;
+    }
+
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = controller
       ? window.setTimeout(() => controller.abort(), 45000)

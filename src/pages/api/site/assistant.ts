@@ -6,6 +6,8 @@
  * `src/lib/siteAssistant.ts`.
  */
 import type { APIRoute } from 'astro';
+import { parseAssistantHistory } from '../../../lib/assistantHistory';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { hasFeature } from '../../../lib/features';
 import {
@@ -24,45 +26,25 @@ const MAX_MESSAGE_CHARS = 2_000;
 const MAX_HISTORY_TURNS = 20;
 const MAX_HISTORY_TURN_CHARS = 4_000;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
-
-function parseHistory(raw: unknown): SiteAssistantTurn[] {
-  if (!Array.isArray(raw)) return [];
-  const out: SiteAssistantTurn[] = [];
-  for (const item of raw.slice(-MAX_HISTORY_TURNS)) {
-    if (!item || typeof item !== 'object') continue;
-    const rec = item as Record<string, unknown>;
-    const role = rec.role === 'assistant' ? 'assistant' : rec.role === 'user' ? 'user' : null;
-    const content = typeof rec.content === 'string' ? rec.content.trim() : '';
-    if (!role || !content) continue;
-    out.push({ role, content: content.slice(0, MAX_HISTORY_TURN_CHARS) });
-  }
-  return out;
-}
-
 export const POST: APIRoute = async ({ request }) => {
   if (!hasFeature('portal_assistant') || !isSiteAssistantConfigured()) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
+  const parsed = await readJsonBody(request);
+  if (parsed instanceof Response) return parsed;
+  const { body } = parsed;
 
   const message = typeof body.message === 'string' ? body.message.trim() : '';
-  if (!message) return json({ ok: false, error: 'message is required' }, 400);
+  if (!message) return jsonResponse({ ok: false, error: 'message is required' }, 400);
   if (message.length > MAX_MESSAGE_CHARS) {
-    return json({ ok: false, error: 'Message is too long.' }, 400);
+    return jsonResponse({ ok: false, error: 'Message is too long.' }, 400);
   }
-  const history = parseHistory(body.history);
+  const history = parseAssistantHistory<SiteAssistantTurn>(
+    body.history,
+    MAX_HISTORY_TURNS,
+    MAX_HISTORY_TURN_CHARS,
+  );
   let pagePath = normalizeSiteAssistantPagePath(
     typeof body.pagePath === 'string' ? body.pagePath : '',
   );
@@ -77,7 +59,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const rate = checkPortalAssistantRateLimit(`site:${clientIp(request)}`);
   if (!rate.ok) {
-    return json(
+    return jsonResponse(
       { ok: false, error: "You're sending messages a bit fast — please wait a moment and try again." },
       429,
     );
@@ -100,6 +82,6 @@ export const POST: APIRoute = async ({ request }) => {
     history,
   });
 
-  if (!result.ok) return json({ ok: false, error: result.error }, 502);
-  return json({ ok: true, reply: result.reply });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 502);
+  return jsonResponse({ ok: true, reply: result.reply });
 };
