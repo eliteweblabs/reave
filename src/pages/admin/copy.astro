@@ -35,7 +35,7 @@ const appName = company.name || "Business OS";
       <p class="otp-copy-kicker">{appName}</p>
       <h1>Verification code</h1>
       <p id="otp-code" class="otp-copy-code" aria-live="polite">…</p>
-      <p id="otp-status" class="otp-copy-status">Copying…</p>
+      <p id="otp-status" class="otp-copy-status">Tap Copy code</p>
       <button type="button" id="otp-copy-btn" class="otp-copy-btn">Copy code</button>
       <p class="otp-copy-hint">Paste on this phone or your laptop. This page does not open a link.</p>
     </main>
@@ -79,15 +79,24 @@ const appName = company.name || "Business OS";
         }
 
         async function writeClipboard(text) {
+          var wrote = false;
           try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
               await navigator.clipboard.writeText(text);
-              return true;
+              wrote = true;
             }
           } catch (e) {
-            /* fall through */
+            wrote = false;
           }
-          return fallbackCopy(text);
+          if (!wrote) wrote = fallbackCopy(text);
+          if (wrote && navigator.clipboard && navigator.clipboard.readText) {
+            try {
+              if ((await navigator.clipboard.readText()) !== text) return false;
+            } catch (e) {
+              /* read may be denied; keep wrote */
+            }
+          }
+          return wrote;
         }
 
         async function codeFromStash() {
@@ -125,8 +134,7 @@ const appName = company.name || "Business OS";
             show('', 'No code waiting', false);
             return;
           }
-          show(code, 'Copying…', false);
-          await copyNow(code);
+          show(code, 'Tap Copy code, then paste on this phone or your laptop.', false);
         }
 
         if (btn) {

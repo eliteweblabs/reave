@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260813 — OTP tap copies the code; never opens the email or a sign-in link. */
+   v20260813b — OTP tap opens the installed admin PWA with a Copy code sheet. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -103,7 +103,9 @@ function otpCodeFromNotificationText(title, body) {
 
 function otpCopyPageUrl(code) {
   const trimmed = String(code || '').trim();
-  return trimmed ? `/admin/copy#c=${encodeURIComponent(trimmed)}` : '/admin/copy';
+  // Same document as the installed PWA start_url. iOS ignores openWindow to
+  // /admin/copy (a different page) and then nothing appears.
+  return trimmed ? `/admin/?copy=1#c=${encodeURIComponent(trimmed)}` : '/admin/?copy=1';
 }
 
 /** Copy the OTP — never open the inbox or a sign-in URL. */
@@ -117,8 +119,17 @@ async function deliverOtpCopy(opts) {
   await stashPendingOtpCopy({ code, emailId, alertId });
 
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  let focused = false;
   for (const client of clients) {
     client.postMessage(message);
+    if (!focused && 'focus' in client) {
+      try {
+        await client.focus();
+        focused = true;
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   if (self.clients.openWindow) {
@@ -359,7 +370,7 @@ self.addEventListener('notificationclick', (event) => {
         verificationCode
           ? deliverOtpCopy({ code: verificationCode, emailId, alertId })
           : self.clients.openWindow
-            ? self.clients.openWindow('/admin/copy')
+            ? self.clients.openWindow('/admin/?copy=1')
             : Promise.resolve(),
         notifyClientsInboxPush(),
       ]),

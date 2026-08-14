@@ -2960,6 +2960,29 @@ function otpCodeFromNotificationText(title, detail) {
   return '';
 }
 
+function otpCodeFromHash(hash) {
+  const raw = String(hash || '').replace(/^#/, '');
+  if (!raw) return '';
+  try {
+    const params = new URLSearchParams(raw.includes('=') ? raw : `c=${raw}`);
+    return String(params.get('c') || '').trim();
+  } catch {
+    return raw.replace(/^c=/i, '').trim();
+  }
+}
+
+/** Capture before boot rewrites ?tab= / hash via syncAdminTabUrl. */
+const launchOtpCopy = (() => {
+  try {
+    const url = new URL(window.location.href);
+    const code = otpCodeFromHash(url.hash);
+    const wanted = url.searchParams.get('copy') === '1' || Boolean(code);
+    return { wanted, code };
+  } catch {
+    return { wanted: false, code: '' };
+  }
+})();
+
 async function copyOtpFromReviewAlert(item, btn) {
   let code = String(item?.verificationCode || '').trim();
   if (!code && item?.emailId) {
@@ -9117,6 +9140,9 @@ function syncAdminTabUrl(key, opts = {}) {
       url.searchParams.delete('booking');
     }
 
+    url.searchParams.delete('copy');
+    if (/^#c=/i.test(url.hash)) url.hash = '';
+
     const next = url.pathname + url.search + url.hash;
     const current = location.pathname + location.search + location.hash;
     if (next !== current) history.replaceState({}, '', next);
@@ -9166,8 +9192,14 @@ function handleNotificationOpen(url) {
   if (!url) return;
   try {
     const u = new URL(url, window.location.origin);
-    if (u.pathname.replace(/\/$/, '') === '/admin/copy') {
-      void consumePendingOtpCopy();
+    if (
+      u.pathname.replace(/\/$/, '') === '/admin/copy' ||
+      u.searchParams.get('copy') === '1' ||
+      otpCodeFromHash(u.hash)
+    ) {
+      const code = otpCodeFromHash(u.hash);
+      if (code) void handleOtpCopyFromPush({ code });
+      else void consumePendingOtpCopy();
       return;
     }
     const tab = resolveMapKey(u.searchParams.get('tab'));
@@ -13307,20 +13339,74 @@ async function clipboardLooksLike(text) {
   }
 }
 
+function hideOtpCopyOverlay() {
+  const root = document.getElementById('admin-otp-copy-overlay');
+  if (root) root.hidden = true;
+}
+
+function ensureOtpCopyOverlay() {
+  let root = document.getElementById('admin-otp-copy-overlay');
+  if (root) return root;
+  root = document.createElement('div');
+  root.id = 'admin-otp-copy-overlay';
+  root.className = 'admin-otp-copy-overlay';
+  root.hidden = true;
+  root.innerHTML =
+    `<div class="admin-otp-copy-card" role="dialog" aria-modal="true" aria-labelledby="admin-otp-copy-title">` +
+    `<p class="admin-otp-copy-kicker">Verification code</p>` +
+    `<h2 id="admin-otp-copy-title">Tap Copy code</h2>` +
+    `<p class="admin-otp-copy-code" id="admin-otp-copy-code"></p>` +
+    `<p class="admin-otp-copy-status" id="admin-otp-copy-status">iPhone cannot copy from a notification tap. Use the button.</p>` +
+    `<button type="button" class="admin-otp-copy-btn" id="admin-otp-copy-btn">Copy code</button>` +
+    `<p class="admin-otp-copy-hint">Then paste on this phone or your laptop.</p>` +
+    `</div>`;
+  const closeBtn = createIosIconBtn({
+    iconKey: 'x',
+    label: 'Close',
+    className: 'admin-otp-copy-close',
+    onClick: () => hideOtpCopyOverlay(),
+  });
+  root.querySelector('.admin-otp-copy-card')?.prepend(closeBtn);
+  root.querySelector('#admin-otp-copy-btn')?.addEventListener('click', async () => {
+    const code = String(root.dataset.code || '').trim();
+    if (!code) return;
+    const ok = await copyEmailVerificationCode(code, null, { fromPrompt: true });
+    const status = root.querySelector('#admin-otp-copy-status');
+    const btn = root.querySelector('#admin-otp-copy-btn');
+    if (status) {
+      status.textContent = ok
+        ? 'Copied — paste on this phone or your laptop'
+        : 'Copy failed — long-press the code instead';
+    }
+    if (btn) btn.textContent = ok ? 'Copied' : 'Copy code';
+  });
+  document.body.appendChild(root);
+  return root;
+}
+
+/** Always show the code + a real tap target. Silent clipboard writes fail on iOS. */
+function showOtpCopyOverlay(code) {
+  const text = String(code || '').trim();
+  if (!text) return;
+  const root = ensureOtpCopyOverlay();
+  root.dataset.code = text;
+  const codeEl = root.querySelector('#admin-otp-copy-code');
+  const status = root.querySelector('#admin-otp-copy-status');
+  const btn = root.querySelector('#admin-otp-copy-btn');
+  if (codeEl) codeEl.textContent = text;
+  if (status) {
+    status.textContent = 'Tap Copy code, then paste on this phone or your laptop.';
+  }
+  if (btn) btn.textContent = 'Copy code';
+  root.hidden = false;
+}
+
 /** One-tap fallback when iOS blocks clipboard writes without a fresh gesture. */
 async function promptCopyOtpCode(code) {
   const text = String(code || '').trim();
   if (!text) return false;
-  const ok = await osConfirm({
-    title: 'Verification code',
-    bodyHtml:
-      `<p class="admin-otp-code-display">${escHtml(text)}</p>` +
-      `<p>Tap Copy code, then paste in Safari.</p>`,
-    confirmLabel: 'Copy code',
-    cancelLabel: 'Not now',
-  });
-  if (!ok) return false;
-  return copyEmailVerificationCode(text, null, { fromPrompt: true });
+  showOtpCopyOverlay(text);
+  return false;
 }
 
 async function copyEmailVerificationCode(code, nearEl, opts = {}) {
@@ -13372,7 +13458,7 @@ async function handleOtpCopyFromPush(data) {
     otpCopyInFlightTimer = 0;
   }, 2500);
   await clearPendingOtpCopyStash();
-  await copyEmailVerificationCode(code, null, { preferPromptOnFail: true });
+  showOtpCopyOverlay(code);
 }
 
 async function handleOtpDeleteFromPush(data) {
@@ -13389,6 +13475,13 @@ async function handleOtpDeleteFromPush(data) {
 
 /** Cold-start path: SW stashes the code before openWindow. */
 async function consumePendingOtpCopy() {
+  const fromLaunch = String(launchOtpCopy.code || '').trim();
+  if (fromLaunch) {
+    launchOtpCopy.code = '';
+    launchOtpCopy.wanted = false;
+    await handleOtpCopyFromPush({ code: fromLaunch });
+    return;
+  }
   try {
     const cache = await caches.open('reave-otp-v1');
     const res = await cache.match('/pending-otp-copy');
@@ -13935,6 +14028,7 @@ async function boot() {
   syncSpecialPageChrome();
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
+  void consumePendingOtpCopy();
 }
 
 boot().catch(showBootError);
@@ -13986,6 +14080,7 @@ document.addEventListener('visibilitychange', () => {
     if (isDeploymentOwnerClient) startDeployPoll();
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();
+    void consumePendingOtpCopy();
   }
 });
 

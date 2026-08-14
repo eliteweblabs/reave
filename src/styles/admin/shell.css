@@ -535,6 +535,82 @@ select,
   color: #fef3c7;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
+.admin-otp-copy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(1.25rem + env(safe-area-inset-top)) 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  background: rgba(6, 8, 12, 0.72);
+  backdrop-filter: blur(10px);
+}
+.admin-otp-copy-overlay[hidden] {
+  display: none;
+}
+.admin-otp-copy-card {
+  position: relative;
+  width: min(22rem, 100%);
+  padding: 1.5rem 1.25rem 1.35rem;
+  border-radius: 1.15rem;
+  background: #12161f;
+  color: #f8fafc;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+.admin-otp-copy-close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  color: #94a3b8;
+}
+.admin-otp-copy-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.admin-otp-copy-card h2 {
+  margin: 0.35rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+.admin-otp-copy-code {
+  margin: 0.85rem 0 0;
+  font-size: 2.15rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #fde68a;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.admin-otp-copy-status,
+.admin-otp-copy-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+.admin-otp-copy-hint {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+.admin-otp-copy-btn {
+  appearance: none;
+  margin-top: 1rem;
+  border: 0;
+  border-radius: 999px;
+  min-width: 11rem;
+  padding: 0.85rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: #0a0d14;
+  background: #fde68a;
+}
 .admin-otp-sender,
 .admin-otp-expiry {
   margin: 0.25rem 0 0;
