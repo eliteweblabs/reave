@@ -2,11 +2,13 @@
  * Shake-to-undo for reversible admin actions (e.g. dismissing a dashboard notification).
  *
  * Flow: optimistic UI → short undo window → commit. Shake (when motion is available)
- * or tapping Undo? cancels the commit and runs the undo callback.
+ * or tapping the undo control cancels the commit and runs the undo callback.
  *
  * iOS 13+ requires DeviceMotionEvent.requestPermission() from a user gesture; call
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
  */
+
+import { iosIcon } from './admin-ui.js?v=20260813a';
 
 const UNDO_WINDOW_MS = 5000;
 const SHAKE_THRESHOLD = 18;
@@ -132,7 +134,10 @@ function showUndoToast(onUndo) {
     document.body.appendChild(toast);
   }
 
-  toast.textContent = 'Undo?';
+  toast.textContent = '';
+  toast.setAttribute('aria-label', 'Undo');
+  toast.title = 'Undo';
+  toast.innerHTML = iosIcon('undo', 20);
   toast.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();

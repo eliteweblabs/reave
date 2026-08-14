@@ -861,17 +861,17 @@ body.admin-split-view #chat-panel .ch-compose {
   top: calc(var(--safe-top) + 1.25rem);
   bottom: auto;
   transform: translateX(-50%) translateY(-0.5rem);
-  padding: 0.78rem 1.4rem;
+  padding: 0.7rem;
   border: none;
   border-radius: 999px;
-  font-family: var(--font-primary);
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: #0b0512;
+  color: #fff;
   background: var(--brand-gradient);
   box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
-  white-space: nowrap;
   cursor: pointer;
+}
+.ch-undo-toast svg {
+  display: block;
+  flex-shrink: 0;
 }
 .ch-undo-toast.ch-toast-visible {
   transform: translateX(-50%) translateY(0);
