@@ -265,10 +265,10 @@ async function runProposalResearch(input: {
     placesLines.push(
       '',
       'CRITICAL — Google Places API (already checked when the contact was created):',
-      `Google Places returned **no exact address match** for "${q}". ` +
+      `Google Places returned **no business match** for "${q}". ` +
         `${input.business || 'This business'} is **not listed in the Google Places API**. ` +
         'You MUST state this explicitly in the Online Presence section as ' +
-        '`Google Business Profile: Missing — not listed in the Google Places API (no exact address match)` ' +
+        '`Google Business Profile: Missing — not listed in the Google Places API (no business match found)` ' +
         'and include a Problem → Solution opportunity about claiming / creating their Google Business Profile. ' +
         'Do not soften or omit this — the client must be 100% aware.',
     );
@@ -341,7 +341,7 @@ async function runProposalResearch(input: {
     }
   }
 
-  // Hard guarantee: if Places had no exact address match, the finished audit
+  // Hard guarantee: if Places had no business-name match, the finished audit
   // body always says so — even when the agent softens or omits the finding.
   await ensurePlacesNotListedOnAuditWork({
     jobSlug: input.jobSlug,

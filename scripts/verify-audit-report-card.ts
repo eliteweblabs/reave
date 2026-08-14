@@ -8,6 +8,8 @@
  */
 import assert from 'node:assert/strict';
 import { buildAuditReportCard, labPerformanceToGrade } from '../src/lib/auditReportCard.ts';
+import { rewriteGooglePlacesNotListedCopy } from '../src/lib/auditPlacesListing.ts';
+import { isBusinessNameMatch } from '../src/lib/googlePlacesAutocomplete.ts';
 import { formatLighthouseResults } from '../src/lib/lighthouseClient.ts';
 
 function playbook(opts: {
@@ -319,6 +321,47 @@ Scores — performance: 84, accessibility: 88, best-practices: 79, seo: 92
   assert.equal(analytics?.grade, 'C');
   assert.match(analytics?.finding || '', /conversion goals are not configured/i);
   console.log('ok — installed analytics without goals is a C');
+}
+
+{
+  assert.equal(
+    rewriteGooglePlacesNotListedCopy(
+      'Google Business Profile: Missing — not listed in the Google Places API (no exact address match).',
+    ),
+    'Google Business Profile: Missing — not listed in the Google Places API (no business match found).',
+  );
+  assert.equal(
+    isBusinessNameMatch("Joe's Pizza", "Joe's Pizza, Springfield, IL"),
+    true,
+    'city-only Places hit still counts as a business match',
+  );
+  assert.equal(
+    isBusinessNameMatch("Joe's Pizza", '123 Main St, Springfield, IL'),
+    false,
+    'street-only prediction is not a business match',
+  );
+  console.log('ok — Places listing is a business-name match, not an address match');
+}
+
+{
+  const r = buildAuditReportCard({
+    title: 'Maps miss audit',
+    tags: ['siri-audit', 'quick-audit'],
+    source: 'siri_audit',
+    clientName: 'Joe\'s Pizza',
+    googlePlacesListed: false,
+    body: `${playbook({ name: "Joe's Pizza", mobile: 80, desktop: 90 })}
+
+### Online Presence
+- Google Business Profile: Missing — not listed in the Google Places API (no exact address match).
+`,
+  });
+  assert.ok(r);
+  const maps = r!.categories.find((c) => c.id === 'local_listings');
+  const blob = `${maps?.finding || ''}\n${(maps?.why || []).join('\n')}`;
+  assert.match(blob, /no business match found|not listed in the Google Places API/i);
+  assert.equal(/exact address match/i.test(blob), false, 'old address-match copy must not reach the client');
+  console.log('ok — Maps & Directories says no business match found');
 }
 
 console.log('all audit report-card checks passed');

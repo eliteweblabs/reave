@@ -2,7 +2,7 @@
  * Best-effort Google Places address for new business contacts.
  * Sets portal.address (+ Mapbox geocode) from company or contact name.
  *
- * When Places cannot return an exact street-level match, the miss is persisted
+ * When Places cannot return a business-name match, the miss is persisted
  * on the portal (`placesListing`) so audits can surface it with certainty.
  */
 
@@ -15,7 +15,7 @@ import {
   type ClientPortal,
   type PlacesListingRecord,
 } from './contactApi';
-import { lookupBusinessAddressMatch } from './googlePlacesAutocomplete';
+import { hasStreetAddress, lookupBusinessAddressMatch } from './googlePlacesAutocomplete';
 
 const KINDS_WITH_ADDRESS_LOOKUP = new Set(['professional', 'proposed', 'service']);
 
@@ -139,9 +139,12 @@ export async function enrichContactAddressFromPlaces(
       return { saved: false, listing };
     }
 
-    const saved = await setClientPortalAddress(trimmedUid, match.place.description);
+    const canSaveAddress = hasStreetAddress(match.place.description);
+    const saved = canSaveAddress
+      ? await setClientPortalAddress(trimmedUid, match.place.description)
+      : { ok: true as const };
     const listing = listingNow({
-      // Save failure is not "not listed" — Places matched; persist failed separately.
+      // Listed = Places found the business by name. Address save is optional.
       status: saved.ok ? 'matched' : 'unavailable',
       query,
       address: match.place.description,
