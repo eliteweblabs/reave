@@ -4,9 +4,13 @@
  */
 
 import type { EmailInboxRecord } from './emailInboxStore';
+import { suggestRuleDraftFromEmail } from './emailRuleDraft';
 import { storeCreateEmailRule } from './emailRuleStore';
 import type { RuleField } from './emailRules';
 import { storeWriteKnowledge } from './knowledgeStore';
+
+export type { RuleDraftSource, SuggestedRuleDraft } from './emailRuleDraft';
+export { parseFromAddress, suggestRuleDraftFromEmail } from './emailRuleDraft';
 
 export type EmailTriageFeedbackAction = 'expected' | 'important' | 'ignore' | 'teach' | 'accepted';
 
@@ -28,22 +32,6 @@ export function isEmailAwaitingTriage(
   pendingReview: boolean,
 ): boolean {
   return pendingReview && !record.automationTriageAt && !record.automationAckAt;
-}
-
-export function extractPhrases(record: Pick<EmailInboxRecord, 'subject' | 'summary' | 'status'>): string[] {
-  const blob = [record.subject, record.summary].filter(Boolean).join(' ');
-  const words = blob
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
-  const unique = [...new Set(words)].slice(0, 4);
-  if (unique.length) return unique;
-  const status = record.status?.trim();
-  if (status && status !== 'UNMATCHED') return [status.toLowerCase()];
-  const subject = record.subject?.trim();
-  if (subject && subject.length >= 4) return [subject.slice(0, 60).toLowerCase()];
-  return ['inbound mail'];
 }
 
 const STOP_WORDS = new Set([
@@ -68,6 +56,22 @@ const STOP_WORDS = new Set([
   'would',
   'your',
 ]);
+
+export function extractPhrases(record: Pick<EmailInboxRecord, 'subject' | 'summary' | 'status'>): string[] {
+  const blob = [record.subject, record.summary].filter(Boolean).join(' ');
+  const words = blob
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
+  const unique = [...new Set(words)].slice(0, 4);
+  if (unique.length) return unique;
+  const status = record.status?.trim();
+  if (status && status !== 'UNMATCHED') return [status.toLowerCase()];
+  const subject = record.subject?.trim();
+  if (subject && subject.length >= 4) return [subject.slice(0, 60).toLowerCase()];
+  return ['inbound mail'];
+}
 
 function slugify(input: string): string {
   return input
@@ -95,38 +99,42 @@ export async function createTriageFeedback(opts: {
   }
 
   const ctx = opts.context;
-  const phrases = extractPhrases(ctx);
-  const fields: RuleField[] = ['subject', 'body'];
+  const draft = suggestRuleDraftFromEmail(ctx);
+  const phrases = draft?.phrases.length ? draft.phrases : extractPhrases(ctx);
+  const fields: RuleField[] = draft?.fields?.length ? draft.fields : ['subject', 'body'];
   let notify = false;
   let status = 'AUTO_ARCHIVED';
-  const label = ctx.subject?.slice(0, 48) || ctx.summary?.slice(0, 48) || 'similar cases';
+  const label = draft?.title || ctx.subject?.slice(0, 48) || ctx.summary?.slice(0, 48) || 'similar cases';
   let title = `Triage: ${label}`;
-  let description = `Owner triage (${opts.feedback}) from dashboard review`;
+  let description = draft?.description || `Owner triage (${opts.feedback}) from dashboard review`;
+
+  const withEmailRecap = (lead: string) =>
+    [lead, draft?.description].filter(Boolean).join('\n\n');
 
   switch (opts.feedback) {
     case 'important':
       notify = true;
       status = 'NEEDS_CHECK';
       title = `Alert: ${label}`;
-      description = 'Owner marked similar cases as important — always notify.';
+      description = withEmailRecap('Owner marked similar cases as important — always notify.');
       break;
     case 'ignore':
       notify = false;
       status = 'DELETE';
       title = `Ignore: ${label}`;
-      description = 'Owner asked to suppress similar cases.';
+      description = withEmailRecap('Owner asked to suppress similar cases.');
       break;
     case 'teach':
       notify = true;
       status = 'NEEDS_CHECK';
       title = `Learned: ${label}`;
-      description = opts.note?.trim() || 'Owner taught handling for similar cases.';
+      description = withEmailRecap(opts.note?.trim() || 'Owner taught handling for similar cases.');
       break;
     case 'expected':
     default:
       notify = false;
       status = 'AUTO_ARCHIVED';
-      description = 'Owner marked similar cases as expected — log quietly.';
+      description = withEmailRecap('Owner marked similar cases as expected — log quietly.');
       break;
   }
 
@@ -157,7 +165,7 @@ export async function createTriageFeedback(opts: {
     status,
     description,
     phrases,
-    matchMode: 'any',
+    matchMode: draft?.matchMode || 'any',
     fields,
     notify,
     enabled: true,

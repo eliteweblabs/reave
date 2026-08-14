@@ -1745,6 +1745,37 @@ button.de-placeholder-action:active {
   overflow: auto;
   padding-right: 0.15rem;
 }
+.re-lab-source-email {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.re-lab-source-email-k {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(255, 255, 255, 0.5));
+  margin-bottom: 0.15rem;
+}
+.re-lab-source-from,
+.re-lab-source-subject {
+  word-break: break-word;
+}
+.re-lab-source-subject {
+  font-weight: 600;
+}
+.re-lab-source-snippet {
+  margin-top: 0.25rem;
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+}
 .re-lab-section-head {
   margin-bottom: 0.85rem;
 }

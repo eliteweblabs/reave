@@ -3080,7 +3080,7 @@ async function openRulesLabFromNotification(item, btn) {
     }
     const full = await fetchFullEmailRecord(ev);
     setActiveMap('rules', { force: true });
-    await openRulesLabWithEmail(full, { run: true });
+    await openRulesLabWithEmail(full, { run: true, startRule: true });
   } catch (e) {
     console.warn('[rules] open from notification failed', e);
     await osAlert({
@@ -10467,43 +10467,6 @@ function buildAgentContentPrompt(intro, metaLines, body) {
   if (trimmed) lines.push('', '---', trimmed.slice(0, 12000));
   return lines.join('\n');
 }
-
-
-async function askAgentAboutRule(rule) {
-  try {
-    const lines = [
-      'Help me understand and improve this email triage rule:',
-      '',
-      `Title: ${rule.title || rule.status}`,
-      `Status tag: ${rule.status}`,
-    ];
-    if (rule.description) lines.push(`Description: ${rule.description}`);
-    lines.push(`Match mode: ${rule.matchMode === 'all' ? 'All phrases must match' : 'Any phrase matches'}`);
-    lines.push(`Search in: ${(rule.fields || ['subject', 'body']).join(', ')}`);
-    if (rule.phrases && rule.phrases.length > 0) {
-      lines.push('', 'Keywords / phrases:');
-      for (const phrase of rule.phrases) {
-        lines.push(`  - ${phrase}`);
-      }
-    }
-    lines.push('', `Enabled: ${rule.enabled !== false ? 'Yes' : 'No'}`);
-    lines.push(`Send alert: ${rule.notify ? 'Yes' : 'No'}`);
-    lines.push(
-      `Expires: ${
-        rule.expiresAt
-          ? `${formatRuleExpiresLabel(rule.expiresAt)}${isRuleExpired(rule) ? ' (expired)' : ''}`
-          : 'Indefinite'
-      }`,
-    );
-    lines.push('', 'Please suggest improvements or explain how this rule works.');
-    await askAgentWithPrompt(lines.join('\n'));
-  } catch (e) {
-    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
-  }
-}
-
-
-
 
 
 async function confirmEmailBooking(ev, startIso, address) {
