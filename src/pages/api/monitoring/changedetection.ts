@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { serverEnv } from '../../../lib/serverEnv';
 import { hasFeature } from '../../../lib/features';
 import {
@@ -9,12 +10,6 @@ import { secretMatches } from '../../../lib/secretCompare';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 /**
  * ChangeDetection.io → Reave push bridge.

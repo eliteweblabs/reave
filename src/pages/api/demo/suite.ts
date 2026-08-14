@@ -3,6 +3,7 @@
  * POST /api/demo/suite — store demo suite in cookie and return redirect target
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import {
   DEMO_SUITE_COOKIE,
   DEMO_SUITE_COOKIE_MAX_AGE,
@@ -15,12 +16,6 @@ import {
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const url = new URL(context.request.url);

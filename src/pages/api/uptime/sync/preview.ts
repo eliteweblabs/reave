@@ -2,6 +2,7 @@
  * GET /api/uptime/sync/preview — list Kinsta/Railway URLs discovery would sync (no UptimeRobot writes).
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { hasFeature } from '../../../../lib/features';
 import { isKinstaConfigured, kinstaCollectMonitorUrls } from '../../../../lib/kinstaClient';
 import { isRailwayConfigured, railwayCollectMonitorUrls } from '../../../../lib/railwayClient';
@@ -9,12 +10,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async ({ locals }) => {
   const auth = await requireDashboardUser(context);

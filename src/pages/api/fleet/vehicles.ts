@@ -3,18 +3,13 @@
  * POST /api/fleet/vehicles — create vehicle
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { hasFeature } from '../../../lib/features';
 import { fleetCreateVehicle, fleetListVehicles, isFleetApiConfigured } from '../../../lib/fleetClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureGate(): Response | null {
   if (!hasFeature('fleet_tracking')) {

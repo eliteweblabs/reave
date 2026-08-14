@@ -3,6 +3,7 @@
  * POST /api/admin/uptimerobot — sync monitors from UptimeRobot API
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
 import { isUptimeRobotConfigured } from '../../../lib/uptimerobotClient';
@@ -11,12 +12,6 @@ import { syncUptimeMonitorsFromApi } from '../../../lib/uptimeMonitoring';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

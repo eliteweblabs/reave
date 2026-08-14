@@ -4,6 +4,7 @@
  */
 
 import { getCompanyConfig } from './companyConfig';
+import { escHtml } from './escHtml';
 import { recordContactFormEngagement } from './engagementNotifications';
 import { buildNewProjectAckEmail } from './emailScheduling';
 import { hasFeature } from './features';
@@ -52,14 +53,6 @@ function phoneToE164(raw: string): string {
   if (us.length === 10) return `+1${us}`;
   if (digits.length >= 10) return `+${digits}`;
   return '';
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function projectTitle(name: string): string {
@@ -137,13 +130,13 @@ async function sendCompanyNotify(opts: {
 }): Promise<boolean> {
   if (!opts.to.includes('@') || !isEmailSendConfigured()) return false;
   const jobLine = opts.jobSlug
-    ? `<p><strong>Project:</strong> inquiry <code>${escapeHtml(opts.jobSlug)}</code></p>`
+    ? `<p><strong>Project:</strong> inquiry <code>${escHtml(opts.jobSlug)}</code></p>`
     : '';
   const companyLine = opts.company?.trim()
-    ? `<p><strong>Company:</strong> ${escapeHtml(opts.company.trim())}</p>`
+    ? `<p><strong>Company:</strong> ${escHtml(opts.company.trim())}</p>`
     : '';
   const phoneLine = opts.phone?.trim()
-    ? `<p><strong>Phone:</strong> ${escapeHtml(opts.phone.trim())}</p>`
+    ? `<p><strong>Phone:</strong> ${escHtml(opts.phone.trim())}</p>`
     : '';
   const smsLine =
     opts.smsOptIn != null
@@ -167,15 +160,15 @@ async function sendCompanyNotify(opts: {
       .filter(Boolean)
       .join('\n'),
     html: `
-      <h2>${escapeHtml(opts.subject)}</h2>
-      <p><strong>From:</strong> ${escapeHtml(opts.name || 'Unknown')}</p>
-      <p><strong>Email:</strong> ${escapeHtml(opts.email || 'N/A')}</p>
+      <h2>${escHtml(opts.subject)}</h2>
+      <p><strong>From:</strong> ${escHtml(opts.name || 'Unknown')}</p>
+      <p><strong>Email:</strong> ${escHtml(opts.email || 'N/A')}</p>
       ${companyLine}
       ${phoneLine}
       ${smsLine}
       ${jobLine}
       <hr/>
-      <pre style="white-space: pre-wrap; font-family: inherit;">${escapeHtml(opts.message)}</pre>
+      <pre style="white-space: pre-wrap; font-family: inherit;">${escHtml(opts.message)}</pre>
     `,
   });
   if (!result.ok) {

@@ -2,18 +2,13 @@
  * GET /api/fleet/map — fleet summary + latest vehicle positions
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { hasFeature } from '../../../lib/features';
 import { fleetLatestLocations, isFleetApiConfigured } from '../../../lib/fleetClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);

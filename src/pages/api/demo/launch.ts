@@ -4,20 +4,11 @@
  * Auto sandbox redirect is paused.
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { processDemoLaunch } from '../../../lib/demoLaunch';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      ...(extraHeaders || {}),
-    },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   let body: Record<string, unknown> = {};

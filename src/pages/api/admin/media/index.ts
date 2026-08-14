@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { inferLogoUploadMediaType } from '../../../../lib/companyLogo';
 import {
   isMediaLibraryMediaType,
@@ -15,12 +16,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function inferMediaLibraryType(file: Pick<File, 'type' | 'name'>): string | null {
   const type = file.type.trim().toLowerCase();

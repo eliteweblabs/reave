@@ -7,6 +7,7 @@
  */
 
 import { sendEmail } from './outbound';
+import { escHtml } from './escHtml';
 import type { InboundEmail } from './emailRules';
 import { normalizeEmailBody } from './emailBody';
 
@@ -41,8 +42,8 @@ export async function forwardEmail(
   if (email.html) {
     const bannerHtml = `<div style="border-top:1px solid #ccc;margin:12px 0;padding-top:8px;font-size:13px;color:#555;">
 <strong>---------- Forwarded message ----------</strong><br>
-<strong>From:</strong> ${escapeHtml(originalFrom)}<br>
-<strong>Subject:</strong> ${escapeHtml(subject)}
+<strong>From:</strong> ${escHtml(originalFrom)}<br>
+<strong>Subject:</strong> ${escHtml(subject)}
 </div>`;
     htmlBody = bannerHtml + email.html;
   }
@@ -71,12 +72,4 @@ export async function forwardEmail(
   }
 
   return result;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

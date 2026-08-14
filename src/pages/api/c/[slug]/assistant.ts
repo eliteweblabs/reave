@@ -7,6 +7,7 @@
  * `src/lib/portalAssistant.ts` for the system prompt and model call.
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { getContact, extractPortal, contactStringField } from '../../../../lib/contactApi';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
@@ -33,12 +34,6 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   done: 'Complete',
 };
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function clientIp(request: Request): string {
   const fwd = request.headers.get('x-forwarded-for');

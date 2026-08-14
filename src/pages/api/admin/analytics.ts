@@ -9,6 +9,7 @@
  *   contact_uid=… (per-client token / meta)
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { buildAnalyticsDashboard } from '../../../lib/analyticsDashboard';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -22,12 +23,6 @@ import { GOOGLE_WEBMASTER_PROVIDER } from '../../../lib/googleWebmasterAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseRange(raw: string | null): number {
   const n = Number(raw);

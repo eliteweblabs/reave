@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   triageNotification,
@@ -22,12 +23,6 @@ const VALID_FEEDBACK = new Set<EmailTriageFeedbackAction>([
   'teach',
 ]);
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

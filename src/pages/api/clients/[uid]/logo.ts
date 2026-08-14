@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import {
   clearClientPortalLogo,
   getClientPortalLogoBlob,
@@ -13,12 +14,6 @@ import {
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseLogoBackground(raw: string | null): LogoBackgroundTone | 'raw' {
   // Default raw so light surfaces (email signatures) keep the original mark.

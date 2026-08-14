@@ -3,6 +3,7 @@
  * POST /api/admin/vapi — sync assistant branding from Company details
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { getCompanyBrandContext, getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -20,12 +21,6 @@ import {
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function vapiTemplatesFromCompany(company: Awaited<ReturnType<typeof getCompanyConfig>>) {
   return {

@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../../../lib/apiJson';
 import { getContact, siteBaseUrl } from '../../../../../lib/contactApi';
 import { getTemplate } from '../../../../../lib/documentTemplates';
 import { deliverShare } from '../../../../../lib/shareDelivery';
@@ -6,12 +7,6 @@ import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 /**
  * POST /api/admin/doc/:uid/send  — admin-only.

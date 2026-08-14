@@ -3,6 +3,7 @@
  * Body: { kind, channel, recipient?, url?, message?, jobSlug?, tab?, booking?, template?, docTitle? }
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   deliverShare,
@@ -13,12 +14,6 @@ import {
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const KINDS = new Set<ShareKind>(['portal', 'work', 'booking', 'document']);
 

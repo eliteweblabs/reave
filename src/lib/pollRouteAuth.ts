@@ -10,7 +10,14 @@ export async function authorizePollOrOwner(
   key: string | null,
   getExpectedSecret: () => string | null | undefined,
 ): Promise<{ via: 'key' | 'owner'; userId?: string } | Response> {
-  if (secretMatches(key, getExpectedSecret())) {
+  const expected = getExpectedSecret()?.trim();
+  if (key && !expected) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'poll secret not configured' }),
+      { status: 503, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
+    );
+  }
+  if (secretMatches(key, expected)) {
     return { via: 'key' };
   }
   const auth = await requireDashboardUser(context);

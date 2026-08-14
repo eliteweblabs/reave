@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../../lib/apiJson';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   storeListKnowledge,
@@ -16,12 +17,6 @@ import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../../lib/sideba
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

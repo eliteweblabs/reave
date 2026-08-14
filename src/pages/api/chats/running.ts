@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { listActiveRunThreadIds } from '../../../lib/agentRunControl';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { listAliveAgentRunThreadIds } from '../../../lib/pgAgentRunLeases';
@@ -6,12 +7,6 @@ import '../../../lib/processDrain';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 /**
  * GET /api/chats/running — thread ids with an in-flight agent run for the

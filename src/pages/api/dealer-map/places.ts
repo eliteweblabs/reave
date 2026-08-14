@@ -6,17 +6,12 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { searchUsedCarDealersInBounds } from '../../../lib/dealerMapPlaces';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function clientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');

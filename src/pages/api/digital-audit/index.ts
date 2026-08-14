@@ -8,6 +8,7 @@
  * beyond what the public report card needs.
  */
 import type { APIRoute } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { hasFeature } from '../../../lib/features';
 import { isContactApiConfigured } from '../../../lib/contactApi';
 import { startAuditProposal } from '../../../lib/siriAuditProposal';
@@ -25,12 +26,6 @@ const MAX_FIELD = 500;
 const BOT_UA_RE =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function trimField(raw: unknown, max = MAX_FIELD): string {
   if (typeof raw !== 'string') return '';

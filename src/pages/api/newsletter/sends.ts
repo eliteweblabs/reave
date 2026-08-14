@@ -3,6 +3,7 @@
  * Query: ?status=pending|sent|skipped|failed|canceled & ?limit=100
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { listNewsletterSends, type NewsletterSendStatus } from '../../../lib/newsletterStore';
 import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
 import { isNewsletterEnabled } from '../../../lib/newsletterEngine';
@@ -12,12 +13,6 @@ export const prerender = false;
 
 const STATUSES: NewsletterSendStatus[] = ['pending', 'sent', 'skipped', 'failed', 'canceled'];
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

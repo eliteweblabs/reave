@@ -2,6 +2,7 @@
  * GET /api/demo/loader — public demo loader catalog (modules + features + industries).
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { listEnabledDeckIndustries } from '../../../lib/deckIndustriesStore';
 import {
   defaultDemoLoaderModuleIds,
@@ -17,16 +18,6 @@ import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      ...(extraHeaders || {}),
-    },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   try {

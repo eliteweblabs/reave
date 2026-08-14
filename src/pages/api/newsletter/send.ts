@@ -4,6 +4,7 @@
  *         ctaUrl?, ctaLabel?, sendNow? }
  */
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { getNewsletterTemplate, type NewsletterTemplateId } from '../../../lib/newsletterTemplates';
 import { queueBroadcast, processDueNewsletterSends } from '../../../lib/newsletterEngine';
@@ -11,12 +12,6 @@ import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function toParagraphs(raw: unknown): string[] | undefined {
   if (Array.isArray(raw)) return raw.map((p) => String(p)).filter(Boolean);

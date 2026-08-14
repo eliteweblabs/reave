@@ -6,6 +6,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { json } from '../../../lib/apiJson';
 import type {
   ChatDocAttachment,
   ChatDocMediaType,
@@ -72,12 +73,6 @@ import '../../../lib/processDrain';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 // serverEnv, not import.meta.env — the latter is inlined at build time and so is
 // always empty for values set on the Railway service.
