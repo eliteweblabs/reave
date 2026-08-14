@@ -49,6 +49,7 @@ import {
   looksLikeFailedOrDuePayment,
   looksLikeIncomingPayment,
   looksLikePaymentNotification,
+  looksLikeShipmentNotice,
   shouldAutoFileAsReceipt,
 } from './emailMoney';
 import {
@@ -162,6 +163,7 @@ function shouldSkipAutoReceipt(opts: {
   if (opts.isProjectReply) return true;
   if (opts.category === 'junk') return true;
   if (opts.category === 'alert') return true;
+  if (opts.ruleStatus.toUpperCase() === 'AUTO_ARCHIVED') return true;
   if (isOperationalAlertStatus(opts.ruleStatus)) return true;
   return false;
 }
@@ -699,8 +701,21 @@ export async function processInboundEmail(
           ? 'Activation link — tap Activate; email deletes after use'
           : 'Activation link — open Email tab; auto-deletes soon');
     } else if (
+      looksLikeShipmentNotice({
+        from,
+        subject: email.subject ?? '',
+        summary,
+        bodyText,
+      })
+    ) {
+      category = 'junk';
+      action = 'classified';
+      inboxStatusOverride = 'AUTO_ARCHIVED';
+      routeNote = 'Shipment tracking — auto-archived (not a tax receipt)';
+    } else if (
       aiClassify.label === 'failed_payment' ||
       looksLikeFailedOrDuePayment({
+        from,
         subject: email.subject ?? '',
         summary,
         bodyText,
@@ -1117,6 +1132,30 @@ export async function processInboundEmail(
       'correction',
       'Unfiled as tax receipt',
       '"Payment of $… from …" / payment-received language is money in, not an expense',
+    );
+  }
+
+  if (looksLikeShipmentNotice(moneyEv) && (category === 'receipt' || inboxStatus.toUpperCase() === 'RECEIPT')) {
+    category = 'junk';
+    action = 'classified';
+    inboxStatus = 'AUTO_ARCHIVED';
+    routeNote = 'Shipment tracking — auto-archived (not a tax receipt)';
+    pushAudit(
+      'correction',
+      'Unfiled as tax receipt',
+      'Shipment tracking / shipped notices are not expense receipts',
+    );
+  }
+
+  if (category === 'receipt' && looksLikeFailedOrDuePayment(moneyEv)) {
+    category = 'alert';
+    action = 'failed_payment';
+    inboxStatus = 'FAILED_PAYMENT';
+    routeNote = 'Payment due / Stripe Capital — not a tax/expense receipt';
+    pushAudit(
+      'correction',
+      'Unfiled as tax receipt',
+      'Stripe Capital / debit initiated / outstanding payment language is not an expense receipt',
     );
   }
 
