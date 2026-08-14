@@ -138,7 +138,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260810c';
+} from './work-panel.js?v=20260814n';
 import {
   initTodoPanel,
   todoState,
@@ -151,7 +151,7 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260810a';
+} from './todo-panel.js?v=20260814n';
 import {
   initDocumentsPanel,
   docState,
@@ -180,7 +180,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260812b';
+} from './schedule-panel.js?v=20260814n';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -193,7 +193,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260812b';
+} from './clients-panel.js?v=20260814n';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -732,6 +732,29 @@ function buildMap() {
   syncModelNodeLabels();
 }
 
+/** Dashboard notifications (and push taps) open a detail pane. Back should
+ *  return to the dashboard — not that tab's list view. */
+let openedFromDashboard = false;
+
+function markOpenedFromDashboard() {
+  openedFromDashboard = true;
+}
+
+function clearOpenedFromDashboard() {
+  openedFromDashboard = false;
+}
+
+function dashboardBackLabel(fallback) {
+  return openedFromDashboard ? 'Back to dashboard' : fallback;
+}
+
+function maybeReturnToDashboard() {
+  if (!openedFromDashboard) return false;
+  openedFromDashboard = false;
+  setActiveMap('dashboard', { force: true, refreshDashboard: true });
+  return true;
+}
+
 function setActiveMap(key, opts = {}) {
   let force = opts.force === true;
   if (
@@ -746,6 +769,11 @@ function setActiveMap(key, opts = {}) {
   if (key === activeKey && !force) {
     updateTabs();
     return;
+  }
+  if (key === 'dashboard') {
+    clearOpenedFromDashboard();
+  } else if (!opts.fromDashboard && !opts.keepReturnToDashboard) {
+    clearOpenedFromDashboard();
   }
   const prevType = MAP?.type;
   expandFooterNav();
@@ -2650,7 +2678,10 @@ function createDashTodoContent(todo) {
       `<div class="dash-event-title">${escHtml(todo.title || 'To-do')}</div>` +
       `<div class="dash-event-type">${escHtml(dashTodoSubline(todo))}</div>` +
     `</div>`;
-  btn.addEventListener('click', () => navigateToTodo(todo.id));
+  btn.addEventListener('click', () => {
+    markOpenedFromDashboard();
+    navigateToTodo(todo.id, { fromDashboard: true });
+  });
   return btn;
 }
 
@@ -2717,7 +2748,10 @@ function renderDashTodayLists(container, data, view) {
             (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
             (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
           `</div>`;
-        btn.addEventListener('click', () => openScheduleTab({ uid }));
+        btn.addEventListener('click', () => {
+          markOpenedFromDashboard();
+          openScheduleTab({ uid, fromDashboard: true });
+        });
         li.appendChild(btn);
       } else {
         li.className = 'dash-event';
@@ -3026,7 +3060,8 @@ async function activateAuthLinkFromReviewAlert(item, btn) {
       /* fall through to delete anyway */
     }
   } else if (item?.emailId) {
-    setActiveMap('email', { force: true, emailId: item.emailId });
+    markOpenedFromDashboard();
+    setActiveMap('email', { force: true, emailId: item.emailId, fromDashboard: true });
     return;
   }
   await deleteOtpFromReviewAlert(item, btn);
@@ -3079,7 +3114,8 @@ async function openRulesLabFromNotification(item, btn) {
       };
     }
     const full = await fetchFullEmailRecord(ev);
-    setActiveMap('rules', { force: true });
+    markOpenedFromDashboard();
+    setActiveMap('rules', { force: true, fromDashboard: true });
     await openRulesLabWithEmail(full, { run: true });
   } catch (e) {
     console.warn('[rules] open from notification failed', e);
@@ -3854,12 +3890,13 @@ async function confirmScheduledMeeting(item, btn) {
 }
 
 function rescheduleScheduledMeeting(item) {
+  markOpenedFromDashboard();
   if (item?.bookingUid) {
-    openScheduleTab({ uid: item.bookingUid, view: 'week' });
+    openScheduleTab({ uid: item.bookingUid, view: 'week', fromDashboard: true });
     return;
   }
   if (item?.emailId) {
-    setActiveMap('email', { force: true, emailId: item.emailId });
+    setActiveMap('email', { force: true, emailId: item.emailId, fromDashboard: true });
   }
 }
 
@@ -4012,21 +4049,26 @@ async function handleMissingWorkNotification(item) {
 }
 
 async function openReviewNotificationTarget(item) {
+  markOpenedFromDashboard();
   if (isReceiptExpenseNotification(item) && item.emailId) {
-    setActiveMap('email', { force: true, emailId: item.emailId });
+    setActiveMap('email', { force: true, emailId: item.emailId, fromDashboard: true });
     return;
   }
   if (item.type === 'push_alert') {
     if (isAuditPushAlert(item)) {
       const slug = await resolveAuditPushAlertWorkSlug(item);
       if (slug) {
-        if (!(await navigateToWorkIfExists(slug))) await handleMissingWorkNotification(item);
+        if (!(await navigateToWorkIfExists(slug, { fromDashboard: true }))) {
+          await handleMissingWorkNotification(item);
+        }
         return;
       }
     }
     const slug = workSlugFromPushAlertUrl(item.url);
     if (slug) {
-      if (!(await navigateToWorkIfExists(slug))) await handleMissingWorkNotification(item);
+      if (!(await navigateToWorkIfExists(slug, { fromDashboard: true }))) {
+        await handleMissingWorkNotification(item);
+      }
       return;
     }
     if (item.url) {
@@ -4044,22 +4086,20 @@ async function openReviewNotificationTarget(item) {
       item.type === 'demo_request') &&
     item.jobSlug
   ) {
-    if (
-      !(await navigateToWorkIfExists(item.jobSlug, { fromEmailId: item.emailId || null }))
-    ) {
+    if (!(await navigateToWorkIfExists(item.jobSlug, { fromDashboard: true }))) {
       await handleMissingWorkNotification(item);
     }
     return;
   }
   if ((item.type === 'vault_entry' || item.type === 'deck_view' || item.type === 'demo_launch') && item.contactUid) {
-    navigateToClient(item.contactUid);
+    navigateToClient(item.contactUid, { fromDashboard: true });
     return;
   }
   if (item.type === 'demo_request' && item.contactUid) {
-    navigateToClient(item.contactUid);
+    navigateToClient(item.contactUid, { fromDashboard: true });
     return;
   }
-  if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+  if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId, fromDashboard: true });
 }
 
 function isReceiptExpenseNotification(item) {
@@ -4287,8 +4327,13 @@ function buildReviewAlertBanner(item) {
         onClick: () => {
           if (item.emailId) {
             const inboxEv = emailState.allEvents.find((e) => e.id === item.emailId);
-            if (inboxEv) openScheduleFromEmail(inboxEv);
-            else setActiveMap('email', { force: true, emailId: item.emailId });
+            if (inboxEv) {
+              markOpenedFromDashboard();
+              openScheduleFromEmail(inboxEv, { fromDashboard: true });
+            } else {
+              markOpenedFromDashboard();
+              setActiveMap('email', { force: true, emailId: item.emailId, fromDashboard: true });
+            }
             return;
           }
           openReviewNotificationTarget(item);
@@ -8941,10 +8986,15 @@ let inboxBadgeTimer = null;
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
 
-function navigateToEmail(id) {
+function navigateToEmail(id, opts = {}) {
   if (!id) return;
   pendingEmailDeepLinkId = id;
-  setActiveMap('email', { force: true, emailId: id });
+  setActiveMap('email', {
+    force: true,
+    emailId: id,
+    fromDashboard: Boolean(opts.fromDashboard),
+    keepReturnToDashboard: !opts.fromDashboard,
+  });
 }
 
 function createProjectLinkChip(label, onClick) {
@@ -9202,36 +9252,37 @@ function handleNotificationOpen(url) {
       else void consumePendingOtpCopy();
       return;
     }
+    markOpenedFromDashboard();
     const tab = resolveMapKey(u.searchParams.get('tab'));
     const emailId = u.searchParams.get('email')?.trim();
     if (tab === 'email' && emailId) {
       pendingEmailDeepLinkId = emailId;
-      setActiveMap('email', { force: true, emailId });
+      setActiveMap('email', { force: true, emailId, fromDashboard: true });
       return;
     }
     const workSlug = u.searchParams.get('slug')?.trim();
     if (tab === 'work' && workSlug) {
       queueWorkDeepLink(workSlug);
-      setActiveMap('work', { force: true, workSlug });
+      setActiveMap('work', { force: true, workSlug, fromDashboard: true });
       return;
     }
     const chatId = u.searchParams.get('chat')?.trim();
     if (tab === 'chats' && chatId) {
       queueChatDeepLink(chatId);
-      setActiveMap('chats', { force: true, chatId, keepChatSession: true });
+      setActiveMap('chats', { force: true, chatId, keepChatSession: true, fromDashboard: true });
       return;
     }
     const clientUid = u.searchParams.get('client')?.trim();
     if (tab === 'clients' && clientUid) {
-      navigateToClient(clientUid);
+      navigateToClient(clientUid, { fromDashboard: true });
       return;
     }
     const bookingUid = u.searchParams.get('booking')?.trim();
     if ((tab === 'schedule' || !tab) && bookingUid) {
-      openScheduleTab({ uid: bookingUid, view: 'week' });
+      openScheduleTab({ uid: bookingUid, view: 'week', fromDashboard: true });
       return;
     }
-    if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
+    if (tab && MAPS[tab]) setActiveMap(tab, { force: true, fromDashboard: true });
   } catch {}
 }
 
@@ -9379,6 +9430,7 @@ function shouldShowChatTopbarTitle(title) {
 }
 
 function closeActiveChat() {
+  if (maybeReturnToDashboard()) return;
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   const id = chatState.activeId;
   void finalizeChatTitleIfNeeded(id).then(() => abandonDisposableChat(id)).then(async () => {
@@ -9412,7 +9464,7 @@ function buildChatPaneNavHeader() {
   const header = document.createElement('div');
   header.className = 'de-header ch-pane-header ch-pane-header--nav-only';
   header.appendChild(createPanelBackBtn({
-    label: 'Back to sessions',
+    label: dashboardBackLabel('Back to sessions'),
     onClick: () => closeActiveChat(),
   }));
   return header;
@@ -9429,7 +9481,7 @@ export function buildChatPaneHeader() {
 
   return createPaneHeader({
     className: 'ch-pane-header',
-    back: { label: 'Back to sessions', onClick: () => closeActiveChat() },
+    back: { label: dashboardBackLabel('Back to sessions'), onClick: () => closeActiveChat() },
     titleNode: main,
     // Agent model select lives in the action cluster (chat-only — other panes'
     // agent buttons triage/send-to-agent and do not open this picker).
@@ -10272,6 +10324,8 @@ initModulesPanel({ getMap: () => MAP, MAP });
 
 initTodoPanel({
   setActiveMap,
+  maybeReturnToDashboard,
+  dashboardBackLabel,
   osAlert,
   syncFooterNav,
   beginCreateDrawer,
@@ -10350,6 +10404,8 @@ initSchedulePanel({
   syncFooterNav,
   navigateToClient,
   appendEmptyDetailPane,
+  maybeReturnToDashboard,
+  dashboardBackLabel,
   MAP,
   activeKey,
 });
@@ -10358,6 +10414,8 @@ initClientsPanel({
   setActiveMap,
   osAlert,
   syncFooterNav,
+  maybeReturnToDashboard,
+  dashboardBackLabel,
   beginCreateDrawer,
   finishCreateDrawer,
   flagCreateDrawerTitleMissing,
@@ -10414,6 +10472,8 @@ initChatPanel({
 
 initWorkPanel({
   setActiveMap,
+  maybeReturnToDashboard,
+  dashboardBackLabel,
   navigateToEmail,
   navigateToChat,
   navigateToTodo,
@@ -10769,7 +10829,7 @@ async function runEmailScheduleAction(ev, action, btn) {
   }
 }
 
-function openScheduleFromEmail(ev) {
+function openScheduleFromEmail(ev, opts = {}) {
   const attendee = attendeeFromEmailEvent(ev);
   const notes = [
     ev.subject ? `Re: ${ev.subject}` : '',
@@ -10790,7 +10850,7 @@ function openScheduleFromEmail(ev) {
     minute = d.getMinutes();
   }
 
-  openScheduleTab({ date: dateKey, view: 'week' });
+  openScheduleTab({ date: dateKey, view: 'week', fromDashboard: Boolean(opts.fromDashboard) });
   void openScheduleCreateDialog({
     dateKey,
     hour,
@@ -13556,6 +13616,7 @@ function syncEmailSidebarActiveState(opts = {}) {
 }
 
 function clearEmailDetailSelection() {
+  if (maybeReturnToDashboard()) return;
   emailState.activeId = null;
   emailState.composing = false;
   getEmailPanel()?.classList.remove('em-pane-active');
@@ -13605,7 +13666,7 @@ function renderEmailPane() {
     pane.appendChild(
       createPaneHeader({
         back: {
-          label: 'Back to sent',
+          label: dashboardBackLabel('Back to sent'),
           onClick: () => clearEmailDetailSelection(),
         },
         title: sent.subject || '(no subject)',
@@ -13686,7 +13747,7 @@ function renderEmailPane() {
   pane.appendChild(
     createPaneHeader({
       back: {
-        label: 'Back to inbox',
+        label: dashboardBackLabel('Back to inbox'),
         onClick: () => clearEmailDetailSelection(),
       },
       title: ev.subject || '(no subject)',

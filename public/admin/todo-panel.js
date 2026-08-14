@@ -39,8 +39,8 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260810c';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260814n';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260814n';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260810a';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
@@ -613,6 +613,7 @@ async function closeTodoEditor(checkDirty = true) {
     navigateToWork(returnSlug);
     return;
   }
+  if (shell.maybeReturnToDashboard()) return;
   syncTodoSidebarActiveState();
   renderTodoPane();
   shell.syncFooterNav();
@@ -744,7 +745,9 @@ function renderTodoEditPane(pane, isNew) {
     back: inDrawer
       ? null
       : {
-          label: todoState.returnToWorkSlug ? `Back to ${postLower(1)}` : 'Back to to‑dos',
+          label: todoState.returnToWorkSlug
+            ? `Back to ${postLower(1)}`
+            : shell.dashboardBackLabel('Back to to‑dos'),
           onClick: () => closeTodoEditor(),
         },
     editableTitle: {
@@ -1272,9 +1275,15 @@ let pendingTodoDeepLinkId = null;
 
 function navigateToTodo(id, opts = {}) {
   if (id == null || id === '') return;
-  if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
+  if (opts.fromDashboard) todoState.returnToWorkSlug = null;
+  else if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
   pendingTodoDeepLinkId = id;
-  shell.setActiveMap('todo', { force: true, todoId: id });
+  shell.setActiveMap('todo', {
+    force: true,
+    todoId: id,
+    fromDashboard: Boolean(opts.fromDashboard),
+    keepReturnToDashboard: !opts.fromDashboard,
+  });
 }
 
 function navigateToNewTodoForProject(jobSlug) {

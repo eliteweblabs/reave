@@ -58,10 +58,10 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260810c';
+} from './work-panel.js?v=20260814n';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260812b';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260814n';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
@@ -1895,7 +1895,7 @@ function renderEditClientForm(pane) {
 function clientBackLabel() {
   if (clientState.returnToWorkSlug) return 'Back to project';
   if (clientState.returnToScheduleUid) return 'Back to schedule';
-  return 'Back to contacts';
+  return shell.dashboardBackLabel('Back to contacts');
 }
 
 async function closeClientEditor(checkDirty = true) {
@@ -1918,9 +1918,10 @@ async function closeClientEditor(checkDirty = true) {
     return;
   }
   if (returnScheduleUid) {
-    shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid });
+    shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid, keepReturnToDashboard: true });
     return;
   }
+  if (shell.maybeReturnToDashboard()) return;
   getClientsEditor()?.classList.remove('de-pane-active');
   syncClientsListActiveState();
   renderClientsPane();
@@ -2358,7 +2359,10 @@ function parseClientDeepLinkFromUrl() {
 
 function navigateToClient(uid, opts = {}) {
   if (!uid) return;
-  if (opts.fromWorkSlug) {
+  if (opts.fromDashboard) {
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+  } else if (opts.fromWorkSlug) {
     clientState.returnToWorkSlug = opts.fromWorkSlug;
     clientState.returnToScheduleUid = null;
   } else if (opts.fromScheduleUid) {
@@ -2374,7 +2378,12 @@ function navigateToClient(uid, opts = {}) {
     clientState.detailTab = 'profile';
   }
   pendingClientDeepLinkUid = uid;
-  shell.setActiveMap('clients', { force: true, clientUid: uid });
+  shell.setActiveMap('clients', {
+    force: true,
+    clientUid: uid,
+    fromDashboard: Boolean(opts.fromDashboard),
+    keepReturnToDashboard: !opts.fromDashboard,
+  });
 }
 
 async function resumeClientDetailFromUrl() {

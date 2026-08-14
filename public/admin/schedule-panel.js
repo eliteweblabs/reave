@@ -46,8 +46,8 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810c';
-import { navigateToClient } from './clients-panel.js?v=20260812b';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260814n';
+import { navigateToClient } from './clients-panel.js?v=20260814n';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -220,7 +220,12 @@ function openScheduleTab(opts = {}) {
     scheduleState.focusDate = opts.date;
     scheduleState.selectedDate = opts.date;
   }
-  shell.setActiveMap('schedule', { force: true, scheduleUid: opts.uid || null });
+  shell.setActiveMap('schedule', {
+    force: true,
+    scheduleUid: opts.uid || null,
+    fromDashboard: Boolean(opts.fromDashboard),
+    keepReturnToDashboard: !opts.fromDashboard,
+  });
 }
 
 function formatScheduleWhen(iso) {
@@ -642,6 +647,7 @@ function selectScheduleBooking(uid) {
 }
 
 function closeScheduleDetail() {
+  if (shell.maybeReturnToDashboard()) return;
   scheduleState.activeUid = null;
   getSchedulePanel()?.classList.remove('de-pane-active');
   syncScheduleActiveState();
@@ -1640,7 +1646,7 @@ function renderScheduleDetail(pane, booking) {
   pane.appendChild(
     createPaneHeader({
       back: {
-        label: 'Back to schedule',
+        label: shell.dashboardBackLabel('Back to schedule'),
         onClick: () => closeScheduleDetail(),
       },
       title: booking.title || 'Meeting',
