@@ -181,10 +181,6 @@
   padding: 0;
   background: none;
 }
-/* Grow to fill leftover width; keep content size so overflow still scrolls. */
-.panel-list-subheader--stacked > .em-filter-tabs .em-filter-tab {
-  flex: 1 0 auto;
-}
 
 /* List multi-select — icon click + long-press (see admin-ui.js bindListMultiSelect).
    Open height + margin-bottom are set in JS to match the stashed subheader so the
