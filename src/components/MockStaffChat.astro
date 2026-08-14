@@ -1,0 +1,42 @@
+---
+/**
+ * Unwired public chat — same FAB/sheet as the help assistant, static greeting
+ * only. No Live flag/badge. Used on public pages as a mock staff intro.
+ */
+import AssistantWidget from './AssistantWidget.astro';
+
+export interface Props {
+  brandTitle: string;
+  staffName?: string;
+  availableFrom?: string;
+  supportPhone?: string;
+  supportEmail?: string;
+}
+
+const {
+  brandTitle,
+  staffName = '',
+  availableFrom = 'Tuesday–Saturday, 9am–6pm',
+  supportPhone = '',
+  supportEmail = '',
+} = Astro.props;
+
+const name = staffName.trim() || brandTitle.trim() || 'us';
+const greeting = `What's up, my name is ${name}. I'm available from ${availableFrom}.`;
+---
+
+<AssistantWidget
+  instanceId="mock-staff"
+  endpoint=""
+  storageKey="sa-chat-mock-staff"
+  brandTitle={brandTitle}
+  headerTitle={name}
+  greeting={greeting}
+  fabLabel={`Chat with ${name}`}
+  footerPrefix="Urgent?"
+  supportPhone={supportPhone}
+  supportEmail={supportEmail}
+  variant="site"
+  hideFabForHero={true}
+  mockOnly={true}
+/>

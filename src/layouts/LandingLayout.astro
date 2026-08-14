@@ -7,6 +7,7 @@ import { getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import CookieNotice from "../components/CookieNotice.astro";
+import MockStaffChat from "../components/MockStaffChat.astro";
 
 export interface Props {
   title?: string;
@@ -81,6 +82,12 @@ const htmlStyle = isEditorial
   <body class={isEditorial ? "editorial-body" : "landing-body"}>
     <slot />
     <CookieNotice />
+    <MockStaffChat
+      brandTitle={company.name}
+      staffName={landing.name ?? company.name}
+      supportPhone={company.supportPhone}
+      supportEmail={company.supportEmail}
+    />
   </body>
 </html>
 
