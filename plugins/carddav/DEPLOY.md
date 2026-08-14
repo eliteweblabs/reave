@@ -25,7 +25,8 @@ stage: 2
 
 ## Checklist
 
-- [ ] Deploy contact-api + Postgres
+- [ ] Deploy contact-api + its own Postgres (`DATABASE_URL` on contact-api)
+- [ ] Confirm `GET /api/contacts` returns 200 (schema is created on boot)
 - [ ] Set `CONTACT_API_*` and `CARDDAV_*` on Astro service
 - [ ] Test CardDAV discovery at `/.well-known/carddav`
 - [ ] Pair an iPhone and verify contact sync

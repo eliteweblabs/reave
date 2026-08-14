@@ -35,6 +35,12 @@ So the client never stores a duplicate literal; one shared source, two reference
 
 For HTTP **inside** the Railway private network you can reference private hostnames instead of public URLs; your stack must listen on the right interface/port. Most setups still use `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` for simplicity unless you intentionally use internal DNS.
 
+## Schema (do not skip)
+
+`contact-api` applies `contacts` / `contact_aliases` / `contact_links` on process start. Point it at a dedicated Postgres (`DATABASE_URL`). There is no manual `npm run migrate` step on Railway.
+
+If list/resolve return 500 with `relation "contacts" does not exist`, the service is on an old image or the wrong database. Redeploy `eliteweblabs/contact-api` from `main` and confirm `GET /api/contacts` returns 200.
+
 ## Env (Reave / Astro)
 
 - `CONTACT_API_BASE_URL` — base URL for `contact-api` (no trailing slash). On Railway, prefer **`https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}`** via variable reference.

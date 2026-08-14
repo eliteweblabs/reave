@@ -32,5 +32,6 @@ stage: 1
 ## Checklist
 
 - [ ] Set `DEMO_MODE=1` and `INSTALL_CONFIG=demo`
-- [ ] Deploy sibling services (minimum: contact-api + Postgres)
+- [ ] Deploy sibling services (minimum: contact-api + its own Postgres)
+- [ ] Confirm `GET /api/contacts` returns 200 before seeding clients
 - [ ] Run demo seed and verify dashboard data
