@@ -71,7 +71,7 @@ export function getPlugin(id: string): ReavePlugin | undefined {
 }
 
 export function isPluginActive(plugin: ReavePlugin): boolean {
-  if (!hasFeature(plugin.feature)) return false;
+  if (plugin.feature && !hasFeature(plugin.feature)) return false;
   if (plugin.configured && !plugin.configured()) return false;
   return true;
 }

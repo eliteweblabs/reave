@@ -46,6 +46,8 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
 
+Clerk (`plugins/clerk-auth/`) is **core** — every package includes sign-in. It has no `features[]` flag; admin tools load when `CLERK_SECRET_KEY` / `CLERK_PLATFORM_KEY` is set.
+
 ## How Reave loads plugins
 
 1. **`src/lib/pluginRegistry.ts`** — imports each `plugins/{id}/manifest.ts`

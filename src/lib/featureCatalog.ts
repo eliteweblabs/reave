@@ -35,7 +35,6 @@ export const FEATURE_IDS = [
   'wordpress_content',
   'seo_directory',
   'event_ticketing',
-  'clerk_auth',
   'cookie_notice',
 ] as const;
 
@@ -96,7 +95,6 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',
   event_ticketing: 'Event ticketing',
-  clerk_auth: 'Clerk Authentication',
   cookie_notice: 'Cookie notice',
 };
 
@@ -135,13 +133,11 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, and Bing',
   event_ticketing:
     'Ticket sales, QR check-in, and event inventory — reference only until productized',
-  clerk_auth:
-    'Manage Clerk users, sessions, and organizations; provision client apps (Pro/Enterprise)',
   cookie_notice: 'Implied-consent cookie bar and Cookie Policy at /cookies',
 };
 
 export const CORE_FEATURE_NOTE =
-  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, passkeys, and phone sign-in are always on.';
+  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, and Clerk sign-in (passkeys, phone) are always on.';
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 
@@ -157,7 +153,7 @@ export function formatAgentCapabilityInventory(enabledIds: Iterable<string>): st
   );
   return [
     `Always-on core: ${CORE_FEATURE_NOTE}`,
-    'Sign-in on every install is Clerk (@clerk/astro): sessions, passkeys, phone, publishable keys. That is core product, not an optional extra. The clerk_auth module only adds admin tools (list/manage users, sessions, orgs) when CLERK_SECRET_KEY is set.',
+    'Sign-in on every install is Clerk (@clerk/astro): sessions, passkeys, phone, publishable keys. That is baseline on every package — not an optional module. User-admin tools (list/manage users, sessions, orgs) appear when CLERK_SECRET_KEY is set.',
     'Enabled optional modules on this install:',
     lines.length ? lines.join('\n') : '- (none listed)',
     'Modules exist in the product even when not listed here. A tool missing from this turn means the module is off or a key is unset — not that the codebase lacks the integration.',

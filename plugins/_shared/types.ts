@@ -14,7 +14,8 @@ import type { AgentToolModule } from '../../src/lib/agentTools/types';
 export interface ReavePlugin {
   /** Directory name under plugins/, e.g. billing, dev-infra */
   id: string;
-  feature: FeatureId;
+  /** Optional module id. Omit for always-on core plugins (Clerk). */
+  feature?: FeatureId;
   /** When set, plugin is active only if this returns true (API token, DB, etc.). */
   configured?: () => boolean;
   agentTools?: AgentToolModule;

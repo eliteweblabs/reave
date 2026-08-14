@@ -41,7 +41,6 @@ const FEATURE_IDS_LIST = [
   'wordpress_content',
   'seo_directory',
   'event_ticketing',
-  'clerk_auth',
   'cookie_notice',
 ] as const;
 

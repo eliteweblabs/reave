@@ -12,9 +12,7 @@ organizations, and (on Pro/Enterprise) multi-app provisioning.
 
 Set via Railway Variables → REΛVE Automation App → production.
 
-## Feature flag
-
-Add `"clerk_auth"` to the install's `features` array in `config/config-{slug}.json`.
+Clerk is baseline on every package — not an optional `features[]` module. Admin tools load when the keys above are set.
 
 ## Tools enabled by CLERK_SECRET_KEY
 

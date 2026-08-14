@@ -149,7 +149,7 @@ function renderPanel(data) {
     `<tbody>${modules.length ? modules.map(renderRow).join('') : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`}</tbody>` +
     `</table>` +
     `</div>` +
-    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts list) is always on and not listed here. Numeric IDs are for demo URLs: <code>?modules=[001,004]</code></p>` +
+    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts, Clerk sign-in) is always on and not listed here. Numeric IDs are for demo URLs: <code>?modules=[001,004]</code></p>` +
     `</div>`
   );
 }
