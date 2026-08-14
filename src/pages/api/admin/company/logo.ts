@@ -2,9 +2,10 @@ import type { APIContext } from 'astro';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import {
   clearStoredCompanyLogo,
+  setStoredCompanyConfig,
   setStoredCompanyLogo,
 } from '../../../../lib/companyConfigStore';
-import { inferLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
+import { parseCompanyBrandUpload } from '../../../../lib/companyLogo';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -33,19 +34,21 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ error: 'Missing logo file' }, 400);
   }
 
-  const mediaType = inferLogoUploadMediaType(file);
-  if (!mediaType) {
-    return json({ error: 'Logo must be PNG, JPEG, or WebP' }, 400);
-  }
-  if (file.size > LOGO_UPLOAD_MAX_BYTES) {
-    return json({ error: 'Logo too large (max 2 MB)' }, 400);
-  }
+  const parsed = await parseCompanyBrandUpload(file);
+  if (!parsed.ok) return json({ error: parsed.error }, 400);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const ok = await setStoredCompanyLogo({
-    dataBase64: buffer.toString('base64'),
-    mediaType,
-  });
+  const ok =
+    parsed.kind === 'svg'
+      ? await setStoredCompanyConfig({
+          logoSvg: parsed.svg,
+          logoData: null,
+          logoMediaType: null,
+          logoPath: null,
+        })
+      : await setStoredCompanyLogo({
+          dataBase64: parsed.dataBase64,
+          mediaType: parsed.mediaType,
+        });
   if (!ok) return json({ error: 'Failed to save logo' }, 500);
 
   const company = await getCompanyConfig(context.request);

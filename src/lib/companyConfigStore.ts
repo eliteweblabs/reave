@@ -635,6 +635,7 @@ export async function setStoredCompanyLogo(logo: StoredCompanyLogo): Promise<boo
     logoData: logo.dataBase64,
     logoMediaType: logo.mediaType,
     logoPath: null,
+    logoSvg: null,
   });
 }
 
@@ -643,6 +644,7 @@ export async function clearStoredCompanyLogo(): Promise<boolean> {
     logoData: null,
     logoMediaType: null,
     logoPath: null,
+    logoSvg: null,
   });
 }
 
@@ -663,6 +665,7 @@ export async function setStoredCompanyIcon(icon: StoredCompanyLogo): Promise<boo
     iconData: icon.dataBase64,
     iconMediaType: icon.mediaType,
     iconPath: null,
+    iconSvg: null,
   });
 }
 
@@ -671,6 +674,7 @@ export async function clearStoredCompanyIcon(): Promise<boolean> {
     iconData: null,
     iconMediaType: null,
     iconPath: null,
+    iconSvg: null,
   });
 }
 

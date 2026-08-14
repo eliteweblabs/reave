@@ -53,7 +53,7 @@ function formatDuration(seconds) {
 
 /**
  * @param {HTMLElement} container
- * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string, emptyHint?: string, showDirections?: boolean }} opts
+ * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string, emptyHint?: string, showDirections?: boolean, showOpenMaps?: boolean }} opts
  */
 export function createClientMap(container, opts = {}) {
   /** @type {import('mapbox-gl').Map | import('leaflet').Map | null} */
@@ -130,6 +130,11 @@ export function createClientMap(container, opts = {}) {
   if (opts.showDirections === false) {
     directionsBtn.hidden = true;
   }
+  if (opts.showOpenMaps === false) {
+    openMapsBtn.setAttribute('aria-hidden', 'true');
+    openMapsBtn.tabIndex = -1;
+    openMapsBtn.removeAttribute('href');
+  }
 
   function syncEmptyState() {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
@@ -138,7 +143,13 @@ export function createClientMap(container, opts = {}) {
     mapEl.hidden = !showMap;
     mapShell.hidden = !showMap;
     directionsBtn.disabled = !hasGeo || mapEngine !== 'mapbox';
-    openMapsBtn.hidden = !hasGeo;
+    if (opts.showOpenMaps === false) {
+      openMapsBtn.hidden = !hasGeo;
+      openMapsBtn.style.visibility = 'hidden';
+    } else {
+      openMapsBtn.hidden = !hasGeo;
+      openMapsBtn.style.visibility = '';
+    }
     centerBtn.disabled = !hasGeo || !mapReady;
 
     if (mapWorking || (hasGeo && !mapLoadFailed)) {
@@ -157,7 +168,7 @@ export function createClientMap(container, opts = {}) {
       emptyEl.textContent = emptyHint;
     }
 
-    if (hasGeo) {
+    if (hasGeo && opts.showOpenMaps !== false) {
       openMapsBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
         `${currentGeo.lat},${currentGeo.lng}`,
       )}`;
