@@ -101,7 +101,6 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   deBtnIconSvg,
-  downloadBrandingImage,
   paneDeleteIcon,
   paneShareIcon,
   showCopyButtonFeedback,
@@ -5626,11 +5625,7 @@ function hasLegacyCompanyIconPath(company) {
 }
 
 function hasRemovableCompanyIcon(company) {
-  return (
-    hasUploadedCompanyIconPng(company) ||
-    hasLegacyCompanyIconPath(company) ||
-    !!(company?.iconSvg?.trim())
-  );
+  return hasUploadedCompanyIconPng(company) || hasLegacyCompanyIconPath(company);
 }
 
 function hasCompanyIconMark(company) {
@@ -5665,19 +5660,29 @@ function hasCustomCompanyIcon(company) {
   return hasCompanyIconMark(company);
 }
 
-function companyIconDownloadUrl(company) {
-  const url = companyIconPreviewUrl(company);
-  if (!url) return '';
-  if (url.includes('/api/branding/icon')) {
-    try {
-      const parsed = new URL(url, window.location.origin);
-      parsed.searchParams.set('size', '512');
-      return `${parsed.pathname}${parsed.search}`;
-    } catch {
-      return url.includes('?') ? `${url}&size=512` : `${url}?size=512`;
-    }
+const BRAND_SVG_MAX_BYTES = 200_000;
+
+function svgPreviewDataUri(svg) {
+  const t = String(svg || '').trim();
+  if (!t) return '';
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(t)}`;
+}
+
+function isSvgUploadFile(file) {
+  const type = String(file?.type || '').trim().toLowerCase();
+  const name = String(file?.name || '').trim().toLowerCase();
+  return type === 'image/svg+xml' || type === 'text/xml' || type === 'application/xml' || name.endsWith('.svg');
+}
+
+async function readBrandSvgFile(file) {
+  if (!file) return { error: 'Missing SVG file.' };
+  if (!isSvgUploadFile(file)) return { error: 'File must be an SVG.' };
+  if (file.size > BRAND_SVG_MAX_BYTES) return { error: 'SVG too large (max 200 KB).' };
+  const text = (await file.text()).trim();
+  if (!text || !/<svg[\s>]/i.test(text)) {
+    return { error: 'File must contain valid <svg> markup.' };
   }
-  return url;
+  return { svg: text };
 }
 
 function bindCompanyLogoUpload(root, companyAlert) {
@@ -5686,9 +5691,6 @@ function bindCompanyLogoUpload(root, companyAlert) {
   const previewWrap = root.querySelector('#company-logo-preview-wrap');
   const preview = root.querySelector('#company-logo-preview');
   const removeBtn = root.querySelector('#company-logo-remove');
-  const downloadBtn = root.querySelector('#company-logo-download');
-
-  if (downloadBtn instanceof HTMLButtonElement) setDeBtnLabel(downloadBtn, 'Download', 'download');
 
   const refreshPreview = (company) => {
     const hasLogo = hasCustomCompanyLogo(company);
@@ -5707,21 +5709,7 @@ function bindCompanyLogoUpload(root, companyAlert) {
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasPng && !(company?.logoSource === 'admin' && company?.logoPath);
     }
-    downloadBtn?.toggleAttribute('hidden', !hasLogo);
   };
-
-  downloadBtn?.addEventListener('click', async () => {
-    const url = preview instanceof HTMLImageElement ? preview.src : '';
-    if (!url || !(downloadBtn instanceof HTMLButtonElement)) return;
-    downloadBtn.disabled = true;
-    try {
-      await downloadBrandingImage(url, 'company-logo');
-    } catch {
-      showProfileAlert(companyAlert, 'Download failed — please try again.', 'error');
-    } finally {
-      downloadBtn.disabled = false;
-    }
-  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5785,19 +5773,15 @@ function bindCompanyLogoUpload(root, companyAlert) {
   });
 }
 
-function bindCompanyIconUpload(root, companyAlert, initialCompany) {
+function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   const fileInput = root.querySelector('#company-icon-file');
   const fileWrap = root.querySelector('#company-icon-file-wrap');
   const previewWrap = root.querySelector('#company-icon-preview-wrap');
   const preview = root.querySelector('#company-icon-preview');
   const removeBtn = root.querySelector('#company-icon-remove');
-  const downloadBtn = root.querySelector('#company-icon-download');
-  let iconCompany = null;
-
-  if (downloadBtn instanceof HTMLButtonElement) setDeBtnLabel(downloadBtn, 'Download', 'download');
+  const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
 
   const refreshPreview = (company) => {
-    iconCompany = company || null;
     const hasIcon = hasCustomCompanyIcon(company);
     const hasPng = hasUploadedCompanyIconPng(company);
     const hasRemovableIcon = hasRemovableCompanyIcon(company);
@@ -5816,23 +5800,9 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasRemovableIcon;
     }
-    downloadBtn?.toggleAttribute('hidden', !hasIcon);
     window.__companyStaffAvatarUrl = avatarUrl;
     syncHeaderProfileIcon(`${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`);
   };
-
-  downloadBtn?.addEventListener('click', async () => {
-    const url = companyIconDownloadUrl(iconCompany) || (preview instanceof HTMLImageElement ? preview.src : '');
-    if (!url || !(downloadBtn instanceof HTMLButtonElement)) return;
-    downloadBtn.disabled = true;
-    try {
-      await downloadBrandingImage(url, 'company-icon');
-    } catch {
-      showProfileAlert(companyAlert, 'Download failed — please try again.', 'error');
-    } finally {
-      downloadBtn.disabled = false;
-    }
-  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5846,6 +5816,7 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
       const json = await res.json();
       if (res.ok && json.company) {
         refreshPreview(json.company);
+        onCompany?.(json.company);
         showProfileAlert(companyAlert, 'Icon updated.', 'success');
       } else {
         showProfileAlert(companyAlert, json.error || 'Icon upload failed.', 'error');
@@ -5866,9 +5837,8 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
       const res = await fetch('/api/admin/company/icon', { method: 'DELETE' });
       const json = await res.json();
       if (res.ok && json.company) {
-        const iconSvgField = root.querySelector('#company-iconSvg');
-        if (iconSvgField instanceof HTMLTextAreaElement) iconSvgField.value = '';
         refreshPreview(json.company);
+        onCompany?.(json.company);
         showProfileAlert(companyAlert, 'Icon removed — using site default.', 'success');
       } else {
         showProfileAlert(companyAlert, json.error || 'Could not remove icon.', 'error');
@@ -5893,13 +5863,138 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany) {
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'company-icon');
-        if (json.company) refreshPreview(json.company);
+        if (json.company) {
+          refreshPreview(json.company);
+          onCompany?.(json.company);
+        }
         showProfileAlert(companyAlert, 'Icon updated from library.', 'success');
       },
     });
   });
 
   return { refreshPreview };
+}
+
+function bindCompanySvgUploads(root, companyAlert, initialCompany, opts = {}) {
+  const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
+
+  async function saveSvgField(field, svg) {
+    const res = await fetch('/api/admin/company', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: svg }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.error || 'Could not save SVG.');
+    }
+    return json.company || null;
+  }
+
+  function bindSlot({
+    fileSel,
+    previewWrapSel,
+    previewSel,
+    removeSel,
+    field,
+    previewClass,
+    updatedMsg,
+    removedMsg,
+  }) {
+    const fileInput = root.querySelector(fileSel);
+    const previewWrap = root.querySelector(previewWrapSel);
+    const preview = root.querySelector(previewSel);
+    const removeBtn = root.querySelector(removeSel);
+
+    const refresh = (company) => {
+      const svg = String(company?.[field] || '').trim();
+      const uri = svgPreviewDataUri(svg);
+      if (preview instanceof HTMLImageElement) {
+        preview.src = uri;
+        preview.className = previewClass;
+      }
+      if (previewWrap instanceof HTMLElement) {
+        previewWrap.hidden = !svg;
+      }
+      if (removeBtn instanceof HTMLButtonElement) {
+        removeBtn.hidden = !svg;
+      }
+    };
+
+    fileInput?.addEventListener('change', async () => {
+      if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+      const parsed = await readBrandSvgFile(fileInput.files[0]);
+      fileInput.value = '';
+      if (parsed.error) {
+        showProfileAlert(companyAlert, parsed.error, 'error');
+        return;
+      }
+      fileInput.disabled = true;
+      if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
+      try {
+        const company = await saveSvgField(field, parsed.svg);
+        if (company) {
+          refresh(company);
+          onCompany?.(company);
+        }
+        showProfileAlert(companyAlert, updatedMsg, 'success');
+      } catch (e) {
+        showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
+      } finally {
+        fileInput.disabled = false;
+        if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
+      }
+    });
+
+    removeBtn?.addEventListener('click', async () => {
+      if (!(removeBtn instanceof HTMLButtonElement)) return;
+      removeBtn.disabled = true;
+      if (fileInput instanceof HTMLInputElement) fileInput.disabled = true;
+      try {
+        const company = await saveSvgField(field, '');
+        if (company) {
+          refresh(company);
+          onCompany?.(company);
+        }
+        showProfileAlert(companyAlert, removedMsg, 'success');
+      } catch (e) {
+        showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
+      } finally {
+        if (fileInput instanceof HTMLInputElement) fileInput.disabled = false;
+        removeBtn.disabled = false;
+      }
+    });
+
+    return refresh;
+  }
+
+  const refreshLogoSvg = bindSlot({
+    fileSel: '#company-logoSvg-file',
+    previewWrapSel: '#company-logoSvg-preview-wrap',
+    previewSel: '#company-logoSvg-preview',
+    removeSel: '#company-logoSvg-remove',
+    field: 'logoSvg',
+    previewClass: 'prof-logo-preview',
+    updatedMsg: 'Logo SVG updated.',
+    removedMsg: 'Logo SVG removed.',
+  });
+  const refreshIconSvg = bindSlot({
+    fileSel: '#company-iconSvg-file',
+    previewWrapSel: '#company-iconSvg-preview-wrap',
+    previewSel: '#company-iconSvg-preview',
+    removeSel: '#company-iconSvg-remove',
+    field: 'iconSvg',
+    previewClass: 'prof-icon-preview',
+    updatedMsg: 'Icon SVG updated.',
+    removedMsg: 'Icon SVG removed.',
+  });
+
+  const refresh = (company) => {
+    refreshLogoSvg(company);
+    refreshIconSvg(company);
+  };
+  if (initialCompany) refresh(initialCompany);
+  return { refresh };
 }
 
 function bindProfileForm(root) {
@@ -6019,12 +6114,20 @@ function bindCompanyForm(root, company, fontCatalog) {
     }
   }
 
-  bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
-  const iconBranding = bindCompanyIconUpload(root, root.querySelector('#company-alert'), company);
+  const companyAlert = root.querySelector('#company-alert');
+  let refreshIconPreview = () => {};
+  const svgBranding = bindCompanySvgUploads(root, companyAlert, company, {
+    onCompany(next) { refreshIconPreview(next); },
+  });
+  bindCompanyLogoUpload(root, companyAlert);
+  const iconBranding = bindCompanyIconUpload(root, companyAlert, company, {
+    onCompany(next) { svgBranding.refresh(next); },
+  });
+  refreshIconPreview = iconBranding.refreshPreview;
 
   bindAutosaveForm(root, {
     formSelector: '#company-form',
-    alertEl: root.querySelector('#company-alert'),
+    alertEl: companyAlert,
     async save(payload) {
       if (companyPendingGeo) payload.geo = companyPendingGeo;
       const res = await fetch('/api/admin/company', {
@@ -6035,7 +6138,10 @@ function bindCompanyForm(root, company, fontCatalog) {
       const json = await res.json();
       if (res.ok) {
         companyPendingGeo = null;
-        if (json.company) iconBranding.refreshPreview(json.company);
+        if (json.company) {
+          iconBranding.refreshPreview(json.company);
+          svgBranding.refresh(json.company);
+        }
       }
       return { ok: res.ok, error: json.error };
     },
@@ -6678,6 +6784,8 @@ function renderCompanyPanel(company, fontCatalog) {
   const hasIcon = hasCustomCompanyIcon(c);
   const hasIconPng = hasUploadedCompanyIconPng(c);
   const hasRemovableIcon = hasRemovableCompanyIcon(c);
+  const hasLogoSvg = !!(c.logoSvg && String(c.logoSvg).trim());
+  const hasIconSvg = !!(c.iconSvg && String(c.iconSvg).trim());
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -6697,7 +6805,6 @@ function renderCompanyPanel(company, fontCatalog) {
           `<span class="prof-hint prof-hint--block">Office location for the map below, driving directions, and address autocomplete defaults.</span></div>` +
           `<div id="company-map-host" class="cl-map-section"></div>` +
           `<div class="prof-field">` +
-          `<label>Branding</label>` +
           `<div class="prof-branding-uploads">` +
             `<div class="prof-branding-upload-item">` +
               `<label for="company-logo-file">Logo</label>` +
@@ -6706,7 +6813,6 @@ function renderCompanyPanel(company, fontCatalog) {
                   `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
                   `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
                 `</div>` +
-                `<button type="button" id="company-logo-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasLogo ? '' : ' hidden'}></button>` +
                 `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng ? ' hidden' : ''}>` +
                   `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
@@ -6720,7 +6826,6 @@ function renderCompanyPanel(company, fontCatalog) {
                   `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
                   `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
                 `</div>` +
-                `<button type="button" id="company-icon-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasIcon ? '' : ' hidden'}></button>` +
                 `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng ? ' hidden' : ''}>` +
                   `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
@@ -6728,11 +6833,33 @@ function renderCompanyPanel(company, fontCatalog) {
               `</div>` +
             `</div>` +
           `</div>` +
-          `<div class="prof-field"><label for="company-logoSvg">Logo SVG</label>` +
-          `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the header when no logo PNG is uploaded. Leave blank to use the logo PNG or company name.">${escHtml(c.logoSvg || '')}</textarea></div>` +
-          `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
-          `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" placeholder="Optional — paste full &lt;svg&gt;…&lt;/svg&gt; for the homepage hero. Falls back to Logo SVG, then the rasterized icon mark.">${escHtml(c.iconSvg || '')}</textarea></div>` +
-          `<span class="prof-hint prof-hint--block">Logo PNG or SVG powers the header (PNG → SVG → company name). Icon PNG or SVG is rasterized for favicons, OG, PWA, and avatars. Homepage hero uses Icon SVG, then Logo SVG, then the rasterized mark. Upload a file or pick from the Media library.</span>` +
+          `<div class="prof-branding-uploads">` +
+            `<div class="prof-branding-upload-item">` +
+              `<label for="company-logoSvg-file">Logo SVG</label>` +
+              `<div class="prof-logo-upload">` +
+                `<div id="company-logoSvg-preview-wrap" class="prof-logo-preview-wrap"${hasLogoSvg ? '' : ' hidden'}>` +
+                  `<img id="company-logoSvg-preview" class="prof-logo-preview" alt="" />` +
+                  `<button type="button" id="company-logoSvg-remove" class="prof-logo-remove" aria-label="Remove logo SVG"${hasLogoSvg ? '' : ' hidden'}>×</button>` +
+                `</div>` +
+                `<div class="prof-logo-file-wrap">` +
+                  `<input id="company-logoSvg-file" type="file" accept="image/svg+xml,.svg" />` +
+                `</div>` +
+              `</div>` +
+            `</div>` +
+            `<div class="prof-branding-upload-item">` +
+              `<label for="company-iconSvg-file">Icon SVG</label>` +
+              `<div class="prof-logo-upload">` +
+                `<div id="company-iconSvg-preview-wrap" class="prof-logo-preview-wrap"${hasIconSvg ? '' : ' hidden'}>` +
+                  `<img id="company-iconSvg-preview" class="prof-icon-preview" alt="" />` +
+                  `<button type="button" id="company-iconSvg-remove" class="prof-logo-remove" aria-label="Remove icon SVG"${hasIconSvg ? '' : ' hidden'}>×</button>` +
+                `</div>` +
+                `<div class="prof-logo-file-wrap">` +
+                  `<input id="company-iconSvg-file" type="file" accept="image/svg+xml,.svg" />` +
+                `</div>` +
+              `</div>` +
+            `</div>` +
+          `</div>` +
+          `<span class="prof-hint prof-hint--block">Logo PNG or SVG powers the header (PNG → SVG → company name). Icon PNG or SVG is rasterized for favicons, OG, PWA, and avatars. Homepage hero uses Icon SVG, then Logo SVG, then the rasterized mark. Upload a PNG, JPEG, WebP, or SVG, or pick a raster image from the Media library.</span>` +
           `<div class="prof-field prof-field--font-heading">` +
             `<div class="prof-font-heading-row">` +
               `<label>Typography</label>` +

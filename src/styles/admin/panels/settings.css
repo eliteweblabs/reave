@@ -443,6 +443,9 @@
   gap: 1.25rem;
   width: 100%;
 }
+.prof-branding-uploads + .prof-branding-uploads {
+  margin-top: 0.5rem;
+}
 .prof-branding-upload-item {
   flex: 1 1 200px;
   min-width: 0;
