@@ -43,7 +43,7 @@ import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=202
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260810a';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
-import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260814a';
 
 /** Injected by os-map-loader via initTodoPanel(). */
 let shell = {};

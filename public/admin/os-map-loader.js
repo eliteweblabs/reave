@@ -107,7 +107,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260812b';
+} from './admin-ui.js?v=20260814a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -122,7 +122,7 @@ import {
   mountListFilterTabsWrap,
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
-} from './filter-tabs.js?v=20260813a';
+} from './filter-tabs.js?v=20260814a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -12174,6 +12174,23 @@ function emailCountForActiveTab() {
   return counts.all;
 }
 
+/** Search hint for the active chip — "27 Junk Emails" / "1 Receipt Email". */
+function emailSearchPlaceholder(count = emailCountForActiveTab()) {
+  const plural = count !== 1;
+  const nouns = {
+    sent: plural ? 'Sent Emails' : 'Sent Email',
+    draft: plural ? 'Draft Emails' : 'Draft Email',
+    junk: plural ? 'Junk Emails' : 'Junk Email',
+    receipt: plural ? 'Receipt Emails' : 'Receipt Email',
+    alert: plural ? 'Alert Emails' : 'Alert Email',
+    review: plural ? 'Review Emails' : 'Review Email',
+    book: plural ? 'Book Emails' : 'Book Email',
+    project: `${postTitle(1)} Email${plural ? 's' : ''}`,
+    routed: plural ? 'Archive Emails' : 'Archive Email',
+  };
+  return `${count} ${nouns[emailState.inboxFilter] || (plural ? 'Emails' : 'Email')}`;
+}
+
 function emailSidebarEmptyInnerHtml() {
   if (emailState.search.trim()) return 'No matches.';
   if (emailState.inboxFilter === 'sent') {
@@ -12266,7 +12283,7 @@ function refreshEmailSidebarList() {
   const countForTab = emailCountForActiveTab();
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput instanceof HTMLInputElement) {
-    searchInput.placeholder = `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`;
+    searchInput.placeholder = emailSearchPlaceholder(countForTab);
   }
   fillEmailSidebarList(list);
   updateEmailFilterTabCounts(root);
@@ -12281,7 +12298,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     itemCount: countForTab,
     search: {
       value: emailState.search,
-      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`,
+      placeholder: emailSearchPlaceholder(countForTab),
       onInput: (value) => {
         emailState.search = value;
         const visible =
