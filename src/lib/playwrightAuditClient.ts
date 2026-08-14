@@ -9,7 +9,8 @@
  *  - CTA button clickability
  *  - Contact form presence and basic usability
  *  - Tap target sizing (mobile)
- *  - Issue-state screenshots when a check fails (empty hamburger nav, overflow, …)
+ *  - Issue-state screenshots when something is visually broken (empty nav,
+ *    white-on-white text, sideways overscroll, clipped text, broken images, …)
  *  - Optional full-page / nav-state context shots (not used as issue evidence)
  *
  * Results are returned for both desktop (1440×900) and mobile (375×812) viewports.
@@ -17,12 +18,17 @@
  */
 
 import {
+  classifyBrokenImages,
+  classifyClippedText,
   classifyFormNoSubmit,
   classifyHamburgerIssue,
+  classifyLowContrast,
   classifyOverflow,
+  classifyOverscroll,
   classifySmallTapTargets,
   classifyUnclickableCtas,
   issueShotFilename,
+  VISUAL_CONTRAST_MIN,
   type PlaywrightIssueKind,
 } from './playwrightIssueDetect';
 
@@ -65,6 +71,11 @@ export type ViewportResult = {
   navLinks: NavLink[];
   jsErrors: string[];
   overflowElements: number;
+  /** Extra horizontal pixels the document can scroll (0 = no sideways slide). */
+  overscrollPx: number;
+  lowContrast: number;
+  brokenImages: number;
+  clippedText: number;
   stickyHeaders: number;
   ctaButtons: { text: string; clickable: boolean }[];
   forms: { fieldCount: number; hasSubmit: boolean; fields: FormField[] }[];
@@ -101,6 +112,10 @@ export type PlaywrightAuditResponse =
         brokenNavLinks: number;
         totalJsErrors: number;
         totalOverflowElements: number;
+        overscrollPx: number;
+        lowContrast: number;
+        brokenImages: number;
+        clippedText: number;
         smallTapTargets: number;
         formsFound: number;
         ctaButtons: number;
@@ -153,7 +168,7 @@ async function loadPlaywright() {
   return pw;
 }
 
-const MAX_ISSUE_SHOTS = 6;
+const MAX_ISSUE_SHOTS = 8;
 
 async function captureIssueShot(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -190,6 +205,21 @@ async function clearIssueOutlines(
       (el as HTMLElement).style.outline = '';
     }
   }).catch(() => undefined);
+}
+
+async function markAndCapture(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  viewport: 'desktop' | 'mobile',
+  issues: PlaywrightIssueScreenshot[],
+  meta: { kind: PlaywrightIssueKind; title: string; detail: string },
+  mark: () => Promise<void>,
+): Promise<void> {
+  if (issues.length >= MAX_ISSUE_SHOTS) return;
+  await mark().catch(() => undefined);
+  await page.waitForTimeout(200);
+  await captureIssueShot(page, viewport, issues, meta);
+  await clearIssueOutlines(page);
 }
 
 // ---------------------------------------------------------------------------
@@ -324,6 +354,11 @@ async function auditViewport(
     }
   }
 
+  if (hamburgerFound) {
+    await page.keyboard.press('Escape').catch(() => undefined);
+    await page.waitForTimeout(250);
+  }
+
   // -------------------------------------------------------------------------
   // Nav links
   // -------------------------------------------------------------------------
@@ -388,34 +423,245 @@ async function auditViewport(
   // -------------------------------------------------------------------------
   // Overflow / off-screen elements
   // -------------------------------------------------------------------------
-  const overflowElements: number = await page.evaluate((vw: number) => {
-    const all = document.querySelectorAll('body *');
-    let count = 0;
-    for (const el of Array.from(all)) {
+  const layout = await page.evaluate((vw: number) => {
+    let overflowElements = 0;
+    for (const el of Array.from(document.querySelectorAll('body *'))) {
       const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.right > vw + 20) count++;
+      if (rect.width > 0 && rect.right > vw + 20) overflowElements += 1;
     }
-    return count;
+    const overscrollPx = Math.max(
+      0,
+      Math.round(document.documentElement.scrollWidth - vw),
+    );
+    return { overflowElements, overscrollPx };
   }, width);
+  const overflowElements = layout.overflowElements;
+  const overscrollPx = layout.overscrollPx;
 
-  const overflowIssue = classifyOverflow(overflowElements);
-  if (overflowIssue) {
-    await page.evaluate((vw: number) => {
-      let marked = 0;
-      for (const el of Array.from(document.querySelectorAll('body *'))) {
-        const rect = el.getBoundingClientRect();
-        if (rect.width > 0 && rect.right > vw + 20) {
+  const overscrollIssue = classifyOverscroll(overscrollPx);
+  const overflowIssue = overscrollIssue ? null : classifyOverflow(overflowElements);
+  if (overscrollIssue) {
+    await markAndCapture(page, viewport, issueScreenshots, overscrollIssue, async () => {
+      await page.evaluate((vw: number) => {
+        let marked = 0;
+        for (const el of Array.from(document.querySelectorAll('body *'))) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.right > vw + 20) {
+            el.setAttribute('data-pw-issue', 'overscroll');
+            (el as HTMLElement).style.outline = '3px solid #e11';
+            marked += 1;
+            if (marked >= 8) break;
+          }
+        }
+        const extra = Math.max(0, document.documentElement.scrollWidth - vw);
+        window.scrollTo(Math.min(extra, 96), 0);
+      }, width);
+    });
+    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => undefined);
+  } else if (overflowIssue) {
+    await markAndCapture(page, viewport, issueScreenshots, overflowIssue, async () => {
+      await page.evaluate((vw: number) => {
+        let marked = 0;
+        for (const el of Array.from(document.querySelectorAll('body *'))) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.right > vw + 20) {
+            if (marked === 0) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+            el.setAttribute('data-pw-issue', 'overflow');
+            (el as HTMLElement).style.outline = '3px solid #e11';
+            marked += 1;
+            if (marked >= 8) break;
+          }
+        }
+      }, width);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Visual breakage: unreadable contrast, broken images, clipped text
+  // -------------------------------------------------------------------------
+  const visual = await page.evaluate((minContrast: number) => {
+    const parseRgb = (input: string) => {
+      const m = input.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      if (!m) return null;
+      return { r: +m[1], g: +m[2], b: +m[3], a: m[4] == null ? 1 : +m[4] };
+    };
+    const luminance = (r: number, g: number, b: number) => {
+      const lin = [r, g, b].map((c) => {
+        const s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+    };
+    const ratio = (
+      fg: { r: number; g: number; b: number },
+      bg: { r: number; g: number; b: number },
+    ) => {
+      const L1 = luminance(fg.r, fg.g, fg.b);
+      const L2 = luminance(bg.r, bg.g, bg.b);
+      const lighter = Math.max(L1, L2);
+      const darker = Math.min(L1, L2);
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const effectiveBg = (el: Element) => {
+      let node: Element | null = el;
+      while (node) {
+        const bg = parseRgb(getComputedStyle(node).backgroundColor);
+        if (bg && bg.a > 0.6) return bg;
+        node = node.parentElement;
+      }
+      return { r: 255, g: 255, b: 255, a: 1 };
+    };
+
+    let lowContrast = 0;
+    let worstRatio = 21;
+    const textSels =
+      'p, h1, h2, h3, h4, h5, h6, a, button, li, label, td, th, span, figcaption, blockquote, small';
+    for (const el of Array.from(document.querySelectorAll(textSels)).slice(0, 250)) {
+      const text = (el.textContent || '').trim();
+      if (text.length < 2) continue;
+      const style = getComputedStyle(el);
+      if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') {
+        continue;
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 8 || rect.height < 8) continue;
+      const fg = parseRgb(style.color);
+      if (!fg || fg.a < 0.4) continue;
+      const bg = effectiveBg(el);
+      const c = ratio(fg, bg);
+      if (c < minContrast) {
+        lowContrast += 1;
+        if (c < worstRatio) worstRatio = c;
+      }
+    }
+
+    let brokenImages = 0;
+    for (const img of Array.from(document.images)) {
+      const rect = img.getBoundingClientRect();
+      if (rect.width < 8 || rect.height < 8) continue;
+      if (img.complete && img.naturalWidth === 0 && (img.currentSrc || img.src)) {
+        brokenImages += 1;
+      }
+    }
+
+    let clippedText = 0;
+    for (const el of Array.from(document.querySelectorAll(textSels)).slice(0, 250)) {
+      const style = getComputedStyle(el);
+      const hiddenX = style.overflowX === 'hidden' || style.overflow === 'hidden';
+      if (!hiddenX) continue;
+      const text = (el.textContent || '').trim();
+      if (text.length < 3) continue;
+      if (el.scrollWidth > el.clientWidth + 8) clippedText += 1;
+    }
+
+    return {
+      lowContrast,
+      worstRatio: lowContrast ? worstRatio : 21,
+      brokenImages,
+      clippedText,
+    };
+  }, VISUAL_CONTRAST_MIN);
+
+  const lowContrast = visual.lowContrast;
+  const brokenImages = visual.brokenImages;
+  const clippedText = visual.clippedText;
+
+  const contrastIssue = classifyLowContrast(lowContrast, visual.worstRatio);
+  if (contrastIssue) {
+    await markAndCapture(page, viewport, issueScreenshots, contrastIssue, async () => {
+      await page.evaluate((minContrast: number) => {
+        const parseRgb = (input: string) => {
+          const m = input.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+          if (!m) return null;
+          return { r: +m[1], g: +m[2], b: +m[3], a: m[4] == null ? 1 : +m[4] };
+        };
+        const luminance = (r: number, g: number, b: number) => {
+          const lin = [r, g, b].map((c) => {
+            const s = c / 255;
+            return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+        };
+        const ratio = (
+          fg: { r: number; g: number; b: number },
+          bg: { r: number; g: number; b: number },
+        ) => {
+          const L1 = luminance(fg.r, fg.g, fg.b);
+          const L2 = luminance(bg.r, bg.g, bg.b);
+          return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+        };
+        const effectiveBg = (el: Element) => {
+          let node: Element | null = el;
+          while (node) {
+            const bg = parseRgb(getComputedStyle(node).backgroundColor);
+            if (bg && bg.a > 0.6) return bg;
+            node = node.parentElement;
+          }
+          return { r: 255, g: 255, b: 255, a: 1 };
+        };
+        let marked = 0;
+        const textSels =
+          'p, h1, h2, h3, h4, h5, h6, a, button, li, label, td, th, span, figcaption, blockquote, small';
+        for (const el of Array.from(document.querySelectorAll(textSels))) {
+          const text = (el.textContent || '').trim();
+          if (text.length < 2) continue;
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          if (rect.width < 8 || rect.height < 8) continue;
+          const fg = parseRgb(style.color);
+          if (!fg || fg.a < 0.4) continue;
+          if (ratio(fg, effectiveBg(el)) >= minContrast) continue;
           if (marked === 0) el.scrollIntoView({ block: 'center', inline: 'nearest' });
-          el.setAttribute('data-pw-issue', 'overflow');
+          el.setAttribute('data-pw-issue', 'contrast');
           (el as HTMLElement).style.outline = '3px solid #e11';
           marked += 1;
           if (marked >= 8) break;
         }
-      }
-    }, width).catch(() => undefined);
-    await page.waitForTimeout(200);
-    await captureIssueShot(page, viewport, issueScreenshots, overflowIssue);
-    await clearIssueOutlines(page);
+      }, VISUAL_CONTRAST_MIN);
+    });
+  }
+
+  const brokenIssue = classifyBrokenImages(brokenImages);
+  if (brokenIssue) {
+    await markAndCapture(page, viewport, issueScreenshots, brokenIssue, async () => {
+      await page.evaluate(() => {
+        let marked = 0;
+        for (const img of Array.from(document.images)) {
+          const rect = img.getBoundingClientRect();
+          if (rect.width < 8 || rect.height < 8) continue;
+          if (!(img.complete && img.naturalWidth === 0 && (img.currentSrc || img.src))) continue;
+          if (marked === 0) img.scrollIntoView({ block: 'center', inline: 'nearest' });
+          img.setAttribute('data-pw-issue', 'image');
+          img.style.outline = '3px solid #e11';
+          marked += 1;
+          if (marked >= 6) break;
+        }
+      });
+    });
+  }
+
+  const clippedIssue = classifyClippedText(clippedText);
+  if (clippedIssue) {
+    await markAndCapture(page, viewport, issueScreenshots, clippedIssue, async () => {
+      await page.evaluate(() => {
+        let marked = 0;
+        const textSels =
+          'p, h1, h2, h3, h4, h5, h6, a, button, li, label, td, th, span, figcaption, blockquote, small';
+        for (const el of Array.from(document.querySelectorAll(textSels))) {
+          const style = getComputedStyle(el);
+          const hiddenX = style.overflowX === 'hidden' || style.overflow === 'hidden';
+          if (!hiddenX) continue;
+          const text = (el.textContent || '').trim();
+          if (text.length < 3) continue;
+          if (el.scrollWidth <= el.clientWidth + 8) continue;
+          if (marked === 0) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+          el.setAttribute('data-pw-issue', 'clip');
+          (el as HTMLElement).style.outline = '3px solid #e11';
+          marked += 1;
+          if (marked >= 8) break;
+        }
+      });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -567,6 +813,10 @@ async function auditViewport(
     navLinks,
     jsErrors,
     overflowElements,
+    overscrollPx,
+    lowContrast,
+    brokenImages,
+    clippedText,
     stickyHeaders,
     ctaButtons,
     forms,
@@ -594,6 +844,10 @@ function buildEmptyResult(
     navLinks: [],
     jsErrors: [],
     overflowElements: 0,
+    overscrollPx: 0,
+    lowContrast: 0,
+    brokenImages: 0,
+    clippedText: 0,
     stickyHeaders: 0,
     ctaButtons: [],
     forms: [],
@@ -665,6 +919,10 @@ export async function playwrightAudit(opts: {
       brokenNavLinks: allNavLinks.filter((l) => !l.resolves).length,
       totalJsErrors: results.reduce((s, r) => s + r.jsErrors.length, 0),
       totalOverflowElements: results.reduce((s, r) => s + r.overflowElements, 0),
+      overscrollPx: Math.max(0, ...results.map((r) => r.overscrollPx)),
+      lowContrast: results.reduce((s, r) => s + r.lowContrast, 0),
+      brokenImages: results.reduce((s, r) => s + r.brokenImages, 0),
+      clippedText: results.reduce((s, r) => s + r.clippedText, 0),
       smallTapTargets: results.reduce((s, r) => s + r.smallTapTargets.length, 0),
       formsFound: results.reduce((s, r) => s + r.forms.length, 0),
       ctaButtons: results.reduce((s, r) => s + r.ctaButtons.length, 0),
@@ -698,6 +956,10 @@ export function formatPlaywrightResults(
     `  Nav links: ${s.totalNavLinks} total, ${s.brokenNavLinks} broken`,
     `  JS errors: ${s.totalJsErrors}`,
     `  Overflow elements: ${s.totalOverflowElements}`,
+    `  Sideways overscroll: ${s.overscrollPx}px`,
+    `  Low-contrast text: ${s.lowContrast}`,
+    `  Broken images: ${s.brokenImages}`,
+    `  Clipped text: ${s.clippedText}`,
     `  Small tap targets (mobile <44px): ${s.smallTapTargets}`,
     `  Forms found: ${s.formsFound}`,
     `  CTA buttons: ${s.ctaButtons}`,
@@ -729,8 +991,19 @@ export function formatPlaywrightResults(
       }
     }
 
-    if (r.overflowElements > 0) {
+    if (r.overscrollPx > 8) {
+      lines.push(`  Sideways overscroll: ${r.overscrollPx}px (page can be dragged left/right)`);
+    } else if (r.overflowElements > 0) {
       lines.push(`  Overflow/off-screen elements: ${r.overflowElements}`);
+    }
+    if (r.lowContrast > 0) {
+      lines.push(`  Unreadable / low-contrast text: ${r.lowContrast}`);
+    }
+    if (r.brokenImages > 0) {
+      lines.push(`  Broken images: ${r.brokenImages}`);
+    }
+    if (r.clippedText > 0) {
+      lines.push(`  Clipped text blocks: ${r.clippedText}`);
     }
 
     if (r.stickyHeaders > 0) {

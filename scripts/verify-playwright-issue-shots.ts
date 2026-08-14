@@ -4,15 +4,21 @@
  */
 import assert from 'node:assert/strict';
 import {
+  classifyBrokenImages,
+  classifyClippedText,
   classifyFormNoSubmit,
   classifyHamburgerIssue,
+  classifyLowContrast,
   classifyOverflow,
+  classifyOverscroll,
   classifySmallTapTargets,
   classifyUnclickableCtas,
+  contrastRatio,
   formatUxEvidenceMarkdown,
   issueShotFilename,
   mergeUxEvidenceSection,
   UX_EVIDENCE_HEADING,
+  VISUAL_CONTRAST_MIN,
 } from '../src/lib/playwrightIssueDetect.ts';
 
 assert.equal(classifyHamburgerIssue({ found: false, panelVisible: false, visibleLinkCount: 0 }), null);
@@ -38,6 +44,22 @@ assert.equal(closed?.kind, 'hamburger-closed');
 
 assert.equal(classifyOverflow(0), null);
 assert.equal(classifyOverflow(3)?.kind, 'overflow');
+assert.equal(classifyOverscroll(0), null);
+assert.equal(classifyOverscroll(8), null);
+assert.equal(classifyOverscroll(48)?.kind, 'overscroll');
+assert.match(classifyOverscroll(48)?.title ?? '', /sideways/i);
+
+assert.equal(contrastRatio({ r: 255, g: 255, b: 255 }, { r: 255, g: 255, b: 255 }), 1);
+assert.ok(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 }) > 20);
+assert.ok(contrastRatio({ r: 170, g: 170, b: 170 }, { r: 255, g: 255, b: 255 }) < VISUAL_CONTRAST_MIN);
+assert.equal(classifyLowContrast(0), null);
+assert.equal(classifyLowContrast(2, 1.1)?.kind, 'low-contrast');
+assert.match(classifyLowContrast(2, 1.1)?.detail ?? '', /1\.1/);
+assert.equal(classifyBrokenImages(0), null);
+assert.equal(classifyBrokenImages(1)?.kind, 'broken-image');
+assert.equal(classifyClippedText(0), null);
+assert.equal(classifyClippedText(3)?.kind, 'clipped-text');
+
 assert.equal(classifySmallTapTargets(0), null);
 assert.equal(classifySmallTapTargets(2)?.kind, 'small-tap-targets');
 assert.equal(classifyUnclickableCtas([]), null);
@@ -55,7 +77,7 @@ const evidence = formatUxEvidenceMarkdown([
     detail: 'Hamburger was tapped and a menu panel appeared, but it had no visible links.',
   },
 ]);
-assert.match(evidence, /failed/);
+assert.match(evidence, /visually broken/);
 assert.match(evidence, /!\[Mobile nav is empty after hamburger tap\]\(\/api\/work\/demo\/files\/abc\)/);
 
 const body = `## Website Audit

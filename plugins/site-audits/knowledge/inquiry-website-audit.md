@@ -50,7 +50,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** (public resolvers — can lag after NS changes) |
 | `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
 | `brave_search` | Google Business Profile / Google Places, Apple Business Connect / Apple Maps, Yelp, Bing Places, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
-| `playwright_audit` | Real-browser UX/UI (Playwright / Chromium): nav menus, JS errors, overflow, tap targets, CTAs, forms. Screenshots are taken **when a check fails** (hamburger open + empty nav, overflow, small tap targets) — not a generic “site looks fine” gallery. `create_work` / `update_work` file those PNGs on the project and append `### UX Evidence (Playwright)`. |
+| `playwright_audit` | Real-browser UX/UI (Playwright / Chromium): nav menus, JS errors, overflow / sideways overscroll, unreadable contrast (white-on-white), clipped text, broken images, tap targets, CTAs, forms. Screenshots are taken **when something is visually broken** so they can be shown to a client — not a generic “site looks fine” gallery. `create_work` / `update_work` file those PNGs on the project and append `### UX Evidence (Playwright)`. |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
 | `gsc_search_analytics` / `gsc_inspect_url` / `gsc_list_sitemaps` | Search Console performance + index status (**full tier**; requires connected Google). Always pass explicit `site_url`. |
 | `plausible_stats` or `ga4_stats` | Traffic stats when site_id / property_id is known — never invent numbers |
@@ -128,8 +128,8 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### UX & UI (Playwright)
 - Source: Playwright (headless Chromium) — desktop 1440×900 + mobile 375×812
-- {Nav menu, JS console errors, overflow, tap targets, CTA/form issues from playwright_audit}
-- {If issue screenshots were captured, cite them — e.g. hamburger tapped and the menu was empty. Do not invent a screenshot gallery when none were captured.}
+- {Nav menu, JS console errors, overflow / sideways scroll, unreadable contrast, clipped text, broken images, tap targets, CTA/form issues from playwright_audit}
+- {If issue screenshots were captured, cite them as client-facing proof — white-on-white type, page sliding sideways, empty nav, broken image. Do not invent a screenshot gallery when none were captured.}
 - {Note if Playwright unavailable in environment}
 - Do **not** write a `### UX Evidence (Playwright)` heading yourself — create_work / update_work appends it with the failed-state images automatically.
 

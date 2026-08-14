@@ -143,7 +143,7 @@ const definition: AgentToolDef = {
   function: {
     name: 'playwright_audit',
     description:
-      'Run a real headless Chromium browser against a public URL to audit UX/UI issues on both desktop (1440px) and mobile (375px) viewports. Checks: hamburger/nav menu open/close (and whether the opened menu is empty), all nav link resolution, JS console errors, off-screen overflow elements, sticky header behavior, CTA button clickability, contact form fields and submit buttons, small tap targets (<44px on mobile). Captures a screenshot at the failed state when a check fails (e.g. hamburger tapped and nav is empty) — not a generic “everything looks fine” gallery. Those issue shots are filed on the project automatically by create_work / update_work. Use after lighthouse_audit and check_links for a complete website audit.',
+      'Run a real headless Chromium browser against a public URL to audit UX/UI issues on both desktop (1440px) and mobile (375px) viewports. Checks: hamburger/nav (including empty open menus), nav link resolution, JS console errors, sideways overscroll, overflow, unreadable/low-contrast text (white-on-white), clipped text, broken images, sticky headers, CTA clickability, forms, small tap targets. Captures a screenshot of each visually broken state so it can be shown to a client — not a generic “everything looks fine” gallery. Those issue shots are filed on the project automatically by create_work / update_work. Use after lighthouse_audit and check_links for a complete website audit.',
     parameters: {
       type: 'object',
       properties: {

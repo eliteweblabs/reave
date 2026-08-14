@@ -8,9 +8,16 @@ export type PlaywrightIssueKind =
   | 'hamburger-empty'
   | 'hamburger-closed'
   | 'overflow'
+  | 'overscroll'
+  | 'low-contrast'
+  | 'broken-image'
+  | 'clipped-text'
   | 'small-tap-targets'
   | 'unclickable-cta'
   | 'form-no-submit';
+
+/** Below this contrast ratio, text is visually broken (white-on-white / unreadable) — not a WCAG lecture. */
+export const VISUAL_CONTRAST_MIN = 2.5;
 
 export type PlaywrightIssueMeta = {
   kind: PlaywrightIssueKind;
@@ -48,6 +55,69 @@ export function classifyOverflow(count: number): PlaywrightIssueMeta | null {
     kind: 'overflow',
     title: 'Content overflows the viewport',
     detail: `${count} element${count === 1 ? '' : 's'} extend past the right edge of the viewport.`,
+  };
+}
+
+/** Page is wider than the screen — the “it slides sideways” client demo. */
+export function classifyOverscroll(extraPx: number): PlaywrightIssueMeta | null {
+  if (extraPx <= 8) return null;
+  return {
+    kind: 'overscroll',
+    title: 'Page scrolls sideways',
+    detail: `The layout is ${extraPx}px wider than the viewport — the page can be dragged left and right.`,
+  };
+}
+
+export function relativeLuminance(r: number, g: number, b: number): number {
+  const lin = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+export function contrastRatio(
+  fg: { r: number; g: number; b: number },
+  bg: { r: number; g: number; b: number },
+): number {
+  const L1 = relativeLuminance(fg.r, fg.g, fg.b);
+  const L2 = relativeLuminance(bg.r, bg.g, bg.b);
+  const lighter = Math.max(L1, L2);
+  const darker = Math.min(L1, L2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+export function classifyLowContrast(
+  count: number,
+  worstRatio?: number,
+): PlaywrightIssueMeta | null {
+  if (count <= 0) return null;
+  const ratio =
+    worstRatio != null && Number.isFinite(worstRatio) ? worstRatio.toFixed(1) : null;
+  return {
+    kind: 'low-contrast',
+    title: 'Text is unreadable (low contrast)',
+    detail: ratio
+      ? `${count} text block${count === 1 ? '' : 's'} sit below ${VISUAL_CONTRAST_MIN}:1 contrast (worst ${ratio}:1) — white-on-white or near-invisible.`
+      : `${count} text block${count === 1 ? '' : 's'} sit below ${VISUAL_CONTRAST_MIN}:1 contrast — white-on-white or near-invisible.`,
+  };
+}
+
+export function classifyBrokenImages(count: number): PlaywrightIssueMeta | null {
+  if (count <= 0) return null;
+  return {
+    kind: 'broken-image',
+    title: 'Broken image on the page',
+    detail: `${count} image${count === 1 ? '' : 's'} failed to load.`,
+  };
+}
+
+export function classifyClippedText(count: number): PlaywrightIssueMeta | null {
+  if (count <= 0) return null;
+  return {
+    kind: 'clipped-text',
+    title: 'Text is cut off',
+    detail: `${count} block${count === 1 ? '' : 's'} of text are clipped by overflow:hidden.`,
   };
 }
 
@@ -94,7 +164,7 @@ export function formatUxEvidenceMarkdown(
   files: Array<{ url: string; filename: string; title?: string; detail?: string }>,
 ): string {
   const lines = [
-    'Issue screenshots from Playwright (headless Chromium) — captured when a check **failed**, not a generic homepage gallery.',
+    'Issue screenshots from Playwright (headless Chromium) — captured when something was **visually broken** (unreadable contrast, sideways scroll, empty nav, clipped text, broken images), not a generic homepage gallery.',
     '',
   ];
   for (const file of files) {
