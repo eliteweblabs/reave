@@ -1422,6 +1422,18 @@ button.de-placeholder-action:active {
   padding: 0.65rem max(0.85rem, env(safe-area-inset-right, 0px)) 0.45rem max(0.85rem, env(safe-area-inset-left, 0px));
   border-bottom: 1px solid var(--panel-border);
 }
+@media (max-width: 720px) {
+  .re-flow-toolbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .re-flow-toolbar-right.re-lab-toolbar-actions {
+    flex: 1 1 100%;
+  }
+  .re-lab-toolbar-actions .dash-panel-btn {
+    flex: 1 1 auto;
+  }
+}
 .re-flow-toolbar-left {
   display: flex;
   flex-wrap: wrap;
@@ -1728,6 +1740,10 @@ button.de-placeholder-action:active {
   border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
   background: rgba(0, 0, 0, 0.18);
 }
+.re-lab-pipe-card--open {
+  scroll-margin-top: 0.5rem;
+  scroll-margin-bottom: var(--footer-scroll-pad, 5rem);
+}
 .re-lab-rule-actions {
   display: flex;
   align-items: center;
@@ -1741,9 +1757,85 @@ button.de-placeholder-action:active {
   color: var(--muted, rgba(255, 255, 255, 0.55));
 }
 .re-lab-rule-form {
-  max-height: min(70vh, 640px);
-  overflow: auto;
-  padding-right: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0 0.15rem 0.35rem;
+  /* Page scroller (.re-lab-body) already clears the tab bar — do not nest
+     another 70vh overflow here or keywords sit under the footer nav. */
+}
+.re-lab-source-email {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.re-lab-source-email-k {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(255, 255, 255, 0.5));
+  margin-bottom: 0.15rem;
+}
+.re-lab-source-from,
+.re-lab-source-subject {
+  word-break: break-word;
+}
+.re-lab-source-subject {
+  font-weight: 600;
+}
+.re-lab-source-snippet {
+  margin-top: 0.25rem;
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+}
+.re-lab-compose-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.re-lab-compose-toggle h2 {
+  margin: 0;
+}
+.re-lab-compose-chevron {
+  display: none;
+  color: var(--muted, rgba(255, 255, 255, 0.5));
+  transition: transform 0.15s ease;
+}
+.re-lab-compose-toggle[aria-expanded="false"] .re-lab-compose-chevron {
+  transform: rotate(-90deg);
+}
+@media (max-width: 960px) {
+  .re-lab-compose-chevron {
+    display: inline-flex;
+  }
+  .re-lab-compose--collapsed {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+  }
+  .re-lab-compose--collapsed .re-lab-form,
+  .re-lab-compose--collapsed .re-lab-section-head > p {
+    display: none;
+  }
+  .re-lab-compose--collapsed .re-lab-section-head {
+    margin-bottom: 0;
+  }
 }
 .re-lab-section-head {
   margin-bottom: 0.85rem;

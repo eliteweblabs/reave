@@ -114,6 +114,197 @@ export function formatRuleLabMeta(rule) {
   return bits.join(' · ');
 }
 
+/**
+ * Draft title / description / keywords from the email that opened Email Lab.
+ * Keep in sync with `suggestRuleDraftFromEmail` in src/lib/emailRuleDraft.ts.
+ */
+const DRAFT_STOP_WORDS = new Set([
+  'about',
+  'after',
+  'before',
+  'could',
+  'email',
+  'from',
+  'have',
+  'https',
+  'please',
+  'reply',
+  'subject',
+  'thank',
+  'that',
+  'their',
+  'there',
+  'these',
+  'this',
+  'with',
+  'would',
+  'your',
+]);
+
+const GENERIC_SUBJECTS = new Set([
+  'hi',
+  'hello',
+  'hey',
+  'thanks',
+  'thank you',
+  'fyi',
+  'following up',
+  'follow up',
+  'update',
+  'quick update',
+  'check in',
+  'checking in',
+  'reminder',
+]);
+
+export function parseFromAddress(raw) {
+  const value = String(raw || '').trim();
+  const angle = value.match(/^(.*?)\s*<([^>]+)>\s*$/);
+  if (angle) {
+    return {
+      name: angle[1].replace(/^["']|["']$/g, '').trim(),
+      email: angle[2].trim().toLowerCase(),
+    };
+  }
+  if (value.includes('@')) return { name: '', email: value.toLowerCase() };
+  return { name: value, email: '' };
+}
+
+function stripDraftMarkup(text) {
+  return String(text || '')
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function draftSourceBody(record) {
+  const candidates = [
+    record.bodyText,
+    record.text,
+    record.bodySnippet,
+    record.summary,
+    record.detail,
+  ];
+  for (const raw of candidates) {
+    const text = stripDraftMarkup(String(raw || ''));
+    if (text && !looksLikeMarkupBlob(String(raw || ''))) return text;
+    if (text) return text;
+  }
+  return stripDraftMarkup(String(record.bodyHtml || record.html || ''));
+}
+
+function cleanDraftSubject(subject) {
+  return String(subject || '')
+    .replace(/^(?:(?:re|fwd?|aw|sv|vs)\s*:\s*)+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractSignalIds(blob) {
+  const matches =
+    String(blob || '').match(
+      /\b[A-Z]{2,}[-/#]?\d{2,}\b|\b(?:invoice|ticket|order|case|ref)[- #]*\d{3,}\b|#\d{3,}/gi,
+    ) || [];
+  const seen = new Set();
+  const out = [];
+  for (const match of matches) {
+    const phrase = match.replace(/\s+/g, ' ').trim();
+    const key = phrase.toLowerCase();
+    if (!phrase || seen.has(key)) continue;
+    seen.add(key);
+    out.push(phrase);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+function distinctiveDraftTokens(text, max) {
+  const words = String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !DRAFT_STOP_WORDS.has(w));
+  return [...new Set(words)].slice(0, max);
+}
+
+function isGenericSubject(subject) {
+  const key = subject.toLowerCase().replace(/[.!?]+$/g, '').trim();
+  return !key || key.length < 8 || GENERIC_SUBJECTS.has(key);
+}
+
+export function suggestRuleDraftFromEmail(record) {
+  if (!record || typeof record !== 'object') return null;
+  const rawFrom = String(record.from || '').trim();
+  const parsed = parseFromAddress(rawFrom);
+  const fromName = String(record.fromName || '').trim() || parsed.name;
+  const fromEmail = parsed.email;
+  const subject = String(record.subject || '').trim();
+  const cleaned = cleanDraftSubject(subject);
+  const body = draftSourceBody(record);
+  if (!fromEmail && !cleaned && !body) return null;
+
+  const phrases = [];
+  const seen = new Set();
+  const pushPhrase = (value) => {
+    const phrase = String(value || '').replace(/\s+/g, ' ').trim();
+    const key = phrase.toLowerCase();
+    if (!phrase || seen.has(key)) return;
+    seen.add(key);
+    phrases.push(phrase);
+  };
+
+  if (fromEmail) pushPhrase(fromEmail);
+  for (const id of extractSignalIds(`${cleaned}\n${body}`)) pushPhrase(id);
+  if (!isGenericSubject(cleaned) && cleaned.length <= 80) pushPhrase(cleaned);
+  if (phrases.length < 3) {
+    const tokenSource = isGenericSubject(cleaned) ? body : `${cleaned} ${body}`;
+    for (const token of distinctiveDraftTokens(tokenSource, 4)) pushPhrase(token);
+  }
+  if (!phrases.length) pushPhrase('inbound mail');
+
+  const title = cleaned
+    ? cleaned.slice(0, 60)
+    : fromName
+      ? `Mail from ${fromName}`
+      : fromEmail
+        ? `Mail from ${fromEmail}`
+        : 'New rule';
+
+  const descLines = [];
+  if (rawFrom || fromEmail) descLines.push(`From: ${rawFrom || fromEmail}`);
+  if (subject) descLines.push(`Subject: ${subject}`);
+  const snippet = body.slice(0, 280);
+  if (snippet) descLines.push('', snippet);
+
+  return {
+    title,
+    description: descLines.join('\n'),
+    phrases,
+    fields: fromEmail ? ['from', 'subject', 'body'] : ['subject', 'body'],
+    matchMode: 'any',
+  };
+}
+
+/** Compact reminder of the Try-an-email message while a rule is open. */
+export function formatSourceEmailSummary(record) {
+  if (!record || typeof record !== 'object') return null;
+  const rawFrom = String(record.from || '').trim();
+  const parsed = parseFromAddress(rawFrom);
+  const fromName = String(record.fromName || '').trim() || parsed.name;
+  const fromEmail = parsed.email;
+  const from = rawFrom || (fromName && fromEmail ? `${fromName} <${fromEmail}>` : fromEmail || fromName);
+  const subject = String(record.subject || '').trim();
+  const snippet = draftSourceBody(record).slice(0, 160);
+  if (!from && !subject && !snippet) return null;
+  return { from, subject, snippet };
+}
+
 /** Fixed downstream stages (production order) — not user-reorderable. */
 export const PIPELINE_FUNCTIONS = [
   { id: 'normalize', label: 'Normalize message', sub: 'Body · attachments · OTP extract' },
@@ -136,7 +327,7 @@ export const PIPELINE_FUNCTIONS = [
  * @param {(ruleId: string) => void | Promise<void>} deps.toggleRuleEditor
  * @param {(container: HTMLElement) => void} deps.renderRuleForm
  * @param {() => string | null} deps.getActiveRuleId
- * @param {() => void | Promise<void>} [deps.startNewRule]
+ * @param {(opts?: { email?: object, draft?: object }) => void | Promise<void>} [deps.startNewRule]
  * @param {() => Promise<void>} [deps.flushRuleAutosave]
  * @param {() => string} [deps.inboundAddressExample]
  */
@@ -172,6 +363,8 @@ export function createEmailTriageLab(deps) {
     _suggestOutsideBound: null,
     /** Inbox email id when compose was loaded from a notification / deep link. */
     sourceEmailId: null,
+    /** Keep Try-an-email expanded while a rule card is open (mobile). */
+    composePinnedOpen: false,
   };
 
   function inboundExample() {
@@ -430,13 +623,9 @@ export function createEmailTriageLab(deps) {
   function loadFromInboxEmail(record) {
     if (!record || typeof record !== 'object') return;
     const rawFrom = String(record.from || '').trim();
-    const angle = rawFrom.match(/^(.*?)\s*<([^>]+)>\s*$/);
-    let fromName = '';
-    let fromEmail = rawFrom;
-    if (angle) {
-      fromName = angle[1].replace(/^["']|["']$/g, '').trim();
-      fromEmail = angle[2].trim();
-    }
+    const parsedFrom = parseFromAddress(rawFrom);
+    const fromName = parsedFrom.name;
+    const fromEmail = parsedFrom.email || rawFrom;
     state.fromName = fromName;
     state.from = fromName && fromEmail ? `${fromName} <${fromEmail}>` : fromEmail;
     const toRaw = record.to;
@@ -546,9 +735,25 @@ export function createEmailTriageLab(deps) {
     }
   }
 
+  function isLabSingleColumn() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 960px)').matches;
+  }
+
+  function syncComposeCollapse(root, hasOpenRule) {
+    const compose = root?.querySelector('.re-lab-compose');
+    if (!compose) return;
+    const collapsed = isLabSingleColumn() && hasOpenRule && !state.composePinnedOpen;
+    compose.classList.toggle('re-lab-compose--collapsed', collapsed);
+    const toggle = compose.querySelector('[data-lab-compose-toggle]');
+    if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
   function syncExpandedRule(root = deps.getRuleEditor()) {
     if (!root) return;
     const activeId = deps.getActiveRuleId?.() ?? null;
+    const hasOpenRule = Boolean(activeId);
+    if (!hasOpenRule) state.composePinnedOpen = false;
+    syncComposeCollapse(root, hasOpenRule);
     root.querySelectorAll('.re-lab-pipe-card--rule').forEach((card) => {
       const open = Boolean(activeId && card.dataset.ruleId === String(activeId));
       card.classList.toggle('re-lab-pipe-card--open', open);
@@ -564,7 +769,7 @@ export function createEmailTriageLab(deps) {
         }
         bodyEl.hidden = false;
         requestAnimationFrame(() => {
-          card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          card.scrollIntoView({ block: 'start', behavior: 'smooth' });
         });
       } else {
         bodyEl.hidden = true;
@@ -812,7 +1017,9 @@ export function createEmailTriageLab(deps) {
     newRuleBtn.className = 'dash-panel-btn';
     newRuleBtn.dataset.labNewRule = '1';
     newRuleBtn.textContent = 'New rule';
-    newRuleBtn.addEventListener('click', () => void deps.startNewRule?.());
+    newRuleBtn.addEventListener('click', () =>
+      void deps.startNewRule?.({ email: state }),
+    );
     const saveOrder = document.createElement('button');
     saveOrder.type = 'button';
     saveOrder.className = 'dash-panel-btn';
@@ -837,10 +1044,27 @@ export function createEmailTriageLab(deps) {
     // ── Compose (left column beside the pipeline) ──
     const compose = document.createElement('section');
     compose.className = 're-lab-compose';
-    compose.innerHTML = `<header class="re-lab-section-head">
-      <h2>Try an email</h2>
-      <p>Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.</p>
-    </header>`;
+    const composeHead = document.createElement('header');
+    composeHead.className = 're-lab-section-head';
+    const composeToggle = document.createElement('button');
+    composeToggle.type = 'button';
+    composeToggle.className = 're-lab-compose-toggle';
+    composeToggle.dataset.labComposeToggle = '1';
+    composeToggle.setAttribute('aria-expanded', 'true');
+    composeToggle.setAttribute('aria-label', 'Try an email');
+    composeToggle.innerHTML =
+      `<h2>Try an email</h2>` +
+      `<span class="re-lab-compose-chevron" aria-hidden="true">${iosIcon('chevron-down', 16)}</span>`;
+    composeToggle.addEventListener('click', () => {
+      state.composePinnedOpen = !state.composePinnedOpen;
+      if (!deps.getActiveRuleId?.()) state.composePinnedOpen = true;
+      syncComposeCollapse(root, Boolean(deps.getActiveRuleId?.()));
+    });
+    const composeSub = document.createElement('p');
+    composeSub.textContent =
+      'Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.';
+    composeHead.append(composeToggle, composeSub);
+    compose.appendChild(composeHead);
 
     const form = document.createElement('div');
     form.className = 're-lab-form';

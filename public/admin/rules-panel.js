@@ -28,7 +28,6 @@ import {
   bindSwipeListScroll,
   bindListMultiSelect,
   showContextMenu,
-  swipeAgentAction,
   swipeArchiveAction,
   swipeDeleteAction,
   swipeJunkAction,
@@ -40,7 +39,6 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-  createAgentBtn,
 } from './admin-ui.js?v=20260812a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
@@ -51,6 +49,8 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
+  formatSourceEmailSummary,
+  suggestRuleDraftFromEmail,
 } from './email-triage-lab.js?v=20260813a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
@@ -145,7 +145,7 @@ function getTriageLab() {
       toggleRuleEditor: (id) => openRuleEditor(id),
       renderRuleForm: (container) => renderRuleEditPane(container, { accordion: true }),
       getActiveRuleId: () => ruleState.activeId,
-      startNewRule: () => startNewRule(),
+      startNewRule: (opts) => startNewRule(opts),
       flushRuleAutosave: () => flushRuleAutosave(),
       inboundAddressExample: () =>
         String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
@@ -385,7 +385,6 @@ function createRuleListItem(rule, activeId) {
 
 function createRuleSwipeRow(rule, activeId) {
   return createSwipeRow(createRuleListItem(rule, activeId), [
-    swipeAgentAction(() => askAgentAboutRule(rule)),
     swipeDeleteAction({
       onClick: () => deleteRule(rule.id),
     }),
@@ -747,11 +746,6 @@ function renderRuleEditPane(pane, opts = {}) {
     return;
   }
 
-  const agentBtn = createAgentBtn({
-    label: 'Agent',
-    onClick: () => askAgentAboutRule(rule),
-  });
-
   if (accordion) {
     const actions = document.createElement('div');
     actions.className = 're-lab-rule-actions';
@@ -762,7 +756,7 @@ function renderRuleEditPane(pane, opts = {}) {
       label: 'Delete rule',
       onClick: () => deleteRule(rule.id),
     });
-    actions.append(hits, agentBtn, deleteBtn);
+    actions.append(hits, deleteBtn);
     pane.appendChild(actions);
   } else {
     const inDrawer = shell.isCreateDrawerOpen('rules');
@@ -771,7 +765,6 @@ function renderRuleEditPane(pane, opts = {}) {
         back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
         title: rule.title || rule.status || 'Rule',
         subtitle: ruleHitsSubline(rule),
-        beforeIcons: [agentBtn],
         icons: inDrawer
           ? []
           : [
@@ -785,7 +778,7 @@ function renderRuleEditPane(pane, opts = {}) {
   }
 
   const form = document.createElement('div');
-  form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
+  form.className = accordion ? 're-lab-rule-form' : 're-form-scroll';
 
   const titleIn = document.createElement('input');
   titleIn.className = 'de-input';
@@ -801,8 +794,8 @@ function renderRuleEditPane(pane, opts = {}) {
   const syncScopeHint = (value) => {
     scopeHint.textContent =
       value === 'universal'
-        ? 'Universal — shared catalog for every Reave install (seeded from the repo). Edits apply on this install; add new catalog rules to DEFAULT_RULES to ship everywhere on deploy.'
-        : 'Personal — this install only. Teach/correct and custom filters usually stay here.';
+        ? 'Shared catalog for every Reave install. Edits apply here; ship new catalog rules in DEFAULT_RULES.'
+        : 'This install only — the usual place for notification-taught filters.';
   };
   let scopeValue = ruleScope(rule);
   for (const [val, lab] of [
@@ -843,13 +836,13 @@ function renderRuleEditPane(pane, opts = {}) {
 
   const descIn = document.createElement('textarea');
   descIn.className = 're-textarea';
-  descIn.rows = 2;
+  descIn.rows = 3;
   descIn.value = rule.description || '';
   descIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const phrasesIn = document.createElement('textarea');
   phrasesIn.className = 're-textarea';
-  phrasesIn.rows = 6;
+  phrasesIn.rows = 4;
   phrasesIn.placeholder = 'One keyword or phrase per line';
   phrasesIn.value = (rule.phrases || []).join('\n');
   phrasesIn.addEventListener('input', () => { ruleState.dirty = true; });
@@ -1078,10 +1071,27 @@ function renderRuleEditPane(pane, opts = {}) {
   expireInSecs.addEventListener('input', () => { ruleState.dirty = true; });
   expireInSecs.addEventListener('change', () => { ruleState.dirty = true; });
 
+  const source = formatSourceEmailSummary(getTriageLab().getState?.());
+  if (source) {
+    const banner = document.createElement('aside');
+    banner.className = 're-lab-source-email';
+    banner.innerHTML =
+      `<span class="re-lab-source-email-k">From this email</span>` +
+      (source.from ? `<span class="re-lab-source-from">${escHtml(source.from)}</span>` : '') +
+      (source.subject ? `<span class="re-lab-source-subject">${escHtml(source.subject)}</span>` : '') +
+      (source.snippet ? `<span class="re-lab-source-snippet">${escHtml(source.snippet)}</span>` : '');
+    form.appendChild(banner);
+  }
+
   appendRuleField(form, 'Title', titleIn);
-  appendRuleField(form, 'Applies to', scopeWrap);
+  appendRuleField(
+    form,
+    'Keywords / phrases',
+    phrasesIn,
+    source ? 'Suggested from the email above — edit or delete any line.' : undefined,
+  );
   appendRuleField(form, 'Description', descIn);
-  appendRuleField(form, 'Keywords / phrases', phrasesIn);
+  appendRuleField(form, 'Applies to', scopeWrap);
   appendRuleField(form, 'Except (NOT)', exceptIn);
   appendRuleField(form, 'Match mode', matchSel);
   appendRuleField(form, 'Search in', fieldsWrap);
@@ -1439,26 +1449,28 @@ async function deleteRule(id) {
   }
 }
 
-async function startNewRule() {
+async function startNewRule(opts = {}) {
   armTitleFocus('rules');
   await flushRuleAutosave();
   if (ruleState.dirty && !(await confirmDiscardChanges())) {
     cancelTitleFocus();
     return;
   }
+  const email = opts.email || getTriageLab().getState?.();
+  const draft = opts.draft || suggestRuleDraftFromEmail(email) || {};
   try {
     const res = await fetch('/api/email/rules', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: 'New rule',
-        status: 'CUSTOM',
-        scope: 'personal',
-        description: '',
-        phrases: [],
-        exceptPhrases: [],
-        matchMode: 'any',
-        fields: ['subject', 'body'],
+        title: draft.title || 'New rule',
+        status: draft.status || 'CUSTOM',
+        scope: draft.scope || 'personal',
+        description: draft.description || '',
+        phrases: Array.isArray(draft.phrases) ? draft.phrases : [],
+        exceptPhrases: Array.isArray(draft.exceptPhrases) ? draft.exceptPhrases : [],
+        matchMode: draft.matchMode === 'all' ? 'all' : 'any',
+        fields: Array.isArray(draft.fields) && draft.fields.length ? draft.fields : ['subject', 'body'],
         notify: true,
         notifyPush: true,
         notifyDashboard: true,
@@ -1481,13 +1493,16 @@ async function startNewRule() {
 /**
  * Open Rules and prefill Try-an-email from an inbox record (notification deep link).
  * @param {object} emailRecord
- * @param {{ run?: boolean }} [opts]
+ * @param {{ run?: boolean, startRule?: boolean }} [opts]
  */
 async function openRulesLabWithEmail(emailRecord, opts = {}) {
   if (!emailRecord || typeof emailRecord !== 'object') return;
   await loadRulesTab();
   const lab = getTriageLab();
   await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });
+  if (opts.startRule) {
+    await startNewRule({ email: emailRecord });
+  }
 }
 
 export {
