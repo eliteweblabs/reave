@@ -3,7 +3,6 @@ import Header from "../components/Header.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
-import MockStaffChat from "../components/MockStaffChat.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
@@ -81,11 +80,7 @@ const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
-/** Unwired staff intro chat on public pages. No Live flag. */
-const showMockStaffChat = true;
-/** Wired help chat when the mock intro is not mounted. */
-const showSiteAssistant =
-  !showMockStaffChat && hasFeature("portal_assistant") && isSiteAssistantConfigured();
+const showSiteAssistant = hasFeature("portal_assistant") && isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
@@ -142,16 +137,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
 		<CookieNotice />
-		{
-			showMockStaffChat && (
-				<MockStaffChat
-					brandTitle={company.name}
-					staffName={company.name}
-					supportPhone={company.supportPhone}
-					supportEmail={company.supportEmail}
-				/>
-			)
-		}
 		{
 			showSiteAssistant && (
 				<SiteAssistantWidget

@@ -1,0 +1,176 @@
+---
+/**
+ * Proposal-only staff intro on Barber's Edge profiles. Not wired to an API.
+ * No Live flag/badge — the greeting is on the page so it reads in the viewport.
+ */
+import { BARBERS_EDGE, barbersEdgeGreeting, type BarbersEdgeBarber } from "../../lib/barbersEdge";
+
+interface Props {
+  barber: BarbersEdgeBarber;
+}
+
+const { barber } = Astro.props;
+const greeting = barbersEdgeGreeting(barber);
+const reply = "Sounds good. Come through or book a time and we'll take care of you.";
+---
+
+<section class="be-chat" data-be-chat aria-label={`Message ${barber.firstName}`}>
+  <div class="be-chat__card">
+    <div class="be-chat__head">
+      <span class="be-chat__name">{barber.firstName}</span>
+      <span class="be-chat__shop">{BARBERS_EDGE.name}</span>
+    </div>
+    <div class="be-chat__thread" data-be-thread>
+      <p class="be-chat__bubble be-chat__bubble--staff">{greeting}</p>
+    </div>
+    <form class="be-chat__form" data-be-form>
+      <label class="sr-only" for={`be-chat-input-${barber.slug}`}>Message {barber.firstName}</label>
+      <input
+        id={`be-chat-input-${barber.slug}`}
+        class="be-chat__input"
+        type="text"
+        name="message"
+        autocomplete="off"
+        placeholder="Say something…"
+      />
+      <button class="be-chat__send" type="submit" aria-label="Send">
+        <!-- IOS_ICONS.send — keep in sync with public/admin/admin-ui.js -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+      </button>
+    </form>
+  </div>
+</section>
+
+<script define:vars={{ reply }}>
+  document.querySelectorAll("[data-be-chat]").forEach((root) => {
+    const form = root.querySelector("[data-be-form]");
+    const thread = root.querySelector("[data-be-thread]");
+    const input = root.querySelector("input[name='message']");
+    if (!(form instanceof HTMLFormElement) || !(thread instanceof HTMLElement) || !(input instanceof HTMLInputElement)) {
+      return;
+    }
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      const user = document.createElement("p");
+      user.className = "be-chat__bubble be-chat__bubble--you";
+      user.textContent = text;
+      thread.appendChild(user);
+      input.value = "";
+      window.setTimeout(() => {
+        const staff = document.createElement("p");
+        staff.className = "be-chat__bubble be-chat__bubble--staff";
+        staff.textContent = reply;
+        thread.appendChild(staff);
+        thread.scrollTop = thread.scrollHeight;
+      }, 400);
+    });
+  });
+</script>
+
+<style>
+  .be-chat {
+    width: 100%;
+    padding: 0 1.15rem 1.5rem;
+  }
+  .be-chat__card {
+    max-width: 28rem;
+    margin: 0 auto;
+    padding: 0.9rem 0.95rem 0.85rem;
+    background: #fffdf8;
+    border: 1px solid rgba(22, 20, 16, 0.12);
+    border-radius: 1.05rem;
+    box-shadow: 0 10px 28px rgba(22, 20, 16, 0.08);
+  }
+  .be-chat__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.7rem;
+  }
+  .be-chat__name {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #161410;
+  }
+  .be-chat__shop {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8a7d6b;
+  }
+  .be-chat__thread {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-height: 11rem;
+    overflow: auto;
+  }
+  .be-chat__bubble {
+    margin: 0;
+    max-width: 92%;
+    padding: 0.65rem 0.8rem;
+    border-radius: 1rem;
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+  .be-chat__bubble--staff {
+    align-self: flex-start;
+    background: #efe8dc;
+    color: #161410;
+    border-bottom-left-radius: 0.3rem;
+  }
+  .be-chat__bubble--you {
+    align-self: flex-end;
+    background: #161410;
+    color: #fbf8f2;
+    border-bottom-right-radius: 0.3rem;
+  }
+  .be-chat__form {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+  }
+  .be-chat__input {
+    flex: 1;
+    min-width: 0;
+    height: 2.5rem;
+    padding: 0 0.85rem;
+    border: 1px solid rgba(22, 20, 16, 0.16);
+    border-radius: 999px;
+    background: #fff;
+    color: #161410;
+    font: inherit;
+    font-size: 0.9rem;
+  }
+  .be-chat__input:focus {
+    outline: 2px solid #161410;
+    outline-offset: 1px;
+  }
+  .be-chat__send {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    border-radius: 999px;
+    background: #161410;
+    color: #fbf8f2;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

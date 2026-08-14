@@ -200,6 +200,7 @@ function configPathForKey(key: string): string {
 function normalizePagePath(pathname: string): string {
   const path = pathname.replace(/\/$/, '') || '/';
   if (path.startsWith('/form/')) return '/form/';
+  if (path === '/barbers' || path.startsWith('/barbers/')) return '/barbers';
   return path;
 }
 
@@ -222,6 +223,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/privacy',
       '/terms',
       '/cookies',
+      '/barbers',
     ],
     nav: {
       links: [],

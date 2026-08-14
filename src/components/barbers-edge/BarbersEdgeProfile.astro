@@ -1,0 +1,81 @@
+---
+import BarbersEdgeStaffChat from "./BarbersEdgeStaffChat.astro";
+import type { BarbersEdgeBarber } from "../../lib/barbersEdge";
+
+interface Props {
+  barber: BarbersEdgeBarber;
+}
+
+const { barber } = Astro.props;
+const initial = barber.firstName.slice(0, 1).toUpperCase();
+---
+
+<main class="be-profile">
+  <figure class="be-photo">
+    {barber.photo ? (
+      <img src={barber.photo} alt={barber.photoAlt} width="1006" height="1174" />
+    ) : (
+      <div class="be-photo__fallback" aria-hidden="true">{initial}</div>
+    )}
+  </figure>
+  <p class="be-role">{barber.role}</p>
+  <h1 class="be-name">{barber.name}</h1>
+  <p class="be-tagline">{barber.tagline}</p>
+  <BarbersEdgeStaffChat barber={barber} />
+</main>
+
+<style>
+  .be-profile {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .be-photo {
+    margin: 0;
+    background: #e4dccf;
+    aspect-ratio: 6 / 7;
+    overflow: hidden;
+  }
+  .be-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+  .be-photo__fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 6rem;
+    color: #8a7d6b;
+  }
+  .be-role {
+    margin: 1.35rem 1.15rem 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #9a8060;
+    text-align: center;
+  }
+  .be-name {
+    margin: 0 1.15rem;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.4rem, 10vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 0.95;
+  }
+  .be-tagline {
+    margin: 0.55rem 1.15rem 1.15rem;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.2rem;
+    font-style: italic;
+    font-weight: 500;
+    text-align: center;
+    color: #3d382f;
+  }
+</style>
