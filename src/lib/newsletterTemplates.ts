@@ -19,6 +19,7 @@ export type NewsletterTemplateId =
   | 'user_followup'
   | 'project_complete'
   | 'review_request'
+  | 'value_your_opinion'
   | 'reengagement'
   | 'referral_request'
   | 'announcement'
@@ -160,6 +161,27 @@ export const NEWSLETTER_TEMPLATES: Record<NewsletterTemplateId, NewsletterTempla
       ],
       cta: (ctx.reviewUrl || ctx.ctaUrl)
         ? { label: ctx.ctaLabel || 'Leave a review', url: (ctx.reviewUrl || ctx.ctaUrl)! }
+        : undefined,
+    }),
+  },
+
+  value_your_opinion: {
+    id: 'value_your_opinion',
+    label: 'We value your opinion',
+    description: 'Asks a client for honest feedback after a project or milestone.',
+    kind: 'automation',
+    tone: 'transactional',
+    icon: '💬',
+    defaultSubject: () => `We value your opinion`,
+    build: (ctx) => ({
+      subject: `We value your opinion`,
+      paragraphs: [
+        `We loved working with you${ctx.projectTitle ? ` on "${ctx.projectTitle}"` : ''}, and your perspective means a great deal to us.`,
+        `If you have a moment, we'd be grateful for your honest opinion — what went well, what we could do better, and anything else you'd like us to know.`,
+        `Reply to this email or tap below. We read every note.`,
+      ],
+      cta: (ctx.reviewUrl || ctx.ctaUrl)
+        ? { label: ctx.ctaLabel || 'Share your feedback', url: (ctx.reviewUrl || ctx.ctaUrl)! }
         : undefined,
     }),
   },

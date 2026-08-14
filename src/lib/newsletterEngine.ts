@@ -26,11 +26,13 @@ import {
   getAutomationOverrides,
   enqueueNewsletterSend,
   listDueNewsletterSends,
+  listNewsletterSends,
   updateNewsletterSend,
   isUnsubscribed,
   type NewsletterSend,
 } from './newsletterStore';
 import {
+  getNewsletterTemplate,
   renderNewsletterEmail,
   type NewsletterTemplateContext,
   type NewsletterTemplateId,
@@ -38,6 +40,13 @@ import {
 import { makeUnsubscribeToken } from './newsletterUnsubscribe';
 import { serverEnv } from './serverEnv';
 import { isSleepModeActive } from './pushQuietHours';
+import { logOutboundEmailForProject } from './logOutboundEmailForProject';
+import { randomUUID } from 'crypto';
+import {
+  groupScheduledSends,
+  resolveNewsletterTemplateId,
+  type ScheduledEmailItem,
+} from './newsletterScheduleView';
 
 export function isNewsletterEnabled(): boolean {
   return hasFeature('email_marketing') && isEmailSendConfigured();
@@ -191,6 +200,10 @@ export interface BroadcastInput {
   ctaLabel?: string;
   /** Cap for a single broadcast run. */
   limit?: number;
+  /** When set, queue for this time instead of immediately. */
+  dueAt?: Date | string;
+  /** Optional campaign id so the dashboard can treat the batch as one row. */
+  campaignId?: string;
 }
 
 export interface BroadcastResult {
@@ -198,6 +211,8 @@ export interface BroadcastResult {
   queued: number;
   skippedUnsub: number;
   skippedNoEmail: number;
+  campaignId?: string;
+  dueAt?: string;
   error?: string;
 }
 
@@ -222,7 +237,8 @@ export async function queueBroadcast(input: BroadcastInput): Promise<BroadcastRe
     }
   }
 
-  const now = new Date();
+  const dueAt = input.dueAt ? new Date(input.dueAt) : new Date();
+  const campaignId = input.campaignId?.trim() || randomUUID();
   let queued = 0;
   let skippedUnsub = 0;
   let skippedNoEmail = 0;
@@ -254,14 +270,145 @@ export async function queueBroadcast(input: BroadcastInput): Promise<BroadcastRe
       toEmail: email,
       firstName,
       subject: input.subject,
-      dueAt: now,
+      dueAt,
       context: context as unknown as Record<string, unknown>,
       dedupKey: null,
+      campaignId,
     });
     if (enq) queued += 1;
   }
 
-  return { ok: true, queued, skippedUnsub, skippedNoEmail };
+  return { ok: true, queued, skippedUnsub, skippedNoEmail, campaignId, dueAt: dueAt.toISOString() };
+}
+
+export async function listUpcomingScheduledEmails(limit = 40): Promise<ScheduledEmailItem[]> {
+  const sends = await listNewsletterSends({ status: 'pending', upcoming: true, limit: 200 });
+  return groupScheduledSends(sends).slice(0, limit);
+}
+
+export interface TemplateSendInput {
+  templateId: string;
+  contactUid?: string;
+  toEmail?: string;
+  jobSlug?: string | null;
+  subject?: string;
+  heading?: string;
+  body?: string[];
+  ctaUrl?: string;
+  ctaLabel?: string;
+  dueAt?: Date | string;
+  sendNow?: boolean;
+}
+
+export interface TemplateSendResult {
+  ok: boolean;
+  queued: number;
+  sent?: number;
+  sendId?: string;
+  dueAt?: string;
+  templateId?: string;
+  toEmail?: string;
+  error?: string;
+}
+
+/** Queue (or immediately send) a named template to one contact. */
+export async function queueTemplateToContact(input: TemplateSendInput): Promise<TemplateSendResult> {
+  if (!isNewsletterEnabled()) {
+    return { ok: false, queued: 0, error: 'newsletter disabled' };
+  }
+  const resolvedId = resolveNewsletterTemplateId(input.templateId) || input.templateId.trim();
+  if (!getNewsletterTemplate(resolvedId)) {
+    return { ok: false, queued: 0, error: `Unknown template: ${input.templateId}` };
+  }
+
+  let contact: ContactRecord | null = null;
+  const uid = (input.contactUid || '').trim();
+  if (uid) {
+    const res = await getContact(uid);
+    if (res.ok) contact = res.data;
+  }
+  const email = (input.toEmail || contact?.email || '').trim();
+  if (!email.includes('@')) {
+    return { ok: false, queued: 0, error: 'Recipient email is required' };
+  }
+  if (await isUnsubscribed(email)) {
+    return { ok: false, queued: 0, error: 'Recipient is unsubscribed' };
+  }
+
+  const company = await getCompanyConfig();
+  const firstName = firstNameOf(contact || {}) || firstNameOf({ name: contact?.name }) || 'there';
+  let jobSlug = input.jobSlug?.trim() || null;
+  let projectTitle: string | undefined;
+  if (jobSlug) {
+    try {
+      const { storeReadWork } = await import('./workStore');
+      const job = await storeReadWork(jobSlug);
+      projectTitle = job?.title;
+    } catch {
+      /* ignore */
+    }
+  } else if (contact?.uid) {
+    try {
+      const jobs = await storeListWork({ contact_uid: contact.uid });
+      const done = jobs.find((j) => j.status === 'archived');
+      const pick = done || jobs.find((j) => j.status === 'active') || jobs[0];
+      if (pick) {
+        jobSlug = pick.slug;
+        projectTitle = pick.title;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const dueAt = input.dueAt ? new Date(input.dueAt) : new Date();
+  if (Number.isNaN(dueAt.getTime())) {
+    return { ok: false, queued: 0, error: 'Invalid dueAt' };
+  }
+
+  const reviewUrl = serverEnv('NEWSLETTER_REVIEW_URL')?.trim() || undefined;
+  const context: NewsletterTemplateContext = {
+    firstName,
+    companyName: company.name,
+    projectTitle,
+    subject: input.subject,
+    heading: input.heading,
+    body: input.body,
+    ctaUrl: input.ctaUrl,
+    ctaLabel: input.ctaLabel,
+    reviewUrl,
+  };
+
+  const enq = await enqueueNewsletterSend({
+    templateId: resolvedId,
+    source: 'manual',
+    trigger: 'manual',
+    contactUid: contact?.uid || uid || null,
+    toEmail: email,
+    firstName,
+    subject: input.subject,
+    dueAt,
+    jobSlug,
+    context: context as unknown as Record<string, unknown>,
+    dedupKey: null,
+  });
+  if (!enq) return { ok: false, queued: 0, error: 'Failed to queue send' };
+
+  let sent = 0;
+  if (input.sendNow !== false && dueAt.getTime() <= Date.now() + 5_000) {
+    const proc = await processDueNewsletterSends({ limit: 25, ignoreWindow: true });
+    sent = proc.sent;
+  }
+
+  return {
+    ok: true,
+    queued: 1,
+    sent,
+    sendId: enq.id,
+    dueAt: enq.dueAt,
+    templateId: resolvedId,
+    toEmail: email,
+  };
 }
 
 // ─────────────────────────── queue → send ───────────────────────────
@@ -328,6 +475,14 @@ async function deliverSend(send: NewsletterSend): Promise<DeliveryOutcome> {
       subject: rendered.subject,
       resendId: result.id ?? null,
       error: null,
+    });
+    void logOutboundEmailForProject({
+      toEmail: email,
+      subject: rendered.subject,
+      resendId: result.id,
+      source: `newsletter:${send.source || send.templateId}`,
+      jobSlug: send.jobSlug,
+      contactUid: send.contactUid,
     });
     return 'sent';
   }

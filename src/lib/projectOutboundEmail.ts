@@ -268,3 +268,45 @@ export async function listOutboundEmails(limit = 200): Promise<OutboundEmailList
     .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
     .slice(0, capped);
 }
+
+export async function listOutboundEmailsByJob(
+  jobSlug: string,
+  limit = 100,
+): Promise<OutboundEmailListRecord[]> {
+  const slug = jobSlug.trim();
+  if (!slug) return [];
+  const capped = Math.min(Math.max(limit, 1), 500);
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rows } = await pool.query<{
+        id: string;
+        job_slug: string;
+        job_title: string;
+        contact_uid: string | null;
+        to_email: string;
+        subject: string;
+        resend_id: string | null;
+        sent_at: Date;
+        sent_by: string | null;
+        source: string;
+      }>(
+        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source
+         FROM project_outbound_emails
+         WHERE job_slug = $1
+         ORDER BY sent_at DESC
+         LIMIT $2`,
+        [slug, capped],
+      );
+      return rows.map(rowToRecord);
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] pg list-by-job failed', e);
+  }
+
+  return readFileRows()
+    .filter((r) => r.jobSlug === slug)
+    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    .slice(0, capped);
+}

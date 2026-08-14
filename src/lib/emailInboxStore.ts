@@ -760,6 +760,36 @@ export async function storeListEmailInbox(
   return listFromFile(limit, hideJunk);
 }
 
+export async function storeListEmailInboxByJob(
+  jobSlug: string,
+  limit = 100,
+): Promise<EmailInboxRecord[]> {
+  const slug = jobSlug.trim();
+  if (!slug) return [];
+  const capped = Math.min(Math.max(limit, 1), 200);
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (pool) {
+        const { rows } = await pool.query(
+          `SELECT ${INBOX_LIST_SELECT}
+           FROM email_inbox
+           WHERE job_slug = $1
+           ORDER BY received_at DESC
+           LIMIT $2`,
+          [slug, capped],
+        );
+        return rows.map(rowToRecord);
+      }
+    } catch (e) {
+      console.error('[email-inbox] list by job failed', e);
+    }
+  }
+  return (await listFromFile(2_000, false))
+    .filter((e) => e.jobSlug === slug)
+    .slice(0, capped);
+}
+
 const RECEIPT_SCAN_SELECT = `${INBOX_LIST_SELECT}, body_text`;
 
 async function listReceiptScanFromPg(limit: number, since?: Date): Promise<EmailInboxRecord[]> {

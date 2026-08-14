@@ -7,6 +7,8 @@ import { listNewsletterSends, type NewsletterSendStatus } from '../../../lib/new
 import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
 import { isNewsletterEnabled } from '../../../lib/newsletterEngine';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { groupScheduledSends } from '../../../lib/newsletterScheduleView';
+import { listUpcomingScheduledEmails } from '../../../lib/newsletterEngine';
 
 export const prerender = false;
 
@@ -33,8 +35,20 @@ export async function GET(context: APIContext): Promise<Response> {
     : undefined;
   const limitRaw = Number(url.searchParams.get('limit') ?? 100);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 100;
+  const jobSlug = url.searchParams.get('jobSlug')?.trim() || undefined;
+  const upcoming = url.searchParams.get('upcoming') === '1';
 
-  const sends = await listNewsletterSends({ status, limit });
+  if (upcoming) {
+    const scheduled = await listUpcomingScheduledEmails(limit);
+    return json({ ok: true, enabled: isNewsletterEnabled(), scheduled });
+  }
+
+  const sends = await listNewsletterSends({
+    status,
+    limit,
+    jobSlug,
+    upcoming: status === 'pending',
+  });
   return json({
     ok: true,
     enabled: isNewsletterEnabled(),
@@ -50,8 +64,10 @@ export async function GET(context: APIContext): Promise<Response> {
       dueAt: s.dueAt,
       sentAt: s.sentAt,
       jobSlug: s.jobSlug,
+      campaignId: s.campaignId,
       error: s.error,
       createdAt: s.createdAt,
     })),
+    scheduled: status === 'pending' ? groupScheduledSends(sends) : undefined,
   });
 }

@@ -97,6 +97,7 @@ import {
   swipeReceiptAction,
   swipeClearAction,
   swipeCopyAction,
+  swipeEditAction,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -107,7 +108,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260814a';
+} from './admin-ui.js?v=20260814b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -138,7 +139,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260810c';
+} from './work-panel.js?v=20260814a';
 import {
   initTodoPanel,
   todoState,
@@ -261,7 +262,7 @@ import {
 import {
   initNewsletterPanel,
   loadNewsletterTab,
-} from './newsletter-panel.js?v=20260728q';
+} from './newsletter-panel.js?v=20260814a';
 import {
   initOnlineReviewsPanel,
   loadOnlineReviewsTab,
@@ -2736,6 +2737,170 @@ function renderDashTodayLists(container, data, view) {
   if (view === 'next24') syncDashRelativeTimers();
 }
 
+function isoToDatetimeLocalValue(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+}
+
+function formatDashScheduledWhen(iso) {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    if (sameDay || d.toDateString() === tomorrow.toDateString()) {
+      return d.toLocaleString(undefined, {
+        weekday: sameDay ? undefined : 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+async function patchScheduledEmail(item, action, dueAt) {
+  const sendId = item.sendIds?.[0] || item.id;
+  const res = await fetch(`/api/newsletter/sends/${encodeURIComponent(sendId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      dueAt,
+      campaignId: item.campaignId || undefined,
+    }),
+  });
+  return readApiJson(res);
+}
+
+function openRescheduleEmailDialog(item, onDone) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
+
+  titleEl.textContent = 'Adjust send time';
+  bodyEl.innerHTML =
+    `<p class="em-book-dialog-lead">${escHtml(item.title || item.templateLabel || 'Scheduled email')}</p>` +
+    `<label class="de-label sched-create-field"><span>Send at</span>` +
+    `<div class="control-field">` +
+    `<input type="datetime-local" class="dash-email-due" value="${escHtml(isoToDatetimeLocalValue(item.dueAt))}" />` +
+    `</div></label>`;
+  actionsEl.innerHTML = '';
+
+  const mkBtn = (label, cls, onClick) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `os-dialog-btn ${cls}`.trim();
+    btn.textContent = label;
+    btn.addEventListener('click', onClick);
+    actionsEl.appendChild(btn);
+    return btn;
+  };
+
+  mkBtn('Back', 'os-dialog-btn--ghost', () => closeOsDialogBackdrop());
+  mkBtn('Save', 'os-dialog-btn--primary', async () => {
+    const raw = bodyEl.querySelector('.dash-email-due')?.value;
+    if (!raw) return;
+    const due = new Date(raw);
+    if (Number.isNaN(due.getTime())) {
+      osAlert({ title: 'Invalid time', bodyHtml: 'Could not parse that date.' });
+      return;
+    }
+    try {
+      await patchScheduledEmail(item, 'reschedule', due.toISOString());
+      closeOsDialogBackdrop();
+      onDone?.();
+    } catch (e) {
+      osAlert({ title: 'Could not reschedule', bodyHtml: escHtml(e.message) });
+    }
+  });
+  openOsDialogBackdrop();
+}
+
+function renderDashScheduledEmails(items) {
+  const section = document.createElement('section');
+  section.className = 'dash-today dash-scheduled-emails';
+
+  const head = document.createElement('div');
+  head.className = 'dash-today-head';
+  const title = document.createElement('h2');
+  title.className = 'dash-panel-title';
+  title.textContent = 'Scheduled emails';
+  head.appendChild(title);
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'dash-panel-btn';
+  openBtn.textContent = 'Newsletter';
+  openBtn.addEventListener('click', () => setActiveMap('newsletter', { force: activeKey === 'newsletter' }));
+  head.appendChild(openBtn);
+  section.appendChild(head);
+
+  const list = document.createElement('div');
+  list.className = 'dash-events';
+  bindSwipeListScroll(list);
+
+  for (const item of items) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dash-event dash-event-btn';
+    btn.innerHTML =
+      `<span class="dash-event-time dash-event-time--email">${escHtml(formatDashScheduledWhen(item.dueAt))}</span>` +
+      `<div class="dash-event-body">` +
+        `<div class="dash-event-title">${escHtml(item.title)}</div>` +
+        `<div class="dash-event-type">${escHtml(item.detail || item.templateLabel || '')}</div>` +
+      `</div>`;
+    btn.addEventListener('click', () => {
+      if (item.reviewPrompt || item.kind === 'broadcast') {
+        setActiveMap('newsletter', { force: activeKey === 'newsletter' });
+        return;
+      }
+      if (item.jobSlug) {
+        navigateToWork(item.jobSlug);
+        return;
+      }
+      openRescheduleEmailDialog(item, () => void loadAdminDashboard());
+    });
+
+    const row = createSwipeRow(btn, [
+      swipeEditAction({
+        label: 'Adjust',
+        onClick: () => openRescheduleEmailDialog(item, () => void loadAdminDashboard()),
+      }),
+      swipeDeleteAction({
+        label: 'Cancel',
+        onClick: async () => {
+          try {
+            await patchScheduledEmail(item, 'cancel');
+            await loadAdminDashboard();
+          } catch (e) {
+            osAlert({ title: 'Could not cancel', bodyHtml: escHtml(e.message) });
+          }
+        },
+      }),
+    ]);
+    list.appendChild(row);
+  }
+
+  section.appendChild(list);
+  return section;
+}
+
 function formatEmailWhen(iso) {
   try {
     const d = new Date(iso);
@@ -4879,6 +5044,11 @@ function renderAdminDashboard(data) {
   renderDashTodayLists(todayLists, data, dashTimeView);
   todaySection.appendChild(todayLists);
   scroll.appendChild(todaySection);
+
+  const scheduledEmails = Array.isArray(data?.scheduledEmails) ? data.scheduledEmails : [];
+  if (scheduledEmails.length) {
+    scroll.appendChild(renderDashScheduledEmails(scheduledEmails));
+  }
 
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';

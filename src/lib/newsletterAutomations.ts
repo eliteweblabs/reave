@@ -68,6 +68,15 @@ export const NEWSLETTER_AUTOMATIONS: NewsletterAutomationDef[] = [
     enabledByDefault: true,
     defaultDelayMinutes: 5 * DAY,
   },
+  {
+    id: 'value_your_opinion',
+    label: 'We value your opinion',
+    description: 'After a project is marked done, ask the client for honest feedback. Delay is set here.',
+    templateId: 'value_your_opinion',
+    trigger: 'job_completed',
+    enabledByDefault: false,
+    defaultDelayMinutes: 14 * DAY,
+  },
 ];
 
 export function getAutomationDef(id: string): NewsletterAutomationDef | null {
