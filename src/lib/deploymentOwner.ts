@@ -81,7 +81,7 @@ export async function denyUnlessDeploymentOwner(context: APIContext): Promise<Re
   const { userId } = context.locals.auth();
   if (!userId) return null;
   if (await isDeploymentOwner(context)) return null;
-  return new Response('Forbidden', { status: 403 });
+  return context.redirect('/admin/');
 }
 
 export async function requireDeploymentOwner(

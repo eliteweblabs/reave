@@ -20,7 +20,7 @@ import { getInstallConfigClient } from "../../lib/installConfig";
 import { isSpecialAdminPageKey } from "../../lib/adminSpecialPages";
 import { enabledFeatures } from "../../lib/features";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
-import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import { getAuthUser, isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
 import { githubRepoSlug } from "../../lib/githubClient";
@@ -47,8 +47,13 @@ const installConfigClient = {
   deployStatus: getDeployStatusClientSummary(),
 };
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
+const deniedUser = userId && !isOwner ? await getAuthUser(Astro) : null;
+const signedInAs =
+  deniedUser?.emailAddresses?.[0]?.emailAddress?.trim() ||
+  deniedUser?.username?.trim() ||
+  "";
 if (userId && !isOwner) {
-  return new Response('Forbidden', { status: 403 });
+  Astro.response.status = 403;
 }
 const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
@@ -64,7 +69,11 @@ const specialPage = isSpecialAdminPageKey(
   class:list={[{ "admin-special-page": specialPage }]}
   style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
 >
-  <AdminHead companyName={company.name} fonts={company.fonts} />
+  <AdminHead
+    companyName={company.name}
+    fonts={company.fonts}
+    pageTitle={isOwner ? undefined : `Access pending — ${company.name}`}
+  />
   <body
     class:list={[{ "admin-special-page": specialPage }]}
     data-user-id={userId ?? ""}
@@ -77,20 +86,84 @@ const specialPage = isSpecialAdminPageKey(
       signInAutoOpen={!userId}
     />
 
-    <AdminMapChrome />
-    <AdminPanelMounts />
-    <AdminSearchOverlay />
-    <AdminDialogs />
-
-    <AdminFooterNav />
-
-    <AdminBootScripts
-      companyBrand={companyBrand}
-      staffAvatarUrl={staffAvatarUrl}
-      installConfigClient={installConfigClient}
-      mapboxAccessToken={mapboxAccessToken}
-      craterFinanceUrl={craterFinanceUrl}
-      githubRepo={githubRepo}
-    />
+    {isOwner ? (
+      <>
+        <AdminMapChrome />
+        <AdminPanelMounts />
+        <AdminSearchOverlay />
+        <AdminDialogs />
+        <AdminFooterNav />
+        <AdminBootScripts
+          companyBrand={companyBrand}
+          staffAvatarUrl={staffAvatarUrl}
+          installConfigClient={installConfigClient}
+          mapboxAccessToken={mapboxAccessToken}
+          craterFinanceUrl={craterFinanceUrl}
+          githubRepo={githubRepo}
+        />
+      </>
+    ) : (
+      <main class="admin-access-denied">
+        <div class="admin-access-denied-card">
+          <p class="admin-access-denied-kicker">Signed in</p>
+          <h1>This account isn’t an administrator yet</h1>
+          <p>
+            You’re signed in{signedInAs ? ` as ${signedInAs}` : ""}, but admin
+            access hasn’t been granted to this account.
+          </p>
+          <p>Ask the site owner to enable it, then refresh this page.</p>
+          <a class="admin-access-denied-home" href="/">Back to the site</a>
+        </div>
+      </main>
+    )}
   </body>
 </html>
+
+<style>
+  .admin-access-denied {
+    box-sizing: border-box;
+    min-height: calc(100dvh - 4rem);
+    display: grid;
+    place-items: center;
+    padding: 2rem 1.25rem 3rem;
+  }
+  .admin-access-denied-card {
+    width: min(32rem, 100%);
+    display: grid;
+    gap: 0.85rem;
+    padding: 1.75rem 1.5rem;
+    border-radius: 16px;
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  }
+  .admin-access-denied-kicker {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+  .admin-access-denied-card h1 {
+    margin: 0;
+    font-size: 1.45rem;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+  .admin-access-denied-card p {
+    margin: 0;
+    line-height: 1.5;
+    opacity: 0.78;
+  }
+  .admin-access-denied-home {
+    justify-self: start;
+    margin-top: 0.4rem;
+    color: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  }
+  .admin-access-denied-home:hover {
+    border-bottom-color: currentColor;
+  }
+</style>
