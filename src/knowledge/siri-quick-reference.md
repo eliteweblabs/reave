@@ -145,7 +145,7 @@ Everything in the quick audit plus Playwright UX/UI, broken links, and tech stac
 }
 ```
 
-**Also accepts**: `"action": "create_todo"`. Title aliases: `todo`, `text`, `query`.
+**Also accepts**: `"action": "create_todo"`. Title aliases: `todo`, `text`, `query`. Dates/times in the title (`tomorrow`, `Friday at 3`) are parsed into `due_date` automatically.
 
 ---
 

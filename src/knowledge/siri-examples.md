@@ -262,7 +262,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 6c: "Add a To-Do"
 
-**What it does**: Creates a personal/work to-do (not a contact project) from a dictated title.
+**What it does**: Creates a personal/work to-do (not a contact project) from a dictated title. The server reads the title for a date or time (`tomorrow`, `Friday at 3`, `August 15`) and sets the due date — no second prompt.
 
 **Siri phrase**: "add a to-do" or "new to-do"
 
@@ -289,7 +289,9 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 4. **Show Result**
 
-**Optional**: Add another Ask for Input for due date / priority, or a separate shortcut for `"action": "list_todos"` / `"action": "complete_todo"`.
+Example: saying "Call the plumber tomorrow at 3" stores **Call the plumber** due tomorrow at 3 PM.
+
+**Optional**: A separate shortcut for `"action": "list_todos"` / `"action": "complete_todo"`.
 
 ---
 

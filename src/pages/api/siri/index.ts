@@ -19,6 +19,8 @@
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
  * - add_todo / create_todo: { action: "add_todo", title: string, due_date?, priority? }
+ *   Title is scanned for a spoken date/time (tomorrow, Friday at 3, August 15, …)
+ *   and that value is stored as due_date when due_date is omitted.
  * - list_todos: { action: "list_todos", status?, priority?, limit? }
  * - update_todo: { action: "update_todo", id? | title?, title?, due_date?, priority?, status? }
  * - complete_todo / done_todo / mark_todo_done: { action: "complete_todo", id? | title? }
@@ -87,6 +89,12 @@ import {
   type TodoStatus,
 } from '../../../lib/todoStore';
 import { craterRecordPayment, isCraterConfigured } from '../../../lib/craterClient';
+import { DEFAULT_DEPLOYMENT_TIMEZONE, getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
+import {
+  extractTodoDueFromText,
+  formatSiriTodoDue,
+  isStructuredTodoDue,
+} from '../../../lib/todoDueFromText';
 
 const PAYMENT_MODE_ENUM = ['CASH', 'CHECK', 'CREDIT_CARD', 'BANK_TRANSFER', 'OTHER'] as const;
 
@@ -155,6 +163,9 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const action = String(body.action ?? '').trim().toLowerCase();
   const format = String(body.format ?? 'json').trim().toLowerCase();
+  const todoTimeZone = isTodoAction(action)
+    ? await getDeploymentOwnerTimezone(context).catch(() => DEFAULT_DEPLOYMENT_TIMEZONE)
+    : DEFAULT_DEPLOYMENT_TIMEZONE;
 
   try {
     let result: SiriResponse;
@@ -194,22 +205,22 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'add_todo':
       case 'create_todo':
-        result = await handleAddTodo(body);
+        result = await handleAddTodo(body, todoTimeZone);
         break;
       case 'list_todos':
-        result = await handleListTodos(body);
+        result = await handleListTodos(body, todoTimeZone);
         break;
       case 'update_todo':
-        result = await handleUpdateTodo(body);
+        result = await handleUpdateTodo(body, todoTimeZone);
         break;
       case 'complete_todo':
       case 'done_todo':
       case 'mark_todo_done':
-        result = await handleCompleteTodo(body);
+        result = await handleCompleteTodo(body, todoTimeZone);
         break;
       case 'delete_todo':
       case 'clear_todo':
-        result = await handleDeleteTodo(body);
+        result = await handleDeleteTodo(body, todoTimeZone);
         break;
       case 'status':
         result = await handleStatus();
@@ -623,6 +634,20 @@ async function handleSendSms(params: Record<string, unknown>): Promise<SiriRespo
   };
 }
 
+function isTodoAction(action: string): boolean {
+  return (
+    action === 'add_todo' ||
+    action === 'create_todo' ||
+    action === 'list_todos' ||
+    action === 'update_todo' ||
+    action === 'complete_todo' ||
+    action === 'done_todo' ||
+    action === 'mark_todo_done' ||
+    action === 'delete_todo' ||
+    action === 'clear_todo'
+  );
+}
+
 function todosUnavailable(): SiriResponse {
   return {
     ok: false,
@@ -635,17 +660,17 @@ function todoTitleFromParams(params: Record<string, unknown>): string {
   return String(params.title ?? params.todo ?? params.text ?? params.query ?? '').trim();
 }
 
-function formatTodoLine(todo: TodoItem): string {
+function formatTodoLine(todo: TodoItem, timeZone = DEFAULT_DEPLOYMENT_TIMEZONE): string {
   const bits = [todo.title];
   if (todo.priority && todo.priority !== 'normal') bits.push(`(${todo.priority})`);
-  if (todo.due_date) bits.push(`due ${todo.due_date.slice(0, 10)}`);
+  if (todo.due_date) bits.push(formatSiriTodoDue(todo.due_date, { timeZone }));
   if (todo.status === 'done') bits.push('[done]');
   return bits.join(' ');
 }
 
 async function resolveTodoFromParams(
   params: Record<string, unknown>,
-  opts?: { preferOpen?: boolean },
+  opts?: { preferOpen?: boolean; timeZone?: string },
 ): Promise<{ todo: TodoItem } | { error: string; text: string; data?: unknown }> {
   const idRaw = params.id;
   const id = typeof idRaw === 'number' ? idRaw : Number(String(idRaw ?? '').trim());
@@ -680,7 +705,7 @@ async function resolveTodoFromParams(
     if (partial.length === 1) return { todo: partial[0] } as const;
     if (partial.length > 1 || exact.length > 1) {
       const candidates = (exact.length > 1 ? exact : partial).slice(0, 8);
-      const lines = candidates.map((t) => `#${t.id} ${formatTodoLine(t)}`);
+      const lines = candidates.map((t) => `#${t.id} ${formatTodoLine(t, opts?.timeZone)}`);
       return {
         error: `Multiple to-dos match "${query}"`,
         text: `Multiple to-dos match "${query}":\n\n${lines.join('\n')}\n\nPass id to pick one.`,
@@ -704,10 +729,13 @@ async function resolveTodoFromParams(
   };
 }
 
-async function handleAddTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+async function handleAddTodo(
+  params: Record<string, unknown>,
+  timeZone: string,
+): Promise<SiriResponse> {
   if (!isTodoDbConfigured()) return todosUnavailable();
 
-  const title = todoTitleFromParams(params);
+  let title = todoTitleFromParams(params);
   if (!title) return { ok: false, error: 'title is required', text: 'What should I add to your to-do list?' };
 
   const priorityRaw = String(params.priority ?? '').trim().toLowerCase();
@@ -719,7 +747,22 @@ async function handleAddTodo(params: Record<string, unknown>): Promise<SiriRespo
   }
 
   const dueRaw = params.due_date ?? params.due;
-  const due_date = dueRaw == null || dueRaw === '' ? null : String(dueRaw).trim();
+  let due_date: string | null = null;
+  if (dueRaw != null && String(dueRaw).trim() !== '') {
+    const dueText = String(dueRaw).trim();
+    if (isStructuredTodoDue(dueText)) {
+      due_date = dueText;
+    } else {
+      const fromDue = extractTodoDueFromText(dueText, { timeZone });
+      due_date = fromDue.due_date;
+    }
+  } else {
+    const extracted = extractTodoDueFromText(title, { timeZone });
+    if (extracted.matched) {
+      title = extracted.title;
+      due_date = extracted.due_date;
+    }
+  }
 
   const result = await storeCreateTodo({
     title,
@@ -729,7 +772,9 @@ async function handleAddTodo(params: Record<string, unknown>): Promise<SiriRespo
   });
   if (!result.ok) return { ok: false, error: result.error, text: result.error };
 
-  const dueBit = result.todo.due_date ? ` · due ${result.todo.due_date.slice(0, 10)}` : '';
+  const dueBit = result.todo.due_date
+    ? ` · ${formatSiriTodoDue(result.todo.due_date, { timeZone })}`
+    : '';
   const priorityBit =
     result.todo.priority && result.todo.priority !== 'normal' ? ` · ${result.todo.priority}` : '';
 
@@ -740,7 +785,10 @@ async function handleAddTodo(params: Record<string, unknown>): Promise<SiriRespo
   };
 }
 
-async function handleListTodos(params: Record<string, unknown>): Promise<SiriResponse> {
+async function handleListTodos(
+  params: Record<string, unknown>,
+  timeZone: string,
+): Promise<SiriResponse> {
   if (!isTodoDbConfigured()) return todosUnavailable();
 
   const statusRaw = String(params.status ?? 'open').trim().toLowerCase();
@@ -766,7 +814,7 @@ async function handleListTodos(params: Record<string, unknown>): Promise<SiriRes
     };
   }
 
-  const lines = todos.map((t) => `• ${formatTodoLine(t)}`);
+  const lines = todos.map((t) => `• ${formatTodoLine(t, timeZone)}`);
   const label = status === 'done' ? 'Completed' : status === 'open' || !statusRaw || statusRaw === 'open' ? 'Open' : 'Matching';
   return {
     ok: true,
@@ -775,10 +823,13 @@ async function handleListTodos(params: Record<string, unknown>): Promise<SiriRes
   };
 }
 
-async function handleUpdateTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+async function handleUpdateTodo(
+  params: Record<string, unknown>,
+  timeZone: string,
+): Promise<SiriResponse> {
   if (!isTodoDbConfigured()) return todosUnavailable();
 
-  const resolved = await resolveTodoFromParams(params, { preferOpen: true });
+  const resolved = await resolveTodoFromParams(params, { preferOpen: true, timeZone });
   if ('error' in resolved) return { ok: false, ...resolved };
 
   const patch: {
@@ -794,7 +845,14 @@ async function handleUpdateTodo(params: Record<string, unknown>): Promise<SiriRe
   }
   if (params.due_date !== undefined || params.due !== undefined) {
     const dueRaw = params.due_date ?? params.due;
-    patch.due_date = dueRaw == null || dueRaw === '' ? null : String(dueRaw).trim();
+    if (dueRaw == null || String(dueRaw).trim() === '') {
+      patch.due_date = null;
+    } else {
+      const dueText = String(dueRaw).trim();
+      patch.due_date = isStructuredTodoDue(dueText)
+        ? dueText
+        : extractTodoDueFromText(dueText, { timeZone }).due_date;
+    }
   }
   if (params.priority != null) {
     const priority = normalizeTodoPriority(params.priority);
@@ -824,15 +882,18 @@ async function handleUpdateTodo(params: Record<string, unknown>): Promise<SiriRe
 
   return {
     ok: true,
-    text: `Updated to-do: ${formatTodoLine(result.todo)}`,
+    text: `Updated to-do: ${formatTodoLine(result.todo, timeZone)}`,
     data: { todo: result.todo },
   };
 }
 
-async function handleCompleteTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+async function handleCompleteTodo(
+  params: Record<string, unknown>,
+  timeZone: string,
+): Promise<SiriResponse> {
   if (!isTodoDbConfigured()) return todosUnavailable();
 
-  const resolved = await resolveTodoFromParams(params, { preferOpen: true });
+  const resolved = await resolveTodoFromParams(params, { preferOpen: true, timeZone });
   if ('error' in resolved) return { ok: false, ...resolved };
 
   const result = await storeMarkTodoDone(resolved.todo.id);
@@ -845,10 +906,13 @@ async function handleCompleteTodo(params: Record<string, unknown>): Promise<Siri
   };
 }
 
-async function handleDeleteTodo(params: Record<string, unknown>): Promise<SiriResponse> {
+async function handleDeleteTodo(
+  params: Record<string, unknown>,
+  timeZone: string,
+): Promise<SiriResponse> {
   if (!isTodoDbConfigured()) return todosUnavailable();
 
-  const resolved = await resolveTodoFromParams(params);
+  const resolved = await resolveTodoFromParams(params, { timeZone });
   if ('error' in resolved) return { ok: false, ...resolved };
 
   const result = await storeDeleteTodo(resolved.todo.id);
