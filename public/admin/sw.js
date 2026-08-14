@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260811c — Badge-sync push updates the icon count without a lasting tray alert. */
+   v20260813 — OTP tap copies the code; never opens the email or a sign-in link. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -91,7 +91,22 @@ async function stashPendingOtpCopy(payload) {
   }
 }
 
-/** Focus an open admin window (or open one) and ask it to copy the OTP. */
+/** Same shapes as formatOtpPushNotification / extractOtpCodeFromPushText. */
+function otpCodeFromNotificationText(title, body) {
+  const raw = `${body || ''}\n${title || ''}`;
+  const google = raw.match(/\b(G-\d{6})\b/i);
+  if (google?.[1]) return google[1].toUpperCase();
+  const labeled = raw.match(/\bCode[:\s]+([A-Z0-9][A-Z0-9 -]{2,16}[A-Z0-9])\b/i);
+  if (labeled?.[1]) return labeled[1].replace(/\s+/g, '');
+  return '';
+}
+
+function otpCopyPageUrl(code) {
+  const trimmed = String(code || '').trim();
+  return trimmed ? `/admin/copy#c=${encodeURIComponent(trimmed)}` : '/admin/copy';
+}
+
+/** Copy the OTP — never open the inbox or a sign-in URL. */
 async function deliverOtpCopy(opts) {
   const code = String(opts.code || '').trim();
   if (!code) return;
@@ -104,17 +119,10 @@ async function deliverOtpCopy(opts) {
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   for (const client of clients) {
     client.postMessage(message);
-    if ('focus' in client) {
-      try {
-        await client.focus();
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
   }
+
   if (self.clients.openWindow) {
-    const opened = await self.clients.openWindow('/admin');
+    const opened = await self.clients.openWindow(otpCopyPageUrl(code));
     if (opened) {
       try {
         opened.postMessage(message);
@@ -239,6 +247,8 @@ self.addEventListener('push', (event) => {
   const tag = data.tag || 'inbox';
   const isAuditAlert = String(tag).toLowerCase().startsWith('siri-proposal-');
   const isOtp = kind === 'otp' || String(tag).toLowerCase().startsWith('otp-');
+  const resolvedOtpCode =
+    verificationCode || otpCodeFromNotificationText(data.title, data.body);
   const isBadgeSync =
     data.badgeOnly === true || kind === 'badge-sync' || String(tag) === 'reave-badge-sync';
 
@@ -267,7 +277,7 @@ self.addEventListener('push', (event) => {
       action: action === 'view' ? 'open' : action,
       title: titles[action] || action,
     }));
-  } else if (isOtp && verificationCode) {
+  } else if (isOtp && resolvedOtpCode) {
     actions = [
       { action: 'copy', title: 'Copy code' },
       { action: 'delete', title: 'Delete' },
@@ -288,10 +298,10 @@ self.addEventListener('push', (event) => {
       icon: '/api/branding/icon?size=192',
       badge: '/api/branding/icon?size=192',
       data: {
-        url: data.url || '/admin?tab=email',
+        url: isOtp ? otpCopyPageUrl(resolvedOtpCode) : data.url || '/admin?tab=email',
         alertId,
         emailId,
-        verificationCode,
+        verificationCode: resolvedOtpCode,
         kind: isOtp ? 'otp' : kind,
       },
       actions,
@@ -299,6 +309,9 @@ self.addEventListener('push', (event) => {
     notifyClientsInboxPush(),
   ];
   if (badgeCount != null) tasks.push(writeBadgeCount(badgeCount));
+  if (isOtp && resolvedOtpCode) {
+    tasks.push(stashPendingOtpCopy({ code: resolvedOtpCode, emailId, alertId, tag }));
+  }
 
   event.waitUntil(Promise.all(tasks));
 });
@@ -320,14 +333,16 @@ self.addEventListener('notificationclick', (event) => {
   const emailId = noteData.emailId ? String(noteData.emailId) : '';
   const verificationCode = noteData.verificationCode
     ? String(noteData.verificationCode).trim()
-    : '';
+    : otpCodeFromNotificationText(event.notification.title, event.notification.body);
   const kind = noteData.kind ? String(noteData.kind) : '';
   const tag = event.notification.tag ? String(event.notification.tag) : '';
   const isOtp =
     kind === 'otp' || tag.toLowerCase().startsWith('otp-') || Boolean(verificationCode);
   const isBadgeSync =
     noteData.badgeOnly === true || kind === 'badge-sync' || tag === 'reave-badge-sync';
-  const url = noteData.url || (isBadgeSync ? '/admin?tab=dashboard' : '/admin?tab=email');
+  const url = isOtp
+    ? otpCopyPageUrl(verificationCode)
+    : noteData.url || (isBadgeSync ? '/admin?tab=dashboard' : '/admin?tab=email');
   const absoluteUrl = new URL(url, self.location.origin).href;
   const action = event.action || '';
 
@@ -338,9 +353,16 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  if (isOtp && verificationCode && (action === 'copy' || action === '' || action === 'open')) {
+  if (isOtp && action !== 'delete') {
     event.waitUntil(
-      Promise.all([deliverOtpCopy({ code: verificationCode, emailId, alertId }), notifyClientsInboxPush()]),
+      Promise.all([
+        verificationCode
+          ? deliverOtpCopy({ code: verificationCode, emailId, alertId })
+          : self.clients.openWindow
+            ? self.clients.openWindow('/admin/copy')
+            : Promise.resolve(),
+        notifyClientsInboxPush(),
+      ]),
     );
     return;
   }

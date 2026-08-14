@@ -2951,14 +2951,24 @@ function syncOtpCountdownTimers() {
   otpCountdownTimer = setInterval(tickOtpCountdowns, 1000);
 }
 
+function otpCodeFromNotificationText(title, detail) {
+  const raw = `${detail || ''}\n${title || ''}`;
+  const google = raw.match(/\b(G-\d{6})\b/i);
+  if (google?.[1]) return google[1].toUpperCase();
+  const labeled = raw.match(/\bCode[:\s]+([A-Z0-9][A-Z0-9 -]{2,16}[A-Z0-9])\b/i);
+  if (labeled?.[1]) return labeled[1].replace(/\s+/g, '');
+  return '';
+}
+
 async function copyOtpFromReviewAlert(item, btn) {
   let code = String(item?.verificationCode || '').trim();
   if (!code && item?.emailId) {
     const ev = emailState.allEvents.find((e) => e.id === item.emailId);
     code = String(ev?.verificationCode || '').trim();
   }
+  if (!code) code = otpCodeFromNotificationText(item?.title, item?.detail);
   if (!code) {
-    if (item?.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+    showChatToast('No code to copy', btn);
     return;
   }
   await copyEmailVerificationCode(code, btn);
@@ -4084,11 +4094,9 @@ function buildReviewAlertBanner(item) {
 
   const pushCustomAction = (key) => {
     if (key === 'copy') {
-      if (item.verificationCode) {
-        pushNotifyAction('copy', {
-          onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
-        });
-      }
+      pushNotifyAction('copy', {
+        onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
+      });
       return;
     }
     if (key === 'activate') {
@@ -4142,17 +4150,10 @@ function buildReviewAlertBanner(item) {
   if (customActions.length && (isPushAlert || isOtp || isAuthLink || isTriageExplain || isReceiptExpense)) {
     customActions.forEach(pushCustomAction);
   } else if (isOtp) {
-    if (item.verificationCode) {
-      pushNotifyAction('copy', {
-        primary: true,
-        onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
-      });
-    } else {
-      pushNotifyAction('view', {
-        primary: true,
-        onClick: () => openReviewNotificationTarget(item),
-      });
-    }
+    pushNotifyAction('copy', {
+      primary: true,
+      onClick: (btn) => void copyOtpFromReviewAlert(item, btn),
+    });
     pushNotifyAction('delete', {
       primary: false,
       onClick: (btn) => void deleteOtpFromReviewAlert(item, btn),
@@ -4344,7 +4345,7 @@ function buildReviewAlertBanner(item) {
     },
     actions,
     onCopyClick: () => {
-      if (isOtp && item.verificationCode) void copyOtpFromReviewAlert(item, null);
+      if (isOtp) void copyOtpFromReviewAlert(item, null);
       else if (isAuthLink && item.actionUrl) void activateAuthLinkFromReviewAlert(item, null);
       else openReviewNotificationTarget(item);
     },
@@ -9173,6 +9174,10 @@ function handleNotificationOpen(url) {
   if (!url) return;
   try {
     const u = new URL(url, window.location.origin);
+    if (u.pathname.replace(/\/$/, '') === '/admin/copy') {
+      void consumePendingOtpCopy();
+      return;
+    }
     const tab = resolveMapKey(u.searchParams.get('tab'));
     const emailId = u.searchParams.get('email')?.trim();
     if (tab === 'email' && emailId) {

@@ -161,9 +161,11 @@ export async function sendInboxPushNotification(payload: {
   skipPhonePush?: boolean;
   actions?: string[];
 }): Promise<void> {
-  const url = payload.emailId
-    ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
-    : '/admin?tab=email';
+  const url = payload.verificationCode
+    ? '/admin/copy'
+    : payload.emailId
+      ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
+      : '/admin?tab=email';
   const { kind, skipDashboardAlert, skipPhonePush, emailId, verificationCode, actions, ...rest } =
     payload;
   return sendPushNotification({

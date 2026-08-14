@@ -1,0 +1,211 @@
+---
+/**
+ * Lightweight OTP copy target for push-notification taps.
+ * No auth redirect — the code is already on-device (notification + Cache API).
+ * Opening this page must copy, never deep-link to email or a sign-in URL.
+ */
+import ViewportMeta from "../../components/ViewportMeta.astro";
+import Favicon from "../../components/Favicon.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
+
+export const prerender = false;
+
+Astro.response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+Astro.response.headers.set("Pragma", "no-cache");
+
+const company = await getCompanyConfig(Astro.request);
+const appName = company.name || "Business OS";
+---
+
+<!doctype html>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
+  <head>
+    <meta charset="utf-8" />
+    <ViewportMeta />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0a0d14" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Copy code — {appName}</title>
+    <Favicon />
+  </head>
+  <body>
+    <main class="otp-copy">
+      <p class="otp-copy-kicker">{appName}</p>
+      <h1>Verification code</h1>
+      <p id="otp-code" class="otp-copy-code" aria-live="polite">…</p>
+      <p id="otp-status" class="otp-copy-status">Copying…</p>
+      <button type="button" id="otp-copy-btn" class="otp-copy-btn">Copy code</button>
+      <p class="otp-copy-hint">Paste on this phone or your laptop. This page does not open a link.</p>
+    </main>
+    <script is:inline>
+      (function () {
+        var CACHE = 'reave-otp-v1';
+        var STASH = '/pending-otp-copy';
+        var codeEl = document.getElementById('otp-code');
+        var statusEl = document.getElementById('otp-status');
+        var btn = document.getElementById('otp-copy-btn');
+
+        function codeFromHash() {
+          var raw = String(location.hash || '').replace(/^#/, '');
+          if (!raw) return '';
+          try {
+            var params = new URLSearchParams(raw.indexOf('=') >= 0 ? raw : 'c=' + raw);
+            return String(params.get('c') || '').trim();
+          } catch (e) {
+            return raw.replace(/^c=/i, '').trim();
+          }
+        }
+
+        function fallbackCopy(text) {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          ta.setSelectionRange(0, text.length);
+          var ok = false;
+          try {
+            ok = document.execCommand('copy');
+          } catch (e) {
+            ok = false;
+          }
+          ta.remove();
+          return ok;
+        }
+
+        async function writeClipboard(text) {
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+              return true;
+            }
+          } catch (e) {
+            /* fall through */
+          }
+          return fallbackCopy(text);
+        }
+
+        async function codeFromStash() {
+          try {
+            var cache = await caches.open(CACHE);
+            var res = await cache.match(STASH);
+            if (!res) return '';
+            var data = await res.json();
+            if (data.t && Date.now() - Number(data.t) > 120000) return '';
+            return String(data.code || '').trim();
+          } catch (e) {
+            return '';
+          }
+        }
+
+        function show(code, status, copied) {
+          if (codeEl) codeEl.textContent = code || '—';
+          if (statusEl) statusEl.textContent = status;
+          if (btn) btn.textContent = copied ? 'Copied' : 'Copy code';
+        }
+
+        async function copyNow(code) {
+          if (!code) {
+            show('', 'Nothing to copy', false);
+            return false;
+          }
+          var ok = await writeClipboard(code);
+          show(code, ok ? 'Copied — paste anywhere, including your laptop' : 'Tap Copy code', ok);
+          return ok;
+        }
+
+        async function boot() {
+          var code = codeFromHash() || (await codeFromStash());
+          if (!code) {
+            show('', 'No code waiting', false);
+            return;
+          }
+          show(code, 'Copying…', false);
+          await copyNow(code);
+        }
+
+        if (btn) {
+          btn.addEventListener('click', function () {
+            var code = (codeEl && codeEl.textContent) || codeFromHash();
+            if (code && code !== '…' && code !== '—') void copyNow(code);
+          });
+        }
+
+        void boot();
+      })();
+    </script>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #0a0d14;
+        color: #f8fafc;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      .otp-copy {
+        min-height: 100dvh;
+        padding: calc(2rem + env(safe-area-inset-top)) 1.5rem calc(2rem + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 0.75rem;
+      }
+      .otp-copy-kicker {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 650;
+      }
+      .otp-copy-code {
+        margin: 0.4rem 0 0;
+        font-size: 2.4rem;
+        font-weight: 750;
+        letter-spacing: 0.12em;
+        font-variant-numeric: tabular-nums;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #fde68a;
+        user-select: all;
+        -webkit-user-select: all;
+      }
+      .otp-copy-status {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #e2e8f0;
+        min-height: 1.4em;
+      }
+      .otp-copy-btn {
+        margin-top: 0.4rem;
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.9rem 1.6rem;
+        font-size: 1.05rem;
+        font-weight: 650;
+        color: #0a0d14;
+        background: #fde68a;
+        min-width: 12rem;
+      }
+      .otp-copy-hint {
+        margin: 0.4rem 0 0;
+        max-width: 22rem;
+        font-size: 0.82rem;
+        line-height: 1.4;
+        color: #94a3b8;
+      }
+    </style>
+  </body>
+</html>

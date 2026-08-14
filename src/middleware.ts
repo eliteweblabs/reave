@@ -44,6 +44,7 @@ function isServiceWorkerScript(pathname: string): boolean {
 /** Admin shell + module scripts must not sit in HTTP cache (installed PWAs keep stale JS for hours). */
 function isAdminHotReloadAsset(pathname: string): boolean {
   if (pathname === "/admin" || pathname === "/admin/") return true;
+  if (pathname === "/admin/copy" || pathname === "/admin/copy/") return true;
   return pathname.startsWith("/admin/") && pathname.endsWith(".js");
 }
 

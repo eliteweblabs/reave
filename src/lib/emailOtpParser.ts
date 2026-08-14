@@ -370,6 +370,17 @@ export function describeOtpPurpose(
   return app ? `Verification for ${app}` : 'Verification code';
 }
 
+/** Pull a code out of OTP push title/body ("Code 94043 — tap to copy…"). */
+export function extractOtpCodeFromPushText(text: string | null | undefined): string {
+  const raw = String(text || '');
+  if (!raw.trim()) return '';
+  const google = raw.match(/\b(G-\d{6})\b/i);
+  if (google?.[1]) return google[1].toUpperCase();
+  const labeled = raw.match(/\bCode[:\s]+([A-Z0-9][A-Z0-9 -]{2,16}[A-Z0-9])\b/i);
+  if (labeled?.[1]) return labeled[1].replace(/\s+/g, '');
+  return '';
+}
+
 /** Push title/body for OTP alerts — title states what the code is for. */
 export function formatOtpPushNotification(opts: {
   code?: string | null;
@@ -379,7 +390,7 @@ export function formatOtpPushNotification(opts: {
   const code = opts.code?.trim();
   const title = `${purpose} — code ready`;
   const body = code
-    ? `Code ${code} — tap to copy, then paste in Safari`
+    ? `Code ${code} — tap to copy`
     : 'Open the Email tab to copy your code — auto-deletes in 5 min';
   return { title, body };
 }
