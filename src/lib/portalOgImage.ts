@@ -14,6 +14,7 @@ import {
 } from './clientBranding';
 import { enrichClientPortalBrand } from './clientBrand';
 import { adaptLogoContrast } from './logoContrastAdapt';
+import { cachedCompanyBrandName, getCompanyConfig } from './companyConfig';
 
 export const PORTAL_OG_WIDTH = 1200;
 export const PORTAL_OG_HEIGHT = 630;
@@ -31,6 +32,15 @@ export type PortalShareMeta = {
   logoUrl: string;
   iconUrl: string;
 };
+
+/** Browser tab / OG title: "Parlee Cycles · Online Presence Diagnostic by REΛVE Automation". */
+export function formatPortalPageTitle(businessName: string, providerName?: string): string {
+  const business = businessName.trim() || 'Contact';
+  const provider = (providerName ?? cachedCompanyBrandName()).trim();
+  return provider
+    ? `${business} · Online Presence Diagnostic by ${provider}`
+    : `${business} · Online Presence Diagnostic`;
+}
 
 function escapeXml(value: string): string {
   return value
@@ -54,11 +64,16 @@ export function safeRemoteImageUrl(raw: string): string | null {
   }
 }
 
-export function portalShareMetaFromContact(uid: string, contact: ContactRecord, portal: ClientPortal): PortalShareMeta {
+export function portalShareMetaFromContact(
+  uid: string,
+  contact: ContactRecord,
+  portal: ClientPortal,
+  providerName?: string,
+): PortalShareMeta {
   const displayName = contactStringField(contact.name) || 'Contact';
   const company = contactStringField(contact.company);
   const brandTitle = company || displayName;
-  const pageTitle = company ? `${displayName} · ${company}` : displayName;
+  const pageTitle = formatPortalPageTitle(brandTitle, providerName);
   const tagline = contactStringField(portal.tagline);
   const description = tagline || `${brandTitle} client portal`;
 
@@ -94,7 +109,8 @@ export async function loadPortalShareMeta(uid: string): Promise<PortalShareMeta 
     }
   }
 
-  return portalShareMetaFromContact(id, contact, portal);
+  const org = await getCompanyConfig();
+  return portalShareMetaFromContact(id, contact, portal, org.name);
 }
 
 function buildPortalOgTextSvg(title: string): string {

@@ -38,7 +38,7 @@ import PortalAssistantWidget from '../../components/PortalAssistantWidget.astro'
 import { resolvePortalBrandColors, portalBrandCssVars, type PortalBrandColors } from '../../lib/portalBrandColors';
 import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
-import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
+import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH, formatPortalPageTitle } from '../../lib/portalOgImage';
 import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl, auditPortalUrl } from '../../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
@@ -410,7 +410,7 @@ const billingSections: BillingSectionBlock[] = portalBillingView
     ]
   : [];
 
-const pageTitle = company ? `${displayName} · ${company}` : displayName;
+const pageTitle = formatPortalPageTitle(brandTitle, org.name);
 const appTitle = brandTitle;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#0c0614';
