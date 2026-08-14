@@ -26,6 +26,7 @@ import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import { serverEnv } from '../../../../lib/serverEnv';
 import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../lib/clientIp';
+import { escapeHtml } from '../../../../lib/htmlEscape';
 
 export const prerender = false;
 
@@ -46,14 +47,6 @@ function fmtDateLong(iso: string): string {
     : d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
 }
 
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 /** Build the inline-styled signature block + audit table that gets permanently baked
  *  into `content`. Uses only inline styles — self-contained for any renderer. */
 function buildSignatureBlock(opts: {
@@ -71,8 +64,8 @@ function buildSignatureBlock(opts: {
 
   const row = (label: string, value: string) =>
     `<tr>
-      <td style="padding:3px 16px 3px 0;font-weight:600;white-space:nowrap;width:1%;vertical-align:top">${escHtml(label)}</td>
-      <td style="padding:3px 0;word-break:break-all">${escHtml(value)}</td>
+      <td style="padding:3px 16px 3px 0;font-weight:600;white-space:nowrap;width:1%;vertical-align:top">${escapeHtml(label)}</td>
+      <td style="padding:3px 0;word-break:break-all">${escapeHtml(value)}</td>
     </tr>`;
 
   return `
@@ -82,13 +75,13 @@ function buildSignatureBlock(opts: {
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
     <div style="flex:1;min-width:200px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:#888;margin-bottom:6px">Electronically signed by</div>
-      <div style="font-size:21px;font-style:italic;font-weight:600;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:8px;font-family:Georgia,'Times New Roman',serif">${escHtml(signerName)}</div>
-      <div style="font-size:13px;color:#555">${escHtml(dateStr)}</div>
+      <div style="font-size:21px;font-style:italic;font-weight:600;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:8px;font-family:Georgia,'Times New Roman',serif">${escapeHtml(signerName)}</div>
+      <div style="font-size:13px;color:#555">${escapeHtml(dateStr)}</div>
     </div>
     <div style="width:100px;height:100px;border:2.5px solid #166534;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transform:rotate(-12deg)">
       <div style="text-align:center;line-height:1.4">
         <div style="font-weight:800;font-size:13px;color:#166534;letter-spacing:2px">SIGNED</div>
-        <div style="font-size:10px;color:#166534;letter-spacing:1px">via ${escHtml(companyName)}</div>
+        <div style="font-size:10px;color:#166534;letter-spacing:1px">via ${escapeHtml(companyName)}</div>
       </div>
     </div>
   </div>

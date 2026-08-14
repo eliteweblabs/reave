@@ -14,6 +14,8 @@ import {
 } from './clientBranding';
 import { enrichClientPortalBrand } from './clientBrand';
 import { adaptLogoContrast } from './logoContrastAdapt';
+import { normalizePublicUrl } from './publicUrl';
+import { fetchPublicWithRedirects } from './safePublicFetch';
 
 export const PORTAL_OG_WIDTH = 1200;
 export const PORTAL_OG_HEIGHT = 630;
@@ -43,15 +45,8 @@ function escapeXml(value: string): string {
 
 /** Only allow remote http(s) image URLs for OG composition. */
 export function safeRemoteImageUrl(raw: string): string | null {
-  const t = raw.trim();
-  if (!t) return null;
-  try {
-    const url = new URL(t);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
+  const url = normalizePublicUrl(raw.trim(), false);
+  return url?.toString() ?? null;
 }
 
 export function portalShareMetaFromContact(uid: string, contact: ContactRecord, portal: ClientPortal): PortalShareMeta {
@@ -117,13 +112,12 @@ async function fetchRemoteLogoBuffer(url: string): Promise<Buffer | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOGO_FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const fetched = await fetchPublicWithRedirects(url, {
       signal: controller.signal,
-      redirect: 'follow',
       headers: { Accept: 'image/*,*/*;q=0.8' },
     });
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
+    if (!fetched || !fetched.response.ok) return null;
+    const buf = Buffer.from(await fetched.response.arrayBuffer());
     return buf.length > 0 ? buf : null;
   } catch {
     return null;

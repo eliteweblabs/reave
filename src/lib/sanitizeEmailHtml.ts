@@ -21,6 +21,7 @@ const FORBIDDEN_TAGS = new Set([
   'frameset',
   'applet',
   'svg',
+  'style',
 ]);
 
 const URL_ATTRS = new Set(['href', 'src', 'xlink:href', 'formaction', 'action', 'background']);

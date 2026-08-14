@@ -3,6 +3,7 @@
  */
 import * as cheerio from 'cheerio';
 import { normalizePublicUrl, resolvePublicRedirectUrl } from './publicUrl';
+import { fetchPublicWithRedirects } from './safePublicFetch';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -76,14 +77,18 @@ async function fetchPageHtml(pageUrl: URL): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const res = await fetch(pageUrl.toString(), {
+    const fetched = await fetchPublicWithRedirects(pageUrl.toString(), {
       signal: controller.signal,
-      redirect: 'follow',
+      preferHttps: true,
       headers: {
         'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,*/*',
       },
     });
+    if (!fetched) {
+      throw new Error('Blocked or invalid URL');
+    }
+    const { response: res } = fetched;
     const buf = await res.arrayBuffer();
     if (buf.byteLength > MAX_HTML_BYTES) {
       throw new Error(`Page too large (${Math.round(buf.byteLength / 1024)}KB)`);

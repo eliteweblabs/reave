@@ -5,6 +5,7 @@
  */
 
 import { normalizePublicUrl } from './publicUrl';
+import { fetchPublicWithRedirects } from './safePublicFetch';
 import { runWappalyzer, type MatchedTech } from './wappalyzerLite';
 
 const USER_AGENT =
@@ -36,15 +37,18 @@ export async function detectTechStack(urlInput: string): Promise<TechStackRespon
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const res = await fetch(url.toString(), {
+    const fetched = await fetchPublicWithRedirects(url.toString(), {
       signal: controller.signal,
-      redirect: 'follow',
       headers: {
         'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
+    if (!fetched) {
+      return { ok: false, error: 'Invalid or blocked URL (http/https only; no localhost/private IPs)' };
+    }
+    const res = fetched.response;
 
     const buf = await res.arrayBuffer();
     if (buf.byteLength > MAX_HTML_BYTES) {
