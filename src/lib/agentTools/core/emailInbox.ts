@@ -406,9 +406,6 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     : (['subject', 'body'] as RuleField[]);
   const matchMode: MatchMode = sender && hasExtraPhrases ? 'all' : 'any';
 
-  const scopeRaw = String(args.scope ?? '').trim().toLowerCase();
-  const scope = scopeRaw === 'universal' ? 'universal' : 'personal';
-
   const rule = await storeCreateEmailRule({
     title,
     status,
@@ -423,7 +420,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     enabled: true,
     expiresAt,
     forwardTo,
-    scope,
+    scope: 'personal',
   });
   if (!rule) return JSON.stringify({ error: 'failed to create rule' });
   return JSON.stringify({
@@ -579,7 +576,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create a triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls) so first-match triage honors them. When both sender and phrases are set, matchMode is "all" across from+subject+body. Optional forward_to relays matched mail via Resend. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Default scope is personal (this install only); pass scope=universal only when the user explicitly wants a shared catalog rule for all Reave installs. Skips if an enabled rule already matches the same sender phrase.',
+                'Create a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls) so first-match triage honors them. When both sender and phrases are set, matchMode is "all" across from+subject+body. Optional forward_to relays matched mail via Resend. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here. Skips if an enabled rule already matches the same sender phrase.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -609,9 +606,9 @@ export const emailInboxModule: AgentToolModule = {
                   },
                   scope: {
                     type: 'string',
-                    enum: ['personal', 'universal'],
+                    enum: ['personal'],
                     description:
-                      'personal = this install only (default). universal = shared catalog intent for all Reave installs; still must be added to DEFAULT_RULES in the repo to ship on every deploy.',
+                      'Always personal (this install). Universal catalog rules are edited in DEFAULT_RULES in the repo.',
                   },
                   forward_to: {
                     type: 'string',

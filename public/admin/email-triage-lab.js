@@ -261,8 +261,13 @@ export function createEmailTriageLab(deps) {
     }
     const filterActive = isRulesFilterActive();
     root.querySelectorAll('.re-lab-pipe-card--rule .re-lab-grip').forEach((grip) => {
-      grip.disabled = filterActive;
-      grip.title = filterActive ? 'Clear filter to reorder' : 'Drag to reorder';
+      const locked = grip.closest('.re-lab-pipe-card')?.dataset.locked === '1';
+      grip.disabled = filterActive || locked;
+      grip.title = locked
+        ? 'Catalog rule order comes from the repo'
+        : filterActive
+          ? 'Clear filter to reorder'
+          : 'Drag to reorder';
     });
     if (searchInput instanceof HTMLInputElement) {
       const n = orderedRules().length;
@@ -1141,7 +1146,7 @@ export function createEmailTriageLab(deps) {
 
         const spine = document.createElement('div');
         spine.className = 're-flow-spine';
-        spine.textContent = '↓ keyword rules (drag to reorder)';
+        spine.textContent = '↓ keyword rules · catalog is fixed from the repo';
         pipeList.appendChild(spine);
 
         orderedRules().forEach((rule, i) => {
@@ -1163,11 +1168,14 @@ export function createEmailTriageLab(deps) {
           const head = document.createElement('div');
           head.className = 're-lab-pipe-card-head';
 
+          const catalog = rule.scope === 'universal';
+          if (catalog) card.dataset.locked = '1';
           const grip = document.createElement('button');
           grip.type = 'button';
           grip.className = 're-lab-grip';
-          grip.setAttribute('aria-label', 'Drag to reorder');
-          grip.title = 'Drag to reorder';
+          grip.disabled = catalog;
+          grip.setAttribute('aria-label', catalog ? 'Catalog order is fixed' : 'Drag to reorder');
+          grip.title = catalog ? 'Catalog rule order comes from the repo' : 'Drag to reorder';
           grip.innerHTML = iosIcon('grip', 16);
 
           const toggle = document.createElement('button');

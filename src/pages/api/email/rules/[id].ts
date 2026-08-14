@@ -16,6 +16,7 @@ import {
 import type { MatchMode, RuleField, RuleNotifyAction } from '../../../../lib/emailRules';
 import {
   coalesceRuleNotifyFields,
+  isRepoCatalogRule,
   normalizeEmailRuleScope,
   normalizeNotifyActions,
 } from '../../../../lib/emailRules';
@@ -126,6 +127,19 @@ export async function PUT(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
+  const existing = await storeGetEmailRule(id);
+  if (!existing) return json({ ok: false, error: 'Not found' }, 404);
+  if (isRepoCatalogRule(existing)) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Edit the repo, not this install.',
+      },
+      403,
+    );
+  }
+
   const input = parseRuleInput(body);
   if (!input) return json({ ok: false, error: 'title and status are required' }, 400);
 
@@ -141,6 +155,18 @@ export async function DELETE(context: APIContext): Promise<Response> {
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+
+  const existing = await storeGetEmailRule(id);
+  if (!existing) return json({ ok: false, error: 'Not found' }, 404);
+  if (isRepoCatalogRule(existing)) {
+    return json(
+      {
+        ok: false,
+        error: 'Catalog rules are defined in the repo and cannot be deleted on this install.',
+      },
+      403,
+    );
+  }
 
   const ok = await storeDeleteEmailRule(id);
   if (!ok) return json({ ok: false, error: 'Not found or delete failed' }, 404);

@@ -96,8 +96,8 @@ export interface EmailRule {
   /** Short status label surfaced in the notification, e.g. "DOWN". */
   status: string;
   /**
-   * `universal` — shared catalog for all Reave installs (seeded from this repo).
-   * `personal` — this install only (teach/correct and custom rules default here).
+   * `universal` — repo catalog (`DEFAULT_RULES`). Same on every install; deploy
+   * overwrites local copies. `personal` — this install only (teach/correct).
    */
   scope?: EmailRuleScope;
   description?: string;
@@ -368,6 +368,28 @@ export const DEFAULT_RULES: EmailRule[] = [
  * nothing slips through silently while rules are being tuned.
  */
 export const NOTIFY_ON_UNMATCHED = true;
+
+/** Statuses that live in `DEFAULT_RULES` and ship to every install on deploy. */
+export function isRepoCatalogStatus(status: string): boolean {
+  const key = String(status || '')
+    .trim()
+    .toUpperCase();
+  return DEFAULT_RULES.some((d) => d.status.toUpperCase() === key);
+}
+
+/**
+ * Repo catalog row (not a personal rule that happens to share a status like DELETE).
+ * Catalog defaults never search `from` — those are install-local sender blocks.
+ */
+export function isRepoCatalogRule(rule: {
+  status?: string;
+  scope?: string | null;
+  fields?: readonly string[] | null;
+}): boolean {
+  if (normalizeEmailRuleScope(rule.scope, 'personal') !== 'universal') return false;
+  if (!isRepoCatalogStatus(String(rule.status || ''))) return false;
+  return !(rule.fields || []).includes('from');
+}
 
 function fieldValue(email: InboundEmail, field: RuleField): string {
   switch (field) {

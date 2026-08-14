@@ -1745,6 +1745,13 @@ button.de-placeholder-action:active {
   overflow: auto;
   padding-right: 0.15rem;
 }
+.re-lab-rule-form--catalog {
+  opacity: 0.92;
+}
+.re-lab-rule-form--catalog .sliding-pill,
+.re-lab-pipe-card[data-locked='1'] .re-lab-grip {
+  pointer-events: none;
+}
 .re-lab-section-head {
   margin-bottom: 0.85rem;
 }

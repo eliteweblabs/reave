@@ -51,7 +51,7 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260814a';
+} from './email-triage-lab.js?v=20260814b';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -106,6 +106,10 @@ function getTriageLab() {
 
 function ruleScope(rule) {
   return rule?.scope === 'universal' ? 'universal' : 'personal';
+}
+
+function isCatalogRule(rule) {
+  return ruleScope(rule) === 'universal';
 }
 
 function ruleScopeLabel(rule) {
@@ -338,12 +342,13 @@ function createRuleListItem(rule, activeId) {
 }
 
 function createRuleSwipeRow(rule, activeId) {
-  return createSwipeRow(createRuleListItem(rule, activeId), [
-    swipeAgentAction(() => askAgentAboutRule(rule)),
-    swipeDeleteAction({
+  const actions = [swipeAgentAction(() => askAgentAboutRule(rule))];
+  if (!isCatalogRule(rule)) {
+    actions.push(swipeDeleteAction({
       onClick: () => deleteRule(rule.id),
-    }),
-  ]);
+    }));
+  }
+  return createSwipeRow(createRuleListItem(rule, activeId), actions);
 }
 
 function fillRulesSidebarList(list) {
@@ -431,11 +436,14 @@ function createFlowRuleCard(rule, index) {
   row.dataset.id = rule.id;
   row.setAttribute('aria-label', `Priority ${index + 1}: ${rule.title || rule.status}`);
 
+  const catalog = isCatalogRule(rule);
+  if (catalog) row.dataset.locked = '1';
   const grip = document.createElement('button');
   grip.type = 'button';
   grip.className = 're-flow-grip';
-  grip.title = 'Drag to reorder priority';
-  grip.setAttribute('aria-label', 'Drag to reorder');
+  grip.disabled = catalog;
+  grip.title = catalog ? 'Catalog rule order comes from the repo' : 'Drag to reorder priority';
+  grip.setAttribute('aria-label', catalog ? 'Catalog order is fixed' : 'Drag to reorder');
   grip.innerHTML = iosIcon('grip', 16);
 
   const openBtn = document.createElement('button');
@@ -502,8 +510,9 @@ function attachFlowRuleReorder(rowsEl) {
     grip.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      if (grip.disabled) return;
       const row = grip.closest('.re-flow-row');
-      if (!row) return;
+      if (!row || row.dataset.locked === '1') return;
       dragEl = row;
       moved = false;
       row.classList.add('re-flow-row--dragging');
@@ -711,12 +720,15 @@ function renderRuleEditPane(pane, opts = {}) {
     actions.className = 're-lab-rule-actions';
     const hits = document.createElement('span');
     hits.className = 're-lab-rule-hits';
-    hits.textContent = ruleHitsSubline(rule) || 'Edit rule';
-    const deleteBtn = paneDeleteIcon({
-      label: 'Delete rule',
-      onClick: () => deleteRule(rule.id),
-    });
-    actions.append(hits, agentBtn, deleteBtn);
+    hits.textContent = ruleHitsSubline(rule) || (isCatalogRule(rule) ? 'Catalog rule' : 'Edit rule');
+    if (!isCatalogRule(rule)) {
+      actions.append(hits, agentBtn, paneDeleteIcon({
+        label: 'Delete rule',
+        onClick: () => deleteRule(rule.id),
+      }));
+    } else {
+      actions.append(hits, agentBtn);
+    }
     pane.appendChild(actions);
   } else {
     const inDrawer = shell.isCreateDrawerOpen('rules');
@@ -726,7 +738,7 @@ function renderRuleEditPane(pane, opts = {}) {
         title: rule.title || rule.status || 'Rule',
         subtitle: ruleHitsSubline(rule),
         beforeIcons: [agentBtn],
-        icons: inDrawer
+        icons: inDrawer || isCatalogRule(rule)
           ? []
           : [
               paneDeleteIcon({
@@ -746,41 +758,29 @@ function renderRuleEditPane(pane, opts = {}) {
   titleIn.type = 'text';
   titleIn.value = rule.title || '';
   titleIn.addEventListener('input', () => { ruleState.dirty = true; });
-  requestTitleFocus('rules', titleIn);
+  if (!isCatalogRule(rule)) requestTitleFocus('rules', titleIn);
 
   const scopeWrap = document.createElement('div');
   scopeWrap.className = 're-checks re-scope-radios';
   const scopeHint = document.createElement('p');
   scopeHint.className = 're-scope-hint';
-  const syncScopeHint = (value) => {
+  if (isCatalogRule(rule)) {
     scopeHint.textContent =
-      value === 'universal'
-        ? 'Universal — shared catalog for every Reave install (seeded from the repo). Edits apply on this install; add new catalog rules to DEFAULT_RULES to ship everywhere on deploy.'
-        : 'Personal — this install only. Teach/correct and custom filters usually stay here.';
-  };
-  let scopeValue = ruleScope(rule);
-  for (const [val, lab] of [
-    ['personal', 'Personal (this install)'],
-    ['universal', 'Universal (all installs)'],
-  ]) {
+      'Universal catalog — same on every install. Defined in DEFAULT_RULES in the repo; a deploy overwrites this copy. Edit the repo to change it for everyone.';
+    scopeWrap.appendChild(scopeHint);
+  } else {
+    scopeHint.textContent = 'Personal — this install only. Teach/correct and custom filters stay here.';
     const lb = document.createElement('label');
     lb.className = 're-check';
     const rb = document.createElement('input');
     rb.type = 'radio';
     rb.name = `re-scope-${rule.id}`;
-    rb.value = val;
-    rb.checked = scopeValue === val;
-    rb.addEventListener('change', () => {
-      if (!rb.checked) return;
-      scopeValue = val;
-      syncScopeHint(val);
-      ruleState.dirty = true;
-    });
-    lb.append(rb, document.createTextNode(` ${lab}`));
-    scopeWrap.appendChild(lb);
+    rb.value = 'personal';
+    rb.checked = true;
+    rb.disabled = true;
+    lb.append(rb, document.createTextNode(' Personal (this install)'));
+    scopeWrap.append(lb, scopeHint);
   }
-  syncScopeHint(scopeValue);
-  scopeWrap.appendChild(scopeHint);
 
   const statusIn = document.createElement('input');
   statusIn.type = 'hidden';
@@ -1070,7 +1070,14 @@ function renderRuleEditPane(pane, opts = {}) {
     expireInSecs,
   };
   const inDrawer = !accordion && shell.isCreateDrawerOpen('rules');
-  bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
+  if (isCatalogRule(rule)) {
+    form.classList.add('re-lab-rule-form--catalog');
+    form.querySelectorAll('input, textarea, select, button').forEach((el) => {
+      el.disabled = true;
+    });
+  } else {
+    bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
+  }
   shell.clearEditorFooterSave();
 }
 

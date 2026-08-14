@@ -15,6 +15,7 @@ import {
   NOTIFY_ON_UNMATCHED,
   coalesceRuleNotifyFields,
   isAuthLinkRuleStatus,
+  isRepoCatalogRule,
   isSilentTriageStatus,
   isVerificationCodeRuleStatus,
   normalizeEmailRuleScope,
@@ -584,97 +585,177 @@ export async function loadEmailRulesConfig(): Promise<EmailRulesConfig> {
   return ensureBuiltinRules(config);
 }
 
-/** Phrases that wrongly filed income (“Payment of $… from …”) as tax receipts. */
-const INCOME_MISFILE_PHRASES = new Set(['payment of $', 'your invoice from']);
+function catalogDefinition(def: EmailRule) {
+  const notifyFields = coalesceRuleNotifyFields({
+    notify: def.notify,
+    notifyPush: def.notifyPush ?? null,
+    notifyDashboard: def.notifyDashboard ?? null,
+    notifyActions: def.notifyActions,
+  });
+  return {
+    title: ruleTitleFromDefaults(def),
+    status: def.status,
+    description: def.description,
+    phrases: [...def.phrases],
+    exceptPhrases: [...(def.exceptPhrases ?? [])],
+    matchMode: def.matchMode,
+    fields: [...def.fields],
+    notify: notifyFields.notify,
+    notifyPush: notifyFields.notifyPush,
+    notifyDashboard: notifyFields.notifyDashboard,
+    notifyActions: notifyFields.notifyActions,
+    enabled: def.enabled !== false,
+    summaryOverride: def.summaryOverride,
+    scope: 'universal' as const,
+    expiresAt: null as string | null,
+    forwardTo: null as string | null,
+  };
+}
+
+function catalogDefinitionKey(r: {
+  title?: string;
+  status?: string;
+  description?: string;
+  phrases?: string[];
+  exceptPhrases?: string[];
+  matchMode?: MatchMode;
+  fields?: RuleField[];
+  notify?: boolean;
+  notifyPush?: boolean;
+  notifyDashboard?: boolean;
+  notifyActions?: RuleNotifyAction[];
+  enabled?: boolean;
+  summaryOverride?: string;
+  expiresAt?: string | null;
+  forwardTo?: string | null;
+}): string {
+  const notifyFields = coalesceRuleNotifyFields({
+    notify: r.notify,
+    notifyPush: r.notifyPush ?? null,
+    notifyDashboard: r.notifyDashboard ?? null,
+    notifyActions: r.notifyActions,
+  });
+  return JSON.stringify({
+    title: r.title || '',
+    status: String(r.status || '').toUpperCase(),
+    description: r.description || '',
+    phrases: (r.phrases || []).map((p) => p.trim()).filter(Boolean),
+    exceptPhrases: (r.exceptPhrases || []).map((p) => p.trim()).filter(Boolean),
+    matchMode: r.matchMode === 'all' ? 'all' : 'any',
+    fields: r.fields || ['subject', 'body'],
+    notify: notifyFields.notify,
+    notifyPush: notifyFields.notifyPush,
+    notifyDashboard: notifyFields.notifyDashboard,
+    notifyActions: notifyFields.notifyActions,
+    enabled: r.enabled !== false,
+    summaryOverride: r.summaryOverride || '',
+    expiresAt: r.expiresAt ?? null,
+    forwardTo: r.forwardTo ?? null,
+  });
+}
+
+function phraseOverlap(rule: EmailRuleRecord, def: EmailRule): number {
+  const want = new Set(def.phrases.map((p) => p.trim().toLowerCase()));
+  return (rule.phrases || []).filter((p) => want.has(String(p).trim().toLowerCase())).length;
+}
+
+/** Existing install row for a DEFAULT_RULES status — never a personal `from` block. */
+function findCatalogRecord(rules: EmailRuleRecord[], status: string): EmailRuleRecord | undefined {
+  const key = status.toUpperCase();
+  const candidates = rules.filter(
+    (r) =>
+      r.scope === 'universal' &&
+      String(r.status || '').toUpperCase() === key &&
+      !(r.fields || []).includes('from'),
+  );
+  if (!candidates.length) return undefined;
+  const def = DEFAULT_RULES.find((d) => d.status.toUpperCase() === key);
+  if (!def || candidates.length === 1) return candidates[0];
+  return [...candidates].sort((a, b) => phraseOverlap(b, def) - phraseOverlap(a, def))[0];
+}
 
 /**
- * Bare "Security alert" on NEEDS_CHECK stomped sender-specific Google DELETE rules
- * (same phrase, earlier sort order). Strip it from persisted copies on load.
+ * DEFAULT_RULES is the live catalog. Every load overwrites universal rows from
+ * the repo so a deploy updates every install — no per-admin catalog edits.
+ * Personal rules stay in the DB; their slots relative to catalog statuses are kept.
  */
-const NEEDS_CHECK_STRIP_PHRASES = new Set(['security alert']);
+function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[]; changed: boolean } {
+  const now = new Date().toISOString();
+  let changed = false;
+  const chosen = new Map<string, EmailRuleRecord>();
 
-/** Insert any new DEFAULT_RULES statuses missing from persisted config (e.g. RAILWAY_ALERT). */
-async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
-  const present = new Set(config.rules.map((r) => r.status.toUpperCase()));
-  const missing = DEFAULT_RULES.filter((r) => !present.has(r.status.toUpperCase()));
-  const receiptDefault = DEFAULT_RULES.find((r) => r.status === 'RECEIPT');
-  const needsCheckDefault = DEFAULT_RULES.find((r) => r.status === 'NEEDS_CHECK');
-  const defaultStatuses = new Set(DEFAULT_RULES.map((r) => r.status.toUpperCase()));
+  for (const def of DEFAULT_RULES) {
+    const key = def.status.toUpperCase();
+    const payload = catalogDefinition(def);
+    const existing = findCatalogRecord(rules, def.status);
+    if (existing) {
+      const next: EmailRuleRecord = { ...existing, ...payload, scope: 'universal' };
+      if (catalogDefinitionKey(existing) !== catalogDefinitionKey(payload) || existing.scope !== 'universal') {
+        changed = true;
+        next.updatedAt = now;
+      }
+      chosen.set(key, next);
+    } else {
+      changed = true;
+      chosen.set(key, {
+        ...payload,
+        id: randomUUID(),
+        sortOrder: rules.length + chosen.size,
+        hitCount: 0,
+        lastMatchedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  }
 
-  let phrasesFixed = false;
-  let scopeFixed = false;
-  let rules = config.rules.map((r) => {
-    let next = r;
-    const status = r.status.toUpperCase();
-    if (status === 'RECEIPT') {
-      const nextPhrases = r.phrases.filter((p) => !INCOME_MISFILE_PHRASES.has(p.trim().toLowerCase()));
-      if (nextPhrases.length !== r.phrases.length) {
-        phrasesFixed = true;
-        next = {
-          ...next,
-          phrases: nextPhrases.length ? nextPhrases : (receiptDefault?.phrases ?? nextPhrases),
-          description: receiptDefault?.description ?? next.description,
-          title: receiptDefault ? ruleTitleFromDefaults(receiptDefault) : next.title,
-        };
-      }
-    }
-    if (status === 'NEEDS_CHECK') {
-      const nextPhrases = next.phrases.filter(
-        (p) => !NEEDS_CHECK_STRIP_PHRASES.has(p.trim().toLowerCase()),
-      );
-      if (nextPhrases.length !== next.phrases.length) {
-        phrasesFixed = true;
-        next = {
-          ...next,
-          phrases: nextPhrases.length ? nextPhrases : (needsCheckDefault?.phrases ?? nextPhrases),
-          description: needsCheckDefault?.description ?? next.description,
-        };
-      }
-    }
-    if (next.scope !== 'universal' && next.scope !== 'personal') {
-      scopeFixed = true;
-      next = {
-        ...next,
-        scope: defaultStatuses.has(status) ? 'universal' : 'personal',
-      };
-    }
-    return next;
+  const chosenIds = new Set([...chosen.values()].map((r) => r.id));
+  const demoted = rules.map((r) => {
+    if (chosenIds.has(r.id)) return r;
+    if (r.scope !== 'universal') return r;
+    changed = true;
+    return { ...r, scope: 'personal' as const, updatedAt: now };
   });
 
-  // File backend one-time: promote catalog statuses to universal.
-  if (!config.scopeSeeded) {
-    const promoted = rules.map((r) =>
-      defaultStatuses.has(r.status.toUpperCase()) && r.scope !== 'universal'
-        ? { ...r, scope: 'universal' as const }
-        : r,
-    );
-    if (promoted.some((r, i) => r.scope !== rules[i].scope)) {
-      scopeFixed = true;
-      rules = promoted;
+  const groups = new Map<string, EmailRuleRecord[]>();
+  let lastCatalog = '';
+  const sorted = [...demoted].sort(
+    (a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)),
+  );
+  for (const r of sorted) {
+    if (chosenIds.has(r.id)) {
+      lastCatalog = String(r.status || '').toUpperCase();
+      continue;
     }
+    const list = groups.get(lastCatalog) || [];
+    list.push(r);
+    groups.set(lastCatalog, list);
   }
 
+  const rebuilt: EmailRuleRecord[] = [];
+  for (const r of groups.get('') || []) rebuilt.push(r);
+  for (const def of DEFAULT_RULES) {
+    const cat = chosen.get(def.status.toUpperCase());
+    if (cat) rebuilt.push(cat);
+    for (const r of groups.get(def.status.toUpperCase()) || []) rebuilt.push(r);
+  }
+
+  const ordered = rebuilt.map((r, i) => {
+    if (r.sortOrder === i) return r;
+    changed = true;
+    return { ...r, sortOrder: i };
+  });
+  return { rules: ordered, changed };
+}
+
+/** Keep DEFAULT_RULES in sync on every load; persist only when the catalog drifted. */
+async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
+  const synced = applyRepoCatalog(config.rules);
+  const elevated = elevateSenderSilentRules(synced.rules);
   const scopeSeeded = true;
-
-  if (!missing.length && !phrasesFixed && !scopeFixed && config.scopeSeeded) {
-    const elevated = elevateSenderSilentRules(rules);
-    if (!elevated.changed) return { ...config, rules, scopeSeeded };
-    const mergedElevated: EmailRulesConfig = { ...config, rules: elevated.rules, scopeSeeded };
-    await persistConfig(mergedElevated);
-    return mergedElevated;
+  if (!synced.changed && !elevated.changed && config.scopeSeeded) {
+    return { ...config, rules: elevated.rules, scopeSeeded };
   }
-
-  const withMissing: EmailRuleRecord[] = [
-    ...rules,
-    ...missing.map((r, i) => ({
-      ...r,
-      id: randomUUID(),
-      title: ruleTitleFromDefaults(r),
-      sortOrder: rules.length + i,
-      scope: normalizeEmailRuleScope(r.scope, 'universal') as EmailRuleScope,
-    })),
-  ];
-  const elevated = elevateSenderSilentRules(withMissing);
   const merged: EmailRulesConfig = {
     ...config,
     scopeSeeded,
@@ -858,7 +939,7 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
     id: randomUUID(),
     sortOrder,
     ...clean,
-    scope: normalizeEmailRuleScope(clean.scope, 'personal'),
+    scope: 'personal',
     hitCount: 0,
     lastMatchedAt: null,
     createdAt: now,
@@ -877,10 +958,11 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
   const idx = config.rules.findIndex((r) => r.id === id);
   if (idx < 0) return null;
   const prev = config.rules[idx];
+  if (isRepoCatalogRule(prev)) return null;
   config.rules[idx] = {
     ...prev,
     ...clean,
-    scope: clean.scope ?? prev.scope ?? 'personal',
+    scope: 'personal',
     updatedAt: new Date().toISOString(),
   };
   if (!(await persistConfig(config))) return null;
@@ -889,6 +971,8 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
 
 export async function storeDeleteEmailRule(id: string): Promise<boolean> {
   const config = await loadEmailRulesConfig();
+  const prev = config.rules.find((r) => r.id === id);
+  if (!prev || isRepoCatalogRule(prev)) return false;
   const next = config.rules.filter((r) => r.id !== id);
   if (next.length === config.rules.length) return false;
   config.rules = next;
