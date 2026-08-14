@@ -51,65 +51,14 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260813a';
+} from './email-triage-lab.js?v=20260814a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};
 
-/** Built-in + common triage status tags offered in the rule editor autosuggest. */
-const KNOWN_RULE_STATUS_TAGS = [
-  'VERIFICATION_CODE',
-  'AUTH_LINK',
-  'ANTHROPIC_BILLING',
-  'RAILWAY_ALERT',
-  'DOWN',
-  'NEEDS_CHECK',
-  'RECEIPT',
-  'AUTO_ARCHIVED',
-  'DELETE',
-  'CUSTOM',
-];
-
-const RULE_STATUS_DATALIST_ID = 're-status-suggestions';
-
 export function initRulesPanel(deps) {
   shell = deps;
-}
-
-/** Unique status tags from known builtins + currently loaded rules (sorted). */
-function ruleStatusSuggestions() {
-  const seen = new Set();
-  const out = [];
-  for (const tag of KNOWN_RULE_STATUS_TAGS) {
-    const key = String(tag || '').trim().toUpperCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(key);
-  }
-  for (const rule of ruleState.rules || []) {
-    const key = String(rule?.status || '').trim().toUpperCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(key);
-  }
-  return out.sort((a, b) => a.localeCompare(b));
-}
-
-function syncRuleStatusDatalist() {
-  let datalist = document.getElementById(RULE_STATUS_DATALIST_ID);
-  if (!datalist) {
-    datalist = document.createElement('datalist');
-    datalist.id = RULE_STATUS_DATALIST_ID;
-    document.body.appendChild(datalist);
-  }
-  datalist.replaceChildren();
-  for (const tag of ruleStatusSuggestions()) {
-    const opt = document.createElement('option');
-    opt.value = tag;
-    datalist.appendChild(opt);
-  }
-  return datalist;
 }
 
 // ---- extracted from os-map-loader.js:8260-8914 ----
@@ -314,9 +263,14 @@ function processHintText(process) {
   return 'Keep leaves the email in the inbox. Turn on Notify below for an alert. Notification buttons do not process the mail.';
 }
 
+function isProcessDerivedStatus(status) {
+  const s = String(status || '').toUpperCase();
+  return s === 'DELETE' || s === 'JUNK' || s === 'AUTO_ARCHIVED' || s === 'RECEIPT' || s === 'CUSTOM';
+}
+
 function ruleSubline(rule) {
   const bits = [ruleScopeLabel(rule)];
-  if (rule.status) bits.push(rule.status);
+  if (rule.status && !isProcessDerivedStatus(rule.status)) bits.push(rule.status);
   bits.push(formatRuleProcessLabel(rule));
   bits.push(formatRuleHitLabel(rule));
   if (!rule.enabled) bits.push('Off');
@@ -828,18 +782,9 @@ function renderRuleEditPane(pane, opts = {}) {
   syncScopeHint(scopeValue);
   scopeWrap.appendChild(scopeHint);
 
-  syncRuleStatusDatalist();
   const statusIn = document.createElement('input');
-  statusIn.className = 'de-input';
-  statusIn.type = 'text';
-  statusIn.setAttribute('list', RULE_STATUS_DATALIST_ID);
-  statusIn.setAttribute('autocomplete', 'off');
-  statusIn.setAttribute('spellcheck', 'false');
-  statusIn.value = rule.status || '';
-  statusIn.placeholder = 'DOWN, RECEIPT, …';
-  statusIn.addEventListener('input', () => { ruleState.dirty = true; });
-  statusIn.addEventListener('change', () => { ruleState.dirty = true; });
-  statusIn.addEventListener('focus', () => { syncRuleStatusDatalist(); });
+  statusIn.type = 'hidden';
+  statusIn.value = rule.status || 'CUSTOM';
 
   const descIn = document.createElement('textarea');
   descIn.className = 're-textarea';
@@ -971,14 +916,6 @@ function renderRuleEditPane(pane, opts = {}) {
     ruleState.dirty = true;
     syncProcessUi();
   });
-  statusIn.addEventListener('input', () => {
-    const next = ruleProcessValue(statusIn.value);
-    if (processSel.value !== next) {
-      processSel.value = next;
-      processPill?.setValue(next);
-      syncProcessUi({ fromStatus: true });
-    }
-  });
 
   processPill = createSlidingPillSelect({
     label: 'Email processing action',
@@ -1093,12 +1030,7 @@ function renderRuleEditPane(pane, opts = {}) {
   processFieldWrap.append(processPill.el, processHint, processSel);
   form.appendChild(processFieldWrap);
   processField = { wrap: processFieldWrap, hintEl: processHint };
-  appendRuleField(
-    form,
-    'Status tag',
-    statusIn,
-    'Inbox label. Email processing action above sets DELETE / AUTO_ARCHIVED / RECEIPT for you.',
-  );
+  form.appendChild(statusIn);
   appendRuleField(form, 'Forward to', forwardIn);
   notifyField = appendRuleField(
     form,
@@ -1166,7 +1098,10 @@ function collectRulePayload(inputs) {
   return {
     title: inputs.titleIn.value.trim(),
     scope: scopeRb?.value === 'universal' ? 'universal' : 'personal',
-    status: inputs.statusIn.value.trim(),
+    status: statusForProcess(
+      inputs.processSel?.value || ruleProcessValue(inputs.statusIn.value),
+      inputs.statusIn.value.trim(),
+    ),
     description: inputs.descIn.value.trim(),
     phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
     exceptPhrases: inputs.exceptIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -1234,7 +1169,6 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
   const allFields = () => [
     inputs.titleIn,
     ...inputs.scopeWrap.querySelectorAll('input[type=radio]'),
-    inputs.statusIn,
     ...(inputs.processSel ? [inputs.processSel] : []),
     inputs.descIn,
     inputs.phrasesIn,
@@ -1305,7 +1239,6 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       baseline = serializeRulePayload(payload);
       ruleState.dirty = false;
       syncRuleListItem(rule.id, payload, data.rule);
-      syncRuleStatusDatalist();
       if (activeEl) shell.flashFormFieldSaved(activeEl);
     } catch (e) {
       console.warn('[rules] autosave failed', e);
@@ -1347,7 +1280,6 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       activeEl = el;
       const payload = collectRulePayload(inputs);
       if (!payload.title && el === inputs.titleIn) shell.setFormFieldState(el, 'invalid');
-      else if (!payload.status && el === inputs.statusIn) shell.setFormFieldState(el, 'invalid');
       clearTimeout(ruleAutosaveTimer);
       void flush();
     });
@@ -1371,7 +1303,7 @@ async function flushRuleAutosave() {
 async function saveRule(id, inputs) {
   const payload = collectRulePayload(inputs);
   if (!payload.title || !payload.status) {
-    alert('Title and status tag are required.');
+    alert('Title is required.');
     return;
   }
   if (inputs.saveBtn) {

@@ -108,8 +108,11 @@ export function formatRuleProcessLabel(rule) {
 /** Scope · process · notify/silent meta under the WHEN clause. */
 export function formatRuleLabMeta(rule) {
   const scope = rule?.scope === 'universal' ? 'Universal' : 'Personal';
-  const status = String(rule?.status || '—').trim() || '—';
-  const bits = [scope, status, formatRuleProcessLabel(rule)];
+  const status = String(rule?.status || '').trim();
+  const derived = /^(DELETE|JUNK|AUTO_ARCHIVED|RECEIPT|CUSTOM)$/i.test(status);
+  const bits = [scope];
+  if (status && !derived) bits.push(status);
+  bits.push(formatRuleProcessLabel(rule));
   if (rule?.enabled === false) bits.push('Off');
   return bits.join(' · ');
 }
