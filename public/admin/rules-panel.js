@@ -778,7 +778,7 @@ function renderRuleEditPane(pane, opts = {}) {
   }
 
   const form = document.createElement('div');
-  form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
+  form.className = accordion ? 're-lab-rule-form' : 're-form-scroll';
 
   const titleIn = document.createElement('input');
   titleIn.className = 'de-input';
@@ -836,13 +836,13 @@ function renderRuleEditPane(pane, opts = {}) {
 
   const descIn = document.createElement('textarea');
   descIn.className = 're-textarea';
-  descIn.rows = 2;
+  descIn.rows = 3;
   descIn.value = rule.description || '';
   descIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const phrasesIn = document.createElement('textarea');
   phrasesIn.className = 're-textarea';
-  phrasesIn.rows = 6;
+  phrasesIn.rows = 4;
   phrasesIn.placeholder = 'One keyword or phrase per line';
   phrasesIn.value = (rule.phrases || []).join('\n');
   phrasesIn.addEventListener('input', () => { ruleState.dirty = true; });

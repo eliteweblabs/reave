@@ -363,6 +363,8 @@ export function createEmailTriageLab(deps) {
     _suggestOutsideBound: null,
     /** Inbox email id when compose was loaded from a notification / deep link. */
     sourceEmailId: null,
+    /** Keep Try-an-email expanded while a rule card is open (mobile). */
+    composePinnedOpen: false,
   };
 
   function inboundExample() {
@@ -733,9 +735,25 @@ export function createEmailTriageLab(deps) {
     }
   }
 
+  function isLabSingleColumn() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 960px)').matches;
+  }
+
+  function syncComposeCollapse(root, hasOpenRule) {
+    const compose = root?.querySelector('.re-lab-compose');
+    if (!compose) return;
+    const collapsed = isLabSingleColumn() && hasOpenRule && !state.composePinnedOpen;
+    compose.classList.toggle('re-lab-compose--collapsed', collapsed);
+    const toggle = compose.querySelector('[data-lab-compose-toggle]');
+    if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
   function syncExpandedRule(root = deps.getRuleEditor()) {
     if (!root) return;
     const activeId = deps.getActiveRuleId?.() ?? null;
+    const hasOpenRule = Boolean(activeId);
+    if (!hasOpenRule) state.composePinnedOpen = false;
+    syncComposeCollapse(root, hasOpenRule);
     root.querySelectorAll('.re-lab-pipe-card--rule').forEach((card) => {
       const open = Boolean(activeId && card.dataset.ruleId === String(activeId));
       card.classList.toggle('re-lab-pipe-card--open', open);
@@ -751,7 +769,7 @@ export function createEmailTriageLab(deps) {
         }
         bodyEl.hidden = false;
         requestAnimationFrame(() => {
-          card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          card.scrollIntoView({ block: 'start', behavior: 'smooth' });
         });
       } else {
         bodyEl.hidden = true;
@@ -1026,10 +1044,27 @@ export function createEmailTriageLab(deps) {
     // ── Compose (left column beside the pipeline) ──
     const compose = document.createElement('section');
     compose.className = 're-lab-compose';
-    compose.innerHTML = `<header class="re-lab-section-head">
-      <h2>Try an email</h2>
-      <p>Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.</p>
-    </header>`;
+    const composeHead = document.createElement('header');
+    composeHead.className = 're-lab-section-head';
+    const composeToggle = document.createElement('button');
+    composeToggle.type = 'button';
+    composeToggle.className = 're-lab-compose-toggle';
+    composeToggle.dataset.labComposeToggle = '1';
+    composeToggle.setAttribute('aria-expanded', 'true');
+    composeToggle.setAttribute('aria-label', 'Try an email');
+    composeToggle.innerHTML =
+      `<h2>Try an email</h2>` +
+      `<span class="re-lab-compose-chevron" aria-hidden="true">${iosIcon('chevron-down', 16)}</span>`;
+    composeToggle.addEventListener('click', () => {
+      state.composePinnedOpen = !state.composePinnedOpen;
+      if (!deps.getActiveRuleId?.()) state.composePinnedOpen = true;
+      syncComposeCollapse(root, Boolean(deps.getActiveRuleId?.()));
+    });
+    const composeSub = document.createElement('p');
+    composeSub.textContent =
+      'Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.';
+    composeHead.append(composeToggle, composeSub);
+    compose.appendChild(composeHead);
 
     const form = document.createElement('div');
     form.className = 're-lab-form';
