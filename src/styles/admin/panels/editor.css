@@ -3550,6 +3550,37 @@ button.de-placeholder-action:active {
 #clients-editor .cl-branding-scrape-btn {
   align-self: flex-start;
 }
+#clients-editor .cl-hours-textarea,
+#clients-editor .cl-portal-body-textarea {
+  min-height: 4.5rem;
+}
+#clients-editor .cl-portal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+#clients-editor .cl-portal-fields-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+#clients-editor .cl-portal-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+#clients-editor .cl-portal-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+#clients-editor .cl-portal-fields-add {
+  align-self: flex-start;
+}
 #clients-editor .de-fields .de-input,
 #clients-editor .de-fields .cl-website-field,
 #clients-editor .de-fields .cl-address-field {

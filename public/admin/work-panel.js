@@ -36,7 +36,7 @@ import {
 } from './admin-ui.js?v=20260811d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260812b';
+import { clientState, clientMapController } from './clients-panel.js?v=20260814a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import {
   createDetailChrome,
@@ -1025,7 +1025,7 @@ function createClientWorkCard(job) {
 
 const CLIENT_DETAIL_TABS = [
   { id: 'profile', label: 'Profile' },
-  { id: 'branding', label: 'Branding', clientOnly: true },
+  { id: 'branding', label: 'Branding' },
   { id: 'notes', label: 'Notes' },
   { id: 'projects', label: postTitle(2) },
   { id: 'vault', label: 'Vault' },

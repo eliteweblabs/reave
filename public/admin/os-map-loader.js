@@ -138,7 +138,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260810c';
+} from './work-panel.js?v=20260814a';
 import {
   initTodoPanel,
   todoState,
@@ -193,7 +193,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260812b';
+} from './clients-panel.js?v=20260814a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,

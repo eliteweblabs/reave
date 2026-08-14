@@ -46,8 +46,8 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260810c';
-import { navigateToClient } from './clients-panel.js?v=20260812b';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260814a';
+import { navigateToClient } from './clients-panel.js?v=20260814a';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */

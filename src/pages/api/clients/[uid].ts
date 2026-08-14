@@ -12,8 +12,12 @@ import {
   setContactPortal,
   updateContact,
   type ClientDataEntry,
+  type ClientPortal,
+  type ClientPortalField,
   type ContactRecord,
 } from '../../../lib/contactApi';
+import { hoursFieldText } from '../../../lib/contactHoursFromPlaces';
+import { formatWeekHours, hasAnyHours, parseHoursText } from '../../../lib/businessHours';
 import { portalSiteUrl } from '../../../lib/siteMonitoring';
 import {
   enrichClientPortalBrand,
@@ -136,6 +140,90 @@ async function loadContactForClientPatch(
   return { ok: true, data: res.data, before: previous.data, craterSync };
 }
 
+function portalFieldsWithoutHours(fields: ClientPortalField[] | undefined): ClientPortalField[] {
+  return (fields ?? []).filter((f) => !/^hours\b/i.test(f.label || ''));
+}
+
+function parsePortalOverviewFields(raw: unknown): ClientPortalField[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw
+    .filter((row) => row && typeof row === 'object')
+    .map((row) => {
+      const rec = row as Record<string, unknown>;
+      return {
+        label: typeof rec.label === 'string' ? rec.label.trim() : '',
+        value: typeof rec.value === 'string' ? rec.value.trim() : '',
+      };
+    })
+    .filter((row) => row.label || row.value);
+}
+
+function clientPortalEditorFields(portal: ClientPortal | null | undefined) {
+  const hoursText =
+    hoursFieldText(portal) ||
+    (portal?.hours?.displayLines ?? []).join('\n') ||
+    formatWeekHours(portal?.hours).join('\n');
+  return {
+    tagline: contactStringField(portal?.tagline),
+    headline: contactStringField(portal?.headline),
+    body: typeof portal?.body === 'string' ? portal.body : '',
+    fields: portalFieldsWithoutHours(portal?.fields),
+    hoursText,
+    hoursLines: formatWeekHours(portal?.hours),
+  };
+}
+
+async function saveClientPortalContent(
+  uid: string,
+  body: Record<string, unknown>,
+  contactData: ContactRecord,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const wants =
+    typeof body.tagline === 'string' ||
+    typeof body.headline === 'string' ||
+    typeof body.body === 'string' ||
+    typeof body.hoursText === 'string' ||
+    Array.isArray(body.fields);
+  if (!wants) return { ok: true };
+
+  const latest = await getContact(uid);
+  const existing = (latest.ok ? extractPortal(latest.data) : extractPortal(contactData)) ?? {};
+  const next: ClientPortal = { ...existing };
+
+  if (typeof body.tagline === 'string') {
+    const tagline = body.tagline.trim();
+    if (tagline) next.tagline = tagline;
+    else delete next.tagline;
+  }
+  if (typeof body.headline === 'string') {
+    const headline = body.headline.trim();
+    if (headline) next.headline = headline;
+    else delete next.headline;
+  }
+  if (typeof body.body === 'string') {
+    next.body = body.body;
+  }
+
+  let fields = parsePortalOverviewFields(body.fields) ?? [...(existing.fields ?? [])];
+  fields = portalFieldsWithoutHours(fields);
+
+  if (typeof body.hoursText === 'string') {
+    const text = body.hoursText.trim();
+    if (text) fields.unshift({ label: 'Hours', value: text });
+    const parsed = parseHoursText(text);
+    if (parsed && hasAnyHours(parsed)) next.hours = parsed;
+    else if (!text) delete next.hours;
+  } else {
+    const hours = hoursFieldText(existing);
+    if (hours) fields.unshift({ label: 'Hours', value: hours });
+  }
+
+  next.fields = fields;
+  const saved = await setContactPortal(uid, next);
+  if (!saved.ok) return { ok: false, error: saved.error };
+  return { ok: true };
+}
+
 async function saveClientPortalFields(
   uid: string,
   body: Record<string, unknown>,
@@ -201,6 +289,9 @@ async function saveClientPortalFields(
           : addressWriteToken;
     }
   }
+
+  const contentSaved = await saveClientPortalContent(uid, body, contactData);
+  if (!contentSaved.ok) return { ok: false as const, error: contentSaved.error };
 
   return { ok: true as const, website, address, geo, addressWriteToken };
 }
@@ -282,6 +373,7 @@ export const GET: APIRoute = async (context) => {
     iconUrl,
     logoSource: portal?.logoSource,
     iconSource: portal?.iconSource,
+    ...clientPortalEditorFields(portal),
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
     data: portal?.data ?? [],
@@ -345,6 +437,7 @@ export const PATCH: APIRoute = async (context) => {
     iconUrl: branding.iconUrl,
     logoSource: branding.logoSource,
     iconSource: branding.iconSource,
+    ...clientPortalEditorFields(portal),
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
     data: vaultData ?? portal?.data ?? [],
@@ -408,6 +501,7 @@ export const PUT: APIRoute = async (context) => {
     iconUrl: branding.iconUrl,
     logoSource: branding.logoSource,
     iconSource: branding.iconSource,
+    ...clientPortalEditorFields(portal),
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
     data: vaultData ?? portal?.data ?? [],

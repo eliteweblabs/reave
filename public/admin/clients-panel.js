@@ -58,7 +58,7 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260810c';
+} from './work-panel.js?v=20260814a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260812b';
@@ -1103,6 +1103,155 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   return wrap;
 }
 
+function normalizePortalFieldRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      label: String(row?.label || '').trim(),
+      value: String(row?.value || '').trim(),
+    }))
+    .filter((row) => row.label || row.value);
+}
+
+function portalFieldsEqual(a, b) {
+  const left = normalizePortalFieldRows(a);
+  const right = normalizePortalFieldRows(b);
+  if (left.length !== right.length) return false;
+  return left.every((row, i) => row.label === right[i].label && row.value === right[i].value);
+}
+
+function mountClientPortalContentSection(parent, draft) {
+  const taglineInput = document.createElement('input');
+  taglineInput.className = 'de-input';
+  taglineInput.placeholder = 'Short blurb from their website';
+  taglineInput.value = draft?.tagline || '';
+  appendClientField(parent, 'Tagline', taglineInput);
+  registerClientField(taglineInput, () => true);
+
+  const hoursTa = document.createElement('textarea');
+  hoursTa.className = 'de-textarea cl-hours-textarea';
+  hoursTa.rows = 3;
+  hoursTa.placeholder = 'Mon–Fri 9am–5pm, Sat 10am–2pm';
+  hoursTa.value = draft?.hoursText || '';
+  appendClientField(parent, 'Hours', hoursTa);
+  registerClientField(hoursTa, () => true);
+  const hoursHint = document.createElement('span');
+  hoursHint.className = 'prof-hint prof-hint--block';
+  const lines = Array.isArray(draft?.hoursLines) ? draft.hoursLines.filter(Boolean) : [];
+  hoursHint.textContent = lines.length
+    ? `On file: ${lines.join(' · ')}`
+    : 'Used for visit planning and the client portal. Fetch from Google when an address is set, or type a week here.';
+  parent.appendChild(hoursHint);
+
+  const headlineInput = document.createElement('input');
+  headlineInput.className = 'de-input';
+  headlineInput.placeholder = 'Your project';
+  headlineInput.value = draft?.headline || '';
+  appendClientField(parent, 'Portal headline', headlineInput);
+  registerClientField(headlineInput, () => true);
+
+  const bodyTa = document.createElement('textarea');
+  bodyTa.className = 'de-textarea cl-portal-body-textarea';
+  bodyTa.rows = 4;
+  bodyTa.placeholder = 'Shown on the client portal Overview tab';
+  bodyTa.value = draft?.body || '';
+  appendClientField(parent, 'Portal body', bodyTa);
+  registerClientField(bodyTa, () => true);
+
+  const fieldsWrap = document.createElement('div');
+  fieldsWrap.className = 'cl-portal-fields';
+  const fieldsTitle = document.createElement('div');
+  fieldsTitle.className = 'cl-portal-fields-title';
+  fieldsTitle.textContent = 'Overview fields';
+  fieldsWrap.appendChild(fieldsTitle);
+  const fieldsList = document.createElement('div');
+  fieldsList.className = 'cl-portal-fields-list';
+  fieldsWrap.appendChild(fieldsList);
+  const addFieldBtn = document.createElement('button');
+  addFieldBtn.type = 'button';
+  addFieldBtn.className = 'de-btn de-btn-secondary cl-portal-fields-add';
+  addFieldBtn.textContent = 'Add field';
+  fieldsWrap.appendChild(addFieldBtn);
+  parent.appendChild(fieldsWrap);
+
+  const addFieldRow = (row = { label: '', value: '' }) => {
+    const item = document.createElement('div');
+    item.className = 'cl-portal-field-row';
+    const labelInput = document.createElement('input');
+    labelInput.className = 'de-input';
+    labelInput.placeholder = 'Label';
+    labelInput.value = row.label || '';
+    const valueInput = document.createElement('input');
+    valueInput.className = 'de-input';
+    valueInput.placeholder = 'Value';
+    valueInput.value = row.value || '';
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'ios-icon-btn';
+    removeBtn.setAttribute('aria-label', 'Remove field');
+    removeBtn.innerHTML = iosIcon('x', 14);
+    removeBtn.addEventListener('click', () => {
+      item.remove();
+      fieldsWrap.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    item.append(labelInput, valueInput, removeBtn);
+    fieldsList.appendChild(item);
+    return item;
+  };
+
+  const initialFields = normalizePortalFieldRows(draft?.fields);
+  if (initialFields.length) initialFields.forEach((row) => addFieldRow(row));
+  else addFieldRow();
+  addFieldBtn.addEventListener('click', () => {
+    addFieldRow();
+    fieldsWrap.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  const readFields = () =>
+    [...fieldsList.querySelectorAll('.cl-portal-field-row')].map((row) => ({
+      label: row.querySelector('input:first-of-type')?.value.trim() || '',
+      value: row.querySelector('input:last-of-type')?.value.trim() || '',
+    })).filter((row) => row.label || row.value);
+
+  const getValues = () => ({
+    tagline: taglineInput.value.trim(),
+    hoursText: hoursTa.value.trim(),
+    headline: headlineInput.value.trim(),
+    body: bodyTa.value,
+    fields: readFields(),
+  });
+
+  return {
+    getValues,
+    isDirty() {
+      const next = getValues();
+      return (
+        next.tagline !== (draft?.tagline || '') ||
+        next.hoursText !== (draft?.hoursText || '') ||
+        next.headline !== (draft?.headline || '') ||
+        next.body !== (draft?.body || '') ||
+        !portalFieldsEqual(next.fields, draft?.fields)
+      );
+    },
+    setTagline(value) {
+      taglineInput.value = value || '';
+    },
+    bindAutosave(onInput) {
+      for (const el of [taglineInput, hoursTa, headlineInput, bodyTa, fieldsWrap]) {
+        el.addEventListener('input', () => {
+          clientActiveField = el === fieldsWrap ? taglineInput : el;
+          onInput();
+        });
+        if (el !== fieldsWrap) {
+          el.addEventListener('blur', () => {
+            clientActiveField = el;
+            onInput({ flush: true });
+          });
+        }
+      }
+    },
+  };
+}
+
 function bindClientBrandingUploads(root, uid, onUpdate) {
   const logoFile = root.querySelector('#cl-logo-file');
   const logoFileWrap = root.querySelector('#cl-logo-file-wrap');
@@ -1316,6 +1465,7 @@ function bindClientBrandingScrape(btn, uid, getWebsite, onUpdate, refreshers) {
         logoSource: json.logoSource,
         iconSource: json.iconSource,
         website: json.website || website,
+        tagline: json.tagline || '',
       });
     } catch {
       alert('Network error — please try again.');
@@ -1412,11 +1562,7 @@ function renderNewClientForm(pane) {
   const brandingHost = document.createElement('div');
   brandingHost.className = 'cl-new-branding-host';
   function syncNewClientBrandingVisibility() {
-    const show = contactShowsClientBusinessTabs(
-      kindPill?.getValue?.() ?? clientState.draft?.kind,
-    );
-    brandingHost.hidden = !show;
-    if (show && !brandingHost.dataset.mounted) {
+    if (!brandingHost.dataset.mounted) {
       brandingHost.dataset.mounted = '1';
       mountClientBrandingSection(brandingHost, null, clientState.draft, { disabled: true });
     }
@@ -1504,6 +1650,12 @@ function renderEditClientForm(pane) {
         iconUrl: data.iconUrl || '',
         logoSource: data.logoSource,
         iconSource: data.iconSource,
+        tagline: data.tagline || '',
+        headline: data.headline || '',
+        body: data.body || '',
+        hoursText: data.hoursText || '',
+        hoursLines: Array.isArray(data.hoursLines) ? data.hoursLines : [],
+        fields: Array.isArray(data.fields) ? data.fields : [],
         portal_url: contact.portal_url ?? data.portal_url,
         data: data.data || [],
         createdAt: contact.createdAt ?? data.createdAt,
@@ -1564,10 +1716,7 @@ function renderEditClientForm(pane) {
       chrome.appendChild(header);
 
       const showBusinessTabs = contactShowsClientBusinessTabs(clientState.draft);
-      if (
-        !showBusinessTabs &&
-        (clientState.detailTab === 'branding' || clientState.detailTab === 'analytics')
-      ) {
+      if (!showBusinessTabs && clientState.detailTab === 'analytics') {
         setClientDetailTab('profile');
       }
 
@@ -1677,30 +1826,28 @@ function renderEditClientForm(pane) {
       profilePanel.appendChild(profileBody);
       scroll.appendChild(profilePanel);
 
-      if (showBusinessTabs) {
-        const brandingPanel = createClientDetailPanel('branding', activeTab);
-        const brandingBody = createDetailPanelBody();
-        const brandingFields = document.createElement('div');
-        brandingFields.className = 'de-fields';
-        const brandingWrap = mountClientBrandingSection(brandingFields, uid, clientState.draft, {
-          getWebsite: () => websiteInput.value,
-          onUpdate: (patch) => {
-            Object.assign(clientState.draft, patch);
-            if (patch.website != null) websiteInput.value = patch.website;
-            syncClientListAvatar(uid, {
-              logoUrl: clientState.draft.logoUrl,
-              iconUrl: clientState.draft.iconUrl,
-            });
-          },
-        });
-        clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
-        websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
-        brandingBody.appendChild(brandingFields);
-        brandingPanel.appendChild(brandingBody);
-        scroll.appendChild(brandingPanel);
-      } else {
-        clientState.brandingRefresh = null;
-      }
+      const brandingPanel = createClientDetailPanel('branding', activeTab);
+      const brandingBody = createDetailPanelBody();
+      const brandingFields = document.createElement('div');
+      brandingFields.className = 'de-fields';
+      const brandingWrap = mountClientBrandingSection(brandingFields, uid, clientState.draft, {
+        getWebsite: () => websiteInput.value,
+        onUpdate: (patch) => {
+          Object.assign(clientState.draft, patch);
+          if (patch.website != null) websiteInput.value = patch.website;
+          if (patch.tagline != null) portalContent.setTagline?.(patch.tagline);
+          syncClientListAvatar(uid, {
+            logoUrl: clientState.draft.logoUrl,
+            iconUrl: clientState.draft.iconUrl,
+          });
+        },
+      });
+      const portalContent = mountClientPortalContentSection(brandingFields, clientState.draft);
+      clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
+      websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
+      brandingBody.appendChild(brandingFields);
+      brandingPanel.appendChild(brandingBody);
+      scroll.appendChild(brandingPanel);
 
       const notesPanel = createClientDetailPanel('notes', activeTab);
       const notesBody = createDetailPanelBody();
@@ -1760,6 +1907,7 @@ function renderEditClientForm(pane) {
         if (website !== (clientState.draft.website || '')) {
           payload.website = website;
         }
+        Object.assign(payload, portalContent.getValues());
         if (commitAddress) {
           payload.address =
             address != null ? String(address).trim() : addressInput.value.trim();
@@ -1788,7 +1936,8 @@ function renderEditClientForm(pane) {
           websiteInput.value !== clientState.draft.website ||
           addressInput.value !== clientState.draft.address ||
           notesTa.value !== clientState.draft.notes ||
-          kindPill.getValue() !== normalizeClientKind(clientState.draft.kind);
+          kindPill.getValue() !== normalizeClientKind(clientState.draft.kind) ||
+          portalContent.isDirty();
       };
       const queueAutosave = () => {
         markDirty();
@@ -1804,6 +1953,10 @@ function renderEditClientForm(pane) {
         );
       };
       saveNowRef = saveNow;
+      portalContent.bindAutosave((opts = {}) => {
+        if (opts.flush) void saveNow();
+        else queueAutosave();
+      });
       addressClearActions.fn = () => {
         cancelClientAutosaveTimer();
         cancelClientAddressBlurSave();
@@ -2055,7 +2208,12 @@ async function autosaveClient(uid, payload) {
     (!addressInPayload || payload.address === draft.address) &&
     payload.notes === draft.notes &&
     normalizeClientKind(payload.kind) === wasKind &&
-    geoUnchanged;
+    geoUnchanged &&
+    (payload.tagline ?? '') === (draft.tagline || '') &&
+    (payload.hoursText ?? '') === (draft.hoursText || '') &&
+    (payload.headline ?? '') === (draft.headline || '') &&
+    (payload.body ?? '') === (draft.body || '') &&
+    portalFieldsEqual(payload.fields, draft.fields);
   if (unchanged) {
     clientState.dirty = false;
     return true;
@@ -2119,6 +2277,12 @@ async function autosaveClient(uid, payload) {
       iconUrl: data.iconUrl || clientState.draft.iconUrl || '',
       logoSource: data.logoSource ?? clientState.draft.logoSource,
       iconSource: data.iconSource ?? clientState.draft.iconSource,
+      tagline: data.tagline ?? payload.tagline ?? draft.tagline ?? '',
+      headline: data.headline ?? payload.headline ?? draft.headline ?? '',
+      body: data.body ?? payload.body ?? draft.body ?? '',
+      hoursText: data.hoursText ?? payload.hoursText ?? draft.hoursText ?? '',
+      hoursLines: Array.isArray(data.hoursLines) ? data.hoursLines : draft.hoursLines || [],
+      fields: Array.isArray(data.fields) ? data.fields : payload.fields ?? draft.fields ?? [],
     });
     syncClientListAvatar(uid, {
       logoUrl: clientState.draft.logoUrl,
@@ -2159,10 +2323,7 @@ async function autosaveClient(uid, payload) {
       if (tabs) tabs.replaceWith(renderClientFilterTabs(tabs.scrollLeft));
       const nextKind = normalizeClientKind(payload.kind);
       if (contactShowsClientBusinessTabs(wasKind) !== contactShowsClientBusinessTabs(nextKind)) {
-        if (
-          !contactShowsClientBusinessTabs(nextKind) &&
-          (clientState.detailTab === 'branding' || clientState.detailTab === 'analytics')
-        ) {
+        if (!contactShowsClientBusinessTabs(nextKind) && clientState.detailTab === 'analytics') {
           setClientDetailTab('profile');
         }
         const pane = root?.querySelector('.de-pane');
