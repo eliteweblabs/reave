@@ -6459,6 +6459,18 @@ function bindIndustriesEditor(root, industries) {
   settingsAutosaveFlush = flush;
 }
 
+function profSection(title, subtitle, fieldsHtml) {
+  return (
+    `<section class="prof-section">` +
+      `<div class="prof-section-copy">` +
+        `<h2 class="prof-title prof-title--section">${title}</h2>` +
+        (subtitle ? `<p class="prof-subtitle">${subtitle}</p>` : '') +
+      `</div>` +
+      `<div class="prof-section-fields">${fieldsHtml}</div>` +
+    `</section>`
+  );
+}
+
 function renderProfileOnlyPanel(profile) {
   const p = profile || {};
   return (
@@ -6468,21 +6480,25 @@ function renderProfileOnlyPanel(profile) {
         `<p class="prof-subtitle">Your account details and preferences.</p>` +
         `<div id="profile-alert" class="prof-alert" hidden></div>` +
         `<form id="profile-form" class="prof-form">` +
-          `<div class="prof-field-row">` +
-            `<div class="prof-field"><label for="profile-firstName">First Name</label>` +
-            `<input id="profile-firstName" name="firstName" type="text" value="${escHtml(p.firstName || '')}" autocomplete="given-name" /></div>` +
-            `<div class="prof-field"><label for="profile-lastName">Last Name</label>` +
-            `<input id="profile-lastName" name="lastName" type="text" value="${escHtml(p.lastName || '')}" autocomplete="family-name" /></div>` +
-          `</div>` +
-          `<div class="prof-field"><label for="profile-email">Email</label>` +
-          `<input id="profile-email" name="email" type="email" value="${escHtml(p.email || '')}" disabled autocomplete="email" />` +
-          `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
+          profSection(
+            'Account',
+            'Name and contact details for your signed-in user.',
             `<div class="prof-field-row">` +
-            `<div class="prof-field"><label for="profile-phone">Phone</label>` +
-            `<input id="profile-phone" name="phone" type="tel" value="${escHtml(p.phone || '')}" autocomplete="tel" placeholder="+1 (555) 000-0000" /></div>` +
-            `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
-            `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
-          `</div>` +
+              `<div class="prof-field"><label for="profile-firstName">First Name</label>` +
+              `<input id="profile-firstName" name="firstName" type="text" value="${escHtml(p.firstName || '')}" autocomplete="given-name" /></div>` +
+              `<div class="prof-field"><label for="profile-lastName">Last Name</label>` +
+              `<input id="profile-lastName" name="lastName" type="text" value="${escHtml(p.lastName || '')}" autocomplete="family-name" /></div>` +
+            `</div>` +
+            `<div class="prof-field"><label for="profile-email">Email</label>` +
+            `<input id="profile-email" name="email" type="email" value="${escHtml(p.email || '')}" disabled autocomplete="email" />` +
+            `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
+            `<div class="prof-field-row">` +
+              `<div class="prof-field"><label for="profile-phone">Phone</label>` +
+              `<input id="profile-phone" name="phone" type="tel" value="${escHtml(p.phone || '')}" autocomplete="tel" placeholder="+1 (555) 000-0000" /></div>` +
+              `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
+              `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
+            `</div>`,
+          ) +
         `</form>` +
       `</div>` +
     `</div>`
@@ -6659,101 +6675,123 @@ function renderCompanyPanel(company, fontCatalog) {
         `<p class="prof-subtitle">Branding shown on client pages, emails, documents, and legal pages.</p>` +
         `<div id="company-alert" class="prof-alert" hidden></div>` +
         `<form id="company-form" class="prof-form">` +
-          `<div class="prof-field"><label for="company-name">Display name</label>` +
-          `<input id="company-name" name="name" type="text" value="${escHtml(c.name || '')}" placeholder="Acme Corp" autocomplete="organization" /></div>` +
-          `<div class="prof-field"><label for="company-legalName">Legal name</label>` +
-          `<input id="company-legalName" name="legalName" type="text" value="${escHtml(c.legalName || '')}" placeholder="Acme Corporation LLC" />` +
-          `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
-          `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
-          `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>` +
-          `<div class="prof-field"><label for="company-address">Business address</label>` +
-          `<input id="company-address" name="address" type="text" value="${escHtml(c.address || '')}" placeholder="Business or street address" autocomplete="street-address" autocapitalize="words" />` +
-          `<span class="prof-hint prof-hint--block">Office location for the map below, driving directions, and address autocomplete defaults.</span></div>` +
-          `<div id="company-map-host" class="cl-map-section"></div>` +
-          `<div class="prof-field">` +
-          `<div class="prof-branding-uploads">` +
-            `<div class="prof-branding-upload-item">` +
-              `<label for="company-logo-file">Logo</label>` +
-              `<div class="prof-logo-upload">` +
-                `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
-                  `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
-                  `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
+          profSection(
+            'Identity',
+            'Name and tagline shown on client pages, emails, documents, and legal.',
+            `<div class="prof-field"><label for="company-name">Display name</label>` +
+            `<input id="company-name" name="name" type="text" value="${escHtml(c.name || '')}" placeholder="Acme Corp" autocomplete="organization" /></div>` +
+            `<div class="prof-field"><label for="company-legalName">Legal name</label>` +
+            `<input id="company-legalName" name="legalName" type="text" value="${escHtml(c.legalName || '')}" placeholder="Acme Corporation LLC" />` +
+            `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
+            `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
+            `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>`,
+          ) +
+          profSection(
+            'Location',
+            'Office location for the map, driving directions, and address autocomplete defaults.',
+            `<div class="prof-field"><label for="company-address">Business address</label>` +
+            `<input id="company-address" name="address" type="text" value="${escHtml(c.address || '')}" placeholder="Business or street address" autocomplete="street-address" autocapitalize="words" /></div>` +
+            `<div id="company-map-host" class="cl-map-section"></div>`,
+          ) +
+          profSection(
+            'Logo &amp; icon',
+            'PNG, JPEG, WebP, or SVG. Logo powers the header (image → SVG → company name). Icon is rasterized for favicons, OG, PWA, and avatars.',
+            `<div class="prof-branding-uploads">` +
+              `<div class="prof-branding-upload-item">` +
+                `<label for="company-logo-file">Logo</label>` +
+                `<div class="prof-logo-upload">` +
+                  `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
+                    `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
+                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
+                  `</div>` +
+                  `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) ? ' hidden' : ''}>` +
+                    `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />` +
+                  `</div>` +
+                  `<button type="button" id="company-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
                 `</div>` +
-                `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) ? ' hidden' : ''}>` +
-                  `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />` +
+              `</div>` +
+              `<div class="prof-branding-upload-item">` +
+                `<label for="company-icon-file">Icon</label>` +
+                `<div class="prof-logo-upload">` +
+                  `<div id="company-icon-preview-wrap" class="prof-logo-preview-wrap"${hasIcon ? '' : ' hidden'}>` +
+                    `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
+                    `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
+                  `</div>` +
+                  `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng || (c.iconSvg && String(c.iconSvg).trim()) ? ' hidden' : ''}>` +
+                    `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />` +
+                  `</div>` +
+                  `<button type="button" id="company-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
                 `</div>` +
-                `<button type="button" id="company-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
               `</div>` +
             `</div>` +
-            `<div class="prof-branding-upload-item">` +
-              `<label for="company-icon-file">Icon</label>` +
-              `<div class="prof-logo-upload">` +
-                `<div id="company-icon-preview-wrap" class="prof-logo-preview-wrap"${hasIcon ? '' : ' hidden'}>` +
-                  `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
-                  `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
-                `</div>` +
-                `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng || (c.iconSvg && String(c.iconSvg).trim()) ? ' hidden' : ''}>` +
-                  `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />` +
-                `</div>` +
-                `<button type="button" id="company-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
-              `</div>` +
-            `</div>` +
-          `</div>` +
-          `<span class="prof-hint prof-hint--block">Upload a PNG, JPEG, WebP, or SVG for each. Logo powers the header (image → SVG → company name). Icon is rasterized for favicons, OG, PWA, and avatars. Pick a raster image from the Media library.</span>` +
-          `<div class="prof-field prof-field--font-heading">` +
+            `<span class="prof-hint prof-hint--block">Pick a raster image from the Media library, or upload a file here.</span>`,
+          ) +
+          profSection(
+            'Typography',
+            'Primary = headlines. Secondary = labels and UI accents. Content = body copy. Saved as <code>--font-primary</code>, <code>--font-secondary</code>, and <code>--font-content</code>.',
             `<div class="prof-font-heading-row">` +
-              `<label>Typography</label>` +
               `<button type="button" id="company-font-scrape" class="de-btn de-btn-secondary cl-branding-scrape-btn">Fetch fonts from website</button>` +
             `</div>` +
-          `</div>` +
-          `<div class="prof-field-row prof-field-row--fonts">` +
-            `<div class="prof-field"><label for="company-fontPrimary">Primary font</label>` +
-            `<select id="company-fontPrimary" name="fontPrimary" aria-describedby="company-font-hint">` +
-              renderBrandFontOptions(fontCatalog, 'primary', fonts.fontPrimaryId) +
-            `</select></div>` +
-            `<div class="prof-field"><label for="company-fontSecondary">Secondary font</label>` +
-            `<select id="company-fontSecondary" name="fontSecondary" aria-describedby="company-font-hint">` +
-              renderBrandFontOptions(fontCatalog, 'secondary', fonts.fontSecondaryId) +
-            `</select></div>` +
-            `<div class="prof-field"><label for="company-fontContent">Content font</label>` +
-            `<select id="company-fontContent" name="fontContent" aria-describedby="company-font-hint">` +
-              renderBrandFontOptions(fontCatalog, 'content', fonts.fontContentId) +
-            `</select></div>` +
-          `</div>` +
-          `<div class="prof-font-preview" aria-hidden="true">` +
-            `<p class="prof-font-preview-secondary">THE BUSINESS OS</p>` +
-            `<p class="prof-font-preview-primary">Runs the whole business</p>` +
-            `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
-          `</div>` +
-          `<span id="company-font-hint" class="prof-hint prof-hint--block">Primary = headlines. Secondary = labels and UI accents. Content = body copy. Saved as global <code>--font-primary</code>, <code>--font-secondary</code>, and <code>--font-content</code>. Uses the website domain below — same idea as fetching logos from the source site.</span>` +
-          `<div class="prof-field-row prof-field-row--colors">` +
-            `<div class="prof-field"><label for="company-brandPrimary">Primary color</label>` +
-            `<div class="prof-color-input-row">` +
-              `<input type="color" id="company-brandPrimary-swatch" value="${escHtml(c.brandPrimary || '#f472b6')}" aria-label="Primary color swatch" />` +
-              `<input id="company-brandPrimary" name="brandPrimary" type="text" value="${escHtml(c.brandPrimary || '')}" placeholder="#f472b6" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
-            `</div></div>` +
-            `<div class="prof-field"><label for="company-brandSecondary">Secondary color</label>` +
-            `<div class="prof-color-input-row">` +
-              `<input type="color" id="company-brandSecondary-swatch" value="${escHtml(c.brandSecondary || '#c026d3')}" aria-label="Secondary color swatch" />` +
-              `<input id="company-brandSecondary" name="brandSecondary" type="text" value="${escHtml(c.brandSecondary || '')}" placeholder="#c026d3" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
-            `</div></div>` +
-          `</div>` +
-          `<span class="prof-hint prof-hint--block">Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, buttons, and glow effects on marketing pages and admin.</span>` +
-          `<div class="prof-field"><label for="company-domain">Website domain</label>` +
-          `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
-          `<span class="prof-hint prof-hint--block">Hostname only — used in link previews, emails, and legal pages. Leave blank to use this deployment's domain.</span></div>` +
-          `<div class="prof-field-row">` +
-            `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
-            `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +
-            `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
-            `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(c.supportPhone || '')}" placeholder="+1 (555) 000-0000" autocomplete="tel" /></div>` +
-          `</div>` +
-          `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
-          `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" /></div>` +
-          `<span class="prof-hint prof-hint--block">Support email and phone appear as Call / Text / Email on client portal pages. Outbound email is used when <code>RESEND_FROM</code> is not set.</span>` +
-          `<div class="prof-field"><label for="company-portalOutreachNotice">Client portal outreach note</label>` +
-          `<textarea id="company-portalOutreachNotice" name="portalOutreachNotice" class="prof-svg-input" rows="6" spellcheck="true">${escHtml(c.portalOutreachNotice || '')}</textarea>` +
-          `<span class="prof-hint prof-hint--block">Shown in an auto-open bottom sheet when someone opens a client portal link. Separate paragraphs with a blank line. Clear the field to disable the sheet.</span></div>` +
+            `<div class="prof-field-row prof-field-row--fonts">` +
+              `<div class="prof-field"><label for="company-fontPrimary">Primary font</label>` +
+              `<select id="company-fontPrimary" name="fontPrimary" aria-describedby="company-font-hint">` +
+                renderBrandFontOptions(fontCatalog, 'primary', fonts.fontPrimaryId) +
+              `</select></div>` +
+              `<div class="prof-field"><label for="company-fontSecondary">Secondary font</label>` +
+              `<select id="company-fontSecondary" name="fontSecondary" aria-describedby="company-font-hint">` +
+                renderBrandFontOptions(fontCatalog, 'secondary', fonts.fontSecondaryId) +
+              `</select></div>` +
+              `<div class="prof-field"><label for="company-fontContent">Content font</label>` +
+              `<select id="company-fontContent" name="fontContent" aria-describedby="company-font-hint">` +
+                renderBrandFontOptions(fontCatalog, 'content', fonts.fontContentId) +
+              `</select></div>` +
+            `</div>` +
+            `<div class="prof-font-preview" aria-hidden="true">` +
+              `<p class="prof-font-preview-secondary">THE BUSINESS OS</p>` +
+              `<p class="prof-font-preview-primary">Runs the whole business</p>` +
+              `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
+            `</div>` +
+            `<span id="company-font-hint" class="prof-hint prof-hint--block">Uses the website domain below — same idea as fetching logos from the source site.</span>`,
+          ) +
+          profSection(
+            'Colors',
+            'Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, buttons, and glow effects on marketing pages and admin.',
+            `<div class="prof-field-row prof-field-row--colors">` +
+              `<div class="prof-field"><label for="company-brandPrimary">Primary color</label>` +
+              `<div class="prof-color-input-row">` +
+                `<input type="color" id="company-brandPrimary-swatch" value="${escHtml(c.brandPrimary || '#f472b6')}" aria-label="Primary color swatch" />` +
+                `<input id="company-brandPrimary" name="brandPrimary" type="text" value="${escHtml(c.brandPrimary || '')}" placeholder="#f472b6" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+              `</div></div>` +
+              `<div class="prof-field"><label for="company-brandSecondary">Secondary color</label>` +
+              `<div class="prof-color-input-row">` +
+                `<input type="color" id="company-brandSecondary-swatch" value="${escHtml(c.brandSecondary || '#c026d3')}" aria-label="Secondary color swatch" />` +
+                `<input id="company-brandSecondary" name="brandSecondary" type="text" value="${escHtml(c.brandSecondary || '')}" placeholder="#c026d3" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+              `</div></div>` +
+            `</div>`,
+          ) +
+          profSection(
+            'Website &amp; contact',
+            'Hostname for link previews and legal pages, plus support contacts shown on client portals.',
+            `<div class="prof-field"><label for="company-domain">Website domain</label>` +
+            `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
+            `<span class="prof-hint">Hostname only. Leave blank to use this deployment’s domain.</span></div>` +
+            `<div class="prof-field-row">` +
+              `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
+              `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +
+              `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
+              `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(c.supportPhone || '')}" placeholder="+1 (555) 000-0000" autocomplete="tel" /></div>` +
+            `</div>` +
+            `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
+            `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" />` +
+            `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Support email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
+          ) +
+          profSection(
+            'Client portal',
+            'Shown in an auto-open bottom sheet when someone opens a client portal link.',
+            `<div class="prof-field"><label for="company-portalOutreachNotice">Outreach note</label>` +
+            `<textarea id="company-portalOutreachNotice" name="portalOutreachNotice" class="prof-svg-input" rows="6" spellcheck="true">${escHtml(c.portalOutreachNotice || '')}</textarea>` +
+            `<span class="prof-hint">Separate paragraphs with a blank line. Clear the field to disable the sheet.</span></div>`,
+          ) +
         `</form>` +
       `</div>` +
     `</div>`
@@ -6947,12 +6985,10 @@ function socialConnectionRow(conn) {
 function renderSocialConnectionsCard(connections) {
   const list = Array.isArray(connections) ? connections : [];
   const rows = list.map(socialConnectionRow).join('');
-  return (
-    `<div class="prof-card">` +
-      `<h2 class="prof-title prof-title--section">API access</h2>` +
-      `<p class="prof-subtitle">Connect an account to pull real metrics into the Social dashboard. Each platform needs a one-time app setup first (expand “How to set this up” below to add credentials); once configured, a Connect button appears so you can sign in and authorize. Tokens are stored securely on the server.</p>` +
-      `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>` +
-    `</div>`
+  return profSection(
+    'API access',
+    'Connect an account to pull real metrics into the Social dashboard. Each platform needs a one-time app setup first (expand “How to set this up” below to add credentials); once configured, a Connect button appears so you can sign in and authorize. Tokens are stored securely on the server.',
+    `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>`,
   );
 }
 
@@ -6994,18 +7030,22 @@ function renderSocialsPanel(company, connections) {
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Socials</h1>` +
-        `<p class="prof-subtitle">Public profile links for your organization. Remove platforms you will never use — they stay out of the way until you restore them.</p>` +
+        `<p class="prof-subtitle">Public profile links and API connections for your organization.</p>` +
         `<div id="socials-alert" class="prof-alert" hidden></div>` +
         `<form id="socials-form" class="prof-form">` +
           `<input type="hidden" id="social-hidden-platforms" name="socialHiddenPlatforms" value="${hiddenJson}" />` +
-          `<div id="social-fields-list" class="soc-fields-list">` +
-            visible.map((p) => socialLinkFieldRow(p, c)).join('') +
-          `</div>` +
-          addPlatformHtml +
-          hiddenHtml +
+          profSection(
+            'Profile links',
+            'Remove platforms you will never use — they stay out of the way until you restore them.',
+            `<div id="social-fields-list" class="soc-fields-list">` +
+              visible.map((p) => socialLinkFieldRow(p, c)).join('') +
+            `</div>` +
+            addPlatformHtml +
+            hiddenHtml,
+          ) +
         `</form>` +
+        renderSocialConnectionsCard(connections) +
       `</div>` +
-      renderSocialConnectionsCard(connections) +
     `</div>`
   );
 }
@@ -7015,11 +7055,17 @@ function renderIndustriesPanel() {
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Industries</h1>` +
-        `<p class="prof-subtitle">Categories for <code>/deck?type=…</code> presets. Edit names; turn Off to hide without deleting.</p>` +
+        `<p class="prof-subtitle">Categories used for deck presets and client-facing filters.</p>` +
         `<div id="industries-alert" class="prof-alert" hidden></div>` +
-        `<div id="industries-list" class="ind-list"></div>` +
-        `<div class="prof-actions ind-actions">` +
-          `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
+        `<div class="prof-form">` +
+          profSection(
+            'Categories',
+            'Used for <code>/deck?type=…</code> presets. Edit names; turn Off to hide without deleting.',
+            `<div id="industries-list" class="ind-list"></div>` +
+            `<div class="prof-actions ind-actions">` +
+              `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
+            `</div>`,
+          ) +
         `</div>` +
       `</div>` +
     `</div>`
@@ -7042,19 +7088,27 @@ function renderVapiPanel(company) {
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Vapi</h1>` +
-        `<p class="prof-subtitle">Voice assistant ID and prompts. Company name and tagline come from Admin → Company. <code>VAPI_API_KEY</code> stays on the server.</p>` +
+        `<p class="prof-subtitle">Voice assistant ID, greeting, and system prompt.</p>` +
         `<div id="vapi-alert" class="prof-alert" hidden></div>` +
-        `<div id="vapi-plugin-status" class="prof-hint prof-hint--block">Checking status…</div>` +
         `<form id="vapi-form" class="prof-form">` +
-          `<div class="prof-field"><label for="vapi-assistant-id">Assistant ID</label>` +
-          `<input id="vapi-assistant-id" name="vapiAssistantId" type="text" value="${escHtml(c.vapiAssistantId || '')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" /></div>` +
-          `<div class="prof-field"><label for="vapi-first-message">First message</label>` +
-          `<textarea id="vapi-first-message" name="vapiFirstMessage" rows="3" placeholder="${escHtml(VAPI_DEFAULT_FIRST_MESSAGE)}">${escHtml(c.vapiFirstMessage || '')}</textarea>` +
-          `<span class="prof-hint">Supports <code>{{companyName}}</code> — filled at call time.</span></div>` +
-          `<div class="prof-field"><label for="vapi-system-prompt">System prompt</label>` +
-          `<textarea id="vapi-system-prompt" name="vapiSystemPrompt" rows="12" placeholder="${escHtml(VAPI_DEFAULT_SYSTEM_PROMPT.slice(0, 120))}…">${escHtml(c.vapiSystemPrompt || '')}</textarea>` +
-          `<span class="prof-hint">Supports <code>{{companyName}}</code>, <code>{{companyDescription}}</code>, <code>{{companyDomain}}</code>. Leave blank for the default template.</span></div>` +
-          (syncBtn ? `<div class="prof-actions">${syncBtn}</div>` : '') +
+          profSection(
+            'Assistant',
+            'Voice assistant ID. Company name and tagline come from Admin → Company. <code>VAPI_API_KEY</code> stays on the server.',
+            `<div id="vapi-plugin-status" class="prof-hint prof-hint--block">Checking status…</div>` +
+            `<div class="prof-field"><label for="vapi-assistant-id">Assistant ID</label>` +
+            `<input id="vapi-assistant-id" name="vapiAssistantId" type="text" value="${escHtml(c.vapiAssistantId || '')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" /></div>` +
+            (syncBtn ? `<div class="prof-actions">${syncBtn}</div>` : ''),
+          ) +
+          profSection(
+            'Prompts',
+            'Spoken greeting and system instructions. Placeholders are filled at call time.',
+            `<div class="prof-field"><label for="vapi-first-message">First message</label>` +
+            `<textarea id="vapi-first-message" name="vapiFirstMessage" rows="3" placeholder="${escHtml(VAPI_DEFAULT_FIRST_MESSAGE)}">${escHtml(c.vapiFirstMessage || '')}</textarea>` +
+            `<span class="prof-hint">Supports <code>{{companyName}}</code> — filled at call time.</span></div>` +
+            `<div class="prof-field"><label for="vapi-system-prompt">System prompt</label>` +
+            `<textarea id="vapi-system-prompt" name="vapiSystemPrompt" rows="12" placeholder="${escHtml(VAPI_DEFAULT_SYSTEM_PROMPT.slice(0, 120))}…">${escHtml(c.vapiSystemPrompt || '')}</textarea>` +
+            `<span class="prof-hint">Supports <code>{{companyName}}</code>, <code>{{companyDescription}}</code>, <code>{{companyDomain}}</code>. Leave blank for the default template.</span></div>`,
+          ) +
         `</form>` +
       `</div>` +
     `</div>`
@@ -7163,72 +7217,56 @@ function renderAppSettingsPanel(settings, sleepData) {
         `<p class="prof-subtitle">Install-wide preferences for inbox automation and alerts.</p>` +
         `<div id="app-settings-alert" class="prof-alert" hidden></div>` +
         `<form id="app-settings-form" class="prof-form">` +
-          `<section class="prof-section">` +
-            `<div class="prof-section-copy">` +
-              `<h2 class="prof-title prof-title--section">Verification codes</h2>` +
-              `<p class="prof-subtitle">One-time passwords and activation codes are triaged as high-priority notices, then auto-deleted after this window.</p>` +
-            `</div>` +
-            `<div class="prof-section-fields">` +
-              `<div class="prof-field">` +
-                `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
-                `<input id="settings-otp-ttl" name="otpTtlMinutes" type="number" min="0" max="1440" step="1" value="${escHtml(String(ttl))}" required />` +
-                `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
-              `</div>` +
-            `</div>` +
-          `</section>` +
-          `<section class="prof-section">` +
-            `<div class="prof-section-copy">` +
-              `<h2 class="prof-title prof-title--section">Recently viewed</h2>` +
-              `<p class="prof-subtitle">Projects a client viewed on their portal (after a short dwell) appear under Recently Viewed in ${escHtml(postTitle(2))}. Admin edits and saves do not count.</p>` +
-            `</div>` +
-            `<div class="prof-section-fields">` +
-              `<div class="prof-field">` +
-                `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
-                `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
-                `<span class="prof-hint">Default is 7 days. Based on client portal dwell (~4s), not staff activity.</span>` +
-              `</div>` +
-            `</div>` +
-          `</section>` +
-          `<section class="prof-section">` +
-            `<div class="prof-section-copy">` +
-              `<h2 class="prof-title prof-title--section">Portal opens</h2>` +
-              `<p class="prof-subtitle">When a client first opens a tracked portal or share link, optionally open a chat alert so you can follow up while interest is warm.</p>` +
-            `</div>` +
-            `<div class="prof-section-fields">` +
-              `<div class="prof-field">` +
-                `<label class="prof-check-row">` +
-                  `<input id="settings-share-open-chat-alerts" name="shareOpenChatAlerts" type="checkbox" value="1"${shareOpenChatAlerts ? ' checked' : ''} />` +
-                  `<span>Open a chat alert suggesting follow-up</span>` +
-                `</label>` +
-                `<span class="prof-hint">Off by default. First opens still count for Recently Viewed; this only controls the chat + push.</span>` +
-              `</div>` +
-            `</div>` +
-          `</section>` +
+          profSection(
+            'Verification codes',
+            'One-time passwords and activation codes are triaged as high-priority notices, then auto-deleted after this window.',
+            `<div class="prof-field">` +
+              `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
+              `<input id="settings-otp-ttl" name="otpTtlMinutes" type="number" min="0" max="1440" step="1" value="${escHtml(String(ttl))}" required />` +
+              `<span class="prof-hint">Applies to newly received codes. Use 0 to keep codes until you delete them. Expired notices are removed quietly when the app wakes from sleep.</span>` +
+            `</div>`,
+          ) +
+          profSection(
+            'Recently viewed',
+            `Projects a client viewed on their portal (after a short dwell) appear under Recently Viewed in ${escHtml(postTitle(2))}. Admin edits and saves do not count.`,
+            `<div class="prof-field">` +
+              `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
+              `<input id="settings-recently-viewed-days" name="recentlyViewedDays" type="number" min="1" max="365" step="1" value="${escHtml(String(recentlyViewedDays))}" required />` +
+              `<span class="prof-hint">Default is 7 days. Based on client portal dwell (~4s), not staff activity.</span>` +
+            `</div>`,
+          ) +
+          profSection(
+            'Portal opens',
+            'When a client first opens a tracked portal or share link, optionally open a chat alert so you can follow up while interest is warm.',
+            `<div class="prof-field">` +
+              `<label class="prof-check-row">` +
+                `<input id="settings-share-open-chat-alerts" name="shareOpenChatAlerts" type="checkbox" value="1"${shareOpenChatAlerts ? ' checked' : ''} />` +
+                `<span>Open a chat alert suggesting follow-up</span>` +
+              `</label>` +
+              `<span class="prof-hint">Off by default. First opens still count for Recently Viewed; this only controls the chat + push.</span>` +
+            `</div>`,
+          ) +
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
-          `<section class="prof-section">` +
-            `<div class="prof-section-copy">` +
-              `<h2 class="prof-title prof-title--section">Sleep mode</h2>` +
-              `<p class="prof-subtitle">During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Owner-initiated <strong>Siri Shortcuts</strong> still run (including audits and their completion push). Messages received overnight appear in Email as <strong>Sleep deferred</strong>.</p>` +
+          profSection(
+            'Sleep mode',
+            'During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Owner-initiated <strong>Siri Shortcuts</strong> still run (including audits and their completion push). Messages received overnight appear in Email as <strong>Sleep deferred</strong>.',
+            sleepStatus +
+            `<div class="prof-field">` +
+              `<label class="prof-check-row">` +
+                `<input id="settings-sleep-enabled" name="sleepModeEnabled" type="checkbox" value="1"${sleepEnabled ? ' checked' : ''} />` +
+                `<span>Enable sleep mode</span>` +
+              `</label>` +
             `</div>` +
-            `<div class="prof-section-fields">` +
-              sleepStatus +
-              `<div class="prof-field">` +
-                `<label class="prof-check-row">` +
-                  `<input id="settings-sleep-enabled" name="sleepModeEnabled" type="checkbox" value="1"${sleepEnabled ? ' checked' : ''} />` +
-                  `<span>Enable sleep mode</span>` +
-                `</label>` +
-              `</div>` +
-              `<div class="prof-field-row">` +
-                `<div class="prof-field"><label for="settings-sleep-start">From</label>` +
-                `<input id="settings-sleep-start" name="quietStart" type="time" value="${escHtml(quietStart)}" required /></div>` +
-                `<div class="prof-field"><label for="settings-sleep-end">Until</label>` +
-                `<input id="settings-sleep-end" name="quietEnd" type="time" value="${escHtml(quietEnd)}" required /></div>` +
-              `</div>` +
-              `<div class="prof-field"><label for="settings-sleep-tz">Timezone</label>` +
-              `<select id="settings-sleep-tz" name="timezone">${profileTimezoneOptions(tz)}</select></div>` +
+            `<div class="prof-field-row">` +
+              `<div class="prof-field"><label for="settings-sleep-start">From</label>` +
+              `<input id="settings-sleep-start" name="quietStart" type="time" value="${escHtml(quietStart)}" required /></div>` +
+              `<div class="prof-field"><label for="settings-sleep-end">Until</label>` +
+              `<input id="settings-sleep-end" name="quietEnd" type="time" value="${escHtml(quietEnd)}" required /></div>` +
             `</div>` +
-          `</section>` +
+            `<div class="prof-field"><label for="settings-sleep-tz">Timezone</label>` +
+            `<select id="settings-sleep-tz" name="timezone">${profileTimezoneOptions(tz)}</select></div>`,
+          ) +
         `</form>` +
       `</div>` +
     `</div>`
