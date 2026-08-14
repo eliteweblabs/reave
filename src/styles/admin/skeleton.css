@@ -119,14 +119,13 @@
 .sk-list-filters {
   display: flex;
   gap: 0.3rem;
-  padding: 0.2rem;
-  border-radius: 999px;
-  background: var(--btn-group-track-bg);
+  padding: 0;
+  background: none;
   pointer-events: none;
 }
 
 .sk-list-filter {
-  flex: 0 0 auto;
+  flex: 1 0 auto;
   width: 3.6rem;
   height: 1.4rem;
   border-radius: 999px;
