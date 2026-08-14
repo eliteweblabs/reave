@@ -127,12 +127,25 @@ export function openMediaPicker(opts) {
   });
 }
 
-/** Branding-only filter — raster images suitable for logo/icon slots. */
+const BRANDING_RASTER_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const BRANDING_RASTER_MAX_BYTES = 2 * 1024 * 1024;
+const BRANDING_SVG_MAX_BYTES = 200 * 1024;
+
+/** Company branding — raster (max 2 MB) or SVG (max 200 KB). */
 export function brandingMediaFilter(item) {
   const type = String(item.mediaType || '').trim().toLowerCase();
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(type)) return false;
   const size = Number(item.sizeBytes) || 0;
-  return size > 0 && size <= 2 * 1024 * 1024;
+  if (size <= 0) return false;
+  if (type === 'image/svg+xml') return size <= BRANDING_SVG_MAX_BYTES;
+  return BRANDING_RASTER_TYPES.includes(type) && size <= BRANDING_RASTER_MAX_BYTES;
+}
+
+/** Client / contact branding — raster only (no SVG slot). */
+export function brandingRasterMediaFilter(item) {
+  const type = String(item.mediaType || '').trim().toLowerCase();
+  if (!BRANDING_RASTER_TYPES.includes(type)) return false;
+  const size = Number(item.sizeBytes) || 0;
+  return size > 0 && size <= BRANDING_RASTER_MAX_BYTES;
 }
 
 /** Project notes / markdown — JPEG, PNG, GIF, WebP up to 10 MB. */

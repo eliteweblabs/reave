@@ -7,6 +7,7 @@
 import type { APIContext } from 'astro';
 import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
+  setStoredCompanyConfig,
   setStoredCompanyIcon,
   setStoredCompanyLogo,
 } from '../../../../../lib/companyConfigStore';
@@ -70,23 +71,43 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!blob.ok) return json({ ok: false, error: blob.error }, 400);
 
   if (target === 'company-logo') {
-    const ok = await setStoredCompanyLogo({
-      dataBase64: blob.dataBase64,
-      mediaType: blob.mediaType,
-    });
+    const ok =
+      blob.kind === 'svg'
+        ? await setStoredCompanyConfig({
+            logoSvg: blob.svg,
+            logoData: null,
+            logoMediaType: null,
+            logoPath: null,
+          })
+        : await setStoredCompanyLogo({
+            dataBase64: blob.dataBase64,
+            mediaType: blob.mediaType,
+          });
     if (!ok) return json({ ok: false, error: 'Failed to apply logo' }, 500);
     const company = await getCompanyConfig(context.request);
     return json({ ok: true, company });
   }
 
   if (target === 'company-icon') {
-    const ok = await setStoredCompanyIcon({
-      dataBase64: blob.dataBase64,
-      mediaType: blob.mediaType,
-    });
+    const ok =
+      blob.kind === 'svg'
+        ? await setStoredCompanyConfig({
+            iconSvg: blob.svg,
+            iconData: null,
+            iconMediaType: null,
+            iconPath: null,
+          })
+        : await setStoredCompanyIcon({
+            dataBase64: blob.dataBase64,
+            mediaType: blob.mediaType,
+          });
     if (!ok) return json({ ok: false, error: 'Failed to apply icon' }, 500);
     const company = await getCompanyConfig(context.request);
     return json({ ok: true, company });
+  }
+
+  if (blob.kind === 'svg') {
+    return json({ ok: false, error: 'Client branding requires PNG, JPEG, or WebP' }, 400);
   }
 
   const uid = typeof body.uid === 'string' ? body.uid.trim() : '';

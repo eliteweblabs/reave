@@ -13,6 +13,7 @@ import {
   projectFileResponseHeaders,
 } from './projectFiles';
 import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from './companyLogo';
+import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 import { workDir } from './workStore';
 
 export interface MediaLibrarySummary {
@@ -58,8 +59,12 @@ export function isMediaLibraryImageType(mediaType: string): boolean {
   return IMAGE_MEDIA_TYPES.has(mediaType.trim().toLowerCase());
 }
 
+export function isBrandSvgMediaType(mediaType: string): boolean {
+  return mediaType.trim().toLowerCase() === 'image/svg+xml';
+}
+
 export function isBrandingApplyMediaType(mediaType: string): boolean {
-  return isLogoUploadMediaType(mediaType);
+  return isLogoUploadMediaType(mediaType) || isBrandSvgMediaType(mediaType);
 }
 
 export function mediaLibraryUrl(id: string): string {
@@ -418,15 +423,29 @@ export async function storeDeleteMedia(id: string): Promise<boolean> {
   return fileDeleteMedia(id);
 }
 
-/** Branding uploads cap at 2 MB even when the library allows larger files. */
+/** Branding uploads: raster max 2 MB, SVG max 200 KB. */
 export function brandingBlobFromMedia(
   record: MediaLibraryRecord,
-): { ok: true; dataBase64: string; mediaType: string } | { ok: false; error: string } {
+):
+  | { ok: true; kind: 'raster'; dataBase64: string; mediaType: string }
+  | { ok: true; kind: 'svg'; svg: string }
+  | { ok: false; error: string } {
   if (!isBrandingApplyMediaType(record.mediaType)) {
-    return { ok: false, error: 'Only PNG, JPEG, or WebP images can be used for branding' };
+    return { ok: false, error: 'Only PNG, JPEG, WebP, or SVG images can be used for branding' };
+  }
+  if (isBrandSvgMediaType(record.mediaType)) {
+    if (record.sizeBytes > BRAND_SVG_MAX_CHARS) {
+      return { ok: false, error: 'SVG too large for branding (max 200 KB)' };
+    }
+    const raw = Buffer.from(record.dataBase64, 'base64').toString('utf8');
+    const svg = sanitizeInlineSvg(raw.trim());
+    if (!svg) {
+      return { ok: false, error: 'File must contain valid <svg> markup (max 200 KB).' };
+    }
+    return { ok: true, kind: 'svg', svg };
   }
   if (record.sizeBytes > LOGO_UPLOAD_MAX_BYTES) {
     return { ok: false, error: 'Image too large for branding (max 2 MB)' };
   }
-  return { ok: true, dataBase64: record.dataBase64, mediaType: record.mediaType };
+  return { ok: true, kind: 'raster', dataBase64: record.dataBase64, mediaType: record.mediaType };
 }

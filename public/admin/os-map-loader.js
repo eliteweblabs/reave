@@ -279,7 +279,7 @@ import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
-} from './media-picker.js?v=20260813a';
+} from './media-picker.js?v=20260813b';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -5606,7 +5606,7 @@ function companyBrandingIconPreviewUrl(company, size = 512) {
 }
 
 function companyIconPreviewUrl(company) {
-  if (hasCompanyIconMark(company)) {
+  if (hasCustomCompanyIcon(company)) {
     return companyBrandingIconPreviewUrl(company, 512);
   }
   return '';
@@ -5629,19 +5629,7 @@ function hasLegacyCompanyIconPath(company) {
 }
 
 function hasRemovableCompanyIcon(company) {
-  return (
-    hasUploadedCompanyIconPng(company) ||
-    hasLegacyCompanyIconPath(company) ||
-    !!(company?.iconSvg?.trim())
-  );
-}
-
-function hasCompanyIconMark(company) {
-  return (
-    hasUploadedCompanyIconPng(company) ||
-    hasLegacyCompanyIconPath(company) ||
-    !!(company?.iconSvg || company?.logoSvg)
-  );
+  return hasCustomCompanyIcon(company);
 }
 
 function companyStaffAvatarPreviewUrl(company) {
@@ -5665,7 +5653,11 @@ function hasCustomCompanyLogo(company) {
 }
 
 function hasCustomCompanyIcon(company) {
-  return hasCompanyIconMark(company);
+  return (
+    hasUploadedCompanyIconPng(company) ||
+    hasLegacyCompanyIconPath(company) ||
+    !!(company?.iconSvg?.trim())
+  );
 }
 
 function svgPreviewDataUri(svg) {
@@ -5751,11 +5743,11 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
   root.querySelector('#company-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose logo',
-      hint: 'Choose a PNG, JPEG, or WebP under 2 MB.',
+      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB), or an SVG (max 200 KB).',
       emptyHint:
         'No logos in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
+        'Library files are present, but none are PNG, JPEG, WebP, or SVG in the size limit.',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'company-logo');
@@ -5851,11 +5843,11 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   root.querySelector('#company-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose icon',
-      hint: 'Choose a PNG, JPEG, or WebP under 2 MB.',
+      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB), or an SVG (max 200 KB).',
       emptyHint:
         'No icons in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
+        'Library files are present, but none are PNG, JPEG, WebP, or SVG in the size limit.',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'company-icon');
@@ -6696,7 +6688,7 @@ function renderCompanyPanel(company, fontCatalog) {
           ) +
           profSection(
             'Logo &amp; icon',
-            'PNG, JPEG, WebP, or SVG. Logo powers the header (image → SVG → company name). Icon is rasterized for favicons, OG, PWA, and avatars.',
+            'PNG, JPEG, WebP, or SVG. Logo powers the header (image → SVG → company name). Icon is optional — favicons, OG, PWA, and avatars use it when set, otherwise the logo.',
             `<div class="prof-branding-uploads">` +
               `<div class="prof-branding-upload-item">` +
                 `<label for="company-logo-file">Logo</label>` +
@@ -6725,7 +6717,7 @@ function renderCompanyPanel(company, fontCatalog) {
                 `</div>` +
               `</div>` +
             `</div>` +
-            `<span class="prof-hint prof-hint--block">Pick a raster image from the Media library, or upload a file here.</span>`,
+            `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here.</span>`,
           ) +
           profSection(
             'Typography',

@@ -51,7 +51,7 @@ import {
   imageMediaFilter,
   projectFileMediaFilter,
   fetchMediaAsFile,
-} from './media-picker.js?v=20260813a';
+} from './media-picker.js?v=20260813b';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};

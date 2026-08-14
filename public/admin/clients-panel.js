@@ -45,9 +45,9 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, regi
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   openMediaPicker,
-  brandingMediaFilter,
+  brandingRasterMediaFilter,
   applyMediaToTarget,
-} from './media-picker.js?v=20260813a';
+} from './media-picker.js?v=20260813b';
 import {
   navigateToWork,
   mountClientWorkSection,
@@ -1259,7 +1259,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
         'No logos in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
         'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
-      filter: brandingMediaFilter,
+      filter: brandingRasterMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-logo', uid);
         refreshLogo(json.logoUrl || '', 'upload');
@@ -1276,7 +1276,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
         'No icons in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
         'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
-      filter: brandingMediaFilter,
+      filter: brandingRasterMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-icon', uid);
         refreshIcon(json.iconUrl || '', 'upload');
