@@ -246,6 +246,7 @@ async function runProposalResearch(input: {
         'always pass explicit site_url; never company domain). Run read-only tools in parallel when possible. ' +
         'Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry. ' +
         'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections. ' +
+        'Analytics & Conversion Tracking is client-facing: report only whether tracking snippets are installed on the website (detect_tech_stack / fetch_url HTML). Never mention owned property, Search Console access, or that we do not control the domain. ' +
         'In the SEO and Search Rich Results sections, quote seo_inventory findings and copy Problem → Impact pitches into Opportunities. ' +
         'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places so the Maps & Directories score stays accurate.'
       : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, seo_inventory ' +
@@ -255,6 +256,7 @@ async function runProposalResearch(input: {
         'detect_tech_stack, or Search/Analytics tools — those belong in the full audit tier. Run all read-only tools in **one parallel batch**, ' +
         'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry. ' +
         'Quote seo_inventory checklist items and Problem → Impact pitches in SEO / Opportunities. ' +
+        'Analytics & Conversion Tracking is client-facing: scan fetch_url HTML for gtag / GTM / Plausible / Meta Pixel and list what is installed, or write that none were found. Never mention owned property or Search Console access. ' +
         'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places.';
 
   const placesLines: string[] = [];
@@ -263,10 +265,10 @@ async function runProposalResearch(input: {
     placesLines.push(
       '',
       'CRITICAL — Google Places API (already checked when the contact was created):',
-      `Google Places returned **no exact address match** for "${q}". ` +
+      `Google Places returned **no business match** for "${q}". ` +
         `${input.business || 'This business'} is **not listed in the Google Places API**. ` +
         'You MUST state this explicitly in the Online Presence section as ' +
-        '`Google Business Profile: Missing — not listed in the Google Places API (no exact address match)` ' +
+        '`Google Business Profile: Missing — not listed in the Google Places API (no business match found)` ' +
         'and include a Problem → Solution opportunity about claiming / creating their Google Business Profile. ' +
         'Do not soften or omit this — the client must be 100% aware.',
     );
@@ -339,7 +341,7 @@ async function runProposalResearch(input: {
     }
   }
 
-  // Hard guarantee: if Places had no exact address match, the finished audit
+  // Hard guarantee: if Places had no business-name match, the finished audit
   // body always says so — even when the agent softens or omits the finding.
   await ensurePlacesNotListedOnAuditWork({
     jobSlug: input.jobSlug,

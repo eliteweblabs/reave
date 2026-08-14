@@ -8,6 +8,8 @@
  */
 import assert from 'node:assert/strict';
 import { buildAuditReportCard, labPerformanceToGrade } from '../src/lib/auditReportCard.ts';
+import { rewriteGooglePlacesNotListedCopy } from '../src/lib/auditPlacesListing.ts';
+import { isBusinessNameMatch } from '../src/lib/googlePlacesAutocomplete.ts';
 import { formatLighthouseResults } from '../src/lib/lighthouseClient.ts';
 
 function playbook(opts: {
@@ -233,6 +235,133 @@ Scores — performance: 84, accessibility: 88, best-practices: 79, seo: 92
   assert.match(text, /performance: 20/);
   assert.match(text, /throttled stress test/);
   console.log('ok — lighthouse formatter surfaces CrUX and labels lab scores');
+}
+
+{
+  const r = card(
+    'Agency GSC note must not reach the client',
+    `${playbook({ name: 'Safelite', mobile: 80, desktop: 90 })}
+
+### Analytics & Conversion Tracking
+- Not run — no owned property, no verified Search Console/Google Analytics/Plausible access, and the audited domain is a third-party national brand we don't control.
+
+### Search / Analytics
+- Status: **Failed** — no owned property on the agency Google account
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.ok(analytics, 'analytics tile should still render');
+  assert.equal(analytics?.grade, 'D');
+  assert.match(analytics?.finding || '', /No analytics or conversion tracking was found/i);
+  assert.equal(
+    /owned property|we don'?t control|Search Console|third-party/i.test(analytics?.finding || ''),
+    false,
+    'agency access copy must not appear on the client card',
+  );
+  for (const line of analytics?.why || []) {
+    assert.equal(
+      /owned property|we don'?t control|third-party national/i.test(line),
+      false,
+      `agency why leaked: ${line}`,
+    );
+  }
+  console.log('ok — agency Search Console notes are rewritten to a site-install finding');
+}
+
+{
+  const r = card(
+    'Tech stack install beats agency not-run',
+    `${playbook({ name: 'Installed', mobile: 80, desktop: 90 })}
+
+### Technology Stack
+- CMS: WordPress
+- Analytics: Google Analytics, Google Tag Manager
+
+### Analytics & Conversion Tracking
+- Not run — no owned property, no verified Search Console access
+
+### Search / Analytics
+- Status: **Failed** — ANALYTICS_FAILED
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.equal(analytics?.grade, 'B');
+  assert.match(analytics?.finding || '', /Google Analytics/);
+  assert.match(analytics?.finding || '', /Google Tag Manager/);
+  assert.equal(/owned property|Failed/i.test(analytics?.finding || ''), false);
+  console.log('ok — installed GA/GTM from tech stack grades B');
+}
+
+{
+  const r = card(
+    'Explicit missing tracking',
+    `${playbook({ name: 'Untracked', mobile: 80, desktop: 90 })}
+
+### Analytics & Conversion Tracking
+- No Google Analytics, tag manager, or conversion pixels found on the homepage
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.equal(analytics?.grade, 'D');
+  assert.match(analytics?.finding || '', /No analytics or conversion tracking was found/i);
+  console.log('ok — missing site tracking is noted, not an access story');
+}
+
+{
+  const r = card(
+    'Installed without conversion goals',
+    `${playbook({ name: 'Goals', mobile: 80, desktop: 90 })}
+
+### Analytics & Conversion Tracking
+- Google Analytics is installed
+- Conversion goals are not configured — leads go untracked
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.equal(analytics?.grade, 'C');
+  assert.match(analytics?.finding || '', /conversion goals are not configured/i);
+  console.log('ok — installed analytics without goals is a C');
+}
+
+{
+  assert.equal(
+    rewriteGooglePlacesNotListedCopy(
+      'Google Business Profile: Missing — not listed in the Google Places API (no exact address match).',
+    ),
+    'Google Business Profile: Missing — not listed in the Google Places API (no business match found).',
+  );
+  assert.equal(
+    isBusinessNameMatch("Joe's Pizza", "Joe's Pizza, Springfield, IL"),
+    true,
+    'city-only Places hit still counts as a business match',
+  );
+  assert.equal(
+    isBusinessNameMatch("Joe's Pizza", '123 Main St, Springfield, IL'),
+    false,
+    'street-only prediction is not a business match',
+  );
+  console.log('ok — Places listing is a business-name match, not an address match');
+}
+
+{
+  const r = buildAuditReportCard({
+    title: 'Maps miss audit',
+    tags: ['siri-audit', 'quick-audit'],
+    source: 'siri_audit',
+    clientName: 'Joe\'s Pizza',
+    googlePlacesListed: false,
+    body: `${playbook({ name: "Joe's Pizza", mobile: 80, desktop: 90 })}
+
+### Online Presence
+- Google Business Profile: Missing — not listed in the Google Places API (no exact address match).
+`,
+  });
+  assert.ok(r);
+  const maps = r!.categories.find((c) => c.id === 'local_listings');
+  const blob = `${maps?.finding || ''}\n${(maps?.why || []).join('\n')}`;
+  assert.match(blob, /no business match found|not listed in the Google Places API/i);
+  assert.equal(/exact address match/i.test(blob), false, 'old address-match copy must not reach the client');
+  console.log('ok — Maps & Directories says no business match found');
 }
 
 console.log('all audit report-card checks passed');

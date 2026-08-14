@@ -237,9 +237,9 @@ export type ClientPortalGeo = {
 };
 
 /**
- * Result of Google Places address lookup for a business contact.
+ * Result of Google Places lookup for a business contact (by business name).
  * `not_listed` must surface in website audits — the business is not findable
- * via the Google Places API (no exact street-level match).
+ * via the Google Places API (no business match found).
  */
 export type PlacesListingRecord = {
   status: 'matched' | 'not_listed' | 'unavailable' | 'skipped';

@@ -928,7 +928,11 @@ function plainLanguage(line: string, clientName = ''): string {
     .replace(/\bMX records?\b/gi, 'email routing')
     .replace(/\bWHOIS\b/gi, 'domain registration')
     .replace(/\bLighthouse\b/gi, 'speed & quality scan')
-    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test');
+    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test')
+    .replace(
+      /no exact (?:street-level )?address match(?: for "[^"]+")?/gi,
+      'no business match found',
+    );
   // Prefer the real client name over generic "this business" phrasing.
   out = out.replace(/\b[Tt]his business\b/g, name || 'the business');
   return out.trim();
@@ -976,6 +980,176 @@ function clientFriendlyBullets(lines: string[], limit = 4, clientName = ''): str
   // Sort before the limit so a trailing "missing alt text" is never sliced away
   // in favor of an earlier "Outstanding score…" line.
   return prioritizeNegativeFirst(cleaned).slice(0, limit);
+}
+
+/**
+ * Agency-only Search Console / GA account notes. Never show these to the client —
+ * the portal card is "is tracking installed on the website?", not "do we have API access?".
+ */
+const AGENCY_ANALYTICS_COPY_RE =
+  /not run|no owned property|owned property|we don'?t control|do not control|third-party (?:national )?brand|no verified (?:search console|google analytics|plausible)|verified search console|search console (?:auth|quota|access|property)|analytics_failed|\*\*failed\*\*|status:\s*failed|could not (?:load|fetch) analytics|indexnow.{0,60}(?:sites we|we (?:don't |do not )?control)|agency (?:google|gsc|ga4|access|account)/i;
+
+function isAgencyAnalyticsCopy(text: string): boolean {
+  return AGENCY_ANALYTICS_COPY_RE.test(text);
+}
+
+/** Tighter leak filter for Opportunities / Action Items (avoids dropping unrelated "not run" lines). */
+function isAgencyAnalyticsClientLeak(text: string): boolean {
+  return /owned property|we don'?t control|do not control|third-party (?:national )?brand|verified search console|search console (?:auth|quota|access|property)|analytics_failed|indexnow.{0,60}(?:sites we|we (?:don't |do not )?control)|agency (?:google|gsc|ga4|access|account)/i.test(
+    text,
+  );
+}
+
+const SITE_TRACKING_TOOLS: { name: string; re: RegExp }[] = [
+  { name: 'Google Analytics', re: /google analytics|\bga4\b|\bgtag\b|\bua-\d{4,}|\bg-[a-z0-9]{8,}/i },
+  { name: 'Google Tag Manager', re: /(?:google )?tag manager|\bgtm-[a-z0-9]+/i },
+  { name: 'Plausible', re: /\bplausible\b/i },
+  { name: 'Fathom', re: /\bfathom\b/i },
+  { name: 'Hotjar', re: /\bhotjar\b/i },
+  { name: 'Meta Pixel', re: /facebook pixel|meta pixel|\bfbq\s*\(/i },
+];
+
+const TRACKING_NEGATION_RE =
+  /\bno\b.{0,60}(?:analytics|tracking|pixel|tag manager|conversion|gtm|ga4|plausible)|missing (?:analytics|tracking)|not (?:installed|configured|found|detected|present)|untracked|none (?:found|detected|installed)|assumed not set up/i;
+
+function lineDeniesTracking(line: string): boolean {
+  return TRACKING_NEGATION_RE.test(line) || isAgencyAnalyticsCopy(line);
+}
+
+function detectInstalledTracking(text: string): string[] {
+  const found: string[] = [];
+  for (const line of text.split('\n')) {
+    const trimmed = stripMd(line);
+    if (!trimmed || lineDeniesTracking(trimmed)) continue;
+    for (const tool of SITE_TRACKING_TOOLS) {
+      if (tool.re.test(trimmed) && !found.includes(tool.name)) found.push(tool.name);
+    }
+  }
+  return found;
+}
+
+function listWithAnd(items: string[]): string {
+  if (items.length <= 1) return items[0] || '';
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+function siteTrackingCorpus(
+  installSection: string,
+  techStackSection: string,
+  bodyWithoutSearchAnalytics: string,
+): string {
+  const parts: string[] = [];
+  if (installSection.trim() && !isAgencyAnalyticsCopy(installSection)) {
+    parts.push(installSection);
+  } else if (installSection.trim()) {
+    const kept = installSection
+      .split('\n')
+      .filter((line) => stripMd(line) && !isAgencyAnalyticsCopy(line))
+      .join('\n');
+    if (kept.trim()) parts.push(kept);
+  }
+  if (techStackSection.trim()) parts.push(techStackSection);
+  if (!parts.length && bodyWithoutSearchAnalytics.trim()) {
+    const relevant = bodyWithoutSearchAnalytics
+      .split('\n')
+      .filter((line) => {
+        const t = stripMd(line);
+        return SITE_TRACKING_TOOLS.some((tool) => tool.re.test(t)) || TRACKING_NEGATION_RE.test(t);
+      })
+      .join('\n');
+    if (relevant.trim()) parts.push(relevant);
+  }
+  return parts.join('\n');
+}
+
+function scoreSiteTrackingCategory(
+  installSection: string,
+  techStackSection: string,
+  bodyWithoutSearchAnalytics: string,
+  clientName: string,
+  searchAnalyticsSection = '',
+): ReportCardCategory {
+  const meta = CATEGORY_BY_ID.get('analytics')!;
+  const corpus = siteTrackingCorpus(installSection, techStackSection, bodyWithoutSearchAnalytics);
+  const tools = detectInstalledTracking(corpus);
+  const wroteAnalytics =
+    Boolean(installSection.trim() || techStackSection.trim() || searchAnalyticsSection.trim());
+  const missing =
+    tools.length === 0 &&
+    (TRACKING_NEGATION_RE.test(corpus) ||
+      isAgencyAnalyticsCopy(installSection) ||
+      isAgencyAnalyticsCopy(searchAnalyticsSection) ||
+      /analytics|tracking|gtm|ga4|pixel|tag manager/i.test(corpus) ||
+      wroteAnalytics);
+
+  const goalsConfigured =
+    /(?:conversion )?goals? (?:are )?(?:set|configured|working)|events? (?:are )?(?:tracked|configured)/i.test(
+      corpus,
+    ) && !/(?:no|not|missing) (?:conversion )?goals?/i.test(corpus);
+  const goalsMissing =
+    tools.length > 0 &&
+    /no (?:conversion )?goals?|goals? (?:not |aren'?t |are not )(?:set|configured)|untracked leads|conversion (?:tracking )?(?:not |isn'?t )(?:set|configured)/i.test(
+      corpus,
+    );
+
+  let grade: LetterGrade;
+  let finding: string;
+  if (tools.length > 0 && goalsMissing) {
+    grade = 'C';
+    finding = `${listWithAnd(tools)} ${tools.length === 1 ? 'is' : 'are'} installed, but conversion goals are not configured.`;
+  } else if (tools.length > 0 && goalsConfigured) {
+    grade = 'B';
+    finding = `${listWithAnd(tools)} ${tools.length === 1 ? 'is' : 'are'} installed and conversion tracking looks configured.`;
+  } else if (tools.length > 0) {
+    grade = 'B';
+    finding = `${listWithAnd(tools)} ${tools.length === 1 ? 'is' : 'are'} installed on the website.`;
+  } else {
+    grade = 'D';
+    finding = 'No analytics or conversion tracking was found on the website.';
+  }
+
+  const rawWhy = clientFriendlyBullets(
+    bulletsFromSection(corpus).filter((line) => !isAgencyAnalyticsCopy(line)),
+    4,
+    clientName,
+  );
+  const why = rawWhy.length ? rawWhy : [finding];
+
+  // Hide the tile only when the audit never mentioned tracking at all.
+  const looked =
+    wroteAnalytics ||
+    tools.length > 0 ||
+    missing ||
+    /analytics|tracking|gtm|ga4|pixel|tag manager|gtag/i.test(corpus);
+
+  if (!looked) {
+    return {
+      id: 'analytics',
+      label: meta.label,
+      icon: meta.icon,
+      source: meta.source,
+      summary: 'Not scored in this audit',
+      finding: 'Not scored in this audit',
+      grade: null,
+      score: null,
+      why: ['No analytics or conversion tracking section was written in this audit.'],
+      unavailable: true,
+    };
+  }
+
+  return {
+    id: 'analytics',
+    label: meta.label,
+    icon: meta.icon,
+    source: meta.source,
+    summary: finding,
+    finding,
+    grade,
+    score: gradeToScore(grade),
+    why,
+    unavailable: false,
+  };
 }
 
 const FINDING_MAX_CHARS = 180;
@@ -1348,7 +1522,9 @@ function buildIdeas(
   body: string,
   actionItems: string[],
 ): ReportCardIdea[] {
-  const authored = extractAuthoredIdeas(body);
+  const authored = extractAuthoredIdeas(body).filter(
+    (idea) => !isAgencyAnalyticsClientLeak(`${idea.problem} ${idea.solution}`),
+  );
   const byId = new Map(categories.map((c) => [c.id, c]));
   const derived: ReportCardIdea[] = [];
 
@@ -1511,7 +1687,7 @@ export function buildAuditReportCard(input: {
   /** Business / contact name — used in client-facing headlines and findings. */
   clientName?: string | null;
   /**
-   * When false, Google Places returned no exact address match at contact create.
+   * When false, Google Places returned no business-name match at contact create.
    * Forces Maps & Directories / GBP to missing so the client is always aware.
    */
   googlePlacesListed?: boolean | null;
@@ -1565,11 +1741,17 @@ export function buildAuditReportCard(input: {
     /Online Presence|Local Presence|Presence|Listings|Reputation|Social Spread/,
   );
   const uxSection = extractSection(body, /UX\s*&\s*UI|Playwright|Mobile Responsiveness|Mobile/);
-  // Prefer "Search / Analytics" / full title — bare "Tracking" invents empty cards from prose.
-  const analyticsSection = extractSection(
+  // Client tile = site install check only. Do not prefer "Search / Analytics"
+  // (agency GSC/GA access) — that copy must never reach the portal card.
+  const analyticsInstallSection = extractSection(
     body,
-    /Search\s*\/\s*Analytics|Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking/,
+    /Analytics(?:\s*&\s*Conversion(?:\s+Tracking)?)?|Conversion Tracking/,
   );
+  const searchAnalyticsSection = extractSection(body, /Search\s*\/\s*Analytics/);
+  const techStackSection = extractSection(body, /Technology Stack|Tech Stack/);
+  const bodyWithoutSearchAnalytics = searchAnalyticsSection
+    ? body.replace(searchAnalyticsSection, '')
+    : body;
   // Agents often write "Broken Links Summary (N confirmed…)" — keep "Summary" optional.
   // Bare "Links" is too greedy against unrelated headings.
   const linksSection = extractSection(
@@ -1786,7 +1968,7 @@ export function buildAuditReportCard(input: {
         ? `${clientName} is not listed in the Google Places API.`
         : 'Not listed in the Google Places API.',
       why: [
-        'Google Places returned no exact street-level address match when the contact was created — they are not findable on Google Maps / Business Profile.',
+        'Google Places found no business match — they are not findable on Google Maps / Business Profile.',
         ...gbp.why.filter((line) => !/not covered|not called out/i.test(line)).slice(0, 2),
       ].slice(0, 4),
     };
@@ -2115,35 +2297,13 @@ export function buildAuditReportCard(input: {
     ),
     channelCategory('reviews', reviews),
     channelCategory('social', social),
-    (() => {
-      const lower = analyticsSection.toLowerCase();
-      if (
-        /analytics_failed|\*\*failed\*\*|status:\s*failed|search console (?:auth|quota)|could not (?:load|fetch) analytics/.test(
-          lower,
-        )
-      ) {
-        const meta = CATEGORY_BY_ID.get('analytics')!;
-        return {
-          id: 'analytics' as const,
-          label: meta.label,
-          icon: meta.icon,
-          source: meta.source,
-          summary: 'Analytics check unavailable',
-          finding: 'Analytics check unavailable',
-          grade: null,
-          score: null,
-          why: clientFriendlyBullets(bulletsFromSection(analyticsSection), 3, clientName),
-          unavailable: true,
-        };
-      }
-      return heuristicSection('analytics', analyticsSection, {
-        // Site-level gaps only. Agency GSC/GA access limits stay mid-grade with a clear finding.
-        bad: /no analytics|missing analytics|not (?:installed|configured)|no conversion|untracked|no goals|assumed not set up|not set up or not yet connected/i,
-        good: /analytics (?:is )?installed|goals? configured|tracking (?:is )?working|conversion goals? (?:are )?(?:set|configured)|reporting (?:is )?available/i,
-        present: /analytics|conversion|gtm|ga4|tag manager|tracking|search console/i,
-        emptySummary: 'Not scored in this audit',
-      });
-    })(),
+    scoreSiteTrackingCategory(
+      analyticsInstallSection,
+      techStackSection,
+      bodyWithoutSearchAnalytics,
+      clientName,
+      searchAnalyticsSection,
+    ),
     scoreCategory(
       'accessibility',
       a11yScore,
@@ -2213,7 +2373,7 @@ export function buildAuditReportCard(input: {
       : null;
   const overall = scoreToGrade(overallScore);
 
-  const actionItems = extractActionItems(body);
+  const actionItems = extractActionItems(body).filter((item) => !isAgencyAnalyticsClientLeak(item));
   const ideas = buildIdeas(rawCategories, body, actionItems);
   const potential = improveGrade(overall, ideas.length >= 3 || actionItems.length >= 4 ? 2 : 1);
   const criticalCount = categories.filter((c) => c.grade === 'F').length;
