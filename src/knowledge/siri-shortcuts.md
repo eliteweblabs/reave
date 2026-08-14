@@ -1,6 +1,6 @@
 # Siri Shortcuts Integration
 
-Control Reave through Siri using Apple Shortcuts. Say things like "Hey Siri, list my contacts" or "Hey Siri, create work item" and interact with your business from anywhere.
+Control Reave through Siri using Apple Shortcuts. Say things like "Hey Siri, ask Reave what's on my to-do list", "Hey Siri, list my contacts", or "Hey Siri, create work item" and interact with your business from anywhere.
 
 ## How it Works
 
@@ -10,7 +10,7 @@ Apple Shortcuts calls `/api/siri` with JSON commands and displays the response. 
 2. Includes authentication (X-Siri-Key header or Clerk session token)
 3. Receives a response (text or JSON) that Siri can read aloud or display
 
-**Sleep mode:** Siri Shortcuts bypass overnight quiet hours. CRUD actions always work, and audit research plus its completion push still run during sleep mode (unlike inbound email triage and other automated AI).
+**Sleep mode:** Siri Shortcuts bypass overnight quiet hours. CRUD actions always work, and audit research, freeform agent prompts, plus their completion push still run during sleep mode (unlike inbound email triage and other automated AI).
 
 ## Setup
 
@@ -49,6 +49,46 @@ On your iPhone/iPad:
 Now say "Hey Siri, list my contacts" and it runs!
 
 ## Available Actions
+
+### Ask the Agent
+
+**What it does**: Send a freeform prompt to the same knowledge agent as Admin → Sessions. Siri waits briefly for a spoken reply. If the turn needs tools and takes longer, you get an immediate ack and a push when the answer lands. The conversation is saved as a chat titled `Siri · …`.
+
+**JSON body**:
+
+```json
+{
+  "action": "prompt",
+  "message": "How many hours did we bill last week?",
+  "format": "text"
+}
+```
+
+**Parameters**:
+- `message` (required): What to ask. Aliases: `prompt`, `text`, `query`, `q`.
+- `thread_id` (optional): Continue an existing owner chat (use the `threadId` from a previous response).
+- `async` (optional): `true` to return immediately and push when done (same as `wait: false`).
+- `format` (optional): `json` or `text` (use `text` so Siri can speak the reply).
+
+**Example response** (finished in time):
+
+```
+You billed 18.5 hours last week across three active projects.
+```
+
+**Example response** (still running):
+
+```
+Working on that. I will notify you when it is ready.
+```
+
+**Siri phrase**: "ask Reave" or "prompt the agent" or "hey Reave"
+
+**Also accepts**: `"action": "ask"`, `"action": "chat"`, `"action": "ask_agent"`
+
+**Requirement**: `ANTHROPIC_API_KEY` and `AGENT_ALERT_USER_ID` (so the thread lands in your Sessions list and the completion push can reach you).
+
+**Tip**: Use Shortcuts' **Ask for Input** for the message, then **Speak Text** on the response. For follow-ups, save `threadId` from the JSON response and pass it back as `thread_id`.
 
 ### List Contacts
 
@@ -649,7 +689,7 @@ The endpoint has no built-in rate limiting. If needed, add Cloudflare rate limit
 
 - **Complex forms**: Use the web app or admin dashboard for data-heavy tasks
 - **File attachments**: Use `/api/work/[slug]/files` separately after creating work item
-- **Real-time chat**: Siri Shortcuts aren't for conversations — use the admin Chat interface or Vapi voice agent
+- **Long agent turns**: Simple questions come back as spoken text. Tool-heavy prompts (audits, code, research) may take longer than Siri will wait — you'll get a push when the chat reply is ready. Pass `thread_id` to continue the same session.
 
 ## Troubleshooting
 
@@ -697,6 +737,10 @@ Example actions to add:
 
 - `list_invoices`: Show outstanding invoices (requires Crater integration)
 - `check_schedule`: Show today's bookings (requires Cal.com integration)
+
+**Ask the agent** (requires `ANTHROPIC_API_KEY` + `AGENT_ALERT_USER_ID`):
+
+- `prompt` / `ask` / `chat` / `ask_agent`: Freeform prompt — spoken reply or push when the turn is long
 
 **Billing** (requires `billing` feature + Crater):
 

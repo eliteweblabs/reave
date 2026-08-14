@@ -8,6 +8,40 @@ Copy-paste these JSON payloads into Apple Shortcuts → Get Contents of URL → 
 
 ---
 
+## Ask the Agent
+
+```json
+{
+  "action": "prompt",
+  "message": "How many hours did we bill last week?",
+  "format": "text"
+}
+```
+
+**Continue a chat** (use `threadId` from the previous JSON response):
+
+```json
+{
+  "action": "ask",
+  "message": "Break that down by project",
+  "thread_id": "THREAD_ID_HERE",
+  "format": "text"
+}
+```
+
+**Don't wait** (push when the reply is ready):
+
+```json
+{
+  "action": "prompt",
+  "message": "Summarize everything open on the Henderson project",
+  "async": true,
+  "format": "text"
+}
+```
+
+---
+
 ## List Contacts
 
 ```json
@@ -296,6 +330,12 @@ curl -X POST https://reave.app/api/siri \
   -H "X-Siri-Key: YOUR_KEY_HERE" \
   -H "Content-Type: application/json" \
   -d '{"action":"record_payment","customer_name":"Acme Plumbing","amount":250,"payment_mode":"CHECK","format":"text"}'
+
+# Ask the agent
+curl -X POST https://reave.app/api/siri \
+  -H "X-Siri-Key: YOUR_KEY_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"prompt","message":"How many hours did we bill last week?","format":"text"}'
 
 # Status
 curl -X POST https://reave.app/api/siri \

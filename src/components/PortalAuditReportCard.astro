@@ -3,7 +3,12 @@
  * Client-facing online presence diagnostic — filtered from audit markdown.
  * Admin keeps the raw Work body; this is the plain-language client view.
  */
-import type { AuditReportCard, LetterGrade, ReportCardIcon } from '../lib/auditReportCard';
+import {
+  AUDIT_SCAN_STACK,
+  type AuditReportCard,
+  type LetterGrade,
+  type ReportCardIcon,
+} from '../lib/auditReportCard';
 
 interface Props {
   report: AuditReportCard;
@@ -269,6 +274,15 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
           <span class="opd-legend-item"><i class="grade-d" /> D 60–69</span>
           <span class="opd-legend-item"><i class="grade-f" /> F Below 60</span>
         </div>
+        <p class="opd-stack-kicker">Measurement stack</p>
+        <ul class="opd-stack">
+          {AUDIT_SCAN_STACK.map((tool) => (
+            <li>
+              <span class="opd-stack-name">{tool.name}</span>
+              <span class="opd-stack-role">{tool.role}</span>
+            </li>
+          ))}
+        </ul>
         <p class="opd-disclaimer">
           Grades and findings are compiled from independent measurement tools as of the scan date
           above — not the subjective opinion of the firm presenting this report.
@@ -788,6 +802,42 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
   .opd-legend-item i.grade-d { background: var(--opd-risk); }
   .opd-legend-item i.grade-f { background: var(--opd-crit); }
 
+  .opd-stack-kicker {
+    margin: 0 0 8px;
+    font-family: var(--opd-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--opd-dim);
+  }
+  .opd-stack {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .opd-stack li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--opd-hairline);
+    background: var(--opd-panel);
+  }
+  .opd-stack-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--opd-text);
+  }
+  .opd-stack-role {
+    font-size: 0.68rem;
+    color: var(--opd-muted);
+    line-height: 1.3;
+  }
   .opd-disclaimer {
     margin: 0;
     font-size: 0.78rem;

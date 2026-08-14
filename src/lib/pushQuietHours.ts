@@ -4,8 +4,8 @@
  * during the configured window (default 11 PM–7 AM).
  *
  * Owner-initiated Siri Shortcuts set AgentRunContext.bypassSleepMode so audit
- * research and related Claude calls still run; completion push uses
- * bypassQuietHours. Automated overnight work stays blocked.
+ * research, freeform agent prompts, and related Claude calls still run;
+ * completion push uses bypassQuietHours. Automated overnight work stays blocked.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';

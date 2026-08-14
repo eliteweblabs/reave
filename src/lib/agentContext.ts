@@ -14,6 +14,11 @@ export interface AgentRunContext {
    * Checked by the agent runner and Anthropic client — automated overnight work stays blocked.
    */
   bypassSleepMode?: boolean;
+  /**
+   * Owner is speaking via Siri Shortcuts — lead with a short plain-text spoken
+   * answer (the chat transcript may still carry more detail below).
+   */
+  siriVoice?: boolean;
   /** Images (including SVGs) attached to the current user message (for filing to projects). */
   messageImages?: ChatImageAttachment[];
   /** PDF/PPTX documents attached to the current user message (for filing to projects). */

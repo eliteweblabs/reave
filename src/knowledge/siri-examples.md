@@ -546,7 +546,38 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 10: "Reave Status" (Widget/Lock Screen)
+## Example 10: "Ask Reave" (prompt the agent)
+
+**What it does**: Dictates a question to the same knowledge agent as Admin → Sessions. Siri speaks the reply when it comes back in time; longer turns notify you.
+
+**Siri phrase**: "ask Reave" or "prompt the agent" or "hey Reave"
+
+**Shortcut steps**:
+
+1. **Ask for Input**
+   - Prompt: "What should I ask Reave?"
+   - Input Type: Text
+   - Store in: `Prompt`
+
+2. **Get Contents of URL**
+   - URL: `https://reave.app/api/siri`
+   - Method: POST
+   - Headers: `X-Siri-Key` + `Content-Type: application/json`
+   - Request Body (Text):
+     ```json
+     {"action":"prompt","message":"Prompt","format":"text"}
+     ```
+     *(Shortcuts replaces `Prompt` with what you said.)*
+
+3. **Speak Text**
+   - Text: `Contents of URL`
+   - Wait Until Finished: On
+
+**Pro tip**: For a follow-up, use the JSON response's `data.threadId` as `thread_id` on the next call. Use `"async": true` when you know the ask will take a while (research, code, audits).
+
+---
+
+## Example 11: "Reave Status" (Widget/Lock Screen)
 
 **What it does**: Quick health check you can run from Lock Screen widget.
 

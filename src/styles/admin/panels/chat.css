@@ -857,6 +857,7 @@ body.admin-split-view #chat-panel .ch-compose {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   pointer-events: auto;
   top: calc(var(--safe-top) + 1.25rem);
   bottom: auto;
@@ -867,11 +868,55 @@ body.admin-split-view #chat-panel .ch-compose {
   font-family: var(--font-primary);
   font-size: 0.92rem;
   font-weight: 600;
-  color: #0b0512;
+  color: #fff;
   background: var(--brand-gradient);
   box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
   white-space: nowrap;
   cursor: pointer;
+}
+.ch-undo-toast svg {
+  display: block;
+  flex-shrink: 0;
+}
+.ch-undo-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+}
+.ch-undo-icon .delete-confirm-icon {
+  position: relative;
+  z-index: 2;
+}
+.ch-undo-icon .delete-confirm-ring-holder {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ch-undo-icon .delete-confirm-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ch-undo-toast.ch-toast-visible .delete-confirm-ring {
+  opacity: 1;
+}
+.ch-undo-toast.ch-toast-visible .delete-confirm-ring-circle {
+  animation: delete-confirm-draw-ring var(--delete-confirm-ms, 5000ms) linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-undo-toast.ch-toast-visible .delete-confirm-ring-circle {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 .ch-undo-toast.ch-toast-visible {
   transform: translateX(-50%) translateY(0);

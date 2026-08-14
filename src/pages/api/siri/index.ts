@@ -30,11 +30,14 @@
  * - time_tracking_status: { action: "time_tracking_status" } — current timer or recent project prompt
  * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
  *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater
+ * - prompt / ask / chat / ask_agent: { action: "prompt", message: string, thread_id?, async? }
+ *   Freeform prompt to the knowledge agent. Waits briefly for a spoken reply;
+ *   longer turns continue in the background and push when done.
  *
  * Authentication: Bearer token (Clerk session token) or X-Siri-Key header (SIRI_API_KEY env var).
  *
- * Sleep mode: Siri Shortcuts bypass quiet hours — audit research and completion
- * push still run overnight. Automated inbound triage stays deferred.
+ * Sleep mode: Siri Shortcuts bypass quiet hours — audit research, agent prompts,
+ * and completion push still run overnight. Automated inbound triage stays deferred.
  */
 
 import type { APIContext } from 'astro';
@@ -87,6 +90,7 @@ import {
   type TodoStatus,
 } from '../../../lib/todoStore';
 import { craterRecordPayment, isCraterConfigured } from '../../../lib/craterClient';
+import { startSiriAgentPrompt } from '../../../lib/siriAgentPrompt';
 
 const PAYMENT_MODE_ENUM = ['CASH', 'CHECK', 'CREDIT_CARD', 'BANK_TRANSFER', 'OTHER'] as const;
 
@@ -228,6 +232,20 @@ export async function POST(context: APIContext): Promise<Response> {
       case 'create_payment':
         result = await handleRecordPayment(body);
         break;
+      case 'prompt':
+      case 'ask':
+      case 'chat':
+      case 'ask_agent': {
+        const promptRate = checkInMemoryRateLimit(`siri-prompt:${clientIp(context.request)}`, {
+          windowMs: 10 * 60 * 1000,
+          maxPerWindow: 12,
+        });
+        if (!promptRate.ok) {
+          return json({ ok: false, error: 'Too many agent prompts. Please try again later.' }, 429);
+        }
+        result = await startSiriAgentPrompt(body);
+        break;
+      }
       default:
         return json({ ok: false, error: `Unknown action: ${action}` }, 400);
     }

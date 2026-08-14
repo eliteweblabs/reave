@@ -7,7 +7,12 @@
  * including nytimes.com / reddit.com).
  */
 import assert from 'node:assert/strict';
-import { buildAuditReportCard, labPerformanceToGrade } from '../src/lib/auditReportCard.ts';
+import {
+  AUDIT_SCAN_STACK,
+  buildAuditReportCard,
+  labPerformanceToGrade,
+  reportCardCategoryMeta,
+} from '../src/lib/auditReportCard.ts';
 import { formatLighthouseResults } from '../src/lib/lighthouseClient.ts';
 
 function playbook(opts: {
@@ -94,6 +99,7 @@ function card(name: string, body: string) {
   assert.match(perf?.finding || '', /Mobile lab 35\/100/);
   assert.match(perf?.finding || '', /Desktop 82\/100/);
   assert.equal(mobile?.grade, 'B', 'tap targets must not auto-D a responsive layout');
+  assert.match(mobile?.source || '', /Playwright/, 'mobile tile cites Playwright');
   const speedIdea = r.ideas.find((i) => i.categoryId === 'performance');
   assert.ok(speedIdea, 'C speed still offers a speed idea');
   assert.equal(
@@ -233,6 +239,19 @@ Scores — performance: 84, accessibility: 88, best-practices: 79, seo: 92
   assert.match(text, /performance: 20/);
   assert.match(text, /throttled stress test/);
   console.log('ok — lighthouse formatter surfaces CrUX and labels lab scores');
+}
+
+{
+  assert.ok(
+    AUDIT_SCAN_STACK.some((t) => t.name === 'Playwright'),
+    'audit frontend stack lists Playwright',
+  );
+  const meta = reportCardCategoryMeta();
+  const mobile = meta.find((c) => c.id === 'mobile');
+  const lead = meta.find((c) => c.id === 'lead_capture');
+  assert.match(mobile?.source || '', /Playwright/);
+  assert.match(lead?.source || '', /Playwright/);
+  console.log('ok — Playwright is listed on the audit frontend stack');
 }
 
 console.log('all audit report-card checks passed');
