@@ -42,7 +42,7 @@ import {
 } from './admin-ui.js?v=20260811a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
-import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260814a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260810c';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260812b';
 import { formatPhoneInput } from './clients-panel.js?v=20260812b';

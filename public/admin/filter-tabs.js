@@ -184,9 +184,9 @@ export function createFilterTabButton(opts) {
   if (title) btn.title = title;
 
   if (variant === 'purge') {
-    btn.innerHTML =
-      `<span class="em-filter-tab-label">${escHtml(label)}</span>` +
-      `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
+    // Selected category lives in the search hint — chip is icon-only to free strip space.
+    btn.innerHTML = `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
+    if (!ariaLabel) btn.setAttribute('aria-label', `Delete all ${label.toLowerCase()}`);
     bindConfirmDeleteButton(btn, onConfirmDelete);
   } else if (variant === 'refresh') {
     btn.innerHTML =

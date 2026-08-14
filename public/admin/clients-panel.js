@@ -60,7 +60,7 @@ import {
   flushClientVaultSave,
 } from './work-panel.js?v=20260810c';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
-import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260814a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260812b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';

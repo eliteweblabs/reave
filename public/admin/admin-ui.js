@@ -527,11 +527,13 @@ function escapeSearchHintText(value) {
 
 /**
  * Normalize a search placeholder into the "Type / to Search …" label.
- * Accepts either a subject ("45 Emails") or an existing "Search …" / "Type / to …" string.
+ * Accepts either a subject ("45 Emails"), an existing "Search …" / "Type / to …"
+ * string, or a ready-made count label ("27 Junk Emails") which is left as-is.
  */
 export function formatSlashSearchLabel(placeholder) {
   const raw = String(placeholder ?? '').trim() || 'Search…';
   if (/^type\s+\/\s+to\s+/i.test(raw)) return raw.replace(/^type\s+\/\s+to\s+/i, 'Type / to ');
+  if (!/^search\b/i.test(raw)) return raw;
   const rest = raw.replace(/^search\s+/i, '').trim() || '…';
   return `Type / to Search ${rest}`;
 }

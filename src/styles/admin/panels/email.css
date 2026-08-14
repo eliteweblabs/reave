@@ -179,6 +179,13 @@
   color: var(--danger, #dc2626);
   border-color: color-mix(in srgb, var(--danger, #dc2626) 35%, transparent);
   background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
+  gap: 0;
+  padding-left: 0.42rem;
+  padding-right: 0.42rem;
+  min-width: 1.7rem;
+}
+.em-filter-tab--purge .em-filter-tab-label {
+  display: none;
 }
 .em-filter-tab.em-filter-tab--purge:hover,
 .em-filter-tab.active.em-filter-tab--purge:hover {
@@ -206,9 +213,6 @@
 }
 .em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] {
   color: var(--danger, #dc2626);
-}
-.em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] .em-filter-tab-label {
-  opacity: 0.72;
 }
 .em-filter-tab--purge.delete-confirm-btn[data-state="confirm"] .em-filter-purge-icon svg {
   position: relative;
