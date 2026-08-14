@@ -260,6 +260,12 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
           32px
           calc(48px + env(safe-area-inset-bottom, 0px));
       }
+      main:has(.doc-onepager) {
+        max-width: none;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      body:has(.doc-onepager) .doc-header { display: none; }
 
       /* ── Header ── */
       .doc-header {
@@ -478,6 +484,7 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
       @media print {
         .sign-section, .site-foot, .doc-header { display: none !important; }
         main { padding: 0; }
+        body:has(.doc-onepager) .site-foot { display: none !important; }
         .doc-body { margin-bottom: 0; }
         .success-section .view-btn { display: none; }
         .print-only { display: block !important; }

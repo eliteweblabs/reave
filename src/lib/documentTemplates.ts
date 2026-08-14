@@ -1,7 +1,11 @@
 import type { ContactRecord } from './contactApi';
-import type { CompanyConfig } from './companyConfig';
 import { parseKnowledgeMarkdown } from './localKnowledge';
 import { renderDocumentMarkdown } from './renderDocumentMarkdown';
+import {
+  parseDocumentLayout,
+  renderPrintOnePagerHtml,
+  type PrintCompany,
+} from './documentPrintLayout';
 
 // Load all markdown templates at build time (Vite eager glob).
 // Path is relative to this file: src/lib/ → src/documents/
@@ -78,7 +82,7 @@ export function getTemplate(slug: string): DocumentTemplate | null {
 export function fillTemplate(
   markdown: string,
   contact: ContactRecord,
-  org?: Pick<CompanyConfig, 'name' | 'legalName' | 'domain' | 'supportEmail'>,
+  org?: PrintCompany,
 ): string {
   const firstName =
     contact.firstName?.trim() ||
@@ -127,9 +131,22 @@ export function fillTemplate(
 export async function fillAndRenderTemplate(
   markdown: string,
   contact: ContactRecord,
-  org?: Pick<CompanyConfig, 'name' | 'legalName' | 'domain' | 'supportEmail'>,
+  org?: PrintCompany,
 ): Promise<string> {
-  return renderDocumentMarkdown(fillTemplate(markdown, contact, org));
+  return renderFilledDocumentHtml(fillTemplate(markdown, contact, org), org);
+}
+
+/** Render template markdown (already filled) to HTML, applying print chrome when opted in. */
+export async function renderFilledDocumentHtml(
+  markdown: string,
+  org?: PrintCompany,
+  slug = '',
+): Promise<string> {
+  const layout = parseDocumentLayout(markdown, slug);
+  if (layout.layout === 'onepager') {
+    return renderPrintOnePagerHtml(markdown, org, slug);
+  }
+  return renderDocumentMarkdown(markdown);
 }
 
 function escMarkdown(s: string): string {

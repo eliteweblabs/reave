@@ -1,0 +1,36 @@
+---
+title: Audit One-Pager (Landscape)
+layout: onepager
+orientation: landscape
+footer: Confidential sample · Prepared for {client.name}{client.company_str} · {company.name} · {company.support_email} · {date} · Page 1 of 1 · Not a legal opinion
+---
+
+:::column
+### Snapshot
+
+**Site** — {client.company}
+**Prepared for** — {client.name}
+**Scanned** — {date}
+
+- Overall score — —
+- Performance — —
+- Security — —
+- Visibility — —
+
+Placeholder metrics. Automation will replace this column with the live audit snapshot.
+:::column
+### Findings
+
+1. Placeholder finding one — a short, plain-language issue that fits a one-pager.
+2. Placeholder finding two — another sample row for column balance.
+3. Placeholder finding three — swap for the top audit results.
+
+Use this column for the three to five issues that matter most. Keep each to two lines so the sheet stays on a single page.
+:::column
+### Next steps
+
+1. Placeholder recommendation — the first action worth taking this week.
+2. Placeholder recommendation — a follow-up that unlocks the next gain.
+3. Placeholder recommendation — a longer-horizon item if the first two land.
+
+Footer and header stay fixed. Fill only these columns when generating an audit printout.

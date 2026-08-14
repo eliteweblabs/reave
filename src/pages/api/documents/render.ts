@@ -2,10 +2,24 @@
  * POST /api/documents/render — render markdown to HTML for admin preview.
  */
 import type { APIRoute } from 'astro';
+import type { ContactRecord } from '../../../lib/contactApi';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import { renderDocumentMarkdown } from '../../../lib/renderDocumentMarkdown';
+import { getCompanyConfig } from '../../../lib/companyConfig';
+import { fillTemplate, renderFilledDocumentHtml } from '../../../lib/documentTemplates';
+import { parseDocumentLayout, wrapPrintPreviewDocument } from '../../../lib/documentPrintLayout';
 
 export const prerender = false;
+
+/** Sample contact so one-pager View mode shows filled shortcodes. */
+const PREVIEW_CONTACT: ContactRecord = {
+  uid: 'preview',
+  name: 'Jordan Hale',
+  firstName: 'Jordan',
+  lastName: 'Hale',
+  email: 'jordan@example.com',
+  phone: '(555) 010-0148',
+  company: 'Hale & Co.',
+};
 
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
@@ -27,8 +41,14 @@ export const POST: APIRoute = async (context) => {
   }
 
   try {
-    const html = await renderDocumentMarkdown(content);
-    return new Response(JSON.stringify({ html }), {
+    const company = await getCompanyConfig(context.request);
+    const layout = parseDocumentLayout(content);
+    const source =
+      layout.layout === 'onepager' ? fillTemplate(content, PREVIEW_CONTACT, company) : content;
+    const html = await renderFilledDocumentHtml(source, company);
+    const previewHtml =
+      layout.layout === 'onepager' ? wrapPrintPreviewDocument(html, layout.orientation) : html;
+    return new Response(JSON.stringify({ html: previewHtml }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   } catch (e) {
