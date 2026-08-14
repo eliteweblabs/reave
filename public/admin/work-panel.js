@@ -36,7 +36,7 @@ import {
 } from './admin-ui.js?v=20260811d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260812b';
+import { clientState, clientMapController } from './clients-panel.js?v=20260814n';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import {
   createDetailChrome,
@@ -2751,7 +2751,7 @@ function renderNewWorkForm(pane) {
     back: inDrawer
       ? null
       : {
-          label: returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
+          label: returnTodoId ? 'Back to to‑do' : shell.dashboardBackLabel(`Back to ${postLower(2)}`),
           onClick: async () => {
             await flushWorkAutosave();
             if (returnTodoId) {
@@ -2763,6 +2763,7 @@ function renderNewWorkForm(pane) {
               shell.navigateToTodo(returnTodoId);
               return;
             }
+            if (shell.maybeReturnToDashboard()) return;
             workState.activeSlug = null;
             workState.draft = null;
             syncWorkDeepLinkUrl(null);
@@ -3045,6 +3046,7 @@ function workEditBackHandler(slug) {
       shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
       return;
     }
+    if (shell.maybeReturnToDashboard()) return;
     closeWorkDetailPane();
     syncWorkSidebarActiveState();
     renderWorkPane();
@@ -3069,7 +3071,11 @@ function renderEditWorkForm(pane) {
 
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
+      label: returnEmailId
+        ? 'Back to email'
+        : returnTodoId
+          ? 'Back to to‑do'
+          : shell.dashboardBackLabel(`Back to ${postLower(2)}`),
       onClick: workEditBackHandler(slug),
     },
     editableTitle: {
@@ -3751,7 +3757,10 @@ function closeWorkDetailPane() {
 
 function navigateToWork(slug, opts = {}) {
   if (!slug) return;
-  if (opts.fromEmailId) {
+  if (opts.fromDashboard) {
+    workState.returnToEmailId = null;
+    workState.returnToTodoId = null;
+  } else if (opts.fromEmailId) {
     workState.returnToEmailId = opts.fromEmailId;
     workState.returnToTodoId = null;
   } else if (opts.fromTodoId) {
@@ -3763,7 +3772,12 @@ function navigateToWork(slug, opts = {}) {
     workState.returnToTodoId = null;
   }
   pendingWorkDeepLinkSlug = slug;
-  shell.setActiveMap('work', { force: true, workSlug: slug });
+  shell.setActiveMap('work', {
+    force: true,
+    workSlug: slug,
+    fromDashboard: Boolean(opts.fromDashboard),
+    keepReturnToDashboard: !opts.fromDashboard,
+  });
 }
 
 async function navigateToNewWorkFromTodo(opts = {}) {
