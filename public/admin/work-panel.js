@@ -1335,12 +1335,6 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
   header.appendChild(actions);
   wrap.appendChild(header);
 
-  const hint = document.createElement('p');
-  hint.className = 'cl-vault-hint';
-  hint.textContent =
-    'Passwords, DNS, hosting, and other account details shown on the client portal Data tab. The submit link lets contacts add entries themselves.';
-  wrap.appendChild(hint);
-
   const list = document.createElement('div');
   list.className = 'cl-vault-list';
   wrap.appendChild(list);

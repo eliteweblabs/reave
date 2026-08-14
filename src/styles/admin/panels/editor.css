@@ -3598,7 +3598,7 @@ button.de-placeholder-action:active {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.55rem;
 }
 .cl-vault-title {
   font-size: 0.8125rem;
@@ -3609,12 +3609,6 @@ button.de-placeholder-action:active {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-}
-.cl-vault-hint {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin: 0 0 0.85rem;
-  line-height: 1.45;
 }
 .cl-vault-list {
   display: flex;
