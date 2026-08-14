@@ -383,8 +383,8 @@ Client: Acme Corp
 ```
 
 **Parameters**:
-- `title` (required): Task text. Aliases: `todo`, `text`, `query`.
-- `due_date` (optional): Deadline (`YYYY-MM-DD` or ISO). Alias: `due`.
+- `title` (required): Task text. Aliases: `todo`, `text`, `query`. Dates and times in the title (`tomorrow`, `Friday at 3`, `August 15`) are parsed automatically and stripped from the stored title.
+- `due_date` (optional): Deadline (`YYYY-MM-DD` or ISO). Alias: `due`. Spoken values like `tomorrow` also work. An explicit `due_date` wins over a date found in the title.
 - `priority` (optional): `low`, `normal`, `high`, `urgent` (default: `normal`)
 
 **Also accepts**: `"action": "create_todo"`
@@ -392,12 +392,14 @@ Client: Acme Corp
 **Example response**:
 
 ```
-Added to-do: Call the accountant about Q2 taxes · high · due 2026-08-15
+Added to-do: Call the accountant about Q2 taxes · high · due Aug 15
 ```
+
+Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due tomorrow at 3 PM (owner time zone) and replies `Added to-do: Call the plumber · due tomorrow at 3 PM`.
 
 **Siri phrase**: "add a to-do" or "new to-do"
 
-**Tip**: Use **Ask for Input** for the title so you can dictate freely.
+**Tip**: Use **Ask for Input** for the title so you can dictate freely — include the day or time in the same sentence. You do not need a second prompt for the due date.
 
 ### Record Payment
 
@@ -748,7 +750,7 @@ Example actions to add:
 
 **Personal to-dos** (requires `DATABASE_URL`):
 
-- `add_todo` / `create_todo`: Create a quick to-do item
+- `add_todo` / `create_todo`: Create a quick to-do item (spoken dates/times in the title are applied automatically)
 - `list_todos`: List open (or filtered) to-dos
 - `update_todo`: Change title, due date, priority, or status
 - `complete_todo` / `done_todo` / `mark_todo_done`: Mark a to-do done
