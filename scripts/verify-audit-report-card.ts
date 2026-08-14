@@ -235,4 +235,90 @@ Scores — performance: 84, accessibility: 88, best-practices: 79, seo: 92
   console.log('ok — lighthouse formatter surfaces CrUX and labels lab scores');
 }
 
+{
+  const r = card(
+    'Agency GSC note must not reach the client',
+    `${playbook({ name: 'Safelite', mobile: 80, desktop: 90 })}
+
+### Analytics & Conversion Tracking
+- Not run — no owned property, no verified Search Console/Google Analytics/Plausible access, and the audited domain is a third-party national brand we don't control.
+
+### Search / Analytics
+- Status: **Failed** — no owned property on the agency Google account
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.ok(analytics, 'analytics tile should still render');
+  assert.equal(analytics?.grade, 'D');
+  assert.match(analytics?.finding || '', /No analytics or conversion tracking was found/i);
+  assert.equal(
+    /owned property|we don'?t control|Search Console|third-party/i.test(analytics?.finding || ''),
+    false,
+    'agency access copy must not appear on the client card',
+  );
+  for (const line of analytics?.why || []) {
+    assert.equal(
+      /owned property|we don'?t control|third-party national/i.test(line),
+      false,
+      `agency why leaked: ${line}`,
+    );
+  }
+  console.log('ok — agency Search Console notes are rewritten to a site-install finding');
+}
+
+{
+  const r = card(
+    'Tech stack install beats agency not-run',
+    `${playbook({ name: 'Installed', mobile: 80, desktop: 90 })}
+
+### Technology Stack
+- CMS: WordPress
+- Analytics: Google Analytics, Google Tag Manager
+
+### Analytics & Conversion Tracking
+- Not run — no owned property, no verified Search Console access
+
+### Search / Analytics
+- Status: **Failed** — ANALYTICS_FAILED
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.equal(analytics?.grade, 'B');
+  assert.match(analytics?.finding || '', /Google Analytics/);
+  assert.match(analytics?.finding || '', /Google Tag Manager/);
+  assert.equal(/owned property|Failed/i.test(analytics?.finding || ''), false);
+  console.log('ok — installed GA/GTM from tech stack grades B');
+}
+
+{
+  const r = card(
+    'Explicit missing tracking',
+    `${playbook({ name: 'Untracked', mobile: 80, desktop: 90 })}
+
+### Analytics & Conversion Tracking
+- No Google Analytics, tag manager, or conversion pixels found on the homepage
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.equal(analytics?.grade, 'D');
+  assert.match(analytics?.finding || '', /No analytics or conversion tracking was found/i);
+  console.log('ok — missing site tracking is noted, not an access story');
+}
+
+{
+  const r = card(
+    'Installed without conversion goals',
+    `${playbook({ name: 'Goals', mobile: 80, desktop: 90 })}
+
+### Analytics & Conversion Tracking
+- Google Analytics is installed
+- Conversion goals are not configured — leads go untracked
+`,
+  );
+  const analytics = r.categories.find((c) => c.id === 'analytics');
+  assert.equal(analytics?.grade, 'C');
+  assert.match(analytics?.finding || '', /conversion goals are not configured/i);
+  console.log('ok — installed analytics without goals is a C');
+}
+
 console.log('all audit report-card checks passed');

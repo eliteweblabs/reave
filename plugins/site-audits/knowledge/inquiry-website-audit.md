@@ -61,7 +61,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 
 **If `lighthouse_audit` fails (quota / missing `GOOGLE_PAGESPEED_API_KEY`):** Call it once only. Write "Scores unavailable — run a fresh audit later" in affected sections and rely on `fetch_url` + platform notes — do not invent scores and do not retry the tool.
 
-**If Search/Analytics tools return `ANALYTICS_FAILED`:** Mark `### Search / Analytics` as **Failed** with the reason. Do **not** invent clicks, impressions, or traffic. Do **not** retry. Continue the rest of the audit. That failed block must stay admin-only (portal treats it as unavailable).
+**If Search/Analytics tools return `ANALYTICS_FAILED`:** Mark `### Search / Analytics` as **Failed** with the reason. Do **not** invent clicks, impressions, or traffic. Do **not** retry. Continue the rest of the audit. That failed block must stay admin-only. Still fill `### Analytics & Conversion Tracking` from the site HTML / tech stack (installed vs not found) — never paste the Failed / "no owned property" reason there.
 
 ### 4. Create or update the project
 
@@ -154,9 +154,13 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - {Contact form / click-to-call / chat — present, broken, or missing}
 
 ### Analytics & Conversion Tracking
-- {Analytics / tag manager / conversion goals — installed and configured, or untracked}
+- **Client-facing.** Report only what is installed on the website (from `detect_tech_stack` and `fetch_url` HTML: `gtag(`, `G-` / `UA-` ids, `GTM-`, `plausible.io`, `fbq(`, Hotjar, Fathom).
+- List the tools found (e.g. "Google Analytics and Google Tag Manager are installed") **or** write "No analytics or conversion tracking was found on the website."
+- Note conversion / lead events only when the HTML or tag manager snippet makes that obvious.
+- Do **not** mention owned property, Search Console / GA4 / Plausible account access, agency Google connect, or that the domain is a third-party brand we don't control.
 
 ### Search / Analytics
+- **Admin-only.** Never copy this section into Analytics & Conversion Tracking, Opportunities, or Action Items — the client portal ignores it.
 - Status: {OK | **Failed** — reason from ANALYTICS_FAILED; never invent metrics}
 - Search Console: {top queries / impressions / CTR when tools succeed}
 - Traffic: {Plausible or GA4 summary when configured for this site_url — else N/A}
