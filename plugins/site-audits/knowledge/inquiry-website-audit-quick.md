@@ -142,8 +142,8 @@ Write one bullet per channel (the client portal rolls Google / Apple / Yelp / Bi
 - Reviews: {platform, stars, count} — {notes}
 - Social: {Instagram / Facebook / other}
 
-**Google Places API (contact create):** When Places returns no exact address match (`placesListing.status = "not_listed"`), you MUST write:
-`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no exact address match).`
+**Google Places API (contact create):** When Places returns no business-name match (`placesListing.status = "not_listed"`), you MUST write:
+`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no business match found).`
 Do not soften or omit this — the client must be 100% aware.
 
 ---

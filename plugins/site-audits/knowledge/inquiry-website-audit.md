@@ -192,8 +192,8 @@ Write one bullet per channel (the client portal rolls Google / Apple / Yelp / Bi
 - Social: {Instagram / Facebook / other handles and activity}
 - {Hours inconsistencies across platforms}
 
-**Google Places API (contact create):** When `create_contact` / contact enrichment returns `placesListing.status = "not_listed"` (no exact street-level address match), you MUST write:
-`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no exact address match).`
+**Google Places API (contact create):** When `create_contact` / contact enrichment returns `placesListing.status = "not_listed"` (no business-name match), you MUST write:
+`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no business match found).`
 Do not soften or omit this — the client must be 100% aware they are invisible on Google Maps.
 
 ---

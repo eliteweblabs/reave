@@ -966,7 +966,11 @@ function plainLanguage(line: string, clientName = ''): string {
     .replace(/\bMX records?\b/gi, 'email routing')
     .replace(/\bWHOIS\b/gi, 'domain registration')
     .replace(/\bLighthouse\b/gi, 'speed & quality scan')
-    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test');
+    .replace(/\bPageSpeed(?:\s*Insights)?\b/gi, 'Google speed test')
+    .replace(
+      /no exact (?:street-level )?address match(?: for "[^"]+")?/gi,
+      'no business match found',
+    );
   // Prefer the real client name over generic "this business" phrasing.
   out = out.replace(/\b[Tt]his business\b/g, name || 'the business');
   return out.trim();
@@ -1588,7 +1592,7 @@ export function buildAuditReportCard(input: {
   /** Business / contact name — used in client-facing headlines and findings. */
   clientName?: string | null;
   /**
-   * When false, Google Places returned no exact address match at contact create.
+   * When false, Google Places returned no business-name match at contact create.
    * Forces Maps & Directories / GBP to missing so the client is always aware.
    */
   googlePlacesListed?: boolean | null;
@@ -1849,7 +1853,7 @@ export function buildAuditReportCard(input: {
         ? `${clientName} is not listed in the Google Places API.`
         : 'Not listed in the Google Places API.',
       why: [
-        'Google Places returned no exact street-level address match when the contact was created — they are not findable on Google Maps / Business Profile.',
+        'Google Places found no business match — they are not findable on Google Maps / Business Profile.',
         ...gbp.why.filter((line) => !/not covered|not called out/i.test(line)).slice(0, 2),
       ].slice(0, 4),
     };

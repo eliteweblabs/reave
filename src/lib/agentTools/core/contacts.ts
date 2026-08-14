@@ -280,7 +280,7 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     success: true,
     ...contact,
     kind,
-    /** Google Places exact address match — when not_listed, audits must surface it. */
+    /** Google Places business-name match — when not_listed, audits must surface it. */
     placesListing: places.listing,
     googlePlacesListed: places.listing.status === 'matched',
     ...(named.omittedInventedPersonName
