@@ -458,10 +458,9 @@ const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
   }
 
   /*
-   * Public header: sticky + solid black. Safari 26 samples this
-   * background-color into the status bar, so the notch strip and the bar
-   * are the same color (browserbase-style). Pad logo/actions below the
-   * notch. Overlay the hero by pulling main up. Admin stays fixed/transparent.
+   * Public header: sticky + transparent so the page atmosphere shows
+   * through. Pad logo/actions below the notch. Overlay the hero by
+   * pulling main up. Admin stays fixed/transparent.
    */
   .app-header {
     position: sticky;
@@ -472,7 +471,7 @@ const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
-    background-color: #000;
+    background-color: transparent;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
@@ -483,6 +482,18 @@ const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+  }
+
+  /*
+   * iOS Safari only. Safari 26 samples this background-color into the
+   * status bar, so the notch strip and the bar read as one piece.
+   * -webkit-touch-callout is iOS WebKit — desktop Safari / Chrome /
+   * Firefox / Android stay transparent.
+   */
+  @supports (-webkit-touch-callout: none) {
+    .app-header:not(.app-header--admin) {
+      background-color: #000;
+    }
   }
 
   .app-header--admin {
