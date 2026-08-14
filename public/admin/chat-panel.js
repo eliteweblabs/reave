@@ -44,7 +44,7 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, side
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260810c';
-import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260812b';
+import { scheduleShareBookingUrl } from './schedule-panel.js?v=20260812b';
 import { formatPhoneInput } from './clients-panel.js?v=20260812b';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260810a';
@@ -672,11 +672,6 @@ function buildReaveShareActions(state, opts = {}) {
     className: 'ios-icon-btn reave-share-icon',
     getText: async () => {
       const url = await resolveReaveShareUrl(state, { tracked: !!state.jobSlug });
-      if (state.kind === 'booking' && state.booking) {
-        return [formatScheduleRange(state.booking.startTime, state.booking.endTime), url]
-          .filter(Boolean)
-          .join('\n');
-      }
       return url || '';
     },
     onError: () => showChatToast('Copy failed — check browser permissions'),
