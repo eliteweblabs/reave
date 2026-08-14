@@ -183,9 +183,10 @@ Respond with ONLY valid JSON (no markdown fences):
 Labels (pick exactly one):
 - otp: one-time password / digit login code the owner must type
 - activation_link: magic sign-in / account activation / one-click login LINK (not social "Open App" buttons, not follower notifications)
-- receipt: expense you paid — "you paid", "amount paid", "your receipt from", payment confirmation for a charge you made (tax/expense receipt). NOT money someone paid you.
-- failed_payment: payment FAILED, past due, outstanding balance, upcoming minimum payment, loan capital reminder, debit warning — NOT a receipt
+- receipt: expense you paid — "you paid", "amount paid", "your receipt from", payment confirmation for a charge you made (tax/expense receipt). NOT money someone paid you. NOT shipping / shipment tracking / "your order has shipped" / "Shipped:" notices.
+- failed_payment: payment FAILED, past due, outstanding balance, upcoming minimum payment, Stripe Capital loan debit / "debit initiated", loan capital reminder — NOT a receipt
 - Prefer internal or review (not receipt) for income notices like "Payment of $… from …", "you received a payment", "payment from" — those are money in, not expenses
+- Prefer junk (not receipt) for shipment tracking, package shipped, and Amazon shipping-confirmation mail — those auto-archive; they are not tax receipts
 - junk: newsletters, marketing, social notifications (TikTok/Facebook/Instagram followers, likes), bulk lists. NEVER use junk when Known contact is a name — known senders are not junk (use internal or review).
 - google_alert: Google Alerts / news digests / keyword monitors — never a new client project
 - alert: uptime, security, monitoring, deploy failures, unusual sign-in warnings (not OTP/activation)
@@ -197,7 +198,7 @@ Labels (pick exactly one):
 Confidence rules:
 - Use high confidence (≥0.85) only when the label is obvious from subject/body.
 - Social notifications, marketing CTAs ("Open TikTok", "View post"), and generic buttons are junk — never activation_link.
-- Dollar amounts alone do not make a receipt. "Outstanding", "due", "minimum payment", "Capital", "failed" → failed_payment or alert.
+- Dollar amounts alone do not make a receipt. "Outstanding", "due", "minimum payment", "Capital", "failed", "debit initiated" → failed_payment or alert. Shipment tracking / "has shipped" → junk, never receipt.
 - Google Alerts mentioning websites/companies → google_alert, never project/client.
 
 Pick job_slug only when confident; prefer active/inquiry jobs.

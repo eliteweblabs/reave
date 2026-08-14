@@ -62,7 +62,11 @@ const NEWSLETTER_RECEIVED_BOILERPLATE =
 
 /** Payment due / failed / Capital — alerts, not tax receipts. */
 const FAILED_OR_DUE_PAYMENT =
-  /\b(?:failed\s+payment|payment\s+(?:failed|declined)|outstanding\s+balance|upcoming\s+(?:minimum\s+)?payment|minimum\s+payment(?:\s+requirement)?|past\s+due|amount\s+due|currently\s+due|balance\s+(?:currently\s+)?due|capital\s+(?:loan|minimum|repayment)|loan\s+repayment|we\s+will\s+debit)\b/i;
+  /\b(?:failed\s+payment|payment\s+(?:failed|declined)|outstanding\s+balance|upcoming\s+(?:minimum\s+)?payment|minimum\s+payment(?:\s+requirement)?|past\s+due|amount\s+due|currently\s+due|balance\s+(?:currently\s+)?due|stripe\s+capital|capital\s+(?:loan|minimum|repayment|debit)|loan\s+repayment|debit\s+initiated|we\s+will\s+debit)\b/i;
+
+/** Shipping / tracking notices — not payment receipts (Amazon “shipment tracking”, etc.). */
+const SHIPMENT_NOTICE =
+  /\b(?:shipment[\s-]?track(?:ed|ing)|your\s+(?:order|package)\s+(?:has|was)\s+shipped|track\s+your\s+(?:shipment|package))\b/i;
 
 /**
  * Expense / tax-receipt language — money you spent (not money someone paid you).
@@ -83,16 +87,29 @@ const PAYMENT_PROCESSOR_FROM =
   /@(?:[\w.-]+\.)?(?:stripe|paypal|squareup|square|cash\.app)\.com\b/i;
 
 function paymentEmailText(ev: {
+  from?: string;
   subject?: string;
   summary?: string;
   bodySnippet?: string;
   bodyText?: string;
 }): string {
-  return [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+  return [ev.from, ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+}
+
+/** True when the message is a shipping / tracking notice — never a tax receipt. */
+export function looksLikeShipmentNotice(ev: {
+  from?: string;
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): boolean {
+  return SHIPMENT_NOTICE.test(paymentEmailText(ev));
 }
 
 /** True when language is about money owed / failed — never auto-file as receipt. */
 export function looksLikeFailedOrDuePayment(ev: {
+  from?: string;
   subject?: string;
   summary?: string;
   bodySnippet?: string;
@@ -170,6 +187,7 @@ export function shouldAutoFileAsReceipt(ev: {
 }): AutoFileReceiptResult | null {
   const text = paymentEmailText(ev);
   if (FAILED_OR_DUE_PAYMENT.test(text)) return null;
+  if (looksLikeShipmentNotice(ev)) return null;
   // "Payment of $… from …" / deposited funds = income, not a Crater expense receipt.
   if (looksLikeIncomingPayment(ev) || looksLikePaymentNotification(ev)) return null;
   const amount = extractMonetaryAmountFromText(text);
@@ -264,6 +282,10 @@ export function suggestReceiptCandidate(ev: {
   const subject = String(ev.subject || '');
 
   if (looksLikeIncomingPayment(ev) || looksLikePaymentNotification(ev)) {
+    return null;
+  }
+
+  if (looksLikeShipmentNotice(ev)) {
     return null;
   }
 
