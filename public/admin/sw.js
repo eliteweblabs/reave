@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260813b — OTP tap opens the installed admin PWA with a Copy code sheet. */
+   v20260813c — OTP tap copies in the open PWA; sheet only if clipboard write fails. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -131,6 +131,10 @@ async function deliverOtpCopy(opts) {
       }
     }
   }
+
+  // Desktop PWA is usually already open — a second openWindow steals the
+  // notification gesture and never writes the clipboard.
+  if (focused) return;
 
   if (self.clients.openWindow) {
     const opened = await self.clients.openWindow(otpCopyPageUrl(code));

@@ -13356,7 +13356,7 @@ function ensureOtpCopyOverlay() {
     `<p class="admin-otp-copy-kicker">Verification code</p>` +
     `<h2 id="admin-otp-copy-title">Tap Copy code</h2>` +
     `<p class="admin-otp-copy-code" id="admin-otp-copy-code"></p>` +
-    `<p class="admin-otp-copy-status" id="admin-otp-copy-status">iPhone cannot copy from a notification tap. Use the button.</p>` +
+    `<p class="admin-otp-copy-status" id="admin-otp-copy-status">Tap Copy code to put it on the clipboard.</p>` +
     `<button type="button" class="admin-otp-copy-btn" id="admin-otp-copy-btn">Copy code</button>` +
     `<p class="admin-otp-copy-hint">Then paste on this phone or your laptop.</p>` +
     `</div>`;
@@ -13395,7 +13395,7 @@ function showOtpCopyOverlay(code) {
   const btn = root.querySelector('#admin-otp-copy-btn');
   if (codeEl) codeEl.textContent = text;
   if (status) {
-    status.textContent = 'Tap Copy code, then paste on this phone or your laptop.';
+    status.textContent = 'Tap Copy code to put it on the clipboard.';
   }
   if (btn) btn.textContent = 'Copy code';
   root.hidden = false;
@@ -13431,8 +13431,29 @@ async function copyEmailVerificationCode(code, nearEl, opts = {}) {
     return false;
   }
   if (nearEl) showCopyButtonFeedback(nearEl);
-  else showChatToast('Copied — switch back to your browser to paste', nearEl);
+  else showChatToast('Copied — ready to paste', nearEl);
   return true;
+}
+
+function whenDocumentFocused(timeoutMs = 1500) {
+  if (!document.hidden && document.hasFocus()) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onVis);
+      resolve();
+    };
+    const onVis = () => {
+      if (!document.hidden) finish();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    window.focus();
+    setTimeout(finish, timeoutMs);
+  });
 }
 
 async function clearPendingOtpCopyStash() {
@@ -13458,7 +13479,9 @@ async function handleOtpCopyFromPush(data) {
     otpCopyInFlightTimer = 0;
   }, 2500);
   await clearPendingOtpCopyStash();
-  showOtpCopyOverlay(code);
+  await whenDocumentFocused();
+  const ok = await copyEmailVerificationCode(code, null, { preferPromptOnFail: true });
+  if (!ok) showOtpCopyOverlay(code);
 }
 
 async function handleOtpDeleteFromPush(data) {
