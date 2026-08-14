@@ -2,14 +2,14 @@
 import DeployStatusDot from "./DeployStatusDot.astro";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import type { PortalBrandColors } from "../lib/portalBrandColors";
-import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
+import { getInstallConfigClient, PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
 import type { SiteContentConfig } from "../lib/siteContent";
 import { isDeploymentOwner } from "../lib/deploymentOwner";
 import { serverEnv } from "../lib/serverEnv";
-import { Shield } from "lucide-astro";
+import { ArrowRight, Shield } from "lucide-astro";
 import "../styles/overlay-menu.css";
 
 interface Props {
@@ -84,6 +84,9 @@ const showHeaderProfile = userId && !showMarketingNav;
  */
 const showHeaderHomeProfile = showMarketingNav && Boolean(userId);
 const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
+const accountMenuItems =
+  profileMenu.length > 0 ? profileMenu : getInstallConfigClient().profileMenu;
+const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
 ---
 
 <header
@@ -190,6 +193,16 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
       ) : (
         <div class="topbar-profile-cluster">
           {showDeployIndicator && <DeployStatusDot publicAccess={deployStatusPublic} />}
+          {showAdminEntry && (
+            <a
+              href="/admin/"
+              class="brand-btn app-header-admin-cta app-header-admin-entry"
+              aria-label="Admin"
+            >
+              admin
+              <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+            </a>
+          )}
           <div class="app-header-menu topbar-menu topbar-profile-menu">
           <button
             type="button"
@@ -272,32 +285,18 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
             {staffPreview ? "Viewing as admin" : "Account"}
           </h2>
           <ul class="overlay-menu-list">
-            {adminShell ? (
-              profileMenu.map((key) => (
-                <li>
-                  <a
-                    href={`/admin/?tab=${key}`}
-                    id={`topbar-${key}-link`}
-                    class="overlay-menu-link"
-                    data-account-menu-link
-                  >
-                    {PROFILE_MENU_LABELS[key]}
-                  </a>
-                </li>
-              ))
-            ) : (
-              <>
-                <li>
-                  <a href="/admin/profile" class="overlay-menu-link" data-account-menu-link>Profile</a>
-                </li>
-                <li>
-                  <a href="/admin/components" class="overlay-menu-link" data-account-menu-link>Components</a>
-                </li>
-                <li>
-                  <a href="/admin/" class="overlay-menu-link" data-account-menu-link>Administration</a>
-                </li>
-              </>
-            )}
+            {accountMenuItems.map((key) => (
+              <li>
+                <a
+                  href={`/admin/?tab=${key}`}
+                  id={`topbar-${key}-link`}
+                  class="overlay-menu-link"
+                  data-account-menu-link
+                >
+                  {PROFILE_MENU_LABELS[key]}
+                </a>
+              </li>
+            ))}
           </ul>
         </section>
       </div>
@@ -882,31 +881,21 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
     pointer-events: none;
   }
 
-  .app-header-admin-entry {
-    position: relative;
-    margin-left: auto;
-    width: var(--app-header-signin-h);
-    height: var(--app-header-signin-h);
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: color 0.15s;
+  .app-header-admin-cta,
+  .app-header-admin-entry.brand-btn {
+    height: var(--app-header-profile-h);
+    padding: 0 0.65rem 0 0.75rem;
+    gap: 0.28rem;
+    font-size: 0.75rem;
+    box-shadow: var(--brand-gradient-shadow);
   }
 
-  .app-header-admin-entry:hover {
-    color: rgba(255, 255, 255, 0.65);
-  }
-
-  .app-header-admin-entry svg {
-    width: var(--app-header-signin-icon-h);
-    height: var(--app-header-signin-icon-h);
+  .app-header-admin-cta svg,
+  .app-header-admin-entry.brand-btn svg {
+    width: 0.85rem;
+    height: 0.85rem;
     pointer-events: none;
+    flex-shrink: 0;
   }
 
   .app-header-menu {
