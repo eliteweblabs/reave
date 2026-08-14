@@ -21,6 +21,7 @@ import {
   normalizeNotifyActions,
 } from '../../../../lib/emailRules';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { isCanonicalReaveInstall } from '../../../../lib/installConfig';
 
 export const prerender = false;
 
@@ -129,12 +130,12 @@ export async function PUT(context: APIContext): Promise<Response> {
 
   const existing = await storeGetEmailRule(id);
   if (!existing) return json({ ok: false, error: 'Not found' }, 404);
-  if (isRepoCatalogRule(existing)) {
+  if (isRepoCatalogRule(existing) && !isCanonicalReaveInstall()) {
     return json(
       {
         ok: false,
         error:
-          'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Edit the repo, not this install.',
+          'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Only the REΛVE install can edit them.',
       },
       403,
     );

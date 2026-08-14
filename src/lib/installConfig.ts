@@ -129,6 +129,8 @@ export type InstallConfigClient = Pick<
   InstallConfig,
   'features' | 'footerNav' | 'profileMenu' | 'homepageVoice' | 'chatFocusSkin'
 > & {
+  /** True only on the official REΛVE Railway install — may create/edit universal rules. */
+  canManageUniversalRules?: boolean;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -191,6 +193,26 @@ function configSlugFromDomain(): string {
 
 export function installConfigSlug(): string {
   return slugify(trim(serverEnv('INSTALL_CONFIG')) || configSlugFromDomain());
+}
+
+/**
+ * Official REΛVE Railway production install (reave.app).
+ * Only this install may create or edit universal email catalog rules.
+ */
+export function isCanonicalReaveInstall(): boolean {
+  const install = trim(serverEnv('INSTALL_CONFIG')).toLowerCase();
+  if (install === 'demo') return false;
+  const demoFlag = trim(serverEnv('DEMO_MODE')).toLowerCase();
+  if (demoFlag === '1' || demoFlag === 'true' || demoFlag === 'yes') return false;
+  if (installConfigSlug() === 'reave') return true;
+  const host = (
+    trim(serverEnv('PUBLIC_SITE_DOMAIN')) || trim(serverEnv('COMPANY_DOMAIN'))
+  )
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    ?.toLowerCase()
+    .replace(/^www\./, '') || '';
+  return host === 'reave.app';
 }
 
 function configDir(): string {
@@ -354,6 +376,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     profileMenu: config.profileMenu,
     homepageVoice: config.homepageVoice,
     chatFocusSkin: config.chatFocusSkin,
+    canManageUniversalRules: isCanonicalReaveInstall(),
   };
 }
 

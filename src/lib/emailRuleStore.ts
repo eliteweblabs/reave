@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
+import { isCanonicalReaveInstall } from './installConfig';
 import { serverEnv } from './serverEnv';
 import {
   DEFAULT_RULES,
@@ -707,12 +708,13 @@ function findCatalogRecord(rules: EmailRuleRecord[], status: string): EmailRuleR
 }
 
 /**
- * DEFAULT_RULES is the live catalog. Overwrite catalog *content* from the repo
- * so a deploy updates every install. Do not rebuild sort order here — that
- * fought sender-silent elevation and rewrote the table on every request.
+ * Seed / sync DEFAULT_RULES.
+ * Customer installs: overwrite catalog content from the repo (read-only).
+ * REΛVE production: seed missing catalog rows only — home can edit/create universal rules.
  */
 function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[]; changed: boolean } {
   const now = new Date().toISOString();
+  const home = isCanonicalReaveInstall();
   let changed = false;
   const next = rules.map((r) => ({ ...r }));
   const chosenIds = new Set<string>();
@@ -723,7 +725,16 @@ function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[];
     const existing = findCatalogRecord(next, def.status);
     if (existing) {
       chosenIds.add(existing.id);
-      if (catalogDefinitionKey(existing) !== catalogDefinitionKey(payload) || existing.scope !== 'universal') {
+      if (home) {
+        if (existing.scope !== 'universal') {
+          const idx = next.findIndex((r) => r.id === existing.id);
+          next[idx] = { ...existing, scope: 'universal', updatedAt: now };
+          changed = true;
+        }
+      } else if (
+        catalogDefinitionKey(existing) !== catalogDefinitionKey(payload) ||
+        existing.scope !== 'universal'
+      ) {
         const idx = next.findIndex((r) => r.id === existing.id);
         next[idx] = { ...existing, ...payload, scope: 'universal', updatedAt: now };
         changed = true;
@@ -750,13 +761,15 @@ function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[];
     }
   }
 
-  const demoted = next.map((r) => {
-    if (chosenIds.has(r.id) || r.scope !== 'universal') return r;
-    changed = true;
-    return { ...r, scope: 'personal' as const, updatedAt: now };
-  });
-  demoted.sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)));
-  return { rules: demoted, changed };
+  const out = home
+    ? next
+    : next.map((r) => {
+        if (chosenIds.has(r.id) || r.scope !== 'universal') return r;
+        changed = true;
+        return { ...r, scope: 'personal' as const, updatedAt: now };
+      });
+  out.sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)));
+  return { rules: out, changed };
 }
 
 /** Keep DEFAULT_RULES in sync on every load; persist only when the catalog drifted. */
@@ -906,7 +919,9 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
     id: randomUUID(),
     sortOrder,
     ...clean,
-    scope: 'personal',
+    scope: isCanonicalReaveInstall()
+      ? normalizeEmailRuleScope(clean.scope, 'personal')
+      : 'personal',
     hitCount: 0,
     lastMatchedAt: null,
     createdAt: now,
@@ -925,11 +940,12 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
   const idx = config.rules.findIndex((r) => r.id === id);
   if (idx < 0) return null;
   const prev = config.rules[idx];
-  if (isRepoCatalogRule(prev)) return null;
+  const home = isCanonicalReaveInstall();
+  if (isRepoCatalogRule(prev) && !home) return null;
   config.rules[idx] = {
     ...prev,
     ...clean,
-    scope: 'personal',
+    scope: home ? normalizeEmailRuleScope(clean.scope ?? prev.scope, 'personal') : 'personal',
     updatedAt: new Date().toISOString(),
   };
   if (!(await persistConfig(config))) return null;

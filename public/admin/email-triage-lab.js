@@ -1168,7 +1168,8 @@ export function createEmailTriageLab(deps) {
           const head = document.createElement('div');
           head.className = 're-lab-pipe-card-head';
 
-          const catalog = rule.scope === 'universal';
+          const catalog =
+            rule.scope === 'universal' && window.__installConfig?.canManageUniversalRules !== true;
           if (catalog) card.dataset.locked = '1';
           const grip = document.createElement('button');
           grip.type = 'button';

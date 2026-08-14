@@ -51,7 +51,7 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260814b';
+} from './email-triage-lab.js?v=20260814d';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -110,6 +110,38 @@ function ruleScope(rule) {
 
 function isCatalogRule(rule) {
   return ruleScope(rule) === 'universal';
+}
+
+function canManageUniversalRules() {
+  return window.__installConfig?.canManageUniversalRules === true;
+}
+
+function isCatalogReadOnly(rule) {
+  return isCatalogRule(rule) && !canManageUniversalRules();
+}
+
+const REPO_CATALOG_STATUSES = new Set([
+  'VERIFICATION_CODE',
+  'AUTH_LINK',
+  'ANTHROPIC_BILLING',
+  'RAILWAY_ALERT',
+  'DOWN',
+  'NEEDS_CHECK',
+  'RECEIPT',
+  'AUTO_ARCHIVED',
+  'DELETE',
+]);
+
+function isRepoCatalogRuleClient(rule) {
+  if (ruleScope(rule) !== 'universal') return false;
+  const status = String(rule.status || '').toUpperCase();
+  if (!REPO_CATALOG_STATUSES.has(status)) return false;
+  return !(rule.fields || []).includes('from');
+}
+
+function canDeleteRule(rule) {
+  if (isRepoCatalogRuleClient(rule) || isCatalogReadOnly(rule)) return false;
+  return true;
 }
 
 function ruleScopeLabel(rule) {
@@ -343,7 +375,7 @@ function createRuleListItem(rule, activeId) {
 
 function createRuleSwipeRow(rule, activeId) {
   const actions = [swipeAgentAction(() => askAgentAboutRule(rule))];
-  if (!isCatalogRule(rule)) {
+  if (canDeleteRule(rule)) {
     actions.push(swipeDeleteAction({
       onClick: () => deleteRule(rule.id),
     }));
@@ -436,7 +468,7 @@ function createFlowRuleCard(rule, index) {
   row.dataset.id = rule.id;
   row.setAttribute('aria-label', `Priority ${index + 1}: ${rule.title || rule.status}`);
 
-  const catalog = isCatalogRule(rule);
+  const catalog = isCatalogReadOnly(rule);
   if (catalog) row.dataset.locked = '1';
   const grip = document.createElement('button');
   grip.type = 'button';
@@ -720,8 +752,8 @@ function renderRuleEditPane(pane, opts = {}) {
     actions.className = 're-lab-rule-actions';
     const hits = document.createElement('span');
     hits.className = 're-lab-rule-hits';
-    hits.textContent = ruleHitsSubline(rule) || (isCatalogRule(rule) ? 'Catalog rule' : 'Edit rule');
-    if (!isCatalogRule(rule)) {
+    hits.textContent = ruleHitsSubline(rule) || (isCatalogReadOnly(rule) ? 'Catalog rule' : 'Edit rule');
+    if (canDeleteRule(rule)) {
       actions.append(hits, agentBtn, paneDeleteIcon({
         label: 'Delete rule',
         onClick: () => deleteRule(rule.id),
@@ -738,7 +770,7 @@ function renderRuleEditPane(pane, opts = {}) {
         title: rule.title || rule.status || 'Rule',
         subtitle: ruleHitsSubline(rule),
         beforeIcons: [agentBtn],
-        icons: inDrawer || isCatalogRule(rule)
+        icons: inDrawer || !canDeleteRule(rule)
           ? []
           : [
               paneDeleteIcon({
@@ -758,15 +790,45 @@ function renderRuleEditPane(pane, opts = {}) {
   titleIn.type = 'text';
   titleIn.value = rule.title || '';
   titleIn.addEventListener('input', () => { ruleState.dirty = true; });
-  if (!isCatalogRule(rule)) requestTitleFocus('rules', titleIn);
+  if (!isCatalogReadOnly(rule)) requestTitleFocus('rules', titleIn);
 
   const scopeWrap = document.createElement('div');
   scopeWrap.className = 're-checks re-scope-radios';
   const scopeHint = document.createElement('p');
   scopeHint.className = 're-scope-hint';
-  if (isCatalogRule(rule)) {
+  if (canManageUniversalRules()) {
+    const syncScopeHint = (value) => {
+      scopeHint.textContent =
+        value === 'universal'
+          ? 'Universal — REΛVE catalog. Other installs receive these from the repo; only this Railway install can create or edit them.'
+          : 'Personal — this install only. Teach/correct and custom filters stay here.';
+    };
+    let scopeValue = ruleScope(rule);
+    for (const [val, lab] of [
+      ['personal', 'Personal (this install)'],
+      ['universal', 'Universal (REΛVE catalog)'],
+    ]) {
+      const lb = document.createElement('label');
+      lb.className = 're-check';
+      const rb = document.createElement('input');
+      rb.type = 'radio';
+      rb.name = `re-scope-${rule.id}`;
+      rb.value = val;
+      rb.checked = scopeValue === val;
+      rb.addEventListener('change', () => {
+        if (!rb.checked) return;
+        scopeValue = val;
+        syncScopeHint(val);
+        ruleState.dirty = true;
+      });
+      lb.append(rb, document.createTextNode(` ${lab}`));
+      scopeWrap.appendChild(lb);
+    }
+    syncScopeHint(scopeValue);
+    scopeWrap.appendChild(scopeHint);
+  } else if (isCatalogRule(rule)) {
     scopeHint.textContent =
-      'Universal catalog — same on every install. Defined in DEFAULT_RULES in the repo; a deploy overwrites this copy. Edit the repo to change it for everyone.';
+      'Universal catalog — shipped from the REΛVE repo. This install cannot create or edit catalog rules.';
     scopeWrap.appendChild(scopeHint);
   } else {
     scopeHint.textContent = 'Personal — this install only. Teach/correct and custom filters stay here.';
@@ -1070,7 +1132,7 @@ function renderRuleEditPane(pane, opts = {}) {
     expireInSecs,
   };
   const inDrawer = !accordion && shell.isCreateDrawerOpen('rules');
-  if (isCatalogRule(rule)) {
+  if (isCatalogReadOnly(rule)) {
     form.classList.add('re-lab-rule-form--catalog');
     form.querySelectorAll('input, textarea, select, button').forEach((el) => {
       el.disabled = true;
