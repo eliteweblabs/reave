@@ -128,6 +128,7 @@ export type SiteLandingConfig = {
   inquiry?: {
     heading: string;
     intro: string;
+    /** @deprecated Use /api/forms/submit — no client-side key needed. */
     web3formsAccessKey?: string;
     subject?: string;
     submitLabel?: string;

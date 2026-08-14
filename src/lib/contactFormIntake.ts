@@ -3,6 +3,7 @@
  * dashboard engagement notice, company notify + submitter acknowledgment emails.
  */
 
+import { escapeHtml } from './htmlEscape';
 import { getCompanyConfig } from './companyConfig';
 import { recordContactFormEngagement } from './engagementNotifications';
 import { buildNewProjectAckEmail } from './emailScheduling';
@@ -52,14 +53,6 @@ function phoneToE164(raw: string): string {
   if (us.length === 10) return `+1${us}`;
   if (digits.length >= 10) return `+${digits}`;
   return '';
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function projectTitle(name: string): string {

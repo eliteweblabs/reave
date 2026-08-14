@@ -13,21 +13,9 @@ import {
   type ClientPortal,
 } from './contactApi';
 import { refreshPortalBrandColors } from './portalBrandColors';
+import { fetchPublicWithRedirects } from './safePublicFetch';
 
 const LOGO_FETCH_TIMEOUT_MS = 8_000;
-
-/** Only allow remote http(s) image URLs when hydrating scraped logos. */
-function safeRemoteLogoUrl(raw: string): string | null {
-  const t = raw.trim();
-  if (!t) return null;
-  try {
-    const url = new URL(t);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
 
 export function clientLogoServePath(uid: string): string {
   return `/api/clients/${encodeURIComponent(uid.trim())}/logo`;
@@ -93,18 +81,15 @@ export type ClientBrandingBlob = {
 };
 
 async function fetchRemoteBrandingBuffer(url: string): Promise<Buffer | null> {
-  const remote = safeRemoteLogoUrl(url);
-  if (!remote) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOGO_FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(remote, {
+    const fetched = await fetchPublicWithRedirects(url, {
       signal: controller.signal,
-      redirect: 'follow',
       headers: { Accept: 'image/*,*/*;q=0.8' },
     });
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
+    if (!fetched || !fetched.response.ok) return null;
+    const buf = Buffer.from(await fetched.response.arrayBuffer());
     return buf.length > 0 ? buf : null;
   } catch {
     return null;

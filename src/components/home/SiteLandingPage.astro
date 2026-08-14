@@ -70,12 +70,8 @@ const isEditorial = landing.variant === "editorial";
       <section class="card inquiry" id="inquiry">
         <h2>{inquiry.heading}</h2>
         <p class="inquiry__intro">{inquiry.intro}</p>
-        {inquiry.web3formsAccessKey ? (
-          <form class="inquiry-form" action="https://api.web3forms.com/submit" method="POST">
-            <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />
-            <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
-            <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
-
+        {inquiry && (
+          <form class="inquiry-form" id="inquiry-form" novalidate>
             <div class="form-row">
               <label for="name">Name</label>
               <input type="text" id="name" name="name" required autocomplete="name" />
@@ -98,21 +94,12 @@ const isEditorial = landing.variant === "editorial";
               <textarea id="message" name="message" rows="5" required />
             </div>
 
+            <p class="inquiry-status" id="inquiry-status" hidden></p>
+
             <button class="button" type="submit">
               {inquiry.submitLabel || "Send Inquiry"}
             </button>
           </form>
-        ) : (
-          <p class="inquiry__intro">
-            {contact?.email ? (
-              <>
-                Email{" "}
-                <a href={`mailto:${contact.email}`}>{contact.email}</a> to get started.
-              </>
-            ) : (
-              "Contact details coming soon."
-            )}
-          </p>
         )}
       </section>
     )
@@ -363,6 +350,20 @@ const isEditorial = landing.variant === "editorial";
     min-height: 120px;
   }
 
+  .inquiry-status {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #94a3b8;
+  }
+
+  .inquiry-status--success {
+    color: #4ade80;
+  }
+
+  .inquiry-status--error {
+    color: #f87171;
+  }
+
   .grid {
     display: grid;
     gap: 1.5rem;
@@ -427,6 +428,52 @@ const isEditorial = landing.variant === "editorial";
     }
   }
 </style>
+
+<script is:inline define:vars={{ inquirySubject: inquiry?.subject || "New website inquiry" }}>
+  const inquiryForm = document.getElementById("inquiry-form");
+  const inquiryStatus = document.getElementById("inquiry-status");
+  inquiryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement)) return;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const payload = {
+      name: String(data.get("name") || "").trim(),
+      email: String(data.get("email") || "").trim(),
+      phone: String(data.get("phone") || "").trim(),
+      message: String(data.get("message") || "").trim(),
+      subject: inquirySubject,
+    };
+    if (!payload.name || !payload.email || !payload.message) return;
+    if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = true;
+    if (inquiryStatus) {
+      inquiryStatus.hidden = false;
+      inquiryStatus.textContent = "Sending…";
+      inquiryStatus.className = "inquiry-status";
+    }
+    try {
+      const res = await fetch("/api/forms/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("submit failed");
+      form.reset();
+      if (inquiryStatus) {
+        inquiryStatus.textContent = "Thanks — your message was sent.";
+        inquiryStatus.className = "inquiry-status inquiry-status--success";
+      }
+    } catch {
+      if (inquiryStatus) {
+        inquiryStatus.textContent = "Something went wrong. Please try again.";
+        inquiryStatus.className = "inquiry-status inquiry-status--error";
+      }
+    } finally {
+      if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+    }
+  });
+</script>
     </>
   )
 }

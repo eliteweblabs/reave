@@ -7,6 +7,7 @@
  */
 import * as cheerio from 'cheerio';
 import { normalizePublicUrl } from './publicUrl';
+import { fetchPublicWithRedirects } from './safePublicFetch';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -96,22 +97,25 @@ async function fetchText(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url.toString(), {
+    const fetched = await fetchPublicWithRedirects(url.toString(), {
       signal: controller.signal,
-      redirect: 'follow',
       headers: {
         'User-Agent': USER_AGENT,
         Accept: accept,
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
+    if (!fetched) {
+      return { ok: false, status: 0, text: '', finalUrl: url.toString() };
+    }
+    const res = fetched.response;
     const buf = await res.arrayBuffer();
     if (buf.byteLength > MAX_BYTES) {
       return {
         ok: false,
         status: res.status,
         text: '',
-        finalUrl: res.url || url.toString(),
+        finalUrl: fetched.finalUrl,
       };
     }
     const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
@@ -119,7 +123,7 @@ async function fetchText(
       ok: res.ok,
       status: res.status,
       text,
-      finalUrl: res.url || url.toString(),
+      finalUrl: fetched.finalUrl,
     };
   } catch {
     return { ok: false, status: 0, text: '', finalUrl: url.toString() };

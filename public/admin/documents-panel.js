@@ -38,7 +38,7 @@ import {
   showCopyButtonFeedback,
 } from './admin-ui.js?v=20260811a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
+import { escHtml, panelErrorHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260810a';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260812b';
 
@@ -213,7 +213,7 @@ async function loadDocumentsTab() {
     docState.templates = await templatesRes.json();
     docState.shortcodes = shortcodesRes.ok ? await shortcodesRes.json() : [];
   } catch (e) {
-    root.innerHTML = `<div class="de-loading de-error">Failed to load templates: ${e.message}</div>`;
+    root.innerHTML = panelErrorHtml(e.message, 'Failed to load templates');
     return;
   }
   docState.activeSlug = null;
@@ -531,7 +531,7 @@ function renderEditForm(pane) {
       });
     })
     .catch((e) => {
-      pane.innerHTML = `<div class="de-loading de-error">Failed to load: ${e.message}</div>`;
+      pane.innerHTML = panelErrorHtml(e.message);
     });
 }
 

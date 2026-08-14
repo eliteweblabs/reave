@@ -4,6 +4,7 @@
 import * as tls from 'node:tls';
 import * as cheerio from 'cheerio';
 import { normalizePublicUrl } from './publicUrl';
+import { fetchPublicWithRedirects } from './safePublicFetch';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -99,19 +100,21 @@ async function fetchHeaders(url: URL): Promise<Record<string, string>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    let res = await fetch(url.toString(), {
-      method: 'HEAD',
-      redirect: 'follow',
+    let fetched = await fetchPublicWithRedirects(url.toString(), {
       signal: controller.signal,
+      method: 'HEAD',
       headers: { 'User-Agent': USER_AGENT, Accept: '*/*' },
     });
+    if (!fetched) return {};
+    let res = fetched.response;
     if (res.status === 405 || res.status === 501) {
-      res = await fetch(url.toString(), {
-        method: 'GET',
-        redirect: 'follow',
+      fetched = await fetchPublicWithRedirects(url.toString(), {
         signal: controller.signal,
+        method: 'GET',
         headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,*/*' },
       });
+      if (!fetched) return {};
+      res = fetched.response;
     }
     const out: Record<string, string> = {};
     res.headers.forEach((v, k) => {
@@ -155,14 +158,15 @@ async function fetchHtml(url: URL): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url.toString(), {
+    const fetched = await fetchPublicWithRedirects(url.toString(), {
       signal: controller.signal,
-      redirect: 'follow',
       headers: {
         'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,*/*',
       },
     });
+    if (!fetched) return '';
+    const res = fetched.response;
     const buf = await res.arrayBuffer();
     if (buf.byteLength > MAX_HTML_BYTES) {
       return new TextDecoder('utf-8', { fatal: false }).decode(buf.slice(0, MAX_HTML_BYTES));

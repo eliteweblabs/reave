@@ -294,10 +294,7 @@ const priceLabel = (value: number) =>
       </div>
 
       {inquiry && (
-        <form class="ed-form" id="inquiry" action="https://api.web3forms.com/submit" method="POST">
-          {inquiry.web3formsAccessKey && <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />}
-          <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
-          <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+        <form class="ed-form" id="inquiry" novalidate>
           <h2>{inquiry.heading}</h2>
           <p>{inquiry.intro}</p>
           <label>
@@ -316,6 +313,7 @@ const priceLabel = (value: number) =>
             Message
             <textarea name="message" rows="5" required />
           </label>
+          <p class="ed-form-status" id="inquiry-status" hidden></p>
           <button class="ed-btn ed-btn--gold" type="submit">{inquiry.submitLabel || "Send Inquiry"}</button>
         </form>
       )}
@@ -342,7 +340,7 @@ const priceLabel = (value: number) =>
   </>
 )}
 
-<script is:inline>
+<script is:inline define:vars={{ inquirySubject: inquiry?.subject || "New website inquiry" }}>
   const toggle = document.querySelector("[data-ed-menu]");
   const nav = document.querySelector("[data-ed-nav]");
   const setOpen = (open) => {
@@ -360,6 +358,50 @@ const priceLabel = (value: number) =>
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") setOpen(false);
+  });
+
+  const inquiryForm = document.getElementById("inquiry");
+  const inquiryStatus = document.getElementById("inquiry-status");
+  inquiryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement)) return;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const payload = {
+      name: String(data.get("name") || "").trim(),
+      email: String(data.get("email") || "").trim(),
+      phone: String(data.get("phone") || "").trim(),
+      message: String(data.get("message") || "").trim(),
+      subject: inquirySubject,
+    };
+    if (!payload.name || !payload.email || !payload.message) return;
+    if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = true;
+    if (inquiryStatus) {
+      inquiryStatus.hidden = false;
+      inquiryStatus.textContent = "Sending…";
+      inquiryStatus.className = "ed-form-status";
+    }
+    try {
+      const res = await fetch("/api/forms/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("submit failed");
+      form.reset();
+      if (inquiryStatus) {
+        inquiryStatus.textContent = "Thanks — your message was sent.";
+        inquiryStatus.className = "ed-form-status ed-form-status--success";
+      }
+    } catch {
+      if (inquiryStatus) {
+        inquiryStatus.textContent = "Something went wrong. Please try again.";
+        inquiryStatus.className = "ed-form-status ed-form-status--error";
+      }
+    } finally {
+      if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+    }
   });
 </script>
 
@@ -612,6 +654,13 @@ const priceLabel = (value: number) =>
   }
   address { font-style: normal; }
   .ed-form { display: grid; gap: 0.9rem; }
+  .ed-form-status {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #3d382f;
+  }
+  .ed-form-status--success { color: #166534; }
+  .ed-form-status--error { color: #b91c1c; }
   .ed-footer {
     padding: 2.5rem 0 3rem;
     border-top: 1px solid rgba(22,20,16,0.12);

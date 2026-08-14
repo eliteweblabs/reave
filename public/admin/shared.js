@@ -119,6 +119,12 @@ export function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/** Standard panel error markup — escapes dynamic message text. */
+export function panelErrorHtml(message, prefix = 'Failed to load') {
+  const text = message ? `${prefix}: ${message}` : prefix;
+  return `<div class="de-loading de-error">${escHtml(text)}</div>`;
+}
+
 /** Shimmer skeleton — `kind`: 'list' | 'dashboard-home' | 'dashboard'. */
 const SK_LIST_WIDTHS = [
   [72, 58],
