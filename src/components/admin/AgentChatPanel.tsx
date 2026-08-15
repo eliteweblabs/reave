@@ -37,14 +37,18 @@ import {
   type AgentHelperCommand,
 } from '../../lib/agentHelperCommands';
 import {
+  absorbMentionTokens,
   activeMentionQueryAt,
+  caretAfterTokenStrip,
   embedMentionTokens,
   mergeChatMentions,
+  mentionDisplayText,
   mentionKey,
+  mentionRangeForEdit,
   mentionsPresentInText,
   parseMentionTokensFromText,
   sanitizeMentionLabel,
-  serializeMentionToken,
+  splitTextWithMentionChips,
   stripMentionTokensForDisplay,
   type ChatMention,
   type PeopleSearchResult,
@@ -1207,15 +1211,18 @@ function readDeployChatDraftPayload(threadId: string): DeployChatDraftPayload | 
 function saveDeployChatDraft(
   threadId: string,
   text: string,
-  opts?: { autoSend?: boolean },
+  opts?: { autoSend?: boolean; mentions?: ChatMention[] },
 ): void {
   try {
     // Never wipe a prior snapshot with an empty string (lock timing races).
     if (!text.trim()) return;
+    const stored = opts?.mentions?.length
+      ? embedMentionTokens(text, mentionsPresentInText(opts.mentions, text))
+      : text;
     const all = readDeployChatDraftsMap();
     const prev = all[threadId];
     const autoSend = opts?.autoSend ?? prev?.autoSend;
-    all[threadId] = { text, ...(autoSend ? { autoSend: true } : {}) };
+    all[threadId] = { text: stored, ...(autoSend ? { autoSend: true } : {}) };
     writeDeployChatDraftsMap(all);
   } catch {
     /* private mode / quota */
@@ -1275,12 +1282,14 @@ function DeployDraftBoot({
   deployChatLockReady,
   skipRestore,
   onQueuedChange,
+  pendingMentionsRef,
 }: {
   threadId: string;
   deployChatLocked: boolean;
   deployChatLockReady: boolean;
   skipRestore?: boolean;
   onQueuedChange?: (queued: boolean) => void;
+  pendingMentionsRef: RefObject<ChatMention[]>;
 }) {
   const composer = useComposerRuntime();
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
@@ -1297,9 +1306,9 @@ function DeployDraftBoot({
       onQueuedChange?.(false);
       return;
     }
-    saveDeployChatDraft(threadId, text);
+    saveDeployChatDraft(threadId, text, { mentions: pendingMentionsRef.current });
     if (readDeployChatDraftPayload(threadId)?.autoSend) onQueuedChange?.(true);
-  }, [composer, deployChatLocked, lastUserText, onQueuedChange, threadId]);
+  }, [composer, deployChatLocked, lastUserText, onQueuedChange, pendingMentionsRef, threadId]);
 
   useEffect(() => {
     const wasLocked = wasLockedRef.current;
@@ -1613,6 +1622,36 @@ function UserTextPart(props: { text?: string }) {
   return <span className="aui-text">{nodes}</span>;
 }
 
+/** Mirror composer text with mention chips; the textarea itself stays transparent. */
+function ComposerMentionHighlight({
+  text,
+  mentions,
+  highlightRef,
+}: {
+  text: string;
+  mentions: ChatMention[];
+  highlightRef: RefObject<HTMLDivElement | null>;
+}) {
+  const parts = splitTextWithMentionChips(text, mentions);
+  return (
+    <div ref={highlightRef} className="aui-composer-highlight" aria-hidden="true">
+      {parts.map((part, i) =>
+        part.type === 'mention' ? (
+          <span
+            key={`${mentionKey(part.mention)}:${i}`}
+            className={`aui-mention-chip aui-mention-chip--${part.mention.kind === 'user' ? 'team' : 'contact'}`}
+          >
+            {part.value}
+          </span>
+        ) : (
+          <span key={`t:${i}`}>{part.value}</span>
+        ),
+      )}
+      {text.endsWith('\n') ? '\n' : null}
+    </div>
+  );
+}
+
 function ChatImageLightbox({
   src,
   alt,
@@ -1911,9 +1950,11 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   const [people, setPeople] = useState<PeopleSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [mentionRev, setMentionRev] = useState(0);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGen = useRef(0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const composerText = useAuiState((s) => s.composer.text ?? '');
 
   const showMentions = open && (loading || people.length > 0 || query.length >= 0);
 
@@ -1948,6 +1989,24 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     if (!isRunning) return;
     closeMentions();
   }, [isRunning, closeMentions]);
+
+  // Draft restore / paste may still carry `@[Name](contact:uid)` — fold the id
+  // into pending state and keep only `@Name` in the textarea.
+  useEffect(() => {
+    if (!composerText.includes('@[') || !composerText.includes('](')) return;
+    const absorbed = absorbMentionTokens(composerText, pendingMentionsRef.current ?? []);
+    if (!absorbed.changed) return;
+    pendingMentionsRef.current = absorbed.mentions;
+    setMentionRev((n) => n + 1);
+    const el = inputRef.current;
+    const caret = el?.selectionStart ?? composerText.length;
+    composer.setText(absorbed.text);
+    requestAnimationFrame(() => {
+      const nextCaret = caretAfterTokenStrip(composerText, caret);
+      const input = inputRef.current;
+      if (input) input.setSelectionRange(nextCaret, nextCaret);
+    });
+  }, [composer, composerText, pendingMentionsRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -2003,8 +2062,8 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     const mention = peopleResultToMention(person);
     const before = value.slice(0, active.start);
     const after = value.slice(caret);
-    // Durable token embeds the UUID in the composer text so the agent always receives it.
-    const insert = `${serializeMentionToken(mention)} `;
+    // Visible `@Name` chip; UUID stays in pendingMentions and is embedded on send.
+    const insert = `${mentionDisplayText(mention)} `;
     const next = `${before}${insert}${after}`;
     const nextCaret = before.length + insert.length;
 
@@ -2012,6 +2071,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     const key = mentionKey(mention);
     const withoutDup = prev.filter((m) => mentionKey(m) !== key);
     pendingMentionsRef.current = [...withoutDup, mention];
+    setMentionRev((n) => n + 1);
 
     composer.setText(next);
     closeMentions();
@@ -2026,6 +2086,21 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   };
 
   const onInput = (value: string, caret: number) => {
+    if (value.includes('@[') && value.includes('](')) {
+      const absorbed = absorbMentionTokens(value, pendingMentionsRef.current ?? []);
+      if (absorbed.changed) {
+        pendingMentionsRef.current = absorbed.mentions;
+        setMentionRev((n) => n + 1);
+        const nextCaret = caretAfterTokenStrip(value, caret);
+        composer.setText(absorbed.text);
+        requestAnimationFrame(() => {
+          const input = inputRef.current;
+          if (input) input.setSelectionRange(nextCaret, nextCaret);
+        });
+        value = absorbed.text;
+        caret = nextCaret;
+      }
+    }
     // Slash helpers own the whole string when it starts with `/`.
     if (value.startsWith('/')) {
       closeMentions();
@@ -2043,6 +2118,39 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if ((e.key === 'Backspace' || e.key === 'Delete') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      const el = inputRef.current;
+      if (el && el.selectionStart === el.selectionEnd) {
+        const value = el.value;
+        const caret = el.selectionStart ?? 0;
+        const present = mentionsPresentInText(pendingMentionsRef.current ?? [], value);
+        const range = mentionRangeForEdit(
+          value,
+          caret,
+          present,
+          e.key === 'Backspace' ? 'backspace' : 'delete',
+        );
+        if (range) {
+          e.preventDefault();
+          const next = `${value.slice(0, range.start)}${value.slice(range.end)}`;
+          pendingMentionsRef.current = mentionsPresentInText(
+            pendingMentionsRef.current ?? [],
+            next,
+          );
+          setMentionRev((n) => n + 1);
+          composer.setText(next);
+          requestAnimationFrame(() => {
+            const input = inputRef.current;
+            if (input) {
+              input.focus();
+              input.setSelectionRange(range.start, range.start);
+            }
+          });
+          onInput(next, range.start);
+          return true;
+        }
+      }
+    }
     if (!showMentions || !open) return false;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -2088,6 +2196,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     people,
     loading,
     activeIdx,
+    mentionRev,
     applyPerson,
     onInput,
     onKeyDown,
@@ -2321,9 +2430,15 @@ function ClaudeComposer({
   const showRunning = isRunning || useExternalProgress;
   const sendBtnRef = useRef<HTMLButtonElement | null>(null);
   const sentByTouchRef = useRef(false);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
   /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
   const typedDraftRef = useRef('');
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
+  const composerText = useAuiState((s) => s.composer.text ?? '');
+  const chipMentions = useMemo(
+    () => mentionsPresentInText(pendingMentionsRef.current ?? [], composerText),
+    [composerText, mentions.mentionRev, pendingMentionsRef],
+  );
   useCapComposerAttachments();
 
   const setInputRef = useCallback(
@@ -2367,7 +2482,7 @@ function ClaudeComposer({
     }
     if (candidate && !fromRuntime) composer.setText(candidate);
     typedDraftRef.current = candidate;
-    saveDeployChatDraft(threadId, candidate);
+    saveDeployChatDraft(threadId, candidate, { mentions: pendingMentionsRef.current });
   }, [composer, deployChatLocked, lastUserText, onQueuedChange, showRunning, threadId]);
 
   // iOS Safari blurs the focused textarea on the touch that targets Send —
@@ -2482,40 +2597,55 @@ function ClaudeComposer({
               />
             </div>
           </AuiIf>
-          <ComposerPrimitive.Input
-            ref={setInputRef}
-            className="aui-input"
-            placeholder="How can I help you today?"
-            rows={1}
-            enterKeyHint={deployChatLocked ? 'enter' : 'send'}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            addAttachmentOnPaste
-            onFocus={() => {
-              helpers.onFocus();
-              mentions.onFocus();
-            }}
-            onBlur={(e) => {
-              helpers.onBlur(e);
-              mentions.onBlur(e);
-            }}
-            onInput={(e) => {
-              const value = e.currentTarget.value;
-              typedDraftRef.current = value;
-              if (!value.trim()) {
-                clearDeployChatDraft(threadId);
-                onQueuedChange?.(false);
-              } else if (deployChatLocked) saveDeployChatDraft(threadId, value);
-              const caret = e.currentTarget.selectionStart ?? value.length;
-              helpers.onInput(value);
-              mentions.onInput(value, caret);
-            }}
-            onKeyDown={(e) => {
-              if (mentions.onKeyDown(e)) return;
-              helpers.onKeyDown(e);
-            }}
-          />
+          <div className="aui-composer-input-wrap">
+            {chipMentions.length > 0 ? (
+              <ComposerMentionHighlight
+                text={composerText}
+                mentions={chipMentions}
+                highlightRef={highlightRef}
+              />
+            ) : null}
+            <ComposerPrimitive.Input
+              ref={setInputRef}
+              className={`aui-input${chipMentions.length > 0 ? ' aui-input--chips' : ''}`}
+              placeholder="How can I help you today?"
+              rows={1}
+              enterKeyHint={deployChatLocked ? 'enter' : 'send'}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              addAttachmentOnPaste
+              onFocus={() => {
+                helpers.onFocus();
+                mentions.onFocus();
+              }}
+              onBlur={(e) => {
+                helpers.onBlur(e);
+                mentions.onBlur(e);
+              }}
+              onScroll={(e) => {
+                const highlight = highlightRef.current;
+                if (highlight) highlight.scrollTop = e.currentTarget.scrollTop;
+              }}
+              onInput={(e) => {
+                const value = e.currentTarget.value;
+                typedDraftRef.current = value;
+                if (!value.trim()) {
+                  clearDeployChatDraft(threadId);
+                  onQueuedChange?.(false);
+                } else if (deployChatLocked) {
+                  saveDeployChatDraft(threadId, value, { mentions: pendingMentionsRef.current });
+                }
+                const caret = e.currentTarget.selectionStart ?? value.length;
+                helpers.onInput(value);
+                mentions.onInput(value, caret);
+              }}
+              onKeyDown={(e) => {
+                if (mentions.onKeyDown(e)) return;
+                helpers.onKeyDown(e);
+              }}
+            />
+          </div>
           <div className="aui-composer-toolbar">
             <ComposerPrimitive.AddAttachment
               className="aui-composer-attach"
@@ -3048,6 +3178,7 @@ function AgentChatThread({
         deployChatLockReady={deployChatLock.ready}
         skipRestore={Boolean(pendingDraft)}
         onQueuedChange={setQueuedSend}
+        pendingMentionsRef={pendingMentionsRef}
       />
       <AgentChatThreadBody
         propsRef={propsRef}

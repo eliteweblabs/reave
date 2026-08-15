@@ -226,6 +226,123 @@ export function stripMentionTokensForDisplay(text: string): string {
   return text.replace(MENTION_TOKEN_RE, '@$1');
 }
 
+/** Visible composer / chip label — UUID stays in pending state + send-time tokens. */
+export function mentionDisplayText(m: ChatMention): string {
+  return `@${sanitizeMentionLabel(m.name)}`;
+}
+
+/** Caret index after durable tokens in `text[0..caret)` collapse to `@Name`. */
+export function caretAfterTokenStrip(text: string, caret: number): number {
+  const clamped = Math.max(0, Math.min(caret, text.length));
+  return stripMentionTokensForDisplay(text.slice(0, clamped)).length;
+}
+
+/**
+ * Pull `@[Name](contact:uid)` tokens out of composer text into mention state
+ * so the textarea can show `@Name` chips without leaking the id.
+ */
+export function absorbMentionTokens(
+  text: string,
+  pending: ChatMention[],
+): { text: string; mentions: ChatMention[]; changed: boolean } {
+  const fromTokens = parseMentionTokensFromText(text);
+  const display = stripMentionTokensForDisplay(text);
+  const mentions = mergeChatMentions(fromTokens, mentionsPresentInText(pending, display));
+  return { text: display, mentions, changed: display !== text };
+}
+
+export type MentionChipRange = {
+  start: number;
+  end: number;
+  mention: ChatMention;
+};
+
+/** Characters that may follow a committed `@Name` chip without breaking it. */
+const MENTION_END_BOUNDARY = /[\s.,!?;:)\]'"…—–-]/;
+
+function isMentionEndBoundary(text: string, end: number): boolean {
+  if (end >= text.length) return true;
+  return MENTION_END_BOUNDARY.test(text.charAt(end));
+}
+
+/** Non-overlapping `@Name` ranges for committed mentions (longest name first). */
+export function mentionRangesInText(text: string, mentions: ChatMention[]): MentionChipRange[] {
+  if (!text || !mentions.length) return [];
+  const sorted = [...mentions].sort((a, b) => b.name.length - a.name.length);
+  const used = new Array<boolean>(text.length).fill(false);
+  const ranges: MentionChipRange[] = [];
+
+  for (const mention of sorted) {
+    const needle = mentionDisplayText(mention);
+    if (needle.length < 2) continue;
+    let from = 0;
+    while (from < text.length) {
+      const at = text.indexOf(needle, from);
+      if (at < 0) break;
+      const end = at + needle.length;
+      const overlaps = used.slice(at, end).some(Boolean);
+      const after = text.slice(end);
+      if (!overlaps && isMentionEndBoundary(text, end) && !after.startsWith('](')) {
+        for (let i = at; i < end; i++) used[i] = true;
+        ranges.push({ start: at, end, mention });
+      }
+      from = at + 1;
+    }
+  }
+
+  ranges.sort((a, b) => a.start - b.start);
+  return ranges;
+}
+
+export type ComposerMentionPart =
+  | { type: 'text'; value: string }
+  | { type: 'mention'; value: string; mention: ChatMention };
+
+/** Split composer text so `@Name` mentions can render as chips over the textarea. */
+export function splitTextWithMentionChips(
+  text: string,
+  mentions: ChatMention[],
+): ComposerMentionPart[] {
+  const ranges = mentionRangesInText(text, mentions);
+  if (!ranges.length) return text ? [{ type: 'text', value: text }] : [];
+  const parts: ComposerMentionPart[] = [];
+  let last = 0;
+  for (const range of ranges) {
+    if (range.start > last) parts.push({ type: 'text', value: text.slice(last, range.start) });
+    parts.push({
+      type: 'mention',
+      value: text.slice(range.start, range.end),
+      mention: range.mention,
+    });
+    last = range.end;
+  }
+  if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
+  return parts;
+}
+
+/**
+ * Chip range to delete as one unit. Includes a single trailing space when the
+ * composer inserted `@Name ` and the caret is still on that space.
+ */
+export function mentionRangeForEdit(
+  text: string,
+  caret: number,
+  mentions: ChatMention[],
+  mode: 'backspace' | 'delete',
+): MentionChipRange | null {
+  const ranges = mentionRangesInText(text, mentions);
+  for (const range of ranges) {
+    const editEnd = text.charAt(range.end) === ' ' ? range.end + 1 : range.end;
+    if (mode === 'backspace' && caret > range.start && caret <= editEnd) {
+      return { ...range, end: editEnd };
+    }
+    if (mode === 'delete' && caret >= range.start && caret < editEnd) {
+      return { ...range, end: editEnd };
+    }
+  }
+  return null;
+}
+
 /** One-line context for the agent system prompt. */
 export function formatMentionsContextLine(mentions: ChatMention[]): string | null {
   if (!mentions.length) return null;
