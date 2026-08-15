@@ -112,6 +112,7 @@ export function isDefaultKnowledgeSlug(slug: string): boolean {
 /** Core product playbooks — always in src/knowledge/, never in plugins/. */
 export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'contact-api-reference',
+  'deploy-wizard',
   'git-workflow',
   'materials-api-reference',
   'inventory-api-reference',

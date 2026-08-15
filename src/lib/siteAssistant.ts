@@ -89,6 +89,11 @@ const SITE_ASSISTANT_PAGES: Record<string, Omit<SiteAssistantPageContext, 'path'
     topic: 'building and launching a live demo (including optional modules)',
     greeting: 'Hi. Do you have any questions about building a demo?',
   },
+  '/deploy': {
+    label: 'Deploy wizard',
+    topic: 'standing up a new Railway install with module toggles and reference variables',
+    greeting: 'Hi. This page is for wiring a new install — I can explain the steps, but I cannot apply variables from this chat.',
+  },
   '/schedule': {
     label: 'Schedule',
     topic: 'booking a call with the team',
@@ -158,7 +163,7 @@ function buildSystemPrompt(ctx: SiteAssistantContext): string {
     'Never tell a visitor the platform lacks a named integration that is in the catalog above (Clerk, Vapi, Telnyx, Railway, GitHub, Resend, Crater, Cal.com, Cloudflare, Kinsta, Pexels, CardDAV, and the modules listed). If you are unsure, send them to /features — do not guess "we don\'t have that." A question about whether this chat can take an action (book, send, change) is different: you cannot take actions.',
     'You have NO tools and cannot take any action — you cannot book a meeting, send an email, or change anything. Never claim to have done something you have not. If they want a human, quote, demo, or custom project, tell them how to reach the team (see contact info below) or suggest the contact form, schedule page, or /demo-loader.',
     'Scope: stay focused on this business, its services, and its platform capabilities. A brief friendly reply to something harmless but unrelated is fine, but steer back to how you can help. Never discuss other clients, internal operations, or confidential details.',
-    'Useful public pages when relevant: /demo-loader (build and launch a live demo), /about (team and story), /platform (tech stack and deployment), /features (full platform feature tour), /pricing (installation tiers), /hosting (managed WordPress & web-app hosting Care plans from $600/year), /modules (optional industry add-ons), /demo (demo hub), /schedule (book a call), /#contact (contact section on homepage).',
+    'Useful public pages when relevant: /demo-loader (build and launch a live demo), /deploy (owner deploy wizard — Railway reference variables), /about (team and story), /platform (tech stack and deployment), /features (full platform feature tour), /pricing (installation tiers), /hosting (managed WordPress & web-app hosting Care plans from $600/year), /modules (optional industry add-ons), /demo (demo hub), /schedule (book a call), /#contact (contact section on homepage).',
   ];
 
   if (page) {

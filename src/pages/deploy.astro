@@ -1,0 +1,44 @@
+---
+/**
+ * /deploy — owner deployment wizard (demo-loader toggles + Railway references).
+ */
+import Layout from "../layouts/Layout.astro";
+import { denyUnlessDeploymentOwner } from "../lib/deploymentOwner";
+import "../styles/demo-loader.css";
+
+export const prerender = false;
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  return Astro.redirect(
+    `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
+  );
+}
+
+const denied = await denyUnlessDeploymentOwner(Astro);
+if (denied) return denied;
+---
+
+<Layout
+  title="Deploy wizard"
+  description="Pick modules, then wire Railway with reference variables — no pasted URLs."
+  noIndex={true}
+>
+  <div class="demo-loader-page">
+    <header class="dl-hero">
+      <p class="dl-kicker">New install</p>
+      <h1 class="dl-h1">Deploy wizard</h1>
+      <p class="dl-lead">
+        Same module picker as the demo loader. After you choose a suite, we
+        fill Railway <strong>reference variables</strong> from the service
+        names — you only type third-party secrets.
+      </p>
+    </header>
+
+    <div id="deploy-wizard-app" class="dl-app" aria-live="polite">
+      <p class="dl-loading">Loading modules…</p>
+    </div>
+  </div>
+
+  <script is:inline src={`/deploy-wizard.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
+</Layout>

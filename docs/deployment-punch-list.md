@@ -1,6 +1,6 @@
 # Deployment punch list
 
-Master playbook for standing up a Reave install on Railway. Tailor per client by selecting modules, then generate a trimmed checklist:
+Master playbook for standing up a Reave install on Railway. Use the owner **[deploy wizard](/deploy)** to pick modules (same toggles as `/demo-loader`) and fill Railway **reference variables** from canonical service names. Or generate a trimmed markdown checklist:
 
 ```bash
 npm run deploy:checklist -- --install demo --modules scheduling,vapi,billing

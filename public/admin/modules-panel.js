@@ -120,6 +120,7 @@ function renderPanel(data) {
     `<p class="prof-subtitle">Optional features, deploy status, and admin navigation links. Refreshes every ${Math.round((data.pollMs || pollMs) / 1000)}s.</p>` +
     `</div>` +
     `<div class="mod-header-actions">` +
+    `<a class="de-btn de-btn-secondary" href="/deploy">Deploy wizard</a>` +
     `<button type="button" class="de-btn de-btn-secondary" id="mod-refresh-btn">Refresh</button>` +
     `<span class="mod-checked" id="mod-checked-at">Updated ${escHtml(checked)}</span>` +
     `</div>` +
