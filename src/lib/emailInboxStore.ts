@@ -1142,14 +1142,16 @@ export async function storeDeleteEmailInboxMany(ids: string[]): Promise<number> 
 }
 
 /** Remove inbox rows whose To/Cc/Bcc is not on this install's domain. */
-export async function storeDeleteInboxNotForInstall(domains: string[]): Promise<number> {
+export async function storeDeleteInboxNotForInstall(
+  domains: string[],
+): Promise<{ deleted: number; ids: string[] }> {
   const hosts = [...new Set(domains.map((d) => d.trim().toLowerCase()).filter(Boolean))];
-  if (!hosts.length) return 0;
+  if (!hosts.length) return { deleted: 0, ids: [] };
   if (databaseUrl()) {
     try {
       const pool = await ensureSchema();
-      if (!pool) return 0;
-      const { rowCount } = await pool.query(
+      if (!pool) return { deleted: 0, ids: [] };
+      const { rows } = await pool.query<{ id: string }>(
         `DELETE FROM email_inbox
          WHERE NOT EXISTS (
            SELECT 1
@@ -1163,23 +1165,30 @@ export async function storeDeleteInboxNotForInstall(domains: string[]): Promise<
              WHERE lower(addr) LIKE '%@' || host || '%'
                 OR lower(addr) LIKE '%@%.' || host || '%'
            )
-         )`,
+         )
+         RETURNING id`,
         [hosts],
       );
-      return rowCount ?? 0;
+      const ids = rows.map((r) => r.id);
+      return { deleted: ids.length, ids };
     } catch (e) {
       console.error('[email-inbox] pg foreign-install purge failed', e);
-      return 0;
+      return { deleted: 0, ids: [] };
     }
   }
   const events = existsSync(inboxFilePath()) ? parseFileEvents(readFileSync(inboxFilePath(), 'utf8')) : [];
-  const keep = events.filter((e) => {
+  const keep: typeof events = [];
+  const ids: string[] = [];
+  for (const e of events) {
     const blob = [...(e.to || []), ...(e.cc || []), ...(e.bcc || [])].join(' ').toLowerCase();
-    return hosts.some((host) => blob.includes(`@${host}`) || blob.includes(`.${host}`));
-  });
-  const deleted = events.length - keep.length;
-  if (deleted === 0) return 0;
-  return writeFileEvents(keep) ? deleted : 0;
+    if (hosts.some((host) => blob.includes(`@${host}`) || blob.includes(`.${host}`))) {
+      keep.push(e);
+    } else {
+      ids.push(e.id);
+    }
+  }
+  if (!ids.length) return { deleted: 0, ids: [] };
+  return writeFileEvents(keep) ? { deleted: ids.length, ids } : { deleted: 0, ids: [] };
 }
 
 async function listExpiredFromPg(limit: number): Promise<EmailInboxRecord[]> {

@@ -3,12 +3,15 @@
  * Lazy-started on dashboard / inbound / uptime poll traffic — mirrors newsletterScheduler.
  */
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
-import { storeDeleteEmailInbox, storeListExpiredEmailInbox } from './emailInboxStore';
+import { storeDeleteEmailInbox, storeDeleteInboxNotForInstall, storeListExpiredEmailInbox } from './emailInboxStore';
+import { installEmailDomains } from './inboundEmailInstall';
 import { serverEnv } from './serverEnv';
 import { runSleepDeferredCatchUp } from './inboundEmailHandler';
+import { scheduleReviewsBadgePush } from './pushBadgeSync';
 
 let _timer: ReturnType<typeof setInterval> | null = null;
 let _running = false;
+let _foreignPurgeStarted = false;
 
 /** Poll interval for expired-row cleanup (default 1 minute). */
 function pollIntervalMs(): number {
@@ -36,11 +39,31 @@ export async function runEmailCleanup(): Promise<{ deleted: number }> {
   }
 }
 
+async function purgeForeignInstallInboxOnce(): Promise<void> {
+  if (_foreignPurgeStarted) return;
+  _foreignPurgeStarted = true;
+  const domains = installEmailDomains();
+  if (!domains.length) return;
+  const { deleted, ids } = await storeDeleteInboxNotForInstall(domains);
+  if (!deleted) return;
+  for (const id of ids) {
+    await dismissEmailRelatedNotifications(id, {
+      markAutomationAck: false,
+      syncBadge: false,
+    }).catch(() => undefined);
+  }
+  scheduleReviewsBadgePush();
+  console.info('[email-cleanup] purged other-install inbox rows', { deleted, domains });
+}
+
 export function ensureEmailCleanupScheduler(): void {
   if (_timer) return;
 
   const ms = pollIntervalMs();
   void runEmailCleanup().catch((e) => console.warn('[email-cleanup] initial run failed', e));
+  void purgeForeignInstallInboxOnce().catch((e) =>
+    console.warn('[email-cleanup] foreign-install purge failed', e),
+  );
   void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
   _timer = setInterval(() => {
     void runEmailCleanup().catch((e) => console.warn('[email-cleanup] run failed', e));

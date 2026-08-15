@@ -23,20 +23,43 @@ export function normalizeEmailHostname(raw: string | null | undefined): string {
   return t || '';
 }
 
+function readEnv(
+  name: string,
+  env?: Record<string, string | undefined>,
+): string {
+  return trim(env ? env[name] : serverEnv(name));
+}
+
+/** Skip Railway private / default public hosts — they are not inbound MX. */
+function isMailDomainHost(host: string): boolean {
+  if (!host) return false;
+  if (host.endsWith('.railway.internal')) return false;
+  if (host.endsWith('.up.railway.app')) return false;
+  if (host === 'railway.app' || host.endsWith('.railway.app')) return false;
+  return true;
+}
+
+export function isRailwayRuntime(env?: Record<string, string | undefined>): boolean {
+  return Boolean(readEnv('RAILWAY_ENVIRONMENT', env) || readEnv('RAILWAY_PUBLIC_DOMAIN', env));
+}
+
 /** Apex + extra hosts this install may receive on (`EMAIL_INBOUND_DOMAINS`). */
 export function installEmailDomains(env?: Record<string, string | undefined>): string[] {
-  const read = (name: string) => (env ? env[name] : serverEnv(name));
-
-  const extras = (read('EMAIL_INBOUND_DOMAINS') ?? '')
+  const extras = (readEnv('EMAIL_INBOUND_DOMAINS', env) ?? '')
     .split(',')
     .map((s) => normalizeEmailHostname(s))
     .filter(Boolean);
 
   const domains = [
-    normalizeEmailHostname(read('COMPANY_DOMAIN')),
-    normalizeEmailHostname(read('PUBLIC_SITE_DOMAIN')),
+    normalizeEmailHostname(readEnv('COMPANY_DOMAIN', env)),
+    normalizeEmailHostname(readEnv('PUBLIC_SITE_DOMAIN', env)),
+    normalizeEmailHostname(readEnv('PUBLIC_SITE_URL', env)),
+    normalizeEmailHostname(readEnv('RAILWAY_PUBLIC_DOMAIN', env)),
     ...extras,
-  ].filter(Boolean);
+  ].filter((host) => isMailDomainHost(host));
+
+  const slug = readEnv('INSTALL_CONFIG', env).toLowerCase();
+  if (slug === 'reave') domains.push('reave.app');
 
   return [...new Set(domains)];
 }
@@ -74,16 +97,21 @@ export function addressBelongsToInstall(
  * Whether this install should ingest the message.
  *
  * - No company domain configured (local/dev): allow.
+ * - On Railway with no resolvable domain: reject (shared Resend keys fan out).
  * - Recipients present: allow only if one is on this install's domain.
  * - Recipients empty: `requireRecipient: false` lets the webhook proceed to
  *   `receiving.get()`; `true` rejects so we never store unverified mail.
  */
 export function inboundBelongsToInstall(
   recipients: string[],
-  opts?: { requireRecipient?: boolean; domains?: string[] },
+  opts?: {
+    requireRecipient?: boolean;
+    domains?: string[];
+    env?: Record<string, string | undefined>;
+  },
 ): boolean {
-  const domains = opts?.domains ?? installEmailDomains();
-  if (!domains.length) return true;
+  const domains = opts?.domains ?? installEmailDomains(opts?.env);
+  if (!domains.length) return !isRailwayRuntime(opts?.env);
   const addrs = recipients.map((r) => parseSenderEmail(r)).filter((a) => a.includes('@'));
   if (!addrs.length) return opts?.requireRecipient === false;
   return addrs.some((addr) => addressBelongsToInstall(addr, domains));

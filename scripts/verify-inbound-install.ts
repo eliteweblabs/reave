@@ -37,6 +37,31 @@ assert.equal(
 assert.equal(inboundBelongsToInstall([], { domains: tony, requireRecipient: false }), true);
 assert.equal(inboundBelongsToInstall([], { domains: tony, requireRecipient: true }), false);
 assert.equal(inboundBelongsToInstall(['inbox@inbound.reave.app'], { domains: [] }), true);
+assert.equal(
+  inboundBelongsToInstall(['inbox@inbound.reave.app'], {
+    domains: [],
+    env: { RAILWAY_ENVIRONMENT: 'production' },
+  }),
+  false,
+);
+
+const reaveFromFallback = installEmailDomains({
+  INSTALL_CONFIG: 'reave',
+  PUBLIC_SITE_URL: 'https://reave.app',
+  RAILWAY_PUBLIC_DOMAIN: 'reave.app',
+});
+assert.deepEqual(reaveFromFallback, ['reave.app']);
+assert.equal(
+  inboundBelongsToInstall(['inbox@inbound.tonybarlettajr.com'], { domains: reaveFromFallback }),
+  false,
+);
+assert.deepEqual(
+  installEmailDomains({
+    RAILWAY_PUBLIC_DOMAIN: 'astro.up.railway.app',
+    INSTALL_CONFIG: 'reave',
+  }),
+  ['reave.app'],
+);
 
 assert.deepEqual(
   recipientList(['a@x.com'], 'b@x.com', undefined, ['c@x.com']),
