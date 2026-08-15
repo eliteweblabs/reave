@@ -40,6 +40,21 @@ import IosBottomSheet from '../IosBottomSheet.astro';
 </IosBottomSheet>
 
 <IosBottomSheet
+  id="email-lab-intro-backdrop"
+  title="Email Lab Mode"
+  titleId="email-lab-intro-title"
+  dismissible={true}
+  sheetClass="em-lab-intro-sheet"
+  bodyClass="em-lab-intro-body"
+>
+  <button slot="header-action" type="button" class="ios-sheet-header-action" data-email-lab-begin>
+    Begin
+  </button>
+  <p>Select any phrase in this email — From, subject, or the message. Each selection becomes a line in a new rule.</p>
+  <p>When you have the phrases you want, tap <strong>Create Rule</strong>.</p>
+</IosBottomSheet>
+
+<IosBottomSheet
   id="address-picker-backdrop"
   title="Address"
   titleId="address-picker-title"

@@ -168,6 +168,38 @@ html.ios-sheet-locked body {
   display: none !important;
 }
 
+.ios-sheet-header-trailing {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+
+.ios-sheet-header-trailing:not(:has(*)) {
+  display: none;
+}
+
+.ios-sheet-header-action {
+  margin: 0;
+  padding: 0.35rem 0.2rem;
+  border: none;
+  background: transparent;
+  color: var(--ios-sheet-link);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ios-sheet-header-action:hover,
+.ios-sheet-header-action:focus-visible {
+  opacity: 0.72;
+}
+
 .ios-sheet-body {
   flex: 1 1 auto;
   min-height: 0;

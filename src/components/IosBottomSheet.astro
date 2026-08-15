@@ -75,6 +75,9 @@ const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : 
         </button>
       )}
       <h2 class:list={['ios-sheet-title', titleClass]} id={titleId}>{title}</h2>
+      <div class="ios-sheet-header-trailing">
+        <slot name="header-action" />
+      </div>
     </header>
     <div class:list={['ios-sheet-body', bodyClass]}>
       <slot />

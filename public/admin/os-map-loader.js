@@ -107,7 +107,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260814a';
+} from './admin-ui.js?v=20260815a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -257,6 +257,7 @@ import {
   ruleState,
   loadRulesTab,
   openRulesLabWithEmail,
+  startNewRule,
 } from './rules-panel.js?v=20260815a';
 import {
   initNewsletterPanel,
@@ -8945,6 +8946,11 @@ let emailState = {
   digest: null,
   pushConfigured: false,
   inboxRefreshing: false,
+  /** Inline Email Lab Mode on the open message. */
+  labMode: false,
+  labEmailId: null,
+  labPhrases: /** @type {{ text: string, field: 'from' | 'subject' | 'body' }[]} */ ([]),
+  labCreating: false,
 };
 let pendingEmailDeepLinkId = null;
 let emailPollTimer = null;
@@ -13568,11 +13574,242 @@ function syncEmailSidebarActiveState(opts = {}) {
 }
 
 function clearEmailDetailSelection() {
+  exitEmailLabMode({ silent: true });
   emailState.activeId = null;
   emailState.composing = false;
   getEmailPanel()?.classList.remove('em-pane-active');
   syncEmailSidebarActiveState();
   renderEmailPane();
+}
+
+function normalizeEmailLabPhrase(raw) {
+  return String(raw || '').replace(/\s+/g, ' ').trim();
+}
+
+function isEmailLabModeFor(ev) {
+  return Boolean(emailState.labMode && ev?.id && emailState.labEmailId === ev.id);
+}
+
+function exitEmailLabMode(opts = {}) {
+  emailState.labMode = false;
+  emailState.labEmailId = null;
+  emailState.labPhrases = [];
+  emailState.labCreating = false;
+  if (opts.silent) return;
+  if (emailState.activeId && getEmailPanel()?.querySelector('.ch-pane')) {
+    renderEmailPane();
+  }
+}
+
+function addEmailLabPhrase(text, field) {
+  const phrase = normalizeEmailLabPhrase(text);
+  if (phrase.length < 2) return false;
+  const dup = emailState.labPhrases.some(
+    (p) => p.text.toLowerCase() === phrase.toLowerCase() && p.field === field,
+  );
+  if (dup) return false;
+  emailState.labPhrases.push({ text: phrase, field });
+  refreshEmailLabBar();
+  return true;
+}
+
+function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-lab-bar]')) {
+  if (!bar) return;
+  const list = bar.querySelector('[data-email-lab-chips]');
+  if (!list) return;
+  list.replaceChildren();
+  list.hidden = emailState.labPhrases.length === 0;
+  emailState.labPhrases.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = 'em-lab-chip';
+    const label = document.createElement('span');
+    label.textContent = p.text;
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'em-lab-chip-rm';
+    rm.innerHTML = iosIcon('x', 12);
+    rm.setAttribute('aria-label', `Remove “${p.text}”`);
+    rm.addEventListener('click', () => {
+      emailState.labPhrases.splice(i, 1);
+      refreshEmailLabBar(bar);
+    });
+    li.append(label, rm);
+    list.appendChild(li);
+  });
+  const createBtn = bar.querySelector('[data-email-lab-create]');
+  if (createBtn) createBtn.disabled = emailState.labPhrases.length === 0 || emailState.labCreating;
+}
+
+function bindEmailLabDocument(doc, field) {
+  if (!doc || doc.emailLabBound === '1') return;
+  doc.emailLabBound = '1';
+  const capture = () => {
+    if (!emailState.labMode) return;
+    const sel = doc.getSelection?.();
+    if (!sel || sel.isCollapsed) return;
+    addEmailLabPhrase(sel.toString(), field);
+  };
+  doc.addEventListener('mouseup', capture);
+  doc.addEventListener('touchend', () => setTimeout(capture, 80));
+  doc.addEventListener(
+    'click',
+    (ev) => {
+      if (!emailState.labMode) return;
+      const a = ev.target instanceof Element ? ev.target.closest('a') : null;
+      if (!a) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+    },
+    true,
+  );
+}
+
+function bindEmailLabDom(el, field) {
+  if (!(el instanceof HTMLElement) || el.dataset.emailLabBound === '1') return;
+  el.dataset.emailLabBound = '1';
+  const capture = () => {
+    if (!emailState.labMode) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    if (!el.contains(sel.anchorNode) && !el.contains(sel.focusNode)) return;
+    addEmailLabPhrase(sel.toString(), field);
+  };
+  el.addEventListener('mouseup', capture);
+  el.addEventListener('touchend', () => setTimeout(capture, 80));
+}
+
+function mountEmailLabSelection(detail) {
+  if (!detail) return;
+  bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
+  bindEmailLabDom(detail.querySelector('.em-detail-summary'), 'body');
+  bindEmailLabDom(detail.querySelector('.em-from-client'), 'from');
+  const frame = detail.querySelector('.em-detail-body-frame');
+  if (!(frame instanceof HTMLIFrameElement)) return;
+  const bindFrame = () => {
+    try {
+      bindEmailLabDocument(frame.contentDocument, 'body');
+    } catch {
+      /* sandbox */
+    }
+  };
+  if (frame.contentDocument?.body) bindFrame();
+  frame.addEventListener('load', bindFrame);
+}
+
+function renderEmailLabBar() {
+  const bar = document.createElement('div');
+  bar.className = 'em-lab-bar';
+  bar.dataset.emailLabBar = '1';
+  const hint = document.createElement('p');
+  hint.className = 'em-lab-bar-hint';
+  hint.textContent = 'Select the text to target.';
+  const list = document.createElement('ul');
+  list.className = 'em-lab-bar-chips';
+  list.dataset.emailLabChips = '1';
+  const actions = document.createElement('div');
+  actions.className = 'em-lab-bar-actions';
+  const createBtn = document.createElement('button');
+  createBtn.type = 'button';
+  createBtn.className = 'de-btn de-btn-primary';
+  createBtn.dataset.emailLabCreate = '1';
+  createBtn.textContent = 'Create Rule';
+  createBtn.addEventListener('click', () => void createRuleFromEmailLab());
+  const doneBtn = document.createElement('button');
+  doneBtn.type = 'button';
+  doneBtn.className = 'de-btn de-btn-secondary';
+  doneBtn.textContent = 'Done';
+  doneBtn.addEventListener('click', () => exitEmailLabMode());
+  actions.append(createBtn, doneBtn);
+  bar.append(hint, list, actions);
+  refreshEmailLabBar(bar);
+  return bar;
+}
+
+function enterEmailLabMode(ev) {
+  if (!ev?.id) return;
+  emailState.labMode = true;
+  emailState.labEmailId = ev.id;
+  emailState.labPhrases = [];
+  emailState.labCreating = false;
+  if (emailState.activeId === ev.id) renderEmailPane();
+}
+
+function openEmailLabIntro(ev) {
+  const backdrop = document.getElementById('email-lab-intro-backdrop');
+  if (!backdrop || !window.IosSheet?.open) {
+    enterEmailLabMode(ev);
+    return;
+  }
+  let started = false;
+  const begin = backdrop.querySelector('[data-email-lab-begin]');
+  const onBegin = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    started = true;
+    window.IosSheet.close('email-lab-intro-backdrop');
+    enterEmailLabMode(ev);
+  };
+  begin?.addEventListener('click', onBegin, { once: true });
+  window.IosSheet.open('email-lab-intro-backdrop', {
+    onClose: () => {
+      if (!started) begin?.removeEventListener('click', onBegin);
+    },
+  });
+}
+
+function createEmailLabBtn(ev) {
+  const active = isEmailLabModeFor(ev);
+  return createIosIconBtn({
+    iconKey: 'flask',
+    label: active ? 'Exit Email Lab' : 'Email Lab',
+    className:
+      'ios-icon-btn em-header-action-btn em-lab-btn' + (active ? ' is-active' : ''),
+    onClick: () => {
+      closeEmailHeaderMenus();
+      if (isEmailLabModeFor(ev)) {
+        exitEmailLabMode();
+        return;
+      }
+      openEmailLabIntro(ev);
+    },
+  });
+}
+
+async function createRuleFromEmailLab() {
+  const ev = emailState.allEvents.find((e) => e.id === emailState.labEmailId);
+  const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
+  if (!ev || !phrases.length || emailState.labCreating) return;
+  const fields = [...new Set(emailState.labPhrases.map((p) => p.field))];
+  emailState.labCreating = true;
+  refreshEmailLabBar();
+  try {
+    await startNewRule({
+      title: phrases[0].length > 48 ? `${phrases[0].slice(0, 47)}…` : phrases[0],
+      status: 'DELETE',
+      scope: 'personal',
+      description: '',
+      phrases,
+      exceptPhrases: [],
+      matchMode: phrases.length > 1 ? 'all' : 'any',
+      fields: fields.length ? fields : ['body'],
+      notify: false,
+      notifyPush: false,
+      notifyDashboard: false,
+      notifyActions: ['view', 'archive'],
+      enabled: true,
+      expiresAt: null,
+    });
+    const full = await fetchFullEmailRecord(ev);
+    exitEmailLabMode({ silent: true });
+    await openRulesLabWithEmail(full, { run: false });
+  } catch (e) {
+    emailState.labCreating = false;
+    refreshEmailLabBar();
+    await osAlert({
+      title: 'Could not create rule',
+      bodyHtml: escHtml(e?.message || String(e)),
+    });
+  }
 }
 
 function renderEmailPane() {
@@ -13676,7 +13913,14 @@ function renderEmailPane() {
     return;
   }
 
-  const beforeIcons = [];
+  if (emailState.labMode && emailState.labEmailId !== ev.id) {
+    emailState.labMode = false;
+    emailState.labEmailId = null;
+    emailState.labPhrases = [];
+    emailState.labCreating = false;
+  }
+
+  const beforeIcons = [createEmailLabBtn(ev)];
   const linkedChat = chatState.threads.find((t) => t.source_email_id === ev.id);
   const alreadyInLinkedChat = linkedChat && chatState.activeId === linkedChat.id;
   // Always offer triage — including false-positive "verification code" mail —
@@ -13708,7 +13952,7 @@ function renderEmailPane() {
   );
 
   const detail = document.createElement('div');
-  detail.className = 'em-detail';
+  detail.className = 'em-detail' + (isEmailLabModeFor(ev) ? ' em-detail--lab' : '');
   const summaryText = emailDetailSummaryText(ev);
   const projectLabel = ev.jobTitle || ev.jobSlug;
   let detailHtml =
@@ -13872,8 +14116,10 @@ function renderEmailPane() {
     detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
   }
   detail.innerHTML = detailHtml;
+  if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
   if (bodyFrame && bodyHtmlSource) bodyFrame.srcdoc = bodyHtmlSource;
+  if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail);
   detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
     e.preventDefault();
     const btn = e.currentTarget;
