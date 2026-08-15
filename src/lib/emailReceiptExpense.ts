@@ -7,7 +7,6 @@ import {
   extractMonetaryAmountFromEmail,
   formatUsdAmount,
   looksLikeIncomingPayment,
-  looksLikePaymentNotification,
 } from './emailMoney';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import {
@@ -62,13 +61,37 @@ export function isReceiptPendingExpenseReview(
 }
 
 /**
+ * Why POST /expense should refuse this row, or null if logging is allowed.
+ * Explicit Expense taps use this — not the banner gate — so a receipt that
+ * still shows “Expense” is not rejected because the full body contains a
+ * generic “Payment of $…” phrase (common on vendor receipts).
+ */
+export function receiptExpenseLogError(
+  record: Pick<EmailInboxRecord, 'category' | 'automationKind' | 'from' | 'subject' | 'summary' | 'bodySnippet' | 'bodyText'>,
+): string | null {
+  if (record.automationKind === 'expense_created') {
+    return 'This receipt was already logged as a Crater expense';
+  }
+  if (record.category !== 'receipt') {
+    return 'This message is not filed as a tax receipt';
+  }
+  if (looksLikeIncomingPayment(record)) {
+    return 'This looks like incoming payment (income), not an expense receipt';
+  }
+  return null;
+}
+
+/**
  * Mis-tagged as receipt — skip the Tax receipt → Expense banner.
- * Incoming “Payment of $… from …” is income, not an expense receipt.
+ * Only strong income language (“Payment of $… from …”) hides the banner.
+ * `looksLikePaymentNotification` is too broad (“Payment of $…” appears on
+ * real vendor receipts) and the dashboard list often lacks full body text,
+ * so using it here made Expense fail after the banner was already shown.
  */
 function looksLikeMisfiledReceipt(
   record: Pick<EmailInboxRecord, 'from' | 'subject' | 'summary' | 'bodySnippet' | 'bodyText'>,
 ): boolean {
-  if (looksLikeIncomingPayment(record) || looksLikePaymentNotification(record)) return true;
+  if (looksLikeIncomingPayment(record)) return true;
   if (extractMonetaryAmountFromEmail(record) != null) return false;
   const blob = [record.subject, record.summary].join(' ').toLowerCase();
   return /\b(build failed|deploy failed|deployment failed|railway|ci failed)\b/.test(blob);

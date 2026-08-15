@@ -44,7 +44,7 @@ import {
 } from './admin-ui.js?v=20260812a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260815a';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260814a';
 import {
   createEmailTriageLab,

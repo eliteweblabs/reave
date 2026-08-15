@@ -1986,7 +1986,7 @@ html.reave-agent-asleep
   }
 }
 
-/* App dialog — content theming; chrome/z-index come from ios-sheet.css */
+/* App dialog — same chrome as other IosBottomSheets; only content is themed. */
 #os-dialog-backdrop .ios-sheet {
   --ios-sheet-bg: var(--panel);
   --ios-sheet-fg: var(--fg);
@@ -1995,7 +1995,6 @@ html.reave-agent-asleep
   --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
   --ios-sheet-close-bg: var(--surface-hover);
   --ios-sheet-close-hover: var(--surface-hover-strong);
-  max-width: 400px;
 }
 #os-dialog-backdrop .os-dialog-title {
   padding: 0;
@@ -2006,10 +2005,10 @@ html.reave-agent-asleep
   flex-direction: column;
 }
 #os-dialog-backdrop .os-dialog-body {
-  padding: 0.65rem 1.15rem 1rem;
-  font-size: 0.84rem;
-  line-height: 1.55;
-  color: var(--muted);
+  padding: 1rem 1.15rem 0.35rem;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: var(--ios-sheet-muted, var(--muted));
 }
 #os-dialog-backdrop .os-dialog-body p { margin: 0 0 0.65rem; }
 #os-dialog-backdrop .os-dialog-body p:last-child { margin-bottom: 0; }
@@ -2019,9 +2018,8 @@ html.reave-agent-asleep
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
-  padding: 0.75rem 1rem max(1rem, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--panel-border);
-  background: rgba(0, 0, 0, 0.15);
+  padding: 0.85rem 1.15rem 1.25rem;
+  background: transparent;
   flex-shrink: 0;
 }
 .os-dialog-btn {

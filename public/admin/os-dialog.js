@@ -53,24 +53,29 @@ export function closeOsDialogBackdrop() {
 
 export function bindOsDialogDismiss(backdrop, finish, showCancel) {
   const closeBtn = backdrop.querySelector('[data-os-dialog-close]');
+  const dismissValue = showCancel ? false : true;
   if (closeBtn) {
-    closeBtn.hidden = !showCancel;
-    if (showCancel) {
-      closeBtn.addEventListener('click', () => finish(false), { once: true });
-    }
+    closeBtn.hidden = false;
+    closeBtn.addEventListener('click', () => finish(dismissValue), { once: true });
   }
-  if (showCancel) {
-    backdrop.addEventListener(
-      'click',
-      function onBackdropClick(ev) {
-        if (ev.target === backdrop) {
-          backdrop.removeEventListener('click', onBackdropClick);
-          finish(false);
-        }
-      },
-      { once: true },
-    );
-  }
+  backdrop.addEventListener(
+    'click',
+    function onBackdropClick(ev) {
+      if (ev.target === backdrop) {
+        backdrop.removeEventListener('click', onBackdropClick);
+        finish(dismissValue);
+      }
+    },
+    { once: true },
+  );
+}
+
+/** Wrap plain text so alert copy matches other sheet body paragraphs. */
+function normalizeDialogBodyHtml(html) {
+  const raw = String(html || '').trim();
+  if (!raw) return '';
+  if (/<[a-z][\s\S]*>/i.test(raw)) return raw;
+  return `<p>${raw}</p>`;
 }
 
 function sanitizeDialogHtml(html) {
@@ -124,11 +129,11 @@ export function osDialog(opts) {
     };
 
     const onKey = (ev) => {
-      if (ev.key === 'Escape' && opts.showCancel) finish(false);
+      if (ev.key === 'Escape') finish(opts.showCancel ? false : true);
     };
 
     titleEl.textContent = opts.title || '';
-    bodyEl.innerHTML = sanitizeDialogHtml(opts.bodyHtml || '');
+    bodyEl.innerHTML = sanitizeDialogHtml(normalizeDialogBodyHtml(opts.bodyHtml || ''));
     actionsEl.innerHTML = '';
 
     const mkBtn = (label, cls, value) => {

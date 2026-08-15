@@ -42,7 +42,7 @@ import {
   mountContactAvatars,
 } from './admin-ui.js?v=20260811d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
-import { osConfirm } from './os-dialog.js?v=20260728j';
+import { osConfirm } from './os-dialog.js?v=20260815a';
 import {
   openMediaPicker,
   brandingRasterMediaFilter,

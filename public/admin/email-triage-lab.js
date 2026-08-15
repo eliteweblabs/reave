@@ -9,7 +9,7 @@ import {
   matchesListSearch,
 } from './admin-ui.js?v=20260812f';
 import { escHtml } from './shared.js?v=20260810a';
-import { osAlert } from './os-dialog.js?v=20260728q';
+import { osAlert } from './os-dialog.js?v=20260815a';
 
 /** Mirror of src/lib/emailBody.looksLikeHtml for client-side preview. */
 function looksLikeHtml(text) {

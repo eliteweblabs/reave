@@ -6,7 +6,7 @@ import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/emailInboxStore';
 import {
   buildCraterExpenseFromEmail,
-  isReceiptPendingExpenseReview,
+  receiptExpenseLogError,
 } from '../../../../../lib/emailReceiptExpense';
 import { craterCreateExpense, isCraterConfigured } from '../../../../../lib/craterClient';
 import { hasFeature } from '../../../../../lib/features';
@@ -35,8 +35,9 @@ export async function POST(context: APIContext): Promise<Response> {
   const event = await storeGetEmailInbox(id);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
 
-  if (!isReceiptPendingExpenseReview(event)) {
-    return json({ ok: false, error: 'This message is not a pending tax receipt' }, 409);
+  const blocked = receiptExpenseLogError(event);
+  if (blocked) {
+    return json({ ok: false, error: blocked }, 409);
   }
 
   let payload;

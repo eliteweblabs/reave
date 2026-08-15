@@ -123,7 +123,7 @@ import {
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
 } from './filter-tabs.js?v=20260813a';
-import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
+import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260815a';
 import {
   initWorkPanel,
   workState,
@@ -3512,7 +3512,19 @@ async function logReceiptExpenseFromAlert(item, btn) {
       headers: { 'Content-Type': 'application/json' },
     });
     const data = await readApiJson(res);
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!res.ok || !data.ok) {
+      const err = String(data.error || `HTTP ${res.status}`);
+      if (res.status === 409 && /already logged/i.test(err)) {
+        if (btn) btn.textContent = 'Done';
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        removeReviewAlertBanner(emailId);
+        syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+        if (emailState.activeId === emailId) renderEmailPanel();
+        if (MAP.type === 'dashboard') await loadAdminDashboard();
+        return;
+      }
+      throw new Error(err);
+    }
 
     if (data.event) {
       const idx = emailState.allEvents.findIndex((e) => e.id === emailId);

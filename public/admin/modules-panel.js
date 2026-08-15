@@ -2,7 +2,7 @@
  * Admin modules monitor — live deployment status for optional feature modules.
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
-import { osAlert } from './os-dialog.js?v=20260728q';
+import { osAlert } from './os-dialog.js?v=20260815a';
 
 const API = '/api/admin/deploy-status';
 const DEFAULT_POLL_MS = 30_000;
