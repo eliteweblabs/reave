@@ -5,6 +5,7 @@ import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
+import { inboundBelongsToInstall, recipientList } from '../../../lib/inboundEmailInstall';
 
 export const prerender = false;
 
@@ -62,7 +63,27 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const meta = event.data;
+    const meta = event.data as {
+      email_id?: string;
+      from?: string;
+      to?: string | string[];
+      cc?: string | string[];
+      bcc?: string | string[];
+      subject?: string;
+      attachments?: unknown;
+    };
+    const metaRecipients = recipientList(meta.to, meta.cc, meta.bcc);
+    if (!inboundBelongsToInstall(metaRecipients, { requireRecipient: false })) {
+      console.info('[email] ignored other-install inbound', {
+        to: meta.to,
+        subject: meta.subject ?? '',
+      });
+      return new Response(
+        JSON.stringify({ ok: true, action: 'ignored', status: 'WRONG_INSTALL' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
     let from = meta.from ?? '';
     let subject = meta.subject ?? '';
     let text = '';
@@ -75,9 +96,7 @@ export const POST: APIRoute = async ({ request }) => {
     let messageId = '';
     let resendEmailId = meta.email_id ?? '';
     // Webhook includes attachment metadata; receiving.get may refresh/enrich it.
-    let attachments = normalizeEmailAttachments(
-      (meta as { attachments?: unknown }).attachments,
-    );
+    let attachments = normalizeEmailAttachments(meta.attachments);
 
     // The webhook payload carries metadata only; fetch the full email for the body.
     if (meta.email_id) {

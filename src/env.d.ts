@@ -132,6 +132,8 @@ interface ImportMetaEnv {
   EMAIL_ALLOWED_SENDERS?: string;
   /** Optional comma-separated allowlist of sender domains */
   EMAIL_ALLOWED_DOMAINS?: string;
+  /** Optional extra recipient hosts this install may ingest (comma-separated) */
+  EMAIL_INBOUND_DOMAINS?: string;
   /** Set to 0 to disable Claude triage on inbound email (keyword rules only) */
   EMAIL_AI_ENABLED?: string;
   /** Web Push VAPID keys — generate with: npx web-push generate-vapid-keys */

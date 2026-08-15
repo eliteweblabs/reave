@@ -22,6 +22,7 @@ import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBran
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 import { getPostAlias, type PostAliasLabels } from './postAlias.ts';
+import { inboundMailboxExample } from './inboundEmailInstall';
 
 /**
  * Make a string safe to use as an HTTP header value. `fetch` requires header
@@ -97,7 +98,7 @@ export function companyToBrandContext(company: CompanyBrandSource, request?: Req
     botUserAgent: `${headerSafeName}Bot/1.0`,
     projectLabel: `${name} App`,
     postAlias: getPostAlias(),
-    inboundEmailExample: fromEmail || (domain ? `inbox@mail.${domain}` : 'inbox@mail.example.com'),
+    inboundEmailExample: inboundMailboxExample(domain),
   };
 }
 

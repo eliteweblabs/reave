@@ -1,6 +1,7 @@
 import { processInboundEmail } from './emailProcessor';
 import { parseEmailDate } from './emailDate';
 import { ensureInboundSince, isInboundEmailAllowed } from './inboundEmailSince';
+import { inboundBelongsToInstall, recipientList } from './inboundEmailInstall';
 import { isSleepModeActive, sleepModeStatus } from './pushQuietHours';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 
@@ -73,6 +74,15 @@ export async function handleInboundEmail(email: {
   attachments?: import('./emailAttachments').EmailAttachmentMeta[];
 }): Promise<InboundEmailResult> {
   const from = email.from ?? '';
+  const recipients = recipientList(email.to, email.cc, email.bcc);
+  if (!inboundBelongsToInstall(recipients, { requireRecipient: true })) {
+    console.info('[email] ignored other-install inbound', {
+      from,
+      to: email.to,
+      subject: email.subject ?? '',
+    });
+    return { ok: true, action: 'ignored', status: 'WRONG_INSTALL', from };
+  }
 
   if (await isSleepModeActive()) {
     const { label } = await sleepModeStatus();

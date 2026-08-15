@@ -1132,6 +1132,47 @@ export async function storeDeleteEmailInboxMany(ids: string[]): Promise<number> 
   return deleteManyFromFile(unique);
 }
 
+/** Remove inbox rows whose To/Cc/Bcc is not on this install's domain. */
+export async function storeDeleteInboxNotForInstall(domains: string[]): Promise<number> {
+  const hosts = [...new Set(domains.map((d) => d.trim().toLowerCase()).filter(Boolean))];
+  if (!hosts.length) return 0;
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return 0;
+      const { rowCount } = await pool.query(
+        `DELETE FROM email_inbox
+         WHERE NOT EXISTS (
+           SELECT 1
+           FROM jsonb_array_elements_text(
+             COALESCE(to_addrs, '[]'::jsonb)
+             || COALESCE(cc_addrs, '[]'::jsonb)
+             || COALESCE(bcc_addrs, '[]'::jsonb)
+           ) AS addr
+           WHERE EXISTS (
+             SELECT 1 FROM unnest($1::text[]) AS host
+             WHERE lower(addr) LIKE '%@' || host || '%'
+                OR lower(addr) LIKE '%@%.' || host || '%'
+           )
+         )`,
+        [hosts],
+      );
+      return rowCount ?? 0;
+    } catch (e) {
+      console.error('[email-inbox] pg foreign-install purge failed', e);
+      return 0;
+    }
+  }
+  const events = existsSync(inboxFilePath()) ? parseFileEvents(readFileSync(inboxFilePath(), 'utf8')) : [];
+  const keep = events.filter((e) => {
+    const blob = [...(e.to || []), ...(e.cc || []), ...(e.bcc || [])].join(' ').toLowerCase();
+    return hosts.some((host) => blob.includes(`@${host}`) || blob.includes(`.${host}`));
+  });
+  const deleted = events.length - keep.length;
+  if (deleted === 0) return 0;
+  return writeFileEvents(keep) ? deleted : 0;
+}
+
 async function listExpiredFromPg(limit: number): Promise<EmailInboxRecord[]> {
   try {
     const pool = await ensureSchema();
