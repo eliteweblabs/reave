@@ -362,13 +362,14 @@ export async function storeAckPushAlertsForWorkSlug(jobSlug: string): Promise<nu
   try {
     const pool = await ensureSchema();
     if (pool) {
+      // Fix: removed stray `slug` as $1 — SQL only uses $1/$2/$3/$4 (now/cutoff/needles)
       const { rowCount } = await pool.query(
         `UPDATE admin_push_alerts
-         SET staff_ack_at = COALESCE(staff_ack_at, $2::timestamptz)
+         SET staff_ack_at = COALESCE(staff_ack_at, $1::timestamptz)
          WHERE staff_ack_at IS NULL
-           AND created_at >= $3::timestamptz
-           AND (url LIKE $4 OR url LIKE $5)`,
-        [slug, now, cutoff, slugNeedle, slugNeedleEnc],
+           AND created_at >= $2::timestamptz
+           AND (url LIKE $3 OR url LIKE $4)`,
+        [now, cutoff, slugNeedle, slugNeedleEnc],
       );
       return rowCount ?? 0;
     }
