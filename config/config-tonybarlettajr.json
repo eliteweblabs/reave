@@ -71,7 +71,7 @@
     "voice": "request",
     "vapi": "request",
     "carddav": "request",
-    "scheduling": "request",
+    "scheduling": "deployed",
     "dev_infra": "deployed",
     "code_dev": "deployed",
     "email_marketing": "request",
