@@ -131,6 +131,11 @@ export type InstallConfigClient = Pick<
 > & {
   /** True only on the official REΛVE Railway install — may create/edit universal rules. */
   canManageUniversalRules?: boolean;
+  /**
+   * Personal contact type + Personal rule-scope chrome.
+   * Reave / super-admin install only — other installs hide the label.
+   */
+  showPersonal?: boolean;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -377,6 +382,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     homepageVoice: config.homepageVoice,
     chatFocusSkin: config.chatFocusSkin,
     canManageUniversalRules: isCanonicalReaveInstall(),
+    showPersonal: isCanonicalReaveInstall(),
   };
 }
 

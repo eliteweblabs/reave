@@ -609,3 +609,11 @@ export function bindFormattedPhoneInputs(root) {
     if (el instanceof HTMLInputElement) attachPhoneFormatter(el);
   });
 }
+
+/**
+ * Personal contact type + Personal rule-scope chrome.
+ * Reave / super-admin install only (`window.__installConfig.showPersonal`).
+ */
+export function showPersonal() {
+  return window.__installConfig?.showPersonal === true;
+}

@@ -12,6 +12,7 @@ import {
   normalizeVaultEntries,
 } from './portalVault';
 import { splitClientNameParts } from './contactPersonName';
+import { isCanonicalReaveInstall } from './installConfig';
 
 export { siteBaseUrl } from './requestOrigin';
 
@@ -524,6 +525,9 @@ export async function setContactKind(
   uid: string,
   kind: ClientKind,
 ): Promise<{ ok: true; kind: ClientKind } | { ok: false; error: string }> {
+  if (kind === 'personal' && !isCanonicalReaveInstall()) {
+    return { ok: false, error: 'Personal contacts are only available on the REΛVE install.' };
+  }
   const res = await getContact(uid);
   if (!res.ok) return { ok: false, error: res.error };
 

@@ -56,6 +56,7 @@ import {
   hydrateContactForAgent,
   attachPortalLinksForList,
 } from '../../contactApi';
+import { isCanonicalReaveInstall } from '../../installConfig';
 import {
   resolveContactEnhanced,
   searchClientsEnhanced,
@@ -425,6 +426,12 @@ export const contactsModule: AgentToolModule = {
     const brand = ctx.brand;
     const domainExample = brand.domain || 'example.com';
     void domainExample;
+    const kindEnum = isCanonicalReaveInstall()
+      ? ['professional', 'service', 'personal', 'proposed']
+      : ['professional', 'service', 'proposed'];
+    const kindDescription = isCanonicalReaveInstall()
+      ? 'Contact type: professional (default project client), service (vendor/service provider), personal (non-project contact), or proposed (audit/prospect).'
+      : 'Contact type: professional (default project client), service (vendor/service provider), or proposed (audit/prospect).';
     return [
       {
             type: 'function',
@@ -481,9 +488,8 @@ export const contactsModule: AgentToolModule = {
                     website: { type: 'string', description: 'Contact website URL, e.g. https://example.com' },
                     kind: {
                       type: 'string',
-                      enum: ['professional', 'service', 'personal', 'proposed'],
-                      description:
-                        'Contact type: professional (default project client), service (vendor/service provider), personal (non-project contact), or proposed (audit/prospect).',
+                      enum: kindEnum,
+                      description: kindDescription,
                     },
                   },
                   required: ['name'],
@@ -510,8 +516,8 @@ export const contactsModule: AgentToolModule = {
                     website: { type: 'string', description: 'Contact website URL, e.g. https://example.com' },
                     kind: {
                       type: 'string',
-                      enum: ['professional', 'service', 'personal', 'proposed'],
-                      description: 'Contact type: professional (project client), service, personal, or proposed (audit/prospect).',
+                      enum: kindEnum,
+                      description: kindDescription,
                     },
                   },
                   additionalProperties: false,

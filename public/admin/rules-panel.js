@@ -43,7 +43,7 @@ import {
   createAgentBtn,
 } from './admin-ui.js?v=20260812a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260815a';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260814a';
 import {
@@ -305,8 +305,15 @@ function isProcessDerivedStatus(status) {
   return s === 'DELETE' || s === 'JUNK' || s === 'AUTO_ARCHIVED' || s === 'RECEIPT' || s === 'CUSTOM';
 }
 
+function ruleScopePillHtml(rule) {
+  const scope = ruleScope(rule);
+  if (scope !== 'universal' && !showPersonal()) return '';
+  return `<span class="re-scope-pill re-scope-pill--${scope}">${escHtml(ruleScopeLabel(rule))}</span>`;
+}
+
 function ruleSubline(rule) {
-  const bits = [ruleScopeLabel(rule)];
+  const bits = [];
+  if (ruleScope(rule) === 'universal' || showPersonal()) bits.push(ruleScopeLabel(rule));
   if (rule.status && !isProcessDerivedStatus(rule.status)) bits.push(rule.status);
   bits.push(formatRuleProcessLabel(rule));
   bits.push(formatRuleHitLabel(rule));
@@ -369,7 +376,7 @@ function createRuleListItem(rule, activeId) {
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
       <span class="ch-item-date">${escHtml(formatRuleHitLabel(rule))}</span>
     </span>
-    <span class="de-item-slug"><span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span> ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}</span>`;
+    <span class="de-item-slug">${ruleScopePillHtml(rule)} ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}</span>`;
   btn.addEventListener('click', () => openRuleEditor(rule.id));
   return btn;
 }
@@ -493,7 +500,7 @@ function createFlowRuleCard(rule, index) {
   when.className = 're-flow-node re-flow-node--when';
   when.innerHTML = `
     <span class="re-flow-badge">When</span>
-    <span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span>
+    ${ruleScopePillHtml(rule)}
     <span class="re-flow-title">${escHtml(rule.title || rule.status)}</span>
     <span class="re-flow-sub">${escHtml(flowWhenSubline(rule))}</span>
     <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)} · ${formatRuleHitLabel(rule)}`)}</span>`;
@@ -831,7 +838,7 @@ function renderRuleEditPane(pane, opts = {}) {
     scopeHint.textContent =
       'Universal catalog — shipped from the REΛVE repo. This install cannot create or edit catalog rules.';
     scopeWrap.appendChild(scopeHint);
-  } else {
+  } else if (showPersonal()) {
     scopeHint.textContent = 'Personal — this install only. Teach/correct and custom filters stay here.';
     const lb = document.createElement('label');
     lb.className = 're-check';
@@ -1079,7 +1086,7 @@ function renderRuleEditPane(pane, opts = {}) {
   expireInSecs.addEventListener('change', () => { ruleState.dirty = true; });
 
   appendRuleField(form, 'Title', titleIn);
-  appendRuleField(form, 'Applies to', scopeWrap);
+  if (scopeWrap.childNodes.length) appendRuleField(form, 'Applies to', scopeWrap);
   appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Keywords / phrases', phrasesIn);
   appendRuleField(form, 'Except (NOT)', exceptIn);
@@ -1208,7 +1215,7 @@ function syncRuleListItem(id, payload, savedRule) {
     }
     const subEl = item.querySelector('.de-item-slug');
     if (subEl && rule) {
-      subEl.innerHTML = `<span class="re-scope-pill re-scope-pill--${ruleScope(rule)}">${escHtml(ruleScopeLabel(rule))}</span> ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}`;
+      subEl.innerHTML = `${ruleScopePillHtml(rule)} ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}`;
     }
     item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
   }

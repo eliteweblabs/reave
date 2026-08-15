@@ -10,6 +10,7 @@ import {
   listContacts,
   type ContactRecord,
 } from './contactApi';
+import { isCanonicalReaveInstall } from './installConfig';
 
 export type ClientMapEntry = {
   uid: string;
@@ -29,6 +30,8 @@ export type ClientsMapPayload = {
   located: number;
   counts: Record<string, number>;
   clients: ClientMapEntry[];
+  /** Personal kind toggle — Reave / super-admin install only. */
+  showPersonal: boolean;
 };
 
 function mapClientEntry(c: ContactRecord): ClientMapEntry {
@@ -93,6 +96,7 @@ export async function loadClientsMapData(
       located: counts.located,
       counts,
       clients,
+      showPersonal: isCanonicalReaveInstall(),
     },
   };
 }

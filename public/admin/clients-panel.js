@@ -41,7 +41,7 @@ import {
   contactAvatarHtml,
   mountContactAvatars,
 } from './admin-ui.js?v=20260811d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter } from './shared.js?v=20260811d';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter, showPersonal } from './shared.js?v=20260811d';
 import { osConfirm } from './os-dialog.js?v=20260815a';
 import {
   openMediaPicker,
@@ -133,9 +133,15 @@ function clientKindFromRecord(c) {
   return 'professional';
 }
 
+function visibleClientKinds(currentKind) {
+  return CLIENT_KINDS.filter((k) => k !== 'personal' || showPersonal() || currentKind === 'personal');
+}
+
 function clientKindTagHtml(c) {
   const kind = clientKindFromRecord(c);
-  if (kind === 'personal') return '<span class="cl-kind-tag cl-kind-tag--personal">Personal</span>';
+  if (kind === 'personal') {
+    return showPersonal() ? '<span class="cl-kind-tag cl-kind-tag--personal">Personal</span>' : '';
+  }
   if (kind === 'proposed') return '<span class="cl-kind-tag cl-kind-tag--proposed">Proposed</span>';
   if (kind === 'service') return '<span class="cl-kind-tag cl-kind-tag--service">Service</span>';
   return '';
@@ -325,15 +331,19 @@ function clientFilterCounts(clients) {
 }
 
 function renderClientFilterTabs(savedScrollLeft = 0) {
+  if (!showPersonal() && clientState.contactFilter === 'personal') {
+    clientState.contactFilter = 'all';
+  }
   const counts = clientFilterCounts(clientState.clients);
+  const tabs = [
+    { id: 'all', label: 'All', count: counts.all },
+    { id: 'professional', label: 'Client', count: counts.professional },
+    { id: 'service', label: 'Service', count: counts.service },
+    { id: 'proposed', label: 'Proposed', count: counts.proposed },
+  ];
+  if (showPersonal()) tabs.push({ id: 'personal', label: 'Personal', count: counts.personal });
   return mountListFilterTabs({
-    tabs: [
-      { id: 'all', label: 'All', count: counts.all },
-      { id: 'professional', label: 'Client', count: counts.professional },
-      { id: 'service', label: 'Service', count: counts.service },
-      { id: 'proposed', label: 'Proposed', count: counts.proposed },
-      { id: 'personal', label: 'Personal', count: counts.personal },
-    ],
+    tabs,
     activeId: clientState.contactFilter,
     ariaLabel: 'Contact list filters',
     savedScrollLeft,
@@ -838,10 +848,11 @@ function appendClientField(parent, label, input) {
 }
 
 function mountClientKindPill(parent, initialKind, onChange) {
+  const kind = normalizeClientKind(initialKind);
   const pill = createSlidingPillSelect({
     label: 'Type',
-    value: normalizeClientKind(initialKind),
-    options: CLIENT_KINDS.map((value) => ({ value, label: CLIENT_KIND_LABELS[value] })),
+    value: kind,
+    options: visibleClientKinds(kind).map((value) => ({ value, label: CLIENT_KIND_LABELS[value] })),
     ariaLabel: 'Contact type',
     onChange,
   });
