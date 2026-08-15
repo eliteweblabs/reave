@@ -9,6 +9,11 @@ import {
   isSilentTriageStatus,
   type EmailRule,
 } from '../src/lib/emailRules';
+import {
+  defaultEmailFilterRuleStatus,
+  defaultEmailFilterRuleTitle,
+  planEmailFilterRuleWrite,
+} from '../src/lib/emailFilterRuleWrite';
 
 const googleSecurity = {
   from: 'Google <no-reply@accounts.google.com>',
@@ -47,5 +52,77 @@ const googleSecurity = {
 
 assert.equal(isSilentTriageStatus('DELETE'), true);
 assert.equal(isSilentTriageStatus('NEEDS_CHECK'), false);
+
+assert.equal(defaultEmailFilterRuleStatus({ statusRaw: '', forwardTo: null }), 'DELETE');
+assert.equal(
+  defaultEmailFilterRuleStatus({ statusRaw: '', forwardTo: 'jk@capcofire.com' }),
+  'CUSTOM',
+);
+assert.equal(
+  defaultEmailFilterRuleStatus({ statusRaw: 'DELETE', forwardTo: 'jk@capcofire.com' }),
+  'DELETE',
+);
+assert.equal(
+  defaultEmailFilterRuleTitle({
+    title: '',
+    sender: 'upwork@t.upwork.com',
+    phrases: ['upwork@t.upwork.com'],
+    forwardTo: 'jk@capcofire.com',
+  }),
+  'Forward upwork@t.upwork.com → jk@capcofire.com',
+);
+
+assert.equal(
+  planEmailFilterRuleWrite({
+    existing: { forwardTo: null, status: 'DELETE', catalog: false },
+    forwardTo: 'jk@capcofire.com',
+    statusRaw: '',
+  }),
+  'update',
+);
+assert.equal(
+  planEmailFilterRuleWrite({
+    existing: { forwardTo: 'jk@capcofire.com', status: 'CUSTOM', catalog: false },
+    forwardTo: 'jk@capcofire.com',
+    statusRaw: '',
+  }),
+  'skip',
+);
+assert.equal(
+  planEmailFilterRuleWrite({
+    existing: { forwardTo: null, status: 'DELETE', catalog: true },
+    forwardTo: 'jk@capcofire.com',
+    statusRaw: '',
+  }),
+  'create',
+);
+assert.equal(
+  planEmailFilterRuleWrite({
+    existing: null,
+    forwardTo: 'jk@capcofire.com',
+    statusRaw: '',
+  }),
+  'create',
+);
+
+{
+  const forward: EmailRule = {
+    status: 'CUSTOM',
+    phrases: ['upwork@t.upwork.com'],
+    matchMode: 'any',
+    fields: ['from'],
+    notify: false,
+    enabled: true,
+    forwardTo: 'jk@capcofire.com',
+  };
+  const upwork = {
+    from: 'Upwork <upwork@t.upwork.com>',
+    subject: 'Talent Marketplace',
+    text: 'A new job was posted.',
+  };
+  const result = classifyEmail(upwork, [forward, ...DEFAULT_RULES]);
+  assert.equal(result.status, 'CUSTOM');
+  assert.equal(result.matched?.forwardTo, 'jk@capcofire.com');
+}
 
 console.log('verify-email-rule-priority: ok');

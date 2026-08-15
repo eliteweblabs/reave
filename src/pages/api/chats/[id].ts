@@ -30,6 +30,7 @@ import {
   storeUpdateChatTitle,
 } from '../../../lib/chatStore';
 import type { AgentUsageSummary } from '../../../lib/agentUsage';
+import { AGENT_EMPTY_REPLY_NOTE, describeAgentFailure } from '../../../lib/agentFailure';
 import { runKnowledgeAgent, runKnowledgeAgentStreaming } from '../../../lib/agentRunner';
 import { parseChatMentions, parseMentionTokensFromText, mergeChatMentions } from '../../../lib/chatMentions';
 import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
@@ -442,7 +443,12 @@ export async function POST(context: APIContext): Promise<Response> {
       ) => {
         if (settled) return;
         settled = true;
-        const text = reply.trim() || interruptedReplyText(userId, id, { cancelled: false });
+        const text =
+          reply.trim() ||
+          interruptedReplyText(userId, id, {
+            cancelled: false,
+            errorMessage: AGENT_EMPTY_REPLY_NOTE,
+          });
         const persisted = await persistAssistantReply(ownerUserId, id, text, opts.agentUsage);
         try {
           const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
@@ -480,7 +486,18 @@ export async function POST(context: APIContext): Promise<Response> {
         });
 
         if (outcome.status === 'complete') {
-          await settle(outcome.reply, { agentUsage: outcome.usage });
+          if (!outcome.reply.trim()) {
+            console.warn('[chats] agent turn completed with empty reply', { threadId: id });
+            await settle(
+              interruptedReplyText(userId, id, {
+                cancelled: false,
+                errorMessage: AGENT_EMPTY_REPLY_NOTE,
+              }),
+              { interrupted: true, agentUsage: outcome.usage },
+            );
+          } else {
+            await settle(outcome.reply, { agentUsage: outcome.usage });
+          }
         } else if (outcome.status === 'timeout') {
           // Stop the wedged work so it cannot keep burning resources or write to
           // this thread after we have already answered for it.
@@ -497,6 +514,7 @@ export async function POST(context: APIContext): Promise<Response> {
             interrupted: true,
           });
         } else {
+          console.warn('[chats] agent turn failed', { threadId: id, error: outcome.error });
           await settle(
             interruptedReplyText(userId, id, { cancelled: false, errorMessage: outcome.error }),
             { interrupted: true },
@@ -561,9 +579,8 @@ export async function POST(context: APIContext): Promise<Response> {
     if (isAgentTimeoutError(err)) cancelAgentRun(userId, id);
     const msg = isAgentTimeoutError(err)
       ? `no response after ${formatSeconds(deadline.totalMs)}`
-      : err instanceof Error
-        ? err.message
-        : 'Agent run failed';
+      : describeAgentFailure(err);
+    console.warn('[chats] agent turn threw', { threadId: id, error: msg });
     reply = interruptedReplyText(userId, id, { cancelled: runSignal.aborted, errorMessage: msg });
   } finally {
     clearAgentProgress(userId, id);

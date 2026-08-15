@@ -1,3 +1,5 @@
+import { describeAgentFailure } from './agentFailure';
+
 export type ChatAgentSseEvent =
   | {
       type: 'progress';
@@ -112,7 +114,7 @@ export function createChatAgentSseResponse(
           });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Agent run failed';
+        const message = describeAgentFailure(err);
         emit({ type: 'error', error: message });
       } finally {
         clearInterval(heartbeat);

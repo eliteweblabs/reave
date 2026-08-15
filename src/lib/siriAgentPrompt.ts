@@ -14,6 +14,7 @@ import {
   isAgentRunActive,
   registerAgentRun,
 } from './agentRunControl';
+import { describeAgentFailure } from './agentFailure';
 import { runKnowledgeAgent } from './agentRunner';
 import {
   createAgentDeadline,
@@ -197,9 +198,7 @@ async function runSiriAgentTurn(opts: {
     if (isAgentTimeoutError(err)) cancelAgentRun(userId, threadId);
     const msg = isAgentTimeoutError(err)
       ? `no response after ${formatSeconds(deadline.totalMs)}`
-      : err instanceof Error
-        ? err.message
-        : 'Agent run failed';
+      : describeAgentFailure(err);
     reply = interruptedReplyText(userId, threadId, msg);
   } finally {
     clearAgentProgress(userId, threadId);

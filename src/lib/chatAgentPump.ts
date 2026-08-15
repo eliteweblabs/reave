@@ -8,6 +8,7 @@
  * the turn's reply. Deliberately typed structurally so it stays cheap to import
  * and to test.
  */
+import { describeAgentFailure } from './agentFailure';
 import { isAgentTimeoutError, withDeadline } from './agentWatchdog';
 
 export type AgentProgressEvent = {
@@ -56,7 +57,7 @@ export async function pumpAgentStream(opts: {
     } catch (err) {
       if (isAgentTimeoutError(err)) return { status: 'timeout' };
       if (isCancelled?.()) return { status: 'cancelled' };
-      return { status: 'failed', error: err instanceof Error ? err.message : 'Agent run failed' };
+      return { status: 'failed', error: describeAgentFailure(err) };
     }
 
     if (next.done) {

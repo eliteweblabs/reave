@@ -131,8 +131,14 @@ import {
   storeCreateEmailRule,
   storeDeleteEmailRule,
   storeListEmailRules,
+  storeUpdateEmailRule,
 } from '../../emailRuleStore';
-import type { MatchMode, RuleField } from '../../emailRules';
+import {
+  defaultEmailFilterRuleStatus,
+  defaultEmailFilterRuleTitle,
+  planEmailFilterRuleWrite,
+} from '../../emailFilterRuleWrite';
+import { isRepoCatalogRule, type MatchMode, type RuleField } from '../../emailRules';
 import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
 import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
@@ -364,6 +370,18 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     return JSON.stringify({ error: 'expires_at / expires_in_seconds / expires_in_days is invalid' });
   }
 
+  const forwardRaw = args.forward_to ?? args.forwardTo;
+  const forwardTo =
+    forwardRaw != null && String(forwardRaw).trim() ? String(forwardRaw).trim() : null;
+  const statusRaw = String(args.status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
+  const status = defaultEmailFilterRuleStatus({ statusRaw, forwardTo });
+  const title = defaultEmailFilterRuleTitle({
+    title: String(args.title ?? '').trim(),
+    sender,
+    phrases,
+    forwardTo,
+  });
+
   const config = await storeListEmailRules();
   const needle = phrases[0].toLowerCase();
   const existing = config.rules.find(
@@ -372,7 +390,19 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       r.fields.includes('from' as RuleField) &&
       r.phrases.some((p) => p.toLowerCase() === needle),
   );
-  if (existing) {
+  const plan = planEmailFilterRuleWrite({
+    existing: existing
+      ? {
+          forwardTo: existing.forwardTo ?? null,
+          status: existing.status,
+          catalog: isRepoCatalogRule(existing),
+        }
+      : null,
+    forwardTo,
+    statusRaw,
+  });
+
+  if (plan === 'skip' && existing) {
     return JSON.stringify({
       ok: true,
       skipped: true,
@@ -381,19 +411,51 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
         id: existing.id,
         title: existing.title,
         phrases: existing.phrases,
+        forwardTo: existing.forwardTo ?? null,
         expiresAt: existing.expiresAt ?? null,
       },
     });
   }
 
-  const title =
-    String(args.title ?? '').trim() ||
-    (sender ? `Block sender ${sender}` : `Block: ${phrases[0].slice(0, 40)}`);
-  const forwardRaw = args.forward_to ?? args.forwardTo;
-  const forwardTo =
-    forwardRaw != null && String(forwardRaw).trim() ? String(forwardRaw).trim() : null;
-  const statusRaw = String(args.status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
-  const status = statusRaw || 'DELETE';
+  if (plan === 'update' && existing) {
+    const updated = await storeUpdateEmailRule(existing.id, {
+      title: String(args.title ?? '').trim() || existing.title,
+      status: statusRaw || existing.status,
+      description: forwardTo
+        ? `Forward matched mail to ${forwardTo}`
+        : existing.description,
+      phrases: existing.phrases,
+      exceptPhrases: exceptExtra.length ? exceptExtra : existing.exceptPhrases,
+      matchMode: existing.matchMode,
+      fields: existing.fields,
+      notify: existing.notify,
+      notifyPush: existing.notifyPush,
+      notifyDashboard: existing.notifyDashboard,
+      notifyActions: existing.notifyActions,
+      enabled: true,
+      expiresAt: expiresAt === null ? existing.expiresAt ?? null : expiresAt,
+      forwardTo: forwardTo ?? existing.forwardTo ?? null,
+      scope: 'personal',
+    });
+    if (updated) {
+      return JSON.stringify({
+        ok: true,
+        updated: true,
+        rule: {
+          id: updated.id,
+          title: updated.title,
+          status: updated.status,
+          scope: updated.scope,
+          phrases: updated.phrases,
+          fields: updated.fields,
+          matchMode: updated.matchMode,
+          forwardTo: updated.forwardTo ?? null,
+          expiresAt: updated.expiresAt ?? null,
+          sortOrder: updated.sortOrder,
+        },
+      });
+    }
+  }
 
   // Sender + subject/body phrases: match across from+subject+body.
   // When both are present, require ALL phrases (sender AND "Security alert") so
@@ -410,7 +472,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     title,
     status,
     description: forwardTo
-      ? 'Auto-junk + forward — created by agent from inbox triage'
+      ? `Forward matched mail to ${forwardTo}`
       : 'Auto-junk — created by agent from inbox triage',
     phrases,
     exceptPhrases: exceptExtra,
@@ -576,7 +638,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls) so first-match triage honors them. When both sender and phrases are set, matchMode is "all" across from+subject+body. Optional forward_to relays matched mail via Resend. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here. Skips if an enabled rule already matches the same sender phrase.',
+                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is junk/DELETE (no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. If an enabled from-rule already exists for that sender, patch it with forward_to / status instead of skipping. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
               parameters: {
                 type: 'object',
                 properties: {

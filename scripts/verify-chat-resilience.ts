@@ -30,6 +30,7 @@ import {
   type AgentTextEvent,
   type PumpableAgentStream,
 } from '../src/lib/chatAgentPump.ts';
+import { AGENT_EMPTY_REPLY_NOTE, describeAgentFailure } from '../src/lib/agentFailure.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -249,7 +250,11 @@ await test('a normal run returns its reply and forwards its events', async () =>
     emit: (e) => seen.push(e),
     hardDeadlineAt: Date.now() + 5_000,
   });
-  assert.deepEqual(outcome, { status: 'complete', reply: 'Here are the scores, in full.' });
+  assert.deepEqual(outcome, {
+    status: 'complete',
+    reply: 'Here are the scores, in full.',
+    usage: null,
+  });
   assert.deepEqual(seen.map((e) => e.type), ['progress', 'text']);
 });
 
@@ -263,6 +268,20 @@ await test('a run that stops responding is abandoned, not waited on forever', as
   });
   assert.deepEqual(outcome, { status: 'timeout' });
   assert.ok(Date.now() - started < 4_000, 'must not outlast its deadline');
+});
+
+await test('an Error with a blank message is not reported as unknown error', async () => {
+  const outcome = await pumpAgentStream({
+    stream: fakeStream([], { throws: new Error('') }),
+    emit: () => {},
+    hardDeadlineAt: Date.now() + 5_000,
+    isCancelled: () => false,
+  });
+  assert.deepEqual(outcome, { status: 'failed', error: 'Agent run failed' });
+  assert.equal(describeAgentFailure(new Error('')), 'Agent run failed');
+  assert.equal(describeAgentFailure(new DOMException('', 'AbortError')), 'AbortError');
+  assert.equal(describeAgentFailure({}), 'Agent run failed');
+  assert.match(AGENT_EMPTY_REPLY_NOTE, /without producing a reply/);
 });
 
 await test('a thrown agent error is reported rather than escaping the turn', async () => {
@@ -291,7 +310,7 @@ await test('an empty reply is still a completion the caller can substitute for',
     emit: () => {},
     hardDeadlineAt: Date.now() + 5_000,
   });
-  assert.deepEqual(outcome, { status: 'complete', reply: '' });
+  assert.deepEqual(outcome, { status: 'complete', reply: '', usage: null });
 });
 
 await test('the pump plus the SSE wrapper always deliver a terminal event', async () => {
