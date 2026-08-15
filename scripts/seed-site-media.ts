@@ -72,8 +72,6 @@ const SEED: SeedItem[] = [
   { slug: 'tony-property-p6', file: 'public/sites/tonybarlettajr/properties/p6.jpg', alt: 'Property 6' },
   { slug: 'tony-property-p7', file: 'public/sites/tonybarlettajr/properties/p7.jpg', alt: 'Property 7' },
   { slug: 'tony-property-p8', file: 'public/sites/tonybarlettajr/properties/p8.jpg', alt: 'Property 8' },
-  { slug: 'barbers-horell-cruz', file: 'public/sites/barbersedge/horell-cruz.png', alt: 'Horell Cruz' },
-  { slug: 'barbers-audriana-cruz', file: 'public/sites/barbersedge/audriana-cruz.jpg', alt: 'Audriana Cruz' },
 ];
 
 function mimeFor(file: string): string | null {

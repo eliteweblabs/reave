@@ -29,7 +29,7 @@ export const BARBERS_EDGE_BARBERS: BarbersEdgeBarber[] = [
     name: "Horell Cruz",
     role: "Owner / Master Barber",
     tagline: "Old-world ritual, modern fade",
-    photo: "/api/media/barbers-horell-cruz",
+    photo: "/sites/barbersedge/horell-cruz.png",
     photoAlt: "Horell Cruz, owner and master barber at Barber's Edge",
   },
   {
@@ -38,7 +38,7 @@ export const BARBERS_EDGE_BARBERS: BarbersEdgeBarber[] = [
     name: "Audriana Cruz",
     role: "Assistant",
     tagline: "The chair is ready when you are",
-    photo: "/api/media/barbers-audriana-cruz",
+    photo: "/sites/barbersedge/audriana-cruz.jpg",
     photoAlt: "Audriana Cruz, assistant at Barber's Edge",
   },
   {
