@@ -955,9 +955,15 @@
 }
 .em-detail--lab .em-detail-body,
 .em-detail--lab .em-from-client,
+.em-detail--lab .em-from-value,
+.em-detail--lab .em-detail-subject,
+.em-detail--lab .em-subject-value,
 .em-detail--lab .em-detail-summary {
   user-select: text;
   -webkit-user-select: text;
+}
+.em-subject-value {
+  color: inherit;
 }
 .em-lab-intro-body p {
   margin: 0 0 0.75rem;

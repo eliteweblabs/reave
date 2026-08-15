@@ -541,7 +541,8 @@ export function createEmailTriageLab(deps) {
       const li = document.createElement('li');
       li.className = 're-lab-target-chip';
       const label = document.createElement('span');
-      label.textContent = p.text;
+      const fieldLabel = p.field === 'from' ? 'From' : p.field === 'subject' ? 'Subject' : 'Body';
+      label.textContent = `(${fieldLabel}: ${p.text})`;
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 're-lab-target-rm';

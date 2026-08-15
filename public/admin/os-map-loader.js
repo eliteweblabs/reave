@@ -258,7 +258,7 @@ import {
   loadRulesTab,
   openRulesLabWithEmail,
   startNewRule,
-} from './rules-panel.js?v=20260815a';
+} from './rules-panel.js?v=20260815b';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -13601,8 +13601,15 @@ function exitEmailLabMode(opts = {}) {
   }
 }
 
+function stripEmailLabFieldPrefix(text, field) {
+  const label = field === 'from' ? 'From' : field === 'subject' ? 'Subject' : '';
+  if (!label) return text;
+  const stripped = String(text || '').replace(new RegExp(`^${label}\\s*[:\\s]\\s*`, 'i'), '').trim();
+  return stripped || text;
+}
+
 function addEmailLabPhrase(text, field) {
-  const phrase = normalizeEmailLabPhrase(text);
+  const phrase = normalizeEmailLabPhrase(stripEmailLabFieldPrefix(text, field));
   if (phrase.length < 2) return false;
   const dup = emailState.labPhrases.some(
     (p) => p.text.toLowerCase() === phrase.toLowerCase() && p.field === field,
@@ -13623,7 +13630,8 @@ function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-la
     const li = document.createElement('li');
     li.className = 'em-lab-chip';
     const label = document.createElement('span');
-    label.textContent = p.text;
+    const fieldLabel = p.field === 'from' ? 'From' : p.field === 'subject' ? 'Subject' : 'Body';
+    label.textContent = `(${fieldLabel}: ${p.text})`;
     const rm = document.createElement('button');
     rm.type = 'button';
     rm.className = 'em-lab-chip-rm';
@@ -13683,6 +13691,7 @@ function mountEmailLabSelection(detail) {
   bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
   bindEmailLabDom(detail.querySelector('.em-detail-summary'), 'body');
   bindEmailLabDom(detail.querySelector('.em-from-client'), 'from');
+  bindEmailLabDom(detail.querySelector('.em-detail-subject'), 'subject');
   const frame = detail.querySelector('.em-detail-body-frame');
   if (!(frame instanceof HTMLIFrameElement)) return;
   const bindFrame = () => {
@@ -14049,6 +14058,7 @@ function renderEmailPane() {
   detailHtml +=
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
+      `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>` +
       (Array.isArray(ev.to) && ev.to.length
         ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
         : '') +
