@@ -12,6 +12,7 @@ import { playwrightAuditModule } from './core/playwrightAudit';
 import { chatsModule } from './core/chats';
 import { sshModule } from './core/ssh';
 import { wpModule } from './core/wp';
+import { deployResumeModule } from './core/deployResume';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -40,6 +41,12 @@ import type { AgentToolModule } from './types';
  * managed WordPress sites with a single shared API key. Supports enable/disable
  * indexing, install/activate plugins, flush cache, update options, and more.
  * Plugin auto-updates from https://reave.app/api/wp-update/reave-connect/
+ *
+ * Deploy resume (`set_deploy_resume` / `clear_deploy_resume`) lives in
+ * `core/deployResume.ts` — always-on when DATABASE_URL is configured. Lets the
+ * agent register a continuation message that fires automatically when the next
+ * Railway deploy-success webhook lands, so mid-task workflows (e.g. fix a
+ * Crater line item after the Crater deploy) resume without owner intervention.
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -53,6 +60,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   chatsModule,
   sshModule,
   wpModule,
+  deployResumeModule,
 ];
 
 /** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */
