@@ -9779,7 +9779,14 @@ function closeEmailDetail() {
   if (MAP?.type === 'email') syncAdminTabUrl('email');
 }
 
+function emailHasFullBody(ev) {
+  return Boolean(String(ev.bodyHtml || '').trim() || String(ev.bodyText || '').trim());
+}
+
 function emailDetailSummaryText(ev) {
+  // Title already is the subject; the message body is below. Only use the
+  // triage summary as a stand-in before the full mail has loaded.
+  if (emailHasFullBody(ev)) return '';
   const summary = String(ev.summary || ev.bodySnippet || '').trim();
   const subject = String(ev.subject || '').trim();
   if (!summary || summary === subject) return '';
@@ -14058,7 +14065,9 @@ function renderEmailPane() {
   detailHtml +=
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
-      `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>` +
+      (isEmailLabModeFor(ev)
+        ? `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>`
+        : '') +
       (Array.isArray(ev.to) && ev.to.length
         ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
         : '') +
