@@ -828,18 +828,23 @@
   display: block;
 }
 .em-from-add {
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-input);
+  border: 1px dashed color-mix(in srgb, var(--accent) 40%, var(--card-border));
   background: transparent;
-  padding: 0;
   font: inherit;
-  font-size: inherit;
+  font-size: 0.78rem;
+  line-height: 1.35;
   color: #79c0ff;
   cursor: pointer;
   text-align: left;
   overflow-wrap: anywhere;
 }
 .em-from-add:hover {
-  text-decoration: underline;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .em-from-unknown {
   display: inline;

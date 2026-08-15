@@ -294,7 +294,7 @@ Attachments: when the body is empty or signature-only but Attachments are listed
 function extractContact(data: unknown): { uid: string; name: string; email: string | null } | null {
   if (!data || typeof data !== 'object') return null;
   const o = data as { match?: string; contact?: { uid?: string; name?: string; email?: string | null } };
-  if ((o.match === 'exact' || o.match === 'likely') && o.contact?.uid) {
+  if (o.match === 'exact' && o.contact?.uid) {
     return {
       uid: String(o.contact.uid),
       name: String(o.contact.name ?? '').trim() || 'Client',
@@ -945,17 +945,9 @@ export async function processInboundEmail(
       summary = email.subject || 'Filtered as junk';
     } else if (category === 'receipt') {
       action = 'receipt';
-    } else if (contactUid && jobs.length === 1) {
-      category = 'client';
-      action = 'review';
-      jobSlug = jobs[0]!.slug;
-      jobTitle = jobs[0]!.title;
-      routeNote = `From known client; single open job "${jobTitle}"`;
-    } else if (contactUid) {
-      category = 'client';
-      action = 'review';
-      routeNote = `From known client ${contactName}`;
     } else {
+      // Being in Contacts is not a whitelist — leave review/alert unless a
+      // rule or trusted AI already classified the message.
       category = category === 'alert' ? 'alert' : 'review';
       action = category;
     }

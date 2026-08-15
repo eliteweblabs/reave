@@ -9967,30 +9967,23 @@ function findClientByEmailLocal(email) {
   );
 }
 
-function findClientByNameLocal(name) {
-  const needle = String(name || '').trim().toLowerCase();
-  if (!needle) return null;
-  return (
-    (clientState.clients || []).find((c) => {
-      const names = [c.name, c.displayName, c.company]
-        .map((v) => String(v || '').trim().toLowerCase())
-        .filter(Boolean);
-      return names.includes(needle);
-    }) || null
-  );
-}
-
 function pickResolvedClientMatch(data) {
-  if ((data?.match === 'exact' || data?.match === 'likely') && data.contact?.uid) {
+  if (data?.match === 'exact' && data.contact?.uid) {
     return { uid: data.contact.uid, name: data.contact.name || '' };
   }
-  if (data?.match === 'possible' && Array.isArray(data.candidates) && data.candidates.length === 1) {
-    const candidate = data.candidates[0];
-    if (candidate?.uid && (candidate.score ?? 0) >= 0.85) {
-      return { uid: candidate.uid, name: candidate.name || '' };
-    }
-  }
   return null;
+}
+
+function clientEmails(client) {
+  const extras = Array.isArray(client?.emails) ? client.emails : [];
+  return [client?.email, ...extras]
+    .map((e) => String(e || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function contactEmailMatchesSender(ev, client) {
+  const from = parseSenderEmail(ev.from).toLowerCase();
+  return Boolean(from && clientEmails(client).includes(from));
 }
 
 async function resolveClientForEmailAddress(email) {
@@ -10012,27 +10005,42 @@ async function resolveClientForEmailAddress(email) {
   }
 }
 
+function senderAddressForContact(ev) {
+  const email = parseSenderEmail(ev.from);
+  return email && /^[^\s@]+@[^\s@]+$/.test(email) ? email : '';
+}
+
 function emailDetailFromHtml(ev) {
   const fromDisplay = ev.from || '(unknown)';
+  const canAdd = Boolean(senderAddressForContact(ev));
   return (
     `<span class="em-from-client">` +
       `<strong>From</strong> ` +
       `<span class="em-from-value">${escHtml(fromDisplay)}</span>` +
+      (canAdd
+        ? `<span class="em-from-unknown"><button type="button" class="em-from-add" data-em-add-contact>Add to contacts</button></span>`
+        : '') +
     `</span>`
   );
+}
+
+function openNewContactFromEmail(ev) {
+  const email = senderAddressForContact(ev);
+  if (!email) return;
+  navigateToNewClient({
+    email,
+    name: parseSenderDisplayName(ev.from) || '',
+  });
 }
 
 function applyEmailFromClientMatch(host, ev, match) {
   const valueEl = host.querySelector('.em-from-value');
   if (!valueEl || !host.isConnected) return;
-  const fromDisplay = ev.from || parseSenderEmail(ev.from) || '(unknown)';
-  const email = parseSenderEmail(ev.from);
-
-  valueEl.textContent = fromDisplay;
+  valueEl.textContent = ev.from || parseSenderEmail(ev.from) || '(unknown)';
   host.querySelector('.em-from-contact')?.remove();
-  host.querySelector('.em-from-unknown')?.remove();
 
   if (match?.uid) {
+    host.querySelector('.em-from-unknown')?.remove();
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'project-link-chip em-from-contact';
@@ -10042,7 +10050,7 @@ function applyEmailFromClientMatch(host, ev, match) {
     icon.setAttribute('aria-hidden', 'true');
     icon.innerHTML = iosIcon('user', 12);
     const label = document.createElement('span');
-    label.textContent = match.name || ev.contactName || 'Contact';
+    label.textContent = match.name || 'Contact';
     chip.append(icon, label);
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -10052,21 +10060,18 @@ function applyEmailFromClientMatch(host, ev, match) {
     return;
   }
 
-  if (!email || !/^[^\s@]+@[^\s@]+$/.test(email)) return;
-
+  if (host.querySelector('[data-em-add-contact]')) return;
+  const email = senderAddressForContact(ev);
+  if (!email) return;
   const wrap = document.createElement('span');
   wrap.className = 'em-from-unknown';
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.className = 'em-from-add';
+  addBtn.dataset.emAddContact = '';
   addBtn.textContent = 'Add to contacts';
   addBtn.title = 'Create a contact from this sender';
-  addBtn.addEventListener('click', () => {
-    navigateToNewClient({
-      email,
-      name: parseSenderDisplayName(ev.from) || ev.contactName || '',
-    });
-  });
+  addBtn.addEventListener('click', () => openNewContactFromEmail(ev));
   wrap.appendChild(addBtn);
   host.appendChild(wrap);
 }
@@ -10075,36 +10080,26 @@ async function hydrateEmailFromClient(detail, ev) {
   const host = detail.querySelector('.em-from-client');
   if (!host) return;
 
+  const email = senderAddressForContact(ev);
+  const local = email ? findClientByEmailLocal(email) : null;
+  if (local?.uid) {
+    applyEmailFromClientMatch(host, ev, { uid: local.uid, name: local.name || '' });
+    return;
+  }
+
   const knownUid = String(ev.contactUid || '').trim();
   if (knownUid) {
-    applyEmailFromClientMatch(host, ev, {
-      uid: knownUid,
-      name: ev.contactName || '',
-    });
-    return;
+    const known = (clientState.clients || []).find((c) => c.uid === knownUid);
+    if (known && contactEmailMatchesSender(ev, known)) {
+      applyEmailFromClientMatch(host, ev, {
+        uid: known.uid,
+        name: known.name || ev.contactName || '',
+      });
+      return;
+    }
   }
 
-  const byName = findClientByNameLocal(ev.contactName);
-  if (byName?.uid) {
-    applyEmailFromClientMatch(host, ev, {
-      uid: byName.uid,
-      name: byName.name || ev.contactName || '',
-    });
-    return;
-  }
-
-  const email = parseSenderEmail(ev.from);
   if (!email) return;
-
-  const local = findClientByEmailLocal(email);
-  if (local?.uid) {
-    applyEmailFromClientMatch(host, ev, {
-      uid: local.uid,
-      name: local.name || ev.contactName || '',
-    });
-    return;
-  }
-
   const match = await resolveClientForEmailAddress(email);
   applyEmailFromClientMatch(host, ev, match);
 }
@@ -14227,6 +14222,9 @@ function renderEmailPane() {
   detail.querySelector('.em-project-link')?.addEventListener('click', () =>
     navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
   );
+  detail.querySelector('[data-em-add-contact]')?.addEventListener('click', () => {
+    openNewContactFromEmail(ev);
+  });
   void hydrateEmailFromClient(detail, ev);
   if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev))) {
     void hydrateEmailProjectContextIcon(detail, ev);
