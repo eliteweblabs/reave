@@ -115,7 +115,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260812c';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady } from './shared.js?v=20260810a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
   mountFilterTabsScroll,
@@ -5459,9 +5459,7 @@ function isValidEmailField(value) {
 }
 
 function isValidPhoneField(value) {
-  const digits = (value || '').replace(/\D/g, '');
-  if (!digits) return true;
-  return digits.length >= 10 && digits.length <= 15;
+  return isValidPhone(value);
 }
 
 function isValidUrlField(value) {
@@ -5900,10 +5898,12 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
 }
 
 function bindProfileForm(root) {
+  bindFormattedPhoneInputs(root);
   bindAutosaveForm(root, {
     formSelector: '#profile-form',
     alertEl: root.querySelector('#profile-alert'),
     async save(payload) {
+      if (payload.phone != null) payload.phone = phoneToStorage(payload.phone);
       const res = await fetch('/api/admin/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -6025,10 +6025,12 @@ function bindCompanyForm(root, company, fontCatalog) {
   const iconBranding = bindCompanyIconUpload(root, companyAlert, company);
   refreshIconPreview = iconBranding.refreshPreview;
 
+  bindFormattedPhoneInputs(root);
   bindAutosaveForm(root, {
     formSelector: '#company-form',
     alertEl: companyAlert,
     async save(payload) {
+      if (payload.supportPhone != null) payload.supportPhone = phoneToStorage(payload.supportPhone);
       if (companyPendingGeo) payload.geo = companyPendingGeo;
       const res = await fetch('/api/admin/company', {
         method: 'POST',
@@ -6523,7 +6525,7 @@ function renderProfileOnlyPanel(profile) {
             `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
             `<div class="prof-field-row">` +
               `<div class="prof-field"><label for="profile-phone">Phone</label>` +
-              `<input id="profile-phone" name="phone" type="tel" value="${escHtml(p.phone || '')}" autocomplete="tel" placeholder="+1 (555) 000-0000" /></div>` +
+              `<input id="profile-phone" name="phone" type="tel" value="${escHtml(formatPhoneInput(p.phone || ''))}" autocomplete="tel" inputmode="tel" placeholder="+1 (555) 000-0000" /></div>` +
               `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
               `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
             `</div>`,
@@ -6808,7 +6810,7 @@ function renderCompanyPanel(company, fontCatalog) {
               `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
               `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +
               `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
-              `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(c.supportPhone || '')}" placeholder="+1 (555) 000-0000" autocomplete="tel" /></div>` +
+              `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" /></div>` +
             `</div>` +
             `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
             `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" />` +

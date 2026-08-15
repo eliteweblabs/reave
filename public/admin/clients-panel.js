@@ -41,7 +41,7 @@ import {
   contactAvatarHtml,
   mountContactAvatars,
 } from './admin-ui.js?v=20260811d';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter } from './shared.js?v=20260811d';
 import { osConfirm } from './os-dialog.js?v=20260815a';
 import {
   openMediaPicker,
@@ -194,29 +194,6 @@ const CLIENT_FIELD_INVALID = 'de-field-invalid';
 
 let clientActiveField = null;
 
-function phoneDigits(value) {
-  return (value || '').replace(/\D/g, '');
-}
-
-/** Display format for tel inputs — US/Canada (+1) by default. */
-function formatPhoneInput(value) {
-  const digits = phoneDigits(value);
-  if (!digits) return '';
-  const us = (digits.startsWith('1') ? digits.slice(1) : digits).slice(0, 10);
-  if (us.length < 4) return `+1 (${us}`;
-  if (us.length < 7) return `+1 (${us.slice(0, 3)}) ${us.slice(3)}`;
-  return `+1 (${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}`;
-}
-
-/** Store phones as E.164 for SMS/API. */
-function phoneToStorage(display) {
-  const digits = phoneDigits(display);
-  if (!digits) return '';
-  const us = (digits.startsWith('1') && digits.length >= 11 ? digits.slice(1) : digits).slice(0, 10);
-  if (us.length === 10) return `+1${us}`;
-  return `+${digits}`;
-}
-
 function isValidClientEmail(value) {
   const v = (value || '').trim();
   if (!v) return true;
@@ -224,9 +201,7 @@ function isValidClientEmail(value) {
 }
 
 function isValidClientPhone(value) {
-  const digits = phoneDigits(value);
-  if (!digits) return true;
-  return digits.length >= 10 && digits.length <= 15;
+  return isValidPhone(value);
 }
 
 function setClientFieldValidationState(el, show, valid) {
@@ -294,19 +269,6 @@ function clientGeoMatches(a, b) {
 
 function refreshAllClientFields() {
   for (const f of clientFieldRegistry) f.refresh();
-}
-
-function attachPhoneFormatter(input) {
-  input.type = 'tel';
-  input.autocomplete = 'tel';
-  input.placeholder = '+1 (555) 000-0000';
-  input.addEventListener('input', () => {
-    const formatted = formatPhoneInput(input.value);
-    if (formatted !== input.value) {
-      input.value = formatted;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  });
 }
 
 function getClientsEditor() { return document.getElementById('clients-editor'); }

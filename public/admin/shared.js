@@ -559,3 +559,53 @@ export function formatTodoDueTime(d) {
   if (min === 0) return `${hour12}${period}`;
   return `${hour12}:${String(min).padStart(2, '0')}${period}`;
 }
+
+export function phoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+/** Display format for tel inputs — US/Canada (+1) by default. */
+export function formatPhoneInput(value) {
+  const digits = phoneDigits(value);
+  if (!digits) return '';
+  const us = (digits.startsWith('1') ? digits.slice(1) : digits).slice(0, 10);
+  if (us.length < 4) return `+1 (${us}`;
+  if (us.length < 7) return `+1 (${us.slice(0, 3)}) ${us.slice(3)}`;
+  return `+1 (${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}`;
+}
+
+/** Store phones as E.164 for SMS/API. */
+export function phoneToStorage(display) {
+  const digits = phoneDigits(display);
+  if (!digits) return '';
+  const us = (digits.startsWith('1') && digits.length >= 11 ? digits.slice(1) : digits).slice(0, 10);
+  if (us.length === 10) return `+1${us}`;
+  return `+${digits}`;
+}
+
+export function isValidPhone(value) {
+  const digits = phoneDigits(value);
+  if (!digits) return true;
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+export function attachPhoneFormatter(input) {
+  if (!(input instanceof HTMLInputElement) || input.dataset.phoneFormatted === '1') return;
+  input.dataset.phoneFormatted = '1';
+  input.type = 'tel';
+  input.inputMode = 'tel';
+  input.autocomplete = 'tel';
+  if (!input.placeholder) input.placeholder = '+1 (555) 000-0000';
+  if (input.value) input.value = formatPhoneInput(input.value);
+  input.addEventListener('input', () => {
+    const formatted = formatPhoneInput(input.value);
+    if (formatted !== input.value) input.value = formatted;
+  });
+}
+
+export function bindFormattedPhoneInputs(root) {
+  if (!root) return;
+  root.querySelectorAll('input[type="tel"], input[name*="phone" i]').forEach((el) => {
+    if (el instanceof HTMLInputElement) attachPhoneFormatter(el);
+  });
+}
