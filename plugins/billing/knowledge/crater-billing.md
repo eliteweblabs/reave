@@ -21,7 +21,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 - **Agent Tools (needs `ANTHROPIC_API_KEY`):** Natural language → Claude calls Crater tools via `src/lib/agentTools.ts` for invoice creation and management
 - **Siri Shortcuts:** `POST /api/siri` with `action: "record_payment"` (aliases `add_payment`, `create_payment`) records offline payments via Crater
 
-## Custom API endpoints (all wired as assistant tools)
+## Custom API endpoints
 
 | Method | Path | Tool name |
 |--------|------|-----------|
@@ -32,6 +32,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | PUT | `/api/custom/invoice/{id}` | `update_invoice` |
 | DELETE | `/api/custom/invoice/{id}` | `delete_invoice` |
 | POST | `/api/custom/invoice/{id}/items` | `add_invoice_items` |
+| PUT | `/api/custom/invoice/{invoiceId}/items/{itemId}` | _(edit one line: name / description / qty / price)_ |
 | GET | `/api/custom/customers?q=` | `search_customers` |
 | PUT | `/api/custom/customer/{id}` | _(REΛVE contact → Crater sync on client edit)_ |
 | GET | `/api/custom/line-items?q=` | `search_line_items` |
@@ -45,4 +46,22 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 
 Prices in create/add payloads are **whole dollars** (Crater stores cents). `record_payment` may return HTTP 300 with `needs_selection` when customer, invoice, or payment_mode is ambiguous.
 
-Implementation: `src/lib/craterClient.ts` (HTTP) + `src/lib/agentTools.ts` (JSON schema + dispatch).
+Authoritative playbook for toggles, public invoices, and line-item edits: **`KNOWLEDGE.md` in `eliteweblabs/crater`** (repo root). Keep this file in sync when that doc changes.
+
+## Public invoice add-on toggles
+
+The client link is `/invoices/{unique_hash}`. Qty and rate are hidden. Optional rows show a switch; required rows do not.
+
+A row is optional from its **stored name** only (no `optional` column):
+
+- `(optional)` or `[optional]` or `can be added anytime` → toggle
+- `(required)` wins — never a toggle
+- no tag → required, no switch
+
+The public title strips those tags. Keep `(optional)` / `(required)` in the stored name. Quantity `0` = toggle starts off; `1` = starts on. When creating a proposal, tag add-ons `(optional)` and send quantity `0`.
+
+`update_invoice` cannot rename a line. Use `PUT /api/custom/invoice/{invoiceId}/items/{itemId}` (name / description / quantity / price). Name-only edits do not change totals. Do not delete a SENT invoice to fix a typo.
+
+Analytics add-on name is **Plausible Analytics**, never Phaseline.
+
+Implementation: `src/lib/craterClient.ts` (HTTP) + `plugins/billing/agentTools.ts` (JSON schema + dispatch).
