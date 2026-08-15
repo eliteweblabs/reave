@@ -20,6 +20,7 @@ import {
   storeReadWork,
   storeWriteWork,
 } from './workStore';
+import { escapeHtml } from './htmlEscape';
 
 export type ContactFormIntakeInput = {
   name?: string | null;
@@ -52,14 +53,6 @@ function phoneToE164(raw: string): string {
   if (us.length === 10) return `+1${us}`;
   if (digits.length >= 10) return `+${digits}`;
   return '';
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function projectTitle(name: string): string {

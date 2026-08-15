@@ -16,21 +16,14 @@ import {
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
     const auth = await requireDashboardUser(context);
-  if (auth instanceof Response) return auth;
-  const { userId } = auth;
+    if (auth instanceof Response) return auth;
 
     const contactUid = context.url.searchParams.get('contact_uid')?.trim();
     const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
@@ -44,7 +37,7 @@ export async function GET(context: APIContext): Promise<Response> {
     });
     const sorted = sortWorkJobsForSidebar(jobs);
 
-    return json({
+    return jsonResponse({
       ok: true,
       jobs: sorted,
       statuses: WORK_STATUSES,
@@ -53,25 +46,21 @@ export async function GET(context: APIContext): Promise<Response> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[work] GET list error:', e);
-    return json({ ok: false, error: msg }, 500);
+    return jsonResponse({ ok: false, error: msg }, 500);
   }
 }
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
-  let body: Record<string, unknown>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
+  const parsed = await readJsonBody(context.request);
+  if (parsed instanceof Response) return parsed;
+  const body = parsed.body;
 
   const title = String(body.title ?? '').trim();
-  const parsed = parseWorkJobInput(body);
-  if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
+  const jobInput = parseWorkJobInput(body);
+  if ('error' in jobInput) return jsonResponse({ ok: false, error: jobInput.error }, 400);
 
   let slug = String(body.slug ?? '')
     .trim()
@@ -80,11 +69,11 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!slug && title) slug = slugFromTitle(title);
 
   if (!slug || !isSafeWorkSlug(slug)) {
-    return json({ ok: false, error: 'Invalid slug' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
   }
-  if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists' }, 409);
+  if (await storeReadWork(slug)) return jsonResponse({ ok: false, error: 'Slug already exists' }, 409);
 
-  const result = await storeWriteWork(slug, { ...parsed, record_origin: 'dashboard' });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, ...result.doc });
+  const result = await storeWriteWork(slug, { ...jobInput, record_origin: 'dashboard' });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, ...result.doc });
 }
