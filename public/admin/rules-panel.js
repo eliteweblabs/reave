@@ -51,7 +51,7 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260814d';
+} from './email-triage-lab.js?v=20260815a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -95,6 +95,7 @@ function getTriageLab() {
       renderRuleForm: (container) => renderRuleEditPane(container, { accordion: true }),
       getActiveRuleId: () => ruleState.activeId,
       startNewRule: () => startNewRule(),
+      createRuleFromLab: (draft) => startNewRule(draft),
       flushRuleAutosave: () => flushRuleAutosave(),
       inboundAddressExample: () =>
         String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
@@ -1445,18 +1446,39 @@ async function deleteRule(id) {
   }
 }
 
-async function startNewRule() {
-  armTitleFocus('rules');
+async function startNewRule(draft = null) {
+  const fromLab = Boolean(draft && typeof draft === 'object');
+  if (!fromLab) armTitleFocus('rules');
   await flushRuleAutosave();
   if (ruleState.dirty && !(await confirmDiscardChanges())) {
-    cancelTitleFocus();
-    return;
+    if (!fromLab) cancelTitleFocus();
+    return null;
   }
-  try {
-    const res = await fetch('/api/email/rules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+  const phrases = fromLab
+    ? (Array.isArray(draft.phrases) ? draft.phrases : [])
+        .map((p) => String(p || '').trim())
+        .filter(Boolean)
+    : [];
+  const payload = fromLab
+    ? {
+        title: String(draft.title || phrases[0] || 'New rule').trim() || 'New rule',
+        status: String(draft.status || 'CUSTOM').trim() || 'CUSTOM',
+        scope: draft.scope === 'universal' ? 'universal' : 'personal',
+        description: String(draft.description || ''),
+        phrases,
+        exceptPhrases: Array.isArray(draft.exceptPhrases) ? draft.exceptPhrases : [],
+        matchMode: draft.matchMode === 'all' ? 'all' : 'any',
+        fields: Array.isArray(draft.fields) && draft.fields.length ? draft.fields : ['body'],
+        notify: draft.notify === true,
+        notifyPush: draft.notifyPush === true,
+        notifyDashboard: draft.notifyDashboard === true,
+        notifyActions: Array.isArray(draft.notifyActions) && draft.notifyActions.length
+          ? draft.notifyActions
+          : ['view', 'archive'],
+        enabled: draft.enabled !== false,
+        expiresAt: draft.expiresAt ?? null,
+      }
+    : {
         title: 'New rule',
         status: 'CUSTOM',
         scope: 'personal',
@@ -1471,16 +1493,24 @@ async function startNewRule() {
         notifyActions: ['view', 'archive'],
         enabled: true,
         expiresAt: null,
-      }),
+      };
+  try {
+    const res = await fetch('/api/email/rules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     ruleState.activeId = data.rule.id;
     ruleState.dirty = false;
     await loadRulesTab();
+    return data.rule;
   } catch (e) {
-    cancelTitleFocus();
+    if (!fromLab) cancelTitleFocus();
+    if (fromLab) throw e;
     alert(`Could not create rule: ${e.message}`);
+    return null;
   }
 }
 

@@ -1793,6 +1793,67 @@ button.de-placeholder-action:active {
   flex-direction: column;
   gap: 0.35rem;
 }
+.re-lab-body-field textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.re-lab-target-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+}
+.re-lab-target-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.re-lab-target-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  padding: 0.2rem 0.3rem 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+.re-lab-target-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 16rem;
+}
+.re-lab-target-rm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.15rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+  cursor: pointer;
+}
+.re-lab-rule-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+}
+.re-lab-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.15rem;
+}
 .re-lab-body-head {
   display: flex;
   align-items: center;

@@ -38,6 +38,58 @@ function looksLikeMarkupBlob(text) {
   return false;
 }
 
+/** Mirror of src/lib/emailBody.htmlToPlainText — keep in sync. */
+function htmlToPlainText(html) {
+  return String(html || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+function plainTextForLab(text, html) {
+  const raw = String(text || '').trim();
+  if (raw && !looksLikeHtml(raw) && !looksLikeMarkupBlob(raw)) return raw;
+  return htmlToPlainText(html || raw) || raw;
+}
+
+function normalizeTargetPhrase(raw) {
+  return String(raw || '').replace(/\s+/g, ' ').trim();
+}
+
+const LAB_PROCESS_OPTIONS = [
+  { value: 'delete', label: 'Delete' },
+  { value: 'archive', label: 'Archive' },
+  { value: 'receipt', label: 'Receipt' },
+  { value: 'classify', label: 'Keep' },
+];
+
+function labProcessIsSilent(process) {
+  return process === 'delete' || process === 'archive' || process === 'receipt';
+}
+
+function labStatusForProcess(process) {
+  if (process === 'delete') return 'DELETE';
+  if (process === 'archive') return 'AUTO_ARCHIVED';
+  if (process === 'receipt') return 'RECEIPT';
+  return 'CUSTOM';
+}
+
 /** Display label for a rule match field (SQL-ish). */
 function ruleFieldLabel(field) {
   if (field === 'from') return 'sender';
@@ -140,6 +192,7 @@ export const PIPELINE_FUNCTIONS = [
  * @param {(container: HTMLElement) => void} deps.renderRuleForm
  * @param {() => string | null} deps.getActiveRuleId
  * @param {() => void | Promise<void>} [deps.startNewRule]
+ * @param {(draft: object) => Promise<object | null | void>} [deps.createRuleFromLab]
  * @param {() => Promise<void>} [deps.flushRuleAutosave]
  * @param {() => string} [deps.inboundAddressExample]
  */
@@ -175,6 +228,16 @@ export function createEmailTriageLab(deps) {
     _suggestOutsideBound: null,
     /** Inbox email id when compose was loaded from a notification / deep link. */
     sourceEmailId: null,
+    /** Phrases highlighted in From / Subject / Body for Create Rule. */
+    targetPhrases: /** @type {{ text: string, field: 'from' | 'subject' | 'body' }[]} */ ([]),
+    ruleTitle: '',
+    ruleTitleTouched: false,
+    ruleProcess: 'delete',
+    ruleNotifyPush: false,
+    ruleNotifyDashboard: false,
+    ruleMatchMode: /** @type {'any' | 'all'} */ ('any'),
+    ruleExcept: '',
+    creatingRule: false,
   };
 
   function inboundExample() {
@@ -433,6 +496,169 @@ export function createEmailTriageLab(deps) {
       state.bodyMode = modeBtn.dataset.labBodyMode;
     }
     state.skipGates = Boolean(root.querySelector('[data-lab-skip-gates]')?.checked);
+    const titleIn = root.querySelector('[data-lab-rule-title]');
+    if (titleIn instanceof HTMLInputElement) {
+      state.ruleTitle = titleIn.value.trim();
+    }
+    const exceptIn = root.querySelector('[data-lab-rule-except]');
+    if (exceptIn instanceof HTMLTextAreaElement || exceptIn instanceof HTMLInputElement) {
+      state.ruleExcept = exceptIn.value;
+    }
+    const matchSel = root.querySelector('[data-lab-rule-match]');
+    if (matchSel instanceof HTMLSelectElement && (matchSel.value === 'all' || matchSel.value === 'any')) {
+      state.ruleMatchMode = matchSel.value;
+    }
+    const processSel = root.querySelector('[data-lab-rule-process]');
+    if (processSel instanceof HTMLInputElement && processSel.value) {
+      state.ruleProcess = processSel.value;
+    }
+    const pushCb = root.querySelector('[data-lab-rule-push]');
+    const dashCb = root.querySelector('[data-lab-rule-dash]');
+    if (pushCb instanceof HTMLInputElement) state.ruleNotifyPush = pushCb.checked;
+    if (dashCb instanceof HTMLInputElement) state.ruleNotifyDashboard = dashCb.checked;
+  }
+
+  function addTargetPhrase(text, field) {
+    const phrase = normalizeTargetPhrase(text);
+    if (phrase.length < 2) return false;
+    const dup = state.targetPhrases.some(
+      (p) => p.text.toLowerCase() === phrase.toLowerCase() && p.field === field,
+    );
+    if (dup) return false;
+    state.targetPhrases.push({ text: phrase, field });
+    if (!state.ruleTitleTouched) {
+      state.ruleTitle = phrase.length > 48 ? `${phrase.slice(0, 47)}…` : phrase;
+    }
+    if (state.targetPhrases.length > 1) state.ruleMatchMode = 'all';
+    return true;
+  }
+
+  function renderTargetPhrases(listEl = deps.getRuleEditor()?.querySelector('[data-lab-targets]')) {
+    if (!listEl) return;
+    listEl.replaceChildren();
+    listEl.hidden = state.targetPhrases.length === 0;
+    state.targetPhrases.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.className = 're-lab-target-chip';
+      const label = document.createElement('span');
+      label.textContent = p.text;
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 're-lab-target-rm';
+      rm.innerHTML = iosIcon('x', 12);
+      rm.setAttribute('aria-label', `Remove “${p.text}”`);
+      rm.addEventListener('click', () => {
+        state.targetPhrases.splice(i, 1);
+        if (!state.ruleTitleTouched) {
+          const first = state.targetPhrases[0]?.text || '';
+          state.ruleTitle = first.length > 48 ? `${first.slice(0, 47)}…` : first;
+          const titleIn = deps.getRuleEditor()?.querySelector('[data-lab-rule-title]');
+          if (titleIn instanceof HTMLInputElement) titleIn.value = state.ruleTitle;
+        }
+        renderTargetPhrases(listEl);
+        syncLabFieldChecks();
+      });
+      li.append(label, rm);
+      listEl.appendChild(li);
+    });
+    const titleIn = deps.getRuleEditor()?.querySelector('[data-lab-rule-title]');
+    if (titleIn instanceof HTMLInputElement && !state.ruleTitleTouched) {
+      titleIn.value = state.ruleTitle;
+    }
+    syncLabFieldChecks();
+  }
+
+  function syncLabFieldChecks(root = deps.getRuleEditor()) {
+    if (!root) return;
+    const derived = new Set(state.targetPhrases.map((p) => p.field));
+    root.querySelectorAll('[data-lab-rule-field]').forEach((cb) => {
+      if (!(cb instanceof HTMLInputElement)) return;
+      if (cb.dataset.labFieldTouched === '1') return;
+      cb.checked = derived.has(cb.value);
+    });
+  }
+
+  function bindTargetSelect(el, field) {
+    if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return;
+    if (el.dataset.labTargetBound === '1') return;
+    el.dataset.labTargetBound = '1';
+    const capture = () => {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      if (typeof start !== 'number' || typeof end !== 'number' || end <= start) return;
+      if (addTargetPhrase(el.value.slice(start, end), field)) {
+        renderTargetPhrases();
+      }
+    };
+    el.addEventListener('mouseup', capture);
+    el.addEventListener('touchend', () => {
+      setTimeout(capture, 80);
+    });
+    el.addEventListener('keyup', (ev) => {
+      if (ev.shiftKey || ev.key === 'Shift' || ev.key.startsWith('Arrow')) capture();
+    });
+  }
+
+  function selectedRuleFields(root) {
+    const fields = [];
+    root?.querySelectorAll('[data-lab-rule-field]').forEach((cb) => {
+      if (cb instanceof HTMLInputElement && cb.checked) fields.push(cb.value);
+    });
+    if (fields.length) return fields;
+    const derived = [...new Set(state.targetPhrases.map((p) => p.field))];
+    return derived.length ? derived : ['body'];
+  }
+
+  async function createRuleFromCompose() {
+    const root = deps.getRuleEditor();
+    if (!root || state.creatingRule) return;
+    readForm(root);
+    const phrases = state.targetPhrases.map((p) => p.text).filter(Boolean);
+    if (!phrases.length) {
+      await osAlert('Select the text to target first.');
+      return;
+    }
+    const process = state.ruleProcess || 'delete';
+    const silent = labProcessIsSilent(process);
+    const title =
+      state.ruleTitle.trim() ||
+      (phrases[0].length > 48 ? `${phrases[0].slice(0, 47)}…` : phrases[0]);
+    state.creatingRule = true;
+    const btn = root.querySelector('[data-lab-create-rule]');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Creating…';
+    }
+    try {
+      await deps.createRuleFromLab?.({
+        title,
+        status: labStatusForProcess(process),
+        scope: 'personal',
+        description: '',
+        phrases,
+        exceptPhrases: String(state.ruleExcept || '')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        matchMode: phrases.length > 1 ? state.ruleMatchMode || 'all' : 'any',
+        fields: selectedRuleFields(root),
+        notify: silent ? false : state.ruleNotifyPush || state.ruleNotifyDashboard,
+        notifyPush: silent ? false : !!state.ruleNotifyPush,
+        notifyDashboard: silent ? false : !!state.ruleNotifyDashboard,
+        notifyActions: ['view', 'archive'],
+        enabled: true,
+        expiresAt: null,
+      });
+    } catch (e) {
+      await osAlert(`Could not create rule: ${e.message}`);
+    } finally {
+      state.creatingRule = false;
+      const next = deps.getRuleEditor()?.querySelector('[data-lab-create-rule]');
+      if (next) {
+        next.disabled = false;
+        next.textContent = 'Create Rule';
+      }
+    }
   }
 
   function loadFromInboxEmail(record) {
@@ -461,10 +687,12 @@ export function createEmailTriageLab(deps) {
     );
     const html = resolveLabHtml(record.bodyHtml || record.html || '', text);
     state.html = html;
-    // Keep readable plain text for keywords; drop CSS/HTML blobs when we have HTML.
-    state.text = html && looksLikeMarkupBlob(text) ? '' : text;
-    if (!state.text && !html) state.text = text;
-    state.bodyMode = html ? 'preview' : 'source';
+    state.text = plainTextForLab(text, html);
+    state.bodyMode = 'source';
+    state.targetPhrases = [];
+    state.ruleTitle = '';
+    state.ruleTitleTouched = false;
+    state.ruleExcept = '';
     state.attachments = Array.isArray(record.attachments)
       ? record.attachments.map((a, i) => ({
           id: String(a.id || `att-${i}`),
@@ -494,8 +722,8 @@ export function createEmailTriageLab(deps) {
     }
     state.running = true;
     stopPlayback();
-    const runBtn = root.querySelector('[data-lab-run]');
-    if (runBtn) {
+    const runBtns = [...root.querySelectorAll('[data-lab-run], [data-lab-test-send]')];
+    for (const runBtn of runBtns) {
       runBtn.disabled = true;
       runBtn.textContent = 'Running…';
     }
@@ -526,11 +754,15 @@ export function createEmailTriageLab(deps) {
       await osAlert(`Simulate failed: ${e.message}`);
     } finally {
       state.running = false;
-      const btn = deps.getRuleEditor()?.querySelector('[data-lab-run]');
-      if (btn) {
+      const live = deps.getRuleEditor();
+      live?.querySelectorAll('[data-lab-run]').forEach((btn) => {
         btn.disabled = false;
         btn.textContent = 'Run triage';
-      }
+      });
+      live?.querySelectorAll('[data-lab-test-send]').forEach((btn) => {
+        btn.disabled = false;
+        btn.textContent = 'Test Send';
+      });
     }
   }
 
@@ -845,7 +1077,7 @@ export function createEmailTriageLab(deps) {
     compose.className = 're-lab-compose';
     compose.innerHTML = `<header class="re-lab-section-head">
       <h2>Try an email</h2>
-      <p>Uses live Contacts + the Agent’s triage code. Nothing is written to the inbox.</p>
+      <p>Select phrases to target, then test send or create a rule. Dry-run until you create a rule.</p>
     </header>`;
 
     const form = document.createElement('div');
@@ -938,6 +1170,9 @@ export function createEmailTriageLab(deps) {
     const bodyTitle = document.createElement('span');
     bodyTitle.className = 're-lab-field-label';
     bodyTitle.textContent = 'Body';
+    const targetHint = document.createElement('p');
+    targetHint.className = 're-lab-target-hint';
+    targetHint.textContent = 'Select the text to target.';
     bodyHead.appendChild(bodyTitle);
 
     const bodyText = saved?.text ?? state.text;
@@ -952,11 +1187,9 @@ export function createEmailTriageLab(deps) {
     bodyIn.className = 'de-input re-textarea';
     bodyIn.dataset.labBody = '1';
     bodyIn.rows = 8;
-    // Prefer plain text in Source; fall back to HTML so the pane isn't blank.
-    bodyIn.value = bodyText || bodyHtml;
-    bodyIn.placeholder = bodyHtml
-      ? 'Edit HTML or plain text used for this dry-run'
-      : 'Message body';
+    // Always prefer plain text so selections become keyword phrases.
+    bodyIn.value = bodyText || (bodyHtml ? htmlToPlainText(bodyHtml) : '');
+    bodyIn.placeholder = 'Select the text to target.';
 
     const previewWrap = document.createElement('div');
     previewWrap.className = 're-lab-body-html';
@@ -1005,7 +1238,7 @@ export function createEmailTriageLab(deps) {
           }
           state.bodyMode = /** @type {'preview' | 'source'} */ (mode.id);
           if (mode.id === 'source') {
-            bodyIn.value = state.text || state.html || '';
+            bodyIn.value = state.text || htmlToPlainText(state.html) || '';
           }
           syncBodyPanes();
         });
@@ -1026,9 +1259,17 @@ export function createEmailTriageLab(deps) {
       }
     });
 
-    bodyWrap.append(bodyHead, previewWrap, bodyIn);
+    const targetList = document.createElement('ul');
+    targetList.className = 're-lab-target-list';
+    targetList.dataset.labTargets = '1';
+    bodyWrap.append(bodyHead, targetHint, previewWrap, bodyIn, targetList);
     form.appendChild(bodyWrap);
     syncBodyPanes();
+    bindTargetSelect(nameIn, 'from');
+    bindTargetSelect(emailIn, 'from');
+    bindTargetSelect(subIn, 'subject');
+    bindTargetSelect(bodyIn, 'body');
+    renderTargetPhrases(targetList);
 
     const attBlock = document.createElement('div');
     attBlock.className = 're-lab-attachments';
@@ -1076,6 +1317,164 @@ export function createEmailTriageLab(deps) {
     gatesCb.checked = saved?.skipGates ?? state.skipGates;
     gatesLb.append(gatesCb, document.createTextNode(' Skip inbound gates (sleep / cutoff / allowlist)'));
     form.appendChild(gatesLb);
+
+    const ruleDraft = document.createElement('div');
+    ruleDraft.className = 're-lab-rule-draft';
+
+    const titleLb = document.createElement('label');
+    titleLb.className = 'de-label';
+    titleLb.textContent = 'Rule title';
+    const titleIn = document.createElement('input');
+    titleIn.className = 'de-input';
+    titleIn.dataset.labRuleTitle = '1';
+    titleIn.placeholder = 'From the first selected phrase';
+    titleIn.value = state.ruleTitle;
+    titleIn.addEventListener('input', () => {
+      state.ruleTitleTouched = true;
+      state.ruleTitle = titleIn.value;
+    });
+    titleLb.appendChild(titleIn);
+    ruleDraft.appendChild(titleLb);
+
+    const fieldsWrap = document.createElement('div');
+    fieldsWrap.className = 're-checks';
+    const derivedFields = new Set(state.targetPhrases.map((p) => p.field));
+    for (const [val, lab] of [
+      ['from', 'From'],
+      ['subject', 'Subject'],
+      ['body', 'Body'],
+    ]) {
+      const lb = document.createElement('label');
+      lb.className = 're-check';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = val;
+      cb.dataset.labRuleField = '1';
+      cb.checked = derivedFields.has(val);
+      cb.addEventListener('change', () => {
+        cb.dataset.labFieldTouched = '1';
+      });
+      lb.append(cb, document.createTextNode(` ${lab}`));
+      fieldsWrap.appendChild(lb);
+    }
+    const fieldsLb = document.createElement('div');
+    fieldsLb.className = 'de-label';
+    fieldsLb.textContent = 'Search in';
+    fieldsLb.appendChild(fieldsWrap);
+    ruleDraft.appendChild(fieldsLb);
+
+    const matchLb = document.createElement('label');
+    matchLb.className = 'de-label';
+    matchLb.textContent = 'Match mode';
+    const matchSel = document.createElement('select');
+    matchSel.className = 'de-input';
+    matchSel.dataset.labRuleMatch = '1';
+    matchSel.innerHTML =
+      '<option value="any">Any phrase matches</option><option value="all">All phrases must match</option>';
+    matchSel.value = state.ruleMatchMode === 'all' ? 'all' : 'any';
+    matchSel.addEventListener('change', () => {
+      state.ruleMatchMode = matchSel.value === 'all' ? 'all' : 'any';
+    });
+    matchLb.appendChild(matchSel);
+    ruleDraft.appendChild(matchLb);
+
+    const exceptLb = document.createElement('label');
+    exceptLb.className = 'de-label';
+    exceptLb.textContent = 'Except (NOT)';
+    const exceptIn = document.createElement('textarea');
+    exceptIn.className = 'de-input re-textarea';
+    exceptIn.dataset.labRuleExcept = '1';
+    exceptIn.rows = 2;
+    exceptIn.placeholder = 'Optional — one phrase per line';
+    exceptIn.value = state.ruleExcept;
+    exceptIn.addEventListener('input', () => {
+      state.ruleExcept = exceptIn.value;
+    });
+    exceptLb.appendChild(exceptIn);
+    ruleDraft.appendChild(exceptLb);
+
+    const processSel = document.createElement('input');
+    processSel.type = 'hidden';
+    processSel.dataset.labRuleProcess = '1';
+    processSel.value = state.ruleProcess || 'delete';
+
+    const notifyWrap = document.createElement('div');
+    notifyWrap.className = 're-checks';
+    const pushLb = document.createElement('label');
+    pushLb.className = 're-check';
+    const pushCb = document.createElement('input');
+    pushCb.type = 'checkbox';
+    pushCb.dataset.labRulePush = '1';
+    pushCb.checked = state.ruleNotifyPush;
+    pushCb.addEventListener('change', () => {
+      state.ruleNotifyPush = pushCb.checked;
+    });
+    pushLb.append(pushCb, document.createTextNode(' Push'));
+    const dashLb = document.createElement('label');
+    dashLb.className = 're-check';
+    const dashCb = document.createElement('input');
+    dashCb.type = 'checkbox';
+    dashCb.dataset.labRuleDash = '1';
+    dashCb.checked = state.ruleNotifyDashboard;
+    dashCb.addEventListener('change', () => {
+      state.ruleNotifyDashboard = dashCb.checked;
+    });
+    dashLb.append(dashCb, document.createTextNode(' Dashboard'));
+    notifyWrap.append(pushLb, dashLb);
+
+    const syncSilentNotify = () => {
+      const silent = labProcessIsSilent(processSel.value);
+      pushCb.disabled = silent;
+      dashCb.disabled = silent;
+      if (silent) {
+        pushCb.checked = false;
+        dashCb.checked = false;
+        state.ruleNotifyPush = false;
+        state.ruleNotifyDashboard = false;
+      }
+    };
+
+    const processPill = createSlidingPillSelect({
+      label: 'Then',
+      value: processSel.value,
+      options: LAB_PROCESS_OPTIONS,
+      ariaLabel: 'Email processing action',
+      scrollable: false,
+      onChange: (value) => {
+        processSel.value = value;
+        state.ruleProcess = value;
+        syncSilentNotify();
+      },
+    });
+    const processWrap = document.createElement('div');
+    processWrap.className = 're-process-field';
+    processWrap.append(processPill.el, processSel);
+    ruleDraft.appendChild(processWrap);
+
+    const notifyLb = document.createElement('div');
+    notifyLb.className = 'de-label';
+    notifyLb.textContent = 'Notify';
+    notifyLb.appendChild(notifyWrap);
+    ruleDraft.appendChild(notifyLb);
+    syncSilentNotify();
+
+    const actions = document.createElement('div');
+    actions.className = 're-lab-compose-actions';
+    const testBtn = document.createElement('button');
+    testBtn.type = 'button';
+    testBtn.className = 'dash-panel-btn';
+    testBtn.dataset.labTestSend = '1';
+    testBtn.textContent = 'Test Send';
+    testBtn.addEventListener('click', () => void runSimulation());
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'dash-panel-btn';
+    createBtn.dataset.labCreateRule = '1';
+    createBtn.textContent = 'Create Rule';
+    createBtn.addEventListener('click', () => void createRuleFromCompose());
+    actions.append(testBtn, createBtn);
+    ruleDraft.appendChild(actions);
+    form.appendChild(ruleDraft);
 
     compose.appendChild(form);
     body.appendChild(compose);
