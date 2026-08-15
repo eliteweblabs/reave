@@ -13656,16 +13656,22 @@ function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-la
 }
 
 function bindEmailLabDocument(doc, field) {
-  if (!doc || doc.emailLabBound === '1') return;
-  doc.emailLabBound = '1';
+  if (!doc?.documentElement || doc.documentElement.dataset.emailLabBound === '1') return;
+  doc.documentElement.dataset.emailLabBound = '1';
+  let debounce = 0;
   const capture = () => {
     if (!emailState.labMode) return;
     const sel = doc.getSelection?.();
     if (!sel || sel.isCollapsed) return;
     addEmailLabPhrase(sel.toString(), field);
   };
+  const captureSoon = () => {
+    window.clearTimeout(debounce);
+    debounce = window.setTimeout(capture, 120);
+  };
   doc.addEventListener('mouseup', capture);
   doc.addEventListener('touchend', () => setTimeout(capture, 80));
+  doc.addEventListener('selectionchange', captureSoon);
   doc.addEventListener(
     'click',
     (ev) => {
@@ -13705,11 +13711,17 @@ function mountEmailLabSelection(detail) {
     try {
       bindEmailLabDocument(frame.contentDocument, 'body');
     } catch {
-      /* sandbox */
+      /* opaque origin — sandbox needs allow-same-origin in lab mode */
     }
   };
-  if (frame.contentDocument?.body) bindFrame();
   frame.addEventListener('load', bindFrame);
+  try {
+    if (frame.contentDocument?.readyState === 'complete' && frame.contentDocument.body) {
+      bindFrame();
+    }
+  } catch {
+    /* sandbox */
+  }
 }
 
 function renderEmailLabBar() {
@@ -14128,7 +14140,11 @@ function renderEmailPane() {
       // allow-popups + allow-popups-to-escape-sandbox lets them open in a real browser tab.
       // Deliberately no allow-top-navigation(-by-user-activation): that let clicks hijack the
       // top-level app window instead of escaping it, which looked like the email going blank.
-      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Email message"></iframe></div>`;
+      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="${
+        isEmailLabModeFor(ev)
+          ? 'allow-same-origin allow-popups allow-popups-to-escape-sandbox'
+          : 'allow-popups allow-popups-to-escape-sandbox'
+      }" title="Email message"></iframe></div>`;
   } else if (showPlainBody) {
     detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
   } else if (!attachments.length && !summaryText) {
@@ -14137,8 +14153,9 @@ function renderEmailPane() {
   detail.innerHTML = detailHtml;
   if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
-  if (bodyFrame && bodyHtmlSource) bodyFrame.srcdoc = bodyHtmlSource;
+  // Bind before srcdoc so we don't miss the load event on a fast parse.
   if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail);
+  if (bodyFrame && bodyHtmlSource) bodyFrame.srcdoc = bodyHtmlSource;
   detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
     e.preventDefault();
     const btn = e.currentTarget;
