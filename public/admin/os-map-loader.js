@@ -9967,6 +9967,19 @@ function findClientByEmailLocal(email) {
   );
 }
 
+function findClientByNameLocal(name) {
+  const needle = String(name || '').trim().toLowerCase();
+  if (!needle) return null;
+  return (
+    (clientState.clients || []).find((c) => {
+      const names = [c.name, c.displayName, c.company]
+        .map((v) => String(v || '').trim().toLowerCase())
+        .filter(Boolean);
+      return names.includes(needle);
+    }) || null
+  );
+}
+
 function pickResolvedClientMatch(data) {
   if ((data?.match === 'exact' || data?.match === 'likely') && data.contact?.uid) {
     return { uid: data.contact.uid, name: data.contact.name || '' };
@@ -10015,14 +10028,27 @@ function applyEmailFromClientMatch(host, ev, match) {
   const fromDisplay = ev.from || parseSenderEmail(ev.from) || '(unknown)';
   const email = parseSenderEmail(ev.from);
 
+  valueEl.textContent = fromDisplay;
+  host.querySelector('.em-from-contact')?.remove();
+  host.querySelector('.em-from-unknown')?.remove();
+
   if (match?.uid) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'em-from-link';
-    btn.textContent = fromDisplay;
-    btn.title = match.name ? `Open ${match.name}` : 'Open contact profile';
-    btn.addEventListener('click', () => navigateToClient(match.uid));
-    valueEl.replaceWith(btn);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'project-link-chip em-from-contact';
+    chip.title = match.name ? `Open ${match.name}` : 'Open contact profile';
+    const icon = document.createElement('span');
+    icon.className = 'em-from-contact-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = iosIcon('user', 12);
+    const label = document.createElement('span');
+    label.textContent = match.name || ev.contactName || 'Contact';
+    chip.append(icon, label);
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigateToClient(match.uid);
+    });
+    host.appendChild(chip);
     return;
   }
 
@@ -10030,7 +10056,6 @@ function applyEmailFromClientMatch(host, ev, match) {
 
   const wrap = document.createElement('span');
   wrap.className = 'em-from-unknown';
-  wrap.appendChild(document.createTextNode(`${fromDisplay} · `));
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.className = 'em-from-add';
@@ -10039,11 +10064,11 @@ function applyEmailFromClientMatch(host, ev, match) {
   addBtn.addEventListener('click', () => {
     navigateToNewClient({
       email,
-      name: parseSenderDisplayName(ev.from) || '',
+      name: parseSenderDisplayName(ev.from) || ev.contactName || '',
     });
   });
   wrap.appendChild(addBtn);
-  valueEl.replaceWith(wrap);
+  host.appendChild(wrap);
 }
 
 async function hydrateEmailFromClient(detail, ev) {
@@ -10059,12 +10084,24 @@ async function hydrateEmailFromClient(detail, ev) {
     return;
   }
 
+  const byName = findClientByNameLocal(ev.contactName);
+  if (byName?.uid) {
+    applyEmailFromClientMatch(host, ev, {
+      uid: byName.uid,
+      name: byName.name || ev.contactName || '',
+    });
+    return;
+  }
+
   const email = parseSenderEmail(ev.from);
   if (!email) return;
 
   const local = findClientByEmailLocal(email);
   if (local?.uid) {
-    applyEmailFromClientMatch(host, ev, { uid: local.uid, name: local.name || '' });
+    applyEmailFromClientMatch(host, ev, {
+      uid: local.uid,
+      name: local.name || ev.contactName || '',
+    });
     return;
   }
 
@@ -10079,8 +10116,22 @@ function formatEmailAction(ev) {
   } else if (ev.bookingUid) bits.push('booked');
   else if (ev.action) bits.push(ev.action);
   if (ev.jobTitle) bits.push(ev.jobTitle);
-  if (ev.routeNote && !ev.jobTitle && ev.action !== 'project_reply') bits.push(ev.routeNote);
   return bits.join(' · ');
+}
+
+function emailDetailClassificationHtml(ev) {
+  const action = formatEmailAction(ev);
+  const route = String(ev.routeNote || '').trim();
+  const steps = [];
+  if (action) steps.push({ decision: 'Action', detail: action });
+  if (route) steps.push({ decision: 'Route', detail: route });
+  const existing = Array.isArray(ev.classificationAudit) ? ev.classificationAudit : [];
+  for (const step of existing) steps.push(step);
+  if (!steps.length) return '';
+  return classificationAuditTrailHtml({
+    type: ev.category === 'receipt' ? 'receipt_expense' : 'classification',
+    auditTrail: steps,
+  });
 }
 
 function isProjectReplyEmail(ev) {
@@ -13703,7 +13754,7 @@ function mountEmailLabSelection(detail) {
   if (!detail) return;
   bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
   bindEmailLabDom(detail.querySelector('.em-detail-summary'), 'body');
-  bindEmailLabDom(detail.querySelector('.em-from-client'), 'from');
+  bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
   bindEmailLabDom(detail.querySelector('.em-detail-subject'), 'subject');
   const frame = detail.querySelector('.em-detail-body-frame');
   if (!(frame instanceof HTMLIFrameElement)) return;
@@ -14077,25 +14128,14 @@ function renderEmailPane() {
   detailHtml +=
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
-      (isEmailLabModeFor(ev)
-        ? `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>`
-        : '') +
       (Array.isArray(ev.to) && ev.to.length
         ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
         : '') +
-      (ev.contactName ? `<span><strong>Contact</strong> ${escHtml(ev.contactName)}</span>` : '') +
+      `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>` +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
-      `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
-      (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
     `</div>`;
-  if (ev.category === 'receipt' || (Array.isArray(ev.classificationAudit) && ev.classificationAudit.length)) {
-    const auditItem = {
-      type: ev.category === 'receipt' ? 'receipt_expense' : 'classification',
-      auditTrail: Array.isArray(ev.classificationAudit) ? ev.classificationAudit : [],
-    };
-    const auditHtml = classificationAuditTrailHtml(auditItem);
-    if (auditHtml) detailHtml += `<div class="em-detail-audit">${auditHtml}</div>`;
-  }
+  const auditHtml = emailDetailClassificationHtml(ev);
+  if (auditHtml) detailHtml += `<div class="em-detail-audit">${auditHtml}</div>`;
   const attachments = Array.isArray(ev.attachments) ? ev.attachments : [];
   if (attachments.length) {
     detailHtml +=

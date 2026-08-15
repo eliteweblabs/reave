@@ -795,10 +795,6 @@
   color: var(--muted);
 }
 .em-detail-subject {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin: 0.65rem 0 0.85rem;
-  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .em-detail-meta {
@@ -814,7 +810,23 @@
   overflow-wrap: anywhere;
 }
 .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
-.em-from-link,
+.em-from-client {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+.em-from-contact {
+  gap: 0.3rem;
+  user-select: none;
+}
+.em-from-contact-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.em-from-contact-icon svg {
+  display: block;
+}
 .em-from-add {
   border: none;
   background: transparent;
@@ -826,7 +838,6 @@
   text-align: left;
   overflow-wrap: anywhere;
 }
-.em-from-link:hover,
 .em-from-add:hover {
   text-decoration: underline;
 }
