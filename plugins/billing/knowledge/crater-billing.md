@@ -60,6 +60,8 @@ A row is optional from its **stored name** only (no `optional` column):
 
 The public title strips those tags. Keep `(optional)` / `(required)` in the stored name. Quantity `0` = toggle starts off; `1` = starts on. When creating a proposal, tag add-ons `(optional)` and send quantity `0`.
 
+The public **Download PDF** button is hidden on unpaid invoices that have add-on toggles — the PDF is generated from stored quantities, not the live switches. After payment (when `optional_item_ids` has been written) the button returns and the PDF is the receipt: qty-`0` add-ons omitted, tags stripped. Invoices with no optional rows keep the button the whole time.
+
 `update_invoice` cannot rename a line. Use `PUT /api/custom/invoice/{invoiceId}/items/{itemId}` (name / description / quantity / price). Name-only edits do not change totals. Do not delete a SENT invoice to fix a typo.
 
 Analytics add-on name is **Plausible Analytics**, never Phaseline.
