@@ -78,7 +78,7 @@ function filteredItems() {
     if (state.filter === 'images' && !isImageItem(item)) return false;
     if (state.filter === 'documents' && isImageItem(item)) return false;
     if (!q) return true;
-    const hay = `${item.filename || ''} ${item.altText || ''} ${item.mediaType || ''}`.toLowerCase();
+    const hay = `${item.filename || ''} ${item.altText || ''} ${item.slug || ''} ${item.mediaType || ''}`.toLowerCase();
     return hay.includes(q);
   });
 }
@@ -168,7 +168,7 @@ function renderAttachmentDetails(item) {
   const idx = items.findIndex((i) => i.id === item.id);
   const hasPrev = idx > 0;
   const hasNext = idx >= 0 && idx < items.length - 1;
-  const abs = absoluteUrl(item.url);
+  const abs = absoluteUrl(item.publicUrl || item.url);
 
   return (
     `<div class="ml-detail-backdrop" id="ml-detail-backdrop" role="dialog" aria-modal="true" aria-labelledby="ml-detail-title">` +
@@ -188,6 +188,7 @@ function renderAttachmentDetails(item) {
     `<dl class="ml-detail-meta">` +
     `<div><dt>Uploaded on</dt><dd>${escHtml(formatDate(item.createdAt))}</dd></div>` +
     `<div><dt>File type</dt><dd>${escHtml(item.mediaType || '—')}</dd></div>` +
+    (item.slug ? `<div><dt>Slug</dt><dd><code>${escHtml(item.slug)}</code></dd></div>` : '') +
     `<div><dt>File size</dt><dd>${escHtml(formatBytes(item.sizeBytes))}</dd></div>` +
     (isImageItem(item)
       ? `<div><dt>Dimensions</dt><dd id="ml-detail-dims">Loading…</dd></div>`

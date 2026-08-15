@@ -1171,7 +1171,7 @@ function stripMapToLandAndWater(map: any) {
 }
 
 /** Default male stock headshot for the GPS person pin (field-checkin scene). */
-const GPS_PIN_FACE_FALLBACK = "/images/hero-demo/field-checkin.png";
+const GPS_PIN_FACE_FALLBACK = "/api/media/hero-field-checkin";
 
 /** Fixed center reticle — not a Mapbox HTML marker (parent transforms break those). */
 function createGpsPinOverlay(faceUrl?: string): HTMLElement {

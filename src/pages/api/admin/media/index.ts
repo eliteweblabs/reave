@@ -66,6 +66,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const altText = form.get('altText');
+  const slugField = form.get('slug');
   const buffer = Buffer.from(await file.arrayBuffer());
   const result = await storeAddMedia({
     filename: file.name.trim() || undefined,
@@ -73,6 +74,7 @@ export async function POST(context: APIContext): Promise<Response> {
     dataBase64: buffer.toString('base64'),
     altText: typeof altText === 'string' ? altText : null,
     uploadedBy: userId,
+    slug: typeof slugField === 'string' ? slugField : null,
   });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, item: result.item });

@@ -28,3 +28,4 @@ src/knowledge/chats/*.md
 !src/knowledge/chats/.gitkeep
 src/knowledge/social-tokens.json
 src/knowledge/integration-tokens.json
+src/knowledge/.media/

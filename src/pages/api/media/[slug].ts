@@ -1,6 +1,6 @@
 /**
- * GET    /api/admin/media/[id] — serve bytes (optional ?thumb=1 for images)
- * DELETE /api/admin/media/[id] — remove from library
+ * GET /api/media/[slug] — public bytes for a library item (slug or UUID).
+ * Used by marketing pages so company images are not committed to git.
  */
 
 import type { APIContext } from 'astro';
@@ -8,19 +8,10 @@ import sharp from 'sharp';
 import {
   isMediaLibraryImageType,
   projectFileResponseHeaders,
-  storeDeleteMedia,
   storeGetMediaByRef,
-} from '../../../../lib/mediaLibrary';
-import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+} from '../../../lib/mediaLibrary';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const THUMB_SIZE = 256;
 
@@ -43,10 +34,10 @@ async function maybeThumbnail(
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const id = (context.params.id ?? '').trim();
-  if (!id) return new Response('Not found', { status: 404 });
+  const slug = (context.params.slug ?? '').trim();
+  if (!slug) return new Response('Not found', { status: 404 });
 
-  const record = await storeGetMediaByRef(id);
+  const record = await storeGetMediaByRef(slug);
   if (!record) return new Response('Not found', { status: 404 });
 
   const thumb = context.url.searchParams.get('thumb') === '1';
@@ -56,27 +47,15 @@ export async function GET(context: APIContext): Promise<Response> {
       ? 'image/jpeg'
       : record.mediaType;
 
-  const etag = `"${record.createdAt}:${record.sizeBytes}:${thumb ? 't' : 'f'}"`;
+  const etag = `"${record.slug || record.id}:${record.sizeBytes}:${thumb ? 't' : 'f'}"`;
   if (context.request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304 });
   }
 
   const headers = projectFileResponseHeaders(mediaType, record.filename, body.length);
   headers.ETag = etag;
-  headers['Cache-Control'] = 'private, max-age=3600';
+  headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=604800';
   headers['Content-Length'] = String(body.length);
 
   return new Response(new Uint8Array(body), { headers });
-}
-
-export async function DELETE(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
-  if (auth instanceof Response) return auth;
-
-  const id = (context.params.id ?? '').trim();
-  if (!id) return json({ ok: false, error: 'Not found' }, 404);
-
-  const ok = await storeDeleteMedia(id);
-  if (!ok) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true });
 }

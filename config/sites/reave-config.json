@@ -22,39 +22,94 @@
   ],
   "nav": {
     "links": [
-      { "href": "/features", "label": "Features" },
-      { "href": "/platform", "label": "Platform" },
-      { "href": "/compare", "label": "Compare" },
-      { "href": "/pricing", "label": "Pricing" },
-      { "href": "/modules", "label": "Modules" },
-      { "href": "/about", "label": "About" },
-      { "href": "/#contact", "label": "Contact" }
+      {
+        "href": "/features",
+        "label": "Features"
+      },
+      {
+        "href": "/platform",
+        "label": "Platform"
+      },
+      {
+        "href": "/compare",
+        "label": "Compare"
+      },
+      {
+        "href": "/pricing",
+        "label": "Pricing"
+      },
+      {
+        "href": "/modules",
+        "label": "Modules"
+      },
+      {
+        "href": "/about",
+        "label": "About"
+      },
+      {
+        "href": "/#contact",
+        "label": "Contact"
+      }
     ],
     "groups": [
       {
         "id": "product",
         "label": "Product",
         "links": [
-          { "href": "/features", "label": "Features" },
-          { "href": "/platform", "label": "Platform" },
-          { "href": "/compare", "label": "Compare" },
-          { "href": "/pricing", "label": "Pricing" },
-          { "href": "/modules", "label": "Modules" },
-          { "href": "/demo-loader", "label": "Demo", "primary": true },
-          { "href": "/demo-loader", "label": "Build demo" }
+          {
+            "href": "/features",
+            "label": "Features"
+          },
+          {
+            "href": "/platform",
+            "label": "Platform"
+          },
+          {
+            "href": "/compare",
+            "label": "Compare"
+          },
+          {
+            "href": "/pricing",
+            "label": "Pricing"
+          },
+          {
+            "href": "/modules",
+            "label": "Modules"
+          },
+          {
+            "href": "/demo-loader",
+            "label": "Demo",
+            "primary": true
+          },
+          {
+            "href": "/demo-loader",
+            "label": "Build demo"
+          }
         ]
       },
       {
         "id": "company",
         "label": "Company",
         "links": [
-          { "href": "/about", "label": "About" },
-          { "href": "/about#portfolio", "label": "Portfolio" },
-          { "href": "/#contact", "label": "Contact" }
+          {
+            "href": "/about",
+            "label": "About"
+          },
+          {
+            "href": "/about#portfolio",
+            "label": "Portfolio"
+          },
+          {
+            "href": "/#contact",
+            "label": "Contact"
+          }
         ]
       }
     ],
-    "demoCta": { "href": "/demo-loader", "label": "Demo" },
+    "demoCta": {
+      "href": "/demo-loader",
+      "label": "Demo"
+    },
     "showDemoCta": false,
     "showSignIn": true
   },
@@ -67,8 +122,381 @@
     "showContact": true,
     "showLegalLinks": true,
     "ctas": [
-      { "href": "/features", "label": "How's it Work?", "variant": "ghost" },
-      { "href": "/demo-loader", "label": "Demo", "variant": "primary" }
-    ]
-  }
+      {
+        "href": "/features",
+        "label": "How's it Work?",
+        "variant": "ghost"
+      },
+      {
+        "href": "/demo-loader",
+        "label": "Demo",
+        "variant": "primary"
+      }
+    ],
+    "heroDemoAvatars": {
+      "field-checkin": "hero-field-checkin",
+      "nda-signing": "hero-nda-signing",
+      "henderson-billing": "hero-henderson-billing",
+      "inventory-channels": "hero-inventory-channels",
+      "materials-paint-pricing": "hero-materials-paint-pricing"
+    }
+  },
+  "aboutImage": "about-office",
+  "clientLogos": [
+    {
+      "name": "Porsche",
+      "image": "client-porsche",
+      "width": 24,
+      "height": 24
+    },
+    {
+      "name": "The New York Times",
+      "image": "client-newyorktimes",
+      "width": 24,
+      "height": 24
+    },
+    {
+      "name": "Red Bull",
+      "image": "client-redbull",
+      "width": 24,
+      "height": 24
+    },
+    {
+      "name": "Chase Bank",
+      "image": "client-chase",
+      "width": 24,
+      "height": 24
+    },
+    {
+      "name": "Acura",
+      "image": "client-acura",
+      "width": 24,
+      "height": 24
+    },
+    {
+      "name": "Bombay Sapphire",
+      "image": "client-bombay-sapphire",
+      "width": 3564,
+      "height": 765
+    },
+    {
+      "name": "Live Nation",
+      "image": "client-live-nation",
+      "width": 868.6,
+      "height": 96.1
+    },
+    {
+      "name": "Johnnie Walker",
+      "image": "client-johnnie-walker",
+      "width": 100.75,
+      "height": 10.3
+    },
+    {
+      "name": "Worcester Polytechnic Institute",
+      "image": "client-wpi",
+      "width": 195.133,
+      "height": 73.07
+    },
+    {
+      "name": "Kingdom Trails",
+      "image": "client-kingdom-trails",
+      "width": 140,
+      "height": 42
+    },
+    {
+      "name": "UC Law San Francisco",
+      "image": "client-uc-law-sf",
+      "width": 279,
+      "height": 60
+    },
+    {
+      "name": "Mohegan Sun",
+      "image": "client-mohegan-sun",
+      "width": 185,
+      "height": 83
+    },
+    {
+      "name": "Sharpie",
+      "image": "client-sharpie",
+      "width": 1000,
+      "height": 332.43
+    },
+    {
+      "name": "The Overlook",
+      "image": "client-overlook",
+      "width": 200,
+      "height": 46
+    },
+    {
+      "name": "Coinbase",
+      "image": "client-coinbase",
+      "width": 142,
+      "height": 30
+    }
+  ],
+  "portfolio": [
+    {
+      "title": "M-Dot",
+      "description": "Boston-born East Coast hip-hop artist and producer — a lyric-first MC with two decades in the underground, collaborations with Pete Rock, DJ Premier, and Method Man, 17 European tours, and placements on NBC, STARZ, and Def Jam. REΛVE built his digital home base to match that pedigree.",
+      "tags": [
+        "Web Design",
+        "Music",
+        "Artist Brand"
+      ],
+      "image": "portfolio-mdot-world-featured",
+      "imageAlt": "M-Dot portrait splash page with bottom music and social dock on black",
+      "size": "2x1"
+    },
+    {
+      "title": "Mohegan Sun",
+      "description": "One of the largest casino-resort destinations in the U.S. — owned by the Mohegan Tribe, with twin casinos, 1,500+ rooms, a 10,000-seat arena, and world-class dining and entertainment. REΛVE supported experiential marketing and on-property event production for this flagship New England partner.",
+      "tags": [
+        "Events",
+        "Marketing",
+        "Experiential"
+      ],
+      "image": "portfolio-mohegan-sun-featured",
+      "imageAlt": "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
+      "size": "4x1"
+    },
+    {
+      "title": "Porsche Miami Art Week",
+      "description": "Mission E concept VIP preview — parquet platform staging, gallery lighting, and “Tribute to tomorrow” experiential branding.",
+      "tags": [
+        "Events",
+        "Automotive",
+        "VIP"
+      ],
+      "image": "portfolio-porsche-miami-art-week-featured",
+      "imageAlt": "White Porsche Mission E concept on a parquet platform with Tribute to tomorrow branding at Miami Art Week",
+      "size": "2x1"
+    },
+    {
+      "title": "VIP Perks · Marker Security",
+      "description": "Markers Protection Services — a Worcester-based event security firm staffing concerts and festivals across New England since 2000. REΛVE consulted on logistics, design, branding, and app development.",
+      "tags": [
+        "Consulting",
+        "Branding",
+        "App Development"
+      ],
+      "image": "portfolio-vip-perks-marker-security-featured",
+      "imageAlt": "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
+      "size": "2x1"
+    },
+    {
+      "title": "LUXEMEDS",
+      "description": "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
+      "tags": [
+        "Web Design",
+        "E-commerce",
+        "Wellness"
+      ],
+      "image": "portfolio-luxe-meds-featured",
+      "imageAlt": "LUXEMEDS homepage with product vial hero and chat concierge",
+      "size": "1x2"
+    },
+    {
+      "title": "Creed Lounge",
+      "description": "Worcester's premier multicultural hookah lounge — late-night cocktails, live music, and a cross-cultural nightlife destination on Pleasant Street. REΛVE developed the venue's brand identity and marketing presence from the ground up.",
+      "tags": [
+        "Branding",
+        "Identity",
+        "Nightlife"
+      ],
+      "image": "portfolio-creed-featured",
+      "imageAlt": "CREED hookah lounge sign against a glass skyscraper at dusk",
+      "size": "2x2"
+    },
+    {
+      "title": "Air Race 21",
+      "description": "Reno Jet Racing Team in the Jet Class at the National Championship Air Races — the world's fastest motorsport, where modified L-39 Albatros jets exceed 500 mph on a closed pylon course. REΛVE developed race-day livery and event graphics for the #21 team.",
+      "tags": [
+        "Branding",
+        "Aviation",
+        "Events"
+      ],
+      "image": "portfolio-ar-featured",
+      "imageAlt": "Red racing jet with Air Race 21 decorative graphic overlay",
+      "size": "2x1"
+    },
+    {
+      "title": "Kingdom Trails",
+      "description": "World-renowned, community-supported trail network in Vermont's Northeast Kingdom — 100+ miles of non-motorized, multi-use trails for all abilities, stewarded through private landowner partnerships and careful trail maintenance.",
+      "tags": [
+        "Branding",
+        "Outdoor",
+        "Print"
+      ],
+      "image": "portfolio-kingdom-featured",
+      "imageAlt": "Kingdom Trails crown logo over mountain bikers in a pine forest",
+      "size": "2x1"
+    },
+    {
+      "title": "Students for Haiti",
+      "description": "U.S.–Haiti nonprofit supporting education, health, and community programs across Haiti. REΛVE manages WordPress hosting and ongoing site development.",
+      "tags": [
+        "Managed Hosting",
+        "WordPress",
+        "Development"
+      ],
+      "image": "portfolio-featured-sfh",
+      "imageAlt": "Students for Haiti logo over volunteer and children in Haiti",
+      "size": "2x2"
+    },
+    {
+      "title": "Vasodyn",
+      "description": "Hand-blown anatomical glass models for medical education and the life sciences — precision organ and vascular forms for study and demonstration. REΛVE manages WordPress hosting and ongoing marketing.",
+      "tags": [
+        "Managed Hosting",
+        "WordPress",
+        "Marketing"
+      ],
+      "image": "portfolio-vasodyn-featured",
+      "imageAlt": "Glass aortic arch model lit in emerald green for Vasodyn",
+      "size": "1x2"
+    },
+    {
+      "title": "blackWater",
+      "description": "Fire protection startup building next-gen safety systems for commercial and industrial sites. REΛVE delivered the logo and brand development.",
+      "tags": [
+        "Logo Design",
+        "Brand Development"
+      ],
+      "image": "portfolio-blackwater-featured",
+      "imageAlt": "blackWater logo stenciled onto a textured stone wall",
+      "size": "2x1"
+    },
+    {
+      "title": "Box Capital",
+      "description": "Isometric mark and wordmark for a finance brand — green gradient on dark field.",
+      "tags": [
+        "Logo",
+        "Finance",
+        "Identity"
+      ],
+      "image": "portfolio-box-captital-logo-dark",
+      "imageAlt": "Box Capital isometric green logo on black",
+      "size": "1x1"
+    },
+    {
+      "title": "Innercity Fire Protection",
+      "description": "Flame icon with city-grid motif — warm gradient mark and industrial sans typography.",
+      "tags": [
+        "Logo",
+        "Safety",
+        "Identity"
+      ],
+      "image": "portfolio-icfp-logo",
+      "imageAlt": "Innercity Fire Protection flame logo with city grid pattern",
+      "size": "1x1"
+    },
+    {
+      "title": "Lotus Glass",
+      "description": "Artisan glass brand — layered lotus mark, outlined wordmark, and soft bokeh backdrop.",
+      "tags": [
+        "Branding",
+        "Craft",
+        "Logo"
+      ],
+      "image": "portfolio-lotus-glass-featured",
+      "imageAlt": "Lotus Glass logo system — full wordmark and LGW mark with and without outline",
+      "size": "1x1"
+    },
+    {
+      "title": "Anglerfish Aquatics",
+      "description": "Rhode Island USA Swimming club in Cumberland — learn-to-swim, competitive team, and triathlon training for all ages, with Olympic medalist Erik Vendt on staff. REΛVE designed the team's distinctive wordmark identity.",
+      "tags": [
+        "Logo",
+        "Branding",
+        "Sports"
+      ],
+      "image": "portfolio-angler-fish-aquatics-featured",
+      "imageAlt": "Anglerfish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
+      "size": "2x1"
+    },
+    {
+      "title": "Paradigm Landscape",
+      "description": "High-end landscape architecture and design firm in Sutton, Massachusetts, serving clients across the Northeast. REΛVE provides design, development, and managed hosting.",
+      "tags": [
+        "Managed Hosting",
+        "Design",
+        "Development"
+      ],
+      "image": "portfolio-paradigm-landscape",
+      "imageAlt": "Hand-rendered backyard landscape design with stone fire pit and terraced gardens",
+      "size": "2x1"
+    },
+    {
+      "title": "UC Hastings Science & Tech",
+      "description": "Academic department identity — swoosh icon mark with light and dark lockups for science and technology programs.",
+      "tags": [
+        "Logo",
+        "Education",
+        "Identity"
+      ],
+      "image": "portfolio-uc-hastings-science-tech-logo",
+      "imageAlt": "UC Hastings science and tech logo on black and white backgrounds",
+      "size": "1x1"
+    },
+    {
+      "title": "Elite Web Labs",
+      "description": "Studio sticker sheet and atom mark swag — black, white, and green brand applications for merch and promo.",
+      "tags": [
+        "Branding",
+        "Print",
+        "Identity"
+      ],
+      "image": "portfolio-elite-web-labs-stickers",
+      "imageAlt": "Elite Web Labs promotional stickers with atom logo and wordmark",
+      "size": "2x1"
+    },
+    {
+      "title": "DPM Construction",
+      "description": "Construction design firm in Cambridge, Massachusetts — recent work includes the Bloomberg Center for Cities at Harvard University, a 12,000 sq ft Kennedy School workspace for mayors and city leaders. REΛVE provides design, development, and managed hosting.",
+      "tags": [
+        "Managed Hosting",
+        "Design",
+        "Development"
+      ],
+      "image": "portfolio-dpm-construction-featured",
+      "imageAlt": "Bloomberg Center for Cities lounge at Harvard with aquarium pillar, modern seating, and campus windows",
+      "size": "2x1"
+    },
+    {
+      "title": "Care Plus Mark",
+      "description": "Minimal connected icon system — heart, plus, and circle forms for a wellness identity suite.",
+      "tags": [
+        "Logo",
+        "Healthcare",
+        "Identity"
+      ],
+      "image": "portfolio-care-plus-mark",
+      "imageAlt": "Black line-art logo combining a heart, plus sign, and circle",
+      "size": "1x1"
+    },
+    {
+      "title": "Barry Levine, Esq.",
+      "description": "Law firm website for LevinesLaw.com — professional attorney branding, practice-area navigation, and client-focused layout.",
+      "tags": [
+        "Web Design",
+        "Law",
+        "WordPress"
+      ],
+      "image": "portfolio-levines-law-featured",
+      "imageAlt": "LevinesLaw.com placeholder tile for Barry Levine Esquire law firm",
+      "size": "2x1"
+    },
+    {
+      "title": "CAPCO Design Group",
+      "description": "Fire protection engineering firm website for CapcoFire.com — MEP, sprinkler, fire alarm, and civil design services with NFPA-compliant project showcases and client portal.",
+      "tags": [
+        "Web Design",
+        "Engineering",
+        "Fire Protection"
+      ],
+      "image": "portfolio-capco-fire-featured",
+      "imageAlt": "CapcoFire.com placeholder tile for CAPCO Design Group fire protection engineering",
+      "size": "2x1"
+    }
+  ]
 }

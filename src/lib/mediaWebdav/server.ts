@@ -269,6 +269,7 @@ async function handlePut(
     mediaType,
     dataBase64,
     uploadedBy,
+    slug: name.replace(/\.[a-z0-9]+$/i, ''),
   });
   if (!result.ok) {
     return new Response(result.error, { status: 400, headers: davDiscoveryHeaders() });

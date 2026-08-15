@@ -12,6 +12,7 @@ import { getActiveDemoSuite } from './demoSuiteContext';
 import { isDemoMode } from './demoMode';
 import { getInstallConfig, installConfigSlug } from './installConfig';
 import { serverEnv } from './serverEnv';
+import { siteMediaSrc } from './siteMedia';
 
 function normalizeDemoIndustry(raw: string | null | undefined): string {
   const slug = (raw ?? '').trim().toLowerCase();
@@ -37,6 +38,24 @@ export type SiteHeroCta = {
   href: string;
   label: string;
   variant?: 'primary' | 'ghost';
+};
+
+export type SiteClientLogo = {
+  name: string;
+  image: string;
+  width: number;
+  height: number;
+};
+
+export type SitePortfolioSize = '1x1' | '2x1' | '1x2' | '2x2' | '3x2' | '4x1';
+
+export type SitePortfolioItem = {
+  title: string;
+  description: string;
+  tags: string[];
+  image: string;
+  imageAlt: string;
+  size: SitePortfolioSize;
 };
 
 export type SiteLandingProperty = {
@@ -169,10 +188,80 @@ export type SiteContentConfig = {
     showContact?: boolean;
     showLegalLinks?: boolean;
     ctas?: SiteHeroCta[];
+    /** Scene id → media slug for hero demo avatars. */
+    heroDemoAvatars?: Record<string, string>;
   };
   /** Full landing-page copy when homepage.template is "landing". */
   landing?: SiteLandingConfig;
+  /** About-page office / team photo (media slug or URL). */
+  aboutImage?: string;
+  clientLogos?: SiteClientLogo[];
+  portfolio?: SitePortfolioItem[];
 };
+
+function resolveHeroDemoAvatars(
+  raw: Record<string, string> | undefined,
+): Record<string, string> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const src = siteMediaSrc(value);
+    if (src) out[key] = src;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function resolveClientLogos(raw: SiteClientLogo[] | undefined): SiteClientLogo[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const logos = raw
+    .map((logo) => ({
+      name: String(logo.name || '').trim(),
+      image: siteMediaSrc(logo.image),
+      width: Number(logo.width) || 24,
+      height: Number(logo.height) || 24,
+    }))
+    .filter((logo) => logo.name && logo.image);
+  return logos.length ? logos : undefined;
+}
+
+const PORTFOLIO_SIZES = new Set<SitePortfolioSize>(['1x1', '2x1', '1x2', '2x2', '3x2', '4x1']);
+
+function resolvePortfolio(raw: SitePortfolioItem[] | undefined): SitePortfolioItem[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const items = raw
+    .map((item) => {
+      const size = PORTFOLIO_SIZES.has(item.size) ? item.size : '2x1';
+      return {
+        title: String(item.title || '').trim(),
+        description: String(item.description || '').trim(),
+        tags: Array.isArray(item.tags) ? item.tags.map((t) => String(t)) : [],
+        image: siteMediaSrc(item.image),
+        imageAlt: String(item.imageAlt || item.title || '').trim(),
+        size,
+      };
+    })
+    .filter((item) => item.title && item.image);
+  return items.length ? items : undefined;
+}
+
+function resolveLandingMedia(landing: SiteLandingConfig): SiteLandingConfig {
+  const next = { ...landing };
+  if (next.ogImage) next.ogImage = siteMediaSrc(next.ogImage);
+  if (next.heroImage) next.heroImage = siteMediaSrc(next.heroImage);
+  if (next.photo?.src) {
+    next.photo = { ...next.photo, src: siteMediaSrc(next.photo.src) };
+  }
+  if (next.properties?.items) {
+    next.properties = {
+      ...next.properties,
+      items: next.properties.items.map((item) => ({
+        ...item,
+        image: siteMediaSrc(item.image) || item.image,
+      })),
+    };
+  }
+  return next;
+}
 
 const _cache = new Map<string, SiteContentConfig>();
 
@@ -283,8 +372,12 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
         showContact: raw.homepage?.showContact ?? false,
         showLegalLinks: raw.homepage?.showLegalLinks ?? true,
         ctas: Array.isArray(raw.homepage?.ctas) ? raw.homepage.ctas : [],
+        heroDemoAvatars: resolveHeroDemoAvatars(raw.homepage?.heroDemoAvatars),
       },
-      landing: raw.landing && typeof raw.landing === 'object' ? raw.landing : undefined,
+      landing: raw.landing && typeof raw.landing === 'object' ? resolveLandingMedia(raw.landing) : undefined,
+      aboutImage: siteMediaSrc(raw.aboutImage) || undefined,
+      clientLogos: resolveClientLogos(raw.clientLogos),
+      portfolio: resolvePortfolio(raw.portfolio),
     };
     _cache.set(slug, config);
     return config;

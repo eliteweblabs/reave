@@ -32,6 +32,7 @@ const SYSTEM_NODES = [
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'media_webdav', title: 'Media drop folder', sub: '/webdav · Finder · iOS Files · MEDIA_WEBDAV_* or CardDAV creds', icon: '📁', hue: 28, status: true, group: 'reave', x: 220, y: 430 },
+  { id: 'media_public', title: 'Public media', sub: '/api/media/{slug} · site photos · no-auth GET', icon: '🖼️', hue: 32, status: true, group: 'reave', x: 220, y: 520 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views · calendar reminders', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
   { id: 'contacts_dash', title: 'Contacts editor', sub: '/admin/ · Contacts tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
@@ -127,6 +128,8 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'app_pg', label: 'DATABASE_URL' },
   { from: 'astro', to: 'media_webdav', label: 'WebDAV' },
   { from: 'media_webdav', to: 'app_pg', label: 'media_library' },
+  { from: 'web', to: 'media_public', label: '/api/media' },
+  { from: 'media_public', to: 'app_pg', label: 'slug' },
   { from: 'astro', to: 'github', label: 'status · commits · PR' },
   { from: 'astro', to: 'code_dev', label: 'agent FS · shell' },
   { from: 'code_dev', to: 'github', label: 'git commit · push', dashed: true },
@@ -171,6 +174,7 @@ const SYSTEM_EDGES = [
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
   { from: 'content_mgmt', to: 'github', label: 'write_github_file', dashed: true },
   { from: 'content_mgmt', to: 'astro', label: 'config/sites · src/pages', dashed: true },
+  { from: 'content_mgmt', to: 'media_public', label: 'image slugs', dashed: true },
   { from: 'dev', to: 'wp_content', label: 'update WP content', dashed: true },
   { from: 'astro', to: 'wp_content', label: 'companion plugin API', dashed: true },
   { from: 'wp_content', to: 'kinsta_api', label: 'clear cache after publish', dashed: true },
@@ -182,7 +186,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal'] },
 ];
 

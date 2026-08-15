@@ -38,10 +38,10 @@
     "variant": "editorial",
     "title": "Tony Barletta Jr. | Loan Officer",
     "description": "Tony Barletta Jr., NMLS #18717. Referral-driven mortgage lending across Massachusetts and 22 licensed states.",
-    "ogImage": "/sites/tonybarlettajr/og-image.jpg",
+    "ogImage": "tony-og-image",
     "themeColor": "#f4efe6",
     "photo": {
-      "src": "/sites/tonybarlettajr/headshot.png",
+      "src": "tony-headshot",
       "alt": "Tony Barletta Jr.",
       "width": 449,
       "height": 449
@@ -51,7 +51,7 @@
     "role": "Loan Officer",
     "tagline": "Guiding homebuyers and refinancers through the mortgage process with clear, personal service.",
     "signature": "Tony Barletta Jr.",
-    "heroImage": "/sites/tonybarlettajr/hero.jpg",
+    "heroImage": "tony-hero",
     "heroHeadline": "Guidance you can close on.",
     "heroBody": "Two decades of mortgage work, built on referrals. Tony helps first-time buyers, repeat clients, and investors through conventional loans, refinances, and more complicated construction and remodeling scenarios.",
     "scheduleUrl": "https://cal.com/tonybarlettajr",
@@ -90,7 +90,7 @@
           "year": 1924,
           "type": "Single Family",
           "district": "Beverly Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p1.jpg",
+          "image": "tony-property-p1",
           "lng": -70.8801,
           "lat": 42.5588,
           "featured": true
@@ -109,7 +109,7 @@
           "year": 2008,
           "type": "Single Family",
           "district": "Marblehead Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p2.jpg",
+          "image": "tony-property-p2",
           "lng": -70.8432,
           "lat": 42.5051,
           "featured": true
@@ -128,7 +128,7 @@
           "year": 1898,
           "type": "Townhouse",
           "district": "Salem Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p3.jpg",
+          "image": "tony-property-p3",
           "lng": -70.8956,
           "lat": 42.5218,
           "featured": true
@@ -147,7 +147,7 @@
           "year": 1996,
           "type": "Single Family",
           "district": "Andover Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p4.jpg",
+          "image": "tony-property-p4",
           "lng": -71.1412,
           "lat": 42.6581,
           "featured": true
@@ -166,7 +166,7 @@
           "year": 2019,
           "type": "Condo",
           "district": "New Bedford Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p5.jpg",
+          "image": "tony-property-p5",
           "lng": -70.9278,
           "lat": 41.6354,
           "featured": true
@@ -185,7 +185,7 @@
           "year": 1978,
           "type": "Single Family",
           "district": "Dartmouth Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p6.jpg",
+          "image": "tony-property-p6",
           "lng": -70.9698,
           "lat": 41.6139,
           "featured": true
@@ -204,7 +204,7 @@
           "year": 1912,
           "type": "Single Family",
           "district": "Manchester Essex Regional",
-          "image": "/sites/tonybarlettajr/properties/p7.jpg",
+          "image": "tony-property-p7",
           "lng": -70.7691,
           "lat": 42.5776,
           "featured": false
@@ -223,7 +223,7 @@
           "year": 2014,
           "type": "Single Family",
           "district": "North Andover Public Schools",
-          "image": "/sites/tonybarlettajr/properties/p8.jpg",
+          "image": "tony-property-p8",
           "lng": -71.1348,
           "lat": 42.6984,
           "featured": true

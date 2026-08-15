@@ -154,7 +154,7 @@ export function heroDemoMentionKind(name: string): "contact" | "team" {
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",
-    userAvatar: "/images/hero-demo/field-checkin.png",
+    userAvatar: "hero-field-checkin",
     holdMs: 1000,
     turns: [
       {
@@ -188,7 +188,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "susie-proposal",
-    userAvatar: "/images/hero-demo/nda-signing.png",
+    userAvatar: "hero-nda-signing",
     holdMs: 1100,
     turns: [
       {
@@ -226,7 +226,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "henderson-billing",
-    userAvatar: "/images/hero-demo/henderson-billing.png",
+    userAvatar: "hero-henderson-billing",
     holdMs: 1100,
     turns: [
       {
@@ -260,7 +260,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "nda-signing",
-    userAvatar: "/images/hero-demo/nda-signing.png",
+    userAvatar: "hero-nda-signing",
     holdMs: 1000,
     turns: [
       {
@@ -287,7 +287,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "slash-invoice",
-    userAvatar: "/images/hero-demo/henderson-billing.png",
+    userAvatar: "hero-henderson-billing",
     holdMs: 900,
     turns: [
       {
@@ -305,7 +305,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "inventory-channels",
-    userAvatar: "/images/hero-demo/inventory-channels.png",
+    userAvatar: "hero-inventory-channels",
     holdMs: 1000,
     turns: [
       {
@@ -338,7 +338,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "site-update",
-    userAvatar: "/images/hero-demo/henderson-billing.png",
+    userAvatar: "hero-henderson-billing",
     holdMs: 1000,
     turns: [
       {
@@ -371,7 +371,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "labor-day-hours",
-    userAvatar: "/images/hero-demo/henderson-billing.png",
+    userAvatar: "hero-henderson-billing",
     holdMs: 1100,
     turns: [
       {
@@ -413,7 +413,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "materials-paint-pricing",
-    userAvatar: "/images/hero-demo/materials-paint-pricing.png",
+    userAvatar: "hero-materials-paint-pricing",
     holdMs: 1000,
     turns: [
       {
@@ -447,7 +447,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   },
   {
     id: "reggie-payment",
-    userAvatar: "/images/hero-demo/henderson-billing.png",
+    userAvatar: "hero-henderson-billing",
     /** Short hold after the invoice card has already swiped away. */
     holdMs: 900,
     turns: [

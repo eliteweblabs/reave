@@ -1,14 +1,11 @@
 ---
-// Desaturated "worked with" logo marquee.
-// Assets live in /public/logos/clients — see that folder for sourcing notes.
+// Desaturated "worked with" logo marquee. Images come from the media library
+// via site content (config/sites/{key}-config.json → clientLogos).
+import { getSiteContent } from "../lib/siteContent";
+
 interface ClientLogo {
   name: string;
   src: string;
-  // Intrinsic aspect ratio (any consistent unit works — most are the
-  // source SVG's viewBox). Several of these SVGs have no width/height
-  // attribute of their own, so without this the <img> has no intrinsic
-  // size for the browser to size against once its container is
-  // content-sized rather than fixed-width, and it collapses to 0×0.
   width: number;
   height: number;
 }
@@ -22,32 +19,22 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
-const logos: ClientLogo[] = shuffle([
-  { name: "Porsche", src: "/logos/clients/porsche.svg", width: 24, height: 24 },
-  { name: "The New York Times", src: "/logos/clients/newyorktimes.svg", width: 24, height: 24 },
-  { name: "Red Bull", src: "/logos/clients/redbull.svg", width: 24, height: 24 },
-  { name: "Chase Bank", src: "/logos/clients/chase.svg", width: 24, height: 24 },
-  { name: "Acura", src: "/logos/clients/acura.svg", width: 24, height: 24 },
-  { name: "Bombay Sapphire", src: "/logos/clients/bombay-sapphire.png", width: 3564, height: 765 },
-  { name: "Live Nation", src: "/logos/clients/live-nation.svg", width: 868.6, height: 96.1 },
-  { name: "Johnnie Walker", src: "/logos/clients/johnnie-walker.svg", width: 100.75, height: 10.3 },
-  {
-    name: "Worcester Polytechnic Institute",
-    src: "/logos/clients/wpi.svg",
-    width: 195.133,
-    height: 73.07,
-  },
-  { name: "Kingdom Trails", src: "/logos/clients/kingdom-trails.svg", width: 140, height: 42 },
-  { name: "UC Law San Francisco", src: "/logos/clients/uc-law-sf.svg", width: 279, height: 60 },
-  { name: "Mohegan Sun", src: "/logos/clients/mohegan-sun.svg", width: 185, height: 83 },
-  { name: "Sharpie", src: "/logos/clients/sharpie.svg", width: 1000, height: 332.43 },
-  { name: "The Overlook", src: "/logos/clients/overlook.svg", width: 200, height: 46 },
-  { name: "Coinbase", src: "/logos/clients/coinbase.svg", width: 142, height: 30 },
-]);
+const configured = getSiteContent().clientLogos ?? [];
+const logos: ClientLogo[] = shuffle(
+  configured.map((logo) => ({
+    name: logo.name,
+    src: logo.image,
+    width: logo.width,
+    height: logo.height,
+  })),
+);
 
 const LOOP_COPIES = 3;
 const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 ---
+
+{
+  logos.length > 0 && (
 
 <div
   class="client-logos-viewport"
@@ -77,6 +64,8 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     </div>
   </div>
 </div>
+  )
+}
 
 <style>
   .client-logos-viewport {

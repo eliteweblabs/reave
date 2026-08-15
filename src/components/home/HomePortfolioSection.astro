@@ -1,7 +1,12 @@
 ---
 import PortfolioMasonry from "../PortfolioMasonry.astro";
+import { getSiteContent } from "../../lib/siteContent";
+
+const items = getSiteContent().portfolio ?? [];
 ---
 
+{
+  items.length > 0 && (
 <section
   id="portfolio"
   class="home-section about-portfolio"
@@ -25,3 +30,5 @@ import PortfolioMasonry from "../PortfolioMasonry.astro";
     </section>
   </div>
 </section>
+  )
+}

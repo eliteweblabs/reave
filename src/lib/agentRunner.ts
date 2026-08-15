@@ -845,7 +845,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('content_management')) {
     sysParts.push(
-      'Website content (no CMS): when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or GitHub, then commit with write_github_file on main (dev_infra + GITHUB_TOKEN). Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
+      'Website content (no CMS): when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or GitHub, then commit with write_github_file on main (dev_infra + GITHUB_TOKEN). Images belong in the media library (slug → /api/media/{slug} in site config), not git. Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
     );
   }
   if (hasFeature('wordpress_content')) {

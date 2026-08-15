@@ -21,7 +21,7 @@ Nav links, homepage headline (`heroHeadlineHtml`), section toggles, and the allo
 
 - `src/pages/` — routes (e.g. `about.astro`)
 - `src/components/` — reusable sections
-- `src/assets/` / `public/` — images and static files
+- Media library — company photos and logos (Admin → Media). Public URL is `/api/media/{slug}`.
 
 Always **read before write**. For long pages, use `write_github_file` with `append:true` in sections — one oversized call gets cut off.
 
@@ -48,7 +48,8 @@ Always **read before write**. For long pages, use `write_github_file` with `appe
 ## Images
 
 - **Stock:** `search_stock_photos` — credit photographer + link to Pexels wherever displayed
-- **Uploads:** Media library in admin, or commit under `src/assets/` / `public/`
+- **Uploads:** Admin → Media (or WebDAV drop folder). Give the file a stable **slug**, then put that slug in `config/sites/{key}-config.json` (`aboutImage`, `clientLogos[].image`, `portfolio[].image`, landing `heroImage` / `photo.src` / property `image`).
+- Do **not** commit company photos or client logos to git. Product chrome (REΛVE icons, replaced-app marks) may stay under `public/`.
 
 ## WordPress on Kinsta
 

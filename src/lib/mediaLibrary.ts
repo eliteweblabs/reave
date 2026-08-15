@@ -24,8 +24,10 @@ export interface MediaLibrarySummary {
   altText: string | null;
   uploadedBy: string | null;
   createdAt: string;
+  slug: string | null;
   url: string;
   thumbnailUrl: string;
+  publicUrl: string;
 }
 
 export interface MediaLibraryRecord extends MediaLibrarySummary {
@@ -94,6 +96,42 @@ export function mediaLibraryThumbnailUrl(id: string): string {
   return `${mediaLibraryUrl(id)}?thumb=1`;
 }
 
+/** Public site URL for a library item — slug when set, otherwise the admin id. */
+export function mediaPublicUrl(idOrSlug: string): string {
+  return `/api/media/${encodeURIComponent(idOrSlug.trim())}`;
+}
+
+const SLUG_MAX = 80;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isMediaId(value: string): boolean {
+  return UUID_RE.test(value.trim());
+}
+
+/** Stable public key: lowercase, hyphenated, no leading/trailing dashes. */
+export function normalizeMediaSlug(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, SLUG_MAX);
+}
+
+export function slugFromFilename(filename: string): string {
+  const base = filename.replace(/^.*[/\\]/, '').replace(/\.[a-z0-9]+$/i, '');
+  return normalizeMediaSlug(base);
+}
+
+function recordUrls(id: string, slug: string | null): Pick<MediaLibrarySummary, 'url' | 'thumbnailUrl' | 'publicUrl'> {
+  return {
+    url: mediaLibraryUrl(id),
+    thumbnailUrl: mediaLibraryThumbnailUrl(id),
+    publicUrl: mediaPublicUrl(slug || id),
+  };
+}
+
 export { projectFileResponseHeaders };
 
 const SCHEMA_SQL = `
@@ -105,9 +143,13 @@ CREATE TABLE IF NOT EXISTS media_library (
   data_base64   TEXT NOT NULL,
   alt_text      TEXT,
   uploaded_by   TEXT,
+  slug          TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS media_library_created_idx ON media_library (created_at DESC);
+ALTER TABLE media_library ADD COLUMN IF NOT EXISTS slug TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS media_library_slug_uidx
+  ON media_library (slug) WHERE slug IS NOT NULL AND btrim(slug) <> '';
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -142,12 +184,18 @@ function mediaRecordPath(id: string): string {
   return join(mediaDir(), `${id.trim()}.json`);
 }
 
+function normalizeSlugField(raw: unknown): string | null {
+  const slug = normalizeMediaSlug(String(raw ?? ''));
+  return slug || null;
+}
+
 function normalizeSummary(raw: Record<string, unknown>): MediaLibrarySummary | null {
   const id = String(raw.id ?? '').trim();
   const filename = String(raw.filename ?? '').trim();
   const mediaType = String(raw.mediaType ?? raw.media_type ?? '').trim().toLowerCase();
   if (!id || !filename || !mediaType) return null;
   const sizeBytes = Number(raw.sizeBytes ?? raw.size_bytes ?? 0);
+  const slug = normalizeSlugField(raw.slug);
   return {
     id,
     filename,
@@ -167,8 +215,8 @@ function normalizeSummary(raw: Record<string, unknown>): MediaLibrarySummary | n
           : null,
     createdAt:
       String(raw.createdAt ?? raw.created_at ?? '').trim() || new Date().toISOString(),
-    url: mediaLibraryUrl(id),
-    thumbnailUrl: mediaLibraryThumbnailUrl(id),
+    slug,
+    ...recordUrls(id, slug),
   };
 }
 
@@ -204,12 +252,22 @@ function fileGetMedia(id: string): MediaLibraryRecord | null {
   }
 }
 
+function fileGetMediaBySlug(slug: string): MediaLibraryRecord | null {
+  const wanted = normalizeMediaSlug(slug);
+  if (!wanted) return null;
+  for (const item of fileListMedia()) {
+    if (item.slug === wanted) return fileGetMedia(item.id);
+  }
+  return null;
+}
+
 function fileAddMedia(input: {
   filename?: string;
   mediaType: string;
   dataBase64: string;
   altText?: string | null;
   uploadedBy?: string | null;
+  slug?: string | null;
 }): { ok: true; item: MediaLibrarySummary } | { ok: false; error: string } {
   const mediaType = input.mediaType.trim().toLowerCase();
   if (!isMediaLibraryMediaType(mediaType)) {
@@ -227,6 +285,10 @@ function fileAddMedia(input: {
 
   const id = randomUUID();
   const filename = input.filename?.trim() || filenameForMediaType(mediaType);
+  const slug = normalizeSlugField(input.slug) || slugFromFilename(filename);
+  if (slug && fileGetMediaBySlug(slug)) {
+    return { ok: false, error: `Slug already in use: ${slug}` };
+  }
   const record: MediaLibraryRecord = {
     id,
     filename,
@@ -235,8 +297,8 @@ function fileAddMedia(input: {
     altText: input.altText?.trim() || null,
     uploadedBy: input.uploadedBy?.trim() || null,
     createdAt: new Date().toISOString(),
-    url: mediaLibraryUrl(id),
-    thumbnailUrl: mediaLibraryThumbnailUrl(id),
+    slug,
+    ...recordUrls(id, slug),
     dataBase64,
   };
   writeFileSync(mediaRecordPath(id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
@@ -274,8 +336,7 @@ function fileUpdateMedia(
     mediaType,
     sizeBytes,
     dataBase64,
-    url: mediaLibraryUrl(existing.id),
-    thumbnailUrl: mediaLibraryThumbnailUrl(existing.id),
+    ...recordUrls(existing.id, existing.slug),
   };
   writeFileSync(mediaRecordPath(existing.id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   const { dataBase64: _d, ...summary } = record;
@@ -308,22 +369,26 @@ async function dbListMedia(limit = 200): Promise<MediaLibrarySummary[] | null> {
       alt_text: string | null;
       uploaded_by: string | null;
       created_at: string;
+      slug: string | null;
     }>(
-      `SELECT id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at
+      `SELECT id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at, slug
        FROM media_library ORDER BY created_at DESC LIMIT $1`,
       [capped],
     );
-    return rows.map((row) => ({
-      id: row.id,
-      filename: row.filename,
-      mediaType: row.media_type,
-      sizeBytes: Number(row.size_bytes),
-      altText: row.alt_text,
-      uploadedBy: row.uploaded_by,
-      createdAt: row.created_at,
-      url: mediaLibraryUrl(row.id),
-      thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
-    }));
+    return rows.map((row) => {
+      const slug = normalizeSlugField(row.slug);
+      return {
+        id: row.id,
+        filename: row.filename,
+        mediaType: row.media_type,
+        sizeBytes: Number(row.size_bytes),
+        altText: row.alt_text,
+        uploadedBy: row.uploaded_by,
+        createdAt: row.created_at,
+        slug,
+        ...recordUrls(row.id, slug),
+      };
+    });
   } catch (e) {
     console.error('[media-library] list failed', e);
     return null;
@@ -343,13 +408,15 @@ async function dbGetMedia(id: string): Promise<MediaLibraryRecord | null> {
       alt_text: string | null;
       uploaded_by: string | null;
       created_at: string;
+      slug: string | null;
     }>(
-      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at
+      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at, slug
        FROM media_library WHERE id = $1`,
       [id.trim()],
     );
     const row = rows[0];
     if (!row) return null;
+    const slug = normalizeSlugField(row.slug);
     return {
       id: row.id,
       filename: row.filename,
@@ -358,12 +425,54 @@ async function dbGetMedia(id: string): Promise<MediaLibraryRecord | null> {
       altText: row.alt_text,
       uploadedBy: row.uploaded_by,
       createdAt: row.created_at,
-      url: mediaLibraryUrl(row.id),
-      thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+      slug,
+      ...recordUrls(row.id, slug),
       dataBase64: row.data_base64,
     };
   } catch (e) {
     console.error('[media-library] get failed', e);
+    return null;
+  }
+}
+
+async function dbGetMediaBySlug(slug: string): Promise<MediaLibraryRecord | null> {
+  const wanted = normalizeMediaSlug(slug);
+  if (!wanted) return null;
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{
+      id: string;
+      filename: string;
+      media_type: string;
+      size_bytes: string;
+      data_base64: string;
+      alt_text: string | null;
+      uploaded_by: string | null;
+      created_at: string;
+      slug: string | null;
+    }>(
+      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at, slug
+       FROM media_library WHERE slug = $1`,
+      [wanted],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const normalized = normalizeSlugField(row.slug);
+    return {
+      id: row.id,
+      filename: row.filename,
+      mediaType: row.media_type,
+      sizeBytes: Number(row.size_bytes),
+      altText: row.alt_text,
+      uploadedBy: row.uploaded_by,
+      createdAt: row.created_at,
+      slug: normalized,
+      ...recordUrls(row.id, normalized),
+      dataBase64: row.data_base64,
+    };
+  } catch (e) {
+    console.error('[media-library] get-by-slug failed', e);
     return null;
   }
 }
@@ -374,6 +483,7 @@ async function dbAddMedia(input: {
   dataBase64: string;
   altText?: string | null;
   uploadedBy?: string | null;
+  slug?: string | null;
 }): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string } | null> {
   const mediaType = input.mediaType.trim().toLowerCase();
   if (!isMediaLibraryMediaType(mediaType)) {
@@ -393,9 +503,10 @@ async function dbAddMedia(input: {
     const pool = await ensureSchema();
     if (!pool) return null;
     const filename = input.filename?.trim() || filenameForMediaType(mediaType);
+    const slug = normalizeSlugField(input.slug) || slugFromFilename(filename);
     const { rows } = await pool.query<{ id: string; created_at: string }>(
-      `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, slug)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, created_at`,
       [
         filename,
@@ -404,6 +515,7 @@ async function dbAddMedia(input: {
         dataBase64,
         input.altText?.trim() || null,
         input.uploadedBy?.trim() || null,
+        slug,
       ],
     );
     const row = rows[0];
@@ -418,11 +530,15 @@ async function dbAddMedia(input: {
         altText: input.altText?.trim() || null,
         uploadedBy: input.uploadedBy?.trim() || null,
         createdAt: row.created_at,
-        url: mediaLibraryUrl(row.id),
-        thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+        slug,
+        ...recordUrls(row.id, slug),
       },
     };
   } catch (e) {
+    const message = e instanceof Error ? e.message : '';
+    if (message.includes('media_library_slug_uidx') || message.includes('duplicate key')) {
+      return { ok: false, error: 'Slug already in use' };
+    }
     console.error('[media-library] add failed', e);
     return { ok: false, error: 'Failed to save file' };
   }
@@ -460,6 +576,7 @@ async function dbUpdateMedia(
       alt_text: string | null;
       uploaded_by: string | null;
       created_at: string;
+      slug: string | null;
     }>(
       `UPDATE media_library
        SET media_type = $2,
@@ -467,11 +584,12 @@ async function dbUpdateMedia(
            data_base64 = $4,
            filename = COALESCE($5, filename)
        WHERE id = $1
-       RETURNING id, filename, alt_text, uploaded_by, created_at`,
+       RETURNING id, filename, alt_text, uploaded_by, created_at, slug`,
       [id.trim(), mediaType, sizeBytes, dataBase64, filename],
     );
     const row = rows[0];
     if (!row) return { ok: false, error: 'Not found' };
+    const slug = normalizeSlugField(row.slug);
     return {
       ok: true,
       item: {
@@ -482,8 +600,8 @@ async function dbUpdateMedia(
         altText: row.alt_text,
         uploadedBy: row.uploaded_by,
         createdAt: row.created_at,
-        url: mediaLibraryUrl(row.id),
-        thumbnailUrl: mediaLibraryThumbnailUrl(row.id),
+        slug,
+        ...recordUrls(row.id, slug),
       },
     };
   } catch (e) {
@@ -521,12 +639,34 @@ export async function storeGetMedia(id: string): Promise<MediaLibraryRecord | nu
   return fileGetMedia(id);
 }
 
+export async function storeGetMediaBySlug(slug: string): Promise<MediaLibraryRecord | null> {
+  const wanted = normalizeMediaSlug(slug);
+  if (!wanted) return null;
+  if (isMediaLibraryDbConfigured()) {
+    const row = await dbGetMediaBySlug(wanted);
+    if (row) return row;
+  }
+  return fileGetMediaBySlug(wanted);
+}
+
+/** Lookup by UUID or public slug. */
+export async function storeGetMediaByRef(idOrSlug: string): Promise<MediaLibraryRecord | null> {
+  const ref = idOrSlug.trim();
+  if (!ref) return null;
+  if (isMediaId(ref)) {
+    const byId = await storeGetMedia(ref);
+    if (byId) return byId;
+  }
+  return storeGetMediaBySlug(ref);
+}
+
 export async function storeAddMedia(input: {
   filename?: string;
   mediaType: string;
   dataBase64: string;
   altText?: string | null;
   uploadedBy?: string | null;
+  slug?: string | null;
 }): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
   if (isMediaLibraryDbConfigured()) {
     const result = await dbAddMedia(input);
@@ -558,6 +698,75 @@ export async function storeDeleteMedia(id: string): Promise<boolean> {
     if (result !== null) return result;
   }
   return fileDeleteMedia(id);
+}
+
+export async function storeUpdateMediaMeta(
+  id: string,
+  input: { slug?: string | null; altText?: string | null },
+): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
+  const existing = await storeGetMedia(id);
+  if (!existing) return { ok: false, error: 'Not found' };
+  const slug =
+    input.slug !== undefined ? normalizeSlugField(input.slug) : existing.slug;
+  const altText =
+    input.altText !== undefined ? input.altText?.trim() || null : existing.altText;
+
+  if (isMediaLibraryDbConfigured()) {
+    try {
+      const pool = await ensureSchema();
+      if (pool) {
+        const { rows } = await pool.query<{
+          id: string;
+          filename: string;
+          media_type: string;
+          size_bytes: string;
+          alt_text: string | null;
+          uploaded_by: string | null;
+          created_at: string;
+          slug: string | null;
+        }>(
+          `UPDATE media_library SET slug = $2, alt_text = $3 WHERE id = $1
+           RETURNING id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at, slug`,
+          [existing.id, slug, altText],
+        );
+        const row = rows[0];
+        if (row) {
+          const nextSlug = normalizeSlugField(row.slug);
+          return {
+            ok: true,
+            item: {
+              id: row.id,
+              filename: row.filename,
+              mediaType: row.media_type,
+              sizeBytes: Number(row.size_bytes),
+              altText: row.alt_text,
+              uploadedBy: row.uploaded_by,
+              createdAt: row.created_at,
+              slug: nextSlug,
+              ...recordUrls(row.id, nextSlug),
+            },
+          };
+        }
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '';
+      if (message.includes('media_library_slug_uidx') || message.includes('duplicate key')) {
+        return { ok: false, error: 'Slug already in use' };
+      }
+      console.error('[media-library] meta update failed', e);
+      return { ok: false, error: 'Failed to update file' };
+    }
+  }
+
+  const record: MediaLibraryRecord = {
+    ...existing,
+    slug,
+    altText,
+    ...recordUrls(existing.id, slug),
+  };
+  writeFileSync(mediaRecordPath(existing.id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  const { dataBase64: _d, ...summary } = record;
+  return { ok: true, item: summary };
 }
 
 /** Branding uploads: raster max 2 MB, SVG max 200 KB. */

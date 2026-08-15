@@ -11,6 +11,7 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
+import { siteMediaSrc } from "../../lib/siteMedia";
 import { HERO_DEMO_SCENES } from "../../lib/heroDemoConversation";
 
 interface Props {
@@ -20,7 +21,11 @@ interface Props {
 const { siteContent: siteContentProp } = Astro.props;
 const siteContent = siteContentProp ?? getSiteContent();
 const company = await getCompanyConfig(Astro.request);
-const demoScenes = HERO_DEMO_SCENES;
+const avatarOverrides = siteContent.homepage.heroDemoAvatars ?? {};
+const demoScenes = HERO_DEMO_SCENES.map((scene) => ({
+  ...scene,
+  userAvatar: avatarOverrides[scene.id] || siteMediaSrc(scene.userAvatar) || undefined,
+}));
 const homepage = siteContent.homepage;
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;

@@ -1,247 +1,10 @@
 ---
-import { Picture } from "astro:assets";
-import type { ImageMetadata } from "astro";
+import { getSiteContent, type SitePortfolioItem } from "../lib/siteContent";
 
-import mdotWorldFeatured from "../assets/images/portfolio/mdot-world-featured.webp";
-import moheganSunFeatured from "../assets/images/portfolio/mohegan-sun-featured.webp";
-import porscheMiamiFeatured from "../assets/images/portfolio/porsche-miami-art-week-featured.webp";
-import vipPerksFeatured from "../assets/images/portfolio/vip-perks-marker-security-featured.webp";
-import luxeMedsFeatured from "../assets/images/portfolio/luxe-meds-featured.webp";
-import creedFeatured from "../assets/images/portfolio/creed-featured.webp";
-import arFeatured from "../assets/images/portfolio/ar-featured.webp";
-import kingdomFeatured from "../assets/images/portfolio/kingdom-featured.webp";
-import featuredSfh from "../assets/images/portfolio/featured-sfh.webp";
-import vasodynFeatured from "../assets/images/portfolio/vasodyn-featured.webp";
-import blackwaterFeatured from "../assets/images/portfolio/blackwater-featured.webp";
-import boxCapitalLogo from "../assets/images/portfolio/box-captital-logo-dark.webp";
-import icfpLogo from "../assets/images/portfolio/icfp-logo.webp";
-import lotusGlassFeatured from "../assets/images/featured/lotus-glass-featured.jpg";
-import anglerFishFeatured from "../assets/images/portfolio/angler-fish-aquatics-featured.webp";
-import paradigmLandscape from "../assets/images/portfolio/paradigm-landscape.webp";
-import ucHastingsLogo from "../assets/images/portfolio/uc-hastings-science-tech-logo.webp";
-import eliteWebLabsStickers from "../assets/images/portfolio/elite-web-labs-stickers.webp";
-import dpmConstructionFeatured from "../assets/images/portfolio/dpm-construction-featured.webp";
-import carePlusMark from "../assets/images/portfolio/care-plus-mark.webp";
-import levinesLawFeatured from "../assets/images/portfolio/levines-law-featured.webp";
-import capcoFireFeatured from "../assets/images/portfolio/capco-fire-featured.webp";
-
-type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "3x2" | "4x1";
-
-interface PortfolioItem {
-  title: string;
-  description: string;
-  tags: string[];
-  image: ImageMetadata;
-  imageAlt: string;
-  size: TileSize;
-}
-
-const items: PortfolioItem[] = [
-  {
-    title: "M-Dot",
-    description:
-      "Boston-born East Coast hip-hop artist and producer — a lyric-first MC with two decades in the underground, collaborations with Pete Rock, DJ Premier, and Method Man, 17 European tours, and placements on NBC, STARZ, and Def Jam. REΛVE built his digital home base to match that pedigree.",
-    tags: ["Web Design", "Music", "Artist Brand"],
-    image: mdotWorldFeatured,
-    imageAlt: "M-Dot portrait splash page with bottom music and social dock on black",
-    size: "2x1",
-  },
-  {
-    title: "Mohegan Sun",
-    description:
-      "One of the largest casino-resort destinations in the U.S. — owned by the Mohegan Tribe, with twin casinos, 1,500+ rooms, a 10,000-seat arena, and world-class dining and entertainment. REΛVE supported experiential marketing and on-property event production for this flagship New England partner.",
-    tags: ["Events", "Marketing", "Experiential"],
-    image: moheganSunFeatured,
-    imageAlt:
-      "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
-    size: "4x1",
-  },
-  {
-    title: "Porsche Miami Art Week",
-    description:
-      "Mission E concept VIP preview — parquet platform staging, gallery lighting, and “Tribute to tomorrow” experiential branding.",
-    tags: ["Events", "Automotive", "VIP"],
-    image: porscheMiamiFeatured,
-    imageAlt:
-      "White Porsche Mission E concept on a parquet platform with Tribute to tomorrow branding at Miami Art Week",
-    size: "2x1",
-  },
-  {
-    title: "VIP Perks · Marker Security",
-    description:
-      "Markers Protection Services — a Worcester-based event security firm staffing concerts and festivals across New England since 2000. REΛVE consulted on logistics, design, branding, and app development.",
-    tags: ["Consulting", "Branding", "App Development"],
-    image: vipPerksFeatured,
-    imageAlt:
-      "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
-    size: "2x1",
-  },
-  {
-    title: "LUXEMEDS",
-    description:
-      "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
-    tags: ["Web Design", "E-commerce", "Wellness"],
-    image: luxeMedsFeatured,
-    imageAlt: "LUXEMEDS homepage with product vial hero and chat concierge",
-    size: "1x2",
-  },
-  {
-    title: "Creed Lounge",
-    description:
-      "Worcester's premier multicultural hookah lounge — late-night cocktails, live music, and a cross-cultural nightlife destination on Pleasant Street. REΛVE developed the venue's brand identity and marketing presence from the ground up.",
-    tags: ["Branding", "Identity", "Nightlife"],
-    image: creedFeatured,
-    imageAlt: "CREED hookah lounge sign against a glass skyscraper at dusk",
-    size: "2x2",
-  },
-  {
-    title: "Air Race 21",
-    description:
-      "Reno Jet Racing Team in the Jet Class at the National Championship Air Races — the world's fastest motorsport, where modified L-39 Albatros jets exceed 500 mph on a closed pylon course. REΛVE developed race-day livery and event graphics for the #21 team.",
-    tags: ["Branding", "Aviation", "Events"],
-    image: arFeatured,
-    imageAlt: "Red racing jet with Air Race 21 decorative graphic overlay",
-    size: "2x1",
-  },
-  {
-    title: "Kingdom Trails",
-    description:
-      "World-renowned, community-supported trail network in Vermont's Northeast Kingdom — 100+ miles of non-motorized, multi-use trails for all abilities, stewarded through private landowner partnerships and careful trail maintenance.",
-    tags: ["Branding", "Outdoor", "Print"],
-    image: kingdomFeatured,
-    imageAlt: "Kingdom Trails crown logo over mountain bikers in a pine forest",
-    size: "2x1",
-  },
-  {
-    title: "Students for Haiti",
-    description:
-      "U.S.–Haiti nonprofit supporting education, health, and community programs across Haiti. REΛVE manages WordPress hosting and ongoing site development.",
-    tags: ["Managed Hosting", "WordPress", "Development"],
-    image: featuredSfh,
-    imageAlt: "Students for Haiti logo over volunteer and children in Haiti",
-    size: "2x2",
-  },
-  {
-    title: "Vasodyn",
-    description:
-      "Hand-blown anatomical glass models for medical education and the life sciences — precision organ and vascular forms for study and demonstration. REΛVE manages WordPress hosting and ongoing marketing.",
-    tags: ["Managed Hosting", "WordPress", "Marketing"],
-    image: vasodynFeatured,
-    imageAlt: "Glass aortic arch model lit in emerald green for Vasodyn",
-    size: "1x2",
-  },
-  {
-    title: "blackWater",
-    description:
-      "Fire protection startup building next-gen safety systems for commercial and industrial sites. REΛVE delivered the logo and brand development.",
-    tags: ["Logo Design", "Brand Development"],
-    image: blackwaterFeatured,
-    imageAlt: "blackWater logo stenciled onto a textured stone wall",
-    size: "2x1",
-  },
-  {
-    title: "Box Capital",
-    description: "Isometric mark and wordmark for a finance brand — green gradient on dark field.",
-    tags: ["Logo", "Finance", "Identity"],
-    image: boxCapitalLogo,
-    imageAlt: "Box Capital isometric green logo on black",
-    size: "1x1",
-  },
-  {
-    title: "Innercity Fire Protection",
-    description:
-      "Flame icon with city-grid motif — warm gradient mark and industrial sans typography.",
-    tags: ["Logo", "Safety", "Identity"],
-    image: icfpLogo,
-    imageAlt: "Innercity Fire Protection flame logo with city grid pattern",
-    size: "1x1",
-  },
-  {
-    title: "Lotus Glass",
-    description:
-      "Artisan glass brand — layered lotus mark, outlined wordmark, and soft bokeh backdrop.",
-    tags: ["Branding", "Craft", "Logo"],
-    image: lotusGlassFeatured,
-    imageAlt: "Lotus Glass logo system — full wordmark and LGW mark with and without outline",
-    size: "1x1",
-  },
-  {
-    title: "Anglerfish Aquatics",
-    description:
-      "Rhode Island USA Swimming club in Cumberland — learn-to-swim, competitive team, and triathlon training for all ages, with Olympic medalist Erik Vendt on staff. REΛVE designed the team's distinctive wordmark identity.",
-    tags: ["Logo", "Branding", "Sports"],
-    image: anglerFishFeatured,
-    imageAlt:
-      "Anglerfish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
-    size: "2x1",
-  },
-  {
-    title: "Paradigm Landscape",
-    description:
-      "High-end landscape architecture and design firm in Sutton, Massachusetts, serving clients across the Northeast. REΛVE provides design, development, and managed hosting.",
-    tags: ["Managed Hosting", "Design", "Development"],
-    image: paradigmLandscape,
-    imageAlt: "Hand-rendered backyard landscape design with stone fire pit and terraced gardens",
-    size: "2x1",
-  },
-  {
-    title: "UC Hastings Science & Tech",
-    description:
-      "Academic department identity — swoosh icon mark with light and dark lockups for science and technology programs.",
-    tags: ["Logo", "Education", "Identity"],
-    image: ucHastingsLogo,
-    imageAlt: "UC Hastings science and tech logo on black and white backgrounds",
-    size: "1x1",
-  },
-  {
-    title: "Elite Web Labs",
-    description:
-      "Studio sticker sheet and atom mark swag — black, white, and green brand applications for merch and promo.",
-    tags: ["Branding", "Print", "Identity"],
-    image: eliteWebLabsStickers,
-    imageAlt: "Elite Web Labs promotional stickers with atom logo and wordmark",
-    size: "2x1",
-  },
-  {
-    title: "DPM Construction",
-    description:
-      "Construction design firm in Cambridge, Massachusetts — recent work includes the Bloomberg Center for Cities at Harvard University, a 12,000 sq ft Kennedy School workspace for mayors and city leaders. REΛVE provides design, development, and managed hosting.",
-    tags: ["Managed Hosting", "Design", "Development"],
-    image: dpmConstructionFeatured,
-    imageAlt:
-      "Bloomberg Center for Cities lounge at Harvard with aquarium pillar, modern seating, and campus windows",
-    size: "2x1",
-  },
-  {
-    title: "Care Plus Mark",
-    description:
-      "Minimal connected icon system — heart, plus, and circle forms for a wellness identity suite.",
-    tags: ["Logo", "Healthcare", "Identity"],
-    image: carePlusMark,
-    imageAlt: "Black line-art logo combining a heart, plus sign, and circle",
-    size: "1x1",
-  },
-  {
-    title: "Barry Levine, Esq.",
-    description:
-      "Law firm website for LevinesLaw.com — professional attorney branding, practice-area navigation, and client-focused layout.",
-    tags: ["Web Design", "Law", "WordPress"],
-    image: levinesLawFeatured,
-    imageAlt: "LevinesLaw.com placeholder tile for Barry Levine Esquire law firm",
-    size: "2x1",
-  },
-  {
-    title: "CAPCO Design Group",
-    description:
-      "Fire protection engineering firm website for CapcoFire.com — MEP, sprinkler, fire alarm, and civil design services with NFPA-compliant project showcases and client portal.",
-    tags: ["Web Design", "Engineering", "Fire Protection"],
-    image: capcoFireFeatured,
-    imageAlt: "CapcoFire.com placeholder tile for CAPCO Design Group fire protection engineering",
-    size: "2x1",
-  },
-];
+const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
 ---
 
+{items.length > 0 && (
 <div class="portfolio-masonry" data-portfolio-masonry>
   {
     items.map((item) => (
@@ -252,15 +15,12 @@ const items: PortfolioItem[] = [
           aria-label={`${item.title} — ${item.description}`}
           data-masonry-card
         >
-          <Picture
+          <img
             src={item.image}
             alt={item.imageAlt}
-            formats={["avif", "webp"]}
-            widths={[400, 800, 1200]}
-            sizes="(max-width: 640px) 50vw, (max-width: 960px) 25vw, 20vw"
+            class="masonry-image"
             loading="lazy"
             decoding="async"
-            class="masonry-image"
           />
           <div class="masonry-overlay">
             <div class="masonry-overlay-inner">
@@ -278,6 +38,7 @@ const items: PortfolioItem[] = [
     ))
   }
 </div>
+)}
 
 <style>
   .portfolio-masonry {
@@ -349,12 +110,6 @@ const items: PortfolioItem[] = [
   .masonry-card:focus-visible {
     outline: 2px solid #a855f7;
     outline-offset: 2px;
-  }
-
-  .masonry-card > picture {
-    display: block;
-    width: 100%;
-    height: 100%;
   }
 
   .masonry-image {
