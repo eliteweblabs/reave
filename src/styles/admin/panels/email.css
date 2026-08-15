@@ -175,7 +175,7 @@
   border-color: color-mix(in srgb, var(--danger, #dc2626) 35%, transparent);
   background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
   /* Icon sits in the right cap; clip the ring to the pill path. */
-  padding-right: 0;
+  padding-right: 0.45rem;
   overflow: hidden;
 }
 .em-filter-tab.em-filter-tab--purge:hover,
