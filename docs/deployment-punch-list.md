@@ -68,7 +68,7 @@ Minimum to run Astro + `/admin/` on Railway.
 | Auth | `PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `PUBLIC_CLERK_ALLOW_SIGN_UP` |
 | Install identity | `INSTALL_CONFIG` (e.g. `demo`), `PUBLIC_SITE_URL` / domain |
 | Contacts (always on) | `CONTACT_API_BASE_URL`, `CONTACT_API_KEY` + deploy **contact-api** sibling with its **own Postgres** and `DATABASE_URL`. Schema is created on boot — do not run a separate migrate step. **Smoke:** `GET /api/contacts` (with API key) must return 200, not `relation "contacts" does not exist`. |
-| Email inbox (always on) | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM` + Resend webhook → `/api/email/inbound` |
+| Email inbox (always on) | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM` + Resend webhook → `/api/email/inbound`. Wizard also sets `EMAIL_FROM=${{ RESEND_FROM }}` on `reave` so Cal.com / Crater can reference `${{ reave.EMAIL_FROM }}` — do not leave Cal.com `EMAIL_FROM` unset (it falls back to sendmail). |
 | Agent / alerts | `ANTHROPIC_API_KEY`, `AGENT_ALERT_USER_ID` (set after first Clerk sign-in) |
 | Clerk dashboard | Allowed origins for Railway domain |
 

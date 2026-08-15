@@ -458,7 +458,52 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'RESEND_FROM',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Verified sender, e.g. Reave <noreply@mail.example.com>.',
+    description: 'Verified sender, e.g. Reave <noreply@mail.example.com>. Source of truth for sibling EMAIL_FROM.',
+  }),
+  v({
+    name: 'EMAIL_FROM',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'reference',
+    value: '${{ RESEND_FROM }}',
+    description: 'Same-service alias so Cal.com / Crater can reference reave.EMAIL_FROM.',
+  }),
+  v({
+    name: 'PUBLIC_SITE_DOMAIN',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Install apex (acme.com). Filled from the wizard site-domain field.',
+    required: false,
+  }),
+  v({
+    name: 'VAPID_PUBLIC_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'generated',
+    description: 'Web Push public key.',
+    required: false,
+  }),
+  v({
+    name: 'VAPID_PRIVATE_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'generated',
+    description: 'Web Push private key.',
+    required: false,
+  }),
+  v({
+    name: 'VAPID_SUBJECT',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: 'mailto:admin@localhost',
+    description: 'Web Push subject (mailto:). Update to the owner email.',
+    required: false,
+  }),
+  v({
+    name: 'PUSH_ENABLED',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '1',
+    description: 'Enable admin PWA push.',
+    required: false,
   }),
   v({
     name: 'AGENT_ALERT_USER_ID',
@@ -504,6 +549,13 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     value: railwaySharedRef('CONTACT_API_CLIENT_KEY'),
     sharedKey: 'CONTACT_API_CLIENT_KEY',
     description: 'Must match CONTACT_API_KEY on reave.',
+  }),
+  v({
+    name: 'ALLOWED_ORIGINS',
+    service: 'contact-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_SITE_URL'),
+    description: 'CORS — pull the public site URL from reave, do not paste it.',
   }),
 
   // ── CardDAV / media ──
@@ -573,6 +625,70 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     description: 'Must match reave’s CRATER_API_TOKEN.',
     features: ['billing'],
   }),
+  v({
+    name: 'APP_URL',
+    service: 'crater',
+    kind: 'reference',
+    value: railwayPublicUrl('crater'),
+    description: 'Crater public origin.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_MAILER',
+    service: 'crater',
+    kind: 'literal',
+    value: 'smtp',
+    description: 'Use SMTP (Resend) instead of sendmail.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_FROM_ADDRESS',
+    service: 'crater',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
+    description: 'Invoice mail from-address — same Resend sender as reave.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_PASSWORD',
+    service: 'crater',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'RESEND_API_KEY'),
+    description: 'Resend SMTP password from reave.RESEND_API_KEY.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_HOST',
+    service: 'crater',
+    kind: 'literal',
+    value: 'smtp.resend.com',
+    description: 'Resend SMTP.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_PORT',
+    service: 'crater',
+    kind: 'literal',
+    value: '465',
+    description: 'Resend SMTP port.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_USERNAME',
+    service: 'crater',
+    kind: 'literal',
+    value: 'resend',
+    description: 'Resend SMTP user.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'MAIL_ENCRYPTION',
+    service: 'crater',
+    kind: 'literal',
+    value: 'ssl',
+    description: 'Resend SMTPS on 465.',
+    features: ['billing'],
+  }),
 
   // ── Scheduling / Cal.com ──
   v({
@@ -614,6 +730,24 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['scheduling'],
   }),
   v({
+    name: 'BOOKING_API_KEY',
+    service: 'shared',
+    kind: 'generated',
+    description: 'Shared key when calcom-booking-api enforces auth.',
+    features: ['scheduling'],
+    required: false,
+  }),
+  v({
+    name: 'BOOKING_API_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'shared',
+    value: railwaySharedRef('BOOKING_API_KEY'),
+    sharedKey: 'BOOKING_API_KEY',
+    description: 'Optional; sent to calcom-booking-api.',
+    features: ['scheduling'],
+    required: false,
+  }),
+  v({
     name: 'DATABASE_URL',
     service: 'calcom-booking-api',
     kind: 'reference',
@@ -622,11 +756,115 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['scheduling'],
   }),
   v({
+    name: 'DATABASE_DIRECT_URL',
+    service: 'calcom-booking-api',
+    kind: 'reference',
+    value: railwayRef('calcom-postgres', 'DATABASE_URL'),
+    description: 'Same DB — Cal.com migrations need a direct URL.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'API_KEY',
+    service: 'calcom-booking-api',
+    kind: 'shared',
+    value: railwaySharedRef('BOOKING_API_KEY'),
+    sharedKey: 'BOOKING_API_KEY',
+    description: 'Must match BOOKING_API_KEY on reave.',
+    features: ['scheduling'],
+    required: false,
+  }),
+  v({
     name: 'DATABASE_URL',
     service: 'calcom-web-app',
     kind: 'reference',
     value: railwayRef('calcom-postgres', 'DATABASE_URL'),
     description: 'Cal.com Postgres (web app).',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'DATABASE_DIRECT_URL',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef('calcom-postgres', 'DATABASE_URL'),
+    description: 'Same DB — Cal.com migrations need a direct URL.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'EMAIL_FROM',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
+    description: 'Do not leave unset — Cal.com falls back to sendmail and mail never leaves the box.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'RESEND_API_KEY',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'RESEND_API_KEY'),
+    description: 'Cal.com native Resend transport — same key as reave.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'EMAIL_SERVER_HOST',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: 'smtp.resend.com',
+    description: 'Resend SMTP (nodemailer fallback if RESEND_API_KEY is ignored).',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'EMAIL_SERVER_PORT',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: '465',
+    description: 'Resend SMTP port.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'EMAIL_SERVER_USER',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: 'resend',
+    description: 'Resend SMTP user.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'EMAIL_SERVER_PASSWORD',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'RESEND_API_KEY'),
+    description: 'SMTP password = reave.RESEND_API_KEY.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXT_PUBLIC_WEBAPP_URL',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayPublicUrl('calcom-web-app'),
+    description: 'Public Cal.com origin (custom cal.{apex} once attached).',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXTAUTH_URL',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayPublicUrl('calcom-web-app'),
+    description: 'Must match NEXT_PUBLIC_WEBAPP_URL.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXTAUTH_SECRET',
+    service: 'calcom-web-app',
+    kind: 'generated',
+    description: 'NextAuth secret (openssl rand -base64 32).',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'CALENDAR_ENCRYPTION_KEY',
+    service: 'calcom-web-app',
+    kind: 'generated',
+    description: 'Cal.com calendar encryption key.',
     features: ['scheduling'],
   }),
 
@@ -665,6 +903,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     description: 'Must match FLEET_API_KEY on reave.',
     features: ['fleet_tracking'],
   }),
+  v({
+    name: 'ALLOWED_ORIGINS',
+    service: 'fleet-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_SITE_URL'),
+    description: 'CORS — pull the public site URL from reave.',
+    features: ['fleet_tracking'],
+  }),
 
   // ── Inventory ──
   v({
@@ -693,6 +939,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     description: 'Must match INVENTORY_API_KEY on reave.',
     features: ['inventory_sync'],
   }),
+  v({
+    name: 'ALLOWED_ORIGINS',
+    service: 'inventory-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_SITE_URL'),
+    description: 'CORS — pull the public site URL from reave.',
+    features: ['inventory_sync'],
+  }),
 
   // ── Materials (extra) ──
   v({
@@ -719,6 +973,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     value: railwaySharedRef('MATERIALS_API_CLIENT_KEY'),
     sharedKey: 'MATERIALS_API_CLIENT_KEY',
     description: 'Must match MATERIALS_API_KEY on reave.',
+    extra: 'materials',
+  }),
+  v({
+    name: 'ALLOWED_ORIGINS',
+    service: 'materials-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_SITE_URL'),
+    description: 'CORS — pull the public site URL from reave.',
     extra: 'materials',
   }),
 
@@ -1106,6 +1368,8 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
     let filled = raw.value ?? '';
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
+    if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
+    if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
     if (appService !== DEPLOY_APP_SERVICE && filled) {
       filled = substituteAppService(filled, appService);
     }

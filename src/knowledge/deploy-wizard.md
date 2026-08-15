@@ -59,11 +59,25 @@ FLEET_API_BASE_URL=https://${{ fleet-api.RAILWAY_PUBLIC_DOMAIN }}
 FLEET_API_KEY=${{ shared.FLEET_API_CLIENT_KEY }}
 ```
 
-On each sibling API: `API_KEY=${{ shared.*_CLIENT_KEY }}` and `DATABASE_URL=${{ <name>-postgres.DATABASE_URL }}`.
+On each sibling API: `API_KEY=${{ shared.*_CLIENT_KEY }}` and `DATABASE_URL=${{ <name>-postgres.DATABASE_URL }}`. CORS is `${{ reave.PUBLIC_SITE_URL }}`.
+
+## Source of truth is `reave`
+
+Put third-party secrets on the Astro service once. Siblings **reference** them — do not paste the same key again.
+
+| On `reave` | Sibling reads |
+|------------|----------------|
+| `RESEND_FROM` → `EMAIL_FROM=${{ RESEND_FROM }}` | Cal.com `EMAIL_FROM=${{ reave.EMAIL_FROM }}` |
+| `RESEND_API_KEY` | Cal.com `RESEND_API_KEY` + `EMAIL_SERVER_PASSWORD`; Crater `MAIL_PASSWORD` |
+| `PUBLIC_SITE_URL` | `contact-api` / fleet / inventory / materials `ALLOWED_ORIGINS` |
+
+Cal.com also gets Resend SMTP literals (`smtp.resend.com` / `465` / `resend`) so it never falls back to local `sendmail` when `EMAIL_FROM` is unset.
+
+Prefer a **bare** verified address in `RESEND_FROM` (`noreply@mail.example.com`). Cal.com’s `EMAIL_FROM` is a From address, not a display-name header.
 
 ## What you still type
 
-Third-party secrets only: Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub, and similar. Generated values (webhook secrets, CardDAV password, shared client keys) can be rolled in the wizard.
+Third-party secrets only: Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub, and similar. Generated values (webhook secrets, CardDAV password, shared client keys, Cal.com `NEXTAUTH_SECRET`) can be rolled in the wizard.
 
 ## Apply
 

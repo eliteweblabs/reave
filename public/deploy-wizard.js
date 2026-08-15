@@ -308,7 +308,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Green chips are Railway references — they stay the same on every install as long as service names match. Only the Enter / Generate rows need a value.</p>` +
+      `<p class="dl-footnote">Green chips are Railway references — they stay the same on every install as long as service names match. Put secrets on <strong>reave</strong> (Resend, Clerk, …); siblings pull <code>\${{ reave.VAR }}</code>. Only the Enter / Generate rows need a value.</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.secretCount} secrets · ${plan.generatedCount} generated</p>`;
     for (const [service, vars] of byService) {
       html +=

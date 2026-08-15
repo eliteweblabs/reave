@@ -35,6 +35,7 @@ assert.equal(install?.filled, 'acme');
 const billed = buildDeployWizardPlan({
   features: ['billing', 'fleet_tracking', 'scheduling'],
   extras: ['materials'],
+  siteDomain: 'acme.com',
 });
 assert.ok(billed.services.some((s) => s.id === 'crater'));
 assert.ok(billed.services.some((s) => s.id === 'fleet-api'));
@@ -42,6 +43,24 @@ assert.ok(billed.services.some((s) => s.id === 'materials-api'));
 assert.ok(billed.variables.some((v) => v.name === 'CRATER_API_BASE_URL' && v.filled.includes('${{ crater.')));
 assert.ok(billed.variables.some((v) => v.name === 'BOOKING_API_URL' && v.filled.includes('calcom-booking-api')));
 assert.ok(billed.variables.some((v) => v.service === 'shared' && v.name === 'FLEET_API_CLIENT_KEY'));
+
+const reaveEmailFrom = billed.variables.find((v) => v.service === 'reave' && v.name === 'EMAIL_FROM');
+assert.equal(reaveEmailFrom?.filled, '${{ RESEND_FROM }}');
+const siteDomain = billed.variables.find((v) => v.service === 'reave' && v.name === 'PUBLIC_SITE_DOMAIN');
+assert.equal(siteDomain?.filled, 'acme.com');
+
+const calFrom = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM');
+assert.equal(calFrom?.kind, 'reference');
+assert.equal(calFrom?.filled, '${{ reave.EMAIL_FROM }}');
+const calSmtp = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_SERVER_PASSWORD');
+assert.equal(calSmtp?.filled, '${{ reave.RESEND_API_KEY }}');
+const calResend = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'RESEND_API_KEY');
+assert.equal(calResend?.filled, '${{ reave.RESEND_API_KEY }}');
+
+const craterMail = billed.variables.find((v) => v.service === 'crater' && v.name === 'MAIL_PASSWORD');
+assert.equal(craterMail?.filled, '${{ reave.RESEND_API_KEY }}');
+const contactCors = billed.variables.find((v) => v.service === 'contact-api' && v.name === 'ALLOWED_ORIGINS');
+assert.equal(contactCors?.filled, '${{ reave.PUBLIC_SITE_URL }}');
 
 const saasMonitor = buildDeployWizardPlan({ features: ['site_monitoring'] });
 const saasUrl = saasMonitor.variables.find((v) => v.name === 'CHANGEDETECTION_BASE_URL');
@@ -61,12 +80,14 @@ const hostedUrl = hostedMonitor.variables.find((v) => v.name === 'CHANGEDETECTIO
 assert.equal(hostedUrl?.kind, 'reference');
 assert.equal(hostedUrl?.filled, 'https://${{ changedetection.RAILWAY_PUBLIC_DOMAIN }}');
 
-const renamed = buildDeployWizardPlan({ features: ['billing'], appService: 'Astro' });
+const renamed = buildDeployWizardPlan({ features: ['billing', 'scheduling'], appService: 'Astro' });
 assert.ok(renamed.services.some((s) => s.id === 'Astro'));
 const db = renamed.variables.find((v) => v.service === 'Astro' && v.name === 'DATABASE_URL');
 assert.equal(db?.filled, '${{ reave-postgres.DATABASE_URL }}');
 const site = renamed.variables.find((v) => v.service === 'Astro' && v.name === 'PUBLIC_SITE_URL');
 assert.equal(site?.filled, 'https://${{ Astro.RAILWAY_PUBLIC_DOMAIN }}');
+const renamedCalFrom = renamed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM');
+assert.equal(renamedCalFrom?.filled, '${{ Astro.EMAIL_FROM }}');
 
 assert.equal(normalizeSiteDomain('https://www.Acme.com/'), 'acme.com');
 assert.equal(deployWizardFqdn('ap', 'acme.com'), 'ap.acme.com');
