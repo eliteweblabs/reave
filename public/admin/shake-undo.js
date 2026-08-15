@@ -1,5 +1,6 @@
 /**
- * Shake-to-undo for reversible admin actions (e.g. dismissing a dashboard notification).
+ * Shake-to-undo for reversible admin actions (dismissing a dashboard notification,
+ * bulk archive/delete in the email inbox).
  *
  * Flow: optimistic UI → short undo window → commit. Shake (when motion is available)
  * or tapping Undo cancels the commit and runs the undo callback.
