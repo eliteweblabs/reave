@@ -117,20 +117,20 @@ function stepsFromGates(opts: {
       stage: 'sleep',
       label: 'Sleep mode',
       kind: 'gate',
-      status: 'blocked',
-      decision: 'Deferred — quiet hours active',
+      status: 'ran',
+      decision: 'Notifications paused — mail is stored; triage runs after quiet hours',
       detail: opts.sleepLabel || 'Sleep mode',
     });
-    return steps;
+  } else {
+    steps.push({
+      id: 'gate-sleep',
+      stage: 'sleep',
+      label: 'Sleep mode',
+      kind: 'gate',
+      status: 'ran',
+      decision: 'Awake — continue triage',
+    });
   }
-  steps.push({
-    id: 'gate-sleep',
-    stage: 'sleep',
-    label: 'Sleep mode',
-    kind: 'gate',
-    status: 'ran',
-    decision: 'Awake — continue triage',
-  });
 
   if (opts.beforeCutoff) {
     steps.push({
@@ -398,7 +398,7 @@ export async function simulateInboundEmail(
     skipGates,
   });
 
-  if (!skipGates && (sleepMode || beforeCutoff || !allowlisted)) {
+  if (!skipGates && (beforeCutoff || !allowlisted)) {
     return {
       ok: true,
       dryRun: true,

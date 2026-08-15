@@ -129,6 +129,10 @@ export type ProcessInboundOptions = {
   /** Override live rule table (same `classifyEmail` / `evaluateEmailRules` path). */
   rules?: import('./emailRules').EmailRule[];
   notifyOnUnmatched?: boolean;
+  /** Preserve the original inbox arrival time (sleep-mode morning catch-up). */
+  receivedAt?: string;
+  /** Update this inbox row in place instead of inserting a new one. */
+  existingInboxId?: string;
 };
 
 function snippet(text: string, max = 500): string {
@@ -181,6 +185,7 @@ async function runAiTriage(
   email: InboundEmail,
   jobs: WorkJobSummary[],
   contactName: string | null,
+  receivedAtIso?: string,
 ): Promise<AiTriage | null> {
   const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
   if (!key) return null;
@@ -221,7 +226,7 @@ Attachments: when the body is empty or signature-only but Attachments are listed
   const attachmentLines = formatAttachmentListForPrompt(
     normalizeEmailAttachments(email.attachments),
   );
-  const receivedAt = new Date().toISOString();
+  const receivedAt = receivedAtIso || new Date().toISOString();
   const user = [
     `Received: ${receivedAt}`,
     `From: ${email.from ?? ''}`,
@@ -504,6 +509,7 @@ export async function processInboundEmail(
   options?: ProcessInboundOptions,
 ): Promise<ProcessedEmailResult> {
   const dryRun = options?.dryRun === true;
+  const receivedAt = options?.receivedAt || new Date().toISOString();
   const from = email.from ?? '';
   const senderEmail = parseSenderEmail(from);
   const bodyText = normalizeEmailBody(email.text, email.html);
@@ -590,7 +596,7 @@ export async function processInboundEmail(
   }
 
   if (agentFirst && aiEnabled()) {
-    aiClassify = await runAiClassify(email, jobs, contactName, clientKind);
+    aiClassify = await runAiClassify(email, jobs, contactName, clientKind, receivedAt);
     if (aiClassify && aiClassify.confidence >= confidenceMin) {
       aiTrusted = true;
     } else {
@@ -624,7 +630,6 @@ export async function processInboundEmail(
   let bookingStart: string | null = null;
   let automationKind: string | null = null;
   let inboxStatusOverride: string | null = null;
-  const receivedAt = new Date().toISOString();
 
   const forwardTo = ruleResult.matched?.forwardTo?.trim() || null;
   if (forwardTo) {
@@ -859,7 +864,7 @@ export async function processInboundEmail(
           : 'Activation link — open Email tab; auto-deletes soon');
     } else if (category !== 'junk' && category !== 'receipt' && aiEnabled() && !agentFirst) {
       // Known professional/personal contacts: legacy AI triage (no confidence gate).
-      const ai = await runAiTriage(email, jobs, contactName);
+      const ai = await runAiTriage(email, jobs, contactName, receivedAt);
       if (ai) {
         category = ai.category;
         summary = ai.summary;
@@ -1362,7 +1367,7 @@ export async function processInboundEmail(
     }
     pushAudit('persist', 'Would write inbox row', `${inboxStatus} · ${category} · ${action}`);
   } else {
-    const record = await storeRecordEmailInbox({
+    const persistFields = {
       from,
       subject: email.subject ?? '',
       bodySnippet: snippet(bodyText) || attachmentSummaryFallback(attachments),
@@ -1395,10 +1400,16 @@ export async function processInboundEmail(
       verificationCode,
       actionUrl: isAuthLink ? authActionUrl : null,
       deleteAfterAt,
-    }).catch((e) => {
-      console.warn('[email] inbox log failed', e);
-      return null;
-    });
+    };
+    const record = options?.existingInboxId
+      ? await storeUpdateEmailInbox(options.existingInboxId, persistFields).catch((e) => {
+          console.warn('[email] inbox update failed', e);
+          return null;
+        })
+      : await storeRecordEmailInbox({ ...persistFields, receivedAt }).catch((e) => {
+          console.warn('[email] inbox log failed', e);
+          return null;
+        });
 
     inboxRecord = record;
 

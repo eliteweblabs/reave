@@ -7266,7 +7266,7 @@ function renderAppSettingsPanel(settings, sleepData) {
         `<form id="sleep-settings-form" class="prof-form">` +
           profSection(
             'Sleep mode',
-            'During quiet hours, inbound mail is held without AI triage, phone push is paused, and Claude API calls are blocked. Owner-initiated <strong>Siri Shortcuts</strong> still run (including audits and their completion push). Messages received overnight appear in Email as <strong>Sleep deferred</strong>.',
+            'During quiet hours, inbound mail still lands in Email with its real arrival time. Notifications and AI triage pause until the window ends, then run on that queue without rewriting the received time. Owner-initiated <strong>Siri Shortcuts</strong> still run (including audits and their completion push).',
             sleepStatus +
             `<div class="prof-field">` +
               `<label class="prof-check-row">` +

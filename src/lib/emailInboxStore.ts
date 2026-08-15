@@ -110,6 +110,8 @@ export interface EmailInboxInput {
   verificationCode?: string | null;
   actionUrl?: string | null;
   deleteAfterAt?: string | null;
+  /** When set, used instead of now() so sleep-mode ingest keeps the real arrival time. */
+  receivedAt?: string;
 }
 
 /** List API shape — omits full body/headers to keep payloads small. */
@@ -562,7 +564,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
   const existing = existsSync(path) ? parseFileEvents(readFileSync(path, 'utf8')) : [];
   const record: EmailInboxRecord = {
     id: randomUUID(),
-    receivedAt: new Date().toISOString(),
+    receivedAt: input.receivedAt || new Date().toISOString(),
     from: input.from,
     subject: input.subject,
     bodySnippet: input.bodySnippet,
@@ -647,16 +649,17 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     const id = randomUUID();
     const { rows } = await pool.query(
       `INSERT INTO email_inbox
-        (id, from_address, subject, body_snippet, body_text, body_html, to_addrs, cc_addrs, bcc_addrs,
+        (id, received_at, from_address, subject, body_snippet, body_text, body_html, to_addrs, cc_addrs, bcc_addrs,
          reply_to_addrs, headers_json, message_id, resend_email_id, attachments_json,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
          route_note, classification_audit, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
          verification_code, action_url, delete_after_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14::jsonb,
-               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25::jsonb, $26, $27, $28, $29, $30, $31, $32, $33)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15::jsonb,
+               $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26::jsonb, $27, $28, $29, $30, $31, $32, $33, $34)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
+        input.receivedAt || new Date().toISOString(),
         input.from,
         input.subject,
         input.bodySnippet,
@@ -811,7 +814,7 @@ async function listSleepDeferredFromPg(limit: number): Promise<EmailInboxRecord[
     const pool = await ensureSchema();
     if (!pool) return [];
     const { rows } = await pool.query(
-      `SELECT ${INBOX_LIST_SELECT}
+      `SELECT ${INBOX_SELECT}
        FROM email_inbox
        WHERE status = 'SLEEP_DEFERRED'
        ORDER BY received_at ASC
@@ -867,6 +870,7 @@ export type EmailInboxPatch = Partial<
     | 'deleteAfterAt'
     | 'attachments'
     | 'summary'
+    | 'schedulingNote'
   >
 > & {
   markSeen?: boolean;
@@ -912,6 +916,7 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
       ? { attachments: normalizeEmailAttachments(patch.attachments) }
       : {}),
     ...(patch.summary !== undefined ? { summary: patch.summary } : {}),
+    ...(patch.schedulingNote !== undefined ? { schedulingNote: patch.schedulingNote } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
     ...(patch.markAutomationAck && !cur.automationAckAt
       ? { automationAckAt: new Date().toISOString() }
@@ -1024,6 +1029,10 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.attachments !== undefined) {
       sets.push(`attachments_json = $${i++}::jsonb`);
       vals.push(JSON.stringify(normalizeEmailAttachments(patch.attachments)));
+    }
+    if (patch.schedulingNote !== undefined) {
+      sets.push(`scheduling_note = $${i++}`);
+      vals.push(patch.schedulingNote);
     }
     if (patch.summary !== undefined) {
       sets.push(`summary = $${i++}`);

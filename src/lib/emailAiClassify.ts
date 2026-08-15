@@ -150,6 +150,7 @@ export async function runAiClassify(
   jobs: WorkJobSummary[],
   contactName: string | null,
   contactKind: string | null,
+  receivedAtIso?: string,
 ): Promise<AiClassifyResult | null> {
   const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
   if (!key) return null;
@@ -206,7 +207,7 @@ Attachments: when the body is empty but Attachments are listed, summarize the at
   const attachmentLines = formatAttachmentListForPrompt(
     normalizeEmailAttachments(email.attachments),
   );
-  const receivedAt = new Date().toISOString();
+  const receivedAt = receivedAtIso || new Date().toISOString();
   const user = [
     `Received: ${receivedAt}`,
     `From: ${email.from ?? ''}`,

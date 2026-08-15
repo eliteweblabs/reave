@@ -742,13 +742,11 @@ export function createEmailTriageLab(deps) {
     }
     if (!r) {
       const g = state.sim.gates || {};
-      const why = g.sleepMode
-        ? 'Blocked by sleep mode'
-        : g.beforeCutoff
-          ? 'Blocked by inbound cutoff'
-          : !g.allowlisted
-            ? 'Blocked by sender allowlist'
-            : 'Blocked by gate';
+      const why = g.beforeCutoff
+        ? 'Blocked by inbound cutoff'
+        : !g.allowlisted
+          ? 'Blocked by sender allowlist'
+          : 'Blocked by gate';
       return `<div class="re-lab-outcome re-lab-outcome--blocked"><strong>${escHtml(why)}</strong><span>Toggle “Skip inbound gates” to test the classify path anyway.</span></div>`;
     }
     const bits = [

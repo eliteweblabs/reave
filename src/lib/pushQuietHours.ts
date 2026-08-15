@@ -1,6 +1,7 @@
 /**
- * Scheduled quiet hours ("sleep mode") — pause push, inbound email triage,
- * Anthropic API calls, system-alert agent runs, and other automated processing
+ * Scheduled quiet hours ("sleep mode") — pause push and notifications,
+ * hold inbound email triage until the window ends (mail is still stored with
+ * its real arrival time), and block Anthropic / system-alert agent runs
  * during the configured window (default 11 PM–7 AM).
  *
  * Owner-initiated Siri Shortcuts set AgentRunContext.bypassSleepMode so audit
