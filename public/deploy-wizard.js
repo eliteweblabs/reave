@@ -33,6 +33,7 @@
   let step = 0;
   let appService = 'reave';
   let installSlug = 'demo';
+  let siteDomain = '';
   let project = '';
   let environment = 'production';
   let railway = { configured: false, projects: [] };
@@ -159,6 +160,10 @@
       `<input id="dw-install" class="dl-input" type="text" maxlength="40" value="${esc(installSlug)}" />` +
       `</label>` +
       `<label class="dl-field">` +
+      `<span class="dl-field-label">Site domain</span>` +
+      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
       `<span class="dl-field-label">App service name</span>` +
       `<input id="dw-app" class="dl-input" type="text" maxlength="64" value="${esc(appService)}" />` +
       `</label>` +
@@ -235,7 +240,39 @@
             `</article>`,
         )
         .join('') +
-      `</div>`
+      `</div>` +
+      renderDomains()
+    );
+  }
+
+  function renderDomains() {
+    const rows = plan?.domains || [];
+    if (!rows.length) return '';
+    return (
+      `<section class="dl-section" data-section="domains">` +
+      `<h2 class="dl-section-title">DNS / subdomains</h2>` +
+      `<label class="dl-field dw-domain-field">` +
+      `<span class="dl-field-label">Site domain (apex)</span>` +
+      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
+      `</label>` +
+      `<p class="dl-footnote">Add these on the install apex${siteDomain ? ` (${esc(siteDomain)})` : ''}. Prefixes stay the same on every client — <code>ap</code>, <code>cal</code>, <code>inbound</code>. Attach each CNAME on the named Railway service, then add Railway’s <code>_railway-verify</code> TXT until it verifies.</p>` +
+      `<div class="dw-table-wrap">` +
+      `<table class="dw-table">` +
+      `<thead><tr><th>Host</th><th>Type</th><th>FQDN</th><th>Attach on</th><th>Notes</th></tr></thead>` +
+      `<tbody>` +
+      rows
+        .map(
+          (d) =>
+            `<tr>` +
+            `<td><code>${esc(d.host)}</code></td>` +
+            `<td><span class="dw-kind dw-kind--${d.type === 'MX' ? 'secret' : 'reference'}">${esc(d.type)}</span></td>` +
+            `<td><code class="dw-ref">${esc(d.fqdn)}</code></td>` +
+            `<td class="dw-var-help">${esc(d.attach)}</td>` +
+            `<td class="dw-var-help">${esc(d.description)}</td>` +
+            `</tr>`,
+        )
+        .join('') +
+      `</tbody></table></div></section>`
     );
   }
 
@@ -298,6 +335,7 @@
       `<span class="mod-summary-pill">${plan.services.length} services</span>` +
       `<span class="mod-summary-pill">${plan.referenceCount} auto-wired</span>` +
       `<span class="mod-summary-pill">${plan.features.length} modules</span>` +
+      `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       `</div>` +
       (missing.length
         ? `<p class="dl-launch-error" role="alert">${missing.length} required secret${missing.length === 1 ? '' : 's'} still empty — you can still copy the CLI and fill them later.</p>`
@@ -347,10 +385,12 @@
 
   function readIdentity() {
     const installEl = root.querySelector('#dw-install');
+    const domainEl = root.querySelector('#dw-domain');
     const appEl = root.querySelector('#dw-app');
     const projectEl = root.querySelector('#dw-project');
     const envEl = root.querySelector('#dw-env');
     if (installEl) installSlug = installEl.value.trim() || 'demo';
+    if (domainEl) siteDomain = domainEl.value.trim();
     if (appEl) appService = appEl.value.trim() || 'reave';
     if (projectEl) project = projectEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
@@ -374,6 +414,7 @@
         extras: [...selectedExtras],
         appService,
         installSlug,
+        siteDomain,
         values,
       }),
     });
@@ -435,6 +476,7 @@
           extras: [...selectedExtras],
           appService,
           installSlug,
+          siteDomain,
           project,
           environment,
           values,
@@ -528,6 +570,10 @@
         bind();
       });
     });
+    root.querySelector('#dw-domain')?.addEventListener('change', () => {
+      readIdentity();
+      if (step === 1) void goNextFromExtras();
+    });
     root.querySelector('#dw-copy')?.addEventListener('click', async () => {
       const text = root.querySelector('#dw-cli')?.value || cli;
       try {
@@ -567,6 +613,7 @@
         appService = data.defaults.appService || appService;
         environment = data.defaults.environment || environment;
         installSlug = data.defaults.installSlug || installSlug;
+        if (typeof data.defaults.siteDomain === 'string') siteDomain = data.defaults.siteDomain;
       }
       selectedIds = new Set(data.defaultModuleIds || toggleableModules().map((m) => m.moduleId));
       if (railway.projects?.length === 1) project = railway.projects[0].id;

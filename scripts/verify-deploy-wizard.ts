@@ -5,7 +5,9 @@
 import assert from 'node:assert/strict';
 import {
   buildDeployWizardPlan,
+  deployWizardFqdn,
   formatDeployWizardCli,
+  normalizeSiteDomain,
   railwayPrivateUrl,
   railwayPublicUrl,
   railwayRef,
@@ -66,7 +68,29 @@ assert.equal(db?.filled, '${{ reave-postgres.DATABASE_URL }}');
 const site = renamed.variables.find((v) => v.service === 'Astro' && v.name === 'PUBLIC_SITE_URL');
 assert.equal(site?.filled, 'https://${{ Astro.RAILWAY_PUBLIC_DOMAIN }}');
 
-const cli = formatDeployWizardCli(core);
+assert.equal(normalizeSiteDomain('https://www.Acme.com/'), 'acme.com');
+assert.equal(deployWizardFqdn('ap', 'acme.com'), 'ap.acme.com');
+assert.equal(deployWizardFqdn('@', ''), '{apex}');
+
+const coreHosts = core.domains.map((d) => d.host);
+assert.ok(coreHosts.includes('@'));
+assert.ok(coreHosts.includes('inbound'));
+assert.ok(coreHosts.includes('clerk'));
+assert.ok(!coreHosts.includes('ap'));
+assert.ok(!coreHosts.includes('cal'));
+
+const billedDns = buildDeployWizardPlan({
+  features: ['billing', 'scheduling'],
+  siteDomain: 'https://www.acme.com',
+});
+assert.ok(billedDns.domains.some((d) => d.host === 'ap' && d.fqdn === 'ap.acme.com' && d.target === 'crater'));
+assert.ok(billedDns.domains.some((d) => d.host === 'cal' && d.fqdn === 'cal.acme.com'));
+assert.ok(billedDns.domains.some((d) => d.host === 'book' && d.target === 'calcom-booking-api'));
+assert.ok(!billedDns.domains.some((d) => d.host === 'demo'));
+
+const cli = formatDeployWizardCli(billedDns);
+assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);
+assert.match(cli, /MX\s+inbound/);
 assert.match(cli, /railway variable set CONTACT_API_BASE_URL=/);
 assert.match(cli, /--service reave/);
 assert.match(cli, /--skip-deploys/);

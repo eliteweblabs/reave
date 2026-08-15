@@ -50,6 +50,25 @@ export type DeployWizardExtra = {
   whenFeatures?: readonly FeatureId[];
 };
 
+export type DeployDnsType = 'CNAME' | 'MX' | 'TXT';
+
+export type DeployWizardDomain = {
+  id: string;
+  /** Host label on the install apex (`@` = apex, `www`, `ap`, `cal`, …). */
+  host: string;
+  type: DeployDnsType;
+  /** Railway service to attach, or `resend` / `clerk`. */
+  target: string;
+  description: string;
+  features?: readonly FeatureId[];
+  extra?: DeployWizardExtraId;
+};
+
+export type DeployWizardPlanDomain = DeployWizardDomain & {
+  fqdn: string;
+  attach: string;
+};
+
 export function railwayRef(service: string, variable: string): string {
   return `\${{ ${service}.${variable} }}`;
 }
@@ -86,6 +105,113 @@ export const DEPLOY_WIZARD_EXTRAS: readonly DeployWizardExtra[] = [
     whenFeatures: ['analytic_audit'],
   },
 ];
+
+/**
+ * Canonical public hosts. Prefixes stay the same on every install
+ * (`ap.reave.app`, `cal.client.com`, `inbound.tonybarlettajr.com`).
+ */
+export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
+  {
+    id: 'apex',
+    host: '@',
+    type: 'CNAME',
+    target: DEPLOY_APP_SERVICE,
+    description: 'Public site, admin, portal, CardDAV (`/carddav`), and APIs.',
+  },
+  {
+    id: 'www',
+    host: 'www',
+    type: 'CNAME',
+    target: DEPLOY_APP_SERVICE,
+    description: 'Alias — the app redirects www → apex when PUBLIC_SITE_DOMAIN is set.',
+  },
+  {
+    id: 'inbound',
+    host: 'inbound',
+    type: 'MX',
+    target: 'resend',
+    description: 'Resend receiving. Mailbox is inbox@inbound.{apex}. Copy MX from Resend → Receiving.',
+  },
+  {
+    id: 'clerk',
+    host: 'clerk',
+    type: 'CNAME',
+    target: 'clerk',
+    description: 'Clerk Frontend API on your domain. Copy the CNAME from Clerk → Domains.',
+  },
+  {
+    id: 'accounts',
+    host: 'accounts',
+    type: 'CNAME',
+    target: 'clerk',
+    description: 'Clerk hosted accounts portal (pairs with clerk.{apex}).',
+  },
+  {
+    id: 'ap',
+    host: 'ap',
+    type: 'CNAME',
+    target: 'crater',
+    description: 'Crater invoices — production uses ap.reave.app.',
+    features: ['billing'],
+  },
+  {
+    id: 'cal',
+    host: 'cal',
+    type: 'CNAME',
+    target: 'calcom-web-app',
+    description: 'Cal.com admin UI — production uses cal.reave.app.',
+    features: ['scheduling'],
+  },
+  {
+    id: 'book',
+    host: 'book',
+    type: 'CNAME',
+    target: 'calcom-booking-api',
+    description: 'Public booking API for client embeds (PUBLIC_BOOKING_API_URL).',
+    features: ['scheduling'],
+  },
+  {
+    id: 'demo',
+    host: 'demo',
+    type: 'CNAME',
+    target: DEPLOY_APP_SERVICE,
+    description: 'Public sandbox host when this install is the demo project.',
+    features: ['demo'],
+  },
+  {
+    id: 'stats',
+    host: 'stats',
+    type: 'CNAME',
+    target: 'plausible',
+    description: 'Self-hosted Plausible.',
+    extra: 'plausible_railway',
+  },
+  {
+    id: 'watch',
+    host: 'watch',
+    type: 'CNAME',
+    target: 'changedetection',
+    description: 'Self-hosted ChangeDetection.io.',
+    extra: 'changedetection_railway',
+  },
+];
+
+export function normalizeSiteDomain(raw: string | undefined): string {
+  return (raw ?? '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .split('/')[0]
+    ?.split(':')[0]
+    ?.toLowerCase()
+    .replace(/^www\./, '') ?? '';
+}
+
+export function deployWizardFqdn(host: string, apex: string): string {
+  const label = host === '@' ? '' : host;
+  if (!apex) return label ? `${label}.{apex}` : '{apex}';
+  return label ? `${label}.${apex}` : apex;
+}
 
 /**
  * Canonical Railway service names. New installs must use these exact names
@@ -880,6 +1006,8 @@ export type DeployWizardPlanInput = {
   /** Override the Astro service name if this install is not `reave`. */
   appService?: string;
   installSlug?: string;
+  /** Install apex, e.g. `acme.com` — used to render FQDNs. */
+  siteDomain?: string;
 };
 
 export type DeployWizardPlanVariable = DeployWizardVariable & {
@@ -890,9 +1018,11 @@ export type DeployWizardPlanVariable = DeployWizardVariable & {
 export type DeployWizardPlan = {
   appService: string;
   installSlug: string;
+  siteDomain: string;
   features: FeatureId[];
   extras: DeployWizardExtraId[];
   services: DeployWizardService[];
+  domains: DeployWizardPlanDomain[];
   variables: DeployWizardPlanVariable[];
   sharedKeys: string[];
   referenceCount: number;
@@ -944,6 +1074,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   });
   const appService = (input.appService?.trim() || DEPLOY_APP_SERVICE).slice(0, 64);
   const installSlug = (input.installSlug?.trim() || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
+  const siteDomain = normalizeSiteDomain(input.siteDomain);
   const extraSet = new Set<string>(extras);
 
   const services = DEPLOY_WIZARD_SERVICES.filter(
@@ -985,12 +1116,28 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
   const sharedKeys = [...new Set(variables.filter((x) => x.service === 'shared').map((x) => x.name))];
 
+  const domains = DEPLOY_WIZARD_DOMAINS.filter(
+    (d) => featureMatch(d.features, featureSet) && extraMatch(d.extra, extraSet),
+  ).map((d) => {
+    const target = d.target === DEPLOY_APP_SERVICE ? appService : d.target;
+    const fqdn = deployWizardFqdn(d.host, siteDomain);
+    const attach =
+      target === 'resend'
+        ? 'Resend → Receiving (MX + verification)'
+        : target === 'clerk'
+          ? 'Clerk → Domains (copy CNAME)'
+          : `Railway → ${target} → Settings → Networking → Custom domain`;
+    return { ...d, target, fqdn, attach };
+  });
+
   return {
     appService,
     installSlug,
+    siteDomain,
     features,
     extras,
     services,
+    domains,
     variables,
     sharedKeys,
     referenceCount: variables.filter((x) => x.kind === 'reference' || x.kind === 'shared').length,
@@ -1002,9 +1149,20 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<string, string> = {}): string {
   const lines: string[] = [
     `# Railway variable plan — service names must match exactly`,
-    `# App service: ${plan.appService} · install: ${plan.installSlug}`,
+    `# App service: ${plan.appService} · install: ${plan.installSlug}` +
+      (plan.siteDomain ? ` · apex: ${plan.siteDomain}` : ''),
     '',
   ];
+
+  if (plan.domains.length) {
+    lines.push('# DNS — add these on the install apex, then attach CNAMEs on the named Railway service');
+    lines.push('# Railway also asks for a TXT _railway-verify record until each custom domain verifies.');
+    for (const domain of plan.domains) {
+      const host = domain.host === '@' ? '@' : domain.host;
+      lines.push(`# ${domain.type.padEnd(5)} ${host.padEnd(12)} ${domain.fqdn}  →  ${domain.attach}`);
+    }
+    lines.push('');
+  }
 
   const byService = new Map<string, DeployWizardPlanVariable[]>();
   for (const variable of plan.variables) {

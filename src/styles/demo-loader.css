@@ -668,6 +668,11 @@
   color: #93c5fd;
 }
 
+.dw-domain-field {
+  max-width: 22rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
 .dw-cli-field {
   width: 100%;
 }

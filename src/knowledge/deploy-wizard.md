@@ -27,6 +27,24 @@ Keep these exact names on new installs:
 | `changedetection` | Self-hosted ChangeDetection (optional extra) |
 | `plausible` | Self-hosted Plausible (optional extra) |
 
+## Canonical subdomains
+
+Add these on the install apex (`acme.com`). Prefixes do not change.
+
+| Host | Type | When | Attach |
+|------|------|------|--------|
+| `@` / `www` | CNAME | Always | Railway `reave` |
+| `inbound` | MX | Always (inbox) | Resend receiving — `inbox@inbound.{apex}` |
+| `clerk` / `accounts` | CNAME | Always (Clerk) | Clerk → Domains |
+| `ap` | CNAME | `billing` | Railway `crater` |
+| `cal` | CNAME | `scheduling` | Railway `calcom-web-app` |
+| `book` | CNAME | `scheduling` | Railway `calcom-booking-api` |
+| `demo` | CNAME | `demo` | Railway `reave` (sandbox host) |
+| `stats` | CNAME | Plausible extra | Railway `plausible` |
+| `watch` | CNAME | ChangeDetection extra | Railway `changedetection` |
+
+Each Railway CNAME also needs the `_railway-verify` TXT Railway shows until the domain verifies.
+
 ## Typical references on `reave`
 
 ```text

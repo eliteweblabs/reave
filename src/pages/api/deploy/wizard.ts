@@ -115,6 +115,7 @@ export async function GET(context: APIContext): Promise<Response> {
       appService: 'reave',
       environment: 'production',
       installSlug: 'demo',
+      siteDomain: '',
     },
   });
 }
@@ -134,7 +135,8 @@ export async function POST(context: APIContext): Promise<Response> {
   const extras = parseExtras(body);
   const appService = typeof body.appService === 'string' ? body.appService : undefined;
   const installSlug = typeof body.installSlug === 'string' ? body.installSlug : undefined;
-  const plan = buildDeployWizardPlan({ features, extras, appService, installSlug });
+  const siteDomain = typeof body.siteDomain === 'string' ? body.siteDomain : undefined;
+  const plan = buildDeployWizardPlan({ features, extras, appService, installSlug, siteDomain });
   const values = parseValues(body);
   const cli = formatDeployWizardCli(plan, values);
   const action = typeof body.action === 'string' ? body.action : 'plan';
