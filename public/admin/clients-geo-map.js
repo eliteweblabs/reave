@@ -3,7 +3,7 @@
  * Critical layout is applied inline so Astro CSS bundling cannot blank the map.
  */
 
-import { escHtml, readAdminJson } from './shared.js?v=20260810a';
+import { escHtml, readAdminJson, showPersonal } from './shared.js?v=20260810a';
 
 const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
 const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
@@ -333,13 +333,26 @@ export function mountClientsGeoMap(container, opts = {}) {
     statusEl.classList.toggle('cgm-status--error', isError);
   }
 
+  function visibleKinds() {
+    return CLIENT_KINDS.filter((k) => k !== 'personal' || showPersonalOnMap());
+  }
+
+  function showPersonalOnMap() {
+    if (typeof window.__clientsMapPayload?.showPersonal === 'boolean') {
+      return window.__clientsMapPayload.showPersonal;
+    }
+    return showPersonal();
+  }
+
   function renderCount() {
     const located = locatedClients().length;
-    const onKinds = CLIENT_KINDS.filter((k) => enabledKinds[k]).length;
+    const kinds = visibleKinds();
+    const onKinds = kinds.filter((k) => enabledKinds[k]).length;
+    const total = kinds.length;
     countEl.textContent =
       located === 1
-        ? `1 pin · ${onKinds}/4 on`
-        : `${located} pins · ${onKinds}/4 on`;
+        ? `1 pin · ${onKinds}/${total} on`
+        : `${located} pins · ${onKinds}/${total} on`;
   }
 
   function syncToggleRow(row, kind) {
@@ -353,7 +366,7 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   function setKindEnabled(kind, next) {
     enabledKinds[kind] = next;
-    if (!CLIENT_KINDS.some((k) => enabledKinds[k])) {
+    if (!visibleKinds().some((k) => enabledKinds[k])) {
       enabledKinds[kind] = true;
     }
     for (const row of togglesEl.querySelectorAll('.cgm-toggle')) {
@@ -366,7 +379,7 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   function renderToggles() {
     togglesEl.replaceChildren();
-    for (const kind of CLIENT_KINDS) {
+    for (const kind of visibleKinds()) {
       const row = document.createElement('label');
       row.className = 'cgm-toggle';
       row.dataset.kind = kind;
@@ -454,10 +467,11 @@ export function mountClientsGeoMap(container, opts = {}) {
 
   function popupHtml(c) {
     const kind = normalizeKind(c.kind);
+    const kindLabel = kind === 'personal' && !showPersonalOnMap() ? '' : CLIENT_KIND_LABELS[kind];
     return `
       <div class="cgm-popup">
         <strong>${escHtml(displayName(c))}</strong>
-        <span class="cgm-popup-kind">${escHtml(CLIENT_KIND_LABELS[kind])}</span>
+        ${kindLabel ? `<span class="cgm-popup-kind">${escHtml(kindLabel)}</span>` : ''}
         ${c.address ? `<span class="cgm-popup-addr">${escHtml(c.address)}</span>` : ''}
         <a href="/admin/?tab=clients&amp;client=${encodeURIComponent(c.uid)}">Open contact</a>
       </div>

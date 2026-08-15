@@ -8,7 +8,7 @@ import {
   createSlidingPillSelect,
   matchesListSearch,
 } from './admin-ui.js?v=20260812f';
-import { escHtml } from './shared.js?v=20260810a';
+import { escHtml, showPersonal } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260815a';
 
 /** Mirror of src/lib/emailBody.looksLikeHtml for client-side preview. */
@@ -162,7 +162,8 @@ export function formatRuleLabMeta(rule) {
   const scope = rule?.scope === 'universal' ? 'Universal' : 'Personal';
   const status = String(rule?.status || '').trim();
   const derived = /^(DELETE|JUNK|AUTO_ARCHIVED|RECEIPT|CUSTOM)$/i.test(status);
-  const bits = [scope];
+  const bits = [];
+  if (scope === 'Universal' || showPersonal()) bits.push(scope);
   if (status && !derived) bits.push(status);
   bits.push(formatRuleProcessLabel(rule));
   if (rule?.enabled === false) bits.push('Off');
@@ -293,7 +294,7 @@ export function createEmailTriageLab(deps) {
       rule.description,
       formatRuleWhenClause(rule),
       formatRuleLabMeta(rule),
-      rule.scope === 'universal' ? 'Universal' : 'Personal',
+      rule.scope === 'universal' ? 'Universal' : showPersonal() ? 'Personal' : '',
       rule.forwardTo,
       rule.notify ? 'Notify' : 'Silent',
       ...(rule.phrases || []),
@@ -1523,14 +1524,18 @@ export function createEmailTriageLab(deps) {
         });
         if (search?.el) filterBar.appendChild(search.el);
         if (search?.input) bindRulesFilterInput(search.input, root);
+        if (!showPersonal() && ruleState().scopeFilter === 'personal') {
+          ruleState().scopeFilter = 'all';
+        }
+        const scopeOptions = [
+          { value: 'all', label: 'All' },
+          { value: 'universal', label: 'Universal' },
+        ];
+        if (showPersonal()) scopeOptions.push({ value: 'personal', label: 'Personal' });
         const scopeFilter = createSlidingPillSelect({
           value: ruleState().scopeFilter || 'all',
           ariaLabel: 'Filter by rule scope',
-          options: [
-            { value: 'all', label: 'All' },
-            { value: 'universal', label: 'Universal' },
-            { value: 'personal', label: 'Personal' },
-          ],
+          options: scopeOptions,
           onChange: (value) => {
             ruleState().scopeFilter = value;
             applyRulesFilter(root);
