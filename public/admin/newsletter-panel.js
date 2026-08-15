@@ -180,9 +180,16 @@ function renderNewsletterEditor() {
               ? '#4ade80'
               : s.status === 'failed'
                 ? '#f87171'
-                : s.status === 'skipped'
+                : s.status === 'skipped' || s.status === 'canceled'
                   ? '#a1a1aa'
                   : '#c084fc';
+          const pending = s.status === 'pending';
+          const actions = pending
+            ? `<span class="nl-log-actions">` +
+              `<button type="button" class="nl-btn nl-log-adjust" data-id="${escHtml(s.id)}" data-campaign="${escHtml(s.campaignId || '')}" data-due="${escHtml(s.dueAt || '')}">Adjust</button>` +
+              `<button type="button" class="nl-btn nl-log-cancel" data-id="${escHtml(s.id)}" data-campaign="${escHtml(s.campaignId || '')}">Cancel</button>` +
+              `</span>`
+            : '';
           return `
         <div class="nl-log-row">
           <span class="nl-log-status" style="color:${color}">${escHtml(s.status)}</span>
@@ -190,6 +197,7 @@ function renderNewsletterEditor() {
           <span class="nl-log-subj">${escHtml(s.subject || s.templateId)}</span>
           <span class="nl-log-src">${escHtml(s.source)}</span>
           <span class="nl-log-when">${escHtml(whenLabel)}</span>
+          ${actions}
         </div>`;
         })
         .join('')
@@ -233,6 +241,9 @@ function renderNewsletterEditor() {
             <input type="text" class="nl-compose-cta-label" placeholder="Learn more" />
           </label>
         </div>
+        <label class="nl-field"><span>Schedule send <em>(optional — blank sends now)</em></span>
+          <input type="datetime-local" class="nl-compose-due" />
+        </label>
         <div class="nl-actions">
           <button type="button" class="nl-btn nl-preview">Preview</button>
           <button type="button" class="nl-btn nl-btn-primary nl-send">Send to all contacts</button>
@@ -251,6 +262,8 @@ function renderNewsletterEditor() {
 }
 
 function nlComposePayload(root) {
+  const dueRaw = root.querySelector('.nl-compose-due')?.value.trim() || '';
+  const dueAt = dueRaw ? new Date(dueRaw).toISOString() : undefined;
   return {
     templateId: root.querySelector('.nl-compose-template')?.value || '',
     subject: root.querySelector('.nl-compose-subject')?.value.trim() || undefined,
@@ -258,6 +271,8 @@ function nlComposePayload(root) {
     body: root.querySelector('.nl-compose-body')?.value.trim() || undefined,
     ctaUrl: root.querySelector('.nl-compose-cta-url')?.value.trim() || undefined,
     ctaLabel: root.querySelector('.nl-compose-cta-label')?.value.trim() || undefined,
+    dueAt,
+    sendNow: !dueAt,
   };
 }
 
@@ -310,25 +325,78 @@ function wireNewsletterEditor(root) {
   root.querySelector('.nl-send')?.addEventListener('click', async () => {
     const statusEl = root.querySelector('.nl-send-status');
     const btn = root.querySelector('.nl-send');
-    if (!confirm('Send this email to ALL contacts with an email address? This cannot be undone.')) return;
+      const payload = nlComposePayload(root);
+      const confirmMsg = payload.dueAt
+        ? `Schedule this email to ALL contacts for ${new Date(payload.dueAt).toLocaleString()}?`
+        : 'Send this email to ALL contacts with an email address? This cannot be undone.';
+      if (!confirm(confirmMsg)) return;
     btn.disabled = true;
     if (statusEl) statusEl.textContent = 'Sending…';
     try {
       const res = await fetch('/api/newsletter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...nlComposePayload(root), audience: 'all', sendNow: true }),
+        body: JSON.stringify({ ...payload, audience: 'all' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (statusEl)
-        statusEl.textContent = `Queued ${data.queued} · sent ${data.sent || 0} · skipped ${(data.skippedUnsubscribed || 0) + (data.skippedNoEmail || 0)}`;
+        statusEl.textContent = data.scheduled
+          ? `Scheduled ${data.queued} for ${data.dueAt ? new Date(data.dueAt).toLocaleString() : 'later'}`
+          : `Queued ${data.queued} · sent ${data.sent || 0} · skipped ${(data.skippedUnsubscribed || 0) + (data.skippedNoEmail || 0)}`;
       setTimeout(() => void loadNewsletterTab(), 800);
     } catch (e) {
       if (statusEl) statusEl.textContent = `Failed: ${e.message}`;
     } finally {
       btn.disabled = false;
     }
+  });
+
+  root.querySelectorAll('.nl-log-cancel').forEach((el) => {
+    el.addEventListener('click', async () => {
+      if (!confirm('Cancel this scheduled email?')) return;
+      try {
+        const res = await fetch(`/api/newsletter/sends/${encodeURIComponent(el.dataset.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel', campaignId: el.dataset.campaign || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        void loadNewsletterTab();
+      } catch (e) {
+        alert(`Could not cancel: ${e.message}`);
+      }
+    });
+  });
+
+  root.querySelectorAll('.nl-log-adjust').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const current = el.dataset.due ? new Date(el.dataset.due).toLocaleString() : '';
+      const next = prompt('New send time', current);
+      if (!next) return;
+      const due = new Date(next);
+      if (Number.isNaN(due.getTime())) {
+        alert('Could not parse that date.');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/newsletter/sends/${encodeURIComponent(el.dataset.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'reschedule',
+            dueAt: due.toISOString(),
+            campaignId: el.dataset.campaign || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        void loadNewsletterTab();
+      } catch (e) {
+        alert(`Could not reschedule: ${e.message}`);
+      }
+    });
   });
 }
 

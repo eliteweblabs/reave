@@ -115,7 +115,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   scheduling: 'Bookings, availability, and meeting links via Cal.com',
   dev_infra: 'Git, Railway, Kinsta, and deploy tooling',
   code_dev: 'Agent read/write/list/exec on the local codebase',
-  email_marketing: 'Welcome, follow-ups, review requests, and broadcasts',
+  email_marketing: 'Welcome, follow-ups, review requests, scheduled broadcasts, and project email history',
   fleet_tracking: 'Live vehicle location and GPS history',
   dealership_wizard: 'Inventory browse and guided deal flow',
   namecom_dns: 'Name.com DNS records — agency/ops installs only',

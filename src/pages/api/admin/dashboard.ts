@@ -31,9 +31,11 @@ import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
 import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
-import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { hasFeature } from '../../../lib/features';
+import { listUpcomingScheduledEmails } from '../../../lib/newsletterEngine';
+import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
 
 export const prerender = false;
 
@@ -100,6 +102,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   ensureEmailCleanupScheduler();
   ensureCalendarReminderScheduler();
+  if (hasFeature('email_marketing')) ensureNewsletterScheduler();
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
   const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([
@@ -146,6 +149,9 @@ export async function GET(context: APIContext): Promise<Response> {
     upcomingTodos = await loadUpcomingTodosFromOpen(allOpen);
   }
   const schedulingConfigured = isBookingConfigured();
+  const scheduledEmails = hasFeature('email_marketing')
+    ? await listUpcomingScheduledEmails(24)
+    : [];
 
   let meetingsTotal: number | null = null;
   if (schedulingConfigured) {
@@ -218,6 +224,7 @@ export async function GET(context: APIContext): Promise<Response> {
     eventsToday,
     eventsNext24h,
     upcomingTodos,
+    scheduledEmails,
     schedulingConfigured,
     billingConfigured,
     billingError,

@@ -1251,6 +1251,8 @@ button.de-placeholder-action:active {
 .nl-log-status { font-weight: 700; text-transform: capitalize; }
 .nl-log-to, .nl-log-subj, .nl-log-src, .nl-log-when { color: var(--muted, #a1a1aa); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nl-log-when { text-align: right; }
+.nl-log-actions { display: flex; gap: 0.35rem; justify-content: flex-end; }
+.nl-log-actions .nl-btn { padding: 0.2rem 0.45rem; font-size: 0.72rem; }
 @media (max-width: 639px) {
   .nl-log-row { grid-template-columns: 60px 1fr; grid-auto-rows: auto; }
   .nl-log-subj, .nl-log-src, .nl-log-when { grid-column: 2; text-align: left; }
@@ -3161,6 +3163,45 @@ button.de-placeholder-action:active {
 .wk-link-track-dismiss:disabled {
   opacity: 0.35;
   cursor: default;
+}
+.wk-email-record {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.wk-email-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.wk-email-record-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
+}
+.wk-email-record-main {
+  display: grid;
+  grid-template-columns: 3.4rem 1fr auto;
+  gap: 0.45rem 0.65rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: var(--surface-subtle);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  color: inherit;
+  cursor: pointer;
+}
+.wk-email-record-main:hover {
+  background: var(--surface-hover, color-mix(in srgb, currentColor 6%, transparent));
+}
+.wk-email-record-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding-left: 0.15rem;
 }
 .wk-share-log-section {
   margin-top: 1.25rem;

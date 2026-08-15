@@ -1056,6 +1056,7 @@ const WORK_DETAIL_TABS = [
   { id: 'action-items', label: 'Action Items' },
   { id: 'time', label: 'Time', feature: 'time_tracking' },
   { id: 'files', label: 'Files' },
+  { id: 'email', label: 'Email' },
   { id: 'todo', label: 'To-Do' },
   { id: 'comments', label: 'Comments' },
 ];
@@ -2914,6 +2915,145 @@ function workCommentAvatarHtml(author, clientIconUrl) {
   return `<div class="wk-comment-avatar wk-comment-avatar--placeholder" aria-hidden="true">${WK_COMMENT_AVATAR_PLACEHOLDER}</div>`;
 }
 
+function workEmailStatusLabel(row) {
+  const s = String(row.status || '').toLowerCase();
+  if (row.direction === 'scheduled' || s === 'pending') return 'Scheduled';
+  if (s === 'sent') return 'Sent';
+  if (s === 'canceled' || s === 'cancelled') return 'Canceled';
+  if (s === 'failed') return 'Failed';
+  if (s === 'skipped') return 'Skipped';
+  if (row.direction === 'inbound') return 'Received';
+  return row.status || row.direction || '';
+}
+
+function workEmailWhenLabel(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+async function patchWorkScheduledEmail(row, action, dueAt) {
+  const sendId = row.sendId || String(row.id || '').replace(/^nl:/, '');
+  if (!sendId) throw new Error('Missing send id');
+  const res = await fetch(`/api/newsletter/sends/${encodeURIComponent(sendId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      dueAt,
+      campaignId: row.campaignId || undefined,
+    }),
+  });
+  return readApiJson(res);
+}
+
+function mountWorkEmailRecordSection(pane, slug) {
+  const wrap = document.createElement('div');
+  wrap.className = 'wk-email-record';
+  wrap.innerHTML = skeletonHtml('list', 'Loading email record…');
+  pane.appendChild(wrap);
+
+  const render = (emails) => {
+    wrap.innerHTML = '';
+    const label = document.createElement('div');
+    label.className = 'de-label';
+    label.textContent = 'Email record';
+    wrap.appendChild(label);
+
+    if (!emails.length) {
+      const empty = document.createElement('div');
+      empty.className = 'de-empty';
+      empty.style.padding = '0.5rem 0';
+      empty.textContent = 'No emails logged for this project yet.';
+      wrap.appendChild(empty);
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'wk-email-record-list';
+    for (const row of emails) {
+      const item = document.createElement('div');
+      item.className = 'wk-email-record-row wk-email-record-row--' + (row.direction || 'outbound');
+      const kind =
+        row.direction === 'inbound' ? 'In' : row.direction === 'scheduled' ? 'Queued' : 'Out';
+      const title = row.title || row.subject || '(no subject)';
+      item.innerHTML =
+        `<button type="button" class="wk-email-record-main">` +
+        `<span class="wk-related-kind">${escHtml(kind)}</span>` +
+        `<span class="wk-related-label">${escHtml(title)}</span>` +
+        `<span class="wk-related-meta">${escHtml([workEmailStatusLabel(row), workEmailWhenLabel(row.at), row.fromTo].filter(Boolean).join(' · '))}</span>` +
+        `</button>`;
+      const main = item.querySelector('.wk-email-record-main');
+      main?.addEventListener('click', () => {
+        if (row.emailId) shell.navigateToEmail(row.emailId);
+      });
+
+      if (row.direction === 'scheduled' || row.status === 'pending') {
+        const actions = document.createElement('div');
+        actions.className = 'wk-email-record-actions';
+        const adjust = document.createElement('button');
+        adjust.type = 'button';
+        adjust.className = 'nl-btn';
+        adjust.textContent = 'Adjust';
+        adjust.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const next = window.prompt('New send time (local)', row.at ? row.at.slice(0, 16).replace('T', ' ') : '');
+          if (!next) return;
+          const due = new Date(next);
+          if (Number.isNaN(due.getTime())) {
+            shell.osAlert({ title: 'Invalid time', bodyHtml: 'Could not parse that date.' });
+            return;
+          }
+          try {
+            await patchWorkScheduledEmail(row, 'reschedule', due.toISOString());
+            void refresh();
+          } catch (err) {
+            shell.osAlert({ title: 'Could not reschedule', bodyHtml: escHtml(err.message) });
+          }
+        });
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'nl-btn';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!window.confirm('Cancel this scheduled email?')) return;
+          try {
+            await patchWorkScheduledEmail(row, 'cancel');
+            void refresh();
+          } catch (err) {
+            shell.osAlert({ title: 'Could not cancel', bodyHtml: escHtml(err.message) });
+          }
+        });
+        actions.append(adjust, cancel);
+        item.appendChild(actions);
+      }
+      list.appendChild(item);
+    }
+    wrap.appendChild(list);
+  };
+
+  const refresh = async () => {
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}/emails`, { cache: 'no-store' });
+      const data = await readApiJson(res);
+      render(data.emails || []);
+    } catch (e) {
+      wrap.innerHTML = `<div class="de-empty de-error">${escHtml(e.message)}</div>`;
+    }
+  };
+
+  void refresh();
+}
+
 function mountWorkCommentsSection(pane, slug, contactUid) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-comments-section';
@@ -3314,6 +3454,10 @@ function renderEditWorkForm(pane) {
       const filesPanel = createWorkDetailPanel('files', activeTab);
       mountWorkFilesSection(filesPanel, slug, data.files);
       scroll.appendChild(filesPanel);
+
+      const emailPanel = createWorkDetailPanel('email', activeTab);
+      mountWorkEmailRecordSection(emailPanel, slug);
+      scroll.appendChild(emailPanel);
 
       const todoPanel = createWorkDetailPanel('todo', activeTab);
       mountWorkTodosSection(todoPanel, slug);

@@ -1,7 +1,7 @@
 /**
  * POST /api/newsletter/send — queue a broadcast to a segment (owner only).
  * Body: { templateId, audience: 'all' | string[], subject?, heading?, body?,
- *         ctaUrl?, ctaLabel?, sendNow? }
+ *         ctaUrl?, ctaLabel?, sendNow?, dueAt? }
  */
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -48,6 +48,13 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: "audience must be 'all' or an array of uids" }, 400);
   }
 
+  const dueAtRaw = body.dueAt ? String(body.dueAt).trim() : '';
+  const dueAt = dueAtRaw ? new Date(dueAtRaw) : undefined;
+  if (dueAt && Number.isNaN(dueAt.getTime())) {
+    return json({ ok: false, error: 'dueAt must be a valid datetime' }, 400);
+  }
+  const scheduledFuture = Boolean(dueAt && dueAt.getTime() > Date.now() + 30_000);
+
   const result = await queueBroadcast({
     templateId: templateId as NewsletterTemplateId,
     audience,
@@ -56,14 +63,15 @@ export async function POST(context: APIContext): Promise<Response> {
     body: toParagraphs(body.body),
     ctaUrl: body.ctaUrl ? String(body.ctaUrl) : undefined,
     ctaLabel: body.ctaLabel ? String(body.ctaLabel) : undefined,
+    dueAt,
   });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
   ensureNewsletterScheduler();
 
-  // Owner-triggered broadcast sends immediately, bypassing the send window.
+  // Immediate owner-triggered broadcasts send now; a future dueAt stays queued.
   let dispatch = { sent: 0, failed: 0 };
-  if (body.sendNow !== false) {
+  if (body.sendNow !== false && !scheduledFuture) {
     const proc = await processDueNewsletterSends({ limit: 500, ignoreWindow: true });
     dispatch = { sent: proc.sent, failed: proc.failed };
   }
@@ -73,6 +81,9 @@ export async function POST(context: APIContext): Promise<Response> {
     queued: result.queued,
     skippedUnsubscribed: result.skippedUnsub,
     skippedNoEmail: result.skippedNoEmail,
+    campaignId: result.campaignId,
+    dueAt: result.dueAt,
+    scheduled: scheduledFuture,
     ...dispatch,
   });
 }

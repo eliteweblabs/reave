@@ -38,6 +38,8 @@ export interface NewsletterSend {
   context: Record<string, unknown>;
   /** Unique guard so an automation only enqueues once per subject. */
   dedupKey: string | null;
+  /** Groups a broadcast so the dashboard can cancel/reschedule as one row. */
+  campaignId: string | null;
   resendId: string | null;
   error: string | null;
   createdAt: string;
@@ -55,6 +57,7 @@ export interface NewsletterEnqueueInput {
   jobSlug?: string | null;
   context?: Record<string, unknown>;
   dedupKey?: string | null;
+  campaignId?: string | null;
 }
 
 // ─────────────────────────── pool + schema ───────────────────────────
@@ -79,7 +82,8 @@ CREATE TABLE IF NOT EXISTS newsletter_queue (
   dedup_key    TEXT,
   resend_id    TEXT,
   error        TEXT,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  campaign_id  TEXT
 );
 `;
 
@@ -104,10 +108,16 @@ const INDEX_SQL = [
   `CREATE UNIQUE INDEX IF NOT EXISTS newsletter_queue_dedup_idx ON newsletter_queue (dedup_key) WHERE dedup_key IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS newsletter_queue_due_idx ON newsletter_queue (status, due_at)`,
   `CREATE INDEX IF NOT EXISTS newsletter_queue_created_idx ON newsletter_queue (created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS newsletter_queue_job_idx ON newsletter_queue (job_slug) WHERE job_slug IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS newsletter_queue_campaign_idx ON newsletter_queue (campaign_id) WHERE campaign_id IS NOT NULL`,
+];
+
+const ALTER_SQL = [
+  `ALTER TABLE newsletter_queue ADD COLUMN IF NOT EXISTS campaign_id TEXT`,
 ];
 
 const QUEUE_SELECT = `id, template_id, source, trigger, contact_uid, to_email, first_name, subject,
-  status, due_at, sent_at, job_slug, context, dedup_key, resend_id, error, created_at`;
+  status, due_at, sent_at, job_slug, context, dedup_key, resend_id, error, created_at, campaign_id`;
 
 async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPgPool();
@@ -117,6 +127,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
       await pool.query(QUEUE_TABLE_SQL);
       await pool.query(UNSUB_TABLE_SQL);
       await pool.query(AUTOMATION_TABLE_SQL);
+      for (const sql of ALTER_SQL) await pool.query(sql);
       for (const sql of INDEX_SQL) await pool.query(sql);
     })().catch((e) => {
       _schemaReady = null;
@@ -156,7 +167,9 @@ function readFileStore(): FileShape {
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<FileShape>;
     return {
-      queue: Array.isArray(parsed.queue) ? parsed.queue : [],
+      queue: Array.isArray(parsed.queue)
+        ? parsed.queue.map((q) => ({ ...q, campaignId: q.campaignId ?? null }))
+        : [],
       unsubscribes: Array.isArray(parsed.unsubscribes) ? parsed.unsubscribes : [],
       automations: parsed.automations && typeof parsed.automations === 'object' ? parsed.automations : {},
     };
@@ -197,6 +210,7 @@ type QueueRow = {
   resend_id: string | null;
   error: string | null;
   created_at: Date | string;
+  campaign_id?: string | null;
 };
 
 function normalizeStatus(raw: string | undefined): NewsletterSendStatus {
@@ -221,6 +235,7 @@ function rowToSend(row: QueueRow): NewsletterSend {
     jobSlug: row.job_slug,
     context: row.context && typeof row.context === 'object' ? row.context : {},
     dedupKey: row.dedup_key,
+    campaignId: row.campaign_id ?? null,
     resendId: row.resend_id,
     error: row.error,
     createdAt: new Date(row.created_at).toISOString(),
@@ -249,6 +264,7 @@ export async function enqueueNewsletterSend(
     jobSlug: input.jobSlug ?? null,
     context: input.context ?? {},
     dedupKey: input.dedupKey ?? null,
+    campaignId: input.campaignId ?? null,
     resendId: null,
     error: null,
     createdAt: new Date().toISOString(),
@@ -261,8 +277,8 @@ export async function enqueueNewsletterSend(
       const { rows } = await pool.query(
         `INSERT INTO newsletter_queue
           (id, template_id, source, trigger, contact_uid, to_email, first_name, subject,
-           status, due_at, job_slug, context, dedup_key)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11::jsonb,$12)
+           status, due_at, job_slug, context, dedup_key, campaign_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11::jsonb,$12,$13)
          ON CONFLICT (dedup_key) DO NOTHING
          RETURNING ${QUEUE_SELECT}`,
         [
@@ -278,6 +294,7 @@ export async function enqueueNewsletterSend(
           base.jobSlug,
           JSON.stringify(base.context),
           base.dedupKey,
+          base.campaignId,
         ],
       );
       return rows[0] ? rowToSend(rows[0]) : null;
@@ -324,18 +341,45 @@ export async function listDueNewsletterSends(limit = 50): Promise<NewsletterSend
 export async function listNewsletterSends(opts?: {
   limit?: number;
   status?: NewsletterSendStatus;
+  jobSlug?: string;
+  contactUid?: string;
+  campaignId?: string;
+  /** When true, order by due_at ascending (upcoming first). */
+  upcoming?: boolean;
 }): Promise<NewsletterSend[]> {
   const limit = opts?.limit ?? 100;
+  const jobSlug = opts?.jobSlug?.trim() || '';
+  const contactUid = opts?.contactUid?.trim() || '';
+  const campaignId = opts?.campaignId?.trim() || '';
   if (databaseUrl()) {
     try {
       const pool = await ensureSchema();
       if (!pool) return [];
-      const where = opts?.status ? `WHERE status = $2` : '';
-      const params: unknown[] = [limit];
-      if (opts?.status) params.push(opts.status);
+      const clauses: string[] = [];
+      const params: unknown[] = [];
+      let i = 1;
+      if (opts?.status) {
+        clauses.push(`status = $${i++}`);
+        params.push(opts.status);
+      }
+      if (jobSlug) {
+        clauses.push(`job_slug = $${i++}`);
+        params.push(jobSlug);
+      }
+      if (contactUid) {
+        clauses.push(`contact_uid = $${i++}`);
+        params.push(contactUid);
+      }
+      if (campaignId) {
+        clauses.push(`campaign_id = $${i++}`);
+        params.push(campaignId);
+      }
+      const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+      const order = opts?.upcoming ? 'due_at ASC' : 'created_at DESC';
+      params.push(limit);
       const { rows } = await pool.query(
         `SELECT ${QUEUE_SELECT} FROM newsletter_queue ${where}
-         ORDER BY created_at DESC LIMIT $1`,
+         ORDER BY ${order} LIMIT $${i}`,
         params,
       );
       return rows.map(rowToSend);
@@ -347,7 +391,33 @@ export async function listNewsletterSends(opts?: {
   const data = readFileStore();
   let list = data.queue.slice();
   if (opts?.status) list = list.filter((q) => q.status === opts.status);
-  return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+  if (jobSlug) list = list.filter((q) => q.jobSlug === jobSlug);
+  if (contactUid) list = list.filter((q) => q.contactUid === contactUid);
+  if (campaignId) list = list.filter((q) => q.campaignId === campaignId);
+  list.sort((a, b) =>
+    opts?.upcoming ? a.dueAt.localeCompare(b.dueAt) : b.createdAt.localeCompare(a.createdAt),
+  );
+  return list.slice(0, limit);
+}
+
+export async function getNewsletterSend(id: string): Promise<NewsletterSend | null> {
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return null;
+      const { rows } = await pool.query(
+        `SELECT ${QUEUE_SELECT} FROM newsletter_queue WHERE id = $1 LIMIT 1`,
+        [trimmed],
+      );
+      return rows[0] ? rowToSend(rows[0]) : null;
+    } catch (e) {
+      console.error('[newsletter] get send failed', e);
+      return null;
+    }
+  }
+  return readFileStore().queue.find((q) => q.id === trimmed) ?? null;
 }
 
 export interface NewsletterSendPatch {
@@ -356,6 +426,7 @@ export interface NewsletterSendPatch {
   subject?: string;
   resendId?: string | null;
   error?: string | null;
+  dueAt?: string | null;
 }
 
 export async function updateNewsletterSend(
@@ -389,6 +460,10 @@ export async function updateNewsletterSend(
         sets.push(`error = $${i++}`);
         vals.push(patch.error);
       }
+      if (patch.dueAt !== undefined) {
+        sets.push(`due_at = $${i++}`);
+        vals.push(patch.dueAt);
+      }
       if (!sets.length) return null;
       vals.push(id);
       const { rows } = await pool.query(
@@ -412,9 +487,34 @@ export async function updateNewsletterSend(
     ...(patch.subject !== undefined ? { subject: patch.subject } : {}),
     ...(patch.resendId !== undefined ? { resendId: patch.resendId } : {}),
     ...(patch.error !== undefined ? { error: patch.error } : {}),
+    ...(patch.dueAt !== undefined ? { dueAt: patch.dueAt || cur.dueAt } : {}),
   };
   data.queue[idx] = next;
   return writeFileStore(data) ? next : null;
+}
+
+export async function updateNewsletterSends(
+  ids: string[],
+  patch: NewsletterSendPatch,
+): Promise<number> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (!unique.length) return 0;
+  let count = 0;
+  for (const id of unique) {
+    const next = await updateNewsletterSend(id, patch);
+    if (next) count += 1;
+  }
+  return count;
+}
+
+export async function cancelNewsletterSends(ids: string[]): Promise<number> {
+  return updateNewsletterSends(ids, { status: 'canceled', error: 'canceled by owner' });
+}
+
+export async function rescheduleNewsletterSends(ids: string[], dueAt: Date | string): Promise<number> {
+  const iso = new Date(dueAt).toISOString();
+  if (Number.isNaN(new Date(iso).getTime())) return 0;
+  return updateNewsletterSends(ids, { dueAt: iso, error: null });
 }
 
 // ─────────────────────────── unsubscribes ───────────────────────────

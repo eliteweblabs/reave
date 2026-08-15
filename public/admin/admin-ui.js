@@ -2115,6 +2115,7 @@ const SWIPE_ACTIONS = {
   receipt: { iconKey: 'receipt', className: 'swipe-act swipe-act-receipt', label: 'Receipt' },
   clear: { iconKey: 'rewind', className: 'swipe-act swipe-act-archive', label: 'Rewind' },
   copy: { iconKey: 'copy', className: 'swipe-act swipe-act-archive', label: 'Copy' },
+  edit: { iconKey: 'edit', className: 'swipe-act swipe-act-archive', label: 'Adjust' },
 };
 
 function swipeIconMarkup(iconKey, size = 18) {
@@ -2152,6 +2153,7 @@ export const swipeJunkAction = (opts) => swipeAction('junk', opts);
 export const swipeReceiptAction = (opts) => swipeAction('receipt', opts);
 export const swipeClearAction = (opts) => swipeAction('clear', opts);
 export const swipeCopyAction = (opts) => swipeAction('copy', opts);
+export const swipeEditAction = (opts) => swipeAction('edit', opts);
 
 const SWIPE_AXIS_SLOP = 12;
 const SWIPE_HORIZONTAL_MIN = 28;

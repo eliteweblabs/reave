@@ -859,6 +859,21 @@ async function runKnowledgeAgentInner(
     );
   }
 
+  if (hasFeature('email_marketing')) {
+    sysParts.push(
+      'Newsletter & lifecycle email: templates and automations live in the Newsletter tab; delay after project-complete is an admin setting. Use list_email_templates, list_scheduled_emails, send_template_email, cancel_scheduled_email, and reschedule_email. When the owner says “send the we value your opinion email to client ABC”, call send_template_email. If a newsletter is due in the next few days, offer to review it. If a project was just marked done, mention the scheduled follow-up and when it will send. Project Email tab shows the history. read_knowledge slug "newsletter".',
+    );
+    try {
+      const { formatScheduledEmailsForAgent } = await import('./newsletterScheduleView');
+      const { listUpcomingScheduledEmails } = await import('./newsletterEngine');
+      const upcoming = await listUpcomingScheduledEmails(8);
+      const briefing = formatScheduledEmailsForAgent(upcoming, 8);
+      if (briefing) sysParts.push(briefing);
+    } catch {
+      /* briefing is best-effort */
+    }
+  }
+
   const linkedEmailId = getAgentContext().emailId?.trim();
   if (linkedEmailId) {
     const linked = await linkedEmailContextLine(linkedEmailId);

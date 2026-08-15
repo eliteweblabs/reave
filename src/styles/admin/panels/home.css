@@ -435,6 +435,12 @@
 .dash-event-time--todo {
   color: #a371f7;
 }
+.dash-event-time--email {
+  color: #e879f9;
+}
+.dash-scheduled-emails {
+  margin-top: 0.25rem;
+}
 .dash-event-body {
   min-width: 0;
 }
