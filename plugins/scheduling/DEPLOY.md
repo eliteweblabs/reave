@@ -27,6 +27,7 @@ stage: 3
 - Deploy calcom-booking-api + calcom-web-app on Railway
 - On **calcom-web-app**, do not type mail secrets — reference `reave`:
   - `EMAIL_FROM=${{ reave.EMAIL_FROM }}` (alias of `RESEND_FROM` — required or Cal.com uses sendmail)
+  - `EMAIL_FROM_NAME=${{ reave.EMAIL_FROM_NAME }}`
   - `RESEND_API_KEY=${{ reave.RESEND_API_KEY }}`
   - `EMAIL_SERVER_PASSWORD=${{ reave.RESEND_API_KEY }}` plus host `smtp.resend.com` / port `465` / user `resend`
 - Enable `scheduling` in install config `features[]`

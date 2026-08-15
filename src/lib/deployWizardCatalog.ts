@@ -73,6 +73,11 @@ export function railwayRef(service: string, variable: string): string {
   return `\${{ ${service}.${variable} }}`;
 }
 
+/** Same-service Railway ref — `${{EMAIL_FROM_NAME}}`. */
+export function railwayLocalRef(variable: string): string {
+  return `\${{${variable}}}`;
+}
+
 export function railwaySharedRef(key: string): string {
   return `\${{ shared.${key} }}`;
 }
@@ -464,8 +469,15 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'EMAIL_FROM',
     service: DEPLOY_APP_SERVICE,
     kind: 'reference',
-    value: '${{ RESEND_FROM }}',
-    description: 'Same-service alias so Cal.com / Crater can reference reave.EMAIL_FROM.',
+    value: railwayLocalRef('RESEND_FROM'),
+    description: 'Same-service alias so Cal.com / Crater can reference ${{reave.EMAIL_FROM}}.',
+  }),
+  v({
+    name: 'EMAIL_FROM_NAME',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description: 'From display name (e.g. Tony Barletta Jr.). Cal.com reads ${{reave.EMAIL_FROM_NAME}}.',
+    required: false,
   }),
   v({
     name: 'PUBLIC_SITE_DOMAIN',
@@ -650,6 +662,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['billing'],
   }),
   v({
+    name: 'MAIL_FROM_NAME',
+    service: 'crater',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
+    description: 'Invoice from-name — ${{reave.EMAIL_FROM_NAME}}.',
+    features: ['billing'],
+  }),
+  v({
     name: 'MAIL_PASSWORD',
     service: 'crater',
     kind: 'reference',
@@ -795,6 +815,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'reference',
     value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
     description: 'Do not leave unset — Cal.com falls back to sendmail and mail never leaves the box.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'EMAIL_FROM_NAME',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
+    description: 'Display name — ${{reave.EMAIL_FROM_NAME}}, not a second paste.',
     features: ['scheduling'],
   }),
   v({

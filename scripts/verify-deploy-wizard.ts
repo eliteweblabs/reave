@@ -10,6 +10,7 @@ import {
   normalizeSiteDomain,
   railwayPrivateUrl,
   railwayPublicUrl,
+  railwayLocalRef,
   railwayRef,
   railwaySharedRef,
 } from '../src/lib/deployWizardCatalog.ts';
@@ -18,6 +19,7 @@ assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_P
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');
 assert.equal(railwaySharedRef('CONTACT_API_CLIENT_KEY'), '${{ shared.CONTACT_API_CLIENT_KEY }}');
 assert.equal(railwayRef('reave-postgres', 'DATABASE_URL'), '${{ reave-postgres.DATABASE_URL }}');
+assert.equal(railwayLocalRef('EMAIL_FROM_NAME'), '${{EMAIL_FROM_NAME}}');
 
 const core = buildDeployWizardPlan({ features: [], installSlug: 'acme' });
 assert.equal(core.installSlug, 'acme');
@@ -45,7 +47,9 @@ assert.ok(billed.variables.some((v) => v.name === 'BOOKING_API_URL' && v.filled.
 assert.ok(billed.variables.some((v) => v.service === 'shared' && v.name === 'FLEET_API_CLIENT_KEY'));
 
 const reaveEmailFrom = billed.variables.find((v) => v.service === 'reave' && v.name === 'EMAIL_FROM');
-assert.equal(reaveEmailFrom?.filled, '${{ RESEND_FROM }}');
+assert.equal(reaveEmailFrom?.filled, '${{RESEND_FROM}}');
+const calFromName = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM_NAME');
+assert.equal(calFromName?.filled, '${{ reave.EMAIL_FROM_NAME }}');
 const siteDomain = billed.variables.find((v) => v.service === 'reave' && v.name === 'PUBLIC_SITE_DOMAIN');
 assert.equal(siteDomain?.filled, 'acme.com');
 

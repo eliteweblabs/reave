@@ -67,7 +67,8 @@ Put third-party secrets on the Astro service once. Siblings **reference** them �
 
 | On `reave` | Sibling reads |
 |------------|----------------|
-| `RESEND_FROM` → `EMAIL_FROM=${{ RESEND_FROM }}` | Cal.com `EMAIL_FROM=${{ reave.EMAIL_FROM }}` |
+| `RESEND_FROM` → `EMAIL_FROM=${{RESEND_FROM}}` | Cal.com `EMAIL_FROM=${{ reave.EMAIL_FROM }}` |
+| `EMAIL_FROM_NAME` | Cal.com `EMAIL_FROM_NAME=${{ reave.EMAIL_FROM_NAME }}`; Crater `MAIL_FROM_NAME` |
 | `RESEND_API_KEY` | Cal.com `RESEND_API_KEY` + `EMAIL_SERVER_PASSWORD`; Crater `MAIL_PASSWORD` |
 | `PUBLIC_SITE_URL` | `contact-api` / fleet / inventory / materials `ALLOWED_ORIGINS` |
 
