@@ -72,6 +72,7 @@ import {
   craterUpdateInvoice,
   craterDeleteInvoice,
   craterAddInvoiceItems,
+  craterUpdateInvoiceItem,
   craterSearchLineItems,
   craterRecordPayment,
   craterListRecurringInvoices,
@@ -238,6 +239,21 @@ async function handle_add_invoice_items(args: Record<string, unknown>, _ctx: Too
   const items = parseLineItems(args.items);
   if (!items.length) return JSON.stringify({ error: 'at least one item with a price is required' });
   const result = await craterAddInvoiceItems(String(args.invoice_id ?? ''), items);
+  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  return JSON.stringify(result.data);
+}
+
+async function handle_update_invoice_item(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const invoiceId = String(args.invoice_id ?? '').trim();
+  const itemId = String(args.item_id ?? '').trim();
+  if (!invoiceId) return JSON.stringify({ error: 'invoice_id is required' });
+  if (!itemId) return JSON.stringify({ error: 'item_id is required' });
+  const result = await craterUpdateInvoiceItem(invoiceId, itemId, {
+    name: args.name as string | undefined,
+    description: args.description as string | undefined,
+    quantity: args.quantity !== undefined ? Number(args.quantity) : undefined,
+    price: args.price !== undefined ? Number(args.price) : undefined,
+  });
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
   return JSON.stringify(result.data);
 }
@@ -432,6 +448,27 @@ export const billingModule: AgentToolModule = {
             {
               type: 'function',
               function: {
+                name: 'update_invoice_item',
+                description:
+                  'Update an existing line item on a Crater invoice — rename it, fix a typo, change description, quantity, or price. Use get_invoice first to find the item_id. Prices are whole dollars.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    invoice_id: { type: 'string', description: 'Crater invoice ID' },
+                    item_id: { type: 'string', description: 'Line item ID (from get_invoice items[].id)' },
+                    name: { type: 'string', description: 'New item name' },
+                    description: { type: 'string', description: 'New description (pass empty string to clear)' },
+                    quantity: { type: 'number', description: 'New quantity' },
+                    price: { type: 'number', description: 'New unit price in whole dollars' },
+                  },
+                  required: ['invoice_id', 'item_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
                 name: 'search_line_items',
                 description: 'Search Crater line-item templates (catalog) by name.',
                 parameters: {
@@ -557,6 +594,7 @@ export const billingModule: AgentToolModule = {
     'update_invoice': handle_update_invoice,
     'delete_invoice': handle_delete_invoice,
     'add_invoice_items': handle_add_invoice_items,
+    'update_invoice_item': handle_update_invoice_item,
     'search_line_items': handle_search_line_items,
     'record_payment': handle_record_payment,
     'list_recurring_invoices': handle_list_recurring_invoices,

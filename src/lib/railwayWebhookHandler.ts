@@ -1,6 +1,7 @@
 import { handleDeployFailure, isRailwayIncidentHandlerEnabled } from './deployIncidentHandler';
 import { clearDeployStarted, markDeployFailed, markDeployStarted } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
+import { triggerDeployResume } from './deployResume';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
 import { secretMatches } from './secretCompare';
@@ -79,6 +80,10 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
  * Deploy failures always open a new chat with Railway logs and auto-run the
  * agent to fix (typos / lockfile / collisions). Full incident lock + verify
  * loop runs when RAILWAY_INCIDENT_HANDLER=1. No phone push for build failures.
+ *
+ * Deploy success triggers any registered deploy-resume continuation so the
+ * agent can pick up mid-task workflows (e.g. "fix Crater line item after
+ * the deploy lands") automatically.
  */
 export async function handleRailwayWebhook(opts: {
   ingressKey: string | null;
@@ -119,6 +124,10 @@ export async function handleRailwayWebhook(opts: {
     if (hasFeature('site_monitoring')) {
       markDeployActivity();
     }
+    // Resume any pending agent continuation (fire-and-forget — don't block the webhook response).
+    triggerDeployResume().catch((err) =>
+      console.warn('[railway-webhook] deploy resume error', err instanceof Error ? err.message : err),
+    );
     return { ok: true, status: 200, message: 'deploy success — monitoring suppress window started' };
   }
 

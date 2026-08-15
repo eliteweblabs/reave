@@ -548,6 +548,43 @@ export async function craterAddInvoiceItems(
   });
 }
 
+export async function craterUpdateInvoiceItem(
+  invoiceId: string | number,
+  itemId: string | number,
+  input: {
+    name?: string;
+    description?: string;
+    quantity?: number;
+    price?: number;
+  }
+): Promise<
+  CraterResult<{
+    success: boolean;
+    item_id: number;
+    invoice_id: number;
+    name: string;
+    description?: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }>
+> {
+  const id = String(invoiceId).trim();
+  const iid = String(itemId).trim();
+  if (!id) return { ok: false, error: 'invoice_id is required' };
+  if (!iid) return { ok: false, error: 'item_id is required' };
+  const body: Record<string, unknown> = {};
+  if (input.name?.trim()) body.name = input.name.trim();
+  if (input.description !== undefined) body.description = input.description;
+  if (input.quantity !== undefined) body.quantity = input.quantity;
+  if (input.price !== undefined) body.price = input.price;
+  if (!Object.keys(body).length) return { ok: false, error: 'nothing to update' };
+  return craterFetch(
+    `/api/custom/invoice/${encodeURIComponent(id)}/items/${encodeURIComponent(iid)}`,
+    { method: 'PUT', body }
+  );
+}
+
 export type CraterLineItem = {
   id: number;
   name: string;
