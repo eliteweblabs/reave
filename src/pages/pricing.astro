@@ -108,8 +108,8 @@ const company = await getCompanyConfig(Astro.request);
 
   .pricing-btn--primary {
     color: #0b0512;
-    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
-    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+    background: var(--brand-gradient);
+    box-shadow: 0 8px 24px rgba(var(--brand-magenta-rgb), 0.35);
   }
 
   .pricing-btn--primary:hover {

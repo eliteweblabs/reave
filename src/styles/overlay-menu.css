@@ -226,7 +226,7 @@
   color: #0b0512;
   background: var(--brand-gradient);
   text-decoration: none;
-  box-shadow: 0 8px 24px rgba(192, 38, 211, 0.32);
+  box-shadow: 0 8px 24px rgba(var(--brand-magenta-rgb), 0.32);
 }
 
 .overlay-menu-footer-cta:hover {

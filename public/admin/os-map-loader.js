@@ -6094,16 +6094,37 @@ function normalizeHexColor(raw) {
   return t.toLowerCase();
 }
 
+function hexToRgbChannels(hex) {
+  const n = normalizeHexColor(hex);
+  if (!n) return '';
+  return `${parseInt(n.slice(1, 3), 16)}, ${parseInt(n.slice(3, 5), 16)}, ${parseInt(n.slice(5, 7), 16)}`;
+}
+
 function applyCompanyBrandPreview(root) {
   const primary = root.querySelector('#company-brandPrimary');
   const secondary = root.querySelector('#company-brandSecondary');
   if (!(primary instanceof HTMLInputElement) || !(secondary instanceof HTMLInputElement)) return;
   const p = normalizeHexColor(primary.value) || '#f472b6';
   const s = normalizeHexColor(secondary.value) || '#c026d3';
-  document.documentElement.style.setProperty('--brand-pink', p);
-  document.documentElement.style.setProperty('--brand-magenta', s);
-  document.documentElement.style.setProperty('--brand-indigo', s);
-  document.documentElement.style.setProperty('--brand-gradient', `linear-gradient(135deg, ${p}, ${s})`);
+  const pRgb = hexToRgbChannels(p);
+  const sRgb = hexToRgbChannels(s);
+  const gradient = `linear-gradient(135deg, ${p}, ${s})`;
+  const shadow = `0 2px 16px rgba(${sRgb}, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4)`;
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--brand-pink', p);
+  rootStyle.setProperty('--brand-magenta', s);
+  rootStyle.setProperty('--brand-indigo', s);
+  rootStyle.setProperty('--brand-pink-rgb', pRgb);
+  rootStyle.setProperty('--brand-magenta-rgb', sRgb);
+  rootStyle.setProperty('--brand-indigo-rgb', sRgb);
+  rootStyle.setProperty('--brand-gradient', gradient);
+  rootStyle.setProperty('--brand-gradient-shadow', shadow);
+  rootStyle.setProperty('--create-fab-bg', gradient);
+  rootStyle.setProperty('--create-fab-shadow', shadow);
+  rootStyle.setProperty(
+    '--brand-glow-filter',
+    `drop-shadow(0 8px 28px rgba(${pRgb}, 0.38)) drop-shadow(0 0 26px rgba(${pRgb}, 0.22))`,
+  );
 }
 
 const SOCIAL_OAUTH_ERRORS = {

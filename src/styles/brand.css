@@ -38,6 +38,10 @@
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
+  /* Comma-separated RGB for rgba(var(--brand-*-rgb), a) — set from Company colors. */
+  --brand-pink-rgb: 244, 114, 182;
+  --brand-magenta-rgb: 192, 38, 211;
+  --brand-indigo-rgb: 99, 102, 241;
   --reave-bg-pattern-url: url("/reave-bg-pattern.svg");
   --reave-bg-pattern-tile: 400%;
   --brand-gradient: linear-gradient(
@@ -47,9 +51,9 @@
     var(--brand-indigo) 100%
   );
   --brand-gradient-shadow:
-    0 2px 16px rgba(192, 38, 211, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4);
-  --brand-glow-filter: drop-shadow(0 8px 28px rgba(192, 38, 211, 0.38))
-    drop-shadow(0 0 26px rgba(192, 38, 211, 0.22));
+    0 2px 16px rgba(var(--brand-magenta-rgb), 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4);
+  --brand-glow-filter: drop-shadow(0 8px 28px rgba(var(--brand-magenta-rgb), 0.38))
+    drop-shadow(0 0 26px rgba(var(--brand-magenta-rgb), 0.22));
   --create-fab-bg: var(--brand-gradient);
   --create-fab-shadow: var(--brand-gradient-shadow);
   --brand-glass-bg: rgba(255, 255, 255, 0.07);
@@ -248,7 +252,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --brand-gradient-shadow:
-      0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
+      0 2px 16px rgba(var(--brand-magenta-rgb), 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
     --create-fab-shadow: var(--brand-gradient-shadow);
   }
 }

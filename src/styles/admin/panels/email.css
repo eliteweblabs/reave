@@ -1039,7 +1039,7 @@
 /* Header row: keep the glow from eating into the truncated title. */
 .de-header-actions > .agent-btn,
 .de-header-actions > .de-new-btn.em-agent-btn.em-header-action-btn {
-  box-shadow: 0 1px 8px rgba(192, 38, 211, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 1px 8px rgba(var(--brand-magenta-rgb), 0.28), 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 /* Agent icon — right-eye wink on hover; both eyes close in sleep mode. */

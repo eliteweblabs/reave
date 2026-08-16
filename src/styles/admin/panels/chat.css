@@ -883,7 +883,7 @@ body.admin-split-view #chat-panel .ch-compose {
   font-weight: 600;
   color: #fff;
   background: var(--brand-gradient);
-  box-shadow: 0 8px 28px rgba(192, 38, 211, 0.38);
+  box-shadow: 0 8px 28px rgba(var(--brand-magenta-rgb), 0.38);
   white-space: nowrap;
   cursor: pointer;
 }

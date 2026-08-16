@@ -142,10 +142,10 @@
 /* Inline + FAB: mobile sidebar only (footer nav handles create on wider viewports). */
 @media (max-width: 639px) {
   .panel-list-subheader .de-new-btn.ch-new-btn {
-    box-shadow: 0 2px 10px rgba(192, 38, 211, 0.45);
+    box-shadow: 0 2px 10px rgba(var(--brand-magenta-rgb), 0.45);
   }
   .panel-list-subheader .de-new-btn.ch-new-btn:hover {
-    box-shadow: 0 3px 14px rgba(192, 38, 211, 0.52);
+    box-shadow: 0 3px 14px rgba(var(--brand-magenta-rgb), 0.52);
   }
   .panel-list-subheader .de-new-btn.ch-new-btn svg {
     width: 18px;
@@ -375,7 +375,7 @@
 }
 .de-new-btn.ch-new-btn:hover {
   filter: brightness(1.08);
-  box-shadow: 0 4px 20px rgba(192, 38, 211, 0.58), 0 0 0 1px var(--border-strong-hover);
+  box-shadow: 0 4px 20px rgba(var(--brand-magenta-rgb), 0.58), 0 0 0 1px var(--border-strong-hover);
 }
 .de-new-btn.ch-new-btn:active {
   transform: scale(0.94);
