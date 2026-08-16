@@ -52,6 +52,8 @@ Authoritative playbook for toggles, public invoices, and line-item edits: **`KNO
 
 The client link is `/invoices/{unique_hash}`. Qty and rate are hidden. Optional rows show a switch; required rows do not.
 
+iMessage / Slack share title is `{company name} - Invoice for {first required line item}` (`Invoice::sharePreviewTitle()` in `eliteweblabs/crater`). If that repo still shows `New Invoice`, apply `plugins/billing/patches/invoice-share-preview.patch` with `git am`.
+
 A row is optional from its **stored name** only (no `optional` column):
 
 - `(optional)` or `[optional]` or `can be added anytime` → toggle
