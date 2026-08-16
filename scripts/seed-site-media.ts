@@ -51,8 +51,6 @@ const SEED: SeedItem[] = [
   { slug: 'portfolio-featured-sfh', file: 'src/assets/images/portfolio/featured-sfh.webp', alt: 'Students for Haiti' },
   { slug: 'portfolio-vasodyn-featured', file: 'src/assets/images/portfolio/vasodyn-featured.webp', alt: 'Vasodyn' },
   { slug: 'portfolio-blackwater-featured', file: 'src/assets/images/portfolio/blackwater-featured.webp', alt: 'blackWater' },
-  { slug: 'portfolio-box-captital-logo-dark', file: 'src/assets/images/portfolio/box-captital-logo-dark.webp', alt: 'Box Capital' },
-  { slug: 'portfolio-icfp-logo', file: 'src/assets/images/portfolio/icfp-logo.webp', alt: 'Innercity Fire Protection' },
   { slug: 'portfolio-lotus-glass-featured', file: 'src/assets/images/featured/lotus-glass-featured.jpg', alt: 'Lotus Glass' },
   { slug: 'portfolio-angler-fish-aquatics-featured', file: 'src/assets/images/portfolio/angler-fish-aquatics-featured.webp', alt: 'Anglerfish Aquatics' },
   { slug: 'portfolio-paradigm-landscape', file: 'src/assets/images/portfolio/paradigm-landscape.webp', alt: 'Paradigm Landscape' },
