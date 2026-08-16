@@ -10,7 +10,7 @@
  */
 import { parseKnowledgeMarkdown } from './localKnowledge';
 import { renderDocumentMarkdown } from './renderDocumentMarkdown';
-import { companyLogoUrl, type CompanyConfig } from './companyConfig';
+import { brandIconUrl, companyLogoUrl, type CompanyConfig } from './companyConfig';
 import { prepareInlineBrandSvg, svgHasExternalRasterRefs } from './brandSvg';
 import { SITE } from '../config/site';
 
@@ -19,7 +19,18 @@ export type DocumentLayoutKind = 'default' | 'onepager';
 
 export type PrintCompany = Pick<
   CompanyConfig,
-  'name' | 'legalName' | 'domain' | 'supportEmail' | 'logoPath' | 'logoSource' | 'logoVersion' | 'logoSvg'
+  | 'name'
+  | 'legalName'
+  | 'domain'
+  | 'supportEmail'
+  | 'logoPath'
+  | 'logoSource'
+  | 'logoVersion'
+  | 'logoSvg'
+  | 'iconPath'
+  | 'iconSource'
+  | 'iconVersion'
+  | 'iconSvg'
 >;
 
 export type ParsedDocumentLayout = {
@@ -117,6 +128,150 @@ export function companyLogoHtml(company?: PrintCompany): string {
   return `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
 }
 
+const BRAND_SIZE_PRESETS: Record<string, string> = {
+  sm: '1.25em',
+  md: '2.4em',
+  lg: '3.6em',
+  xl: '5.5em',
+};
+
+/** Shared CSS so {company.logo} / {company.icon} scale with surrounding type. */
+export const DOCUMENT_BRAND_MARK_CSS = `
+.doc-brand {
+  display: inline-block;
+  vertical-align: middle;
+  height: var(--doc-brand-size, 2.4em);
+  width: auto;
+  max-width: 100%;
+  line-height: 0;
+}
+.doc-brand--icon { --doc-brand-size: 1.6em; }
+.doc-brand--sm { --doc-brand-size: 1.25em; }
+.doc-brand--md { --doc-brand-size: 2.4em; }
+.doc-brand--lg { --doc-brand-size: 3.6em; }
+.doc-brand--xl { --doc-brand-size: 5.5em; }
+.doc-brand svg,
+.doc-brand img {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+.doc-brand--icon svg,
+.doc-brand--icon img {
+  width: auto;
+  height: 100%;
+}
+`.trim();
+
+function parseBrandSize(raw?: string, kind: 'logo' | 'icon' = 'logo'): { sizeClass: string; style: string } {
+  const key = (raw || '').trim().toLowerCase();
+  if (!key) return { sizeClass: kind === 'icon' ? '' : 'doc-brand--md', style: '' };
+  if (BRAND_SIZE_PRESETS[key]) return { sizeClass: `doc-brand--${key}`, style: '' };
+  if (/^\d+(\.\d+)?$/.test(key)) return { sizeClass: '', style: `--doc-brand-size:${key}px` };
+  if (/^\d+(\.\d+)?(px|em|rem|%)$/.test(key)) return { sizeClass: '', style: `--doc-brand-size:${key}` };
+  return { sizeClass: kind === 'icon' ? '' : 'doc-brand--md', style: '' };
+}
+
+function makeSvgScalable(svg: string): string {
+  return svg.replace(/<svg\b([^>]*)>/i, (_full, attrs: string) => {
+    const width = attrs.match(/\bwidth=["']([\d.]+)(?:px)?["']/i)?.[1];
+    const height = attrs.match(/\bheight=["']([\d.]+)(?:px)?["']/i)?.[1];
+    let next = String(attrs)
+      .replace(/\s(?:width|height)=["'][^"']*["']/gi, '')
+      .replace(/\spreserveAspectRatio=["'][^"']*["']/i, '');
+    if (!/viewBox=/i.test(next) && width && height) {
+      next += ` viewBox="0 0 ${width} ${height}"`;
+    }
+    return `<svg${next} preserveAspectRatio="xMidYMid meet">`;
+  });
+}
+
+function inlineBrandSvg(raw: string | undefined, className: string, idPrefix: string): string {
+  const svg = raw?.trim();
+  if (!svg || svgHasExternalRasterRefs(svg)) return '';
+  const prepared = prepareInlineBrandSvg(svg, { className, idPrefix });
+  return prepared ? makeSvgScalable(prepared) : '';
+}
+
+function brandMarkImg(src: string, alt: string): string {
+  if (!src) return '';
+  return `<img class="doc-brand-img" src="${esc(src)}" alt="${esc(alt)}" />`;
+}
+
+function logoImgSrc(company?: PrintCompany): string {
+  if (!company) return '';
+  if (company.logoPath) {
+    return companyLogoUrl(company.logoPath, company.logoVersion) || '';
+  }
+  return companyLogoUrl(SITE.logoPath) || SITE.logoPath || '';
+}
+
+function iconImgSrc(company?: PrintCompany): string {
+  if (!company) return '';
+  if (company.iconPath || company.iconVersion) {
+    return brandIconUrl(256, company.iconVersion || company.logoVersion, { transparent: true });
+  }
+  return '';
+}
+
+function brandMarkInner(
+  kind: 'logo' | 'icon',
+  company: PrintCompany | undefined,
+  idPrefix: string,
+  alt: string,
+): string {
+  if (kind === 'icon') {
+    return (
+      inlineBrandSvg(company?.iconSvg, 'doc-brand-svg', `${idPrefix}-icon`) ||
+      inlineBrandSvg(company?.logoSvg, 'doc-brand-svg', `${idPrefix}-logo`) ||
+      brandMarkImg(iconImgSrc(company), alt) ||
+      brandMarkImg(logoImgSrc(company), alt)
+    );
+  }
+  return (
+    inlineBrandSvg(company?.logoSvg, 'doc-brand-svg', `${idPrefix}-logo`) ||
+    brandMarkImg(logoImgSrc(company), alt) ||
+    inlineBrandSvg(company?.iconSvg, 'doc-brand-svg', `${idPrefix}-icon`) ||
+    brandMarkImg(iconImgSrc(company), alt)
+  );
+}
+
+/** Inline, scalable company logo or icon for `{company.logo}` / `{company.icon}`. */
+export function companyBrandMarkHtml(
+  kind: 'logo' | 'icon',
+  company?: PrintCompany,
+  opts?: { size?: string; idPrefix?: string },
+): string {
+  const name = (company?.name || SITE.name || 'Logo').trim();
+  const { sizeClass, style } = parseBrandSize(opts?.size, kind);
+  const kindClass = kind === 'icon' ? 'doc-brand--icon' : 'doc-brand--logo';
+  const classes = ['doc-brand', kindClass, sizeClass].filter(Boolean).join(' ');
+  const styleAttr = style ? ` style="${esc(style)}"` : '';
+  const inner = brandMarkInner(kind, company, opts?.idPrefix || `doc-${kind}`, name);
+  if (!inner) return '';
+  return `<span class="${classes}"${styleAttr} role="img" aria-label="${esc(name)}">${inner}</span>`;
+}
+
+const BRAND_TOKEN_RE = /\{company\.(logo|icon)(?::([^}]+))?\}/gi;
+
+/** Replace leftover `{company.logo}` / `{company.icon}` tokens in rendered HTML. */
+export function applyCompanyBrandShortcodes(html: string, company?: PrintCompany): string {
+  let seq = 0;
+  const re = new RegExp(BRAND_TOKEN_RE.source, 'gi');
+  const next = html.replace(re, (_match, kindRaw: string, sizeRaw?: string) => {
+    seq += 1;
+    const kind = kindRaw.toLowerCase() === 'icon' ? 'icon' : 'logo';
+    return companyBrandMarkHtml(kind, company, {
+      size: sizeRaw,
+      idPrefix: `doc-${kind}-${seq}`,
+    });
+  });
+  if (seq === 0 || next.includes('data-doc-brand-mark-css')) return next;
+  return `<style data-doc-brand-mark-css>${DOCUMENT_BRAND_MARK_CSS}</style>\n${next}`;
+}
+
 function printPageCss(orientation: DocumentOrientation): string {
   const pageSize = orientation === 'landscape' ? 'letter landscape' : 'letter portrait';
   const ratio = orientation === 'landscape' ? '11 / 8.5' : '8.5 / 11';
@@ -181,6 +336,7 @@ function printPageCss(orientation: DocumentOrientation): string {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+${DOCUMENT_BRAND_MARK_CSS}
 .doc-onepager-mast {
   text-align: right;
   min-width: 0;

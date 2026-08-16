@@ -10,6 +10,7 @@
 import { getContact, extractPortal } from '../../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { getTemplate, fillAndRenderTemplate } from '../../../../lib/documentTemplates';
+import { DOCUMENT_BRAND_MARK_CSS } from '../../../../lib/documentPrintLayout';
 import Favicon from '../../../../components/Favicon.astro';
 import ViewportMeta from '../../../../components/ViewportMeta.astro';
 import '../../../../styles/mobile-touch.css';
@@ -174,6 +175,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
       });
     </script>
 
+    <style is:global set:html={DOCUMENT_BRAND_MARK_CSS}></style>
     <style is:global>
       *, *::before, *::after { box-sizing: border-box; }
       html, body {

@@ -2,6 +2,7 @@ import type { ContactRecord } from './contactApi';
 import { parseKnowledgeMarkdown } from './localKnowledge';
 import { renderDocumentMarkdown } from './renderDocumentMarkdown';
 import {
+  applyCompanyBrandShortcodes,
   parseDocumentLayout,
   renderPrintOnePagerHtml,
   type PrintCompany,
@@ -51,6 +52,8 @@ export const SHORTCODES: Shortcode[] = [
   { code: 'company.legal_name', token: '{company.legal_name}', label: 'Legal name',       description: 'Legal entity name for contracts',      category: 'Company' },
   { code: 'company.domain',     token: '{company.domain}',     label: 'Domain',           description: 'Website hostname, e.g. example.com', category: 'Company' },
   { code: 'company.support_email', token: '{company.support_email}', label: 'Support email', description: 'Public support contact email', category: 'Company' },
+  { code: 'company.logo',       token: '{company.logo}',       label: 'Logo',             description: 'Scalable company logo. Size with {company.logo:sm|md|lg|xl} or {company.logo:3em}', category: 'Company' },
+  { code: 'company.icon',       token: '{company.icon}',       label: 'Icon',             description: 'Scalable company icon. Size with {company.icon:sm|md|lg|xl} or {company.icon:32}', category: 'Company' },
   { code: 'date',               token: '{date}',               label: "Today's date",     description: 'Long date format, e.g. "June 15, 2026"', category: 'Date'   },
   { code: 'year',               token: '{year}',               label: 'Current year',     description: '4-digit year, e.g. "2026"',            category: 'Date'   },
 ];
@@ -109,8 +112,8 @@ const DATE_RE = new RegExp(
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const PHONE_RE = /(?:\+1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g;
 const SUPPORT_LOCAL_RE = /^(support|hello|info|contact|help|office|admin|team|hi)$/i;
-const TOKEN_RE = /\{[a-z][a-z0-9_.]*\}/gi;
-const SKIP_SCAN_CODES = new Set(['client.company_str']);
+const TOKEN_RE = /\{[a-z][a-z0-9_.]*(?::[a-z0-9.]+)?\}/gi;
+const SKIP_SCAN_CODES = new Set(['client.company_str', 'company.logo', 'company.icon']);
 
 function contactNameParts(contact: ContactRecord): { firstName: string; lastName: string; company: string } {
   const firstName =
@@ -347,10 +350,11 @@ export async function renderFilledDocumentHtml(
   slug = '',
 ): Promise<string> {
   const layout = parseDocumentLayout(markdown, slug);
-  if (layout.layout === 'onepager') {
-    return renderPrintOnePagerHtml(markdown, org, slug);
-  }
-  return renderDocumentMarkdown(markdown);
+  const html =
+    layout.layout === 'onepager'
+      ? await renderPrintOnePagerHtml(markdown, org, slug)
+      : await renderDocumentMarkdown(markdown);
+  return applyCompanyBrandShortcodes(html, org);
 }
 
 function escMarkdown(s: string): string {

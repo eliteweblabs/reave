@@ -31,8 +31,7 @@ export const POST: APIRoute = async (context) => {
   try {
     const company = await getCompanyConfig(context.request);
     const layout = parseDocumentLayout(content);
-    const source =
-      layout.layout === 'onepager' ? fillTemplate(content, PREVIEW_CONTACT, company) : content;
+    const source = fillTemplate(content, PREVIEW_CONTACT, company);
     const html = await renderFilledDocumentHtml(source, company);
     const previewHtml =
       layout.layout === 'onepager' ? wrapPrintPreviewDocument(html, layout.orientation) : html;

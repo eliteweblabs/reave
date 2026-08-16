@@ -10,6 +10,7 @@
 import { getContact, extractPortal } from '../../../lib/contactApi';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { getTemplate, fillAndRenderTemplate } from '../../../lib/documentTemplates';
+import { DOCUMENT_BRAND_MARK_CSS } from '../../../lib/documentPrintLayout';
 import Header from '../../../components/Header.astro';
 import SiteFooter from '../../../components/SiteFooter.astro';
 import PortalAssistantWidget from '../../../components/PortalAssistantWidget.astro';
@@ -239,6 +240,7 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
       });
     </script>
 
+    <style is:global set:html={DOCUMENT_BRAND_MARK_CSS}></style>
     <style is:global>
       *, *::before, *::after { box-sizing: border-box; }
       html, body {
