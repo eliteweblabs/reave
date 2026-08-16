@@ -1,6 +1,7 @@
 /**
- * POST /api/email/simulate — dry-run inbound triage through the same
- * processInboundEmail path the Agent uses (no inbox/push/booking writes).
+ * POST /api/email/simulate — dry-run inbound triage.
+ * Full path: processInboundEmail (no inbox/push/booking writes).
+ * rulesOnly: evaluateEmailRules only (live lab test).
  */
 
 import type { APIContext } from 'astro';
@@ -77,9 +78,10 @@ export async function POST(context: APIContext): Promise<Response> {
       : undefined;
 
   const skipGates = body.skipGates === true || body.skip_gates === true;
+  const rulesOnly = body.rulesOnly === true || body.rules_only === true;
 
   try {
-    const result = await simulateInboundEmail({ email, ruleOrder, skipGates });
+    const result = await simulateInboundEmail({ email, ruleOrder, skipGates, rulesOnly });
     return json(result);
   } catch (e) {
     console.error('[email/simulate] failed', e);

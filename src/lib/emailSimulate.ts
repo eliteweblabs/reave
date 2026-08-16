@@ -20,7 +20,12 @@ import {
   storeListEmailRules,
   type EmailRuleRecord,
 } from './emailRuleStore';
-import { isSilentTriageStatus, type InboundEmail, type RuleEvaluation } from './emailRules';
+import {
+  evaluateEmailRules,
+  isSilentTriageStatus,
+  type InboundEmail,
+  type RuleEvaluation,
+} from './emailRules';
 import type { ClassificationAuditStep } from './emailClassificationAudit';
 
 export type TriagePlaybackStep = {
@@ -39,6 +44,8 @@ export type TriagePlaybackStep = {
 export type SimulateInboundEmailResult = {
   ok: true;
   dryRun: true;
+  /** True when only evaluateEmailRules ran (live lab test — no AI / persist). */
+  rulesOnly?: boolean;
   inboundAddressExample: string;
   gates: {
     sleepMode: boolean;
@@ -47,8 +54,10 @@ export type SimulateInboundEmailResult = {
     beforeCutoff: boolean;
     allowlisted: boolean;
   };
-  /** Null when a gate blocked triage before processInboundEmail. */
+  /** Null when a gate blocked triage before processInboundEmail, or rules-only. */
   result: ProcessedEmailResult | null;
+  /** Winning rule id when a keyword rule matched (rules-only or full dry-run). */
+  matchedRuleId?: string | null;
   steps: TriagePlaybackStep[];
   ruleEvaluations: RuleEvaluation[];
   classificationAudit: ClassificationAuditStep[];
@@ -65,6 +74,8 @@ export type SimulateInboundInput = {
   ruleOrder?: string[];
   /** When true, skip sleep/cutoff/allowlist gates (test triage core only). */
   skipGates?: boolean;
+  /** Walk keyword rules only — used by the live lab test. */
+  rulesOnly?: boolean;
 };
 
 function reorderRules(
@@ -368,6 +379,38 @@ export async function simulateInboundEmail(
   const ordered = reorderRules(config.rules, input.ruleOrder);
   // Keep disabled rules for the walk (shown as disabled); drop expired like production.
   const rulesForClassify = ordered.filter((r) => !isEmailRuleExpired(r));
+  const rulesUsed = rulesForClassify.map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    sortOrder: r.sortOrder,
+    enabled: r.enabled,
+    notify: r.notify,
+  }));
+
+  if (input.rulesOnly) {
+    const walk = evaluateEmailRules(email, rulesForClassify, config.notifyOnUnmatched);
+    const matched = walk.classification.matched as EmailRuleRecord | null;
+    return {
+      ok: true,
+      dryRun: true,
+      rulesOnly: true,
+      inboundAddressExample,
+      gates: {
+        sleepMode: false,
+        sleepLabel: null,
+        inboundSince: null,
+        beforeCutoff: false,
+        allowlisted: true,
+      },
+      result: null,
+      matchedRuleId: matched?.id ?? null,
+      steps: stepsFromRuleEvaluations(walk.evaluations),
+      ruleEvaluations: walk.evaluations,
+      classificationAudit: [],
+      rulesUsed,
+    };
+  }
 
   let sleepMode = false;
   let sleepLabel: string | null = null;
