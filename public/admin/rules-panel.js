@@ -51,7 +51,7 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260815d';
+} from './email-triage-lab.js?v=20260815e';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -1522,7 +1522,7 @@ async function startNewRule(draft = null) {
 }
 
 /**
- * Open Rules and prefill Try-an-email from an inbox record (notification deep link).
+ * Open Rules and prefill generator chips from an inbox record (notification deep link).
  * @param {object} emailRecord
  * @param {{ run?: boolean }} [opts]
  */
