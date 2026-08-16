@@ -4,7 +4,8 @@ layout: onepager
 orientation: portrait
 brands: clients
 presence: true
-footer: Confidential sample · Prepared for {client.name}{client.company_str} · {company.name} · {company.support_email} · {date} · Page 1 of 1 · Not a legal opinion
+services: true
+footer: Confidential sample · Prepared for {client.name}{client.company_str} · {company.name} · {company.support_email} · {date} · Page 1 of 2 · Not a legal opinion
 ---
 
 :::column

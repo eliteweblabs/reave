@@ -384,7 +384,7 @@ export async function renderFilledDocumentHtml(
   const layout = parseDocumentLayout(markdown, slug);
   const html =
     layout.layout === 'onepager'
-      ? await renderPrintOnePagerHtml(markdown, org, slug)
+      ? await renderPrintOnePagerHtml(markdown, org, slug, contact)
       : await renderDocumentMarkdown(markdown);
   return applyCompanyBrandShortcodes(html, org, contact);
 }

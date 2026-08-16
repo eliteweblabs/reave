@@ -24,6 +24,13 @@ import {
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
 import { listBrandLogos } from '../src/lib/brandLogos.ts';
 import {
+  AUDIT_SERVICES_LEAD,
+  appendPrintOnePagerArticle,
+  renderAuditServicesArticle,
+  salesSheetTiers,
+} from '../src/lib/auditSalesPricing.ts';
+import { INSTALLATION_TIERS, formatInstallUsd } from '../src/lib/installationTiers.ts';
+import {
   AUDIT_INTERNET_PRESENCE_STATEMENT,
   cityStateFromAddress,
   DUMMY_PUBLIC_RECORD,
@@ -406,10 +413,37 @@ await test('public-record facts fall back to dummy and parse city/state from an 
   assert.doesNotMatch(injected, />old</);
 });
 
-await test('fillAuditOnePager keeps the brands and presence frontmatter flags', () => {
+await test('fillAuditOnePager keeps the brands, presence, and services frontmatter flags', () => {
   const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
   assert.match(filled, /^brands:\s*clients$/m);
   assert.match(filled, /^presence:\s*true$/m);
+  assert.match(filled, /^services:\s*true$/m);
+  assert.match(filled, /Page 1 of 2/);
+});
+
+await test('services page lists installation tiers and upfront prices', () => {
+  for (const md of [landscape, portrait]) {
+    assert.match(md, /^services:\s*true$/m);
+    assert.match(md, /Page 1 of 2/);
+  }
+  assert.match(AUDIT_SERVICES_LEAD, /Prices are on this page/);
+  const names = salesSheetTiers().map((t) => t.name);
+  assert.deepEqual(names, ['Core OS', 'Operations', 'Growth', 'Full platform']);
+  const html = renderAuditServicesArticle({
+    logoHtml: '<span>Logo</span>',
+    footerHtml: '<p>Page 2 of 2</p>',
+  });
+  assert.match(html, /ss-services/);
+  assert.match(html, /Core OS/);
+  assert.match(html, /Full platform/);
+  assert.match(html, /Document signing/);
+  assert.match(html, new RegExp(formatInstallUsd(INSTALLATION_TIERS[0]!.month1).replace(/\$/g, '\\$')));
+  const two = appendPrintOnePagerArticle(
+    '<style></style><div class="doc-onepager-stage"><article class="doc-onepager">p1</article></div>',
+    html,
+  );
+  assert.ok(two.indexOf('p1') < two.indexOf('ss-services'));
+  assert.match(two, /Page 2 of 2/);
 });
 
 await test('about-page brand names live in site config and the clients folder is scanned', () => {

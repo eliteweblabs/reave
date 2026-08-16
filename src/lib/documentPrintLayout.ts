@@ -23,7 +23,13 @@ import {
   DOCUMENT_INTERNET_PRESENCE_CSS,
   renderInternetPresenceHtml,
 } from './auditInternetPresence';
+import {
+  DOCUMENT_SERVICES_PAGE_CSS,
+  appendPrintOnePagerArticle,
+  renderAuditServicesArticle,
+} from './auditSalesPricing';
 import { SITE } from '../config/site';
+import type { ContactRecord } from './contactApi';
 
 export type DocumentOrientation = 'portrait' | 'landscape';
 export type DocumentLayoutKind = 'default' | 'onepager';
@@ -53,6 +59,8 @@ export type ParsedDocumentLayout = {
   brands: string;
   /** Standing internet-presence / review-response statement. */
   presence: boolean;
+  /** Second page: services, modules, and installation prices. */
+  services: boolean;
   body: string;
   columns: string[];
 };
@@ -85,10 +93,11 @@ export function parseDocumentLayout(markdown: string, slug = ''): ParsedDocument
   const footer = fmValue(fm, 'footer');
   const brands = parseBrandsFolder(fmValue(fm, 'brands'));
   const presence = parseOnFlag(fmValue(fm, 'presence'));
+  const services = parseOnFlag(fmValue(fm, 'services'));
   const body = parsed.body;
   const columns = splitColumns(body);
 
-  return { title, layout, orientation, footer, brands, presence, body, columns };
+  return { title, layout, orientation, footer, brands, presence, services, body, columns };
 }
 
 /** `true` / `yes` / `on` / `1` enable a frontmatter flag. */
@@ -479,6 +488,7 @@ ${DOCUMENT_INTERNET_PRESENCE_CSS}
   border-top: 1px solid var(--doc-rule);
 }
 ${DOCUMENT_CLIENT_LOGOS_CSS}
+${DOCUMENT_SERVICES_PAGE_CSS}
 .doc-onepager-footer {
   flex: 0 0 auto;
   padding-top: 2%;
@@ -571,6 +581,7 @@ export async function renderPrintOnePagerHtml(
   markdown: string,
   company?: PrintCompany,
   slug = '',
+  contact?: ContactRecord,
 ): Promise<string> {
   const parsed = parseDocumentLayout(markdown, slug);
   const columnsHtml = await Promise.all(
@@ -584,13 +595,14 @@ export async function renderPrintOnePagerHtml(
     day: 'numeric',
   });
   const kicker = today;
+  const logoHtml = companyLogoHtml(company);
 
-  return wrapPrintOnePager({
+  const first = wrapPrintOnePager({
     title: parsed.title,
     orientation: parsed.orientation,
     columnsHtml,
     footerHtml,
-    logoHtml: companyLogoHtml(company),
+    logoHtml,
     kicker,
     brandsHtml: parsed.brands
       ? renderClientBrandLogosHtml(
@@ -599,4 +611,27 @@ export async function renderPrintOnePagerHtml(
       : '',
     presenceHtml: parsed.presence ? renderInternetPresenceHtml() : '',
   });
+
+  if (!parsed.services) return first;
+
+  const who = [contact?.name, contact?.company].filter((part) => String(part || '').trim()).join(' · ');
+  const companyName = (company?.name || '').trim();
+  const page2Footer = [
+    'Confidential sample',
+    who ? `Prepared for ${who}` : '',
+    companyName,
+    'Page 2 of 2',
+    'Not a signed quote',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return appendPrintOnePagerArticle(
+    first,
+    renderAuditServicesArticle({
+      logoHtml,
+      footerHtml: `<p>${esc(page2Footer)}</p>`,
+      kicker,
+    }),
+  );
 }
