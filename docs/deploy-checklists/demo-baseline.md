@@ -219,7 +219,7 @@ Status: **pending** · Playbook: `plugins/scheduling/DEPLOY.md`
 - `BOOKING_API_URL` — private URL, e.g. `http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080`
 - `PUBLIC_BOOKING_API_URL` — public URL for client embeds
 - `CALCOM_WEBAPP_URL` — Cal.com host (e.g. `https://cal.reave.app`)
-- `CALCOM_USERNAME` — Cal.com account username
+- `CALCOM_USERNAME` — filled from the install slug; REΛVE pushes icon / username / email into Cal.com
 - `BOOKING_API_KEY` — optional; when calcom-booking-api enforces auth
 - `CALENDAR_REMINDER_POLL_SECRET` — cron auth for `/api/calendar/reminders/poll?key=`
 - `CALENDAR_REMINDER_POLL_MINUTES` — optional; default 1

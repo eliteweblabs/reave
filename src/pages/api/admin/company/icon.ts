@@ -5,6 +5,7 @@ import {
   setStoredCompanyConfig,
   setStoredCompanyIcon,
 } from '../../../../lib/companyConfigStore';
+import { syncCalcomIdentityFromReave } from '../../../../lib/calcomIdentitySync';
 import { parseCompanyBrandUpload } from '../../../../lib/companyLogo';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
@@ -51,6 +52,7 @@ export async function POST(context: APIContext): Promise<Response> {
         });
   if (!ok) return json({ error: 'Failed to save icon' }, 500);
 
+  void syncCalcomIdentityFromReave({ force: true, request: context.request }).catch(() => undefined);
   const company = await getCompanyConfig(context.request);
   return json({ ok: true, company });
 }
@@ -63,6 +65,7 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const ok = await clearStoredCompanyIcon();
   if (!ok) return json({ error: 'Failed to remove icon' }, 500);
 
+  void syncCalcomIdentityFromReave({ force: true, request: context.request }).catch(() => undefined);
   const company = await getCompanyConfig(context.request);
   return json({ ok: true, company });
 }

@@ -18,6 +18,10 @@ export const GET: APIRoute = async () => {
     });
   }
 
+  void import('../../../lib/calcomIdentitySync')
+    .then((m) => m.ensureCalcomIdentityScheduler())
+    .catch(() => undefined);
+
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
     headers: {

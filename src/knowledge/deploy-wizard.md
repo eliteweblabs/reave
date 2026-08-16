@@ -67,10 +67,14 @@ Put third-party secrets on the Astro service once. Siblings **reference** them �
 
 | On `reave` | Sibling reads |
 |------------|----------------|
-| `RESEND_FROM` → `EMAIL_FROM=${{RESEND_FROM}}` | Cal.com `EMAIL_FROM=${{ reave.EMAIL_FROM }}` |
-| `EMAIL_FROM_NAME` | Cal.com `EMAIL_FROM_NAME=${{ reave.EMAIL_FROM_NAME }}`; Crater `MAIL_FROM_NAME` |
+| `RESEND_FROM` → `EMAIL_FROM=${{RESEND_FROM}}` | Cal.com `EMAIL_FROM=${{ reave.EMAIL_FROM }}` and `NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS` |
+| `EMAIL_FROM_NAME` | Cal.com `EMAIL_FROM_NAME` / `NEXT_PUBLIC_APP_NAME` / `NEXT_PUBLIC_COMPANY_NAME`; Crater `MAIL_FROM_NAME` |
+| `CALCOM_USERNAME` | Filled from the install slug. Booking links and the Cal.com user use this — do not re-type on calcom-web-app. |
+| `COMPANY_ICON_URL` | `${{PUBLIC_SITE_URL}}/api/branding/icon?size=192` — Cal.com avatar pickup and any sibling that needs the mark |
 | `RESEND_API_KEY` | Cal.com `RESEND_API_KEY` + `EMAIL_SERVER_PASSWORD`; Crater `MAIL_PASSWORD` |
 | `PUBLIC_SITE_URL` | `contact-api` / fleet / inventory / materials `ALLOWED_ORIGINS` |
+
+Cal.com’s onboarding form (avatar, username, email) is a user row, not an env var. After apply — or when `calcom-web-app` shows up later — the REΛVE node writes those fields from company config / `GET /api/install/identity`. Refresh the Cal.com onboarding page if it was already open.
 
 Cal.com also gets Resend SMTP literals (`smtp.resend.com` / `465` / `resend`) so it never falls back to local `sendmail` when `EMAIL_FROM` is unset.
 

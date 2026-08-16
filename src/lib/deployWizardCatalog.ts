@@ -400,6 +400,13 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     description: 'Public origin until a custom domain is attached.',
   }),
   v({
+    name: 'COMPANY_ICON_URL',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'reference',
+    value: `${railwayLocalRef('PUBLIC_SITE_URL')}/api/branding/icon?size=192`,
+    description: 'Public brand icon. Siblings reference ${{ reave.COMPANY_ICON_URL }}.',
+  }),
+  v({
     name: 'CONTACT_API_BASE_URL',
     service: DEPLOY_APP_SERVICE,
     kind: 'reference',
@@ -738,8 +745,17 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'CALCOM_USERNAME',
     service: DEPLOY_APP_SERVICE,
-    kind: 'secret',
-    description: 'Cal.com account username.',
+    kind: 'literal',
+    value: '',
+    description: 'Booking username — filled from the install slug (company / domain). Cal.com picks this up from reave.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'CALCOM_DATABASE_URL',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'reference',
+    value: railwayRef('calcom-postgres', 'DATABASE_URL'),
+    description: 'So reave can push icon / username / email onto the Cal.com user when the sibling appears.',
     features: ['scheduling'],
   }),
   v({
@@ -823,6 +839,30 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'reference',
     value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
     description: 'Display name — ${{reave.EMAIL_FROM_NAME}}, not a second paste.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXT_PUBLIC_APP_NAME',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
+    description: 'Cal.com UI title — same display name as reave.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXT_PUBLIC_COMPANY_NAME',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
+    description: 'Cal.com company name — ${{ reave.EMAIL_FROM_NAME }}.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
+    description: 'Cal.com support address — ${{ reave.EMAIL_FROM }}.',
     features: ['scheduling'],
   }),
   v({
@@ -1396,6 +1436,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
     let filled = raw.value ?? '';
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
+    if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
     if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
     if (appService !== DEPLOY_APP_SERVICE && filled) {

@@ -29,6 +29,7 @@ import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
 import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView, syncUptimeMonitorsFromApiIfStale } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
+import { ensureCalcomIdentityScheduler } from '../../../lib/calcomIdentitySync';
 import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
 import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
@@ -100,6 +101,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   ensureEmailCleanupScheduler();
   ensureCalendarReminderScheduler();
+  ensureCalcomIdentityScheduler();
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
   const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([

@@ -14,6 +14,7 @@ import {
   railwayRef,
   railwaySharedRef,
 } from '../src/lib/deployWizardCatalog.ts';
+import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');
@@ -56,6 +57,25 @@ assert.equal(siteDomain?.filled, 'acme.com');
 const calFrom = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM');
 assert.equal(calFrom?.kind, 'reference');
 assert.equal(calFrom?.filled, '${{ reave.EMAIL_FROM }}');
+const calCompany = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_COMPANY_NAME');
+assert.equal(calCompany?.filled, '${{ reave.EMAIL_FROM_NAME }}');
+const calSupport = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS');
+assert.equal(calSupport?.filled, '${{ reave.EMAIL_FROM }}');
+const iconUrl = billed.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_ICON_URL');
+assert.equal(iconUrl?.filled, '${{PUBLIC_SITE_URL}}/api/branding/icon?size=192');
+const calUser = billed.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_USERNAME');
+assert.equal(calUser?.kind, 'literal');
+assert.equal(calUser?.filled, 'demo');
+const calDb = billed.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_DATABASE_URL');
+assert.equal(calDb?.filled, '${{ calcom-postgres.DATABASE_URL }}');
+
+const named = buildDeployWizardPlan({ features: ['scheduling'], installSlug: 'tonybarlettajr' });
+const namedUser = named.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_USERNAME');
+assert.equal(namedUser?.filled, 'tonybarlettajr');
+assert.equal(slugifyCalcomUsername('Tony Barletta Jr.'), 'tonybarlettajr');
+assert.equal(slugifyCalcomUsername('https://tonybarlettajr.com/'), 'tonybarlettajr');
+assert.equal(parseEmailAddress('Tony Barletta Jr. <hello@tonybarlettajr.com>'), 'hello@tonybarlettajr.com');
+assert.equal(parseEmailAddress('not-an-email'), '');
 const calSmtp = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_SERVER_PASSWORD');
 assert.equal(calSmtp?.filled, '${{ reave.RESEND_API_KEY }}');
 const calResend = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'RESEND_API_KEY');

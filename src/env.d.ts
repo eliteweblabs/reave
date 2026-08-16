@@ -224,6 +224,10 @@ interface ImportMetaEnv {
   CALCOM_API_URL?: string;
   /** Cal.com username slug (default reave). */
   CALCOM_USERNAME?: string;
+  /** Cal.com Postgres — so reave can push icon / username / email onto the first user. */
+  CALCOM_DATABASE_URL?: string;
+  /** Absolute brand-icon URL published for sibling services. */
+  COMPANY_ICON_URL?: string;
   /** Pin default event type when creating bookings. */
   CALCOM_EVENT_TYPE_ID?: string;
   /** Timezone for schedule display (default America/New_York). */

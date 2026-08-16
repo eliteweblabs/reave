@@ -10,6 +10,7 @@ import { normalizeBrandColorHex } from '../../../lib/companyBrandColors';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
+import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -95,6 +96,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!ok) return json({ error: 'Failed to save company details' }, 500);
 
   invalidateOfficeCoordsCache();
+  void syncCalcomIdentityFromReave({ force: true, request: context.request }).catch(() => undefined);
 
   const company = await getCompanyConfig(context.request);
   const fontCatalog = await brandFontCatalogForAdminAsync();

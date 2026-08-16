@@ -16,6 +16,7 @@ import {
   isDeployWizardExtraId,
   type DeployWizardExtraId,
 } from '../../../lib/deployWizardCatalog';
+import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { FEATURE_BLURBS, FEATURE_ID_SET, type FeatureId } from '../../../lib/featureCatalog';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
@@ -188,11 +189,23 @@ export async function POST(context: APIContext): Promise<Response> {
     applied.push({ service, updated: result.updated });
   }
 
+  const identity = features.includes('scheduling')
+    ? await syncCalcomIdentityFromReave({
+        force: true,
+        request: context.request,
+        project,
+      }).catch((e) => ({
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      }))
+    : undefined;
+
   return json({
     ok: true,
     plan,
     cli,
     applied,
+    identity,
     hint: 'Variables saved without an automatic redeploy. Redeploy each service when you are ready.',
   });
 }
