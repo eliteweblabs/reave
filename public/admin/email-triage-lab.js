@@ -1,6 +1,7 @@
 /**
- * Email triage Lab — live-test a composed message against keyword rules
- * (POST /api/email/simulate rulesOnly). First match wins.
+ * Email triage Lab — rule generator. Typed email fields filter the
+ * keyword-rule list; live-test (POST /api/email/simulate rulesOnly)
+ * still highlights the first match.
  */
 import {
   iosIcon,
@@ -282,20 +283,27 @@ export function createEmailTriageLab(deps) {
     return state.ruleOrder.map((id) => byId.get(id)).filter(Boolean);
   }
 
-  function isRulesFilterActive() {
-    const rs = ruleState();
-    return Boolean(String(rs.search || '').trim()) || (rs.scopeFilter && rs.scopeFilter !== 'all');
+  function composeFilterTokens() {
+    const raw = [state.fromName, fromEmailValue(), state.subject, state.text]
+      .map((s) => String(s || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    if (!raw) return [];
+    const tokens = new Set();
+    for (const part of raw.split(/[\s,;<>/"']+/)) {
+      const t = part.trim().toLowerCase();
+      if (t.length >= 3) tokens.add(t);
+      const at = t.match(/^([^@]+)@(.+)$/);
+      if (at) {
+        if (at[1].length >= 3) tokens.add(at[1]);
+        if (at[2].length >= 3) tokens.add(at[2]);
+      }
+    }
+    return [...tokens];
   }
 
-  function ruleMatchesLabFilter(rule) {
-    if (!rule) return false;
-    const rs = ruleState();
-    // Keep the open accordion visible while filtering.
-    if (rs.activeId != null && String(rule.id) === String(rs.activeId)) return true;
-    if (rs.scopeFilter === 'universal' && rule.scope !== 'universal') return false;
-    if (rs.scopeFilter === 'personal' && rule.scope === 'universal') return false;
-    return matchesListSearch(
-      rs.search,
+  function ruleSearchHaystack(rule) {
+    return [
       rule.title,
       rule.status,
       rule.description,
@@ -306,7 +314,41 @@ export function createEmailTriageLab(deps) {
       rule.notify ? 'Notify' : 'Silent',
       ...(rule.phrases || []),
       ...(rule.exceptPhrases || []),
+    ];
+  }
+
+  function ruleMatchesComposeFilter(rule) {
+    const tokens = composeFilterTokens();
+    if (!tokens.length) return true;
+    const emailHay = [state.fromName, fromEmailValue(), state.subject, state.text]
+      .join(' ')
+      .toLowerCase();
+    const phrases = (rule.phrases || [])
+      .map((p) => String(p || '').trim().toLowerCase())
+      .filter((p) => p.length >= 2);
+    if (phrases.some((p) => emailHay.includes(p))) return true;
+    const ruleHay = ruleSearchHaystack(rule).filter(Boolean).join(' ').toLowerCase();
+    return tokens.some((t) => ruleHay.includes(t));
+  }
+
+  function isRulesFilterActive() {
+    const rs = ruleState();
+    return (
+      Boolean(String(rs.search || '').trim()) ||
+      (rs.scopeFilter && rs.scopeFilter !== 'all') ||
+      composeFilterTokens().length > 0
     );
+  }
+
+  function ruleMatchesLabFilter(rule) {
+    if (!rule) return false;
+    const rs = ruleState();
+    // Keep the open accordion visible while filtering.
+    if (rs.activeId != null && String(rule.id) === String(rs.activeId)) return true;
+    if (rs.scopeFilter === 'universal' && rule.scope !== 'universal') return false;
+    if (rs.scopeFilter === 'personal' && rule.scope === 'universal') return false;
+    if (!ruleMatchesComposeFilter(rule)) return false;
+    return matchesListSearch(rs.search, ...ruleSearchHaystack(rule));
   }
 
   function applyRulesFilter(root = deps.getRuleEditor()) {
@@ -384,7 +426,6 @@ export function createEmailTriageLab(deps) {
     state.from = fromName && from ? `${fromName} <${from}>` : from;
     state.fromName = fromName;
     state.to = root.querySelector('[data-lab-to]')?.value?.trim() || '';
-    state.cc = root.querySelector('[data-lab-cc]')?.value?.trim() || '';
     state.subject = root.querySelector('[data-lab-subject]')?.value || '';
     const bodyIn = root.querySelector('[data-lab-body]');
     // Preview hides the textarea — don't clobber html/text from an empty field.
@@ -445,7 +486,7 @@ export function createEmailTriageLab(deps) {
   }
 
   function hasTestableContent() {
-    return Boolean(fromEmailValue() || state.subject.trim() || state.text.trim() || state.cc.trim());
+    return Boolean(fromEmailValue() || state.fromName.trim() || state.subject.trim() || state.text.trim());
   }
 
   function draftFromEmail() {
@@ -506,21 +547,13 @@ export function createEmailTriageLab(deps) {
         <span>${escHtml(meta.replace(/^ · /, ''))}</span>
       </div>`;
     }
-    if (state.liveStatus === 'nomatch') {
-      return `<div class="re-lab-outcome re-lab-outcome--nomatch" data-lab-live-result aria-live="polite">
-        <strong>No match</strong>
-        <span>Pre-filled a new rule from this email — create it if you want this to file automatically.</span>
-      </div>`;
-    }
     if (state.liveStatus === 'error') {
       return `<div class="re-lab-outcome re-lab-outcome--blocked" data-lab-live-result aria-live="polite">
         <strong>Could not test</strong>
         <span>${escHtml(state.liveError || 'Try again')}</span>
       </div>`;
     }
-    return `<div class="re-lab-outcome re-lab-outcome--idle" data-lab-live-result>
-      Type to live-test against your rules. First match wins.
-    </div>`;
+    return `<div class="re-lab-outcome re-lab-outcome--idle" data-lab-live-result hidden></div>`;
   }
 
   function applyLiveResult(root = deps.getRuleEditor()) {
@@ -542,9 +575,7 @@ export function createEmailTriageLab(deps) {
       card.classList.toggle('re-lab-pipe-card--hit', hit);
     });
     const elseCard = root.querySelector('.re-lab-pipe-card--else');
-    if (elseCard) {
-      elseCard.classList.toggle('re-lab-pipe-card--matched', state.liveStatus === 'nomatch');
-    }
+    if (elseCard) elseCard.classList.remove('re-lab-pipe-card--matched');
     if (state.liveStatus === 'match' && matchedId) {
       const hit = root.querySelector(`.re-lab-pipe-card--rule[data-rule-id="${CSS.escape(String(matchedId))}"]`);
       hit?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -562,11 +593,18 @@ export function createEmailTriageLab(deps) {
     }, LIVE_DEBOUNCE_MS);
   }
 
-  function bindLiveTestField(el) {
+  function bindLiveTestField(el, root) {
     if (!el || el.dataset.labLiveBound === '1') return;
     el.dataset.labLiveBound = '1';
-    el.addEventListener('input', () => scheduleLiveTest());
-    el.addEventListener('change', () => scheduleLiveTest());
+    const sync = () => {
+      if (root) {
+        readForm(root);
+        applyRulesFilter(root);
+      }
+      scheduleLiveTest();
+    };
+    el.addEventListener('input', sync);
+    el.addEventListener('change', sync);
   }
 
   function resetLiveState() {
@@ -870,16 +908,6 @@ export function createEmailTriageLab(deps) {
     });
   }
 
-  function addAttachment(file) {
-    const id = `lab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    state.attachments.push({
-      id,
-      filename: file.name || 'attachment',
-      contentType: file.type || 'application/octet-stream',
-      size: Number(file.size) || 0,
-    });
-  }
-
   function unbindSuggestOutside() {
     if (!state._suggestOutsideBound) return;
     document.removeEventListener('pointerdown', state._suggestOutsideBound, true);
@@ -942,6 +970,11 @@ export function createEmailTriageLab(deps) {
         if (emailIn) emailIn.value = c.email || '';
         closeContactSuggestions(box);
         emailIn?.blur();
+        const labRoot = deps.getRuleEditor();
+        if (labRoot) {
+          readForm(labRoot);
+          applyRulesFilter(labRoot);
+        }
         scheduleLiveTest();
       });
       box.appendChild(btn);
@@ -973,7 +1006,6 @@ export function createEmailTriageLab(deps) {
         from: root.querySelector('[data-lab-from]')?.value || '',
         fromName: root.querySelector('[data-lab-from-name]')?.value || '',
         to: root.querySelector('[data-lab-to]')?.value || state.to,
-        cc: root.querySelector('[data-lab-cc]')?.value || state.cc,
         subject: root.querySelector('[data-lab-subject]')?.value || state.subject,
         text: bodyVal,
         html: nextHtml,
@@ -999,7 +1031,7 @@ export function createEmailTriageLab(deps) {
     const hint = document.createElement('p');
     hint.className = 're-flow-hint';
     hint.textContent =
-      'Live test · tap a rule to edit · drag to set priority · first match wins';
+      'Type to filter rules · tap a rule to edit · drag to set priority · first match wins';
     left.appendChild(hint);
     toolbar.appendChild(left);
 
@@ -1038,8 +1070,8 @@ export function createEmailTriageLab(deps) {
     compose.appendChild(spin);
     const composeHead = document.createElement('header');
     composeHead.className = 're-lab-section-head';
-    composeHead.innerHTML = `<h2>Try an email</h2>
-      <p>Type into the template — it live-tests against the pipeline after you pause.</p>`;
+    composeHead.innerHTML = `<h2>Rule generator</h2>
+      <p>Type into the template — matching rules filter on the right as you type.</p>`;
     compose.appendChild(composeHead);
     const liveBanner = document.createElement('div');
     liveBanner.innerHTML = liveResultHtml();
@@ -1106,17 +1138,6 @@ export function createEmailTriageLab(deps) {
     toIn.value = saved?.to || state.to || inboundExample();
     toLb.appendChild(toIn);
     form.appendChild(toLb);
-
-    const ccLb = document.createElement('label');
-    ccLb.className = 'de-label';
-    ccLb.textContent = 'Cc';
-    const ccIn = document.createElement('input');
-    ccIn.className = 'de-input';
-    ccIn.dataset.labCc = '1';
-    ccIn.placeholder = 'optional';
-    ccIn.value = saved?.cc ?? state.cc;
-    ccLb.appendChild(ccIn);
-    form.appendChild(ccLb);
 
     const subLb = document.createElement('label');
     subLb.className = 'de-label';
@@ -1225,52 +1246,11 @@ export function createEmailTriageLab(deps) {
     bodyWrap.append(bodyHead, previewWrap, bodyIn);
     form.appendChild(bodyWrap);
     syncBodyPanes();
-    bindLiveTestField(nameIn);
-    bindLiveTestField(emailIn);
-    bindLiveTestField(toIn);
-    bindLiveTestField(ccIn);
-    bindLiveTestField(subIn);
-    bindLiveTestField(bodyIn);
-
-    const attBlock = document.createElement('div');
-    attBlock.className = 're-lab-attachments';
-    const attHead = document.createElement('div');
-    attHead.className = 're-lab-att-head';
-    attHead.innerHTML = `${iosIcon('paperclip', 16)}<span>Attachments</span>`;
-    const attList = document.createElement('ul');
-    attList.className = 're-lab-att-list';
-    for (const a of state.attachments) {
-      const li = document.createElement('li');
-      li.textContent = `${a.filename} (${a.contentType || 'file'}${a.size ? `, ${a.size} B` : ''})`;
-      const rm = document.createElement('button');
-      rm.type = 'button';
-      rm.className = 're-lab-att-rm';
-      rm.innerHTML = iosIcon('x', 14);
-      rm.addEventListener('click', () => {
-        state.attachments = state.attachments.filter((x) => x.id !== a.id);
-        renderLabShell(root, { preserveForm: true });
-        scheduleLiveTest();
-      });
-      li.appendChild(rm);
-      attList.appendChild(li);
-    }
-    const fileIn = document.createElement('input');
-    fileIn.type = 'file';
-    fileIn.multiple = true;
-    fileIn.hidden = true;
-    const addAtt = document.createElement('button');
-    addAtt.type = 'button';
-    addAtt.className = 'dash-panel-btn';
-    addAtt.textContent = 'Add files';
-    addAtt.addEventListener('click', () => fileIn.click());
-    fileIn.addEventListener('change', () => {
-      for (const f of fileIn.files || []) addAttachment(f);
-      fileIn.value = '';
-      renderLabShell(root, { preserveForm: true });
-      scheduleLiveTest();
-    });
-    attBlock.append(attHead, attList, addAtt, fileIn);
-    form.appendChild(attBlock);
+    bindLiveTestField(nameIn, root);
+    bindLiveTestField(emailIn, root);
+    bindLiveTestField(toIn, root);
+    bindLiveTestField(subIn, root);
+    bindLiveTestField(bodyIn, root);
 
     const markDraftTouched = () => {
       state.draftTouched = true;
@@ -1592,16 +1572,11 @@ export function createEmailTriageLab(deps) {
         elseCard.className = 're-lab-pipe-card re-lab-pipe-card--else re-lab-pipe-card--agent';
         elseCard.dataset.stage = 'agent_else';
         elseCard.dataset.kind = 'agent_else';
-        if (state.liveStatus === 'nomatch') elseCard.classList.add('re-lab-pipe-card--matched');
         elseCard.innerHTML = `
           <span class="re-flow-badge">Else</span>
           <span class="re-lab-pipe-main">
             <span class="re-lab-pipe-title">Agent</span>
-            <span class="re-lab-pipe-sub">${
-              state.liveStatus === 'nomatch'
-                ? 'No match — create a rule or let the Agent handle it'
-                : 'No match → agent handles this mail'
-            }</span>
+            <span class="re-lab-pipe-sub">No match → agent handles this mail</span>
           </span>`;
         pipeList.appendChild(elseCard);
 
@@ -1644,7 +1619,7 @@ export function createEmailTriageLab(deps) {
     render(root) {
       renderLabShell(root, { preserveForm: false });
     },
-    /** Prefill Try-an-email from an inbox record, then live-test. */
+    /** Prefill the rule generator from an inbox record, then live-test. */
     async loadInboxEmail(record, opts = {}) {
       loadFromInboxEmail(record);
       const root = deps.getRuleEditor();

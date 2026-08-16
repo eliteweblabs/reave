@@ -51,7 +51,7 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260815c';
+} from './email-triage-lab.js?v=20260815d';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -71,7 +71,7 @@ let ruleState = {
   scopeFilter: 'all',
   activeId: null,
   dirty: false,
-  /** Unified Flow lab (try-email + accordion rule editor). */
+  /** Unified Flow lab (rule generator + accordion rule editor). */
   view: 'flow',
 };
 
