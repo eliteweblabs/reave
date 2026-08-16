@@ -1,12 +1,17 @@
 ---
 /**
- * /deploy — owner deployment wizard (demo-loader toggles + Railway references).
+ * /deploy — super-admin wizard on the official REΛVE Railway install only.
  */
 import Layout from "../layouts/Layout.astro";
 import { denyUnlessDeploymentOwner } from "../lib/deploymentOwner";
+import { isCanonicalReaveInstall } from "../lib/installConfig";
 import "../styles/demo-loader.css";
 
 export const prerender = false;
+
+if (!isCanonicalReaveInstall()) {
+  return new Response("Not found", { status: 404 });
+}
 
 const { userId } = Astro.locals.auth();
 if (!userId) {

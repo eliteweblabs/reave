@@ -19,6 +19,7 @@ import {
 import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { FEATURE_BLURBS, FEATURE_ID_SET, type FeatureId } from '../../../lib/featureCatalog';
+import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { railwaySetVariables } from '../../../lib/railwayAgentApi';
 
@@ -60,7 +61,15 @@ function parseValues(body: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
+function requireCanonicalReaveHost(): Response | null {
+  if (isCanonicalReaveInstall()) return null;
+  return json({ ok: false, error: 'Not found' }, 404);
+}
+
 export async function GET(context: APIContext): Promise<Response> {
+  const hostDenied = requireCanonicalReaveHost();
+  if (hostDenied) return hostDenied;
+
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
@@ -122,6 +131,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
+  const hostDenied = requireCanonicalReaveHost();
+  if (hostDenied) return hostDenied;
+
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 

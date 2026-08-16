@@ -136,6 +136,8 @@ export type InstallConfigClient = Pick<
    * Reave / super-admin install only — other installs hide the label.
    */
   showPersonal?: boolean;
+  /** Deploy wizard (`/deploy`) — official REΛVE Railway install only. */
+  showDeployWizard?: boolean;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -383,6 +385,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     chatFocusSkin: config.chatFocusSkin,
     canManageUniversalRules: isCanonicalReaveInstall(),
     showPersonal: isCanonicalReaveInstall(),
+    showDeployWizard: isCanonicalReaveInstall(),
   };
 }
 

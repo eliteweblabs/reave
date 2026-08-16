@@ -8,6 +8,7 @@ alwaysApply: true
 The deployment owner username defaults to the **company display name** from admin → Company (override per install with `ADMIN_USERNAME`, comma-separated for multiple names).
 
 Owner-only UI today:
+- **Deploy wizard** (`/deploy`, `GET`/`POST /api/deploy/wizard`) — official REΛVE Railway install only (`isCanonicalReaveInstall()`). Client installs 404.
 - **Vapi sync** (`POST /api/admin/vapi`, `/vapi-sync` agent command)
 - **Chat recovery** (`GET`/`POST /api/admin/chats`) — lists the distinct
   `user_id`s that own chat threads and reassigns threads orphaned under a
