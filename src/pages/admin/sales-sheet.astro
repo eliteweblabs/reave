@@ -17,15 +17,19 @@ import {
   auditOnePagerSlug,
   fillAuditOnePager,
   parseSalesSheetOrientation,
+  salesSheetAuditUrl,
   salesSheetInputFromSearchParams,
 } from '../../lib/auditSalesSheet';
 import { fetchSalesSheetPlaces } from '../../lib/salesSheetPlaces';
 import { screenshotPlacesPhoneMock } from '../../lib/salesSheetPlacesShot';
 import {
+  injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
   placesPhoneShotImg,
   renderPlacesPhoneMockHtml,
+  renderSalesSheetQrHtml,
 } from '../../lib/salesSheetPlacesView';
+import { qrCodeDataUrl } from '../../lib/qrCode';
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
@@ -76,6 +80,15 @@ if (!skipShot) {
   }
 }
 
+const auditUrl = salesSheetAuditUrl(params, Astro.url.origin);
+let qrHtml = '';
+try {
+  const qrSrc = await qrCodeDataUrl(auditUrl, 160);
+  qrHtml = renderSalesSheetQrHtml(qrSrc, auditUrl);
+} catch (e) {
+  shotNote = `${shotNote} QR failed (${e instanceof Error ? e.message : String(e)}).`.trim();
+}
+
 let error = '';
 let sheetHtml = '';
 
@@ -86,7 +99,7 @@ if (!tmpl) {
     const source = fillAuditOnePager(tmpl.markdown, input);
     const filled = fillTemplate(source, input.contact, company);
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
-    sheetHtml = injectPhoneIntoFirstColumn(rendered, phoneEmbed);
+    sheetHtml = injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
@@ -220,7 +233,8 @@ const placesNote = places.error
         Dummy fixture plus a live Google Places lookup. A Places miss is finding #1
         and the phone mock-up shows that empty result plus nearby competitors.
         Use <code>?near=</code>, <code>?category=plumber</code>, <code>?listed=0</code>,
-        <code>?shot=0</code> (skip Playwright), or <code>?places=0</code> (skip the API).
+        <code>?shot=0</code> (skip Playwright), <code>?places=0</code> (skip the API),
+        or <code>?audit=</code> / <code>?run=</code> for the View Full Audit QR.
       </p>
 
       {error ? <div class="ss-error">{error}</div> : null}
@@ -288,6 +302,10 @@ const placesNote = places.error
           <div class="ss-field">
             <label for="headline">Headline</label>
             <input id="headline" name="headline" value={input.headline} />
+          </div>
+          <div class="ss-field">
+            <label for="audit">Full audit URL (QR)</label>
+            <input id="audit" name="audit" value={auditUrl} />
           </div>
         </div>
 

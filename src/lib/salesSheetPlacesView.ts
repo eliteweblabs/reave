@@ -228,3 +228,57 @@ export function injectPhoneIntoFirstColumn(sheetHtml: string, phoneHtml: string)
 export function placesPhoneShotImg(base64Png: string): string {
   return `<img class="ss-phone-shot" src="data:image/png;base64,${base64Png}" alt="Mobile Google listing mock-up" style="display:block;width:min(100%,220px);margin:0 auto 0.7em;border-radius:28px;" />`;
 }
+
+export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
+  const src = dataUrl.trim();
+  const link = href.trim();
+  if (!src || !link) return '';
+  return `
+<style>
+.doc-onepager-mast {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.ss-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  margin: 0;
+  text-align: center;
+}
+.ss-qr img {
+  display: block;
+  width: clamp(52px, 8cqi, 72px);
+  height: auto;
+  background: #fff;
+}
+.ss-qr figcaption {
+  margin: 0;
+  font-size: clamp(7px, 1.15cqi, 10px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--doc-ink, #141414);
+  line-height: 1.2;
+  max-width: 6.5em;
+}
+</style>
+<figure class="ss-qr">
+  <a href="${escapeHtml(link)}" target="_blank" rel="noopener">
+    <img src="${escapeHtml(src)}" alt="View Full Audit" width="72" height="72" />
+  </a>
+  <figcaption>View Full Audit</figcaption>
+</figure>`.trim();
+}
+
+export function injectAuditQrIntoHeader(sheetHtml: string, qrHtml: string): string {
+  if (!qrHtml.trim()) return sheetHtml;
+  const mark = '<div class="doc-onepager-mast">';
+  const at = sheetHtml.indexOf(mark);
+  if (at < 0) return sheetHtml;
+  return `${sheetHtml.slice(0, at + mark.length)}${qrHtml}${sheetHtml.slice(at + mark.length)}`;
+}

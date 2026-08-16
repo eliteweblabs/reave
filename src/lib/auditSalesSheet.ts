@@ -93,6 +93,26 @@ export function parseSalesSheetOrientation(raw: string | null | undefined): Sale
   return raw?.trim().toLowerCase() === 'portrait' ? 'portrait' : 'landscape';
 }
 
+/** Full-audit URL encoded in the sales-sheet QR. Query overrides: audit, run, uid, project. */
+export function salesSheetAuditUrl(params: URLSearchParams, origin: string): string {
+  const base = origin.replace(/\/+$/, '');
+  const explicit = params.get('audit')?.trim();
+  if (explicit) {
+    if (/^https?:\/\//i.test(explicit)) return explicit;
+    return `${base}${explicit.startsWith('/') ? '' : '/'}${explicit}`;
+  }
+  const run = params.get('run')?.trim();
+  if (run) return `${base}/digital-audit?run=${encodeURIComponent(run)}`;
+  const uid = params.get('uid')?.trim();
+  if (uid) {
+    const qs = new URLSearchParams({ tab: 'audit' });
+    const project = params.get('project')?.trim();
+    if (project) qs.set('project', project);
+    return `${base}/c/${encodeURIComponent(uid)}?${qs}`;
+  }
+  return `${base}/digital-audit`;
+}
+
 function clip(text: string, max = 160): string {
   const clean = text.replace(/\s+/g, ' ').trim();
   if (clean.length <= max) return clean;

@@ -12,6 +12,7 @@ import {
   fillAuditOnePager,
   parseFilledOnePagerColumns,
   parseSalesSheetOrientation,
+  salesSheetAuditUrl,
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
   selectTopFindings,
@@ -19,9 +20,11 @@ import {
 } from '../src/lib/auditSalesSheet.ts';
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
 import {
+  injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
   promotePlacesNotListedFinding,
   renderPlacesPhoneMockHtml,
+  renderSalesSheetQrHtml,
 } from '../src/lib/salesSheetPlacesView.ts';
 
 const results: string[] = [];
@@ -231,6 +234,34 @@ await test('salesSheetInputFromReportCard pins Places miss when flag is false', 
   });
   assert.equal(input.findings[0]?.id, 'places-not-listed');
   assert.equal(input.visibility, 'F');
+});
+
+await test('salesSheetAuditUrl prefers explicit audit, then run, then portal uid', () => {
+  const origin = 'https://example.com';
+  assert.equal(salesSheetAuditUrl(new URLSearchParams(), origin), 'https://example.com/digital-audit');
+  assert.equal(
+    salesSheetAuditUrl(new URLSearchParams({ run: 'hale-co-audit' }), origin),
+    'https://example.com/digital-audit?run=hale-co-audit',
+  );
+  assert.equal(
+    salesSheetAuditUrl(new URLSearchParams({ uid: 'abc-1', project: 'hale-co-audit' }), origin),
+    'https://example.com/c/abc-1?tab=audit&project=hale-co-audit',
+  );
+  assert.equal(
+    salesSheetAuditUrl(new URLSearchParams({ audit: 'https://example.com/c/abc-1?tab=audit' }), origin),
+    'https://example.com/c/abc-1?tab=audit',
+  );
+});
+
+await test('QR block says View Full Audit and lands in the header mast', () => {
+  const qr = renderSalesSheetQrHtml('data:image/png;base64,AAA', 'https://example.com/digital-audit');
+  assert.match(qr, /View Full Audit/);
+  assert.match(qr, /https:\/\/example.com\/digital-audit/);
+  const injected = injectAuditQrIntoHeader(
+    '<header><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
+    qr,
+  );
+  assert.ok(injected.indexOf('ss-qr') < injected.indexOf('Website Audit'));
 });
 
 console.log(results.join('\n'));
