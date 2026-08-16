@@ -233,6 +233,12 @@
       "image": "client-coinbase",
       "width": 142,
       "height": 30
+    },
+    {
+      "name": "Montana Cans",
+      "image": "/logos/clients/montana-cans.svg",
+      "width": 267.32,
+      "height": 72.66
     }
   ],
   "portfolio": [
@@ -498,6 +504,19 @@
       "image": "portfolio-capco-fire-featured",
       "imageAlt": "CapcoFire.com placeholder tile for CAPCO Design Group fire protection engineering",
       "size": "2x1"
+    },
+    {
+      "title": "Montana Cans",
+      "description": "German graffiti spray paint company behind Montana GOLD, BLACK, and TECH — the writer-grade cans used on walls, trains, and studio work worldwide.",
+      "tags": [
+        "Web Design",
+        "Branding",
+        "Art"
+      ],
+      "image": "/images/portfolio/montana-cans-featured.svg",
+      "imageAlt": "Montana-Cans.com placeholder tile for Montana Cans graffiti spray paint",
+      "size": "2x1",
+      "featured": true
     }
   ]
 }

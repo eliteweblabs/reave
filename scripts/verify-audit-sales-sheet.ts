@@ -10,7 +10,9 @@ import {
   applyPlacesMissToSalesSheet,
   DUMMY_SALES_SHEET,
   fillAuditOnePager,
+  injectAuditDisclaimerIntoFooter,
   parseFilledOnePagerColumns,
+  renderAuditDisclaimerHtml,
   parseSalesSheetOrientation,
   listAuditCompanies,
   salesSheetAuditUrl,
@@ -354,6 +356,22 @@ await test('listAuditCompanies is unique by company and skips archived', () => {
   ]);
   assert.deepEqual(rows.map((r) => r.slug), ['new-hale', 'pier-bakery']);
   assert.equal(rows[0]?.company, 'Hale & Co.');
+});
+
+await test('sales sheet footer gets the portal audit disclaimer', () => {
+  const block = renderAuditDisclaimerHtml();
+  assert.match(block, /Grading scale/);
+  assert.match(block, /Measurement stack/);
+  assert.match(block, /independent measurement tools/);
+  assert.match(block, /not the subjective opinion/);
+  assert.match(block, /Google Lighthouse/);
+  assert.match(block, /A 90–100/);
+  const injected = injectAuditDisclaimerIntoFooter(
+    '<footer class="doc-onepager-footer"><p>Prepared for Hale &amp; Co.</p></footer>',
+  );
+  assert.ok(injected.indexOf('Prepared for') < injected.indexOf('ss-disclaimer'));
+  assert.match(injected, /ss-disclaimer-copy/);
+  assert.match(injected, /<\/div><\/footer>/);
 });
 
 await test('QR block says View Full Audit and lands in the header mast', () => {

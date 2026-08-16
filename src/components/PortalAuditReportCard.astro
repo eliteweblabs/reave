@@ -4,6 +4,8 @@
  * Admin keeps the raw Work body; this is the plain-language client view.
  */
 import {
+  AUDIT_GRADE_LEGEND,
+  AUDIT_REPORT_DISCLAIMER,
   AUDIT_SCAN_STACK,
   type AuditReportCard,
   type LetterGrade,
@@ -268,11 +270,11 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
       <footer class="opd-footer">
         <div class="opd-legend">
           <span class="opd-legend-label">Grading scale</span>
-          <span class="opd-legend-item"><i class="grade-a" /> A 90–100</span>
-          <span class="opd-legend-item"><i class="grade-b" /> B 80–89</span>
-          <span class="opd-legend-item"><i class="grade-c" /> C 70–79</span>
-          <span class="opd-legend-item"><i class="grade-d" /> D 60–69</span>
-          <span class="opd-legend-item"><i class="grade-f" /> F Below 60</span>
+          {AUDIT_GRADE_LEGEND.map((row) => (
+            <span class="opd-legend-item">
+              <i class={`grade-${row.grade.toLowerCase()}`} /> {row.grade} {row.range}
+            </span>
+          ))}
         </div>
         <p class="opd-stack-kicker">Measurement stack</p>
         <ul class="opd-stack">
@@ -283,10 +285,7 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
             </li>
           ))}
         </ul>
-        <p class="opd-disclaimer">
-          Grades and findings are compiled from independent measurement tools as of the scan date
-          above — not the subjective opinion of the firm presenting this report.
-        </p>
+        <p class="opd-disclaimer">{AUDIT_REPORT_DISCLAIMER}</p>
       </footer>
 
       {bodyHtml && (

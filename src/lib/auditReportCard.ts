@@ -250,6 +250,18 @@ export const AUDIT_SCAN_STACK = [
   { name: 'Link crawl', role: 'Broken links & redirects' },
 ] as const;
 
+export const AUDIT_GRADE_LEGEND = [
+  { grade: 'A', range: '90–100' },
+  { grade: 'B', range: '80–89' },
+  { grade: 'C', range: '70–79' },
+  { grade: 'D', range: '60–69' },
+  { grade: 'F', range: 'Below 60' },
+] as const;
+
+/** Client-facing hedge on portal audits and the sales one-pager. */
+export const AUDIT_REPORT_DISCLAIMER =
+  'Grades and findings are compiled from independent measurement tools as of the scan date above — not the subjective opinion of the firm presenting this report.';
+
 const GRADE_SCORE: Record<LetterGrade, number> = {
   A: 95,
   B: 85,

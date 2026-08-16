@@ -16,6 +16,7 @@ import {
   applyPlacesMissToSalesSheet,
   auditOnePagerSlug,
   fillAuditOnePager,
+  injectAuditDisclaimerIntoFooter,
   listAuditCompanies,
   parseSalesSheetOrientation,
   salesSheetAuditUrl,
@@ -165,7 +166,9 @@ if (!tmpl) {
     const source = fillAuditOnePager(tmpl.markdown, input);
     const filled = fillTemplate(source, input.contact, company);
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
-    sheetHtml = injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml);
+    sheetHtml = injectAuditDisclaimerIntoFooter(
+      injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml),
+    );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
