@@ -12,6 +12,7 @@ import {
   fillAuditOnePager,
   parseFilledOnePagerColumns,
   parseSalesSheetOrientation,
+  listAuditCompanies,
   salesSheetAuditUrl,
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
@@ -98,7 +99,7 @@ await test('fillAuditOnePager replaces placeholder columns', () => {
   const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
   const columns = parseFilledOnePagerColumns(filled);
   assert.equal(columns.length, 3);
-  assert.match(columns[0] ?? '', /haleco\.example/);
+  assert.doesNotMatch(columns[0] ?? '', /Prepared for|Scanned —|haleco\.example/);
   assert.match(columns[0] ?? '', /Overall — C \(64\)/);
   assert.match(columns[1] ?? '', /Site Speed/);
   assert.match(columns[1] ?? '', /five seconds/);
@@ -251,6 +252,57 @@ await test('salesSheetAuditUrl prefers explicit audit, then run, then portal uid
     salesSheetAuditUrl(new URLSearchParams({ audit: 'https://example.com/c/abc-1?tab=audit' }), origin),
     'https://example.com/c/abc-1?tab=audit',
   );
+});
+
+await test('listAuditCompanies is unique by company and skips archived', () => {
+  const rows = listAuditCompanies([
+    {
+      slug: 'old-hale',
+      client: 'Hale & Co.',
+      contact_name: 'Jordan Hale',
+      contact_uid: 'u1',
+      status: 'audit',
+      source: 'siri_audit',
+      tags: ['siri-audit'],
+      updated: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      slug: 'new-hale',
+      client: 'Hale & Co.',
+      contact_name: 'Jordan Hale',
+      contact_uid: 'u1',
+      status: 'audit',
+      source: 'siri_audit',
+      tags: ['siri-audit'],
+      updated: '2026-08-01T00:00:00.000Z',
+    },
+    {
+      slug: 'pier-bakery',
+      client: 'North Pier Bakery',
+      contact_name: 'Sam Rivera',
+      contact_uid: 'u2',
+      status: 'audit',
+      tags: ['quick-audit'],
+      updated: '2026-07-01T00:00:00.000Z',
+    },
+    {
+      slug: 'done-shop',
+      client: 'Closed Shop',
+      status: 'archived',
+      tags: ['siri-audit'],
+      updated: '2026-08-02T00:00:00.000Z',
+    },
+    {
+      slug: 'regular-job',
+      client: 'Not An Audit',
+      status: 'active',
+      tags: [],
+      source: 'email',
+      updated: '2026-08-03T00:00:00.000Z',
+    },
+  ]);
+  assert.deepEqual(rows.map((r) => r.slug), ['new-hale', 'pier-bakery']);
+  assert.equal(rows[0]?.company, 'Hale & Co.');
 });
 
 await test('QR block says View Full Audit and lands in the header mast', () => {

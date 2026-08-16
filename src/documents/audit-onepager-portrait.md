@@ -8,10 +8,6 @@ footer: Confidential sample · Prepared for {client.name}{client.company_str} ·
 :::column
 ### Snapshot
 
-**Site** — {client.company}
-**Prepared for** — {client.name}
-**Scanned** — {date}
-
 - Overall score — —
 - Performance — —
 - Security — —

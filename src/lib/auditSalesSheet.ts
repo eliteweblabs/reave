@@ -93,6 +93,66 @@ export function parseSalesSheetOrientation(raw: string | null | undefined): Sale
   return raw?.trim().toLowerCase() === 'portrait' ? 'portrait' : 'landscape';
 }
 
+export type AuditCompanyOption = {
+  slug: string;
+  company: string;
+  contactName: string;
+  contactUid: string;
+};
+
+const AUDIT_TAG_RE = /^(siri-audit|quick-audit|full-audit)$/i;
+
+function isAuditProject(job: {
+  status?: string | null;
+  tags?: string[] | null;
+  source?: string | null;
+}): boolean {
+  if ((job.status || '').toLowerCase() === 'audit') return true;
+  if ((job.source || '').toLowerCase() === 'siri_audit') return true;
+  return (job.tags ?? []).some((t) => AUDIT_TAG_RE.test(String(t || '')));
+}
+
+function isArchivedProject(status?: string | null): boolean {
+  const s = (status || '').toLowerCase();
+  return s === 'archived' || s === 'done';
+}
+
+/** One row per company, latest audit project wins. */
+export function listAuditCompanies(
+  jobs: Array<{
+    slug: string;
+    title?: string;
+    client?: string;
+    contact_name?: string;
+    contact_uid?: string;
+    status?: string | null;
+    tags?: string[] | null;
+    source?: string | null;
+    updated?: string;
+  }>,
+): AuditCompanyOption[] {
+  const byCompany = new Map<string, AuditCompanyOption & { updated: string }>();
+  for (const job of jobs) {
+    if (!isAuditProject(job) || isArchivedProject(job.status)) continue;
+    const company = (job.client || job.contact_name || job.title || job.slug).trim();
+    if (!company) continue;
+    const key = company.toLowerCase();
+    const updated = job.updated || '';
+    const existing = byCompany.get(key);
+    if (existing && existing.updated >= updated) continue;
+    byCompany.set(key, {
+      slug: job.slug,
+      company,
+      contactName: (job.contact_name || '').trim(),
+      contactUid: (job.contact_uid || '').trim(),
+      updated,
+    });
+  }
+  return [...byCompany.values()]
+    .sort((a, b) => a.company.localeCompare(b.company, undefined, { sensitivity: 'base' }))
+    .map(({ updated: _updated, ...row }) => row);
+}
+
 /** Full-audit URL encoded in the sales-sheet QR. Query overrides: audit, run, uid, project. */
 export function salesSheetAuditUrl(params: URLSearchParams, origin: string): string {
   const base = origin.replace(/\/+$/, '');
@@ -275,13 +335,8 @@ export function salesSheetInputFromSearchParams(params: URLSearchParams): AuditS
 }
 
 function snapshotColumn(input: AuditSalesSheetInput): string {
-  const site = input.website.trim() || '{client.company}';
   const lines = [
     '### Snapshot',
-    '',
-    `**Site** — ${escMarkdown(site)}`,
-    '**Prepared for** — {client.name}',
-    '**Scanned** — {date}',
     '',
     `- Overall — ${formatSalesSheetGrade(input.overall, input.overallScore)}`,
     `- Performance — ${formatSalesSheetGrade(input.performance)}`,

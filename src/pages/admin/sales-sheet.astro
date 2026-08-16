@@ -16,10 +16,16 @@ import {
   applyPlacesMissToSalesSheet,
   auditOnePagerSlug,
   fillAuditOnePager,
+  listAuditCompanies,
   parseSalesSheetOrientation,
   salesSheetAuditUrl,
+  salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
 } from '../../lib/auditSalesSheet';
+import { getContact, type ContactRecord } from '../../lib/contactApi';
+import { buildAuditReportCard } from '../../lib/auditReportCard';
+import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
+import { isSafeWorkSlug, storeListWork, storeReadWork } from '../../lib/workStore';
 import { fetchSalesSheetPlaces } from '../../lib/salesSheetPlaces';
 import { screenshotPlacesPhoneMock } from '../../lib/salesSheetPlacesShot';
 import {
@@ -42,7 +48,56 @@ if (denied) return denied;
 
 const params = Astro.url.searchParams;
 const orientation = parseSalesSheetOrientation(params.get('orientation'));
+const runSlug = (params.get('run') || '').trim();
+const auditCompanies = listAuditCompanies(await storeListWork());
+const selectedAudit = auditCompanies.find((c) => c.slug === runSlug) || null;
+
 let input = salesSheetInputFromSearchParams(params);
+let sourceNote = 'Dummy fixture';
+
+if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
+  const doc = await storeReadWork(selectedAudit.slug);
+  if (doc) {
+    let contact: ContactRecord = {
+      uid: doc.contact_uid || 'preview',
+      name: doc.contact_name || selectedAudit.contactName || selectedAudit.company,
+      company: selectedAudit.company,
+    };
+    if (doc.contact_uid) {
+      try {
+        const res = await getContact(doc.contact_uid);
+        if (res.ok) {
+          contact = {
+            ...res.data,
+            company: res.data.company || selectedAudit.company || res.data.name,
+          };
+        }
+      } catch {
+        /* keep job-derived contact */
+      }
+    }
+    const listedFlag = await googlePlacesListedForContact(doc.contact_uid);
+    const card = buildAuditReportCard({
+      tags: doc.tags,
+      source: doc.source,
+      title: doc.title,
+      body: doc.body || '',
+      clientName: contact.company || contact.name,
+      googlePlacesListed: listedFlag,
+    });
+    if (card && !card.inProgress) {
+      input = salesSheetInputFromReportCard(card, contact, {
+        googlePlacesListed: listedFlag,
+      });
+      sourceNote = `Live audit · ${selectedAudit.company}`;
+    } else {
+      sourceNote = card?.inProgress
+        ? `Audit still running for ${selectedAudit.company} — showing dummy until it finishes.`
+        : `Could not parse the audit for ${selectedAudit.company} — showing dummy.`;
+    }
+  }
+}
+
 const company = await getCompanyConfig(Astro.request);
 const slug = auditOnePagerSlug(orientation);
 const tmpl = getTemplate(slug);
@@ -80,7 +135,12 @@ if (!skipShot) {
   }
 }
 
-const auditUrl = salesSheetAuditUrl(params, Astro.url.origin);
+const auditUrl = selectedAudit?.contactUid
+  ? salesSheetAuditUrl(
+      new URLSearchParams({ uid: selectedAudit.contactUid, project: selectedAudit.slug }),
+      Astro.url.origin,
+    )
+  : salesSheetAuditUrl(params, Astro.url.origin);
 let qrHtml = '';
 try {
   const qrSrc = await qrCodeDataUrl(auditUrl, 160);
@@ -230,8 +290,8 @@ const placesNote = places.error
       <a class="ss-back" href="/admin/?tab=documents">← Documents</a>
       <h1 class="ss-title">Audit sales sheet</h1>
       <p class="ss-sub">
-        Dummy fixture plus a live Google Places lookup. A Places miss is finding #1
-        and the phone mock-up shows that empty result plus nearby competitors.
+        Pick a company with an existing audit to refill the sheet. {sourceNote}.
+        A Places miss is finding #1 and the phone mock-up shows nearby competitors.
         Use <code>?near=</code>, <code>?category=plumber</code>, <code>?listed=0</code>,
         <code>?shot=0</code> (skip Playwright), <code>?places=0</code> (skip the API),
         or <code>?audit=</code> / <code>?run=</code> for the View Full Audit QR.
@@ -249,8 +309,19 @@ const placesNote = places.error
             </select>
           </div>
           <div class="ss-field">
-            <label for="company">Company</label>
-            <input id="company" name="company" value={input.contact.company ?? ''} />
+            <label for="run">Company</label>
+            <select
+              id="run"
+              name="run"
+              onchange="const q=new URLSearchParams(); if(this.value) q.set('run', this.value); const o=document.getElementById('orientation'); if(o&&o.value&&o.value!=='landscape') q.set('orientation', o.value); location.href='/admin/sales-sheet'+(q.toString()?'?'+q:'');"
+            >
+              <option value="" selected={!selectedAudit}>Dummy — Hale &amp; Co.</option>
+              {auditCompanies.map((opt) => (
+                <option value={opt.slug} selected={selectedAudit?.slug === opt.slug}>
+                  {opt.company}
+                </option>
+              ))}
+            </select>
           </div>
           <div class="ss-field">
             <label for="name">Prepared for</label>
