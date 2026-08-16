@@ -6,11 +6,14 @@
  * is the later hook into `buildAuditReportCard()`.
  */
 import type { ContactRecord } from './contactApi';
-import type {
-  AuditReportCard,
-  LetterGrade,
-  ReportCardCategoryId,
-  ReportCardIdea,
+import {
+  AUDIT_GRADE_LEGEND,
+  AUDIT_REPORT_DISCLAIMER,
+  AUDIT_SCAN_STACK,
+  type AuditReportCard,
+  type LetterGrade,
+  type ReportCardCategoryId,
+  type ReportCardIdea,
 } from './auditReportCard';
 import { isPlacesMissFinding, promotePlacesNotListedFinding } from './salesSheetPlacesView';
 
@@ -397,6 +400,59 @@ export function fillAuditOnePager(markdown: string, input: AuditSalesSheetInput)
 }
 
 const COLUMN_MARK = /^:::column\s*$/m;
+
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Compact portal-matching disclaimer for the sales one-pager footer. */
+export function renderAuditDisclaimerHtml(): string {
+  const legend = AUDIT_GRADE_LEGEND.map((row) => `${row.grade} ${row.range}`).join(' · ');
+  const stack = AUDIT_SCAN_STACK.map((tool) => escHtml(tool.name)).join(' · ');
+  return `
+<style>
+.ss-disclaimer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  margin-top: 0.55em;
+}
+.ss-disclaimer-row {
+  margin: 0;
+  line-height: 1.35;
+}
+.ss-disclaimer-kicker {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-right: 0.45em;
+}
+.ss-disclaimer-copy {
+  margin: 0;
+  font-style: italic;
+  line-height: 1.4;
+}
+</style>
+<div class="ss-disclaimer">
+  <p class="ss-disclaimer-row"><span class="ss-disclaimer-kicker">Grading scale</span>${escHtml(legend)}</p>
+  <p class="ss-disclaimer-row"><span class="ss-disclaimer-kicker">Measurement stack</span>${stack}</p>
+  <p class="ss-disclaimer-copy">${escHtml(AUDIT_REPORT_DISCLAIMER)}</p>
+</div>`.trim();
+}
+
+export function injectAuditDisclaimerIntoFooter(sheetHtml: string, disclaimerHtml = renderAuditDisclaimerHtml()): string {
+  if (!disclaimerHtml.trim()) return sheetHtml;
+  const close = '</footer>';
+  const footerAt = sheetHtml.lastIndexOf('<footer class="doc-onepager-footer">');
+  if (footerAt < 0) return sheetHtml;
+  const closeAt = sheetHtml.indexOf(close, footerAt);
+  if (closeAt < 0) return sheetHtml;
+  return `${sheetHtml.slice(0, closeAt)}${disclaimerHtml}${sheetHtml.slice(closeAt)}`;
+}
 
 export function parseFilledOnePagerColumns(markdown: string): string[] {
   const withoutFm = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---/, '').trim();
