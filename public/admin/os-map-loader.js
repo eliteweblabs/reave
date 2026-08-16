@@ -8953,6 +8953,7 @@ let emailState = {
   labEmailId: null,
   labPhrases: /** @type {{ text: string, field: 'from' | 'subject' | 'body' }[]} */ ([]),
   labCreating: false,
+  labDetail: /** @type {HTMLElement | null} */ (null),
 };
 let pendingEmailDeepLinkId = null;
 let emailPollTimer = null;
@@ -13650,6 +13651,7 @@ function exitEmailLabMode(opts = {}) {
   emailState.labEmailId = null;
   emailState.labPhrases = [];
   emailState.labCreating = false;
+  emailState.labDetail = null;
   if (opts.silent) return;
   if (emailState.activeId && getEmailPanel()?.querySelector('.ch-pane')) {
     renderEmailPane();
@@ -13666,6 +13668,18 @@ function stripEmailLabFieldPrefix(text, field) {
 function addEmailLabPhrase(text, field) {
   const phrase = normalizeEmailLabPhrase(stripEmailLabFieldPrefix(text, field));
   if (phrase.length < 2) return false;
+  const last = emailState.labPhrases[emailState.labPhrases.length - 1];
+  if (last && last.field === field) {
+    const prev = last.text.toLowerCase();
+    const next = phrase.toLowerCase();
+    if (prev === next) return false;
+    // Growing / shrinking the same highlight should update one chip.
+    if (next.includes(prev) || prev.includes(next)) {
+      last.text = phrase;
+      refreshEmailLabBar();
+      return true;
+    }
+  }
   const dup = emailState.labPhrases.some(
     (p) => p.text.toLowerCase() === phrase.toLowerCase() && p.field === field,
   );
@@ -13673,6 +13687,24 @@ function addEmailLabPhrase(text, field) {
   emailState.labPhrases.push({ text: phrase, field });
   refreshEmailLabBar();
   return true;
+}
+
+function labFieldForTarget(node, detail) {
+  const el = node instanceof Element ? node : node?.parentElement;
+  if (!el || !detail?.contains(el)) return null;
+  if (el.closest('.em-from-value, .em-from-client')) return 'from';
+  if (el.closest('.em-detail-subject, .em-subject-value')) return 'subject';
+  if (el.closest('.em-to-value, .em-detail-body, .em-detail-summary')) return 'body';
+  return null;
+}
+
+function captureLabWindowSelection(win, field, detail) {
+  if (!emailState.labMode) return false;
+  const sel = win?.getSelection?.();
+  if (!sel || sel.isCollapsed) return false;
+  const resolved = field || labFieldForTarget(sel.anchorNode, detail);
+  if (!resolved) return false;
+  return addEmailLabPhrase(sel.toString(), resolved);
 }
 
 function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-lab-bar]')) {
@@ -13704,20 +13736,17 @@ function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-la
 }
 
 function bindEmailLabDocument(doc, field) {
-  if (!doc?.documentElement || doc.documentElement.dataset.emailLabBound === '1') return;
+  if (!doc?.documentElement) return;
+  if (doc.documentElement.dataset.emailLabBound === '1') return;
   doc.documentElement.dataset.emailLabBound = '1';
   let debounce = 0;
-  const capture = () => {
-    if (!emailState.labMode) return;
-    const sel = doc.getSelection?.();
-    if (!sel || sel.isCollapsed) return;
-    addEmailLabPhrase(sel.toString(), field);
-  };
+  const capture = () => captureLabWindowSelection(doc.defaultView || doc, field);
   const captureSoon = () => {
     window.clearTimeout(debounce);
-    debounce = window.setTimeout(capture, 120);
+    debounce = window.setTimeout(capture, 50);
   };
   doc.addEventListener('mouseup', capture);
+  doc.addEventListener('pointerup', capture);
   doc.addEventListener('touchend', () => setTimeout(capture, 80));
   doc.addEventListener('selectionchange', captureSoon);
   doc.addEventListener(
@@ -13744,32 +13773,80 @@ function bindEmailLabDom(el, field) {
     addEmailLabPhrase(sel.toString(), field);
   };
   el.addEventListener('mouseup', capture);
+  el.addEventListener('pointerup', capture);
   el.addEventListener('touchend', () => setTimeout(capture, 80));
 }
 
-function mountEmailLabSelection(detail) {
-  if (!detail) return;
-  bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
-  bindEmailLabDom(detail.querySelector('.em-detail-summary'), 'body');
-  bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
-  bindEmailLabDom(detail.querySelector('.em-detail-subject'), 'subject');
-  const frame = detail.querySelector('.em-detail-body-frame');
+let labDocSelectionBound = false;
+let labDocSelectionTimer = 0;
+
+function onLabDocumentSelectionChange() {
+  const detail = emailState.labDetail;
+  if (!detail || !emailState.labMode) return;
+  window.clearTimeout(labDocSelectionTimer);
+  labDocSelectionTimer = window.setTimeout(() => {
+    captureLabWindowSelection(window, null, detail);
+  }, 50);
+}
+
+function bindEmailLabDetail(detail) {
+  if (!(detail instanceof HTMLElement)) return;
+  emailState.labDetail = detail;
+  if (!labDocSelectionBound) {
+    labDocSelectionBound = true;
+    document.addEventListener('selectionchange', onLabDocumentSelectionChange);
+  }
+  if (detail.dataset.emailLabDetailBound === '1') return;
+  detail.dataset.emailLabDetailBound = '1';
+  const capture = () => captureLabWindowSelection(window, null, detail);
+  detail.addEventListener('mouseup', capture);
+  detail.addEventListener('pointerup', capture);
+}
+
+function iframeDocLooksEmpty(doc) {
+  if (!doc?.body) return true;
+  const href = String(doc.URL || doc.location?.href || '');
+  return href.includes('about:blank') && doc.body.childNodes.length === 0;
+}
+
+function mountEmailLabFrame(frame) {
   if (!(frame instanceof HTMLIFrameElement)) return;
+  if (frame.dataset.emailLabFrameBound === '1') {
+    try {
+      if (frame.contentDocument && !iframeDocLooksEmpty(frame.contentDocument)) {
+        bindEmailLabDocument(frame.contentDocument, 'body');
+      }
+    } catch {
+      /* sandbox */
+    }
+    return;
+  }
+  frame.dataset.emailLabFrameBound = '1';
   const bindFrame = () => {
     try {
-      bindEmailLabDocument(frame.contentDocument, 'body');
+      const doc = frame.contentDocument;
+      if (!doc || iframeDocLooksEmpty(doc)) return;
+      bindEmailLabDocument(doc, 'body');
     } catch {
       /* opaque origin — sandbox needs allow-same-origin in lab mode */
     }
   };
   frame.addEventListener('load', bindFrame);
-  try {
-    if (frame.contentDocument?.readyState === 'complete' && frame.contentDocument.body) {
-      bindFrame();
-    }
-  } catch {
-    /* sandbox */
-  }
+  bindFrame();
+  window.setTimeout(bindFrame, 0);
+  window.setTimeout(bindFrame, 200);
+}
+
+function mountEmailLabSelection(detail) {
+  if (!detail) return;
+  bindEmailLabDetail(detail);
+  bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
+  bindEmailLabDom(detail.querySelector('.em-detail-summary'), 'body');
+  bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
+  bindEmailLabDom(detail.querySelector('.em-to-value'), 'body');
+  bindEmailLabDom(detail.querySelector('.em-detail-subject'), 'subject');
+  bindEmailLabDom(detail.querySelector('.em-subject-value'), 'subject');
+  mountEmailLabFrame(detail.querySelector('.em-detail-body-frame'));
 }
 
 function renderEmailLabBar() {
@@ -14126,7 +14203,7 @@ function renderEmailPane() {
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
       (Array.isArray(ev.to) && ev.to.length
-        ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
+        ? `<span><strong>To</strong> <span class="em-to-value">${escHtml(ev.to.join(', '))}</span></span>`
         : '') +
       `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>` +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
@@ -14192,7 +14269,10 @@ function renderEmailPane() {
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
   // Bind before srcdoc so we don't miss the load event on a fast parse.
   if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail);
-  if (bodyFrame && bodyHtmlSource) bodyFrame.srcdoc = bodyHtmlSource;
+  if (bodyFrame && bodyHtmlSource) {
+    bodyFrame.srcdoc = bodyHtmlSource;
+    if (isEmailLabModeFor(ev)) mountEmailLabFrame(bodyFrame);
+  }
   detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
     e.preventDefault();
     const btn = e.currentTarget;
@@ -14227,7 +14307,11 @@ function renderEmailPane() {
   detail.querySelector('[data-em-add-contact]')?.addEventListener('click', () => {
     openNewContactFromEmail(ev);
   });
-  void hydrateEmailFromClient(detail, ev);
+  void hydrateEmailFromClient(detail, ev).then(() => {
+    if (isEmailLabModeFor(ev)) {
+      bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
+    }
+  });
   if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev))) {
     void hydrateEmailProjectContextIcon(detail, ev);
   }

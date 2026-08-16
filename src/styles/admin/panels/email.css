@@ -972,9 +972,11 @@
 .em-detail--lab .em-detail-body,
 .em-detail--lab .em-from-client,
 .em-detail--lab .em-from-value,
+.em-detail--lab .em-to-value,
 .em-detail--lab .em-detail-subject,
 .em-detail--lab .em-subject-value,
-.em-detail--lab .em-detail-summary {
+.em-detail--lab .em-detail-summary,
+.em-detail--lab .em-detail-meta {
   user-select: text;
   -webkit-user-select: text;
 }
