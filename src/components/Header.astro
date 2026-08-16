@@ -87,6 +87,7 @@ const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 const accountMenuItems =
   profileMenu.length > 0 ? profileMenu : getInstallConfigClient().profileMenu;
 const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
+const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 ---
 
 <header
@@ -167,6 +168,16 @@ const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
           </button>
           <div class="topbar-profile-cluster">
             {showDeployIndicator && <DeployStatusDot publicAccess={deployStatusPublic} />}
+            {showWebsiteEntry && (
+              <a
+                href="/"
+                class="brand-btn app-header-admin-cta app-header-website-entry"
+                aria-label="Website"
+              >
+                Website
+                <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+              </a>
+            )}
             <div class="app-header-menu topbar-menu topbar-profile-menu">
               <button
                 type="button"
@@ -893,7 +904,8 @@ const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
   }
 
   .app-header-admin-cta,
-  .app-header-admin-entry.brand-btn {
+  .app-header-admin-entry.brand-btn,
+  .app-header-website-entry.brand-btn {
     height: var(--app-header-profile-h);
     padding: 0 0.65rem 0 0.75rem;
     gap: 0.28rem;
@@ -902,7 +914,8 @@ const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
   }
 
   .app-header-admin-cta svg,
-  .app-header-admin-entry.brand-btn svg {
+  .app-header-admin-entry.brand-btn svg,
+  .app-header-website-entry.brand-btn svg {
     width: 0.85rem;
     height: 0.85rem;
     pointer-events: none;
