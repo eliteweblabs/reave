@@ -5,6 +5,8 @@
  * (and their next-step lines) on `/admin/sales-sheet`.
  *
  * Top of the list is what you lead with in the room — not a lab score.
+ *
+ * Figma back-of-sheet walkthrough + this list: docs/audit-sales-sheet-back.md
  */
 import type { AuditReportCard, LetterGrade, ReportCardCategoryId } from './auditReportCard';
 import { isPlacesMissFinding, placesNotListedFinding } from './salesSheetPlacesView';
