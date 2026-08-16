@@ -22,6 +22,7 @@ import {
   setFrontmatterTitle,
 } from '../src/lib/auditSalesSheet.ts';
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
+import { SALES_SHEET_CASCADE, selectCascadeFindings } from '../src/lib/salesSheetCascade.ts';
 import {
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
@@ -158,10 +159,16 @@ await test('salesSheetInputFromReportCard maps authored opportunities', () => {
 `,
   });
   assert.ok(card);
-  const input = salesSheetInputFromReportCard(card, DUMMY_SALES_SHEET.contact);
+  const input = salesSheetInputFromReportCard(card, DUMMY_SALES_SHEET.contact, {
+    body: `## Website Audit
+**Current Website:** haleco.example
+### Local Listings
+- Google Business Profile: not listed
+`,
+  });
   assert.equal(input.website, 'haleco.example');
   assert.equal(input.findings.length, 3);
-  assert.match(input.findings[0]?.problem ?? '', /Google Business|not listed|Missing from Google/i);
+  assert.match(input.findings[0]?.problem ?? '', /Google Business|not listed|Missing from Google|not listed on Google/i);
   assert.ok(input.performance === 'D' || input.performance === 'F');
 });
 
@@ -256,19 +263,31 @@ The fix: We need to update your website's security certificate.
   assert.ok(card);
   assert.equal(card.website, 'calareneesalon.com');
   assert.equal(card.categories.find((c) => c.id === 'security')?.grade, 'F');
-  const input = salesSheetInputFromReportCard(card, {
-    ...DUMMY_SALES_SHEET.contact,
-    company: 'CALA RENEE Salon',
-    links: [
-      {
-        system: 'portal',
-        externalId: 'portal',
-        metadata: { website: 'https://calareneesalon.com' },
-      },
-    ],
-  });
+  const calaBody = `## Hi Cala!
+
+**Your website is showing a "Not Secure" warning to customers.**
+
+The fix: We need to update your website's security certificate.
+`;
+  const input = salesSheetInputFromReportCard(
+    card,
+    {
+      ...DUMMY_SALES_SHEET.contact,
+      company: 'CALA RENEE Salon',
+      links: [
+        {
+          system: 'portal',
+          externalId: 'portal',
+          metadata: { website: 'https://calareneesalon.com' },
+        },
+      ],
+    },
+    { body: calaBody, googlePlacesListed: false },
+  );
   assert.equal(input.website, 'calareneesalon.com');
   assert.equal(input.security, 'F');
+  assert.equal(input.findings[0]?.id, 'ssl-missing');
+  assert.equal(input.findings[1]?.id, 'places-not-listed');
 });
 
 await test('Current Website title is not used as the site URL', () => {
@@ -288,6 +307,28 @@ await test('Current Website title is not used as the site URL', () => {
   assert.ok(card);
   assert.equal(card.website, 'calareneesalon.com');
   assert.equal(card.categories.find((c) => c.id === 'security')?.grade, 'F');
+});
+
+await test('terribleness cascade is 40 unique ranks and SSL beats Places', () => {
+  assert.equal(SALES_SHEET_CASCADE.length, 40);
+  const ranks = SALES_SHEET_CASCADE.map((item) => item.rank);
+  assert.equal(new Set(ranks).size, 40);
+  assert.equal(SALES_SHEET_CASCADE[0]?.id, 'ssl-missing');
+  assert.equal(SALES_SHEET_CASCADE[4]?.id, 'places-not-listed');
+  const hits = selectCascadeFindings({
+    businessName: 'Cala',
+    body: 'Your website is showing a "Not Secure" warning. Google Business Profile: not listed.',
+    googlePlacesListed: false,
+    securityGrade: 'F',
+  });
+  assert.equal(hits[0]?.id, 'ssl-missing');
+  assert.equal(hits[1]?.id, 'places-not-listed');
+  const down = selectCascadeFindings({
+    businessName: 'Hale',
+    body: 'The site does not load — connection timed out. Domain expired. NXDOMAIN.',
+  });
+  assert.equal(down[0]?.id, 'site-down');
+  assert.equal(down[1]?.id, 'domain-expired');
 });
 
 await test('salesSheetAuditUrl prefers explicit audit, then run, then portal uid', () => {

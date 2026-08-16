@@ -95,6 +95,7 @@ if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
     if (card && !card.inProgress) {
       input = salesSheetInputFromReportCard(card, contact, {
         googlePlacesListed: listedFlag,
+        body: doc.body || '',
       });
       sourceNote = `Live audit · ${selectedAudit.company}`;
     } else {

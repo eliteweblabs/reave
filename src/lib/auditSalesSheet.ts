@@ -16,7 +16,12 @@ import {
   type ReportCardCategoryId,
   type ReportCardIdea,
 } from './auditReportCard';
-import { isPlacesMissFinding, promotePlacesNotListedFinding } from './salesSheetPlacesView';
+import {
+  cascadeRankForFinding,
+  mergePlacesIntoCascadeFindings,
+  selectCascadeFindings,
+  type CascadeFinding,
+} from './salesSheetCascade';
 
 export type SalesSheetOrientation = 'portrait' | 'landscape';
 
@@ -32,6 +37,7 @@ export type SalesSheetFinding = {
   categoryLabel: string;
   problem: string;
   solution: string;
+  rank?: number;
 };
 
 export type AuditSalesSheetInput = {
@@ -219,9 +225,9 @@ export function selectTopFindings(
   return ideas
     .slice()
     .sort((a, b) => {
-      const aBoost = isPlacesMissFinding(a) ? -100 : 0;
-      const bBoost = isPlacesMissFinding(b) ? -100 : 0;
-      return a.priority + aBoost - (b.priority + bBoost);
+      const rankDiff = cascadeRankForFinding(a) - cascadeRankForFinding(b);
+      if (rankDiff !== 0) return rankDiff;
+      return a.priority - b.priority;
     })
     .slice(0, count)
     .map((idea) => ({
@@ -229,6 +235,7 @@ export function selectTopFindings(
       categoryLabel: idea.categoryLabel.trim() || 'Opportunity',
       problem: clip(idea.problem),
       solution: clip(idea.solution),
+      rank: cascadeRankForFinding(idea),
     }));
 }
 
@@ -258,23 +265,48 @@ function resolveSalesSheetWebsite(
   return extractAuditWebsite(contactPortalWebsite(contact)) || '';
 }
 
+function toSheetFinding(hit: CascadeFinding): SalesSheetFinding {
+  return {
+    id: hit.id,
+    categoryLabel: hit.categoryLabel,
+    problem: clip(hit.problem),
+    solution: clip(hit.solution),
+    rank: hit.rank,
+  };
+}
+
+function fillFindingsFromIdeas(
+  hits: SalesSheetFinding[],
+  ideas: ReportCardIdea[],
+): SalesSheetFinding[] {
+  if (hits.length >= SALES_SHEET_FINDING_COUNT) return hits.slice(0, SALES_SHEET_FINDING_COUNT);
+  const used = new Set(hits.map((h) => h.id));
+  const usedLabels = new Set(hits.map((h) => h.categoryLabel.toLowerCase()));
+  const extra = selectTopFindings(
+    ideas.filter((idea) => !used.has(idea.id) && !usedLabels.has(idea.categoryLabel.toLowerCase())),
+    SALES_SHEET_FINDING_COUNT - hits.length,
+  );
+  return [...hits, ...extra].slice(0, SALES_SHEET_FINDING_COUNT);
+}
+
 export function salesSheetInputFromReportCard(
   card: AuditReportCard,
   contact: ContactRecord,
-  opts?: { googlePlacesListed?: boolean | null },
+  opts?: { googlePlacesListed?: boolean | null; body?: string },
 ): AuditSalesSheetInput {
   const businessName = (contact.company || contact.name || '').trim();
-  let findings = selectTopFindings(card.ideas);
+  const cascadeHits = selectCascadeFindings({
+    body: opts?.body || '',
+    businessName,
+    card,
+    googlePlacesListed: opts?.googlePlacesListed,
+    securityGrade: categoryGrade(card, 'security'),
+  });
+  let findings = fillFindingsFromIdeas(cascadeHits.map(toSheetFinding), card.ideas);
   let visibility = categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo');
-  let headline = (card.headline || '').trim();
-
-  if (opts?.googlePlacesListed === false) {
-    findings = promotePlacesNotListedFinding(findings, businessName);
-    visibility = 'F';
-    if (!/google|maps|listed/i.test(headline)) {
-      headline = `${businessName || 'This business'} is not listed on Google — nearby searches show competitors.`;
-    }
-  }
+  if (opts?.googlePlacesListed === false) visibility = 'F';
+  const lead = findings[0];
+  const headline = lead?.problem || (card.headline || '').trim();
 
   return {
     contact,
@@ -289,20 +321,29 @@ export function salesSheetInputFromReportCard(
   };
 }
 
-/** Apply a live Places miss to dummy/query input (finding #1 + visibility F). */
+/** Apply a live Places miss without jumping SSL / down / domain / malware. */
 export function applyPlacesMissToSalesSheet(
   input: AuditSalesSheetInput,
   notListed: boolean,
 ): AuditSalesSheetInput {
-  if (!notListed) return input;
   const businessName = (input.contact.company || input.contact.name || '').trim();
+  const findings = mergePlacesIntoCascadeFindings(
+    input.findings.map((f) => ({
+      id: f.id,
+      rank: cascadeRankForFinding(f),
+      categoryLabel: f.categoryLabel,
+      problem: f.problem,
+      solution: f.solution,
+    })),
+    notListed,
+    businessName,
+  ).map(toSheetFinding);
+  const lead = findings[0];
   return {
     ...input,
-    visibility: 'F',
-    headline: /google|maps|listed/i.test(input.headline)
-      ? input.headline
-      : `${businessName || 'This business'} is not listed on Google — nearby searches show competitors.`,
-    findings: promotePlacesNotListedFinding(input.findings, businessName),
+    visibility: notListed ? 'F' : input.visibility,
+    headline: lead?.problem || input.headline,
+    findings,
   };
 }
 
