@@ -24,6 +24,10 @@ import {
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
 import { listBrandLogos } from '../src/lib/brandLogos.ts';
 import {
+  AUDIT_INTERNET_PRESENCE_STATEMENT,
+  renderInternetPresenceHtml,
+} from '../src/lib/auditInternetPresence.ts';
+import {
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
   promotePlacesNotListedFinding,
@@ -343,9 +347,23 @@ await test('audit templates opt into folder-backed client brands, not HTML imgs'
   }
 });
 
-await test('fillAuditOnePager keeps the brands frontmatter flag', () => {
+await test('audit templates include the standing internet-presence statement', () => {
+  for (const md of [landscape, portrait]) {
+    assert.match(md, /^presence:\s*true$/m);
+  }
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /not endearing/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /reviews/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /take it down|remove|response/i);
+  const html = renderInternetPresenceHtml();
+  assert.match(html, /doc-presence/);
+  assert.match(html, /Internet presence/);
+  assert.match(html, /not endearing/);
+});
+
+await test('fillAuditOnePager keeps the brands and presence frontmatter flags', () => {
   const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
   assert.match(filled, /^brands:\s*clients$/m);
+  assert.match(filled, /^presence:\s*true$/m);
 });
 
 await test('about-page brand names live in site config and the clients folder is scanned', () => {

@@ -19,6 +19,10 @@ import {
   DOCUMENT_CLIENT_LOGOS_CSS,
   renderClientBrandLogosHtml,
 } from './clientBrandLogos';
+import {
+  DOCUMENT_INTERNET_PRESENCE_CSS,
+  renderInternetPresenceHtml,
+} from './auditInternetPresence';
 import { SITE } from '../config/site';
 
 export type DocumentOrientation = 'portrait' | 'landscape';
@@ -47,6 +51,8 @@ export type ParsedDocumentLayout = {
   footer: string;
   /** Folder-backed brand strip (e.g. `clients` → public/logos/clients/). */
   brands: string;
+  /** Standing internet-presence / review-response statement. */
+  presence: boolean;
   body: string;
   columns: string[];
 };
@@ -78,10 +84,17 @@ export function parseDocumentLayout(markdown: string, slug = ''): ParsedDocument
     slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const footer = fmValue(fm, 'footer');
   const brands = parseBrandsFolder(fmValue(fm, 'brands'));
+  const presence = parseOnFlag(fmValue(fm, 'presence'));
   const body = parsed.body;
   const columns = splitColumns(body);
 
-  return { title, layout, orientation, footer, brands, body, columns };
+  return { title, layout, orientation, footer, brands, presence, body, columns };
+}
+
+/** `true` / `yes` / `on` / `1` enable a frontmatter flag. */
+export function parseOnFlag(raw: string): boolean {
+  const key = raw.trim().toLowerCase();
+  return key === 'true' || key === '1' || key === 'yes' || key === 'on';
 }
 
 /** `clients` / `true` / `about` → public/logos/clients/. Empty disables the strip. */
@@ -454,6 +467,12 @@ ${DOCUMENT_BRAND_MARK_CSS}
 .doc-onepager-col ol { margin: 0 0 0.7em; padding-left: 1.15em; }
 .doc-onepager-col li { margin: 0 0 0.35em; }
 .doc-onepager-col strong { color: var(--doc-ink); }
+.doc-onepager-presence {
+  flex: 0 0 auto;
+  padding-top: 1.4%;
+  border-top: 1px solid var(--doc-rule);
+}
+${DOCUMENT_INTERNET_PRESENCE_CSS}
 .doc-onepager-brands {
   flex: 0 0 auto;
   padding-top: 1.6%;
@@ -492,6 +511,7 @@ export function wrapPrintOnePager(opts: {
   logoHtml: string;
   kicker?: string;
   brandsHtml?: string;
+  presenceHtml?: string;
 }): string {
   const cols = [...opts.columnsHtml];
   while (cols.length < 3) cols.push('');
@@ -501,6 +521,8 @@ export function wrapPrintOnePager(opts: {
     .join('');
   const kicker = (opts.kicker || '').trim();
   const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
+  const presence = (opts.presenceHtml || '').trim();
+  const presenceHtml = presence ? `<div class="doc-onepager-presence">${presence}</div>` : '';
   const brands = (opts.brandsHtml || '').trim();
   const brandsHtml = brands ? `<div class="doc-onepager-brands">${brands}</div>` : '';
 
@@ -516,6 +538,7 @@ export function wrapPrintOnePager(opts: {
       </div>
     </header>
     <div class="doc-onepager-cols">${colMarkup}</div>
+    ${presenceHtml}
     ${brandsHtml}
     <footer class="doc-onepager-footer">${opts.footerHtml}</footer>
   </article>
@@ -574,5 +597,6 @@ export async function renderPrintOnePagerHtml(
           parsed.brands === 'clients' ? undefined : listBrandLogos(parsed.brands),
         )
       : '',
+    presenceHtml: parsed.presence ? renderInternetPresenceHtml() : '',
   });
 }
