@@ -82,6 +82,19 @@ Cal.com also gets Resend SMTP literals (`smtp.resend.com` / `465` / `resend`) so
 
 Prefer a **bare** verified address in `RESEND_FROM` (`noreply@mail.example.com`). Cal.com’s `EMAIL_FROM` is a From address, not a display-name header.
 
+## Identity fields
+
+The first step writes these onto `reave` (same keys live client installs already have on Railway):
+
+| Field | Variable | Default |
+|-------|----------|---------|
+| Install slug | `INSTALL_CONFIG` / `CALCOM_USERNAME` | `demo` |
+| Site domain | `PUBLIC_SITE_DOMAIN` / `COMPANY_DOMAIN` | (empty) |
+| Post name | `POST_ALIAS` | `project` |
+| Company name | `COMPANY_NAME` (also prefills `EMAIL_FROM_NAME`) | (empty) |
+| Admin username | `ADMIN_USERNAME` | falls back to company name |
+| Timezone | `BOOKING_TIMEZONE` | `America/New_York` |
+
 ## What you still type
 
 Third-party secrets only: Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub, and similar. Generated values (webhook secrets, CardDAV password, shared client keys, Cal.com `NEXTAUTH_SECRET`) can be rolled in the wizard.

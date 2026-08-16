@@ -34,6 +34,10 @@
   let appService = 'reave';
   let installSlug = 'demo';
   let siteDomain = '';
+  let postAlias = 'project';
+  let companyName = '';
+  let adminUsername = '';
+  let timezone = 'America/New_York';
   let project = '';
   let environment = 'production';
   let railway = { configured: false, projects: [] };
@@ -171,6 +175,22 @@
       `<label class="dl-field">` +
       `<span class="dl-field-label">Site domain</span>` +
       `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Post name</span>` +
+      `<input id="dw-post" class="dl-input" type="text" maxlength="32" placeholder="project" value="${esc(postAlias)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Company name</span>` +
+      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="Capco Fire" value="${esc(companyName)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Admin username</span>` +
+      `<input id="dw-admin" class="dl-input" type="text" maxlength="120" placeholder="Optional — defaults to company" value="${esc(adminUsername)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Timezone</span>` +
+      `<input id="dw-tz" class="dl-input" type="text" maxlength="64" placeholder="America/New_York" value="${esc(timezone)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">App service name</span>` +
@@ -395,11 +415,19 @@
   function readIdentity() {
     const installEl = root.querySelector('#dw-install');
     const domainEl = root.querySelector('#dw-domain');
+    const postEl = root.querySelector('#dw-post');
+    const companyEl = root.querySelector('#dw-company');
+    const adminEl = root.querySelector('#dw-admin');
+    const tzEl = root.querySelector('#dw-tz');
     const appEl = root.querySelector('#dw-app');
     const projectEl = root.querySelector('#dw-project');
     const envEl = root.querySelector('#dw-env');
     if (installEl) installSlug = installEl.value.trim() || 'demo';
     if (domainEl) siteDomain = domainEl.value.trim();
+    if (postEl) postAlias = postEl.value.trim() || 'project';
+    if (companyEl) companyName = companyEl.value.trim();
+    if (adminEl) adminUsername = adminEl.value.trim();
+    if (tzEl) timezone = tzEl.value.trim() || 'America/New_York';
     if (appEl) appService = appEl.value.trim() || 'reave';
     if (projectEl) project = projectEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
@@ -424,6 +452,10 @@
         appService,
         installSlug,
         siteDomain,
+        postAlias,
+        companyName,
+        adminUsername,
+        timezone,
         values,
       }),
     });
@@ -431,9 +463,22 @@
     if (!res.ok || !json.ok) throw new Error(json.error || `Could not build plan (${res.status})`);
     plan = json.plan;
     cli = json.cli || '';
+    const identityNames = new Set([
+      'INSTALL_CONFIG',
+      'CALCOM_USERNAME',
+      'POST_ALIAS',
+      'COMPANY_NAME',
+      'ADMIN_USERNAME',
+      'BOOKING_TIMEZONE',
+      'PUBLIC_SITE_DOMAIN',
+      'COMPANY_DOMAIN',
+      'VAPID_SUBJECT',
+    ]);
     for (const variable of plan.variables) {
       const key = varKey(variable);
-      if (values[key] == null && variable.filled && (variable.kind === 'literal' || variable.kind === 'generated')) {
+      if (identityNames.has(variable.name) && variable.filled) {
+        values[key] = variable.filled;
+      } else if (values[key] == null && variable.filled && (variable.kind === 'literal' || variable.kind === 'generated')) {
         values[key] = variable.filled;
       }
       if (variable.kind === 'generated' && !values[key]) {
@@ -486,6 +531,10 @@
           appService,
           installSlug,
           siteDomain,
+          postAlias,
+          companyName,
+          adminUsername,
+          timezone,
           project,
           environment,
           values,
@@ -623,6 +672,10 @@
         environment = data.defaults.environment || environment;
         installSlug = data.defaults.installSlug || installSlug;
         if (typeof data.defaults.siteDomain === 'string') siteDomain = data.defaults.siteDomain;
+        postAlias = data.defaults.postAlias || postAlias;
+        if (typeof data.defaults.companyName === 'string') companyName = data.defaults.companyName;
+        if (typeof data.defaults.adminUsername === 'string') adminUsername = data.defaults.adminUsername;
+        timezone = data.defaults.timezone || timezone;
       }
       selectedIds = new Set(data.defaultModuleIds || toggleableModules().map((m) => m.moduleId));
       if (railway.projects?.length === 1) project = railway.projects[0].id;

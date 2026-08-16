@@ -7,6 +7,7 @@
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import { normalizePostAlias } from './postAlias';
 
 /** Consumer Astro service — matches Reave App / Reave Demo (`reave`). */
 export const DEPLOY_APP_SERVICE = 'reave';
@@ -427,6 +428,45 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'literal',
     value: 'demo',
     description: 'Install slug — loads config/config-{slug}.json.',
+  }),
+  v({
+    name: 'POST_ALIAS',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: 'project',
+    description: 'User-facing work label (project, deal, job, lead). Plural is derived.',
+  }),
+  v({
+    name: 'COMPANY_NAME',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Display name for the install. Prefills EMAIL_FROM_NAME when empty.',
+    required: false,
+  }),
+  v({
+    name: 'ADMIN_USERNAME',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Deployment owner match (comma-separated). Falls back to company name.',
+    required: false,
+  }),
+  v({
+    name: 'COMPANY_DOMAIN',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Same apex as PUBLIC_SITE_DOMAIN — filled from the wizard site-domain field.',
+    required: false,
+  }),
+  v({
+    name: 'BOOKING_TIMEZONE',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: 'America/New_York',
+    description: 'IANA timezone for schedules and reminders.',
+    required: false,
   }),
   v({
     name: 'PUBLIC_CLERK_PUBLISHABLE_KEY',
@@ -1338,6 +1378,12 @@ export type DeployWizardPlanInput = {
   installSlug?: string;
   /** Install apex, e.g. `acme.com` — used to render FQDNs. */
   siteDomain?: string;
+  /** Work-record label (POST_ALIAS). Default `project`. */
+  postAlias?: string;
+  companyName?: string;
+  adminUsername?: string;
+  /** IANA timezone (BOOKING_TIMEZONE). Default America/New_York. */
+  timezone?: string;
 };
 
 export type DeployWizardPlanVariable = DeployWizardVariable & {
@@ -1349,6 +1395,10 @@ export type DeployWizardPlan = {
   appService: string;
   installSlug: string;
   siteDomain: string;
+  postAlias: string;
+  companyName: string;
+  adminUsername: string;
+  timezone: string;
   features: FeatureId[];
   extras: DeployWizardExtraId[];
   services: DeployWizardService[];
@@ -1405,6 +1455,10 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   const appService = (input.appService?.trim() || DEPLOY_APP_SERVICE).slice(0, 64);
   const installSlug = (input.installSlug?.trim() || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
   const siteDomain = normalizeSiteDomain(input.siteDomain);
+  const postAlias = normalizePostAlias(input.postAlias);
+  const companyName = (input.companyName ?? '').trim().slice(0, 120);
+  const adminUsername = (input.adminUsername ?? '').trim().slice(0, 120);
+  const timezone = (input.timezone?.trim() || 'America/New_York').slice(0, 64);
   const extraSet = new Set<string>(extras);
 
   const services = DEPLOY_WIZARD_SERVICES.filter(
@@ -1437,7 +1491,13 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     let filled = raw.value ?? '';
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
     if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
+    if (raw.name === 'POST_ALIAS') filled = postAlias;
+    if (raw.name === 'COMPANY_NAME') filled = companyName;
+    if (raw.name === 'ADMIN_USERNAME') filled = adminUsername;
+    if (raw.name === 'BOOKING_TIMEZONE') filled = timezone;
     if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
+    if (raw.name === 'COMPANY_DOMAIN' && siteDomain) filled = siteDomain;
+    if (raw.name === 'EMAIL_FROM_NAME' && companyName) filled = companyName;
     if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
     if (appService !== DEPLOY_APP_SERVICE && filled) {
       filled = substituteAppService(filled, appService);
@@ -1467,6 +1527,10 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     appService,
     installSlug,
     siteDomain,
+    postAlias,
+    companyName,
+    adminUsername,
+    timezone,
     features,
     extras,
     services,
@@ -1483,7 +1547,9 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
   const lines: string[] = [
     `# Railway variable plan — service names must match exactly`,
     `# App service: ${plan.appService} · install: ${plan.installSlug}` +
-      (plan.siteDomain ? ` · apex: ${plan.siteDomain}` : ''),
+      (plan.siteDomain ? ` · apex: ${plan.siteDomain}` : '') +
+      ` · post: ${plan.postAlias}` +
+      (plan.companyName ? ` · company: ${plan.companyName}` : ''),
     '',
   ];
 

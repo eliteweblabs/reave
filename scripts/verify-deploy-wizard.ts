@@ -45,6 +45,27 @@ assert.equal(contactUrl?.filled, 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN 
 
 const install = core.variables.find((v) => v.name === 'INSTALL_CONFIG');
 assert.equal(install?.filled, 'acme');
+assert.equal(core.postAlias, 'project');
+const postAlias = core.variables.find((v) => v.name === 'POST_ALIAS');
+assert.equal(postAlias?.filled, 'project');
+assert.equal(core.timezone, 'America/New_York');
+
+const branded = buildDeployWizardPlan({
+  features: [],
+  installSlug: 'capco',
+  siteDomain: 'capcofire.com',
+  postAlias: 'job',
+  companyName: 'Capco Fire',
+  adminUsername: 'Pat',
+  timezone: 'America/Los_Angeles',
+});
+assert.equal(branded.variables.find((v) => v.name === 'POST_ALIAS')?.filled, 'job');
+assert.equal(branded.variables.find((v) => v.name === 'COMPANY_NAME')?.filled, 'Capco Fire');
+assert.equal(branded.variables.find((v) => v.name === 'ADMIN_USERNAME')?.filled, 'Pat');
+assert.equal(branded.variables.find((v) => v.name === 'COMPANY_DOMAIN')?.filled, 'capcofire.com');
+assert.equal(branded.variables.find((v) => v.name === 'BOOKING_TIMEZONE')?.filled, 'America/Los_Angeles');
+assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.filled, 'Capco Fire');
+assert.equal(buildDeployWizardPlan({ features: [], postAlias: 'Disposition(s)' }).postAlias, 'project');
 
 const billed = buildDeployWizardPlan({
   features: ['billing', 'fleet_tracking', 'scheduling'],

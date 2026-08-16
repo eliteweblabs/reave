@@ -127,6 +127,10 @@ export async function GET(context: APIContext): Promise<Response> {
       environment: 'production',
       installSlug: 'demo',
       siteDomain: '',
+      postAlias: 'project',
+      companyName: '',
+      adminUsername: '',
+      timezone: 'America/New_York',
     },
   });
 }
@@ -150,7 +154,21 @@ export async function POST(context: APIContext): Promise<Response> {
   const appService = typeof body.appService === 'string' ? body.appService : undefined;
   const installSlug = typeof body.installSlug === 'string' ? body.installSlug : undefined;
   const siteDomain = typeof body.siteDomain === 'string' ? body.siteDomain : undefined;
-  const plan = buildDeployWizardPlan({ features, extras, appService, installSlug, siteDomain });
+  const postAlias = typeof body.postAlias === 'string' ? body.postAlias : undefined;
+  const companyName = typeof body.companyName === 'string' ? body.companyName : undefined;
+  const adminUsername = typeof body.adminUsername === 'string' ? body.adminUsername : undefined;
+  const timezone = typeof body.timezone === 'string' ? body.timezone : undefined;
+  const plan = buildDeployWizardPlan({
+    features,
+    extras,
+    appService,
+    installSlug,
+    siteDomain,
+    postAlias,
+    companyName,
+    adminUsername,
+    timezone,
+  });
   const values = parseValues(body);
   const cli = formatDeployWizardCli(plan, values);
   const action = typeof body.action === 'string' ? body.action : 'plan';
