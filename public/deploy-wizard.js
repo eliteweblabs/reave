@@ -10,10 +10,10 @@
   ];
 
   const STATUS = {
-    deployed: { label: 'Deployed', badge: 'dl-badge--deployed' },
-    development: { label: 'Development', badge: 'dl-badge--development' },
-    request: { label: 'Requested', badge: 'dl-badge--request' },
-    rejected: { label: 'Rejected', badge: 'dl-badge--rejected' },
+    deployed: { label: 'Deployed', tone: 'live' },
+    development: { label: 'Development', tone: 'deploying' },
+    request: { label: 'Requested', tone: 'alert' },
+    rejected: { label: 'Rejected', tone: 'alert' },
   };
 
   const KIND_LABEL = {
@@ -89,6 +89,14 @@
     return STATUS[m.status] || STATUS.development;
   }
 
+  function renderStatusDot(m) {
+    const meta = statusMeta(m);
+    return (
+      `<span class="dl-status-dot dl-status-dot--${meta.tone}" ` +
+      `title="${esc(meta.label)}" role="img" aria-label="${esc(meta.label)}"></span>`
+    );
+  }
+
   function renderSwitch(checked, id, attr) {
     return (
       `<button type="button" class="dl-switch" role="switch" ` +
@@ -112,13 +120,14 @@
   function renderTile(m) {
     const canToggle = Boolean(m.toggleable && m.moduleId);
     const checked = canToggle && selectedIds.has(m.moduleId);
-    const meta = statusMeta(m);
     return (
       `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}" ` +
       `data-feature="${esc(m.feature)}">` +
       `<div class="dl-tile-body">` +
-      `<span class="dl-badge ${meta.badge}">${esc(meta.label)}</span>` +
+      `<div class="dl-tile-head">` +
       `<h3 class="dl-tile-label">${esc(m.label)}</h3>` +
+      renderStatusDot(m) +
+      `</div>` +
       (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
       `</div>` +
       (canToggle ? `<div class="dl-tile-foot">${renderSwitch(checked, m.moduleId, 'data-module-id')}</div>` : '') +

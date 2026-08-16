@@ -7,10 +7,10 @@
  */
 (function () {
   const STATUS = {
-    deployed: { label: 'Deployed', badge: 'dl-badge--deployed' },
-    development: { label: 'Development', badge: 'dl-badge--development' },
-    request: { label: 'Requested', badge: 'dl-badge--request' },
-    rejected: { label: 'Rejected', badge: 'dl-badge--rejected' },
+    deployed: { label: 'Deployed', tone: 'live' },
+    development: { label: 'Development', tone: 'deploying' },
+    request: { label: 'Requested', tone: 'alert' },
+    rejected: { label: 'Rejected', tone: 'alert' },
   };
 
   let modules = [];
@@ -93,6 +93,14 @@
     return STATUS[m.status] || STATUS.development;
   }
 
+  function renderStatusDot(m) {
+    const meta = statusMeta(m);
+    return (
+      `<span class="dl-status-dot dl-status-dot--${meta.tone}" ` +
+      `title="${esc(meta.label)}" role="img" aria-label="${esc(meta.label)}"></span>`
+    );
+  }
+
   function renderSwitch(checked, moduleId) {
     return (
       `<button type="button" class="dl-switch" role="switch" ` +
@@ -116,7 +124,6 @@
   function renderTile(m) {
     const canToggle = togglesEnabled && Boolean(m.toggleable && m.moduleId);
     const checked = canToggle && selectedIds.has(m.moduleId);
-    const meta = statusMeta(m);
     // Dim only in toggle mode when a card isn't selectable — browse mode is all display.
     const readonlyClass = togglesEnabled && !canToggle ? ' dl-tile--readonly' : '';
 
@@ -124,8 +131,10 @@
       `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}${readonlyClass}" ` +
       `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
-      `<span class="dl-badge ${meta.badge}">${esc(meta.label)}</span>` +
+      `<div class="dl-tile-head">` +
       `<h3 class="dl-tile-label">${esc(m.label)}</h3>` +
+      renderStatusDot(m) +
+      `</div>` +
       (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
       `</div>` +
       (canToggle ?
@@ -149,15 +158,14 @@
 
   function renderLegend() {
     const deployedLine = togglesEnabled
-      ? `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready — include in demo</span>`
-      : `<span class="dl-legend-item"><span class="dl-badge dl-badge--deployed">Deployed</span> ready</span>`;
+      ? `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--live" aria-hidden="true"></span> Deployed — include in demo</span>`
+      : `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--live" aria-hidden="true"></span> Deployed — ready</span>`;
     return (
       `<div class="dl-legend">` +
       `<span class="dl-legend-item"><span class="dl-badge dl-badge--included">Included</span> always on</span>` +
       deployedLine +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--development">Development</span> in progress</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--request">Requested</span> not built yet</span>` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--rejected">Rejected</span> off</span>` +
+      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--deploying" aria-hidden="true"></span> Development</span>` +
+      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--alert" aria-hidden="true"></span> Requested / rejected</span>` +
       `</div>`
     );
   }
