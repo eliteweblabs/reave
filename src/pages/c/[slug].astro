@@ -55,6 +55,7 @@ import '../../styles/brand.css';
 import '../../styles/mobile-touch.css';
 import PortalOutreachSheet from '../../components/PortalOutreachSheet.astro';
 import { contactGreetingName, splitClientNameParts } from '../../lib/contactPersonName';
+import { escapeHtml } from '../../lib/htmlEscape';
 
 const org = await getCompanyConfig(Astro.request);
 
@@ -125,14 +126,6 @@ const fmtDate = (s: string | null | undefined) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 function richText(s: string): string {
   const escaped = escapeHtml(s);
   const linked = escaped.replace(
