@@ -16,7 +16,18 @@ import { getCompanyConfig } from '../../../lib/companyConfig';
 export const prerender = false;
 
 // Fields that are structural / internal and shouldn't become template tokens.
-const SKIP_FIELDS = new Set(['uid', 'archived', 'links', 'createdAt', 'updatedAt', 'notes']);
+const SKIP_FIELDS = new Set([
+  'uid',
+  'archived',
+  'links',
+  'createdAt',
+  'updatedAt',
+  'notes',
+  'logoUrl',
+  'iconUrl',
+  'logoData',
+  'iconData',
+]);
 
 function camelToSnake(s: string): string {
   return s.replace(/([A-Z])/g, '_$1').toLowerCase();

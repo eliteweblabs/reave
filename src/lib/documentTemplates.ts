@@ -1,4 +1,9 @@
-import type { ContactRecord } from './contactApi';
+import {
+  extractPortal,
+  isContactApiConfigured,
+  listContacts,
+  type ContactRecord,
+} from './contactApi';
 import { parseKnowledgeMarkdown } from './localKnowledge';
 import { renderDocumentMarkdown } from './renderDocumentMarkdown';
 import {
@@ -48,6 +53,8 @@ export const SHORTCODES: Shortcode[] = [
   { code: 'client.phone',       token: '{client.phone}',       label: 'Phone',            description: "Contact's phone number",               category: 'Contact' },
   { code: 'client.company',     token: '{client.company}',     label: 'Company',          description: "Contact's company name",               category: 'Contact' },
   { code: 'client.company_str', token: '{client.company_str}', label: 'Company (inline)', description: '" · Company" or empty if none',        category: 'Contact' },
+  { code: 'client.logo',        token: '{client.logo}',        label: 'Logo',             description: "Scalable contact logo. Size with {client.logo:sm|md|lg|xl} or {client.logo:3em}", category: 'Contact' },
+  { code: 'client.icon',        token: '{client.icon}',        label: 'Icon',             description: "Scalable contact icon. Size with {client.icon:sm|md|lg|xl} or {client.icon:32}", category: 'Contact' },
   { code: 'company.name',       token: '{company.name}',       label: 'Display name',     description: 'Your organization display name',       category: 'Company' },
   { code: 'company.legal_name', token: '{company.legal_name}', label: 'Legal name',       description: 'Legal entity name for contracts',      category: 'Company' },
   { code: 'company.domain',     token: '{company.domain}',     label: 'Domain',           description: 'Website hostname, e.g. example.com', category: 'Company' },
@@ -113,7 +120,7 @@ const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const PHONE_RE = /(?:\+1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g;
 const SUPPORT_LOCAL_RE = /^(support|hello|info|contact|help|office|admin|team|hi)$/i;
 const TOKEN_RE = /\{[a-z][a-z0-9_.]*(?::[a-z0-9.]+)?\}/gi;
-const SKIP_SCAN_CODES = new Set(['client.company_str', 'company.logo', 'company.icon']);
+const SKIP_SCAN_CODES = new Set(['client.company_str', 'company.logo', 'company.icon', 'client.logo', 'client.icon']);
 
 function contactNameParts(contact: ContactRecord): { firstName: string; lastName: string; company: string } {
   const firstName =
@@ -321,7 +328,8 @@ export function fillTemplate(
     .replace(/{date}/g, today)
     .replace(/{year}/g, String(new Date().getFullYear()));
 
-  result = result.replace(/{client\.([a-z_][a-z0-9_]*)}/gi, (_, field) => {
+  result = result.replace(/{client\.([a-z_][a-z0-9_]*)}/gi, (match, field: string) => {
+    if (field.toLowerCase() === 'logo' || field.toLowerCase() === 'icon') return match;
     const val = (contact as Record<string, unknown>)[field];
     return typeof val === 'string' ? escMarkdown(val) : '';
   });
@@ -340,7 +348,29 @@ export async function fillAndRenderTemplate(
   contact: ContactRecord,
   org?: PrintCompany,
 ): Promise<string> {
-  return renderFilledDocumentHtml(fillTemplate(markdown, contact, org), org);
+  return renderFilledDocumentHtml(fillTemplate(markdown, contact, org), org, '', contact);
+}
+
+/** Sample contact for admin View — prefers a real contact that has a logo/icon. */
+export async function previewDocumentContact(): Promise<ContactRecord> {
+  if (!isContactApiConfigured()) return PREVIEW_CONTACT;
+  try {
+    const res = await listContacts({ limit: 25 });
+    if (!res.ok || !res.data.contacts.length) return PREVIEW_CONTACT;
+    const branded = res.data.contacts.find((c) => {
+      const portal = extractPortal(c);
+      if (!portal) return false;
+      return Boolean(
+        portal.logoSource === 'upload' ||
+        portal.iconSource === 'upload' ||
+        portal.logoUrl ||
+        portal.iconUrl,
+      );
+    });
+    return branded || res.data.contacts[0] || PREVIEW_CONTACT;
+  } catch {
+    return PREVIEW_CONTACT;
+  }
 }
 
 /** Render template markdown (already filled) to HTML, applying print chrome when opted in. */
@@ -348,13 +378,14 @@ export async function renderFilledDocumentHtml(
   markdown: string,
   org?: PrintCompany,
   slug = '',
+  contact?: ContactRecord,
 ): Promise<string> {
   const layout = parseDocumentLayout(markdown, slug);
   const html =
     layout.layout === 'onepager'
       ? await renderPrintOnePagerHtml(markdown, org, slug)
       : await renderDocumentMarkdown(markdown);
-  return applyCompanyBrandShortcodes(html, org);
+  return applyCompanyBrandShortcodes(html, org, contact);
 }
 
 function escMarkdown(s: string): string {

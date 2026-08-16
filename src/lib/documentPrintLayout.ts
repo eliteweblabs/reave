@@ -12,6 +12,8 @@ import { parseKnowledgeMarkdown } from './localKnowledge';
 import { renderDocumentMarkdown } from './renderDocumentMarkdown';
 import { brandIconUrl, companyLogoUrl, type CompanyConfig } from './companyConfig';
 import { prepareInlineBrandSvg, svgHasExternalRasterRefs } from './brandSvg';
+import { extractPortal, type ContactRecord } from './contactApi';
+import { resolveClientIconUrl, resolveClientLogoUrl } from './clientBranding';
 import { SITE } from '../config/site';
 
 export type DocumentOrientation = 'portrait' | 'landscape';
@@ -238,6 +240,20 @@ function brandMarkInner(
   );
 }
 
+function brandMarkWrapper(
+  kind: 'logo' | 'icon',
+  inner: string,
+  alt: string,
+  opts?: { size?: string },
+): string {
+  if (!inner) return '';
+  const { sizeClass, style } = parseBrandSize(opts?.size, kind);
+  const kindClass = kind === 'icon' ? 'doc-brand--icon' : 'doc-brand--logo';
+  const classes = ['doc-brand', kindClass, sizeClass].filter(Boolean).join(' ');
+  const styleAttr = style ? ` style="${esc(style)}"` : '';
+  return `<span class="${classes}"${styleAttr} role="img" aria-label="${esc(alt)}">${inner}</span>`;
+}
+
 /** Inline, scalable company logo or icon for `{company.logo}` / `{company.icon}`. */
 export function companyBrandMarkHtml(
   kind: 'logo' | 'icon',
@@ -245,24 +261,46 @@ export function companyBrandMarkHtml(
   opts?: { size?: string; idPrefix?: string },
 ): string {
   const name = (company?.name || SITE.name || 'Logo').trim();
-  const { sizeClass, style } = parseBrandSize(opts?.size, kind);
-  const kindClass = kind === 'icon' ? 'doc-brand--icon' : 'doc-brand--logo';
-  const classes = ['doc-brand', kindClass, sizeClass].filter(Boolean).join(' ');
-  const styleAttr = style ? ` style="${esc(style)}"` : '';
   const inner = brandMarkInner(kind, company, opts?.idPrefix || `doc-${kind}`, name);
-  if (!inner) return '';
-  return `<span class="${classes}"${styleAttr} role="img" aria-label="${esc(name)}">${inner}</span>`;
+  return brandMarkWrapper(kind, inner, name, opts);
 }
 
-const BRAND_TOKEN_RE = /\{company\.(logo|icon)(?::([^}]+))?\}/gi;
+/** Scalable contact logo or icon for `{client.logo}` / `{client.icon}`. */
+export function clientBrandMarkHtml(
+  kind: 'logo' | 'icon',
+  contact?: ContactRecord,
+  opts?: { size?: string },
+): string {
+  if (!contact?.uid) return '';
+  const portal = extractPortal(contact);
+  const serveOpts = { bg: 'light' as const };
+  const src =
+    kind === 'icon'
+      ? resolveClientIconUrl(portal, contact.uid, serveOpts)
+      : resolveClientLogoUrl(portal, contact.uid, serveOpts) ||
+        resolveClientIconUrl(portal, contact.uid, serveOpts);
+  if (!src) return '';
+  const name = (contact.company || contact.name || 'Client').trim();
+  return brandMarkWrapper(kind, brandMarkImg(src, name), name, opts);
+}
 
-/** Replace leftover `{company.logo}` / `{company.icon}` tokens in rendered HTML. */
-export function applyCompanyBrandShortcodes(html: string, company?: PrintCompany): string {
+const BRAND_TOKEN_RE = /\{(company|client)\.(logo|icon)(?::([^}]+))?\}/gi;
+
+/** Replace leftover `{company|client}.{logo|icon}` tokens in rendered HTML. */
+export function applyCompanyBrandShortcodes(
+  html: string,
+  company?: PrintCompany,
+  contact?: ContactRecord,
+): string {
   let seq = 0;
   const re = new RegExp(BRAND_TOKEN_RE.source, 'gi');
-  const next = html.replace(re, (_match, kindRaw: string, sizeRaw?: string) => {
+  const next = html.replace(re, (_match, ownerRaw: string, kindRaw: string, sizeRaw?: string) => {
     seq += 1;
     const kind = kindRaw.toLowerCase() === 'icon' ? 'icon' : 'logo';
+    const owner = ownerRaw.toLowerCase() === 'client' ? 'client' : 'company';
+    if (owner === 'client') {
+      return clientBrandMarkHtml(kind, contact, { size: sizeRaw });
+    }
     return companyBrandMarkHtml(kind, company, {
       size: sizeRaw,
       idPrefix: `doc-${kind}-${seq}`,

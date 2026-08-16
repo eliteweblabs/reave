@@ -4,7 +4,7 @@
 import type { APIRoute } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { getCompanyConfig } from '../../../lib/companyConfig';
-import { PREVIEW_CONTACT, fillTemplate, renderFilledDocumentHtml } from '../../../lib/documentTemplates';
+import { fillTemplate, previewDocumentContact, renderFilledDocumentHtml } from '../../../lib/documentTemplates';
 import { parseDocumentLayout, wrapPrintPreviewDocument } from '../../../lib/documentPrintLayout';
 
 export const prerender = false;
@@ -30,9 +30,10 @@ export const POST: APIRoute = async (context) => {
 
   try {
     const company = await getCompanyConfig(context.request);
+    const contact = await previewDocumentContact();
     const layout = parseDocumentLayout(content);
-    const source = fillTemplate(content, PREVIEW_CONTACT, company);
-    const html = await renderFilledDocumentHtml(source, company);
+    const source = fillTemplate(content, contact, company);
+    const html = await renderFilledDocumentHtml(source, company, '', contact);
     const previewHtml =
       layout.layout === 'onepager' ? wrapPrintPreviewDocument(html, layout.orientation) : html;
     return new Response(JSON.stringify({ html: previewHtml }), {
