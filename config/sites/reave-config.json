@@ -200,9 +200,9 @@
     },
     {
       "name": "Kingdom Trails",
-      "image": "client-kingdom-trails",
-      "width": 140,
-      "height": 42
+      "image": "/logos/clients/kingdom-trails.png",
+      "width": 1134,
+      "height": 261
     },
     {
       "name": "UC Law San Francisco",
@@ -224,9 +224,9 @@
     },
     {
       "name": "The Overlook",
-      "image": "client-overlook",
-      "width": 200,
-      "height": 46
+      "image": "/logos/clients/overlook.png",
+      "width": 972,
+      "height": 278
     },
     {
       "name": "Coinbase",
