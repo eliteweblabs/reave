@@ -545,12 +545,33 @@
   color: var(--fg);
   outline: none;
   overflow-x: hidden;
+  overflow-y: auto;
   caret-color: var(--fg);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
-.aui-input::placeholder {
+.aui-input::placeholder,
+.aui-input[data-empty='1']::before {
   color: var(--muted);
   opacity: 0.75;
+}
+
+.aui-input[data-empty='1']::before {
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.aui-input .aui-mention-chip {
+  display: inline-block;
+  padding: 0 0.4em;
+  margin: 0 0.05em;
+  border-radius: 999px;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: all;
 }
 
 .aui-composer-attachments {

@@ -1,8 +1,8 @@
 /**
  * Structured @-mentions from agent chat — contacts and Clerk team users.
- * Composer inserts plain `@Name` for readability; on send we embed durable
- * `@[Name](contact:uid)` / `@[Name](user:id)` tokens so the agent always gets
- * stable ids (not just fuzzy name resolve).
+ * Composer stores durable `@[Name](contact:uid)` / `@[Name](user:id)` tokens
+ * so the agent always gets stable ids. The composer editor renders those as
+ * chips (label only). On send we also rewrite leftover plain `@Name` picks.
  */
 
 export type ChatContactMention = {
@@ -35,6 +35,36 @@ export type PeopleSearchResult = PeopleSearchContact | PeopleSearchUser;
 /** Durable mention token: `@[Display Name](contact:uuid)` or `@[Display Name](user:id)`. */
 export const MENTION_TOKEN_RE =
   /@\[([^\]\n]{1,256})\]\((contact|user):([^\s)]{1,128})\)/g;
+
+export function mentionTokenRe(): RegExp {
+  return new RegExp(MENTION_TOKEN_RE.source, 'g');
+}
+
+export type MentionTextSegment =
+  | { type: 'text'; value: string }
+  | { type: 'mention'; label: string; kind: 'contact' | 'user'; id: string; token: string };
+
+/** Split composer / bubble text into plain runs and durable mention tokens. */
+export function splitMentionText(text: string): MentionTextSegment[] {
+  if (!text) return [];
+  const out: MentionTextSegment[] = [];
+  let last = 0;
+  for (const match of text.matchAll(mentionTokenRe())) {
+    const start = match.index ?? 0;
+    if (start > last) out.push({ type: 'text', value: text.slice(last, start) });
+    const label = match[1] ?? '';
+    const kind = match[2] === 'user' ? 'user' : 'contact';
+    const id = (match[3] ?? '').trim();
+    if (label && id) {
+      out.push({ type: 'mention', label, kind, id, token: match[0] });
+    } else {
+      out.push({ type: 'text', value: match[0] });
+    }
+    last = start + match[0].length;
+  }
+  if (last < text.length) out.push({ type: 'text', value: text.slice(last) });
+  return out;
+}
 
 function optionalTrimmed(value: unknown): string | undefined {
   if (value == null) return undefined;

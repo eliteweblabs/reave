@@ -45,10 +45,15 @@ import {
   parseMentionTokensFromText,
   sanitizeMentionLabel,
   serializeMentionToken,
+  splitMentionText,
   stripMentionTokensForDisplay,
   type ChatMention,
   type PeopleSearchResult,
 } from '../../lib/chatMentions';
+import {
+  ComposerMentionInput,
+  type ComposerFieldHandle,
+} from './ComposerMentionInput';
 import {
   parseStoredChatContent,
   storedChatPlainText,
@@ -1587,30 +1592,27 @@ function AssistantTextPart(props: { text?: string; status?: { type?: string } })
 
 function UserTextPart(props: { text?: string }) {
   const raw = props.text ?? '';
-  if (!raw.includes('](') || !raw.includes('@[')) {
+  const segments = splitMentionText(raw);
+  if (!segments.some((seg) => seg.type === 'mention')) {
     return <span className="aui-text">{raw}</span>;
   }
-  const nodes: ReactNode[] = [];
-  let last = 0;
-  const re = /@\[([^\]\n]{1,256})\]\((contact|user):([^\s)]{1,128})\)/g;
-  for (const match of raw.matchAll(re)) {
-    const start = match.index ?? 0;
-    if (start > last) nodes.push(raw.slice(last, start));
-    const label = match[1] ?? '';
-    const kind = match[2] === 'user' ? 'team' : 'contact';
-    nodes.push(
-      <span
-        key={`${kind}:${match[3]}:${start}`}
-        className={`aui-mention-chip aui-mention-chip--${kind}`}
-        title={kind === 'contact' ? `Contact ${match[3]}` : `Team ${match[3]}`}
-      >
-        @{label}
-      </span>,
-    );
-    last = start + match[0].length;
-  }
-  if (last < raw.length) nodes.push(raw.slice(last));
-  return <span className="aui-text">{nodes}</span>;
+  return (
+    <span className="aui-text">
+      {segments.map((seg, i) => {
+        if (seg.type === 'text') return <span key={`t:${i}`}>{seg.value}</span>;
+        const kind = seg.kind === 'user' ? 'team' : 'contact';
+        return (
+          <span
+            key={`${kind}:${seg.id}:${i}`}
+            className={`aui-mention-chip aui-mention-chip--${kind}`}
+            title={kind === 'contact' ? `Contact ${seg.id}` : `Team ${seg.id}`}
+          >
+            @{seg.label}
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 function ChatImageLightbox({
@@ -1902,9 +1904,11 @@ function MentionsPanel({
   );
 }
 
-function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
+function useMentions(
+  pendingMentionsRef: RefObject<ChatMention[]>,
+  fieldRef: RefObject<ComposerFieldHandle | null>,
+) {
   const composer = useComposerRuntime();
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [tokenStart, setTokenStart] = useState(-1);
@@ -1931,16 +1935,19 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   }, []);
 
   const focusInput = useCallback(() => {
-    const el =
-      inputRef.current ??
-      document.querySelector<HTMLTextAreaElement>('#chat-panel .aui-input, .aui-root .aui-input');
-    if (!(el instanceof HTMLTextAreaElement)) return;
+    const handle = fieldRef.current;
+    if (handle) {
+      handle.focus();
+      return;
+    }
+    const el = document.querySelector<HTMLElement>('#chat-panel .aui-input, .aui-root .aui-input');
+    if (!(el instanceof HTMLElement)) return;
     try {
       el.focus({ preventScroll: true });
     } catch {
       el.focus();
     }
-  }, []);
+  }, [fieldRef]);
 
   useEffect(() => () => clearBlurTimer(), []);
 
@@ -1994,16 +2001,16 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   }, [query, open, people]);
 
   const applyPerson = (person: PeopleSearchResult) => {
-    const el = inputRef.current;
-    const value = el?.value ?? composer.getState().text ?? '';
-    const caret = el?.selectionStart ?? value.length;
+    const handle = fieldRef.current;
+    const value = handle?.getValue() ?? composer.getState().text ?? '';
+    const caret = handle?.getCaret() ?? value.length;
     const active = activeMentionQueryAt(value, caret) ?? (tokenStart >= 0 ? { start: tokenStart, query } : null);
     if (!active) return;
 
     const mention = peopleResultToMention(person);
     const before = value.slice(0, active.start);
     const after = value.slice(caret);
-    // Durable token embeds the UUID in the composer text so the agent always receives it.
+    // Durable token embeds the UUID in composer state; the editor chips the label.
     const insert = `${serializeMentionToken(mention)} `;
     const next = `${before}${insert}${after}`;
     const nextCaret = before.length + insert.length;
@@ -2017,11 +2024,8 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     closeMentions();
     focusInput();
     requestAnimationFrame(() => {
-      const input = inputRef.current;
-      if (input) {
-        input.focus();
-        input.setSelectionRange(nextCaret, nextCaret);
-      }
+      handle?.focus();
+      handle?.setCaret(nextCaret);
     });
   };
 
@@ -2042,7 +2046,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     setOpen(true);
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>): boolean => {
     if (!showMentions || !open) return false;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -2070,7 +2074,7 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
     return false;
   };
 
-  const onBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+  const onBlur = (e: FocusEvent<HTMLElement>) => {
     if (isComposerFocusTarget(e.relatedTarget)) return;
     clearBlurTimer();
     blurTimer.current = setTimeout(() => {
@@ -2083,7 +2087,6 @@ function useMentions(pendingMentionsRef: RefObject<ChatMention[]>) {
   const onFocus = () => clearBlurTimer();
 
   return {
-    inputRef,
     showMentions: open,
     people,
     loading,
@@ -2106,10 +2109,10 @@ function isComposerFocusTarget(el: Element | null | undefined): boolean {
 function useSlashHelpers(
   propsRef: RefObject<AgentChatPanelProps>,
   commands: AgentHelperCommand[],
+  fieldRef: RefObject<ComposerFieldHandle | null>,
   sendBlocked = false,
 ) {
   const composer = useComposerRuntime();
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [composeText, setComposeText] = useState('');
   const [helpersOpen, setHelpersOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -2146,16 +2149,19 @@ function useSlashHelpers(
   };
 
   const focusInput = useCallback(() => {
-    const el =
-      inputRef.current ??
-      document.querySelector<HTMLTextAreaElement>('#chat-panel .aui-input, .aui-root .aui-input');
-    if (!(el instanceof HTMLTextAreaElement)) return;
+    const handle = fieldRef.current;
+    if (handle) {
+      handle.focus();
+      return;
+    }
+    const el = document.querySelector<HTMLElement>('#chat-panel .aui-input, .aui-root .aui-input');
+    if (!(el instanceof HTMLElement)) return;
     try {
       el.focus({ preventScroll: true });
     } catch {
       el.focus();
     }
-  }, []);
+  }, [fieldRef]);
 
   const applyCommand = (command: AgentHelperCommand) => {
     composer.setText(command.template);
@@ -2196,7 +2202,7 @@ function useSlashHelpers(
     propsRef.current?.onComposeFocus?.(true);
   };
 
-  const onBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+  const onBlur = (e: FocusEvent<HTMLElement>) => {
     if (isComposerFocusTarget(e.relatedTarget)) return;
     scheduleBlurSideEffects();
   };
@@ -2211,7 +2217,7 @@ function useSlashHelpers(
     setHelpersOpen(false);
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (showHelpers && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       e.preventDefault();
       const n = filtered.length;
@@ -2249,7 +2255,6 @@ function useSlashHelpers(
   };
 
   return {
-    inputRef,
     filtered,
     showHelpers,
     activeIdx,
@@ -2314,8 +2319,9 @@ function ClaudeComposer({
   onQueuedChange?: (queued: boolean) => void;
 }) {
   const sendBlocked = deployChatLocked || queuedSend;
-  const helpers = useSlashHelpers(propsRef, commands, sendBlocked);
-  const mentions = useMentions(pendingMentionsRef);
+  const fieldRef = useRef<ComposerFieldHandle | null>(null);
+  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked);
+  const mentions = useMentions(pendingMentionsRef, fieldRef);
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
@@ -2325,14 +2331,6 @@ function ClaudeComposer({
   const typedDraftRef = useRef('');
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   useCapComposerAttachments();
-
-  const setInputRef = useCallback(
-    (el: HTMLTextAreaElement | null) => {
-      helpers.inputRef.current = el;
-      mentions.inputRef.current = el;
-    },
-    [helpers.inputRef, mentions.inputRef],
-  );
 
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
@@ -2482,16 +2480,11 @@ function ClaudeComposer({
               />
             </div>
           </AuiIf>
-          <ComposerPrimitive.Input
-            ref={setInputRef}
+          <ComposerMentionInput
+            handleRef={fieldRef}
             className="aui-input"
             placeholder="How can I help you today?"
-            rows={1}
             enterKeyHint={deployChatLocked ? 'enter' : 'send'}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            addAttachmentOnPaste
             onFocus={() => {
               helpers.onFocus();
               mentions.onFocus();
@@ -2500,14 +2493,12 @@ function ClaudeComposer({
               helpers.onBlur(e);
               mentions.onBlur(e);
             }}
-            onInput={(e) => {
-              const value = e.currentTarget.value;
+            onInput={(value, caret) => {
               typedDraftRef.current = value;
               if (!value.trim()) {
                 clearDeployChatDraft(threadId);
                 onQueuedChange?.(false);
               } else if (deployChatLocked) saveDeployChatDraft(threadId, value);
-              const caret = e.currentTarget.selectionStart ?? value.length;
               helpers.onInput(value);
               mentions.onInput(value, caret);
             }}
