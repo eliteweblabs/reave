@@ -29,7 +29,7 @@ stage: 3
   - `EMAIL_FROM=${{ reave.EMAIL_FROM }}` (alias of `RESEND_FROM` — required or Cal.com uses sendmail)
   - `EMAIL_FROM_NAME=${{ reave.EMAIL_FROM_NAME }}`
   - `RESEND_API_KEY=${{ reave.RESEND_API_KEY }}`
-  - `EMAIL_SERVER_PASSWORD=${{ reave.RESEND_API_KEY }}` plus host `smtp.resend.com` / port `465` / user `resend`
+  - `EMAIL_SERVER_PASSWORD` — Railway reference to `reave.RESEND_API_KEY` (host `smtp.resend.com` / port `465` / user `resend`)
 - Enable `scheduling` in install config `features[]`
 - Add `schedule` to `footerNav` if not present
 - Schedule cron to hit `/api/calendar/reminders/poll?key=<secret>` (in-process timer is a fallback)
