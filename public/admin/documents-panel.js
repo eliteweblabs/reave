@@ -821,8 +821,9 @@ function attachTextareaSelectionTracking(ta) {
 function attachPreviewSelectionTracking(iframe) {
   const bind = () => {
     const doc = iframe.contentDocument;
-    if (!doc || doc.dataset.scSelBound === '1') return;
-    doc.dataset.scSelBound = '1';
+    const root = doc?.documentElement;
+    if (!root || root.dataset.scSelBound === '1') return;
+    root.dataset.scSelBound = '1';
     const save = () => {
       const text = doc.getSelection()?.toString().replace(/\s+/g, ' ').trim();
       if (text) docState.lastSelection = { source: 'preview', text };
