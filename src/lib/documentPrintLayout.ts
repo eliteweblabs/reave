@@ -466,7 +466,8 @@ export function wrapPrintOnePager(opts: {
     .slice(0, 3)
     .map((html) => `<div class="doc-onepager-col">${html || '<p></p>'}</div>`)
     .join('');
-  const kicker = opts.kicker || (opts.orientation === 'landscape' ? 'Landscape' : 'Portrait');
+  const kicker = (opts.kicker || '').trim();
+  const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
 
   return `
 <style>${printPageCss(opts.orientation)}</style>
@@ -476,7 +477,7 @@ export function wrapPrintOnePager(opts: {
       <div class="doc-onepager-logo">${opts.logoHtml}</div>
       <div class="doc-onepager-mast">
         <h1 class="doc-onepager-title">${esc(opts.title)}</h1>
-        <p class="doc-onepager-kicker">${esc(kicker)}</p>
+        ${kickerHtml}
       </div>
     </header>
     <div class="doc-onepager-cols">${colMarkup}</div>
@@ -523,7 +524,7 @@ export async function renderPrintOnePagerHtml(
     month: 'long',
     day: 'numeric',
   });
-  const kicker = `${parsed.orientation === 'landscape' ? 'Landscape' : 'Portrait'} · ${today}`;
+  const kicker = today;
 
   return wrapPrintOnePager({
     title: parsed.title,
