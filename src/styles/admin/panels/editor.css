@@ -1679,6 +1679,14 @@ button.de-placeholder-action:active {
   gap: 0;
   padding-bottom: var(--footer-scroll-pad, 5rem);
 }
+@media (min-width: 640px) {
+  .re-lab-body {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+}
 .re-lab-compose,
 .re-lab-pipeline,
 .re-lab-play {
@@ -1687,6 +1695,15 @@ button.de-placeholder-action:active {
 }
 .re-lab-compose {
   position: relative;
+}
+@media (min-width: 640px) {
+  .re-lab-compose,
+  .re-lab-pipeline {
+    min-height: 0;
+    overflow: auto;
+    border-bottom: none;
+    padding-bottom: var(--footer-scroll-pad, 5rem);
+  }
 }
 .re-lab-live-spin {
   position: absolute;
@@ -1714,6 +1731,11 @@ button.de-placeholder-action:active {
 }
 .re-lab-pipeline {
   border-left: none;
+}
+@media (min-width: 640px) {
+  .re-lab-pipeline {
+    border-left: 1px solid var(--panel-border);
+  }
 }
 .re-lab-rules-filter {
   display: flex;

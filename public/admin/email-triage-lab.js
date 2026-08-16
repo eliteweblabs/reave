@@ -969,7 +969,7 @@ export function createEmailTriageLab(deps) {
     shellEl.appendChild(toolbar);
 
     const body = document.createElement('div');
-    body.className = 're-lab-body re-lab-body--stack';
+    body.className = 're-lab-body';
 
     const compose = document.createElement('section');
     compose.className = 're-lab-compose';
