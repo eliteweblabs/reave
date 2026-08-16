@@ -72,6 +72,7 @@ export async function GET(context: APIContext): Promise<Response> {
       active: m.active,
       runtimeAllowed: m.runtimeAllowed,
       showBanner: m.showBanner,
+      visibility: m.visibility,
       stage: m.stage,
       playbook: m.path || null,
       pluginId: m.pluginId,

@@ -3,7 +3,7 @@
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
-import { FEATURE_BLURBS, isInternalFeature, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, featureVisibility, isPublicFeature, type FeatureId } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
 import {
   listDemoLoaderFeatures,
@@ -26,6 +26,8 @@ export type DemoLoaderModule = {
   toggleable: boolean;
   /** Named capabilities from the module definition (FEATURE_MARKETING / MARKETING_FEATURES). */
   features: Array<{ id: string; label: string }>;
+  /** Storefront visibility — private modules are never listed here. */
+  visibility: 'public' | 'private';
 };
 
 export type DemoLoaderIncludedCard = {
@@ -174,9 +176,10 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
           id: f.id,
           label: f.label,
         })),
+        visibility: featureVisibility(m.feature),
       };
     })
-    .filter((m) => !isInternalFeature(m.feature))
+    .filter((m) => isPublicFeature(m.feature))
     .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId))
     .sort(byTitle);
 }

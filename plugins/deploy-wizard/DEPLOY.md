@@ -2,6 +2,7 @@
 feature: deploy_wizard
 defaultStatus: deployed
 stage: 1
+visibility: private
 ---
 
 # Deploy wizard

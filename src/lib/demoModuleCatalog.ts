@@ -2,7 +2,7 @@
  * Numeric module IDs for demo suite URLs (?modules=[001,004,006,009]).
  * IDs are stable — used in sales links and seed filtering.
  */
-import { FEATURE_IDS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import { FEATURE_IDS, FEATURE_LABELS, isPublicFeature, type FeatureId } from './featureCatalog';
 
 export type DemoModuleCatalogEntry = {
   /** Zero-padded id, e.g. "001" */
@@ -70,13 +70,13 @@ export function resolveDemoModuleFeatures(ids: string[]): FeatureId[] {
 }
 
 export function catalogForChecklist(): DemoModuleCatalogEntry[] {
-  return [...DEMO_MODULE_CATALOG];
+  return DEMO_MODULE_CATALOG.filter((e) => isPublicFeature(e.feature));
 }
 
 /** Markdown table of id → feature → label (for docs and agent knowledge). */
 export function formatDemoModuleCatalogMarkdown(): string {
   const header = '| ID | Feature | Label |\n|----|---------|-------|';
-  const rows = DEMO_MODULE_CATALOG.map(
+  const rows = catalogForChecklist().map(
     (e) => `| ${e.id} | \`${e.feature}\` | ${e.label.replace(/\|/g, '\\|')} |`,
   );
   return [header, ...rows].join('\n');

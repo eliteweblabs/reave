@@ -2,7 +2,7 @@
  * Culled marketing features for hero chips / slideshow — dependent on modules.
  * Exposed on GET /api/demo/loader alongside the module catalog.
  */
-import { FEATURE_MARKETING, type FeatureId } from './featureCatalog';
+import { FEATURE_MARKETING, isPublicFeature, type FeatureId } from './featureCatalog';
 
 export type MarketingFeatureKind = 'capability' | 'nav';
 
@@ -345,7 +345,7 @@ export type DemoLoaderFeature = {
 
 /** Public API shape for marketing features on the modules loader. */
 export function listDemoLoaderFeatures(): DemoLoaderFeature[] {
-  return MARKETING_FEATURES.map((f) => ({
+  return MARKETING_FEATURES.filter((f) => f.modules.every((id) => isPublicFeature(id))).map((f) => ({
     id: f.id,
     label: f.label,
     modules: [...f.modules],
@@ -357,16 +357,19 @@ export function listDemoLoaderFeatures(): DemoLoaderFeature[] {
 
 /** Hero chip row — spotlight capabilities + nav (current static layout). */
 export function listMarketingSpotlightFeatures(): MarketingFeature[] {
-  return MARKETING_FEATURES.filter((f) => f.spotlight);
+  return MARKETING_FEATURES.filter((f) => f.spotlight && f.modules.every((id) => isPublicFeature(id)));
 }
 
 /** Capabilities only (no nav chips) — for the repeating slideshow. */
 export function listMarketingCapabilityFeatures(): MarketingFeature[] {
-  return MARKETING_FEATURES.filter((f) => f.kind === 'capability');
+  return MARKETING_FEATURES.filter(
+    (f) => f.kind === 'capability' && f.modules.every((id) => isPublicFeature(id)),
+  );
 }
 
 /** Marketing features that depend on a given module. */
 export function listMarketingFeaturesForModule(moduleId: FeatureId): MarketingFeature[] {
+  if (!isPublicFeature(moduleId)) return [];
   return MARKETING_FEATURES.filter(
     (f) => f.kind === 'capability' && f.modules.includes(moduleId),
   );

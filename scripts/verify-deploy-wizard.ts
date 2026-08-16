@@ -15,6 +15,17 @@ import {
   railwaySharedRef,
 } from '../src/lib/deployWizardCatalog.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
+import {
+  featureVisibility,
+  isPrivateFeature,
+  isPublicFeature,
+} from '../src/lib/featureCatalog.ts';
+
+assert.equal(featureVisibility('client_portal'), 'public');
+assert.equal(featureVisibility('deploy_wizard'), 'private');
+assert.equal(isPublicFeature('client_portal'), true);
+assert.equal(isPrivateFeature('deploy_wizard'), true);
+assert.equal(isPublicFeature('deploy_wizard'), false);
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');

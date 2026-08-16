@@ -139,17 +139,33 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   deploy_wizard: 'Stand up a new Railway install with module toggles and reference variables',
 };
 
-/** Super-admin / REΛVE-only modules — never shown on the public demo loader. */
-export const INTERNAL_FEATURE_IDS = ['deploy_wizard'] as const;
+export type FeatureVisibility = 'public' | 'private';
 
-export function isInternalFeature(id: string): boolean {
-  return (INTERNAL_FEATURE_IDS as readonly string[]).includes(id);
+/**
+ * Module storefront classification. Unlisted modules default to **public**
+ * (demo loader, /modules, /features, marketing chips). Private modules are
+ * super-admin / ops-only and are not sold as add-ons.
+ */
+export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
+  deploy_wizard: 'private',
+};
+
+export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
+
+export function featureVisibility(id: FeatureId): FeatureVisibility {
+  return FEATURE_VISIBILITY[id] ?? 'public';
+}
+
+export function isPublicFeature(id: string): boolean {
+  return FEATURE_ID_SET.has(id) && featureVisibility(id as FeatureId) === 'public';
+}
+
+export function isPrivateFeature(id: string): boolean {
+  return FEATURE_ID_SET.has(id) && featureVisibility(id as FeatureId) === 'private';
 }
 
 export const CORE_FEATURE_NOTE =
   'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, and Clerk sign-in (passkeys, phone) are always on.';
-
-export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 
 /**
  * Ground-truth inventory for the admin agent. A missing tool this turn is not
@@ -172,7 +188,7 @@ export function formatAgentCapabilityInventory(enabledIds: Iterable<string>): st
 
 /** Compact catalog for the public marketing-site chat (product capabilities, not this install's flags). */
 export function formatMarketingCapabilityCatalog(): string {
-  const modules = FEATURE_IDS.filter((id) => !isInternalFeature(id))
+  const modules = FEATURE_IDS.filter((id) => isPublicFeature(id))
     .map((id) => FEATURE_LABELS[id])
     .join(', ');
   return `${CORE_FEATURE_NOTE} Optional modules the platform ships: ${modules}. Sign-in is Clerk. Voice can be Vapi and/or Telnyx. Hosting/deploy is Railway. Mail is Resend. Billing is Crater. Scheduling is Cal.com.`;
