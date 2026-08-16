@@ -36,6 +36,7 @@ export const FEATURE_IDS = [
   'seo_directory',
   'event_ticketing',
   'cookie_notice',
+  'deploy_wizard',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -96,6 +97,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   seo_directory: 'SEO Directory API Kit',
   event_ticketing: 'Event ticketing',
   cookie_notice: 'Cookie notice',
+  deploy_wizard: 'Deploy wizard',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -134,7 +136,15 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   event_ticketing:
     'Ticket sales, QR check-in, and event inventory — reference only until productized',
   cookie_notice: 'Implied-consent cookie bar and Cookie Policy at /cookies',
+  deploy_wizard: 'Stand up a new Railway install with module toggles and reference variables',
 };
+
+/** Super-admin / REΛVE-only modules — never shown on the public demo loader. */
+export const INTERNAL_FEATURE_IDS = ['deploy_wizard'] as const;
+
+export function isInternalFeature(id: string): boolean {
+  return (INTERNAL_FEATURE_IDS as readonly string[]).includes(id);
+}
 
 export const CORE_FEATURE_NOTE =
   'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, and Clerk sign-in (passkeys, phone) are always on.';
@@ -162,6 +172,8 @@ export function formatAgentCapabilityInventory(enabledIds: Iterable<string>): st
 
 /** Compact catalog for the public marketing-site chat (product capabilities, not this install's flags). */
 export function formatMarketingCapabilityCatalog(): string {
-  const modules = FEATURE_IDS.map((id) => FEATURE_LABELS[id]).join(', ');
+  const modules = FEATURE_IDS.filter((id) => !isInternalFeature(id))
+    .map((id) => FEATURE_LABELS[id])
+    .join(', ');
   return `${CORE_FEATURE_NOTE} Optional modules the platform ships: ${modules}. Sign-in is Clerk. Voice can be Vapi and/or Telnyx. Hosting/deploy is Railway. Mail is Resend. Billing is Crater. Scheduling is Cal.com.`;
 }

@@ -24,11 +24,13 @@
     "stock_photos",
     "seo_directory",
     "event_ticketing",
-    "cookie_notice"
+    "cookie_notice",
+    "deploy_wizard"
   ],
   "footerNav": [
     "__system__",
     "modules",
+    "deploy",
     "dashboard",
     "todo",
     "documents",

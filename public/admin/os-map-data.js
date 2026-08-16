@@ -414,6 +414,7 @@ export const MAPS = {
   analytics: { id: 'analytics', title: 'Analytics',  icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },
   fleet:     { id: 'fleet',     title: 'Fleet',      icon: '🚚',  type: 'fleet',         nodes: [],             edges: [],             groups: [] },
   modules:   { id: 'modules',   title: 'Modules',    icon: '🧩',  type: 'modules',       nodes: [],             edges: [],             groups: [] },
+  deploy:    { id: 'deploy',    title: 'Deploy wizard', icon: 'sparkles', link: '/deploy', nodes: [], edges: [], groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
   settings:  { id: 'settings',  title: 'Settings',   icon: '⚙️',  type: 'settings',      nodes: [],             edges: [],             groups: [] },

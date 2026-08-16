@@ -1,6 +1,8 @@
 # Deploy wizard
 
-Super-admin page on the official REΛVE Railway install only (`INSTALL_CONFIG=reave` / `reave.app`): **`/deploy`**. Same module-toggle UI as `/demo-loader`, then a Railway variable plan that prefers **reference variables** over pasted URLs. Client installs 404 the page and `/api/deploy/wizard`.
+Super-admin module on the official REΛVE Railway install only. Enable with `deploy_wizard` in `config/config-reave.json` `features[]` and `deploy` in `footerNav`. Page: **`/deploy`**. Client installs 404 the page and `/api/deploy/wizard`.
+
+Same module-toggle UI as `/demo-loader`, then a Railway variable plan that prefers **reference variables** over pasted URLs.
 
 ## Why references
 

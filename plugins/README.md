@@ -43,6 +43,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | — (stub; companion WP plugin + agent tools TBD) |
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
+| `deploy-wizard/` | `deploy_wizard` | `deploy-wizard.md` | — **REΛVE install only** (`config-reave.json`) |
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
 

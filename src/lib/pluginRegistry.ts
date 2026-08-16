@@ -34,6 +34,7 @@ import { wordpressContentPlugin } from '../../plugins/wordpress-content/manifest
 import { seoDirectoryPlugin } from '../../plugins/seo-directory/manifest';
 import { clerkAuthPlugin } from '../../plugins/clerk-auth/manifest';
 import { cookieNoticePlugin } from '../../plugins/cookie-notice/manifest';
+import { deployWizardPlugin } from '../../plugins/deploy-wizard/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -62,6 +63,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   seoDirectoryPlugin,
   clerkAuthPlugin,
   cookieNoticePlugin,
+  deployWizardPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -112,7 +114,6 @@ export function isDefaultKnowledgeSlug(slug: string): boolean {
 /** Core product playbooks — always in src/knowledge/, never in plugins/. */
 export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'contact-api-reference',
-  'deploy-wizard',
   'git-workflow',
   'materials-api-reference',
   'inventory-api-reference',
@@ -178,6 +179,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['clerk-setup-paulino'];
     case 'cookie-notice':
       return ['cookie-notice'];
+    case 'deploy-wizard':
+      return ['deploy-wizard'];
     case 'namecom-dns':
       return ['namecom-dns'];
     default:

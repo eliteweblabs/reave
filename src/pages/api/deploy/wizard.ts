@@ -19,6 +19,7 @@ import {
 import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { FEATURE_BLURBS, FEATURE_ID_SET, type FeatureId } from '../../../lib/featureCatalog';
+import { hasFeature } from '../../../lib/features';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { railwaySetVariables } from '../../../lib/railwayAgentApi';
@@ -62,7 +63,7 @@ function parseValues(body: Record<string, unknown>): Record<string, string> {
 }
 
 function requireCanonicalReaveHost(): Response | null {
-  if (isCanonicalReaveInstall()) return null;
+  if (isCanonicalReaveInstall() && hasFeature('deploy_wizard')) return null;
   return json({ ok: false, error: 'Not found' }, 404);
 }
 

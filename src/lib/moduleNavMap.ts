@@ -38,6 +38,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   seo_directory: ['analytics', '__system__'],
   event_ticketing: ['__system__'],
   cookie_notice: [],
+  deploy_wizard: ['deploy'],
 };
 
 /** Human labels for footerNav keys (monitor panel). */
@@ -69,6 +70,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
   modules: 'Modules',
+  deploy: 'Deploy wizard',
 };
 
 export function footerNavKeysForFeature(feature: FeatureId): FooterNavKey[] {

@@ -42,6 +42,7 @@ const FEATURE_IDS_LIST = [
   'seo_directory',
   'event_ticketing',
   'cookie_notice',
+  'deploy_wizard',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
@@ -87,6 +88,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'fleet',
   'reviews',
   'media',
+  'deploy',
 ] as const;
 
 export type FooterNavMapKey = (typeof FOOTER_NAV_MAP_KEYS)[number];
@@ -371,8 +373,14 @@ export async function getInstallConfig(): Promise<InstallConfig> {
 }
 
 function clientFooterNav(config: InstallConfig): FooterNavKey[] {
-  if (config.features.includes('fleet_tracking')) return config.footerNav;
-  return config.footerNav.filter((key) => key !== 'fleet');
+  let nav = config.footerNav;
+  if (!config.features.includes('fleet_tracking')) {
+    nav = nav.filter((key) => key !== 'fleet');
+  }
+  if (!config.features.includes('deploy_wizard')) {
+    nav = nav.filter((key) => key !== 'deploy');
+  }
+  return nav;
 }
 
 export function getInstallConfigClient(): InstallConfigClient {
@@ -385,7 +393,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     chatFocusSkin: config.chatFocusSkin,
     canManageUniversalRules: isCanonicalReaveInstall(),
     showPersonal: isCanonicalReaveInstall(),
-    showDeployWizard: isCanonicalReaveInstall(),
+    showDeployWizard: config.features.includes('deploy_wizard'),
   };
 }
 

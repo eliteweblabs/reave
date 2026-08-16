@@ -4,12 +4,13 @@
  */
 import Layout from "../layouts/Layout.astro";
 import { denyUnlessDeploymentOwner } from "../lib/deploymentOwner";
+import { hasFeature } from "../lib/features";
 import { isCanonicalReaveInstall } from "../lib/installConfig";
 import "../styles/demo-loader.css";
 
 export const prerender = false;
 
-if (!isCanonicalReaveInstall()) {
+if (!isCanonicalReaveInstall() || !hasFeature("deploy_wizard")) {
   return new Response("Not found", { status: 404 });
 }
 

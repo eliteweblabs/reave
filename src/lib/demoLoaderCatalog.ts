@@ -3,7 +3,7 @@
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
-import { FEATURE_BLURBS, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, isInternalFeature, type FeatureId } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
 import {
   listDemoLoaderFeatures,
@@ -176,6 +176,7 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         })),
       };
     })
+    .filter((m) => !isInternalFeature(m.feature))
     .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId))
     .sort(byTitle);
 }

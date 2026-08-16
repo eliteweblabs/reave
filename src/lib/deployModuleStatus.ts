@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { demoModuleDeployStatus, demoShouldShowDeployBanner } from './demoFeatures.ts';
 import { isDemoMode } from './demoMode.ts';
 import { FEATURE_IDS, FEATURE_LABELS, hasFeature, type FeatureId } from './features.ts';
+import { isInternalFeature } from './featureCatalog.ts';
 import { getInstallConfigSync } from './installConfig.ts';
 import { getPlugin, isPluginActive, REAVE_PLUGINS } from './pluginRegistry.ts';
 
@@ -198,7 +199,7 @@ export function listAllDeployModules(): DeployModuleSnapshot[] {
   const playbooks = listDeployPlaybooks();
   const playbookByFeature = new Map(playbooks.map((p) => [p.feature, p]));
 
-  return FEATURE_IDS.map((feature) => {
+  return FEATURE_IDS.filter((feature) => !isInternalFeature(feature) || hasFeature(feature)).map((feature) => {
     const pb = playbookByFeature.get(feature);
     const plugin = getPlugin(REAVE_PLUGINS.find((p) => p.feature === feature)?.id ?? '');
     const enabled = hasFeature(feature);
