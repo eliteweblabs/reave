@@ -24,6 +24,7 @@ import {
   salesSheetInputFromSearchParams,
 } from '../../lib/auditSalesSheet';
 import { injectInternetPresenceFacts, publicRecordFromSearchParams } from '../../lib/auditInternetPresence';
+import { clientLogoStatusLabel, ensureClientLogoMark } from '../../lib/auditClientLogo';
 import { getContact, type ContactRecord } from '../../lib/contactApi';
 import { buildAuditReportCard } from '../../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
@@ -122,7 +123,15 @@ const places = await fetchSalesSheetPlaces({
 });
 const notListed = forceListed ? false : forceNotListed || !places.listed;
 input = applyPlacesMissToSalesSheet(input, notListed);
-input = { ...input, publicRecord: publicRecordFromSearchParams(params, input.contact) };
+const logoMark = await ensureClientLogoMark(input.contact, input.website);
+const publicRecord = publicRecordFromSearchParams(params, input.contact);
+input = {
+  ...input,
+  publicRecord: {
+    ...publicRecord,
+    logo: params.get('logo')?.trim() || clientLogoStatusLabel(logoMark),
+  },
+};
 
 const phoneHtml = renderPlacesPhoneMockHtml({ ...places, listed: !notListed });
 let phoneEmbed = phoneHtml;

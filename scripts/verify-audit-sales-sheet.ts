@@ -40,6 +40,12 @@ import {
   renderInternetPresenceHtml,
 } from '../src/lib/auditInternetPresence.ts';
 import {
+  CLIENT_LOGO_MISSING_NOTE,
+  CLIENT_LOGO_SCRAPED_NOTE,
+  clientLogoStatusLabel,
+  renderClientLogoMarkHtml,
+} from '../src/lib/auditClientLogoMark.ts';
+import {
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
   promotePlacesNotListedFinding,
@@ -378,12 +384,14 @@ await test('audit templates include the standing internet-presence statement', (
   assert.match(html, /Jordan Hale/);
   assert.match(html, /Maya Chen/);
   assert.match(html, /March 12, 2014/);
+  assert.match(html, /No logo on the website/);
 });
 
 await test('public-record facts fall back to dummy and parse city/state from an address', () => {
   assert.equal(cityStateFromAddress('18 Atlantic Ave, Boston, MA 02110, USA'), 'Boston, MA');
   const dummy = publicRecordFromContact(DUMMY_SALES_SHEET.contact);
   assert.equal(dummy.cityState, DUMMY_PUBLIC_RECORD.cityState);
+  assert.equal(dummy.logo, 'No logo on the website');
   assert.equal(dummy.staff.length, 3);
   const live = publicRecordFromContact({
     uid: 'real-1',
@@ -400,11 +408,19 @@ await test('public-record facts fall back to dummy and parse city/state from an 
   });
   assert.equal(fromPortal.cityState, 'Portland, ME');
   const fromQuery = publicRecordFromSearchParams(
-    new URLSearchParams({ city: 'Portland', state: 'ME', owner: 'Sam Rivera', staff: 'Ada, Bo, Cy' }),
+    new URLSearchParams({
+      city: 'Portland',
+      state: 'ME',
+      owner: 'Sam Rivera',
+      staff: 'Ada, Bo, Cy',
+      logo: 'From the website',
+    }),
     { uid: 'real-1', name: 'Sam Rivera' },
   );
   assert.equal(fromQuery.cityState, 'Portland, ME');
   assert.deepEqual(fromQuery.staff, ['Ada', 'Bo', 'Cy']);
+  assert.equal(fromQuery.logo, 'From the website');
+  assert.equal(live.logo, 'No logo on the website');
   const injected = injectInternetPresenceFacts(
     '<div class="doc-presence"><p>old</p></div>',
     fromQuery,
@@ -431,9 +447,12 @@ await test('services page lists installation tiers and upfront prices', () => {
   assert.deepEqual(names, ['Core OS', 'Operations', 'Growth', 'Full platform']);
   const html = renderAuditServicesArticle({
     logoHtml: '<span>Logo</span>',
+    clientLogoHtml: '<div class="doc-client-mark">Client</div>',
     footerHtml: '<p>Page 2 of 2</p>',
   });
   assert.match(html, /ss-services/);
+  assert.match(html, /doc-onepager-client/);
+  assert.match(html, /doc-client-mark/);
   assert.match(html, /Core OS/);
   assert.match(html, /Full platform/);
   assert.match(html, /Document signing/);
@@ -455,6 +474,26 @@ await test('about-page brand names live in site config and the clients folder is
   assert.ok(aboutNames.some((n) => /montana/i.test(n)), 'about page is missing Montana Cans');
   const folder = listBrandLogos('clients');
   assert.ok(folder.some((l) => /montana/i.test(l.name) && l.src.includes('/logos/clients/')));
+});
+
+await test('client mark prefers an uploaded or scraped logo, else a red X', () => {
+  const missing = { src: '', source: 'missing' as const, note: CLIENT_LOGO_MISSING_NOTE };
+  assert.equal(clientLogoStatusLabel(missing), CLIENT_LOGO_MISSING_NOTE);
+  const missingHtml = renderClientLogoMarkHtml(missing, 'Hale & Co.');
+  assert.match(missingHtml, /doc-client-mark--missing/);
+  assert.match(missingHtml, /M6 6l12 12/);
+  assert.match(missingHtml, /No logo on the website/);
+  const scrapedHtml = renderClientLogoMarkHtml(
+    { src: 'https://example.com/logo.png', source: 'website', note: CLIENT_LOGO_SCRAPED_NOTE },
+    'North Pier',
+  );
+  assert.match(scrapedHtml, /src="https:\/\/example.com\/logo.png"/);
+  assert.match(scrapedHtml, /From the website/);
+  assert.doesNotMatch(scrapedHtml, /doc-client-mark--missing/);
+  assert.equal(
+    clientLogoStatusLabel({ src: '/api/clients/u1/logo', source: 'upload', note: '' }),
+    'Uploaded',
+  );
 });
 
 console.log(results.join('\n'));

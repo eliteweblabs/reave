@@ -18,7 +18,7 @@ export const AUDIT_INTERNET_PRESENCE_STATEMENT =
   'We look at everything that turns up about this business online — listings, articles, forums, and especially reviews that are not endearing. We also check the facts most websites skip: city and state, years in operation, who owns it, at least three staff when there is a team, and public-record dates (registered on). When something negative shows up, we help take it down if the platform allows, or write a public response so a bad note is not the last word customers see.';
 
 export const AUDIT_PUBLIC_RECORD_NOTE =
-  'City, years, owner, and staff are missing from most sites. We fill gaps from public record when we can; the rest stays marked until we have a source.';
+  'City, years, owner, staff, and a logo are missing from most sites. We fill gaps from public record or the live homepage when we can; the rest stays marked until we have a source.';
 
 export type PublicRecordFacts = {
   cityState: string;
@@ -26,6 +26,8 @@ export type PublicRecordFacts = {
   owner: string;
   staff: string[];
   registeredOn: string;
+  /** Uploaded, scraped from the site, or missing. */
+  logo: string;
   /** True when values are the Hale & Co. dummy fixture. */
   fallback: boolean;
 };
@@ -36,6 +38,7 @@ export const DUMMY_PUBLIC_RECORD: PublicRecordFacts = {
   owner: 'Jordan Hale',
   staff: ['Maya Chen', 'Luis Ortega', 'Priya Shah'],
   registeredOn: 'Massachusetts · March 12, 2014',
+  logo: 'No logo on the website',
   fallback: true,
 };
 
@@ -102,6 +105,7 @@ export function publicRecordFromContact(
     ? staff
     : base?.staff ?? [];
   const namedOwner = owner || base?.owner || MISSING_ON_SITE;
+  const logo = (overrides.logo || base?.logo || 'No logo on the website').trim();
 
   return {
     cityState,
@@ -109,6 +113,7 @@ export function publicRecordFromContact(
     owner: namedOwner,
     staff: nextStaff,
     registeredOn,
+    logo,
     fallback: isDummy && !fromAddress && !overrides.cityState,
   };
 }
@@ -126,6 +131,7 @@ export function publicRecordFromSearchParams(
     owner: params.get('owner')?.trim() || '',
     staff: params.get('staff')?.trim() || '',
     registeredOn: params.get('registered')?.trim() || '',
+    logo: params.get('logo')?.trim() || '',
   });
 }
 
@@ -142,6 +148,7 @@ function factItems(facts: PublicRecordFacts): Array<{ label: string; value: stri
     { label: 'Owner', value: facts.owner },
     { label: 'Staff', value: staffDisplay(facts.staff) },
     { label: 'Registered on', value: facts.registeredOn },
+    { label: 'Logo', value: facts.logo },
   ];
 }
 

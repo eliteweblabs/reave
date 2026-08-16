@@ -21,6 +21,7 @@ import {
 } from './clientBrandLogos';
 import {
   DOCUMENT_INTERNET_PRESENCE_CSS,
+  publicRecordFromContact,
   renderInternetPresenceHtml,
 } from './auditInternetPresence';
 import {
@@ -28,8 +29,13 @@ import {
   appendPrintOnePagerArticle,
   renderAuditServicesArticle,
 } from './auditSalesPricing';
+import {
+  clientLogoStatusLabel,
+  DOCUMENT_CLIENT_MARK_CSS,
+  ensureClientLogoMark,
+  renderClientLogoMarkHtml,
+} from './auditClientLogo';
 import { SITE } from '../config/site';
-import type { ContactRecord } from './contactApi';
 
 export type DocumentOrientation = 'portrait' | 'landscape';
 export type DocumentLayoutKind = 'default' | 'onepager';
@@ -402,6 +408,13 @@ function printPageCss(orientation: DocumentOrientation): string {
   padding-bottom: 2.4%;
   border-bottom: 1.5px solid var(--doc-ink);
 }
+.doc-onepager-header-start {
+  display: flex;
+  align-items: center;
+  gap: 0.85em;
+  min-width: 0;
+  max-width: 58%;
+}
 .doc-onepager-logo {
   display: flex;
   align-items: center;
@@ -423,6 +436,7 @@ function printPageCss(orientation: DocumentOrientation): string {
   text-transform: uppercase;
 }
 ${DOCUMENT_BRAND_MARK_CSS}
+${DOCUMENT_CLIENT_MARK_CSS}
 .doc-onepager-mast {
   text-align: right;
   min-width: 0;
@@ -513,6 +527,12 @@ ${DOCUMENT_SERVICES_PAGE_CSS}
 `.trim();
 }
 
+function printHeaderStartHtml(logoHtml: string, clientLogoHtml?: string): string {
+  const client = (clientLogoHtml || '').trim();
+  const clientSlot = client ? `<div class="doc-onepager-client">${client}</div>` : '';
+  return `<div class="doc-onepager-header-start"><div class="doc-onepager-logo">${logoHtml}</div>${clientSlot}</div>`;
+}
+
 export function wrapPrintOnePager(opts: {
   title: string;
   orientation: DocumentOrientation;
@@ -522,6 +542,7 @@ export function wrapPrintOnePager(opts: {
   kicker?: string;
   brandsHtml?: string;
   presenceHtml?: string;
+  clientLogoHtml?: string;
 }): string {
   const cols = [...opts.columnsHtml];
   while (cols.length < 3) cols.push('');
@@ -541,7 +562,7 @@ export function wrapPrintOnePager(opts: {
 <div class="doc-onepager-stage">
   <article class="doc-onepager" data-orientation="${opts.orientation}">
     <header class="doc-onepager-header">
-      <div class="doc-onepager-logo">${opts.logoHtml}</div>
+      ${printHeaderStartHtml(opts.logoHtml, opts.clientLogoHtml)}
       <div class="doc-onepager-mast">
         <h1 class="doc-onepager-title">${esc(opts.title)}</h1>
         ${kickerHtml}
@@ -596,6 +617,15 @@ export async function renderPrintOnePagerHtml(
   });
   const kicker = today;
   const logoHtml = companyLogoHtml(company);
+  const wantsClientMark = Boolean(
+    parsed.presence || parsed.services || slug.startsWith('audit-onepager'),
+  );
+  const clientMark = wantsClientMark ? await ensureClientLogoMark(contact) : null;
+  const clientName = (contact?.company || contact?.name || 'Client').trim();
+  const clientLogoHtml = clientMark ? renderClientLogoMarkHtml(clientMark, clientName) : '';
+  const presenceFacts = publicRecordFromContact(contact || {}, {
+    logo: clientMark ? clientLogoStatusLabel(clientMark) : undefined,
+  });
 
   const first = wrapPrintOnePager({
     title: parsed.title,
@@ -604,12 +634,13 @@ export async function renderPrintOnePagerHtml(
     footerHtml,
     logoHtml,
     kicker,
+    clientLogoHtml,
     brandsHtml: parsed.brands
       ? renderClientBrandLogosHtml(
           parsed.brands === 'clients' ? undefined : listBrandLogos(parsed.brands),
         )
       : '',
-    presenceHtml: parsed.presence ? renderInternetPresenceHtml() : '',
+    presenceHtml: parsed.presence ? renderInternetPresenceHtml(undefined, undefined, presenceFacts) : '',
   });
 
   if (!parsed.services) return first;
@@ -630,6 +661,7 @@ export async function renderPrintOnePagerHtml(
     first,
     renderAuditServicesArticle({
       logoHtml,
+      clientLogoHtml,
       footerHtml: `<p>${esc(page2Footer)}</p>`,
       kicker,
     }),

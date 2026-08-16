@@ -30,10 +30,13 @@ export function renderAuditServicesArticle(opts: {
   logoHtml: string;
   footerHtml: string;
   kicker?: string;
+  clientLogoHtml?: string;
 }): string {
   const tiers = salesSheetTiers();
   const kicker = (opts.kicker || '').trim();
   const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
+  const client = (opts.clientLogoHtml || '').trim();
+  const clientSlot = client ? `<div class="doc-onepager-client">${client}</div>` : '';
 
   const tableRows = tiers
     .map(
@@ -54,7 +57,10 @@ export function renderAuditServicesArticle(opts: {
   return `
 <article class="doc-onepager ss-services" data-page="services">
   <header class="doc-onepager-header">
-    <div class="doc-onepager-logo">${opts.logoHtml}</div>
+    <div class="doc-onepager-header-start">
+      <div class="doc-onepager-logo">${opts.logoHtml}</div>
+      ${clientSlot}
+    </div>
     <div class="doc-onepager-mast">
       <h1 class="doc-onepager-title">${esc(AUDIT_SERVICES_TITLE)}</h1>
       ${kickerHtml}
