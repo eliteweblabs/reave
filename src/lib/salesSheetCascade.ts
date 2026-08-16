@@ -15,6 +15,8 @@ export type CascadeFinding = {
   id: string;
   rank: number;
   categoryLabel: string;
+  /** What this finding puts on the sales sheet (visual / leave-behind treatment). */
+  sheet: string;
   problem: string;
   solution: string;
 };
@@ -31,6 +33,8 @@ type CascadeDef = {
   id: string;
   rank: number;
   categoryLabel: string;
+  /** What this finding puts on the sales sheet (visual / leave-behind treatment). */
+  sheet: string;
   match: (ctx: ResolvedCascadeContext) => boolean;
   problem: (ctx: ResolvedCascadeContext) => string;
   solution: (ctx: ResolvedCascadeContext) => string;
@@ -66,6 +70,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'ssl-missing',
     rank: 1,
     categoryLabel: 'SSL',
+    sheet:
+      'Show a browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning in the address bar — padlock crossed out, HTTP, no lock.',
     match: (ctx) =>
       ctx.securityGrade === 'F' ||
       gradeOf(ctx.card, 'security') === 'F' ||
@@ -81,6 +87,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'site-down',
     rank: 2,
     categoryLabel: 'Site Down',
+    sheet:
+      'Show the audit URL failing to load: browser error page (timeout, connection refused, or 5xx) so the sheet proves the front door is closed.',
     match: (ctx) => {
       if (
         /tls inspection failed|econnrefused.{0,12}443|no ssl\b/.test(ctx.lower) &&
@@ -101,6 +109,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'domain-expired',
     rank: 3,
     categoryLabel: 'Domain',
+    sheet:
+      'Show a WHOIS / registrar card for the audit hostname with expired or NXDOMAIN — the name itself is dark, not just the site.',
     match: (ctx) =>
       (/domain expir|registration expir|nxdomain|not resolving|no a record|dns failed/.test(ctx.lower) &&
         !/certificate (?:has )?expir/.test(ctx.lower)) ||
@@ -112,6 +122,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'malware',
     rank: 4,
     categoryLabel: 'Malware',
+    sheet:
+      'Show a browser or Google Safe Browsing interstitial on the audit URL (“Deceptive site” / malware warning) so the danger is visible, not just described.',
     match: (ctx) =>
       /malware|safe browsing|phishing|hacked|compromised|defaced|trojan|virus|drive-?by|blacklist(?:ed)? (?:for )?(?:malware|phishing)|flagged (?:as )?(?:dangerous|deceptive)/.test(
         ctx.lower,
@@ -125,6 +137,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'places-not-listed',
     rank: 5,
     categoryLabel: 'Google Places',
+    sheet:
+      'Generate an iPhone with a Google search result page from the URL provided from the audit with the business’s name in the search bar and no result showing, and the competition showing.',
     match: (ctx) =>
       ctx.googlePlacesListed === false ||
       /google (?:business|places).{0,40}(?:not listed|missing|no exact)|not listed on google|missing from google/.test(
@@ -140,6 +154,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'ssl-expired',
     rank: 6,
     categoryLabel: 'SSL Expired',
+    sheet:
+      'Show the audit URL in a browser with the expired-certificate warning and the cert dates (valid-to in the past) called out next to the padlock.',
     match: (ctx) => /certificate has expired|ssl expir|expired (?:ssl|certificate)/.test(ctx.lower),
     problem: () => 'The SSL certificate is expired — the padlock is a warning, not a trust mark.',
     solution: () => 'Renew the certificate today and turn on auto-renew so this does not happen again.',
@@ -148,6 +164,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'ssl-untrusted',
     rank: 7,
     categoryLabel: 'Bad Certificate',
+    sheet:
+      'Show the certificate mismatch / not-trusted warning on the audit hostname (self-signed or wrong name) so the padlock failure is specific.',
     match: (ctx) =>
       /not trusted|self-?signed|name mismatch|hostname mismatch|certificate (?:is )?invalid|authorization error/.test(
         ctx.lower,
@@ -159,6 +177,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'site-parked',
     rank: 8,
     categoryLabel: 'Parked / Hijacked',
+    sheet:
+      'Screenshot the live audit URL: parking page, “domain for sale,” or coming-soon — not the business they think they have.',
     match: (ctx) =>
       /domain is for sale|parked domain|coming soon|under construction|this website is for sale|hijacked|defaced landing/.test(
         ctx.lower,
@@ -170,6 +190,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'ip-blacklisted',
     rank: 9,
     categoryLabel: 'Blacklist',
+    sheet:
+      'Show the blacklist / Spamhaus (or similar) hit for the domain or IP — a small reputation card, not a full site screenshot.',
     match: (ctx) =>
       /spamhaus|blocklist|blacklist|rbl|listed on (?:a )?blacklist/.test(ctx.lower) &&
       !/malware|phishing|safe browsing/.test(ctx.lower),
@@ -180,6 +202,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'gbp-unclaimed',
     rank: 10,
     categoryLabel: 'Unclaimed Listing',
+    sheet:
+      'Show the Google Business listing in an iPhone with “Own this business?” / unclaimed — the profile exists but they do not control it.',
     match: (ctx) =>
       ctx.googlePlacesListed !== false &&
       /google business.{0,40}(?:unclaimed|not claimed)|gbp.{0,20}unclaimed/.test(ctx.lower),
@@ -190,6 +214,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'nap-mismatch',
     rank: 11,
     categoryLabel: 'NAP Mismatch',
+    sheet:
+      'Side-by-side name / address / phone from the website vs Google vs another listing — highlight the fields that do not match.',
     match: (ctx) =>
       /nap mismatch|name,? address,? (?:and )?phone|address (?:does not|doesn't) match|phone (?:does not|doesn't) match|inconsistent nap/.test(
         ctx.lower,
@@ -201,6 +227,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'apple-maps-missing',
     rank: 12,
     categoryLabel: 'Apple Maps',
+    sheet:
+      'Generate an iPhone Maps search for the business name near their city with no pin for them and nearby competitors showing.',
     match: (ctx) =>
       /apple (?:maps|business connect).{0,40}(?:not listed|missing|not claimed|not found)/.test(ctx.lower),
     problem: (ctx) => `${named(ctx)} is missing from Apple Maps — iPhone customers never see you.`,
@@ -210,6 +238,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'reviews-none',
     rank: 13,
     categoryLabel: 'No Reviews',
+    sheet:
+      'Show the Google (or Yelp) listing card with a blank or near-zero review count so the lack of proof is obvious.',
     match: (ctx) =>
       /no reviews|zero reviews|0 reviews|few reviews|review drought/.test(ctx.lower) ||
       (gradeOf(ctx.card, 'reviews') === 'F' && /review/.test(ctx.lower)),
@@ -220,6 +250,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'reviews-poor',
     rank: 14,
     categoryLabel: 'Poor Reviews',
+    sheet:
+      'Show the live star rating and two or three of the worst recent reviews on an iPhone listing card.',
     match: (ctx) =>
       /[1-2](?:\.\d)?\s*stars|poor reviews|bad reviews|rating is (?:low|poor)/.test(ctx.lower) ||
       (weak(gradeOf(ctx.card, 'reviews'), 'D') && /negative|poor|low rating/.test(ctx.lower)),
@@ -230,6 +262,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'listings-thin',
     rank: 15,
     categoryLabel: 'Directories',
+    sheet:
+      'A small grid of Google / Apple / Yelp / Bing with claimed vs missing — empty slots are the point.',
     match: (ctx) =>
       /yelp.{0,30}(?:missing|not found)|bing places.{0,30}(?:missing|not found)|thin (?:directory|listing) coverage/.test(
         ctx.lower,
@@ -242,6 +276,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'hours-wrong',
     rank: 16,
     categoryLabel: 'Wrong Hours',
+    sheet:
+      'Show the Google hours next to the real hours (or a “Closed” state when they are open) so the mismatch is one glance.',
     match: (ctx) => /wrong hours|hours (?:are )?wrong|closed on google|outdated hours/.test(ctx.lower),
     problem: () => 'Published hours are wrong — customers show up or call when you are closed.',
     solution: () => 'Correct hours on Google and every other listing the same day.',
@@ -250,6 +286,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'duplicate-listings',
     rank: 17,
     categoryLabel: 'Duplicate Listings',
+    sheet:
+      'Show two Google results for the same business (or a suspended listing) so split reviews and confusion are visible.',
     match: (ctx) => /duplicate listing|gbp suspended|suspended listing|two google listings/.test(ctx.lower),
     problem: () => 'Duplicate or suspended listings split reviews and confuse Google.',
     solution: () => 'Merge or close the extras and restore the canonical Google profile.',
@@ -258,6 +296,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'site-password',
     rank: 18,
     categoryLabel: 'Not Public',
+    sheet:
+      'Screenshot the audit URL as a password wall, coming-soon, or staging page — customers cannot use the real site.',
     match: (ctx) =>
       /password-protected|coming soon|under construction|maintenance mode|staging only/.test(ctx.lower),
     problem: () => 'The public site is locked, “coming soon,” or still a staging box.',
@@ -267,6 +307,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'mobile-broken',
     rank: 19,
     categoryLabel: 'Mobile',
+    sheet:
+      'Generate an iPhone screenshot of the audit URL at 375px: overflow, tiny tap targets, or a layout that does not fit the screen.',
     match: (ctx) =>
       /broken on (?:mobile|phones)|unusable on (?:a )?phone|horizontal scroll|not mobile/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'mobile'), 'D'),
@@ -277,6 +319,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'speed-fail',
     rank: 20,
     categoryLabel: 'Site Speed',
+    sheet:
+      'Show the Lighthouse / PageSpeed pair (phone vs desktop) for the audit URL with LCP called out — the number is the exhibit.',
     match: (ctx) => {
       const score = scoreOf(ctx.card, 'performance');
       return (
@@ -292,6 +336,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-contact',
     rank: 21,
     categoryLabel: 'No Contact Path',
+    sheet:
+      'Crop the homepage header/footer from the audit URL with no phone, form, or book button highlighted as missing.',
     match: (ctx) =>
       /no (?:click-?to-call|phone|contact form|contact path)|visitors have no easy way to contact/.test(
         ctx.lower,
@@ -303,6 +349,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'form-broken',
     rank: 22,
     categoryLabel: 'Broken Form',
+    sheet:
+      'Show the contact form on the audit URL plus the failed submit (error, dead button, or no inbox delivery).',
     match: (ctx) => /form (?:is )?(?:broken|failing|does not send)|contact form.{0,20}(?:broken|fail)/.test(ctx.lower),
     problem: () => 'The contact form is broken — leads go nowhere.',
     solution: () => 'Fix the form, confirm it hits a real inbox, and add a backup click-to-call.',
@@ -311,6 +359,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'booking-broken',
     rank: 23,
     categoryLabel: 'Broken Booking',
+    sheet:
+      'Show the booking widget or “Book now” on the audit URL in a failed/empty state so the broken path is the exhibit.',
     match: (ctx) => /booking (?:is )?(?:broken|down|failing)|cannot book|scheduler (?:is )?down/.test(ctx.lower),
     problem: () => 'Online booking is broken — the highest-intent visitors bounce.',
     solution: () => 'Restore booking and test a real appointment from a phone.',
@@ -319,6 +369,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-offer-cta',
     rank: 24,
     categoryLabel: 'No Offer',
+    sheet:
+      'Crop the homepage hero from the audit URL — no clear service line and no single call-to-action.',
     match: (ctx) =>
       /does not clearly say what you offer|no (?:clear )?cta|no call-?to-?action|unclear offer/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'content'), 'D'),
@@ -329,6 +381,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'broken-nav',
     rank: 25,
     categoryLabel: 'Broken Links',
+    sheet:
+      'Show a 404 (or a short list of dead nav URLs) from the audit crawl — one broken path is enough to make the point.',
     match: (ctx) =>
       /broken (?:nav|links|menu)|lots of 404|dead (?:pages|links)/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'broken_links'), 'D'),
@@ -339,6 +393,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'a11y-block',
     rank: 26,
     categoryLabel: 'Accessibility',
+    sheet:
+      'Show a phone crop of the unreadable contrast or untappable control on the audit URL — the WCAG fail as a picture.',
     match: (ctx) =>
       /cannot use the site|wcag.{0,20}fail|tap targets? (?:too small|fail)/.test(ctx.lower) ||
       gradeOf(ctx.card, 'accessibility') === 'F',
@@ -349,6 +405,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'search-buried',
     rank: 27,
     categoryLabel: 'Search',
+    sheet:
+      'Generate an iPhone Google results page for a real local query (service + city) where the business does not appear on page one and competitors do.',
     match: (ctx) =>
       /buries you in search|won't find you|will not find you|punishes you in search|not findable/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'seo'), 'D'),
@@ -359,6 +417,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'robots-blocking',
     rank: 28,
     categoryLabel: 'Blocked from Google',
+    sheet:
+      'Show the robots.txt or noindex line from the audit URL that blocks crawlers — a small code/excerpt card, not a full page.',
     match: (ctx) => /robots\.txt.{0,40}(?:block|disallow)|blocks? all crawlers|noindex/.test(ctx.lower),
     problem: () => 'robots.txt or noindex is blocking search engines from the site.',
     solution: () => 'Unblock crawlers and remove noindex on the pages you want found.',
@@ -367,6 +427,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-https-redirect',
     rank: 29,
     categoryLabel: 'HTTP Still Live',
+    sheet:
+      'Show the http:// version of the audit URL still loading (no redirect) next to the https:// address — two address bars.',
     match: (ctx) => /no https redirect|http still (?:live|works)|not redirecting to https/.test(ctx.lower),
     problem: () => 'HTTP still loads without sending people to HTTPS.',
     solution: () => '301 every HTTP request to HTTPS and turn on HSTS.',
@@ -375,6 +437,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'mixed-content',
     rank: 30,
     categoryLabel: 'Mixed Content',
+    sheet:
+      'Show the padlock-with-warning on the HTTPS audit URL and one mixed http:// image or script from the page.',
     match: (ctx) => /mixed content|insecure items loading on a secure page/.test(ctx.lower),
     problem: () => 'The page is HTTPS but still loads insecure files — the padlock stays dirty.',
     solution: () => 'Serve every image, script, and embed over HTTPS.',
@@ -383,6 +447,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-analytics',
     rank: 31,
     categoryLabel: 'No Tracking',
+    sheet:
+      'A small “no analytics / no conversion events” card for the audit URL — empty measurement, not a screenshot of the whole site.',
     match: (ctx) =>
       /no analytics|untracked leads|cannot see which visits/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'analytics'), 'D'),
@@ -393,6 +459,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-sitemap',
     rank: 32,
     categoryLabel: 'No Sitemap',
+    sheet:
+      'Show the missing /sitemap.xml 404 (or “no sitemap” from the SEO inventory) for the audit host.',
     match: (ctx) => /no xml sitemap|sitemap.{0,20}missing/.test(ctx.lower),
     problem: () => 'There is no XML sitemap — Google has to guess the page list.',
     solution: () => 'Add a sitemap and submit it in Search Console.',
@@ -401,6 +469,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-og-image',
     rank: 33,
     categoryLabel: 'Share Cards',
+    sheet:
+      'Show a text-message or iMessage preview of the audit URL with a blank or random image — the ugly share card is the exhibit.',
     match: (ctx) => /no open graph|no og:image|share cards have no|blank or random preview/.test(ctx.lower),
     problem: () => 'Links shared in texts and social show a blank or random preview.',
     solution: () => 'Add Open Graph tags and a branded 1200×630 image.',
@@ -409,6 +479,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-schema',
     rank: 34,
     categoryLabel: 'Rich Results',
+    sheet:
+      'Show a Google result for the business without hours/stars/map pack extras, versus what a LocalBusiness result looks like.',
     match: (ctx) =>
       /no (?:localbusiness|json-?ld|schema)|missing (?:the )?markup/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'schema'), 'D'),
@@ -419,6 +491,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'email-auth-fail',
     rank: 35,
     categoryLabel: 'Email Auth',
+    sheet:
+      'A three-row SPF / DKIM / DMARC card (fail or missing) for the audit domain — inbox risk in one glance.',
     match: (ctx) =>
       /spf.{0,12}fail|dkim.{0,12}fail|dmarc.{0,12}(?:fail|missing|none)|email can look fake/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'email'), 'D'),
@@ -429,6 +503,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'content-thin',
     rank: 36,
     categoryLabel: 'Thin Content',
+    sheet:
+      'Crop a placeholder, lorem, or stale page from the audit URL so the unfinished offer is visible.',
     match: (ctx) => /thin content|outdated copy|placeholder pages|lorem ipsum/.test(ctx.lower),
     problem: () => 'Pages look unfinished or outdated — the offer is not clear.',
     solution: () => 'Replace placeholders with current services, proof, and a next step.',
@@ -437,6 +513,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'no-favicon',
     rank: 37,
     categoryLabel: 'No Favicon',
+    sheet:
+      'Show a browser tab strip for the audit URL with the generic globe icon instead of the brand mark.',
     match: (ctx) => /no favicon|missing favicon/.test(ctx.lower),
     problem: () => 'Browser tabs show a generic icon instead of the brand.',
     solution: () => 'Add a favicon and Apple touch icon that match the logo.',
@@ -445,6 +523,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'social-thin',
     rank: 38,
     categoryLabel: 'Social',
+    sheet:
+      'Show the Instagram or Facebook profile (or the missing-profile search) next to the website — thin, quiet, or a name mismatch.',
     match: (ctx) =>
       /social (?:profiles )?look thin|quiet, or inconsistent|no instagram|no facebook/.test(ctx.lower) ||
       weak(gradeOf(ctx.card, 'social'), 'D'),
@@ -455,6 +535,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'hosting-bottleneck',
     rank: 39,
     categoryLabel: 'Hosting',
+    sheet:
+      'Show the speed score plus the host name (GoDaddy / Bluehost / shared) so the bottleneck is the server, not the design.',
     match: (ctx) => /server resource issue|shared hosting|underpowered/.test(ctx.lower),
     problem: () => 'The build is lean but the host is the bottleneck.',
     solution: () => 'Move off the underpowered shared box once images and scripts are already clean.',
@@ -463,6 +545,8 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     id: 'security-headers',
     rank: 40,
     categoryLabel: 'Security Headers',
+    sheet:
+      'A short missing-headers list (HSTS, CSP, X-Frame-Options) for the audit URL — padlock is fine, the headers are not.',
     match: (ctx) =>
       /missing .{0,20}header|hsts|content-security-policy/.test(ctx.lower) &&
       gradeOf(ctx.card, 'security') !== 'F' &&
@@ -516,6 +600,7 @@ export function selectCascadeFindings(
       id: item.id,
       rank: item.rank,
       categoryLabel: item.categoryLabel,
+      sheet: item.sheet,
       problem: item.problem(ctx),
       solution: item.solution(ctx),
     });
@@ -532,9 +617,11 @@ export function mergePlacesIntoCascadeFindings(
 ): CascadeFinding[] {
   const withoutPlaces = findings.filter((f) => !isPlacesMissFinding(f) && f.id !== 'places-not-listed');
   if (!notListed) return withoutPlaces.slice(0, count);
+  const placesDef = SALES_SHEET_CASCADE.find((item) => item.id === 'places-not-listed');
   const pinned = {
     ...placesNotListedFinding(businessName),
     rank: 5,
+    sheet: placesDef?.sheet ?? '',
   };
   return [...withoutPlaces, pinned]
     .sort((a, b) => cascadeRankForFinding(a) - cascadeRankForFinding(b))

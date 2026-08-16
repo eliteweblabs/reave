@@ -38,6 +38,7 @@ export type SalesSheetFinding = {
   problem: string;
   solution: string;
   rank?: number;
+  sheet?: string;
 };
 
 export type AuditSalesSheetInput = {
@@ -272,6 +273,7 @@ function toSheetFinding(hit: CascadeFinding): SalesSheetFinding {
     problem: clip(hit.problem),
     solution: clip(hit.solution),
     rank: hit.rank,
+    sheet: hit.sheet,
   };
 }
 
@@ -332,6 +334,7 @@ export function applyPlacesMissToSalesSheet(
       id: f.id,
       rank: cascadeRankForFinding(f),
       categoryLabel: f.categoryLabel,
+      sheet: f.sheet || '',
       problem: f.problem,
       solution: f.solution,
     })),

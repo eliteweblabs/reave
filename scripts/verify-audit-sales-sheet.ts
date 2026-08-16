@@ -313,8 +313,13 @@ await test('terribleness cascade is 40 unique ranks and SSL beats Places', () =>
   assert.equal(SALES_SHEET_CASCADE.length, 40);
   const ranks = SALES_SHEET_CASCADE.map((item) => item.rank);
   assert.equal(new Set(ranks).size, 40);
+  assert.ok(SALES_SHEET_CASCADE.every((item) => item.sheet.trim().length > 20));
   assert.equal(SALES_SHEET_CASCADE[0]?.id, 'ssl-missing');
   assert.equal(SALES_SHEET_CASCADE[4]?.id, 'places-not-listed');
+  assert.match(
+    SALES_SHEET_CASCADE[4]?.sheet ?? '',
+    /iPhone.*Google search result.*business.s name in the search bar.*no result.*competition/i,
+  );
   const hits = selectCascadeFindings({
     businessName: 'Cala',
     body: 'Your website is showing a "Not Secure" warning. Google Business Profile: not listed.',
