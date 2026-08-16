@@ -149,6 +149,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Content & Messaging
 - {Empty pages, outdated copy, hours conflicts, placeholder pages, unclear offer/CTA}
+- Public-record basics most sites skip — say whether each is on the website or only in public record: city & state, years in operation, owner name, at least three staff when there is a team, and registered-on / SOS date. If the site is silent, note the gap and use public record as the fallback.
 
 ### Lead Capture
 - {Contact form / click-to-call / chat — present, broken, or missing}

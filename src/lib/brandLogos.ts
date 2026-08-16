@@ -4,7 +4,8 @@
  * <title>) in the folder and it just shows up.
  *
  * Shared by any page/component that needs a folder-backed logo wall: the
- * "apps this platform replaces" marquees on /features and the homepage, and
+ * "apps this platform replaces" marquees on /features and the homepage, the
+ * about-page / audit-sheet client brands in public/logos/clients/, and
  * anywhere else a similar wall gets added later.
  *
  * File naming: prefix a filename with a two-digit number (e.g. "01-gmail.svg")

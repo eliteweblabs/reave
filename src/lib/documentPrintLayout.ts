@@ -14,6 +14,27 @@ import { brandIconUrl, companyLogoUrl, type CompanyConfig } from './companyConfi
 import { prepareInlineBrandSvg, svgHasExternalRasterRefs } from './brandSvg';
 import { extractPortal, type ContactRecord } from './contactApi';
 import { resolveClientIconUrl, resolveClientLogoUrl } from './clientBranding';
+import { listBrandLogos } from './brandLogos';
+import {
+  DOCUMENT_CLIENT_LOGOS_CSS,
+  renderClientBrandLogosHtml,
+} from './clientBrandLogos';
+import {
+  DOCUMENT_INTERNET_PRESENCE_CSS,
+  publicRecordFromContact,
+  renderInternetPresenceHtml,
+} from './auditInternetPresence';
+import {
+  DOCUMENT_SERVICES_PAGE_CSS,
+  appendPrintOnePagerArticle,
+  renderAuditServicesArticle,
+} from './auditSalesPricing';
+import {
+  clientLogoStatusLabel,
+  DOCUMENT_CLIENT_MARK_CSS,
+  ensureClientLogoMark,
+  renderClientLogoMarkHtml,
+} from './auditClientLogo';
 import { SITE } from '../config/site';
 
 export type DocumentOrientation = 'portrait' | 'landscape';
@@ -40,6 +61,12 @@ export type ParsedDocumentLayout = {
   layout: DocumentLayoutKind;
   orientation: DocumentOrientation;
   footer: string;
+  /** Folder-backed brand strip (e.g. `clients` → public/logos/clients/). */
+  brands: string;
+  /** Standing internet-presence / review-response statement. */
+  presence: boolean;
+  /** Second page: services, modules, and installation prices. */
+  services: boolean;
   body: string;
   columns: string[];
 };
@@ -70,10 +97,27 @@ export function parseDocumentLayout(markdown: string, slug = ''): ParsedDocument
     parsed.title ||
     slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const footer = fmValue(fm, 'footer');
+  const brands = parseBrandsFolder(fmValue(fm, 'brands'));
+  const presence = parseOnFlag(fmValue(fm, 'presence'));
+  const services = parseOnFlag(fmValue(fm, 'services'));
   const body = parsed.body;
   const columns = splitColumns(body);
 
-  return { title, layout, orientation, footer, body, columns };
+  return { title, layout, orientation, footer, brands, presence, services, body, columns };
+}
+
+/** `true` / `yes` / `on` / `1` enable a frontmatter flag. */
+export function parseOnFlag(raw: string): boolean {
+  const key = raw.trim().toLowerCase();
+  return key === 'true' || key === '1' || key === 'yes' || key === 'on';
+}
+
+/** `clients` / `true` / `about` → public/logos/clients/. Empty disables the strip. */
+export function parseBrandsFolder(raw: string): string {
+  const key = raw.trim().toLowerCase();
+  if (!key || key === 'false' || key === '0' || key === 'off' || key === 'none') return '';
+  if (key === 'true' || key === '1' || key === 'yes' || key === 'about') return 'clients';
+  return key.replace(/[^a-z0-9_-]/g, '') || '';
 }
 
 function splitColumns(body: string): string[] {
@@ -285,8 +329,9 @@ export function clientBrandMarkHtml(
 }
 
 const BRAND_TOKEN_RE = /\{(company|client)\.(logo|icon)(?::([^}]+))?\}/gi;
+const CLIENT_LOGOS_TOKEN_RE = /\{company\.client_logos\}/gi;
 
-/** Replace leftover `{company|client}.{logo|icon}` tokens in rendered HTML. */
+/** Replace leftover `{company|client}.{logo|icon}` and `{company.client_logos}` tokens. */
 export function applyCompanyBrandShortcodes(
   html: string,
   company?: PrintCompany,
@@ -294,7 +339,7 @@ export function applyCompanyBrandShortcodes(
 ): string {
   let seq = 0;
   const re = new RegExp(BRAND_TOKEN_RE.source, 'gi');
-  const next = html.replace(re, (_match, ownerRaw: string, kindRaw: string, sizeRaw?: string) => {
+  let next = html.replace(re, (_match, ownerRaw: string, kindRaw: string, sizeRaw?: string) => {
     seq += 1;
     const kind = kindRaw.toLowerCase() === 'icon' ? 'icon' : 'logo';
     const owner = ownerRaw.toLowerCase() === 'client' ? 'client' : 'company';
@@ -306,6 +351,15 @@ export function applyCompanyBrandShortcodes(
       idPrefix: `doc-${kind}-${seq}`,
     });
   });
+  const logosRe = new RegExp(CLIENT_LOGOS_TOKEN_RE.source, 'gi');
+  if (logosRe.test(next)) {
+    logosRe.lastIndex = 0;
+    const strip = renderClientBrandLogosHtml();
+    next = next.replace(logosRe, strip);
+    if (strip && !next.includes('data-doc-client-logos-css')) {
+      next = `<style data-doc-client-logos-css>${DOCUMENT_CLIENT_LOGOS_CSS}</style>\n${next}`;
+    }
+  }
   if (seq === 0 || next.includes('data-doc-brand-mark-css')) return next;
   return `<style data-doc-brand-mark-css>${DOCUMENT_BRAND_MARK_CSS}</style>\n${next}`;
 }
@@ -354,6 +408,13 @@ function printPageCss(orientation: DocumentOrientation): string {
   padding-bottom: 2.4%;
   border-bottom: 1.5px solid var(--doc-ink);
 }
+.doc-onepager-header-start {
+  display: flex;
+  align-items: center;
+  gap: 0.85em;
+  min-width: 0;
+  max-width: 58%;
+}
 .doc-onepager-logo {
   display: flex;
   align-items: center;
@@ -375,6 +436,7 @@ function printPageCss(orientation: DocumentOrientation): string {
   text-transform: uppercase;
 }
 ${DOCUMENT_BRAND_MARK_CSS}
+${DOCUMENT_CLIENT_MARK_CSS}
 .doc-onepager-mast {
   text-align: right;
   min-width: 0;
@@ -428,6 +490,19 @@ ${DOCUMENT_BRAND_MARK_CSS}
 .doc-onepager-col ol { margin: 0 0 0.7em; padding-left: 1.15em; }
 .doc-onepager-col li { margin: 0 0 0.35em; }
 .doc-onepager-col strong { color: var(--doc-ink); }
+.doc-onepager-presence {
+  flex: 0 0 auto;
+  padding-top: 1.4%;
+  border-top: 1px solid var(--doc-rule);
+}
+${DOCUMENT_INTERNET_PRESENCE_CSS}
+.doc-onepager-brands {
+  flex: 0 0 auto;
+  padding-top: 1.6%;
+  border-top: 1px solid var(--doc-rule);
+}
+${DOCUMENT_CLIENT_LOGOS_CSS}
+${DOCUMENT_SERVICES_PAGE_CSS}
 .doc-onepager-footer {
   flex: 0 0 auto;
   padding-top: 2%;
@@ -452,6 +527,12 @@ ${DOCUMENT_BRAND_MARK_CSS}
 `.trim();
 }
 
+function printHeaderStartHtml(logoHtml: string, clientLogoHtml?: string): string {
+  const client = (clientLogoHtml || '').trim();
+  const clientSlot = client ? `<div class="doc-onepager-client">${client}</div>` : '';
+  return `<div class="doc-onepager-header-start"><div class="doc-onepager-logo">${logoHtml}</div>${clientSlot}</div>`;
+}
+
 export function wrapPrintOnePager(opts: {
   title: string;
   orientation: DocumentOrientation;
@@ -459,6 +540,9 @@ export function wrapPrintOnePager(opts: {
   footerHtml: string;
   logoHtml: string;
   kicker?: string;
+  brandsHtml?: string;
+  presenceHtml?: string;
+  clientLogoHtml?: string;
 }): string {
   const cols = [...opts.columnsHtml];
   while (cols.length < 3) cols.push('');
@@ -468,19 +552,25 @@ export function wrapPrintOnePager(opts: {
     .join('');
   const kicker = (opts.kicker || '').trim();
   const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
+  const presence = (opts.presenceHtml || '').trim();
+  const presenceHtml = presence ? `<div class="doc-onepager-presence">${presence}</div>` : '';
+  const brands = (opts.brandsHtml || '').trim();
+  const brandsHtml = brands ? `<div class="doc-onepager-brands">${brands}</div>` : '';
 
   return `
 <style>${printPageCss(opts.orientation)}</style>
 <div class="doc-onepager-stage">
   <article class="doc-onepager" data-orientation="${opts.orientation}">
     <header class="doc-onepager-header">
-      <div class="doc-onepager-logo">${opts.logoHtml}</div>
+      ${printHeaderStartHtml(opts.logoHtml, opts.clientLogoHtml)}
       <div class="doc-onepager-mast">
         <h1 class="doc-onepager-title">${esc(opts.title)}</h1>
         ${kickerHtml}
       </div>
     </header>
     <div class="doc-onepager-cols">${colMarkup}</div>
+    ${presenceHtml}
+    ${brandsHtml}
     <footer class="doc-onepager-footer">${opts.footerHtml}</footer>
   </article>
 </div>`.trim();
@@ -512,6 +602,7 @@ export async function renderPrintOnePagerHtml(
   markdown: string,
   company?: PrintCompany,
   slug = '',
+  contact?: ContactRecord,
 ): Promise<string> {
   const parsed = parseDocumentLayout(markdown, slug);
   const columnsHtml = await Promise.all(
@@ -525,13 +616,54 @@ export async function renderPrintOnePagerHtml(
     day: 'numeric',
   });
   const kicker = today;
+  const logoHtml = companyLogoHtml(company);
+  const wantsClientMark = Boolean(
+    parsed.presence || parsed.services || slug.startsWith('audit-onepager'),
+  );
+  const clientMark = wantsClientMark ? await ensureClientLogoMark(contact) : null;
+  const clientName = (contact?.company || contact?.name || 'Client').trim();
+  const clientLogoHtml = clientMark ? renderClientLogoMarkHtml(clientMark, clientName) : '';
+  const presenceFacts = publicRecordFromContact(contact || {}, {
+    logo: clientMark ? clientLogoStatusLabel(clientMark) : undefined,
+  });
 
-  return wrapPrintOnePager({
+  const first = wrapPrintOnePager({
     title: parsed.title,
     orientation: parsed.orientation,
     columnsHtml,
     footerHtml,
-    logoHtml: companyLogoHtml(company),
+    logoHtml,
     kicker,
+    clientLogoHtml,
+    brandsHtml: parsed.brands
+      ? renderClientBrandLogosHtml(
+          parsed.brands === 'clients' ? undefined : listBrandLogos(parsed.brands),
+        )
+      : '',
+    presenceHtml: parsed.presence ? renderInternetPresenceHtml(undefined, undefined, presenceFacts) : '',
   });
+
+  if (!parsed.services) return first;
+
+  const who = [contact?.name, contact?.company].filter((part) => String(part || '').trim()).join(' · ');
+  const companyName = (company?.name || '').trim();
+  const page2Footer = [
+    'Confidential sample',
+    who ? `Prepared for ${who}` : '',
+    companyName,
+    'Page 2 of 2',
+    'Not a signed quote',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return appendPrintOnePagerArticle(
+    first,
+    renderAuditServicesArticle({
+      logoHtml,
+      clientLogoHtml,
+      footerHtml: `<p>${esc(page2Footer)}</p>`,
+      kicker,
+    }),
+  );
 }

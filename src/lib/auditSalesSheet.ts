@@ -16,6 +16,12 @@ import {
   type ReportCardIdea,
 } from './auditReportCard';
 import { isPlacesMissFinding, promotePlacesNotListedFinding } from './salesSheetPlacesView';
+import {
+  DUMMY_PUBLIC_RECORD,
+  publicRecordFromContact,
+  publicRecordFromSearchParams,
+  type PublicRecordFacts,
+} from './auditInternetPresence';
 
 export type SalesSheetOrientation = 'portrait' | 'landscape';
 
@@ -43,6 +49,7 @@ export type AuditSalesSheetInput = {
   security: LetterGrade | null;
   visibility: LetterGrade | null;
   findings: SalesSheetFinding[];
+  publicRecord: PublicRecordFacts;
 };
 
 const GRADES = new Set<LetterGrade>(['A', 'B', 'C', 'D', 'F']);
@@ -86,6 +93,7 @@ export const DUMMY_SALES_SHEET: AuditSalesSheetInput = {
       solution: 'Finish titles, meta, and share cards so every link looks like the brand.',
     },
   ],
+  publicRecord: DUMMY_PUBLIC_RECORD,
 };
 
 export function auditOnePagerSlug(orientation: SalesSheetOrientation): string {
@@ -264,6 +272,7 @@ export function salesSheetInputFromReportCard(
     security: categoryGrade(card, 'security'),
     visibility,
     findings,
+    publicRecord: publicRecordFromContact(contact),
   };
 }
 
@@ -334,6 +343,7 @@ export function salesSheetInputFromSearchParams(params: URLSearchParams): AuditS
     security: security === undefined ? DUMMY_SALES_SHEET.security : security,
     visibility: visibility === undefined ? DUMMY_SALES_SHEET.visibility : visibility,
     findings: DUMMY_SALES_SHEET.findings.map((finding, i) => overrideFinding(finding, i, params)),
+    publicRecord: publicRecordFromSearchParams(params, contact),
   };
 }
 

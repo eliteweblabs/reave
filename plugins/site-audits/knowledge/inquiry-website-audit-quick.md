@@ -111,6 +111,7 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 
 ### Content Issues
 - {Empty pages, outdated copy, placeholder pages, unclear offer/CTA from fetch_url}
+- Public-record basics most sites skip — city & state, years in operation, owner, at least three staff when there is a team, registered-on date. Note if missing on the website and fall back to public record.
 
 ### Lead Capture
 - Contact form / click-to-call / chat present and working? Or missing/broken

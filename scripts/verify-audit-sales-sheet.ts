@@ -22,6 +22,29 @@ import {
   setFrontmatterTitle,
 } from '../src/lib/auditSalesSheet.ts';
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
+import { listBrandLogos } from '../src/lib/brandLogos.ts';
+import {
+  AUDIT_SERVICES_LEAD,
+  appendPrintOnePagerArticle,
+  renderAuditServicesArticle,
+  salesSheetTiers,
+} from '../src/lib/auditSalesPricing.ts';
+import { INSTALLATION_TIERS, formatInstallUsd } from '../src/lib/installationTiers.ts';
+import {
+  AUDIT_INTERNET_PRESENCE_STATEMENT,
+  cityStateFromAddress,
+  DUMMY_PUBLIC_RECORD,
+  injectInternetPresenceFacts,
+  publicRecordFromContact,
+  publicRecordFromSearchParams,
+  renderInternetPresenceHtml,
+} from '../src/lib/auditInternetPresence.ts';
+import {
+  CLIENT_LOGO_MISSING_NOTE,
+  CLIENT_LOGO_SCRAPED_NOTE,
+  clientLogoStatusLabel,
+  renderClientLogoMarkHtml,
+} from '../src/lib/auditClientLogoMark.ts';
 import {
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
@@ -332,6 +355,145 @@ await test('QR block says View Full Audit and lands in the header mast', () => {
     qr,
   );
   assert.ok(injected.indexOf('ss-qr') < injected.indexOf('Website Audit'));
+});
+
+await test('audit templates opt into folder-backed client brands, not HTML imgs', () => {
+  for (const md of [landscape, portrait]) {
+    assert.match(md, /^brands:\s*clients$/m);
+    assert.doesNotMatch(md, /<img\b/i);
+    assert.doesNotMatch(md, /porsche|red bull|new york times/i);
+  }
+});
+
+await test('audit templates include the standing internet-presence statement', () => {
+  for (const md of [landscape, portrait]) {
+    assert.match(md, /^presence:\s*true$/m);
+  }
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /not endearing/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /reviews/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /take it down|remove|response/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /city and state/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /years in operation/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /staff/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /registered on/i);
+  const html = renderInternetPresenceHtml();
+  assert.match(html, /doc-presence/);
+  assert.match(html, /Internet presence/);
+  assert.match(html, /not endearing/);
+  assert.match(html, /Boston, MA/);
+  assert.match(html, /Jordan Hale/);
+  assert.match(html, /Maya Chen/);
+  assert.match(html, /March 12, 2014/);
+  assert.match(html, /No logo on the website/);
+});
+
+await test('public-record facts fall back to dummy and parse city/state from an address', () => {
+  assert.equal(cityStateFromAddress('18 Atlantic Ave, Boston, MA 02110, USA'), 'Boston, MA');
+  const dummy = publicRecordFromContact(DUMMY_SALES_SHEET.contact);
+  assert.equal(dummy.cityState, DUMMY_PUBLIC_RECORD.cityState);
+  assert.equal(dummy.logo, 'No logo on the website');
+  assert.equal(dummy.staff.length, 3);
+  const live = publicRecordFromContact({
+    uid: 'real-1',
+    name: 'Sam Rivera',
+    company: 'North Pier Bakery',
+  });
+  assert.equal(live.owner, 'Sam Rivera');
+  assert.match(live.cityState, /Not on the website/);
+  assert.equal(live.staff.length, 0);
+  const fromPortal = publicRecordFromContact({
+    uid: 'real-2',
+    name: 'Sam Rivera',
+    links: [{ system: 'portal', metadata: { address: '12 Harbor St, Portland, ME 04101' } }],
+  });
+  assert.equal(fromPortal.cityState, 'Portland, ME');
+  const fromQuery = publicRecordFromSearchParams(
+    new URLSearchParams({
+      city: 'Portland',
+      state: 'ME',
+      owner: 'Sam Rivera',
+      staff: 'Ada, Bo, Cy',
+      logo: 'From the website',
+    }),
+    { uid: 'real-1', name: 'Sam Rivera' },
+  );
+  assert.equal(fromQuery.cityState, 'Portland, ME');
+  assert.deepEqual(fromQuery.staff, ['Ada', 'Bo', 'Cy']);
+  assert.equal(fromQuery.logo, 'From the website');
+  assert.equal(live.logo, 'No logo on the website');
+  const injected = injectInternetPresenceFacts(
+    '<div class="doc-presence"><p>old</p></div>',
+    fromQuery,
+  );
+  assert.match(injected, /Portland, ME/);
+  assert.doesNotMatch(injected, />old</);
+});
+
+await test('fillAuditOnePager keeps the brands, presence, and services frontmatter flags', () => {
+  const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
+  assert.match(filled, /^brands:\s*clients$/m);
+  assert.match(filled, /^presence:\s*true$/m);
+  assert.match(filled, /^services:\s*true$/m);
+  assert.match(filled, /Page 1 of 2/);
+});
+
+await test('services page lists installation tiers and upfront prices', () => {
+  for (const md of [landscape, portrait]) {
+    assert.match(md, /^services:\s*true$/m);
+    assert.match(md, /Page 1 of 2/);
+  }
+  assert.match(AUDIT_SERVICES_LEAD, /Prices are on this page/);
+  const names = salesSheetTiers().map((t) => t.name);
+  assert.deepEqual(names, ['Core OS', 'Operations', 'Growth', 'Full platform']);
+  const html = renderAuditServicesArticle({
+    logoHtml: '<span>Logo</span>',
+    clientLogoHtml: '<div class="doc-client-mark">Client</div>',
+    footerHtml: '<p>Page 2 of 2</p>',
+  });
+  assert.match(html, /ss-services/);
+  assert.match(html, /doc-onepager-client/);
+  assert.match(html, /doc-client-mark/);
+  assert.match(html, /Core OS/);
+  assert.match(html, /Full platform/);
+  assert.match(html, /Document signing/);
+  assert.match(html, new RegExp(formatInstallUsd(INSTALLATION_TIERS[0]!.month1).replace(/\$/g, '\\$')));
+  const two = appendPrintOnePagerArticle(
+    '<style></style><div class="doc-onepager-stage"><article class="doc-onepager">p1</article></div>',
+    html,
+  );
+  assert.ok(two.indexOf('p1') < two.indexOf('ss-services'));
+  assert.match(two, /Page 2 of 2/);
+});
+
+await test('about-page brand names live in site config and the clients folder is scanned', () => {
+  const about = JSON.parse(
+    readFileSync(join(here, '../config/sites/reave-config.json'), 'utf8'),
+  ) as { clientLogos?: Array<{ name?: string }> };
+  const aboutNames = (about.clientLogos ?? []).map((l) => String(l.name || ''));
+  assert.ok(aboutNames.some((n) => /porsche/i.test(n)), 'about page is missing Porsche');
+  assert.ok(aboutNames.some((n) => /montana/i.test(n)), 'about page is missing Montana Cans');
+  const folder = listBrandLogos('clients');
+  assert.ok(folder.some((l) => /montana/i.test(l.name) && l.src.includes('/logos/clients/')));
+});
+
+await test('client mark prefers an uploaded or scraped logo, else a red X', () => {
+  const missing = { src: '', source: 'missing' as const, note: CLIENT_LOGO_MISSING_NOTE };
+  assert.equal(clientLogoStatusLabel(missing), CLIENT_LOGO_MISSING_NOTE);
+  const missingHtml = renderClientLogoMarkHtml(missing, 'Hale & Co.');
+  assert.match(missingHtml, /doc-client-mark--missing/);
+  assert.match(missingHtml, /M6 6l12 12/);
+  assert.match(missingHtml, /No logo on the website/);
+  const scrapedHtml = renderClientLogoMarkHtml(
+    { src: 'https://example.com/logo.png', source: 'website', note: CLIENT_LOGO_SCRAPED_NOTE },
+    'North Pier',
+  );
+  assert.match(scrapedHtml, /src="https:\/\/example.com\/logo.png"/);
+  assert.match(scrapedHtml, /From the website/);
+  assert.doesNotMatch(scrapedHtml, /doc-client-mark--missing/);
+  assert.equal(
+    clientLogoStatusLabel({ src: '/api/clients/u1/logo', source: 'upload', note: '' }),
+    'Uploaded',
+  );
 });
 
 console.log(results.join('\n'));

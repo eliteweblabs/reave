@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
+import { listClientBrandLogos } from "../lib/clientBrandLogos";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
@@ -10,6 +11,7 @@ import "../styles/marketing-sections.css";
 const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const aboutImage = siteContent.aboutImage || "";
+const clientBrands = listClientBrandLogos();
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 ---
@@ -61,7 +63,7 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
           </p>
         </header>
 
-        {(siteContent.clientLogos?.length ?? 0) > 0 && (
+        {clientBrands.length > 0 && (
         <section class="section--full-bleed" aria-label="Clients we've worked with">
           <ClientLogos />
         </section>
