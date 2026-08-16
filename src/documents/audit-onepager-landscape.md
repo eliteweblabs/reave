@@ -1,5 +1,5 @@
 ---
-title: Audit One-Pager (Landscape)
+title: Website Audit
 layout: onepager
 orientation: landscape
 footer: Confidential sample · Prepared for {client.name}{client.company_str} · {company.name} · {company.support_email} · {date} · Page 1 of 1 · Not a legal opinion
@@ -17,7 +17,7 @@ footer: Confidential sample · Prepared for {client.name}{client.company_str} ·
 - Security — —
 - Visibility — —
 
-Placeholder metrics. Automation will replace this column with the live audit snapshot.
+Placeholder metrics. `/admin/sales-sheet` replaces this column from audit (or dummy) data.
 :::column
 ### Findings
 
@@ -25,7 +25,7 @@ Placeholder metrics. Automation will replace this column with the live audit sna
 2. Placeholder finding two — another sample row for column balance.
 3. Placeholder finding three — swap for the top audit results.
 
-Use this column for the three to five issues that matter most. Keep each to two lines so the sheet stays on a single page.
+Use this column for the three issues that matter most. Keep each to two lines so the sheet stays on a single page.
 :::column
 ### Next steps
 

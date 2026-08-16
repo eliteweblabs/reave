@@ -1,0 +1,279 @@
+---
+/**
+ * Dummy-first preview for the audit sales one-pager.
+ *
+ * Hit /admin/sales-sheet with query overrides until the print layout is right.
+ * Live audit wiring (pick 3 findings → PDF → project files) comes after.
+ */
+export const prerender = false;
+
+import ViewportMeta from '../../components/ViewportMeta.astro';
+import Favicon from '../../components/Favicon.astro';
+import { denyUnlessDeploymentOwner } from '../../lib/deploymentOwner';
+import { getCompanyConfig } from '../../lib/companyConfig';
+import { getTemplate, fillTemplate, renderFilledDocumentHtml } from '../../lib/documentTemplates';
+import {
+  auditOnePagerSlug,
+  fillAuditOnePager,
+  parseSalesSheetOrientation,
+  salesSheetInputFromSearchParams,
+} from '../../lib/auditSalesSheet';
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = encodeURIComponent(Astro.url.pathname + Astro.url.search);
+  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+}
+
+const denied = await denyUnlessDeploymentOwner(Astro);
+if (denied) return denied;
+
+const params = Astro.url.searchParams;
+const orientation = parseSalesSheetOrientation(params.get('orientation'));
+const input = salesSheetInputFromSearchParams(params);
+const company = await getCompanyConfig(Astro.request);
+const slug = auditOnePagerSlug(orientation);
+const tmpl = getTemplate(slug);
+
+let error = '';
+let sheetHtml = '';
+
+if (!tmpl) {
+  error = `Template ${slug} is missing.`;
+} else {
+  try {
+    const source = fillAuditOnePager(tmpl.markdown, input);
+    const filled = fillTemplate(source, input.contact, company);
+    sheetHtml = await renderFilledDocumentHtml(filled, company, slug, input.contact);
+  } catch (e) {
+    error = e instanceof Error ? e.message : String(e);
+  }
+}
+
+const finding1 = input.findings[0];
+const finding2 = input.findings[1];
+const finding3 = input.findings[2];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Audit sales sheet (dummy)</title>
+    <Favicon />
+    <link rel="stylesheet" href="/admin-shell.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --fg: #e9eef6;
+        --panel: #161b22;
+        --panel-border: #30363d;
+        --card: #1c2128;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --surface-hover: rgba(177, 186, 196, 0.12);
+        --radius-input: 8px;
+      }
+      html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--fg); }
+      body {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      .ss-chrome { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+      .ss-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        color: inherit;
+        text-decoration: none;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+      }
+      .ss-back:hover { background: var(--surface-hover); }
+      .ss-title { font-size: 1.6rem; font-weight: 700; margin: 0 0 0.35rem; }
+      .ss-sub { color: var(--muted); margin: 0 0 1.25rem; line-height: 1.5; font-size: 0.95rem; }
+      .ss-panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 1.1rem 1.15rem 1.2rem;
+        margin-bottom: 1.25rem;
+      }
+      .ss-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+        align-items: end;
+      }
+      .ss-grid-wide { grid-template-columns: 1fr; }
+      .ss-field { display: flex; flex-direction: column; gap: 0.3rem; }
+      .ss-field label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .ss-field input, .ss-field select, .ss-field textarea {
+        padding: 0.5rem 0.6rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+        color: var(--fg);
+        font-size: 0.9rem;
+        font-family: inherit;
+      }
+      .ss-field textarea { min-height: 3.2rem; resize: vertical; }
+      .ss-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.9rem; }
+      .ss-btn {
+        padding: 0.55rem 1rem;
+        border: none;
+        border-radius: var(--radius-input);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        text-decoration: none;
+      }
+      .ss-btn-secondary {
+        background: var(--card);
+        border: 1px solid var(--panel-border);
+        color: var(--fg);
+      }
+      .ss-error {
+        background: #3d1f1f;
+        border: 1px solid #8b3a3a;
+        color: #ffd7d7;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 1rem;
+      }
+      .ss-sheet { margin: 0 -1rem; }
+      @media print {
+        .ss-chrome { display: none !important; }
+        html, body { background: #fff !important; }
+        .ss-sheet { margin: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ss-chrome">
+      <a class="ss-back" href="/admin/?tab=documents">← Documents</a>
+      <h1 class="ss-title">Audit sales sheet</h1>
+      <p class="ss-sub">
+        Dummy fixture — not a live audit. Change the fields (or the query string) and
+        reload until the one-pager looks right. Print / Save as PDF uses the same
+        letter layout as the document templates. Live audit → project file comes next.
+      </p>
+
+      {error ? <div class="ss-error">{error}</div> : null}
+
+      <form class="ss-panel" method="get" action="/admin/sales-sheet">
+        <div class="ss-grid">
+          <div class="ss-field">
+            <label for="orientation">Orientation</label>
+            <select id="orientation" name="orientation">
+              <option value="landscape" selected={orientation === 'landscape'}>Landscape</option>
+              <option value="portrait" selected={orientation === 'portrait'}>Portrait</option>
+            </select>
+          </div>
+          <div class="ss-field">
+            <label for="company">Company</label>
+            <input id="company" name="company" value={input.contact.company ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="name">Prepared for</label>
+            <input id="name" name="name" value={input.contact.name} />
+          </div>
+          <div class="ss-field">
+            <label for="site">Site</label>
+            <input id="site" name="site" value={input.website} />
+          </div>
+          <div class="ss-field">
+            <label for="overall">Overall</label>
+            <input id="overall" name="overall" maxlength="1" value={input.overall ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="score">Score</label>
+            <input id="score" name="score" inputmode="numeric" value={input.overallScore ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="performance">Performance</label>
+            <input id="performance" name="performance" maxlength="1" value={input.performance ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="security">Security</label>
+            <input id="security" name="security" maxlength="1" value={input.security ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="visibility">Visibility</label>
+            <input id="visibility" name="visibility" maxlength="1" value={input.visibility ?? ''} />
+          </div>
+        </div>
+
+        <div class="ss-grid ss-grid-wide" style="margin-top: 0.85rem;">
+          <div class="ss-field">
+            <label for="headline">Headline</label>
+            <input id="headline" name="headline" value={input.headline} />
+          </div>
+        </div>
+
+        <div class="ss-grid" style="margin-top: 0.85rem;">
+          <div class="ss-field">
+            <label for="label1">Finding 1 label</label>
+            <input id="label1" name="label1" value={finding1?.categoryLabel ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="finding1">Finding 1 problem</label>
+            <textarea id="finding1" name="finding1">{finding1?.problem ?? ''}</textarea>
+          </div>
+          <div class="ss-field">
+            <label for="solution1">Finding 1 next step</label>
+            <textarea id="solution1" name="solution1">{finding1?.solution ?? ''}</textarea>
+          </div>
+          <div class="ss-field">
+            <label for="label2">Finding 2 label</label>
+            <input id="label2" name="label2" value={finding2?.categoryLabel ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="finding2">Finding 2 problem</label>
+            <textarea id="finding2" name="finding2">{finding2?.problem ?? ''}</textarea>
+          </div>
+          <div class="ss-field">
+            <label for="solution2">Finding 2 next step</label>
+            <textarea id="solution2" name="solution2">{finding2?.solution ?? ''}</textarea>
+          </div>
+          <div class="ss-field">
+            <label for="label3">Finding 3 label</label>
+            <input id="label3" name="label3" value={finding3?.categoryLabel ?? ''} />
+          </div>
+          <div class="ss-field">
+            <label for="finding3">Finding 3 problem</label>
+            <textarea id="finding3" name="finding3">{finding3?.problem ?? ''}</textarea>
+          </div>
+          <div class="ss-field">
+            <label for="solution3">Finding 3 next step</label>
+            <textarea id="solution3" name="solution3">{finding3?.solution ?? ''}</textarea>
+          </div>
+        </div>
+
+        <div class="ss-actions">
+          <button class="ss-btn" type="submit">Update sheet</button>
+          <a class="ss-btn ss-btn-secondary" href="/admin/sales-sheet">Reset dummy</a>
+          <button class="ss-btn ss-btn-secondary" type="button" onclick="window.print()">Print / Save PDF</button>
+        </div>
+      </form>
+    </div>
+
+    {sheetHtml ? <div class="ss-sheet" set:html={sheetHtml} /> : null}
+  </body>
+</html>
