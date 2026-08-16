@@ -23,6 +23,7 @@ import {
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
 } from '../../lib/auditSalesSheet';
+import { injectInternetPresenceFacts, publicRecordFromSearchParams } from '../../lib/auditInternetPresence';
 import { getContact, type ContactRecord } from '../../lib/contactApi';
 import { buildAuditReportCard } from '../../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
@@ -121,6 +122,7 @@ const places = await fetchSalesSheetPlaces({
 });
 const notListed = forceListed ? false : forceNotListed || !places.listed;
 input = applyPlacesMissToSalesSheet(input, notListed);
+input = { ...input, publicRecord: publicRecordFromSearchParams(params, input.contact) };
 
 const phoneHtml = renderPlacesPhoneMockHtml({ ...places, listed: !notListed });
 let phoneEmbed = phoneHtml;
@@ -160,8 +162,11 @@ if (!tmpl) {
     const source = fillAuditOnePager(tmpl.markdown, input);
     const filled = fillTemplate(source, input.contact, company);
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
-    sheetHtml = injectAuditDisclaimerIntoFooter(
-      injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml),
+    sheetHtml = injectInternetPresenceFacts(
+      injectAuditDisclaimerIntoFooter(
+        injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml),
+      ),
+      input.publicRecord,
     );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
@@ -369,6 +374,30 @@ const placesNote = places.error
               <option value="0" selected={listedParam === '0'}>Force not listed</option>
               <option value="1" selected={listedParam === '1'}>Force listed</option>
             </select>
+          </div>
+          <div class="ss-field">
+            <label for="city">City</label>
+            <input id="city" name="city" value={params.get('city') || ''} placeholder="Boston" />
+          </div>
+          <div class="ss-field">
+            <label for="state">State</label>
+            <input id="state" name="state" value={params.get('state') || ''} placeholder="MA" />
+          </div>
+          <div class="ss-field">
+            <label for="owner">Owner</label>
+            <input id="owner" name="owner" value={input.publicRecord.owner} />
+          </div>
+          <div class="ss-field">
+            <label for="years">Years in operation</label>
+            <input id="years" name="years" value={input.publicRecord.yearsInOperation} />
+          </div>
+          <div class="ss-field">
+            <label for="staff">Staff (at least 3)</label>
+            <input id="staff" name="staff" value={input.publicRecord.staff.join(', ')} placeholder="Name, Name, Name" />
+          </div>
+          <div class="ss-field">
+            <label for="registered">Registered on</label>
+            <input id="registered" name="registered" value={input.publicRecord.registeredOn} />
           </div>
         </div>
 

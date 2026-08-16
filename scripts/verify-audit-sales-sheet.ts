@@ -25,6 +25,11 @@ import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
 import { listBrandLogos } from '../src/lib/brandLogos.ts';
 import {
   AUDIT_INTERNET_PRESENCE_STATEMENT,
+  cityStateFromAddress,
+  DUMMY_PUBLIC_RECORD,
+  injectInternetPresenceFacts,
+  publicRecordFromContact,
+  publicRecordFromSearchParams,
   renderInternetPresenceHtml,
 } from '../src/lib/auditInternetPresence.ts';
 import {
@@ -354,10 +359,51 @@ await test('audit templates include the standing internet-presence statement', (
   assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /not endearing/i);
   assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /reviews/i);
   assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /take it down|remove|response/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /city and state/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /years in operation/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /staff/i);
+  assert.match(AUDIT_INTERNET_PRESENCE_STATEMENT, /registered on/i);
   const html = renderInternetPresenceHtml();
   assert.match(html, /doc-presence/);
   assert.match(html, /Internet presence/);
   assert.match(html, /not endearing/);
+  assert.match(html, /Boston, MA/);
+  assert.match(html, /Jordan Hale/);
+  assert.match(html, /Maya Chen/);
+  assert.match(html, /March 12, 2014/);
+});
+
+await test('public-record facts fall back to dummy and parse city/state from an address', () => {
+  assert.equal(cityStateFromAddress('18 Atlantic Ave, Boston, MA 02110, USA'), 'Boston, MA');
+  const dummy = publicRecordFromContact(DUMMY_SALES_SHEET.contact);
+  assert.equal(dummy.cityState, DUMMY_PUBLIC_RECORD.cityState);
+  assert.equal(dummy.staff.length, 3);
+  const live = publicRecordFromContact({
+    uid: 'real-1',
+    name: 'Sam Rivera',
+    company: 'North Pier Bakery',
+  });
+  assert.equal(live.owner, 'Sam Rivera');
+  assert.match(live.cityState, /Not on the website/);
+  assert.equal(live.staff.length, 0);
+  const fromPortal = publicRecordFromContact({
+    uid: 'real-2',
+    name: 'Sam Rivera',
+    links: [{ system: 'portal', metadata: { address: '12 Harbor St, Portland, ME 04101' } }],
+  });
+  assert.equal(fromPortal.cityState, 'Portland, ME');
+  const fromQuery = publicRecordFromSearchParams(
+    new URLSearchParams({ city: 'Portland', state: 'ME', owner: 'Sam Rivera', staff: 'Ada, Bo, Cy' }),
+    { uid: 'real-1', name: 'Sam Rivera' },
+  );
+  assert.equal(fromQuery.cityState, 'Portland, ME');
+  assert.deepEqual(fromQuery.staff, ['Ada', 'Bo', 'Cy']);
+  const injected = injectInternetPresenceFacts(
+    '<div class="doc-presence"><p>old</p></div>',
+    fromQuery,
+  );
+  assert.match(injected, /Portland, ME/);
+  assert.doesNotMatch(injected, />old</);
 });
 
 await test('fillAuditOnePager keeps the brands and presence frontmatter flags', () => {
