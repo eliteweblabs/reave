@@ -1,0 +1,155 @@
+From 0c77efc3dafed331462f0bb3096d7fcac6f9d61c Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 16 Aug 2026 13:33:06 +0000
+Subject: [PATCH] Title invoice share previews with the business and subject.
+
+iMessage was showing "New Invoice" after we dropped the client name.
+Use "{company} - Invoice for {first required line item}" so the card
+says who sent it and what it is for.
+---
+ KNOWLEDGE.md                                  |  2 +-
+ app/Models/Invoice.php                        | 43 +++++++++++++++++
+ .../views/app/public/invoice-view.blade.php   |  4 +-
+ tests/Unit/InvoiceSharePreviewTest.php        | 48 +++++++++++++++++++
+ 4 files changed, 93 insertions(+), 4 deletions(-)
+ create mode 100644 tests/Unit/InvoiceSharePreviewTest.php
+
+diff --git a/KNOWLEDGE.md b/KNOWLEDGE.md
+index 6436248e..f7f03cc4 100644
+--- a/KNOWLEDGE.md
++++ b/KNOWLEDGE.md
+@@ -154,7 +154,7 @@ The public page (`/invoices/{unique_hash}`) is what clients open. Recent behavio
+ - **Optional rows get a switch.** Toggling live-updates subtotal / due and is sent to Stripe as `optional_item_ids` when they pay.
+ - **Paid invoices lock.** Toggles do not appear after `paid_status = PAID`. Declined add-ons (qty `0`) are hidden on the paid page and on the PDF.
+ - **PDF** (`/invoices/pdf/{hash}`) is the stored invoice, not the live toggles. On an unpaid proposal with add-ons the public page hides Download PDF until they pay (selection is written when the PaymentIntent is created). Invoices with no optional rows keep the button. The PDF omits qty-`0` add-ons and uses `publicDisplayName()` so `(optional)` tags do not print.
+-- **OG card** is `/invoices/{hash}/og.png` (REΛVE icon). Share previews use that, not a screenshot of the line items.
++- **OG card** is `/invoices/{hash}/og.png` (REΛVE icon). Share previews use that, not a screenshot of the line items. The preview **title** is `{company name} - Invoice for {first required line item}` (`Invoice::sharePreviewTitle()`), not the client name.
+ 
+ ### How a line becomes a toggle
+ 
+diff --git a/app/Models/Invoice.php b/app/Models/Invoice.php
+index 55d38663..83897f0d 100644
+--- a/app/Models/Invoice.php
++++ b/app/Models/Invoice.php
+@@ -117,6 +117,49 @@ class Invoice extends Model implements HasMedia
+         return url('/invoices/pdf/'.$this->unique_hash);
+     }
+ 
++    /**
++     * iMessage / Slack / social preview title:
++     * "{Business Name} - Invoice for {subject}".
++     *
++     * Subject is the first required line item’s public name, then any
++     * line item, then notes, then the invoice number.
++     */
++    public function sharePreviewTitle(): string
++    {
++        $business = trim((string) ($this->company->name ?? ''));
++        $subject = $this->sharePreviewSubject();
++
++        if ($business !== '') {
++            return $business.' - Invoice for '.$subject;
++        }
++
++        return 'Invoice for '.$subject;
++    }
++
++    public function sharePreviewSubject(): string
++    {
++        $items = $this->relationLoaded('items')
++            ? $this->items
++            : $this->items()->get();
++
++        $item = $items->first(fn ($row) => ! $row->isOptional()) ?: $items->first();
++        if ($item) {
++            $name = trim($item->publicDisplayName());
++            if ($name !== '') {
++                return $name;
++            }
++        }
++
++        $notes = trim(preg_replace('/\s+/', ' ', (string) $this->notes) ?? '');
++        if ($notes !== '') {
++            return $notes;
++        }
++
++        $number = trim((string) $this->invoice_number);
++
++        return $number !== '' ? $number : 'Invoice';
++    }
++
+     public function getPaymentModuleEnabledAttribute()
+     {
+         // Always return true since we have custom Stripe integration
+diff --git a/resources/views/app/public/invoice-view.blade.php b/resources/views/app/public/invoice-view.blade.php
+index eed8411f..7b959c30 100644
+--- a/resources/views/app/public/invoice-view.blade.php
++++ b/resources/views/app/public/invoice-view.blade.php
+@@ -5,9 +5,7 @@
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+     @php
+-        $pageTitle = $invoice->paid_status === 'PAID'
+-            ? 'Invoice'
+-            : 'New Invoice';
++        $pageTitle = $invoice->sharePreviewTitle();
+     @endphp
+     <title>{{ $pageTitle }}</title>
+     
+diff --git a/tests/Unit/InvoiceSharePreviewTest.php b/tests/Unit/InvoiceSharePreviewTest.php
+new file mode 100644
+index 00000000..b6764c4b
+--- /dev/null
++++ b/tests/Unit/InvoiceSharePreviewTest.php
+@@ -0,0 +1,48 @@
++<?php
++
++use Crater\Models\Company;
++use Crater\Models\Invoice;
++use Crater\Models\InvoiceItem;
++use Illuminate\Support\Collection;
++
++test('share preview title uses business name and first required item', function () {
++    $invoice = new Invoice(['notes' => '', 'invoice_number' => 'INV-00025']);
++    $invoice->setRelation('company', new Company(['name' => 'REΛVE']));
++    $invoice->setRelation('items', Collection::make([
++        new InvoiceItem(['name' => 'Web Design (required)']),
++        new InvoiceItem(['name' => 'Plausible Analytics (optional)']),
++    ]));
++
++    expect($invoice->sharePreviewSubject())->toBe('Web Design')
++        ->and($invoice->sharePreviewTitle())->toBe('REΛVE - Invoice for Web Design');
++});
++
++test('share preview subject uses the first item when every row is optional', function () {
++    $invoice = new Invoice(['notes' => 'Monthly retainer', 'invoice_number' => 'INV-1']);
++    $invoice->setRelation('company', new Company(['name' => 'Acme Studio']));
++    $invoice->setRelation('items', Collection::make([
++        new InvoiceItem(['name' => 'Add-on (optional)']),
++    ]));
++
++    expect($invoice->sharePreviewTitle())->toBe('Acme Studio - Invoice for Add-on');
++});
++
++test('share preview title falls back to notes then invoice number', function () {
++    $withNotes = new Invoice(['notes' => "  Site rebuild\nphase 2  ", 'invoice_number' => 'INV-9']);
++    $withNotes->setRelation('company', new Company(['name' => 'REΛVE']));
++    $withNotes->setRelation('items', Collection::make());
++
++    $numberOnly = new Invoice(['notes' => '', 'invoice_number' => 'INV-9']);
++    $numberOnly->setRelation('company', new Company(['name' => 'REΛVE']));
++    $numberOnly->setRelation('items', Collection::make());
++
++    $noBusiness = new Invoice(['notes' => '', 'invoice_number' => 'INV-9']);
++    $noBusiness->setRelation('company', new Company(['name' => '']));
++    $noBusiness->setRelation('items', Collection::make([
++        new InvoiceItem(['name' => 'Hosting (required)']),
++    ]));
++
++    expect($withNotes->sharePreviewTitle())->toBe('REΛVE - Invoice for Site rebuild phase 2')
++        ->and($numberOnly->sharePreviewTitle())->toBe('REΛVE - Invoice for INV-9')
++        ->and($noBusiness->sharePreviewTitle())->toBe('Invoice for Hosting');
++});
+-- 
+2.43.0
+
