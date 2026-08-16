@@ -92,11 +92,20 @@ function buildAnthropicTools(brand: Awaited<ReturnType<typeof getCompanyBrandCon
   description: string;
   input_schema: Record<string, unknown>;
 }> {
-  return buildTools(brand).map((t) => ({
-    name: t.function.name,
-    description: t.function.description,
-    input_schema: t.function.parameters,
-  }));
+  return buildTools(brand).flatMap((t) => {
+    const fn = t?.function;
+    if (!fn?.name) {
+      console.error('[agentRunner] skipping malformed tool definition', t);
+      return [];
+    }
+    return [
+      {
+        name: fn.name,
+        description: fn.description,
+        input_schema: fn.parameters,
+      },
+    ];
+  });
 }
 
 async function buildUserContentBlocks(
@@ -628,6 +637,15 @@ async function* runKnowledgeAgentStreamingBridge(
     ]);
     if (settled === 'done') {
       while (events.length) yield events.shift()!;
+      // The inner run's .catch already resolved `runPromise`, so a throw during
+      // setup (before any progress event) used to look like a successful empty
+      // completion. Re-check here so the real error reaches the chat route.
+      if (runError) {
+        const message = describeAgentFailure(runError);
+        throw runError instanceof Error && runError.message.trim()
+          ? runError
+          : new Error(message);
+      }
       return finalResult;
     }
   }

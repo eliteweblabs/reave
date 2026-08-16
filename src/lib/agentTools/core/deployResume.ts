@@ -22,38 +22,45 @@ function getCurrentThreadId(): string | null {
 }
 
 export const deployResumeModule: AgentToolModule = {
+  id: 'deploy-resume',
   enabled: () => isConfigured(),
 
   definitions: () => [
     {
-      name: 'set_deploy_resume',
-      description:
-        'Register a continuation message so the agent automatically resumes THIS chat session when the next Railway deploy-success webhook fires. Use when you are about to go silent waiting for a deploy (e.g. you committed a fix and need a Crater route to be live before finishing). The message is posted back into this thread exactly as if the owner typed it, triggering a new agent run. Clears itself after 30 minutes or on first trigger. Omit thread_id to use the current session.',
-      input_schema: {
-        type: 'object' as const,
-        properties: {
-          message: {
-            type: 'string',
-            description:
-              'The continuation message to post when the deploy lands. Be specific — include exactly what to do next (e.g. "Crater is live. Call update_invoice_item on invoice 90 item 306 name=Plausible Analytics…").',
+      type: 'function',
+      function: {
+        name: 'set_deploy_resume',
+        description:
+          'Register a continuation message so the agent automatically resumes THIS chat session when the next Railway deploy-success webhook fires. Use when you are about to go silent waiting for a deploy (e.g. you committed a fix and need a Crater route to be live before finishing). The message is posted back into this thread exactly as if the owner typed it, triggering a new agent run. Clears itself after 30 minutes or on first trigger. Omit thread_id to use the current session.',
+        parameters: {
+          type: 'object',
+          properties: {
+            message: {
+              type: 'string',
+              description:
+                'The continuation message to post when the deploy lands. Be specific — include exactly what to do next (e.g. "Crater is live. Call update_invoice_item on invoice 90 item 306 name=Plausible Analytics…").',
+            },
+            thread_id: {
+              type: 'string',
+              description:
+                'Thread UUID to resume. Defaults to the current chat session when omitted.',
+            },
           },
-          thread_id: {
-            type: 'string',
-            description:
-              'Thread UUID to resume. Defaults to the current chat session when omitted.',
-          },
+          required: ['message'],
         },
-        required: ['message'],
       },
     },
     {
-      name: 'clear_deploy_resume',
-      description:
-        'Cancel any pending deploy-resume continuation (e.g. the deploy is no longer needed or the task was completed another way).',
-      input_schema: {
-        type: 'object' as const,
-        properties: {},
-        required: [],
+      type: 'function',
+      function: {
+        name: 'clear_deploy_resume',
+        description:
+          'Cancel any pending deploy-resume continuation (e.g. the deploy is no longer needed or the task was completed another way).',
+        parameters: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
       },
     },
   ],
