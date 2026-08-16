@@ -386,10 +386,15 @@ export function resolveReviewAlertIconUrl(item = {}) {
 }
 
 const contactAuthorIconByUid = new Map();
+const contactAuthorNameByUid = new Map();
 let contactAuthorIconPrefetchPromise = null;
 
 function brandingPreviewUrl(url) {
   return (url || '').trim();
+}
+
+function contactListDisplayName(client) {
+  return (client?.company || '').trim() || (client?.name || '').trim();
 }
 
 /** Cache client icon/logo URLs for sidebar author icons (work, todo, etc.). */
@@ -400,7 +405,17 @@ export function registerContactAuthorIcons(clients) {
       brandingPreviewUrl(client.iconUrl) || brandingPreviewUrl(client.logoUrl);
     if (iconUrl) contactAuthorIconByUid.set(client.uid, iconUrl);
     else contactAuthorIconByUid.delete(client.uid);
+    const name = contactListDisplayName(client);
+    if (name) contactAuthorNameByUid.set(client.uid, name);
+    else contactAuthorNameByUid.delete(client.uid);
   }
+}
+
+/** Company or contact name for sidebar from lines; empty when unknown. */
+export function resolveContactAuthorName(contactUid) {
+  const uid = (contactUid || '').trim();
+  if (!uid) return '';
+  return contactAuthorNameByUid.get(uid) || '';
 }
 
 /** Best-effort contact list fetch so work/todo rows can show contact icons. */

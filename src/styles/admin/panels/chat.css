@@ -124,6 +124,19 @@ body.sidebar-resize-active * {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+#chat-panel .ch-item-chip-working {
+  display: none;
+}
+#chat-panel .ch-list-item--running .ch-item-chip-working {
+  display: inline;
+}
+#chat-panel .ch-list-item--running .em-cat-session {
+  display: none;
+}
+#chat-panel .ch-list-item:not(.ch-list-item--unread) .em-unseen-dot,
+#chat-panel .ch-list-item--running .em-unseen-dot {
+  display: none;
+}
 .ch-item-date {
   flex: 0 0 auto;
   font-size: 0.68rem;

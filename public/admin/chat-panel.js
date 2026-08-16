@@ -40,7 +40,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260811a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260810a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260814a';
@@ -1138,11 +1138,6 @@ function isChatUnread(t) {
   return updated > seen;
 }
 
-const CH_SPINNER_SVG =
-  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="42" stroke-dashoffset="15" opacity="0.9"/>' +
-  '</svg>';
-
 function readChatLastActiveId() {
   try {
     return localStorage.getItem(CHAT_LAST_ACTIVE_KEY)?.trim() || null;
@@ -1509,6 +1504,16 @@ function syncChatSidebarActiveState(opts = {}) {
   }
 }
 
+function chatListCategory(t) {
+  if (t.archived) return { label: 'Archive', className: 'em-cat-archive' };
+  if (t.linked_jobs?.length) return { label: postTitle(1), className: 'em-cat-project' };
+  return { label: 'Session', className: 'em-cat-session' };
+}
+
+function chatListFrom(t) {
+  return resolveContactAuthorName(t.contact_uid) || formatLinkedJobsSub(t.linked_jobs) || '';
+}
+
 function createChatListItem(t) {
   const isActive = t.id === chatState.activeId;
   const isRunning = chatState.runningIds.has(t.id);
@@ -1523,31 +1528,18 @@ function createChatListItem(t) {
     (isUnread ? ' ch-list-item--unread' : '');
   item.dataset.id = t.id;
   if (isActive) item.setAttribute('aria-current', 'page');
-  const archivedIcon = t.archived
-    ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${shell.navIcon('archive', 13)}</span>`
-    : '';
-  const linkedSub = formatLinkedJobsSub(t.linked_jobs);
-  const subLine = linkedSub
-    ? `<span class="ch-item-sub project-link-sub">${escHtml(linkedSub)}</span>`
-    : '';
-  // One absolutely-positioned slot shared by both indicators (no reflow ever,
-  // no extra placeholder in the row) — CSS shows the spinner when
-  // ch-list-item--running is set, otherwise the dot when --unread is set.
-  const statusIndicator =
-    `<span class="ch-item-status" aria-hidden="true">` +
-      `<span class="ch-item-status-spinner">${CH_SPINNER_SVG}</span>` +
-      `<span class="ch-item-status-dot"></span>` +
-    `</span>`;
+  const category = chatListCategory(t);
   item.innerHTML =
     sidebarAuthorIconHtml({ contactUid: t.contact_uid, iconUrl: t.author_icon_url }) +
-    statusIndicator +
     `<span class="ch-list-content">` +
-      `<span class="ch-item-row">` +
-        archivedIcon +
-        `<span class="ch-item-title">${escHtml(displaySessionTitle(t.title))}</span>` +
+      `<span class="em-item-row em-item-header">` +
+        `<span class="em-unseen-dot" aria-hidden="true"></span>` +
+        `<span class="em-status em-cat-working ch-item-chip-working">Working</span>` +
+        `<span class="em-status ${category.className}">${escHtml(category.label)}</span>` +
+        `<span class="em-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
+        `<span class="em-item-from">${escHtml(chatListFrom(t))}</span>` +
       `</span>` +
-      subLine +
-      `<span class="ch-item-date ch-item-date--bottom">${escHtml(formatChatDate(t.updated_at))}</span>` +
+      `<span class="em-item-summary ch-item-title">${escHtml(displaySessionTitle(t.title))}</span>` +
     `</span>`;
   item.addEventListener('click', () => {
     if (t.id === chatState.activeId) return;
@@ -1557,9 +1549,8 @@ function createChatListItem(t) {
 }
 
 /**
- * Patch running state directly on existing sidebar DOM nodes (called on
- * every running-poll tick) instead of rebuilding the whole list — just a
- * class toggle on the item, so it can't reflow or "jump" the row.
+ * Patch running state on existing sidebar rows (called on every running-poll
+ * tick) instead of rebuilding the list — a class toggle shows the Working chip.
  */
 function applyChatRunningIndicators() {
   const root = getChatPanel();

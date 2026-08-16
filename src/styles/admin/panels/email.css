@@ -1841,6 +1841,21 @@ html.reave-agent-asleep
   color: var(--em-notice-project);
   background: color-mix(in srgb, var(--em-notice-project) 14%, transparent);
 }
+.em-cat-working {
+  --em-item-accent: var(--em-notice-working);
+  color: var(--em-notice-working);
+  background: color-mix(in srgb, var(--em-notice-working) 14%, transparent);
+}
+.em-cat-archive {
+  --em-item-accent: var(--em-notice-archive);
+  color: var(--em-notice-archive);
+  background: color-mix(in srgb, var(--em-notice-archive) 12%, transparent);
+}
+.em-cat-session {
+  --em-item-accent: var(--em-notice-draft);
+  color: var(--em-notice-draft);
+  background: color-mix(in srgb, var(--em-notice-draft) 12%, transparent);
+}
 .em-money-hint { color: #6ee7b7; background: rgba(52,211,153,0.1); font-variant-numeric: tabular-nums; }
 .em-book-pending {
   color: var(--em-notice-book);
