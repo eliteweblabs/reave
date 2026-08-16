@@ -118,7 +118,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   email_marketing: 'Welcome, follow-ups, review requests, and broadcasts',
   fleet_tracking: 'Live vehicle location and GPS history',
   dealership_wizard: 'Inventory browse and guided deal flow',
-  namecom_dns: 'Name.com DNS records — agency/ops installs only',
+  namecom_dns: 'Name.com DNS — zone records and nameservers, agency/ops installs only',
   time_tracking: 'Log hours against projects and jobs',
   demo: 'Seed script, quick-start wizard, and Railway testing installs',
   real_estate_data: 'Property facts, compliance, and daily geofence scan',

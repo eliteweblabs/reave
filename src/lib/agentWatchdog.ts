@@ -42,6 +42,7 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   write_github_file: 90_000,
   sync_resend_dns: 120_000,
   cloudflare_dns: 90_000,
+  namecom_dns: 90_000,
   sync_vapi_assistant: 90_000,
   sync_uptimerobot: 90_000,
   backup_kinsta_site: 180_000,
@@ -125,6 +126,9 @@ const READ_ONLY_TOOLS = new Set([
   'read_file',
   'grep_code',
   'run_terminal_command',
+  'namecom_ping',
+  'namecom_list_domains',
+  'namecom_list_records',
 ]);
 
 /**

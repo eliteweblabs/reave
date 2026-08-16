@@ -13,6 +13,7 @@ Use when the user asks to **check, fix, or audit DNS or SSL in Cloudflare** — 
 | `cloudflare_dns` action `get_ssl_mode` | Read SSL/TLS encryption mode (off, flexible, full, strict) |
 | `cloudflare_dns` action `set_ssl_mode` | Change SSL/TLS mode — **fixes Error 525** when origin cert is broken (use `flexible` as stopgap) |
 | `dns_check` | Public resolver view — good for propagation checks; **can lag** minutes after NS changes |
+| `namecom_dns` | Registrar side when the domain is at Name.com — `get_domain` / `set_nameservers`. Zone records there are live only if NS is still `ns*.name.com`. |
 | `fetch_url` / `ssl_check` | Confirm the website is down (525) or back up after a fix |
 | `sync_resend_dns` | **Resend domains only** — pulls expected records from Resend API. Fails if domain is not in Resend. |
 | `run_dev_task` `ping_cloudflare` | Token connectivity only (no zone lookup) |

@@ -81,6 +81,7 @@ const SYSTEM_NODES = [
   { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
   { id: 'ipwhois', title: 'ipwho.is', sub: 'IP → ASN/org hosting lookup · dns_check (FEATURES: site_audits)', icon: '🌐', hue: 190, status: true, group: 'external', x: 1400, y: 1900 },
   { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · REΛVE agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
+  { id: 'namecom', title: 'Name.com', sub: 'registrar DNS · zone records + nameservers · namecom_dns (FEATURES: namecom_dns)', icon: '🌐', hue: 210, status: true, group: 'external', x: 1160, y: 1780 },
 ];
 
 const SYSTEM_EDGES = [
@@ -172,6 +173,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'ga4', label: 'analytics source=ga4', dashed: true },
   { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'astro', to: 'ipwhois', label: 'dns_check hosting lookup', dashed: true },
+  { from: 'astro', to: 'namecom', label: 'namecom_dns · records + NS', dashed: true },
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
   { from: 'content_mgmt', to: 'github', label: 'write_github_file', dashed: true },
   { from: 'content_mgmt', to: 'astro', label: 'config/sites · src/pages', dashed: true },
@@ -191,7 +193,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
   { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────

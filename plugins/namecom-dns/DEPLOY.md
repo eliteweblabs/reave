@@ -25,5 +25,5 @@ stage: 3
 
 - [ ] Confirm install is agency/ops (not a typical client deployment)
 - [ ] Set `NAMECOM_*` on Astro service
-- [ ] Test `list_dns_records` agent tool
+- [ ] Test `namecom_dns` agent tool (`ping`, `get_domain`, `list_records`, `set_nameservers`)
 - [ ] Set `moduleStatus.namecom_dns` → `deployed` in install config

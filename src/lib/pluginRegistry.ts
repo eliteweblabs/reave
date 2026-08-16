@@ -178,6 +178,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['clerk-setup-paulino'];
     case 'cookie-notice':
       return ['cookie-notice'];
+    case 'namecom-dns':
+      return ['namecom-dns'];
     default:
       return [];
   }

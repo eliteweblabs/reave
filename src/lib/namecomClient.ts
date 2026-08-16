@@ -149,15 +149,53 @@ export async function namecomUpdateRecord(
   );
 }
 
+export type NamecomDomain = {
+  domainName: string;
+  expireDate?: string;
+  createDate?: string;
+  locked?: boolean;
+  autorenewEnabled?: boolean;
+  privacyEnabled?: boolean;
+  nameservers?: string[];
+};
+
 /** List domains on the account. */
 export async function namecomListDomains(
   creds: NamecomCredentials,
-): Promise<NamecomResult<{ domainName: string; expireDate: string; locked: boolean }[]>> {
+): Promise<NamecomResult<NamecomDomain[]>> {
   const out = await namecomFetch<{
-    domains?: { domainName: string; expireDate: string; locked: boolean }[];
+    domains?: NamecomDomain[];
   }>('/domains', creds);
   if (!out.ok) return out;
   return { ok: true, data: out.data.domains ?? [] };
+}
+
+/** Get one domain — includes nameservers (authoritative for where DNS is hosted). */
+export async function namecomGetDomain(
+  domain: string,
+  creds: NamecomCredentials,
+): Promise<NamecomResult<NamecomDomain>> {
+  return namecomFetch<NamecomDomain>(`/domains/${encodeURIComponent(domain)}`, creds);
+}
+
+/** Point the domain at new nameservers (Name.com, Cloudflare, etc.). */
+export async function namecomSetNameservers(
+  domain: string,
+  nameservers: string[],
+  creds: NamecomCredentials,
+): Promise<NamecomResult<NamecomDomain>> {
+  const ns = nameservers.map((n) => n.trim().replace(/\.$/, '')).filter(Boolean);
+  if (!ns.length) return { ok: false, error: 'nameservers is required' };
+  return namecomFetch<NamecomDomain>(
+    `/domains/${encodeURIComponent(domain)}:setNameservers`,
+    creds,
+    { method: 'POST', body: JSON.stringify({ nameservers: ns }) },
+  );
+}
+
+/** True when Name.com is still hosting the zone (records API will work). */
+export function isNamecomHostedDns(nameservers: string[] | undefined): boolean {
+  return (nameservers ?? []).some((ns) => /\.name\.com$/i.test(ns.replace(/\.$/, '')));
 }
 
 /** Verify credentials work (ping). */
