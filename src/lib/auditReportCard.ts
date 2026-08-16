@@ -433,6 +433,21 @@ function findLetterGrade(text: string): LetterGrade | null {
   return null;
 }
 
+const NO_SSL_RE =
+  /\bnot secure\b|may not be safe|not trusted|certificate has expired|\bexpired\b.{0,20}cert|no ssl\b|missing ssl|tls inspection failed|econnrefused|http,? not https|http only|\bnot https\b|no certificate|lacks? (?:an? )?ssl|without ssl|unencrypted|(?:update|fix|missing|expired|invalid|no).{0,40}security certificate/;
+
+function inferSecurityGrade(sslSection: string, body: string): LetterGrade | null {
+  const section = sslSection.trim();
+  const failCorpus = (section || body).toLowerCase();
+  if (NO_SSL_RE.test(failCorpus)) return 'F';
+  if (!section) return null;
+  const lower = section.toLowerCase();
+  if (/missing .+ header|mixed.content|not fully secure/.test(lower)) return 'D';
+  if (/\bvalid\b|looks good|certificate is valid/.test(lower)) return 'B';
+  if (/\bssl\b|certificate|https|security header/.test(lower)) return 'C';
+  return 'C';
+}
+
 /** Mobile/desktop Lighthouse-style pairs from freeform audit prose. */
 function extractMobileDesktopPair(text: string): {
   mobile: number | null;
@@ -1121,10 +1136,40 @@ function extractActionItems(body: string): string[] {
     .slice(0, 12);
 }
 
+const DOMAIN_RE =
+  /\b(?:www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z]{2,})+\b/i;
+
+/** Host from a URL or domain — never a page title / business name. */
+export function extractAuditWebsite(raw: string | null | undefined): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const text = stripMd(raw).replace(/[.,;]+$/g, '').trim();
+  const mdHref = raw.match(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/i);
+  if (mdHref) return hostFromWebsite(mdHref[2]);
+  const url = text.match(/https?:\/\/[^\s)]+/i);
+  if (url) return hostFromWebsite(url[0]);
+  const domain = text.match(DOMAIN_RE);
+  return domain ? hostFromWebsite(domain[0]) : undefined;
+}
+
+function hostFromWebsite(raw: string): string | undefined {
+  const trimmed = raw.trim().replace(/[.,;]+$/g, '');
+  if (!trimmed) return undefined;
+  try {
+    const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const host = new URL(href).hostname.replace(/^www\./i, '').toLowerCase();
+    if (!host.includes('.') || host.length > 80) return undefined;
+    return host;
+  } catch {
+    return undefined;
+  }
+}
+
 function extractWebsiteLine(body: string): string | undefined {
-  const m = body.match(/\*\*Current Website:\*\*\s*(.+)/i);
-  if (!m) return undefined;
-  return stripMd(m[1]).slice(0, 120);
+  const labeled =
+    body.match(/\*\*(?:Current\s+)?Website:\*\*\s*(.+)/i) ||
+    body.match(/^(?:Current\s+)?Website:\s*(.+)$/im);
+  if (!labeled) return undefined;
+  return extractAuditWebsite(labeled[1]);
 }
 
 /** Explicit Problem/Solution pairs authored in the audit markdown. */
@@ -1525,6 +1570,8 @@ export function buildAuditReportCard(input: {
    * Forces Maps & Directories / GBP to missing so the client is always aware.
    */
   googlePlacesListed?: boolean | null;
+  /** Fallback when the audit body has no Current Website URL (contact portal). */
+  website?: string | null;
 }): AuditReportCard | null {
   let body = (input.body || '').trim();
   if (!isAuditJob({ ...input, body })) return null;
@@ -1721,24 +1768,11 @@ export function buildAuditReportCard(input: {
     return null;
   })();
 
-  // Only read SSL letter grades from the SSL section — never the whole body
-  // (otherwise an unrelated "Grade: F" elsewhere poisons website security).
+  // Letter grades only from the SSL section (a "Grade: F" elsewhere must not
+  // poison security). No-SSL / "Not Secure" language may come from the body
+  // when the agent skipped the playbook heading — that is still an F.
   const sslGrade = findLetterGrade(sslSection);
-  const securityGrade =
-    sslGrade ??
-    (() => {
-      const lower = sslSection.toLowerCase();
-      if (!sslSection.trim() && !/\bssl\b|certificate|https|security header/i.test(body)) {
-        return null;
-      }
-      if (!sslSection.trim()) return null;
-      if (/expired|not trusted|invalid|http,? not https/.test(lower)) return 'F' as LetterGrade;
-      if (/missing .+ header|mixed.content|not fully secure/.test(lower)) {
-        return 'D' as LetterGrade;
-      }
-      if (/valid|ok|looks good|certificate is valid/.test(lower)) return 'B' as LetterGrade;
-      return 'C' as LetterGrade;
-    })();
+  const securityGrade = sslGrade ?? inferSecurityGrade(sslSection, body);
 
   const bpGrade = bpScore != null ? scoreToGrade(bpScore) : bpFallback;
   // Security = worse of certificate/headers vs Best Practices (aligned score below).
@@ -2235,7 +2269,7 @@ export function buildAuditReportCard(input: {
     isAudit: true,
     inProgress: false,
     title: input.title || 'Website audit',
-    website: extractWebsiteLine(body),
+    website: extractWebsiteLine(body) || extractAuditWebsite(input.website),
     headline,
     heroStats,
     overall,

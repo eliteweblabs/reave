@@ -269,7 +269,24 @@ export async function sslCheck(urlInput: string): Promise<SslCheckResponse> {
     authError = tlsResult.authorizationError;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: `TLS inspection failed: ${msg}` };
+    const security_headers = auditHeaders({});
+    return {
+      ok: true,
+      url: url.toString(),
+      certificate: {
+        subject: hostname,
+        issuer: '',
+        valid_from: '',
+        valid_to: '',
+        days_until_expiry: -9999,
+        subject_alt_names: [],
+      },
+      tls: { protocol: 'none', authorized: false, error: msg },
+      security_headers,
+      mixed_content: { count: 0, samples: [] },
+      grade: 'F',
+      issues: [`No SSL/TLS certificate: ${msg}`, 'Site is not served over HTTPS'],
+    };
   }
 
   const validFrom = certInfo.valid_from ?? '';
@@ -336,7 +353,9 @@ export function formatSslCheckResults(result: Extract<SslCheckResponse, { ok: tr
     `SSL / security audit — ${result.url}`,
     `Grade: ${result.grade}`,
     `TLS: ${result.tls.protocol}${result.tls.authorized ? '' : ' (not trusted)'}`,
-    `Cert: ${result.certificate.subject} — expires ${result.certificate.valid_to} (${result.certificate.days_until_expiry}d)`,
+    result.tls.protocol === 'none'
+      ? 'Cert: none — TLS handshake failed (no SSL)'
+      : `Cert: ${result.certificate.subject} — expires ${result.certificate.valid_to} (${result.certificate.days_until_expiry}d)`,
     `Issuer: ${result.certificate.issuer}`,
   ];
   const missing = SECURITY_HEADERS.filter((h) => !result.security_headers[h].present);

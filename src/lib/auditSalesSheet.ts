@@ -5,7 +5,8 @@
  * so we can iterate without running a live audit. `salesSheetInputFromReportCard`
  * is the later hook into `buildAuditReportCard()`.
  */
-import type { ContactRecord } from './contactApi';
+import { extractPortal, type ContactRecord } from './contactApi';
+import { extractAuditWebsite } from './auditReportCard';
 import type {
   AuditReportCard,
   LetterGrade,
@@ -233,6 +234,27 @@ function categoryGrade(card: AuditReportCard, id: ReportCardCategoryId): LetterG
   return card.categories.find((c) => c.id === id)?.grade ?? null;
 }
 
+function contactPortalWebsite(contact: ContactRecord): string {
+  const portal = extractPortal(contact);
+  if (!portal) return '';
+  if (portal.website?.trim()) return portal.website.trim();
+  for (const field of portal.fields ?? []) {
+    if (/^(website|site) url$/i.test(field.label || '') && field.value?.trim()) {
+      return field.value.trim();
+    }
+  }
+  return '';
+}
+
+function resolveSalesSheetWebsite(
+  cardWebsite: string | undefined,
+  contact: ContactRecord,
+): string {
+  const fromCard = extractAuditWebsite(cardWebsite);
+  if (fromCard) return fromCard;
+  return extractAuditWebsite(contactPortalWebsite(contact)) || '';
+}
+
 export function salesSheetInputFromReportCard(
   card: AuditReportCard,
   contact: ContactRecord,
@@ -253,7 +275,7 @@ export function salesSheetInputFromReportCard(
 
   return {
     contact,
-    website: (card.website || contact.company || '').trim(),
+    website: resolveSalesSheetWebsite(card.website, contact),
     headline,
     overall: card.overall,
     overallScore: card.overallScore,

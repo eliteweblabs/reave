@@ -22,7 +22,7 @@ import {
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
 } from '../../lib/auditSalesSheet';
-import { getContact, type ContactRecord } from '../../lib/contactApi';
+import { extractPortal, getContact, type ContactRecord } from '../../lib/contactApi';
 import { buildAuditReportCard } from '../../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from '../../lib/workStore';
@@ -77,6 +77,11 @@ if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
       }
     }
     const listedFlag = await googlePlacesListedForContact(doc.contact_uid);
+    const portal = extractPortal(contact);
+    const contactWebsite =
+      portal?.website?.trim() ||
+      portal?.fields?.find((f) => /^(website|site) url$/i.test(f.label || ''))?.value?.trim() ||
+      '';
     const card = buildAuditReportCard({
       tags: doc.tags,
       source: doc.source,
@@ -84,6 +89,7 @@ if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
       body: doc.body || '',
       clientName: contact.company || contact.name,
       googlePlacesListed: listedFlag,
+      website: contactWebsite,
     });
     if (card && !card.inProgress) {
       input = salesSheetInputFromReportCard(card, contact, {

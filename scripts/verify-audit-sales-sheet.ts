@@ -237,6 +237,57 @@ await test('salesSheetInputFromReportCard pins Places miss when flag is false', 
   assert.equal(input.visibility, 'F');
 });
 
+await test('sales sheet uses contact website, not company name, and F for Not Secure', () => {
+  const card = buildAuditReportCard({
+    title: 'Website & Digital Presence Review - CALA RENEE Salon',
+    tags: ['siri-audit'],
+    source: 'organic',
+    clientName: 'CALA RENEE Salon',
+    website: 'https://calareneesalon.com',
+    body: `## Hi Cala!
+
+**Your website is showing a "Not Secure" warning to customers.**
+
+The fix: We need to update your website's security certificate.
+`,
+  });
+  assert.ok(card);
+  assert.equal(card.website, 'calareneesalon.com');
+  assert.equal(card.categories.find((c) => c.id === 'security')?.grade, 'F');
+  const input = salesSheetInputFromReportCard(card, {
+    ...DUMMY_SALES_SHEET.contact,
+    company: 'CALA RENEE Salon',
+    links: [
+      {
+        system: 'portal',
+        externalId: 'portal',
+        metadata: { website: 'https://calareneesalon.com' },
+      },
+    ],
+  });
+  assert.equal(input.website, 'calareneesalon.com');
+  assert.equal(input.security, 'F');
+});
+
+await test('Current Website title is not used as the site URL', () => {
+  const card = buildAuditReportCard({
+    title: 'Salon audit',
+    tags: ['siri-audit'],
+    clientName: 'CALA RENEE Salon',
+    website: 'https://calareneesalon.com',
+    body: `## Website Audit
+
+**Current Website:** CALA RENEE Salon
+
+### SSL & Website Security
+- TLS inspection failed: connect ECONNREFUSED
+`,
+  });
+  assert.ok(card);
+  assert.equal(card.website, 'calareneesalon.com');
+  assert.equal(card.categories.find((c) => c.id === 'security')?.grade, 'F');
+});
+
 await test('salesSheetAuditUrl prefers explicit audit, then run, then portal uid', () => {
   const origin = 'https://example.com';
   assert.equal(salesSheetAuditUrl(new URLSearchParams(), origin), 'https://example.com/digital-audit');

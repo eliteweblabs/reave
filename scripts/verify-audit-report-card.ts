@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import {
   AUDIT_SCAN_STACK,
   buildAuditReportCard,
+  extractAuditWebsite,
   labPerformanceToGrade,
   reportCardCategoryMeta,
 } from '../src/lib/auditReportCard.ts';
@@ -252,6 +253,28 @@ Scores — performance: 84, accessibility: 88, best-practices: 79, seo: 92
   assert.match(mobile?.source || '', /Playwright/);
   assert.match(lead?.source || '', /Playwright/);
   console.log('ok — Playwright is listed on the audit frontend stack');
+}
+
+{
+  assert.equal(extractAuditWebsite('CALA RENEE Salon'), undefined);
+  assert.equal(extractAuditWebsite('[CALA RENEE Salon](https://calareneesalon.com)'), 'calareneesalon.com');
+  assert.equal(extractAuditWebsite('https://www.calareneesalon.com/'), 'calareneesalon.com');
+  assert.equal(extractAuditWebsite('haleco.example (Wix)'), 'haleco.example');
+  console.log('ok — website extractor prefers URL/domain over page title');
+}
+
+{
+  const r = card(
+    'Not Secure letter',
+    `## Website Audit
+
+**Your website is showing a "Not Secure" warning to customers.**
+We need to update your website's security certificate.
+`,
+  );
+  const security = r.categories.find((c) => c.id === 'security');
+  assert.equal(security?.grade, 'F', 'browser Not Secure warning is an F');
+  console.log('ok — Not Secure write-up grades security F');
 }
 
 console.log('all audit report-card checks passed');
