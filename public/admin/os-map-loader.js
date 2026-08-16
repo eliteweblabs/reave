@@ -156,7 +156,7 @@ import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260810a';
+} from './documents-panel.js?v=20260816a';
 import {
   initKnowledgePanel,
   knowledgeState,

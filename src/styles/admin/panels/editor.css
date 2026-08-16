@@ -967,6 +967,13 @@ button.de-placeholder-action:active {
   letter-spacing: 0.03em;
   text-transform: uppercase;
   flex: 0 0 auto;
+  gap: 0.4rem;
+}
+.de-sc-dir-hdr-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
 }
 .de-sc-dir-hint {
   font-size: 0.65rem;
@@ -974,6 +981,20 @@ button.de-placeholder-action:active {
   color: var(--muted);
   text-transform: none;
   letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.de-sc-dir-hdr .de-scan-btn {
+  width: 1.7rem;
+  height: 1.7rem;
+  min-width: 1.7rem;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.de-sc-dir-hdr .de-scan-btn svg {
+  width: 14px;
+  height: 14px;
 }
 .de-sc-dir-body {
   overflow-y: auto;

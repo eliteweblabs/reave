@@ -1,11 +1,15 @@
 /**
- * POST /api/documents/render — render markdown to HTML for admin preview.
+ * POST /api/documents/scan — replace literal dates, emails, phones, and
+ * known fill values in a template with shortcodes.
  */
 import type { APIRoute } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { getCompanyConfig } from '../../../lib/companyConfig';
-import { PREVIEW_CONTACT, fillTemplate, renderFilledDocumentHtml } from '../../../lib/documentTemplates';
-import { parseDocumentLayout, wrapPrintPreviewDocument } from '../../../lib/documentPrintLayout';
+import {
+  PREVIEW_CONTACT,
+  scanMarkdownForShortcodes,
+  shortcodeExamples,
+} from '../../../lib/documentTemplates';
 
 export const prerender = false;
 
@@ -30,13 +34,9 @@ export const POST: APIRoute = async (context) => {
 
   try {
     const company = await getCompanyConfig(context.request);
-    const layout = parseDocumentLayout(content);
-    const source =
-      layout.layout === 'onepager' ? fillTemplate(content, PREVIEW_CONTACT, company) : content;
-    const html = await renderFilledDocumentHtml(source, company);
-    const previewHtml =
-      layout.layout === 'onepager' ? wrapPrintPreviewDocument(html, layout.orientation) : html;
-    return new Response(JSON.stringify({ html: previewHtml }), {
+    const examples = shortcodeExamples(PREVIEW_CONTACT, company);
+    const result = scanMarkdownForShortcodes(content, examples);
+    return new Response(JSON.stringify({ content: result.markdown, hits: result.hits }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   } catch (e) {

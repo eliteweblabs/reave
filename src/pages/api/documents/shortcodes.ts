@@ -8,10 +8,10 @@
  * that new DB columns appear in the directory automatically.
  */
 import type { APIRoute } from 'astro';
-import type { APIContext } from 'astro';
-import { SHORTCODES, type Shortcode } from '../../../lib/documentTemplates';
+import { PREVIEW_CONTACT, SHORTCODES, shortcodeExamples, type Shortcode } from '../../../lib/documentTemplates';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { getCompanyConfig } from '../../../lib/companyConfig';
 
 export const prerender = false;
 
@@ -32,7 +32,12 @@ export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  const shortcodes: Shortcode[] = [...SHORTCODES];
+  const company = await getCompanyConfig(context.request);
+  const exampleMap = new Map(shortcodeExamples(PREVIEW_CONTACT, company).map((ex) => [ex.code, ex.value]));
+  const shortcodes: Shortcode[] = SHORTCODES.map((sc) => {
+    const example = exampleMap.get(sc.code);
+    return example ? { ...sc, example } : { ...sc };
+  });
 
   if (isContactApiConfigured()) {
     try {

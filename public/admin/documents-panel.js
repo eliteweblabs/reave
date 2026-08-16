@@ -28,7 +28,6 @@ import {
   swipeClearAction,
   paneDeleteIcon,
   paneShareIcon,
-  createAgentBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -36,7 +35,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   showCopyButtonFeedback,
-} from './admin-ui.js?v=20260811a';
+} from './admin-ui.js?v=20260816a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260810a';
@@ -63,6 +62,7 @@ let docState = {
   savedContent: '',
   autosaveGetHtml: null,
   paneMode: 'edit', // 'edit' | 'view'
+  lastSelection: null, // { source: 'textarea'|'preview', text, start?, end?, ta? }
 };
 let docAutosaveTimer = null;
 
@@ -347,7 +347,15 @@ function renderDocEditor() {
 
     const scHdr = document.createElement('div');
     scHdr.className = 'de-sc-dir-hdr';
-    scHdr.innerHTML = '<span>Shortcodes</span><span class="de-sc-dir-hint">type { to insert</span>';
+    const scTitle = document.createElement('span');
+    scTitle.textContent = 'Shortcodes';
+    const scActions = document.createElement('span');
+    scActions.className = 'de-sc-dir-hdr-actions';
+    const scHint = document.createElement('span');
+    scHint.className = 'de-sc-dir-hint';
+    scHint.textContent = 'select text, then tap';
+    scActions.append(scHint, createDocScanBtn());
+    scHdr.append(scTitle, scActions);
     scDir.appendChild(scHdr);
 
     const scBody = document.createElement('div');
@@ -363,15 +371,11 @@ function renderDocEditor() {
       for (const sc of shortcodes.filter((s) => s.category === cat)) {
         const item = document.createElement('div');
         item.className = 'de-sc-dir-item';
+        item.dataset.code = sc.code;
         item.title = sc.description;
         item.innerHTML = `<code class="de-sc-token">${escHtml(sc.token)}</code><span class="de-sc-lbl">${escHtml(sc.label)}</span>`;
-        // Click-to-copy
-        item.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(sc.token);
-            showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
-          } catch {}
-        });
+        item.addEventListener('mousedown', (e) => e.preventDefault());
+        item.addEventListener('click', () => applyShortcodeFromDirectory(sc, item));
         scBody.appendChild(item);
       }
     }
@@ -412,9 +416,10 @@ function renderNewForm(pane) {
   ta.id = 'de-new-content';
   ta.spellcheck = false;
   ta.placeholder = '---\ntitle: My Document\n---\n\n# Title\n\nBody…';
-  attachShortcodePopover(ta);
-  attachDocTextareaPinchZoom(ta);
-  scroll.appendChild(ta);
+      attachShortcodePopover(ta);
+      attachDocTextareaPinchZoom(ta);
+      attachTextareaSelectionTracking(ta);
+      scroll.appendChild(ta);
   pane.appendChild(scroll);
 
   shell.clearEditorFooterSave();
@@ -457,9 +462,7 @@ function renderEditForm(pane) {
           title: tpl?.title ?? slug,
           afterTitle: modeTabs,
           icons: [
-            createAgentBtn({
-              onClick: () => askAgentAboutDocument(tpl || { slug, title: tpl?.title ?? slug }),
-            }),
+            createDocScanBtn(),
             paneShareIcon({
               label: 'Send to a contact',
               onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
@@ -488,12 +491,14 @@ function renderEditForm(pane) {
       });
       attachShortcodePopover(ta);
       attachDocTextareaPinchZoom(ta);
+      attachTextareaSelectionTracking(ta);
 
       // ── Preview iframe (view mode, sandboxed — no scripts) ──
       const preview = document.createElement('iframe');
       preview.className = 'de-preview';
       preview.setAttribute('sandbox', 'allow-same-origin');
       preview.title = 'Document preview';
+      attachPreviewSelectionTracking(preview);
 
       if (docState.paneMode === 'view') {
         ta.style.display = 'none';
@@ -735,6 +740,254 @@ async function deleteDocument(slug) {
     await loadDocumentsTab();
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);
+  }
+}
+
+function getActiveDocTextarea() {
+  return getDocEditor()?.querySelector('.de-textarea') || null;
+}
+
+function getActiveDocPreview() {
+  return getDocEditor()?.querySelector('.de-preview') || null;
+}
+
+function setDocHint(text) {
+  const hint = getDocEditor()?.querySelector('.de-sc-dir-hint');
+  if (hint) hint.textContent = text;
+}
+
+function flashShortcodeItems(codes) {
+  const root = getDocEditor();
+  if (!root) return;
+  for (const code of codes) {
+    const el = root.querySelector(`.de-sc-dir-item[data-code="${CSS.escape(code)}"]`);
+    if (!el) continue;
+    el.classList.add('de-sc-copied');
+    window.setTimeout(() => el.classList.remove('de-sc-copied'), 1400);
+  }
+}
+
+function flashScanButtons(label) {
+  getDocEditor()?.querySelectorAll('.de-scan-btn').forEach((btn) => {
+    const orig = btn.innerHTML;
+    const origTitle = btn.title;
+    btn.innerHTML = IOS_ICONS.check;
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.classList.add('is-copy-success');
+    window.setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.title = origTitle;
+      btn.setAttribute('aria-label', origTitle);
+      btn.classList.remove('is-copy-success');
+    }, 1400);
+  });
+}
+
+async function applyDocMarkdown(content) {
+  const ta = getActiveDocTextarea();
+  if (!ta) return;
+  if (ta.value === content) return;
+  ta.value = content;
+  ta.dispatchEvent(new Event('input'));
+  const preview = getActiveDocPreview();
+  if (preview && docState.paneMode === 'view') {
+    try {
+      preview.srcdoc = await renderDocumentPreview(content);
+    } catch {
+      preview.srcdoc = '<p>Preview failed.</p>';
+    }
+  }
+}
+
+function attachTextareaSelectionTracking(ta) {
+  const save = () => {
+    const start = ta.selectionStart ?? 0;
+    const end = ta.selectionEnd ?? 0;
+    if (start === end) return;
+    docState.lastSelection = {
+      source: 'textarea',
+      text: ta.value.slice(start, end),
+      start,
+      end,
+      ta,
+    };
+  };
+  ta.addEventListener('select', save);
+  ta.addEventListener('mouseup', save);
+  ta.addEventListener('keyup', save);
+}
+
+function attachPreviewSelectionTracking(iframe) {
+  const bind = () => {
+    const doc = iframe.contentDocument;
+    if (!doc || doc.dataset.scSelBound === '1') return;
+    doc.dataset.scSelBound = '1';
+    const save = () => {
+      const text = doc.getSelection()?.toString().replace(/\s+/g, ' ').trim();
+      if (text) docState.lastSelection = { source: 'preview', text };
+    };
+    doc.addEventListener('selectionchange', save);
+    doc.addEventListener('mouseup', save);
+  };
+  iframe.addEventListener('load', bind);
+  if (iframe.contentDocument?.readyState === 'complete') bind();
+}
+
+function createDocScanBtn() {
+  return createIosIconBtn({
+    iconKey: 'scan-text',
+    label: 'Scan for shortcodes',
+    className: 'ios-icon-btn de-scan-btn',
+    onClick: (btn) => void scanActiveDocument(btn),
+  });
+}
+
+function looksLikeDate(text) {
+  return /(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}/i.test(text);
+}
+
+function looksLikeEmail(text) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
+
+function looksLikePhone(text) {
+  return /(?:\+1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/.test(text);
+}
+
+function selectionMatchesShortcode(selected, sc) {
+  const text = (selected || '').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+  const example = (sc.example || '').replace(/\s+/g, ' ').trim();
+  if (example && text.toLowerCase() === example.toLowerCase()) return true;
+  if (sc.code === 'date' && looksLikeDate(text)) return true;
+  if (sc.code === 'year' && text === String(new Date().getFullYear())) return true;
+  if ((sc.code === 'client.email' || sc.code === 'company.support_email') && looksLikeEmail(text)) return true;
+  if (sc.code === 'client.phone' && looksLikePhone(text)) return true;
+  return false;
+}
+
+function replaceLiteralInMarkdown(markdown, selected, token) {
+  const needle = (selected || '').replace(/\s+/g, ' ').trim();
+  if (!needle) return { markdown, count: 0 };
+  const tokenRe = /\{[a-z][a-z0-9_.]*\}/gi;
+  const ranges = [];
+  let m;
+  while ((m = tokenRe.exec(markdown))) ranges.push([m.index, m.index + m[0].length]);
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let count = 0;
+  const next = markdown.replace(new RegExp(escaped, 'g'), (match, offset) => {
+    if (ranges.some(([a, b]) => offset >= a && offset < b)) return match;
+    count += 1;
+    return token;
+  });
+  return { markdown: next, count };
+}
+
+function replaceTextareaRange(ta, start, end, token) {
+  const before = ta.value.slice(0, start);
+  const after = ta.value.slice(end);
+  ta.value = before + token + after;
+  ta.selectionStart = ta.selectionEnd = start + token.length;
+  ta.dispatchEvent(new Event('input'));
+  ta.focus();
+}
+
+async function applyShortcodeFromDirectory(sc, item) {
+  const ta = getActiveDocTextarea();
+  const sel = docState.lastSelection;
+  const liveStart = ta?.selectionStart ?? -1;
+  const liveEnd = ta?.selectionEnd ?? -1;
+  const liveSelected = ta && liveStart !== liveEnd ? ta.value.slice(liveStart, liveEnd) : '';
+
+  if (ta && liveSelected) {
+    replaceTextareaRange(ta, liveStart, liveEnd, sc.token);
+    flashShortcodeItems([sc.code]);
+    showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
+    setDocHint('replaced selection');
+    window.setTimeout(() => setDocHint('select text, then tap'), 1600);
+    return;
+  }
+
+  if (ta && sel?.source === 'textarea' && sel.ta === ta && sel.start !== sel.end) {
+    replaceTextareaRange(ta, sel.start, sel.end, sc.token);
+    docState.lastSelection = null;
+    flashShortcodeItems([sc.code]);
+    showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
+    setDocHint('replaced selection');
+    window.setTimeout(() => setDocHint('select text, then tap'), 1600);
+    return;
+  }
+
+  if (ta && sel?.text) {
+    const { markdown, count } = replaceLiteralInMarkdown(ta.value, sel.text, sc.token);
+    if (count) {
+      await applyDocMarkdown(markdown);
+      flashShortcodeItems([sc.code]);
+      showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
+      setDocHint(count === 1 ? 'replaced selection' : `replaced ${count} matches`);
+      window.setTimeout(() => setDocHint('select text, then tap'), 1600);
+      return;
+    }
+    if (selectionMatchesShortcode(sel.text, sc)) {
+      flashShortcodeItems([sc.code]);
+      setDocHint('already a shortcode');
+      window.setTimeout(() => setDocHint('select text, then tap'), 1600);
+      return;
+    }
+    setDocHint('text not found in template');
+    window.setTimeout(() => setDocHint('select text, then tap'), 1800);
+    return;
+  }
+
+  if (ta && docState.paneMode !== 'view') {
+    const pos = ta.selectionStart ?? ta.value.length;
+    replaceTextareaRange(ta, pos, ta.selectionEnd ?? pos, sc.token);
+    flashShortcodeItems([sc.code]);
+    showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(sc.token);
+    showCopyButtonFeedback(item.querySelector('.de-sc-token') || item);
+  } catch { /* ignore */ }
+}
+
+async function scanActiveDocument() {
+  const ta = getActiveDocTextarea();
+  if (!ta?.value.trim()) {
+    setDocHint('open a document first');
+    window.setTimeout(() => setDocHint('select text, then tap'), 1600);
+    return;
+  }
+  setDocHint('scanning…');
+  try {
+    const res = await fetch('/api/documents/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: ta.value }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const hits = Array.isArray(data.hits) ? data.hits : [];
+    const next = typeof data.content === 'string' ? data.content : ta.value;
+    if (!hits.length || next === ta.value) {
+      flashScanButtons('Nothing to replace');
+      setDocHint('no matches');
+      window.setTimeout(() => setDocHint('select text, then tap'), 1800);
+      return;
+    }
+    await applyDocMarkdown(next);
+    flashShortcodeItems(hits.map((h) => h.code));
+    const n = hits.reduce((sum, h) => sum + (h.count || 0), 0);
+    const label = n === 1 ? 'Replaced 1 field' : `Replaced ${n} fields`;
+    flashScanButtons(label);
+    setDocHint(label.toLowerCase());
+    window.setTimeout(() => setDocHint('select text, then tap'), 2200);
+  } catch (e) {
+    setDocHint(e.message || 'scan failed');
+    window.setTimeout(() => setDocHint('select text, then tap'), 2200);
   }
 }
 

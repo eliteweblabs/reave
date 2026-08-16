@@ -25,6 +25,18 @@ export type Shortcode = {
   label: string;       // e.g. 'Full name'
   description: string;
   category: 'Contact' | 'Date' | 'Company';
+  example?: string;    // current filled value, for scan / already-applied checks
+};
+
+/** Sample contact so View mode and shortcode scan share the same fill data. */
+export const PREVIEW_CONTACT: ContactRecord = {
+  uid: 'preview',
+  name: 'Jordan Hale',
+  firstName: 'Jordan',
+  lastName: 'Hale',
+  email: 'jordan@example.com',
+  phone: '(555) 010-0148',
+  company: 'Hale & Co.',
 };
 
 export const SHORTCODES: Shortcode[] = [
@@ -76,14 +88,31 @@ export function getTemplate(slug: string): DocumentTemplate | null {
   return { slug, title: titleFromDocumentMarkdown(markdown, slug), markdown };
 }
 
-/**
- * Fill all {placeholder} tokens in the template markdown with contact data.
- */
-export function fillTemplate(
-  markdown: string,
-  contact: ContactRecord,
-  org?: PrintCompany,
-): string {
+export type ShortcodeExample = {
+  code: string;
+  token: string;
+  value: string;
+};
+
+export type ShortcodeScanHit = {
+  code: string;
+  token: string;
+  count: number;
+};
+
+const MONTHS_LONG = 'January|February|March|April|May|June|July|August|September|October|November|December';
+const MONTHS_SHORT = 'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec';
+const DATE_RE = new RegExp(
+  String.raw`\b(?:(?:${MONTHS_LONG})|(?:${MONTHS_SHORT})\.?)\s+\d{1,2},?\s+\d{4}\b|\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b`,
+  'gi',
+);
+const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const PHONE_RE = /(?:\+1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g;
+const SUPPORT_LOCAL_RE = /^(support|hello|info|contact|help|office|admin|team|hi)$/i;
+const TOKEN_RE = /\{[a-z][a-z0-9_.]*\}/gi;
+const SKIP_SCAN_CODES = new Set(['client.company_str']);
+
+function contactNameParts(contact: ContactRecord): { firstName: string; lastName: string; company: string } {
   const firstName =
     contact.firstName?.trim() ||
     (contact.name ?? '').split(/\s+/)[0] ||
@@ -92,12 +121,187 @@ export function fillTemplate(
     contact.lastName?.trim() ||
     (contact.name ?? '').split(/\s+/).slice(1).join(' ') ||
     '';
-  const contactCompany = contact.company?.trim() || '';
-  const today = new Date().toLocaleDateString('en-US', {
+  return { firstName, lastName, company: contact.company?.trim() || '' };
+}
+
+function formatTodayDate(now = new Date()): string {
+  return now.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+}
+
+/** Filled values that `{token}` resolves to — used by fill, preview, and scan. */
+export function shortcodeExamples(contact: ContactRecord, org?: PrintCompany, now = new Date()): ShortcodeExample[] {
+  const { firstName, lastName, company } = contactNameParts(contact);
+  const today = formatTodayDate(now);
+  const values: Array<[string, string]> = [
+    ['client.name', contact.name ?? ''],
+    ['client.first_name', firstName],
+    ['client.last_name', lastName],
+    ['client.email', contact.email ?? ''],
+    ['client.phone', contact.phone ?? ''],
+    ['client.company', company],
+    ['company.name', org?.name ?? ''],
+    ['company.legal_name', org?.legalName ?? org?.name ?? ''],
+    ['company.domain', org?.domain ?? ''],
+    ['company.support_email', org?.supportEmail ?? ''],
+    ['date', today],
+    ['year', String(now.getFullYear())],
+  ];
+  return values
+    .filter(([, value]) => value.trim().length > 0)
+    .map(([code, value]) => ({ code, token: `{${code}}`, value }));
+}
+
+function tokenRanges(markdown: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  const re = new RegExp(TOKEN_RE.source, TOKEN_RE.flags);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markdown))) ranges.push([m.index, m.index + m[0].length]);
+  return ranges;
+}
+
+function inProtectedRange(index: number, ranges: Array<[number, number]>): boolean {
+  return ranges.some(([start, end]) => index >= start && index < end);
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function replaceUnprotected(
+  markdown: string,
+  pattern: RegExp,
+  replace: (match: string, offset: number) => string,
+): { markdown: string; count: number } {
+  const ranges = tokenRanges(markdown);
+  const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
+  let count = 0;
+  const next = markdown.replace(re, (match, ...args) => {
+    const offset = args[args.length - 2] as number;
+    if (inProtectedRange(offset, ranges)) return match;
+    const swapped = replace(match, offset);
+    if (swapped === match) return match;
+    count += 1;
+    return swapped;
+  });
+  return { markdown: next, count };
+}
+
+function addHit(hits: Map<string, ShortcodeScanHit>, code: string, token: string, count: number) {
+  if (count <= 0) return;
+  const prev = hits.get(code);
+  if (prev) prev.count += count;
+  else hits.set(code, { code, token, count });
+}
+
+/**
+ * Replace literal dates, emails, phones, and known fill values with shortcodes.
+ * Existing `{tokens}` are left alone.
+ */
+export function scanMarkdownForShortcodes(
+  markdown: string,
+  examples: ShortcodeExample[],
+): { markdown: string; hits: ShortcodeScanHit[] } {
+  const hits = new Map<string, ShortcodeScanHit>();
+  let next = markdown;
+
+  let supportEmailCount = 0;
+  let clientEmailCount = 0;
+  const { markdown: afterEmails } = replaceUnprotected(next, EMAIL_RE, (match) => {
+    const knownEmail = examples.find(
+      (ex) =>
+        (ex.code === 'company.support_email' || ex.code === 'client.email') &&
+        ex.value.toLowerCase() === match.toLowerCase(),
+    );
+    if (knownEmail?.code === 'company.support_email' || SUPPORT_LOCAL_RE.test(match.split('@')[0] || '')) {
+      supportEmailCount += 1;
+      return '{company.support_email}';
+    }
+    clientEmailCount += 1;
+    return '{client.email}';
+  });
+  next = afterEmails;
+  addHit(hits, 'company.support_email', '{company.support_email}', supportEmailCount);
+  addHit(hits, 'client.email', '{client.email}', clientEmailCount);
+
+  const { markdown: afterPhones, count: phoneCount } = replaceUnprotected(next, PHONE_RE, () => '{client.phone}');
+  next = afterPhones;
+  addHit(hits, 'client.phone', '{client.phone}', phoneCount);
+
+  const known = examples
+    .filter((ex) => !SKIP_SCAN_CODES.has(ex.code) && ex.value.trim().length >= 3)
+    .slice()
+    .sort((a, b) => b.value.length - a.value.length || a.code.localeCompare(b.code));
+
+  for (const ex of known) {
+    const variants = [ex.value];
+    if (ex.code === 'company.domain') {
+      const host = ex.value.replace(/^www\./i, '');
+      if (host && host !== ex.value) variants.push(host);
+      variants.push(`www.${host}`);
+    }
+    const unique = [...new Set(variants.map((v) => v.trim()).filter(Boolean))];
+    for (const value of unique) {
+      const { markdown: replaced, count } = replaceUnprotected(
+        next,
+        new RegExp(escapeRegExp(value), 'g'),
+        (match, offset) => {
+          if (ex.code === 'company.domain' && offset > 0 && next[offset - 1] === '@') return match;
+          return ex.token;
+        },
+      );
+      next = replaced;
+      addHit(hits, ex.code, ex.token, count);
+    }
+  }
+
+  const { markdown: afterDates, count: dateCount } = replaceUnprotected(next, DATE_RE, () => '{date}');
+  next = afterDates;
+  addHit(hits, 'date', '{date}', dateCount);
+
+  const year = String(new Date().getFullYear());
+  const { markdown: afterYear, count: yearCount } = replaceUnprotected(
+    next,
+    new RegExp(`\\b${escapeRegExp(year)}\\b`, 'g'),
+    () => '{year}',
+  );
+  next = afterYear;
+  addHit(hits, 'year', '{year}', yearCount);
+
+  return { markdown: next, hits: [...hits.values()].filter((h) => h.count > 0) };
+}
+
+/** Replace a selected literal with a shortcode, skipping text already inside `{tokens}`. */
+export function replaceLiteralWithShortcode(
+  markdown: string,
+  selected: string,
+  token: string,
+): { markdown: string; count: number } {
+  const needle = selected.replace(/\s+/g, ' ').trim();
+  if (!needle) return { markdown, count: 0 };
+  const { markdown: exact, count } = replaceUnprotected(
+    markdown,
+    new RegExp(escapeRegExp(needle), 'g'),
+    () => token,
+  );
+  if (count) return { markdown: exact, count };
+  if (needle === selected.trim()) return { markdown, count: 0 };
+  return replaceUnprotected(markdown, new RegExp(escapeRegExp(selected.trim()), 'g'), () => token);
+}
+
+/**
+ * Fill all {placeholder} tokens in the template markdown with contact data.
+ */
+export function fillTemplate(
+  markdown: string,
+  contact: ContactRecord,
+  org?: PrintCompany,
+): string {
+  const { firstName, lastName, company: contactCompany } = contactNameParts(contact);
+  const today = formatTodayDate();
 
   let result = markdown
     .replace(/{client\.name}/g, escMarkdown(contact.name ?? ''))
