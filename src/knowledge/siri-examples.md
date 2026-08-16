@@ -454,7 +454,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 7c: "Full Audit" (comprehensive)
 
-**What it does**: Same as the quick audit, plus Playwright UX/UI (real browser), broken link crawl, and tech stack detection. Use when you have time — not optimized for on-the-street speed.
+**What it does**: Same as the quick audit, plus Playwright UX/UI (real browser, including screenshots of failed states like an empty hamburger menu), broken link crawl, and tech stack detection. Use when you have time — not optimized for on-the-street speed.
 
 **Siri phrase**: "full audit"
 

@@ -241,7 +241,7 @@ async function runProposalResearch(input: {
     input.tier === 'full'
       ? '3. Run the **full** audit tool sequence on the website: fetch_url, seo_inventory (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD), ' +
         `lighthouse_audit, ssl_check, check_links, dns_check, brave_search (${directorySearch}), ` +
-        'playwright_audit (Playwright / Chromium real-browser UX/UI on desktop + mobile), detect_tech_stack, and Search/Analytics tools ' +
+        'playwright_audit (Playwright / Chromium real-browser UX/UI on desktop + mobile; issue screenshots when a check fails), detect_tech_stack, and Search/Analytics tools ' +
         '(gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps and plausible_stats or ga4_stats when site_id/property_id is known — ' +
         'always pass explicit site_url; never company domain). Run read-only tools in parallel when possible. ' +
         'Call lighthouse_audit **once** — if it fails, proceed to step 4; do NOT retry. ' +
