@@ -22,6 +22,7 @@ import {
   setFrontmatterTitle,
 } from '../src/lib/auditSalesSheet.ts';
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
+import { listBrandLogos } from '../src/lib/brandLogos.ts';
 import {
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
@@ -332,6 +333,30 @@ await test('QR block says View Full Audit and lands in the header mast', () => {
     qr,
   );
   assert.ok(injected.indexOf('ss-qr') < injected.indexOf('Website Audit'));
+});
+
+await test('audit templates opt into folder-backed client brands, not HTML imgs', () => {
+  for (const md of [landscape, portrait]) {
+    assert.match(md, /^brands:\s*clients$/m);
+    assert.doesNotMatch(md, /<img\b/i);
+    assert.doesNotMatch(md, /porsche|red bull|new york times/i);
+  }
+});
+
+await test('fillAuditOnePager keeps the brands frontmatter flag', () => {
+  const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
+  assert.match(filled, /^brands:\s*clients$/m);
+});
+
+await test('about-page brand names live in site config and the clients folder is scanned', () => {
+  const about = JSON.parse(
+    readFileSync(join(here, '../config/sites/reave-config.json'), 'utf8'),
+  ) as { clientLogos?: Array<{ name?: string }> };
+  const aboutNames = (about.clientLogos ?? []).map((l) => String(l.name || ''));
+  assert.ok(aboutNames.some((n) => /porsche/i.test(n)), 'about page is missing Porsche');
+  assert.ok(aboutNames.some((n) => /montana/i.test(n)), 'about page is missing Montana Cans');
+  const folder = listBrandLogos('clients');
+  assert.ok(folder.some((l) => /montana/i.test(l.name) && l.src.includes('/logos/clients/')));
 });
 
 console.log(results.join('\n'));

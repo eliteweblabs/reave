@@ -1,7 +1,8 @@
 ---
-// Desaturated "worked with" logo marquee. Images come from the media library
-// via site content (config/sites/{key}-config.json → clientLogos).
-import { getSiteContent } from "../lib/siteContent";
+// Desaturated "worked with" logo marquee. Images come from
+// public/logos/clients/ (new files show up automatically) merged with
+// about-page site content (config/sites/{key}-config.json → clientLogos).
+import { listClientBrandLogos } from "../lib/clientBrandLogos";
 
 interface ClientLogo {
   name: string;
@@ -19,13 +20,12 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
-const configured = getSiteContent().clientLogos ?? [];
 const logos: ClientLogo[] = shuffle(
-  configured.map((logo) => ({
+  listClientBrandLogos().map((logo) => ({
     name: logo.name,
-    src: logo.image,
-    width: logo.width,
-    height: logo.height,
+    src: logo.src,
+    width: logo.width || 24,
+    height: logo.height || 24,
   })),
 );
 

@@ -14,6 +14,11 @@ import { brandIconUrl, companyLogoUrl, type CompanyConfig } from './companyConfi
 import { prepareInlineBrandSvg, svgHasExternalRasterRefs } from './brandSvg';
 import { extractPortal, type ContactRecord } from './contactApi';
 import { resolveClientIconUrl, resolveClientLogoUrl } from './clientBranding';
+import { listBrandLogos } from './brandLogos';
+import {
+  DOCUMENT_CLIENT_LOGOS_CSS,
+  renderClientBrandLogosHtml,
+} from './clientBrandLogos';
 import { SITE } from '../config/site';
 
 export type DocumentOrientation = 'portrait' | 'landscape';
@@ -40,6 +45,8 @@ export type ParsedDocumentLayout = {
   layout: DocumentLayoutKind;
   orientation: DocumentOrientation;
   footer: string;
+  /** Folder-backed brand strip (e.g. `clients` → public/logos/clients/). */
+  brands: string;
   body: string;
   columns: string[];
 };
@@ -70,10 +77,19 @@ export function parseDocumentLayout(markdown: string, slug = ''): ParsedDocument
     parsed.title ||
     slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const footer = fmValue(fm, 'footer');
+  const brands = parseBrandsFolder(fmValue(fm, 'brands'));
   const body = parsed.body;
   const columns = splitColumns(body);
 
-  return { title, layout, orientation, footer, body, columns };
+  return { title, layout, orientation, footer, brands, body, columns };
+}
+
+/** `clients` / `true` / `about` → public/logos/clients/. Empty disables the strip. */
+export function parseBrandsFolder(raw: string): string {
+  const key = raw.trim().toLowerCase();
+  if (!key || key === 'false' || key === '0' || key === 'off' || key === 'none') return '';
+  if (key === 'true' || key === '1' || key === 'yes' || key === 'about') return 'clients';
+  return key.replace(/[^a-z0-9_-]/g, '') || '';
 }
 
 function splitColumns(body: string): string[] {
@@ -285,8 +301,9 @@ export function clientBrandMarkHtml(
 }
 
 const BRAND_TOKEN_RE = /\{(company|client)\.(logo|icon)(?::([^}]+))?\}/gi;
+const CLIENT_LOGOS_TOKEN_RE = /\{company\.client_logos\}/gi;
 
-/** Replace leftover `{company|client}.{logo|icon}` tokens in rendered HTML. */
+/** Replace leftover `{company|client}.{logo|icon}` and `{company.client_logos}` tokens. */
 export function applyCompanyBrandShortcodes(
   html: string,
   company?: PrintCompany,
@@ -294,7 +311,7 @@ export function applyCompanyBrandShortcodes(
 ): string {
   let seq = 0;
   const re = new RegExp(BRAND_TOKEN_RE.source, 'gi');
-  const next = html.replace(re, (_match, ownerRaw: string, kindRaw: string, sizeRaw?: string) => {
+  let next = html.replace(re, (_match, ownerRaw: string, kindRaw: string, sizeRaw?: string) => {
     seq += 1;
     const kind = kindRaw.toLowerCase() === 'icon' ? 'icon' : 'logo';
     const owner = ownerRaw.toLowerCase() === 'client' ? 'client' : 'company';
@@ -306,6 +323,15 @@ export function applyCompanyBrandShortcodes(
       idPrefix: `doc-${kind}-${seq}`,
     });
   });
+  const logosRe = new RegExp(CLIENT_LOGOS_TOKEN_RE.source, 'gi');
+  if (logosRe.test(next)) {
+    logosRe.lastIndex = 0;
+    const strip = renderClientBrandLogosHtml();
+    next = next.replace(logosRe, strip);
+    if (strip && !next.includes('data-doc-client-logos-css')) {
+      next = `<style data-doc-client-logos-css>${DOCUMENT_CLIENT_LOGOS_CSS}</style>\n${next}`;
+    }
+  }
   if (seq === 0 || next.includes('data-doc-brand-mark-css')) return next;
   return `<style data-doc-brand-mark-css>${DOCUMENT_BRAND_MARK_CSS}</style>\n${next}`;
 }
@@ -428,6 +454,12 @@ ${DOCUMENT_BRAND_MARK_CSS}
 .doc-onepager-col ol { margin: 0 0 0.7em; padding-left: 1.15em; }
 .doc-onepager-col li { margin: 0 0 0.35em; }
 .doc-onepager-col strong { color: var(--doc-ink); }
+.doc-onepager-brands {
+  flex: 0 0 auto;
+  padding-top: 1.6%;
+  border-top: 1px solid var(--doc-rule);
+}
+${DOCUMENT_CLIENT_LOGOS_CSS}
 .doc-onepager-footer {
   flex: 0 0 auto;
   padding-top: 2%;
@@ -459,6 +491,7 @@ export function wrapPrintOnePager(opts: {
   footerHtml: string;
   logoHtml: string;
   kicker?: string;
+  brandsHtml?: string;
 }): string {
   const cols = [...opts.columnsHtml];
   while (cols.length < 3) cols.push('');
@@ -468,6 +501,8 @@ export function wrapPrintOnePager(opts: {
     .join('');
   const kicker = (opts.kicker || '').trim();
   const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
+  const brands = (opts.brandsHtml || '').trim();
+  const brandsHtml = brands ? `<div class="doc-onepager-brands">${brands}</div>` : '';
 
   return `
 <style>${printPageCss(opts.orientation)}</style>
@@ -481,6 +516,7 @@ export function wrapPrintOnePager(opts: {
       </div>
     </header>
     <div class="doc-onepager-cols">${colMarkup}</div>
+    ${brandsHtml}
     <footer class="doc-onepager-footer">${opts.footerHtml}</footer>
   </article>
 </div>`.trim();
@@ -533,5 +569,10 @@ export async function renderPrintOnePagerHtml(
     footerHtml,
     logoHtml: companyLogoHtml(company),
     kicker,
+    brandsHtml: parsed.brands
+      ? renderClientBrandLogosHtml(
+          parsed.brands === 'clients' ? undefined : listBrandLogos(parsed.brands),
+        )
+      : '',
   });
 }
