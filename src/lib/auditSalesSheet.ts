@@ -12,6 +12,7 @@ import type {
   ReportCardCategoryId,
   ReportCardIdea,
 } from './auditReportCard';
+import { isPlacesMissFinding, promotePlacesNotListedFinding } from './salesSheetPlacesView';
 
 export type SalesSheetOrientation = 'portrait' | 'landscape';
 
@@ -133,7 +134,11 @@ export function selectTopFindings(
 ): SalesSheetFinding[] {
   return ideas
     .slice()
-    .sort((a, b) => a.priority - b.priority)
+    .sort((a, b) => {
+      const aBoost = isPlacesMissFinding(a) ? -100 : 0;
+      const bBoost = isPlacesMissFinding(b) ? -100 : 0;
+      return a.priority + aBoost - (b.priority + bBoost);
+    })
     .slice(0, count)
     .map((idea) => ({
       id: idea.id,
@@ -151,17 +156,48 @@ function categoryGrade(card: AuditReportCard, id: ReportCardCategoryId): LetterG
 export function salesSheetInputFromReportCard(
   card: AuditReportCard,
   contact: ContactRecord,
+  opts?: { googlePlacesListed?: boolean | null },
 ): AuditSalesSheetInput {
+  const businessName = (contact.company || contact.name || '').trim();
+  let findings = selectTopFindings(card.ideas);
+  let visibility = categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo');
+  let headline = (card.headline || '').trim();
+
+  if (opts?.googlePlacesListed === false) {
+    findings = promotePlacesNotListedFinding(findings, businessName);
+    visibility = 'F';
+    if (!/google|maps|listed/i.test(headline)) {
+      headline = `${businessName || 'This business'} is not listed on Google — nearby searches show competitors.`;
+    }
+  }
+
   return {
     contact,
     website: (card.website || contact.company || '').trim(),
-    headline: (card.headline || '').trim(),
+    headline,
     overall: card.overall,
     overallScore: card.overallScore,
     performance: categoryGrade(card, 'performance'),
     security: categoryGrade(card, 'security'),
-    visibility: categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo'),
-    findings: selectTopFindings(card.ideas),
+    visibility,
+    findings,
+  };
+}
+
+/** Apply a live Places miss to dummy/query input (finding #1 + visibility F). */
+export function applyPlacesMissToSalesSheet(
+  input: AuditSalesSheetInput,
+  notListed: boolean,
+): AuditSalesSheetInput {
+  if (!notListed) return input;
+  const businessName = (input.contact.company || input.contact.name || '').trim();
+  return {
+    ...input,
+    visibility: 'F',
+    headline: /google|maps|listed/i.test(input.headline)
+      ? input.headline
+      : `${businessName || 'This business'} is not listed on Google — nearby searches show competitors.`,
+    findings: promotePlacesNotListedFinding(input.findings, businessName),
   };
 }
 

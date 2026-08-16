@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  applyPlacesMissToSalesSheet,
   DUMMY_SALES_SHEET,
   fillAuditOnePager,
   parseFilledOnePagerColumns,
@@ -17,6 +18,11 @@ import {
   setFrontmatterTitle,
 } from '../src/lib/auditSalesSheet.ts';
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
+import {
+  injectPhoneIntoFirstColumn,
+  promotePlacesNotListedFinding,
+  renderPlacesPhoneMockHtml,
+} from '../src/lib/salesSheetPlacesView.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -149,8 +155,82 @@ await test('salesSheetInputFromReportCard maps authored opportunities', () => {
   const input = salesSheetInputFromReportCard(card, DUMMY_SALES_SHEET.contact);
   assert.equal(input.website, 'haleco.example');
   assert.equal(input.findings.length, 3);
-  assert.match(input.findings[0]?.problem ?? '', /LCP|six seconds|Google Business|Open Graph/i);
+  assert.match(input.findings[0]?.problem ?? '', /Google Business|not listed|Missing from Google/i);
   assert.ok(input.performance === 'D' || input.performance === 'F');
+});
+
+await test('Places miss is pinned as finding 1', () => {
+  const next = promotePlacesNotListedFinding(DUMMY_SALES_SHEET.findings, 'Hale & Co.');
+  assert.equal(next[0]?.id, 'places-not-listed');
+  assert.equal(next.length, 3);
+  assert.ok(!next.some((f) => f.id === 'dummy-listings'));
+  const applied = applyPlacesMissToSalesSheet(DUMMY_SALES_SHEET, true);
+  assert.equal(applied.visibility, 'F');
+  assert.equal(applied.findings[0]?.id, 'places-not-listed');
+});
+
+await test('selectTopFindings boosts a Google Places miss ahead of speed', () => {
+  const picked = selectTopFindings([
+    { id: 'perf', categoryLabel: 'Site Speed', problem: 'Slow LCP', solution: 'Compress', priority: 1 },
+    {
+      id: 'maps',
+      categoryLabel: 'Maps & Directories',
+      problem: 'Missing from Google — local customers cannot find you.',
+      solution: 'Claim GBP',
+      priority: 3,
+    },
+  ]);
+  assert.equal(picked[0]?.id, 'maps');
+});
+
+await test('phone mock-up shows the miss and competitor names', () => {
+  const html = renderPlacesPhoneMockHtml({
+    query: 'Hale & Co.',
+    near: 'Boston',
+    listed: false,
+    competitors: [
+      { name: 'Harbor Street Partners', rating: 4.8, reviewCount: 126, address: '18 Atlantic Ave' },
+    ],
+    source: 'dummy',
+  });
+  assert.match(html, /No Google listing/);
+  assert.match(html, /Hale &amp; Co\./);
+  assert.match(html, /Harbor Street Partners/);
+  assert.match(html, /Nearby results/);
+  const injected = injectPhoneIntoFirstColumn(
+    '<div class="doc-onepager-cols"><div class="doc-onepager-col"><p>Snapshot</p></div></div>',
+    html,
+  );
+  assert.ok(injected.indexOf('ss-phone') < injected.indexOf('Snapshot'));
+});
+
+await test('salesSheetInputFromReportCard pins Places miss when flag is false', () => {
+  const card = buildAuditReportCard({
+    title: 'Hale & Co. audit',
+    tags: ['siri-audit', 'quick-audit'],
+    source: 'siri_audit',
+    clientName: 'Jordan Hale',
+    googlePlacesListed: false,
+    body: `## Website Audit
+
+**Current Website:** haleco.example
+
+### Performance
+- Performance score: 80 / 88 (Lighthouse)
+
+### SSL & Website Security
+- SSL: valid, Grade A
+
+### SEO
+- SEO inventory grade: B (82/100)
+`,
+  });
+  assert.ok(card);
+  const input = salesSheetInputFromReportCard(card, DUMMY_SALES_SHEET.contact, {
+    googlePlacesListed: false,
+  });
+  assert.equal(input.findings[0]?.id, 'places-not-listed');
+  assert.equal(input.visibility, 'F');
 });
 
 console.log(results.join('\n'));
