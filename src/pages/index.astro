@@ -6,6 +6,7 @@ import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
 import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
+import HomeFeaturedProjectSection from "../components/home/HomeFeaturedProjectSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
 import SiteLandingPage from "../components/home/SiteLandingPage.astro";
 import BarbersEdgeLayout from "../layouts/BarbersEdgeLayout.astro";
@@ -40,6 +41,7 @@ const isLanding = !isBarbersEdge && homepage.template === "landing" && siteConte
 
         {homepage.showIntegrations && <HomeIntegrationsSection />}
         {homepage.showFeatures && <FeaturesPageContent embedded showLogoStack={false} />}
+        <HomeFeaturedProjectSection />
         {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
       </div>

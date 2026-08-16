@@ -507,7 +507,7 @@
     },
     {
       "title": "Montana Cans",
-      "description": "German graffiti spray paint company behind Montana GOLD, BLACK, and TECH — the writer-grade cans used on walls, trains, and studio work worldwide. Placeholder until project photography is ready.",
+      "description": "German graffiti spray paint company behind Montana GOLD, BLACK, and TECH — the writer-grade cans used on walls, trains, and studio work worldwide.",
       "tags": [
         "Web Design",
         "Branding",
@@ -515,7 +515,8 @@
       ],
       "image": "/images/portfolio/montana-cans-featured.svg",
       "imageAlt": "Montana-Cans.com placeholder tile for Montana Cans graffiti spray paint",
-      "size": "2x1"
+      "size": "2x1",
+      "featured": true
     }
   ]
 }

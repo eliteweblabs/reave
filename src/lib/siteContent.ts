@@ -56,6 +56,8 @@ export type SitePortfolioItem = {
   image: string;
   imageAlt: string;
   size: SitePortfolioSize;
+  /** When true, this item can appear in the homepage featured-project section. */
+  featured?: boolean;
 };
 
 export type SiteLandingProperty = {
@@ -238,6 +240,7 @@ function resolvePortfolio(raw: SitePortfolioItem[] | undefined): SitePortfolioIt
         image: siteMediaSrc(item.image),
         imageAlt: String(item.imageAlt || item.title || '').trim(),
         size,
+        featured: item.featured === true,
       };
     })
     .filter((item) => item.title && item.image);
