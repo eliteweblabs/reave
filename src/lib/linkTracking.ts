@@ -327,26 +327,57 @@ export async function recordProjectShareView(opts: {
 
 export async function listTrackedLinksForJob(
   jobSlug: string,
-  opts?: { limit?: number },
+  opts?: { limit?: number; since?: string | null },
 ): Promise<TrackedLinkRecord[]> {
   const slug = jobSlug.trim();
   if (!slug) return [];
   const limit = Math.min(Math.max(opts?.limit ?? 10, 1), 50);
+  const sinceMs = opts?.since ? Date.parse(opts.since) : NaN;
+  const since = Number.isFinite(sinceMs) ? new Date(sinceMs).toISOString() : null;
 
   const pool = await ensureSchema();
   if (pool) {
-    const res = await pool.query(
-      `SELECT ${TRACKED_LINK_SELECT}
-       FROM project_tracked_links
-       WHERE job_slug = $1
-       ORDER BY sent_at DESC
-       LIMIT $2`,
-      [slug, limit],
-    );
+    const res = since
+      ? await pool.query(
+          `SELECT ${TRACKED_LINK_SELECT}
+           FROM project_tracked_links
+           WHERE job_slug = $1 AND sent_at >= $2::timestamptz
+           ORDER BY sent_at DESC
+           LIMIT $3`,
+          [slug, since, limit],
+        )
+      : await pool.query(
+          `SELECT ${TRACKED_LINK_SELECT}
+           FROM project_tracked_links
+           WHERE job_slug = $1
+           ORDER BY sent_at DESC
+           LIMIT $2`,
+          [slug, limit],
+        );
     return res.rows.map(rowToRecord);
   }
 
-  return readFileLinks().filter((l) => l.job_slug === slug).slice(0, limit);
+  return readFileLinks()
+    .filter((l) => l.job_slug === slug && (!since || l.sent_at >= since))
+    .slice(0, limit);
+}
+
+/** Drop share-tracking rows when a project is deleted so a reused slug stays clean. */
+export async function deleteTrackedLinksForJob(jobSlug: string): Promise<number> {
+  const slug = jobSlug.trim();
+  if (!slug) return 0;
+
+  const pool = await ensureSchema();
+  if (pool) {
+    const res = await pool.query(`DELETE FROM project_tracked_links WHERE job_slug = $1`, [slug]);
+    return res.rowCount ?? 0;
+  }
+
+  const links = readFileLinks();
+  const next = links.filter((l) => l.job_slug !== slug);
+  const removed = links.length - next.length;
+  if (removed) writeFileLinks(next);
+  return removed;
 }
 
 /** Remove a tracked link notice (staff dismissed "link sent" reminder). */

@@ -96,6 +96,20 @@ async function jobTitlesBatch(slugs: string[]): Promise<Map<string, string>> {
   return titles;
 }
 
+export async function unlinkAllProjectItems(jobSlug: string): Promise<number> {
+  const slug = jobSlug.trim();
+  if (!slug) return 0;
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+    const { rowCount } = await pool.query(`DELETE FROM project_links WHERE job_slug = $1`, [slug]);
+    return rowCount ?? 0;
+  } catch (e) {
+    console.error('[project-links] unlink-all failed', e);
+    return 0;
+  }
+}
+
 export async function unlinkProjectItem(
   jobSlug: string,
   linkType: ProjectLinkType,

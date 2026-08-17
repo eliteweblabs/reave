@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
@@ -556,6 +556,26 @@ export async function storeDeleteProjectFile(slug: string, id: string): Promise<
     if (result != null) return result;
   }
   return fileDeleteProjectFile(slug, id);
+}
+
+export async function storeDeleteProjectFilesForJob(slug: string): Promise<void> {
+  if (!isSafeWorkSlug(slug)) return;
+  if (isProjectFilesDbConfigured()) {
+    try {
+      const pool = await ensureSchema();
+      if (pool) await pool.query(`DELETE FROM project_files WHERE job_slug = $1`, [slug]);
+    } catch (e) {
+      console.warn('[project-files] delete-for-job failed', e);
+    }
+  }
+  const dir = join(filesDir(), slug);
+  if (existsSync(dir)) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch (e) {
+      console.warn('[project-files] delete-for-job dir failed', e);
+    }
+  }
 }
 
 export async function storeAddChatImagesToProject(

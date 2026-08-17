@@ -33,9 +33,10 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+  const job = await storeReadWork(slug);
+  if (!job) return json({ ok: false, error: 'Not found' }, 404);
 
-  const links = await listTrackedLinksForJob(slug, { limit: 20 });
+  const links = await listTrackedLinksForJob(slug, { limit: 20, since: job.created });
   return json({ ok: true, links });
 }
 
@@ -92,7 +93,8 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+  const job = await storeReadWork(slug);
+  if (!job) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
@@ -104,7 +106,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const token = String(body.token ?? '').trim();
   if (!token) return json({ ok: false, error: 'token is required' }, 400);
 
-  const links = await listTrackedLinksForJob(slug, { limit: 50 });
+  const links = await listTrackedLinksForJob(slug, { limit: 50, since: job.created });
   if (!links.some((l) => l.token === token)) {
     return json({ ok: false, error: 'Link not found for this project' }, 404);
   }

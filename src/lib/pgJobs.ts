@@ -469,6 +469,11 @@ export async function dbDeleteWork(slug: string): Promise<{ ok: boolean; error?:
 
     await pool.query(`DELETE FROM job_comments WHERE job_slug = $1`, [slug]);
     await pool.query(`DELETE FROM job_time_entries WHERE job_slug = $1`, [slug]);
+    try {
+      await pool.query(`UPDATE todos SET job_slug = NULL WHERE job_slug = $1`, [slug]);
+    } catch {
+      /* todos table may not exist in older DBs */
+    }
     const { rowCount } = await pool.query(`DELETE FROM jobs WHERE slug = $1`, [slug]);
     if ((rowCount ?? 0) === 0) return { ok: false, error: 'Not found' };
     return { ok: true };

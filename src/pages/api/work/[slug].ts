@@ -43,7 +43,10 @@ export async function GET(context: APIContext): Promise<Response> {
   const doc = await storeReadWork(slug);
   if (!doc) return json({ ok: false, error: 'Not found' }, 404);
   const related = await listRelatedForJob(slug);
-  const tracked_links = await listTrackedLinksForJob(slug, { limit: 20 });
+  const tracked_links = await listTrackedLinksForJob(slug, {
+    limit: 20,
+    since: doc.created,
+  });
   const files = await storeListProjectFiles(slug);
   const contactUid = doc.contact_uid?.trim() || '';
   const origin = requestOrigin(context.request);

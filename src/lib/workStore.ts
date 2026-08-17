@@ -646,6 +646,10 @@ export async function storeWriteWork(
         body: input.body != null ? input.body.trim() : undefined,
       });
     } else {
+      const { deleteTrackedLinksForJob } = await import('./linkTracking');
+      await deleteTrackedLinksForJob(slug).catch((e) => {
+        console.warn('[work] leftover tracked-link sweep failed', e);
+      });
       result = await dbCreateWork({
         slug,
         title: input.title.trim(),
@@ -688,6 +692,25 @@ export async function storeWriteWork(
   return result;
 }
 
+async function cleanupDeletedWorkSlug(slug: string): Promise<void> {
+  const { storeAckNotificationsForDeletedWork } = await import('./notificationWorkLinks');
+  await storeAckNotificationsForDeletedWork(slug).catch((e) => {
+    console.warn('[work] notification cleanup failed', e);
+  });
+  const { deleteTrackedLinksForJob } = await import('./linkTracking');
+  await deleteTrackedLinksForJob(slug).catch((e) => {
+    console.warn('[work] tracked-link cleanup failed', e);
+  });
+  const { storeDeleteProjectFilesForJob } = await import('./projectFiles');
+  await storeDeleteProjectFilesForJob(slug).catch((e) => {
+    console.warn('[work] project-file cleanup failed', e);
+  });
+  const { unlinkAllProjectItems } = await import('./projectLinks');
+  await unlinkAllProjectItems(slug).catch((e) => {
+    console.warn('[work] project-link cleanup failed', e);
+  });
+}
+
 export async function storeDeleteWork(slug: string): Promise<boolean> {
   let deleted = false;
   if (isWorkDbConfigured()) {
@@ -697,12 +720,7 @@ export async function storeDeleteWork(slug: string): Promise<boolean> {
   } else {
     deleted = fileDeleteWork(slug);
   }
-  if (deleted) {
-    const { storeAckNotificationsForDeletedWork } = await import('./notificationWorkLinks');
-    await storeAckNotificationsForDeletedWork(slug).catch((e) => {
-      console.warn('[work] notification cleanup failed', e);
-    });
-  }
+  if (deleted) await cleanupDeletedWorkSlug(slug);
   return deleted;
 }
 
@@ -743,17 +761,20 @@ export async function storeDeleteWorkByClientUid(clientUid: string): Promise<num
   const uid = clientUid.trim();
   if (!uid) return 0;
   const jobs = await storeListWork({ contact_uid: uid });
-  const { storeAckNotificationsForDeletedWork } = await import('./notificationWorkLinks');
-  for (const job of jobs) {
-    await storeAckNotificationsForDeletedWork(job.slug).catch(() => undefined);
-  }
   if (isWorkDbConfigured()) {
     const { dbDeleteWorkByClientUid } = await import('./pgJobs');
-    return dbDeleteWorkByClientUid(uid);
+    const deleted = await dbDeleteWorkByClientUid(uid);
+    for (const job of jobs) {
+      await cleanupDeletedWorkSlug(job.slug);
+    }
+    return deleted;
   }
   let deleted = 0;
   for (const job of jobs ?? []) {
-    if (fileDeleteWork(job.slug)) deleted++;
+    if (fileDeleteWork(job.slug)) {
+      deleted++;
+      await cleanupDeletedWorkSlug(job.slug);
+    }
   }
   return deleted;
 }
