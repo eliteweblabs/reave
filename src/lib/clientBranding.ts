@@ -5,6 +5,7 @@
  * Website-scraped logos also resolve through the serve path so contrast
  * adaptation (mostly-black → white on dark portal) can run centrally.
  */
+import { isFaviconLikeUrl } from './clientBrand';
 import {
   contactStringField,
   extractPortal,
@@ -13,6 +14,9 @@ import {
   type ClientPortal,
 } from './contactApi';
 import { refreshPortalBrandColors } from './portalBrandColors';
+
+/** Below this on both edges, a scraped mark is a favicon — not a logo. */
+const MIN_HERO_LOGO_EDGE_PX = 48;
 
 const LOGO_FETCH_TIMEOUT_MS = 8_000;
 
@@ -70,6 +74,38 @@ export function resolveClientLogoUrl(
     return `${clientLogoServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
   }
   return '';
+}
+
+/**
+ * Logo for the portal hero. Uploads always count. Scraped favicons and
+ * sub-48px icons do not — those should show the missing-logo finding.
+ */
+export async function resolveClientHeroLogoUrl(
+  portal: ClientPortal | null | undefined,
+  uid: string,
+  opts?: ClientLogoServeOpts,
+): Promise<string> {
+  if (!portal) return '';
+  if (portal.logoSource === 'upload' && portal.logoData) {
+    return resolveClientLogoUrl(portal, uid, opts);
+  }
+  const remote = contactStringField(portal.logoUrl);
+  if (!remote || isFaviconLikeUrl(remote)) return '';
+
+  const blob = await getClientPortalLogoBlob(uid);
+  if (!blob) return '';
+  try {
+    const sharp = (await import('sharp')).default;
+    const meta = await sharp(Buffer.from(blob.dataBase64, 'base64')).metadata();
+    const width = meta.width ?? 0;
+    const height = meta.height ?? 0;
+    if (width > 0 && height > 0 && width < MIN_HERO_LOGO_EDGE_PX && height < MIN_HERO_LOGO_EDGE_PX) {
+      return '';
+    }
+  } catch {
+    return '';
+  }
+  return resolveClientLogoUrl(portal, uid, opts);
 }
 
 export function resolveClientIconUrl(

@@ -73,6 +73,13 @@ function isAppleTouchIcon(url: string): boolean {
   return /apple-touch-icon/i.test(url);
 }
 
+/** Tab icons and touch icons — not a brand logo for the portal hero. */
+export function isFaviconLikeUrl(url: string): boolean {
+  const t = url.trim();
+  if (!t) return false;
+  return isFaviconIco(t) || isAppleTouchIcon(t) || /(?:^|\/)favicon(?:[-_.]|\.|$)/i.test(t);
+}
+
 function isLikelySocialBanner(url: string): boolean {
   return /(?:^|[/])(?:og[-_]image|social[-_]?(?:share|banner|card)|share[-_]?image)(?:[/?.]|$)/i.test(url);
 }
@@ -127,11 +134,9 @@ export function extractBrandFromHtml(html: string, pageUrl: string): ClientBrand
     iconCandidates[0];
 
   const logoUrl =
-    logoCandidates.find((u) => !isFaviconIco(u) && !isAppleTouchIcon(u) && !isLikelySocialBanner(u)) ||
-    logoCandidates.find((u) => !isFaviconIco(u) && !isAppleTouchIcon(u)) ||
-    logoCandidates.find((u) => !isFaviconIco(u)) ||
-    logoCandidates[0] ||
-    iconUrl;
+    logoCandidates.find((u) => !isFaviconLikeUrl(u) && !isLikelySocialBanner(u)) ||
+    logoCandidates.find((u) => !isFaviconLikeUrl(u));
+  // Do not fall back to favicon / apple-touch — those are tab icons, not a brand mark.
 
   const tagline =
     extractMeta($, 'description') ||

@@ -32,7 +32,7 @@ import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
 import { portalProjectFileUrl, storeListProjectFiles } from '../../lib/projectFiles';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
-import { resolveClientLogoUrl } from '../../lib/clientBranding';
+import { resolveClientHeroLogoUrl, resolveClientLogoUrl } from '../../lib/clientBranding';
 import { isPortalAssistantConfigured } from '../../lib/portalAssistant';
 import PortalAssistantWidget from '../../components/PortalAssistantWidget.astro';
 import { resolvePortalBrandColors, portalBrandCssVars, type PortalBrandColors } from '../../lib/portalBrandColors';
@@ -178,8 +178,9 @@ function workBodyHtml(body: string, contactUid: string, jobSlug: string): string
 const displayName = contactStringField(contact?.name) || 'Contact';
 const company = contactStringField(contact?.company);
 // Serve through /api/clients/:uid/logo so mostly-black scraped marks flip to white.
-const logoUrl = contact ? resolveClientLogoUrl(portal, uid) : '';
-/** Hero fallback when the site scrape has no brand mark — a finding, not a label. */
+const avatarUrl = contact ? resolveClientLogoUrl(portal, uid) : '';
+const logoUrl = contact ? await resolveClientHeroLogoUrl(portal, uid) : '';
+/** Hero fallback when the profile has no brand mark — a finding, not a label. */
 const noLogoFoundHtml =
   '<strong>No logo found on the website.</strong> Add a clear brand mark so visitors and this report can recognize the business.';
 const clientWebsite = contactStringField(portal?.website);
@@ -641,7 +642,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               jobSlug={portalAuditJob.slug}
               comments={commentsBySlug[portalAuditJob.slug] ?? []}
               contactUid={uid}
-              clientAvatarUrl={logoUrl}
+              clientAvatarUrl={avatarUrl}
               staffAvatarUrl={staffAvatarUrl}
             />
           )}
@@ -653,7 +654,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               commentsBySlug={commentsBySlug}
               filesBySlug={filesBySlug}
               contactUid={uid}
-              clientAvatarUrl={logoUrl}
+              clientAvatarUrl={avatarUrl}
               staffAvatarUrl={staffAvatarUrl}
               active={initialTab === 'work'}
               autoExpand={portalWorkJobs.length === 1}
@@ -906,11 +907,15 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 
       document.querySelectorAll('img[data-logo-fallback]').forEach((img) => {
-        img.addEventListener('error', () => {
+        const showMissingLogo = () => {
           const note = document.createElement('p');
           note.className = 'hero-no-logo';
           note.innerHTML = noLogoFoundHtml;
           img.replaceWith(note);
+        };
+        img.addEventListener('error', showMissingLogo);
+        img.addEventListener('load', () => {
+          if (img.naturalWidth < 48 && img.naturalHeight < 48) showMissingLogo();
         });
       });
       document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
