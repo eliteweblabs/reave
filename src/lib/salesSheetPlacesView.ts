@@ -329,43 +329,34 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
   if (!src || !link) return '';
   return `
 <style>
+.doc-onepager { position: relative; }
+.doc-onepager-title,
+.doc-onepager-kicker { display: none; }
 .doc-onepager-mast {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  overflow: visible;
 }
 .ss-qr {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  flex: 0 0 auto;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
   margin: 0;
-  text-align: center;
+  line-height: 0;
 }
 .ss-qr img {
   display: block;
-  width: clamp(52px, 8cqi, 72px);
+  width: clamp(56px, 8.5cqi, 76px);
   height: auto;
   background: #fff;
-}
-.ss-qr figcaption {
-  margin: 0;
-  font-size: clamp(7px, 1.15cqi, 10px);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--doc-ink, #141414);
-  line-height: 1.2;
-  max-width: 6.5em;
 }
 </style>
 <figure class="ss-qr">
   <a href="${escapeHtml(link)}" target="_blank" rel="noopener">
-    <img src="${escapeHtml(src)}" alt="View Full Audit" width="72" height="72" />
+    <img src="${escapeHtml(src)}" alt="" width="72" height="72" />
   </a>
-  <figcaption>View Full Audit</figcaption>
 </figure>`.trim();
 }
 

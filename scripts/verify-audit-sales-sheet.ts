@@ -468,10 +468,16 @@ await test('sales sheet footer gets the portal audit disclaimer', () => {
   assert.match(injected, /<\/div><\/footer>/);
 });
 
-await test('QR block says View Full Audit and lands in the header mast', () => {
+await test('QR sits in the top-right without caption, title, or date', () => {
   const qr = renderSalesSheetQrHtml('data:image/png;base64,AAA', 'https://example.com/digital-audit');
-  assert.match(qr, /View Full Audit/);
+  assert.doesNotMatch(qr, /View Full Audit/);
+  assert.doesNotMatch(qr, /figcaption/);
   assert.match(qr, /https:\/\/example.com\/digital-audit/);
+  assert.match(qr, /doc-onepager-title/);
+  assert.match(qr, /doc-onepager-kicker \{ display: none; \}/);
+  assert.match(qr, /position: absolute;/);
+  assert.match(qr, /top: 0;/);
+  assert.match(qr, /right: 0;/);
   const injected = injectAuditQrIntoHeader(
     '<header><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
     qr,
