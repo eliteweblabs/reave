@@ -155,6 +155,7 @@ export const DEMO_LOADER_SECTION_GROUPS: ReadonlyArray<{
       'code_dev',
       'namecom_dns',
       'site_monitoring',
+      'uptime_monitoring',
       'wayback_machine',
       'seo_directory',
     ],
