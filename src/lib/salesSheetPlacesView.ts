@@ -1,6 +1,7 @@
 /**
  * Phone mock-up for a Google Places miss.
- * Screen UI is HTML; chrome is the media-library iPhone 17 frame overlaid on top.
+ * Prefers a real google.com Places screenshot in the screen hole; HTML list is the fallback.
+ * Chrome is the media-library iPhone 17 frame overlaid on top.
  */
 import { escapeHtml } from './htmlEscape';
 
@@ -85,7 +86,52 @@ export const IPHONE_FRAME_SRC = `/api/media/${IPHONE_FRAME_SLUG}`;
 export type PlacesPhoneMockOpts = {
   /** Public or data URL for the device chrome. Defaults to the media-library slug. */
   frameSrc?: string;
+  /** Real google.com Places SERP (data URL or http). Replaces the HTML result list. */
+  screenSrc?: string;
 };
+
+/** City, ST from a full street address so the Google query matches a nearby search. */
+export function shortPlaceFromAddress(address: string): string {
+  const parts = address
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length >= 3) {
+    const city = parts[parts.length - 2];
+    const state = parts[parts.length - 1].replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+    return state ? `${city}, ${state}` : city;
+  }
+  if (parts.length === 2) {
+    const state = parts[1].replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+    return state ? `${parts[0]}, ${state}` : parts.join(', ');
+  }
+  return address.trim();
+}
+
+export function googlePlacesSearchQuery(query: string, near?: string): string {
+  const name = query.trim();
+  const loc = (near || '').trim();
+  if (!name) return loc;
+  if (!loc) return name;
+  if (name.toLowerCase().includes(loc.toLowerCase())) return name;
+  return `${name} ${loc}`;
+}
+
+/** google.com Places tab (`udm=1`) — what customers see instead of a GBP. */
+export function googlePlacesSearchUrl(query: string, near?: string): string {
+  const u = new URL('https://www.google.com/search');
+  u.searchParams.set('q', googlePlacesSearchQuery(query, near));
+  u.searchParams.set('udm', '1');
+  u.searchParams.set('hl', 'en');
+  u.searchParams.set('gl', 'us');
+  return u.toString();
+}
+
+/** google.com/maps search — headless Chromium can load this when Search serves a captcha. */
+export function googleMapsSearchUrl(query: string, near?: string): string {
+  const q = googlePlacesSearchQuery(query, near);
+  return `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
+}
 
 /** Inline the library PNG when present so print/PDF and Playwright do not depend on a second fetch. */
 export async function resolveIphoneFrameSrc(): Promise<string> {
@@ -104,6 +150,7 @@ export function renderPlacesPhoneMockHtml(
   opts?: PlacesPhoneMockOpts,
 ): string {
   const frameSrc = escapeHtml((opts?.frameSrc || IPHONE_FRAME_SRC).trim() || IPHONE_FRAME_SRC);
+  const screenSrc = (opts?.screenSrc || '').trim();
   const query = escapeHtml(view.query || 'Search');
   const near = view.near.trim() ? escapeHtml(view.near.trim()) : '';
   const competitors = (view.competitors.length ? view.competitors : DUMMY_PLACES_COMPETITORS).slice(0, 3);
@@ -164,6 +211,17 @@ export function renderPlacesPhoneMockHtml(
   background: var(--ss-phone-screen);
   border-radius: 12% / 6%;
 }
+.ss-phone-screen:has(.ss-phone-serp) {
+  padding-top: 0;
+  background: #fff;
+}
+.ss-phone-serp {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
 .ss-phone-frame {
   position: absolute;
   inset: 0;
@@ -222,12 +280,16 @@ export function renderPlacesPhoneMockHtml(
 .ss-phone-row-addr { margin: 2px 0 0; font-size: 8px; color: #6b6b6b; }
 .doc-onepager-col:has(.ss-phone) { overflow: visible; }
 </style>
-<figure class="ss-phone" data-places-source="${escapeHtml(view.source)}">
+<figure class="ss-phone" data-places-source="${escapeHtml(view.source)}"${screenSrc ? ' data-places-serp="google"' : ''}>
   <div class="ss-phone-screen">
-    <p class="ss-phone-search">${query}${near ? ` <span>· ${near}</span>` : ''}</p>
+    ${
+      screenSrc
+        ? `<img class="ss-phone-serp" src="${escapeHtml(screenSrc)}" alt="Google Places results for ${query}" />`
+        : `<p class="ss-phone-search">${query}${near ? ` <span>· ${near}</span>` : ''}</p>
     ${banner}
     <p class="ss-phone-near">Nearby results</p>
-    <ol class="ss-phone-list">${rows}</ol>
+    <ol class="ss-phone-list">${rows}</ol>`
+    }
   </div>
   <img class="ss-phone-frame" src="${frameSrc}" alt="" width="736" height="1428" />
 </figure>`.trim();

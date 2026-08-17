@@ -24,12 +24,16 @@ import {
 import { buildAuditReportCard } from '../src/lib/auditReportCard.ts';
 import { SALES_SHEET_CASCADE, selectCascadeFindings } from '../src/lib/salesSheetCascade.ts';
 import {
+  googleMapsSearchUrl,
+  googlePlacesSearchUrl,
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
   promotePlacesNotListedFinding,
   renderPlacesPhoneMockHtml,
   renderSalesSheetQrHtml,
+  shortPlaceFromAddress,
 } from '../src/lib/salesSheetPlacesView.ts';
+import { serpShowsBusiness } from '../src/lib/salesSheetPlacesShot.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -218,6 +222,47 @@ await test('phone mock-up shows the miss and competitor names', () => {
     html,
   );
   assert.ok(injected.indexOf('ss-phone') < injected.indexOf('Snapshot'));
+});
+
+await test('phone mock-up can embed a real Google SERP screenshot', () => {
+  const html = renderPlacesPhoneMockHtml(
+    {
+      query: 'CALA RENEE Salon',
+      near: 'Beverly, MA',
+      listed: false,
+      competitors: [],
+      source: 'places',
+    },
+    { screenSrc: 'data:image/png;base64,AAA' },
+  );
+  assert.match(html, /ss-phone-serp/);
+  assert.match(html, /data:image\/png;base64,AAA/);
+  assert.match(html, /data-places-serp="google"/);
+  assert.doesNotMatch(html, /Nearby results/);
+  assert.doesNotMatch(html, /Harbor Street Partners/);
+});
+
+await test('google Places search URL uses the Places tab and city', () => {
+  const url = googlePlacesSearchUrl('CALA RENEE Salon', 'Beverly, MA');
+  assert.match(url, /^https:\/\/www\.google\.com\/search\?/);
+  assert.match(url, /udm=1/);
+  assert.match(url, /CALA\+RENEE\+Salon/);
+  assert.match(url, /Beverly/);
+  assert.equal(shortPlaceFromAddress('309 Rantoul St, Beverly, MA 01915'), 'Beverly, MA');
+  assert.equal(shortPlaceFromAddress('Beverly, MA 01915'), 'Beverly, MA');
+  assert.match(googleMapsSearchUrl('CALA RENEE Salon', 'Beverly, MA'), /google\.com\/maps\/search/);
+  assert.equal(
+    serpShowsBusiness(
+      'CALA RENEE Salon',
+      'https://www.google.com/maps/place/Cala+Renee+Salon+LLC',
+      'Cala Renee Salon LLC, Beverly - Explore in Google Maps',
+    ),
+    true,
+  );
+  assert.equal(
+    serpShowsBusiness('CALA RENEE Salon', 'https://www.google.com/maps/search/hair+salon', 'Hair salon - Google Maps'),
+    false,
+  );
 });
 
 await test('salesSheetInputFromReportCard pins Places miss when flag is false', () => {

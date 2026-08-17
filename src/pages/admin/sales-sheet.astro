@@ -28,7 +28,7 @@ import { buildAuditReportCard } from '../../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from '../../lib/workStore';
 import { fetchSalesSheetPlaces } from '../../lib/salesSheetPlaces';
-import { screenshotPlacesPhoneMock } from '../../lib/salesSheetPlacesShot';
+import { screenshotGoogleSearchResults, screenshotPlacesPhoneMock } from '../../lib/salesSheetPlacesShot';
 import {
   injectAuditQrIntoHeader,
   injectPhoneIntoFirstColumn,
@@ -36,6 +36,7 @@ import {
   renderPlacesPhoneMockHtml,
   renderSalesSheetQrHtml,
   resolveIphoneFrameSrc,
+  shortPlaceFromAddress,
 } from '../../lib/salesSheetPlacesView';
 import { qrCodeDataUrl } from '../../lib/qrCode';
 
@@ -113,10 +114,15 @@ const tmpl = getTemplate(slug);
 
 const skipPlaces = params.get('places') === '0';
 const skipShot = params.get('shot') !== '1';
+const skipGoogle = params.get('google') === '0';
+const forceGoogle = params.get('google') === '1';
 const listedParam = (params.get('listed') || '').trim();
 const forceNotListed = listedParam === '0';
 const forceListed = listedParam === '1';
-const near = (params.get('near') || '').trim();
+const contactPortal = extractPortal(input.contact);
+const near =
+  (params.get('near') || '').trim() ||
+  shortPlaceFromAddress(contactPortal?.address || '');
 const category = (params.get('category') || '').trim();
 const placesQuery = (input.contact.company || input.contact.name || '').trim();
 
@@ -127,23 +133,57 @@ const places = await fetchSalesSheetPlaces({
   forceNotListed,
   skipNetwork: skipPlaces,
 });
-const notListed = forceListed ? false : forceNotListed || !places.listed;
-input = applyPlacesMissToSalesSheet(input, notListed);
 
 const frameSrc = await resolveIphoneFrameSrc();
-const phoneHtml = renderPlacesPhoneMockHtml({ ...places, listed: !notListed }, { frameSrc });
+const wantGoogleShot = !skipGoogle && (forceGoogle || Boolean(selectedAudit));
+let screenSrc = '';
+let shotNote = '';
+let serpListed: boolean | null = null;
+
+if (wantGoogleShot) {
+  const serp = await screenshotGoogleSearchResults({
+    query: placesQuery,
+    near,
+    lat: contactPortal?.geo?.lat,
+    lng: contactPortal?.geo?.lng,
+  });
+  if (serp.ok) {
+    screenSrc = `data:image/png;base64,${serp.pngBase64}`;
+    serpListed = serp.listed;
+    shotNote = serp.listed
+      ? 'Playwright screenshot of google.com/maps — this search opens their listing.'
+      : 'Playwright screenshot of google.com Places/Maps results in the iPhone frame.';
+  } else {
+    shotNote = `Google screenshot failed (${serp.error}) — using the HTML competitor list.`;
+  }
+} else if (skipShot) {
+  shotNote = 'iPhone 17 frame from the media library (live HTML).';
+}
+
+const notListed = forceListed
+  ? false
+  : forceNotListed
+    ? true
+    : serpListed === true
+      ? false
+      : !places.listed;
+input = applyPlacesMissToSalesSheet(input, notListed);
+
+const phoneHtml = renderPlacesPhoneMockHtml(
+  { ...places, near, listed: !notListed },
+  { frameSrc, screenSrc },
+);
 let phoneEmbed = phoneHtml;
-let shotNote = skipShot
-  ? 'iPhone 17 frame from the media library (live HTML).'
-  : '';
 
 if (!skipShot) {
-  const shot = await screenshotPlacesPhoneMock({ ...places, listed: !notListed }, { frameSrc });
+  const shot = await screenshotPlacesPhoneMock({ ...places, listed: !notListed }, { frameSrc, screenSrc });
   if (shot.ok) {
     phoneEmbed = placesPhoneShotImg(shot.pngBase64);
-    shotNote = 'Playwright screenshot of the iPhone frame mock-up.';
+    shotNote = screenSrc
+      ? 'Playwright screenshot of the iPhone frame over a live google.com Places page.'
+      : 'Playwright screenshot of the iPhone frame mock-up.';
   } else {
-    shotNote = `Screenshot failed (${shot.error}) — using the live iPhone frame.`;
+    shotNote = `${shotNote} Frame rasterize failed (${shot.error}) — using the live iPhone frame.`.trim();
   }
 }
 
@@ -305,10 +345,11 @@ const placesNote = places.error
       <h1 class="ss-title">Audit sales sheet</h1>
       <p class="ss-sub">
         Pick a company with an existing audit to refill the sheet. {sourceNote}.
-        A Places miss is finding #1 and the iPhone frame shows nearby competitors.
-        Use <code>?near=</code>, <code>?category=plumber</code>, <code>?listed=0</code>,
-        <code>?shot=1</code> (rasterize the phone), <code>?places=0</code> (skip the API),
-        or <code>?audit=</code> / <code>?run=</code> for the View Full Audit QR.
+        A Places miss is finding #1. The iPhone frame shows a live google.com Places
+        screenshot for that search (Playwright), or the HTML competitor list if the
+        shot fails. Use <code>?near=</code>, <code>?category=plumber</code>, <code>?listed=0</code>,
+        <code>?google=0</code> (skip the SERP shot), <code>?shot=1</code> (rasterize the phone),
+        <code>?places=0</code> (skip the API), or <code>?audit=</code> / <code>?run=</code> for the View Full Audit QR.
       </p>
 
       {error ? <div class="ss-error">{error}</div> : null}
