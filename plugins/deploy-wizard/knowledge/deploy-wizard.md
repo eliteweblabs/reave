@@ -93,9 +93,13 @@ The first step writes these onto `reave` (same keys live client installs already
 | Admin username | `ADMIN_USERNAME` | falls back to company name |
 | Timezone | `BOOKING_TIMEZONE` | `America/New_York` |
 
-## What you still type
+## Secrets come from this host
 
-Third-party secrets only: Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub, and similar. Generated values (webhook secrets, CardDAV password, shared client keys, Cal.com `NEXTAUTH_SECRET`) can be rolled in the wizard.
+This wizard is owner-only. Third-party keys (Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub, Railway, …) are **copied from this install’s env** when you press Apply. They do not appear as Enter fields and their values never go to the browser.
+
+`RESEND_FROM` is derived as `noreply@{apex}` from the site-domain field (not copied from this host’s From address). `EMAIL_FROM_NAME` is the company name.
+
+Generated values (webhook secrets, CardDAV password, shared client keys, Cal.com `NEXTAUTH_SECRET`) are still rolled in the wizard. If a required key is missing on this host, Apply fails until you set it here.
 
 ## Apply
 

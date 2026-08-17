@@ -15,7 +15,10 @@ import {
   formatDeployWizardCli,
   isDeployWizardExtraId,
   type DeployWizardExtraId,
+  type DeployWizardPlan,
+  type DeployWizardPlanVariable,
 } from '../../../lib/deployWizardCatalog';
+import { serverEnv } from '../../../lib/serverEnv';
 import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { FEATURE_BLURBS, FEATURE_ID_SET, type FeatureId } from '../../../lib/featureCatalog';
@@ -68,6 +71,24 @@ function parseValues(body: Record<string, unknown>): Record<string, string> {
 function requireCanonicalReaveHost(): Response | null {
   if (isCanonicalReaveInstall() && hasFeature('deploy_wizard')) return null;
   return json({ ok: false, error: 'Not found' }, 404);
+}
+
+/** Mark which host secrets exist — never put live values on the plan. */
+function presentHostSecrets(plan: DeployWizardPlan): DeployWizardPlan {
+  return {
+    ...plan,
+    variables: plan.variables.map((variable) =>
+      variable.inheritFromHost
+        ? { ...variable, filled: '', hostHasValue: Boolean(serverEnv(variable.name)?.trim()) }
+        : variable,
+    ),
+  };
+}
+
+function resolvePlanValue(variable: DeployWizardPlanVariable, values: Record<string, string>): string {
+  if (variable.inheritFromHost) return serverEnv(variable.name)?.trim() || '';
+  const key = `${variable.service}:${variable.name}`;
+  return (values[key] ?? variable.filled ?? '').trim();
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -175,33 +196,33 @@ export async function POST(context: APIContext): Promise<Response> {
     timezone,
   });
   const values = parseValues(body);
-  const cli = formatDeployWizardCli(plan, values);
+  const publicPlan = presentHostSecrets(plan);
+  const cli = formatDeployWizardCli(publicPlan, values);
   const action = typeof body.action === 'string' ? body.action : 'plan';
 
   if (action !== 'apply') {
-    return json({ ok: true, plan, cli });
+    return json({ ok: true, plan: publicPlan, cli });
   }
 
   if (!isRailwayConfigured()) {
-    return json({ ok: false, error: 'RAILWAY_API_TOKEN is not set on this service', plan, cli }, 400);
+    return json({ ok: false, error: 'RAILWAY_API_TOKEN is not set on this service', plan: publicPlan, cli }, 400);
   }
 
   const project = typeof body.project === 'string' ? body.project.trim() : '';
   const environment = typeof body.environment === 'string' ? body.environment.trim() : 'production';
   if (!project) {
-    return json({ ok: false, error: 'project is required to apply variables', plan, cli }, 400);
+    return json({ ok: false, error: 'project is required to apply variables', plan: publicPlan, cli }, 400);
   }
 
   const byService = new Map<string, Record<string, string>>();
   for (const variable of plan.variables) {
-    const key = `${variable.service}:${variable.name}`;
-    const value = values[key] ?? variable.filled;
+    const value = resolvePlanValue(variable, values);
     if (!value) {
       if (variable.required && variable.kind === 'secret') {
-        return json(
-          { ok: false, error: `Missing value for ${variable.service}.${variable.name}`, plan, cli },
-          400,
-        );
+        const hint = variable.inheritFromHost
+          ? `${variable.name} is not set on this host`
+          : `Missing value for ${variable.service}.${variable.name}`;
+        return json({ ok: false, error: hint, plan: publicPlan, cli }, 400);
       }
       continue;
     }
@@ -220,7 +241,7 @@ export async function POST(context: APIContext): Promise<Response> {
       skip_deploys: true,
     });
     if (!result.ok) {
-      return json({ ok: false, error: `${service}: ${result.error}`, plan, cli, applied }, 502);
+      return json({ ok: false, error: `${service}: ${result.error}`, plan: publicPlan, cli, applied }, 502);
     }
     applied.push({ service, updated: result.updated });
   }
@@ -250,7 +271,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   return json({
     ok: true,
-    plan,
+    plan: publicPlan,
     cli,
     applied,
     identity,

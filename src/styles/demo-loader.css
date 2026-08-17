@@ -726,6 +726,11 @@
   color: #fde68a;
 }
 
+.dw-kind--host {
+  background: rgba(45, 212, 191, 0.16);
+  color: #5eead4;
+}
+
 .dw-kind--literal {
   background: rgba(59, 130, 246, 0.18);
   color: #93c5fd;

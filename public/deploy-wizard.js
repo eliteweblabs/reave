@@ -22,6 +22,7 @@
     generated: 'Generate',
     secret: 'Enter',
     literal: 'Value',
+    host: 'This host',
   };
 
   let modules = [];
@@ -318,11 +319,22 @@
   function renderVarRow(variable) {
     const key = varKey(variable);
     const current = values[key] ?? variable.filled ?? '';
-    const locked = variable.kind === 'reference' || variable.kind === 'shared';
-    const kindCls = `dw-kind dw-kind--${esc(variable.kind)}`;
+    const locked =
+      variable.kind === 'reference' ||
+      variable.kind === 'shared' ||
+      variable.inheritFromHost ||
+      !variable.needsInput;
+    const kindKey = variable.inheritFromHost ? 'host' : variable.kind;
+    const kindCls = `dw-kind dw-kind--${esc(kindKey)}`;
+    const display =
+      variable.inheritFromHost
+        ? variable.hostHasValue
+          ? 'Copied on apply'
+          : 'Missing on this host'
+        : current;
     const input =
       locked ?
-        `<code class="dw-ref">${esc(current)}</code>`
+        `<code class="dw-ref">${esc(display)}</code>`
       : `<input class="dl-input dw-var-input" data-var-key="${esc(key)}" type="${variable.kind === 'secret' ? 'password' : 'text'}" value="${esc(current)}" autocomplete="off" spellcheck="false" />`;
     const gen =
       variable.kind === 'generated'
@@ -331,7 +343,7 @@
     return (
       `<tr>` +
       `<td><code>${esc(variable.name)}</code></td>` +
-      `<td><span class="${kindCls}">${esc(KIND_LABEL[variable.kind] || variable.kind)}</span></td>` +
+      `<td><span class="${kindCls}">${esc(KIND_LABEL[kindKey] || variable.kind)}</span></td>` +
       `<td class="dw-var-value">${input}${gen}</td>` +
       `<td class="dw-var-help">${esc(variable.description)}</td>` +
       `</tr>`
@@ -347,8 +359,8 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Green chips are Railway references — they stay the same on every install as long as service names match. Put secrets on <strong>reave</strong> (Resend, Clerk, …); siblings pull <code>\${{ reave.VAR }}</code>. Only the Enter / Generate rows need a value.</p>` +
-      `<p class="dl-meta">${plan.referenceCount} references · ${plan.secretCount} secrets · ${plan.generatedCount} generated</p>`;
+      `<p class="dl-footnote">Green chips are Railway references. Secrets that exist on this host (Resend, Clerk, Anthropic, …) are copied when you apply — no Enter fields. <code>RESEND_FROM</code> is <code>noreply@{apex}</code> from the site-domain field. Generate rows are rolled here.</p>` +
+      `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} generated</p>`;
     for (const [service, vars] of byService) {
       html +=
         `<section class="dl-section">` +
@@ -366,6 +378,7 @@
     if (!plan) return `<p class="dl-loading">Building plan…</p>`;
     const missing = plan.variables.filter((v) => {
       if (v.kind !== 'secret' || v.required === false) return false;
+      if (v.inheritFromHost) return !v.hostHasValue;
       const val = values[varKey(v)] ?? v.filled;
       return !val;
     });
@@ -377,7 +390,7 @@
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       `</div>` +
       (missing.length
-        ? `<p class="dl-launch-error" role="alert">${missing.length} required secret${missing.length === 1 ? '' : 's'} still empty — you can still copy the CLI and fill them later.</p>`
+        ? `<p class="dl-launch-error" role="alert">${missing.length} required secret${missing.length === 1 ? '' : 's'} missing on this host (${missing.map((v) => v.name).join(', ')}). Set them here first, then apply.</p>`
         : '') +
       `<label class="dl-field dw-cli-field">` +
       `<span class="dl-field-label">Railway CLI</span>` +
@@ -394,7 +407,7 @@
       `</button>` +
       `</div>` +
       (railway.configured
-        ? `<p class="dl-meta">Apply writes variables to the selected project${cloudflare.configured ? ' and upserts Cloudflare DNS' : ''}. Services must already exist with these names.</p>`
+        ? `<p class="dl-meta">Apply writes variables (including secrets from this host) to the selected project${cloudflare.configured ? ' and upserts Cloudflare DNS' : ''}. Services must already exist with these names.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
         ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
@@ -494,6 +507,8 @@
       'PUBLIC_SITE_DOMAIN',
       'COMPANY_DOMAIN',
       'VAPID_SUBJECT',
+      'RESEND_FROM',
+      'EMAIL_FROM_NAME',
     ]);
     for (const variable of plan.variables) {
       const key = varKey(variable);

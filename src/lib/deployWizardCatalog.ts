@@ -508,19 +508,19 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'RESEND_API_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Resend API key (inbound + outbound).',
+    description: 'Resend API key (inbound + outbound). Copied from this host on apply.',
   }),
   v({
     name: 'RESEND_WEBHOOK_SECRET',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Resend email.received webhook signing secret.',
+    description: 'Resend email.received webhook signing secret. Copied from this host on apply.',
   }),
   v({
     name: 'RESEND_FROM',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Verified sender, e.g. Reave <noreply@mail.example.com>. Source of truth for sibling EMAIL_FROM.',
+    description: 'Verified sender — filled as noreply@{apex} from the site-domain field. Source of truth for sibling EMAIL_FROM.',
   }),
   v({
     name: 'EMAIL_FROM',
@@ -533,7 +533,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'EMAIL_FROM_NAME',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'From display name (e.g. Tony Barletta Jr.). Cal.com reads ${{reave.EMAIL_FROM_NAME}}.',
+    description: 'From display name — filled from the company name field. Cal.com reads ${{reave.EMAIL_FROM_NAME}}.',
     required: false,
   }),
   v({
@@ -1396,9 +1396,25 @@ export type DeployWizardPlanInput = {
   timezone?: string;
 };
 
+/** Secrets filled from identity (not copied from this host). */
+export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
+
+export function isDeployWizardHostSecret(variable: Pick<DeployWizardVariable, 'kind' | 'name'>): boolean {
+  return variable.kind === 'secret' && !DEPLOY_WIZARD_DERIVED_SECRETS.has(variable.name);
+}
+
+/** Bare verified sender — Cal.com treats EMAIL_FROM as an address, not a display name. */
+export function deployWizardResendFrom(siteDomain: string): string {
+  return siteDomain ? `noreply@${siteDomain}` : '';
+}
+
 export type DeployWizardPlanVariable = DeployWizardVariable & {
   filled: string;
   needsInput: boolean;
+  /** Copy from this host’s env at apply. Never put the live value in `filled`. */
+  inheritFromHost: boolean;
+  /** Set only when sanitizing the plan for the browser — no secret values. */
+  hostHasValue?: boolean;
 };
 
 export type DeployWizardPlan = {
@@ -1417,6 +1433,7 @@ export type DeployWizardPlan = {
   sharedKeys: string[];
   referenceCount: number;
   secretCount: number;
+  hostSecretCount: number;
   generatedCount: number;
 };
 
@@ -1508,13 +1525,17 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'COMPANY_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'EMAIL_FROM_NAME' && companyName) filled = companyName;
+    if (raw.name === 'RESEND_FROM' && siteDomain) filled = deployWizardResendFrom(siteDomain);
     if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
     if (appService !== DEPLOY_APP_SERVICE && filled) {
       filled = substituteAppService(filled, appService);
     }
 
-    const needsInput = raw.kind === 'secret' || raw.kind === 'generated' || raw.kind === 'literal';
-    variables.push({ ...raw, service, value: filled || raw.value, filled, needsInput });
+    const inheritFromHost = isDeployWizardHostSecret(raw);
+    const derived = DEPLOY_WIZARD_DERIVED_SECRETS.has(raw.name);
+    const needsInput =
+      !inheritFromHost && !derived && (raw.kind === 'secret' || raw.kind === 'generated' || raw.kind === 'literal');
+    variables.push({ ...raw, service, value: filled || raw.value, filled, needsInput, inheritFromHost });
   }
 
   const sharedKeys = [...new Set(variables.filter((x) => x.service === 'shared').map((x) => x.name))];
@@ -1548,7 +1569,8 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     variables,
     sharedKeys,
     referenceCount: variables.filter((x) => x.kind === 'reference' || x.kind === 'shared').length,
-    secretCount: variables.filter((x) => x.kind === 'secret').length,
+    secretCount: variables.filter((x) => x.kind === 'secret' && x.needsInput).length,
+    hostSecretCount: variables.filter((x) => x.inheritFromHost).length,
     generatedCount: variables.filter((x) => x.kind === 'generated').length,
   };
 }
@@ -1584,6 +1606,10 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
     for (const variable of vars) {
       const key = `${variable.service}:${variable.name}`;
       const value = values[key] ?? variable.filled;
+      if (variable.inheritFromHost) {
+        lines.push(`# railway variable set ${variable.name}='<from this host>' --service ${service} --skip-deploys`);
+        continue;
+      }
       if (!value && variable.kind === 'secret') {
         lines.push(`# railway variable set ${variable.name}='<paste>' --service ${service} --skip-deploys`);
         continue;

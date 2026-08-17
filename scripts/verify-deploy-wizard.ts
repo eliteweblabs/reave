@@ -70,6 +70,16 @@ assert.equal(branded.variables.find((v) => v.name === 'ADMIN_USERNAME')?.filled,
 assert.equal(branded.variables.find((v) => v.name === 'COMPANY_DOMAIN')?.filled, 'capcofire.com');
 assert.equal(branded.variables.find((v) => v.name === 'BOOKING_TIMEZONE')?.filled, 'America/Los_Angeles');
 assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.filled, 'Capco Fire');
+assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.inheritFromHost, false);
+assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.filled, 'noreply@capcofire.com');
+assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.needsInput, false);
+assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.inheritFromHost, false);
+const resendKey = branded.variables.find((v) => v.name === 'RESEND_API_KEY');
+assert.equal(resendKey?.inheritFromHost, true);
+assert.equal(resendKey?.needsInput, false);
+assert.equal(resendKey?.filled, '');
+assert.ok((branded.hostSecretCount || 0) > 0);
+assert.match(formatDeployWizardCli(branded), /RESEND_API_KEY='<from this host>'/);
 assert.equal(buildDeployWizardPlan({ features: [], postAlias: 'Disposition(s)' }).postAlias, 'project');
 
 const billed = buildDeployWizardPlan({
