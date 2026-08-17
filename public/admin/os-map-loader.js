@@ -2328,6 +2328,30 @@ function dashboardTabKeys(order) {
   return out;
 }
 
+function compareDashboardTitle(a, b) {
+  return (MAPS[a]?.title || a).localeCompare(MAPS[b]?.title || b, undefined, { sensitivity: 'base' });
+}
+
+/** Dashboard launcher tiles, A–Z by label. Footer dock order is unchanged. */
+function dashboardGridKeys(order) {
+  const keys = [];
+  for (const key of dashboardTabKeys(order)) {
+    const m = MAPS[key];
+    if (!m) continue;
+    if (m.link) {
+      keys.push(key);
+    } else if (
+      key !== 'dashboard' &&
+      !SETTINGS_MAP_TYPES.has(key) &&
+      !DASHBOARD_FOOTER_KEYS.has(key)
+    ) {
+      keys.push(key);
+    }
+  }
+  keys.sort(compareDashboardTitle);
+  return keys;
+}
+
 function closeMarketingOverlay() {
   const marketing = document.querySelector('[data-marketing-menu]');
   const toggle = document.querySelector('[data-marketing-menu-toggle]');
@@ -2380,6 +2404,7 @@ function dashboardSectionItems(order) {
       href: m.link || null,
     });
   }
+  items.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   return items;
 }
 
@@ -5048,16 +5073,12 @@ function renderAdminDashboard(data) {
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
-  for (const key of dashboardTabKeys(cachedTabOrder || defaultTabKeys())) {
+  for (const key of dashboardGridKeys(cachedTabOrder || defaultTabKeys())) {
     const m = MAPS[key];
     if (!m) continue;
     if (m.link) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
-    } else if (
-      key !== 'dashboard' &&
-      !SETTINGS_MAP_TYPES.has(key) &&
-      !DASHBOARD_FOOTER_KEYS.has(key)
-    ) {
+    } else {
       grid.appendChild(buildHomeMapTile(key, m));
     }
   }
