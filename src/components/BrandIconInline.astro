@@ -1,12 +1,29 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
+import { companyHeroIconSvg } from '../lib/companyConfig';
+import { svgHasExternalRasterRefs } from '../lib/brandSvg';
+import InlineBrandSvg from './InlineBrandSvg.astro';
 import ReaveIcon from './ReaveIconAnimated.astro';
 
 export interface Props {
   company: CompanyConfig;
 }
 
-const { company: _company } = Astro.props;
+const { company } = Astro.props;
+const customSvg = companyHeroIconSvg(company);
+/** Illustrator exports embed PNG sidecars — skip those and use the built-in mark. */
+const inlineIconSvg =
+  customSvg && !svgHasExternalRasterRefs(customSvg) ? customSvg : '';
 ---
 
-<ReaveIcon class="home-hero-icon" />
+{
+  inlineIconSvg ? (
+    <InlineBrandSvg
+      svg={inlineIconSvg}
+      class="home-hero-icon"
+      idPrefix="hero-icon"
+    />
+  ) : (
+    <ReaveIcon class="home-hero-icon" />
+  )
+}
