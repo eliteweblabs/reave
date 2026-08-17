@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260815a';
-import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260814a';
+import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260817a';
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =
@@ -100,14 +100,25 @@ function uploadBtnHtml(label) {
   );
 }
 
+function fileIconFallback(item) {
+  const kind = isPdfItem(item) ? 'pdf' : 'file';
+  const glyph = isPdfItem(item) ? 'file-text' : 'paperclip';
+  return (
+    `<div class="ml-attach-icon" aria-hidden="true" data-kind="${kind}">` +
+    `<span class="ml-attach-icon-glyph">${iosIcon(glyph, 28)}</span>` +
+    `<span class="ml-attach-ext">${escHtml(fileExt(item))}</span>` +
+    `</div>`
+  );
+}
+
 function renderGridItem(item) {
   const selected = item.id === state.selectedId && state.detailOpen;
   const preview = isImageItem(item)
-    ? `<img class="ml-attach-thumb" src="${escHtml(thumbSrc(item))}" alt="" loading="lazy" data-fallback="${escHtml(item.url || '')}" />`
-    : `<div class="ml-attach-icon" aria-hidden="true">` +
-      `<span class="ml-attach-icon-glyph">${iosIcon(isPdfItem(item) ? 'receipt' : 'paperclip', 28)}</span>` +
-      `<span class="ml-attach-ext">${escHtml(fileExt(item))}</span>` +
-      `</div>`;
+    ? `<img class="ml-attach-thumb" src="${escHtml(thumbSrc(item))}" alt="" loading="lazy" data-kind="image" data-fallback="${escHtml(item.url || '')}" />`
+    : isPdfItem(item)
+      ? `<img class="ml-attach-thumb ml-attach-thumb--doc" src="${escHtml(thumbSrc(item))}" alt="" loading="lazy" data-kind="pdf" />` +
+        `<span class="ml-attach-kind">PDF</span>`
+      : fileIconFallback(item);
   return (
     `<button type="button" class="ml-attach${selected ? ' is-selected' : ''}" data-media-id="${escHtml(item.id)}" aria-label="${escHtml(item.filename || 'Untitled')}" aria-pressed="${selected ? 'true' : 'false'}">` +
     `<span class="ml-attach-preview">${preview}</span>` +
@@ -155,7 +166,7 @@ function renderDetailPreview(item) {
   return (
     `<div class="ml-detail-media ml-detail-media--file">` +
     `<div class="ml-attach-icon ml-attach-icon--lg" aria-hidden="true">` +
-    `<span class="ml-attach-icon-glyph">${iosIcon('paperclip', 40)}</span>` +
+    `<span class="ml-attach-icon-glyph">${iosIcon('file-text', 40)}</span>` +
     `<span class="ml-attach-ext">${escHtml(fileExt(item))}</span>` +
     `</div>` +
     `</div>`
@@ -447,11 +458,14 @@ function bindThumbFallbacks(root) {
         img.src = fallback;
         return;
       }
+      const kind = img.getAttribute('data-kind') || 'image';
       const placeholder = document.createElement('div');
       placeholder.className = 'ml-attach-icon';
       placeholder.innerHTML =
-        `<span class="ml-attach-icon-glyph">${iosIcon('image', 28)}</span>` +
-        `<span class="ml-attach-ext">IMG</span>`;
+        `<span class="ml-attach-icon-glyph">${iosIcon(kind === 'pdf' ? 'file-text' : 'image', 28)}</span>` +
+        `<span class="ml-attach-ext">${kind === 'pdf' ? 'PDF' : 'IMG'}</span>`;
+      const badge = img.parentElement?.querySelector('.ml-attach-kind');
+      badge?.remove();
       img.replaceWith(placeholder);
     });
   });

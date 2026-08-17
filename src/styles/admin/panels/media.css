@@ -321,6 +321,27 @@
   display: block;
 }
 
+.ml-attach-thumb--doc {
+  object-fit: contain;
+  background: #fff;
+}
+
+.ml-attach-kind {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 0.12rem 0.34rem;
+  border-radius: 4px;
+  background: #c62828;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 .ml-attach-icon {
   display: flex;
   flex-direction: column;
@@ -708,6 +729,11 @@
   object-fit: cover;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.ml-picker-item img.ml-picker-thumb--doc {
+  object-fit: contain;
+  background: #fff;
 }
 
 .ml-picker-file {

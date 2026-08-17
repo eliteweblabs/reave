@@ -89,9 +89,12 @@ export function openMediaPicker(opts) {
         }
         grid.innerHTML = items
           .map((item) => {
-            const preview = String(item.mediaType || '').startsWith('image/')
-              ? `<img src="${escHtml(item.thumbnailUrl || item.url)}" alt="" loading="lazy" />`
-              : `<span class="ml-picker-file">${escHtml(item.filename || 'file')}</span>`;
+            const isImage = String(item.mediaType || '').startsWith('image/');
+            const isPdf = String(item.mediaType || '') === 'application/pdf';
+            const preview =
+              isImage || isPdf
+                ? `<img class="${isPdf ? 'ml-picker-thumb--doc' : ''}" src="${escHtml(item.thumbnailUrl || item.url)}" alt="" loading="lazy" />`
+                : `<span class="ml-picker-file">${escHtml(item.filename || 'file')}</span>`;
             return (
               `<button type="button" class="ml-picker-item" data-media-id="${escHtml(item.id)}">` +
               preview +

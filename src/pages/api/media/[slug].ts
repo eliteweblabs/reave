@@ -4,34 +4,10 @@
  */
 
 import type { APIContext } from 'astro';
-import sharp from 'sharp';
-import {
-  isMediaLibraryImageType,
-  projectFileResponseHeaders,
-  storeGetMediaByRef,
-} from '../../../lib/mediaLibrary';
+import { projectFileResponseHeaders, storeGetMediaByRef } from '../../../lib/mediaLibrary';
+import { mediaLibraryThumbnail } from '../../../lib/mediaThumbnail';
 
 export const prerender = false;
-
-const THUMB_SIZE = 256;
-
-async function maybeThumbnail(
-  record: { mediaType: string; dataBase64: string },
-  thumb: boolean,
-): Promise<Buffer> {
-  const bytes = Buffer.from(record.dataBase64, 'base64');
-  if (!thumb || !isMediaLibraryImageType(record.mediaType)) return bytes;
-  if (record.mediaType === 'image/svg+xml') return bytes;
-  try {
-    return await sharp(bytes)
-      .rotate()
-      .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'cover', withoutEnlargement: true })
-      .jpeg({ quality: 82 })
-      .toBuffer();
-  } catch {
-    return bytes;
-  }
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const slug = (context.params.slug ?? '').trim();
@@ -41,13 +17,9 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!record) return new Response('Not found', { status: 404 });
 
   const thumb = context.url.searchParams.get('thumb') === '1';
-  const body = await maybeThumbnail(record, thumb);
-  const mediaType =
-    thumb && isMediaLibraryImageType(record.mediaType) && record.mediaType !== 'image/svg+xml'
-      ? 'image/jpeg'
-      : record.mediaType;
+  const { body, mediaType } = await mediaLibraryThumbnail(record, thumb);
 
-  const etag = `"${record.slug || record.id}:${record.sizeBytes}:${thumb ? 't' : 'f'}"`;
+  const etag = `"${record.slug || record.id}:${record.sizeBytes}:${thumb ? 't2' : 'f'}"`;
   if (context.request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304 });
   }

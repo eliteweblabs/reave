@@ -270,7 +270,7 @@ import {
 import {
   initMediaPanel,
   loadMediaTab,
-} from './media-panel.js?v=20260814a';
+} from './media-panel.js?v=20260817a';
 import {
   initModulesPanel,
   loadModulesTab,
