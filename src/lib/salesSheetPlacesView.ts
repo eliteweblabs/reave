@@ -1,6 +1,6 @@
 /**
- * Phone mock-up for a Google Places miss — HTML only, no network.
- * Used by the sales-sheet preview and by Playwright screenshot.
+ * Phone mock-up for a Google Places miss.
+ * Screen UI is HTML; chrome is the media-library iPhone 17 frame overlaid on top.
  */
 import { escapeHtml } from './htmlEscape';
 
@@ -78,7 +78,32 @@ function reviewsLabel(count: number | undefined): string {
   return `(${count.toLocaleString('en-US')})`;
 }
 
-export function renderPlacesPhoneMockHtml(view: SalesSheetPlacesView): string {
+/** Media-library slug for the iPhone 17 sales-sheet wrapper (736×1428, padded). */
+export const IPHONE_FRAME_SLUG = 'iphone17-frame';
+export const IPHONE_FRAME_SRC = `/api/media/${IPHONE_FRAME_SLUG}`;
+
+export type PlacesPhoneMockOpts = {
+  /** Public or data URL for the device chrome. Defaults to the media-library slug. */
+  frameSrc?: string;
+};
+
+/** Inline the library PNG when present so print/PDF and Playwright do not depend on a second fetch. */
+export async function resolveIphoneFrameSrc(): Promise<string> {
+  try {
+    const { storeGetMediaByRef } = await import('./mediaLibrary');
+    const rec = await storeGetMediaByRef(IPHONE_FRAME_SLUG);
+    if (rec?.dataBase64) return `data:${rec.mediaType};base64,${rec.dataBase64}`;
+  } catch {
+    /* public slug still works on the live site */
+  }
+  return IPHONE_FRAME_SRC;
+}
+
+export function renderPlacesPhoneMockHtml(
+  view: SalesSheetPlacesView,
+  opts?: PlacesPhoneMockOpts,
+): string {
+  const frameSrc = escapeHtml((opts?.frameSrc || IPHONE_FRAME_SRC).trim() || IPHONE_FRAME_SRC);
   const query = escapeHtml(view.query || 'Search');
   const near = view.near.trim() ? escapeHtml(view.near.trim()) : '';
   const competitors = (view.competitors.length ? view.competitors : DUMMY_PLACES_COMPETITORS).slice(0, 3);
@@ -113,33 +138,45 @@ export function renderPlacesPhoneMockHtml(view: SalesSheetPlacesView): string {
   return `
 <style>
 .ss-phone {
-  --ss-phone-bg: #0b0b0d;
   --ss-phone-screen: #f4f4f0;
+  position: relative;
   box-sizing: border-box;
-  width: min(100%, 220px);
-  margin: 0 auto 0.7em;
-  padding: 10px 9px 12px;
-  background: var(--ss-phone-bg);
-  border-radius: 28px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  width: min(100%, 210px);
+  aspect-ratio: 736 / 1428;
+  margin: 0 auto 0.65em;
+  background: transparent;
   color: #141414;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-.ss-phone-notch {
-  width: 38%;
-  height: 8px;
-  margin: 0 auto 8px;
-  background: #1c1c1f;
-  border-radius: 999px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .ss-phone-screen {
-  background: var(--ss-phone-screen);
-  border-radius: 18px;
+  position: absolute;
+  /* iphone17-frame hole is ~8.6% / 3.4% / 8.7% / 3.9%. Sit slightly under the bezel;
+     the PNG’s white pad is slack if the box is a few pixels off. */
+  top: 3.15%;
+  right: 8.15%;
+  bottom: 3.55%;
+  left: 8.15%;
+  z-index: 1;
   overflow: hidden;
-  min-height: 210px;
+  padding-top: 7.5%;
+  background: var(--ss-phone-screen);
+  border-radius: 12% / 6%;
+}
+.ss-phone-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
 }
 .ss-phone-search {
-  margin: 10px 8px 0;
+  margin: 0 8px;
   padding: 7px 10px;
   background: #fff;
   border-radius: 999px;
@@ -183,38 +220,33 @@ export function renderPlacesPhoneMockHtml(view: SalesSheetPlacesView): string {
 .ss-phone-row-name { margin: 0 0 2px; font-size: 10px; font-weight: 700; }
 .ss-phone-stars { display: block; font-size: 8px; color: #c47f00; letter-spacing: 0.02em; }
 .ss-phone-row-addr { margin: 2px 0 0; font-size: 8px; color: #6b6b6b; }
-.ss-phone-home {
-  width: 28%;
-  height: 4px;
-  margin: 8px auto 0;
-  background: #2a2a2e;
-  border-radius: 999px;
-}
 .doc-onepager-col:has(.ss-phone) { overflow: visible; }
 </style>
 <figure class="ss-phone" data-places-source="${escapeHtml(view.source)}">
-  <div class="ss-phone-notch"></div>
   <div class="ss-phone-screen">
     <p class="ss-phone-search">${query}${near ? ` <span>· ${near}</span>` : ''}</p>
     ${banner}
     <p class="ss-phone-near">Nearby results</p>
     <ol class="ss-phone-list">${rows}</ol>
   </div>
-  <div class="ss-phone-home"></div>
+  <img class="ss-phone-frame" src="${frameSrc}" alt="" width="736" height="1428" />
 </figure>`.trim();
 }
 
-export function placesPhoneScreenshotDocument(view: SalesSheetPlacesView): string {
+export function placesPhoneScreenshotDocument(
+  view: SalesSheetPlacesView,
+  opts?: PlacesPhoneMockOpts,
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <style>
-    html, body { margin: 0; background: #e4e4de; }
+    html, body { margin: 0; background: #fff; }
     body { padding: 24px; display: flex; justify-content: center; }
   </style>
 </head>
-<body>${renderPlacesPhoneMockHtml(view)}</body>
+<body>${renderPlacesPhoneMockHtml(view, opts)}</body>
 </html>`;
 }
 
@@ -226,7 +258,7 @@ export function injectPhoneIntoFirstColumn(sheetHtml: string, phoneHtml: string)
 }
 
 export function placesPhoneShotImg(base64Png: string): string {
-  return `<img class="ss-phone-shot" src="data:image/png;base64,${base64Png}" alt="Mobile Google listing mock-up" style="display:block;width:min(100%,220px);margin:0 auto 0.7em;border-radius:28px;" />`;
+  return `<img class="ss-phone-shot" src="data:image/png;base64,${base64Png}" alt="Mobile Google listing mock-up" style="display:block;width:min(100%,210px);margin:0 auto 0.65em;" />`;
 }
 
 export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
