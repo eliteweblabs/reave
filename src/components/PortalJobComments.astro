@@ -52,10 +52,7 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
 
 <div class="portal-job-comments" data-portal-comments data-job-slug={jobSlug}>
   <div class="work-comments" data-comments-root>
-    <span class="work-comments-label">Comments</span>
-    {comments.length === 0 ? (
-      <p class="work-comments-empty">No comments yet — say hello below.</p>
-    ) : (
+    {comments.length > 0 && (
       <ul class="work-comment-list">
         {comments.map((c) => (
           <li class={`work-comment work-comment-${c.author}`} data-comment-id={c.id}>
@@ -81,16 +78,14 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     )}
   </div>
 
-  <label class="work-comment-label">
-    <span>Add a comment</span>
-    <textarea
-      class="work-comment-input"
-      rows="3"
-      maxlength="4000"
-      placeholder="Ask a question or share an update…"
-    />
-  </label>
-  <button class="work-comment-submit" type="button">Post comment</button>
+  <textarea
+    class="work-comment-input"
+    rows="3"
+    maxlength="4000"
+    aria-label="Ask a question or share an update"
+    placeholder="Ask a question or share an update…"
+  />
+  <button class="work-comment-submit" type="button">Ask a question or share an update</button>
 </div>
 
 <script define:vars={{ commentEndpoint, clientAvatarUrl, staffAvatarUrl, jobSlug }}>
@@ -182,9 +177,6 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to post');
 
-          const empty = commentsRoot.querySelector('.work-comments-empty');
-          if (empty) empty.remove();
-
           let list = commentsRoot.querySelector('.work-comment-list');
           if (!list) {
             list = document.createElement('ul');
@@ -217,29 +209,13 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     margin-top: 4px;
   }
 
-  .work-comments-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-bottom: 10px;
-  }
-
   .work-comments {
-    margin: 0 0 12px;
-  }
-
-  .work-comments-empty {
     margin: 0;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.45);
   }
 
   .portal-job-comments :global(.work-comment-list) {
     list-style: none;
-    margin: 0;
+    margin: 0 0 12px;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -333,16 +309,8 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     word-break: break-word;
   }
 
-  .work-comment-label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 10px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-  }
-
   .work-comment-input {
+    margin-bottom: 10px;
     width: 100%;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.12);
