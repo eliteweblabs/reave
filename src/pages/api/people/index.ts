@@ -1,13 +1,21 @@
 /**
- * GET /api/people — unified @-mention search: clients (contact-api) + Clerk team users.
+ * GET /api/people — unified @-mention search: clients + proposed (contact-api)
+ * and Clerk team users. Personal and service contacts are excluded.
  */
 
 import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
 import { clientListDisplayName, searchClientsEnhanced } from '../../../lib/clientSearch';
-import { isContactApiConfigured, listContacts } from '../../../lib/contactApi';
+import {
+  attachPortalLinksForList,
+  getClientKind,
+  isContactApiConfigured,
+  listContacts,
+  type ContactRecord,
+} from '../../../lib/contactApi';
 import {
   clerkUserDisplayName,
+  isMentionableClientKind,
   sanitizeMentionLabel,
   type PeopleSearchResult,
 } from '../../../lib/chatMentions';
@@ -32,36 +40,50 @@ function scoreName(name: string, q: string): number {
   return 10;
 }
 
-async function searchContacts(q: string | undefined, limit: number): Promise<PeopleSearchResult[]> {
-  if (!isContactApiConfigured()) return [];
-
-  if (!q) {
-    const result = await listContacts({ limit });
-    if (!result.ok) return [];
-    return result.data.contacts
-      .filter((c) => !c.archived)
-      .slice(0, limit)
-      .map((c) => ({
-        kind: 'contact' as const,
-        uid: c.uid,
-        // Company-first label — matches CRM sidebar and what users type after @.
-        name: sanitizeMentionLabel(clientListDisplayName(c)),
-        email: c.email?.trim() || undefined,
-        company: c.company?.trim() || undefined,
-        phone: c.phone?.trim() || undefined,
-      }));
-  }
-
-  const result = await searchClientsEnhanced(q, limit);
-  if (!result.ok) return [];
-  return result.data.contacts.map((c) => ({
-    kind: 'contact' as const,
+function toMentionContact(c: ContactRecord): PeopleSearchResult | null {
+  const clientKind = getClientKind(c);
+  if (!isMentionableClientKind(clientKind)) return null;
+  return {
+    kind: 'contact',
     uid: c.uid,
+    // Company-first label — matches CRM sidebar and what users type after @.
     name: sanitizeMentionLabel(clientListDisplayName(c)),
     email: c.email?.trim() || undefined,
     company: c.company?.trim() || undefined,
     phone: c.phone?.trim() || undefined,
-  }));
+    clientKind,
+  };
+}
+
+async function searchContacts(q: string | undefined, limit: number): Promise<PeopleSearchResult[]> {
+  if (!isContactApiConfigured()) return [];
+
+  // Kind lives on portal metadata. Attach links before dropping personal/service
+  // or the first page is often vendor/noreply noise (Google, Railway, etc.).
+  if (!q) {
+    const result = await listContacts({ limit: 200 });
+    if (!result.ok) return [];
+    const active = result.data.contacts.filter((c) => !c.archived);
+    const out: PeopleSearchResult[] = [];
+    const batchSize = 24;
+    for (let i = 0; i < active.length && out.length < limit; i += batchSize) {
+      const batch = active.slice(i, i + batchSize);
+      await attachPortalLinksForList(batch);
+      for (const c of batch) {
+        const row = toMentionContact(c);
+        if (row) out.push(row);
+        if (out.length >= limit) break;
+      }
+    }
+    return out;
+  }
+
+  const result = await searchClientsEnhanced(q, Math.min(limit * 3, 60));
+  if (!result.ok) return [];
+  return result.data.contacts
+    .map(toMentionContact)
+    .filter((p): p is PeopleSearchResult => p != null)
+    .slice(0, limit);
 }
 
 async function searchTeamUsers(

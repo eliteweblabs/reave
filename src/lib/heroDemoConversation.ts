@@ -54,7 +54,7 @@ export type HeroDemoMentionOption = {
   company: string;
   email?: string;
   phone?: string;
-  kind?: "contact" | "team";
+  kind?: "contact" | "proposed" | "team";
 };
 
 /**
