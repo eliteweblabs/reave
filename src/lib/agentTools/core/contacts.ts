@@ -128,6 +128,7 @@ import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../dnsCheckClient';
 import { hasFeature } from '../../features';
+import { resolveContactNameWrite } from '../../contactPersonName';
 import {
   isChangeDetectionConfigured,
   cdGetWatch,
@@ -239,11 +240,17 @@ async function handle_list_contacts(args: Record<string, unknown>, _ctx: ToolCon
 async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const contactName = String(args.name ?? '').trim();
   if (!contactName) return JSON.stringify({ error: 'name is required' });
-  const result = await createContact({
+  const named = resolveContactNameWrite({
     name: contactName,
+    company: typeof args.company === 'string' ? args.company : undefined,
+    firstName: typeof args.first_name === 'string' ? args.first_name : undefined,
+    lastName: typeof args.last_name === 'string' ? args.last_name : undefined,
+  });
+  const result = await createContact({
+    name: named.name,
     email: typeof args.email === 'string' ? args.email : undefined,
     phone: typeof args.phone === 'string' ? args.phone : undefined,
-    company: typeof args.company === 'string' ? args.company : undefined,
+    company: named.company || undefined,
     notes: typeof args.notes === 'string' ? args.notes : undefined,
   });
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
@@ -276,6 +283,9 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     /** Google Places exact address match — when not_listed, audits must surface it. */
     placesListing: places.listing,
     googlePlacesListed: places.listing.status === 'matched',
+    ...(named.omittedInventedPersonName
+      ? { first_last_omitted: true, note: named.note }
+      : {}),
   });
 }
 
@@ -294,6 +304,23 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
   const website = typeof args.website === 'string' ? args.website.trim() : '';
   const kindRaw = typeof args.kind === 'string' ? args.kind.trim() : '';
 
+  const previous = await getContact(target.uid);
+  if (!previous.ok) return JSON.stringify({ error: previous.error, status: previous.status });
+
+  const named = resolveContactNameWrite({
+    name: typeof args.new_name === 'string' ? args.new_name : undefined,
+    company: typeof args.company === 'string' ? args.company : undefined,
+    firstName: typeof args.first_name === 'string' ? args.first_name : undefined,
+    lastName: typeof args.last_name === 'string' ? args.last_name : undefined,
+    existingName: previous.data.name,
+    existingCompany: previous.data.company,
+  });
+  const nameTouched =
+    typeof args.new_name === 'string' ||
+    typeof args.first_name === 'string' ||
+    typeof args.last_name === 'string' ||
+    typeof args.company === 'string';
+
   const patch: {
     name?: string;
     email?: string;
@@ -301,25 +328,24 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
     company?: string;
     notes?: string;
   } = {};
-  if (typeof args.new_name === 'string' && args.new_name.trim()) patch.name = args.new_name.trim();
+  if (nameTouched) {
+    patch.name = named.name;
+    if (named.company) patch.company = named.company;
+  }
   if (typeof args.email === 'string') patch.email = args.email;
   if (typeof args.phone === 'string') patch.phone = args.phone;
-  if (typeof args.company === 'string') patch.company = args.company;
   if (typeof args.notes === 'string') patch.notes = args.notes;
 
   const hasCoreFields = Object.keys(patch).length > 0;
   if (!hasCoreFields && !website && !kindRaw) {
     return JSON.stringify({
-      error: 'Provide at least one field to update (new_name, email, phone, company, notes, website, kind).',
+      error: 'Provide at least one field to update (new_name, first_name, last_name, email, phone, company, notes, website, kind).',
     });
   }
 
   // Update core contact fields if any were provided.
   let updatedContact = null;
   if (hasCoreFields) {
-    const previous = await getContact(target.uid);
-    if (!previous.ok) return JSON.stringify({ error: previous.error, status: previous.status });
-
     const result = await updateContact(target.uid, patch);
     if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
     updatedContact = result.data;
@@ -366,6 +392,9 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
     ...contact,
     kind: savedKind ?? contact.kind ?? null,
     crater_synced: hasCoreFields ? true : undefined,
+    ...(named.omittedInventedPersonName
+      ? { first_last_omitted: true, note: named.note }
+      : {}),
   });
 }
 
@@ -476,14 +505,28 @@ export const contactsModule: AgentToolModule = {
               function: {
                 name: 'create_contact',
                 description:
-                  'Add a new contact to the master contact-api. Use when the user wants to add a contact or create a test contact. For inquiry/audit prospects use kind "proposed". Returns the full created contact record including portal_url.',
+                  'Add a new contact to the master contact-api. Use when the user wants to add a contact or create a test contact. For inquiry/audit prospects use kind "proposed". Pass first_name and last_name only when you found a real person. If you only know the business, put it in company (and name) and omit first/last — never split a business description into first/last. Returns the full created contact record including portal_url.',
                 parameters: {
                   type: 'object',
                   properties: {
-                    name: { type: 'string', description: 'Full name (required)' },
+                    name: {
+                      type: 'string',
+                      description:
+                        'Person full name if known, otherwise the business title. Required. Do not put a search snippet or dictated description here.',
+                    },
+                    first_name: {
+                      type: 'string',
+                      description:
+                        "Person's given name only when found on the website or a public listing. Omit if unknown — do not invent by splitting the business name.",
+                    },
+                    last_name: {
+                      type: 'string',
+                      description:
+                        "Person's family name only when found. Omit if unknown. Never a location, industry phrase, or leftover words.",
+                    },
                     email: { type: 'string' },
                     phone: { type: 'string' },
-                    company: { type: 'string' },
+                    company: { type: 'string', description: 'Business title. Use this when no person name was found.' },
                     notes: { type: 'string', description: 'Private internal notes (never shown on the client portal)' },
                     website: { type: 'string', description: 'Contact website URL, e.g. https://example.com' },
                     kind: {
@@ -502,16 +545,30 @@ export const contactsModule: AgentToolModule = {
               function: {
                 name: 'update_contact',
                 description:
-                  "Update an existing contact's details. Identify by uid (preferred) or name (fuzzy-resolved; returns candidates if ambiguous). Only provided fields are changed.",
+                  "Update an existing contact's details. Identify by uid (preferred) or name (fuzzy-resolved; returns candidates if ambiguous). Only provided fields are changed. first_name/last_name/new_name are accepted only when they are a real person — invented splits (business descriptions, search snippets, Siri dictation) are dropped and first/last stay empty.",
                 parameters: {
                   type: 'object',
                   properties: {
                     uid: { type: 'string', description: 'Contact uid (preferred)' },
                     name: { type: 'string', description: 'Fuzzy match lookup if uid unknown' },
-                    new_name: { type: 'string', description: 'Rename the contact' },
+                    new_name: {
+                      type: 'string',
+                      description:
+                        'Rename to a real person full name. Do not pass a business description or search snippet.',
+                    },
+                    first_name: {
+                      type: 'string',
+                      description:
+                        "Person's given name only when found on the website or a public listing. Omit if unknown.",
+                    },
+                    last_name: {
+                      type: 'string',
+                      description:
+                        "Person's family name only when found. Omit if unknown. Never leftover words from a listing.",
+                    },
                     email: { type: 'string' },
                     phone: { type: 'string' },
-                    company: { type: 'string' },
+                    company: { type: 'string', description: 'Business title. Prefer this over inventing first/last.' },
                     notes: { type: 'string', description: 'Private internal notes' },
                     website: { type: 'string', description: 'Contact website URL, e.g. https://example.com' },
                     kind: {

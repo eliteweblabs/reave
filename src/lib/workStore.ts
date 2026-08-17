@@ -18,6 +18,7 @@ import {
 } from 'fs';
 import { findContactByQuery } from './clientSearch';
 import { createContact, getContact, resolveContact } from './contactApi';
+import { resolveContactNameWrite } from './contactPersonName';
 import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { extractContactFromInboundEmail, preferredContactName } from './emailContactExtract';
@@ -472,10 +473,14 @@ export async function ensureWorkContact(opts: {
     }
   }
 
-  const created = await createContact({
+  const named = resolveContactNameWrite({
     name: derivedName,
-    email: email.includes('@') ? email : undefined,
     company: company ?? businessName ?? undefined,
+  });
+  const created = await createContact({
+    name: named.name,
+    email: email.includes('@') ? email : undefined,
+    company: named.company || undefined,
   });
   if (!created.ok) return { ok: false, error: created.error };
 

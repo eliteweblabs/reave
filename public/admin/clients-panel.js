@@ -743,7 +743,30 @@ function renderClientsEditor() {
  */
 // Keep in sync with src/lib/contactPersonName.ts
 const BUSINESS_NAME_TOKEN_RE =
-  /\b(?:llc|l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|corp\.?|corporation|co\.?|company|llp|pllc|p\.?c\.?|plc|gmbh|group|holdings|partners|associates|enterprises|industries|services|solutions|studio|studios|agency|consulting|construction|contracting|painting|painters|plumbing|electric(?:al)?|roofing|landscaping|cleaning|properties|realty|restaurant|cafe|clinic|media|productions?|daycare|day\s*care|grooming|groomers?|kennels?|veterinary|veterinarian|salon|spa|boutique)\b/i;
+  /\b(?:llc|l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|corp\.?|corporation|co\.?|company|llp|pllc|p\.?c\.?|plc|gmbh|group|holdings|partners|associates|enterprises|industries|services|solutions|studio|studios|agency|consulting|construction|contracting|painting|painters|plumbing|electric(?:al)?|roofing|landscaping|cleaning|properties|realty|restaurant|cafe|clinic|media|productions?|records|record|shop|store|daycare|day\s*care|grooming|groomers?|kennels?|veterinary|veterinarian|salon|spa|boutique)\b/i;
+
+const NAME_PARTICLES = new Set([
+  'van', 'von', 'de', 'del', 'della', 'der', 'den', 'di', 'da', 'dos', 'das',
+  'bin', 'al', 'la', 'le', 'du', 'st', 'saint',
+]);
+
+const NON_PERSON_WORDS = new Set([
+  'in', 'at', 'of', 'near', 'from', 'the', 'and', 'or', 'for', 'with', 'on',
+  'by', 'to', 'a', 'an', 'they', 'that', 'which', 'who', 'sell', 'sells',
+  'located', 'based', 'serving', 'offering',
+]);
+
+const US_STATE_NAMES = new Set([
+  'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado',
+  'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho',
+  'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine',
+  'maryland', 'massachusetts', 'michigan', 'minnesota', 'mississippi',
+  'missouri', 'montana', 'nebraska', 'nevada', 'ohio', 'oklahoma', 'oregon',
+  'pennsylvania', 'tennessee', 'texas', 'utah', 'vermont', 'virginia',
+  'washington', 'wisconsin', 'wyoming',
+]);
+
+const NAME_TOKEN_RE = /^[\p{L}][\p{L}\p{M}'’.\-]*$/u;
 
 function naiveSplitPersonName(full) {
   const parts = String(full || '')
@@ -755,10 +778,57 @@ function naiveSplitPersonName(full) {
   return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
 }
 
+function nameTokens(value) {
+  return String(value || '').trim().split(/\s+/).filter(Boolean);
+}
+
+function tokenKey(word) {
+  return word.toLowerCase().replace(/['’]/g, '').replace(/\.+$/g, '');
+}
+
+function isNameToken(word) {
+  const key = tokenKey(word);
+  if (!key) return false;
+  if (NAME_PARTICLES.has(key)) return true;
+  if (NON_PERSON_WORDS.has(key)) return false;
+  if (US_STATE_NAMES.has(key)) return false;
+  if (BUSINESS_NAME_TOKEN_RE.test(key)) return false;
+  return NAME_TOKEN_RE.test(word);
+}
+
+function looksLikePersonName(value) {
+  const s = String(value || '').trim();
+  if (!s || /\d/.test(s)) return false;
+  if (isBusinessTitle(s)) return false;
+  const parts = nameTokens(s);
+  if (parts.length === 0 || parts.length > 4) return false;
+  if (!parts.every(isNameToken)) return false;
+  const particles = parts.filter((p) => NAME_PARTICLES.has(tokenKey(p)));
+  if (parts.length === 4 && particles.length === 0) return false;
+  return true;
+}
+
+function looksLikePersonFirstName(value) {
+  const s = String(value || '').trim();
+  if (!s) return true;
+  if (nameTokens(s).length > 2) return false;
+  return looksLikePersonName(s);
+}
+
+function looksLikePersonLastName(value) {
+  const s = String(value || '').trim();
+  if (!s) return true;
+  const parts = nameTokens(s);
+  if (parts.length > 3) return false;
+  if (parts.length === 3 && !parts.some((p) => NAME_PARTICLES.has(tokenKey(p)))) return false;
+  return looksLikePersonName(s);
+}
+
 /** Strip legal/trade suffixes and punctuation for fuzzy business-title compare. */
 function normalizeBusinessNameCore(value) {
   return String(value || '')
     .toLowerCase()
+    .replace(/['’]s\b/g, '')
     .replace(BUSINESS_NAME_TOKEN_RE, ' ')
     .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
     .replace(/\s+/g, ' ')
@@ -794,26 +864,53 @@ function isSplitOfCompany(first, last, company) {
   return !last || last.toLowerCase() === naive.lastName.toLowerCase();
 }
 
+function firstIsCompanyBrand(first, company) {
+  if (!first || !company) return false;
+  const naive = naiveSplitPersonName(company);
+  if (first.toLowerCase() === naive.firstName.toLowerCase()) return true;
+  const core = normalizeBusinessNameCore(company);
+  const f = normalizeBusinessNameCore(first);
+  if (!f || !core) return false;
+  return core === f || core.startsWith(`${f} `);
+}
+
+function isInventedPersonName(first, last, company, fullName) {
+  if (!first && !last) return false;
+  if (!looksLikePersonFirstName(first) || !looksLikePersonLastName(last)) return true;
+  const joined = [first, last].filter(Boolean).join(' ');
+  if (joined && !looksLikePersonName(joined)) return true;
+  if (company && isSplitOfCompany(first, last, company)) return true;
+  if (company && firstIsCompanyBrand(first, company) && !last) return true;
+  if (company && firstIsCompanyBrand(first, company) && !looksLikePersonLastName(last)) return true;
+  if (fullName && !looksLikePersonName(fullName)) {
+    const naive = naiveSplitPersonName(fullName);
+    if (first.toLowerCase() === naive.firstName.toLowerCase()) return true;
+  }
+  return false;
+}
+
 function splitClientNameParts(contact) {
   const full = (contact.name || '').trim();
   const company = (contact.company || '').trim();
   const first = (contact.firstName || '').trim();
   const last = (contact.lastName || '').trim();
 
-  if (company) {
-    if (isSplitOfCompany(first, last, company)) return { firstName: '', lastName: '' };
+  if (first || last) {
+    if (isInventedPersonName(first, last, company, full)) return { firstName: '', lastName: '' };
     return { firstName: first, lastName: last };
   }
 
-  // Only a name — this is the one case we split into First / Last.
-  if (first || last) return { firstName: first, lastName: last };
-  if (full) return naiveSplitPersonName(full);
+  if (full && looksLikePersonName(full) && !company) return naiveSplitPersonName(full);
   return { firstName: '', lastName: '' };
 }
 
 /** Company title for the profile header. Never invent one by splitting a name. */
 function resolveClientCompany(contact) {
-  return (contact.company || '').trim();
+  const company = (contact.company || '').trim();
+  if (company) return company;
+  const full = (contact.name || '').trim();
+  if (full && !looksLikePersonName(full)) return full;
+  return '';
 }
 
 function joinClientFullName(firstName, lastName, company = '') {

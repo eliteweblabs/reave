@@ -300,8 +300,12 @@ async function runProposalResearch(input: {
       'public info you can find.',
     `2. Contact uid **${input.contactUid}** is already linked to the stub and marked proposed when unclassified. ` +
       'Prefer update_contact on that uid to fill phone/email/company/website. Only create_contact if resolve_contact ' +
-      'finds a clearer match that should replace it — new contacts must use kind "proposed". Use the business ' +
-      'name as the contact name when no personal name is known.',
+      'finds a clearer match that should replace it — new contacts must use kind "proposed". ' +
+      'CRITICAL — person names: pass first_name and last_name only when you found a real human given and family name ' +
+      'on the website or a public listing (About, team, Google Business owner). If you do not find a person, leave ' +
+      'first/last empty and put the business in company. NEVER split a business description, search snippet, or the ' +
+      'dictated Siri phrase into first/last (e.g. "Deathwish" / "records in Beverly Massachusetts"). Invented first/last ' +
+      'are rejected by the tool.',
     auditToolsStep,
     `4. update_work slug "${input.jobSlug}" with status "audit", contact_uid set, and a catchy finding-based title (5–12 words — ` +
       'witty but professional, inspired by the top audit finding; do NOT include the business name because ' +

@@ -20,6 +20,7 @@ For **fast street audits** (Siri **"audit"** / **"create proposal"**), use `inqu
 - Do **not** guess Lighthouse scores — run `lighthouse_audit` or omit scores and explain why
 - Do **not** use `create_work` for personal to-dos (use todo tools)
 - Do **not** write client-facing copy as **"this business"** — it reads informal and generic. Use the resolved contact / business name whenever possible (e.g. `Joe's Pizza is missing on Apple Maps`, not `This business is missing on Apple Maps`).
+- Do **not** invent a first or last name. Only write `first_name` / `last_name` when you found a real person on the website or a public listing. If you did not find a person, leave those fields empty and put the business in `company`. Never split a business description, search snippet, or Siri dictation into first/last.
 
 ## Required workflow (in order)
 
@@ -30,6 +31,8 @@ resolve_contact  →  confirm with user if ambiguous
 ```
 
 Pass `contact_uid` on `create_work`. If creating from the current chat, `source_chat_id` is set automatically; also call `link_to_work` after create if the thread should stay linked.
+
+When filling the contact: `first_name` / `last_name` only if a real person was found on the site or a listing. Otherwise leave them empty and set `company`. Never split the business name or a search snippet into first/last.
 
 ### 2. Resolve the URL
 

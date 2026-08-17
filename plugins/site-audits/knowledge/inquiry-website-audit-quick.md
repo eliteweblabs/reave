@@ -18,6 +18,7 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 - Do **not** retry `lighthouse_audit` if it fails — proceed to `update_work` (retries burn the run budget)
 - Do **not** use `create_work` for personal to-dos (use todo tools)
 - Do **not** write client-facing copy as **"this business"** — use the resolved contact / business name whenever possible (e.g. `Joe's Pizza is missing on Apple Maps`)
+- Do **not** invent a first or last name. Only write `first_name` / `last_name` when you found a real person on the website or a public listing. If you did not find a person, leave those fields empty and put the business in `company`. Never split a business description, search snippet, or Siri dictation into first/last.
 
 ## Required workflow (in order)
 
@@ -27,7 +28,7 @@ Use this playbook for **fast prospect audits** — e.g. Siri **"audit"** / **"cr
 resolve_contact  →  create_contact if no match
 ```
 
-Pass `contact_uid` on `create_work`.
+Pass `contact_uid` on `create_work`. When filling the contact: `first_name` / `last_name` only if a real person was found. Otherwise leave them empty and set `company` — never split a business description into first/last.
 
 ### 2. Resolve the URL
 
