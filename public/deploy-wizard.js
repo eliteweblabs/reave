@@ -41,12 +41,14 @@
   let project = '';
   let environment = 'production';
   let railway = { configured: false, projects: [] };
+  let cloudflare = { configured: false };
   let plan = null;
   let cli = '';
   let values = {};
   let error = '';
   let applying = false;
   let applied = null;
+  let appliedDns = null;
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
@@ -277,6 +279,7 @@
   function renderDomains() {
     const rows = plan?.domains || [];
     if (!rows.length) return '';
+    const dnsByHost = new Map((appliedDns?.rows || []).map((r) => [r.host, r]));
     return (
       `<section class="dl-section" data-section="domains">` +
       `<h2 class="dl-section-title">DNS / subdomains</h2>` +
@@ -284,22 +287,29 @@
       `<span class="dl-field-label">Site domain (apex)</span>` +
       `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
       `</label>` +
-      `<p class="dl-footnote">Add these on the install apex${siteDomain ? ` (${esc(siteDomain)})` : ''}. Prefixes stay the same on every client — <code>ap</code>, <code>cal</code>, <code>inbound</code>. Attach each CNAME on the named Railway service, then add Railway’s <code>_railway-verify</code> TXT until it verifies.</p>` +
+      `<p class="dl-footnote">${
+        cloudflare.configured
+          ? `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
+          : `Set <code>CLOUDFLARE_API_TOKEN</code> on this host to auto-write DNS. Until then, add these on the apex${siteDomain ? ` (${esc(siteDomain)})` : ''} and attach each CNAME on the named Railway service.`
+      }</p>` +
       `<div class="dw-table-wrap">` +
       `<table class="dw-table">` +
       `<thead><tr><th>Host</th><th>Type</th><th>FQDN</th><th>Attach on</th><th>Notes</th></tr></thead>` +
       `<tbody>` +
       rows
-        .map(
-          (d) =>
+        .map((d) => {
+          const dns = dnsByHost.get(d.host);
+          const note = dns ? `${dns.action}: ${dns.detail}` : d.description;
+          return (
             `<tr>` +
             `<td><code>${esc(d.host)}</code></td>` +
             `<td><span class="dw-kind dw-kind--${d.type === 'MX' ? 'secret' : 'reference'}">${esc(d.type)}</span></td>` +
             `<td><code class="dw-ref">${esc(d.fqdn)}</code></td>` +
             `<td class="dw-var-help">${esc(d.attach)}</td>` +
-            `<td class="dw-var-help">${esc(d.description)}</td>` +
-            `</tr>`,
-        )
+            `<td class="dw-var-help">${esc(note)}</td>` +
+            `</tr>`
+          );
+        })
         .join('') +
       `</tbody></table></div></section>`
     );
@@ -376,14 +386,25 @@
       `<div class="dl-toolbar-actions">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-copy">Copy CLI</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dw-apply"${railway.configured && project && !applying ? '' : ' disabled'}>` +
-      (applying ? 'Applying…' : 'Apply references to Railway') +
+      (applying
+        ? 'Applying…'
+        : cloudflare.configured
+          ? 'Apply Railway + Cloudflare DNS'
+          : 'Apply references to Railway') +
       `</button>` +
       `</div>` +
       (railway.configured
-        ? `<p class="dl-meta">Apply writes reference + entered values to the selected project. Services must already exist with these names.</p>`
+        ? `<p class="dl-meta">Apply writes variables to the selected project${cloudflare.configured ? ' and upserts Cloudflare DNS' : ''}. Services must already exist with these names.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
         ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
+        : '') +
+      (appliedDns
+        ? `<p class="dl-footnote" role="status">${esc(appliedDns.summary || '')}${
+            appliedDns.leftover?.length
+              ? ` Left for you: ${esc(appliedDns.leftover.join(' '))}`
+              : ''
+          }</p>`
         : '')
     );
   }
@@ -545,6 +566,7 @@
       plan = json.plan;
       cli = json.cli || cli;
       applied = json.applied || [];
+      appliedDns = json.dns || null;
     } catch (e) {
       error = e.message || 'Could not apply variables.';
     } finally {
@@ -667,6 +689,7 @@
       included = data.included || [];
       extrasCatalog = data.extras || [];
       railway = data.railway || railway;
+      cloudflare = data.cloudflare || cloudflare;
       if (data.defaults) {
         appService = data.defaults.appService || appService;
         environment = data.defaults.environment || environment;

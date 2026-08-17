@@ -31,21 +31,19 @@ Keep these exact names on new installs:
 
 ## Canonical subdomains
 
-Add these on the install apex (`acme.com`). Prefixes do not change.
+Prefixes do not change. **Apply** attaches Railway custom domains and upserts Cloudflare (grey-cloud / DNS only) when `CLOUDFLARE_API_TOKEN` is set on this host. The zone must already live in the Cloudflare account.
 
-| Host | Type | When | Attach |
+| Host | Type | When | Apply does |
 |------|------|------|--------|
-| `@` / `www` | CNAME | Always | Railway `reave` |
-| `inbound` | MX | Always (inbox) | Resend receiving — `inbox@inbound.{apex}` |
-| `clerk` / `accounts` | CNAME | Always (Clerk) | Clerk → Domains |
-| `ap` | CNAME | `billing` | Railway `crater` |
-| `cal` | CNAME | `scheduling` | Railway `calcom-web-app` |
-| `book` | CNAME | `scheduling` | Railway `calcom-booking-api` |
-| `demo` | CNAME | `demo` | Railway `reave` (sandbox host) |
-| `stats` | CNAME | Plausible extra | Railway `plausible` |
-| `watch` | CNAME | ChangeDetection extra | Railway `changedetection` |
-
-Each Railway CNAME also needs the `_railway-verify` TXT Railway shows until the domain verifies.
+| `@` / `www` | CNAME | Always | Railway `reave` + Cloudflare CNAME + `_railway-verify` TXT |
+| `inbound` | MX | Always (inbox) | Create Resend domain `inbound.{apex}` and sync MX/TXT |
+| `clerk` / `accounts` | CNAME | Always (Clerk) | **Manual** — copy from Clerk → Domains |
+| `ap` | CNAME | `billing` | Railway `crater` + Cloudflare |
+| `cal` | CNAME | `scheduling` | Railway `calcom-web-app` + Cloudflare |
+| `book` | CNAME | `scheduling` | **Skipped** — Railway public domain is enough |
+| `demo` | CNAME | `demo` | Railway `reave` + Cloudflare |
+| `stats` | CNAME | Plausible extra | Railway `plausible` + Cloudflare |
+| `watch` | CNAME | ChangeDetection extra | Railway `changedetection` + Cloudflare |
 
 ## Typical references on `reave`
 
@@ -101,6 +99,6 @@ Third-party secrets only: Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub
 
 ## Apply
 
-`POST /api/deploy/wizard` with `action: "apply"` writes the plan to a Railway project (`RAILWAY_API_TOKEN` on this host). Services must already exist with the names above. Redeploy after apply.
+`POST /api/deploy/wizard` with `action: "apply"` writes the plan to a Railway project (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Services must already exist with the names above. Redeploy after apply. Clerk CNAMEs are the only DNS leftover.
 
 Catalog source: `src/lib/deployWizardCatalog.ts`.

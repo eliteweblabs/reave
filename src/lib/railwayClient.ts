@@ -137,7 +137,7 @@ type CustomDomainDnsRecord = {
   status?: string | null;
 };
 
-type CustomDomain = {
+export type RailwayCustomDomain = {
   id: string;
   domain: string;
   status?: {
@@ -151,7 +151,7 @@ export type RailwayServiceNetworking = {
   service_id: string;
   service_name: string;
   railway_domains: ServiceDomain[];
-  custom_domains: CustomDomain[];
+  custom_domains: RailwayCustomDomain[];
 };
 
 export type RailwayProjectNetworking = {
@@ -276,13 +276,13 @@ async function railwayGetServiceDomains(opts: {
   environmentId: string;
   serviceId: string;
 }): Promise<
-  | { ok: true; serviceDomains: ServiceDomain[]; customDomains: CustomDomain[] }
+  | { ok: true; serviceDomains: ServiceDomain[]; customDomains: RailwayCustomDomain[] }
   | { ok: false; error: string }
 > {
   const result = await railwayGraphql<{
     domains?: {
       serviceDomains?: ServiceDomain[] | null;
-      customDomains?: CustomDomain[] | null;
+      customDomains?: RailwayCustomDomain[] | null;
     } | null;
   }>({
     query: `query domains($projectId: String!, $environmentId: String!, $serviceId: String!) {
@@ -307,6 +307,81 @@ async function railwayGetServiceDomains(opts: {
     serviceDomains: d?.serviceDomains ?? [],
     customDomains: d?.customDomains ?? [],
   };
+}
+
+function findCustomDomain(
+  domains: RailwayCustomDomain[],
+  fqdn: string,
+): RailwayCustomDomain | undefined {
+  const needle = fqdn.trim().toLowerCase();
+  return domains.find((d) => d.domain.trim().toLowerCase() === needle);
+}
+
+/** Attach a custom hostname on a Railway service, or return it if it already exists. */
+export async function railwayEnsureCustomDomain(opts: {
+  projectId: string;
+  environmentId: string;
+  serviceId: string;
+  domain: string;
+}): Promise<
+  | { ok: true; domain: RailwayCustomDomain; created: boolean }
+  | { ok: false; error: string }
+> {
+  const fqdn = opts.domain.trim().toLowerCase().replace(/\.$/, '');
+  if (!fqdn) return { ok: false, error: 'domain is required' };
+
+  const existing = await railwayGetServiceDomains({
+    projectId: opts.projectId,
+    environmentId: opts.environmentId,
+    serviceId: opts.serviceId,
+  });
+  if (!existing.ok) return existing;
+  const already = findCustomDomain(existing.customDomains, fqdn);
+  if (already) return { ok: true, domain: already, created: false };
+
+  const created = await railwayGraphql<{
+    customDomainCreate?: RailwayCustomDomain | null;
+  }>({
+    query: `mutation customDomainCreate($input: CustomDomainCreateInput!) {
+      customDomainCreate(input: $input) {
+        id
+        domain
+        status {
+          verificationToken
+          certificateStatus
+          dnsRecords { hostlabel requiredValue currentValue status }
+        }
+      }
+    }`,
+    variables: {
+      input: {
+        projectId: opts.projectId,
+        environmentId: opts.environmentId,
+        serviceId: opts.serviceId,
+        domain: fqdn,
+      },
+    },
+  });
+
+  if (created.ok && created.data.customDomainCreate) {
+    return { ok: true, domain: created.data.customDomainCreate, created: true };
+  }
+
+  const listed = await railwayGetServiceDomains({
+    projectId: opts.projectId,
+    environmentId: opts.environmentId,
+    serviceId: opts.serviceId,
+  });
+  if (listed.ok) {
+    const retry = findCustomDomain(listed.customDomains, fqdn);
+    if (retry) return { ok: true, domain: retry, created: false };
+  }
+
+  const err =
+    (!created.ok ? created.errors.map((e) => e.message).join('; ') : null) ||
+    (!listed.ok ? listed.error : null) ||
+    `Could not attach ${fqdn} on Railway`;
+  return { ok: false, error: err };
 }
 
 export function pickRailwayEnvironment(

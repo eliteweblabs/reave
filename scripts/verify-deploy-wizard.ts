@@ -13,6 +13,7 @@ import {
   railwayLocalRef,
   railwayRef,
   railwaySharedRef,
+  deployWizardDnsKind,
 } from '../src/lib/deployWizardCatalog.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
@@ -168,6 +169,10 @@ assert.ok(billedDns.domains.some((d) => d.host === 'ap' && d.fqdn === 'ap.acme.c
 assert.ok(billedDns.domains.some((d) => d.host === 'cal' && d.fqdn === 'cal.acme.com'));
 assert.ok(billedDns.domains.some((d) => d.host === 'book' && d.target === 'calcom-booking-api'));
 assert.ok(!billedDns.domains.some((d) => d.host === 'demo'));
+assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'book')!), 'skip');
+assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'cal')!), 'railway');
+assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'inbound')!), 'resend');
+assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'clerk')!), 'clerk');
 
 const cli = formatDeployWizardCli(billedDns);
 assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);

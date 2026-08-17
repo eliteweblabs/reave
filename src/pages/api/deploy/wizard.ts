@@ -21,8 +21,11 @@ import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { FEATURE_BLURBS, FEATURE_ID_SET, type FeatureId } from '../../../lib/featureCatalog';
 import { hasFeature } from '../../../lib/features';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
+import { applyDeployWizardDns } from '../../../lib/deployWizardDns';
+import { isCloudflareConfigured } from '../../../lib/cloudflareClient';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { railwaySetVariables } from '../../../lib/railwayAgentApi';
+import { isResendConfigured } from '../../../lib/resendDnsSync';
 
 export const prerender = false;
 
@@ -122,6 +125,8 @@ export async function GET(context: APIContext): Promise<Response> {
       configured: isRailwayConfigured(),
       projects,
     },
+    cloudflare: { configured: isCloudflareConfigured() },
+    resend: { configured: isResendConfigured() },
     defaults: {
       appService: 'reave',
       environment: 'production',
@@ -231,12 +236,27 @@ export async function POST(context: APIContext): Promise<Response> {
       }))
     : undefined;
 
+  const dns = await applyDeployWizardDns({
+    plan,
+    project,
+    environment,
+  }).catch((e) => ({
+    ok: false,
+    configured: isCloudflareConfigured(),
+    rows: [],
+    leftover: [e instanceof Error ? e.message : String(e)],
+    summary: e instanceof Error ? e.message : String(e),
+  }));
+
   return json({
     ok: true,
     plan,
     cli,
     applied,
     identity,
-    hint: 'Variables saved without an automatic redeploy. Redeploy each service when you are ready.',
+    dns,
+    hint: dns.summary
+      ? `Variables saved without an automatic redeploy. ${dns.summary}`
+      : 'Variables saved without an automatic redeploy. Redeploy each service when you are ready.',
   });
 }

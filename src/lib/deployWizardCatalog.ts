@@ -70,6 +70,16 @@ export type DeployWizardPlanDomain = DeployWizardDomain & {
   attach: string;
 };
 
+export type DeployWizardDnsKind = 'railway' | 'resend' | 'clerk' | 'skip';
+
+/** book. is optional — Railway's public domain is enough for the booking API. */
+export function deployWizardDnsKind(domain: Pick<DeployWizardDomain, 'id' | 'host' | 'target' | 'type'>): DeployWizardDnsKind {
+  if (domain.id === 'book' || domain.host === 'book') return 'skip';
+  if (domain.target === 'clerk') return 'clerk';
+  if (domain.target === 'resend' || domain.type === 'MX') return 'resend';
+  return 'railway';
+}
+
 export function railwayRef(service: string, variable: string): string {
   return `\${{ ${service}.${variable} }}`;
 }
@@ -136,7 +146,7 @@ export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
     host: 'inbound',
     type: 'MX',
     target: 'resend',
-    description: 'Resend receiving. Mailbox is inbox@inbound.{apex}. Copy MX from Resend → Receiving.',
+    description: 'Resend receiving. Mailbox is inbox@inbound.{apex}. Apply creates the Resend domain and writes MX on Cloudflare.',
   },
   {
     id: 'clerk',
@@ -173,7 +183,7 @@ export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
     host: 'book',
     type: 'CNAME',
     target: 'calcom-booking-api',
-    description: 'Public booking API for client embeds (PUBLIC_BOOKING_API_URL).',
+    description: 'Optional branded booking API. Skip — PUBLIC_BOOKING_API_URL uses the Railway public domain.',
     features: ['scheduling'],
   },
   {
@@ -1554,8 +1564,7 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
   ];
 
   if (plan.domains.length) {
-    lines.push('# DNS — add these on the install apex, then attach CNAMEs on the named Railway service');
-    lines.push('# Railway also asks for a TXT _railway-verify record until each custom domain verifies.');
+    lines.push('# DNS — Apply writes Railway CNAMEs + _railway-verify TXT on Cloudflare (skip book.; Clerk still manual)');
     for (const domain of plan.domains) {
       const host = domain.host === '@' ? '@' : domain.host;
       lines.push(`# ${domain.type.padEnd(5)} ${host.padEnd(12)} ${domain.fqdn}  →  ${domain.attach}`);
