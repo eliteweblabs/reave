@@ -30,7 +30,7 @@ Generated: 2026-08-05T00:20:53.084Z
 - [ ] **022** — Multi-channel inventory sync (`inventory_sync`)
 - [ ] **023** — Reviews triage (`online_reviews`)
 - [ ] **024** — Wayback Machine (`wayback_machine`)
-- [ ] **025** — Website content management (`content_management`)
+- [ ] **025** — Agentic Website Editor (`content_management`)
 - [ ] **026** — Pexels stock photos (`stock_photos`)
 - [ ] **027** — WordPress content plugin (`wordpress_content`)
 
@@ -247,13 +247,14 @@ Status: **pending** · Playbook: `plugins/dev-infra/DEPLOY.md`
 
 # Dev & infrastructure deployment
 
+**Visibility:** private / owner-only. Git publish lives on `content_management`.
+
 ## Sibling services
 
-- None — agent tools call GitHub, Railway, and Kinsta APIs directly
+- None — agent tools call Railway and Kinsta APIs directly
 
 ## Required env vars
 
-- `GITHUB_TOKEN` — repo status, commits, PRs (read/write scopes as needed)
 - `RAILWAY_API_TOKEN` — list domains, create projects
 - `RAILWAY_WORKSPACE_ID` — optional; required if name-only create fails
 - `RAILWAY_WEBHOOK_INGRESS_KEY` — deploy failure alerts to admin
@@ -262,13 +263,13 @@ Status: **pending** · Playbook: `plugins/dev-infra/DEPLOY.md`
 
 ## External setup
 
-- Enable `dev_infra` in install config `features[]`
+- Enable `dev_infra` in install config `features[]` (owner installs)
 - Create Railway account token and Kinsta API key
 - Configure Railway project webhook → `/api/railway/webhook?key=`
 
 ## Checklist
 
-- [ ] Set `GITHUB_TOKEN` and `RAILWAY_*` vars
+- [ ] Set `RAILWAY_*` vars (Git publish is `content_management` + `GITHUB_TOKEN`)
 - [ ] Set `KINSTA_*` if WordPress tools are needed
 - [ ] Test `list_railway_domains` agent tool
 - [ ] Set `moduleStatus.dev_infra` → `deployed` in install config

@@ -1236,8 +1236,8 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'GITHUB_TOKEN',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'GitHub PAT for repo/status/content tools.',
-    features: ['dev_infra', 'content_management'],
+    description: 'GitHub PAT for the Agentic Website Editor (write_github_file).',
+    features: ['content_management', 'dev_infra'],
   }),
   v({
     name: 'RAILWAY_API_TOKEN',

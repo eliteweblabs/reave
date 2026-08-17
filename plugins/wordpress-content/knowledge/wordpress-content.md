@@ -5,7 +5,7 @@ When `wordpress_content` is enabled, the owner can ask the agent to update **pos
 ## Scope
 
 - **This module:** WordPress sites with the Reave companion plugin installed
-- **Not this module:** Astro / GitHub site edits — that is `content_management` + `dev_infra` / `code_dev`
+- **Not this module:** Astro / GitHub site edits — that is `content_management` (Agentic Website Editor)
 
 ## Typical asks
 

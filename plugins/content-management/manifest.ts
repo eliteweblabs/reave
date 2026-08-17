@@ -1,7 +1,9 @@
+import { contentManagementModule } from './agentTools';
 import type { ReavePlugin } from '../_shared/types';
 
-/** Marketing + agent playbook only — website edits use existing dev_infra / code_dev tools. */
+/** Agentic Website Editor — Git publish plus the site-copy playbook. */
 export const contentManagementPlugin: ReavePlugin = {
   id: 'content-management',
   feature: 'content_management',
+  agentTools: contentManagementModule,
 };

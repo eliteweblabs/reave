@@ -755,11 +755,13 @@ async function runKnowledgeAgentInner(
     sysParts.push(
       'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live on Railway, call check_deployment_status or list_railway_deployments. The header deploy bulb is Railway-only (webhooks + optional GraphQL — not GitHub). Deploy banners (🚀 deploying, 🔴 failed, 🟢 live only when asked or right after a deploy lands) prepend agent replies automatically — do not use ✅ for deploy status. Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
     );
+  }
+  if (hasFeature('content_management') || hasFeature('dev_infra')) {
     if (isGithubConfigured()) {
       const deployDefer =
         isDeferredDeployEnabled()
           ? ' Commits to main during this chat turn are queued and push to GitHub automatically when the turn finishes — do not expect check_deployment_status to show live until then.'
-          : ' Committing to main triggers a Railway deploy automatically.';
+          : ' Committing to main publishes through whatever host deploys this repo (Railway, or any git-connected host).';
       sysParts.push(
         `GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL (or deferred note when queued). Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed.${deployDefer}`,
       );
@@ -786,7 +788,10 @@ async function runKnowledgeAgentInner(
       );
     }
   }
-  if (hasFeature('code_dev') || (hasFeature('dev_infra') && isGithubConfigured())) {
+  if (
+    hasFeature('code_dev') ||
+    ((hasFeature('dev_infra') || hasFeature('content_management')) && isGithubConfigured())
+  ) {
     sysParts.push(
       'Long files — read this before building a page or a large component. A tool call\'s arguments count against your per-response output budget, so a whole long file sent in one write_file/write_github_file call gets cut off mid-argument: the call never runs and NOTHING is written. When a file will run long (roughly 400+ lines, e.g. a full marketing/features page with real copy), plan for it up front: make the first call with the opening section (imports, head, first section markup), then make additional calls to the same path with append:true for each following section, then verify with read_file or get_git_status. Do not announce the page and stop, and do not retry the same oversized single call — split it. Prefer several modest sections over one heroic write.',
     );
@@ -871,7 +876,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('content_management')) {
     sysParts.push(
-      'Website content (no CMS): when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or GitHub, then commit with write_github_file on main (dev_infra + GITHUB_TOKEN). Images belong in the media library (slug → /api/media/{slug} in site config), not git. Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
+      'Agentic Website Editor: when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or get_recent_commits, then commit with write_github_file on main (GITHUB_TOKEN). The host that deploys this repo (Railway or any git-connected host) publishes the change. Images belong in the media library (slug → /api/media/{slug} in site config), not git. Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
     );
   }
   if (hasFeature('wordpress_content')) {

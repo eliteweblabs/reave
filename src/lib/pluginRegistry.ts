@@ -142,7 +142,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'client-portal':
       return ['client-portal'];
     case 'dev-infra':
-      return ['github-dev-tools', 'kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage'];
+      return ['kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage'];
     case 'email-marketing':
       return ['newsletter'];
     case 'uptime-monitoring':
@@ -162,7 +162,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'wayback-machine':
       return ['wayback-machine'];
     case 'content-management':
-      return ['content-management'];
+      return ['content-management', 'github-dev-tools'];
     case 'stock-photos':
       return ['stock-photos'];
     case 'wordpress-content':

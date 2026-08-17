@@ -27,7 +27,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `carddav/` | `carddav` | `carddav.md` | — |
 | `client-portal/` | `client_portal` | `client-portal.md` | yes |
 | `code-dev/` | `code_dev` | install-scoped `code-dev-tools.md` | yes |
-| `dev-infra/` | `dev_infra` | github, kinsta, railway playbooks | yes |
+| `dev-infra/` | `dev_infra` | kinsta, railway playbooks — **owner-only** | yes |
 | `email-marketing/` | `email_marketing` | `newsletter.md` | — |
 | `namecom-dns/` | `namecom_dns` | — | yes |
 | `scheduling/` | `scheduling` | — | yes |
@@ -39,7 +39,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
 | `inventory/` | `inventory_sync` | `inventory-sync.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
-| `content-management/` | `content_management` | `content-management.md` | — (playbook only; uses dev_infra / code_dev tools) |
+| `content-management/` | `content_management` | `content-management.md`, `github-dev-tools.md` | yes — Git publish (Agentic Website Editor) |
 | `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | — (stub; companion WP plugin + agent tools TBD) |
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |

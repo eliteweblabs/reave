@@ -13,7 +13,7 @@ stage: 3
 
 A **WordPress companion plugin** so the Reave agent can update posts, pages, and media on an existing WordPress site — without the owner logging into wp-admin for every copy change.
 
-This is separate from `content_management` (Astro / GitHub / no CMS). Enable only for installs that keep WordPress as the public site.
+This is separate from `content_management` (Agentic Website Editor — Astro / GitHub / no CMS). Enable only for installs that keep WordPress as the public site.
 
 ## Enable
 

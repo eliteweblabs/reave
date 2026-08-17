@@ -1,19 +1,19 @@
 # GitHub — commit files straight to main from Admin Agent
 
-The Claude tool loop can **write files** on the Reave repo via the GitHub REST API. Read-only status tools (`get_git_status`, `get_recent_commits`, etc.) work with a read token; writes need extra scopes.
+The Agentic Website Editor writes files via the GitHub REST API. Read-only status tools (`get_git_status`, `get_recent_commits`, etc.) work with a read token; writes need extra scopes.
 
-> **This project never uses pull requests.** Always commit directly to `main` with `write_github_file` (branch `main`). Do **not** call `create_github_branch` or `create_pull_request` unless the user explicitly asks for a branch or PR. Committing to `main` triggers a Railway deploy automatically.
+> **This project never uses pull requests.** Always commit directly to `main` with `write_github_file` (branch `main`). Do **not** call `create_github_branch` or `create_pull_request` unless the user explicitly asks for a branch or PR. Committing to `main` publishes through whatever host deploys this repo (Railway, or any git-connected host).
 >
-> On the deployed Railway container there is no git binary and no `.git` checkout, so `exec_command`/shell `git push` will not work — the GitHub API (`write_github_file`) is the only way to persist code there.
+> On a deployed container there is often no git binary and no `.git` checkout, so `exec_command`/shell `git push` will not work — the GitHub API (`write_github_file`) is the only way to persist code there.
 
 ## Repo & env
 
 | Variable | Purpose |
 |----------|---------|
-| `GITHUB_TOKEN` | PAT (or fine-grained token) on Railway — **required for writes** |
+| `GITHUB_TOKEN` | PAT (or fine-grained token) — **required for writes** |
 | `GITHUB_REPO` | Optional `owner/repo` override (default: `eliteweblabs/reave`) |
 
-**Token permissions (fine-grained on `eliteweblabs/reave`):**
+**Token permissions (fine-grained on the site repo):**
 
 - Read status: **Contents** (read) + **Metadata**
 - `write_github_file`: **Contents** (read + write)
@@ -26,9 +26,9 @@ Classic PAT alternative: `repo` scope covers both.
 
 1. **`write_github_file`** with `branch: "main"` — each call is one commit directly on `main`. Make one focused commit per logical change.
 2. Report the **commit SHA** and **commit URL**. Do not claim success unless tools return OK.
-3. Optional: **`get_git_status`** / **`get_recent_commits`** to verify; **`run_dev_task` task=service_status** shows `github_write.can_write_files` for token troubleshooting.
+3. Optional: **`get_git_status`** / **`get_recent_commits`** to verify.
 
-Committing to `main` triggers a Railway deploy automatically — no merge or PR step.
+Committing to `main` triggers the host that watches this repo — no merge or PR step.
 
 ### Branch/PR flow (only when explicitly requested)
 
@@ -40,10 +40,10 @@ Do not use this unless the user specifically asks for a branch or pull request:
 
 ## Verify token permissions
 
-Ask the bot: **"run a service status check"** (or `run_dev_task` → `service_status`). Look at `github_write`:
+Ask the bot: **"run a service status check"** (or `run_dev_task` → `service_status` when Dev & infrastructure is on). Look at `github_write`:
 
 - `can_write_files: true` → `write_github_file` should work
-- `can_write_files: false` → upgrade `GITHUB_TOKEN` on Railway (Contents write + Pull requests write on `eliteweblabs/reave`)
+- `can_write_files: false` → upgrade `GITHUB_TOKEN` (Contents write + Pull requests write on the site repo)
 
 ## Tools
 
@@ -115,5 +115,5 @@ Returns: PR `number`, `url`, `state`, `head`, `base`.
 
 - Path must not contain `..` (no directory traversal).
 - Large files: GitHub Contents API is for normal source files, not binaries or huge blobs.
-- Default flow commits straight to `main`; Railway auto-deploys from `main`. Merging/PRs are only used if the user explicitly asks.
-- If `GITHUB_TOKEN` is missing or read-only, tools return an error — tell the owner to fix Railway Variables.
+- Default flow commits straight to `main`; the connected host deploys from `main`. Merging/PRs are only used if the user explicitly asks.
+- If `GITHUB_TOKEN` is missing or read-only, tools return an error — tell the owner to fix the token on the host.

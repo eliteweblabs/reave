@@ -6,13 +6,14 @@ stage: 3
 
 # Dev & infrastructure deployment
 
+**Visibility:** private / owner-only (not sold as an add-on). Git publish lives on `content_management` (Agentic Website Editor). This pack is Railway + Kinsta + deploy repair for the deployment owner.
+
 ## Sibling services
 
-- None — agent tools call GitHub, Railway, and Kinsta APIs directly
+- None — agent tools call Railway and Kinsta APIs directly
 
 ## Required env vars
 
-- `GITHUB_TOKEN` — repo status, commits, PRs (read/write scopes as needed)
 - `RAILWAY_API_TOKEN` — projects, services, variables, domains, deployments, logs
 - `RAILWAY_WORKSPACE_ID` — optional; required if name-only create fails
 - `RAILWAY_WEBHOOK_INGRESS_KEY` — deploy failure alerts to admin
@@ -27,7 +28,7 @@ stage: 3
 
 ## Checklist
 
-- [ ] Set `GITHUB_TOKEN` and `RAILWAY_*` vars
+- [ ] Set `RAILWAY_*` vars (Git publish is `content_management` + `GITHUB_TOKEN`)
 - [ ] Set `KINSTA_*` if WordPress tools are needed
 - [ ] Test `list_railway_variables` and `get_railway_status` agent tools
 - [ ] Set `moduleStatus.dev_infra` → `deployed` in install config

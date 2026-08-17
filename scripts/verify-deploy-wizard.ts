@@ -23,9 +23,13 @@ import {
 
 assert.equal(featureVisibility('client_portal'), 'public');
 assert.equal(featureVisibility('deploy_wizard'), 'private');
+assert.equal(featureVisibility('dev_infra'), 'private');
 assert.equal(isPublicFeature('client_portal'), true);
 assert.equal(isPrivateFeature('deploy_wizard'), true);
+assert.equal(isPrivateFeature('dev_infra'), true);
 assert.equal(isPublicFeature('deploy_wizard'), false);
+assert.equal(isPublicFeature('dev_infra'), false);
+assert.equal(isPublicFeature('content_management'), true);
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');

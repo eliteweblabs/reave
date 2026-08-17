@@ -80,7 +80,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     features: [
       { label: 'Everything in Operations' },
       { label: 'Branded public website', href: '/features#feature-white-label' },
-      { label: 'CMS-less website editing via agent', href: '/features#feature-site-editing' },
+      { label: 'Agentic Website Editor', href: '/features#feature-site-editing' },
       { label: 'Voice & call routing', href: '/modules#plugin-voice' },
       { label: 'Document signing', href: '/modules#plugin-documents' },
       { label: 'Newsletters, social & analytics', href: '/features#feature-growth' },
@@ -92,7 +92,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
     tier: 1,
     name: 'Full platform',
     summary:
-      'Everything in Growth, plus industry plugins and agency tooling — dealership, fleet, deploy infra, and DNS.',
+      'Everything in Growth, plus industry plugins and agency tooling — dealership, fleet, and DNS.',
     month1: 5000,
     month2: 2500,
     month3: 1250,
@@ -103,7 +103,6 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
       { label: 'Dealership inventory wizard', href: '/modules#plugin-dealership' },
       { label: 'Fleet GPS tracking', href: '/modules#plugin-fleet' },
       { label: 'WordPress content plugin', href: '/modules#plugin-wordpress-content' },
-      { label: 'Dev & deploy infrastructure', href: '/modules#plugin-dev-infra' },
       { label: 'DNS record management', href: '/modules#plugin-namecom-dns' },
       { label: 'Any remaining optional plugins', href: '/modules' },
     ],

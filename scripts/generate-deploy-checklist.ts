@@ -37,7 +37,7 @@ const FEATURE_LABELS: Record<string, string> = {
   inventory_sync: 'Multi-channel inventory sync',
   online_reviews: 'Reviews triage',
   wayback_machine: 'Wayback Machine',
-  content_management: 'Website content management',
+  content_management: 'Agentic Website Editor',
   stock_photos: 'Pexels stock photos',
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',

@@ -199,7 +199,7 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
   },
   {
     id: 'cms-less-editing',
-    label: 'CMS-less website editing',
+    label: 'Agentic Website Editor',
     modules: ['content_management'],
     kind: 'capability',
     href: '/features#feature-site-editing',

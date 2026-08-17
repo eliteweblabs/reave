@@ -91,7 +91,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   inventory_sync: 'Multi-channel inventory sync',
   online_reviews: 'Reviews triage',
   wayback_machine: 'Wayback Machine',
-  content_management: 'Website content management',
+  content_management: 'Agentic Website Editor',
   stock_photos: 'Pexels stock photos',
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',
@@ -115,7 +115,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   vapi: 'Voice assistant powered by Vapi',
   carddav: 'Sync contacts to iOS and other CardDAV clients',
   scheduling: 'Bookings, availability, and meeting links via Cal.com',
-  dev_infra: 'Git, Railway, Kinsta, and deploy tooling',
+  dev_infra: 'Railway, Kinsta, and deploy tooling — owner installs only',
   code_dev: 'Agent read/write/list/exec on the local codebase',
   email_marketing: 'Welcome, follow-ups, review requests, and broadcasts',
   fleet_tracking: 'Live vehicle location and GPS history',
@@ -128,7 +128,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   online_reviews:
     'Google™, Apple Maps, Yelp, Facebook, and Tripadvisor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
-  content_management: 'Update your site through the agent, no CMS',
+  content_management: 'Edit and publish the public site through the agent — Git, no CMS',
   stock_photos: 'Royalty-free search for pages, decks, and newsletters',
   wordpress_content: 'Agent updates posts, pages, and media on a WordPress site',
   seo_directory:
@@ -148,6 +148,7 @@ export type FeatureVisibility = 'public' | 'private';
  */
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
+  dev_infra: 'private',
 };
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
