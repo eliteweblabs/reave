@@ -14,6 +14,7 @@ export {
   type ListTodosOpts,
 } from './pgTodos';
 
+import { isCanonicalReaveInstall } from './installConfig';
 import {
   dbListTodos,
   dbReadTodo,
@@ -22,6 +23,7 @@ import {
   dbMarkTodoDone,
   dbDeleteTodo,
   dbReorderTodos,
+  dbPurgeBundledMarkdownTodosOnce,
   dbSeedTodosFromMarkdownIfEmpty,
   type ListTodosOpts,
   type TodoItem,
@@ -30,12 +32,18 @@ import {
 } from './pgTodos';
 
 export async function storeListTodos(opts?: ListTodosOpts): Promise<TodoItem[]> {
-  await storeSeedTodosFromMarkdownIfEmpty();
+  if (isCanonicalReaveInstall()) {
+    await storeSeedTodosFromMarkdownIfEmpty();
+  } else {
+    await dbPurgeBundledMarkdownTodosOnce();
+  }
   const rows = await dbListTodos(opts ?? {});
   return rows ?? [];
 }
 
+/** One-shot migration for the official REΛVE install. Never runs on customer installs. */
 export async function storeSeedTodosFromMarkdownIfEmpty(): Promise<number> {
+  if (!isCanonicalReaveInstall()) return 0;
   return dbSeedTodosFromMarkdownIfEmpty();
 }
 

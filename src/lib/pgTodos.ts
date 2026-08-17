@@ -58,6 +58,11 @@ ALTER TABLE todos ALTER COLUMN due_date TYPE TIMESTAMPTZ USING (
   CASE WHEN due_date IS NULL THEN NULL ELSE due_date::timestamptz END
 );
 CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos (status, sort_order ASC, updated_at DESC);
+CREATE TABLE IF NOT EXISTS todos_meta (
+  id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  markdown_seed_done BOOLEAN NOT NULL DEFAULT false
+);
+INSERT INTO todos_meta (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -343,16 +348,59 @@ export async function dbMarkTodoDone(
   return dbUpdateTodo(id, { status: 'done' });
 }
 
+const BUNDLED_MARKDOWN_TODO_SECTIONS = ['Product Backlog', 'Telnyx Setup', 'Voice Agent'];
+
+async function markMarkdownSeedDone(pool: pg.Pool): Promise<void> {
+  await pool.query('UPDATE todos_meta SET markdown_seed_done = true WHERE id = 1');
+}
+
+async function isMarkdownSeedDone(pool: pg.Pool): Promise<boolean> {
+  const meta = await pool.query<{ markdown_seed_done: boolean }>(
+    'SELECT markdown_seed_done FROM todos_meta WHERE id = 1',
+  );
+  return !!meta.rows[0]?.markdown_seed_done;
+}
+
+/** Customer installs: drop the bundled REΛVE markdown seed once, then leave the list alone. */
+export async function dbPurgeBundledMarkdownTodosOnce(): Promise<number> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+    if (await isMarkdownSeedDone(pool)) return 0;
+
+    const { rowCount } = await pool.query(
+      'DELETE FROM todos WHERE section = ANY($1::text[])',
+      [BUNDLED_MARKDOWN_TODO_SECTIONS],
+    );
+    await markMarkdownSeedDone(pool);
+    if ((rowCount ?? 0) > 0) {
+      console.log(`[todos:pg] purged ${rowCount} bundled REΛVE seed to-dos`);
+    }
+    return rowCount ?? 0;
+  } catch (e) {
+    console.error('[todos:pg] purge bundled seed error:', e);
+    return 0;
+  }
+}
+
 export async function dbSeedTodosFromMarkdownIfEmpty(): Promise<number> {
   try {
     const pool = await ensureSchema();
     if (!pool) return 0;
 
+    if (await isMarkdownSeedDone(pool)) return 0;
+
     const { rows } = await pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM todos');
-    if (Number(rows[0]?.count ?? 0) > 0) return 0;
+    if (Number(rows[0]?.count ?? 0) > 0) {
+      await markMarkdownSeedDone(pool);
+      return 0;
+    }
 
     const sections = readMarkdownTodoSections();
-    if (!sections.length) return 0;
+    if (!sections.length) {
+      await markMarkdownSeedDone(pool);
+      return 0;
+    }
 
     let sortOrder = 0;
     let created = 0;
@@ -366,6 +414,7 @@ export async function dbSeedTodosFromMarkdownIfEmpty(): Promise<number> {
         created++;
       }
     }
+    await markMarkdownSeedDone(pool);
     return created;
   } catch (e) {
     console.error('[todos:pg] seed error:', e);
