@@ -215,7 +215,7 @@ await test('phone mock-up shows the miss and competitor names', () => {
   assert.match(html, /Harbor Street Partners/);
   assert.match(html, /Nearby results/);
   assert.match(html, /ss-phone-frame/);
-  assert.match(html, /\/api\/media\/iphone17-frame/);
+  assert.match(html, /\/admin\/iphone17-frame\.png/);
   assert.doesNotMatch(html, /ss-phone-notch/);
   const injected = injectPhoneIntoFirstColumn(
     '<div class="doc-onepager-cols"><div class="doc-onepager-col"><p>Snapshot</p></div></div>',

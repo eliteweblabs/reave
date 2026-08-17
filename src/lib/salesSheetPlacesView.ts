@@ -81,7 +81,8 @@ function reviewsLabel(count: number | undefined): string {
 
 /** Media-library slug for the iPhone 17 sales-sheet wrapper (736×1428, padded). */
 export const IPHONE_FRAME_SLUG = 'iphone17-frame';
-export const IPHONE_FRAME_SRC = `/api/media/${IPHONE_FRAME_SLUG}`;
+/** Repo copy — no Dynamic Island, so the SERP is not inset for a cutout. */
+export const IPHONE_FRAME_SRC = `/admin/${IPHONE_FRAME_SLUG}.png`;
 
 export type PlacesPhoneMockOpts = {
   /** Public or data URL for the device chrome. Defaults to the media-library slug. */
@@ -133,14 +134,22 @@ export function googleMapsSearchUrl(query: string, near?: string): string {
   return `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
 }
 
-/** Inline the library PNG when present so print/PDF and Playwright do not depend on a second fetch. */
+/** Inline the frame PNG so print/PDF and Playwright do not depend on a second fetch. */
 export async function resolveIphoneFrameSrc(): Promise<string> {
+  try {
+    const { readFile } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const buf = await readFile(join(process.cwd(), 'public/admin/iphone17-frame.png'));
+    if (buf.length) return `data:image/png;base64,${buf.toString('base64')}`;
+  } catch {
+    /* fall through to media library / public URL */
+  }
   try {
     const { storeGetMediaByRef } = await import('./mediaLibrary');
     const rec = await storeGetMediaByRef(IPHONE_FRAME_SLUG);
     if (rec?.dataBase64) return `data:${rec.mediaType};base64,${rec.dataBase64}`;
   } catch {
-    /* public slug still works on the live site */
+    /* public path still works on the live site */
   }
   return IPHONE_FRAME_SRC;
 }
@@ -207,7 +216,7 @@ export function renderPlacesPhoneMockHtml(
   left: 8.15%;
   z-index: 1;
   overflow: hidden;
-  padding-top: 7.5%;
+  padding-top: 2.2%;
   background: var(--ss-phone-screen);
   border-radius: 12% / 6%;
 }
