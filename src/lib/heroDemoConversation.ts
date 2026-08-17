@@ -1,5 +1,9 @@
 /** Crafted hero demo scenes — multi-turn conversations with optional action chips. */
-export type HeroDemoActionEffect = "invoice-payment" | "invoice-review" | "proposal-flow";
+export type HeroDemoActionEffect =
+  | "invoice-payment"
+  | "invoice-review"
+  | "proposal-flow"
+  | "signing-status";
 /** Plays during an assistant turn (e.g. status line) before the scene continues. */
 export type HeroDemoTurnEffect = "gps-locate";
 
@@ -261,7 +265,8 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "nda-signing",
     userAvatar: "hero-nda-signing",
-    holdMs: 1000,
+    /** Hard-cut after the status press — keep this short if the cut is skipped. */
+    holdMs: 400,
     turns: [
       {
         role: "user",
@@ -281,7 +286,13 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "assistant",
         text: "@Reggie viewed the NDA document 2 minutes ago.",
         pauseMs: 1500,
-        actions: [{ label: "View signing status", variant: "primary" }],
+        actions: [
+          {
+            label: "View signing status",
+            variant: "primary",
+            effect: "signing-status",
+          },
+        ],
       },
     ],
   },

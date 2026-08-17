@@ -2225,10 +2225,26 @@ async function simulateActionPress(
     await playInvoiceReviewSkeleton(sceneEl, relayout, reducedMotion, isAlive);
   } else if (effect === "proposal-flow") {
     await playProposalFlow(root, sceneEl, relayout, reducedMotion, isAlive);
+  } else if (effect === "signing-status") {
+    await playSigningStatusBeat(sceneEl, reducedMotion, isAlive);
   } else {
     const label = (target.textContent || "Open").trim() || "Open";
     await playActionPlaceholder(sceneEl, relayout, reducedMotion, isAlive, label);
   }
+}
+
+/**
+ * "View signing status" — acknowledge the press, then cut. The generic
+ * Opening toast + scene hold parked on the last Reggie bubble too long.
+ */
+async function playSigningStatusBeat(
+  sceneEl: HTMLElement,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  await wait(reducedMotion ? 160 : 280);
+  if (!isAlive()) return;
+  sceneEl.dataset.heroHardCut = "1";
 }
 
 /** Generic beat when a demo action chip has no bespoke skeleton yet. */
