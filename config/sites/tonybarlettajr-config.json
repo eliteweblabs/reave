@@ -37,7 +37,7 @@
   "landing": {
     "variant": "editorial",
     "title": "Tony Barletta Jr. | Loan Officer",
-    "description": "Tony Barletta Jr., NMLS #18717. Referral-driven mortgage lending across Massachusetts and 22 licensed states.",
+    "description": "Tony Barletta Jr., NMLS. Referral-driven mortgage lending across Massachusetts and 22 licensed states.",
     "ogImage": "tony-og-image",
     "themeColor": "#f4efe6",
     "photo": {
@@ -46,7 +46,7 @@
       "width": 449,
       "height": 449
     },
-    "eyebrow": "NMLS #18717 · Loan Officer",
+    "eyebrow": "NMLS · Loan Officer",
     "name": "Tony Barletta Jr.",
     "role": "Loan Officer",
     "tagline": "Guiding homebuyers and refinancers through the mortgage process with clear, personal service.",
@@ -58,7 +58,7 @@
     "vcfHref": "/sites/tonybarlettajr/tony-barletta-jr.vcf",
     "numbers": {
       "heading": "A referral business, measured in closings.",
-      "intro": "Placeholder production figures for layout. Swap these for Tony’s actual volume when ready.",
+      "intro": "Placeholder production figures for layout. Swap these for Tony's actual volume when ready.",
       "note": "Figures shown are placeholders pending actual production numbers.",
       "stats": [
         { "value": "20+", "label": "Years in lending" },
@@ -244,7 +244,7 @@
       "items": [
         {
           "stars": "★★★★★",
-          "quote": "I can say for a 100% certainty that I would not have purchased my first home as of now if it wasn’t for Tony. He helped me every step of the way — not only getting approved, but finding the best programs I could qualify for.",
+          "quote": "I can say for a 100% certainty that I would not have purchased my first home as of now if it wasn't for Tony. He helped me every step of the way — not only getting approved, but finding the best programs I could qualify for.",
           "cite": "Ilana · Pembroke, MA"
         },
         {
@@ -277,15 +277,15 @@
     "about": {
       "heading": "Clear advice. Complicated files. Repeat business.",
       "body": [
-        "Tony Barletta Jr. is a licensed mortgage loan originator, NMLS #18717, serving clients from Massachusetts with licenses in 22 states. Public profiles describe two decades in the business, including branch leadership, and a practice built on referrals through both high and low points in the market.",
+        "Tony Barletta Jr. is a licensed mortgage loan originator, NMLS, serving clients from Massachusetts with licenses in 22 states. Public profiles describe two decades in the business, including branch leadership, and a practice built on referrals through both high and low points in the market.",
         "He is well versed in traditional financing and in construction and remodeling scenarios, and he pairs that with personal experience as a real estate investor. Clients consistently mention the same things: he explains the numbers in plain language, answers nights and weekends, walks people through the tech, and stays until the house is actually closed."
       ],
       "highlights": [
-        "Licensed loan originator since 2011, NMLS #18717",
+        "Licensed loan originator since 2011, NMLS",
         "4.96-star public rating from 93 reviews",
         "First-time buyers, refinances, and repeat purchase clients",
         "Construction, remodeling, and non-simple credit files",
-        "North Shore roots, New Bedford office, licensed nationwide in 22 states"
+        "North Shore roots, Salem office, licensed nationwide in 22 states"
       ]
     },
     "inquiry": {
@@ -300,7 +300,7 @@
       "phone": "781-223-0845",
       "phoneHref": "tel:+17812230845",
       "email": "tony@tonybarlettajr.com",
-      "officeLines": ["128 Union Street, Suite 101", "New Bedford, MA 02740"]
+      "officeLines": ["Five Federal Street", "Salem, MA 01970"]
     },
     "licensedStates": {
       "heading": "Licensed States",
@@ -308,6 +308,6 @@
       "nmlsLabel": "NMLS Consumer Access",
       "nmlsHref": "https://www.nmlsconsumeraccess.org/"
     },
-    "footer": "Tony Barletta Jr. NMLS #18717 · tony@tonybarlettajr.com"
+    "footer": "Tony Barletta Jr. NMLS · tony@tonybarlettajr.com"
   }
 }
