@@ -147,6 +147,7 @@ let workState = {
   draft: null,
   returnToEmailId: null,
   returnToTodoId: null,
+  returnToClientUid: null,
   detailTab: 'project',
   auditingSlugs: new Set(),
   auditingProgress: new Map(),
@@ -1570,9 +1571,28 @@ function renderClientWorkSection(jobsWrap, jobs) {
 }
 
 function mountClientWorkSection(pane, uid) {
-  const jobsWrap = createDetailPanelBody('cl-jobs-section');
+  const section = createDetailPanelBody('cl-jobs-section');
+
+  const header = document.createElement('div');
+  header.className = 'cl-jobs-header';
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+  setDeBtnLabel(addBtn, postNew(), 'plus');
+  addBtn.addEventListener('click', () => {
+    navigateToNewWorkFromClient({
+      contactUid: uid,
+      contactName: clientState.draft?.name || clientState.draft?.company || '',
+    });
+  });
+  header.appendChild(addBtn);
+  section.appendChild(header);
+
+  const jobsWrap = document.createElement('div');
+  jobsWrap.className = 'cl-jobs-list';
   jobsWrap.innerHTML = skeletonHtml('list', `Loading ${postLower(2)}…`);
-  pane.appendChild(jobsWrap);
+  section.appendChild(jobsWrap);
+  pane.appendChild(section);
   syncClientProjectsTabBadge(0);
   fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json())
@@ -1714,19 +1734,24 @@ function beginNewProjectDrawer() {
         });
         return;
       }
+      const returnClientUid = workState.returnToClientUid;
       shell.finishCreateDrawer();
       workState.draft = null;
       getWorkEditor()?.classList.add('de-pane-active');
-      await openWork(slug);
+      await openWork(slug, { keepReturn: true });
+      if (returnClientUid) workState.returnToClientUid = returnClientUid;
     },
     onDismiss: () => {
       const returnTodoId = workState.returnToTodoId;
+      const returnClientUid = workState.returnToClientUid;
       workState.activeSlug = null;
       workState.draft = null;
       workState.returnToTodoId = null;
+      workState.returnToClientUid = null;
       syncWorkDeepLinkUrl(null);
       getWorkEditor()?.classList.remove('de-pane-active');
       if (returnTodoId) shell.navigateToTodo(returnTodoId);
+      else if (returnClientUid) shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
       else {
         syncWorkSidebarActiveState();
         renderWorkPane();
@@ -1740,6 +1765,7 @@ function startNewProject() {
   beginNewProjectDrawer();
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
+  workState.returnToClientUid = null;
   workState.detailTab = 'project';
   workState.activeSlug = '__new__';
   workState.dirty = false;
@@ -2753,11 +2779,16 @@ function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const inDrawer = shell.isCreateDrawerOpen('work');
   const returnTodoId = workState.returnToTodoId;
+  const returnClientUid = workState.returnToClientUid;
   const { header, titleInput } = createPaneSubheader({
     back: inDrawer
       ? null
       : {
-          label: returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
+          label: returnTodoId
+            ? 'Back to to‑do'
+            : returnClientUid
+              ? 'Back to contact'
+              : `Back to ${postLower(2)}`,
           onClick: async () => {
             await flushWorkAutosave();
             if (returnTodoId) {
@@ -2767,6 +2798,15 @@ function renderNewWorkForm(pane) {
               syncWorkDeepLinkUrl(null);
               getWorkEditor()?.classList.remove('de-pane-active');
               shell.navigateToTodo(returnTodoId);
+              return;
+            }
+            if (returnClientUid) {
+              workState.returnToClientUid = null;
+              workState.activeSlug = null;
+              workState.draft = null;
+              syncWorkDeepLinkUrl(null);
+              getWorkEditor()?.classList.remove('de-pane-active');
+              shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
               return;
             }
             workState.activeSlug = null;
@@ -3034,6 +3074,7 @@ function workEditBackHandler(slug) {
     await flushWorkAutosave();
     const returnEmailId = workState.returnToEmailId;
     const returnTodoId = workState.returnToTodoId;
+    const returnClientUid = workState.returnToClientUid;
     if (returnEmailId) {
       workState.returnToEmailId = null;
       workState.activeSlug = null;
@@ -3051,6 +3092,15 @@ function workEditBackHandler(slug) {
       shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
       return;
     }
+    if (returnClientUid) {
+      workState.returnToClientUid = null;
+      workState.activeSlug = null;
+      workState.draft = null;
+      syncWorkDeepLinkUrl(null);
+      getWorkEditor()?.classList.remove('de-pane-active');
+      shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
+      return;
+    }
     closeWorkDetailPane();
     syncWorkSidebarActiveState();
     renderWorkPane();
@@ -3062,6 +3112,7 @@ function renderEditWorkForm(pane) {
   const listJob = workState.jobs.find((j) => j.slug === slug);
   const returnEmailId = workState.returnToEmailId;
   const returnTodoId = workState.returnToTodoId;
+  const returnClientUid = workState.returnToClientUid;
   pane.innerHTML = '';
 
   // Mount chrome actions immediately so refresh doesn't land on an empty
@@ -3075,7 +3126,13 @@ function renderEditWorkForm(pane) {
 
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : `Back to ${postLower(2)}`,
+      label: returnEmailId
+        ? 'Back to email'
+        : returnTodoId
+          ? 'Back to to‑do'
+          : returnClientUid
+            ? 'Back to contact'
+            : `Back to ${postLower(2)}`,
       onClick: workEditBackHandler(slug),
     },
     editableTitle: {
@@ -3367,7 +3424,7 @@ function activateWorkPaneOnMobile() {
   }
 }
 
-async function openWork(slug) {
+async function openWork(slug, opts = {}) {
   if (slug === workState.activeSlug) {
     syncWorkDeepLinkUrl(slug);
     syncWorkSidebarActiveState({ scroll: true });
@@ -3375,8 +3432,11 @@ async function openWork(slug) {
     return;
   }
   await flushWorkAutosave();
-  workState.returnToEmailId = null;
-  workState.returnToTodoId = null;
+  if (!opts.keepReturn) {
+    workState.returnToEmailId = null;
+    workState.returnToTodoId = null;
+    workState.returnToClientUid = null;
+  }
   workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
@@ -3763,13 +3823,16 @@ function navigateToWork(slug, opts = {}) {
   if (opts.fromEmailId) {
     workState.returnToEmailId = opts.fromEmailId;
     workState.returnToTodoId = null;
+    workState.returnToClientUid = null;
   } else if (opts.fromTodoId) {
     workState.returnToEmailId = null;
     workState.returnToTodoId = opts.fromTodoId;
+    workState.returnToClientUid = null;
     shell.todoState.returnToWorkSlug = slug;
   } else {
     workState.returnToEmailId = null;
     workState.returnToTodoId = null;
+    workState.returnToClientUid = null;
   }
   pendingWorkDeepLinkSlug = slug;
   shell.setActiveMap('work', { force: true, workSlug: slug });
@@ -3802,6 +3865,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
   beginNewProjectDrawer();
   workState.returnToEmailId = null;
   workState.returnToTodoId = todoId;
+  workState.returnToClientUid = null;
   workState.detailTab = 'project';
   workState.activeSlug = '__new__';
   workState.dirty = false;
@@ -3809,6 +3873,39 @@ async function navigateToNewWorkFromTodo(opts = {}) {
     title: opts.suggestedTitle?.trim() || '',
     contact_uid: '',
     contact_name: '',
+    status: 'inquiry',
+    priority: 'normal',
+    due_date: '',
+    value: '',
+    tags: '',
+    source: '',
+    body: '',
+  };
+  pendingWorkDeepLinkSlug = '__new__';
+  shell.setActiveMap('work', { force: true, workSlug: '__new__' });
+}
+
+function navigateToNewWorkFromClient(opts = {}) {
+  const contactUid = String(opts.contactUid || '').trim();
+  if (!contactUid) return;
+  const draft = clientState.draft;
+  const contactName = String(opts.contactName || draft?.name || draft?.company || '').trim();
+  shell.armTitleFocus('work');
+  beginNewProjectDrawer();
+  workState.returnToEmailId = null;
+  workState.returnToTodoId = null;
+  workState.returnToClientUid = contactUid;
+  workState.detailTab = 'project';
+  workState.activeSlug = '__new__';
+  workState.dirty = false;
+  workState.draft = {
+    title: '',
+    contact_uid: contactUid,
+    contact_name: contactName,
+    contact_email: draft?.email || '',
+    contact_phone: draft?.phone || '',
+    contact_logo_url: draft?.logoUrl || '',
+    contact_icon_url: draft?.iconUrl || '',
     status: 'inquiry',
     priority: 'normal',
     due_date: '',

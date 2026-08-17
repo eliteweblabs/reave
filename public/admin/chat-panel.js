@@ -43,7 +43,7 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260817a';
+import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260817b';
 import { scheduleShareBookingUrl } from './schedule-panel.js?v=20260812b';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260810a';
