@@ -295,7 +295,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
         refreshWorkSidebarList();
       }
     }
-    Object.assign(workState.draft, {
+    const nextDraft = {
       title: payload.title,
       contact_uid: payload.contact_uid,
       contact_name: payload.contact_name,
@@ -306,7 +306,9 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
       tags: payload.tags || [],
       source: payload.source || '',
       body: payload.body,
-    });
+    };
+    if (workState.draft) Object.assign(workState.draft, nextDraft);
+    else workState.draft = nextDraft;
     workState.dirty = false;
     syncWorkSidebarTitle(slug, payload.title);
     syncWorkSidebarStatus(slug, payload.status);
@@ -1664,11 +1666,15 @@ async function loadWorkTab(opts = {}) {
   }
 
   workState.activeSlug = restoreSlug || null;
-  workState.dirty = false;
+  const keepingOpenDetail =
+    keepDetailOpen && workState.activeSlug === prevActiveSlug;
+  if (!keepingOpenDetail) workState.dirty = false;
   if (restoreSlug && restoreSlug !== '__new__' && restoreSlug !== prevActiveSlug) {
     recordWorkView(restoreSlug);
   }
-  if (!preserveNew) workState.draft = null;
+  // The open editor binds to workState.draft. Clearing it while keepDetailOpen
+  // leaves those handlers pointing at null (TypeError on draft.title).
+  if (!preserveNew && !keepingOpenDetail) workState.draft = null;
   shell.clearEditorFooterSave();
   if (workState.activeSlug && workState.activeSlug !== '__new__') {
     syncWorkDeepLinkUrl(workState.activeSlug);
@@ -1678,7 +1684,7 @@ async function loadWorkTab(opts = {}) {
     syncWorkDeepLinkUrl(null);
     getWorkEditor()?.classList.remove('de-pane-active');
   }
-  if (keepDetailOpen && workState.activeSlug === prevActiveSlug) {
+  if (keepingOpenDetail) {
     refreshWorkSidebarList();
     applyWorkAuditingIndicators();
     return;
@@ -3159,7 +3165,7 @@ function renderEditWorkForm(pane) {
         contact_phone: data.contact_phone || '',
       };
       workState.dirty = false;
-      titleInput.value = workState.draft.title;
+      titleInput.value = workState.draft?.title || '';
 
       if (archiveBtn) {
         archiveBtn.setAttribute(
@@ -3208,16 +3214,17 @@ function renderEditWorkForm(pane) {
       const markDirty = () => {
         const client = clientPicker.getPayload();
         const meta = metaFields.getPayload();
+        const draft = workState.draft;
         workState.dirty =
-          titleInput.value !== workState.draft.title ||
-          (client?.contact_uid || '') !== (workState.draft.contact_uid || '') ||
-          statusPill.getValue() !== workState.draft.status ||
-          meta.priority !== (workState.draft.priority || 'normal') ||
-          (meta.due_date || '') !== (workState.draft.due_date || '') ||
-          String(meta.value ?? '') !== String(workState.draft.value ?? '') ||
-          meta.tags.join(', ') !== (Array.isArray(workState.draft.tags) ? workState.draft.tags.join(', ') : '') ||
-          meta.source !== (workState.draft.source || '') ||
-          bodyEditor.getValue() !== workState.draft.body;
+          titleInput.value !== (draft?.title || '') ||
+          (client?.contact_uid || '') !== (draft?.contact_uid || '') ||
+          statusPill.getValue() !== (draft?.status || 'inquiry') ||
+          meta.priority !== (draft?.priority || 'normal') ||
+          (meta.due_date || '') !== (draft?.due_date || '') ||
+          String(meta.value ?? '') !== String(draft?.value ?? '') ||
+          meta.tags.join(', ') !== (Array.isArray(draft?.tags) ? draft.tags.join(', ') : (draft?.tags || '')) ||
+          meta.source !== (draft?.source || '') ||
+          bodyEditor.getValue() !== (draft?.body || '');
       };
       const getWorkPayload = () => {
         const client = clientPicker.getPayload();
@@ -3248,7 +3255,7 @@ function renderEditWorkForm(pane) {
 
       statusPill = createSlidingPillSelect({
         label: 'Status',
-        value: workState.draft.status,
+        value: workState.draft?.status || 'inquiry',
         options: workStatusPillOptions(workState.draft),
         ariaLabel: 'Status',
         onChange: () => queueWorkAutosave(statusPill.el),
@@ -3261,17 +3268,17 @@ function renderEditWorkForm(pane) {
       checklistMount.className = 'wk-checklist-mount';
       const checklistOpts = {
         slug,
-        get title() { return titleInput.value.trim() || workState.draft.title; },
-        get clientName() { return clientPicker.getPayload()?.contact_name || workState.draft.contact_name; },
+        get title() { return titleInput.value.trim() || workState.draft?.title || ''; },
+        get clientName() { return clientPicker.getPayload()?.contact_name || workState.draft?.contact_name || ''; },
         getBody: () => bodyEditor.getValue(),
         setBody: (v) => {
           bodyEditor.setValue(v);
-          workState.draft.body = v;
+          if (workState.draft) workState.draft.body = v;
           queueWorkAutosave(bodyEditor.el);
         },
       };
       bodyEditor = createWorkBodyEditor({
-        value: workState.draft.body,
+        value: workState.draft?.body || '',
         slug,
         placeholder: 'Scope, notes, links…\n\nPaste or drop images here.',
         onInput: () => {
@@ -3305,8 +3312,8 @@ function renderEditWorkForm(pane) {
       if (hasInstallFeature('time_tracking')) {
         const timePanel = createWorkDetailPanel('time', activeTab);
         mountWorkTimeSection(timePanel, slug, {
-          title: workState.draft.title,
-          clientName: workState.draft.contact_name,
+          title: workState.draft?.title || '',
+          clientName: workState.draft?.contact_name || '',
         });
         scroll.appendChild(timePanel);
       }
@@ -3620,7 +3627,7 @@ async function archiveWork(jobOrSlug) {
         syncWorkDeepLinkUrl(null);
         getWorkEditor()?.classList.remove('de-pane-active');
       } else {
-        Object.assign(workState.draft, {
+        const nextDraft = {
           status: newStatus,
           title: payload.title,
           contact_uid: payload.contact_uid,
@@ -3631,7 +3638,9 @@ async function archiveWork(jobOrSlug) {
           tags: payload.tags,
           source: payload.source,
           body: payload.body,
-        });
+        };
+        if (workState.draft) Object.assign(workState.draft, nextDraft);
+        else workState.draft = nextDraft;
         workState.dirty = false;
       }
     }
