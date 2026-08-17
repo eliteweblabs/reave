@@ -523,9 +523,17 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         <main class="wrap">
           <header class="hero">
             {logoUrl ? (
-              <img class="client-logo" src={logoUrl} alt={brandTitle} width="160" height="64" loading="eager" />
+              <img
+                class="client-logo"
+                src={logoUrl}
+                alt={brandTitle}
+                width="160"
+                height="64"
+                loading="eager"
+                data-logo-fallback
+              />
             ) : (
-              <h1>{brandTitle}</h1>
+              <p class="hero-no-logo">No logo found</p>
             )}
             {updatedAt && <p class="hero-updated">Updated {updatedAt}</p>}
           </header>
@@ -894,6 +902,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       const iconCheck =
         '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 
+      document.querySelectorAll('img[data-logo-fallback]').forEach((img) => {
+        img.addEventListener('error', () => {
+          const note = document.createElement('p');
+          note.className = 'hero-no-logo';
+          note.textContent = 'No logo found';
+          img.replaceWith(note);
+        });
+      });
       document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-tab-btn');
@@ -1066,12 +1082,20 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: rgba(255, 255, 255, 0.55); }
       .hero { text-align: center; margin-bottom: 24px; }
       .hero h1 { margin: 18px 0 4px; font-size: 30px; font-weight: 700; line-height: 1.15; }
+      .hero-no-logo {
+        margin: 18px 0 4px;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        color: rgba(255, 255, 255, 0.45);
+      }
       .hero-updated {
         margin: 0;
         font-size: 12px;
         color: rgba(255, 255, 255, 0.35);
       }
-      .hero h1 + .hero-updated {
+      .hero h1 + .hero-updated,
+      .hero-no-logo + .hero-updated {
         margin-top: 6px;
       }
       .client-logo {
