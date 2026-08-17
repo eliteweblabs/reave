@@ -72,8 +72,9 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     grid-row: span 1;
   }
 
+  /* Tall 1-col tiles read as a sliver on 6-col desktop — treat as 2×2. */
   .masonry-item--1x2 {
-    grid-column: span 1;
+    grid-column: span 2;
     grid-row: span 2;
   }
 
