@@ -1,15 +1,14 @@
 /**
- * Populate public/logos/replaced-apps/ with real, self-contained brand SVGs
- * for the "apps this platform replaces" wall on /features.
+ * Regenerate baked brand SVGs for the "apps this platform replaces" wall.
+ * Runtime pages read these from the media library (`replaced-*` slugs), not
+ * from git — after generating, run `npm run seed:site-media` and do not
+ * commit the files under public/logos/replaced-apps/.
  *
  * Each file is fetched from a pinned Simple Icons release
  * (https://simpleicons.org, CC0), then baked with the brand's fill color and
- * an accessible <title> so the icon works as a plain static asset — no CDN,
- * CSS mask, or JS color lookup needed at runtime. BrandLogoMarquee.astro then
- * just renders every file it finds in that folder, so a fresh
- * `node scripts/fetch-replaced-app-logos.mjs` (or hand-placing any SVG with a
- * <title> in the folder — no code change either way) is all it takes to add
- * or refresh an icon.
+ * an accessible <title> so the icon is a self-contained SVG. A fresh
+ * `node scripts/fetch-replaced-app-logos.mjs` plus seed is how you add or
+ * refresh an icon.
  *
  * Some brands here (Outlook, Slack, Salesforce, DocuSign) were pulled from
  * later Simple Icons releases after trademark takedown requests from

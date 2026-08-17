@@ -48,8 +48,8 @@ Always **read before write**. For long pages, use `write_github_file` with `appe
 ## Images
 
 - **Stock:** `search_stock_photos` — credit photographer + link to Pexels wherever displayed
-- **Uploads:** Admin → Media (or WebDAV drop folder). Give the file a stable **slug**, then put that slug in `config/sites/{key}-config.json` (`aboutImage`, `clientLogos[].image`, `portfolio[].image`, landing `heroImage` / `photo.src` / property `image`).
-- Do **not** commit company photos or client logos to git. Product chrome (REΛVE icons, replaced-app marks) may stay under `public/`.
+- **Uploads:** Admin → Media (or WebDAV drop folder). Give the file a stable **slug**, then put that slug in `config/sites/{key}-config.json` (`aboutImage`, `clientLogos[].image`, `portfolio[].image`, landing `heroImage` / `photo.src` / property `image`). Tech-stack and replaced-app marks use media slugs in `src/lib/platformStack.ts` and `src/lib/brandLogos.ts`.
+- Do **not** commit page-content images to git (about, portfolio, client logos, tech stack, replaced-app marks). Product chrome (REΛVE icons, favicons, background pattern) may stay under `public/`.
 
 ## WordPress on Kinsta
 

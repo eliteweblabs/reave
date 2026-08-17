@@ -1,74 +1,70 @@
 /**
- * Discovers brand/app-logo SVGs from public/logos/<folder>/ so pages can
- * render a "logo wall" without hardcoding a list — drop a new SVG (with a
- * <title>) in the folder and it just shows up.
- *
- * Shared by any page/component that needs a folder-backed logo wall: the
- * "apps this platform replaces" marquees on /features and the homepage, and
- * anywhere else a similar wall gets added later.
- *
- * File naming: prefix a filename with a two-digit number (e.g. "01-gmail.svg")
- * to pin its position; unprefixed files sort alphabetically after the
- * numbered ones. Display name comes from the SVG's <title>, falling back to
- * a humanized filename when a file has none.
+ * "Apps this platform replaces" logo wall — homepage integrations + /features.
+ * Bytes live in the media library; this catalog is name + slug only.
  */
-import { existsSync, readdirSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { siteMediaSrc } from './siteMedia';
 
 export interface BrandLogo {
-  /** Display name — from the SVG's <title>, or humanized from the filename. */
+  /** Display name — from the catalog, or site-config override. */
   name: string;
-  /** Public URL to the file, e.g. /logos/replaced-apps/01-gmail.svg */
+  /** Public media URL, e.g. /api/media/replaced-gmail */
   src: string;
 }
 
-const ORDER_PREFIX_RE = /^(\d+)-/;
-const TITLE_RE = /<title>([^<]*)<\/title>/i;
+type BrandLogoRef = {
+  name: string;
+  image: string;
+};
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
+/** Order matches the old numbered filenames (01-gmail … 36-make). */
+export const REPLACED_APP_LOGOS: BrandLogoRef[] = [
+  { name: 'Gmail', image: 'replaced-gmail' },
+  { name: 'Outlook', image: 'replaced-outlook' },
+  { name: 'Google Calendar', image: 'replaced-google-calendar' },
+  { name: 'ChatGPT', image: 'replaced-chatgpt' },
+  { name: 'QuickBooks', image: 'replaced-quickbooks' },
+  { name: 'Slack', image: 'replaced-slack' },
+  { name: 'Notion', image: 'replaced-notion' },
+  { name: 'Trello', image: 'replaced-trello' },
+  { name: 'Asana', image: 'replaced-asana' },
+  { name: 'Monday.com', image: 'replaced-monday' },
+  { name: 'HubSpot', image: 'replaced-hubspot' },
+  { name: 'Salesforce', image: 'replaced-salesforce' },
+  { name: 'Stripe', image: 'replaced-stripe' },
+  { name: 'Calendly', image: 'replaced-calendly' },
+  { name: 'DocuSign', image: 'replaced-docusign' },
+  { name: 'Mailchimp', image: 'replaced-mailchimp' },
+  { name: 'Dropbox', image: 'replaced-dropbox' },
+  { name: 'Google Drive', image: 'replaced-google-drive' },
+  { name: 'Airtable', image: 'replaced-airtable' },
+  { name: 'ClickUp', image: 'replaced-clickup' },
+  { name: 'Xero', image: 'replaced-xero' },
+  { name: 'Typeform', image: 'replaced-typeform' },
+  { name: 'Intercom', image: 'replaced-intercom' },
+  { name: 'Zendesk', image: 'replaced-zendesk' },
+  { name: 'Zapier', image: 'replaced-zapier' },
+  { name: 'Zoho', image: 'replaced-zoho' },
+  { name: 'Square', image: 'replaced-square' },
+  { name: 'PayPal', image: 'replaced-paypal' },
+  { name: 'Google Analytics', image: 'replaced-google-analytics' },
+  { name: 'Buffer', image: 'replaced-buffer' },
+  { name: 'Hootsuite', image: 'replaced-hootsuite' },
+  { name: 'WordPress', image: 'replaced-wordpress' },
+  { name: 'Basecamp', image: 'replaced-basecamp' },
+  { name: 'Make', image: 'replaced-make' },
+];
+
+function resolveLogos(refs: BrandLogoRef[]): BrandLogo[] {
+  return refs
+    .map((logo) => ({
+      name: logo.name,
+      src: siteMediaSrc(logo.image),
+    }))
+    .filter((logo) => logo.name && logo.src);
 }
 
-function humanize(filename: string): string {
-  return filename
-    .replace(ORDER_PREFIX_RE, '')
-    .replace(/\.[^.]+$/, '')
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function sortKey(filename: string): [number, string] {
-  const match = filename.match(ORDER_PREFIX_RE);
-  return match ? [Number(match[1]), filename] : [Number.MAX_SAFE_INTEGER, filename];
-}
-
-/** Lists every image file in public/logos/<folder>, sorted for display. */
-export function listBrandLogos(folder: string): BrandLogo[] {
-  const dir = join(projectRoot(), 'public', 'logos', folder);
-  if (!existsSync(dir)) return [];
-
-  return readdirSync(dir)
-    .filter((f) => /\.(svg|png|jpe?g|webp)$/i.test(f))
-    .sort((a, b) => {
-      const [orderA, nameA] = sortKey(a);
-      const [orderB, nameB] = sortKey(b);
-      return orderA - orderB || nameA.localeCompare(nameB);
-    })
-    .map((file) => {
-      let name = humanize(file);
-      if (/\.svg$/i.test(file)) {
-        const content = readFileSync(join(dir, file), 'utf8');
-        const titleMatch = content.match(TITLE_RE);
-        if (titleMatch?.[1]?.trim()) name = titleMatch[1].trim();
-      }
-      return { name, src: `/logos/${folder}/${file}` };
-    });
+/** Lists the replaced-apps wall. `folder` is kept for callers; only "replaced-apps" is used. */
+export function listBrandLogos(folder = 'replaced-apps'): BrandLogo[] {
+  if (folder !== 'replaced-apps') return [];
+  return resolveLogos(REPLACED_APP_LOGOS);
 }

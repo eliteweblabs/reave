@@ -7,6 +7,12 @@ import {
   PLATFORM_STACK,
   SIMPLE_ICONS_CDN,
 } from '../../lib/platformStack';
+import { siteMediaSrc } from '../../lib/siteMedia';
+
+const stack = PLATFORM_STACK.map((tech) => ({
+  ...tech,
+  iconSrc: siteMediaSrc(tech.iconSrc),
+}));
 ---
 
 <section
@@ -36,7 +42,7 @@ import {
   <p class="fx-built-with-sub">This app is built with</p>
   <ul class="fx-built-grid">
     {
-      PLATFORM_STACK.map((tech) => (
+      stack.map((tech) => (
         <li class="fx-built-item">
           <span
             class:list={['fx-built-logo', !tech.iconSrc && 'fx-built-logo--pending']}

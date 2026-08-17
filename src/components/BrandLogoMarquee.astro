@@ -1,14 +1,15 @@
 ---
 /**
  * Dual horizontal logo marquee (opposite scroll directions). Same effect as
- * the homepage integrations section — icons from public/logos/<folder>/.
+ * the homepage integrations section — icons from the media library
+ * (`replaced-*` slugs via listBrandLogos).
  * Edge fade is an opacity mask so the patterned page background shows through
  * (no solid-color gradient “box”).
  */
 import { listBrandLogos, type BrandLogo } from "../lib/brandLogos";
 
 interface Props {
-  /** Subfolder under public/logos/, e.g. "replaced-apps". */
+  /** Logo wall key. Only "replaced-apps" is wired. */
   folder?: string;
   /** One full loop duration. */
   duration?: string;

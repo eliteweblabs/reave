@@ -42,7 +42,7 @@ export const PLATFORM_STACK: StackTech[] = [
     name: 'Telnyx',
     color: '#00E3AA',
     role: 'SMS & voice',
-    iconSrc: '/logos/stack/telnyx.svg',
+    iconSrc: 'stack-telnyx',
   },
   { slug: 'github', name: 'GitHub', color: '#FFFFFF', role: 'Source control' },
   { slug: 'cloudflare', name: 'Cloudflare', color: '#F38020', role: 'DNS & edge' },
@@ -54,7 +54,7 @@ export const PLATFORM_STACK: StackTech[] = [
     name: 'UptimeRobot',
     color: '#3BD671',
     role: 'Uptime monitoring',
-    iconSrc: '/logos/stack/uptimerobot.svg',
+    iconSrc: 'stack-uptimerobot',
   },
   // Simple Icons dropped Playwright (Microsoft brand terms); letter fallback is intentional.
   { slug: 'playwright', name: 'Playwright', color: '#2EAD33', role: 'Browser UX audits' },

@@ -200,7 +200,7 @@
     },
     {
       "name": "Kingdom Trails",
-      "image": "/logos/clients/kingdom-trails.png",
+      "image": "client-kingdom-trails",
       "width": 1134,
       "height": 261
     },
@@ -224,7 +224,7 @@
     },
     {
       "name": "The Overlook",
-      "image": "/logos/clients/overlook.png",
+      "image": "client-overlook",
       "width": 972,
       "height": 278
     },
@@ -236,7 +236,7 @@
     },
     {
       "name": "Montana Cans",
-      "image": "/logos/clients/montana-cans.svg",
+      "image": "client-montana-cans",
       "width": 267.32,
       "height": 72.66
     }
@@ -488,7 +488,7 @@
         "Branding",
         "Art"
       ],
-      "image": "/images/portfolio/montana-cans-featured.svg",
+      "image": "portfolio-montana-cans-featured",
       "imageAlt": "Montana-Cans.com placeholder tile for Montana Cans graffiti spray paint",
       "size": "2x1",
       "featured": true
