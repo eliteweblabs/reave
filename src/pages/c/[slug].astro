@@ -179,6 +179,9 @@ const displayName = contactStringField(contact?.name) || 'Contact';
 const company = contactStringField(contact?.company);
 // Serve through /api/clients/:uid/logo so mostly-black scraped marks flip to white.
 const logoUrl = contact ? resolveClientLogoUrl(portal, uid) : '';
+/** Hero fallback when the site scrape has no brand mark — a finding, not a label. */
+const noLogoFoundHtml =
+  '<strong>No logo found on the website.</strong> Add a clear brand mark so visitors and this report can recognize the business.';
 const clientWebsite = contactStringField(portal?.website);
 const clientTagline = contactStringField(portal?.tagline);
 const brandTitle = company || displayName;
@@ -533,7 +536,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                 data-logo-fallback
               />
             ) : (
-              <p class="hero-no-logo">No logo found</p>
+              <p class="hero-no-logo" set:html={noLogoFoundHtml} />
             )}
             {updatedAt && <p class="hero-updated">Updated {updatedAt}</p>}
           </header>
@@ -891,7 +894,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       />
     )}
 
-    <script define:vars={{ submitEndpoint, submitMode }}>
+    <script define:vars={{ submitEndpoint, submitMode, noLogoFoundHtml }}>
       // Pack glyphs — keep in sync with IOS_ICONS in public/admin/admin-ui.js
       const iconEye =
         '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -906,7 +909,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         img.addEventListener('error', () => {
           const note = document.createElement('p');
           note.className = 'hero-no-logo';
-          note.textContent = 'No logo found';
+          note.innerHTML = noLogoFoundHtml;
           img.replaceWith(note);
         });
       });
@@ -1083,11 +1086,19 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .hero { text-align: center; margin-bottom: 24px; }
       .hero h1 { margin: 18px 0 4px; font-size: 30px; font-weight: 700; line-height: 1.15; }
       .hero-no-logo {
-        margin: 18px 0 4px;
+        margin: 18px auto 4px;
+        max-width: 28em;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.45;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .hero-no-logo strong {
+        display: block;
+        margin-bottom: 4px;
         font-size: 15px;
-        font-weight: 500;
-        letter-spacing: 0.01em;
-        color: rgba(255, 255, 255, 0.45);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.72);
       }
       .hero-updated {
         margin: 0;
