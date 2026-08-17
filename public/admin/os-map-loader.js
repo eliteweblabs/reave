@@ -6389,34 +6389,44 @@ function industriesBaselineFromList(industries) {
   );
 }
 
-/** Apply server-normalized values without re-rendering (keeps focus + save flash). */
-function syncIndustriesListFromServer(listEl, industries) {
+/**
+ * Remount from the server list (already alphabetized) and restore focus.
+ * Patching existing rows by index overwrites the last item whenever a new
+ * entry sorts into the middle — the focused input is skipped, so its label
+ * stays on the last row and the previous last industry is lost on the next save.
+ */
+function syncIndustriesListFromServer(listEl, industries, rowHandlers) {
   const active = document.activeElement;
-  const selStart = active instanceof HTMLInputElement ? active.selectionStart : null;
-  const selEnd = active instanceof HTMLInputElement ? active.selectionEnd : null;
-  const rows = listEl.querySelectorAll('.ind-row');
-  (industries || []).forEach((item, i) => {
-    const row = rows[i];
-    if (!row) return;
-    const labelInput = row.querySelector('.ind-label');
-    const toggle = row.querySelector('.ind-enabled-toggle');
-    if (labelInput && labelInput !== active) labelInput.value = item.label || '';
-    if (item.slug) row.dataset.slug = item.slug;
-    else delete row.dataset.slug;
-    if (toggle) setIndustryEnabledToggle(toggle, item.enabled !== false);
-  });
-  if (active instanceof HTMLInputElement && listEl.contains(active)) {
-    active.focus();
-    try {
-      const len = active.value.length;
-      active.setSelectionRange(
-        Math.min(selStart ?? len, len),
-        Math.min(selEnd ?? len, len),
-      );
-    } catch {
-      /* ignore non-text inputs */
-    }
+  const wasInList = active instanceof HTMLInputElement && listEl.contains(active);
+  const activeRow = wasInList ? active.closest('.ind-row') : null;
+  const activeSlug = activeRow?.dataset.slug || '';
+  const activeLabel = wasInList ? active.value.trim() : '';
+  const selStart = wasInList ? active.selectionStart : null;
+  const selEnd = wasInList ? active.selectionEnd : null;
+
+  mountIndustriesList(listEl, industries, rowHandlers);
+
+  if (!wasInList) return null;
+
+  const rows = Array.from(listEl.querySelectorAll('.ind-row'));
+  const match =
+    (activeSlug && rows.find((r) => r.dataset.slug === activeSlug)) ||
+    (activeLabel &&
+      rows.find((r) => r.querySelector('.ind-label')?.value?.trim() === activeLabel)) ||
+    null;
+  const input = match?.querySelector('.ind-label');
+  if (!(input instanceof HTMLInputElement)) return null;
+  input.focus();
+  try {
+    const len = input.value.length;
+    input.setSelectionRange(
+      Math.min(selStart ?? len, len),
+      Math.min(selEnd ?? len, len),
+    );
+  } catch {
+    /* ignore non-text inputs */
   }
+  return input;
 }
 
 function bindIndustriesEditor(root, industries) {
@@ -6430,6 +6440,7 @@ function bindIndustriesEditor(root, industries) {
   let debounceTimer = null;
   let saving = false;
   let pendingFlush = false;
+  const rowHandlers = {};
 
   const snapshot = () => JSON.stringify(collectIndustriesFromDom(root));
 
@@ -6457,7 +6468,8 @@ function bindIndustriesEditor(root, industries) {
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.ok) {
-        syncIndustriesListFromServer(listEl, json.industries);
+        const focused = syncIndustriesListFromServer(listEl, json.industries, rowHandlers);
+        if (focused) activeEl = focused;
         baseline = industriesBaselineFromList(json.industries);
         if (activeEl) flashFormFieldSaved(activeEl);
       } else {
@@ -6506,13 +6518,11 @@ function bindIndustriesEditor(root, industries) {
     debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
-  const rowHandlers = {
-    onDelete: removeRow,
-    onToggle: () => {
-      activeEl = null;
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
-    },
+  rowHandlers.onDelete = removeRow;
+  rowHandlers.onToggle = () => {
+    activeEl = null;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
   mountIndustriesList(listEl, industries, rowHandlers);
