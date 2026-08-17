@@ -337,7 +337,8 @@ function printPageCss(orientation: DocumentOrientation): string {
   background: #fff;
   color: var(--doc-ink);
   box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
-  padding: 4.2% 4.6% 3.4%;
+  /* 0.25in — typical non-borderless printer unprintable edge (≈24px). */
+  padding: 0.25in;
   display: flex;
   flex-direction: column;
   gap: 3.2%;

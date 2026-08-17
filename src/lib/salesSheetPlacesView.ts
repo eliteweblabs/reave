@@ -338,7 +338,11 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
   if (!src || !link) return '';
   return `
 <style>
-.doc-onepager { position: relative; }
+.doc-onepager {
+  position: relative;
+  --ss-print-inset: 0.25in;
+  padding: var(--ss-print-inset);
+}
 .doc-onepager-title,
 .doc-onepager-kicker { display: none; }
 .doc-onepager-mast {
@@ -349,8 +353,8 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 }
 .ss-qr {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: var(--ss-print-inset);
+  right: var(--ss-print-inset);
   z-index: 3;
   margin: 0;
   line-height: 0;

@@ -476,8 +476,9 @@ await test('QR sits in the top-right without caption, title, or date', () => {
   assert.match(qr, /doc-onepager-title/);
   assert.match(qr, /doc-onepager-kicker \{ display: none; \}/);
   assert.match(qr, /position: absolute;/);
-  assert.match(qr, /top: 0;/);
-  assert.match(qr, /right: 0;/);
+  assert.match(qr, /--ss-print-inset: 0\.25in;/);
+  assert.match(qr, /top: var\(--ss-print-inset\)/);
+  assert.match(qr, /right: var\(--ss-print-inset\)/);
   const injected = injectAuditQrIntoHeader(
     '<header><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
     qr,
