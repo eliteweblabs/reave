@@ -182,7 +182,7 @@ const avatarUrl = contact ? resolveClientLogoUrl(portal, uid) : '';
 const logoUrl = contact ? await resolveClientHeroLogoUrl(portal, uid) : '';
 /** Hero fallback when the profile has no brand mark — a finding, not a label. */
 const noLogoFoundHtml =
-  '<strong>No logo found on the website.</strong> Add a clear brand mark so visitors and this report can recognize the business.';
+  '<strong>No logo found in the manifest.</strong> Your website may have a logo, but it is not identifiable to crawlers.';
 const clientWebsite = contactStringField(portal?.website);
 const clientTagline = contactStringField(portal?.tagline);
 const brandTitle = company || displayName;
