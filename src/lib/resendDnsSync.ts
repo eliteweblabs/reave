@@ -329,3 +329,51 @@ export function formatResendDnsSyncSummary(
 
   return lines.join('\n');
 }
+
+type ResendWebhook = {
+  id: string;
+  endpoint?: string;
+  signing_secret?: string;
+};
+
+function normalizeWebhookEndpoint(url: string): string {
+  return url.trim().replace(/\/+$/, '').toLowerCase();
+}
+
+/**
+ * Create (or reuse) an email.received webhook. Signing secret is returned on
+ * create; GET is tried when the endpoint already exists.
+ */
+export async function resendEnsureInboundWebhook(endpoint: string): Promise<
+  | { ok: true; id: string; signingSecret: string; created: boolean }
+  | { ok: false; error: string }
+> {
+  const target = endpoint.trim();
+  if (!target) return { ok: false, error: 'webhook endpoint is required' };
+
+  const listed = await resendFetch<{ data: ResendWebhook[] }>('/webhooks');
+  if (!listed.ok) return listed;
+
+  const match = (listed.data.data ?? []).find(
+    (row) => row.endpoint && normalizeWebhookEndpoint(row.endpoint) === normalizeWebhookEndpoint(target),
+  );
+  if (match) {
+    if (match.signing_secret?.trim()) {
+      return { ok: true, id: match.id, signingSecret: match.signing_secret.trim(), created: false };
+    }
+    const detail = await resendFetch<ResendWebhook>(`/webhooks/${match.id}`);
+    if (detail.ok && detail.data.signing_secret?.trim()) {
+      return { ok: true, id: match.id, signingSecret: detail.data.signing_secret.trim(), created: false };
+    }
+    await resendFetch(`/webhooks/${match.id}`, { method: 'DELETE' });
+  }
+
+  const created = await resendFetch<ResendWebhook>('/webhooks', {
+    method: 'POST',
+    body: { endpoint: target, events: ['email.received'] },
+  });
+  if (!created.ok) return created;
+  const secret = created.data.signing_secret?.trim();
+  if (!secret) return { ok: false, error: 'Resend created the webhook but did not return a signing secret' };
+  return { ok: true, id: created.data.id, signingSecret: secret, created: true };
+}

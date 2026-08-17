@@ -16,8 +16,8 @@ import {
   isDeployWizardExtraId,
   type DeployWizardExtraId,
   type DeployWizardPlan,
-  type DeployWizardPlanVariable,
 } from '../../../lib/deployWizardCatalog';
+import { resolveDeployWizardApply } from '../../../lib/deployWizardResolve';
 import { serverEnv } from '../../../lib/serverEnv';
 import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
@@ -85,11 +85,6 @@ function presentHostSecrets(plan: DeployWizardPlan): DeployWizardPlan {
   };
 }
 
-function resolvePlanValue(variable: DeployWizardPlanVariable, values: Record<string, string>): string {
-  if (variable.inheritFromHost) return serverEnv(variable.name)?.trim() || '';
-  const key = `${variable.service}:${variable.name}`;
-  return (values[key] ?? variable.filled ?? '').trim();
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const hostDenied = requireCanonicalReaveHost();
@@ -214,22 +209,11 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'project is required to apply variables', plan: publicPlan, cli }, 400);
   }
 
-  const byService = new Map<string, Record<string, string>>();
-  for (const variable of plan.variables) {
-    const value = resolvePlanValue(variable, values);
-    if (!value) {
-      if (variable.required && variable.kind === 'secret') {
-        const hint = variable.inheritFromHost
-          ? `${variable.name} is not set on this host`
-          : `Missing value for ${variable.service}.${variable.name}`;
-        return json({ ok: false, error: hint, plan: publicPlan, cli }, 400);
-      }
-      continue;
-    }
-    const bucket = byService.get(variable.service) ?? {};
-    bucket[variable.name] = value;
-    byService.set(variable.service, bucket);
+  const resolved = await resolveDeployWizardApply(plan, values);
+  if (!resolved.ok) {
+    return json({ ok: false, error: resolved.error, plan: publicPlan, cli }, 400);
   }
+  const byService = resolved.byService;
 
   const applied: Array<{ service: string; updated: string[] }> = [];
   for (const [service, variables] of byService) {
@@ -269,6 +253,7 @@ export async function POST(context: APIContext): Promise<Response> {
     summary: e instanceof Error ? e.message : String(e),
   }));
 
+  const provisioned = resolved.notes;
   return json({
     ok: true,
     plan: publicPlan,
@@ -276,8 +261,9 @@ export async function POST(context: APIContext): Promise<Response> {
     applied,
     identity,
     dns,
-    hint: dns.summary
-      ? `Variables saved without an automatic redeploy. ${dns.summary}`
-      : 'Variables saved without an automatic redeploy. Redeploy each service when you are ready.',
+    provisioned,
+    hint: [provisioned.join(' '), dns.summary || 'Variables saved without an automatic redeploy. Redeploy each service when you are ready.']
+      .filter(Boolean)
+      .join(' '),
   });
 }

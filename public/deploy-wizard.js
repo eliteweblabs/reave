@@ -19,10 +19,11 @@
   const KIND_LABEL = {
     reference: 'Reference',
     shared: 'Shared ref',
-    generated: 'Generate',
+    generated: 'Roll',
     secret: 'Enter',
     literal: 'Value',
     host: 'This host',
+    provision: 'Create',
   };
 
   let modules = [];
@@ -50,6 +51,7 @@
   let applying = false;
   let applied = null;
   let appliedDns = null;
+  let appliedProvisioned = [];
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
@@ -64,12 +66,6 @@
 
   function varKey(variable) {
     return `${variable.service}:${variable.name}`;
-  }
-
-  function randomSecret(bytes) {
-    const a = new Uint8Array(bytes || 24);
-    crypto.getRandomValues(a);
-    return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   function toggleableModules() {
@@ -317,34 +313,29 @@
   }
 
   function renderVarRow(variable) {
-    const key = varKey(variable);
-    const current = values[key] ?? variable.filled ?? '';
-    const locked =
-      variable.kind === 'reference' ||
-      variable.kind === 'shared' ||
-      variable.inheritFromHost ||
-      !variable.needsInput;
-    const kindKey = variable.inheritFromHost ? 'host' : variable.kind;
+    const current = values[varKey(variable)] ?? variable.filled ?? '';
+    const kindKey = variable.provisionedOnApply
+      ? 'provision'
+      : variable.inheritFromHost
+        ? 'host'
+        : variable.rolledOnApply
+          ? 'generated'
+          : variable.kind;
     const kindCls = `dw-kind dw-kind--${esc(kindKey)}`;
-    const display =
-      variable.inheritFromHost
-        ? variable.hostHasValue
-          ? 'Copied on apply'
-          : 'Missing on this host'
-        : current;
-    const input =
-      locked ?
-        `<code class="dw-ref">${esc(display)}</code>`
-      : `<input class="dl-input dw-var-input" data-var-key="${esc(key)}" type="${variable.kind === 'secret' ? 'password' : 'text'}" value="${esc(current)}" autocomplete="off" spellcheck="false" />`;
-    const gen =
-      variable.kind === 'generated'
-        ? `<button type="button" class="dl-btn dl-btn--ghost dw-gen" data-gen="${esc(key)}">Generate</button>`
-        : '';
+    const display = variable.inheritFromHost
+      ? variable.hostHasValue
+        ? 'Copied on apply'
+        : 'Missing on this host'
+      : variable.provisionedOnApply
+        ? 'Created on apply'
+        : variable.rolledOnApply
+          ? 'Rolled on apply'
+          : current;
     return (
       `<tr>` +
       `<td><code>${esc(variable.name)}</code></td>` +
       `<td><span class="${kindCls}">${esc(KIND_LABEL[kindKey] || variable.kind)}</span></td>` +
-      `<td class="dw-var-value">${input}${gen}</td>` +
+      `<td class="dw-var-value"><code class="dw-ref">${esc(display)}</code></td>` +
       `<td class="dw-var-help">${esc(variable.description)}</td>` +
       `</tr>`
     );
@@ -359,8 +350,8 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Green chips are Railway references. Secrets that exist on this host (Resend, Clerk, Anthropic, …) are copied when you apply — no Enter fields. <code>RESEND_FROM</code> is <code>noreply@{apex}</code> from the site-domain field. Generate rows are rolled here.</p>` +
-      `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} generated</p>`;
+      `<p class="dl-footnote">Nothing on this page is typed. Apply copies keys from this host, rolls new secrets (including a real VAPID pair), creates the Resend inbound webhook, and writes Railway references. <code>RESEND_FROM</code> is <code>noreply@inbound.{apex}</code>.</p>` +
+      `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
         `<section class="dl-section">` +
@@ -378,6 +369,7 @@
     if (!plan) return `<p class="dl-loading">Building plan…</p>`;
     const missing = plan.variables.filter((v) => {
       if (v.kind !== 'secret' || v.required === false) return false;
+      if (v.provisionedOnApply || v.rolledOnApply) return false;
       if (v.inheritFromHost) return !v.hostHasValue;
       const val = values[varKey(v)] ?? v.filled;
       return !val;
@@ -407,7 +399,7 @@
       `</button>` +
       `</div>` +
       (railway.configured
-        ? `<p class="dl-meta">Apply writes variables (including secrets from this host) to the selected project${cloudflare.configured ? ' and upserts Cloudflare DNS' : ''}. Services must already exist with these names.</p>`
+        ? `<p class="dl-meta">Apply copies host keys, rolls secrets, creates the Resend webhook, and writes Railway variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Services must already exist with these names.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
         ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
@@ -418,6 +410,9 @@
               ? ` Left for you: ${esc(appliedDns.leftover.join(' '))}`
               : ''
           }</p>`
+        : '') +
+      (appliedProvisioned.length
+        ? `<p class="dl-footnote" role="status">${esc(appliedProvisioned.join(' '))}</p>`
         : '')
     );
   }
@@ -514,11 +509,8 @@
       const key = varKey(variable);
       if (identityNames.has(variable.name) && variable.filled) {
         values[key] = variable.filled;
-      } else if (values[key] == null && variable.filled && (variable.kind === 'literal' || variable.kind === 'generated')) {
+      } else if (values[key] == null && variable.filled && variable.kind === 'literal') {
         values[key] = variable.filled;
-      }
-      if (variable.kind === 'generated' && !values[key]) {
-        values[key] = randomSecret(24);
       }
     }
   }
@@ -582,6 +574,7 @@
       cli = json.cli || cli;
       applied = json.applied || [];
       appliedDns = json.dns || null;
+      appliedProvisioned = json.provisioned || [];
     } catch (e) {
       error = e.message || 'Could not apply variables.';
     } finally {
@@ -654,15 +647,6 @@
         if (selectedExtras.has(id)) selectedExtras.delete(id);
         else selectedExtras.add(id);
         void goNextFromExtras();
-      });
-    });
-    root.querySelectorAll('.dw-gen').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        readVarInputs();
-        const key = btn.getAttribute('data-gen');
-        if (key) values[key] = randomSecret(24);
-        render();
-        bind();
       });
     });
     root.querySelector('#dw-domain')?.addEventListener('change', () => {

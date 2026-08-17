@@ -731,6 +731,11 @@
   color: #5eead4;
 }
 
+.dw-kind--provision {
+  background: rgba(251, 146, 60, 0.16);
+  color: #fdba74;
+}
+
 .dw-kind--literal {
   background: rgba(59, 130, 246, 0.18);
   color: #93c5fd;

@@ -78,7 +78,7 @@ Cal.com’s onboarding form (avatar, username, email) is a user row, not an env 
 
 Cal.com also gets Resend SMTP literals (`smtp.resend.com` / `465` / `resend`) so it never falls back to local `sendmail` when `EMAIL_FROM` is unset.
 
-Prefer a **bare** verified address in `RESEND_FROM` (`noreply@mail.example.com`). Cal.com’s `EMAIL_FROM` is a From address, not a display-name header.
+Prefer a **bare** verified address in `RESEND_FROM` (`noreply@inbound.example.com`). Cal.com’s `EMAIL_FROM` is a From address, not a display-name header. The apex is a Railway CNAME, so sending uses the inbound subdomain Apply provisions.
 
 ## Identity fields
 
@@ -93,13 +93,16 @@ The first step writes these onto `reave` (same keys live client installs already
 | Admin username | `ADMIN_USERNAME` | falls back to company name |
 | Timezone | `BOOKING_TIMEZONE` | `America/New_York` |
 
-## Secrets come from this host
+## Apply fills every value
 
-This wizard is owner-only. Third-party keys (Clerk, Anthropic, Resend, Telnyx, Vapi, Google, GitHub, Railway, …) are **copied from this install’s env** when you press Apply. They do not appear as Enter fields and their values never go to the browser.
+This wizard is owner-only. The Variables step is read-only. Apply:
 
-`RESEND_FROM` is derived as `noreply@{apex}` from the site-domain field (not copied from this host’s From address). `EMAIL_FROM_NAME` is the company name.
+- **Copies** third-party keys from this host (Clerk, Anthropic, Resend API key, Telnyx, Vapi, Google, GitHub, Railway, …). Values never go to the browser.
+- **Rolls** new secrets on the server (shared API keys, CardDAV password, Cal.com `NEXTAUTH_SECRET` / `CALENDAR_ENCRYPTION_KEY`, dashboard key, cron secrets) and a real Web Push VAPID pair.
+- **Creates** a Resend `email.received` webhook at `https://{apex}/api/email/inbound` and writes the signing secret as `RESEND_WEBHOOK_SECRET`.
+- **Derives** `RESEND_FROM` as `noreply@inbound.{apex}` (the inbound domain Apply already adds in Resend) and `EMAIL_FROM_NAME` from the company name.
 
-Generated values (webhook secrets, CardDAV password, shared client keys, Cal.com `NEXTAUTH_SECRET`) are still rolled in the wizard. If a required key is missing on this host, Apply fails until you set it here.
+If a required host key is missing, Apply names it and stops. Clerk CNAMEs are still copied from Clerk → Domains.
 
 ## Apply
 

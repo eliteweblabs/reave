@@ -514,13 +514,13 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'RESEND_WEBHOOK_SECRET',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Resend email.received webhook signing secret. Copied from this host on apply.',
+    description: 'Resend email.received signing secret. Apply creates the webhook for https://{apex}/api/email/inbound.',
   }),
   v({
     name: 'RESEND_FROM',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Verified sender — filled as noreply@{apex} from the site-domain field. Source of truth for sibling EMAIL_FROM.',
+    description: 'Verified sender — noreply@inbound.{apex}, the Resend domain Apply already provisions.',
   }),
   v({
     name: 'EMAIL_FROM',
@@ -1399,13 +1399,28 @@ export type DeployWizardPlanInput = {
 /** Secrets filled from identity (not copied from this host). */
 export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
 
+/** Secrets created via an API on apply (not copied from this host). */
+export const DEPLOY_WIZARD_PROVISIONED_SECRETS = new Set(['RESEND_WEBHOOK_SECRET']);
+
 export function isDeployWizardHostSecret(variable: Pick<DeployWizardVariable, 'kind' | 'name'>): boolean {
-  return variable.kind === 'secret' && !DEPLOY_WIZARD_DERIVED_SECRETS.has(variable.name);
+  return (
+    variable.kind === 'secret' &&
+    !DEPLOY_WIZARD_DERIVED_SECRETS.has(variable.name) &&
+    !DEPLOY_WIZARD_PROVISIONED_SECRETS.has(variable.name)
+  );
 }
 
-/** Bare verified sender — Cal.com treats EMAIL_FROM as an address, not a display name. */
+export function isDeployWizardProvisionedSecret(variable: Pick<DeployWizardVariable, 'kind' | 'name'>): boolean {
+  return variable.kind === 'secret' && DEPLOY_WIZARD_PROVISIONED_SECRETS.has(variable.name);
+}
+
+/** Sender on the inbound domain Apply already creates in Resend (apex is a Railway CNAME). */
 export function deployWizardResendFrom(siteDomain: string): string {
-  return siteDomain ? `noreply@${siteDomain}` : '';
+  return siteDomain ? `noreply@inbound.${siteDomain}` : '';
+}
+
+export function deployWizardInboundWebhookUrl(siteDomain: string): string {
+  return siteDomain ? `https://${siteDomain}/api/email/inbound` : '';
 }
 
 export type DeployWizardPlanVariable = DeployWizardVariable & {
@@ -1413,6 +1428,10 @@ export type DeployWizardPlanVariable = DeployWizardVariable & {
   needsInput: boolean;
   /** Copy from this host’s env at apply. Never put the live value in `filled`. */
   inheritFromHost: boolean;
+  /** crypto / VAPID pair minted on apply. */
+  rolledOnApply: boolean;
+  /** Created via a vendor API on apply (Resend webhook, …). */
+  provisionedOnApply: boolean;
   /** Set only when sanitizing the plan for the browser — no secret values. */
   hostHasValue?: boolean;
 };
@@ -1532,10 +1551,19 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     }
 
     const inheritFromHost = isDeployWizardHostSecret(raw);
-    const derived = DEPLOY_WIZARD_DERIVED_SECRETS.has(raw.name);
-    const needsInput =
-      !inheritFromHost && !derived && (raw.kind === 'secret' || raw.kind === 'generated' || raw.kind === 'literal');
-    variables.push({ ...raw, service, value: filled || raw.value, filled, needsInput, inheritFromHost });
+    const provisionedOnApply = isDeployWizardProvisionedSecret(raw);
+    const rolledOnApply = raw.kind === 'generated';
+    const needsInput = false;
+    variables.push({
+      ...raw,
+      service,
+      value: filled || raw.value,
+      filled,
+      needsInput,
+      inheritFromHost,
+      rolledOnApply,
+      provisionedOnApply,
+    });
   }
 
   const sharedKeys = [...new Set(variables.filter((x) => x.service === 'shared').map((x) => x.name))];
@@ -1608,6 +1636,14 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
       const value = values[key] ?? variable.filled;
       if (variable.inheritFromHost) {
         lines.push(`# railway variable set ${variable.name}='<from this host>' --service ${service} --skip-deploys`);
+        continue;
+      }
+      if (variable.provisionedOnApply) {
+        lines.push(`# railway variable set ${variable.name}='<created on apply>' --service ${service} --skip-deploys`);
+        continue;
+      }
+      if (variable.rolledOnApply || variable.kind === 'generated') {
+        lines.push(`# railway variable set ${variable.name}='<rolled on apply>' --service ${service} --skip-deploys`);
         continue;
       }
       if (!value && variable.kind === 'secret') {

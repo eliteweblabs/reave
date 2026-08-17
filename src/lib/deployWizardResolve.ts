@@ -1,0 +1,90 @@
+/**
+ * Fill every deploy-wizard value that can be copied, derived, rolled, or
+ * provisioned — nothing is typed on the Variables step.
+ */
+import { randomBytes } from 'node:crypto';
+import webpush from 'web-push';
+import {
+  deployWizardInboundWebhookUrl,
+  type DeployWizardPlan,
+  type DeployWizardPlanVariable,
+} from './deployWizardCatalog';
+import { resendEnsureInboundWebhook } from './resendDnsSync';
+import { serverEnv } from './serverEnv';
+
+export function generateDeployWizardSecret(name: string): string {
+  if (name === 'NEXTAUTH_SECRET' || name === 'CALENDAR_ENCRYPTION_KEY') {
+    return randomBytes(32).toString('base64');
+  }
+  return randomBytes(24).toString('hex');
+}
+
+export type DeployWizardApplyNotes = string[];
+
+export async function resolveDeployWizardApply(
+  plan: DeployWizardPlan,
+  values: Record<string, string>,
+): Promise<
+  | { ok: true; byService: Map<string, Record<string, string>>; notes: DeployWizardApplyNotes }
+  | { ok: false; error: string }
+> {
+  const notes: DeployWizardApplyNotes = [];
+  const byService = new Map<string, Record<string, string>>();
+
+  const needsVapid = plan.variables.some(
+    (variable) => variable.name === 'VAPID_PUBLIC_KEY' || variable.name === 'VAPID_PRIVATE_KEY',
+  );
+  const vapid = needsVapid ? webpush.generateVAPIDKeys() : null;
+
+  let webhookSecret = '';
+  const needsWebhook = plan.variables.some((variable) => variable.provisionedOnApply && variable.name === 'RESEND_WEBHOOK_SECRET');
+  if (needsWebhook) {
+    const endpoint = deployWizardInboundWebhookUrl(plan.siteDomain);
+    if (!endpoint) {
+      return { ok: false, error: 'Enter a site domain so Apply can create the Resend inbound webhook.' };
+    }
+    const hook = await resendEnsureInboundWebhook(endpoint);
+    if (!hook.ok) return { ok: false, error: `Resend webhook: ${hook.error}` };
+    webhookSecret = hook.signingSecret;
+    notes.push(hook.created ? `Created Resend inbound webhook ${endpoint}` : `Reused Resend inbound webhook ${endpoint}`);
+  }
+
+  for (const variable of plan.variables) {
+    const value = resolveOne(variable, values, { vapid, webhookSecret });
+    if (!value) {
+      if (variable.required && (variable.kind === 'secret' || variable.kind === 'generated')) {
+        return {
+          ok: false,
+          error: variable.inheritFromHost
+            ? `${variable.name} is not set on this host`
+            : `Missing value for ${variable.service}.${variable.name}`,
+        };
+      }
+      continue;
+    }
+    const bucket = byService.get(variable.service) ?? {};
+    bucket[variable.name] = value;
+    byService.set(variable.service, bucket);
+  }
+
+  return { ok: true, byService, notes };
+}
+
+function resolveOne(
+  variable: DeployWizardPlanVariable,
+  values: Record<string, string>,
+  extras: {
+    vapid: { publicKey: string; privateKey: string } | null;
+    webhookSecret: string;
+  },
+): string {
+  if (variable.inheritFromHost) return serverEnv(variable.name)?.trim() || '';
+  if (variable.provisionedOnApply && variable.name === 'RESEND_WEBHOOK_SECRET') return extras.webhookSecret;
+  if (variable.kind === 'generated') {
+    if (variable.name === 'VAPID_PUBLIC_KEY') return extras.vapid?.publicKey ?? '';
+    if (variable.name === 'VAPID_PRIVATE_KEY') return extras.vapid?.privateKey ?? '';
+    return generateDeployWizardSecret(variable.name);
+  }
+  const key = `${variable.service}:${variable.name}`;
+  return (values[key] ?? variable.filled ?? '').trim();
+}

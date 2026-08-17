@@ -14,7 +14,10 @@ import {
   railwayRef,
   railwaySharedRef,
   deployWizardDnsKind,
+  deployWizardInboundWebhookUrl,
+  deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
+import { generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
   featureVisibility,
@@ -71,15 +74,26 @@ assert.equal(branded.variables.find((v) => v.name === 'COMPANY_DOMAIN')?.filled,
 assert.equal(branded.variables.find((v) => v.name === 'BOOKING_TIMEZONE')?.filled, 'America/Los_Angeles');
 assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.filled, 'Capco Fire');
 assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.inheritFromHost, false);
-assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.filled, 'noreply@capcofire.com');
+assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.filled, 'noreply@inbound.capcofire.com');
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.needsInput, false);
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.inheritFromHost, false);
 const resendKey = branded.variables.find((v) => v.name === 'RESEND_API_KEY');
 assert.equal(resendKey?.inheritFromHost, true);
 assert.equal(resendKey?.needsInput, false);
 assert.equal(resendKey?.filled, '');
+const resendHook = branded.variables.find((v) => v.name === 'RESEND_WEBHOOK_SECRET');
+assert.equal(resendHook?.inheritFromHost, false);
+assert.equal(resendHook?.provisionedOnApply, true);
+assert.equal(branded.variables.find((v) => v.name === 'DASHBOARD_KEY')?.rolledOnApply, true);
+assert.ok(branded.variables.every((v) => v.needsInput === false));
+assert.equal(deployWizardResendFrom('capcofire.com'), 'noreply@inbound.capcofire.com');
+assert.equal(deployWizardInboundWebhookUrl('capcofire.com'), 'https://capcofire.com/api/email/inbound');
+assert.match(generateDeployWizardSecret('NEXTAUTH_SECRET'), /^[A-Za-z0-9+/=]+$/);
+assert.match(generateDeployWizardSecret('DASHBOARD_KEY'), /^[0-9a-f]{48}$/);
 assert.ok((branded.hostSecretCount || 0) > 0);
 assert.match(formatDeployWizardCli(branded), /RESEND_API_KEY='<from this host>'/);
+assert.match(formatDeployWizardCli(branded), /RESEND_WEBHOOK_SECRET='<created on apply>'/);
+assert.match(formatDeployWizardCli(branded), /DASHBOARD_KEY='<rolled on apply>'/);
 assert.equal(buildDeployWizardPlan({ features: [], postAlias: 'Disposition(s)' }).postAlias, 'project');
 
 const billed = buildDeployWizardPlan({
