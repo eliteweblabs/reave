@@ -150,10 +150,11 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
-    id: 'chat-shortcuts',
-    label: '/ Chat Shortcuts',
+    id: 'chat-commands',
+    label: 'Chat / commands',
     modules: [],
     kind: 'capability',
+    href: '/features#feature-ai-assistant',
   },
   {
     id: 'chat-references',
