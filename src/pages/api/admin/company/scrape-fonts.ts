@@ -48,7 +48,7 @@ export const POST: APIRoute = async (context) => {
 
   if (!website) {
     return json(
-      { ok: false, error: 'Add a website domain in Company settings first.' },
+      { ok: false, error: 'Set PUBLIC_SITE_DOMAIN on this deployment first.' },
       400,
     );
   }

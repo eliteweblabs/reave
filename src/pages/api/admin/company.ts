@@ -63,6 +63,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ error: 'Secondary color must be a valid hex value (e.g. #c026d3).' }, 400);
   }
 
+  delete body.domain;
   const stored = normalizeCompanyInput(body);
   const existing = await getStoredCompanyConfig();
   if (body.address !== undefined || body.geo !== undefined) {

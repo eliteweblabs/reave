@@ -6850,8 +6850,8 @@ function renderCompanyPanel(company, fontCatalog) {
             'Website &amp; contact',
             'Hostname for link previews and legal pages, plus support contacts shown on client portals.',
             `<div class="prof-field"><label for="company-domain">Website domain</label>` +
-            `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
-            `<span class="prof-hint">Hostname only. Leave blank to use this deployment’s domain.</span></div>` +
+            `<input id="company-domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" readonly disabled autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+            `<span class="prof-hint">Set by the <code>PUBLIC_SITE_DOMAIN</code> Railway variable.</span></div>` +
             `<div class="prof-field-row">` +
               `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
               `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +

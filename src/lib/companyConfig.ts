@@ -128,7 +128,7 @@ export type CompanyConfig = {
   legalName: string;
   /** Default meta description. */
   description: string;
-  /** Hostname only, e.g. example.com */
+  /** Hostname only, e.g. example.com — from PUBLIC_SITE_DOMAIN / COMPANY_DOMAIN. */
   domain: string;
   supportEmail: string;
   /** Tap-to-call / text number shown on client portals. */
@@ -209,10 +209,13 @@ function normalizeDomain(raw: string | null | undefined): string {
   return t.replace(/^https?:\/\//, '').replace(/\/+$/, '').split('/')[0]?.split(':')[0] ?? '';
 }
 
-function domainFromEnvOrRequest(request?: Request): string {
-  const envDomain = normalizeDomain(serverEnv('COMPANY_DOMAIN') || serverEnv('PUBLIC_SITE_DOMAIN'));
-  if (envDomain) return envDomain;
+function domainFromEnv(): string {
+  return normalizeDomain(
+    serverEnv('COMPANY_DOMAIN') || serverEnv('PUBLIC_SITE_DOMAIN') || serverEnv('PUBLIC_SITE_URL'),
+  );
+}
 
+function domainFromRequest(request?: Request): string {
   if (request) {
     const host = hostnameFromOrigin(requestOrigin(request));
     if (host && host !== 'localhost' && !host.startsWith('127.')) return host;
@@ -222,6 +225,11 @@ function domainFromEnvOrRequest(request?: Request): string {
   if (fallback && fallback !== 'localhost' && !fallback.startsWith('127.')) return fallback;
 
   return '';
+}
+
+/** Railway / env first — stored admin value is last-resort only (cannot override the deploy). */
+function resolveCompanyDomain(stored: StoredCompanyConfig | null, request?: Request): string {
+  return pick(domainFromEnv(), domainFromRequest(request), stored?.domain);
 }
 
 function pick(...values: (string | null | undefined)[]): string {
@@ -377,7 +385,7 @@ function resolvePortalOutreachNotice(stored: StoredCompanyConfig | null): string
 }
 
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
-  const domain = pick(stored?.domain, domainFromEnvOrRequest(request));
+  const domain = resolveCompanyDomain(stored, request);
   const logo = resolveLogo(stored);
   const icon = resolveIcon(stored);
 
@@ -482,7 +490,7 @@ export type CompanyConfigInput = {
   name?: string;
   legalName?: string;
   description?: string;
-  /** Public hostname for branding, OG tags, and emails — e.g. example.com */
+  /** Ignored on save — hostname comes from PUBLIC_SITE_DOMAIN / COMPANY_DOMAIN. */
   domain?: string;
   supportEmail?: string;
   supportPhone?: string;
@@ -529,7 +537,7 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.name !== undefined) out.name = trim(input.name) || null;
   if (input.legalName !== undefined) out.legalName = trim(input.legalName) || null;
   if (input.description !== undefined) out.description = trim(input.description) || null;
-  if (input.domain !== undefined) out.domain = normalizeDomain(input.domain) || null;
+  // Domain is Railway-owned (PUBLIC_SITE_DOMAIN / COMPANY_DOMAIN). Ignore client writes.
   if (input.supportEmail !== undefined) out.supportEmail = trim(input.supportEmail) || null;
   if (input.supportPhone !== undefined) out.supportPhone = trim(input.supportPhone) || null;
   if (input.fromEmail !== undefined) out.fromEmail = trim(input.fromEmail) || null;
