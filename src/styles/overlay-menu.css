@@ -223,7 +223,8 @@
   font-family: var(--font-primary, ui-sans-serif, system-ui, sans-serif);
   font-size: 0.92rem;
   font-weight: 600;
-  color: #0b0512;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
   background: var(--brand-gradient);
   text-decoration: none;
   box-shadow: 0 8px 24px rgba(var(--brand-magenta-rgb), 0.32);

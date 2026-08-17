@@ -217,7 +217,8 @@
 }
 
 .dl-btn--primary {
-  color: #0b0512;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
   background: var(--brand-gradient);
 }
 
