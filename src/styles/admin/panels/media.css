@@ -484,7 +484,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1d2327;
+  /* Photoshop-style transparency checkerboard */
+  background-color: #fff;
+  background-image: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);
+  background-size: 16px 16px;
   padding: 1rem;
 }
 
@@ -504,7 +507,7 @@
   height: auto;
   object-fit: contain;
   display: block;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
 .ml-detail-pdf {
