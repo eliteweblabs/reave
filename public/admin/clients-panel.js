@@ -461,6 +461,19 @@ function syncClientsListActiveState(opts = {}) {
 /** Prefill for new-contact form when opened from email / other panels. */
 let pendingNewClientPrefill = null;
 
+/** Drop leftover list search so a targeted contact can appear and open. */
+function clearClientSearchForTarget() {
+  if (clientState.search.trim()) clientState.search = '';
+}
+
+function revealClientInSidebarFilter(uid) {
+  if (!uid) return;
+  const target = clientState.clients.find((c) => c.uid === uid);
+  if (target && clientState.contactFilter !== 'all' && !filterClientsForSidebar([target]).length) {
+    clientState.contactFilter = 'all';
+  }
+}
+
 async function loadClientsTab(opts = {}) {
   const root = getClientsEditor();
   if (!root) return;
@@ -469,6 +482,7 @@ async function loadClientsTab(opts = {}) {
   const pendingDeepLink = openNewClient
     ? null
     : opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
+  if (pendingDeepLink) clearClientSearchForTarget();
   const canPreserveMounted =
     !openNewClient &&
     root.querySelector('.de-pane') &&
@@ -511,10 +525,15 @@ async function loadClientsTab(opts = {}) {
   }
   if (!restoreUid) restoreUid = readClientLastActiveUid();
 
-  if (restoreUid && !clientState.clients.some((c) => c.uid === restoreUid)) {
+  if (
+    restoreUid &&
+    !clientState.clients.some((c) => c.uid === restoreUid) &&
+    restoreUid !== pendingDeepLink
+  ) {
     restoreUid = null;
     clearClientLastActiveUid();
   }
+  if (restoreUid) revealClientInSidebarFilter(restoreUid);
 
   if (!restoreUid) {
     clientState.returnToWorkSlug = null;
@@ -2589,6 +2608,7 @@ function parseClientDeepLinkFromUrl() {
 
 function navigateToClient(uid, opts = {}) {
   if (!uid) return;
+  clearClientSearchForTarget();
   if (opts.fromWorkSlug) {
     clientState.returnToWorkSlug = opts.fromWorkSlug;
     clientState.returnToScheduleUid = null;
@@ -2620,6 +2640,8 @@ async function resumeClientDetailFromUrl() {
     return;
   }
   pendingClientDeepLinkUid = clientUid;
+  clearClientSearchForTarget();
+  await loadClientsTab({ clientUid });
 }
 
 export {

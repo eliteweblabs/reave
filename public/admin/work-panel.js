@@ -36,7 +36,7 @@ import {
 } from './admin-ui.js?v=20260811d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260814a';
+import { clientState, clientMapController } from './clients-panel.js?v=20260817c';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import {
   createDetailChrome,
