@@ -2,7 +2,7 @@
 
 Super-admin module on the official REΛVE Railway install only (`visibility: private` — not a purchasable storefront add-on). Enable with `deploy_wizard` in `config/config-reave.json` `features[]` and `deploy` in `footerNav`. Page: **`/deploy`**. Client installs 404 the page and `/api/deploy/wizard`.
 
-Same module-toggle UI as `/demo-loader`, then a Railway variable plan that prefers **reference variables** over pasted URLs.
+Same module-toggle UI as `/demo-loader`, then a Railway variable plan that prefers **reference variables** over pasted URLs. Tiles only switch on when the module is **deployed** and enabled on production Reave — requested or in-development cards stay visible but cannot be included.
 
 ## Why references
 

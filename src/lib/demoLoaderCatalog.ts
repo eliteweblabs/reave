@@ -1,5 +1,6 @@
 /**
- * Public demo loader catalog — uses deploy-status feed; toggles only when status is deployed.
+ * Public demo loader catalog — uses deploy-status feed; toggles only when
+ * the module is deployed and enabled on production Reave.
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
@@ -22,7 +23,7 @@ export type DemoLoaderModule = {
   status: ModuleDeployStatus;
   /** Enabled on production Reave (config-reave.json features[]). */
   inProduction: boolean;
-  /** Ready for demo — deploy playbook status is deployed. */
+  /** Ready to include — deployed and on production Reave. */
   toggleable: boolean;
   /** Named capabilities from the module definition (FEATURE_MARKETING / MARKETING_FEATURES). */
   features: Array<{ id: string; label: string }>;
@@ -170,14 +171,15 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
     .map((m) => {
       const moduleId = demoModuleIdForFeature(m.feature);
       const deployed = m.status === 'deployed';
+      const inProduction = productionFeatures.has(m.feature);
       return {
         moduleId,
         feature: m.feature,
         label: m.label,
         blurb: FEATURE_BLURBS[m.feature] ?? '',
         status: m.status,
-        inProduction: productionFeatures.has(m.feature),
-        toggleable: deployed && Boolean(moduleId),
+        inProduction,
+        toggleable: deployed && inProduction && Boolean(moduleId),
         features: listMarketingFeaturesForModule(m.feature).map((f) => ({
           id: f.id,
           label: f.label,

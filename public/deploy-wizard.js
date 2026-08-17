@@ -73,9 +73,10 @@
   }
 
   function selectedFeatures() {
+    const allowed = new Set(toggleableModules().map((m) => m.moduleId));
     const out = [];
     for (const m of modules) {
-      if (m.moduleId && selectedIds.has(m.moduleId)) out.push(m.feature);
+      if (m.moduleId && allowed.has(m.moduleId) && selectedIds.has(m.moduleId)) out.push(m.feature);
     }
     return out;
   }
@@ -121,11 +122,12 @@
   }
 
   function renderTile(m) {
-    const canToggle = Boolean(m.toggleable && m.moduleId);
+    const canToggle = Boolean(m.toggleable && m.moduleId && m.inProduction !== false);
     const checked = canToggle && selectedIds.has(m.moduleId);
+    const readonlyClass = canToggle ? '' : ' dl-tile--readonly';
     return (
-      `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}" ` +
-      `data-feature="${esc(m.feature)}">` +
+      `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}${readonlyClass}" ` +
+      `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
       `<div class="dl-tile-head">` +
       `<h3 class="dl-tile-label">${esc(m.label)}</h3>` +
@@ -699,7 +701,8 @@
         if (typeof data.defaults.adminUsername === 'string') adminUsername = data.defaults.adminUsername;
         timezone = data.defaults.timezone || timezone;
       }
-      selectedIds = new Set(data.defaultModuleIds || toggleableModules().map((m) => m.moduleId));
+      const allowed = new Set(toggleableModules().map((m) => m.moduleId));
+      selectedIds = new Set((data.defaultModuleIds || [...allowed]).filter((id) => allowed.has(id)));
       if (railway.projects?.length === 1) project = railway.projects[0].id;
       render();
       bind();

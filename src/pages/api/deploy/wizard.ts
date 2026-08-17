@@ -93,23 +93,22 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
-  const modules = listDemoLoaderModules().map((m) => ({
-    ...m,
-    toggleable: Boolean(m.moduleId),
-  }));
+  const modules = listDemoLoaderModules();
   const baseline = ['001', '002', '003', '004']
     .map((id) => demoModuleById(id))
     .filter((e): e is NonNullable<typeof e> => Boolean(e))
     .map((e) => {
-      const fromList = listDemoLoaderModules().find((m) => m.feature === e.feature);
+      const fromList = modules.find((m) => m.feature === e.feature);
+      const inProduction = fromList?.inProduction ?? true;
+      const status = fromList?.status ?? 'deployed';
       return {
         moduleId: e.id,
         feature: e.feature,
         label: e.label,
         blurb: FEATURE_BLURBS[e.feature] ?? fromList?.blurb ?? '',
-        status: fromList?.status ?? 'deployed',
-        inProduction: fromList?.inProduction ?? true,
-        toggleable: true,
+        status,
+        inProduction,
+        toggleable: inProduction && status === 'deployed',
         features: fromList?.features ?? [],
       };
     });

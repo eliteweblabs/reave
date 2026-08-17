@@ -122,7 +122,7 @@
   }
 
   function renderTile(m) {
-    const canToggle = togglesEnabled && Boolean(m.toggleable && m.moduleId);
+    const canToggle = togglesEnabled && Boolean(m.toggleable && m.moduleId && m.inProduction !== false);
     const checked = canToggle && selectedIds.has(m.moduleId);
     // Dim only in toggle mode when a card isn't selectable — browse mode is all display.
     const readonlyClass = togglesEnabled && !canToggle ? ' dl-tile--readonly' : '';
