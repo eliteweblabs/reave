@@ -974,6 +974,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .app-header:not(.app-header--admin) .topbar-profile-btn {
+    background: transparent;
     color: rgba(255, 255, 255, 0.58);
   }
 
@@ -1034,9 +1035,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     min-width: var(--app-header-profile-h);
     border: none;
     border-radius: var(--radius-input, 8px);
-    background: var(--footer-nav-glass-bg, transparent);
-    backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
-    -webkit-backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    /* Admin: --bg tracks light/dark. Marketing override below stays transparent. */
+    background: var(--bg, var(--footer-nav-glass-bg, transparent));
     color: var(--nav-icon, var(--muted, rgba(255, 255, 255, 0.55)));
     cursor: pointer;
     padding: 0;

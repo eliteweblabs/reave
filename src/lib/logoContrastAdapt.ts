@@ -179,3 +179,65 @@ export async function adaptLogoContrast(
     return fallback;
   }
 }
+
+/**
+ * Knock out a solid near-black or near-white field so a colorful mark can sit
+ * on a CSS theme background (header profile icon, staff avatars).
+ *
+ * Only runs when all four corners agree on a neutral tone — photos and
+ * full-bleed brand-color tiles are left alone. Returns the original buffer
+ * when there is no field to punch or the mark would disappear.
+ */
+export async function punchSolidNeutralBackground(buf: Buffer): Promise<Buffer> {
+  try {
+    const { data, info } = await sharp(buf)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const { width, height, channels } = info;
+    if (channels < 4 || width < 2 || height < 2) return buf;
+
+    const cornerAt = (x: number, y: number): Rgb & { a: number } => {
+      const i = (y * width + x) * channels;
+      return { r: data[i]!, g: data[i + 1]!, b: data[i + 2]!, a: data[i + 3]! };
+    };
+    const corners = [
+      cornerAt(0, 0),
+      cornerAt(width - 1, 0),
+      cornerAt(0, height - 1),
+      cornerAt(width - 1, height - 1),
+    ];
+    if (corners.some((c) => c.a < ALPHA_VISIBLE)) return buf;
+
+    const allBlack = corners.every((c) => isNearBlack(c));
+    const allWhite = corners.every((c) => isNearWhite(c));
+    if (!allBlack && !allWhite) return buf;
+
+    const out = Buffer.from(data);
+    let kept = 0;
+    for (let i = 0; i < out.length; i += channels) {
+      const alpha = out[i + 3]!;
+      if (alpha < ALPHA_VISIBLE) continue;
+      const rgb = { r: out[i]!, g: out[i + 1]!, b: out[i + 2]! };
+      if ((allBlack && isNearBlack(rgb)) || (allWhite && isNearWhite(rgb))) {
+        out[i + 3] = 0;
+      } else {
+        kept += 1;
+      }
+    }
+    if (kept < 8) return buf;
+
+    return sharp(out, {
+      raw: {
+        width,
+        height,
+        channels: 4,
+      },
+    })
+      .png()
+      .toBuffer();
+  } catch {
+    return buf;
+  }
+}

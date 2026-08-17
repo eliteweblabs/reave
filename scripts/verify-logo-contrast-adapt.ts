@@ -9,6 +9,7 @@ import {
   analyzeLogoContrast,
   isNearBlack,
   isNearWhite,
+  punchSolidNeutralBackground,
   LOGO_CONTRAST_FLIP_THRESHOLD,
 } from '../src/lib/logoContrastAdapt.ts';
 
@@ -145,6 +146,34 @@ assert.equal(isNearWhite({ r: 37, g: 99, b: 235 }), false);
   const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer();
   const adapted = await adaptLogoContrast(png, 'dark');
   assert.equal(adapted.changed, false, 'black minority must not trigger a flip');
+}
+
+{
+  const width = 24;
+  const height = 24;
+  const raw = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const o = (y * width + x) * 4;
+      const mark = x >= 8 && x < 16 && y >= 8 && y < 16;
+      raw.set(mark ? rgba(192, 38, 211) : rgba(0, 0, 0), o);
+    }
+  }
+  const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer();
+  const punched = await punchSolidNeutralBackground(png);
+  const corner = await samplePixel(punched, 0, 0);
+  assert.equal(corner[3], 0, 'black field becomes transparent');
+  const mark = await samplePixel(punched, 12, 12);
+  assert.deepEqual(mark.slice(0, 3), [192, 38, 211], 'colored mark is kept');
+  assert.equal(mark[3], 255, 'colored mark stays opaque');
+}
+
+{
+  const colored = await solidPng(16, 16, { r: 37, g: 99, b: 235 });
+  const punched = await punchSolidNeutralBackground(colored);
+  const pixel = await samplePixel(punched, 0, 0);
+  assert.deepEqual(pixel.slice(0, 3), [37, 99, 235], 'brand-color tiles are not punched');
+  assert.equal(pixel[3], 255);
 }
 
 console.log('logo contrast adapt checks passed');

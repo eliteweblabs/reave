@@ -10,6 +10,7 @@ import { sanitizeInlineSvg, resolveSvgAssetUrls } from './brandSvg';
 import { rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from './portalOgImage';
+import { punchSolidNeutralBackground } from './logoContrastAdapt';
 
 export type BrandMarkSource =
   | { kind: 'raster'; buffer: Buffer }
@@ -169,11 +170,12 @@ export async function renderBrandMarkSquarePng(
   opts?: { transparent?: boolean; fit?: 'cover' | 'contain' },
 ): Promise<Buffer> {
   const fit = opts?.fit ?? 'cover';
+  const transparent = opts?.transparent ?? false;
   for (const source of sources) {
     const png = await rasterizeSource(source, size, fit);
-    if (png) return png;
+    if (png) return transparent ? punchSolidNeutralBackground(png) : png;
   }
-  const svg = buildLetterSvg(letter, size, opts?.transparent ?? false);
+  const svg = buildLetterSvg(letter, size, transparent);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
@@ -212,6 +214,7 @@ export function brandingEtag(
   stored: StoredCompanyConfig | null,
   size: number,
   kind: 'icon' | 'og' = 'icon',
+  opts?: { transparent?: boolean },
 ): string {
   const updated = stored?.updatedAt ?? '0';
   const flags = [
@@ -219,6 +222,7 @@ export function brandingEtag(
     stored?.iconSvg?.trim() ? 'I' : '',
     stored?.logoData ? 'l' : '',
     stored?.logoSvg?.trim() ? 'L' : '',
+    opts?.transparent ? 't' : '',
   ].join('');
   const nameTag = brandingNameTag(stored?.name ?? '');
   return `${updated}:${flags}:${nameTag}:${kind}:${size}`;

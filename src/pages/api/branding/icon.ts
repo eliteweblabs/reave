@@ -19,7 +19,7 @@ export const GET: APIRoute = async ({ request, url }) => {
   const transparent = url.searchParams.get('transparent') === '1';
   const stored = await getStoredCompanyConfig();
   const body = await renderCompanyBrandIconPng(stored, size, { transparent });
-  const etag = `"${brandingEtag(stored, size, 'icon')}"`;
+  const etag = `"${brandingEtag(stored, size, 'icon', { transparent })}"`;
 
   if (request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304 });
