@@ -65,6 +65,11 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
     blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
   },
   {
+    id: 'chat-commands',
+    label: 'Chat / commands',
+    blurb: 'Type / in agent chat for slash commands — knowledge, jobs, billing, and the rest of the OS.',
+  },
+  {
     id: 'billing',
     label: 'Billing & Invoices',
     blurb: 'Quotes, invoices, and payments wired to the work you’re already shipping.',

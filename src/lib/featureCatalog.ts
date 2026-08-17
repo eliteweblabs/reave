@@ -165,7 +165,7 @@ export function isPrivateFeature(id: string): boolean {
 }
 
 export const CORE_FEATURE_NOTE =
-  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat, and Clerk sign-in (passkeys, phone) are always on.';
+  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat / commands, and Clerk sign-in (passkeys, phone) are always on.';
 
 /**
  * Ground-truth inventory for the admin agent. A missing tool this turn is not
