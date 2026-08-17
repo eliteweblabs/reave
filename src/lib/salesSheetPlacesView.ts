@@ -81,7 +81,7 @@ function reviewsLabel(count: number | undefined): string {
 
 /** Media-library slug for the iPhone 17 sales-sheet wrapper (736×1428, padded). */
 export const IPHONE_FRAME_SLUG = 'iphone17-frame';
-/** Repo copy — no Dynamic Island, so the SERP is not inset for a cutout. */
+/** Repo copy of the iPhone 17 wrapper (island intact; screen content is inset below it). */
 export const IPHONE_FRAME_SRC = `/admin/${IPHONE_FRAME_SLUG}.png`;
 
 export type PlacesPhoneMockOpts = {
@@ -216,13 +216,13 @@ export function renderPlacesPhoneMockHtml(
   left: 8.15%;
   z-index: 1;
   overflow: hidden;
-  padding-top: 2.2%;
+  /* Reserve the Dynamic Island band so search chrome is not under the cutout. */
+  padding-top: 7.5%;
   background: var(--ss-phone-screen);
   border-radius: 12% / 6%;
 }
 .ss-phone-screen:has(.ss-phone-serp) {
-  padding-top: 0;
-  background: #fff;
+  background: #000;
 }
 .ss-phone-serp {
   display: block;
