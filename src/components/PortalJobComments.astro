@@ -85,7 +85,7 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     aria-label="Ask a question or share an update"
     placeholder="Ask a question or share an update…"
   />
-  <button class="work-comment-submit" type="button">Ask a question or share an update</button>
+  <button class="work-comment-submit" type="button">Add comment</button>
 </div>
 
 <script define:vars={{ commentEndpoint, clientAvatarUrl, staffAvatarUrl, jobSlug }}>
@@ -206,6 +206,8 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
 
 <style>
   .portal-job-comments {
+    display: flex;
+    flex-direction: column;
     margin-top: 4px;
   }
 
@@ -340,6 +342,14 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  @media (min-width: 640px) {
+    .work-comment-submit {
+      width: auto;
+      align-self: flex-end;
+      padding: 12px 20px;
+    }
   }
 
   .work-comment-submit:disabled {
