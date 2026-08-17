@@ -269,10 +269,16 @@ function resolveIcon(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'i
   if (stored?.iconData && stored?.iconMediaType) {
     return { iconPath: BRANDING_ICON_PATH, iconSource: 'admin', iconVersion: version };
   }
+  if (trim(stored?.iconSvg)) {
+    return { iconPath: BRANDING_ICON_PATH, iconSource: 'admin', iconVersion: version };
+  }
   const storedIcon = trim(stored?.iconPath);
   // Stale row: API path without binary data — fall back to SVG rasterization / site default.
   if (storedIcon && storedIcon !== BRANDING_ICON_PATH) {
     return { iconPath: storedIcon, iconSource: 'admin', iconVersion: version };
+  }
+  if ((stored?.logoData && stored?.logoMediaType) || trim(stored?.logoSvg)) {
+    return { iconPath: BRANDING_ICON_PATH, iconSource: 'admin', iconVersion: version };
   }
   return {
     iconPath: pick(serverEnv('COMPANY_ICON_PATH'), SITE.favicons.png192),
@@ -316,14 +322,19 @@ export type CompanyFaviconUrls = {
   png512: string;
 };
 
+function versionedRootIcon(path: string, version?: string | null): string {
+  const v = trim(version);
+  return v ? `${path}?v=${encodeURIComponent(v)}` : path;
+}
+
 /** Resolved favicon / PWA icon URLs — rasterized from admin branding at request time. */
 export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
   const version = companyBrandingVersion(company);
   return {
-    ico: brandIconUrl(BRAND_ICON_SIZES.png32, version),
+    ico: versionedRootIcon(SITE.favicons.ico, version),
     png32: brandIconUrl(BRAND_ICON_SIZES.png32, version),
     png16: brandIconUrl(BRAND_ICON_SIZES.png16, version),
-    appleTouchIcon: brandIconUrl(BRAND_ICON_SIZES.appleTouchIcon, version),
+    appleTouchIcon: versionedRootIcon(SITE.favicons.appleTouchIcon, version),
     png192: brandIconUrl(BRAND_ICON_SIZES.png192, version),
     png512: brandIconUrl(BRAND_ICON_SIZES.png512, version),
   };
