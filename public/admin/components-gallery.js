@@ -27,7 +27,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260818a';
+} from './admin-ui.js?v=20260818b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260815a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
@@ -156,6 +156,7 @@ function mount() {
       pill.append(ring, label);
       pill.addEventListener('click', () => restartTimingRing(pill));
       r.appendChild(pill);
+      restartTimingRing(pill);
     },
   );
 
