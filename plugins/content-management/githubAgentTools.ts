@@ -13,6 +13,7 @@ import {
   githubWriteFile,
 } from '../../src/lib/githubClient';
 import { maybeDeferGithubWrite } from '../../src/lib/deferredDeploy';
+import { getAgentContext } from '../../src/lib/agentContext';
 import type { AgentToolDef, ToolContext, ToolHandler } from '../../src/lib/agentTools/types';
 
 async function handle_get_git_status(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -85,6 +86,14 @@ async function handle_write_github_file(args: Record<string, unknown>, _ctx: Too
   if (deferred) return JSON.stringify(deferred);
   const result = await githubWriteFile(writeArgs);
   if (!result.ok) return JSON.stringify({ error: result.error });
+  const branch = writeArgs.branch.trim() || githubDefaultBranch();
+  if (branch.toLowerCase() === githubDefaultBranch().toLowerCase()) {
+    const { threadId } = getAgentContext();
+    if (threadId) {
+      const { ensureDefaultDeployResume } = await import('../../src/lib/deployResume');
+      await ensureDefaultDeployResume(threadId);
+    }
+  }
   return JSON.stringify(result.data);
 }
 

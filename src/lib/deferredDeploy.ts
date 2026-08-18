@@ -214,6 +214,11 @@ export async function flushDeferredDeploy(
   }
 
   const ok = github.every((g) => g.ok) && pushes.every((p) => p.ok);
+  const shipped = github.some((g) => g.ok) || pushes.some((p) => p.ok);
+  if (shipped) {
+    const { ensureDefaultDeployResume } = await import('./deployResume');
+    await ensureDefaultDeployResume(threadId);
+  }
   return { ok, github, pushes };
 }
 

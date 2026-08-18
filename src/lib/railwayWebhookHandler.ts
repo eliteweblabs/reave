@@ -81,9 +81,8 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
  * agent to fix (typos / lockfile / collisions). Full incident lock + verify
  * loop runs when RAILWAY_INCIDENT_HANDLER=1. No phone push for build failures.
  *
- * Deploy success triggers any registered deploy-resume continuation so the
- * agent can pick up mid-task workflows (e.g. "fix Crater line item after
- * the deploy lands") automatically.
+ * Deploy success resumes the registered admin chat (same thread, with
+ * history) so mid-task workflows continue after the deploy lands.
  */
 export async function handleRailwayWebhook(opts: {
   ingressKey: string | null;

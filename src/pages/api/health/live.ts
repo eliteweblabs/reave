@@ -22,6 +22,12 @@ export const GET: APIRoute = async () => {
     .then((m) => m.ensureCalcomIdentityScheduler())
     .catch(() => undefined);
 
+  // If a chat registered a deploy-resume and the success webhook missed this
+  // replica, pick it up as soon as the new deploy is healthy.
+  void import('../../../lib/deployResume')
+    .then((m) => m.maybeTriggerDeployResumeOnNewReplica())
+    .catch(() => undefined);
+
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
     headers: {

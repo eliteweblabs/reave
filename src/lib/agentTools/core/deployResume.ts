@@ -31,7 +31,7 @@ export const deployResumeModule: AgentToolModule = {
       function: {
         name: 'set_deploy_resume',
         description:
-          'Register a continuation message so the agent automatically resumes THIS chat session when the next Railway deploy-success webhook fires. Use when you are about to go silent waiting for a deploy (e.g. you committed a fix and need a Crater route to be live before finishing). The message is posted back into this thread exactly as if the owner typed it, triggering a new agent run. Clears itself after 30 minutes or on first trigger. Omit thread_id to use the current session.',
+          'Register a continuation message so THIS chat resumes automatically when the next Railway deploy-success webhook fires (or when the new replica comes up). Commits flushed to main already register a default resume — call this when you need a specific next step (e.g. a Crater route must be live) or you are waiting on a sibling service. The message is posted back into this thread as if the owner typed it. Clears itself after 30 minutes or on first trigger. Omit thread_id to use the current session.',
         parameters: {
           type: 'object',
           properties: {
