@@ -737,7 +737,15 @@ function buildMap() {
   syncModelNodeLabels();
 }
 
+function showIndustries() {
+  return window.__installConfig?.showIndustries === true;
+}
+
 function setActiveMap(key, opts = {}) {
+  if (key === 'industries' && !showIndustries()) {
+    key = 'dashboard';
+    opts = { ...opts, force: true };
+  }
   let force = opts.force === true;
   if (
     force &&
@@ -7529,6 +7537,10 @@ async function loadSocialsTab() {
 }
 
 async function loadIndustriesTab() {
+  if (!showIndustries()) {
+    setActiveMap('dashboard', { force: true });
+    return;
+  }
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
@@ -14440,7 +14452,7 @@ function loadActiveKey() {
     if (params.get('slug')?.trim()) return 'work';
     if (params.get('booking')?.trim()) return 'schedule';
     const tab = resolveMapKey(params.get('tab'));
-    if (tab && MAPS[tab]) return tab;
+    if (tab && MAPS[tab] && canOpenMapKey(tab)) return tab;
   } catch {}
   let key;
   try {
@@ -14448,8 +14460,13 @@ function loadActiveKey() {
   } catch {
     key = null;
   }
-  if (MAPS[key]) return key;
+  if (MAPS[key] && canOpenMapKey(key)) return key;
   return 'dashboard';
+}
+
+function canOpenMapKey(key) {
+  if (key === 'industries') return showIndustries();
+  return true;
 }
 function saveActiveKey() {
   try {

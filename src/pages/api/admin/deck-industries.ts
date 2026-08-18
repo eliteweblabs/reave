@@ -11,6 +11,7 @@ import {
   replaceDeckIndustries,
   type DeckIndustryInput,
 } from '../../../lib/deckIndustriesStore';
+import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 
 export const prerender = false;
 
@@ -21,10 +22,17 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+function requireReaveIndustriesAdmin(): Response | null {
+  if (isCanonicalReaveInstall()) return null;
+  return json({ ok: false, error: 'Not found' }, 404);
+}
+
 export async function GET(context: APIContext): Promise<Response> {
+  const hostDenied = requireReaveIndustriesAdmin();
+  if (hostDenied) return hostDenied;
+
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   const industries = await listDeckIndustries();
   return json({
@@ -35,9 +43,11 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
+  const hostDenied = requireReaveIndustriesAdmin();
+  if (hostDenied) return hostDenied;
+
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   let body: unknown;
   try {

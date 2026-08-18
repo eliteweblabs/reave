@@ -52,7 +52,7 @@ export const PROFILE_MENU_KEYS = [
   'company',
   'settings',
   'socials',
-  'industries',
+  'industries', // REΛVE-only; stripped from client payload on other installs
   'vapi',
   'lead-scanner',
 ] as const;
@@ -140,6 +140,8 @@ export type InstallConfigClient = Pick<
   showPersonal?: boolean;
   /** Deploy wizard (`/deploy`) — official REΛVE Railway install only. */
   showDeployWizard?: boolean;
+  /** Industries catalog editor — official REΛVE Railway install only. */
+  showIndustries?: boolean;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -304,7 +306,6 @@ export function defaultFooterNav(): FooterNavKey[] {
     'company',
     'settings',
     'socials',
-    'industries',
     'finance',
   ];
 }
@@ -380,7 +381,18 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   if (!config.features.includes('deploy_wizard')) {
     nav = nav.filter((key) => key !== 'deploy');
   }
+  if (!isCanonicalReaveInstall()) {
+    nav = nav.filter((key) => key !== 'industries');
+  }
   return nav;
+}
+
+function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
+  let menu = config.profileMenu;
+  if (!isCanonicalReaveInstall()) {
+    menu = menu.filter((key) => key !== 'industries');
+  }
+  return menu;
 }
 
 export function getInstallConfigClient(): InstallConfigClient {
@@ -388,12 +400,13 @@ export function getInstallConfigClient(): InstallConfigClient {
   return {
     features: config.features,
     footerNav: clientFooterNav(config),
-    profileMenu: config.profileMenu,
+    profileMenu: clientProfileMenu(config),
     homepageVoice: config.homepageVoice,
     chatFocusSkin: config.chatFocusSkin,
     canManageUniversalRules: isCanonicalReaveInstall(),
     showPersonal: isCanonicalReaveInstall(),
     showDeployWizard: config.features.includes('deploy_wizard'),
+    showIndustries: isCanonicalReaveInstall(),
   };
 }
 

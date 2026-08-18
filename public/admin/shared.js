@@ -632,3 +632,11 @@ export function bindFormattedPhoneInputs(root) {
 export function showPersonal() {
   return window.__installConfig?.showPersonal === true;
 }
+
+/**
+ * Industries catalog editor.
+ * Reave / super-admin install only (`window.__installConfig.showIndustries`).
+ */
+export function showIndustries() {
+  return window.__installConfig?.showIndustries === true;
+}

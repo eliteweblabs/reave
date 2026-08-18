@@ -19,14 +19,12 @@
     "profile",
     "company",
     "socials",
-    "industries",
     "finance"
   ],
   "profileMenu": [
     "profile",
     "company",
     "settings",
-    "socials",
-    "industries"
+    "socials"
   ]
 }
