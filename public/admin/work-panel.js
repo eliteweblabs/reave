@@ -2483,6 +2483,11 @@ function showWorkEditorToast(message) {
   console.warn('[work]', message);
 }
 
+function isPersistableWorkImageSrc(src) {
+  const s = String(src || '').trim();
+  return /^https?:\/\//i.test(s) || (s.startsWith('/') && !s.startsWith('//'));
+}
+
 function workMarkdownToHtml(markdown) {
   if (!markdown) return '';
   const parts = [];
@@ -2492,9 +2497,7 @@ function workMarkdownToHtml(markdown) {
     const m = trimmed.match(imgRe);
     if (m) {
       const src = m[2].trim();
-      const safeSrc =
-        /^https?:\/\//i.test(src) || (src.startsWith('/') && !src.startsWith('//'));
-      if (!safeSrc) {
+      if (!isPersistableWorkImageSrc(src)) {
         parts.push(`<div class="wk-md-line">${escHtml(trimmed)}</div>`);
         continue;
       }
@@ -2514,34 +2517,69 @@ function workMarkdownToHtml(markdown) {
 
 function workHtmlToMarkdown(root) {
   const lines = [];
-  for (const node of root.childNodes) {
+
+  function pushImage(img) {
+    const src = (img.getAttribute('src') || '').trim();
+    if (!isPersistableWorkImageSrc(src)) return;
+    lines.push(`![${img.getAttribute('alt') || ''}](${src})`);
+  }
+
+  function walk(node) {
     if (node.nodeType === Node.TEXT_NODE) {
       const t = node.textContent.replace(/\u00a0/g, ' ').trimEnd();
       if (t) lines.push(t);
-      continue;
+      return;
     }
-    if (!(node instanceof HTMLElement)) continue;
+    if (!(node instanceof HTMLElement)) return;
     if (node.classList.contains('wk-md-figure') || node.tagName === 'FIGURE') {
       const img = node.querySelector('img');
-      if (img?.getAttribute('src')) {
-        const alt = img.getAttribute('alt') || '';
-        lines.push(`![${alt}](${img.getAttribute('src')})`);
-      }
-      continue;
+      if (img) pushImage(img);
+      return;
     }
     if (node.tagName === 'IMG') {
-      const src = node.getAttribute('src');
-      if (src) lines.push(`![](${src})`);
-      continue;
+      pushImage(node);
+      return;
     }
     if (node.tagName === 'BR') {
       lines.push('');
-      continue;
+      return;
+    }
+    if (node.querySelector?.('img, figure, .wk-md-figure')) {
+      for (const child of node.childNodes) walk(child);
+      return;
     }
     const text = node.innerText.replace(/\u00a0/g, ' ').replace(/\n+$/, '');
     lines.push(text);
   }
+
+  for (const node of root.childNodes) walk(node);
   return lines.join('\n');
+}
+
+function closestWorkBodyBlock(surface, node) {
+  let el = node;
+  if (el && el.nodeType === Node.TEXT_NODE) el = el.parentElement;
+  while (el && el !== surface && el.parentElement !== surface) {
+    el = el.parentElement;
+  }
+  return el && el !== surface ? el : null;
+}
+
+function wrapWorkBodyImage(img) {
+  if (img.closest('.wk-md-figure')) return img.closest('.wk-md-figure');
+  const figure = document.createElement('figure');
+  figure.className = 'wk-md-figure';
+  figure.contentEditable = 'false';
+  img.classList.add('wk-md-img');
+  img.parentNode?.insertBefore(figure, img);
+  figure.appendChild(img);
+  return figure;
+}
+
+function liftWorkBodyFigure(figure, surface) {
+  if (!figure || !surface || figure.parentElement === surface) return;
+  const block = closestWorkBodyBlock(surface, figure);
+  if (block && block !== figure) block.after(figure);
 }
 
 function insertWorkBodyImage(surface, url, alt) {
@@ -2555,22 +2593,86 @@ function insertWorkBodyImage(surface, url, alt) {
   figure.contentEditable = 'false';
   figure.appendChild(img);
 
+  const spacer = document.createElement('div');
+  spacer.className = 'wk-md-line';
+  spacer.innerHTML = '<br>';
+
+  const placeCaret = () => {
+    surface.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    const caret = document.createRange();
+    caret.selectNodeContents(spacer);
+    caret.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(caret);
+  };
+
   surface.focus();
   const sel = window.getSelection();
   if (!sel?.rangeCount || !surface.contains(sel.anchorNode)) {
     surface.appendChild(figure);
-    surface.appendChild(document.createElement('br'));
+    surface.appendChild(spacer);
+    placeCaret();
     return;
   }
   const range = sel.getRangeAt(0);
+  const block = closestWorkBodyBlock(surface, range.startContainer);
   range.deleteContents();
-  range.insertNode(figure);
-  const spacer = document.createElement('br');
+  if (block) block.after(figure);
+  else range.insertNode(figure);
+  liftWorkBodyFigure(figure, surface);
   figure.after(spacer);
-  range.setStartAfter(spacer);
-  range.collapse(true);
-  sel.removeAllRanges();
-  sel.addRange(range);
+  placeCaret();
+}
+
+function resolveWorkBodyImageFile(file, fallbackType) {
+  if (!file) return null;
+  const raw = String(file.type || fallbackType || '').trim().toLowerCase();
+  const type = raw === 'image/jpg' ? 'image/jpeg' : raw;
+  if (WORK_BODY_IMAGE_TYPES.has(type)) {
+    if (file.type === type) return file;
+    const ext = type.split('/')[1] || 'png';
+    return new File([file], file.name || `image.${ext}`, { type, lastModified: file.lastModified });
+  }
+  const m = /\.(jpe?g|png|gif|webp)$/i.exec(file.name || '');
+  if (!m) return null;
+  const byExt = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+  const inferred = byExt[m[1].toLowerCase()];
+  return new File([file], file.name, { type: inferred, lastModified: file.lastModified });
+}
+
+function collectClipboardImageFiles(dt) {
+  if (!dt) return [];
+  const out = [];
+  const seen = new Set();
+  const add = (file, fallbackType) => {
+    const resolved = resolveWorkBodyImageFile(file, fallbackType);
+    if (!resolved) return;
+    const key = `${resolved.size}:${resolved.type}:${resolved.name}:${resolved.lastModified}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(resolved);
+  };
+  if (dt.items) {
+    for (let i = 0; i < dt.items.length; i++) {
+      const item = dt.items[i];
+      if (item.kind !== 'file') continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      if (
+        item.type.startsWith('image/') ||
+        file.type.startsWith('image/') ||
+        /\.(jpe?g|png|gif|webp)$/i.test(file.name || '')
+      ) {
+        add(file, item.type || file.type);
+      }
+    }
+  }
+  if (dt.files) {
+    for (let i = 0; i < dt.files.length; i++) add(dt.files[i], dt.files[i].type);
+  }
+  return out;
 }
 
 async function uploadWorkBodyImage(slug, file) {
@@ -2639,13 +2741,13 @@ function createWorkBodyEditor(opts = {}) {
     opts.onInput?.();
   }
 
-  async function ingestImageFile(file) {
-    if (!file?.type?.startsWith('image/')) return;
-    if (!WORK_BODY_IMAGE_TYPES.has(file.type)) {
-      showWorkEditorToast('Use JPEG, PNG, GIF, or WebP images.');
+  async function ingestImageFile(file, replaceImg) {
+    const resolved = resolveWorkBodyImageFile(file, file?.type);
+    if (!resolved) {
+      if (file) showWorkEditorToast('Use JPEG, PNG, GIF, or WebP images.');
       return;
     }
-    if (file.size > WORK_BODY_IMAGE_MAX_BYTES) {
+    if (resolved.size > WORK_BODY_IMAGE_MAX_BYTES) {
       showWorkEditorToast('Image too large (max 10 MB).');
       return;
     }
@@ -2660,8 +2762,15 @@ function createWorkBodyEditor(opts = {}) {
     uploading += 1;
     surface.classList.add('wk-md-uploading');
     try {
-      const uploaded = await uploadWorkBodyImage(slug, file);
-      insertWorkBodyImage(surface, uploaded.url, uploaded.filename || 'Image');
+      const uploaded = await uploadWorkBodyImage(slug, resolved);
+      if (replaceImg?.isConnected) {
+        replaceImg.src = uploaded.url;
+        replaceImg.alt = uploaded.filename || replaceImg.alt || 'Image';
+        const figure = wrapWorkBodyImage(replaceImg);
+        liftWorkBodyFigure(figure, surface);
+      } else {
+        insertWorkBodyImage(surface, uploaded.url, uploaded.filename || 'Image');
+      }
       syncMarkdown();
       opts.onImageUploaded?.(uploaded);
     } catch (e) {
@@ -2674,6 +2783,40 @@ function createWorkBodyEditor(opts = {}) {
         surface.classList.remove('wk-md-uploading');
       }
     }
+  }
+
+  async function persistInlineImages() {
+    const imgs = [...surface.querySelectorAll('img')];
+    let changed = false;
+    for (const img of imgs) {
+      const src = (img.getAttribute('src') || '').trim();
+      if (isPersistableWorkImageSrc(src)) {
+        if (!img.closest('.wk-md-figure')) {
+          liftWorkBodyFigure(wrapWorkBodyImage(img), surface);
+          changed = true;
+        }
+        continue;
+      }
+      if (!src.startsWith('blob:') && !src.startsWith('data:')) continue;
+      try {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        const file = resolveWorkBodyImageFile(
+          new File([blob], img.getAttribute('alt') || 'image.png', { type: blob.type }),
+          blob.type,
+        );
+        if (!file) {
+          img.remove();
+          changed = true;
+          continue;
+        }
+        await ingestImageFile(file, img);
+      } catch {
+        img.remove();
+        changed = true;
+      }
+    }
+    if (changed) syncMarkdown();
   }
 
   fileInput.addEventListener('change', () => {
@@ -2706,26 +2849,24 @@ function createWorkBodyEditor(opts = {}) {
   surface.addEventListener('input', syncMarkdown);
 
   surface.addEventListener('paste', (e) => {
-    const items = e.clipboardData?.items;
-    if (!items?.length) return;
-    const imageFiles = [];
-    for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        const f = item.getAsFile();
-        if (f) imageFiles.push(f);
-      }
-    }
-    if (!imageFiles.length) return;
-    e.preventDefault();
-    void (async () => {
-      for (const file of imageFiles) {
-        try {
-          await ingestImageFile(file);
-        } catch {
-          /* toast already shown */
+    const imageFiles = collectClipboardImageFiles(e.clipboardData);
+    if (imageFiles.length) {
+      e.preventDefault();
+      void (async () => {
+        for (const file of imageFiles) {
+          try {
+            await ingestImageFile(file);
+          } catch {
+            /* toast already shown */
+          }
         }
-      }
-    })();
+      })();
+      return;
+    }
+    const html = e.clipboardData?.getData('text/html') || '';
+    if (/<img\s/i.test(html)) {
+      queueMicrotask(() => { void persistInlineImages(); });
+    }
   });
 
   surface.addEventListener('dragover', (e) => {
@@ -2737,7 +2878,9 @@ function createWorkBodyEditor(opts = {}) {
   surface.addEventListener('dragleave', () => surface.classList.remove('wk-md-dragover'));
   surface.addEventListener('drop', (e) => {
     surface.classList.remove('wk-md-dragover');
-    const files = [...e.dataTransfer?.files || []].filter((f) => f.type.startsWith('image/'));
+    const files = [...e.dataTransfer?.files || []]
+      .map((f) => resolveWorkBodyImageFile(f, f.type))
+      .filter(Boolean);
     if (!files.length) return;
     e.preventDefault();
     void (async () => {

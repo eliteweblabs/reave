@@ -138,7 +138,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260817b';
+} from './work-panel.js?v=20260818a';
 import {
   initTodoPanel,
   todoState,
