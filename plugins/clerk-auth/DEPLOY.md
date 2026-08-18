@@ -1,18 +1,20 @@
 # Clerk Auth Plugin
 
 Provides agent tools for managing Clerk authentication — users, sessions,
-organizations, and (on Pro/Enterprise) multi-app provisioning.
+and organizations on the **current** Clerk app.
+
+Clerk does not allow system-level access. There is no workspace master key
+that can create, list, or delete other Clerk applications.
 
 ## Environment Variables
 
 | Variable | Required | Notes |
 |---|---|---|
 | `CLERK_SECRET_KEY` | For user/session/org tools | `sk_live_…` or `sk_test_…` — from Clerk dashboard → API Keys |
-| `CLERK_PLATFORM_KEY` | For multi-app tools | Requires Clerk **Pro or Enterprise** account |
 
 Set via Railway Variables → REΛVE Automation App → production.
 
-Clerk is baseline on every package — not an optional `features[]` module. Admin tools load when the keys above are set.
+Clerk is baseline on every package — not an optional `features[]` module. Admin tools load when the key above is set.
 
 ## Tools enabled by CLERK_SECRET_KEY
 
@@ -22,22 +24,20 @@ Clerk is baseline on every package — not an optional `features[]` module. Admi
 - `clerk_list_sessions` / `clerk_revoke_session`
 - `clerk_list_organizations` / `clerk_create_organization`
 
-## Tools enabled by CLERK_PLATFORM_KEY (Pro/Enterprise only)
+## System-level tools (always refuse)
 
-- `clerk_list_apps` — list all Clerk applications on the account
-- `clerk_create_app` — provision a new Clerk app for a client, returns publishable + secret keys
-- `clerk_get_app_keys` — retrieve keys for an existing app
-- `clerk_delete_app` — permanently remove an app
+These exist so the agent gets a clear answer instead of inventing a workaround:
 
-## Typical new-client flow (Pro)
+- `clerk_list_apps`
+- `clerk_create_app`
+- `clerk_get_app_keys`
+- `clerk_delete_app`
 
-1. `clerk_create_app { name: "Client Name" }` → get `app_id`, `publishable_key`, `secret_key`
-2. `set_railway_variables` → push keys to the client's Railway service
-3. `update_work` → log app_id in the project notes
-4. `set_client_portal` → store keys in client Data vault
+Each responds: **Clerk does not allow system level access.**
 
-## Hobby plan limitation
+## New-client Clerk app
 
-On the Hobby (free) plan, only `CLERK_SECRET_KEY` is available for the single
-default app. `CLERK_PLATFORM_KEY` and multi-app provisioning require upgrading
-to Pro at https://clerk.com/pricing.
+Create the application in the Clerk dashboard (or reuse an existing one), then
+push that app’s `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` to
+the client Railway service. Log the app id on the project and store keys in
+the client Data vault — never ask the owner to invent a platform key.

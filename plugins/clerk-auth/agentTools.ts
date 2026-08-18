@@ -1,23 +1,18 @@
 /**
  * Clerk Authentication agent tools.
  *
- * Platform API tools (clerk_list_apps, clerk_create_app, clerk_get_app_keys,
- * clerk_delete_app) require CLERK_PLATFORM_KEY — Clerk Pro/Enterprise.
+ * Clerk keys are per-app only. Platform / system-level tools
+ * (clerk_list_apps, clerk_create_app, clerk_get_app_keys, clerk_delete_app)
+ * always return that Clerk does not allow system-level access.
  *
  * Backend API tools (clerk_list_users, clerk_get_user, clerk_create_user,
  * clerk_update_user, clerk_delete_user, clerk_ban_user, clerk_unban_user,
  * clerk_list_sessions, clerk_revoke_session, clerk_list_organizations,
- * clerk_create_organization, clerk_get_instance_status) require CLERK_SECRET_KEY.
- *
- * All tools fail gracefully with a clear message when the required key is missing.
+ * clerk_create_organization, clerk_get_instance_status) require CLERK_SECRET_KEY
+ * for the current instance.
  */
 import {
   isClerkConfigured,
-  isClerkPlatformConfigured,
-  clerkListApps,
-  clerkCreateApp,
-  clerkGetAppKeys,
-  clerkDeleteApp,
   clerkListUsers,
   clerkGetUser,
   clerkCreateUser,
@@ -35,6 +30,8 @@ import {
   type ClerkOrganization,
 } from '../../src/lib/clerkClient';
 import type { AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
+
+const CLERK_NO_SYSTEM_ACCESS = 'Clerk does not allow system level access.';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,7 +75,7 @@ export const clerkAuthModule: AgentToolModule = {
         function: {
           name: 'clerk_list_apps',
           description:
-            'List all Clerk applications on the Platform account. Requires CLERK_PLATFORM_KEY (Clerk Pro/Enterprise). Each app shows its id, name, and plan.',
+            'Clerk does not allow system level access. Cannot list applications across the account — Clerk keys are per-app only.',
           parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
         },
       },
@@ -87,7 +84,7 @@ export const clerkAuthModule: AgentToolModule = {
         function: {
           name: 'clerk_create_app',
           description:
-            'Create a new Clerk application for a client. Returns the app id, publishable key, and secret key. Requires CLERK_PLATFORM_KEY (Clerk Pro/Enterprise). Use when onboarding a new client project that needs Clerk auth.',
+            'Clerk does not allow system level access. Cannot provision a new Clerk application — keys are per-app only.',
           parameters: {
             type: 'object',
             properties: {
@@ -103,7 +100,7 @@ export const clerkAuthModule: AgentToolModule = {
         function: {
           name: 'clerk_get_app_keys',
           description:
-            'Fetch the publishable and secret keys for an existing Clerk app by app id. Requires CLERK_PLATFORM_KEY.',
+            'Clerk does not allow system level access. Cannot fetch keys for another Clerk app — keys are per-app only.',
           parameters: {
             type: 'object',
             properties: {
@@ -119,7 +116,7 @@ export const clerkAuthModule: AgentToolModule = {
         function: {
           name: 'clerk_delete_app',
           description:
-            'Permanently delete a Clerk application by app id. Destructive — require confirmed:true. Requires CLERK_PLATFORM_KEY.',
+            'Clerk does not allow system level access. Cannot delete Clerk applications across the account — keys are per-app only.',
           parameters: {
             type: 'object',
             properties: {
@@ -385,71 +382,19 @@ export const clerkAuthModule: AgentToolModule = {
     // ── Platform API ──────────────────────────────────────────────────────────
 
     async clerk_list_apps(_args, _ctx) {
-      if (!isClerkPlatformConfigured()) {
-        return JSON.stringify({
-          error:
-            'CLERK_PLATFORM_KEY is not set. Add it to Railway Variables once you have a Clerk Pro or Enterprise account. This key enables multi-app management.',
-        });
-      }
-      const r = await clerkListApps();
-      if (!r.ok) return JSON.stringify({ error: r.error });
-      const apps = r.apps ?? [];
-      if (!apps.length) return JSON.stringify({ apps: [], message: 'No Clerk applications found.' });
-      const lines = apps.map(
-        (a) => `**${a.name}** — id: \`${a.id}\`${a.plan ? ` plan: ${a.plan}` : ''}`,
-      );
-      return JSON.stringify({ count: apps.length, apps: lines.join('\n') });
+      return JSON.stringify({ error: CLERK_NO_SYSTEM_ACCESS });
     },
 
-    async clerk_create_app(args, _ctx) {
-      if (!isClerkPlatformConfigured()) {
-        return JSON.stringify({
-          error:
-            'CLERK_PLATFORM_KEY is not set. Add it to Railway Variables (from your Clerk Pro dashboard) to enable app provisioning.',
-        });
-      }
-      const name = String(args.name ?? '').trim();
-      if (!name) return JSON.stringify({ error: 'name is required' });
-      const r = await clerkCreateApp(name);
-      if (!r.ok) return JSON.stringify({ error: r.error });
-      return JSON.stringify({
-        ok: true,
-        app_id: r.app?.id,
-        app_name: r.app?.name,
-        publishable_key: r.keys?.publishable_key,
-        secret_key: r.keys?.secret_key ?? '(redacted — check Clerk dashboard)',
-        note: 'Push these keys to Railway Variables via set_railway_variables.',
-      });
+    async clerk_create_app(_args, _ctx) {
+      return JSON.stringify({ error: CLERK_NO_SYSTEM_ACCESS });
     },
 
-    async clerk_get_app_keys(args, _ctx) {
-      if (!isClerkPlatformConfigured()) {
-        return JSON.stringify({ error: 'CLERK_PLATFORM_KEY is not set.' });
-      }
-      const appId = String(args.app_id ?? '').trim();
-      if (!appId) return JSON.stringify({ error: 'app_id is required' });
-      const r = await clerkGetAppKeys(appId);
-      if (!r.ok) return JSON.stringify({ error: r.error });
-      return JSON.stringify({
-        publishable_key: r.keys?.publishable_key,
-        secret_key: r.keys?.secret_key ?? '(redacted)',
-      });
+    async clerk_get_app_keys(_args, _ctx) {
+      return JSON.stringify({ error: CLERK_NO_SYSTEM_ACCESS });
     },
 
-    async clerk_delete_app(args, _ctx) {
-      if (!isClerkPlatformConfigured()) {
-        return JSON.stringify({ error: 'CLERK_PLATFORM_KEY is not set.' });
-      }
-      if (!args.confirmed) {
-        return JSON.stringify({
-          error: 'Deletion requires confirmed:true. This permanently removes the Clerk app and all its users.',
-        });
-      }
-      const appId = String(args.app_id ?? '').trim();
-      if (!appId) return JSON.stringify({ error: 'app_id is required' });
-      const r = await clerkDeleteApp(appId);
-      if (!r.ok) return JSON.stringify({ error: r.error });
-      return JSON.stringify({ ok: true, deleted: appId });
+    async clerk_delete_app(_args, _ctx) {
+      return JSON.stringify({ error: CLERK_NO_SYSTEM_ACCESS });
     },
 
     // ── Backend API — instance ────────────────────────────────────────────────

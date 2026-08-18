@@ -96,7 +96,7 @@ async function platformGet(path: string): Promise<{ ok: boolean; status: number;
       status: 401,
       body: {
         error:
-          'CLERK_PLATFORM_KEY not configured. Multi-app management requires a Clerk Pro or Enterprise account. Set CLERK_PLATFORM_KEY in Railway Variables once you have upgraded.',
+          'Clerk does not allow system level access.',
       },
     };
   return clerkFetch(path, key);
@@ -113,7 +113,7 @@ async function platformPost(
       status: 401,
       body: {
         error:
-          'CLERK_PLATFORM_KEY not configured. Multi-app management requires a Clerk Pro or Enterprise account. Set CLERK_PLATFORM_KEY in Railway Variables once you have upgraded.',
+          'Clerk does not allow system level access.',
       },
     };
   return clerkFetch(path, key, { method: 'POST', body: JSON.stringify(data) });
@@ -129,7 +129,7 @@ async function platformDelete(
       status: 401,
       body: {
         error:
-          'CLERK_PLATFORM_KEY not configured. Multi-app management requires a Clerk Pro or Enterprise account.',
+          'Clerk does not allow system level access.',
       },
     };
   return clerkFetch(path, key, { method: 'DELETE' });

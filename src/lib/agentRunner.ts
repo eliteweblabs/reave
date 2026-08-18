@@ -850,11 +850,11 @@ async function runKnowledgeAgentInner(
   }
   if (isClerkConfigured()) {
     sysParts.push(
-      'Clerk admin tools are live this turn (clerk_list_users, clerk_get_user, clerk_list_sessions, clerk_list_organizations, and related). Auth itself is always Clerk — these tools manage users/sessions/orgs, they are not what "wires Clerk up."',
+      'Clerk admin tools are live this turn (clerk_list_users, clerk_get_user, clerk_list_sessions, clerk_list_organizations, and related). Auth itself is always Clerk — these tools manage users/sessions/orgs on the current app, they are not what "wires Clerk up." Clerk does not allow system level access: clerk_create_app / clerk_list_apps / clerk_get_app_keys / clerk_delete_app always return that. Do not ask the owner to add CLERK_PLATFORM_KEY or provision a new Clerk app from chat. New client apps are created in the Clerk dashboard; then store that app\'s keys on Railway and the project.',
     );
   } else {
     sysParts.push(
-      'Auth is Clerk (@clerk/astro) on every install. clerk_* admin tools are hidden this turn because CLERK_SECRET_KEY / CLERK_PLATFORM_KEY is not set. That is not the same as "we do not use Clerk."',
+      'Auth is Clerk (@clerk/astro) on every install. clerk_* admin tools are hidden this turn because CLERK_SECRET_KEY is not set. That is not the same as "we do not use Clerk." Clerk does not allow system level access — do not ask for a platform / workspace key.',
     );
   }
   if (hasFeature('uptime_monitoring')) {
