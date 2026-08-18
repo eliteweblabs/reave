@@ -200,7 +200,7 @@ import {
   isShakeUndoPendingKey,
   pendingShakeUndoKey,
   queueShakeUndo,
-} from './shake-undo.js?v=20260814c';
+} from './shake-undo.js?v=20260818a';
 import {
   initChatPanel,
   chatState,

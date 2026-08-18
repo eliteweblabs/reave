@@ -345,8 +345,20 @@
 
 /* Two-step delete confirm (trash → stopwatch + ring countdown) */
 @keyframes delete-confirm-draw-ring {
-  from { stroke-dashoffset: var(--delete-ring-circ, 113.1); }
+  from { stroke-dashoffset: var(--timing-ring-circ, var(--delete-ring-circ, 76.97)); }
   to { stroke-dashoffset: 0; }
+}
+.timing-ring-host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  flex-shrink: 0;
+}
+.timing-ring {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
 }
 .delete-confirm-btn {
   position: relative;
@@ -369,8 +381,16 @@
 .delete-confirm-btn[data-state="confirm"] .delete-confirm-ring {
   opacity: 1;
 }
-.delete-confirm-btn[data-state="confirm"] .delete-confirm-ring-circle {
-  animation: delete-confirm-draw-ring var(--delete-confirm-ms, 3000ms) linear forwards;
+.delete-confirm-btn[data-state="confirm"] .delete-confirm-ring-circle,
+.delete-confirm-btn[data-state="confirm"] .timing-ring-circle {
+  animation: delete-confirm-draw-ring var(--timing-ring-ms, var(--delete-confirm-ms, 3000ms)) linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .delete-confirm-btn[data-state="confirm"] .delete-confirm-ring-circle,
+  .delete-confirm-btn[data-state="confirm"] .timing-ring-circle {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 /* Swipe delete sits on a red fill — white icon/ring stays readable. */
 .swipe-act-delete.delete-confirm-btn {
@@ -403,6 +423,10 @@
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring {
   width: 100%;
   height: 100%;
+}
+.ios-icon-btn.delete-confirm-btn .timing-ring {
+  width: 1.65rem;
+  height: 1.65rem;
 }
 .ios-icon-btn.delete-confirm-btn[data-state="confirm"] .delete-confirm-icon {
   position: relative;

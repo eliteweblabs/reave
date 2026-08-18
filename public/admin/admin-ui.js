@@ -336,9 +336,18 @@ export function looksLikeHttpUrl(value) {
   }
 }
 
-// ---- Two-step delete confirm (trash → 3s timer ring → tap again) ----
+// ---- Timing ring (stopwatch + countdown) — one SVG, one center ----
+// Lucide stopwatch clock sits at (12, 13) in 24-space. Translate (2, 1) in a
+// 28 viewBox so the face and ring share (14, 14). Do not split icon / ring
+// into two SVGs — that is what made confirm-delete / undo drift.
 
 const DELETE_CONFIRM_MS = 3000;
+const TIMING_RING_VB = 28;
+const TIMING_RING_CX = 14;
+const TIMING_RING_R = 12.25;
+const TIMING_RING_STROKE = 1.75;
+const TIMING_RING_CIRC = (2 * Math.PI * TIMING_RING_R).toFixed(2);
+
 /** @type {WeakMap<HTMLElement, number>} */
 const deleteConfirmTimeouts = new WeakMap();
 
@@ -358,6 +367,7 @@ function deleteConfirmRingCircumference(radius) {
   return (2 * Math.PI * radius).toFixed(1);
 }
 
+/** Overlay ring only (filter-purge chip cap). Prefer `timingRingMarkup` / `createTimingRing`. */
 export function deleteConfirmRingMarkup(size = 36, radius = 18) {
   const circ = deleteConfirmRingCircumference(radius);
   return (
@@ -369,6 +379,49 @@ export function deleteConfirmRingMarkup(size = 36, radius = 18) {
   );
 }
 
+/**
+ * Canonical stopwatch + countdown ring. Clock face and ring share one center.
+ * Paths stay in sync with IOS_ICONS.stopwatch.
+ */
+export function timingRingMarkup(size = 26) {
+  const c = TIMING_RING_CX;
+  const r = TIMING_RING_R;
+  return (
+    `<svg class="timing-ring delete-confirm-icon delete-confirm-stopwatch" width="${size}" height="${size}" viewBox="0 0 ${TIMING_RING_VB} ${TIMING_RING_VB}" fill="none" aria-hidden="true">` +
+    `<circle class="timing-ring-track delete-confirm-ring-track" cx="${c}" cy="${c}" r="${r}" stroke="currentColor" stroke-width="${TIMING_RING_STROKE}" opacity="0.35"/>` +
+    `<circle class="timing-ring-circle delete-confirm-ring-circle" cx="${c}" cy="${c}" r="${r}" stroke="currentColor" ` +
+    `stroke-width="${TIMING_RING_STROKE}" stroke-dasharray="${TIMING_RING_CIRC}" stroke-dashoffset="${TIMING_RING_CIRC}" transform="rotate(-90 ${c} ${c})"/>` +
+    `<g class="timing-ring-glyph" transform="translate(2 1)" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">` +
+    `<circle cx="12" cy="13" r="8"/>` +
+    `<path d="M12 9v4l2 2"/>` +
+    `<path d="M10 2h4"/>` +
+    `</g>` +
+    `</svg>`
+  );
+}
+
+/** Host + SVG. Use this for undo toasts and any standalone countdown. */
+export function createTimingRing(opts = {}) {
+  const { size = 26, durationMs = 3000, className = '' } = opts;
+  const host = document.createElement('span');
+  host.className = ['timing-ring-host', className].filter(Boolean).join(' ');
+  host.setAttribute('aria-hidden', 'true');
+  if (durationMs != null) host.style.setProperty('--timing-ring-ms', `${durationMs}ms`);
+  host.innerHTML = timingRingMarkup(size);
+  return host;
+}
+
+export function restartTimingRing(root) {
+  const circle = root?.querySelector?.('.timing-ring-circle, .delete-confirm-ring-circle');
+  if (!circle) return;
+  const circ = circle.getAttribute('stroke-dasharray') || TIMING_RING_CIRC;
+  circle.style.setProperty('--timing-ring-circ', circ);
+  circle.style.setProperty('--delete-ring-circ', circ);
+  circle.style.animation = 'none';
+  void circle.getBoundingClientRect();
+  circle.style.removeProperty('animation');
+}
+
 function clearDeleteConfirmTimeout(btn) {
   const id = deleteConfirmTimeouts.get(btn);
   if (id != null) {
@@ -377,16 +430,18 @@ function clearDeleteConfirmTimeout(btn) {
   }
 }
 
-function ensureDeleteConfirmChrome(btn, ringSize = 36, ringRadius = 18) {
+function ensureDeleteConfirmChrome(btn, ringSize = 36, ringRadius = 18, overlayRing = false) {
   if (btn.dataset.deleteConfirmReady === '1') return;
   btn.dataset.deleteConfirmReady = '1';
   btn.classList.add('delete-confirm-btn');
   btn.dataset.state = 'trash';
+  if (overlayRing) btn.dataset.timingRing = 'overlay';
   const icon = btn.querySelector('svg');
   if (icon) {
     icon.classList.add('delete-confirm-icon');
     btn.dataset.originalIconHtml = icon.outerHTML;
   }
+  if (!overlayRing) return;
   const holder = document.createElement('span');
   holder.className = 'delete-confirm-ring-holder';
   holder.setAttribute('aria-hidden', 'true');
@@ -405,7 +460,7 @@ export function resetDeleteConfirmButton(btn) {
   if (btn.dataset.originalAriaLabel) {
     btn.setAttribute('aria-label', btn.dataset.originalAriaLabel);
   }
-  const stopwatch = btn.querySelector('.delete-confirm-stopwatch');
+  const stopwatch = btn.querySelector('.timing-ring, .delete-confirm-stopwatch');
   if (stopwatch && btn.dataset.originalIconHtml) {
     stopwatch.outerHTML = btn.dataset.originalIconHtml;
   }
@@ -419,13 +474,7 @@ export function resetDeleteConfirmButton(btn) {
 
 function armDeleteConfirm(btn, timeout) {
   btn.style.setProperty('--delete-confirm-ms', `${timeout}ms`);
-  const circle = btn.querySelector('.delete-confirm-ring-circle');
-  if (circle) {
-    circle.style.setProperty('--delete-ring-circ', circle.getAttribute('stroke-dasharray') || '113.1');
-    circle.style.animation = 'none';
-    void circle.getBoundingClientRect();
-    circle.style.removeProperty('animation');
-  }
+  btn.style.setProperty('--timing-ring-ms', `${timeout}ms`);
   if (!btn.dataset.originalAriaLabel) {
     btn.dataset.originalAriaLabel = btn.getAttribute('aria-label') || 'Delete';
   }
@@ -434,12 +483,21 @@ function armDeleteConfirm(btn, timeout) {
   btn.removeAttribute('title');
   btn.setAttribute('aria-label', 'Tap again to confirm delete');
 
-  const icon = btn.querySelector('.delete-confirm-icon');
-  if (icon && !icon.classList.contains('delete-confirm-stopwatch')) {
+  const overlay = btn.dataset.timingRing === 'overlay';
+  const icon = btn.querySelector('.delete-confirm-icon, svg:not(.delete-confirm-ring)');
+  if (overlay) {
+    if (icon && !icon.classList.contains('delete-confirm-stopwatch')) {
+      if (!btn.dataset.originalIconHtml) btn.dataset.originalIconHtml = icon.outerHTML;
+      const size = icon.getAttribute('width') || '18';
+      icon.outerHTML = stopwatchIconMarkup(size);
+    }
+  } else if (icon && !icon.classList.contains('timing-ring')) {
     if (!btn.dataset.originalIconHtml) btn.dataset.originalIconHtml = icon.outerHTML;
-    const size = icon.getAttribute('width') || '18';
-    icon.outerHTML = stopwatchIconMarkup(size);
+    const size = Number(btn.dataset.timingRingSize) || 26;
+    icon.outerHTML = timingRingMarkup(size);
   }
+
+  restartTimingRing(btn);
 
   clearDeleteConfirmTimeout(btn);
   const id = window.setTimeout(() => {
@@ -450,18 +508,19 @@ function armDeleteConfirm(btn, timeout) {
 
 /**
  * Trash → stopwatch + countdown ring; second tap within timeout runs onConfirm.
- * Port of DeleteConfirmButton from astro-supabase-main.
+ * Armed state uses `timingRingMarkup` except filter-purge (ring rides the chip cap).
  */
 export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
   const isSwipe = btn.classList.contains('swipe-act');
   const isIosIcon = btn.classList.contains('ios-icon-btn');
   const isFilterPurge = btn.classList.contains('em-filter-tab--purge');
-  // Toolbar trash: CSS sizes the holder just outside the ~20px icon; path fills the viewBox.
+  const overlayRing = isFilterPurge;
   const ringSize = opts.ringSize ?? (isSwipe ? 40 : isIosIcon ? 28 : isFilterPurge ? 22 : 36);
   /* Filter purge: fill the 44 viewBox so the stroke rides the pill cap. */
   const ringRadius = opts.ringRadius ?? (isFilterPurge ? 20.75 : 18);
-  ensureDeleteConfirmChrome(btn, ringSize, ringRadius);
+  btn.dataset.timingRingSize = String(opts.iconSize ?? (isSwipe ? 28 : 26));
+  ensureDeleteConfirmChrome(btn, ringSize, ringRadius, overlayRing);
 
   // Guard against double-binding (would arm then immediately confirm on one click).
   if (btn.dataset.deleteConfirmBound === '1') return;

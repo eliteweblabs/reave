@@ -8,7 +8,7 @@
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
  */
 
-import { deleteConfirmRingMarkup, iosIcon } from './admin-ui.js?v=20260814c';
+import { createTimingRing, restartTimingRing } from './admin-ui.js?v=20260818a';
 
 const UNDO_WINDOW_MS = 5000;
 const SHAKE_THRESHOLD = 18;
@@ -137,20 +137,13 @@ function showUndoToast(onUndo) {
   toast.replaceChildren();
   toast.setAttribute('aria-label', 'Undo');
   toast.style.setProperty('--delete-confirm-ms', `${UNDO_WINDOW_MS}ms`);
+  toast.style.setProperty('--timing-ring-ms', `${UNDO_WINDOW_MS}ms`);
 
-  const iconWrap = document.createElement('span');
-  iconWrap.className = 'ch-undo-icon';
-  iconWrap.setAttribute('aria-hidden', 'true');
-  iconWrap.innerHTML =
-    iosIcon('stopwatch', 16).replace(
-      'aria-hidden="true"',
-      'class="delete-confirm-icon delete-confirm-stopwatch" aria-hidden="true"',
-    ) +
-    `<span class="delete-confirm-ring-holder">${deleteConfirmRingMarkup(28, 18)}</span>`;
-
+  const ring = createTimingRing({ size: 26, durationMs: UNDO_WINDOW_MS });
   const label = document.createElement('span');
+  label.className = 'ch-undo-label';
   label.textContent = 'Undo';
-  toast.append(iconWrap, label);
+  toast.append(ring, label);
   toast.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -160,13 +153,7 @@ function showUndoToast(onUndo) {
   toast.style.left = '';
   toast.style.top = '';
 
-  const circle = toast.querySelector('.delete-confirm-ring-circle');
-  if (circle) {
-    circle.style.setProperty('--delete-ring-circ', circle.getAttribute('stroke-dasharray') || '113.1');
-    circle.style.animation = 'none';
-    void circle.getBoundingClientRect();
-    circle.style.removeProperty('animation');
-  }
+  restartTimingRing(toast);
 
   toast.classList.add('ch-toast-visible');
 

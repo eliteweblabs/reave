@@ -3606,12 +3606,13 @@ button.de-placeholder-action:active {
 .ios-icon-btn.is-copy-success {
   color: #167c3e;
 }
-.ios-icon-btn svg:not(.delete-confirm-ring) {
+.ios-icon-btn svg:not(.delete-confirm-ring):not(.timing-ring) {
   display: block;
   width: 1.25rem;
   height: 1.25rem;
 }
-.ios-icon-btn .delete-confirm-ring {
+.ios-icon-btn .delete-confirm-ring,
+.ios-icon-btn .timing-ring {
   display: block;
   flex-shrink: 0;
 }

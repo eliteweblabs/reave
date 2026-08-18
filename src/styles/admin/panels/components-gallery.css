@@ -171,3 +171,15 @@
 .cg-status[data-tone='warn'] {
   color: #dc2626;
 }
+
+/* In-flow undo pill so the toast's fixed/centered transforms stay on the page. */
+.ch-undo-toast.cg-undo-pill,
+.ch-undo-toast.ch-toast-visible.cg-undo-pill,
+.ch-undo-toast.ch-toast-visible.cg-undo-pill:hover {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}

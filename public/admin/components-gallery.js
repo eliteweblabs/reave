@@ -12,6 +12,8 @@ import {
   createFabNewBtn,
   paneDeleteIcon,
   paneShareIcon,
+  createTimingRing,
+  restartTimingRing,
   createCopyIconBtn,
   createSlidingPillSelect,
   createListEmptyState,
@@ -25,7 +27,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260811a';
+} from './admin-ui.js?v=20260818a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260815a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
@@ -134,6 +136,26 @@ function mount() {
         }),
       );
       el.insertBefore(toolbar, el.querySelector('.cg-status'));
+    },
+  );
+
+  section(
+    root,
+    'Timing ring',
+    'Canonical <code>createTimingRing</code> — stopwatch and countdown share one SVG center. Undo toast and armed <code>paneDeleteIcon</code> both use this. Tap the pill to restart the countdown.',
+    (el) => {
+      const r = row(el);
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'ch-undo-toast ch-toast-visible cg-undo-pill';
+      pill.setAttribute('aria-label', 'Undo');
+      const ring = createTimingRing({ size: 26, durationMs: 5000 });
+      const label = document.createElement('span');
+      label.className = 'ch-undo-label';
+      label.textContent = 'Undo';
+      pill.append(ring, label);
+      pill.addEventListener('click', () => restartTimingRing(pill));
+      r.appendChild(pill);
     },
   );
 
