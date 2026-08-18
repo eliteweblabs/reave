@@ -3803,10 +3803,6 @@ async function commitDismissReviewNotification(item) {
 
 async function dismissReviewNotification(item, btn) {
   if (!item?.alertId && !item?.engagementId && !item?.commentId && !item?.emailId) return;
-  if (isEmailAutomationReview(item) && item.awaitingTriage) {
-    await openNotificationTriageDialog(item);
-    return;
-  }
 
   const key = reviewNotificationUndoKey(item);
   if (!key) return;
@@ -4423,10 +4419,6 @@ function buildReviewAlertBanner(item) {
       else openReviewNotificationTarget(item);
     },
     onDismiss: (dismissBtn) => {
-      if (emailAwaitingTriage) {
-        void openNotificationTriageDialog(item);
-        return;
-      }
       dismissBtn.disabled = true;
       void dismissReviewNotification(item).finally(() => {
         dismissBtn.disabled = false;
@@ -4490,12 +4482,6 @@ function bindReviewAlertSwipe(alert, item) {
         alert.style.transform = 'translateX(120%)';
         alert.style.opacity = '0';
         window.setTimeout(() => {
-          if (isEmailAutomationReview(item) && item.awaitingTriage) {
-            alert.style.transform = '';
-            alert.style.opacity = '';
-            void openNotificationTriageDialog(item);
-            return;
-          }
           void dismissReviewNotification(item).catch(() => {
             alert.style.transform = '';
             alert.style.opacity = '';
@@ -4578,7 +4564,7 @@ function resolveNotificationEmailId(item) {
   }
 }
 
-function notificationTriageDialogHtml(item) {
+function notificationTriageDialogHtml(_item) {
   const options = TRIAGE_FEEDBACK_OPTIONS.map(
     (opt) =>
       `<label class="alert-triage-option">` +
@@ -4589,12 +4575,8 @@ function notificationTriageDialogHtml(item) {
         `</span>` +
       `</label>`,
   ).join('');
-  const limboHint =
-    isEmailAutomationReview(item) && item.awaitingTriage
-      ? 'This alert stays in limbo until you choose. '
-      : '';
   return (
-    `<p class="alert-triage-intro">${limboHint}Pick how similar notifications should be handled in the future.</p>` +
+    `<p class="alert-triage-intro">Pick how similar notifications should be handled in the future.</p>` +
     `<div class="alert-triage-options">${options}</div>` +
     `<label class="alert-triage-note-wrap" hidden>` +
       `<span class="alert-triage-note-label">What should the agent know?</span>` +
