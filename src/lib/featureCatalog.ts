@@ -116,7 +116,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   carddav: 'Sync contacts to iOS and other CardDAV clients',
   scheduling: 'Bookings, availability, and meeting links via Cal.com',
   dev_infra: 'Railway, Kinsta, and deploy tooling — owner installs only',
-  code_dev: 'Agent read/write/list/exec on the local codebase',
+  code_dev: 'Agent read/write/list/exec on the local codebase — owner/agency installs only',
   email_marketing: 'Welcome, follow-ups, review requests, and broadcasts',
   fleet_tracking: 'Live vehicle location and GPS history',
   dealership_wizard: 'Inventory browse and guided deal flow',
@@ -149,6 +149,8 @@ export type FeatureVisibility = 'public' | 'private';
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
   dev_infra: 'private',
+  code_dev: 'private',
+  namecom_dns: 'private',
 };
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);

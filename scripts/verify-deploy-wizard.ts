@@ -28,11 +28,17 @@ import {
 assert.equal(featureVisibility('client_portal'), 'public');
 assert.equal(featureVisibility('deploy_wizard'), 'private');
 assert.equal(featureVisibility('dev_infra'), 'private');
+assert.equal(featureVisibility('code_dev'), 'private');
+assert.equal(featureVisibility('namecom_dns'), 'private');
 assert.equal(isPublicFeature('client_portal'), true);
 assert.equal(isPrivateFeature('deploy_wizard'), true);
 assert.equal(isPrivateFeature('dev_infra'), true);
+assert.equal(isPrivateFeature('code_dev'), true);
+assert.equal(isPrivateFeature('namecom_dns'), true);
 assert.equal(isPublicFeature('deploy_wizard'), false);
 assert.equal(isPublicFeature('dev_infra'), false);
+assert.equal(isPublicFeature('code_dev'), false);
+assert.equal(isPublicFeature('namecom_dns'), false);
 assert.equal(isPublicFeature('content_management'), true);
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');

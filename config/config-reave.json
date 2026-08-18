@@ -59,5 +59,6 @@
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,
-  "siteContentKey": "reave"
+  "siteContentKey": "reave",
+  "opsInstall": true
 }

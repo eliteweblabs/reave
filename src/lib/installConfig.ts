@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { isPrivateFeature } from './featureCatalog.ts';
 import { serverEnv } from './serverEnv.ts';
 
 const FEATURE_IDS_LIST = [
@@ -125,6 +126,12 @@ export type InstallConfig = {
   siteContentKey?: string;
   /** Per-install module deployment status (see plugin DEPLOY.md playbooks). */
   moduleStatus?: Partial<Record<InstallFeatureId, ModuleDeployStatus>>;
+  /**
+   * Agency / owner install. Private ops modules (Railway, Kinsta, Cloudflare,
+   * local code tools, Name.com DNS) stay enabled. Client installs ignore those
+   * flags even if they appear in features[].
+   */
+  opsInstall?: boolean;
 };
 
 export type InstallConfigClient = Pick<
@@ -224,6 +231,14 @@ export function isCanonicalReaveInstall(): boolean {
     ?.toLowerCase()
     .replace(/^www\./, '') || '';
   return host === 'reave.app';
+}
+
+/**
+ * Owner or agency-resale install. Client installs (Tony, Barber's Edge, …)
+ * never load private hosting/ops tools even if a leftover config flag lists them.
+ */
+export function isOpsInstall(): boolean {
+  return isCanonicalReaveInstall() || Boolean(getInstallConfigSync().opsInstall);
 }
 
 function configDir(): string {
@@ -340,7 +355,21 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
     siteContentKey: typeof o.siteContentKey === 'string' && o.siteContentKey.trim() ? o.siteContentKey.trim().toLowerCase() : undefined,
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
+    opsInstall: o.opsInstall === true ? true : undefined,
   };
+}
+
+/** Drop Railway / Kinsta / Cloudflare / shell tools on client installs. */
+function applyClientOpsGate(config: InstallConfig): InstallConfig {
+  if (config.opsInstall || isCanonicalReaveInstall()) return config;
+  const features = config.features.filter((id) => !isPrivateFeature(id));
+  if (features.length === config.features.length && !config.moduleStatus) return config;
+  const moduleStatus = config.moduleStatus
+    ? (Object.fromEntries(
+        Object.entries(config.moduleStatus).filter(([id]) => !isPrivateFeature(id)),
+      ) as InstallConfig['moduleStatus'])
+    : undefined;
+  return { ...config, features, moduleStatus };
 }
 
 function readInstallConfigFile(): InstallConfig | null {
@@ -365,7 +394,7 @@ function fallbackInstallConfig(): InstallConfig {
 /** Resolved install config (cached for process lifetime). */
 export function getInstallConfigSync(): InstallConfig {
   if (_cached) return _cached;
-  _cached = readInstallConfigFile() ?? fallbackInstallConfig();
+  _cached = applyClientOpsGate(readInstallConfigFile() ?? fallbackInstallConfig());
   return _cached;
 }
 
