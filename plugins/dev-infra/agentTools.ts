@@ -345,6 +345,7 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
     'delete_record',
     'get_ssl_mode',
     'set_ssl_mode',
+    'create_redirect_rule',
   ];
   if (!validActions.includes(actionRaw)) {
     return JSON.stringify({
@@ -361,7 +362,8 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
       | 'upsert_record'
       | 'delete_record'
       | 'get_ssl_mode'
-      | 'set_ssl_mode',
+      | 'set_ssl_mode'
+      | 'create_redirect_rule',
     domain,
     type: args.type != null ? String(args.type) : undefined,
     name: args.name != null ? String(args.name) : undefined,
@@ -369,6 +371,14 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
     priority: typeof args.priority === 'number' ? args.priority : undefined,
     record_id: args.record_id != null ? String(args.record_id) : undefined,
     ssl_mode: args.ssl_mode != null ? String(args.ssl_mode) : undefined,
+    proxied: typeof args.proxied === 'boolean' ? args.proxied : undefined,
+    // redirect rule fields
+    redirect_hostname: args.redirect_hostname != null ? String(args.redirect_hostname) : undefined,
+    redirect_expression: args.redirect_expression != null ? String(args.redirect_expression) : undefined,
+    redirect_status_code:
+      args.redirect_status_code === 302 ? 302 : args.redirect_status_code === 301 ? 301 : undefined,
+    preserve_query_string: typeof args.preserve_query_string === 'boolean' ? args.preserve_query_string : undefined,
+    redirect_description: args.redirect_description != null ? String(args.redirect_description) : undefined,
   });
   if (!result.ok) {
     return JSON.stringify({ error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
@@ -474,7 +484,8 @@ export const devInfraModule: AgentToolModule = {
                   display_name: { type: 'string', description: 'Site label in MyKinsta (e.g. client name)' },
                   region: {
                     type: 'string',
-                    description: 'GCP region for new installs (default us-central1). Examples: us-east1, europe-west1.',
+                    description:
+                      'GCP region for new installs (default us-central1). Examples: us-east1, europe-west1.',
                   },
                   install_mode: {
                     type: 'string',
@@ -485,12 +496,30 @@ export const devInfraModule: AgentToolModule = {
                     type: 'string',
                     description: 'Required when install_mode is clone — environment to copy from',
                   },
-                  admin_email: { type: 'string', description: 'WP admin email (required for install_mode new)' },
-                  admin_user: { type: 'string', description: 'WP admin username (required for install_mode new)' },
-                  admin_password: { type: 'string', description: 'WP admin password (required for install_mode new)' },
-                  site_title: { type: 'string', description: 'WordPress site title (defaults to display_name)' },
-                  woocommerce: { type: 'boolean', description: 'Pre-install WooCommerce (default false)' },
-                  wordpressseo: { type: 'boolean', description: 'Pre-install Yoast SEO (default false)' },
+                  admin_email: {
+                    type: 'string',
+                    description: 'WP admin email (required for install_mode new)',
+                  },
+                  admin_user: {
+                    type: 'string',
+                    description: 'WP admin username (required for install_mode new)',
+                  },
+                  admin_password: {
+                    type: 'string',
+                    description: 'WP admin password (required for install_mode new)',
+                  },
+                  site_title: {
+                    type: 'string',
+                    description: 'WordPress site title (defaults to display_name)',
+                  },
+                  woocommerce: {
+                    type: 'boolean',
+                    description: 'Pre-install WooCommerce (default false)',
+                  },
+                  wordpressseo: {
+                    type: 'boolean',
+                    description: 'Pre-install Yoast SEO (default false)',
+                  },
                 },
                 required: ['display_name'],
                 additionalProperties: false,
@@ -556,17 +585,20 @@ export const devInfraModule: AgentToolModule = {
               },
             },
           },
-          ...(hasFeature('content_management') ? [] : githubPublishDefinitions(ctx)),
           {
             type: 'function',
             function: {
               name: 'run_terminal_command',
               description:
-                `Run a single READ-ONLY shell command in a sandbox (no shell, no pipes/redirects/chaining). Allowed binaries: ${describeSafeShell().binaries.join(', ')}; git is limited to read-only subcommands (${describeSafeShell().git_subcommands.join(', ')}). Useful where the repo is checked out; on the live container there may be no git checkout.`,
+                'Run a single READ-ONLY shell command in a sandbox (no shell, no pipes/redirects/chaining). Allowed binaries: git, ls, pwd; git is limited to read-only subcommands (status, log, diff, show, branch, rev-parse, remote, describe, shortlog, ls-files, config). Useful where the repo is checked out; on the live container there may be no git binary.',
               parameters: {
                 type: 'object',
                 properties: {
-                  command: { type: 'string', description: 'e.g. "git log --oneline -10", "git status", "git branch -a", "ls".' },
+                  command: {
+                    type: 'string',
+                    description:
+                      'e.g. "git log --oneline -10", "git status", "git branch -a", "ls".',
+                  },
                 },
                 required: ['command'],
                 additionalProperties: false,
@@ -577,8 +609,8 @@ export const devInfraModule: AgentToolModule = {
             type: 'function',
             function: {
               name: 'cloudflare_dns',
-                description:
-                  'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Actions: upsert_record (SPF, DMARC, MX, CNAME), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
+              description:
+                'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Actions: upsert_record (SPF, DMARC, MX, CNAME — pass proxied:true to enable orange-cloud proxy), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken), create_redirect_rule (Cloudflare Redirect Rules / Rulesets API — use to redirect www → apex or other dynamic 301/302s without touching Railway). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -591,9 +623,10 @@ export const devInfraModule: AgentToolModule = {
                       'delete_record',
                       'get_ssl_mode',
                       'set_ssl_mode',
+                      'create_redirect_rule',
                     ],
                     description:
-                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record; delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap)',
+                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record (pass proxied:true for orange cloud); delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap); create_redirect_rule = add/update a dynamic redirect rule (www → apex, etc.) via the Rulesets API',
                   },
                   domain: {
                     type: 'string',
@@ -623,6 +656,31 @@ export const devInfraModule: AgentToolModule = {
                     type: 'string',
                     enum: ['off', 'flexible', 'full', 'strict'],
                     description: 'SSL/TLS encryption mode — required for set_ssl_mode',
+                  },
+                  proxied: {
+                    type: 'boolean',
+                    description: 'Set true to enable Cloudflare orange-cloud proxy on a CNAME or A record (upsert_record). Default false (grey cloud / DNS-only).',
+                  },
+                  redirect_hostname: {
+                    type: 'string',
+                    description: 'For create_redirect_rule: the hostname to match, e.g. www.thebarbersedge.com',
+                  },
+                  redirect_expression: {
+                    type: 'string',
+                    description: 'For create_redirect_rule: dynamic URL expression, e.g. concat("https://thebarbersedge.com", http.request.uri.path)',
+                  },
+                  redirect_status_code: {
+                    type: 'number',
+                    enum: [301, 302],
+                    description: 'HTTP redirect status code (default 301)',
+                  },
+                  preserve_query_string: {
+                    type: 'boolean',
+                    description: 'For create_redirect_rule: preserve query string on redirect (default true)',
+                  },
+                  redirect_description: {
+                    type: 'string',
+                    description: 'Optional label for the redirect rule shown in Cloudflare dashboard',
                   },
                 },
                 required: ['action', 'domain'],

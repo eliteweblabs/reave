@@ -26,7 +26,8 @@ export type CloudflareDnsAction =
   | 'upsert_record'
   | 'delete_record'
   | 'get_ssl_mode'
-  | 'set_ssl_mode';
+  | 'set_ssl_mode'
+  | 'create_redirect_rule';
 
 export type CloudflareDnsActionResult =
   | {
@@ -40,6 +41,7 @@ export type CloudflareDnsActionResult =
       deleted?: CfDnsRecord;
       ssl_mode?: CfSslMode;
       previous_ssl_mode?: CfSslMode;
+      redirect_rule?: unknown;
     }
   | { ok: false; error: string; hint?: string };
 
@@ -66,6 +68,91 @@ export function isCloudflareDnsManageConfigured(): boolean {
   return isCloudflareConfigured();
 }
 
+/** Call the Cloudflare Rulesets API to upsert a dynamic redirect rule. */
+async function cloudflareUpsertRedirectRule(
+  zoneId: string,
+  token: string,
+  opts: {
+    hostname: string;   // e.g. www.thebarbersedge.com
+    redirect_expression: string; // e.g. concat("https://thebarbersedge.com", http.request.uri.path)
+    status_code?: 301 | 302;
+    preserve_query_string?: boolean;
+    description?: string;
+  },
+): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
+  const phase = 'http_request_dynamic_redirect';
+  const baseUrl = 'https://api.cloudflare.com/client/v4';
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+
+  // 1. Get or create the phase ruleset entry point
+  const getRuleset = await fetch(`${baseUrl}/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`, { headers });
+  let rulesetId: string | null = null;
+  let existingRules: unknown[] = [];
+
+  if (getRuleset.ok) {
+    const body = (await getRuleset.json()) as { result?: { id?: string; rules?: unknown[] } };
+    rulesetId = body.result?.id ?? null;
+    existingRules = body.result?.rules ?? [];
+  }
+
+  const matchExpression = `http.host eq "${opts.hostname}"`;
+  const description = opts.description ?? `Redirect ${opts.hostname} → apex`;
+
+  const newRule = {
+    action: 'redirect',
+    expression: matchExpression,
+    description,
+    enabled: true,
+    action_parameters: {
+      from_value: {
+        status_code: opts.status_code ?? 301,
+        target_url: {
+          expression: opts.redirect_expression,
+        },
+        preserve_query_string: opts.preserve_query_string ?? true,
+      },
+    },
+  };
+
+  // Remove any existing rule matching the same hostname expression to avoid duplicates
+  const filteredRules = (existingRules as Array<{ expression?: string }>).filter(
+    (r) => r.expression !== matchExpression,
+  );
+  const rules = [...filteredRules, newRule];
+
+  let res: Response;
+  if (rulesetId) {
+    // PUT to replace the ruleset rules
+    res = await fetch(`${baseUrl}/zones/${zoneId}/rulesets/${rulesetId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ rules }),
+    });
+  } else {
+    // POST to create the phase entrypoint
+    res = await fetch(`${baseUrl}/zones/${zoneId}/rulesets`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ kind: 'zone', phase, name: 'default', rules }),
+    });
+  }
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = (await res.json()) as { errors?: Array<{ message: string }> };
+      if (j.errors?.length) msg = j.errors.map((e) => e.message).join('; ');
+    } catch {}
+    return { ok: false, error: `Cloudflare Rulesets API: ${msg}` };
+  }
+
+  const result = await res.json();
+  return { ok: true, data: result };
+}
+
 export async function cloudflareDnsManage(input: {
   action: CloudflareDnsAction;
   domain: string;
@@ -75,6 +162,13 @@ export async function cloudflareDnsManage(input: {
   priority?: number;
   record_id?: string;
   ssl_mode?: string;
+  proxied?: boolean;
+  // redirect rule fields
+  redirect_hostname?: string;
+  redirect_expression?: string;
+  redirect_status_code?: 301 | 302;
+  preserve_query_string?: boolean;
+  redirect_description?: string;
 }): Promise<CloudflareDnsActionResult> {
   const domain = input.domain.trim().toLowerCase().replace(/\.$/, '');
   if (!domain) return { ok: false, error: 'domain is required' };
@@ -188,6 +282,34 @@ export async function cloudflareDnsManage(input: {
     };
   }
 
+  if (input.action === 'create_redirect_rule') {
+    const hostname = (input.redirect_hostname ?? '').trim();
+    const expression = (input.redirect_expression ?? '').trim();
+    if (!hostname) return { ok: false, error: 'redirect_hostname is required (e.g. www.thebarbersedge.com)' };
+    if (!expression) return { ok: false, error: 'redirect_expression is required (e.g. concat("https://thebarbersedge.com", http.request.uri.path))' };
+
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN ?? '';
+    if (!apiToken) return { ok: false, error: 'CLOUDFLARE_API_TOKEN is not set' };
+
+    const result = await cloudflareUpsertRedirectRule(zone.data.id, apiToken, {
+      hostname,
+      redirect_expression: expression,
+      status_code: input.redirect_status_code ?? 301,
+      preserve_query_string: input.preserve_query_string ?? true,
+      description: input.redirect_description,
+    });
+    if (!result.ok) return { ok: false, error: result.error };
+
+    return {
+      ok: true,
+      action: 'create_redirect_rule',
+      domain,
+      zone: zone.data,
+      redirect_rule: result.data,
+      summary: `Redirect rule created: ${hostname} → ${expression} (${input.redirect_status_code ?? 301}, preserve_query_string=${input.preserve_query_string ?? true}).`,
+    };
+  }
+
   if (input.action === 'delete_record') {
     const recordId = String(input.record_id ?? '').trim();
     if (recordId) {
@@ -254,6 +376,7 @@ export async function cloudflareDnsManage(input: {
     };
   }
 
+  // upsert_record
   const type = String(input.type ?? '').trim().toUpperCase();
   const nameArg = String(input.name ?? '@').trim();
   const content = String(input.content ?? '').trim();
@@ -272,6 +395,7 @@ export async function cloudflareDnsManage(input: {
       content,
       priority: input.priority,
       ttl: 1,
+      proxied: input.proxied ?? false,
     },
     existing.data,
   );
@@ -283,7 +407,7 @@ export async function cloudflareDnsManage(input: {
     domain,
     zone: zone.data,
     upsert: upsert.data,
-    summary: `${upsert.data.action.toUpperCase()} ${type} ${fqdn}\n       ${content.slice(0, 160)}${content.length > 160 ? '…' : ''}`,
+    summary: `${upsert.data.action.toUpperCase()} ${type} ${fqdn}${input.proxied ? ' (proxied)' : ''}\n       ${content.slice(0, 160)}${content.length > 160 ? '…' : ''}`,
   };
 }
 
