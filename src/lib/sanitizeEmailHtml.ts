@@ -35,8 +35,7 @@ function isUnsafeUrl(value: string): boolean {
   return (
     v.startsWith('javascript:') ||
     v.startsWith('vbscript:') ||
-    v.startsWith('data:text/html') ||
-    v.startsWith('data:application/')
+    v.startsWith('data:')
   );
 }
 
@@ -68,6 +67,13 @@ export function sanitizeEmailHtml(html: string): string {
       }
       if (URL_ATTRS.has(lower) && typeof value === 'string' && isUnsafeUrl(value)) {
         $(rawEl).removeAttr(name);
+      }
+    }
+    if (tag === 'a') {
+      const href = attribs.href?.trim();
+      if (href && !href.toLowerCase().startsWith('mailto:')) {
+        $(rawEl).attr('rel', 'noopener noreferrer');
+        $(rawEl).attr('target', '_blank');
       }
     }
   });

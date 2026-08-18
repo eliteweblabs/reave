@@ -9,6 +9,7 @@
 import { sendEmail } from './outbound';
 import type { InboundEmail } from './emailRules';
 import { normalizeEmailBody } from './emailBody';
+import { escapeHtml } from './htmlEscape';
 
 export interface ForwardResult {
   ok: boolean;
@@ -73,10 +74,3 @@ export async function forwardEmail(
   return result;
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
