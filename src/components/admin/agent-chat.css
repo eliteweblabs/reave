@@ -761,13 +761,21 @@
   margin-bottom: 0.75rem;
 }
 
+.aui-composer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .aui-composer-send {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  margin-left: auto;
+  margin-left: 0;
   border: none;
   border-radius: 999px;
   background: var(--brand-gradient, var(--create-fab-bg));
@@ -811,7 +819,7 @@
 }
 
 .aui-composer-stop {
-  margin-left: auto;
+  margin-left: 0;
   border: none;
   background: transparent;
   color: var(--muted);

@@ -2178,10 +2178,6 @@ function useSlashHelpers(
     setHelpersOpen(false);
     setComposeText('');
     propsRef.current?.onComposeDirty?.(false);
-    // Sending keeps the textarea focused (Send uses preventDefault). When the
-    // running UI replaces it, clear compose-focus so the pane header is not left
-    // inert with no .aui-input left to blur.
-    propsRef.current?.onComposeFocus?.(false);
   }, [isRunning]);
 
   useEffect(() => {
@@ -2285,6 +2281,45 @@ function AttachIcon() {
   );
 }
 
+function ComposerStopButton({
+  threadId,
+  useExternalProgress,
+  onStopExternal,
+}: {
+  threadId: string;
+  useExternalProgress: boolean;
+  onStopExternal?: () => void;
+}) {
+  if (useExternalProgress) {
+    return (
+      <button
+        type="button"
+        className="aui-composer-stop"
+        aria-label="Stop generating"
+        onClick={() => onStopExternal?.()}
+      >
+        Stop
+      </button>
+    );
+  }
+  return (
+    <ComposerPrimitive.Cancel
+      className="aui-composer-stop"
+      aria-label="Stop generating"
+      // Cancelling only ends the local stream; without this the run keeps
+      // working server-side and the thread later gains a reply the user
+      // already told us to abandon.
+      onClick={() => {
+        void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, {
+          method: 'POST',
+        }).catch(() => {});
+      }}
+    >
+      Stop
+    </ComposerPrimitive.Cancel>
+  );
+}
+
 function ClaudeComposer({
   propsRef,
   commands,
@@ -2318,13 +2353,13 @@ function ClaudeComposer({
   queuedSend?: boolean;
   onQueuedChange?: (queued: boolean) => void;
 }) {
-  const sendBlocked = deployChatLocked || queuedSend;
   const fieldRef = useRef<ComposerFieldHandle | null>(null);
-  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked);
-  const mentions = useMentions(pendingMentionsRef, fieldRef);
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
+  const sendBlocked = deployChatLocked || queuedSend || showRunning;
+  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked);
+  const mentions = useMentions(pendingMentionsRef, fieldRef);
   const sendBtnRef = useRef<HTMLButtonElement | null>(null);
   const sentByTouchRef = useRef(false);
   /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
@@ -2336,23 +2371,10 @@ function ClaudeComposer({
     onFocusInputReady?.(helpers.focusInput);
   }, [helpers.focusInput, onFocusInputReady]);
 
-  // Running UI unmounts .aui-input. Drop compose-focus so the pane header is
-  // not left inert (share / archive / rename) until a hard refresh. The send
-  // also clears leftover typed text so it cannot come back as a "draft".
-  useEffect(() => {
-    if (!showRunning) return;
-    propsRef.current?.onComposeFocus?.(false);
-    typedDraftRef.current = '';
-    clearDeployChatDraft(threadId);
-    onQueuedChange?.(false);
-  }, [showRunning, propsRef, onQueuedChange, threadId]);
-
   // Snapshot the current draft when sending locks so a post-deploy reload
-  // can restore it. Keystrokes while locked are saved in onInput. Skip while
-  // a run is in flight — the input is unmounted and typedDraftRef still holds
-  // the message that was just sent.
+  // can restore it. Keystrokes while locked are saved in onInput.
   useLayoutEffect(() => {
-    if (!deployChatLocked || showRunning) return;
+    if (!deployChatLocked) return;
     const fromRuntime = composer.getState().text ?? '';
     const fallback = typedDraftRef.current || readDeployChatDraft(threadId) || '';
     const candidate = fromRuntime || fallback;
@@ -2366,15 +2388,14 @@ function ClaudeComposer({
     if (candidate && !fromRuntime) composer.setText(candidate);
     typedDraftRef.current = candidate;
     saveDeployChatDraft(threadId, candidate);
-  }, [composer, deployChatLocked, lastUserText, onQueuedChange, showRunning, threadId]);
+  }, [composer, deployChatLocked, lastUserText, onQueuedChange, threadId]);
 
   // iOS Safari blurs the focused textarea on the touch that targets Send —
   // often before `click` — which closes the keyboard and reflows the pinned
   // composer enough that the tap never lands. A non-passive touchstart both
-  // blocks that blur and sends immediately, so one press sends and the
-  // keyboard dismisses when the running/Stop composer replaces the input.
+  // blocks that blur and sends immediately.
   useLayoutEffect(() => {
-    if (showRunning || sendBlocked) return;
+    if (sendBlocked) return;
     const btn = sendBtnRef.current;
     if (!btn) return;
     const onTouchStart = (e: TouchEvent) => {
@@ -2385,54 +2406,7 @@ function ClaudeComposer({
     };
     btn.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => btn.removeEventListener('touchstart', onTouchStart);
-  }, [composer, showRunning, sendBlocked]);
-
-  if (showRunning) {
-    return (
-      <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
-        <ComposerPrimitive.Root className="aui-composer-card aui-composer-card-running">
-          <div className="aui-composer-toolbar aui-composer-toolbar-running">
-            {/* The in-thread run status renders the live progress inside the message
-                flow, so only the centered empty-state composer (which has no thread
-                status above it) repeats the copy here. Otherwise show just Stop. */}
-            {centered ? (
-              <AgentRunStatus
-                threadId={threadId}
-                externalProgress={externalProgress ?? null}
-                useExternalProgress={Boolean(useExternalProgress)}
-                streamedProgress={streamedProgress ?? null}
-              />
-            ) : null}
-            {useExternalProgress ? (
-              <button
-                type="button"
-                className="aui-composer-stop"
-                aria-label="Stop generating"
-                onClick={() => onStopExternal?.()}
-              >
-                Stop
-              </button>
-            ) : (
-              <ComposerPrimitive.Cancel
-                className="aui-composer-stop"
-                aria-label="Stop generating"
-                // Cancelling only ends the local stream; without this the run keeps
-                // working server-side and the thread later gains a reply the user
-                // already told us to abandon.
-                onClick={() => {
-                  void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, {
-                    method: 'POST',
-                  }).catch(() => {});
-                }}
-              >
-                Stop
-              </ComposerPrimitive.Cancel>
-            )}
-          </div>
-        </ComposerPrimitive.Root>
-      </div>
-    );
-  }
+  }, [composer, sendBlocked]);
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
@@ -2456,6 +2430,14 @@ function ClaudeComposer({
                   'Deploy in progress — sending is paused until the new version is live.'}
           </p>
         </div>
+      ) : null}
+      {centered && showRunning ? (
+        <AgentRunStatus
+          threadId={threadId}
+          externalProgress={externalProgress ?? null}
+          useExternalProgress={Boolean(useExternalProgress)}
+          streamedProgress={streamedProgress ?? null}
+        />
       ) : null}
       {mentions.showMentions ? (
         <MentionsPanel
@@ -2484,7 +2466,7 @@ function ClaudeComposer({
             handleRef={fieldRef}
             className="aui-input"
             placeholder="How can I help you today?"
-            enterKeyHint={deployChatLocked ? 'enter' : 'send'}
+            enterKeyHint={sendBlocked ? 'enter' : 'send'}
             onFocus={() => {
               helpers.onFocus();
               mentions.onFocus();
@@ -2520,41 +2502,54 @@ function ClaudeComposer({
                 ? 'Queued — this will send when the new version is live'
                 : deployChatLocked
                   ? 'Keep typing — send unlocks when the new version is live'
-                  : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
+                  : showRunning
+                    ? 'Keep typing — send unlocks when the agent finishes'
+                    : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
             </span>
-            {sendBlocked ? (
-              <button
-                type="button"
-                className="aui-composer-send"
-                aria-label={
-                  queuedSend
-                    ? 'Send queued until the new version is live'
-                    : 'Send paused until the new version is live'
-                }
-                disabled
-              >
-                <SendIcon />
-              </button>
-            ) : (
-              <ComposerPrimitive.Send
-                ref={sendBtnRef}
-                className="aui-composer-send"
-                aria-label="Send message"
-                // Desktop / stylus: keep focus so the composer doesn't reflow before
-                // click. Touch send is handled by the non-passive touchstart listener
-                // above (React's synthetic preventDefault is often too late on iOS).
-                onPointerDown={(e) => e.preventDefault()}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  if (!sentByTouchRef.current) return;
-                  sentByTouchRef.current = false;
-                  // Already sent in touchstart — block ComposerPrimitive.Send's click send.
-                  e.preventDefault();
-                }}
-              >
-                <SendIcon />
-              </ComposerPrimitive.Send>
-            )}
+            <span className="aui-composer-actions">
+              {showRunning ? (
+                <ComposerStopButton
+                  threadId={threadId}
+                  useExternalProgress={Boolean(useExternalProgress)}
+                  onStopExternal={onStopExternal}
+                />
+              ) : null}
+              {sendBlocked ? (
+                <button
+                  type="button"
+                  className="aui-composer-send"
+                  aria-label={
+                    queuedSend
+                      ? 'Send queued until the new version is live'
+                      : deployChatLocked
+                        ? 'Send paused until the new version is live'
+                        : 'Send paused until the agent finishes'
+                  }
+                  disabled
+                >
+                  <SendIcon />
+                </button>
+              ) : (
+                <ComposerPrimitive.Send
+                  ref={sendBtnRef}
+                  className="aui-composer-send"
+                  aria-label="Send message"
+                  // Desktop / stylus: keep focus so the composer doesn't reflow before
+                  // click. Touch send is handled by the non-passive touchstart listener
+                  // above (React's synthetic preventDefault is often too late on iOS).
+                  onPointerDown={(e) => e.preventDefault()}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    if (!sentByTouchRef.current) return;
+                    sentByTouchRef.current = false;
+                    // Already sent in touchstart — block ComposerPrimitive.Send's click send.
+                    e.preventDefault();
+                  }}
+                >
+                  <SendIcon />
+                </ComposerPrimitive.Send>
+              )}
+            </span>
           </div>
         </ComposerPrimitive.Root>
       </ComposerPrimitive.AttachmentDropzone>
