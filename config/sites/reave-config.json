@@ -515,6 +515,17 @@
       "image": "portfolio-rothco-featured",
       "imageAlt": "Rothco Built wordmark over the Worcester FAA airport project",
       "size": "2x2"
+    },
+    {
+      "title": "The Barber's Edge",
+      "description": "Downtown Beverly barbershop at 324 Rantoul — traditional cuts, hot-towel shaves, and a nine-chair shop that still runs like a trade. REΛVE built TheBarbersEdge.com.",
+      "tags": [
+        "Web Design",
+        "Branding"
+      ],
+      "image": "portfolio-barbers-edge-featured",
+      "imageAlt": "The Barber's Edge paper mark over a barber working a beard under the ring light",
+      "size": "2x2"
     }
   ]
 }

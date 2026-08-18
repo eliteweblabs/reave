@@ -63,6 +63,7 @@ const SEED: SeedItem[] = [
   { slug: 'portfolio-montana-cans-featured', file: 'public/images/portfolio/montana-cans-featured.svg', alt: 'Montana Cans' },
   { slug: 'portfolio-pdx-paws-featured', file: 'public/images/portfolio/pdx-paws-featured.webp', alt: 'PDX Paws' },
   { slug: 'portfolio-rothco-featured', file: 'public/images/portfolio/rothco-featured.webp', alt: 'Rothco, LLC' },
+  { slug: 'portfolio-barbers-edge-featured', file: 'public/images/portfolio/barbers-edge-featured.webp', alt: "The Barber's Edge" },
   { slug: 'stack-telnyx', file: 'public/logos/stack/telnyx.svg', alt: 'Telnyx' },
   { slug: 'stack-uptimerobot', file: 'public/logos/stack/uptimerobot.svg', alt: 'UptimeRobot' },
   { slug: 'replaced-gmail', file: 'public/logos/replaced-apps/01-gmail.svg', alt: 'Gmail' },
