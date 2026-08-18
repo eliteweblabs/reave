@@ -80,7 +80,8 @@ const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
-const showSiteAssistant = hasFeature("portal_assistant") && isSiteAssistantConfigured();
+const showSiteAssistant =
+	!isIndexPage && hasFeature("portal_assistant") && isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
