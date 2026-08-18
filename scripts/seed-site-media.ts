@@ -60,6 +60,7 @@ const SEED: SeedItem[] = [
   { slug: 'portfolio-levines-law-featured', file: 'src/assets/images/portfolio/levines-law-featured.webp', alt: 'Barry Levine, Esq.' },
   { slug: 'portfolio-capco-fire-featured', file: 'src/assets/images/portfolio/capco-fire-featured.webp', alt: 'CAPCO Design Group' },
   { slug: 'portfolio-pdx-paws-featured', file: 'public/images/portfolio/pdx-paws-featured.webp', alt: 'PDX Paws' },
+  { slug: 'portfolio-rothco-featured', file: 'public/images/portfolio/rothco-featured.webp', alt: 'Rothco, LLC' },
   { slug: 'portfolio-barbers-edge-featured', file: 'public/images/portfolio/barbers-edge-featured.webp', alt: "Barber's Edge" },
   { slug: 'stack-telnyx', file: 'public/logos/stack/telnyx.svg', alt: 'Telnyx' },
   { slug: 'stack-uptimerobot', file: 'public/logos/stack/uptimerobot.svg', alt: 'UptimeRobot' },
