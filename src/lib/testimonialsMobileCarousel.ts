@@ -1,115 +1,138 @@
 const DISPLAY_MS = 5000;
-const SWIPE_THRESHOLD_PX = 48;
+const SETTLE_MS = 140;
 
 function initTestimonialsMobile(viewport: HTMLElement) {
   if (viewport.dataset.testimonialsMobileInit === "true") return;
   viewport.dataset.testimonialsMobileInit = "true";
 
-  const track = viewport.querySelector<HTMLElement>("[data-testimonials-mobile-track]");
   const slides = Array.from(viewport.querySelectorAll<HTMLElement>("[data-testimonial-slide]"));
-  if (!track || slides.length <= 1) return;
+  if (slides.length <= 1) return;
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let activeIndex = 0;
   let timerId = 0;
+  let settleId = 0;
   let visible = false;
-  let dragging = false;
-  let pointerId: number | null = null;
-  let startX = 0;
-  let startY = 0;
-  let swiped = false;
+  let interacting = false;
+  let autoScrolling = false;
 
-  function cardStride() {
-    const card = slides[0];
-    const gap = parseFloat(getComputedStyle(track).gap) || 12;
-    return card.offsetWidth + gap;
+  function slideCenterLeft(index: number) {
+    const slide = slides[index];
+    if (!slide) return viewport.scrollLeft;
+    const viewportRect = viewport.getBoundingClientRect();
+    const slideRect = slide.getBoundingClientRect();
+    const delta =
+      slideRect.left + slideRect.width / 2 - (viewportRect.left + viewportRect.width / 2);
+    return viewport.scrollLeft + delta;
   }
 
-  function goTo(index: number, animate = true) {
-    const count = slides.length;
-    const next = ((index % count) + count) % count;
-    track.style.transition = animate && !prefersReducedMotion ? "transform 0.45s ease" : "none";
-    track.style.transform = `translate3d(${-next * cardStride()}px, 0, 0)`;
-    slides.forEach((slide, i) => {
-      slide.setAttribute("aria-hidden", i === next ? "false" : "true");
+  function nearestIndex() {
+    const viewportRect = viewport.getBoundingClientRect();
+    const center = viewportRect.left + viewportRect.width / 2;
+    let best = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+    slides.forEach((slide, index) => {
+      const slideRect = slide.getBoundingClientRect();
+      const slideCenter = slideRect.left + slideRect.width / 2;
+      const dist = Math.abs(slideCenter - center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = index;
+      }
     });
-    activeIndex = next;
+    return best;
+  }
+
+  function syncAria(index: number) {
+    slides.forEach((slide, i) => {
+      slide.setAttribute("aria-hidden", i === index ? "false" : "true");
+    });
     viewport.setAttribute(
       "aria-label",
-      `Client testimonial ${next + 1} of ${count}. Swipe to change.`,
+      `Client testimonial ${index + 1} of ${slides.length}. Swipe to change.`,
     );
+  }
+
+  function goTo(index: number, behavior: ScrollBehavior = "smooth") {
+    const count = slides.length;
+    const next = ((index % count) + count) % count;
+    const reduced = prefersReducedMotion || behavior === "auto";
+    autoScrolling = !reduced;
+    viewport.scrollTo({
+      left: slideCenterLeft(next),
+      behavior: reduced ? "auto" : "smooth",
+    });
+    activeIndex = next;
+    syncAria(next);
+    if (reduced) autoScrolling = false;
   }
 
   function scheduleNext() {
     window.clearTimeout(timerId);
-    if (!visible || prefersReducedMotion || dragging) return;
+    if (!visible || prefersReducedMotion || interacting) return;
     timerId = window.setTimeout(() => {
-      if (!visible || dragging) return;
+      if (!visible || interacting) return;
       goTo(activeIndex + 1);
       scheduleNext();
     }, DISPLAY_MS);
   }
 
-  function pauseAutoplayBriefly() {
-    window.clearTimeout(timerId);
+  function onSettled() {
+    autoScrolling = false;
+    activeIndex = nearestIndex();
+    syncAria(activeIndex);
     scheduleNext();
   }
 
-  function onPointerDown(event: PointerEvent) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    pointerId = event.pointerId;
-    startX = event.clientX;
-    startY = event.clientY;
-    dragging = true;
-    swiped = false;
+  function onScroll() {
+    window.clearTimeout(settleId);
+    if (!autoScrolling) {
+      window.clearTimeout(timerId);
+    }
+    settleId = window.setTimeout(onSettled, SETTLE_MS);
+  }
+
+  function onInteractStart() {
+    interacting = true;
+    autoScrolling = false;
     window.clearTimeout(timerId);
-    try {
-      viewport.setPointerCapture(event.pointerId);
-    } catch {
-      /* ignore */
-    }
   }
 
-  function onPointerMove(event: PointerEvent) {
-    if (!dragging || event.pointerId !== pointerId) return;
-    const dx = event.clientX - startX;
-    const dy = event.clientY - startY;
-    if (!swiped && Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy) * 1.15) {
-      swiped = true;
-      goTo(activeIndex + (dx < 0 ? 1 : -1));
-      pauseAutoplayBriefly();
-    }
-  }
-
-  function onPointerUp(event: PointerEvent) {
-    if (event.pointerId !== pointerId) return;
-    dragging = false;
-    pointerId = null;
-    if (viewport.hasPointerCapture(event.pointerId)) {
-      viewport.releasePointerCapture(event.pointerId);
-    }
+  function onInteractEnd() {
+    interacting = false;
+    activeIndex = nearestIndex();
+    syncAria(activeIndex);
     scheduleNext();
   }
 
-  viewport.addEventListener("pointerdown", onPointerDown);
-  viewport.addEventListener("pointermove", onPointerMove);
-  viewport.addEventListener("pointerup", onPointerUp);
-  viewport.addEventListener("pointercancel", onPointerUp);
+  viewport.addEventListener("scroll", onScroll, { passive: true });
+  viewport.addEventListener("pointerdown", onInteractStart);
+  viewport.addEventListener("touchstart", onInteractStart, { passive: true });
+  viewport.addEventListener("pointerup", onInteractEnd);
+  viewport.addEventListener("pointercancel", onInteractEnd);
+  viewport.addEventListener("touchend", onInteractEnd, { passive: true });
+  viewport.addEventListener("touchcancel", onInteractEnd, { passive: true });
 
   viewport.addEventListener("keydown", (event) => {
     if (event.key === "ArrowRight") {
       event.preventDefault();
       goTo(activeIndex + 1);
-      pauseAutoplayBriefly();
+      scheduleNext();
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       goTo(activeIndex - 1);
-      pauseAutoplayBriefly();
+      scheduleNext();
     }
   });
 
-  const resizeObs = new ResizeObserver(() => goTo(activeIndex, false));
+  let lastWidth = viewport.clientWidth;
+  const resizeObs = new ResizeObserver(() => {
+    const width = viewport.clientWidth;
+    if (width === lastWidth) return;
+    lastWidth = width;
+    goTo(activeIndex, "auto");
+  });
   resizeObs.observe(viewport);
 
   const visibilityObs =
@@ -125,19 +148,23 @@ function initTestimonialsMobile(viewport: HTMLElement) {
       : null;
   visibilityObs?.observe(viewport);
 
-  goTo(0, false);
+  goTo(0, "auto");
   const rect = viewport.getBoundingClientRect();
   visible = rect.top < window.innerHeight && rect.bottom > 0;
   if (visible && !prefersReducedMotion) scheduleNext();
 
   return () => {
     window.clearTimeout(timerId);
+    window.clearTimeout(settleId);
     resizeObs.disconnect();
     visibilityObs?.disconnect();
-    viewport.removeEventListener("pointerdown", onPointerDown);
-    viewport.removeEventListener("pointermove", onPointerMove);
-    viewport.removeEventListener("pointerup", onPointerUp);
-    viewport.removeEventListener("pointercancel", onPointerUp);
+    viewport.removeEventListener("scroll", onScroll);
+    viewport.removeEventListener("pointerdown", onInteractStart);
+    viewport.removeEventListener("touchstart", onInteractStart);
+    viewport.removeEventListener("pointerup", onInteractEnd);
+    viewport.removeEventListener("pointercancel", onInteractEnd);
+    viewport.removeEventListener("touchend", onInteractEnd);
+    viewport.removeEventListener("touchcancel", onInteractEnd);
   };
 }
 

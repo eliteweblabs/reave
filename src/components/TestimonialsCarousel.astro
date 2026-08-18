@@ -42,7 +42,6 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     class="testimonials-marquee"
     aria-label="Client testimonials"
     role="region"
-    style={`--loop-copies: ${LOOP_COPIES}`}
   >
     <div class="testimonials-marquee-track">
       {
@@ -128,8 +127,8 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     box-sizing: border-box;
     padding: 20px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.62);
     text-align: left;
   }
 
@@ -186,6 +185,8 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     pointer-events: none;
     user-select: none;
     -webkit-user-select: none;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .testimonials-marquee-track {
@@ -193,16 +194,34 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     gap: 16px;
     width: max-content;
     padding: 4px 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     animation: testimonials-marquee-scroll 70s linear infinite;
-    will-change: transform;
+    -webkit-animation: testimonials-marquee-scroll 70s linear infinite;
   }
 
+  /*
+   * Hard-code -50% (two loop copies). Safari does not interpolate
+   * custom properties / calc() inside @keyframes reliably, which made
+   * the desktop marquee look stuck on iPad.
+   */
   @keyframes testimonials-marquee-scroll {
     from {
       transform: translate3d(0, 0, 0);
     }
     to {
-      transform: translate3d(calc(-100% / var(--loop-copies, 2)), 0, 0);
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  @-webkit-keyframes testimonials-marquee-scroll {
+    from {
+      -webkit-transform: translate3d(0, 0, 0);
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      -webkit-transform: translate3d(-50%, 0, 0);
+      transform: translate3d(-50%, 0, 0);
     }
   }
 
@@ -210,15 +229,24 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     flex: 0 0 min(340px, 78vw);
   }
 
-  /* --- Mobile carousel --- */
+  /* --- Touch / small-viewport carousel (native scroll-snap) --- */
   .testimonials-mobile {
-    --card-width: 72vw;
+    --card-width: min(72vw, 340px);
     --card-gap: 12px;
-    overflow: hidden;
-    touch-action: pan-y;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    touch-action: auto;
     user-select: none;
     -webkit-user-select: none;
     outline: none;
+  }
+
+  .testimonials-mobile::-webkit-scrollbar {
+    display: none;
   }
 
   .testimonials-mobile:focus-visible {
@@ -232,15 +260,16 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     gap: var(--card-gap);
     width: max-content;
     padding-inline: calc((100% - var(--card-width)) / 2);
-    will-change: transform;
   }
 
   .testimonials-mobile .testimonial-card {
     flex: 0 0 var(--card-width);
     max-width: 340px;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 768px) and (hover: hover) and (pointer: fine) {
     .testimonials-marquee {
       display: block;
     }
@@ -253,6 +282,11 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
   @media (prefers-reduced-motion: reduce) {
     .testimonials-marquee-track {
       animation: none;
+      -webkit-animation: none;
+    }
+
+    .testimonials-mobile {
+      scroll-snap-type: x mandatory;
     }
   }
 </style>
