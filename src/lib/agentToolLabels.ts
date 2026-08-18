@@ -40,6 +40,7 @@ const TOOL_LABELS: Record<string, string> = {
   delete_todo: 'Deleting to-do',
   run_dev_task: 'Running dev task',
   list_railway_domains: 'Checking Railway domains',
+  add_railway_domain: 'Adding Railway custom domain',
   list_railway_projects: 'Listing Railway projects',
   list_railway_services: 'Listing Railway services',
   list_railway_variables: 'Reading Railway variables',
