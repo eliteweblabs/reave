@@ -1,13 +1,8 @@
 /**
- * Clerk Backend + Platform API client.
+ * Clerk Backend API client.
  *
- * Backend API  — https://api.clerk.com/v1  (per-app, requires CLERK_SECRET_KEY)
- * Platform API — https://api.clerk.com/v1/applications (multi-app management,
- *                requires CLERK_PLATFORM_KEY — Pro/Enterprise only)
- *
- * When only CLERK_SECRET_KEY is set, multi-app Platform API calls will fail
- * gracefully with a user-friendly message so the agent can explain the plan
- * tier limitation.
+ * Backend API — https://api.clerk.com/v1  (per-app, requires CLERK_SECRET_KEY)
+ * Clerk does not allow system-level access. There is no workspace master key.
  */
 import { serverEnv } from './serverEnv';
 
@@ -178,7 +173,7 @@ export type ClerkSession = {
   expire_at: number | null;
 };
 
-// ─── Platform API — multi-app management (Pro/Enterprise) ────────────────────
+// ─── System-level app APIs (Clerk does not allow these) ──────────────────────
 
 /** List all Clerk applications on the Platform account. */
 export async function clerkListApps(): Promise<{ ok: boolean; apps?: ClerkApp[]; error?: string }> {

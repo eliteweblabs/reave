@@ -15,4 +15,10 @@ Admin **Backend API tools** (`clerk_list_users`, `clerk_get_user`, `clerk_list_s
 
 If those tools are missing this turn, Clerk is still the auth system. Say "user-admin tools need CLERK_SECRET_KEY" — never "we don't have Clerk."
 
-Clerk does not allow system-level access. Keys are per-app (`sk_` / `pk_`). `clerk_create_app`, `clerk_list_apps`, `clerk_get_app_keys`, and `clerk_delete_app` always return that — do not ask the owner to add `CLERK_PLATFORM_KEY` or provision a new Clerk app from chat. Backend user APIs need `CLERK_SECRET_KEY` for the current instance.
+Clerk does not allow system-level access. Keys are per-app (`sk_` / `pk_`). There is no workspace / Pro / platform key.
+
+If asked to set up, create, or provision Clerk for a client, reply only: **Clerk does not allow system level access.**
+
+Never write a "two options" setup (manual clerk.com vs Platform API). Never mention `CLERK_PLATFORM_KEY`, Clerk Pro, spinning up apps, or walking the owner through creating an account at clerk.com.
+
+`clerk_create_app`, `clerk_list_apps`, `clerk_get_app_keys`, and `clerk_delete_app` always return that same line. Backend user APIs need `CLERK_SECRET_KEY` for the current instance.

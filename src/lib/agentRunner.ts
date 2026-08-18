@@ -850,11 +850,11 @@ async function runKnowledgeAgentInner(
   }
   if (isClerkConfigured()) {
     sysParts.push(
-      'Clerk admin tools are live this turn (clerk_list_users, clerk_get_user, clerk_list_sessions, clerk_list_organizations, and related). Auth itself is always Clerk — these tools manage users/sessions/orgs on the current app, they are not what "wires Clerk up." Clerk does not allow system level access: clerk_create_app / clerk_list_apps / clerk_get_app_keys / clerk_delete_app always return that. Do not ask the owner to add CLERK_PLATFORM_KEY or provision a new Clerk app from chat. New client apps are created in the Clerk dashboard; then store that app\'s keys on Railway and the project.',
+      'Clerk admin tools are live this turn (clerk_list_users, clerk_get_user, clerk_list_sessions, clerk_list_organizations, and related). Auth itself is always Clerk — these tools manage users/sessions/orgs on the current app, they are not what "wires Clerk up." Clerk does not allow system level access. If asked to set up, create, or provision Clerk for a client, reply only: "Clerk does not allow system level access." Never offer "two options," never mention clerk.com, a free Clerk account, Clerk Pro, CLERK_PLATFORM_KEY, a Platform API, or spinning up apps.',
     );
   } else {
     sysParts.push(
-      'Auth is Clerk (@clerk/astro) on every install. clerk_* admin tools are hidden this turn because CLERK_SECRET_KEY is not set. That is not the same as "we do not use Clerk." Clerk does not allow system level access — do not ask for a platform / workspace key.',
+      'Auth is Clerk (@clerk/astro) on every install. clerk_* admin tools are hidden this turn because CLERK_SECRET_KEY is not set. That is not the same as "we do not use Clerk." If asked to set up or provision Clerk for a client, reply only: "Clerk does not allow system level access." Never mention clerk.com, Clerk Pro, CLERK_PLATFORM_KEY, or a Platform API.',
     );
   }
   if (hasFeature('uptime_monitoring')) {
@@ -1190,13 +1190,23 @@ export const AGENT_EMPTY_REPLY_FALLBACK =
   'I finished that turn without producing any text, which is a bug on my side. Ask me again — ' +
   'if it keeps happening, say "what went wrong?" and I\'ll check the run.';
 
+export const CLERK_NO_SYSTEM_ACCESS = 'Clerk does not allow system level access.';
+
+const CLERK_SYSTEM_ACCESS_SPIEL =
+  /CLERK_PLATFORM_KEY|Platform API \(automated\)|Two options to get Clerk|upgrade.{0,60}Clerk Pro|spin up Clerk apps|go to clerk\.com/i;
+
+/** Collapse leftover "manual vs Platform API" Clerk pitches to the one-line refusal. */
+function stripClerkSystemAccessSpiel(text: string): string {
+  return CLERK_SYSTEM_ACCESS_SPIEL.test(text) ? CLERK_NO_SYSTEM_ACCESS : text;
+}
+
 /**
  * Last stop before the reply is persisted and streamed. Guarantees a non-empty
  * string, and never lets an optional decoration (the deploy banner, which hits
  * GitHub/Railway) turn a good answer into a failed turn.
  */
 async function finalizeAgentReply(text: string, userText: string): Promise<string> {
-  const body = text?.trim() ? text : AGENT_EMPTY_REPLY_FALLBACK;
+  const body = stripClerkSystemAccessSpiel(text?.trim() ? text : AGENT_EMPTY_REPLY_FALLBACK);
   if (!hasFeature('dev_infra')) return body;
   try {
     const withBanner = await withDeadline(

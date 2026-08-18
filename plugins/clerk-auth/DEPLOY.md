@@ -35,9 +35,4 @@ These exist so the agent gets a clear answer instead of inventing a workaround:
 
 Each responds: **Clerk does not allow system level access.**
 
-## New-client Clerk app
-
-Create the application in the Clerk dashboard (or reuse an existing one), then
-push that app’s `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` to
-the client Railway service. Log the app id on the project and store keys in
-the client Data vault — never ask the owner to invent a platform key.
+Do not invent a manual clerk.com walkthrough or a Pro / Platform API alternative.
