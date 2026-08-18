@@ -1,14 +1,14 @@
 /**
- * Agent tool: gmail_dkim
+ * Agent tools: gmail_dkim + google_workspace_domains
  *
- * Manage Google Workspace DKIM keys for a domain via the Gmail Admin API.
- * Can generate a new key, fetch the current status, publish the TXT record
- * to Cloudflare automatically, and enable/disable DKIM signing.
+ * gmail_dkim — Manage Google Workspace DKIM keys for a domain via the Gmail Admin API.
+ * google_workspace_domains — List/inspect all domains on the Google Workspace account
+ *   (primary, secondary, aliases) so the agent knows the domain type without asking the user.
  *
  * Requires:
  *   - GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET (existing Google OAuth)
- *   - Google account re-authorized with admin.directory.domain scope
- *   - CLOUDFLARE_API_TOKEN (for auto-publish action)
+ *   - Google account authorized with admin.directory.domain scope
+ *   - CLOUDFLARE_API_TOKEN (for auto-publish action on gmail_dkim)
  */
 import {
   AnalyticsApiError,
@@ -23,6 +23,10 @@ import {
   generateDkimKey,
   getDkimSettings,
 } from '../../src/lib/googleWorkspaceDkimClient';
+import {
+  getWorkspaceDomain,
+  listWorkspaceDomains,
+} from '../../src/lib/googleWorkspaceDomainsClient';
 import { cloudflareDnsManage } from '../../src/lib/cloudflareDnsManage';
 import { isCloudflareConfigured } from '../../src/lib/cloudflareClient';
 import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
@@ -36,6 +40,10 @@ function catchAnalytics(e: unknown): string {
   }
   return analyticsFailedPayload(e instanceof Error ? e.message : String(e));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// gmail_dkim handler
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function handle_gmail_dkim(
   args: Record<string, unknown>,
@@ -147,7 +155,60 @@ async function handle_gmail_dkim(
   }
 }
 
-const definition: AgentToolDef = {
+// ─────────────────────────────────────────────────────────────────────────────
+// google_workspace_domains handler
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handle_google_workspace_domains(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<string> {
+  const action = String(args.action ?? 'list').trim();
+  const domain = String(args.domain ?? '').trim().toLowerCase();
+
+  try {
+    if (action === 'list') {
+      const resp = await listWorkspaceDomains();
+      const domains = (resp.domains ?? []).map((d) => ({
+        domain: d.domainName,
+        type: d.isPrimary ? 'primary' : 'secondary',
+        is_verified: d.isVerified,
+        aliases: (d.domainAliases ?? []).map((a) => ({
+          alias: a.domainAliasName,
+          is_verified: a.isVerified,
+          parent: a.parentDomainName,
+        })),
+      }));
+      return JSON.stringify({ ok: true, domains });
+    }
+
+    if (action === 'get') {
+      if (!domain) return JSON.stringify({ ok: false, error: 'domain is required for action: get' });
+      const d = await getWorkspaceDomain(domain);
+      return JSON.stringify({
+        ok: true,
+        domain: d.domainName,
+        type: d.isPrimary ? 'primary' : 'secondary',
+        is_verified: d.isVerified,
+        aliases: (d.domainAliases ?? []).map((a) => ({
+          alias: a.domainAliasName,
+          is_verified: a.isVerified,
+          parent: a.parentDomainName,
+        })),
+      });
+    }
+
+    return JSON.stringify({ ok: false, error: `Unknown action: ${action}` });
+  } catch (e) {
+    return catchAnalytics(e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool definitions
+// ─────────────────────────────────────────────────────────────────────────────
+
+const gmailDkimDefinition: AgentToolDef = {
   type: 'function',
   function: {
     name: 'gmail_dkim',
@@ -185,13 +246,43 @@ const definition: AgentToolDef = {
   },
 };
 
+const googleWorkspaceDomainsDefinition: AgentToolDef = {
+  type: 'function',
+  function: {
+    name: 'google_workspace_domains',
+    description:
+      'List or inspect all domains on the Google Workspace account (primary, secondary, aliases). ' +
+      'action "list": returns all domains with their type (primary/secondary) and any aliases. ' +
+      'action "get": returns details for a specific domain including whether it is primary or secondary. ' +
+      'Use this before gmail_dkim to confirm a domain exists and its type — secondary domains get their own DKIM key; aliases share the primary domain DKIM. ' +
+      'Requires Google re-auth with admin.directory.domain scope.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          description: 'list = all domains; get = one domain by name',
+          enum: ['list', 'get'],
+        },
+        domain: {
+          type: 'string',
+          description: 'Bare domain name — required for action: get',
+        },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+  },
+};
+
 export const gmailDkimAgentTools: AgentToolModule = {
   id: 'google-workspace-dkim',
   enabled: (_ctx: ToolContext) => isGoogleWebmasterOAuthConfigured(),
   definitions(_ctx: ToolContext): AgentToolDef[] {
-    return [definition];
+    return [gmailDkimDefinition, googleWorkspaceDomainsDefinition];
   },
   handlers: {
     gmail_dkim: handle_gmail_dkim,
+    google_workspace_domains: handle_google_workspace_domains,
   },
 };
