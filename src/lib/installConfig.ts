@@ -44,6 +44,7 @@ const FEATURE_IDS_LIST = [
   'event_ticketing',
   'cookie_notice',
   'deploy_wizard',
+  'website',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

@@ -13,6 +13,7 @@ import {
   isPexelsConfigured,
   pexelsSearchPhotos,
 } from '../../src/lib/pexelsClient';
+import { hasStockPhotoSearch } from '../../src/lib/features';
 import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
 
 async function handle_search_stock_photos(
@@ -48,7 +49,7 @@ async function handle_search_stock_photos(
 
 export const stockPhotosAgentTools: AgentToolModule = {
   id: 'pexels',
-  enabled: () => isPexelsConfigured(),
+  enabled: () => hasStockPhotoSearch() && isPexelsConfigured(),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

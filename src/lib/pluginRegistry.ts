@@ -6,7 +6,7 @@
  */
 import type { ReavePlugin } from '../../plugins/_shared/types';
 import type { AgentToolModule } from './agentTools/types';
-import { hasFeature } from './features';
+import { hasFeature, hasStockPhotoSearch, hasWebsiteEditor } from './features';
 
 import { billingPlugin } from '../../plugins/billing/manifest';
 import { carddavPlugin } from '../../plugins/carddav/manifest';
@@ -36,6 +36,7 @@ import { clerkAuthPlugin } from '../../plugins/clerk-auth/manifest';
 import { cookieNoticePlugin } from '../../plugins/cookie-notice/manifest';
 import { deployWizardPlugin } from '../../plugins/deploy-wizard/manifest';
 import { googleWorkspaceDkimPlugin } from '../../plugins/google-workspace-dkim/manifest';
+import { websitePlugin } from '../../plugins/website/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -66,6 +67,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   cookieNoticePlugin,
   deployWizardPlugin,
   googleWorkspaceDkimPlugin,
+  websitePlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -74,8 +76,16 @@ export function getPlugin(id: string): ReavePlugin | undefined {
   return PLUGIN_BY_ID.get(id);
 }
 
+function pluginFeatureEnabled(plugin: ReavePlugin): boolean {
+  if (!plugin.feature) return true;
+  if (hasFeature(plugin.feature)) return true;
+  if (plugin.feature === 'content_management') return hasWebsiteEditor();
+  if (plugin.feature === 'stock_photos') return hasStockPhotoSearch();
+  return false;
+}
+
 export function isPluginActive(plugin: ReavePlugin): boolean {
-  if (plugin.feature && !hasFeature(plugin.feature)) return false;
+  if (!pluginFeatureEnabled(plugin)) return false;
   if (plugin.configured && !plugin.configured()) return false;
   return true;
 }
@@ -187,6 +197,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['namecom-dns'];
     case 'google-workspace-dkim':
       return ['google-workspace-dkim'];
+    case 'website':
+      return ['website'];
     default:
       return [];
   }

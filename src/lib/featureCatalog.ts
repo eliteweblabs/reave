@@ -37,6 +37,7 @@ export const FEATURE_IDS = [
   'event_ticketing',
   'cookie_notice',
   'deploy_wizard',
+  'website',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -98,6 +99,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   event_ticketing: 'Event ticketing',
   cookie_notice: 'Cookie notice',
   deploy_wizard: 'Deploy wizard',
+  website: 'Website',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -137,6 +139,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Ticket sales, QR check-in, and event inventory — reference only until productized',
   cookie_notice: 'Implied-consent cookie bar and Cookie Policy at /cookies',
   deploy_wizard: 'Stand up a new Railway install with module toggles and reference variables',
+  website: 'Client website tools — edit, stock photos, publish. No hosting APIs',
 };
 
 export type FeatureVisibility = 'public' | 'private';
@@ -187,6 +190,31 @@ export function formatAgentCapabilityInventory(enabledIds: Iterable<string>): st
     lines.length ? lines.join('\n') : '- (none listed)',
     'Modules exist in the product even when not listed here. A tool missing from this turn means the module is off or a key is unset — not that the codebase lacks the integration.',
   ].join('\n');
+}
+
+/** What a client install should list as web tools — never Railway / Kinsta / Cloudflare. */
+export function formatClientWebsiteToolInventory(opts: {
+  editor: boolean;
+  stockPhotos: boolean;
+  stockPhotosActive: boolean;
+}): string {
+  const lines = ['Client website tools on this install (not hosting or registrar APIs):'];
+  if (opts.editor) {
+    lines.push(
+      '- Website editor: change headline, nav, copy, and images, then publish with write_github_file on main.',
+    );
+  }
+  if (opts.stockPhotos) {
+    lines.push(
+      opts.stockPhotosActive
+        ? '- Stock photos: search_stock_photos is active (Pexels). Credit the photographer and link to pexels.com.'
+        : '- Stock photos: module is on; search_stock_photos needs PEXELS_API_KEY.',
+    );
+  }
+  lines.push(
+    'Railway, Kinsta, Cloudflare, and Name.com APIs are agency/ops tools and are not on this client install. Do not list them as unconfigured web tools.',
+  );
+  return lines.join('\n');
 }
 
 /** Compact catalog for the public marketing-site chat (product capabilities, not this install's flags). */

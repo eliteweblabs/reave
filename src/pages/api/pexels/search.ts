@@ -17,7 +17,7 @@
 import type { APIContext } from 'astro';
 import { isPexelsConfigured, pexelsSearchPhotos } from '../../../lib/pexelsClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import { hasFeature } from '../../../lib/features';
+import { hasStockPhotoSearch } from '../../../lib/features';
 
 export const prerender = false;
 
@@ -35,11 +35,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  if (!hasFeature('stock_photos')) {
+  if (!hasStockPhotoSearch()) {
     return json(
       {
         error: 'Stock photos module is not enabled',
-        hint: 'Add stock_photos to this install’s features[] in config/config-{slug}.json',
+        hint: 'Add website or stock_photos to this install’s features[] in config/config-{slug}.json',
       },
       404,
     );

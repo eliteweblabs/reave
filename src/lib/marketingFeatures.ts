@@ -198,12 +198,19 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     href: '/features#feature-scheduling',
   },
   {
+    id: 'website',
+    label: 'Website',
+    modules: ['website'],
+    kind: 'capability',
+    href: '/features#feature-site-editing',
+    spotlight: true,
+  },
+  {
     id: 'cms-less-editing',
     label: 'Agentic Website Editor',
     modules: ['content_management'],
     kind: 'capability',
     href: '/features#feature-site-editing',
-    spotlight: true,
   },
   {
     id: 'stock-photos',

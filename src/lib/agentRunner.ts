@@ -11,8 +11,8 @@ import { isCraterConfigured } from './craterClient';
 import { isBookingConfigured } from './bookingClient';
 import { isVapiAdminConfigured } from './vapiPlugin';
 import { isUptimeRobotConfigured } from './uptimerobotClient';
-import { enabledFeatures, hasFeature } from './features';
-import { formatAgentCapabilityInventory } from './featureCatalog';
+import { enabledFeatures, hasFeature, hasStockPhotoSearch, hasWebsiteEditor } from './features';
+import { formatAgentCapabilityInventory, formatClientWebsiteToolInventory } from './featureCatalog';
 import { isClerkConfigured } from './clerkClient';
 import { isGithubConfigured } from './githubClient';
 import { prependDeployBanner } from './deployStatus';
@@ -756,7 +756,7 @@ async function runKnowledgeAgentInner(
       'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live on Railway, call check_deployment_status or list_railway_deployments. The header deploy bulb is Railway-only (webhooks + optional GraphQL — not GitHub). Deploy banners (🚀 deploying, 🔴 failed, 🟢 live only when asked or right after a deploy lands) prepend agent replies automatically — do not use ✅ for deploy status. Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check. After you ship to main, this chat auto-resumes when Railway is live — do not go silent waiting, and do not ask the owner to poke you after the deploy. Call set_deploy_resume with a specific next-step message when you need more than the default (sibling service, exact API call). Never say you will continue after the deploy and then stop without that resume in place.',
     );
   }
-  if (hasFeature('content_management') || hasFeature('dev_infra')) {
+  if (hasWebsiteEditor() || hasFeature('dev_infra')) {
     if (isGithubConfigured()) {
       const deployDefer =
         isDeferredDeployEnabled()
@@ -790,7 +790,7 @@ async function runKnowledgeAgentInner(
   }
   if (
     hasFeature('code_dev') ||
-    ((hasFeature('dev_infra') || hasFeature('content_management')) && isGithubConfigured())
+    ((hasFeature('dev_infra') || hasWebsiteEditor()) && isGithubConfigured())
   ) {
     sysParts.push(
       'Long files — read this before building a page or a large component. A tool call\'s arguments count against your per-response output budget, so a whole long file sent in one write_file/write_github_file call gets cut off mid-argument: the call never runs and NOTHING is written. When a file will run long (roughly 400+ lines, e.g. a full marketing/features page with real copy), plan for it up front: make the first call with the opening section (imports, head, first section markup), then make additional calls to the same path with append:true for each following section, then verify with read_file or get_git_status. Do not announce the page and stop, and do not retry the same oversized single call — split it. Prefer several modest sections over one heroic write.',
@@ -869,14 +869,23 @@ async function runKnowledgeAgentInner(
       'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
     );
   }
-  if (hasFeature('stock_photos') && isPexelsConfigured()) {
+  if (hasWebsiteEditor() || hasStockPhotoSearch()) {
+    sysParts.push(
+      formatClientWebsiteToolInventory({
+        editor: hasWebsiteEditor(),
+        stockPhotos: hasStockPhotoSearch(),
+        stockPhotosActive: isPexelsConfigured(),
+      }),
+    );
+  }
+  if (hasStockPhotoSearch() && isPexelsConfigured()) {
     sysParts.push(
       'Stock photos: use search_stock_photos to find royalty-free imagery for pages, decks, and newsletters. Pexels terms require crediting the photographer and linking back to the photo\'s Pexels page wherever the image is displayed.',
     );
   }
-  if (hasFeature('content_management')) {
+  if (hasWebsiteEditor()) {
     sysParts.push(
-      'Agentic Website Editor: when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or get_recent_commits, then commit with write_github_file on main (GITHUB_TOKEN). The host that deploys this repo (Railway or any git-connected host) publishes the change. Images belong in the media library (slug → /api/media/{slug} in site config), not git. Pair with search_stock_photos for imagery. read_knowledge slug "content-management" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
+      'Agentic Website Editor: when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or get_recent_commits, then commit with write_github_file on main (GITHUB_TOKEN). The host that deploys this repo (Railway or any git-connected host) publishes the change. Images belong in the media library (slug → /api/media/{slug} in site config), not git. Pair with search_stock_photos for imagery. read_knowledge slug "content-management" or "website" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
     );
   }
   if (hasFeature('wordpress_content')) {
@@ -886,7 +895,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('site_audits')) {
     sysParts.push(
-      'Website review: use fetch_url to read a client website (content, title, meta description). Use seo_inventory for the sales SEO checklist (og:image / Open Graph, Twitter cards, robots.txt, XML sitemap, web manifest, favicon, canonical, meta robots/noindex, JSON-LD) with Problem → Impact pitches — run it on every website audit. Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Call lighthouse_audit at most once per audit — if it fails (timeout, slow website, PSI error), proceed to update_work immediately; do NOT retry (retries burn the tool-round budget and the run will fail). Grade Performance from Chrome UX Report field data when present, otherwise the mobile/desktop lab average — a low lab-mobile score alone is not a failing site (nytimes.com often labs in the 20s). Quick/street audits: pass category "performance" only (2 PSI calls, not 8). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for public DNS, SPF/DKIM/DMARC, WHOIS, and hosting-company lookup from A-record IPs (Flywheel vs GoDaddy/Bluehost — note the hosting company under DNS & Email; if shared/budget host + lean build + poor Lighthouse, call out a server resource issue under Performance — do not invent a Backup & Hosting section). Use playwright_audit (Playwright / headless Chromium) for real-browser UX on desktop + mobile in the full tier. When the user asks to check or fix Cloudflare DNS or SSL (or says nameservers are Cloudflare), call cloudflare_dns verify then list_records / get_ssl_mode before concluding — dns_check alone can lag after a recent NS change. If fetch_url or ssl_check shows Cloudflare Error 525 (SSL handshake failed), call get_ssl_mode then set_ssl_mode flexible when the user wants it fixed — do not ask them to log into Cloudflare. Use brave_search for Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
+      'Website review: use fetch_url to read a client website (content, title, meta description). Use seo_inventory for the sales SEO checklist (og:image / Open Graph, Twitter cards, robots.txt, XML sitemap, web manifest, favicon, canonical, meta robots/noindex, JSON-LD) with Problem → Impact pitches — run it on every website audit. Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Call lighthouse_audit at most once per audit — if it fails (timeout, slow website, PSI error), proceed to update_work immediately; do NOT retry (retries burn the tool-round budget and the run will fail). Grade Performance from Chrome UX Report field data when present, otherwise the mobile/desktop lab average — a low lab-mobile score alone is not a failing site (nytimes.com often labs in the 20s). Quick/street audits: pass category "performance" only (2 PSI calls, not 8). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for public DNS, SPF/DKIM/DMARC, WHOIS, and hosting-company lookup from A-record IPs (Flywheel vs GoDaddy/Bluehost — note the hosting company under DNS & Email; if shared/budget host + lean build + poor Lighthouse, call out a server resource issue under Performance — do not invent a Backup & Hosting section). Use playwright_audit (Playwright / headless Chromium) for real-browser UX on desktop + mobile in the full tier. Use dns_check for public nameserver and SSL conclusions. Cloudflare DNS/SSL APIs are agency/ops only — do not mention cloudflare_dns unless that tool is in this turn\'s inventory. Use brave_search for Google Business Profile, Apple Business Connect / Apple Maps, Yelp, reviews/reputation, and social presence. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
       'Audit projects from website audits: call read_knowledge before create_work or update_work. Always set status "audit" (never inquiry or archived) and tags including siri-audit plus quick-audit or full-audit. If the audit does not find a real person\'s given and family name, leave first/last empty — never split the business name or a search snippet into those fields. **Quick/street tier** (Siri "audit" / create_proposal): slug "inquiry-website-audit-quick" — fetch_url, seo_inventory, lighthouse_audit (category performance only), ssl_check, dns_check, brave_search; skip playwright_audit, check_links, detect_tech_stack, and Search/Analytics tools. **Full tier** (Siri "full audit"): slug "inquiry-website-audit" — add playwright_audit (cite as Playwright / Chromium in UX & Mobile sections), check_links, detect_tech_stack, and when analytic_audit is enabled: gsc_search_analytics / gsc_inspect_url / gsc_list_sitemaps plus plausible_stats or ga4_stats (always pass explicit site_url / site_id / property_id — never company domain). If analytics tools return ANALYTICS_FAILED, mark Search / Analytics as Failed and do not invent metrics. Run all read-only audit tools in one parallel batch, then update_work once — do not call read_work for reference during audits. Write a 1,200+ char body (quick) or 1,500+ char body (full) with separate headings for the four Lighthouse categories (Performance, Accessibility, Best Practices, SEO — do not wrap under Website), plus SSL, Content, DNS, Online Presence, Search / Analytics (full), Opportunities, and Action Items — never a short prospect stub. In SEO / Search Rich Results, quote seo_inventory checklist items (og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD) and copy Problem → Impact pitches into Opportunities. In Online Presence, use separate bullets for Google Business Profile, Apple Business Connect, Reviews, Social, and Listings (Found/Missing/Incomplete) — the portal combines Google/Apple/Yelp into one Maps & Directories coverage score. In Opportunities, write Problem → Solution pairs the client portal can promote as service ideas. If a stub project exists, update_work with the full audit (keep status audit). **Title:** catchy finding-based headline (5–12 words) — do NOT include the business name (it shows as the client name in the list). Never "Website Redesign — {Business Name}".',
     );
   }

@@ -53,6 +53,7 @@ const SYSTEM_NODES = [
   { id: 'seo_directory', title: 'SEO Directory API Kit', sub: 'second-tier citations · BrightLocal Citation Builder (FEATURES: seo_directory)', icon: '📂', hue: 200, status: true, group: 'reave', x: 640, y: 876 },
   { id: 'event_ticketing', title: 'Event ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },
   { id: 'cookie_notice', title: 'Cookie notice', sub: 'implied consent bar · /cookies (FEATURES: cookie_notice)', icon: '🍪', hue: 32, status: true, group: 'reave', x: 640, y: 1020 },
+  { id: 'website', title: 'Website', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'agent edits + Git publish · no CMS (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
@@ -181,6 +182,9 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'astro', to: 'ipwhois', label: 'dns_check hosting lookup', dashed: true },
   { from: 'astro', to: 'namecom', label: 'namecom_dns · records + NS', dashed: true },
+  { from: 'dev', to: 'website', label: 'client website pack', dashed: true },
+  { from: 'website', to: 'content_mgmt', label: 'editor + Git', dashed: true },
+  { from: 'website', to: 'pexels', label: 'stock photos', dashed: true },
   { from: 'dev', to: 'content_mgmt', label: 'update site copy', dashed: true },
   { from: 'content_mgmt', to: 'github', label: 'write_github_file', dashed: true },
   { from: 'content_mgmt', to: 'astro', label: 'config/sites · src/pages', dashed: true },
@@ -199,7 +203,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'website', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom'] },
 ];
 

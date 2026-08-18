@@ -40,6 +40,7 @@ assert.equal(isPublicFeature('dev_infra'), false);
 assert.equal(isPublicFeature('code_dev'), false);
 assert.equal(isPublicFeature('namecom_dns'), false);
 assert.equal(isPublicFeature('content_management'), true);
+assert.equal(isPublicFeature('website'), true);
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');

@@ -41,6 +41,7 @@ const FEATURE_LABELS: Record<string, string> = {
   stock_photos: 'Pexels stock photos',
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',
+  website: 'Website (client web tools)',
 };
 
 const FEATURE_IDS = Object.keys(FEATURE_LABELS);

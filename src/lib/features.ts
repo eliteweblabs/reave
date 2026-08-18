@@ -78,6 +78,16 @@ export function hasFeature(id: FeatureId): boolean {
   return enabledFeatures().has(id);
 }
 
+/** Client Website module, or the editor flag it bundles. */
+export function hasWebsiteEditor(): boolean {
+  return hasFeature('website') || hasFeature('content_management');
+}
+
+/** Client Website module, or the standalone stock-photos flag. */
+export function hasStockPhotoSearch(): boolean {
+  return hasFeature('website') || hasFeature('stock_photos');
+}
+
 /** Reset parse cache (tests / hot reload). */
 export function clearFeatureCache(): void {
   _cached = null;

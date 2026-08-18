@@ -1247,7 +1247,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description: 'GitHub PAT for the Agentic Website Editor (write_github_file).',
-    features: ['content_management', 'dev_infra'],
+    features: ['website', 'content_management', 'dev_infra'],
   }),
   v({
     name: 'RAILWAY_API_TOKEN',
@@ -1286,7 +1286,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description: 'Pexels stock photos (server-only).',
-    features: ['stock_photos'],
+    features: ['website', 'stock_photos'],
   }),
   v({
     name: 'NAMECOM_USERNAME',

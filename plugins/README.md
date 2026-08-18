@@ -39,6 +39,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
 | `inventory/` | `inventory_sync` | `inventory-sync.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
+| `website/` | `website` | `website.md` | — client website pack (bundles editor + stock photos; no hosting APIs) |
 | `content-management/` | `content_management` | `content-management.md`, `github-dev-tools.md` | yes — Git publish (Agentic Website Editor) |
 | `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | — (stub; companion WP plugin + agent tools TBD) |
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |

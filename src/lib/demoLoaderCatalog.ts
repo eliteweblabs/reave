@@ -152,6 +152,7 @@ export const DEMO_LOADER_SECTION_GROUPS: ReadonlyArray<{
     title: 'Web Development Modules',
     features: [
       'site_audits',
+      'website',
       'content_management',
       'code_dev',
       'namecom_dns',

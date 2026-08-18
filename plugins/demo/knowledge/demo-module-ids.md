@@ -43,6 +43,7 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 025 | `content_management` | Agentic Website Editor |
 | 026 | `stock_photos` | Pexels stock photos |
 | 027 | `wordpress_content` | WordPress content plugin |
+| 033 | `website` | Website |
 
 ## Default suite (no URL)
 
