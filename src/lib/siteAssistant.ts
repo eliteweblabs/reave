@@ -1,7 +1,8 @@
 /**
  * Public marketing-site "speed dial" help assistant — the same floating chat
  * pattern as the client portal (`portalAssistant.ts`), but scoped to general
- * questions from homepage and /features visitors (services, pricing, booking).
+ * questions from inner marketing pages (features, pricing, booking). The
+ * homepage does not mount this widget.
  *
  * No tools, no client data, no destructive actions.
  */
