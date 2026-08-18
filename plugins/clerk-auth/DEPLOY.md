@@ -3,8 +3,9 @@
 Provides agent tools for managing Clerk authentication — users, sessions,
 and organizations on the **current** Clerk app.
 
-Clerk does not allow system-level access. There is no workspace master key
-that can create, list, or delete other Clerk applications.
+Clerk does not allow system-level access. Clerk Pro does not provide a
+platform key. There is no workspace master key that can create, list, or
+delete other Clerk applications.
 
 ## Environment Variables
 
@@ -35,4 +36,4 @@ These exist so the agent gets a clear answer instead of inventing a workaround:
 
 Each responds: **Clerk does not allow system level access.**
 
-Do not invent a manual clerk.com walkthrough or a Pro / Platform API alternative.
+Do not invent a manual clerk.com walkthrough. Do not say Pro unlocks a platform key.

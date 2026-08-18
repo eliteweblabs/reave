@@ -2,7 +2,7 @@
  * Clerk Backend API client.
  *
  * Backend API — https://api.clerk.com/v1  (per-app, requires CLERK_SECRET_KEY)
- * Clerk does not allow system-level access. There is no workspace master key.
+ * Clerk does not allow system-level access. Clerk Pro does not provide a platform key.
  */
 import { serverEnv } from './serverEnv';
 
@@ -11,9 +11,7 @@ const CLERK_API_BASE = 'https://api.clerk.com/v1';
 // ─── key helpers ─────────────────────────────────────────────────────────────
 
 export function isClerkConfigured(): boolean {
-  return Boolean(
-    serverEnv('CLERK_SECRET_KEY')?.trim() || serverEnv('CLERK_PLATFORM_KEY')?.trim(),
-  );
+  return Boolean(serverEnv('CLERK_SECRET_KEY')?.trim());
 }
 
 export function isClerkPlatformConfigured(): boolean {

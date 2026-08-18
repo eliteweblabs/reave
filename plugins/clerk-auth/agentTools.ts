@@ -69,7 +69,7 @@ export const clerkAuthModule: AgentToolModule = {
 
   definitions(_ctx: ToolContext) {
     return [
-      // ── Platform API ──────────────────────────────────────────────────────
+      // ── System-level (always refuse — Pro does not provide a platform key) ─
       {
         type: 'function' as const,
         function: {
@@ -379,7 +379,7 @@ export const clerkAuthModule: AgentToolModule = {
   },
 
   handlers: {
-    // ── Platform API ──────────────────────────────────────────────────────────
+    // ── System-level (always refuse — Pro does not provide a platform key) ────
 
     async clerk_list_apps(_args, _ctx) {
       return JSON.stringify({ error: CLERK_NO_SYSTEM_ACCESS });

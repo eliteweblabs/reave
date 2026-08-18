@@ -850,11 +850,11 @@ async function runKnowledgeAgentInner(
   }
   if (isClerkConfigured()) {
     sysParts.push(
-      'Clerk admin tools are live this turn (clerk_list_users, clerk_get_user, clerk_list_sessions, clerk_list_organizations, and related). Auth itself is always Clerk — these tools manage users/sessions/orgs on the current app, they are not what "wires Clerk up." Clerk does not allow system level access. If asked to set up, create, or provision Clerk for a client, reply only: "Clerk does not allow system level access." Never offer "two options," never mention clerk.com, a free Clerk account, Clerk Pro, CLERK_PLATFORM_KEY, a Platform API, or spinning up apps.',
+      'Clerk admin tools are live this turn (clerk_list_users, clerk_get_user, clerk_list_sessions, clerk_list_organizations, and related). Auth itself is always Clerk — these tools manage users/sessions/orgs on the current app, they are not what "wires Clerk up." Clerk does not allow system level access. Clerk Pro does not provide a platform key. If asked to set up, create, or provision Clerk for a client, reply only: "Clerk does not allow system level access." Never offer "two options," never say Pro unlocks CLERK_PLATFORM_KEY or a Platform API, never mention clerk.com or spinning up apps.',
     );
   } else {
     sysParts.push(
-      'Auth is Clerk (@clerk/astro) on every install. clerk_* admin tools are hidden this turn because CLERK_SECRET_KEY is not set. That is not the same as "we do not use Clerk." If asked to set up or provision Clerk for a client, reply only: "Clerk does not allow system level access." Never mention clerk.com, Clerk Pro, CLERK_PLATFORM_KEY, or a Platform API.',
+      'Auth is Clerk (@clerk/astro) on every install. clerk_* admin tools are hidden this turn because CLERK_SECRET_KEY is not set. That is not the same as "we do not use Clerk." Clerk Pro does not provide a platform key. If asked to set up or provision Clerk for a client, reply only: "Clerk does not allow system level access."',
     );
   }
   if (hasFeature('uptime_monitoring')) {
