@@ -1,5 +1,5 @@
 /**
- * Google OAuth for Search Console + GA4 + Site Verification (agency or per-contact).
+ * Google OAuth for Search Console + GA4 + Site Verification + Workspace DKIM (agency or per-contact).
  *
  * Reuses GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (same Cloud project as YouTube).
  * Tokens live in integration_tokens under provider `google_webmaster`.
@@ -19,6 +19,8 @@ export const GOOGLE_WEBMASTER_SCOPES = [
   'https://www.googleapis.com/auth/webmasters',
   'https://www.googleapis.com/auth/analytics.readonly',
   'https://www.googleapis.com/auth/siteverification',
+  // Google Workspace DKIM management (Gmail Admin API)
+  'https://www.googleapis.com/auth/admin.directory.domain',
   'openid',
   'email',
 ] as const;
@@ -230,7 +232,7 @@ export async function getGoogleWebmasterAccessToken(
 
 export class AnalyticsAuthError extends Error {
   readonly code = 'ANALYTICS_AUTH' as const;
-  constructor(message: string) {
+  constructor(message: string, readonly status?: number) {
     super(message);
     this.name = 'AnalyticsAuthError';
   }

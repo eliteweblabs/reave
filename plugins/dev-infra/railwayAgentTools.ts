@@ -2,7 +2,7 @@
  * Railway agent tools — MCP-parity for the in-app admin agent (dev_infra).
  */
 import { cachedCompanyBrandName } from '../../src/lib/companyConfig';
-import { createRailwayEmptyProject, formatRailwayNetworkingSummary, isRailwayConfigured, railwayListProjectNetworking, railwayListProjects } from '../../src/lib/railwayClient';
+import { createRailwayEmptyProject, formatRailwayNetworkingSummary, isRailwayConfigured, railwayEnsureCustomDomain, railwayListProjectNetworking, railwayListProjects, railwayResolveProject, railwayResolveService, pickRailwayEnvironment } from '../../src/lib/railwayClient';
 import {
   formatRailwayLogsSummary,
   formatRailwayStatusSummary,
@@ -96,6 +96,54 @@ async function handle_list_railway_domains(args: Record<string, unknown>, _ctx: 
     ok: true,
     summary: formatRailwayNetworkingSummary(result.data),
     data: result.data,
+  });
+}
+
+async function handle_add_railway_domain(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const blocked = railwayGate();
+  if (blocked) return blocked;
+
+  const domain = strArg(args, 'domain');
+  if (!domain) return JSON.stringify({ error: 'domain is required' });
+  const service = strArg(args, 'service');
+  if (!service) return JSON.stringify({ error: 'service is required' });
+
+  const projectRef = strArg(args, 'project');
+  const envName = (strArg(args, 'environment') || 'production').toLowerCase();
+
+  const resolved = await railwayResolveProject(projectRef ?? '');
+  if (!resolved.ok) return JSON.stringify({ error: resolved.error });
+
+  const environment = pickRailwayEnvironment(resolved.environments, envName);
+  if (!environment) return JSON.stringify({ error: `Environment "${envName}" not found in project ${resolved.project.name}` });
+
+  const svcResult = railwayResolveService(resolved.services, service);
+  if (!svcResult.ok) return JSON.stringify({ error: svcResult.error });
+
+  const result = await railwayEnsureCustomDomain({
+    projectId: resolved.project.id,
+    environmentId: environment.id,
+    serviceId: svcResult.service.id,
+    domain,
+  });
+
+  if (!result.ok) return JSON.stringify({ error: result.error });
+
+  const d = result.domain;
+  const dnsRecords = d.status?.dnsRecords ?? [];
+  const verificationToken = d.status?.verificationToken ?? null;
+
+  return JSON.stringify({
+    ok: true,
+    created: result.created,
+    domain: d.domain,
+    id: d.id,
+    certificateStatus: d.status?.certificateStatus ?? null,
+    verificationToken,
+    dnsRecords,
+    hint: result.created
+      ? `Domain "${d.domain}" added to Railway. Set a CNAME DNS record pointing to ${dnsRecords[0]?.requiredValue ?? '<railway-cname>'} (DNS-only, no proxy) and a TXT record _railway-verify with value ${verificationToken ?? '<token>'}.`
+      : `Domain "${d.domain}" was already registered on this service.`,
   });
 }
 
@@ -344,6 +392,25 @@ export function railwayAgentToolDefinitions(ctx: ToolContext): AgentToolDef[] {
     {
       type: 'function',
       function: {
+        name: 'add_railway_domain',
+        description:
+          'Add a custom domain to a Railway service in a specific project and environment. Creates the domain if it does not already exist and returns the CNAME target and _railway-verify TXT token needed for DNS. Requires RAILWAY_API_TOKEN.',
+        parameters: {
+          type: 'object',
+          properties: {
+            domain: { type: 'string', description: 'Custom hostname to add, e.g. capcofire.com or www.capcofire.com' },
+            project: { type: 'string', description: 'Project name or UUID' },
+            environment: { type: 'string', description: 'Environment name (default: production)' },
+            service: { type: 'string', description: 'Service name or UUID' },
+          },
+          required: ['domain', 'service'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'list_railway_variables',
         description:
           'Read Railway environment variables (rendered values; reference vars like ${{Postgres.DATABASE_URL}} are resolved). Omit service for shared environment variables. Use names_only:true to list keys without values. Never paste secret values in chat unless the owner asks. Requires RAILWAY_API_TOKEN.',
@@ -559,6 +626,7 @@ export const railwayAgentToolHandlers: Record<string, ToolHandler> = {
   list_railway_workspaces: handle_list_railway_workspaces,
   list_railway_services: handle_list_railway_services,
   list_railway_domains: handle_list_railway_domains,
+  add_railway_domain: handle_add_railway_domain,
   list_railway_variables: handle_list_railway_variables,
   set_railway_variables: handle_set_railway_variables,
   delete_railway_variable: handle_delete_railway_variable,

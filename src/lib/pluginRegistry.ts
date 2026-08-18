@@ -35,6 +35,7 @@ import { seoDirectoryPlugin } from '../../plugins/seo-directory/manifest';
 import { clerkAuthPlugin } from '../../plugins/clerk-auth/manifest';
 import { cookieNoticePlugin } from '../../plugins/cookie-notice/manifest';
 import { deployWizardPlugin } from '../../plugins/deploy-wizard/manifest';
+import { googleWorkspaceDkimPlugin } from '../../plugins/google-workspace-dkim/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -64,6 +65,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   clerkAuthPlugin,
   cookieNoticePlugin,
   deployWizardPlugin,
+  googleWorkspaceDkimPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -183,6 +185,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['deploy-wizard'];
     case 'namecom-dns':
       return ['namecom-dns'];
+    case 'google-workspace-dkim':
+      return ['google-workspace-dkim'];
     default:
       return [];
   }
