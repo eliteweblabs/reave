@@ -344,8 +344,18 @@
 .swipe-act:active { filter: brightness(0.92); }
 
 /* Two-step delete confirm (trash → stopwatch + ring countdown) */
+@property --timing-ring-circ {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 76.97;
+}
+@property --delete-ring-circ {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 76.97;
+}
 @keyframes delete-confirm-draw-ring {
-  from { stroke-dashoffset: var(--timing-ring-circ, var(--delete-ring-circ, 76.97)); }
+  from { stroke-dashoffset: var(--timing-ring-circ, 76.97); }
   to { stroke-dashoffset: 0; }
 }
 .timing-ring-host {
