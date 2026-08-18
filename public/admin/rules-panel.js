@@ -341,21 +341,27 @@ function appendRuleField(parent, label, el, hint) {
   return { wrap, hintEl };
 }
 
+let rulesLoadGen = 0;
+
 async function loadRulesTab() {
   const root = getRuleEditor();
   if (!root) return;
+  const gen = ++rulesLoadGen;
   mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
   try {
     const res = await fetch('/api/email/rules', { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (gen !== rulesLoadGen) return;
     ruleState.rules = data.rules || [];
     ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
     ruleState.storage = data.storage || 'files';
   } catch (e) {
+    if (gen !== rulesLoadGen) return;
     root.innerHTML = `<div class="de-loading de-error">Failed to load rules: ${escHtml(e.message)}</div>`;
     return;
   }
+  if (gen !== rulesLoadGen) return;
   if (ruleState.activeId && !ruleState.rules.some((r) => r.id === ruleState.activeId)) {
     ruleState.activeId = null;
     ruleState.dirty = false;
@@ -1528,6 +1534,7 @@ async function startNewRule(draft = null) {
  */
 async function openRulesLabWithEmail(emailRecord, opts = {}) {
   if (!emailRecord || typeof emailRecord !== 'object') return;
+  shell.setActiveMap?.('rules', { force: true });
   await loadRulesTab();
   const lab = getTriageLab();
   await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });

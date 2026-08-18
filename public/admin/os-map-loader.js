@@ -258,7 +258,7 @@ import {
   loadRulesTab,
   openRulesLabWithEmail,
   startNewRule,
-} from './rules-panel.js?v=20260815c';
+} from './rules-panel.js?v=20260818a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -10404,6 +10404,7 @@ initRulesPanel({
   beginCreateDrawer,
   finishCreateDrawer,
   companyBrand,
+  setActiveMap,
 });
 
 initNewsletterPanel({});
@@ -13997,14 +13998,29 @@ function createEmailLabBtn(ev) {
 }
 
 async function createRuleFromEmailLab() {
-  const ev = emailState.allEvents.find((e) => e.id === emailState.labEmailId);
+  const labId = emailState.labEmailId;
+  const ev =
+    emailState.allEvents.find((e) => String(e.id) === String(labId)) ||
+    emailState.allEvents.find((e) => String(e.id) === String(emailState.activeId));
   const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
-  if (!ev || !phrases.length || emailState.labCreating) return;
+  if (!phrases.length || emailState.labCreating) return;
+  if (!ev) {
+    await osAlert({
+      title: 'Could not create rule',
+      bodyHtml: 'This email is no longer in the inbox list.',
+    });
+    return;
+  }
   const fields = [...new Set(emailState.labPhrases.map((p) => p.field))];
   emailState.labCreating = true;
   refreshEmailLabBar();
+  const createBtn = getEmailPanel()?.querySelector('[data-email-lab-create]');
+  if (createBtn) {
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating…';
+  }
   try {
-    await startNewRule({
+    const rule = await startNewRule({
       title: phrases[0].length > 48 ? `${phrases[0].slice(0, 47)}…` : phrases[0],
       status: 'DELETE',
       scope: 'personal',
@@ -14020,12 +14036,20 @@ async function createRuleFromEmailLab() {
       enabled: true,
       expiresAt: null,
     });
+    if (!rule) {
+      emailState.labCreating = false;
+      refreshEmailLabBar();
+      if (createBtn) createBtn.textContent = 'Create Rule';
+      return;
+    }
     const full = await fetchFullEmailRecord(ev);
     exitEmailLabMode({ silent: true });
-    await openRulesLabWithEmail(full, { run: false });
+    await openRulesLabWithEmail(full, { run: true });
   } catch (e) {
     emailState.labCreating = false;
     refreshEmailLabBar();
+    const btn = getEmailPanel()?.querySelector('[data-email-lab-create]');
+    if (btn) btn.textContent = 'Create Rule';
     await osAlert({
       title: 'Could not create rule',
       bodyHtml: escHtml(e?.message || String(e)),
