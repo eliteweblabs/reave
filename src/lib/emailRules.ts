@@ -10,6 +10,9 @@
  * Sender-based rules do not scale; every new service needs a new rule.
  * Instead, rules match subject and body language so they generalise across
  * any sending address.
+ * Known contacts are a junk green light: the catalog DELETE catch-all
+ * (unsubscribe / opt-out) does not apply to senders in Contacts. Personal
+ * sender DELETE rules still run and can junk.
  *
  * Triage is sequential priority — never parallel.
  * First enabled match wins; later rules are skipped (short-circuit).
@@ -349,7 +352,8 @@ export const DEFAULT_RULES: EmailRule[] = [
   {
     status: 'DELETE',
     scope: 'universal',
-    description: 'Marketing trash — file silently, no alert.',
+    description:
+      'Marketing trash — file silently, no alert. Does not apply to known contacts (personal sender DELETE rules still can).',
     phrases: [
       'unsubscribe',
       'you received this because',
@@ -389,6 +393,24 @@ export function isRepoCatalogRule(rule: {
   if (normalizeEmailRuleScope(rule.scope, 'personal') !== 'universal') return false;
   if (!isRepoCatalogStatus(String(rule.status || ''))) return false;
   return !(rule.fields || []).includes('from');
+}
+
+/**
+ * Universal catalog junk catch-all (unsubscribe / opt-out). Known contacts
+ * skip this rule so product mail from Cursor, Railway, etc. is not hidden
+ * just because the footer says "unsubscribe". Personal `from` DELETE rules
+ * are not catalog rows and still apply.
+ */
+export function isCatalogMarketingDeleteRule(rule: {
+  status?: string;
+  scope?: string | null;
+  fields?: readonly string[] | null;
+}): boolean {
+  const s = String(rule.status || '')
+    .trim()
+    .toUpperCase();
+  if (s !== 'DELETE' && s !== 'JUNK') return false;
+  return isRepoCatalogRule(rule);
 }
 
 function fieldValue(email: InboundEmail, field: RuleField): string {
@@ -472,8 +494,14 @@ export type RuleEvaluationOutcome =
   | 'matched'
   | 'no_match'
   | 'skipped_after_match'
+  | 'skipped_known_contact'
   | 'disabled'
   | 'pinned_checked';
+
+export type EvaluateEmailRulesOptions = {
+  /** Sender is in Contacts — catalog marketing DELETE does not apply. */
+  knownContact?: boolean;
+};
 
 export type RuleEvaluation = {
   rule: EmailRule;
@@ -496,6 +524,7 @@ export function evaluateEmailRules(
   email: InboundEmail,
   rules: EmailRule[] = DEFAULT_RULES,
   notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED,
+  options?: EvaluateEmailRulesOptions,
 ): RuleEvaluationResult {
   const evaluations: RuleEvaluation[] = [];
   let order = 0;
@@ -554,6 +583,10 @@ export function evaluateEmailRules(
       pushEval(rule, 'disabled');
       continue;
     }
+    if (options?.knownContact && isCatalogMarketingDeleteRule(rule)) {
+      pushEval(rule, ruleMatches(rule, email) ? 'skipped_known_contact' : 'no_match');
+      continue;
+    }
     if (ruleMatches(rule, email)) {
       pushEval(rule, 'matched');
       matched = rule;
@@ -580,9 +613,10 @@ export function evaluateEmailRules(
 export function classifyEmail(
   email: InboundEmail,
   rules: EmailRule[] = DEFAULT_RULES,
-  notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED
+  notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED,
+  options?: EvaluateEmailRulesOptions,
 ): Classification {
-  return evaluateEmailRules(email, rules, notifyOnUnmatched).classification;
+  return evaluateEmailRules(email, rules, notifyOnUnmatched, options).classification;
 }
 
 /** True when a matched rule means silent file/junk — no dashboard or push. */

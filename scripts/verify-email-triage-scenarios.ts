@@ -27,6 +27,8 @@ type Scenario = {
   /** When set, replace DEFAULT_RULES with pin + extras (except-veto). */
   rulesOnly?: 'pinned-plus-extra';
   expectNotify?: boolean;
+  /** Sender is in Contacts — catalog marketing DELETE does not apply. */
+  knownContact?: boolean;
 };
 
 const scenarios: Scenario[] = [
@@ -245,6 +247,39 @@ const scenarios: Scenario[] = [
     expectStatus: 'UNMATCHED',
   },
   {
+    id: 'known-contact-skips-catalog-delete',
+    label: 'Known contact skips catalog unsubscribe DELETE',
+    email: {
+      from: 'Cursor <team@mail.cursor.com>',
+      subject: 'Cursor code hosting is here',
+      text: 'Origin is available. To unsubscribe click here. Manage your email preferences anytime.',
+    },
+    knownContact: true,
+    expectStatus: 'UNMATCHED',
+  },
+  {
+    id: 'known-contact-personal-delete',
+    label: 'Known contact still honors personal from-DELETE',
+    email: {
+      from: 'Cursor <team@mail.cursor.com>',
+      subject: 'Cursor code hosting is here',
+      text: 'Origin is available. To unsubscribe click here.',
+    },
+    knownContact: true,
+    extraRules: [
+      {
+        status: 'DELETE',
+        phrases: ['team@mail.cursor.com'],
+        matchMode: 'any',
+        fields: ['from'],
+        notify: false,
+        enabled: true,
+      },
+    ],
+    expectStatus: 'DELETE',
+    expectNotify: false,
+  },
+  {
     id: 'newsletter-no-junk-phrase',
     label: 'Newsletter without unsubscribe phrase → agent else',
     email: {
@@ -304,6 +339,7 @@ function main() {
       s.email,
       rulesForScenario(s),
       true,
+      { knownContact: s.knownContact === true },
     );
     const got = String(classification.status || 'UNMATCHED').toUpperCase();
     const expect = s.expectStatus.toUpperCase();

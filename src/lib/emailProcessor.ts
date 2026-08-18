@@ -212,7 +212,7 @@ Respond with ONLY valid JSON (no markdown fences):
   "proposed_meeting_duration_minutes": "integer minutes when the email states a meeting length (60 for an hour, 30 for half hour); null when unspecified"
 }
 Categories:
-- junk: marketing, newsletters, spam, bulk list mail (not tax receipts — those may be filed separately)
+- junk: marketing, newsletters, spam, bulk list mail (not tax receipts — those may be filed separately). NEVER use junk when Known contact is set — those senders stay visible (internal or review) unless a keyword rule files them.
 - client: client project updates, requests, files, approvals
 - alert: uptime, security, monitoring, auth warnings
 - internal: personal/admin not tied to a client job
@@ -304,7 +304,7 @@ function extractContact(data: unknown): { uid: string; name: string; email: stri
   return null;
 }
 
-async function resolveSenderContact(senderEmail: string): Promise<{
+export async function resolveSenderContact(senderEmail: string): Promise<{
   uid: string | null;
   name: string | null;
   emailOnRecord: string | null;
@@ -523,13 +523,20 @@ export async function processInboundEmail(
       html: email.html,
     })?.code ?? null;
 
+  const sender = await resolveSenderContact(senderEmail);
+  let contactUid = sender.uid;
+  let contactName = sender.name;
+  const contactEmailOnRecord = sender.emailOnRecord;
+  const clientKind = sender.clientKind;
+  const knownContact = Boolean(contactUid);
+
   const loaded = await loadActiveEmailRules();
   const rules = options?.rules ?? loaded.rules;
   const notifyOnUnmatched =
     options?.notifyOnUnmatched !== undefined
       ? options.notifyOnUnmatched
       : loaded.notifyOnUnmatched;
-  const ruleWalk = evaluateEmailRules(email, rules, notifyOnUnmatched);
+  const ruleWalk = evaluateEmailRules(email, rules, notifyOnUnmatched, { knownContact });
   const ruleResult = ruleWalk.classification;
   const matchedId = (ruleResult.matched as EmailRuleRecord | null)?.id;
   if (matchedId && !dryRun) {
@@ -538,6 +545,15 @@ export async function processInboundEmail(
     });
   }
   const classificationAudit: ClassificationAuditStep[] = [
+    classificationAuditStep(
+      'contact',
+      knownContact
+        ? `Known contact${contactName ? `: ${contactName}` : ''}`
+        : 'Unknown sender',
+      knownContact
+        ? 'Green light — catalog junk does not apply; personal DELETE rules still run'
+        : 'Not in Contacts — catalog junk and AI may file as junk',
+    ),
     auditForMatchedRule(ruleResult.matched, ruleResult.status, {
       from,
       subject: email.subject ?? '',
@@ -557,17 +573,21 @@ export async function processInboundEmail(
     classificationAudit.push(classificationAuditStep(step, decision, detail));
   };
 
+  const skippedCatalogJunk = ruleWalk.evaluations.find((e) => e.outcome === 'skipped_known_contact');
+  if (skippedCatalogJunk) {
+    pushAudit(
+      'contact',
+      'Known contact skipped catalog junk',
+      skippedCatalogJunk.rule.description ||
+        'Unsubscribe / opt-out catch-all does not apply to Contacts',
+    );
+  }
+
   // Silent first-match (DELETE / notify:false) hard-stops triage — AI must not
   // re-label Google/service mail as alert and re-open dashboard/push.
   const ruleSilencesNotifications =
     ruleResult.matched != null &&
     (!ruleResult.notify || isSilentTriageStatus(ruleResult.status));
-
-  const sender = await resolveSenderContact(senderEmail);
-  let contactUid = sender.uid;
-  let contactName = sender.name;
-  const contactEmailOnRecord = sender.emailOnRecord;
-  const clientKind = sender.clientKind;
 
   const jobs =
     contactUid != null
@@ -597,6 +617,18 @@ export async function processInboundEmail(
 
   if (agentFirst && aiEnabled()) {
     aiClassify = await runAiClassify(email, jobs, contactName, clientKind, receivedAt);
+    if (aiClassify && aiClassify.label === 'junk' && knownContact) {
+      pushAudit(
+        'contact',
+        'Known contact blocked AI junk',
+        aiClassify.reason || 'AI labeled junk; remapped to internal',
+      );
+      aiClassify = {
+        ...aiClassify,
+        label: 'internal',
+        reason: `Known contact — not junk. ${aiClassify.reason}`.trim(),
+      };
+    }
     if (aiClassify && aiClassify.confidence >= confidenceMin) {
       aiTrusted = true;
     } else {
@@ -932,6 +964,15 @@ export async function processInboundEmail(
           category = 'review';
           routeNote = 'Contact-like mail but sender not in contacts';
           action = 'review';
+        } else if (category === 'junk' && knownContact) {
+          category = 'internal';
+          action = 'classified';
+          routeNote = [routeNote, 'Known contact — not junk'].filter(Boolean).join(' · ');
+          pushAudit(
+            'contact',
+            'Known contact blocked AI junk',
+            'AI triage labeled junk; remapped to internal',
+          );
         } else if (category === 'junk') {
           action = 'junk';
         } else if (category === 'alert') {
@@ -946,8 +987,8 @@ export async function processInboundEmail(
     } else if (category === 'receipt') {
       action = 'receipt';
     } else {
-      // Being in Contacts is not a whitelist — leave review/alert unless a
-      // rule or trusted AI already classified the message.
+      // Known contact already skipped catalog junk. Leave review/alert
+      // unless a personal rule or trusted AI already classified the message.
       category = category === 'alert' ? 'alert' : 'review';
       action = category;
     }

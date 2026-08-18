@@ -311,7 +311,7 @@ const EMAIL_TRIAGE_NODES = [
   { id: 'et_gates', title: 'Cutoff · Sleep mode', sub: 'Drop pre-golive · defer 11pm–7am', icon: '😴', hue: 220, status: true, group: 'et_ingest', x: 320, y: 460 },
 
   // Classify
-  { id: 'et_contact', title: 'Resolve sender', sub: 'contact-api · client kind', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
+  { id: 'et_contact', title: 'Resolve sender', sub: 'known contact skips catalog junk', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
   { id: 'et_rules', title: 'Keyword rules', sub: 'Flow · universal/personal · Agent else', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
   { id: 'et_lab', title: 'Try email (Flow)', sub: 'Compose · live test · first match', icon: '🧪', hue: 70, status: true, group: 'et_classify', x: 600, y: 330 },
   { id: 'et_agent', title: 'Agent else', sub: 'No match → agent handles · teach creates rules', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
@@ -345,7 +345,7 @@ const EMAIL_TRIAGE_EDGES = [
   { from: 'et_gates', to: 'et_contact', label: 'awake' },
   { from: 'et_gates', to: 'et_inbox', label: 'sleep deferred', dashed: true },
 
-  { from: 'et_contact', to: 'et_rules' },
+  { from: 'et_contact', to: 'et_rules', label: 'then rules' },
   { from: 'et_rules', to: 'et_lab', label: 'try email', dashed: true },
   { from: 'et_lab', to: 'et_rules', label: 'same classifyEmail', dashed: true },
   { from: 'et_contact', to: 'et_agent', label: 'unknown / service' },

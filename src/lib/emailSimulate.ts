@@ -8,6 +8,7 @@ import { parseSenderEmail } from './emailAddress';
 import { getCompanyBrandContext } from './companyConfig';
 import {
   processInboundEmail,
+  resolveSenderContact,
   type ProcessedEmailResult,
   type ProcessInboundOptions,
 } from './emailProcessor';
@@ -207,7 +208,9 @@ function stepsFromRuleEvaluations(evaluations: RuleEvaluation[]): TriagePlayback
             ? 'Pinned check — no match'
             : ev.outcome === 'disabled'
               ? 'Disabled — skipped'
-              : 'Skipped (earlier rule won)';
+              : ev.outcome === 'skipped_known_contact'
+                ? 'Skipped — known contact (catalog junk does not apply)'
+                : 'Skipped (earlier rule won)';
     return {
       id: `rule-${i}-${ev.rule.status}`,
       stage: 'rules',
@@ -389,7 +392,10 @@ export async function simulateInboundEmail(
   }));
 
   if (input.rulesOnly) {
-    const walk = evaluateEmailRules(email, rulesForClassify, config.notifyOnUnmatched);
+    const sender = await resolveSenderContact(parseSenderEmail(email.from ?? ''));
+    const walk = evaluateEmailRules(email, rulesForClassify, config.notifyOnUnmatched, {
+      knownContact: Boolean(sender.uid),
+    });
     const matched = walk.classification.matched as EmailRuleRecord | null;
     return {
       ok: true,

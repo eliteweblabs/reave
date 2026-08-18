@@ -1,6 +1,8 @@
 /**
  * Agent-first inbound email classification with confidence.
  * Used for unknown senders and contacts marked clientKind=service.
+ * Known contacts are never filed as junk from this path — catalog DELETE
+ * skip + label remap in processInboundEmail.
  */
 
 import { serverEnv } from './serverEnv';
@@ -184,7 +186,7 @@ Labels (pick exactly one):
 - receipt: expense you paid — "you paid", "amount paid", "your receipt from", payment confirmation for a charge you made (tax/expense receipt). NOT money someone paid you.
 - failed_payment: payment FAILED, past due, outstanding balance, upcoming minimum payment, loan capital reminder, debit warning — NOT a receipt
 - Prefer internal or review (not receipt) for income notices like "Payment of $… from …", "you received a payment", "payment from" — those are money in, not expenses
-- junk: newsletters, marketing, social notifications (TikTok/Facebook/Instagram followers, likes), bulk lists
+- junk: newsletters, marketing, social notifications (TikTok/Facebook/Instagram followers, likes), bulk lists. NEVER use junk when Known contact is a name — known senders are not junk (use internal or review).
 - google_alert: Google Alerts / news digests / keyword monitors — never a new client project
 - alert: uptime, security, monitoring, deploy failures, unusual sign-in warnings (not OTP/activation)
 - client: client project updates, requests, files, approvals from a known client

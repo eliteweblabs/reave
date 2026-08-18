@@ -125,4 +125,16 @@ assert.equal(
   assert.equal(result.matched?.forwardTo, 'jk@capcofire.com');
 }
 
+{
+  const promo = {
+    from: 'Cursor <team@mail.cursor.com>',
+    subject: 'Cursor code hosting is here',
+    text: 'Origin is available. To unsubscribe click here. Manage your email preferences anytime.',
+  };
+  const junked = classifyEmail(promo, DEFAULT_RULES);
+  assert.equal(junked.status, 'DELETE');
+  const kept = classifyEmail(promo, DEFAULT_RULES, true, { knownContact: true });
+  assert.equal(kept.status, 'UNMATCHED');
+}
+
 console.log('verify-email-rule-priority: ok');
