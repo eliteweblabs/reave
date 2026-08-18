@@ -503,6 +503,18 @@
       "image": "portfolio-pdx-paws-featured",
       "imageAlt": "PDX Paws shield logo from pdx-paws.com",
       "size": "2x2"
+    },
+    {
+      "title": "Rothco, LLC",
+      "description": "Veteran-led SDVOSB general contractor delivering federal, healthcare, and commercial construction in the Northeast — VA medical centers, FAA facilities, and safety-first self-perform work. REΛVE built RothcoLLC.com.",
+      "tags": [
+        "Web Design",
+        "Construction",
+        "Federal"
+      ],
+      "image": "portfolio-rothco-featured",
+      "imageAlt": "Rothco Built wordmark over the Worcester FAA airport project",
+      "size": "2x2"
     }
   ]
 }
