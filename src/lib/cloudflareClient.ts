@@ -214,15 +214,19 @@ export async function cloudflareListDnsRecords(
 
 export async function cloudflareUpsertDnsRecord(
   zoneId: string,
-  expected: { type: string; name: string; content: string; priority?: number; ttl?: number },
+  expected: { type: string; name: string; content: string; priority?: number; ttl?: number; proxied?: boolean },
   existing: CfDnsRecord[],
 ): Promise<CfResult<{ action: 'unchanged' | 'created' | 'updated'; record: CfDnsRecord }>> {
   const type = expected.type.toUpperCase();
+  const wantProxied = expected.proxied ?? false;
+
+  // Check for exact match including proxied state
   const match = existing.find(
     (r) =>
       r.type.toUpperCase() === type &&
       r.name.toLowerCase() === expected.name.toLowerCase() &&
-      dnsRecordsMatch(r, expected),
+      dnsRecordsMatch(r, expected) &&
+      (r.proxied ?? false) === wantProxied,
   );
   if (match) {
     return { ok: true, data: { action: 'unchanged', record: match } };
@@ -236,8 +240,8 @@ export async function cloudflareUpsertDnsRecord(
     type,
     name: expected.name,
     content: expected.content,
-    ttl: expected.ttl ?? 1,
-    proxied: false,
+    ttl: wantProxied ? 1 : (expected.ttl ?? 1), // proxied records must use ttl=1 (auto)
+    proxied: wantProxied,
   };
   if (type === 'MX' && expected.priority != null) {
     body.priority = expected.priority;
@@ -322,6 +326,113 @@ export async function cloudflareSetSslMode(
   const out = await cloudflareSetZoneSetting(zoneId, 'ssl', mode);
   if (!out.ok) return out;
   return { ok: true, data: { ...out.data, value: out.data.value as CfSslMode } };
+}
+
+// ---------------------------------------------------------------------------
+// Redirect Rules (Rulesets API)
+// https://developers.cloudflare.com/rules/url-forwarding/single-redirects/create-api/
+// ---------------------------------------------------------------------------
+
+export type CfRedirectRule = {
+  id?: string;
+  description?: string;
+  expression: string;
+  action: 'redirect';
+  action_parameters: {
+    from_value: {
+      status_code: number;
+      target_url: { expression: string };
+      preserve_query_string: boolean;
+    };
+  };
+  enabled?: boolean;
+};
+
+export type CfRuleset = {
+  id: string;
+  phase: string;
+  rules: CfRedirectRule[];
+};
+
+/**
+ * Upsert a dynamic redirect rule in the zone's
+ * http_request_dynamic_redirect phase ruleset.
+ *
+ * Creates the ruleset if it doesn't exist yet, otherwise appends/replaces
+ * a rule with the same description.
+ */
+export async function cloudflareUpsertRedirectRule(
+  zoneId: string,
+  rule: {
+    description: string;
+    expression: string;       // e.g. 'http.host eq "www.example.com"'
+    target_expression: string; // e.g. 'concat("https://example.com", http.request.uri.path)'
+    status_code?: number;      // default 301
+    preserve_query_string?: boolean; // default true
+  },
+): Promise<CfResult<{ action: 'created' | 'updated'; ruleset_id: string; rule_id: string }>> {
+  const phase = 'http_request_dynamic_redirect';
+
+  // 1. Get or create the ruleset
+  const listOut = await cfFetch<CfRuleset[]>(`/zones/${zoneId}/rulesets?phase=${phase}`);
+  if (!listOut.ok) return listOut;
+
+  let rulesetId: string | undefined = listOut.data[0]?.id;
+  let existingRules: CfRedirectRule[] = listOut.data[0]?.rules ?? [];
+
+  if (!rulesetId) {
+    // Create a new empty ruleset for this phase
+    const createOut = await cfFetch<CfRuleset>(`/zones/${zoneId}/rulesets`, {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Redirect Rules', phase, rules: [] }),
+    });
+    if (!createOut.ok) return createOut;
+    rulesetId = createOut.data.id;
+    existingRules = [];
+  }
+
+  // 2. Build the new/replacement rule
+  const newRule: CfRedirectRule = {
+    description: rule.description,
+    expression: rule.expression,
+    action: 'redirect',
+    action_parameters: {
+      from_value: {
+        status_code: rule.status_code ?? 301,
+        target_url: { expression: rule.target_expression },
+        preserve_query_string: rule.preserve_query_string ?? true,
+      },
+    },
+    enabled: true,
+  };
+
+  // 3. Replace existing rule with same description, or append
+  const existingIndex = existingRules.findIndex(
+    (r) => r.description === rule.description,
+  );
+  const wasUpdate = existingIndex !== -1;
+  const existingRuleId = wasUpdate ? existingRules[existingIndex].id : undefined;
+
+  const updatedRules: CfRedirectRule[] = wasUpdate
+    ? existingRules.map((r, i) => (i === existingIndex ? { ...newRule, id: existingRuleId } : r))
+    : [...existingRules, newRule];
+
+  const putOut = await cfFetch<CfRuleset>(`/zones/${zoneId}/rulesets/${rulesetId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ rules: updatedRules }),
+  });
+  if (!putOut.ok) return putOut;
+
+  const savedRule = putOut.data.rules.find((r) => r.description === rule.description);
+
+  return {
+    ok: true,
+    data: {
+      action: wasUpdate ? 'updated' : 'created',
+      ruleset_id: rulesetId,
+      rule_id: savedRule?.id ?? '',
+    },
+  };
 }
 
 export async function cloudflareVerifyToken(): Promise<CfResult<{ id: string; status: string }>> {
