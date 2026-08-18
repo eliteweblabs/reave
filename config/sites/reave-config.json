@@ -492,6 +492,17 @@
       "imageAlt": "Montana-Cans.com placeholder tile for Montana Cans graffiti spray paint",
       "size": "2x1",
       "featured": true
+    },
+    {
+      "title": "PDX Paws",
+      "description": "Portland dog grooming, sitting, walks, and pack adventures — a neighborhood shop with a decade in canine care. REΛVE built the site. Logo tile until project photography is ready.",
+      "tags": [
+        "Web Design",
+        "Branding"
+      ],
+      "image": "portfolio-pdx-paws-featured",
+      "imageAlt": "PDX Paws shield logo from pdx-paws.com",
+      "size": "2x2"
     }
   ]
 }
