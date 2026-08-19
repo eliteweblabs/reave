@@ -8,6 +8,7 @@
  */
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
 import { normalizePostAlias } from './postAlias';
+import { defaultWebsiteRepoSlug } from './websiteEditorRepo';
 
 /** Consumer Astro service — matches Reave App / Reave Demo (`reave`). */
 export const DEPLOY_APP_SERVICE = 'reave';
@@ -1246,8 +1247,16 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'GITHUB_TOKEN',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'GitHub PAT for the Agentic Website Editor (write_github_file).',
+    description:
+      'Fine-grained PAT: Contents write on this install’s website repo only. Do not reuse the REΛVE host token or grant eliteweblabs/reave.',
     features: ['website', 'content_management', 'dev_infra'],
+  }),
+  v({
+    name: 'GITHUB_WEBSITE_REPO',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    description: 'Front-end website repo (owner/repo). Client editor is locked to this; not eliteweblabs/reave.',
+    features: ['website', 'content_management'],
   }),
   v({
     name: 'RAILWAY_API_TOKEN',
@@ -1399,6 +1408,9 @@ export type DeployWizardPlanInput = {
 /** Secrets filled from identity (not copied from this host). */
 export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
 
+/** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
+export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
+
 /** Secrets created via an API on apply (not copied from this host). */
 export const DEPLOY_WIZARD_PROVISIONED_SECRETS = new Set(['RESEND_WEBHOOK_SECRET']);
 
@@ -1406,7 +1418,8 @@ export function isDeployWizardHostSecret(variable: Pick<DeployWizardVariable, 'k
   return (
     variable.kind === 'secret' &&
     !DEPLOY_WIZARD_DERIVED_SECRETS.has(variable.name) &&
-    !DEPLOY_WIZARD_PROVISIONED_SECRETS.has(variable.name)
+    !DEPLOY_WIZARD_PROVISIONED_SECRETS.has(variable.name) &&
+    !DEPLOY_WIZARD_NEVER_INHERIT.has(variable.name)
   );
 }
 
@@ -1536,6 +1549,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
     let filled = raw.value ?? '';
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
+    if (raw.name === 'GITHUB_WEBSITE_REPO') filled = defaultWebsiteRepoSlug(installSlug);
     if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
     if (raw.name === 'POST_ALIAS') filled = postAlias;
     if (raw.name === 'COMPANY_NAME') filled = companyName;

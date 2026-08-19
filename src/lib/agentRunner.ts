@@ -15,6 +15,8 @@ import { enabledFeatures, hasFeature, hasStockPhotoSearch, hasWebsiteEditor } fr
 import { formatAgentCapabilityInventory, formatClientWebsiteToolInventory } from './featureCatalog';
 import { isClerkConfigured } from './clerkClient';
 import { isGithubConfigured } from './githubClient';
+import { isOpsInstall } from './installConfig';
+import { githubWebsiteRepoSlug } from './websiteEditorRepo';
 import { prependDeployBanner } from './deployStatus';
 import { isDeferredDeployEnabled } from './deferredDeploy';
 import { isRailwayConfigured } from './railwayClient';
@@ -762,12 +764,21 @@ async function runKnowledgeAgentInner(
         isDeferredDeployEnabled()
           ? ' Commits to main during this chat turn are queued and push to GitHub automatically when the turn finishes — do not expect check_deployment_status to show live until then.'
           : ' Committing to main publishes through whatever host deploys this repo (Railway, or any git-connected host).';
-      sysParts.push(
-        `GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL (or deferred note when queued). Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed.${deployDefer}`,
-      );
-      sysParts.push(
-        'GitHub scope: write_github_file / create_github_repo only touch source code repos (this app, or an explicitly named sibling service) — a commit is NOT a public URL by itself (no Pages/hosting is wired up) and a brand-new repo is not reachable until deployed. NEVER use these to "host" a one-off asset for a client (an email signature, a vCard/business card, a marketing PDF, etc.), and never invent/guess a path on the client\u2019s own live website — you have no tool that writes files there, so that URL will 404. If the client_portal feature is enabled and the ask is a vCard/business card or an email signature for a specific client to hand out, use get_client_vcard_link / get_client_signature_link instead — those return links this app actually serves. For anything else you cannot really host, say so plainly rather than fabricating a link.',
-      );
+      if (isOpsInstall()) {
+        sysParts.push(
+          `GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files) — client website repos belong in the agency account as eliteweblabs/{slug}-site. Report the commit SHA/URL (or deferred note when queued). Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed.${deployDefer}`,
+        );
+      } else {
+        const siteRepo = githubWebsiteRepoSlug() || 'this install’s website repo';
+        sysParts.push(
+          `Website GitHub: you may only edit ${siteRepo}. You cannot change the REΛVE app or any other repo. Always commit in this same turn with write_github_file on main — clients will not say “commit”, “save”, or “publish.” When they say “undo that”, “change it back”, “go back”, “never mind”, “put it back”, or “I don’t like that”, call undo_website_change immediately. Never open a PR. Report the commit SHA/URL. Do not claim the site is updated unless the tool succeeds.${deployDefer}`,
+        );
+      }
+      if (isOpsInstall()) {
+        sysParts.push(
+          'GitHub scope: write_github_file / create_github_repo only touch source code repos (this app, or an explicitly named sibling service) — a commit is NOT a public URL by itself (no Pages/hosting is wired up) and a brand-new repo is not reachable until deployed. NEVER use these to "host" a one-off asset for a client (an email signature, a vCard/business card, a marketing PDF, etc.), and never invent/guess a path on the client\u2019s own live website — you have no tool that writes files there, so that URL will 404. If the client_portal feature is enabled and the ask is a vCard/business card or an email signature for a specific client to hand out, use get_client_vcard_link / get_client_signature_link instead — those return links this app actually serves. For anything else you cannot really host, say so plainly rather than fabricating a link.',
+        );
+      }
     } else {
       sysParts.push(
         'GitHub writes unavailable (GITHUB_TOKEN not set). Status tools may still work on public repos with heavy rate limits.',
@@ -884,9 +895,16 @@ async function runKnowledgeAgentInner(
     );
   }
   if (hasWebsiteEditor()) {
-    sysParts.push(
-      'Agentic Website Editor: when the owner asks to change their public site — headline, nav, page copy, images — read config/sites/{siteContentKey}-config.json and src/pages/ with read_file (code_dev) or get_recent_commits, then commit with write_github_file on main (GITHUB_TOKEN). The host that deploys this repo (Railway or any git-connected host) publishes the change. Images belong in the media library (slug → /api/media/{slug} in site config), not git. Pair with search_stock_photos for imagery. read_knowledge slug "content-management" or "website" for paths and flows. Never open a PR unless asked. Do not claim the site is updated unless write_github_file succeeds.',
-    );
+    if (isOpsInstall()) {
+      sysParts.push(
+        'Agentic Website Editor (ops): the official REΛVE marketing site lives in this app repo. Client installs each have their own front-end repo (eliteweblabs/{slug}-site) — provision it with create_github_repo, set websiteRepo / GITHUB_WEBSITE_REPO, and give that install a fine-grained PAT scoped only to that repo. Never point a client GITHUB_TOKEN at eliteweblabs/reave. read_knowledge slug "content-management".',
+      );
+    } else {
+      const siteRepo = githubWebsiteRepoSlug() || 'the configured website repo';
+      sysParts.push(
+        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the REΛVE app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. Pair with search_stock_photos for imagery. Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
+      );
+    }
   }
   if (hasFeature('wordpress_content')) {
     sysParts.push(

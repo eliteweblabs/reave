@@ -205,6 +205,15 @@ assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'cal')
 assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'inbound')!), 'resend');
 assert.equal(deployWizardDnsKind(billedDns.domains.find((d) => d.host === 'clerk')!), 'clerk');
 
+const websitePlan = buildDeployWizardPlan({
+  features: ['website'],
+  installSlug: 'tonybarlettajr',
+});
+const websiteRepoVar = websitePlan.variables.find((v) => v.name === 'GITHUB_WEBSITE_REPO');
+assert.equal(websiteRepoVar?.filled, 'eliteweblabs/tonybarlettajr-site');
+const websiteToken = websitePlan.variables.find((v) => v.name === 'GITHUB_TOKEN');
+assert.equal(websiteToken?.inheritFromHost, false, 'client GITHUB_TOKEN must not copy the REΛVE host PAT');
+
 const cli = formatDeployWizardCli(billedDns);
 assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);
 assert.match(cli, /MX\s+inbound/);

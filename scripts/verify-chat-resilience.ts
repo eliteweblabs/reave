@@ -404,6 +404,7 @@ await test('any writing tool in the batch forces sequential execution', () => {
   for (const writer of [
     'create_github_repo',
     'write_github_file',
+    'undo_website_change',
     'write_file',
     'exec_command',
     'create_invoice',

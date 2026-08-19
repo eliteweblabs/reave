@@ -26,5 +26,6 @@
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,
-  "siteContentKey": "barbersedge"
+  "siteContentKey": "barbersedge",
+  "websiteRepo": "eliteweblabs/barbersedge-site"
 }

@@ -88,6 +88,8 @@ interface ImportMetaEnv {
   GH_TOKEN?: string;
   /** Optional owner/repo override for status tools (default: eliteweblabs/reave). */
   GITHUB_REPO?: string;
+  /** Dedicated front-end website repo for the Agentic Website Editor (`owner/repo`). Client installs are locked to this repo. */
+  GITHUB_WEBSITE_REPO?: string;
   /** Default branch for create_github_branch from_branch and create_pull_request base (default: main). */
   GITHUB_DEFAULT_BRANCH?: string;
   /** Optional explicit health-check URL for check_deployment_status (default: RAILWAY_PUBLIC_DOMAIN or reave.app). */

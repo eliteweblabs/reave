@@ -154,7 +154,7 @@ async function ghFetch<T>(
       res.status === 403 && !rateLimited && requiredPerms
         ? ` Required: ${requiredPerms}. For fine-grained PATs, set Repository access to this repo and grant Contents (read+write) + Pull requests (read+write).`
         : res.status === 403 && !rateLimited && /resource not accessible/i.test(msg)
-          ? ' Fine-grained PAT likely missing repo access or Contents/Pull requests write on eliteweblabs/reave.'
+          ? ' Fine-grained PAT likely missing repo access or Contents write on the target repo.'
           : '';
     return {
       ok: false,
@@ -396,6 +396,129 @@ export async function githubWriteFile(opts: {
   };
 }
 
+export type GithubFileReadResult = {
+  repo: string;
+  path: string;
+  sha: string;
+  content: string;
+};
+
+/** Read a UTF-8 file from GitHub (Contents API). */
+export async function githubReadFile(opts: {
+  repo?: string;
+  path: string;
+  ref?: string;
+}): Promise<GithubResult<GithubFileReadResult>> {
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
+
+  const path = opts.path.trim();
+  if (!path || !isSafeRepoPath(path)) return { ok: false, error: 'invalid path' };
+
+  const repo = repoRes.data;
+  const res = await ghFetch<{ sha?: string; content?: string; encoding?: string }>(
+    `/repos/${repo}/contents/${encodeRepoPath(path)}`,
+    { query: { ref: opts.ref?.trim() || undefined } },
+  );
+  if (!res.ok) return res;
+  if (!res.data.content) return { ok: false, error: 'not a file (or empty content)' };
+
+  const encoding = res.data.encoding === 'base64' ? 'base64' : 'utf8';
+  const content =
+    encoding === 'base64' ? Buffer.from(res.data.content, 'base64').toString('utf8') : res.data.content;
+
+  return {
+    ok: true,
+    data: {
+      repo,
+      path: path.replace(/^\/+/, ''),
+      sha: res.data.sha ?? '',
+      content,
+    },
+  };
+}
+
+export type GithubRevertResult = {
+  repo: string;
+  branch: string;
+  reverted_sha: string;
+  reverted_message: string;
+  commit_sha: string;
+  commit_url: string;
+  files: string[];
+};
+
+/**
+ * Revert the tip commit on a branch by committing the parent tree on top of HEAD.
+ * Same effect as `git revert` of the latest commit (no history rewrite).
+ */
+export async function githubRevertLastCommit(opts: {
+  repo?: string;
+  branch?: string;
+}): Promise<GithubResult<GithubRevertResult>> {
+  if (!token()) {
+    return { ok: false, error: 'GITHUB_TOKEN is required to undo a website change' };
+  }
+
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
+
+  const repo = repoRes.data;
+  const branch = opts.branch?.trim() || githubDefaultBranch();
+  if (!branch || !isSafeBranchName(branch)) return { ok: false, error: 'invalid branch name' };
+
+  const history = await ghFetch<RawCommit[]>(`/repos/${repo}/commits`, {
+    query: { sha: branch, per_page: 2 },
+  });
+  if (!history.ok) return history;
+  const head = history.data[0];
+  const parent = history.data[1];
+  if (!head?.sha) return { ok: false, error: 'no commits on this branch' };
+  if (!parent?.sha) return { ok: false, error: 'nothing to undo — this is the first commit' };
+
+  const detail = await githubGetCommit(head.sha, repo);
+  const files = detail.ok ? detail.data.files.map((f) => f.filename) : [];
+
+  const parentGit = await ghFetch<{ tree?: { sha?: string } }>(
+    `/repos/${repo}/git/commits/${encodeURIComponent(parent.sha)}`,
+  );
+  if (!parentGit.ok) return parentGit;
+  const tree = parentGit.data.tree?.sha;
+  if (!tree) return { ok: false, error: 'could not read the previous commit tree' };
+
+  const subject = (head.commit?.message ?? 'last change').split('\n')[0].slice(0, 72);
+  const created = await ghFetch<{ sha?: string; html_url?: string }>(`/repos/${repo}/git/commits`, {
+    method: 'POST',
+    body: {
+      message: `Revert "${subject}"`,
+      tree,
+      parents: [head.sha],
+    },
+  });
+  if (!created.ok) return created;
+  const newSha = created.data.sha;
+  if (!newSha) return { ok: false, error: 'GitHub did not return a revert commit SHA' };
+
+  const moved = await ghFetch<{ object?: { sha?: string } }>(
+    `/repos/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+    { method: 'PATCH', body: { sha: newSha } },
+  );
+  if (!moved.ok) return moved;
+
+  return {
+    ok: true,
+    data: {
+      repo,
+      branch,
+      reverted_sha: head.sha,
+      reverted_message: subject,
+      commit_sha: newSha,
+      commit_url: `https://github.com/${repo}/commit/${newSha}`,
+      files,
+    },
+  };
+}
+
 export type GithubPullRequestResult = {
   repo: string;
   number: number;
@@ -556,7 +679,7 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
     note = 'Token can push — write_github_file and create_pull_request should work.';
   } else if (tokenType(tok) === 'fine-grained') {
     note =
-      'Fine-grained PAT is read-only on this repo. In GitHub → Developer settings → Fine-grained tokens: Resource owner = eliteweblabs, Repository access includes eliteweblabs/reave, Contents = Read and write, Pull requests = Read and write. Then update GITHUB_TOKEN on Railway.';
+      `Fine-grained PAT is read-only on this repo. In GitHub → Developer settings → Fine-grained tokens: grant Contents read+write on ${slug} only (client website editor must not include eliteweblabs/reave). Then update GITHUB_TOKEN on Railway.`;
   } else {
     note = 'Token is read-only on this repo — use a classic PAT with repo scope, or upgrade fine-grained permissions.';
   }

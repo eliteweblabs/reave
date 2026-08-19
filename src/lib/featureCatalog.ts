@@ -130,7 +130,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   online_reviews:
     'Google™, Apple Maps, Yelp, Facebook, and Tripadvisor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
-  content_management: 'Edit and publish the public site through the agent — Git, no CMS',
+  content_management: 'Edit the install’s own front-end repo through the agent — not the REΛVE app',
   stock_photos: 'Royalty-free search for pages, decks, and newsletters',
   wordpress_content: 'Agent updates posts, pages, and media on a WordPress site',
   seo_directory:
@@ -201,7 +201,7 @@ export function formatClientWebsiteToolInventory(opts: {
   const lines = ['Client website tools on this install (not hosting or registrar APIs):'];
   if (opts.editor) {
     lines.push(
-      '- Website editor: change headline, nav, copy, and images, then publish with write_github_file on main.',
+      '- Website editor: this install’s front-end repo only (not REΛVE). Commit every edit in the same turn; “undo that” reverts the last commit.',
     );
   }
   if (opts.stockPhotos) {

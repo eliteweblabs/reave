@@ -40,6 +40,7 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   run_dev_task: 120_000,
   create_github_repo: 90_000,
   write_github_file: 90_000,
+  undo_website_change: 90_000,
   sync_resend_dns: 120_000,
   cloudflare_dns: 90_000,
   namecom_dns: 90_000,
@@ -106,6 +107,7 @@ const READ_ONLY_TOOLS = new Set([
   // Dev/infra reads
   'get_git_status',
   'get_recent_commits',
+  'read_github_file',
   'check_deployment_status',
   'list_open_branches',
   'list_railway_domains',

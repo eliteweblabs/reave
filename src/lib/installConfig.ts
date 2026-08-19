@@ -125,6 +125,12 @@ export type InstallConfig = {
   chatFocusSkin?: boolean;
   /** Public site content key — config/sites/{key}-config.json (default: install slug or reave). */
   siteContentKey?: string;
+  /**
+   * Dedicated front-end website repo (`owner/repo`) for the Agentic Website Editor.
+   * Client installs may only commit here — never eliteweblabs/reave.
+   * Override with GITHUB_WEBSITE_REPO.
+   */
+  websiteRepo?: string;
   /** Per-install module deployment status (see plugin DEPLOY.md playbooks). */
   moduleStatus?: Partial<Record<InstallFeatureId, ModuleDeployStatus>>;
   /**
@@ -355,6 +361,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     homepageVoice: typeof o.homepageVoice === 'boolean' ? o.homepageVoice : undefined,
     chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
     siteContentKey: typeof o.siteContentKey === 'string' && o.siteContentKey.trim() ? o.siteContentKey.trim().toLowerCase() : undefined,
+    websiteRepo: typeof o.websiteRepo === 'string' && o.websiteRepo.trim() ? o.websiteRepo.trim() : undefined,
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
     opsInstall: o.opsInstall === true ? true : undefined,
   };

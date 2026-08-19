@@ -47,6 +47,7 @@
   "homepageVoice": false,
   "chatFocusSkin": true,
   "siteContentKey": "tonybarlettajr",
+  "websiteRepo": "eliteweblabs/tonybarlettajr-site",
   "moduleStatus": {
     "client_portal": "deployed",
     "web_handoff": "deployed",

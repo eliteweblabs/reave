@@ -78,6 +78,8 @@ const TOOL_LABELS: Record<string, string> = {
   create_github_repo: 'Creating repository',
   create_github_branch: 'Creating branch',
   write_github_file: 'Writing file',
+  read_github_file: 'Reading file',
+  undo_website_change: 'Undoing last change',
   create_pull_request: 'Creating pull request',
   list_kinsta_sites: 'Listing Kinsta sites',
   create_kinsta_site: 'Creating Kinsta site',
