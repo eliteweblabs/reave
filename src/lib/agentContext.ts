@@ -15,6 +15,13 @@ export interface AgentRunContext {
    */
   bypassSleepMode?: boolean;
   /**
+   * Background research (Siri / Digital Audit) — do not decorate the reply
+   * with a Railway deploy banner. That text gets reused as the completion push.
+   */
+  skipDeployBanner?: boolean;
+  /** Siri / Digital Audit research — enforce a prepaid credit reserve mid-run. */
+  auditResearch?: { tier: 'quick' | 'full' };
+  /**
    * Owner is speaking via Siri Shortcuts — lead with a short plain-text spoken
    * answer (the chat transcript may still carry more detail below).
    */

@@ -5,8 +5,12 @@
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
 import { getShareOpenChatAlerts } from './appSettingsStore';
 import { truncateChatTitle } from './chatTypes';
+import { isAuditWorkInProgress } from './auditReportCard';
 import {
+  auditResearchFailureReason,
   bestWorkDisplayName,
+  extractAuditProposalSummary,
+  formatAuditFailedNotification,
   formatAuditReadyNotification,
 } from './notificationFormat';
 import { sendPushNotification } from './webPush';
@@ -135,14 +139,27 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
     researchStartedAt: opts.researchStartedAt,
   });
   const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
-  const summary = extractProposalSummary(opts.reply, slug);
   const job = slug ? await storeReadWork(slug).catch(() => null) : null;
   const displayName = bestWorkDisplayName(job, opts.label);
-  const { title, detail } = formatAuditReadyNotification({
-    tier: opts.tier,
-    displayName,
-    excerpt: summary,
-  });
+  const stillInProgress = job ? isAuditWorkInProgress(job) : false;
+  const replyFailure = auditResearchFailureReason(opts.reply);
+  const failed = stillInProgress || (!job && Boolean(replyFailure));
+
+  const { title, detail } = failed
+    ? formatAuditFailedNotification({
+        tier: opts.tier,
+        displayName,
+        reason:
+          replyFailure || 'The research agent stopped before the audit was written.',
+      })
+    : formatAuditReadyNotification({
+        tier: opts.tier,
+        displayName,
+        excerpt:
+          replyFailure && job
+            ? 'Research finished — open the project for the full audit.'
+            : extractAuditProposalSummary(opts.reply, slug),
+      });
 
   await sendPushNotification({
     title,
@@ -151,22 +168,6 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
     url: deepLinkUrl,
     bypassQuietHours: opts.bypassQuietHours === true,
   }).catch((e) => log.warn('siri audit push failed', e));
-}
-
-function extractProposalSummary(reply: string, slug?: string | null): string {
-  const trimmed = reply.trim();
-  if (!trimmed) return 'Research finished — open the project for the full audit.';
-
-  if (slug) {
-    const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const match = trimmed.match(new RegExp(`Project:\\s*${escaped}\\s*\\n?([\\s\\S]*)`, 'i'));
-    if (match?.[1]?.trim()) return match[1].trim();
-  }
-
-  const generic = trimmed.match(/Project:\s*[a-z0-9._-]+\s*\n([\s\S]*)/i);
-  if (generic?.[1]?.trim()) return generic[1].trim();
-
-  return trimmed.slice(0, 1200);
 }
 
 async function formatAlertMessage(opts: {

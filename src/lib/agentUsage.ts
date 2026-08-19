@@ -75,6 +75,16 @@ export function addAnthropicUsage(
   acc.cache_creation_input_tokens += usage.cache_creation_input_tokens ?? 0;
 }
 
+export function estimateAnthropicUsageCostUsd(
+  model: string,
+  usage?: AnthropicUsage | null,
+): number {
+  if (!usage) return 0;
+  const acc = createAgentUsageAccumulator(model);
+  addAnthropicUsage(acc, usage);
+  return estimateAgentCostUsd(acc);
+}
+
 export function estimateAgentCostUsd(acc: AgentUsageAccumulator): number {
   const rates = MODEL_RATES_USD_PER_MTOK[acc.model] ?? DEFAULT_RATES;
   const input = (acc.input_tokens / 1_000_000) * rates.input;

@@ -3917,7 +3917,7 @@ function isAuditPushAlert(item) {
   if (item?.type !== 'push_alert') return false;
   const tag = String(item.tag || '').toLowerCase();
   if (tag.startsWith('siri-proposal-')) return true;
-  return /^(?:Full )?audit ready(?:\s*>:|\s*:)/i.test(String(item.title || '').trim());
+  return /^(?:Full )?audit (?:ready|failed)(?:\s*>|\s*:)/i.test(String(item.title || '').trim());
 }
 
 function reviewAlertTone(item) {
@@ -3975,9 +3975,9 @@ function workSlugFromSiriProposalTag(tag) {
 
 function auditLabelFromPushAlertTitle(title) {
   const trimmed = String(title || '').trim();
-  const arrow = trimmed.match(/^(?:Full )?audit ready\s*>\s*(.+)$/i);
+  const arrow = trimmed.match(/^(?:Full )?audit (?:ready|failed)\s*>\s*(.+)$/i);
   if (arrow?.[1]?.trim()) return arrow[1].trim();
-  const match = trimmed.match(/^(?:Full )?audit ready:\s*(.+)$/i);
+  const match = trimmed.match(/^(?:Full )?audit (?:ready|failed):\s*(.+)$/i);
   return match?.[1]?.trim() || null;
 }
 

@@ -101,6 +101,7 @@ type SiriResponse = {
   text?: string;
   data?: unknown;
   error?: string;
+  code?: string;
 };
 
 function json(body: SiriResponse, status = 200): Response {
@@ -251,11 +252,12 @@ export async function POST(context: APIContext): Promise<Response> {
     }
 
     // Return as plain text if format=text and we have text
+    const failStatus = result.code === 'anthropic_credits' ? 503 : 400;
     if (format === 'text' && result.text) {
-      return textResponse(result.text, result.ok ? 200 : 400);
+      return textResponse(result.text, result.ok ? 200 : failStatus);
     }
 
-    return json(result, result.ok ? 200 : 400);
+    return json(result, result.ok ? 200 : failStatus);
   } catch (e) {
     return json(
       {

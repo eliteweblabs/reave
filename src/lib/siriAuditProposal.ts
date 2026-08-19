@@ -12,6 +12,7 @@ import {
   isContactApiConfigured,
   type PlacesListingRecord,
 } from './contactApi';
+import { checkAnthropicCreditsForAudit } from './anthropicBalance';
 import { runKnowledgeAgent } from './agentRunner';
 import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from './adminAgentAlert';
 import { createLogger } from './logger';
@@ -57,7 +58,7 @@ export type AuditProposalResult =
         contactUid: string;
       };
     }
-  | { ok: false; error: string; text?: string };
+  | { ok: false; error: string; text?: string; code?: 'anthropic_credits' };
 
 export type AuditProposalOptions = {
   /** Label used in the agent prompt (defaults to "Siri shortcut"). */
@@ -144,6 +145,16 @@ export async function startAuditProposal(
   if (!business) {
     const msg = 'Business name is required — include street or town if the name is common.';
     return { ok: false, error: msg, text: msg };
+  }
+
+  const credits = await checkAnthropicCreditsForAudit(tier, 'start', { refresh: true });
+  if (!credits.ok) {
+    return {
+      ok: false,
+      error: credits.reason,
+      text: credits.reason,
+      code: 'anthropic_credits',
+    };
   }
 
   const label = business;
@@ -323,6 +334,8 @@ async function runProposalResearch(input: {
   const agentContext = {
     ...(input.userId ? { userId: input.userId, threadId } : {}),
     ...(input.bypassSleepMode ? { bypassSleepMode: true } : {}),
+    skipDeployBanner: true,
+    auditResearch: { tier: input.tier },
   };
 
   let reply: string;

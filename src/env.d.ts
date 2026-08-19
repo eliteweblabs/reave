@@ -11,6 +11,10 @@ interface ImportMetaEnv {
   ANTHROPIC_SESSION_KEY?: string;
   /** Manual fallback prepaid balance in USD when live fetch is unavailable */
   ANTHROPIC_CREDIT_BALANCE_USD?: string;
+  /** USD that must remain before starting a Siri/Digital quick audit (default 1.5) */
+  ANTHROPIC_AUDIT_RESERVE_QUICK_USD?: string;
+  /** USD that must remain before starting a Siri/Digital full audit (default 4) */
+  ANTHROPIC_AUDIT_RESERVE_FULL_USD?: string;
   /** Optional override path for persisted runtime model choice */
   AGENT_MODEL_FILE?: string;
   /** Brave Search API key (web search tool for admin agent) */

@@ -613,6 +613,14 @@ function alreadyHasBanner(text: string): boolean {
   return BANNER_PREFIXES.some((p) => text.startsWith(p));
 }
 
+/** API / credit failures are not deploy news — do not glue a banner onto them. */
+const AGENT_ERROR_SKIP_BANNER_RE =
+  /credit balance is too low|can't respond right now|^Anthropic error|^Research failed:|^ANTHROPIC_API_KEY not set|^sleep_mode/i;
+
+export function shouldSkipDeployBanner(text: string): boolean {
+  return AGENT_ERROR_SKIP_BANNER_RE.test(text.trim());
+}
+
 /** When true (default on Railway), block new admin chat sends while a deploy is in flight. */
 export function isDeployChatLockEnabled(): boolean {
   const raw = serverEnv('DEPLOY_CHAT_LOCK')?.trim().toLowerCase();
@@ -650,6 +658,7 @@ export async function prependDeployBanner(
   text: string,
   opts?: { userText?: string },
 ): Promise<string> {
+  if (shouldSkipDeployBanner(text)) return text;
   const status = await getDeployStatus();
   if (!status) return text;
 
