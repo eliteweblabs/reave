@@ -33,6 +33,7 @@ export type DeployWizardGithubAppApplyBody = {
   timezone?: string;
   seed?: Partial<DeployWizardSeedInput>;
   project: string;
+  projectName?: string;
   environment: string;
   values: Record<string, string>;
 };

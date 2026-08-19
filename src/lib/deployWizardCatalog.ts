@@ -25,6 +25,8 @@ export type DeployWizardService = {
   kind: DeployServiceKind;
   description: string;
   repo?: string;
+  image?: string;
+  volumeMount?: string;
   /** Empty / omitted = core (always provisioned). */
   features?: readonly FeatureId[];
   extra?: DeployWizardExtraId;
@@ -213,6 +215,27 @@ export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
   },
 ];
 
+export const DEPLOY_WIZARD_NEW_PROJECT = '__new__';
+
+export function isDeployWizardNewProjectRef(project: string | undefined): boolean {
+  const t = (project ?? '').trim();
+  return !t || t === DEPLOY_WIZARD_NEW_PROJECT;
+}
+
+export function deployWizardDesiredProjectName(input: {
+  projectName?: string;
+  companyName?: string;
+  installSlug?: string;
+}): string {
+  const clean = (raw: string) => raw.replace(/\s+/g, ' ').trim().slice(0, 64);
+  const typed = clean(input.projectName ?? '');
+  if (typed) return typed;
+  const company = clean(input.companyName ?? '');
+  if (company) return company;
+  const slug = clean((input.installSlug ?? '').replace(/-/g, ' '));
+  return slug || 'new-install';
+}
+
 export function normalizeSiteDomain(raw: string | undefined): string {
   return (raw ?? '')
     .trim()
@@ -247,6 +270,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'App Postgres',
     kind: 'postgres',
     description: 'Chats, knowledge, jobs, media, email — referenced as DATABASE_URL on reave.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
   },
   {
     id: 'contact-api',
@@ -260,6 +285,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'contact-postgres',
     kind: 'postgres',
     description: 'Dedicated Postgres for contact-api (do not share reave-postgres).',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
   },
   {
     id: 'crater',
@@ -274,6 +301,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'crater-postgres',
     kind: 'postgres',
     description: 'Crater database.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
     features: ['billing'],
   },
   {
@@ -295,6 +324,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'calcom-postgres',
     kind: 'postgres',
     description: 'Cal.com database.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
     features: ['scheduling'],
   },
   {
@@ -310,6 +341,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'fleet-postgres',
     kind: 'postgres',
     description: 'Fleet tracking database.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
     features: ['fleet_tracking'],
   },
   {

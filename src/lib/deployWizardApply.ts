@@ -16,6 +16,7 @@ import { isCloudflareConfigured } from './cloudflareClient';
 import { syncCalcomIdentityFromReave } from './calcomIdentitySync';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
 import { railwaySetVariables } from './railwayAgentApi';
+import { ensureDeployWizardStack } from './deployWizardProvision';
 
 export type DeployWizardApplyResult =
   | {
@@ -35,6 +36,8 @@ export type DeployWizardApplyResult =
       plan: DeployWizardPlan;
       cli: string;
       notes: string[];
+      projectId: string;
+      projectName: string;
     };
 
 export function isDeployWizardApplyNeedGithubApp(
@@ -64,11 +67,23 @@ export async function executeDeployWizardApply(opts: {
   plan: DeployWizardPlan;
   values: Record<string, string>;
   project: string;
+  projectName?: string;
   environment: string;
   request: Request;
   githubApp?: DeployWizardGithubAppCredentials;
 }): Promise<DeployWizardApplyResult> {
   const cli = formatDeployWizardCli(opts.plan, opts.values);
+  const stack = await ensureDeployWizardStack({
+    plan: opts.plan,
+    project: opts.project,
+    projectName: opts.projectName,
+    environment: opts.environment,
+  });
+  if (!stack.ok) {
+    return { ok: false, error: stack.error, plan: opts.plan, cli };
+  }
+  const project = stack.projectId;
+
   const resolved = await resolveDeployWizardApply(opts.plan, opts.values, {
     githubApp: opts.githubApp,
   });
@@ -79,7 +94,9 @@ export async function executeDeployWizardApply(opts: {
       needsGithubApp: true,
       plan: opts.plan,
       cli,
-      notes: resolved.notes,
+      notes: [...stack.notes, ...resolved.notes],
+      projectId: project,
+      projectName: stack.projectName,
     };
   }
   if (!resolved.ok) {
@@ -89,7 +106,7 @@ export async function executeDeployWizardApply(opts: {
   const applied: Array<{ service: string; updated: string[] }> = [];
   for (const [service, variables] of resolved.byService) {
     const result = await railwaySetVariables({
-      project: opts.project,
+      project,
       environment: opts.environment,
       service: service === 'shared' ? undefined : service,
       variables,
@@ -105,7 +122,7 @@ export async function executeDeployWizardApply(opts: {
     ? await syncCalcomIdentityFromReave({
         force: true,
         request: opts.request,
-        project: opts.project,
+        project,
       }).catch((e) => ({
         ok: false,
         error: e instanceof Error ? e.message : String(e),
@@ -114,7 +131,7 @@ export async function executeDeployWizardApply(opts: {
 
   const dns = await applyDeployWizardDns({
     plan: opts.plan,
-    project: opts.project,
+    project,
     environment: opts.environment,
   }).catch((e) => ({
     ok: false,
@@ -124,7 +141,7 @@ export async function executeDeployWizardApply(opts: {
     summary: e instanceof Error ? e.message : String(e),
   }));
 
-  const provisioned = resolved.notes;
+  const provisioned = [...stack.notes, ...resolved.notes];
   return {
     ok: true,
     plan: opts.plan,

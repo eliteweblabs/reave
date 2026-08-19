@@ -226,15 +226,14 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const project = typeof body.project === 'string' ? body.project.trim() : '';
+  const projectName = typeof body.projectName === 'string' ? body.projectName.trim() : '';
   const environment = typeof body.environment === 'string' ? body.environment.trim() : 'production';
-  if (!project) {
-    return json({ ok: false, error: 'project is required to apply variables', plan: publicPlan, cli }, 400);
-  }
 
   const executed = await executeDeployWizardApply({
     plan,
     values,
     project,
+    projectName,
     environment,
     request: context.request,
   });
@@ -252,7 +251,8 @@ export async function POST(context: APIContext): Promise<Response> {
         adminUsername,
         timezone,
         seed,
-        project,
+        project: executed.projectId || project,
+        projectName: executed.projectName || projectName,
         environment,
         values,
       },

@@ -111,6 +111,12 @@ If a required operator key is missing, Apply names it and stops. Clerk CNAMEs ar
 
 ## Apply
 
-`POST /api/deploy/wizard` with `action: "apply"` writes the plan to a Railway project (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Services must already exist with the names above. Redeploy after apply. Clerk CNAMEs are the only DNS leftover.
+`POST /api/deploy/wizard` with `action: "apply"` creates the Railway project when the wizard sends `project: "__new__"` (name from `projectName`, company name, or install slug — reused if that name already exists), then creates any missing canonical services:
+
+- GitHub-backed services (`reave`, `contact-api`, …) connect `eliteweblabs/*` when the host token’s GitHub App can see those repos. If the repo attach fails, Apply still creates an empty service so variables have a target.
+- Postgres services use Railway’s `postgres-ssl` image plus a volume at `/var/lib/postgresql/data`, and set `DATABASE_URL` for `${{ <name>.DATABASE_URL }}` refs.
+- Cal.com / extras without a catalog repo are created as empty named services.
+
+Then Apply writes the variable plan (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Redeploy after apply. Clerk CNAMEs are the only DNS leftover.
 
 Catalog source: `src/lib/deployWizardCatalog.ts`.

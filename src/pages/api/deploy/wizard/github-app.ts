@@ -117,6 +117,7 @@ export async function GET(context: APIContext): Promise<Response> {
       plan,
       values: row.apply.values,
       project: row.apply.project,
+      projectName: row.apply.projectName,
       environment: row.apply.environment,
       request: context.request,
       githubApp: credentials,

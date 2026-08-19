@@ -51,7 +51,8 @@
   let companyName = '';
   let adminUsername = '';
   let timezone = 'America/New_York';
-  let project = '';
+  let project = '__new__';
+  let projectName = '';
   let environment = 'production';
   let railway = { configured: false, projects: [] };
   let cloudflare = { configured: false };
@@ -179,6 +180,8 @@
         return `<option value="${esc(p.id)}"${selected}>${esc(p.name)}</option>`;
       })
       .join('');
+    const newSelected = project === '__new__' || !project ? ' selected' : '';
+    const nameHint = projectName || companyName || installSlug || 'barry-levine';
     return (
       `<div class="dl-toolbar dw-identity">` +
       `<label class="dl-field">` +
@@ -212,9 +215,15 @@
       `<label class="dl-field">` +
       `<span class="dl-field-label">Railway project</span>` +
       (projectOptions
-        ? `<select id="dw-project" class="dl-select"><option value="">Select project…</option>${projectOptions}</select>`
-        : `<input id="dw-project" class="dl-input" type="text" placeholder="Project name or ID" value="${esc(project)}" />`) +
+        ? `<select id="dw-project" class="dl-select"><option value="__new__"${newSelected}>New project…</option>${projectOptions}</select>`
+        : `<input id="dw-project" class="dl-input" type="text" placeholder="New project name" value="${esc(project === '__new__' ? '' : project)}" />`) +
       `</label>` +
+      (project === '__new__' || !projectOptions
+        ? `<label class="dl-field">` +
+          `<span class="dl-field-label">Project name</span>` +
+          `<input id="dw-project-name" class="dl-input" type="text" maxlength="64" placeholder="${esc(nameHint)}" value="${esc(projectName)}" />` +
+          `</label>`
+        : '') +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Environment</span>` +
       `<input id="dw-env" class="dl-input" type="text" value="${esc(environment)}" />` +
@@ -248,7 +257,7 @@
     if (!plan) return `<p class="dl-loading">Building service list…</p>`;
     const extras = visibleExtras();
     return (
-      `<p class="dl-footnote">Create these Railway services with <strong>these exact names</strong> so the reference templates resolve. Postgres plugins keep the names below.</p>` +
+      `<p class="dl-footnote">Apply creates the Railway project (if you picked <strong>New project</strong>) and any missing services with <strong>these exact names</strong>. Postgres is the official Railway image + volume. GitHub repos connect when this host’s Railway token can see them.</p>` +
       (extras.length
         ? `<div class="dw-extras">` +
           extras
@@ -490,7 +499,7 @@
       `</label>` +
       `<div class="dl-toolbar-actions">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-copy">Copy CLI</button>` +
-      `<button type="button" class="dl-btn dl-btn--primary" id="dw-apply"${railway.configured && project && !applying ? '' : ' disabled'}>` +
+      `<button type="button" class="dl-btn dl-btn--primary" id="dw-apply"${railway.configured && (project === '__new__' || project) && !applying ? '' : ' disabled'}>` +
       (applying
         ? 'Applying…'
         : cloudflare.configured
@@ -499,7 +508,7 @@
       `</button>` +
       `</div>` +
       (railway.configured
-        ? `<p class="dl-meta">Apply copies host keys, rolls secrets, creates the Resend webhook, and writes Railway variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Website module: GitHub will ask you to create and install a restricted App on <code>{slug}-site</code> only. Services must already exist with these names.</p>`
+        ? `<p class="dl-meta">Apply creates the Railway project and missing services, copies host keys, rolls secrets, creates the Resend webhook, and writes variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Website module: GitHub will ask you to create and install a restricted App on <code>{slug}-site</code> only.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
         ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
@@ -559,7 +568,9 @@
     if (adminEl) adminUsername = adminEl.value.trim();
     if (tzEl) timezone = tzEl.value.trim() || 'America/New_York';
     if (appEl) appService = appEl.value.trim() || 'reave';
-    if (projectEl) project = projectEl.value.trim();
+    if (projectEl) project = projectEl.value.trim() || '__new__';
+    const projectNameEl = root.querySelector('#dw-project-name');
+    if (projectNameEl) projectName = projectNameEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
     const seedEl = root.querySelector('#dw-seed-industry');
     if (seedEl) seed = { ...seed, industry: seedEl.value || 'none' };
@@ -658,12 +669,7 @@
     if (applying) return;
     readIdentity();
     readVarInputs();
-    if (!project) {
-      error = 'Select a Railway project first.';
-      render();
-      bind();
-      return;
-    }
+    if (!project) project = '__new__';
     applying = true;
     error = '';
     let leavingForGithub = false;
@@ -686,6 +692,7 @@
           timezone,
           seed,
           project,
+          projectName,
           environment,
           values,
         }),
@@ -777,6 +784,11 @@
         else selectedExtras.add(id);
         void goNextFromExtras();
       });
+    });
+    root.querySelector('#dw-project')?.addEventListener('change', () => {
+      readIdentity();
+      render();
+      bind();
     });
     root.querySelector('#dw-domain')?.addEventListener('change', () => {
       readIdentity();
@@ -878,7 +890,7 @@
       }
       const allowed = new Set(toggleableModules().map((m) => m.moduleId));
       selectedIds = new Set((data.defaultModuleIds || [...allowed]).filter((id) => allowed.has(id)));
-      if (railway.projects?.length === 1) project = railway.projects[0].id;
+      project = '__new__';
       const params = new URLSearchParams(location.search);
       if (params.get('github') === 'ok') {
         githubBanner =

@@ -5,8 +5,11 @@
 import assert from 'node:assert/strict';
 import {
   buildDeployWizardPlan,
+  DEPLOY_WIZARD_NEW_PROJECT,
+  deployWizardDesiredProjectName,
   deployWizardFqdn,
   formatDeployWizardCli,
+  isDeployWizardNewProjectRef,
   normalizeSiteDomain,
   railwayPrivateUrl,
   railwayPublicUrl,
@@ -284,5 +287,15 @@ assert.match(cli, /MX\s+inbound/);
 assert.match(cli, /railway variable set CONTACT_API_BASE_URL=/);
 assert.match(cli, /--service reave/);
 assert.match(cli, /--skip-deploys/);
+
+assert.equal(isDeployWizardNewProjectRef(''), true);
+assert.equal(isDeployWizardNewProjectRef(DEPLOY_WIZARD_NEW_PROJECT), true);
+assert.equal(isDeployWizardNewProjectRef('loveandever'), false);
+assert.equal(deployWizardDesiredProjectName({ projectName: 'Barry Levine' }), 'Barry Levine');
+assert.equal(deployWizardDesiredProjectName({ companyName: 'Levine Law', installSlug: 'barry-levine' }), 'Levine Law');
+assert.equal(deployWizardDesiredProjectName({ installSlug: 'barry-levine' }), 'barry levine');
+assert.ok(core.services.find((s) => s.id === 'reave-postgres')?.image);
+assert.ok(core.services.find((s) => s.id === 'reave-postgres')?.volumeMount);
+assert.ok(core.services.find((s) => s.id === 'reave')?.repo);
 
 console.log('verify-deploy-wizard: ok');
