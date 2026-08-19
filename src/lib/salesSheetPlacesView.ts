@@ -3,6 +3,7 @@
  * Prefers a real google.com Places screenshot in the screen hole.
  * Fallback is live Places neighbors only — never invented competitor rows.
  * Chrome is the media-library iPhone 17 frame overlaid on top.
+ * Screen content is inset below the Dynamic Island (--ss-island-pad, height %).
  */
 import { escapeHtml } from './htmlEscape';
 
@@ -184,6 +185,8 @@ export function renderPlacesPhoneMockHtml(
 <style>
 .ss-phone {
   --ss-phone-screen: #f4f4f0;
+  /* Height of the Dynamic Island band inside the screen hole (height %, not width %). */
+  --ss-island-pad: 8.5%;
   position: relative;
   box-sizing: border-box;
   width: min(100%, 210px);
@@ -205,18 +208,27 @@ export function renderPlacesPhoneMockHtml(
   left: 8.15%;
   z-index: 1;
   overflow: hidden;
-  /* Reserve the Dynamic Island band so search chrome is not under the cutout. */
-  padding-top: 7.5%;
   background: var(--ss-phone-screen);
   border-radius: 12% / 6%;
+}
+.ss-phone-screen:not(:has(.ss-phone-serp))::before {
+  content: '';
+  display: block;
+  height: var(--ss-island-pad);
 }
 .ss-phone-screen:has(.ss-phone-serp) {
   background: #000;
 }
 .ss-phone-serp {
+  position: absolute;
+  top: var(--ss-island-pad);
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: block;
   width: 100%;
-  height: 100%;
+  max-width: none;
+  height: auto;
   object-fit: cover;
   object-position: top center;
 }

@@ -7,7 +7,7 @@ import { knowledgeIndustryId } from './knowledgeIndustry';
 import { industryKnowledgeEntries, parseKnowledgeMarkdown } from './localKnowledge';
 import { dbWriteKnowledge, isKnowledgeDbConfigured } from './pgKnowledge';
 import { createLogger } from './logger';
-import { gateFromEnv, getPracticeGate, isDefaultPracticeGate, setPracticeGate } from './practiceGate';
+import { gateFromEnv, gateIncludesPracticeArea, getPracticeGate, isDefaultPracticeGate, setPracticeGate } from './practiceGate';
 
 const log = createLogger('knowledge:industry');
 
@@ -26,13 +26,17 @@ export async function seedIndustryKnowledge(industry?: string | null): Promise<{
   let gate = await getPracticeGate();
   if (id === 'law' && isDefaultPracticeGate(gate)) {
     const env = gateFromEnv();
-    if (env.radiusMi || env.counties?.length || env.practiceArea || env.gateMode) {
+    if (env.radiusMi || env.counties?.length || env.states?.length || env.practiceAreas?.length || env.practiceArea || env.gateMode) {
       gate = await setPracticeGate({ ...gate, ...env });
     }
   }
   const seeded: string[] = [];
   for (const doc of docs) {
-    if (doc.slug.startsWith('bankruptcy-') && gate.practiceArea !== 'bankruptcy' && gate.practiceArea !== 'general') {
+    if (
+      doc.slug.startsWith('bankruptcy-') &&
+      !gateIncludesPracticeArea(gate, 'bankruptcy') &&
+      !gateIncludesPracticeArea(gate, 'general')
+    ) {
       continue;
     }
     const parsed = parseKnowledgeMarkdown(doc.content);
@@ -52,7 +56,7 @@ export async function seedIndustryKnowledge(industry?: string | null): Promise<{
       slug: 'courts-in-radius',
       title: 'Courts in this office’s gate',
       content: markdown.replace(/^---[\s\S]*?---\n/, ''),
-      tags: ['courts', 'map', gate.practiceArea],
+      tags: ['courts', 'map', ...gate.practiceAreas],
     });
     if (courts.ok) seeded.push('courts-in-radius');
   }

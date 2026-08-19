@@ -63,7 +63,10 @@ export function sanitizeRailwayProjectName(raw: string): string {
 }
 
 /** Empty Railway project — name only; optional workspace id in input if set in env. */
-export async function createRailwayEmptyProject(name: string): Promise<
+export async function createRailwayEmptyProject(
+  name: string,
+  opts?: { description?: string },
+): Promise<
   | { ok: true; id: string; name: string }
   | { ok: false; message: string }
 > {
@@ -81,7 +84,8 @@ export async function createRailwayEmptyProject(name: string): Promise<
   const workspaceId = serverEnv('RAILWAY_WORKSPACE_ID')?.trim();
   const prefix = serverEnv('RAILWAY_PROJECT_DESCRIPTION_PREFIX')?.trim() || cachedCompanyBrandName();
   const input: Record<string, string> = { name: clean };
-  if (prefix) input.description = `${prefix} (via admin agent)`;
+  const description = opts?.description?.trim() || (prefix ? `${prefix} (via admin agent)` : '');
+  if (description) input.description = description;
   if (workspaceId) input.workspaceId = workspaceId;
 
   const query = `
@@ -162,8 +166,146 @@ export type RailwayProjectNetworking = {
   services: RailwayServiceNetworking[];
 };
 
-function isUuid(value: string): boolean {
+export function isRailwayUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isUuid(value: string): boolean {
+  return isRailwayUuid(value);
+}
+
+function railwayGqlError(result: { errors: RailwayGqlError[] }): string {
+  return result.errors.map((e) => e.message).join('; ') || 'Railway GraphQL error';
+}
+
+export const RAILWAY_POSTGRES_IMAGE = 'ghcr.io/railwayapp-templates/postgres-ssl:16';
+export const RAILWAY_POSTGRES_VOLUME = '/var/lib/postgresql/data';
+
+export async function railwayCreateService(opts: {
+  projectId: string;
+  name: string;
+  repo?: string;
+  image?: string;
+  branch?: string;
+}): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
+  const name = opts.name.trim();
+  if (!name) return { ok: false, error: 'service name is required' };
+
+  const source: Record<string, string> = {};
+  if (opts.repo?.trim()) source.repo = opts.repo.trim();
+  if (opts.image?.trim()) source.image = opts.image.trim();
+
+  const input: Record<string, unknown> = {
+    projectId: opts.projectId,
+    name,
+  };
+  if (Object.keys(source).length) input.source = source;
+  if (opts.branch?.trim() && source.repo) input.branch = opts.branch.trim();
+
+  const result = await railwayGraphql<{ serviceCreate?: { id: string; name: string } | null }>({
+    query: `mutation serviceCreate($input: ServiceCreateInput!) {
+      serviceCreate(input: $input) { id name }
+    }`,
+    variables: { input },
+  });
+  if (!result.ok) return { ok: false, error: railwayGqlError(result) };
+  const row = result.data.serviceCreate;
+  if (!row?.id) return { ok: false, error: `serviceCreate returned no id for ${name}` };
+  return { ok: true, id: row.id, name: row.name };
+}
+
+export async function railwayConnectServiceSource(opts: {
+  serviceId: string;
+  repo?: string;
+  image?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const input: Record<string, string> = {};
+  if (opts.repo?.trim()) input.repo = opts.repo.trim();
+  if (opts.image?.trim()) input.image = opts.image.trim();
+  if (!Object.keys(input).length) return { ok: false, error: 'repo or image is required' };
+
+  const result = await railwayGraphql<{ serviceConnect?: { id: string } | null }>({
+    query: `mutation serviceConnect($id: String!, $input: ServiceSourceInput!) {
+      serviceConnect(id: $id, input: $input) { id }
+    }`,
+    variables: { id: opts.serviceId, input },
+  });
+  if (!result.ok) return { ok: false, error: railwayGqlError(result) };
+  return { ok: true };
+}
+
+export async function railwayCreateVolume(opts: {
+  projectId: string;
+  environmentId: string;
+  serviceId: string;
+  mountPath: string;
+}): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const result = await railwayGraphql<{ volumeCreate?: { id: string } | null }>({
+    query: `mutation volumeCreate($input: VolumeCreateInput!) {
+      volumeCreate(input: $input) { id }
+    }`,
+    variables: {
+      input: {
+        projectId: opts.projectId,
+        environmentId: opts.environmentId,
+        serviceId: opts.serviceId,
+        mountPath: opts.mountPath,
+      },
+    },
+  });
+  if (!result.ok) return { ok: false, error: railwayGqlError(result) };
+  const id = result.data.volumeCreate?.id;
+  if (!id) return { ok: false, error: 'volumeCreate returned no id' };
+  return { ok: true, id };
+}
+
+export async function railwayServiceInstanceSource(opts: {
+  serviceId: string;
+  environmentId: string;
+}): Promise<
+  | { ok: true; repo?: string | null; image?: string | null }
+  | { ok: false; error: string }
+> {
+  const result = await railwayGraphql<{
+    serviceInstance?: { source?: { repo?: string | null; image?: string | null } | null } | null;
+  }>({
+    query: `query instance($serviceId: String!, $environmentId: String!) {
+      serviceInstance(serviceId: $serviceId, environmentId: $environmentId) {
+        source { repo image }
+      }
+    }`,
+    variables: { serviceId: opts.serviceId, environmentId: opts.environmentId },
+  });
+  if (!result.ok) return { ok: false, error: railwayGqlError(result) };
+  const source = result.data.serviceInstance?.source;
+  return { ok: true, repo: source?.repo ?? null, image: source?.image ?? null };
+}
+
+export async function railwayEnsurePublicDomain(opts: {
+  projectId: string;
+  environmentId: string;
+  serviceId: string;
+}): Promise<{ ok: true; domain?: string; created: boolean } | { ok: false; error: string }> {
+  const existing = await railwayGetServiceDomains(opts);
+  if (!existing.ok) return existing;
+  const already = existing.serviceDomains[0]?.domain;
+  if (already) return { ok: true, domain: already, created: false };
+
+  const created = await railwayGraphql<{
+    serviceDomainCreate?: { id: string; domain?: string | null } | null;
+  }>({
+    query: `mutation serviceDomainCreate($input: ServiceDomainCreateInput!) {
+      serviceDomainCreate(input: $input) { id domain }
+    }`,
+    variables: {
+      input: {
+        serviceId: opts.serviceId,
+        environmentId: opts.environmentId,
+      },
+    },
+  });
+  if (!created.ok) return { ok: false, error: railwayGqlError(created) };
+  return { ok: true, domain: created.data.serviceDomainCreate?.domain ?? undefined, created: true };
 }
 
 export async function railwayListProjects(): Promise<

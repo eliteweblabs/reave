@@ -18,6 +18,9 @@ export type CourtVenue = {
   staff?: Array<{ role: string; name: string; phone?: string; email?: string }>;
 };
 
+/** Unique states present in COURT_DIRECTORY (Massachusetts first). */
+export const DIRECTORY_STATES = ['MA'] as const;
+
 /** Counties we can gate on (Massachusetts first; add other states the same way). */
 export const DIRECTORY_COUNTIES = [
   'Barnstable',

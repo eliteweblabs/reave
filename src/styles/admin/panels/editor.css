@@ -3654,6 +3654,7 @@ button.de-placeholder-action:active {
   height: 1.25rem;
 }
 .ios-icon-btn .delete-confirm-ring,
+.ios-icon-btn .timing-ring-host,
 .ios-icon-btn .timing-ring {
   display: block;
   flex-shrink: 0;
@@ -4337,6 +4338,8 @@ button.de-placeholder-action:active {
   max-height: 88px;
   overflow: auto;
 }
+.kn-courts-map-states { max-height: 140px; }
+.kn-courts-map-areas { max-height: none; }
 .kn-courts-map-county {
   display: inline-flex;
   align-items: center;

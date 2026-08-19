@@ -2,32 +2,25 @@
  * GET  /api/documents — list all markdown document templates.
  * POST /api/documents — create a new template { slug, content }.
  *
- * Templates live in src/documents/*.md.
+ * Templates live in src/documents/ (including industry packs).
  * On Railway, writes persist until the next deploy.
  */
 import type { APIRoute } from 'astro';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import {
+  documentMatchesInstall,
+  documentsDir,
+  findDocumentFile,
+  installFromGate,
+  listDocumentFiles,
+  parseDocumentPackMeta,
+} from '../../../lib/documentPacks';
 import { titleFromDocumentMarkdown } from '../../../lib/documentTemplates';
+import { getPracticeGate } from '../../../lib/practiceGate';
 
 export const prerender = false;
-
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
-
-function docsDir(): string {
-  return join(projectRoot(), 'src', 'documents');
-}
 
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
@@ -35,19 +28,14 @@ export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  const dir = docsDir();
-  if (!existsSync(dir)) {
-    return new Response(JSON.stringify([]), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-    });
-  }
   try {
-    const files = readdirSync(dir).filter((f) => f.endsWith('.md')).sort();
-    const templates = files.map((f) => {
-      const slug = f.replace(/\.md$/, '');
-      const content = readFileSync(join(dir, f), 'utf8');
-      return { slug, title: titleFromDocumentMarkdown(content, slug) };
-    });
+    const install = installFromGate(await getPracticeGate());
+    const templates = [];
+    for (const file of listDocumentFiles()) {
+      if (!documentMatchesInstall(parseDocumentPackMeta(file.markdown), install)) continue;
+      templates.push({ slug: file.slug, title: titleFromDocumentMarkdown(file.markdown, file.slug) });
+    }
+    templates.sort((a, b) => a.title.localeCompare(b.title));
     return new Response(JSON.stringify(templates), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
@@ -75,7 +63,13 @@ export const POST: APIRoute = async (context) => {
   if (typeof slug !== 'string' || typeof content !== 'string' || !SAFE_SLUG_RE.test(slug)) {
     return new Response('Bad Request', { status: 400 });
   }
-  const dir = docsDir();
+  if (findDocumentFile(slug)) {
+    return new Response(JSON.stringify({ error: 'Template already exists' }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const dir = documentsDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const filePath = join(dir, `${slug}.md`);
   if (existsSync(filePath)) {

@@ -7,6 +7,7 @@
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import { isPracticeArea } from './practiceGate';
 import { normalizePostAlias } from './postAlias';
 import { defaultWebsiteRepoSlug } from './websiteEditorRepo';
 
@@ -25,6 +26,8 @@ export type DeployWizardService = {
   kind: DeployServiceKind;
   description: string;
   repo?: string;
+  image?: string;
+  volumeMount?: string;
   /** Empty / omitted = core (always provisioned). */
   features?: readonly FeatureId[];
   extra?: DeployWizardExtraId;
@@ -213,6 +216,27 @@ export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
   },
 ];
 
+export const DEPLOY_WIZARD_NEW_PROJECT = '__new__';
+
+export function isDeployWizardNewProjectRef(project: string | undefined): boolean {
+  const t = (project ?? '').trim();
+  return !t || t === DEPLOY_WIZARD_NEW_PROJECT;
+}
+
+export function deployWizardDesiredProjectName(input: {
+  projectName?: string;
+  companyName?: string;
+  installSlug?: string;
+}): string {
+  const clean = (raw: string) => raw.replace(/\s+/g, ' ').trim().slice(0, 64);
+  const typed = clean(input.projectName ?? '');
+  if (typed) return typed;
+  const company = clean(input.companyName ?? '');
+  if (company) return company;
+  const slug = clean((input.installSlug ?? '').replace(/-/g, ' '));
+  return slug || 'new-install';
+}
+
 export function normalizeSiteDomain(raw: string | undefined): string {
   return (raw ?? '')
     .trim()
@@ -247,6 +271,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'App Postgres',
     kind: 'postgres',
     description: 'Chats, knowledge, jobs, media, email — referenced as DATABASE_URL on reave.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
   },
   {
     id: 'contact-api',
@@ -260,6 +286,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'contact-postgres',
     kind: 'postgres',
     description: 'Dedicated Postgres for contact-api (do not share reave-postgres).',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
   },
   {
     id: 'crater',
@@ -274,6 +302,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'crater-postgres',
     kind: 'postgres',
     description: 'Crater database.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
     features: ['billing'],
   },
   {
@@ -295,6 +325,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'calcom-postgres',
     kind: 'postgres',
     description: 'Cal.com database.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
     features: ['scheduling'],
   },
   {
@@ -310,6 +342,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'fleet-postgres',
     kind: 'postgres',
     description: 'Fleet tracking database.',
+    image: 'ghcr.io/railwayapp-templates/postgres-ssl:16',
+    volumeMount: '/var/lib/postgresql/data',
     features: ['fleet_tracking'],
   },
   {
@@ -511,7 +545,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description:
-      'Resend API key (inbound + outbound). Required unless you seed a sample inbox. Paste the client’s key, or leave blank to copy this host’s.',
+      'Resend API key (inbound + outbound). Copied from this host on apply. Apply also creates the inbound domain and webhook.',
   }),
   v({
     name: 'RESEND_WEBHOOK_SECRET',
@@ -1438,10 +1472,10 @@ export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
 /** Secrets that show a paste field (Anthropic is optional — blank copies the REΛVE host key). */
-export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY', 'RESEND_API_KEY']);
+export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY']);
 
-/** Only these operator secrets block Apply when empty (email — skip if sample inbox is on). */
-export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set(['RESEND_API_KEY']);
+/** Operator secrets that block Apply when empty. Resend is copied from this host on apply. */
+export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set<string>();
 
 export const DEPLOY_WIZARD_SEED_INDUSTRIES = [
   { id: 'none', label: 'No sample data' },
@@ -1463,32 +1497,59 @@ export type DeployWizardSeedInput = {
   schedule: boolean;
   /** Office street address — Mapbox pin for the court radius / county gate. */
   practiceAddress?: string;
+  courtGateMode?: 'radius' | 'counties' | 'state';
   courtRadiusMi?: number;
   courtCounties?: string[];
+  courtStates?: string[];
   practiceArea?: string;
+  practiceAreas?: string[];
 };
+
+function normalizeSeedPracticeAreas(raw?: Partial<DeployWizardSeedInput> | null): string[] {
+  const fromArr = Array.isArray(raw?.practiceAreas) ? raw.practiceAreas : [];
+  const fromSingle = typeof raw?.practiceArea === 'string' ? raw.practiceArea.split(',') : [];
+  return [
+    ...new Set(
+      [...fromArr, ...fromSingle]
+        .map((s) => String(s).trim().toLowerCase())
+        .filter(isPracticeArea),
+    ),
+  ];
+}
 
 export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> | null): DeployWizardSeedInput {
   const industry = raw?.industry && isDeployWizardSeedIndustryId(raw.industry) ? raw.industry : 'none';
   const on = industry !== 'none';
   const radius = Number(raw?.courtRadiusMi);
+  const practiceAreas = normalizeSeedPracticeAreas(raw);
   return {
     industry,
     inbox: on && raw?.inbox !== false,
     todos: on && raw?.todos !== false,
     schedule: on && raw?.schedule !== false,
     practiceAddress: (raw?.practiceAddress || '').trim().slice(0, 200) || undefined,
+    courtGateMode:
+      raw?.courtGateMode === 'counties' || raw?.courtGateMode === 'state' || raw?.courtGateMode === 'radius'
+        ? raw.courtGateMode
+        : undefined,
     courtRadiusMi: Number.isFinite(radius) && radius > 0 ? Math.min(250, radius) : undefined,
     courtCounties: [...new Set((raw?.courtCounties ?? []).map((c) => String(c).trim()).filter(Boolean))],
-    practiceArea: (raw?.practiceArea || '').trim().slice(0, 40) || undefined,
+    courtStates: [
+      ...new Set(
+        (raw?.courtStates ?? [])
+          .map((s) => String(s).trim().toUpperCase())
+          .filter((s) => /^[A-Z]{2}$/.test(s)),
+      ),
+    ],
+    practiceAreas,
+    practiceArea: practiceAreas[0],
   };
 }
 
 export function isDeployWizardRequiredOperatorSecret(
   name: string,
-  seed?: Pick<DeployWizardSeedInput, 'industry' | 'inbox'>,
+  _seed?: Pick<DeployWizardSeedInput, 'industry' | 'inbox'>,
 ): boolean {
-  if (name === 'RESEND_API_KEY' && seed && seed.industry !== 'none' && seed.inbox) return false;
   return DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS.has(name);
 }
 
@@ -1690,31 +1751,40 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
         seedVars.push({
           name: 'BOOKING_DEFAULT_ADDRESS',
           value: seed.practiceAddress,
-          description: 'Office address — Mapbox geocodes this pin for the court radius / county gate.',
+          description: 'Office address from Google Places — Mapbox geocodes this pin for the court radius / county gate.',
         });
       }
       seedVars.push(
         {
-          name: 'COURT_RADIUS_MI',
-          value: String(seed.courtRadiusMi || 60),
-          description: 'Miles from the Mapbox office pin used to pull courthouses and trustees.',
+          name: 'COURT_GATE_MODE',
+          value: seed.courtGateMode || 'radius',
+          description: 'How court knowledge is aggregated: radius | counties | state.',
         },
         {
           name: 'PRACTICE_AREA',
-          value: seed.practiceArea || 'bankruptcy',
-          description: 'Legal department this office serves (bankruptcy, tax, foreclosure, general).',
-        },
-        {
-          name: 'COURT_GATE_MODE',
-          value: (seed.courtCounties || []).length ? 'both' : 'radius',
-          description: 'radius | counties | both',
+          value: (seed.practiceAreas?.length ? seed.practiceAreas : ['bankruptcy']).join(','),
+          description: 'Legal departments this office serves (comma-separated: bankruptcy, tax, foreclosure, general).',
         },
       );
-      if (seed.courtCounties?.length) {
+      if ((seed.courtGateMode || 'radius') === 'radius') {
+        seedVars.push({
+          name: 'COURT_RADIUS_MI',
+          value: String(seed.courtRadiusMi || 60),
+          description: 'Miles from the Mapbox office pin used to pull courthouses and trustees.',
+        });
+      }
+      if (seed.courtGateMode === 'counties' && seed.courtCounties?.length) {
         seedVars.push({
           name: 'COURT_COUNTIES',
           value: seed.courtCounties.join(','),
-          description: 'County gate (comma-separated). Combined with the Mapbox radius when set.',
+          description: 'County gate (comma-separated).',
+        });
+      }
+      if (seed.courtGateMode === 'state' && seed.courtStates?.length) {
+        seedVars.push({
+          name: 'COURT_STATES',
+          value: seed.courtStates.join(','),
+          description: 'State gate (comma-separated USPS codes).',
         });
       }
     }

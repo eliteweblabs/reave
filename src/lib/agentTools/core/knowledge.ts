@@ -316,7 +316,7 @@ export const knowledgeModule: AgentToolModule = {
             function: {
               name: 'list_nearby_courts',
               description:
-                'List courthouses, trustees, judges, clerks, hours, and phones inside this office’s Mapbox pin + radius/county gate. Prefer this (or read_knowledge slug courts-in-radius) over guessing a venue. Never invent a phone or judge.',
+                'List courthouses, trustees, judges, clerks, hours, and phones inside this office’s knowledge gate (distance from the Mapbox pin, county, or state). Prefer this (or read_knowledge slug courts-in-radius) over guessing a venue. Never invent a phone or judge.',
               parameters: { type: 'object', properties: {}, additionalProperties: false },
             },
           },

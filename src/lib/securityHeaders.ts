@@ -32,6 +32,9 @@ const CLERK_SRC = ['https://*.clerk.accounts.dev', 'https://*.clerk.com', ...cle
 /** Clerk bot protection (Turnstile) — without these the sign-up CAPTCHA never mounts. */
 const CLERK_CAPTCHA_SRC = 'https://challenges.cloudflare.com https://*.protect.clerk.com';
 
+/** Deploy-wizard GitHub App manifest POSTs to github.com (org + user app-new). */
+export const CSP_FORM_ACTION = "'self' https://github.com";
+
 const CSP_VALUE = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC} https://cdn.jsdelivr.net https://static.cloudflareinsights.com`,
@@ -44,11 +47,12 @@ const CSP_VALUE = [
   `frame-src 'self' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC}`,
   "frame-ancestors 'self'",
   "base-uri 'self'",
-  "form-action 'self'",
+  `form-action ${CSP_FORM_ACTION}`,
 ].join('; ');
 
 function cspEnforced(): boolean {
-  return import.meta.env.PROD || serverEnv('CSP_ENFORCE') === '1';
+  const prod = typeof import.meta.env !== 'undefined' && import.meta.env.PROD;
+  return Boolean(prod) || serverEnv('CSP_ENFORCE') === '1';
 }
 
 const SECURITY_HEADERS: Record<string, string> = {

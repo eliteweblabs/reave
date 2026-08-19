@@ -11,7 +11,7 @@ Super-admin module for the official REΛVE Railway install only. Do not add `dep
 
 ## Sibling services
 
-- None (uses the host’s `RAILWAY_API_TOKEN` to write variables onto existing services)
+- None (uses the host’s `RAILWAY_API_TOKEN` to create the project / missing services and write variables)
 
 ## Required env vars
 

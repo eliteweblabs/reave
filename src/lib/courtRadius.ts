@@ -1,13 +1,14 @@
-import { COURT_DIRECTORY, DIRECTORY_COUNTIES, type CourtVenue } from './courtDirectory';
+import { COURT_DIRECTORY, DIRECTORY_COUNTIES, DIRECTORY_STATES, type CourtVenue } from './courtDirectory';
 import { getOfficeCoordinates } from './mapbox';
 import { getPracticeGate, type PracticeGate } from './practiceGate';
 
-export type CourtMatch = CourtVenue & { miles: number; reason: 'radius' | 'county' | 'both' };
+export type CourtMatch = CourtVenue & { miles: number; reason: 'radius' | 'county' | 'state' | 'both' };
 
 export type CourtGateResult = {
   origin: { lat: number; lng: number; label: string } | null;
   gate: PracticeGate;
   counties: readonly string[];
+  states: readonly string[];
   courts: CourtMatch[];
 };
 
@@ -48,14 +49,17 @@ export function filterCourts(
   directory: CourtVenue[] = COURT_DIRECTORY,
 ): CourtMatch[] {
   const selected = new Set(gate.counties.map((c) => c.toLowerCase()));
+  const selectedStates = new Set(gate.states.map((s) => s.toUpperCase()));
   const out: CourtMatch[] = [];
   for (const venue of directory) {
     const miles = origin ? milesBetween(origin, venue) : Number.POSITIVE_INFINITY;
     const inRadius = Boolean(origin) && miles <= gate.radiusMi;
     const inCounty = venue.counties.some((c) => selected.has(c.toLowerCase()));
+    const inState = selectedStates.has(venue.state.toUpperCase());
     let reason: CourtMatch['reason'] | null = null;
     if (gate.gateMode === 'radius' && inRadius) reason = 'radius';
     if (gate.gateMode === 'counties' && inCounty) reason = 'county';
+    if (gate.gateMode === 'state' && inState) reason = 'state';
     if (gate.gateMode === 'both') {
       if (inRadius && inCounty) reason = 'both';
       else if (inRadius) reason = 'radius';
@@ -73,6 +77,7 @@ export async function resolveCourtGate(): Promise<CourtGateResult> {
     origin,
     gate,
     counties: DIRECTORY_COUNTIES,
+    states: DIRECTORY_STATES,
     courts: filterCourts(origin, gate),
   };
 }
@@ -87,16 +92,24 @@ export function renderCourtsKnowledge(result: CourtGateResult): string {
     '# Courts in this office’s gate',
     '',
     result.origin
-      ? `Office pin: **${result.origin.label}**. Gate: **${result.gate.gateMode}** · radius **${result.gate.radiusMi} mi**` +
+      ? `Office pin: **${result.origin.label}**. Gate: **${result.gate.gateMode}**` +
+        (result.gate.gateMode === 'radius' || result.gate.gateMode === 'both'
+          ? ` · radius **${result.gate.radiusMi} mi**`
+          : '') +
         (result.gate.counties.length ? ` · counties ${result.gate.counties.join(', ')}` : '') +
+        (result.gate.states.length ? ` · states ${result.gate.states.join(', ')}` : '') +
         '.'
-      : 'No office address is set — add one in Company (or the deploy wizard) so the Mapbox pin and radius can resolve.',
+      : result.gate.gateMode === 'state' && result.gate.states.length
+        ? `Gate: **state** · ${result.gate.states.join(', ')}. No office pin is set — distance is not calculated.`
+        : result.gate.gateMode === 'counties' && result.gate.counties.length
+          ? `Gate: **county** · ${result.gate.counties.join(', ')}. No office pin is set — distance is not calculated.`
+          : 'No office address is set — add one in Company (or the deploy wizard) so the Mapbox pin and radius can resolve.',
     '',
     'Do not invent a courthouse, judge, or phone number that is not listed here. Confirm on the court site if a number looks stale.',
     '',
   ];
   if (!result.courts.length) {
-    lines.push('_No directory venues match this gate yet. Widen the radius, add a county, or extend the court directory._');
+    lines.push('_No directory venues match this gate yet. Widen the radius, add a county or state, or extend the court directory._');
     return lines.join('\n');
   }
   for (const court of result.courts) {

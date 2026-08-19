@@ -37,10 +37,41 @@
     todos: true,
     schedule: true,
     practiceAddress: '',
+    courtGateMode: 'radius',
     courtRadiusMi: 60,
     courtCounties: [],
+    courtStates: [],
+    practiceAreas: ['bankruptcy'],
     practiceArea: 'bankruptcy',
   };
+  let courtGateModes = [
+    { id: 'radius', label: 'Distance from office' },
+    { id: 'counties', label: 'County' },
+    { id: 'state', label: 'State' },
+  ];
+  let usStates = [{ id: 'MA', label: 'Massachusetts' }];
+  let directoryCounties = [
+    'Barnstable',
+    'Berkshire',
+    'Bristol',
+    'Dukes',
+    'Essex',
+    'Franklin',
+    'Hampden',
+    'Hampshire',
+    'Middlesex',
+    'Nantucket',
+    'Norfolk',
+    'Plymouth',
+    'Suffolk',
+    'Worcester',
+  ];
+  let practiceAreas = [
+    { id: 'bankruptcy', label: 'Bankruptcy / debtor' },
+    { id: 'tax', label: 'Tax controversy' },
+    { id: 'foreclosure', label: 'Foreclosure / housing' },
+    { id: 'general', label: 'General practice' },
+  ];
   let selectedIds = new Set();
   let selectedExtras = new Set();
   let step = 0;
@@ -51,7 +82,8 @@
   let companyName = '';
   let adminUsername = '';
   let timezone = 'America/New_York';
-  let project = '';
+  let project = '__new__';
+  let projectName = '';
   let environment = 'production';
   let railway = { configured: false, projects: [] };
   let cloudflare = { configured: false };
@@ -63,7 +95,11 @@
   let applied = null;
   let appliedDns = null;
   let appliedProvisioned = [];
+  let applyLog = [];
   let githubBanner = '';
+  let placesTimer = 0;
+  let placesSeq = 0;
+  let placesHighlight = -1;
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
@@ -74,6 +110,157 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function renderMulti(id, rows, selected) {
+    const chosen = new Set((selected || []).map((v) => String(v).toLowerCase()));
+    return (
+      `<div class="dw-multi" id="${esc(id)}" role="group">` +
+      rows
+        .map((row) => {
+          const value = typeof row === 'string' ? row : row.id;
+          const label = typeof row === 'string' ? row : row.label;
+          const on = chosen.has(String(value).toLowerCase());
+          return (
+            `<label class="dw-multi-opt">` +
+            `<input type="checkbox" value="${esc(value)}"${on ? ' checked' : ''} />` +
+            `${esc(label)}` +
+            `</label>`
+          );
+        })
+        .join('') +
+      `</div>`
+    );
+  }
+
+  function readChecks(id) {
+    return [...root.querySelectorAll(`#${id} input:checked`)].map((el) => el.value);
+  }
+
+  function placesEls() {
+    const input = root.querySelector('#dw-practice-address');
+    const list = root.querySelector('#dw-practice-address-list');
+    if (!(input instanceof HTMLInputElement) || !(list instanceof HTMLElement)) return null;
+    return { input, list };
+  }
+
+  function hidePlacesList() {
+    const els = placesEls();
+    if (!els) return;
+    els.list.hidden = true;
+    els.list.innerHTML = '';
+    els.input.setAttribute('aria-expanded', 'false');
+    placesHighlight = -1;
+  }
+
+  function renderPlacesList(predictions, message) {
+    const els = placesEls();
+    if (!els) return;
+    els.list.innerHTML = '';
+    if (message) {
+      const empty = document.createElement('div');
+      empty.className = 'dw-places-empty';
+      empty.textContent = message;
+      els.list.appendChild(empty);
+    } else {
+      predictions.forEach((p, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dw-places-option';
+        btn.setAttribute('role', 'option');
+        btn.textContent = p.description;
+        if (i === placesHighlight) btn.classList.add('is-active');
+        btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          pickPlace(p.description);
+        });
+        els.list.appendChild(btn);
+      });
+    }
+    els.list.hidden = false;
+    els.input.setAttribute('aria-expanded', 'true');
+  }
+
+  function pickPlace(description) {
+    const els = placesEls();
+    if (!els) return;
+    els.input.value = description;
+    seed.practiceAddress = description;
+    hidePlacesList();
+  }
+
+  async function runPlacesSearch() {
+    const els = placesEls();
+    if (!els) return;
+    const q = els.input.value.trim();
+    if (q.length < 2) {
+      hidePlacesList();
+      return;
+    }
+    const seq = ++placesSeq;
+    try {
+      const params = new URLSearchParams({ input: q, types: 'address' });
+      const res = await fetch(`/api/google/places-autocomplete?${params}`);
+      const data = await res.json().catch(() => ({}));
+      if (seq !== placesSeq || els.input.value.trim() !== q) return;
+      if (!res.ok) {
+        renderPlacesList([], data.errorMessage || data.error || 'Could not look up addresses.');
+        return;
+      }
+      const predictions = Array.isArray(data.predictions) ? data.predictions : [];
+      placesHighlight = predictions.length ? 0 : -1;
+      renderPlacesList(predictions, predictions.length ? '' : 'No matching addresses.');
+    } catch (e) {
+      if (seq !== placesSeq) return;
+      renderPlacesList([], e.message || 'Could not look up addresses.');
+    }
+  }
+
+  function schedulePlacesSearch() {
+    clearTimeout(placesTimer);
+    placesTimer = setTimeout(() => {
+      void runPlacesSearch();
+    }, 280);
+  }
+
+  function bindPlacesAddress() {
+    const els = placesEls();
+    if (!els) return;
+    els.input.addEventListener('input', () => {
+      seed.practiceAddress = els.input.value.trim();
+      placesHighlight = -1;
+      schedulePlacesSearch();
+    });
+    els.input.addEventListener('keydown', (ev) => {
+      const options = [...els.list.querySelectorAll('.dw-places-option')];
+      if (ev.key === 'Escape') {
+        hidePlacesList();
+        return;
+      }
+      if (!options.length || els.list.hidden) return;
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        placesHighlight = (placesHighlight + 1) % options.length;
+        renderPlacesList(
+          options.map((btn) => ({ description: btn.textContent || '' })),
+          '',
+        );
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        placesHighlight = (placesHighlight - 1 + options.length) % options.length;
+        renderPlacesList(
+          options.map((btn) => ({ description: btn.textContent || '' })),
+          '',
+        );
+      } else if (ev.key === 'Enter' && placesHighlight >= 0 && options[placesHighlight]) {
+        ev.preventDefault();
+        pickPlace(options[placesHighlight].textContent || '');
+      }
+    });
+    els.input.addEventListener('blur', () => {
+      setTimeout(hidePlacesList, 180);
+    });
   }
 
   function varKey(variable) {
@@ -179,6 +366,8 @@
         return `<option value="${esc(p.id)}"${selected}>${esc(p.name)}</option>`;
       })
       .join('');
+    const newSelected = project === '__new__' || !project ? ' selected' : '';
+    const nameHint = projectName || companyName || installSlug || 'barry-levine';
     return (
       `<div class="dl-toolbar dw-identity">` +
       `<label class="dl-field">` +
@@ -195,7 +384,7 @@
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Company name</span>` +
-      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="Capco Fire" value="${esc(companyName)}" />` +
+      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="acme co" value="${esc(companyName)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Admin username</span>` +
@@ -212,9 +401,15 @@
       `<label class="dl-field">` +
       `<span class="dl-field-label">Railway project</span>` +
       (projectOptions
-        ? `<select id="dw-project" class="dl-select"><option value="">Select project…</option>${projectOptions}</select>`
-        : `<input id="dw-project" class="dl-input" type="text" placeholder="Project name or ID" value="${esc(project)}" />`) +
+        ? `<select id="dw-project" class="dl-select"><option value="__new__"${newSelected}>New project…</option>${projectOptions}</select>`
+        : `<input id="dw-project" class="dl-input" type="text" placeholder="New project name" value="${esc(project === '__new__' ? '' : project)}" />`) +
       `</label>` +
+      (project === '__new__' || !projectOptions
+        ? `<label class="dl-field">` +
+          `<span class="dl-field-label">Project name</span>` +
+          `<input id="dw-project-name" class="dl-input" type="text" maxlength="64" placeholder="${esc(nameHint)}" value="${esc(projectName)}" />` +
+          `</label>`
+        : '') +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Environment</span>` +
       `<input id="dw-env" class="dl-input" type="text" value="${esc(environment)}" />` +
@@ -248,7 +443,7 @@
     if (!plan) return `<p class="dl-loading">Building service list…</p>`;
     const extras = visibleExtras();
     return (
-      `<p class="dl-footnote">Create these Railway services with <strong>these exact names</strong> so the reference templates resolve. Postgres plugins keep the names below.</p>` +
+      `<p class="dl-footnote">Apply creates the Railway project (if you picked <strong>New project</strong>) and any missing services with <strong>these exact names</strong>. Postgres is the official Railway image + volume. GitHub repos connect when this host’s Railway token can see them.</p>` +
       (extras.length
         ? `<div class="dw-extras">` +
           extras
@@ -343,7 +538,7 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. The office pin and court radius use Mapbox, not Google.</p>` +
+      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. Office address uses Google Places. Knowledge aggregation decides whether courts load by distance from that pin, by county, or by state.</p>` +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
@@ -353,32 +548,46 @@
       (seed.industry === 'law'
         ? `<div class="dw-identity">` +
           `<label class="dl-field">` +
-          `<span class="dl-field-label">Office address (Mapbox pin)</span>` +
-          `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="123 Cabot St, Beverly, MA 01915" value="${esc(seed.practiceAddress || '')}" />` +
-          `</label>` +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Court radius (miles)</span>` +
-          `<input id="dw-court-radius" class="dl-input" type="number" min="10" max="250" step="5" value="${esc(String(seed.courtRadiusMi || 60))}" />` +
-          `</label>` +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Counties (optional)</span>` +
-          `<input id="dw-court-counties" class="dl-input" type="text" maxlength="200" placeholder="Essex" value="${esc((seed.courtCounties || []).join(', '))}" />` +
-          `</label>` +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Department</span>` +
-          `<select id="dw-practice-area" class="dl-select">` +
-          [
-            ['bankruptcy', 'Bankruptcy / debtor'],
-            ['tax', 'Tax controversy'],
-            ['foreclosure', 'Foreclosure / housing'],
-            ['general', 'General practice'],
-          ]
-            .map(([id, label]) => {
-              const selected = (seed.practiceArea || 'bankruptcy') === id ? ' selected' : '';
-              return `<option value="${esc(id)}"${selected}>${esc(label)}</option>`;
+          `<span class="dl-field-label">Knowledge aggregation</span>` +
+          `<select id="dw-court-gate" class="dl-select">` +
+          courtGateModes
+            .map((row) => {
+              const selected = (seed.courtGateMode || 'radius') === row.id ? ' selected' : '';
+              return `<option value="${esc(row.id)}"${selected}>${esc(row.label)}</option>`;
             })
             .join('') +
           `</select>` +
+          `</label>` +
+          `<label class="dl-field dw-places">` +
+          `<span class="dl-field-label">Office address</span>` +
+          `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="Start typing an address…" value="${esc(seed.practiceAddress || '')}" autocomplete="off" autocorrect="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dw-practice-address-list" />` +
+          `<div id="dw-practice-address-list" class="dw-places-list" hidden role="listbox"></div>` +
+          `</label>` +
+          ((seed.courtGateMode || 'radius') === 'radius'
+            ? `<label class="dl-field">` +
+              `<span class="dl-field-label">Distance (miles)</span>` +
+              `<input id="dw-court-radius" class="dl-input" type="number" min="10" max="250" step="5" value="${esc(String(seed.courtRadiusMi || 60))}" />` +
+              `</label>`
+            : '') +
+          (seed.courtGateMode === 'counties'
+            ? `<label class="dl-field dw-field--multi">` +
+              `<span class="dl-field-label">Counties</span>` +
+              renderMulti('dw-court-counties', directoryCounties, seed.courtCounties) +
+              `</label>`
+            : '') +
+          (seed.courtGateMode === 'state'
+            ? `<label class="dl-field dw-field--multi">` +
+              `<span class="dl-field-label">States</span>` +
+              renderMulti('dw-court-states', usStates, seed.courtStates) +
+              `</label>`
+            : '') +
+          `<label class="dl-field dw-field--multi">` +
+          `<span class="dl-field-label">Departments</span>` +
+          renderMulti(
+            'dw-practice-areas',
+            practiceAreas,
+            seed.practiceAreas?.length ? seed.practiceAreas : seed.practiceArea ? [seed.practiceArea] : ['bankruptcy'],
+          ) +
           `</label>` +
           `</div>`
         : '') +
@@ -449,7 +658,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is required unless you seeded a sample inbox. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
+      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is copied from this host on apply, which also creates the inbound domain and webhook. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
@@ -482,7 +691,7 @@
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       `</div>` +
       (missing.length
-        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Paste Resend on Variables — or seed a sample inbox to skip it. Anthropic defaults to this host’s REΛVE key.</p>`
+        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Anthropic defaults to this host’s REΛVE key. Resend is copied from this host on apply.</p>`
         : '') +
       `<label class="dl-field dw-cli-field">` +
       `<span class="dl-field-label">Railway CLI</span>` +
@@ -490,7 +699,7 @@
       `</label>` +
       `<div class="dl-toolbar-actions">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-copy">Copy CLI</button>` +
-      `<button type="button" class="dl-btn dl-btn--primary" id="dw-apply"${railway.configured && project && !applying ? '' : ' disabled'}>` +
+      `<button type="button" class="dl-btn dl-btn--primary" id="dw-apply"${railway.configured && (project === '__new__' || project) && !applying ? '' : ' disabled'}>` +
       (applying
         ? 'Applying…'
         : cloudflare.configured
@@ -499,7 +708,7 @@
       `</button>` +
       `</div>` +
       (railway.configured
-        ? `<p class="dl-meta">Apply copies host keys, rolls secrets, creates the Resend webhook, and writes Railway variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Website module: GitHub will ask you to create and install a restricted App on <code>{slug}-site</code> only. Services must already exist with these names.</p>`
+        ? `<p class="dl-meta">Apply creates the Railway project and missing services, copies host keys, rolls secrets, creates the Resend webhook, and writes variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Website module: GitHub will ask you to create and install a restricted App on <code>{slug}-site</code> only.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
         ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
@@ -513,6 +722,14 @@
         : '') +
       (appliedProvisioned.length
         ? `<p class="dl-footnote" role="status">${esc(appliedProvisioned.join(' '))}</p>`
+        : '') +
+      (applying || applyLog.length
+        ? `<ol class="dw-apply-log" id="dw-apply-log" aria-live="polite">${applyLog
+            .map(
+              (row) =>
+                `<li class="dw-apply-log-item${row.tone ? ` dw-apply-log-item--${esc(row.tone)}` : ''}">${esc(row.message)}</li>`,
+            )
+            .join('')}</ol>`
         : '')
     );
   }
@@ -559,26 +776,30 @@
     if (adminEl) adminUsername = adminEl.value.trim();
     if (tzEl) timezone = tzEl.value.trim() || 'America/New_York';
     if (appEl) appService = appEl.value.trim() || 'reave';
-    if (projectEl) project = projectEl.value.trim();
+    if (projectEl) project = projectEl.value.trim() || '__new__';
+    const projectNameEl = root.querySelector('#dw-project-name');
+    if (projectNameEl) projectName = projectNameEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
     const seedEl = root.querySelector('#dw-seed-industry');
     if (seedEl) seed = { ...seed, industry: seedEl.value || 'none' };
     const addrEl = root.querySelector('#dw-practice-address');
     const radiusEl = root.querySelector('#dw-court-radius');
     const countiesEl = root.querySelector('#dw-court-counties');
-    const areaEl = root.querySelector('#dw-practice-area');
+    const statesEl = root.querySelector('#dw-court-states');
+    const areasEl = root.querySelector('#dw-practice-areas');
+    const gateEl = root.querySelector('#dw-court-gate');
     if (addrEl) seed.practiceAddress = addrEl.value.trim();
+    if (gateEl) seed.courtGateMode = gateEl.value || 'radius';
     if (radiusEl) {
       const radius = Number(radiusEl.value);
       seed.courtRadiusMi = Number.isFinite(radius) && radius > 0 ? radius : 60;
     }
-    if (countiesEl) {
-      seed.courtCounties = countiesEl.value
-        .split(',')
-        .map((c) => c.trim())
-        .filter(Boolean);
+    if (countiesEl) seed.courtCounties = readChecks('dw-court-counties');
+    if (statesEl) seed.courtStates = readChecks('dw-court-states');
+    if (areasEl) {
+      seed.practiceAreas = readChecks('dw-practice-areas');
+      seed.practiceArea = seed.practiceAreas[0] || 'bankruptcy';
     }
-    if (areaEl) seed.practiceArea = areaEl.value || 'bankruptcy';
   }
 
   function readVarInputs() {
@@ -654,27 +875,67 @@
     bind();
   }
 
+  function pushApplyLog(message, tone) {
+    const text = String(message || '').trim();
+    if (!text) return;
+    const last = applyLog[applyLog.length - 1];
+    if (last && last.message === text) return;
+    applyLog.push({ message: text, tone: tone || '' });
+    const el = root.querySelector('#dw-apply-log');
+    if (!el) return;
+    const item = document.createElement('li');
+    item.className = `dw-apply-log-item${tone ? ` dw-apply-log-item--${tone}` : ''}`;
+    item.textContent = text;
+    el.appendChild(item);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function parseApplyPayload(raw) {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return {};
+    try {
+      const single = JSON.parse(trimmed);
+      if (single && typeof single === 'object' && !Array.isArray(single)) return single;
+    } catch {
+      /* NDJSON from a cached page or a proxy that rewrote Content-Type */
+    }
+    let last = {};
+    for (const line of trimmed.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.message) {
+          pushApplyLog(event.message, event.phase === 'error' ? 'error' : event.phase === 'github' ? 'next' : '');
+        }
+        if (event.phase === 'github' || event.phase === 'done' || event.phase === 'error' || event.ok != null) {
+          last = event;
+        }
+      } catch {
+        /* skip a partial line */
+      }
+    }
+    return last;
+  }
+
   async function applyPlan() {
     if (applying) return;
     readIdentity();
     readVarInputs();
-    if (!project) {
-      error = 'Select a Railway project first.';
-      render();
-      bind();
-      return;
-    }
+    if (!project) project = '__new__';
     applying = true;
     error = '';
+    applyLog = [];
     let leavingForGithub = false;
     render();
     bind();
+    pushApplyLog('Apply started — this can take a minute.');
     try {
       const res = await fetch('/api/deploy/wizard', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
         body: JSON.stringify({
           action: 'apply',
+          stream: true,
           moduleIds: [...selectedIds],
           extras: [...selectedExtras],
           appService,
@@ -686,14 +947,82 @@
           timezone,
           seed,
           project,
+          projectName,
           environment,
           values,
         }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) throw new Error(json.error || `Apply failed (${res.status})`);
+      const ctype = res.headers.get('content-type') || '';
+      if ((ctype.includes('ndjson') || ctype.includes('octet-stream')) && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let finalEvent = null;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let event;
+            try {
+              event = JSON.parse(line);
+            } catch {
+              continue;
+            }
+            if (event.message) {
+              pushApplyLog(event.message, event.phase === 'error' ? 'error' : event.phase === 'github' ? 'next' : '');
+            }
+            if (event.phase === 'github' || event.phase === 'done' || event.phase === 'error') {
+              finalEvent = event;
+            }
+          }
+        }
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer);
+            if (event.message) pushApplyLog(event.message, event.phase === 'error' ? 'error' : '');
+            if (event.phase === 'github' || event.phase === 'done' || event.phase === 'error') {
+              finalEvent = event;
+            }
+          } catch {
+            /* ignore trailing partial */
+          }
+        }
+        if (!finalEvent) throw new Error(res.ok ? 'Apply ended without a result.' : `Apply failed (${res.status})`);
+        if (finalEvent.phase === 'error' || finalEvent.ok === false) {
+          throw new Error(finalEvent.message || `Apply failed (${res.status})`);
+        }
+        if (finalEvent.needsGithubApp) {
+          leavingForGithub = true;
+          appliedProvisioned = finalEvent.provisioned || [];
+          pushApplyLog('Sending you to GitHub to create the App. Confirm, then install it on the site repo only.');
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          submitGithubAppManifest(finalEvent.needsGithubApp);
+          return;
+        }
+        plan = finalEvent.plan || plan;
+        cli = finalEvent.cli || cli;
+        applied = finalEvent.applied || [];
+        appliedDns = finalEvent.dns || null;
+        appliedProvisioned = finalEvent.provisioned || [];
+        return;
+      }
+
+      const raw = await res.text();
+      const json = parseApplyPayload(raw);
+      if (!res.ok || !json.ok) {
+        throw new Error(
+          json.error || json.message || (res.ok ? 'Apply did not finish.' : `Apply failed (${res.status})`),
+        );
+      }
       if (json.needsGithubApp) {
         leavingForGithub = true;
+        (json.provisioned || []).forEach((note) => pushApplyLog(note));
+        pushApplyLog('Sending you to GitHub to create the App. Confirm, then install it on the site repo only.');
+        await new Promise((resolve) => setTimeout(resolve, 700));
         submitGithubAppManifest(json.needsGithubApp);
         return;
       }
@@ -704,6 +1033,7 @@
       appliedProvisioned = json.provisioned || [];
     } catch (e) {
       error = e.message || 'Could not apply variables.';
+      pushApplyLog(error, 'error');
     } finally {
       if (!leavingForGithub) {
         applying = false;
@@ -778,6 +1108,11 @@
         void goNextFromExtras();
       });
     });
+    root.querySelector('#dw-project')?.addEventListener('change', () => {
+      readIdentity();
+      render();
+      bind();
+    });
     root.querySelector('#dw-domain')?.addEventListener('change', () => {
       readIdentity();
       if (step === 1) void goNextFromExtras();
@@ -792,6 +1127,12 @@
     });
     root.querySelector('#dw-apply')?.addEventListener('click', () => {
       void applyPlan();
+    });
+    bindPlacesAddress();
+    root.querySelector('#dw-court-gate')?.addEventListener('change', () => {
+      readIdentity();
+      render();
+      bind();
     });
     root.querySelector('#dw-seed-industry')?.addEventListener('change', () => {
       readIdentity();
@@ -828,7 +1169,15 @@
   function submitGithubAppManifest(setup) {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = setup.actionUrl;
+    let action = setup.actionUrl;
+    try {
+      const url = new URL(setup.actionUrl);
+      if (setup.state && !url.searchParams.get('state')) url.searchParams.set('state', setup.state);
+      action = url.toString();
+    } catch {
+      /* keep the server-provided action */
+    }
+    form.action = action;
     const manifest = document.createElement('input');
     manifest.type = 'hidden';
     manifest.name = 'manifest';
@@ -864,6 +1213,10 @@
       included = data.included || [];
       extrasCatalog = data.extras || [];
       seedIndustries = data.seedIndustries || seedIndustries;
+      if (Array.isArray(data.courtGateModes) && data.courtGateModes.length) courtGateModes = data.courtGateModes;
+      if (Array.isArray(data.usStates) && data.usStates.length) usStates = data.usStates;
+      if (Array.isArray(data.directoryCounties) && data.directoryCounties.length) directoryCounties = data.directoryCounties;
+      if (Array.isArray(data.practiceAreas) && data.practiceAreas.length) practiceAreas = data.practiceAreas;
       railway = data.railway || railway;
       cloudflare = data.cloudflare || cloudflare;
       if (data.defaults) {
@@ -878,7 +1231,7 @@
       }
       const allowed = new Set(toggleableModules().map((m) => m.moduleId));
       selectedIds = new Set((data.defaultModuleIds || [...allowed]).filter((id) => allowed.has(id)));
-      if (railway.projects?.length === 1) project = railway.projects[0].id;
+      project = '__new__';
       const params = new URLSearchParams(location.search);
       if (params.get('github') === 'ok') {
         githubBanner =

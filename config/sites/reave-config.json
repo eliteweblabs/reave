@@ -241,13 +241,14 @@
       "title": "M-Dot",
       "description": "Boston-born East Coast hip-hop artist and producer — a lyric-first MC with two decades in the underground, collaborations with Pete Rock, DJ Premier, and Method Man, 17 European tours, and placements on NBC, STARZ, and Def Jam. REΛVE built his digital home base to match that pedigree.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "Audio",
-        "Hosting"
+        "Managed Hosting"
       ],
       "image": "portfolio-mdot-world-featured",
       "imageAlt": "M-Dot portrait splash page with bottom music and social dock on black",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Mohegan Sun",
@@ -259,7 +260,9 @@
       ],
       "image": "portfolio-mohegan-sun-featured",
       "imageAlt": "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
-      "size": "4x1"
+      "imagePosition": "right center",
+      "size": "4x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Porsche Miami Art Week",
@@ -270,7 +273,8 @@
       ],
       "image": "portfolio-porsche-miami-art-week-featured",
       "imageAlt": "White Porsche Mission E concept on a parquet platform with Tribute to tomorrow branding at Miami Art Week",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "VIP Perks · Marker Security",
@@ -282,19 +286,21 @@
       ],
       "image": "portfolio-vip-perks-marker-security-featured",
       "imageAlt": "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "LUXEMEDS",
       "description": "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "E-commerce",
         "Wellness"
       ],
       "image": "portfolio-luxe-meds-featured",
       "imageAlt": "LUXEMEDS homepage with product vial hero and chat concierge",
-      "size": "1x2"
+      "size": "1x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Creed Lounge",
@@ -306,7 +312,8 @@
       ],
       "image": "portfolio-creed-featured",
       "imageAlt": "CREED hookah lounge sign against a glass skyscraper at dusk",
-      "size": "2x2"
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Air Race 21",
@@ -318,43 +325,54 @@
       ],
       "image": "portfolio-ar-featured",
       "imageAlt": "Red racing jet with Air Race 21 decorative graphic overlay",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Kingdom Trails",
       "description": "World-renowned, community-supported trail network in Vermont's Northeast Kingdom — 100+ miles of non-motorized, multi-use trails for all abilities, stewarded through private landowner partnerships and careful trail maintenance.",
       "tags": [
-        "Branding",
-        "Outdoor",
-        "Print"
+        "WordPress™",
+        "Managed Hosting",
+        "Web Development"
       ],
-      "image": "portfolio-kingdom-featured",
-      "imageAlt": "Kingdom Trails crown logo over mountain bikers in a pine forest",
-      "size": "2x1"
+      "image": "/api/media/portfolio-kingdom-featured?v=3",
+      "imageAlt": "Muddy mountain bike tires lined up in a truck bed against pine trees and an overcast sky",
+      "imagePosition": "center",
+      "alternateImages": [
+        {
+          "image": "portfolio-kingdom-featured-alt",
+          "imageAlt": "Golden-hour festival tents and flags on a grassy field below the Kingdom Trails hills"
+        }
+      ],
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Students for Haiti",
       "description": "U.S.–Haiti nonprofit supporting education, health, and community programs across Haiti. REΛVE manages WordPress hosting and ongoing site development.",
       "tags": [
-        "Hosting",
-        "Website Development",
-        "WordPress"
+        "Managed Hosting",
+        "Web Development",
+        "WordPress™"
       ],
       "image": "portfolio-featured-sfh",
       "imageAlt": "Students for Haiti logo over volunteer and children in Haiti",
-      "size": "2x2"
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Vasodyn",
       "description": "Hand-blown anatomical glass models for medical education and the life sciences — precision organ and vascular forms for study and demonstration. REΛVE manages WordPress hosting and ongoing marketing.",
       "tags": [
-        "Hosting",
-        "Website Development",
+        "Managed Hosting",
+        "Web Development",
         "Marketing"
       ],
       "image": "portfolio-vasodyn-featured",
       "imageAlt": "Glass aortic arch model lit in emerald green for Vasodyn",
-      "size": "1x1"
+      "size": "1x1",
+      "imageOrientation": "vertical"
     },
     {
       "title": "blackWater",
@@ -365,7 +383,8 @@
       ],
       "image": "portfolio-blackwater-featured",
       "imageAlt": "blackWater logo stenciled onto a textured stone wall",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Lotus Glass",
@@ -375,9 +394,11 @@
         "Craft",
         "Logo"
       ],
-      "image": "portfolio-lotus-glass-featured",
+      "image": "/api/media/portfolio-lotus-glass-featured?v=2",
       "imageAlt": "Lotus Glass logo system — full wordmark and LGW mark with and without outline",
-      "size": "1x1"
+      "imagePosition": "center",
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Anglerfish Aquatics",
@@ -389,104 +410,101 @@
       ],
       "image": "portfolio-angler-fish-aquatics-featured",
       "imageAlt": "Anglerfish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
-      "size": "3x1"
+      "size": "3x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Paradigm Landscape",
       "description": "High-end landscape architecture and design firm in Sutton, Massachusetts, serving clients across the Northeast. REΛVE provides design, development, and managed hosting.",
       "tags": [
-        "Hosting",
-        "Website Development",
+        "Managed Hosting",
+        "Web Development",
         "Design"
       ],
       "image": "portfolio-paradigm-landscape",
       "imageAlt": "Hand-rendered backyard landscape design with stone fire pit and terraced gardens",
-      "size": "3x1"
+      "size": "3x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "DPM Construction",
       "description": "Construction design firm in Cambridge, Massachusetts — recent work includes the Bloomberg Center for Cities at Harvard University, a 12,000 sq ft Kennedy School workspace for mayors and city leaders.",
       "tags": [
-        "Hosting",
-        "Website Development",
+        "Managed Hosting",
+        "Web Development",
         "Design"
       ],
       "image": "portfolio-dpm-construction-featured",
       "imageAlt": "Bloomberg Center for Cities lounge at Harvard with aquarium pillar, modern seating, and campus windows",
-      "size": "2x1"
-    },
-    {
-      "title": "Care Plus Mark",
-      "description": "Minimal connected icon system — heart, plus, and circle forms for a wellness identity suite.",
-      "tags": [
-        "Logo",
-        "Healthcare",
-        "Identity"
-      ],
-      "image": "portfolio-care-plus-mark",
-      "imageAlt": "Black line-art logo combining a heart, plus sign, and circle",
-      "size": "1x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Barry Levine, Esq.",
       "description": "Law firm website for LevinesLaw.com — professional attorney branding, practice-area navigation, and client-focused layout.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "Law",
-        "WordPress"
+        "WordPress™"
       ],
       "image": "portfolio-levines-law-featured",
       "imageAlt": "LevinesLaw.com placeholder tile for Barry Levine Esquire law firm",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "CAPCO Design Group",
       "description": "Fire protection engineering firm website for CapcoFire.com — MEP, sprinkler, fire alarm, and civil design services with NFPA-compliant project showcases and client portal.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "Engineering",
         "Fire Protection"
       ],
       "image": "portfolio-capco-fire-featured",
       "imageAlt": "CapcoFire.com placeholder tile for CAPCO Design Group fire protection engineering",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "The Barber's Edge",
       "description": "Downtown Beverly barbershop at 324 Rantoul — traditional cuts, hot-towel shaves, and a nine-chair shop that still runs like a trade. REΛVE built TheBarbersEdge.com.",
       "tags": [
-        "Hosting",
+        "Managed Hosting",
         "App Development",
         "Agentic Support"
       ],
       "image": "portfolio-barbers-edge-featured",
       "imageAlt": "A barber at The Barber's Edge working a beard under the ring light",
       "size": "2x2",
-      "featured": true
+      "featured": true,
+      "imageOrientation": "vertical"
     },
     {
       "title": "PDX Paws",
       "description": "Portland dog grooming, sitting, walks, and pack adventures — a neighborhood shop with a decade in canine care. REΛVE built the site. Logo tile until project photography is ready.",
       "tags": [
-        "Hosting",
+        "Managed Hosting",
         "App Development",
         "Agentic Support"
       ],
-      "image": "portfolio-pdx-paws-featured",
+      "image": "/api/media/portfolio-pdx-paws-featured?v=2",
       "imageAlt": "PDX Paws shield logo from pdx-paws.com",
-      "size": "2x2"
+      "imagePosition": "center",
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Rothco, LLC",
       "description": "Veteran-led SDVOSB general contractor delivering federal, healthcare, and commercial construction in the Northeast — VA medical centers, FAA facilities, and safety-first self-perform work. REΛVE built RothcoLLC.com.",
       "tags": [
-        "Hosting",
+        "Managed Hosting",
         "App Development",
         "Agentic Support"
       ],
-      "image": "portfolio-rothco-featured",
-      "imageAlt": "Rothco Built wordmark over the Worcester FAA airport project",
-      "size": "2x1"
+      "image": "/api/media/portfolio-rothco-featured?v=2",
+      "imageAlt": "Aerial view of a Rothco Built federal construction site from the projects portfolio",
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     }
   ]
 }

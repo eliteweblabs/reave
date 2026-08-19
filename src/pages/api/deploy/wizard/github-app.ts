@@ -19,10 +19,12 @@ import {
   getGithubAppPending,
   githubAppInstallUrl,
   pendingToCredentials,
+  publicGithubAppOrigin,
   readGithubAppCookie,
   saveGithubAppPending,
 } from '../../../../lib/deployWizardGithubApp';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
+import { requestOrigin } from '../../../../lib/requestOrigin';
 import { hasFeature } from '../../../../lib/features';
 import { isCanonicalReaveInstall } from '../../../../lib/installConfig';
 
@@ -66,7 +68,7 @@ export async function GET(context: APIContext): Promise<Response> {
     return auth;
   }
 
-  const origin = context.url.origin;
+  const origin = publicGithubAppOrigin(requestOrigin(context.request));
   const state = pendingState(context);
   const code = context.url.searchParams.get('code')?.trim() || '';
   const installationId = context.url.searchParams.get('installation_id')?.trim() || '';
@@ -117,6 +119,7 @@ export async function GET(context: APIContext): Promise<Response> {
       plan,
       values: row.apply.values,
       project: row.apply.project,
+      projectName: row.apply.projectName,
       environment: row.apply.environment,
       request: context.request,
       githubApp: credentials,

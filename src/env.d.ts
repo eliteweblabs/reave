@@ -260,9 +260,11 @@ interface ImportMetaEnv {
   COURT_RADIUS_MI?: string;
   /** Comma-separated counties for the court gate (law installs). */
   COURT_COUNTIES?: string;
-  /** Legal department: bankruptcy | tax | foreclosure | general. */
+  /** Comma-separated USPS state codes for the court gate (law installs). */
+  COURT_STATES?: string;
+  /** Legal departments, comma-separated: bankruptcy | tax | foreclosure | general. */
   PRACTICE_AREA?: string;
-  /** Court gate: radius | counties | both. */
+  /** Court knowledge aggregation: radius | counties | state | both. */
   COURT_GATE_MODE?: string;
   /** Vapi private API key — prebuild assistant sync (scripts/sync-vapi-assistant.ts). */
   VAPI_API_KEY?: string;

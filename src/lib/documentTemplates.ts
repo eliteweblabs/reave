@@ -16,7 +16,7 @@ import {
 // Load all markdown templates at build time (Vite eager glob).
 // Path is relative to this file: src/lib/ → src/documents/
 const RAW: Record<string, string> = import.meta.glob(
-  '../documents/*.md',
+  '../documents/**/*.md',
   { query: '?raw', import: 'default', eager: true }
 ) as Record<string, string>;
 

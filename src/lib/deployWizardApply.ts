@@ -16,6 +16,9 @@ import { isCloudflareConfigured } from './cloudflareClient';
 import { syncCalcomIdentityFromReave } from './calcomIdentitySync';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
 import { railwaySetVariables } from './railwayAgentApi';
+import { ensureDeployWizardStack } from './deployWizardProvision';
+
+export type DeployWizardApplyProgress = (message: string) => void;
 
 export type DeployWizardApplyResult =
   | {
@@ -35,6 +38,8 @@ export type DeployWizardApplyResult =
       plan: DeployWizardPlan;
       cli: string;
       notes: string[];
+      projectId: string;
+      projectName: string;
     };
 
 export function isDeployWizardApplyNeedGithubApp(
@@ -64,32 +69,58 @@ export async function executeDeployWizardApply(opts: {
   plan: DeployWizardPlan;
   values: Record<string, string>;
   project: string;
+  projectName?: string;
   environment: string;
   request: Request;
   githubApp?: DeployWizardGithubAppCredentials;
+  onProgress?: DeployWizardApplyProgress;
 }): Promise<DeployWizardApplyResult> {
+  const say = (message: string) => {
+    opts.onProgress?.(message);
+  };
   const cli = formatDeployWizardCli(opts.plan, opts.values);
+  say('Standing up the Railway project and services…');
+  const stack = await ensureDeployWizardStack({
+    plan: opts.plan,
+    project: opts.project,
+    projectName: opts.projectName,
+    environment: opts.environment,
+    onProgress: say,
+  });
+  if (!stack.ok) {
+    return { ok: false, error: stack.error, plan: opts.plan, cli };
+  }
+  const project = stack.projectId;
+
+  say('Resolving variables and the website repo…');
   const resolved = await resolveDeployWizardApply(opts.plan, opts.values, {
     githubApp: opts.githubApp,
   });
 
   if (isDeployWizardNeedGithubApp(resolved)) {
+    for (const note of resolved.notes) say(note);
+    say('Next: confirm the restricted GitHub App in the browser (one step).');
     return {
       ok: false,
       needsGithubApp: true,
       plan: opts.plan,
       cli,
-      notes: resolved.notes,
+      notes: [...stack.notes, ...resolved.notes],
+      projectId: project,
+      projectName: stack.projectName,
     };
   }
   if (!resolved.ok) {
     return { ok: false, error: resolved.error, plan: opts.plan, cli };
   }
+  for (const note of resolved.notes) say(note);
 
   const applied: Array<{ service: string; updated: string[] }> = [];
   for (const [service, variables] of resolved.byService) {
+    const names = Object.keys(variables);
+    say(`Writing ${names.length} variable${names.length === 1 ? '' : 's'} on ${service === 'shared' ? 'shared' : service}…`);
     const result = await railwaySetVariables({
-      project: opts.project,
+      project,
       environment: opts.environment,
       service: service === 'shared' ? undefined : service,
       variables,
@@ -99,22 +130,27 @@ export async function executeDeployWizardApply(opts: {
       return { ok: false, error: `${service}: ${result.error}`, plan: opts.plan, cli, applied };
     }
     applied.push({ service, updated: result.updated });
+    say(`Saved ${result.updated.length} on ${service}.`);
   }
 
+  if (opts.plan.features.includes('scheduling')) {
+    say('Syncing Cal.com identity from company branding…');
+  }
   const identity = opts.plan.features.includes('scheduling')
     ? await syncCalcomIdentityFromReave({
         force: true,
         request: opts.request,
-        project: opts.project,
+        project,
       }).catch((e) => ({
         ok: false,
         error: e instanceof Error ? e.message : String(e),
       }))
     : undefined;
 
+  say('Applying DNS (Resend inbound and Cloudflare when configured)…');
   const dns = await applyDeployWizardDns({
     plan: opts.plan,
-    project: opts.project,
+    project,
     environment: opts.environment,
   }).catch((e) => ({
     ok: false,
@@ -123,8 +159,10 @@ export async function executeDeployWizardApply(opts: {
     leftover: [e instanceof Error ? e.message : String(e)],
     summary: e instanceof Error ? e.message : String(e),
   }));
+  if (dns.summary) say(dns.summary);
 
-  const provisioned = resolved.notes;
+  const provisioned = [...stack.notes, ...resolved.notes];
+  say('Apply finished. Redeploy each service when you are ready.');
   return {
     ok: true,
     plan: opts.plan,

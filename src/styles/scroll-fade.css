@@ -41,7 +41,7 @@
     body.be-body section,
     body.be-body article,
     body.be-body li
-  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
+  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
     animation: scroll-fade-in linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 28%;
@@ -70,7 +70,7 @@ html.scroll-fade-io :is(
   body.be-body section,
   body.be-body article,
   body.be-body li
-):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not([data-no-scroll-fade]) {
+):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]) {
   opacity: 0;
   transform: translateY(18px);
 }

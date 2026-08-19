@@ -24,6 +24,7 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
               height="1867"
               loading="lazy"
               decoding="async"
+              style={featured.imagePosition ? `--image-position: ${featured.imagePosition}` : undefined}
             />
           </a>
           <div class="home-featured-copy">
@@ -86,6 +87,7 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     height: auto;
     aspect-ratio: 4 / 3;
     object-fit: cover;
+    object-position: var(--image-position, center);
     filter: grayscale(100%);
     transition:
       transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),

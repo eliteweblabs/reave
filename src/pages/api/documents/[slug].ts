@@ -4,27 +4,11 @@
  * DELETE /api/documents/:slug — delete a template.
  */
 import type { APIRoute } from 'astro';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
+import { writeFileSync, unlinkSync } from 'fs';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { documentVisibleOnThisInstall, findDocumentFile } from '../../../lib/documentPacks';
 
 export const prerender = false;
-
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
-
-function docsDir(): string {
-  return join(projectRoot(), 'src', 'documents');
-}
 
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
@@ -34,11 +18,12 @@ export const GET: APIRoute = async (context) => {
 
   const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
-  const filePath = join(docsDir(), `${slug}.md`);
-  if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
+  const file = findDocumentFile(slug);
+  if (!file || !(await documentVisibleOnThisInstall(file.markdown))) {
+    return new Response('Not Found', { status: 404 });
+  }
   try {
-    const content = readFileSync(filePath, 'utf8');
-    return new Response(JSON.stringify({ slug, content }), {
+    return new Response(JSON.stringify({ slug, content: file.markdown }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   } catch (e) {
@@ -63,10 +48,12 @@ export const PUT: APIRoute = async (context) => {
   }
   const content = typeof body.content === 'string' ? body.content : body.html;
   if (typeof content !== 'string') return new Response('Bad Request', { status: 400 });
-  const filePath = join(docsDir(), `${slug}.md`);
-  if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
+  const file = findDocumentFile(slug);
+  if (!file || !(await documentVisibleOnThisInstall(file.markdown))) {
+    return new Response('Not Found', { status: 404 });
+  }
   try {
-    writeFileSync(filePath, content, 'utf8');
+    writeFileSync(file.abs, content, 'utf8');
     console.info('[documents] updated', slug);
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json' },
@@ -85,10 +72,12 @@ export const DELETE: APIRoute = async (context) => {
 
   const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
-  const filePath = join(docsDir(), `${slug}.md`);
-  if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
+  const file = findDocumentFile(slug);
+  if (!file || !(await documentVisibleOnThisInstall(file.markdown))) {
+    return new Response('Not Found', { status: 404 });
+  }
   try {
-    unlinkSync(filePath);
+    unlinkSync(file.abs);
     console.info('[documents] deleted', slug);
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json' },

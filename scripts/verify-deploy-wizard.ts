@@ -5,8 +5,11 @@
 import assert from 'node:assert/strict';
 import {
   buildDeployWizardPlan,
+  DEPLOY_WIZARD_NEW_PROJECT,
+  deployWizardDesiredProjectName,
   deployWizardFqdn,
   formatDeployWizardCli,
+  isDeployWizardNewProjectRef,
   normalizeSiteDomain,
   railwayPrivateUrl,
   railwayPublicUrl,
@@ -18,7 +21,8 @@ import {
   deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
 import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
-import { buildGithubAppManifest, githubAppManifestName } from '../src/lib/deployWizardGithubApp.ts';
+import { buildGithubAppManifest, githubAppManifestName, publicGithubAppOrigin } from '../src/lib/deployWizardGithubApp.ts';
+import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
   featureVisibility,
@@ -87,7 +91,8 @@ assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.needsInput
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.inheritFromHost, false);
 const resendKey = branded.variables.find((v) => v.name === 'RESEND_API_KEY');
 assert.equal(resendKey?.inheritFromHost, true);
-assert.equal(resendKey?.needsInput, true);
+assert.equal(resendKey?.needsInput, false);
+assert.equal(resendKey?.required, false);
 assert.equal(resendKey?.filled, '');
 const resendHook = branded.variables.find((v) => v.name === 'RESEND_WEBHOOK_SECRET');
 assert.equal(resendHook?.inheritFromHost, false);
@@ -95,7 +100,7 @@ assert.equal(resendHook?.provisionedOnApply, true);
 assert.equal(branded.variables.find((v) => v.name === 'DASHBOARD_KEY')?.rolledOnApply, true);
 assert.ok(
   branded.variables
-    .filter((v) => v.name !== 'ANTHROPIC_API_KEY' && v.name !== 'RESEND_API_KEY')
+    .filter((v) => v.name !== 'ANTHROPIC_API_KEY')
     .every((v) => v.needsInput === false),
 );
 assert.equal(deployWizardResendFrom('capcofire.com'), 'noreply@inbound.capcofire.com');
@@ -229,7 +234,8 @@ const coreSecrets = buildDeployWizardPlan({ features: ['website'] });
 const anthropicSecret = coreSecrets.variables.find((v) => v.name === 'ANTHROPIC_API_KEY');
 assert.equal(anthropicSecret?.required, false);
 assert.equal(anthropicSecret?.needsInput, true);
-assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, true);
+assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, false);
+assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.needsInput, false);
 assert.equal(coreSecrets.variables.find((v) => v.name === 'CLERK_SECRET_KEY')?.required, false);
 assert.equal(anthropicKeySourceForApply('', 'sk-ant-host'), 'reave');
 assert.equal(anthropicKeySourceForApply('sk-ant-client', 'sk-ant-host'), 'client');
@@ -258,14 +264,32 @@ const lawPin = buildDeployWizardPlan({
     todos: true,
     schedule: true,
     practiceAddress: '123 Cabot St, Beverly, MA 01915',
+    courtGateMode: 'counties',
     courtRadiusMi: 60,
-    courtCounties: ['Essex'],
-    practiceArea: 'bankruptcy',
+    courtCounties: ['Essex', 'Middlesex'],
+    practiceAreas: ['bankruptcy', 'tax'],
   },
 });
 assert.equal(lawPin.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS')?.filled, '123 Cabot St, Beverly, MA 01915');
-assert.equal(lawPin.variables.find((v) => v.name === 'COURT_COUNTIES')?.filled, 'Essex');
-assert.equal(lawPin.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'both');
+assert.equal(lawPin.variables.find((v) => v.name === 'COURT_COUNTIES')?.filled, 'Essex,Middlesex');
+assert.equal(lawPin.variables.find((v) => v.name === 'PRACTICE_AREA')?.filled, 'bankruptcy,tax');
+assert.equal(lawPin.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'counties');
+const lawState = buildDeployWizardPlan({
+  features: ['website'],
+  seed: {
+    industry: 'law',
+    inbox: true,
+    todos: true,
+    schedule: true,
+    courtGateMode: 'state',
+    courtStates: ['MA', 'NH'],
+    practiceAreas: ['foreclosure', 'general'],
+  },
+});
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'state');
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_STATES')?.filled, 'MA,NH');
+assert.equal(lawState.variables.find((v) => v.name === 'PRACTICE_AREA')?.filled, 'foreclosure,general');
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_RADIUS_MI'), undefined);
 assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
 const manifest = buildGithubAppManifest({
   installSlug: 'tonybarlettajr',
@@ -275,8 +299,19 @@ const manifest = buildGithubAppManifest({
 });
 assert.equal(manifest.name, 'reave-tonybarlettajr');
 assert.equal((manifest.default_permissions as { contents?: string }).contents, 'write');
-assert.match(String(manifest.redirect_url), /state=abc/);
+assert.equal(manifest.redirect_url, 'https://reave.app/api/deploy/wizard/github-app');
+assert.equal(manifest.setup_url, 'https://reave.app/api/deploy/wizard/github-app');
+assert.equal(publicGithubAppOrigin('http://localhost:8080'), 'https://reave.app');
+assert.equal(
+  buildGithubAppManifest({
+    installSlug: 'demo',
+    origin: 'http://127.0.0.1:8080',
+    state: 'abc',
+  }).redirect_url,
+  'https://reave.app/api/deploy/wizard/github-app',
+);
 assert.equal(manifest.public, false);
+assert.match(CSP_FORM_ACTION, /https:\/\/github\.com/);
 
 const cli = formatDeployWizardCli(billedDns);
 assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);
@@ -284,5 +319,15 @@ assert.match(cli, /MX\s+inbound/);
 assert.match(cli, /railway variable set CONTACT_API_BASE_URL=/);
 assert.match(cli, /--service reave/);
 assert.match(cli, /--skip-deploys/);
+
+assert.equal(isDeployWizardNewProjectRef(''), true);
+assert.equal(isDeployWizardNewProjectRef(DEPLOY_WIZARD_NEW_PROJECT), true);
+assert.equal(isDeployWizardNewProjectRef('loveandever'), false);
+assert.equal(deployWizardDesiredProjectName({ projectName: 'Barry Levine' }), 'Barry Levine');
+assert.equal(deployWizardDesiredProjectName({ companyName: 'Levine Law', installSlug: 'barry-levine' }), 'Levine Law');
+assert.equal(deployWizardDesiredProjectName({ installSlug: 'barry-levine' }), 'barry levine');
+assert.ok(core.services.find((s) => s.id === 'reave-postgres')?.image);
+assert.ok(core.services.find((s) => s.id === 'reave-postgres')?.volumeMount);
+assert.ok(core.services.find((s) => s.id === 'reave')?.repo);
 
 console.log('verify-deploy-wizard: ok');

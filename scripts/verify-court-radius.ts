@@ -29,4 +29,14 @@ const essexOnly = filterCourts(beverly, normalizePracticeGate({ gateMode: 'count
 assert.ok(essexOnly.every((row) => row.counties.includes('Essex')));
 assert.ok(essexOnly.some((row) => row.id === 'mab-boston'));
 
+const maState = filterCourts(beverly, normalizePracticeGate({ gateMode: 'state', states: ['MA'] }));
+assert.ok(maState.some((row) => row.id === 'mab-springfield'));
+assert.ok(maState.every((row) => row.state === 'MA' && row.reason === 'state'));
+
+const multiDept = normalizePracticeGate({ practiceAreas: ['tax', 'foreclosure'] });
+assert.deepEqual(multiDept.practiceAreas, ['tax', 'foreclosure']);
+assert.equal(multiDept.practiceArea, 'tax');
+const fromCsv = normalizePracticeGate({ practiceArea: 'tax,general' });
+assert.deepEqual(fromCsv.practiceAreas, ['tax', 'general']);
+
 console.log('verify-court-radius: ok');

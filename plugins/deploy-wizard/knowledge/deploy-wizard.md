@@ -101,9 +101,9 @@ This wizard is owner-only. The Variables step is read-only. Apply:
 - **Rolls** new secrets on the server (shared API keys, CardDAV password, Cal.com `NEXTAUTH_SECRET` / `CALENDAR_ENCRYPTION_KEY`, dashboard key, cron secrets) and a real Web Push VAPID pair.
 - **Creates** a Resend `email.received` webhook at `https://{apex}/api/email/inbound` and writes the signing secret as `RESEND_WEBHOOK_SECRET`.
 - **Derives** `RESEND_FROM` as `noreply@inbound.{apex}` (the inbound domain Apply already adds in Resend) and `EMAIL_FROM_NAME` from the company name.
-- **Website editor:** GitHub cannot create PATs via API. Apply creates `eliteweblabs/{slug}-site`, then sends you to GitHub to create a restricted App for that repo only (Contents write). After you install it on `{slug}-site` (not `eliteweblabs/reave`), Apply writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO` onto the client. The client mints a Contents token scoped to that repo on each write. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create the repo and attach it. If this host already has `GITHUB_APP_*`, Apply reuses them instead of opening GitHub.
+- **Website editor:** GitHub cannot create PATs via API. Apply creates `eliteweblabs/{slug}-site`, then POSTs the App manifest to GitHub (`/organizations/eliteweblabs/settings/apps/new`). CSP `form-action` must include `https://github.com` or the browser blocks that step. After you install the App on `{slug}-site` (not `eliteweblabs/reave`), Apply writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO` onto the client. The client mints a Contents token scoped to that repo on each write. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create the repo and attach it. If this host already has `GITHUB_APP_*`, Apply reuses them instead of opening GitHub. The Review step streams a live Apply log (Railway project, each service, repo, then the GitHub handoff).
 
-Apply only requires the client’s **Anthropic** key and **Resend** key (Resend is optional if you seed a sample inbox). Other host keys are copied when present and skipped when missing.
+Apply copies **Resend** from this host and creates the inbound domain plus `email.received` webhook. Anthropic is optional (blank uses the REΛVE host key). Other host keys are copied when present and skipped when missing.
 
 **Sample data:** the Modules step has an industry picker (Law firm, Plumbing, General). Apply writes `SEED_ON_BOOT` + `DEMO_INDUSTRY`. The first owner visit to `/admin` seeds inbox, todos, and schedule so the dashboard is not empty before live email is connected.
 
@@ -111,6 +111,12 @@ If a required operator key is missing, Apply names it and stops. Clerk CNAMEs ar
 
 ## Apply
 
-`POST /api/deploy/wizard` with `action: "apply"` writes the plan to a Railway project (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Services must already exist with the names above. Redeploy after apply. Clerk CNAMEs are the only DNS leftover.
+`POST /api/deploy/wizard` with `action: "apply"` creates the Railway project when the wizard sends `project: "__new__"` (name from `projectName`, company name, or install slug — reused if that name already exists), then creates any missing canonical services:
+
+- GitHub-backed services (`reave`, `contact-api`, …) connect `eliteweblabs/*` when the host token’s GitHub App can see those repos. If the repo attach fails, Apply still creates an empty service so variables have a target.
+- Postgres services use Railway’s `postgres-ssl` image plus a volume at `/var/lib/postgresql/data`, and set `DATABASE_URL` for `${{ <name>.DATABASE_URL }}` refs.
+- Cal.com / extras without a catalog repo are created as empty named services.
+
+Then Apply writes the variable plan (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Redeploy after apply. Clerk CNAMEs are the only DNS leftover.
 
 Catalog source: `src/lib/deployWizardCatalog.ts`.

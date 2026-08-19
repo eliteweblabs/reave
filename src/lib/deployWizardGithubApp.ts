@@ -12,6 +12,33 @@ import { GITHUB_WEBSITE_OWNER, defaultWebsiteRepoSlug } from './websiteEditorRep
 
 const GITHUB_API = 'https://api.github.com';
 const PENDING_TTL_MS = 60 * 60 * 1000;
+const CANONICAL_ORIGIN = 'https://reave.app';
+
+function isPublicHttpOrigin(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (!host) return false;
+    if (host === 'localhost' || host === '0.0.0.0' || host === '::1') return false;
+    if (host.startsWith('127.') || host.endsWith('.internal')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Public https origin for GitHub App callback URLs. Never localhost / Railway SSR. */
+export function publicGithubAppOrigin(raw: string): string {
+  const trimmed = (raw || '').trim().replace(/\/+$/, '');
+  if (!isPublicHttpOrigin(trimmed)) return CANONICAL_ORIGIN;
+  const parsed = new URL(trimmed);
+  parsed.protocol = 'https:';
+  parsed.pathname = '';
+  parsed.search = '';
+  parsed.hash = '';
+  return parsed.origin;
+}
 
 export const DEPLOY_WIZARD_GITHUB_APP_COOKIE = 'dw_gh_app';
 
@@ -33,6 +60,7 @@ export type DeployWizardGithubAppApplyBody = {
   timezone?: string;
   seed?: Partial<DeployWizardSeedInput>;
   project: string;
+  projectName?: string;
   environment: string;
   values: Record<string, string>;
 };
@@ -76,8 +104,8 @@ export function buildGithubAppManifest(opts: {
   state: string;
 }): Record<string, unknown> {
   const repo = defaultWebsiteRepoSlug(opts.installSlug);
-  const origin = opts.origin.replace(/\/+$/, '');
-  const callback = `${origin}/api/deploy/wizard/github-app?state=${encodeURIComponent(opts.state)}`;
+  const origin = publicGithubAppOrigin(opts.origin);
+  const callback = `${origin}/api/deploy/wizard/github-app`;
   const homepage = opts.siteDomain
     ? `https://${opts.siteDomain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`
     : origin;
@@ -87,6 +115,7 @@ export function buildGithubAppManifest(opts: {
     hook_attributes: { url: `${origin}/api/deploy/wizard/github-app/hook`, active: false },
     redirect_url: callback,
     setup_url: callback,
+    callback_urls: [callback],
     description: `REΛVE website editor for ${repo}. Contents write on that repo only — never eliteweblabs/reave.`,
     public: false,
     default_permissions: { contents: 'write', metadata: 'read' },
@@ -101,19 +130,20 @@ export function createGithubAppPending(
   prunePending();
   const state = randomBytes(16).toString('hex');
   const repo = defaultWebsiteRepoSlug(apply.installSlug);
+  const publicOrigin = publicGithubAppOrigin(origin);
   pending.set(state, {
     createdAt: Date.now(),
     apply,
     repo,
-    origin: origin.replace(/\/+$/, ''),
+    origin: publicOrigin,
   });
   return {
     state,
     org: GITHUB_WEBSITE_OWNER,
-    actionUrl: `https://github.com/organizations/${GITHUB_WEBSITE_OWNER}/settings/apps/new`,
+    actionUrl: `https://github.com/organizations/${encodeURIComponent(GITHUB_WEBSITE_OWNER)}/settings/apps/new?state=${encodeURIComponent(state)}`,
     manifest: buildGithubAppManifest({
       installSlug: apply.installSlug,
-      origin,
+      origin: publicOrigin,
       siteDomain: apply.siteDomain,
       state,
     }),
