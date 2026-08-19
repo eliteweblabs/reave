@@ -1,5 +1,6 @@
 ---
 title: Service Agreement
+industry: agency
 ---
 
 # Web Design Service Agreement
