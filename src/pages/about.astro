@@ -31,27 +31,9 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     </header>
 
     <section
-      class="home-section home-section--photo about-page-main"
+      class="home-section about-page-main"
       aria-labelledby="about-expertise-title"
     >
-      <div class="marketing-bg" aria-hidden="true">
-        <div class="sketch-draw-reveal marketing-bg-photo" data-sketch-draw>
-          {aboutImage && (
-          <img
-            class="sketch-draw-reveal__fallback"
-            src={aboutImage}
-            alt=""
-            width="1024"
-            height="768"
-            loading="eager"
-            decoding="async"
-          />
-          )}
-          <canvas class="sketch-draw-reveal__canvas" hidden aria-hidden="true"></canvas>
-        </div>
-        
-      </div>
-
       <div class="home-section-inner">
         <header class="home-section-hero">
           <h2 id="about-expertise-title">Automation Expertise</h2>
@@ -66,36 +48,56 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
           <ClientLogos />
         </section>
         )}
-
-        <TestimonialsCarousel />
       </div>
     </section>
 
     <HomePortfolioSection />
 
-    <section class="about-block about-closing" aria-labelledby="about-contact-title">
-      <h2 id="about-contact-title">Work with us</h2>
-      <p>
-        Need the full platform, a custom integration, or help migrating off the tools
-        you're paying for separately? Tell us what you're running today and we'll map
-        the shortest path.
-      </p>
-      <div class="about-cta-row">
-        <a class="about-btn about-btn--primary" href="/schedule">Book a call</a>
-        <a class="about-btn about-btn--ghost brand-btn-glass" href={contactHref}>Get in touch</a>
+    <section
+      class="home-section home-section--photo about-finale"
+      aria-labelledby="about-contact-title"
+    >
+      {
+        aboutImage && (
+          <div class="marketing-bg" aria-hidden="true">
+            <img
+              class="about-finale-photo"
+              src={aboutImage}
+              alt=""
+              width="1024"
+              height="768"
+              loading="lazy"
+              decoding="async"
+            />
+            <div class="about-finale-scrim"></div>
+          </div>
+        )
+      }
+
+      <div class="about-finale-content">
+        <TestimonialsCarousel />
+
+        <div class="about-block about-closing">
+          <h2 id="about-contact-title">Work with us</h2>
+          <p>
+            Need the full platform, a custom integration, or help migrating off the tools
+            you're paying for separately? Tell us what you're running today and we'll map
+            the shortest path.
+          </p>
+          <div class="about-cta-row">
+            <a class="about-btn about-btn--primary" href="/schedule">Book a call</a>
+            <a class="about-btn about-btn--ghost brand-btn-glass" href={contactHref}>Get in touch</a>
+          </div>
+        </div>
       </div>
     </section>
   </div>
 </Layout>
 
-<script>
-  import "../lib/sketchDrawReveal.ts";
-</script>
-
 <style>
   .about-page {
     min-height: 100vh;
-    padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 40px) 0 96px;
+    padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 40px) 0 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -145,12 +147,54 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-page-main {
     width: 100%;
-    min-height: min(100vh, 100svh);
     margin-bottom: 56px;
   }
 
+  .about-finale {
+    width: 100%;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 72px;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    min-height: min(78vh, 820px);
+    /* Keep inner horizontal snap-scroll working on iOS. */
+    overflow: visible;
+  }
+
+  .about-finale-content :global(.testimonials-section) {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .about-finale-photo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: center center;
+  }
+
+  .about-finale-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #000 100%);
+  }
+
+  .about-finale-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+
   .about-block {
-    margin-bottom: 56px;
+    margin-bottom: 0;
   }
 
   .about-block h2 {
@@ -209,8 +253,7 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-closing {
     text-align: center;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 8px;
   }
 
   .about-closing .about-cta-row {
@@ -219,6 +262,6 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-portfolio {
     width: 100%;
-    margin-bottom: 56px;
+    margin-bottom: 0;
   }
 </style>

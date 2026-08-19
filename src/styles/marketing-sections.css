@@ -84,11 +84,6 @@ html {
   overflow: hidden;
 }
 
-.about-page-main.home-section--photo {
-  min-height: 100vh;
-  min-height: 100svh;
-}
-
 .home-section-inner {
   position: relative;
   z-index: 1;
