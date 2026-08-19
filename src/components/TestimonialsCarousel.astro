@@ -50,88 +50,49 @@ const testimonials: Testimonial[] = [
   },
 ];
 
-const LOOP_COPIES = 2;
+const LOOP_COPIES = 3;
 const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonials).flat();
 ---
 
 <section class="testimonials-section section--full-bleed" aria-label="Client testimonials">
-  <!-- Desktop: infinite scroll, no pointer interaction -->
   <div
     class="testimonials-marquee"
-    aria-label="Client testimonials"
+    data-testimonials-marquee
+    data-loop-copies={LOOP_COPIES}
+    aria-label="Client testimonials. Drag to scroll."
     role="region"
   >
-    <div class="testimonials-marquee-track">
-      {
-        marqueeTestimonials.map((testimonial, index) => (
-          <article
-            class="testimonial-card"
-            aria-hidden={index >= testimonials.length ? "true" : undefined}
-          >
-            <header class="testimonial-card-header">
-              <div class="testimonial-avatar" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" />
-                  <circle cx="12" cy="9" r="3.5" fill="currentColor" />
-                  <path
-                    d="M5.5 19.5c1.4-3 3.8-4.5 6.5-4.5s5.1 1.5 6.5 4.5"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </div>
-              <div class="testimonial-card-meta">
-                <p class="testimonial-name">{testimonial.name}</p>
-                <p class="testimonial-title">{testimonial.title}</p>
-              </div>
-            </header>
-            <p class="testimonial-quote">{testimonial.quote}</p>
-          </article>
-        ))
-      }
-    </div>
-  </div>
-
-  <!-- Mobile: centered peek carousel, swipeable + autoplay -->
-  <div
-    class="testimonials-mobile"
-    data-testimonials-mobile
-    tabindex="0"
-    role="region"
-    aria-roledescription="carousel"
-    aria-label="Client testimonials. Swipe to change."
-  >
-    <div class="testimonials-mobile-track" data-testimonials-mobile-track>
-      {
-        testimonials.map((testimonial, index) => (
-          <article
-            class="testimonial-card"
-            data-testimonial-slide
-            aria-hidden={index === 0 ? "false" : "true"}
-          >
-            <header class="testimonial-card-header">
-              <div class="testimonial-avatar" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" />
-                  <circle cx="12" cy="9" r="3.5" fill="currentColor" />
-                  <path
-                    d="M5.5 19.5c1.4-3 3.8-4.5 6.5-4.5s5.1 1.5 6.5 4.5"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </div>
-              <div class="testimonial-card-meta">
-                <p class="testimonial-name">{testimonial.name}</p>
-                <p class="testimonial-title">{testimonial.title}</p>
-              </div>
-            </header>
-            <p class="testimonial-quote">{testimonial.quote}</p>
-          </article>
-        ))
-      }
+    <div class="testimonials-marquee-drag">
+      <div class="testimonials-marquee-track">
+        {
+          marqueeTestimonials.map((testimonial, index) => (
+            <article
+              class="testimonial-card"
+              aria-hidden={index >= testimonials.length ? "true" : undefined}
+            >
+              <header class="testimonial-card-header">
+                <div class="testimonial-avatar" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" />
+                    <circle cx="12" cy="9" r="3.5" fill="currentColor" />
+                    <path
+                      d="M5.5 19.5c1.4-3 3.8-4.5 6.5-4.5s5.1 1.5 6.5 4.5"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
+                <div class="testimonial-card-meta">
+                  <p class="testimonial-name">{testimonial.name}</p>
+                  <p class="testimonial-title">{testimonial.title}</p>
+                </div>
+              </header>
+              <p class="testimonial-quote">{testimonial.quote}</p>
+            </article>
+          ))
+        }
+      </div>
     </div>
   </div>
 </section>
@@ -143,6 +104,9 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
 
   .testimonial-card {
     box-sizing: border-box;
+    flex: 0 0 min(340px, 78vw);
+    width: min(340px, 78vw);
+    margin-right: 16px;
     padding: 20px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -196,39 +160,49 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     color: rgba(255, 255, 255, 0.78);
   }
 
-  /* --- Desktop marquee --- */
   .testimonials-marquee {
-    display: none;
+    position: relative;
     overflow: hidden;
-    pointer-events: none;
+    cursor: grab;
+    touch-action: pan-y;
     user-select: none;
     -webkit-user-select: none;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
   }
 
+  .testimonials-marquee.is-dragging {
+    cursor: grabbing;
+    touch-action: none;
+  }
+
+  .testimonials-marquee-drag {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+  }
+
   .testimonials-marquee-track {
     display: flex;
-    gap: 16px;
     width: max-content;
     padding: 4px 0;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    animation: testimonials-marquee-scroll 130s linear infinite;
-    -webkit-animation: testimonials-marquee-scroll 130s linear infinite;
+    animation: testimonials-marquee-scroll 80s linear infinite;
+    will-change: transform;
   }
 
   /*
-   * Hard-code -50% (two loop copies). Safari does not interpolate
-   * custom properties / calc() inside @keyframes reliably, which made
-   * the desktop marquee look stuck on iPad.
+   * Hard-code -33.333% (three loop copies). Safari does not interpolate
+   * custom properties / calc() inside @keyframes reliably.
+   * Cards use margin, not gap, so one third of the track is an exact set.
    */
   @keyframes testimonials-marquee-scroll {
     from {
       transform: translate3d(0, 0, 0);
     }
     to {
-      transform: translate3d(-50%, 0, 0);
+      transform: translate3d(-33.33333%, 0, 0);
     }
   }
 
@@ -238,80 +212,21 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
       transform: translate3d(0, 0, 0);
     }
     to {
-      -webkit-transform: translate3d(-50%, 0, 0);
-      transform: translate3d(-50%, 0, 0);
-    }
-  }
-
-  .testimonials-marquee .testimonial-card {
-    flex: 0 0 min(340px, 78vw);
-  }
-
-  /* --- Touch / small-viewport carousel (native scroll-snap) --- */
-  .testimonials-mobile {
-    --card-width: min(72vw, 340px);
-    --card-gap: 12px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    touch-action: auto;
-    user-select: none;
-    -webkit-user-select: none;
-    outline: none;
-  }
-
-  .testimonials-mobile::-webkit-scrollbar {
-    display: none;
-  }
-
-  .testimonials-mobile:focus-visible {
-    outline: 2px solid rgba(168, 85, 247, 0.65);
-    outline-offset: 6px;
-    border-radius: 12px;
-  }
-
-  .testimonials-mobile-track {
-    display: flex;
-    gap: var(--card-gap);
-    width: max-content;
-    padding-inline: calc((100% - var(--card-width)) / 2);
-  }
-
-  .testimonials-mobile .testimonial-card {
-    flex: 0 0 var(--card-width);
-    max-width: 340px;
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
-  }
-
-  @media (min-width: 768px) and (hover: hover) and (pointer: fine) {
-    .testimonials-marquee {
-      display: block;
-    }
-
-    .testimonials-mobile {
-      display: none;
+      -webkit-transform: translate3d(-33.33333%, 0, 0);
+      transform: translate3d(-33.33333%, 0, 0);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .testimonials-marquee-track {
-      animation: none;
-      -webkit-animation: none;
-    }
-
-    .testimonials-mobile {
-      scroll-snap-type: x mandatory;
+      animation-play-state: paused;
     }
   }
 </style>
 
 <script>
-  import { bootTestimonialsMobileCarousels } from "../lib/testimonialsMobileCarousel";
+  import { bootTestimonialsMarquees } from "../lib/testimonialsMarquee";
 
-  bootTestimonialsMobileCarousels();
-  document.addEventListener("astro:page-load", () => bootTestimonialsMobileCarousels());
+  bootTestimonialsMarquees();
+  document.addEventListener("astro:page-load", () => bootTestimonialsMarquees());
 </script>
