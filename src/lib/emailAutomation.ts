@@ -4,7 +4,14 @@
 
 import type { EmailInboxRecord } from './emailInboxStore';
 import { isEmailAwaitingTriage } from './emailTriage';
-import { attendeeFromEmail, formatMeetingWhenLabel, resolveProposedMeetingStart } from './emailScheduling';
+import { attendeeFromEmail, formatMeetingWhenLabel } from './emailScheduling';
+import {
+  inboundHasClockTime,
+  inboundMeetingEvidence,
+  looksLikeMeetingIntent,
+  proposedMeetingTimeMatchesSource,
+  resolveProposedMeetingStart,
+} from './emailMeetingParse';
 import { buildAutoProjectNotificationTitle } from './emailProjectAuto';
 import { buildMeetingFollowupNotificationTitle } from './emailMeetingFollowup';
 import { meetingThreadDedupKey } from './emailThreadDedup';
@@ -171,11 +178,22 @@ export function isMeetingRequestPendingReview(
     | 'summary'
     | 'subject'
     | 'action'
+    | 'bodyText'
+    | 'bodySnippet'
   >,
 ): boolean {
   if (record.bookingUid || record.automationAckAt) return false;
   // Uncertain classification owns the dashboard slot (Explain) — never also Confirm.
   if (isNeedsExplainAction(record)) return false;
+  if (record.category === 'alert' || record.category === 'junk' || record.category === 'receipt') {
+    return false;
+  }
+  const evidence = inboundMeetingEvidence({
+    subject: record.subject,
+    bodyText: record.bodyText,
+    bodySnippet: record.bodySnippet,
+  });
+  if (!inboundHasClockTime(evidence) || !looksLikeMeetingIntent(evidence)) return false;
   if (record.automationKind === 'meeting_request' || record.automationKind === 'meeting_conflict') {
     return Boolean(record.proposedMeetingStart || record.schedulingNote);
   }
@@ -195,21 +213,20 @@ export function isLegacyMeetingRequestPendingReview(
     | 'summary'
     | 'subject'
     | 'action'
+    | 'bodyText'
+    | 'bodySnippet'
   >,
 ): boolean {
   if (record.automationKind || record.bookingUid || record.automationAckAt) return false;
   if (isNeedsExplainAction(record)) return false;
-  if (record.category === 'junk') return false;
-  const blob = [record.summary, record.subject, record.schedulingNote].join(' ').toLowerCase();
-  const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
-  const mentionsTime =
-    /\b(\d{1,2}(:\d{2})?\s*(am|pm|a\.m|p\.m)|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
-      blob,
-    );
-  if (record.proposedMeetingStart || record.schedulingNote) {
-    return mentionsMeeting;
-  }
-  return mentionsMeeting && mentionsTime;
+  if (record.category === 'junk' || record.category === 'alert') return false;
+  const evidence = inboundMeetingEvidence({
+    subject: record.subject,
+    bodyText: record.bodyText,
+    bodySnippet: record.bodySnippet,
+  });
+  if (!looksLikeMeetingIntent(evidence) || !inboundHasClockTime(evidence)) return false;
+  return Boolean(record.proposedMeetingStart || record.schedulingNote);
 }
 
 export function isPendingReviewNotification(record: EmailInboxRecord): boolean {
@@ -294,17 +311,26 @@ function displayFirstName(input: { contactName?: string | null; from: string }):
 export function toMeetingRequestReviewNotification(
   record: EmailInboxRecord,
 ): MeetingRequestReviewNotification {
+  const evidence = inboundMeetingEvidence({
+    subject: record.subject,
+    bodyText: record.bodyText,
+    bodySnippet: record.bodySnippet,
+  });
+  const stored = record.proposedMeetingStart;
   const resolvedStart =
-    record.proposedMeetingStart ||
-    resolveProposedMeetingStart({
-      proposedMeetingStart: null,
-      schedulingNote: record.schedulingNote,
-      summary: record.summary,
-      bodyText: record.bodySnippet,
-      receivedAt: record.receivedAt,
-    });
-  const whenIso = resolvedStart || record.receivedAt;
-  const whenLabel = resolvedStart
+    stored && proposedMeetingTimeMatchesSource(stored, evidence)
+      ? stored
+      : resolveProposedMeetingStart({
+          proposedMeetingStart: null,
+          bodyText: evidence,
+          receivedAt: record.receivedAt,
+        });
+  const groundedStart =
+    resolvedStart && proposedMeetingTimeMatchesSource(resolvedStart, evidence)
+      ? resolvedStart
+      : null;
+  const whenIso = groundedStart || record.receivedAt;
+  const whenLabel = groundedStart
     ? formatMeetingWhenLabel(whenIso)
     : record.schedulingNote || 'time TBD';
   const attendee = attendeeFromEmail({ from: record.from, contactName: record.contactName });
@@ -323,7 +349,7 @@ export function toMeetingRequestReviewNotification(
     from: record.from || '',
     receivedAt: record.receivedAt,
     emailId: record.id,
-    proposedMeetingStart: resolvedStart,
+    proposedMeetingStart: groundedStart,
     whenLabel,
     attendeeName: attendee.name,
     attendeeEmail: attendee.email,

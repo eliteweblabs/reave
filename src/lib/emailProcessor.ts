@@ -27,7 +27,12 @@ import { storeRecordEmailInbox, storeUpdateEmailInbox, type EmailInboxRecord } f
 import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
 import { detectMeetingFollowUp } from './emailMeetingFollowup';
-import { attendeeFromEmail, buildNewProjectAckEmail, formatMeetingWhenLabel, parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
+import { attendeeFromEmail, buildNewProjectAckEmail, formatMeetingWhenLabel, tryAutoBookInboundMeeting } from './emailScheduling';
+import {
+  MEETING_SKIP_CATEGORIES,
+  parseProposedMeetingStart,
+  sanitizeInboundMeetingProposal,
+} from './emailMeetingParse';
 import { sendInboxPushNotification } from './webPush';
 import {
   notifyAdminAgentOfEmailAlert,
@@ -218,7 +223,7 @@ Categories:
 - internal: personal/admin not tied to a client job
 - review: ambiguous — needs human decision
 Pick job_slug only when confident; prefer active/inquiry jobs.
-For proposed_meeting_start: require BOTH a specific date and time. Use the Received timestamp to resolve relative phrases. "Next week Tuesday" means Tuesday of the following calendar week, not the nearest Tuesday. "Next Tuesday" skips the imminent Tuesday (e.g. on Monday, next Tuesday is 8 days out). Vague availability ("let's find a time") with no day/time must be null. Deadlines and launch dates are NOT meetings.
+For proposed_meeting_start: require BOTH a specific date and a clock time the sender stated (2pm, 14:30). Use the Received timestamp to resolve relative phrases. "Next week Tuesday" means Tuesday of the following calendar week, not the nearest Tuesday. "Next Tuesday" skips the imminent Tuesday (e.g. on Monday, next Tuesday is 8 days out). Vague availability ("let's find a time") with no day/time must be null. Never invent a time. Deadlines, launch dates, "action required by", maintenance windows, IP/firewall changes, and street addresses (e.g. 600 Congress) are NOT meetings. If category is alert, junk, or receipt, both meeting fields MUST be null.
 For proposed_meeting_duration_minutes: extract when the sender asks for a length ("an hour", "60 minutes", "quick 15 min"). Leave null when they do not say — do not assume 30.
 Attachments: when the body is empty or signature-only but Attachments are listed below, the email is NOT blank — summarize that the sender attached those files (name them). Never describe an email as empty/blank when attachments are present.`;
 
@@ -331,6 +336,28 @@ export async function resolveSenderContact(senderEmail: string): Promise<{
   };
 }
 
+function meetingFieldsAllowedForAiLabel(label: AiClassifyResult['label']): boolean {
+  return !MEETING_SKIP_CATEGORIES.has(mapAiLabelToOutcome(label).category);
+}
+
+function applyMeetingProposal(opts: {
+  category: EmailCategory;
+  proposedMeetingStart: string | null;
+  schedulingNote: string;
+  subject: string;
+  bodyText: string;
+  receivedAt: string;
+}): { proposedMeetingStart: string | null; schedulingNote: string; discardedReason: string | null } {
+  return sanitizeInboundMeetingProposal({
+    category: opts.category,
+    proposedMeetingStart: opts.proposedMeetingStart,
+    schedulingNote: opts.schedulingNote,
+    subject: opts.subject,
+    bodyText: opts.bodyText,
+    receivedAt: opts.receivedAt,
+  });
+}
+
 function applyTrustedAiClassify(opts: {
   ai: AiClassifyResult;
   from: string;
@@ -394,9 +421,15 @@ function applyTrustedAiClassify(opts: {
     authActionUrl,
     otpPurpose,
     authLinkPurpose,
-    proposedMeetingStart: opts.ai.proposed_meeting_start,
-    schedulingNote: opts.ai.scheduling_note ?? '',
-    proposedMeetingDurationMinutes: opts.ai.proposed_meeting_duration_minutes ?? null,
+    proposedMeetingStart: meetingFieldsAllowedForAiLabel(opts.ai.label)
+      ? opts.ai.proposed_meeting_start
+      : null,
+    schedulingNote: meetingFieldsAllowedForAiLabel(opts.ai.label)
+      ? opts.ai.scheduling_note ?? ''
+      : '',
+    proposedMeetingDurationMinutes: meetingFieldsAllowedForAiLabel(opts.ai.label)
+      ? opts.ai.proposed_meeting_duration_minutes ?? null
+      : null,
     aiJobSlug: opts.ai.job_slug,
     aiNote: opts.ai.note_to_append,
   };
@@ -784,24 +817,21 @@ export async function processInboundEmail(
       }
     }
 
-    // Meeting resolution (same as legacy AI path)
-    const bodySnippet = snippet(bodyText, 2000);
-    const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
-    const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
-    const mentionsScheduling =
-      schedulingNote ||
-      mentionsNextWeek ||
-      /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary);
-    if ((!proposedMeetingStart || mentionsNextWeek) && mentionsScheduling) {
-      const resolved = resolveProposedMeetingStart({
-        proposedMeetingStart: mentionsNextWeek ? null : proposedMeetingStart,
-        schedulingNote,
-        summary,
-        bodyText: bodySnippet,
-        receivedAt,
-      });
-      if (resolved) proposedMeetingStart = resolved;
+    // Meeting times must appear as clock times in the email — never invent from
+    // deadlines, IP addresses, or street numbers (e.g. 600 Congress → 6:00 AM).
+    const meeting = applyMeetingProposal({
+      category,
+      proposedMeetingStart,
+      schedulingNote,
+      subject: email.subject ?? '',
+      bodyText,
+      receivedAt,
+    });
+    if (meeting.discardedReason) {
+      pushAudit('meeting', 'Discarded invented meeting time', meeting.discardedReason);
     }
+    proposedMeetingStart = meeting.proposedMeetingStart;
+    schedulingNote = meeting.schedulingNote;
   } else {
     // Rules / parser path (fallback for low confidence, or known non-service contacts)
     isVerificationCode =
@@ -913,25 +943,19 @@ export async function processInboundEmail(
         proposedMeetingStart = ai.proposed_meeting_start;
         schedulingNote = ai.scheduling_note ?? '';
         proposedMeetingDurationMinutes = ai.proposed_meeting_duration_minutes ?? null;
-        const bodySnippet = snippet(bodyText, 2000);
-        const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
-        const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
-        const mentionsScheduling =
-          schedulingNote ||
-          mentionsNextWeek ||
-          /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary);
-        if (!proposedMeetingStart || mentionsNextWeek) {
-          if (mentionsScheduling) {
-            const resolved = resolveProposedMeetingStart({
-              proposedMeetingStart: mentionsNextWeek ? null : proposedMeetingStart,
-              schedulingNote,
-              summary,
-              bodyText: bodySnippet,
-              receivedAt,
-            });
-            if (resolved) proposedMeetingStart = resolved;
-          }
+        const meeting = applyMeetingProposal({
+          category,
+          proposedMeetingStart,
+          schedulingNote,
+          subject: email.subject ?? '',
+          bodyText,
+          receivedAt,
+        });
+        if (meeting.discardedReason) {
+          pushAudit('meeting', 'Discarded invented meeting time', meeting.discardedReason);
         }
+        proposedMeetingStart = meeting.proposedMeetingStart;
+        schedulingNote = meeting.schedulingNote;
         const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
         if (job && category === 'client' && ai.note_to_append?.trim()) {
           if (dryRun) {
@@ -1223,6 +1247,7 @@ export async function processInboundEmail(
     !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
+    !MEETING_SKIP_CATEGORIES.has(category) &&
     hasFeature('scheduling') &&
     action !== 'project_reply'
   ) {
@@ -1309,6 +1334,7 @@ export async function processInboundEmail(
     !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
+    !MEETING_SKIP_CATEGORIES.has(category) &&
     !hasFeature('scheduling') &&
     action !== 'project_reply'
   ) {

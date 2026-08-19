@@ -330,7 +330,7 @@ const EMAIL_TRIAGE_NODES = [
 
   // Automate outcomes
   { id: 'et_otp', title: 'OTP / auth link', sub: 'Copy · Activate · 5 min TTL', icon: '🔑', hue: 55, status: true, group: 'et_automate', x: 1160, y: 60 },
-  { id: 'et_meeting', title: 'Meeting automation', sub: 'Book · request · conflict', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
+  { id: 'et_meeting', title: 'Meeting automation', sub: 'Intent + clock in email · never invent', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
   { id: 'et_project', title: 'Project automation', sub: 'Match existing · auto-create', icon: '💼', hue: 195, status: true, group: 'et_automate', x: 1160, y: 300 },
   { id: 'et_file', title: 'File to job', sub: 'Append note · attachments', icon: '📎', hue: 210, status: true, group: 'et_automate', x: 1160, y: 420 },
   { id: 'et_sort', title: 'Junk · receipt · alert', sub: 'Hide / expense · why-classified', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
@@ -363,7 +363,7 @@ const EMAIL_TRIAGE_EDGES = [
   { from: 'et_confidence', to: 'et_explain', label: 'low' },
   { from: 'et_legacy', to: 'et_trusted', dashed: true },
   { from: 'et_explain', to: 'et_dedupe' },
-  { from: 'et_trusted', to: 'et_meeting', dashed: true },
+  { from: 'et_trusted', to: 'et_meeting', dashed: true, label: 'if grounded' },
   { from: 'et_trusted', to: 'et_project', dashed: true },
   { from: 'et_trusted', to: 'et_file', dashed: true },
   { from: 'et_trusted', to: 'et_sort', dashed: true },

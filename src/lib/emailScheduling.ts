@@ -138,179 +138,19 @@ export function attendeeFromEmail(input: {
   return { name, email: email.includes('@') ? email : '' };
 }
 
-export function parseProposedMeetingStart(raw: unknown): string | null {
-  if (raw == null || raw === 'null') return null;
-  const s = String(raw).trim();
-  if (!s) return null;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
-const WEEKDAYS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-] as const;
-
-function parseTimeFromSchedulingText(text: string): { hour: number; minute: number } | null {
-  const m = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/i);
-  if (!m) return null;
-  let hour = parseInt(m[1], 10);
-  const minute = m[2] ? parseInt(m[2], 10) : 0;
-  const meridiem = (m[3] || '').toLowerCase().replace(/\./g, '').replace(/\s/g, '');
-  if (meridiem.startsWith('p') && hour < 12) hour += 12;
-  if (meridiem.startsWith('a') && hour === 12) hour = 0;
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-  return { hour, minute };
-}
-
-function daysToStartOfNextCalendarWeek(refDay: number): number {
-  // Calendar weeks start Monday; refDay is JS getDay() (0=Sun … 6=Sat).
-  if (refDay === 0) return 1;
-  return (8 - refDay) % 7 || 7;
-}
-
-function parseWeekdayFromSchedulingText(
-  text: string,
-): { day: number; modifier: 'next_week' | 'next' | null } | null {
-  const lower = text.toLowerCase();
-  const nextWeek = /\bnext\s+week\b/.test(lower);
-  for (let i = 0; i < WEEKDAYS.length; i++) {
-    if (!new RegExp(`\\b${WEEKDAYS[i]}\\b`, 'i').test(lower)) continue;
-    const nextDay =
-      !nextWeek && new RegExp(`\\bnext\\s+${WEEKDAYS[i]}\\b`, 'i').test(lower);
-    const modifier = nextWeek ? 'next_week' : nextDay ? 'next' : null;
-    return { day: i, modifier };
-  }
-  return null;
-}
-
-/** Best-effort parse of phrases like "next Tuesday at 2:00 p.m." relative to receivedAt. */
-export function parseRelativeMeetingTime(text: string, ref: Date): string | null {
-  const source = String(text || '').trim();
-  if (!source) return null;
-  const time = parseTimeFromSchedulingText(source);
-  if (!time) return null;
-
-  const weekday = parseWeekdayFromSchedulingText(source);
-  const target = new Date(ref);
-
-  if (weekday) {
-    const refDay = ref.getDay();
-    let daysAhead: number;
-
-    if (weekday.modifier === 'next_week') {
-      const daysFromMonday = (weekday.day - 1 + 7) % 7;
-      daysAhead = daysToStartOfNextCalendarWeek(refDay) + daysFromMonday;
-    } else {
-      daysAhead = (weekday.day - refDay + 7) % 7;
-      if (weekday.modifier === 'next') {
-        daysAhead = daysAhead === 0 ? 7 : daysAhead + 7;
-      } else if (daysAhead === 0) {
-        target.setHours(time.hour, time.minute, 0, 0);
-        if (target.getTime() <= ref.getTime()) daysAhead = 7;
-      }
-    }
-    target.setDate(ref.getDate() + daysAhead);
-  }
-
-  target.setHours(time.hour, time.minute, 0, 0);
-  if (target.getTime() <= ref.getTime()) return null;
-  return target.toISOString();
-}
-
-const MONTH_INDEX: Record<string, number> = {
-  january: 0,
-  jan: 0,
-  february: 1,
-  feb: 1,
-  march: 2,
-  mar: 2,
-  april: 3,
-  apr: 3,
-  may: 4,
-  june: 5,
-  jun: 5,
-  july: 6,
-  jul: 6,
-  august: 7,
-  aug: 7,
-  september: 8,
-  sep: 8,
-  sept: 8,
-  october: 9,
-  oct: 9,
-  november: 10,
-  nov: 10,
-  december: 11,
-  dec: 11,
-};
-
-/** Parse explicit calendar dates like "Wednesday, July 22, 2026 at 2:00 PM". */
-export function parseExplicitMeetingDateTime(text: string, ref: Date): string | null {
-  const source = String(text || '').trim();
-  if (!source) return null;
-  const time = parseTimeFromSchedulingText(source);
-  if (!time) return null;
-
-  const namedMonth = source.match(
-    /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i,
-  );
-  if (namedMonth) {
-    const month = MONTH_INDEX[namedMonth[1].toLowerCase().replace(/\.$/, '')];
-    if (month === undefined) return null;
-    const day = parseInt(namedMonth[2], 10);
-    let year = namedMonth[3] ? parseInt(namedMonth[3], 10) : ref.getFullYear();
-    const target = new Date(year, month, day, time.hour, time.minute, 0, 0);
-    if (!namedMonth[3] && target.getTime() <= ref.getTime()) {
-      target.setFullYear(year + 1);
-    }
-    if (target.getTime() <= ref.getTime()) return null;
-    return target.toISOString();
-  }
-
-  const numeric = source.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
-  if (numeric) {
-    let year = parseInt(numeric[3], 10);
-    if (year < 100) year += 2000;
-    const month = parseInt(numeric[1], 10) - 1;
-    const day = parseInt(numeric[2], 10);
-    const target = new Date(year, month, day, time.hour, time.minute, 0, 0);
-    if (target.getTime() <= ref.getTime()) return null;
-    return target.toISOString();
-  }
-
-  return null;
-}
-
-export function resolveProposedMeetingStart(input: {
-  proposedMeetingStart?: string | null;
-  schedulingNote?: string | null;
-  summary?: string | null;
-  bodyText?: string | null;
-  receivedAt?: string | null;
-}): string | null {
-  const direct = parseProposedMeetingStart(input.proposedMeetingStart);
-  if (direct) return direct;
-
-  const ref = input.receivedAt ? new Date(input.receivedAt) : new Date();
-  if (Number.isNaN(ref.getTime())) return null;
-
-  for (const candidate of [input.schedulingNote, input.summary, input.bodyText]) {
-    const text = String(candidate || '').trim();
-    if (!text) continue;
-    const explicit = parseExplicitMeetingDateTime(text, ref);
-    if (explicit) return explicit;
-    const parsed = parseRelativeMeetingTime(text, ref);
-    if (parsed) return parsed;
-  }
-  return null;
-}
+export {
+  MEETING_SKIP_CATEGORIES,
+  inboundHasClockTime,
+  inboundMeetingEvidence,
+  looksLikeMeetingIntent,
+  parseAllClockTimes,
+  parseExplicitMeetingDateTime,
+  parseProposedMeetingStart,
+  parseRelativeMeetingTime,
+  proposedMeetingTimeMatchesSource,
+  resolveProposedMeetingStart,
+  sanitizeInboundMeetingProposal,
+} from './emailMeetingParse';
 
 function firstNameFrom(fullName: string): string {
   const trimmed = fullName.trim();

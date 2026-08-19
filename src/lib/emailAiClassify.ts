@@ -11,7 +11,7 @@ import {
   formatAttachmentListForPrompt,
   normalizeEmailAttachments,
 } from './emailAttachments';
-import { parseProposedMeetingStart } from './emailScheduling';
+import { MEETING_SKIP_CATEGORIES, parseProposedMeetingStart } from './emailMeetingParse';
 import type { InboundEmail } from './emailRules';
 import type { WorkJobSummary } from './workStore';
 
@@ -201,7 +201,7 @@ Confidence rules:
 - Google Alerts mentioning websites/companies → google_alert, never project/client.
 
 Pick job_slug only when confident; prefer active/inquiry jobs.
-For proposed_meeting_start: require BOTH a specific date and time. Vague availability must be null.
+For proposed_meeting_start: require BOTH a specific date and a clock time the sender wrote (2pm, 2:00 PM, 14:30). Vague availability must be null. Never invent a time. Deadlines, launch dates, "action required by", maintenance windows, IP/firewall notices, and street addresses (e.g. 600 Congress) are NOT meetings. If label is alert, google_alert, junk, receipt, failed_payment, otp, or activation_link, proposed_meeting_start and scheduling_note MUST be null.
 For proposed_meeting_duration_minutes: extract when the sender asks for a length ("an hour", "60 minutes", "15 min"). Leave null when they do not say — do not assume 30.
 Attachments: when the body is empty but Attachments are listed, summarize the attached files — never call it blank.`;
 
@@ -255,6 +255,7 @@ Attachments: when the body is empty but Attachments are listed, summarize the at
       triageBody.slice(0, 200) ||
       String(email.subject ?? '').trim() ||
       '(no subject)';
+    const allowMeeting = !MEETING_SKIP_CATEGORIES.has(mapAiLabelToOutcome(label).category);
     return {
       label,
       confidence,
@@ -262,11 +263,14 @@ Attachments: when the body is empty but Attachments are listed, summarize the at
       job_slug: parsed.job_slug != null ? String(parsed.job_slug) : null,
       note_to_append: parsed.note_to_append != null ? String(parsed.note_to_append) : null,
       reason: String(parsed.reason ?? '').trim() || `AI label ${label}`,
-      proposed_meeting_start: parseProposedMeetingStart(parsed.proposed_meeting_start),
-      scheduling_note: parsed.scheduling_note ? String(parsed.scheduling_note).trim() : null,
-      proposed_meeting_duration_minutes: parseMeetingDurationMinutesField(
-        parsed.proposed_meeting_duration_minutes,
-      ),
+      proposed_meeting_start: allowMeeting
+        ? parseProposedMeetingStart(parsed.proposed_meeting_start)
+        : null,
+      scheduling_note:
+        allowMeeting && parsed.scheduling_note ? String(parsed.scheduling_note).trim() : null,
+      proposed_meeting_duration_minutes: allowMeeting
+        ? parseMeetingDurationMinutesField(parsed.proposed_meeting_duration_minutes)
+        : null,
     };
   } catch (e) {
     console.warn('[email] AI classify failed', e);
