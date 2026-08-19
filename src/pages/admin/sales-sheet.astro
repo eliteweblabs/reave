@@ -21,6 +21,7 @@ import {
   listAuditCompanies,
   parseSalesSheetOrientation,
   salesSheetAuditUrl,
+  salesSheetWantsGoogleShot,
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
 } from '../../lib/auditSalesSheet';
@@ -118,8 +119,8 @@ const tmpl = getTemplate(slug);
 
 const skipPlaces = params.get('places') === '0';
 const skipShot = params.get('shot') !== '1';
-const skipGoogle = params.get('google') === '0';
-const forceGoogle = params.get('google') === '1';
+const googleParam = params.get('google');
+const wantGoogleShot = salesSheetWantsGoogleShot(googleParam, Boolean(selectedAudit));
 const listedParam = (params.get('listed') || '').trim();
 const forceNotListed = listedParam === '0';
 const forceListed = listedParam === '1';
@@ -139,7 +140,6 @@ const places = await fetchSalesSheetPlaces({
 });
 
 const frameSrc = await resolveIphoneFrameSrc();
-const wantGoogleShot = forceGoogle && !skipGoogle;
 let screenSrc = '';
 let shotNote = '';
 let serpListed: boolean | null = null;
@@ -373,11 +373,13 @@ const placesNote = places.error
       <h1 class="ss-title">Audit sales sheet</h1>
       <p class="ss-sub">
         Pick a company with an existing audit to refill the sheet. {sourceNote}.
-        A Places miss is finding #1. Changing company reloads that audit. The iPhone
-        frame uses the HTML competitor list unless you check live Google screenshot
-        (<code>?google=1</code>). Use <code>?near=</code>, <code>?category=plumber</code>,
-        <code>?listed=0</code>, <code>?shot=1</code> (rasterize the phone),
-        <code>?places=0</code> (skip the API), or <code>?audit=</code> / <code>?run=</code> for the header QR.
+        A Places miss is finding #1. Changing company reloads that audit and
+        screenshots google.com Places/Maps into the iPhone frame (uncheck
+        <code>?google=0</code> to skip). Dummy Hale &amp; Co. stays on the HTML
+        list unless you check live Google. Use <code>?near=</code>,
+        <code>?category=plumber</code>, <code>?listed=0</code>,
+        <code>?shot=1</code> (rasterize the phone), <code>?places=0</code>
+        (skip the API), or <code>?audit=</code> / <code>?run=</code> for the header QR.
       </p>
 
       {error ? <div class="ss-error">{error}</div> : null}
@@ -448,7 +450,7 @@ const placesNote = places.error
           </div>
           <div class="ss-field">
             <span class="ss-check">
-              <input id="google" name="google" type="checkbox" value="1" checked={forceGoogle} />
+              <input id="google" name="google" type="checkbox" value="1" checked={wantGoogleShot} />
               <label for="google">Live Google screenshot</label>
             </span>
           </div>
@@ -543,15 +545,36 @@ const placesNote = places.error
           const ori = document.getElementById('orientation');
           if (ori && ori.value && ori.value !== 'landscape') q.set('orientation', ori.value);
           const google = document.getElementById('google');
-          if (google && google.checked) q.set('google', '1');
-          busy(run && run.value ? 'Loading client…' : 'Loading dummy…');
+          if (google && !google.checked) q.set('google', '0');
+          else if (google && google.checked && !(run && run.value)) q.set('google', '1');
+          busy(run && run.value ? 'Loading Google Places…' : 'Loading dummy…');
           location.assign('/admin/sales-sheet' + (q.toString() ? '?' + q : ''));
         }
 
         run?.addEventListener('change', loadClient);
         form?.addEventListener('submit', function () {
-          busy('Updating…');
+          const google = document.getElementById('google');
+          if (form && google && !google.checked) {
+            google.disabled = true;
+            let hidden = form.querySelector('input[name="google"][type="hidden"]');
+            if (!hidden) {
+              hidden = document.createElement('input');
+              hidden.type = 'hidden';
+              hidden.name = 'google';
+              form.appendChild(hidden);
+            }
+            hidden.value = '0';
+          }
+          busy(wantGoogleShotOnSubmit() ? 'Capturing Google Places…' : 'Updating…');
         });
+
+        function wantGoogleShotOnSubmit() {
+          const google = document.getElementById('google');
+          const runEl = document.getElementById('run');
+          if (google && google.checked) return true;
+          if (google && !google.checked) return false;
+          return !!(runEl && runEl.value);
+        }
       })();
     </script>
   </body>

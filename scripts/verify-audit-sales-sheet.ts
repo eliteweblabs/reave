@@ -15,6 +15,7 @@ import {
   parseFilledOnePagerColumns,
   renderAuditDisclaimerHtml,
   parseSalesSheetOrientation,
+  salesSheetWantsGoogleShot,
   listAuditCompanies,
   salesSheetAuditUrl,
   salesSheetInputFromReportCard,
@@ -34,6 +35,7 @@ import {
   renderSalesSheetQrHtml,
   shortPlaceFromAddress,
 } from '../src/lib/salesSheetPlacesView.ts';
+import { salesSheetCompetitorQueries } from '../src/lib/salesSheetPlaces.ts';
 import { serpShowsBusiness } from '../src/lib/salesSheetPlacesShot.ts';
 
 const results: string[] = [];
@@ -68,6 +70,26 @@ await test('orientation query defaults to landscape', () => {
   assert.equal(parseSalesSheetOrientation(null), 'landscape');
   assert.equal(parseSalesSheetOrientation('portrait'), 'portrait');
   assert.equal(parseSalesSheetOrientation('LANDSCAPE'), 'landscape');
+});
+
+await test('live Google shot is on for a picked audit unless google=0', () => {
+  assert.equal(salesSheetWantsGoogleShot(null, true), true);
+  assert.equal(salesSheetWantsGoogleShot('', true), true);
+  assert.equal(salesSheetWantsGoogleShot(null, false), false);
+  assert.equal(salesSheetWantsGoogleShot('1', false), true);
+  assert.equal(salesSheetWantsGoogleShot('0', true), false);
+});
+
+await test('competitor search retries a shorter local category', () => {
+  const queries = salesSheetCompetitorQueries(
+    'Blackstone Land Landscape Supply',
+    'Beverly, MA',
+    '',
+  );
+  assert.deepEqual(queries, [
+    'Blackstone Land Landscape Supply Beverly, MA',
+    'Landscape Supply Beverly, MA',
+  ]);
 });
 
 await test('query params override dummy company and finding 1', () => {

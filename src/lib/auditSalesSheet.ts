@@ -104,6 +104,17 @@ export function parseSalesSheetOrientation(raw: string | null | undefined): Sale
   return raw?.trim().toLowerCase() === 'portrait' ? 'portrait' : 'landscape';
 }
 
+/** Live google.com Places/Maps shot: on for a picked audit, off for dummy, `?google=1/0` overrides. */
+export function salesSheetWantsGoogleShot(
+  googleParam: string | null | undefined,
+  hasSelectedAudit: boolean,
+): boolean {
+  const g = (googleParam || '').trim();
+  if (g === '0') return false;
+  if (g === '1') return true;
+  return hasSelectedAudit;
+}
+
 export type AuditCompanyOption = {
   slug: string;
   company: string;

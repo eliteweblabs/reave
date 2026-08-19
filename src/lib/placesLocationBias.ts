@@ -1,3 +1,4 @@
+import { geocodeAddressGoogle } from './googleGeocode';
 import { getOfficeCoordinates } from './mapbox';
 import { serverEnv } from './serverEnv';
 
@@ -32,6 +33,12 @@ export async function resolvePlacesLocationBias(
 ): Promise<{ lat: number; lng: number }> {
   const parsed = explicitBias ? parseLatLngBias(explicitBias) : null;
   if (parsed) return parsed;
+
+  const place = explicitBias?.trim();
+  if (place) {
+    const geo = await geocodeAddressGoogle(place);
+    if (geo) return { lat: geo.lat, lng: geo.lng };
+  }
 
   const office = await getOfficeCoordinates();
   if (office) return { lat: office.lat, lng: office.lng };

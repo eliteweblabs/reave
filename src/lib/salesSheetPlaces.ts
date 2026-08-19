@@ -57,9 +57,9 @@ async function searchCompetitorPlaces(opts: {
   textQuery: string;
   lat: number;
   lng: number;
-}): Promise<SalesSheetCompetitor[]> {
+}): Promise<{ rows: SalesSheetCompetitor[]; error?: string }> {
   const apiKey = getGoogleMapsApiKey();
-  if (!apiKey) return [];
+  if (!apiKey) return { rows: [], error: 'GOOGLE_MAPS_API_KEY is not configured' };
 
   const body = {
     textQuery: opts.textQuery,
@@ -84,12 +84,17 @@ async function searchCompetitorPlaces(opts: {
       },
       body: JSON.stringify(body),
     });
-  } catch {
-    return [];
+  } catch (e) {
+    return { rows: [], error: e instanceof Error ? e.message : 'Places search failed' };
   }
-  if (!response.ok) return [];
+  const data = (await response.json().catch(() => null)) as {
+    places?: RawPlace[];
+    error?: { message?: string };
+  } | null;
+  if (!response.ok) {
+    return { rows: [], error: data?.error?.message || `Places search HTTP ${response.status}` };
+  }
 
-  const data = (await response.json().catch(() => null)) as { places?: RawPlace[] } | null;
   const out: SalesSheetCompetitor[] = [];
   const seen = new Set<string>();
   for (const raw of data?.places ?? []) {
@@ -100,6 +105,27 @@ async function searchCompetitorPlaces(opts: {
     seen.add(key);
     out.push(row);
   }
+  return { rows: out };
+}
+
+/** Business name, then a shorter local-category query so unlisted shops still get neighbors. */
+export function salesSheetCompetitorQueries(
+  query: string,
+  near: string,
+  category: string,
+): string[] {
+  const q = query.trim();
+  const loc = near.trim();
+  const cat = category.trim();
+  const out: string[] = [];
+  const push = (value: string) => {
+    const next = value.replace(/\s+/g, ' ').trim();
+    if (next && !out.includes(next)) out.push(next);
+  };
+  if (cat) push(loc ? `${cat} ${loc}` : cat);
+  push(loc ? `${q} ${loc}` : q);
+  const words = q.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) push(loc ? `${words.slice(-2).join(' ')} ${loc}` : words.slice(-2).join(' '));
   return out;
 }
 
@@ -131,11 +157,17 @@ export async function fetchSalesSheetPlaces(opts: {
     listing.status === 'matched' ? listing.place.description.split(',')[0]?.trim() : undefined;
 
   const { lat, lng } = await resolvePlacesLocationBias(near);
-  const competitorQuery = category || (near ? `${query} ${near}` : query);
-  const rawCompetitors = await searchCompetitorPlaces({ textQuery: competitorQuery, lat, lng });
-  const competitors = rawCompetitors
-    .filter((c) => !sameBusiness(query, c.name, c.address))
-    .slice(0, 3);
+  let competitors: SalesSheetCompetitor[] = [];
+  let searchError: string | undefined;
+  for (const textQuery of salesSheetCompetitorQueries(query, near, category)) {
+    const found = await searchCompetitorPlaces({ textQuery, lat, lng });
+    if (found.error) searchError = found.error;
+    competitors = found.rows.filter((c) => !sameBusiness(query, c.name, c.address)).slice(0, 3);
+    if (competitors.length) {
+      searchError = undefined;
+      break;
+    }
+  }
 
   return {
     query,
@@ -144,6 +176,8 @@ export async function fetchSalesSheetPlaces(opts: {
     matchName,
     competitors: competitors.length ? competitors : DUMMY_PLACES_COMPETITORS,
     source: competitors.length ? 'places' : 'dummy',
-    error: competitors.length ? undefined : 'Places returned no nearby competitors — showing sample rows',
+    error: competitors.length
+      ? undefined
+      : searchError || 'Places returned no nearby competitors — showing sample rows',
   };
 }
