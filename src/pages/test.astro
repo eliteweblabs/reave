@@ -1,6 +1,7 @@
 ---
 /**
  * Temporary video-cover test — 0819 loop, full-width, pinned to the bottom.
+ * Defaults to 0819-sm; 1080p only when the browser already reports a fast link.
  * Not in nav. noindex. Delete when the experiment is done.
  */
 import Layout from "../layouts/Layout.astro";
@@ -10,17 +11,46 @@ import Layout from "../layouts/Layout.astro";
   <section class="video-test" aria-label="Looping video background">
     <video
       class="video-test-media"
-      autoplay
+      data-src-sm="/video/0819-sm.mp4"
+      data-src-hq="/video/0819.mp4"
       muted
       loop
       playsinline
       disablepictureinpicture
-      preload="auto"
+      preload="none"
       aria-hidden="true"
-    >
-      <source src="/video/0819.mp4" type="video/mp4" />
-    </video>
+    ></video>
   </section>
+  <script is:inline>
+    (function () {
+      var video = document.querySelector(".video-test-media");
+      if (!video) return;
+      var sm = video.getAttribute("data-src-sm");
+      var hq = video.getAttribute("data-src-hq");
+      if (!sm) return;
+
+      // Local hint only — no speed test, so this never delays the first paint.
+      // Safari / Firefox usually lack Network Information, so they stay on sm.
+      function useHq() {
+        var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (!c) return false;
+        if (c.saveData) return false;
+        if (c.effectiveType && c.effectiveType !== "4g") return false;
+        if (c.type === "cellular") return false;
+        if (typeof c.downlink === "number" && c.downlink < 10) return false;
+        if (typeof c.rtt === "number" && c.rtt > 50) return false;
+        return true;
+      }
+
+      try {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      } catch (e) {}
+
+      video.src = useHq() && hq ? hq : sm;
+      var play = video.play();
+      if (play && play.catch) play.catch(function () {});
+    })();
+  </script>
 </Layout>
 
 <style is:global>
