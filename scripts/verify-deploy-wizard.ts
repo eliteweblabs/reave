@@ -90,7 +90,8 @@ assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.needsInput
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.inheritFromHost, false);
 const resendKey = branded.variables.find((v) => v.name === 'RESEND_API_KEY');
 assert.equal(resendKey?.inheritFromHost, true);
-assert.equal(resendKey?.needsInput, true);
+assert.equal(resendKey?.needsInput, false);
+assert.equal(resendKey?.required, false);
 assert.equal(resendKey?.filled, '');
 const resendHook = branded.variables.find((v) => v.name === 'RESEND_WEBHOOK_SECRET');
 assert.equal(resendHook?.inheritFromHost, false);
@@ -98,7 +99,7 @@ assert.equal(resendHook?.provisionedOnApply, true);
 assert.equal(branded.variables.find((v) => v.name === 'DASHBOARD_KEY')?.rolledOnApply, true);
 assert.ok(
   branded.variables
-    .filter((v) => v.name !== 'ANTHROPIC_API_KEY' && v.name !== 'RESEND_API_KEY')
+    .filter((v) => v.name !== 'ANTHROPIC_API_KEY')
     .every((v) => v.needsInput === false),
 );
 assert.equal(deployWizardResendFrom('capcofire.com'), 'noreply@inbound.capcofire.com');
@@ -232,7 +233,8 @@ const coreSecrets = buildDeployWizardPlan({ features: ['website'] });
 const anthropicSecret = coreSecrets.variables.find((v) => v.name === 'ANTHROPIC_API_KEY');
 assert.equal(anthropicSecret?.required, false);
 assert.equal(anthropicSecret?.needsInput, true);
-assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, true);
+assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, false);
+assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.needsInput, false);
 assert.equal(coreSecrets.variables.find((v) => v.name === 'CLERK_SECRET_KEY')?.required, false);
 assert.equal(anthropicKeySourceForApply('', 'sk-ant-host'), 'reave');
 assert.equal(anthropicKeySourceForApply('sk-ant-client', 'sk-ant-host'), 'client');

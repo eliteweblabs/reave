@@ -544,7 +544,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description:
-      'Resend API key (inbound + outbound). Required unless you seed a sample inbox. Paste the client’s key, or leave blank to copy this host’s.',
+      'Resend API key (inbound + outbound). Copied from this host on apply. Apply also creates the inbound domain and webhook.',
   }),
   v({
     name: 'RESEND_WEBHOOK_SECRET',
@@ -1471,10 +1471,10 @@ export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
 /** Secrets that show a paste field (Anthropic is optional — blank copies the REΛVE host key). */
-export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY', 'RESEND_API_KEY']);
+export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY']);
 
-/** Only these operator secrets block Apply when empty (email — skip if sample inbox is on). */
-export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set(['RESEND_API_KEY']);
+/** Operator secrets that block Apply when empty. Resend is copied from this host on apply. */
+export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set<string>();
 
 export const DEPLOY_WIZARD_SEED_INDUSTRIES = [
   { id: 'none', label: 'No sample data' },
@@ -1532,9 +1532,8 @@ export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> |
 
 export function isDeployWizardRequiredOperatorSecret(
   name: string,
-  seed?: Pick<DeployWizardSeedInput, 'industry' | 'inbox'>,
+  _seed?: Pick<DeployWizardSeedInput, 'industry' | 'inbox'>,
 ): boolean {
-  if (name === 'RESEND_API_KEY' && seed && seed.industry !== 'none' && seed.inbox) return false;
   return DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS.has(name);
 }
 

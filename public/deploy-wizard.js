@@ -625,7 +625,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is required unless you seeded a sample inbox. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
+      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is copied from this host on apply, which also creates the inbound domain and webhook. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
@@ -658,7 +658,7 @@
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       `</div>` +
       (missing.length
-        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Paste Resend on Variables — or seed a sample inbox to skip it. Anthropic defaults to this host’s REΛVE key.</p>`
+        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Anthropic defaults to this host’s REΛVE key. Resend is copied from this host on apply.</p>`
         : '') +
       `<label class="dl-field dw-cli-field">` +
       `<span class="dl-field-label">Railway CLI</span>` +
