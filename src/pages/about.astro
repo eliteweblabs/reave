@@ -53,6 +53,8 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
     <HomePortfolioSection />
 
+    <div class="about-fade" aria-hidden="true"></div>
+
     <section
       class="home-section home-section--photo about-finale"
       data-no-scroll-fade
@@ -100,7 +102,6 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     min-height: 100vh;
     padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 40px) 0 0;
     display: block;
-    overflow-x: hidden;
   }
 
   .about-intro,
@@ -152,27 +153,34 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     margin-bottom: 56px;
   }
 
+  .about-fade {
+    display: block;
+    width: 100%;
+    height: 220px;
+    margin: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      var(--site-canvas, #0c0614) 0%,
+      color-mix(in srgb, var(--site-canvas, #0c0614) 45%, #000) 42%,
+      #000 100%
+    );
+  }
+
   .about-finale {
     width: 100%;
-    clear: both;
     position: relative;
     z-index: 0;
     margin: 0;
     padding-left: 0;
     padding-right: 0;
-    padding-top: 72px;
-    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
-    min-height: 100vh;
-    min-height: 100svh;
+    padding-top: 32px;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      #000 140px,
-      #000 100%
-    );
+    background: #000;
+    overflow: hidden;
     isolation: isolate;
   }
 
@@ -193,8 +201,6 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     object-position: center center;
     opacity: 1;
     filter: grayscale(100%) contrast(1.06) brightness(0.62);
-    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 160px, #000 100%);
-    mask-image: linear-gradient(180deg, transparent 0%, #000 160px, #000 100%);
   }
 
   .about-finale-scrim {
@@ -202,9 +208,8 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     inset: 0;
     background: linear-gradient(
       180deg,
-      transparent 0%,
-      rgba(0, 0, 0, 0.28) 18%,
-      rgba(0, 0, 0, 0.5) 58%,
+      rgba(0, 0, 0, 0.35) 0%,
+      rgba(0, 0, 0, 0.5) 55%,
       #000 100%
     );
   }
@@ -295,29 +300,11 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-page :global(.about-portfolio) {
     width: 100%;
-    clear: both;
     position: relative;
     z-index: 1;
     margin: 0;
-    padding-bottom: 0;
+    padding-bottom: 24px;
     overflow: visible;
-  }
-
-  .about-page :global(.about-portfolio)::after {
-    content: "";
-    display: block;
-    clear: both;
-    width: 100vw;
-    height: 120px;
-    margin-top: 16px;
-    margin-left: calc(50% - 50vw);
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      color-mix(in srgb, var(--site-canvas, #0c0614) 40%, #000) 48%,
-      #000 100%
-    );
-    pointer-events: none;
   }
 
   .about-page :global(.about-portfolio .section--full-bleed) {

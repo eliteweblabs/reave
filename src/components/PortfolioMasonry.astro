@@ -44,22 +44,36 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
   .portfolio-masonry {
     --masonry-cols: 6;
     --masonry-gap: clamp(8px, 1.2vw, 12px);
-    --masonry-col: calc((100% - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
-    /* Row height tracks column width but never grows unchecked on smaller screens */
+    --gutter-x: clamp(12px, 2vw, 28px);
     --brick-ratio: 0.75;
-    --brick-max: 9999px;
-    --brick-unit: min(calc(var(--masonry-col) * var(--brick-ratio)), var(--brick-max));
+    /* Never use 100% here — in grid-auto-rows it resolves against height and collapses. */
+    --masonry-col: calc((100vw - (var(--gutter-x) * 2) - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
+    --brick-unit: calc(var(--masonry-col) * var(--brick-ratio));
     display: grid;
-    grid-template-columns: repeat(var(--masonry-cols), 1fr);
-    grid-auto-rows: var(--brick-unit);
+    grid-template-columns: repeat(var(--masonry-cols), minmax(0, 1fr));
+    grid-auto-rows: minmax(96px, var(--brick-unit));
     grid-auto-flow: dense;
+    align-content: start;
+    align-items: stretch;
+    justify-items: stretch;
     gap: var(--masonry-gap);
-    padding: 0 clamp(12px, 2vw, 28px) 12px;
+    padding: 0 var(--gutter-x) 48px;
+    overflow: visible;
+  }
+
+  @supports (width: 1cqi) {
+    .portfolio-masonry {
+      container-type: inline-size;
+      --masonry-col: calc((100cqi - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
+    }
   }
 
   .masonry-item {
+    position: relative;
     min-width: 0;
     min-height: 0;
+    overflow: hidden;
+    border-radius: 10px;
   }
 
   .masonry-item--1x1 {
@@ -99,7 +113,8 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
   }
 
   .masonry-card {
-    position: relative;
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
@@ -119,6 +134,8 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
   }
 
   .masonry-image {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
@@ -246,7 +263,6 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     .portfolio-masonry {
       --masonry-cols: 4;
       --brick-ratio: 0.85;
-      --brick-max: min(120px, calc((100svh - 160px) / 5.5));
     }
 
     /* Wide desktop sizes → full width, height of two old panorama strips */
@@ -269,7 +285,23 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
 </style>
 
 <script>
+  function syncBrickUnit(root: HTMLElement) {
+    const styles = getComputedStyle(root);
+    const cols = Number.parseInt(styles.getPropertyValue("--masonry-cols"), 10) || 6;
+    const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0;
+    const padX =
+      (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
+    const col = (root.clientWidth - padX - gap * Math.max(cols - 1, 0)) / cols;
+    if (!Number.isFinite(col) || col <= 0) return;
+    const ratio = Number.parseFloat(styles.getPropertyValue("--brick-ratio")) || 0.75;
+    root.style.setProperty("--brick-unit", `${Math.round(col * ratio)}px`);
+  }
+
   function initPortfolioMasonry(root: HTMLElement) {
+    syncBrickUnit(root);
+    const resize = new ResizeObserver(() => syncBrickUnit(root));
+    resize.observe(root);
+
     const cards = root.querySelectorAll<HTMLButtonElement>("[data-masonry-card]");
 
     const closeAll = (except?: HTMLButtonElement) => {
