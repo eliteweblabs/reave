@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   applyPlacesMissToSalesSheet,
+  applySalesSheetParamOverrides,
   DUMMY_SALES_SHEET,
   fillAuditOnePager,
   injectAuditDisclaimerIntoFooter,
@@ -90,6 +91,25 @@ await test('query params override dummy company and finding 1', () => {
   assert.equal(input.findings[0]?.categoryLabel, 'Lead Capture');
   assert.match(input.findings[0]?.problem ?? '', /online ordering/);
   assert.equal(input.findings[1]?.id, DUMMY_SALES_SHEET.findings[1]?.id);
+});
+
+await test('query params override a live audit sheet without wiping the rest', () => {
+  const base = {
+    ...DUMMY_SALES_SHEET,
+    website: 'actionpaving.example',
+    headline: 'From the live audit',
+    overall: 'B' as const,
+    overallScore: 81,
+  };
+  const edited = applySalesSheetParamOverrides(
+    base,
+    new URLSearchParams({ headline: 'Edited headline', overall: 'A' }),
+  );
+  assert.equal(edited.headline, 'Edited headline');
+  assert.equal(edited.overall, 'A');
+  assert.equal(edited.website, 'actionpaving.example');
+  assert.equal(edited.overallScore, 81);
+  assert.equal(edited.findings[0]?.id, DUMMY_SALES_SHEET.findings[0]?.id);
 });
 
 await test('selectTopFindings keeps the three weakest ideas', () => {

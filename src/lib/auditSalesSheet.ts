@@ -367,9 +367,12 @@ function overrideFinding(
   };
 }
 
-/** Query-overridable dummy input. Missing params keep the fixture. */
-export function salesSheetInputFromSearchParams(params: URLSearchParams): AuditSalesSheetInput {
-  const contact: ContactRecord = { ...DUMMY_SALES_SHEET.contact };
+/** Overlay query fields onto dummy or a live audit sheet. Missing params keep the base. */
+export function applySalesSheetParamOverrides(
+  base: AuditSalesSheetInput,
+  params: URLSearchParams,
+): AuditSalesSheetInput {
+  const contact: ContactRecord = { ...base.contact };
   const company = params.get('company')?.trim();
   const name = params.get('name')?.trim();
   const email = params.get('email')?.trim();
@@ -392,15 +395,20 @@ export function salesSheetInputFromSearchParams(params: URLSearchParams): AuditS
 
   return {
     contact,
-    website: website || DUMMY_SALES_SHEET.website,
-    headline: headline || DUMMY_SALES_SHEET.headline,
-    overall: overall === undefined ? DUMMY_SALES_SHEET.overall : overall,
-    overallScore: overallScore === undefined ? DUMMY_SALES_SHEET.overallScore : overallScore,
-    performance: performance === undefined ? DUMMY_SALES_SHEET.performance : performance,
-    security: security === undefined ? DUMMY_SALES_SHEET.security : security,
-    visibility: visibility === undefined ? DUMMY_SALES_SHEET.visibility : visibility,
-    findings: DUMMY_SALES_SHEET.findings.map((finding, i) => overrideFinding(finding, i, params)),
+    website: website || base.website,
+    headline: headline || base.headline,
+    overall: overall === undefined ? base.overall : overall,
+    overallScore: overallScore === undefined ? base.overallScore : overallScore,
+    performance: performance === undefined ? base.performance : performance,
+    security: security === undefined ? base.security : security,
+    visibility: visibility === undefined ? base.visibility : visibility,
+    findings: base.findings.map((finding, i) => overrideFinding(finding, i, params)),
   };
+}
+
+/** Query-overridable dummy input. Missing params keep the fixture. */
+export function salesSheetInputFromSearchParams(params: URLSearchParams): AuditSalesSheetInput {
+  return applySalesSheetParamOverrides(DUMMY_SALES_SHEET, params);
 }
 
 function snapshotColumn(input: AuditSalesSheetInput): string {
