@@ -200,7 +200,9 @@ const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
       !normalizedPath.startsWith("/focus") &&
       !normalizedPath.startsWith("/go/") &&
       !normalizedPath.startsWith("/__clerk") &&
-      normalizedPath !== "/dealer-map";
+      !normalizedPath.startsWith("/video/") &&
+      normalizedPath !== "/dealer-map" &&
+      normalizedPath !== "/test";
     if (isMarketingLike) {
       return featureBlockedResponse();
     }
