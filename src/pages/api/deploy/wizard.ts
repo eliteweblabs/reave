@@ -29,6 +29,7 @@ import { isCloudflareConfigured } from '../../../lib/cloudflareClient';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { railwaySetVariables } from '../../../lib/railwayAgentApi';
 import { isResendConfigured } from '../../../lib/resendDnsSync';
+import { isGithubAppConfigured } from '../../../lib/githubApp';
 
 export const prerender = false;
 
@@ -142,6 +143,7 @@ export async function GET(context: APIContext): Promise<Response> {
     },
     cloudflare: { configured: isCloudflareConfigured() },
     resend: { configured: isResendConfigured() },
+    githubApp: { configured: isGithubAppConfigured() },
     defaults: {
       appService: 'reave',
       environment: 'production',

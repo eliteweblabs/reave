@@ -90,6 +90,12 @@ interface ImportMetaEnv {
   GITHUB_REPO?: string;
   /** Dedicated front-end website repo for the Agentic Website Editor (`owner/repo`). Client installs are locked to this repo. */
   GITHUB_WEBSITE_REPO?: string;
+  /** GitHub App id — mints installation tokens when GITHUB_TOKEN is unset (client website editor). */
+  GITHUB_APP_ID?: string;
+  /** GitHub App installation id on the agency org (selected repos only). */
+  GITHUB_APP_INSTALLATION_ID?: string;
+  /** GitHub App private key (PEM). Tokens are minted scoped to GITHUB_WEBSITE_REPO. */
+  GITHUB_APP_PRIVATE_KEY?: string;
   /** Default branch for create_github_branch from_branch and create_pull_request base (default: main). */
   GITHUB_DEFAULT_BRANCH?: string;
   /** Optional explicit health-check URL for check_deployment_status (default: RAILWAY_PUBLIC_DOMAIN or reave.app). */

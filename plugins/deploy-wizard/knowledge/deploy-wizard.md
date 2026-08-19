@@ -101,6 +101,7 @@ This wizard is owner-only. The Variables step is read-only. Apply:
 - **Rolls** new secrets on the server (shared API keys, CardDAV password, Cal.com `NEXTAUTH_SECRET` / `CALENDAR_ENCRYPTION_KEY`, dashboard key, cron secrets) and a real Web Push VAPID pair.
 - **Creates** a Resend `email.received` webhook at `https://{apex}/api/email/inbound` and writes the signing secret as `RESEND_WEBHOOK_SECRET`.
 - **Derives** `RESEND_FROM` as `noreply@inbound.{apex}` (the inbound domain Apply already adds in Resend) and `EMAIL_FROM_NAME` from the company name.
+- **Website editor:** GitHub cannot create PATs via API. Apply creates `eliteweblabs/{slug}-site`, adds it to this host’s GitHub App installation, and copies `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO` onto the client. The client mints a Contents token scoped to that repo on each write. Requires `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` on this host (install the App on selected repos only — never `eliteweblabs/reave`). Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create the repo and attach it.
 
 If a required host key is missing, Apply names it and stops. Clerk CNAMEs are still copied from Clerk → Domains.
 

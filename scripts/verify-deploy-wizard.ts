@@ -213,6 +213,9 @@ const websiteRepoVar = websitePlan.variables.find((v) => v.name === 'GITHUB_WEBS
 assert.equal(websiteRepoVar?.filled, 'eliteweblabs/tonybarlettajr-site');
 const websiteToken = websitePlan.variables.find((v) => v.name === 'GITHUB_TOKEN');
 assert.equal(websiteToken?.inheritFromHost, false, 'client GITHUB_TOKEN must not copy the REΛVE host PAT');
+assert.equal(websiteToken?.required, false);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_PRIVATE_KEY')?.inheritFromHost, true);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.inheritFromHost, true);
 
 const cli = formatDeployWizardCli(billedDns);
 assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);

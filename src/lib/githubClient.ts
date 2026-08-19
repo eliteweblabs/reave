@@ -8,6 +8,7 @@
  * also need Contents: write and Pull requests: write. Public repos work
  * token-less for reads but are heavily rate limited.
  */
+import { githubAppInstallationToken, isGithubAppConfigured } from './githubApp';
 import { serverEnv } from './serverEnv';
 
 const GITHUB_API = 'https://api.github.com';
@@ -64,13 +65,21 @@ function isSafeRepoPath(path: string): boolean {
   return true;
 }
 
-function token(): string | null {
+function staticToken(): string | null {
   return serverEnv('GITHUB_TOKEN')?.trim() || serverEnv('GH_TOKEN')?.trim() || null;
 }
 
-/** A token isn't strictly required for public repos, but is strongly recommended. */
+async function resolveAuthToken(): Promise<string | null> {
+  const pat = staticToken();
+  if (pat) return pat;
+  if (!isGithubAppConfigured()) return null;
+  const minted = await githubAppInstallationToken();
+  return minted.ok ? minted.token : null;
+}
+
+/** PAT or GitHub App credentials that can mint an installation token. */
 export function isGithubConfigured(): boolean {
-  return Boolean(token());
+  return Boolean(staticToken()) || isGithubAppConfigured();
 }
 
 async function ghFetch<T>(
@@ -98,7 +107,7 @@ async function ghFetch<T>(
     // GitHub rejects requests without a User-Agent.
     'User-Agent': 'reave-admin-agent',
   };
-  const tok = token();
+  const tok = await resolveAuthToken();
   if (tok) headers.Authorization = `Bearer ${tok}`;
   if (opts?.body !== undefined) headers['Content-Type'] = 'application/json';
 
@@ -334,8 +343,8 @@ export async function githubWriteFile(opts: {
   message: string;
   append?: boolean;
 }): Promise<GithubResult<GithubFileWriteResult>> {
-  if (!token()) {
-    return { ok: false, error: 'GITHUB_TOKEN is required for write_github_file' };
+  if (!(await resolveAuthToken())) {
+    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required for write_github_file' };
   }
 
   const repoRes = resolveRepo(opts.repo);
@@ -456,8 +465,8 @@ export async function githubRevertLastCommit(opts: {
   repo?: string;
   branch?: string;
 }): Promise<GithubResult<GithubRevertResult>> {
-  if (!token()) {
-    return { ok: false, error: 'GITHUB_TOKEN is required to undo a website change' };
+  if (!(await resolveAuthToken())) {
+    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required to undo a website change' };
   }
 
   const repoRes = resolveRepo(opts.repo);
@@ -537,8 +546,8 @@ export async function githubCreatePullRequest(opts: {
   title: string;
   body?: string;
 }): Promise<GithubResult<GithubPullRequestResult>> {
-  if (!token()) {
-    return { ok: false, error: 'GITHUB_TOKEN is required for create_pull_request' };
+  if (!(await resolveAuthToken())) {
+    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required for create_pull_request' };
   }
 
   const repoRes = resolveRepo(opts.repo);
@@ -613,7 +622,7 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
   const repoRes = resolveRepo(repo);
   if (!repoRes.ok) return repoRes;
   const slug = repoRes.data;
-  const tok = token();
+  const tok = staticToken();
 
   if (!tok) {
     return {
@@ -719,8 +728,8 @@ export async function githubCreateBranch(opts: {
   branch: string;
   from_branch?: string;
 }): Promise<GithubResult<GithubBranchCreateResult>> {
-  if (!token()) {
-    return { ok: false, error: 'GITHUB_TOKEN is required for create_github_branch' };
+  if (!(await resolveAuthToken())) {
+    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required for create_github_branch' };
   }
 
   const repoRes = resolveRepo(opts.repo);
@@ -784,7 +793,7 @@ export async function githubCreateRepo(opts: {
   /** Auto-init with an empty README so the repo has a default branch */
   auto_init?: boolean;
 }): Promise<GithubResult<GithubRepoCreateResult>> {
-  if (!token()) {
+  if (!staticToken()) {
     return { ok: false, error: 'GITHUB_TOKEN is required for create_github_repo' };
   }
 
@@ -808,6 +817,7 @@ export async function githubCreateRepo(opts: {
   if (opts.description) body.description = opts.description;
 
   const res = await ghFetch<{
+    id?: number;
     full_name?: string;
     html_url?: string;
     clone_url?: string;
@@ -827,4 +837,89 @@ export async function githubCreateRepo(opts: {
       created: true,
     },
   };
+}
+
+export type GithubRepoMeta = {
+  id: number;
+  repo: string;
+  url: string;
+  private: boolean;
+};
+
+export async function githubGetRepo(repo: string): Promise<GithubResult<GithubRepoMeta>> {
+  const slug = normalizeRepoSlug(repo);
+  if (!slug) return { ok: false, error: 'invalid repo (expected owner/name)' };
+  const res = await ghFetch<{ id?: number; full_name?: string; html_url?: string; private?: boolean }>(
+    `/repos/${slug}`,
+  );
+  if (!res.ok) return res;
+  if (typeof res.data.id !== 'number') return { ok: false, error: 'GitHub did not return a repository id' };
+  return {
+    ok: true,
+    data: {
+      id: res.data.id,
+      repo: res.data.full_name ?? slug,
+      url: res.data.html_url ?? `https://github.com/${slug}`,
+      private: Boolean(res.data.private),
+    },
+  };
+}
+
+/** Create the website repo if missing; return its metadata either way. */
+export async function githubEnsureRepo(opts: {
+  repo: string;
+  description?: string;
+  private?: boolean;
+}): Promise<GithubResult<GithubRepoMeta & { created: boolean }>> {
+  const created = await githubCreateRepo({
+    repo: opts.repo,
+    description: opts.description,
+    private: opts.private ?? true,
+    auto_init: true,
+  });
+  if (created.ok) {
+    const meta = await githubGetRepo(created.data.repo);
+    if (!meta.ok) return meta;
+    return { ok: true, data: { ...meta.data, created: true } };
+  }
+  if (created.status === 422) {
+    const existing = await githubGetRepo(opts.repo);
+    if (!existing.ok) return existing;
+    return { ok: true, data: { ...existing.data, created: false } };
+  }
+  return created;
+}
+
+/** Add a repo to this host’s GitHub App installation (classic PAT with repo scope). */
+export async function githubAddRepoToAppInstallation(opts: {
+  repo: string;
+  installationId?: string;
+}): Promise<GithubResult<{ repo: string; installation_id: string }>> {
+  if (!staticToken()) {
+    return {
+      ok: false,
+      error: 'GITHUB_TOKEN (classic PAT with repo scope) is required to add a repo to the GitHub App installation',
+    };
+  }
+  const installationId = (opts.installationId || serverEnv('GITHUB_APP_INSTALLATION_ID') || '').trim();
+  if (!installationId) return { ok: false, error: 'GITHUB_APP_INSTALLATION_ID is not set' };
+
+  const meta = await githubGetRepo(opts.repo);
+  if (!meta.ok) return meta;
+
+  const added = await ghFetch<unknown>(
+    `/user/installations/${encodeURIComponent(installationId)}/repositories/${meta.data.id}`,
+    { method: 'PUT' },
+  );
+  if (!added.ok && added.status !== 204) {
+    if (added.status === 403) {
+      return {
+        ok: false,
+        error:
+          'Could not add the repo to the GitHub App. The host GITHUB_TOKEN must be a classic PAT with repo scope, and you must be an org admin.',
+      };
+    }
+    return added;
+  }
+  return { ok: true, data: { repo: meta.data.repo, installation_id: installationId } };
 }

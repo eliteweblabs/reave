@@ -11,7 +11,7 @@ The Agentic Website Editor writes files via the GitHub REST API. Read-only statu
 | **Client** (`website` / `content_management`, not ops) | Only `websiteRepo` / `GITHUB_WEBSITE_REPO` (usually `eliteweblabs/{slug}-site`). Tools ignore other `repo` arguments. No `create_github_repo`. |
 | **Ops / official REΛVE** | This app (`eliteweblabs/reave`) plus named sibling services. You provision each client’s front-end repo. |
 
-Client `GITHUB_TOKEN` must be a fine-grained PAT with **Contents write on that website repo only**. Do not grant it `eliteweblabs/reave`.
+Client installs do **not** get a PAT. GitHub cannot create PATs via API. The deploy wizard copies this host’s **GitHub App** (`GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY`) and mints a 1-hour Contents token scoped to the website repo on each write. Do not copy the official REΛVE `GITHUB_TOKEN` onto a client.
 
 On a deployed container there is often no git binary and no `.git` checkout, so `exec_command`/shell `git push` will not work — the GitHub API is the only way to persist code there.
 
@@ -19,18 +19,15 @@ On a deployed container there is often no git binary and no `.git` checkout, so 
 
 | Variable | Purpose |
 |----------|---------|
-| `GITHUB_TOKEN` | PAT — **required for writes**. Client installs: fine-grained, one repo. |
+| `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` | Client website editor — mint a Contents token for `GITHUB_WEBSITE_REPO` only |
 | `GITHUB_WEBSITE_REPO` | `owner/repo` for this install’s front-end (overrides `websiteRepo` in install config) |
+| `GITHUB_TOKEN` | Ops / official REΛVE PAT. Optional on clients. Never copy this host token to a client. |
 | `GITHUB_REPO` | App / Railway service repo (REΛVE). **Not** the client website target. |
 | `websiteRepo` | Same as `GITHUB_WEBSITE_REPO`, in `config/config-{slug}.json` |
 
-**Token permissions (fine-grained on the website repo):**
+**GitHub App permissions (client website editor):** Contents read+write, Metadata read. Installation: selected repositories only — never `eliteweblabs/reave`.
 
-- Read status: **Contents** (read) + **Metadata**
-- `write_github_file` / `undo_website_change`: **Contents** (read + write)
-- `create_github_repo` (ops only): **repo** scope (classic PAT) or **Administration** write on the org
-
-Classic PAT alternative: `repo` scope covers both — do **not** put a classic PAT on a client install.
+**Host `GITHUB_TOKEN` (ops / wizard Apply):** classic PAT with `repo` scope so Apply can create `{slug}-site` and add it to the App. Do **not** put that PAT on a client install.
 
 ## Recommended workflow (commit straight to main)
 
@@ -47,10 +44,7 @@ Classic PAT alternative: `repo` scope covers both — do **not** put a classic P
 
 ## Provisioning a client website repo (ops)
 
-1. `create_github_repo` with `repo: "eliteweblabs/{slug}-site"` and `auto_init: true`
-2. Set `websiteRepo` on that install’s config and `GITHUB_WEBSITE_REPO` on its Railway service
-3. Create a fine-grained PAT: Resource owner `eliteweblabs`, **only** `{slug}-site`, Contents read+write
-4. Put that PAT in the **client** service `GITHUB_TOKEN` — never copy the REΛVE host token
+Use the deploy wizard Apply (website / content_management on). It creates `eliteweblabs/{slug}-site`, adds it to the host GitHub App, and copies `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO`. One-time host setup: a GitHub App on eliteweblabs with Contents read+write, installed on **selected repositories only** (never `eliteweblabs/reave`), plus a classic PAT with `repo` scope as `GITHUB_TOKEN` so Apply can create and attach repos.
 
 ## Tools
 

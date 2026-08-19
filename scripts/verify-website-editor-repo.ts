@@ -3,6 +3,8 @@
  * Run: node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-website-editor-repo.ts
  */
 import assert from 'node:assert/strict';
+import { createVerify, generateKeyPairSync } from 'node:crypto';
+import { githubAppJwt, normalizeGithubAppPrivateKey } from '../src/lib/githubApp.ts';
 import {
   defaultWebsiteRepoSlug,
   isProtectedAppRepo,
@@ -48,5 +50,21 @@ const opsSibling = lockedWebsiteEditorRepo({
 });
 assert.equal(opsSibling.ok, true);
 if (opsSibling.ok) assert.equal(opsSibling.data, 'eliteweblabs/paulino-wizard');
+
+assert.equal(
+  normalizeGithubAppPrivateKey('"-----BEGIN KEY-----\\nABC\\n-----END KEY-----"'),
+  '-----BEGIN KEY-----\nABC\n-----END KEY-----',
+);
+
+const pair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const pem = pair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+const jwt = githubAppJwt('4242', pem);
+const [headerB64, payloadB64, sig] = jwt.split('.');
+assert.ok(headerB64 && payloadB64 && sig);
+const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')) as { iss?: string };
+assert.equal(payload.iss, '4242');
+const verify = createVerify('RSA-SHA256');
+verify.update(`${headerB64}.${payloadB64}`);
+assert.equal(verify.verify(pair.publicKey, sig, 'base64url'), true);
 
 console.log('verify-website-editor-repo: ok');

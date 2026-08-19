@@ -55,7 +55,7 @@ const SYSTEM_NODES = [
   { id: 'cookie_notice', title: 'Cookie notice', sub: 'implied consent bar · /cookies (FEATURES: cookie_notice)', icon: '🍪', hue: 32, status: true, group: 'reave', x: 640, y: 1020 },
   { id: 'website', title: 'Website', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
-  { id: 'site_repo', title: 'Client site repo', sub: 'GITHUB_WEBSITE_REPO · eliteweblabs/{slug}-site · not eliteweblabs/reave', icon: '📄', brand: 'github', hue: 220, status: true, group: 'external', x: 1400, y: 700 },
+  { id: 'site_repo', title: 'Client site repo', sub: 'wizard creates {slug}-site · GitHub App token · not eliteweblabs/reave', icon: '📄', brand: 'github', hue: 220, status: true, group: 'external', x: 1400, y: 700 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
   { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · SSR data · noindex · Mapbox pins', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },

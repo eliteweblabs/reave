@@ -29,12 +29,13 @@ Tony-style installs (public site not in the REΛVE app) need this repo + token b
 
 | Variable | Purpose |
 |----------|---------|
-| `GITHUB_TOKEN` | Fine-grained PAT with **Contents** write on **only** the website repo |
 | `GITHUB_WEBSITE_REPO` | `owner/repo` (or `websiteRepo` in install config) |
+| `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` | Copied by the deploy wizard — mints a Contents token for **only** the website repo |
+| `GITHUB_TOKEN` | Optional. Do not copy the official REΛVE PAT onto a client. |
 
 Optional: `PEXELS_API_KEY` for stock photos.
 
-**Do not** copy the official REΛVE `GITHUB_TOKEN` onto a client service.
+GitHub cannot create PATs via API. Official REΛVE Apply creates `eliteweblabs/{slug}-site` and copies the host GitHub App onto the client.
 
 ## Verify
 

@@ -352,7 +352,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Nothing on this page is typed. Apply copies keys from this host, rolls new secrets (including a real VAPID pair), creates the Resend inbound webhook, and writes Railway references. <code>RESEND_FROM</code> is <code>noreply@inbound.{apex}</code>.</p>` +
+      `<p class="dl-footnote">Nothing on this page is typed. Apply copies keys from this host, rolls new secrets (including a real VAPID pair), creates the Resend inbound webhook, and writes Railway references. <code>RESEND_FROM</code> is <code>noreply@inbound.{apex}</code>. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and copies this host’s GitHub App (GitHub cannot mint PATs).</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=

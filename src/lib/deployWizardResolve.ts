@@ -9,6 +9,7 @@ import {
   type DeployWizardPlan,
   type DeployWizardPlanVariable,
 } from './deployWizardCatalog';
+import { provisionClientWebsiteGitHub } from './deployWizardGithub';
 import { resendEnsureInboundWebhook } from './resendDnsSync';
 import { serverEnv } from './serverEnv';
 
@@ -47,6 +48,13 @@ export async function resolveDeployWizardApply(
     if (!hook.ok) return { ok: false, error: `Resend webhook: ${hook.error}` };
     webhookSecret = hook.signingSecret;
     notes.push(hook.created ? `Created Resend inbound webhook ${endpoint}` : `Reused Resend inbound webhook ${endpoint}`);
+  }
+
+  const needsWebsiteRepo = plan.features.includes('website') || plan.features.includes('content_management');
+  if (needsWebsiteRepo) {
+    const site = await provisionClientWebsiteGitHub({ installSlug: plan.installSlug });
+    if (!site.ok) return { ok: false, error: site.error };
+    notes.push(...site.notes);
   }
 
   for (const variable of plan.variables) {

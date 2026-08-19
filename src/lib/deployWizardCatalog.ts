@@ -1247,15 +1247,37 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'GITHUB_TOKEN',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
+    required: false,
     description:
-      'Fine-grained PAT: Contents write on this install’s website repo only. Do not reuse the REΛVE host token or grant eliteweblabs/reave.',
+      'Optional. Client website editor uses the GitHub App copied on apply (GitHub cannot mint PATs). Leave empty on client installs.',
     features: ['website', 'content_management', 'dev_infra'],
   }),
   v({
     name: 'GITHUB_WEBSITE_REPO',
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
-    description: 'Front-end website repo (owner/repo). Client editor is locked to this; not eliteweblabs/reave.',
+    description: 'Front-end website repo (owner/repo). Created on apply as eliteweblabs/{slug}-site.',
+    features: ['website', 'content_management'],
+  }),
+  v({
+    name: 'GITHUB_APP_ID',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description: 'GitHub App id from this host — mints a repo-scoped token on each write.',
+    features: ['website', 'content_management'],
+  }),
+  v({
+    name: 'GITHUB_APP_INSTALLATION_ID',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description: 'GitHub App installation on eliteweblabs (selected repos only; never reave).',
+    features: ['website', 'content_management'],
+  }),
+  v({
+    name: 'GITHUB_APP_PRIVATE_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description: 'GitHub App private key from this host. Tokens are minted scoped to GITHUB_WEBSITE_REPO only.',
     features: ['website', 'content_management'],
   }),
   v({
@@ -1411,10 +1433,18 @@ export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM
 /** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
+/** GitHub App credentials copied onto client website-editor installs. */
+export const DEPLOY_WIZARD_GITHUB_APP_VARS = new Set([
+  'GITHUB_APP_ID',
+  'GITHUB_APP_INSTALLATION_ID',
+  'GITHUB_APP_PRIVATE_KEY',
+]);
+
 /** Secrets created via an API on apply (not copied from this host). */
 export const DEPLOY_WIZARD_PROVISIONED_SECRETS = new Set(['RESEND_WEBHOOK_SECRET']);
 
 export function isDeployWizardHostSecret(variable: Pick<DeployWizardVariable, 'kind' | 'name'>): boolean {
+  if (DEPLOY_WIZARD_GITHUB_APP_VARS.has(variable.name)) return true;
   return (
     variable.kind === 'secret' &&
     !DEPLOY_WIZARD_DERIVED_SECRETS.has(variable.name) &&

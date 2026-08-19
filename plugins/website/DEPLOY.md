@@ -20,22 +20,20 @@ Enabling `website` also turns on the Agentic Website Editor tools and Pexels sea
 ## Required env vars
 
 - `GITHUB_WEBSITE_REPO` — `owner/repo` for this install’s front-end (not `eliteweblabs/reave`)
-- `GITHUB_TOKEN` — fine-grained PAT with Contents write on **that repo only**
+- `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` — copied by deploy wizard Apply
 - `PEXELS_API_KEY` — optional; stock photo search
 
 ## External setup
 
 - Enable `website` in install config `features[]`
-- Set `websiteRepo` (or `GITHUB_WEBSITE_REPO`) to `eliteweblabs/{slug}-site`
-- Create the website repo in the agency GitHub account (ops / official REΛVE)
+- Prefer deploy wizard Apply (creates `{slug}-site` and copies the host GitHub App)
 - Do **not** enable `dev_infra` on a client install
 - Do **not** copy the REΛVE host `GITHUB_TOKEN`
 
 ## Checklist
 
 - [ ] Add `website` to install `features[]`
-- [ ] Set `websiteRepo` / `GITHUB_WEBSITE_REPO` to the dedicated front-end repo
-- [ ] Set a **repo-scoped** `GITHUB_TOKEN` on the app service
+- [ ] Apply from `/deploy` with Website on — or set `GITHUB_WEBSITE_REPO` + `GITHUB_APP_*`
 - [ ] Optional: set `PEXELS_API_KEY`
 - [ ] Ask the agent what web tools it has — Railway / Kinsta / Cloudflare must not appear
 - [ ] “Change the headline…” commits in the same turn; “undo that” reverts

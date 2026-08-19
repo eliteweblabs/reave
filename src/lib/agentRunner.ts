@@ -897,7 +897,7 @@ async function runKnowledgeAgentInner(
   if (hasWebsiteEditor()) {
     if (isOpsInstall()) {
       sysParts.push(
-        'Agentic Website Editor (ops): the official REΛVE marketing site lives in this app repo. Client installs each have their own front-end repo (eliteweblabs/{slug}-site) — provision it with create_github_repo, set websiteRepo / GITHUB_WEBSITE_REPO, and give that install a fine-grained PAT scoped only to that repo. Never point a client GITHUB_TOKEN at eliteweblabs/reave. read_knowledge slug "content-management".',
+        'Agentic Website Editor (ops): the official REΛVE marketing site lives in this app repo. Client installs each have their own front-end repo (eliteweblabs/{slug}-site). The deploy wizard creates that repo and copies this host’s GitHub App (GITHUB_APP_*) — GitHub cannot mint PATs. Never point a client GITHUB_TOKEN at eliteweblabs/reave. read_knowledge slug "content-management".',
       );
     } else {
       const siteRepo = githubWebsiteRepoSlug() || 'the configured website repo';

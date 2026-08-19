@@ -31,7 +31,7 @@ Call `undo_website_change`. Saying undo again undoes the undo.
 | Confirm it is live | `check_deployment_status` |
 | Stock photos | `search_stock_photos` (Pexels, when configured) |
 
-`GITHUB_TOKEN` must be a **fine-grained PAT with Contents write on the website repo only** — never on `eliteweblabs/reave`. Railway / Kinsta APIs are **not** required.
+Writes use this install’s **GitHub App** (copied by the deploy wizard). Tokens are minted for the website repo only — never `eliteweblabs/reave`. Railway / Kinsta APIs are **not** required.
 
 ## Where website content lives
 
