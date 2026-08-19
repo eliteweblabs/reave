@@ -16,6 +16,13 @@ import {
   stripNotificationDecorations,
 } from '../src/lib/notificationFormat.ts';
 import { isAuditWorkInProgress } from '../src/lib/auditReportCard.ts';
+import {
+  adjustCachedAnthropicBalance,
+  auditCreditContinueFloorUsd,
+  auditCreditReserveUsd,
+  evaluateAuditCreditReserve,
+  getAnthropicBalance,
+} from '../src/lib/anthropicBalance.ts';
 
 const wayneReply = [
   '🚀 Deploying: f8bc775 "Merge remote-tracking branch \'origin/main\'" — not yet live',
@@ -115,6 +122,64 @@ const wayneReply = [
     false,
   );
   console.log('ok — stub vs finished audit detection');
+}
+
+{
+  assert.equal(auditCreditReserveUsd('quick'), 1.5);
+  assert.equal(auditCreditReserveUsd('full'), 4);
+  assert.equal(auditCreditContinueFloorUsd('full'), 1);
+  assert.equal(auditCreditContinueFloorUsd('quick'), 0.38);
+
+  const blocked = evaluateAuditCreditReserve(
+    { balanceUsd: 0.12, source: 'live' },
+    4,
+    { phase: 'start', tier: 'full' },
+  );
+  assert.equal(blocked.ok, false);
+  if (!blocked.ok) {
+    assert.match(blocked.reason, /too low to start a full audit/);
+    assert.match(blocked.reason, /\$0\.12/);
+    assert.match(blocked.reason, /\$4\.00/);
+  }
+
+  const mid = evaluateAuditCreditReserve(
+    { balanceUsd: 0.18, source: 'live' },
+    1,
+    { phase: 'continue', tier: 'full' },
+  );
+  assert.equal(mid.ok, false);
+  if (!mid.ok) {
+    assert.match(mid.reason, /ran too low to finish/);
+    assert.equal(auditResearchFailureReason(mid.reason) != null, true);
+  }
+
+  const unknown = evaluateAuditCreditReserve(
+    { balanceUsd: null, source: 'unconfigured' },
+    4,
+    { phase: 'start', tier: 'full' },
+  );
+  assert.equal(unknown.ok, true);
+
+  const enough = evaluateAuditCreditReserve(
+    { balanceUsd: 6.5, source: 'live' },
+    4,
+    { phase: 'start', tier: 'full' },
+  );
+  assert.equal(enough.ok, true);
+  console.log('ok — prepaid credit reserve blocks a full audit at $0.12 and fails open when unknown');
+}
+
+{
+  process.env.ANTHROPIC_CREDIT_BALANCE_USD = '2.40';
+  delete process.env.ANTHROPIC_ORG_ID;
+  delete process.env.ANTHROPIC_SESSION_KEY;
+  const before = await getAnthropicBalance({ refresh: true });
+  assert.equal(before.balanceUsd, 2.4);
+  adjustCachedAnthropicBalance(-1.1);
+  const after = await getAnthropicBalance();
+  assert.equal(after.balanceUsd, 1.3);
+  delete process.env.ANTHROPIC_CREDIT_BALANCE_USD;
+  console.log('ok — cached prepaid balance is debited as the audit spends');
 }
 
 console.log('all audit notification checks passed');

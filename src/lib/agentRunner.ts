@@ -58,10 +58,15 @@ import { labelForAgentTool } from './agentToolLabels';
 import {
   addAnthropicUsage,
   createAgentUsageAccumulator,
+  estimateAnthropicUsageCostUsd,
   finalizeAgentUsage,
   logAgentUsage,
   type AgentUsageSummary,
 } from './agentUsage';
+import {
+  adjustCachedAnthropicBalance,
+  checkAnthropicCreditsForAudit,
+} from './anthropicBalance';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
 import { listJobsForItem } from './projectLinks';
@@ -1031,6 +1036,14 @@ async function runKnowledgeAgentInner(
       );
     }
 
+    const auditGuard = getAgentContext().auditResearch;
+    if (auditGuard) {
+      const credits = await checkAnthropicCreditsForAudit(auditGuard.tier, 'continue', {
+        refresh: round > 0 && round % 3 === 0,
+      });
+      if (!credits.ok) return finishRun(credits.reason);
+    }
+
     emitProgress({ phase: 'thinking', round: round + 1 });
 
     const apiBody = {
@@ -1063,6 +1076,7 @@ async function runKnowledgeAgentInner(
           return finishRun(formatAnthropicApiError(result.status, result.text));
         }
         addAnthropicUsage(usageAcc, result.data.usage);
+        adjustCachedAnthropicBalance(-estimateAnthropicUsageCostUsd(model, result.data.usage));
         stopReason = result.data.stop_reason;
         content = result.data.content as AnthropicContentBlock[];
       } else {
@@ -1075,6 +1089,7 @@ async function runKnowledgeAgentInner(
           return finishRun(formatAnthropicApiError(result.status, result.text));
         }
         addAnthropicUsage(usageAcc, result.data.usage);
+        adjustCachedAnthropicBalance(-estimateAnthropicUsageCostUsd(model, result.data.usage));
         const data = result.data as {
           stop_reason?: string;
           content?: AnthropicContentBlock[];

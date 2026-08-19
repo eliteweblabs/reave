@@ -120,7 +120,8 @@ export const POST: APIRoute = async ({ request }) => {
   );
 
   if (!result.ok) {
-    return json({ ok: false, error: result.error }, 400);
+    const status = result.code === 'anthropic_credits' ? 503 : 400;
+    return json({ ok: false, error: result.error }, status);
   }
 
   return json({

@@ -85,7 +85,11 @@ export function auditResearchFailureReason(reply: string): string | null {
   const cleaned = stripNotificationDecorations(raw);
   const hay = `${raw}\n${cleaned}`;
 
-  if (/credit balance is too low|can't respond right now/i.test(hay)) {
+  if (
+    /credit balance is too low|can't respond right now|credits (?:are|ran) too low/i.test(
+      hay,
+    )
+  ) {
     return "Anthropic is out of credits, so the audit couldn't finish.";
   }
   if (/^Research failed:/i.test(cleaned)) {
