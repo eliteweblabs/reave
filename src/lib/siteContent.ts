@@ -47,7 +47,7 @@ export type SiteClientLogo = {
   height: number;
 };
 
-export type SitePortfolioSize = '1x1' | '2x1' | '1x2' | '2x2' | '3x2' | '4x1';
+export type SitePortfolioSize = '1x1' | '2x1' | '3x1' | '1x2' | '2x2' | '3x2' | '4x1';
 
 export type SitePortfolioItem = {
   title: string;
@@ -226,7 +226,7 @@ function resolveClientLogos(raw: SiteClientLogo[] | undefined): SiteClientLogo[]
   return logos.length ? logos : undefined;
 }
 
-const PORTFOLIO_SIZES = new Set<SitePortfolioSize>(['1x1', '2x1', '1x2', '2x2', '3x2', '4x1']);
+const PORTFOLIO_SIZES = new Set<SitePortfolioSize>(['1x1', '2x1', '3x1', '1x2', '2x2', '3x2', '4x1']);
 
 function resolvePortfolio(raw: SitePortfolioItem[] | undefined): SitePortfolioItem[] | undefined {
   if (!Array.isArray(raw)) return undefined;
