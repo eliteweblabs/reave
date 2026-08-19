@@ -189,8 +189,13 @@ export async function ensureDeployWizardStack(opts: {
   project: string;
   projectName?: string;
   environment?: string;
+  onProgress?: (message: string) => void;
 }): Promise<DeployWizardProvisionResult | { ok: false; error: string }> {
   const notes: string[] = [];
+  const say = (message: string) => {
+    notes.push(message);
+    opts.onProgress?.(message);
+  };
   const createdServices: string[] = [];
   const connectedServices: string[] = [];
   const environmentName = opts.environment?.trim() || 'production';
@@ -205,6 +210,7 @@ export async function ensureDeployWizardStack(opts: {
   let createdProject = false;
 
   if (isDeployWizardNewProjectRef(opts.project) || !isRailwayUuid(opts.project.trim())) {
+    say(`Looking up Railway project ${desiredName}…`);
     const listed = await railwayListProjects();
     if (!listed.ok) return listed;
     const named = isDeployWizardNewProjectRef(opts.project) ? desiredName : opts.project.trim();
@@ -212,8 +218,9 @@ export async function ensureDeployWizardStack(opts: {
     if (existing) {
       projectId = existing.id;
       projectName = existing.name;
-      notes.push(`Reused Railway project ${existing.name}`);
+      say(`Reused Railway project ${existing.name}`);
     } else {
+      say(`Creating Railway project ${named}…`);
       const created = await createRailwayEmptyProject(named, {
         description: `${named} — REΛVE install ${opts.plan.installSlug} (via deploy wizard)`,
       });
@@ -221,10 +228,11 @@ export async function ensureDeployWizardStack(opts: {
       projectId = created.id;
       projectName = created.name;
       createdProject = true;
-      notes.push(`Created Railway project ${created.name}`);
+      say(`Created Railway project ${created.name}`);
     }
   } else {
     projectId = opts.project.trim();
+    say(`Using Railway project ${projectId}`);
   }
 
   const resolved = await railwayResolveProject(projectId);
@@ -239,6 +247,7 @@ export async function ensureDeployWizardStack(opts: {
 
   let existing = resolved.services;
   for (const service of opts.plan.services) {
+    say(`Checking service ${service.id}…`);
     const row = await ensureService({
       service,
       projectId,
@@ -247,7 +256,7 @@ export async function ensureDeployWizardStack(opts: {
       existing,
     });
     if (!row.ok) return row;
-    notes.push(row.note);
+    say(row.note);
     if (row.created) {
       createdServices.push(service.id);
       existing = [...existing, { id: service.id, name: service.id }];

@@ -30,7 +30,12 @@ import { isCloudflareConfigured } from '../../../lib/cloudflareClient';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { isResendConfigured } from '../../../lib/resendDnsSync';
 import { isGithubAppConfigured } from '../../../lib/githubApp';
-import { createGithubAppPending, githubAppCookieHeader } from '../../../lib/deployWizardGithubApp';
+import {
+  createGithubAppPending,
+  getGithubAppPending,
+  githubAppCookieHeader,
+  saveGithubAppPending,
+} from '../../../lib/deployWizardGithubApp';
 import { DIRECTORY_COUNTIES } from '../../../lib/courtDirectory';
 import { PRACTICE_AREAS, PRACTICE_GATE_MODES, US_STATES } from '../../../lib/practiceGate';
 
@@ -243,67 +248,107 @@ export async function POST(context: APIContext): Promise<Response> {
   const project = typeof body.project === 'string' ? body.project.trim() : '';
   const projectName = typeof body.projectName === 'string' ? body.projectName.trim() : '';
   const environment = typeof body.environment === 'string' ? body.environment.trim() : 'production';
-
-  const executed = await executeDeployWizardApply({
-    plan,
-    values,
+  const applyBody = {
+    features,
+    extras,
+    appService,
+    installSlug: plan.installSlug,
+    siteDomain,
+    postAlias,
+    companyName,
+    adminUsername,
+    timezone,
+    seed,
     project,
     projectName,
     environment,
-    request: context.request,
+    values,
+  };
+  const mightNeedGithub =
+    plan.features.includes('website') || plan.features.includes('content_management');
+  const githubSetup = mightNeedGithub ? createGithubAppPending(applyBody, context.url.origin) : null;
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const emit = (event: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+      try {
+        emit({ phase: 'start', message: 'Apply started — standing up the stack.' });
+        const executed = await executeDeployWizardApply({
+          plan,
+          values,
+          project,
+          projectName,
+          environment,
+          request: context.request,
+          onProgress: (message) => emit({ phase: 'log', message }),
+        });
+        if (isDeployWizardApplyNeedGithubApp(executed)) {
+          if (githubSetup) {
+            const pending = getGithubAppPending(githubSetup.state);
+            if (pending) {
+              saveGithubAppPending(githubSetup.state, {
+                ...pending,
+                apply: {
+                  ...pending.apply,
+                  project: executed.projectId || project,
+                  projectName: executed.projectName || projectName,
+                },
+              });
+            }
+          }
+          emit({
+            phase: 'github',
+            ok: true,
+            message: `Opening GitHub to create the restricted App for ${githubSetup?.repo || 'the website repo'}…`,
+            needsGithubApp: githubSetup,
+            plan: publicPlan,
+            cli,
+            provisioned: executed.notes,
+          });
+          return;
+        }
+        if (!executed.ok) {
+          emit({
+            phase: 'error',
+            ok: false,
+            message: executed.error,
+            plan: publicPlan,
+            cli,
+            applied: executed.applied,
+          });
+          return;
+        }
+        emit({
+          phase: 'done',
+          ok: true,
+          message: executed.hint,
+          plan: publicPlan,
+          cli,
+          applied: executed.applied,
+          identity: executed.identity,
+          dns: executed.dns,
+          provisioned: executed.provisioned,
+          hint: executed.hint,
+        });
+      } catch (e) {
+        emit({
+          phase: 'error',
+          ok: false,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      } finally {
+        controller.close();
+      }
+    },
   });
-
-  if (isDeployWizardApplyNeedGithubApp(executed)) {
-    const setup = createGithubAppPending(
-      {
-        features,
-        extras,
-        appService,
-        installSlug: plan.installSlug,
-        siteDomain,
-        postAlias,
-        companyName,
-        adminUsername,
-        timezone,
-        seed,
-        project: executed.projectId || project,
-        projectName: executed.projectName || projectName,
-        environment,
-        values,
-      },
-      context.url.origin,
-    );
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        needsGithubApp: setup,
-        plan: publicPlan,
-        cli,
-        provisioned: executed.notes,
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store',
-          'Set-Cookie': githubAppCookieHeader(setup.state, context.url.protocol === 'https:'),
-        },
-      },
-    );
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/x-ndjson; charset=utf-8',
+    'Cache-Control': 'no-store',
+  };
+  if (githubSetup) {
+    headers['Set-Cookie'] = githubAppCookieHeader(githubSetup.state, context.url.protocol === 'https:');
   }
-
-  if (!executed.ok) {
-    return json({ ok: false, error: executed.error, plan: publicPlan, cli, applied: executed.applied }, executed.applied?.length ? 502 : 400);
-  }
-
-  return json({
-    ok: true,
-    plan: publicPlan,
-    cli,
-    applied: executed.applied,
-    identity: executed.identity,
-    dns: executed.dns,
-    provisioned: executed.provisioned,
-    hint: executed.hint,
-  });
+  return new Response(stream, { status: 200, headers });
 }

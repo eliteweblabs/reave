@@ -22,6 +22,7 @@ import {
 } from '../src/lib/deployWizardCatalog.ts';
 import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
 import { buildGithubAppManifest, githubAppManifestName } from '../src/lib/deployWizardGithubApp.ts';
+import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
   featureVisibility,
@@ -300,6 +301,7 @@ assert.equal(manifest.name, 'reave-tonybarlettajr');
 assert.equal((manifest.default_permissions as { contents?: string }).contents, 'write');
 assert.match(String(manifest.redirect_url), /state=abc/);
 assert.equal(manifest.public, false);
+assert.match(CSP_FORM_ACTION, /https:\/\/github\.com/);
 
 const cli = formatDeployWizardCli(billedDns);
 assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);

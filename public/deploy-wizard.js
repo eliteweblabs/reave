@@ -95,6 +95,7 @@
   let applied = null;
   let appliedDns = null;
   let appliedProvisioned = [];
+  let applyLog = [];
   let githubBanner = '';
   let placesTimer = 0;
   let placesSeq = 0;
@@ -721,6 +722,14 @@
         : '') +
       (appliedProvisioned.length
         ? `<p class="dl-footnote" role="status">${esc(appliedProvisioned.join(' '))}</p>`
+        : '') +
+      (applying || applyLog.length
+        ? `<ol class="dw-apply-log" id="dw-apply-log" aria-live="polite">${applyLog
+            .map(
+              (row) =>
+                `<li class="dw-apply-log-item${row.tone ? ` dw-apply-log-item--${esc(row.tone)}` : ''}">${esc(row.message)}</li>`,
+            )
+            .join('')}</ol>`
         : '')
     );
   }
@@ -866,6 +875,21 @@
     bind();
   }
 
+  function pushApplyLog(message, tone) {
+    const text = String(message || '').trim();
+    if (!text) return;
+    const last = applyLog[applyLog.length - 1];
+    if (last && last.message === text) return;
+    applyLog.push({ message: text, tone: tone || '' });
+    const el = root.querySelector('#dw-apply-log');
+    if (!el) return;
+    const item = document.createElement('li');
+    item.className = `dw-apply-log-item${tone ? ` dw-apply-log-item--${tone}` : ''}`;
+    item.textContent = text;
+    el.appendChild(item);
+    el.scrollTop = el.scrollHeight;
+  }
+
   async function applyPlan() {
     if (applying) return;
     readIdentity();
@@ -873,13 +897,15 @@
     if (!project) project = '__new__';
     applying = true;
     error = '';
+    applyLog = [];
     let leavingForGithub = false;
     render();
     bind();
+    pushApplyLog('Apply started — this can take a minute.');
     try {
       const res = await fetch('/api/deploy/wizard', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
         body: JSON.stringify({
           action: 'apply',
           moduleIds: [...selectedIds],
@@ -898,10 +924,72 @@
           values,
         }),
       });
+      const ctype = res.headers.get('content-type') || '';
+      if (ctype.includes('ndjson') && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let finalEvent = null;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let event;
+            try {
+              event = JSON.parse(line);
+            } catch {
+              continue;
+            }
+            if (event.message) {
+              pushApplyLog(event.message, event.phase === 'error' ? 'error' : event.phase === 'github' ? 'next' : '');
+            }
+            if (event.phase === 'github' || event.phase === 'done' || event.phase === 'error') {
+              finalEvent = event;
+            }
+          }
+        }
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer);
+            if (event.message) pushApplyLog(event.message, event.phase === 'error' ? 'error' : '');
+            if (event.phase === 'github' || event.phase === 'done' || event.phase === 'error') {
+              finalEvent = event;
+            }
+          } catch {
+            /* ignore trailing partial */
+          }
+        }
+        if (!finalEvent) throw new Error(res.ok ? 'Apply ended without a result.' : `Apply failed (${res.status})`);
+        if (finalEvent.phase === 'error' || finalEvent.ok === false) {
+          throw new Error(finalEvent.message || `Apply failed (${res.status})`);
+        }
+        if (finalEvent.needsGithubApp) {
+          leavingForGithub = true;
+          appliedProvisioned = finalEvent.provisioned || [];
+          pushApplyLog('Sending you to GitHub to create the App. Confirm, then install it on the site repo only.');
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          submitGithubAppManifest(finalEvent.needsGithubApp);
+          return;
+        }
+        plan = finalEvent.plan || plan;
+        cli = finalEvent.cli || cli;
+        applied = finalEvent.applied || [];
+        appliedDns = finalEvent.dns || null;
+        appliedProvisioned = finalEvent.provisioned || [];
+        return;
+      }
+
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json.error || `Apply failed (${res.status})`);
       if (json.needsGithubApp) {
         leavingForGithub = true;
+        (json.provisioned || []).forEach((note) => pushApplyLog(note));
+        pushApplyLog('Sending you to GitHub to create the App. Confirm, then install it on the site repo only.');
+        await new Promise((resolve) => setTimeout(resolve, 700));
         submitGithubAppManifest(json.needsGithubApp);
         return;
       }
@@ -912,6 +1000,7 @@
       appliedProvisioned = json.provisioned || [];
     } catch (e) {
       error = e.message || 'Could not apply variables.';
+      pushApplyLog(error, 'error');
     } finally {
       if (!leavingForGithub) {
         applying = false;

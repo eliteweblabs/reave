@@ -111,7 +111,7 @@ export function createGithubAppPending(
   return {
     state,
     org: GITHUB_WEBSITE_OWNER,
-    actionUrl: `https://github.com/organizations/${GITHUB_WEBSITE_OWNER}/settings/apps/new`,
+    actionUrl: `https://github.com/organizations/${encodeURIComponent(GITHUB_WEBSITE_OWNER)}/settings/apps/new`,
     manifest: buildGithubAppManifest({
       installSlug: apply.installSlug,
       origin,
