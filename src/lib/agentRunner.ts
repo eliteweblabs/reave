@@ -719,7 +719,7 @@ async function runKnowledgeAgentInner(
   ];
   if (knowledgeIndustryId() === 'law') {
     sysParts.push(
-      'Legal knowledge: this install is a law practice. Courts, judges, clerks, hours, and phones are already loaded from the Mapbox office pin plus the radius/county gate — read_knowledge slug "courts-in-radius" or call list_nearby_courts. Search bankruptcy-department / bankruptcy-intake / bankruptcy-practice for procedure. Never invent a courthouse, judge, clerk, or phone. You are an office assistant, not counsel — do not give legal advice.',
+      'Legal knowledge: this install is a law practice. Courts, judges, clerks, hours, and phones are already loaded from the knowledge aggregation gate (distance from the Mapbox office pin, county, or state) — read_knowledge slug "courts-in-radius" or call list_nearby_courts. Search bankruptcy-department / bankruptcy-intake / bankruptcy-practice for procedure. Never invent a courthouse, judge, clerk, or phone. You are an office assistant, not counsel — do not give legal advice.',
     );
   }
   // Deployed Railway containers run from a built dist/ with no git binary and no

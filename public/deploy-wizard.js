@@ -37,10 +37,18 @@
     todos: true,
     schedule: true,
     practiceAddress: '',
+    courtGateMode: 'radius',
     courtRadiusMi: 60,
     courtCounties: [],
+    courtStates: [],
     practiceArea: 'bankruptcy',
   };
+  let courtGateModes = [
+    { id: 'radius', label: 'Distance from office' },
+    { id: 'counties', label: 'County' },
+    { id: 'state', label: 'State' },
+  ];
+  let usStates = [{ id: 'MA', label: 'Massachusetts' }];
   let selectedIds = new Set();
   let selectedExtras = new Set();
   let step = 0;
@@ -481,7 +489,7 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. Office address uses Google Places; the court radius geocodes that pin with Mapbox.</p>` +
+      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. Office address uses Google Places. Knowledge aggregation decides whether courts load by distance from that pin, by county, or by state.</p>` +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
@@ -490,19 +498,48 @@
       `</div>` +
       (seed.industry === 'law'
         ? `<div class="dw-identity">` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Knowledge aggregation</span>` +
+          `<select id="dw-court-gate" class="dl-select">` +
+          courtGateModes
+            .map((row) => {
+              const selected = (seed.courtGateMode || 'radius') === row.id ? ' selected' : '';
+              return `<option value="${esc(row.id)}"${selected}>${esc(row.label)}</option>`;
+            })
+            .join('') +
+          `</select>` +
+          `</label>` +
           `<label class="dl-field dw-places">` +
           `<span class="dl-field-label">Office address</span>` +
           `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="Start typing an address…" value="${esc(seed.practiceAddress || '')}" autocomplete="off" autocorrect="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dw-practice-address-list" />` +
           `<div id="dw-practice-address-list" class="dw-places-list" hidden role="listbox"></div>` +
           `</label>` +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Court radius (miles)</span>` +
-          `<input id="dw-court-radius" class="dl-input" type="number" min="10" max="250" step="5" value="${esc(String(seed.courtRadiusMi || 60))}" />` +
-          `</label>` +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Counties (optional)</span>` +
-          `<input id="dw-court-counties" class="dl-input" type="text" maxlength="200" placeholder="Essex" value="${esc((seed.courtCounties || []).join(', '))}" />` +
-          `</label>` +
+          ((seed.courtGateMode || 'radius') === 'radius'
+            ? `<label class="dl-field">` +
+              `<span class="dl-field-label">Distance (miles)</span>` +
+              `<input id="dw-court-radius" class="dl-input" type="number" min="10" max="250" step="5" value="${esc(String(seed.courtRadiusMi || 60))}" />` +
+              `</label>`
+            : '') +
+          (seed.courtGateMode === 'counties'
+            ? `<label class="dl-field">` +
+              `<span class="dl-field-label">Counties</span>` +
+              `<input id="dw-court-counties" class="dl-input" type="text" maxlength="200" placeholder="Essex" value="${esc((seed.courtCounties || []).join(', '))}" />` +
+              `</label>`
+            : '') +
+          (seed.courtGateMode === 'state'
+            ? `<label class="dl-field">` +
+              `<span class="dl-field-label">State</span>` +
+              `<select id="dw-court-state" class="dl-select">` +
+              `<option value="">Select state…</option>` +
+              usStates
+                .map((row) => {
+                  const selected = (seed.courtStates || [])[0] === row.id ? ' selected' : '';
+                  return `<option value="${esc(row.id)}"${selected}>${esc(row.label)}</option>`;
+                })
+                .join('') +
+              `</select>` +
+              `</label>`
+            : '') +
           `<label class="dl-field">` +
           `<span class="dl-field-label">Department</span>` +
           `<select id="dw-practice-area" class="dl-select">` +
@@ -708,7 +745,10 @@
     const radiusEl = root.querySelector('#dw-court-radius');
     const countiesEl = root.querySelector('#dw-court-counties');
     const areaEl = root.querySelector('#dw-practice-area');
+    const gateEl = root.querySelector('#dw-court-gate');
+    const stateEl = root.querySelector('#dw-court-state');
     if (addrEl) seed.practiceAddress = addrEl.value.trim();
+    if (gateEl) seed.courtGateMode = gateEl.value || 'radius';
     if (radiusEl) {
       const radius = Number(radiusEl.value);
       seed.courtRadiusMi = Number.isFinite(radius) && radius > 0 ? radius : 60;
@@ -719,6 +759,7 @@
         .map((c) => c.trim())
         .filter(Boolean);
     }
+    if (stateEl) seed.courtStates = stateEl.value ? [stateEl.value] : [];
     if (areaEl) seed.practiceArea = areaEl.value || 'bankruptcy';
   }
 
@@ -936,6 +977,11 @@
       void applyPlan();
     });
     bindPlacesAddress();
+    root.querySelector('#dw-court-gate')?.addEventListener('change', () => {
+      readIdentity();
+      render();
+      bind();
+    });
     root.querySelector('#dw-seed-industry')?.addEventListener('change', () => {
       readIdentity();
       if (seed.industry !== 'none') {
@@ -1007,6 +1053,8 @@
       included = data.included || [];
       extrasCatalog = data.extras || [];
       seedIndustries = data.seedIndustries || seedIndustries;
+      if (Array.isArray(data.courtGateModes) && data.courtGateModes.length) courtGateModes = data.courtGateModes;
+      if (Array.isArray(data.usStates) && data.usStates.length) usStates = data.usStates;
       railway = data.railway || railway;
       cloudflare = data.cloudflare || cloudflare;
       if (data.defaults) {

@@ -31,6 +31,7 @@ import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayCl
 import { isResendConfigured } from '../../../lib/resendDnsSync';
 import { isGithubAppConfigured } from '../../../lib/githubApp';
 import { createGithubAppPending, githubAppCookieHeader } from '../../../lib/deployWizardGithubApp';
+import { PRACTICE_GATE_MODES, US_STATES } from '../../../lib/practiceGate';
 
 export const prerender = false;
 
@@ -92,14 +93,21 @@ function parseSeed(body: Record<string, unknown>) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return normalizeDeployWizardSeed();
   const seed = raw as Record<string, unknown>;
   const counties = Array.isArray(seed.courtCounties) ? seed.courtCounties.map(String) : [];
+  const states = Array.isArray(seed.courtStates) ? seed.courtStates.map(String) : [];
+  const gateMode =
+    seed.courtGateMode === 'counties' || seed.courtGateMode === 'state' || seed.courtGateMode === 'radius'
+      ? seed.courtGateMode
+      : undefined;
   return normalizeDeployWizardSeed({
     industry: typeof seed.industry === 'string' && isDeployWizardSeedIndustryId(seed.industry) ? seed.industry : 'none',
     inbox: seed.inbox !== false,
     todos: seed.todos !== false,
     schedule: seed.schedule !== false,
     practiceAddress: typeof seed.practiceAddress === 'string' ? seed.practiceAddress : undefined,
+    courtGateMode: gateMode,
     courtRadiusMi: typeof seed.courtRadiusMi === 'number' ? seed.courtRadiusMi : undefined,
     courtCounties: counties,
+    courtStates: states,
     practiceArea: typeof seed.practiceArea === 'string' ? seed.practiceArea : undefined,
   });
 }
@@ -155,6 +163,8 @@ export async function GET(context: APIContext): Promise<Response> {
     included: listDemoLoaderIncludedCards(),
     extras: [...DEPLOY_WIZARD_EXTRAS],
     seedIndustries: [...DEPLOY_WIZARD_SEED_INDUSTRIES],
+    courtGateModes: [...PRACTICE_GATE_MODES],
+    usStates: [...US_STATES],
     defaultModuleIds: baseline.map((m) => m.moduleId),
     railway: {
       configured: isRailwayConfigured(),

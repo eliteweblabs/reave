@@ -261,6 +261,7 @@ const lawPin = buildDeployWizardPlan({
     todos: true,
     schedule: true,
     practiceAddress: '123 Cabot St, Beverly, MA 01915',
+    courtGateMode: 'counties',
     courtRadiusMi: 60,
     courtCounties: ['Essex'],
     practiceArea: 'bankruptcy',
@@ -268,7 +269,21 @@ const lawPin = buildDeployWizardPlan({
 });
 assert.equal(lawPin.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS')?.filled, '123 Cabot St, Beverly, MA 01915');
 assert.equal(lawPin.variables.find((v) => v.name === 'COURT_COUNTIES')?.filled, 'Essex');
-assert.equal(lawPin.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'both');
+assert.equal(lawPin.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'counties');
+const lawState = buildDeployWizardPlan({
+  features: ['website'],
+  seed: {
+    industry: 'law',
+    inbox: true,
+    todos: true,
+    schedule: true,
+    courtGateMode: 'state',
+    courtStates: ['MA'],
+  },
+});
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'state');
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_STATES')?.filled, 'MA');
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_RADIUS_MI'), undefined);
 assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
 const manifest = buildGithubAppManifest({
   installSlug: 'tonybarlettajr',

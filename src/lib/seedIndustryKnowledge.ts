@@ -26,7 +26,7 @@ export async function seedIndustryKnowledge(industry?: string | null): Promise<{
   let gate = await getPracticeGate();
   if (id === 'law' && isDefaultPracticeGate(gate)) {
     const env = gateFromEnv();
-    if (env.radiusMi || env.counties?.length || env.practiceArea || env.gateMode) {
+    if (env.radiusMi || env.counties?.length || env.states?.length || env.practiceArea || env.gateMode) {
       gate = await setPracticeGate({ ...gate, ...env });
     }
   }

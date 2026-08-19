@@ -7,7 +7,14 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { radiusCircle, renderCourtsKnowledge, resolveCourtGate } from '../../../lib/courtRadius';
 import { dbWriteKnowledge, isKnowledgeDbConfigured } from '../../../lib/pgKnowledge';
 import { knowledgeIndustryId } from '../../../lib/knowledgeIndustry';
-import { PRACTICE_AREAS, setPracticeGate, type PracticeAreaId, type PracticeGateMode } from '../../../lib/practiceGate';
+import {
+  PRACTICE_AREAS,
+  PRACTICE_GATE_MODES,
+  US_STATES,
+  setPracticeGate,
+  type PracticeAreaId,
+  type PracticeGateMode,
+} from '../../../lib/practiceGate';
 
 export const prerender = false;
 
@@ -40,6 +47,8 @@ export async function GET(context: APIContext): Promise<Response> {
     industry: knowledgeIndustryId(),
     ...resolved,
     practiceAreas: PRACTICE_AREAS,
+    gateModes: PRACTICE_GATE_MODES,
+    usStates: US_STATES,
     circle: resolved.origin ? radiusCircle(resolved.origin, resolved.gate.radiusMi) : null,
   });
 }
@@ -54,9 +63,11 @@ export async function PUT(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const counties = Array.isArray(body.counties) ? body.counties.map(String) : undefined;
+  const states = Array.isArray(body.states) ? body.states.map(String) : undefined;
   await setPracticeGate({
     radiusMi: typeof body.radiusMi === 'number' ? body.radiusMi : undefined,
     counties,
+    states,
     practiceArea: typeof body.practiceArea === 'string' ? (body.practiceArea as PracticeAreaId) : undefined,
     gateMode: typeof body.gateMode === 'string' ? (body.gateMode as PracticeGateMode) : undefined,
   });
@@ -66,6 +77,8 @@ export async function PUT(context: APIContext): Promise<Response> {
     industry: knowledgeIndustryId(),
     ...resolved,
     practiceAreas: PRACTICE_AREAS,
+    gateModes: PRACTICE_GATE_MODES,
+    usStates: US_STATES,
     circle: resolved.origin ? radiusCircle(resolved.origin, resolved.gate.radiusMi) : null,
   });
 }

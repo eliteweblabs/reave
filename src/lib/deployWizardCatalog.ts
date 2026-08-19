@@ -1496,8 +1496,10 @@ export type DeployWizardSeedInput = {
   schedule: boolean;
   /** Office street address — Mapbox pin for the court radius / county gate. */
   practiceAddress?: string;
+  courtGateMode?: 'radius' | 'counties' | 'state';
   courtRadiusMi?: number;
   courtCounties?: string[];
+  courtStates?: string[];
   practiceArea?: string;
 };
 
@@ -1511,8 +1513,19 @@ export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> |
     todos: on && raw?.todos !== false,
     schedule: on && raw?.schedule !== false,
     practiceAddress: (raw?.practiceAddress || '').trim().slice(0, 200) || undefined,
+    courtGateMode:
+      raw?.courtGateMode === 'counties' || raw?.courtGateMode === 'state' || raw?.courtGateMode === 'radius'
+        ? raw.courtGateMode
+        : undefined,
     courtRadiusMi: Number.isFinite(radius) && radius > 0 ? Math.min(250, radius) : undefined,
     courtCounties: [...new Set((raw?.courtCounties ?? []).map((c) => String(c).trim()).filter(Boolean))],
+    courtStates: [
+      ...new Set(
+        (raw?.courtStates ?? [])
+          .map((s) => String(s).trim().toUpperCase())
+          .filter((s) => /^[A-Z]{2}$/.test(s)),
+      ),
+    ],
     practiceArea: (raw?.practiceArea || '').trim().slice(0, 40) || undefined,
   };
 }
@@ -1728,26 +1741,35 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
       }
       seedVars.push(
         {
-          name: 'COURT_RADIUS_MI',
-          value: String(seed.courtRadiusMi || 60),
-          description: 'Miles from the Mapbox office pin used to pull courthouses and trustees.',
+          name: 'COURT_GATE_MODE',
+          value: seed.courtGateMode || 'radius',
+          description: 'How court knowledge is aggregated: radius | counties | state.',
         },
         {
           name: 'PRACTICE_AREA',
           value: seed.practiceArea || 'bankruptcy',
           description: 'Legal department this office serves (bankruptcy, tax, foreclosure, general).',
         },
-        {
-          name: 'COURT_GATE_MODE',
-          value: (seed.courtCounties || []).length ? 'both' : 'radius',
-          description: 'radius | counties | both',
-        },
       );
-      if (seed.courtCounties?.length) {
+      if ((seed.courtGateMode || 'radius') === 'radius') {
+        seedVars.push({
+          name: 'COURT_RADIUS_MI',
+          value: String(seed.courtRadiusMi || 60),
+          description: 'Miles from the Mapbox office pin used to pull courthouses and trustees.',
+        });
+      }
+      if (seed.courtGateMode === 'counties' && seed.courtCounties?.length) {
         seedVars.push({
           name: 'COURT_COUNTIES',
           value: seed.courtCounties.join(','),
-          description: 'County gate (comma-separated). Combined with the Mapbox radius when set.',
+          description: 'County gate (comma-separated).',
+        });
+      }
+      if (seed.courtGateMode === 'state' && seed.courtStates?.length) {
+        seedVars.push({
+          name: 'COURT_STATES',
+          value: seed.courtStates.join(','),
+          description: 'State gate (comma-separated USPS codes).',
         });
       }
     }
