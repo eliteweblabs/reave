@@ -350,6 +350,7 @@ const MAP_ICON_KEYS = {
   vapi: 'mic',
   'lead-scanner': 'radar',
   deploy: 'sparkles',
+  'sales-sheet': 'receipt',
 };
 
 /** Admin settings pages — one map tab per section. */

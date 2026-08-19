@@ -68,6 +68,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'dashboard',
   'todo',
   'documents',
+  'sales-sheet',
   'knowledge',
   'chats',
   'email',
@@ -417,6 +418,9 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   }
   if (!config.features.includes('deploy_wizard')) {
     nav = nav.filter((key) => key !== 'deploy');
+  }
+  if (!config.features.includes('site_audits')) {
+    nav = nav.filter((key) => key !== 'sales-sheet');
   }
   if (!isCanonicalReaveInstall()) {
     nav = nav.filter((key) => key !== 'industries');
