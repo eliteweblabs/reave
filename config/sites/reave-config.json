@@ -501,8 +501,8 @@
         "App Development",
         "Agentic Support"
       ],
-      "image": "portfolio-rothco-featured",
-      "imageAlt": "Rothco Built wordmark over the Worcester FAA airport project",
+      "image": "/api/media/portfolio-rothco-featured?v=2",
+      "imageAlt": "Aerial view of a Rothco Built federal construction site from the projects portfolio",
       "size": "2x1",
       "imageOrientation": "horizontal"
     }
