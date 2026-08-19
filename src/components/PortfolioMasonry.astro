@@ -263,6 +263,22 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
 </style>
 
 <script>
+  function stretchLastRow(root: HTMLElement) {
+    const items = [...root.querySelectorAll<HTMLElement>(":scope > .masonry-item")];
+    items.forEach((item) => {
+      item.style.removeProperty("grid-column-start");
+      item.style.removeProperty("grid-column-end");
+    });
+    if (items.length === 0) return;
+
+    void root.offsetHeight;
+    const last = items[items.length - 1];
+    const start = Number.parseInt(getComputedStyle(last).gridColumnStart, 10);
+    if (!Number.isFinite(start) || start < 1) return;
+    last.style.gridColumnStart = String(start);
+    last.style.gridColumnEnd = "-1";
+  }
+
   function initPortfolioMasonry(root: HTMLElement) {
     const cards = root.querySelectorAll<HTMLButtonElement>("[data-masonry-card]");
 
@@ -288,6 +304,10 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeAll();
     });
+
+    stretchLastRow(root);
+    const onResize = () => stretchLastRow(root);
+    window.addEventListener("resize", onResize, { passive: true });
   }
 
   document.querySelectorAll<HTMLElement>("[data-portfolio-masonry]").forEach(initPortfolioMasonry);

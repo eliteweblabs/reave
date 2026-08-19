@@ -51,13 +51,7 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
       </div>
     </section>
 
-    <div class="about-portfolio-wrap">
-      <HomePortfolioSection />
-    </div>
-
-    <section class="about-testimonials" aria-label="Client testimonials">
-      <TestimonialsCarousel />
-    </section>
+    <HomePortfolioSection />
 
     <section
       class="home-section home-section--photo about-finale"
@@ -65,9 +59,9 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     >
       {
         aboutImage && (
-          <div class="marketing-bg" aria-hidden="true">
+          <div class="marketing-bg about-finale-bg" aria-hidden="true">
             <img
-              class="marketing-bg-photo about-finale-photo"
+              class="about-finale-photo"
               src={aboutImage}
               alt=""
               width="1024"
@@ -75,12 +69,14 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
               loading="lazy"
               decoding="async"
             />
-            <div class="marketing-bg-scrim about-finale-scrim"></div>
+            <div class="about-finale-scrim"></div>
           </div>
         )
       }
 
       <div class="about-finale-content">
+        <TestimonialsCarousel />
+
         <div class="about-block about-closing">
           <h2 id="about-contact-title">Work with us</h2>
           <p>
@@ -156,13 +152,28 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-finale {
     width: 100%;
+    flex: 0 0 auto;
+    margin-top: 0;
     margin-bottom: 0;
     padding-left: 0;
     padding-right: 0;
-    padding-top: 96px;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-    min-height: min(56vh, 560px);
-    overflow: hidden;
+    padding-top: 56px;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: #000;
+    /* Keep inner horizontal snap-scroll working on iOS. */
+    overflow: visible;
+  }
+
+  .about-finale-bg {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 100%;
   }
 
   .about-finale-photo {
@@ -173,15 +184,37 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     max-width: none;
     object-fit: cover;
     object-position: center center;
+    opacity: 1;
+    filter: grayscale(100%) contrast(1.06) brightness(0.62);
+  }
+
+  .about-finale-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.42) 22%,
+      rgba(0, 0, 0, 0.5) 62%,
+      #000 100%
+    );
   }
 
   .about-finale-content {
     position: relative;
     z-index: 1;
     width: 100%;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 56px;
+  }
+
+  .about-finale-content :global(.testimonials-section) {
+    width: 100%;
+    margin-bottom: 0;
   }
 
   .about-block {
@@ -251,31 +284,14 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     justify-content: center;
   }
 
-  .about-portfolio-wrap {
+  .about-page :global(.about-portfolio) {
     width: 100%;
-    overflow: hidden;
-    isolation: isolate;
-  }
-
-  .about-portfolio-wrap::after {
-    content: "";
-    display: table;
-    clear: both;
-  }
-
-  .about-portfolio-wrap :global(.about-portfolio) {
+    flex: 0 0 auto;
     margin-bottom: 0;
+    padding-bottom: 12px;
   }
 
-  .about-testimonials {
-    width: 100%;
-    padding: 56px 0 32px;
-    /* Keep inner horizontal snap-scroll working on iOS. */
-    overflow: visible;
-  }
-
-  .about-testimonials :global(.testimonials-section) {
-    width: 100%;
+  .about-page :global(.about-portfolio .section--full-bleed) {
     margin-bottom: 0;
   }
 </style>
