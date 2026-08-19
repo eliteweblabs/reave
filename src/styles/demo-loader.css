@@ -612,6 +612,56 @@
   align-items: flex-end;
 }
 
+.dw-places {
+  position: relative;
+  flex: 1 1 100%;
+  z-index: 2;
+}
+
+.dw-places-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 5;
+  max-height: 14rem;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #161022;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.dw-places-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.dw-places-option:last-child {
+  border-bottom: none;
+}
+
+.dw-places-option:hover,
+.dw-places-option.is-active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dw-places-empty {
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .dw-module-actions {
   margin-top: 0.25rem;
 }

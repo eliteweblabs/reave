@@ -1723,7 +1723,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
         seedVars.push({
           name: 'BOOKING_DEFAULT_ADDRESS',
           value: seed.practiceAddress,
-          description: 'Office address — Mapbox geocodes this pin for the court radius / county gate.',
+          description: 'Office address from Google Places — Mapbox geocodes this pin for the court radius / county gate.',
         });
       }
       seedVars.push(

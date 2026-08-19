@@ -65,6 +65,9 @@
   let appliedDns = null;
   let appliedProvisioned = [];
   let githubBanner = '';
+  let placesTimer = 0;
+  let placesSeq = 0;
+  let placesHighlight = -1;
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
@@ -75,6 +78,132 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function placesEls() {
+    const input = root.querySelector('#dw-practice-address');
+    const list = root.querySelector('#dw-practice-address-list');
+    if (!(input instanceof HTMLInputElement) || !(list instanceof HTMLElement)) return null;
+    return { input, list };
+  }
+
+  function hidePlacesList() {
+    const els = placesEls();
+    if (!els) return;
+    els.list.hidden = true;
+    els.list.innerHTML = '';
+    els.input.setAttribute('aria-expanded', 'false');
+    placesHighlight = -1;
+  }
+
+  function renderPlacesList(predictions, message) {
+    const els = placesEls();
+    if (!els) return;
+    els.list.innerHTML = '';
+    if (message) {
+      const empty = document.createElement('div');
+      empty.className = 'dw-places-empty';
+      empty.textContent = message;
+      els.list.appendChild(empty);
+    } else {
+      predictions.forEach((p, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dw-places-option';
+        btn.setAttribute('role', 'option');
+        btn.textContent = p.description;
+        if (i === placesHighlight) btn.classList.add('is-active');
+        btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          pickPlace(p.description);
+        });
+        els.list.appendChild(btn);
+      });
+    }
+    els.list.hidden = false;
+    els.input.setAttribute('aria-expanded', 'true');
+  }
+
+  function pickPlace(description) {
+    const els = placesEls();
+    if (!els) return;
+    els.input.value = description;
+    seed.practiceAddress = description;
+    hidePlacesList();
+  }
+
+  async function runPlacesSearch() {
+    const els = placesEls();
+    if (!els) return;
+    const q = els.input.value.trim();
+    if (q.length < 2) {
+      hidePlacesList();
+      return;
+    }
+    const seq = ++placesSeq;
+    try {
+      const params = new URLSearchParams({ input: q, types: 'address' });
+      const res = await fetch(`/api/google/places-autocomplete?${params}`);
+      const data = await res.json().catch(() => ({}));
+      if (seq !== placesSeq || els.input.value.trim() !== q) return;
+      if (!res.ok) {
+        renderPlacesList([], data.errorMessage || data.error || 'Could not look up addresses.');
+        return;
+      }
+      const predictions = Array.isArray(data.predictions) ? data.predictions : [];
+      placesHighlight = predictions.length ? 0 : -1;
+      renderPlacesList(predictions, predictions.length ? '' : 'No matching addresses.');
+    } catch (e) {
+      if (seq !== placesSeq) return;
+      renderPlacesList([], e.message || 'Could not look up addresses.');
+    }
+  }
+
+  function schedulePlacesSearch() {
+    clearTimeout(placesTimer);
+    placesTimer = setTimeout(() => {
+      void runPlacesSearch();
+    }, 280);
+  }
+
+  function bindPlacesAddress() {
+    const els = placesEls();
+    if (!els) return;
+    els.input.addEventListener('input', () => {
+      seed.practiceAddress = els.input.value.trim();
+      placesHighlight = -1;
+      schedulePlacesSearch();
+    });
+    els.input.addEventListener('keydown', (ev) => {
+      const options = [...els.list.querySelectorAll('.dw-places-option')];
+      if (ev.key === 'Escape') {
+        hidePlacesList();
+        return;
+      }
+      if (!options.length || els.list.hidden) return;
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        placesHighlight = (placesHighlight + 1) % options.length;
+        renderPlacesList(
+          options.map((btn) => ({ description: btn.textContent || '' })),
+          '',
+        );
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        placesHighlight = (placesHighlight - 1 + options.length) % options.length;
+        renderPlacesList(
+          options.map((btn) => ({ description: btn.textContent || '' })),
+          '',
+        );
+      } else if (ev.key === 'Enter' && placesHighlight >= 0 && options[placesHighlight]) {
+        ev.preventDefault();
+        pickPlace(options[placesHighlight].textContent || '');
+      }
+    });
+    els.input.addEventListener('blur', () => {
+      setTimeout(hidePlacesList, 180);
+    });
   }
 
   function varKey(variable) {
@@ -352,7 +481,7 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. The office pin and court radius use Mapbox, not Google.</p>` +
+      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. Office address uses Google Places; the court radius geocodes that pin with Mapbox.</p>` +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
@@ -361,9 +490,10 @@
       `</div>` +
       (seed.industry === 'law'
         ? `<div class="dw-identity">` +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Office address (Mapbox pin)</span>` +
-          `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="123 Cabot St, Beverly, MA 01915" value="${esc(seed.practiceAddress || '')}" />` +
+          `<label class="dl-field dw-places">` +
+          `<span class="dl-field-label">Office address</span>` +
+          `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="Start typing an address…" value="${esc(seed.practiceAddress || '')}" autocomplete="off" autocorrect="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dw-practice-address-list" />` +
+          `<div id="dw-practice-address-list" class="dw-places-list" hidden role="listbox"></div>` +
           `</label>` +
           `<label class="dl-field">` +
           `<span class="dl-field-label">Court radius (miles)</span>` +
@@ -805,6 +935,7 @@
     root.querySelector('#dw-apply')?.addEventListener('click', () => {
       void applyPlan();
     });
+    bindPlacesAddress();
     root.querySelector('#dw-seed-industry')?.addEventListener('change', () => {
       readIdentity();
       if (seed.industry !== 'none') {
