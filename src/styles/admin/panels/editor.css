@@ -2972,6 +2972,38 @@ button.de-placeholder-action:active {
   border-radius: var(--radius-input);
   background: var(--card);
 }
+.wk-timer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--panel-border);
+}
+.wk-timer-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  min-width: 3.25rem;
+}
+.wk-timer-bar--running .wk-timer-clock {
+  color: #3fb950;
+}
+.wk-timer-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+.wk-timer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
 .wk-time-head {
   display: flex;
   align-items: center;
@@ -3087,6 +3119,7 @@ button.de-placeholder-action:active {
   background: rgba(121, 192, 255, 0.16);
 }
 .wk-status-auditing { color: var(--em-notice-audit); background: color-mix(in srgb, var(--em-notice-audit) 14%, transparent); }
+.wk-status-tracking { color: #3fb950; background: color-mix(in srgb, #3fb950 14%, transparent); }
 .wk-audit-progress {
   flex-shrink: 1;
   min-width: 0;

@@ -14,7 +14,7 @@ import {
   type WorkJobSummary,
 } from './workStore';
 import {
-  clearActiveTimer,
+  elapsedHoursFromStartedAt,
   formatElapsedDuration,
   getActiveTimer,
   setActiveTimer,
@@ -201,14 +201,68 @@ export async function resolveProjectForTimeTracking(
   return { ok: true, job: created.job, created: created.created };
 }
 
+export type TimerJobView = {
+  slug: string;
+  title: string;
+  client: string;
+  label: string;
+};
+
+export type TimerView = {
+  running: boolean;
+  timer: {
+    job_slug: string;
+    started_at: string;
+    note: string;
+    elapsed: string;
+    elapsed_hours: number;
+    job: TimerJobView | null;
+  } | null;
+};
+
+function jobView(job: WorkJobSummary): TimerJobView {
+  return {
+    slug: job.slug,
+    title: job.title,
+    client: job.client,
+    label: projectVoiceLabel(job),
+  };
+}
+
+export async function getTimerStatusView(): Promise<TimerView> {
+  const running = await getActiveTimer();
+  if (!running) return { running: false, timer: null };
+
+  const job = await storeReadWork(running.jobSlug);
+  return {
+    running: true,
+    timer: {
+      job_slug: running.jobSlug,
+      started_at: running.startedAt,
+      note: running.note,
+      elapsed: formatElapsedDuration(running.startedAt),
+      elapsed_hours: elapsedHoursFromStartedAt(running.startedAt),
+      job: job ? jobView(job) : null,
+    },
+  };
+}
+
 export async function startTimeTrackingOnProject(
   job: WorkJobSummary,
+  note = '',
 ): Promise<
-  | { ok: true; text: string; timer: { jobSlug: string; startedAt: string }; switched: boolean }
+  | {
+      ok: true;
+      text: string;
+      timer: { jobSlug: string; startedAt: string };
+      switched: boolean;
+      previous: { jobSlug: string; hours: number; logged: boolean } | null;
+    }
   | { ok: false; error: string }
 > {
   const active = await getActiveTimer();
   let switched = false;
+  let previous: { jobSlug: string; hours: number; logged: boolean } | null = null;
 
   if (active) {
     if (active.jobSlug === job.slug) {
@@ -218,21 +272,39 @@ export async function startTimeTrackingOnProject(
         text: `Already tracking time on ${projectVoiceLabel(job)} — ${elapsed}.`,
         timer: { jobSlug: active.jobSlug, startedAt: active.startedAt },
         switched: false,
+        previous: null,
       };
     }
-    await clearActiveTimer();
+    const stopped = await stopActiveTimerAndLog();
+    if (!stopped.ok) return stopped;
+    previous = { jobSlug: stopped.jobSlug, hours: stopped.hours, logged: stopped.logged };
     switched = true;
   }
 
-  const timer = await setActiveTimer(job.slug);
+  const timer = await setActiveTimer(job.slug, note);
   if ('error' in timer) return { ok: false, error: timer.error };
 
-  const prefix = switched ? `Switched to ${projectVoiceLabel(job)}.` : `Tracking time on ${projectVoiceLabel(job)}.`;
+  const label = projectVoiceLabel(job);
+  let prefix = `Tracking time on ${label}.`;
+  if (switched && previous) {
+    const prevJob = await storeReadWork(previous.jobSlug);
+    const prevLabel = prevJob ? projectVoiceLabel(prevJob) : previous.jobSlug;
+    if (previous.logged) {
+      const hoursLabel = Number.isInteger(previous.hours)
+        ? String(previous.hours)
+        : previous.hours.toFixed(2);
+      prefix = `Logged ${hoursLabel} hours on ${prevLabel}. Tracking ${label}.`;
+    } else {
+      prefix = `Stopped ${prevLabel}. Tracking ${label}.`;
+    }
+  }
+
   return {
     ok: true,
     text: prefix,
     timer: { jobSlug: timer.jobSlug, startedAt: timer.startedAt },
     switched,
+    previous,
   };
 }
 

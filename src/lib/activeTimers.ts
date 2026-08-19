@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { isSafeWorkSlug, isWorkDbConfigured, workDir } from './workStore';
-import { storeListTimeEntries, storeSaveTimeEntries } from './timeEntries';
+import { storeAppendTimeEntry } from './timeEntries';
 
 export interface ActiveTimer {
   jobSlug: string;
@@ -137,12 +137,12 @@ export async function stopActiveTimerAndLog(
     };
   }
 
-  const existing = await storeListTimeEntries(timer.jobSlug);
-  const note = timer.note.trim() || 'Siri timer';
-  const saved = await storeSaveTimeEntries(timer.jobSlug, [
-    ...existing,
-    { hours, note, createdAt: new Date().toISOString() },
-  ]);
+  const note = timer.note.trim() || 'Timer';
+  const saved = await storeAppendTimeEntry(timer.jobSlug, {
+    hours,
+    note,
+    createdAt: new Date().toISOString(),
+  });
   if (!saved.ok) return { ok: false, error: saved.error };
 
   return {

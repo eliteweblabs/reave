@@ -46,7 +46,7 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260815a';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260818a';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260819a';
 import { navigateToClient } from './clients-panel.js?v=20260817c';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 

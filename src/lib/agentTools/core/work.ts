@@ -26,11 +26,16 @@ import {
   parseMarkdownCheckboxes,
 } from '../../workChecklist';
 import { hasFeature } from '../../features';
-import { storeListTimeEntries } from '../../timeEntries';
+import { storeAppendTimeEntry, storeListTimeEntries } from '../../timeEntries';
 import {
   groupedTimeInvoiceDescription,
   timeEntriesToInvoiceSuggestions,
 } from '../../workTimeBilling';
+import {
+  getTimerStatusView,
+  startTimeTrackingOnProject,
+  stopTimeTrackingWithMessage,
+} from '../../timeTrackingSiri';
 import { findCheckboxByText } from '../../markdownCheckboxes';
 import {
   isTodoDbConfigured,
@@ -195,6 +200,9 @@ async function handle_read_work(args: Record<string, unknown>, _ctx: ToolContext
   const cap = 14_000;
   const body = doc.body.length > cap ? `${doc.body.slice(0, cap)}\n\n…(truncated)` : doc.body;
   const files = await storeListProjectFiles(slug);
+  const timeEnabled = hasFeature('time_tracking');
+  const time_entries = timeEnabled ? await storeListTimeEntries(slug) : [];
+  const timer = timeEnabled ? await getTimerStatusView() : null;
   return JSON.stringify({
     slug: doc.slug,
     title: doc.title,
@@ -213,6 +221,18 @@ async function handle_read_work(args: Record<string, unknown>, _ctx: ToolContext
     body,
     files,
     file_count: files.length,
+    ...(timeEnabled
+      ? {
+          time_entries: time_entries.map((e) => ({
+            id: e.id,
+            hours: e.hours,
+            note: e.note,
+            createdAt: e.createdAt,
+          })),
+          total_hours: time_entries.reduce((sum, e) => sum + e.hours, 0),
+          timer,
+        }
+      : {}),
   });
 }
 
@@ -592,6 +612,75 @@ async function handle_get_work_invoice_suggestions(args: Record<string, unknown>
   });
 }
 
+function timeTrackingDisabledJson(): string {
+  return JSON.stringify({ error: 'Time tracking is not enabled on this install' });
+}
+
+async function handle_log_work_time(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabledJson();
+  const slug = String(args.slug ?? '').trim();
+  if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+  const hours = typeof args.hours === 'number' ? args.hours : Number(String(args.hours ?? '').trim());
+  if (!Number.isFinite(hours) || hours <= 0) {
+    return JSON.stringify({ error: 'hours must be greater than 0' });
+  }
+  const note = typeof args.note === 'string' ? args.note.trim() : '';
+  const doc = await storeReadWork(slug);
+  if (!doc) {
+    const known = (await storeListWork()).map((j) => j.slug);
+    return JSON.stringify({ error: 'not found', known });
+  }
+  const result = await storeAppendTimeEntry(slug, { hours, note });
+  if (!result.ok) return JSON.stringify({ error: result.error });
+  return JSON.stringify({
+    ok: true,
+    slug: doc.slug,
+    title: doc.title,
+    entries: result.entries.map((e) => ({ id: e.id, hours: e.hours, note: e.note })),
+    total_hours: result.totalHours,
+  });
+}
+
+async function handle_start_work_timer(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabledJson();
+  const slug = String(args.slug ?? '').trim();
+  if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+  const doc = await storeReadWork(slug);
+  if (!doc) {
+    const known = (await storeListWork()).map((j) => j.slug);
+    return JSON.stringify({ error: 'not found', known });
+  }
+  const note = typeof args.note === 'string' ? args.note.trim() : '';
+  const started = await startTimeTrackingOnProject(doc, note);
+  if (!started.ok) return JSON.stringify({ error: started.error });
+  return JSON.stringify({
+    ok: true,
+    text: started.text,
+    timer: started.timer,
+    switched: started.switched,
+    previous: started.previous,
+  });
+}
+
+async function handle_stop_work_timer(_args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabledJson();
+  const result = await stopTimeTrackingWithMessage();
+  if (!result.ok) return JSON.stringify({ error: result.error, text: result.text ?? result.error });
+  return JSON.stringify({
+    ok: true,
+    text: result.text,
+    job_slug: result.jobSlug,
+    hours: result.hours,
+    logged: result.logged,
+  });
+}
+
+async function handle_get_work_timer(_args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!hasFeature('time_tracking')) return timeTrackingDisabledJson();
+  const view = await getTimerStatusView();
+  return JSON.stringify({ ok: true, ...view });
+}
+
 async function handle_delete_work(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const slug = String(args.slug ?? '').trim();
   if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
@@ -609,7 +698,7 @@ export const workModule: AgentToolModule = {
     const brand = ctx.brand;
     const domainExample = brand.domain || 'example.com';
     void domainExample;
-    return [
+    const defs: AgentToolDef[] = [
           {
             type: 'function',
             function: {
@@ -886,8 +975,73 @@ export const workModule: AgentToolModule = {
                 additionalProperties: false,
               },
             },
-          }
+          },
     ];
+    if (hasFeature('time_tracking')) {
+      defs.push(
+        {
+          type: 'function',
+          function: {
+            name: 'log_work_time',
+            description:
+              'Append a billable time row (hours + optional note) on a project. Use when the user says they spent time on a job. For a running clock, use start_work_timer / stop_work_timer instead.',
+            parameters: {
+              type: 'object',
+              properties: {
+                slug: { type: 'string', description: 'Job slug' },
+                hours: { type: 'number', description: 'Hours worked (e.g. 1.5)' },
+                note: { type: 'string', description: 'What the time was for' },
+              },
+              required: ['slug', 'hours'],
+              additionalProperties: false,
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'start_work_timer',
+            description:
+              'Start the project time-tracking timer on a job. One timer runs at a time; switching logs hours on the previous job first.',
+            parameters: {
+              type: 'object',
+              properties: {
+                slug: { type: 'string', description: 'Job slug to track' },
+                note: { type: 'string', description: 'Optional note stored on the timer and used when logging' },
+              },
+              required: ['slug'],
+              additionalProperties: false,
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'stop_work_timer',
+            description:
+              'Stop the running project timer and log elapsed hours on that job. No-op error if nothing is running.',
+            parameters: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'get_work_timer',
+            description: 'Current project time-tracking timer: running job, elapsed duration, or idle.',
+            parameters: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+        },
+      );
+    }
+    return defs;
   },
   handlers: {
     'list_work': handle_list_work,
@@ -899,6 +1053,10 @@ export const workModule: AgentToolModule = {
     'update_work': handle_update_work,
     'toggle_work_item': handle_toggle_work_item,
     'get_work_invoice_suggestions': handle_get_work_invoice_suggestions,
+    'log_work_time': handle_log_work_time,
+    'start_work_timer': handle_start_work_timer,
+    'stop_work_timer': handle_stop_work_timer,
+    'get_work_timer': handle_get_work_timer,
     'delete_work': handle_delete_work,
   },
 };

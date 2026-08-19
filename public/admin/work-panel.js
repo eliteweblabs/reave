@@ -151,6 +151,7 @@ let workState = {
   detailTab: 'project',
   auditingSlugs: new Set(),
   auditingProgress: new Map(),
+  activeTimerSlug: null,
 };
 
 let workAutosaveTimer = null;
@@ -727,26 +728,204 @@ function formatWorkTimeHours(total) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
 }
 
+function formatElapsedClock(startedAt) {
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start)) return '0:00';
+  const totalSeconds = Math.max(0, Math.floor((Date.now() - start) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+function rememberWorkTimerSlug(slug) {
+  const next = slug || null;
+  if (workState.activeTimerSlug === next) return;
+  workState.activeTimerSlug = next;
+  applyWorkTimerIndicators();
+}
+
+function mountWorkTimerBar(host, slug, opts = {}) {
+  const bar = document.createElement('div');
+  bar.className = 'wk-timer-bar';
+  host.appendChild(bar);
+
+  let view = { running: false, timer: null };
+  let tickId = null;
+  let pollId = null;
+  let busy = false;
+
+  const stopTick = () => {
+    if (tickId) {
+      clearInterval(tickId);
+      tickId = null;
+    }
+  };
+
+  const cleanup = () => {
+    stopTick();
+    if (pollId) {
+      clearInterval(pollId);
+      pollId = null;
+    }
+  };
+
+  const thisProjectRunning = () => Boolean(view.running && view.timer && view.timer.job_slug === slug);
+
+  const renderBar = () => {
+    if (!bar.isConnected) {
+      cleanup();
+      return;
+    }
+    bar.innerHTML = '';
+    const running = Boolean(view.running && view.timer);
+    bar.classList.toggle('wk-timer-bar--running', thisProjectRunning());
+    bar.classList.toggle('wk-timer-bar--other', running && !thisProjectRunning());
+
+    if (!running) {
+      const startBtn = document.createElement('button');
+      startBtn.type = 'button';
+      startBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+      startBtn.disabled = busy;
+      setDeBtnLabel(startBtn, busy ? 'Starting…' : 'Start timer', 'play');
+      startBtn.addEventListener('click', () => void postTimer('start'));
+      bar.appendChild(startBtn);
+      return;
+    }
+
+    const clock = document.createElement('span');
+    clock.className = 'wk-timer-clock';
+    clock.textContent = formatElapsedClock(view.timer.started_at);
+
+    const label = document.createElement('span');
+    label.className = 'wk-timer-label';
+    if (thisProjectRunning()) {
+      label.textContent = (view.timer.note || '').trim() || 'Tracking';
+    } else {
+      const other = view.timer.job?.title || view.timer.job_slug;
+      label.textContent = `Tracking ${other}`;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'wk-timer-actions';
+
+    if (!thisProjectRunning()) {
+      const switchBtn = document.createElement('button');
+      switchBtn.type = 'button';
+      switchBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+      switchBtn.disabled = busy;
+      setDeBtnLabel(switchBtn, 'Switch here', 'play');
+      switchBtn.addEventListener('click', () => void postTimer('start'));
+      actions.appendChild(switchBtn);
+    }
+
+    const stopBtn = document.createElement('button');
+    stopBtn.type = 'button';
+    stopBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+    stopBtn.disabled = busy;
+    setDeBtnLabel(stopBtn, busy ? 'Stopping…' : 'Stop & log', 'square');
+    stopBtn.addEventListener('click', () => void postTimer('stop'));
+    actions.appendChild(stopBtn);
+
+    bar.append(clock, label, actions);
+  };
+
+  const startTick = () => {
+    stopTick();
+    if (!view.running || !view.timer) return;
+    tickId = setInterval(() => {
+      if (!bar.isConnected) {
+        cleanup();
+        return;
+      }
+      const clock = bar.querySelector('.wk-timer-clock');
+      if (clock && view.timer) clock.textContent = formatElapsedClock(view.timer.started_at);
+    }, 1000);
+  };
+
+  const applyView = (next) => {
+    view = {
+      running: Boolean(next.running && next.timer),
+      timer: next.timer || null,
+    };
+    rememberWorkTimerSlug(view.timer?.job_slug);
+    renderBar();
+    startTick();
+  };
+
+  async function loadTimer() {
+    if (!bar.isConnected) {
+      cleanup();
+      return;
+    }
+    try {
+      const res = await fetch('/api/work/timer', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok || !data.ok) return;
+      applyView(data);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function postTimer(action) {
+    if (busy) return;
+    busy = true;
+    renderBar();
+    try {
+      const res = await fetch('/api/work/timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(action === 'start' ? { action: 'start', slug } : { action: 'stop' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || data.text || `HTTP ${res.status}`);
+      applyView(data);
+      if (action === 'stop' && data.job_slug === slug) opts.onLogged?.();
+      if (action === 'start' && data.previous?.logged && data.previous.jobSlug === slug) {
+        opts.onLogged?.();
+      }
+    } catch (e) {
+      shell.osAlert({ title: 'Timer', bodyHtml: escHtml(e.message) });
+    } finally {
+      busy = false;
+      renderBar();
+    }
+  }
+
+  void loadTimer();
+  pollId = setInterval(() => void loadTimer(), 15000);
+}
+
 function mountWorkTimeSection(pane, slug, opts = {}) {
   if (!hasInstallFeature('time_tracking')) return;
 
   const wrap = document.createElement('div');
   wrap.className = 'wk-time-section';
-  wrap.innerHTML = skeletonHtml('list', 'Loading time…');
   pane.appendChild(wrap);
+
+  const timerHost = document.createElement('div');
+  timerHost.className = 'wk-timer-host';
+  wrap.appendChild(timerHost);
+
+  const logHost = document.createElement('div');
+  logHost.className = 'wk-time-log';
+  logHost.innerHTML = skeletonHtml('list', 'Loading time…');
+  wrap.appendChild(logHost);
 
   let entries = [];
   let saveTimer = null;
   let saving = false;
 
   const render = () => {
-    wrap.innerHTML = '';
+    logHost.innerHTML = '';
 
     const head = document.createElement('div');
     head.className = 'wk-time-head';
     const label = document.createElement('span');
     label.className = 'wk-time-label';
-    label.textContent = 'Time';
+    label.textContent = 'Time log';
     head.appendChild(label);
 
     const totalHours = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
@@ -756,7 +935,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       total.textContent = `${formatWorkTimeHours(totalHours)}h total`;
       head.appendChild(total);
     }
-    wrap.appendChild(head);
+    logHost.appendChild(head);
 
     const list = document.createElement('div');
     list.className = 'wk-time-list';
@@ -829,7 +1008,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
     } else {
       entries.forEach((entry, index) => renderRow(entry, index));
     }
-    wrap.appendChild(list);
+    logHost.appendChild(list);
 
     const actions = document.createElement('div');
     actions.className = 'wk-time-actions';
@@ -845,7 +1024,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
         createdAt: new Date().toISOString(),
       });
       render();
-      const lastHours = wrap.querySelector('.wk-time-hours:last-of-type');
+      const lastHours = logHost.querySelector('.wk-time-hours:last-of-type');
       if (lastHours) lastHours.focus();
     });
     actions.appendChild(addBtn);
@@ -857,7 +1036,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       actions.appendChild(status);
     }
 
-    wrap.appendChild(actions);
+    logHost.appendChild(actions);
 
     const billable = entries.filter((e) => Number(e.hours) > 0);
     if (billable.length) {
@@ -903,7 +1082,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       hint.textContent = `Bill ${opts.clientName || opts.title || 'this contact'} using hours as quantity on each line item.`;
       bill.appendChild(hint);
 
-      wrap.appendChild(bill);
+      logHost.appendChild(bill);
     }
   };
 
@@ -946,21 +1125,25 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
     }
   };
 
-  fetch(`/api/work/${encodeURIComponent(slug)}/time`, { cache: 'no-store' })
-    .then((r) => r.json())
-    .then((data) => {
-      if (!data.ok) throw new Error(data.error || 'Failed to load time');
-      entries = (data.entries || []).map((e) => ({
-        id: e.id,
-        hours: e.hours,
-        note: e.note || '',
-        createdAt: e.createdAt,
-      }));
-      render();
-    })
-    .catch(() => {
-      wrap.remove();
-    });
+  const loadEntries = () =>
+    fetch(`/api/work/${encodeURIComponent(slug)}/time`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) throw new Error(data.error || 'Failed to load time');
+        entries = (data.entries || []).map((e) => ({
+          id: e.id,
+          hours: e.hours,
+          note: e.note || '',
+          createdAt: e.createdAt,
+        }));
+        render();
+      });
+
+  mountWorkTimerBar(timerHost, slug, { onLogged: () => void loadEntries() });
+
+  loadEntries().catch(() => {
+    wrap.remove();
+  });
 }
 
 function createClientWorkCard(job) {
@@ -1635,9 +1818,12 @@ async function loadWorkTab(opts = {}) {
     mountPanelSkeleton(root, 'list', 'Loading work…', { contentSelector: '.ch-sidebar' });
   }
   try {
-    const [res, settingsRes] = await Promise.all([
+    const [res, settingsRes, timerRes] = await Promise.all([
       adminFetch('/api/work'),
       adminFetch('/api/admin/settings').catch(() => null),
+      hasInstallFeature('time_tracking')
+        ? adminFetch('/api/work/timer').catch(() => null)
+        : Promise.resolve(null),
     ]);
     const data = await readAdminJson(res, postTitle(2));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -1656,6 +1842,14 @@ async function loadWorkTab(opts = {}) {
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
     if (workState.statusFilter === 'done') workState.statusFilter = 'archived';
+    if (timerRes?.ok) {
+      try {
+        const timerData = await timerRes.json();
+        workState.activeTimerSlug = timerData?.ok ? timerData.timer?.job_slug || null : null;
+      } catch {
+        /* keep previous */
+      }
+    }
   } catch (e) {
     if (e.message === 'Session expired') {
       root.innerHTML = `<div class="de-loading de-error">Session expired — sign in again to continue.</div>`;
@@ -4537,9 +4731,28 @@ function applyWorkAuditingIndicators() {
     const isAuditing = workState.auditingSlugs.has(slug);
     el.classList.toggle('ch-list-item--running', isAuditing);
     const statusEl = el.querySelector('.wk-status-auditing');
-    const defaultStatusEl = el.querySelector('.wk-meta-row .wk-status');
+    const defaultStatusEl = el.querySelector(
+      '.wk-meta-row .wk-status:not(.wk-status-auditing):not(.wk-status-tracking)',
+    );
     if (statusEl) statusEl.hidden = !isAuditing;
     if (defaultStatusEl) defaultStatusEl.hidden = isAuditing;
+  });
+  applyWorkTimerIndicators();
+}
+
+function applyWorkTimerIndicators() {
+  const root = getWorkEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) return;
+  list.querySelectorAll('.ch-list-item[data-slug]').forEach((el) => {
+    const isTracking = el.dataset.slug === workState.activeTimerSlug;
+    const isAuditing = workState.auditingSlugs.has(el.dataset.slug);
+    const trackingEl = el.querySelector('.wk-status-tracking');
+    const defaultStatusEl = el.querySelector(
+      '.wk-meta-row .wk-status:not(.wk-status-auditing):not(.wk-status-tracking)',
+    );
+    if (trackingEl) trackingEl.hidden = !isTracking || isAuditing;
+    if (defaultStatusEl && !isAuditing) defaultStatusEl.hidden = isTracking;
   });
 }
 
@@ -4599,7 +4812,9 @@ function createWorkListItem(job) {
     `<span class="ch-item-status-spinner">${WK_SPINNER_SVG}</span>` +
     `<span class="ch-item-status-dot"></span>` +
     `</span>`;
+  const isTracking = !isAuditing && workState.activeTimerSlug === job.slug;
   const auditingStatus = `<span class="wk-status wk-status-auditing" hidden>Auditing</span>`;
+  const trackingStatus = `<span class="wk-status wk-status-tracking" hidden>Tracking</span>`;
   const defaultStatus = `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status, job))}</span>`;
   const progressHint =
     isAuditing && progress?.toolLabel
@@ -4614,13 +4829,23 @@ function createWorkListItem(job) {
     `<span class="wk-meta-row">` +
     `<span class="wk-contact wk-list-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
     auditingStatus +
+    trackingStatus +
     defaultStatus +
     progressHint +
     `</span></span>`;
   if (isAuditing) {
     const auditingEl = item.querySelector('.wk-status-auditing');
-    const defaultEl = item.querySelector('.wk-meta-row .wk-status:not(.wk-status-auditing)');
+    const defaultEl = item.querySelector(
+      '.wk-meta-row .wk-status:not(.wk-status-auditing):not(.wk-status-tracking)',
+    );
     if (auditingEl) auditingEl.hidden = false;
+    if (defaultEl) defaultEl.hidden = true;
+  } else if (isTracking) {
+    const trackingEl = item.querySelector('.wk-status-tracking');
+    const defaultEl = item.querySelector(
+      '.wk-meta-row .wk-status:not(.wk-status-auditing):not(.wk-status-tracking)',
+    );
+    if (trackingEl) trackingEl.hidden = false;
     if (defaultEl) defaultEl.hidden = true;
   }
   item.addEventListener('click', () => openWork(job.slug));

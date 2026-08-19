@@ -25,13 +25,13 @@ const SYSTEM_NODES = [
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · @mentions · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · @mentions · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
   { id: 'vapi', title: 'Vapi', sub: 'Live Speak Agent Widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
-  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice · agent prompt · audits · payments', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
+  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice · agent prompt · audits · payments · time tracking', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
   { id: 'digital_audit', title: 'Digital Audit', sub: '/digital-audit · /api/digital-audit · site_audits · same Siri pipeline', icon: '🔎', hue: 160, status: true, group: 'clients', x: 60, y: 910 },
 
   // App hub (Railway / hosting)
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'deploy_wizard', title: 'Deploy wizard', sub: '/deploy · module toggles · Railway ${{ }} refs', icon: '🪄', brand: 'railway', hue: 185, status: true, group: 'reave', x: 220, y: 200 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · job_time_entries · active_timers · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'media_webdav', title: 'Media drop folder', sub: '/webdav · Finder · iOS Files · MEDIA_WEBDAV_* or CardDAV creds', icon: '📁', hue: 28, status: true, group: 'reave', x: 220, y: 430 },
   { id: 'media_public', title: 'Public media', sub: '/api/media/{slug} · site photos · no-auth GET', icon: '🖼️', hue: 32, status: true, group: 'reave', x: 220, y: 520 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views · calendar reminders', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
@@ -54,6 +54,7 @@ const SYSTEM_NODES = [
   { id: 'event_ticketing', title: 'Event ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },
   { id: 'cookie_notice', title: 'Cookie notice', sub: 'implied consent bar · /cookies (FEATURES: cookie_notice)', icon: '🍪', hue: 32, status: true, group: 'reave', x: 640, y: 1020 },
   { id: 'website', title: 'Website', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
+  { id: 'time_tracking', title: 'Project time tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start/stop (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'site_repo', title: 'Client site repo', sub: 'wizard creates {slug}-site · GitHub App token · not eliteweblabs/reave', icon: '📄', brand: 'github', hue: 220, status: true, group: 'external', x: 1400, y: 700 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
@@ -120,6 +121,11 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'railway_gql', label: 'GraphQL · /railway' },
   { from: 'astro', to: 'kinsta_api', label: 'agent · Kinsta WP' },
   { from: 'astro', to: 'crater', label: 'billing · time → invoice' },
+  { from: 'astro', to: 'time_tracking', label: '/api/work/timer · /time' },
+  { from: 'time_tracking', to: 'app_pg', label: 'job_time_entries · active_timers' },
+  { from: 'siri', to: 'time_tracking', label: 'start/stop', dashed: true },
+  { from: 'dev', to: 'time_tracking', label: 'Time tab', dashed: true },
+  { from: 'time_tracking', to: 'crater', label: 'hours as quantity', dashed: true },
   { from: 'astro', to: 'materials_api', label: 'materials pricing', dashed: true },
   { from: 'astro', to: 'inventory_api', label: 'inventory sync', dashed: true },
   { from: 'astro', to: 'fleet_api', label: 'fleet GPS · map', dashed: true },
@@ -204,7 +210,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'website', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom'] },
 ];
 

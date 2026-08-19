@@ -22,6 +22,7 @@ stage: 2
 ## Checklist
 
 - [ ] Enable `time_tracking` in install config
-- [ ] Log time on a test work item
-- [ ] Verify hours appear in invoice suggestions
+- [ ] Start/stop a timer on a project Time tab
+- [ ] Confirm hours appear in the log and invoice suggestions
+- [ ] Optional: Siri “start time tracking” / “stop time tracking”
 - [ ] Set `moduleStatus.time_tracking` → `deployed` in install config

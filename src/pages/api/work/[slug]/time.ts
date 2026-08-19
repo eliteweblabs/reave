@@ -1,6 +1,8 @@
 /**
  * GET /api/work/[slug]/time — list time entries on a job
  * PUT /api/work/[slug]/time — replace all entries { entries: [{ hours, note, id? }] }
+ *
+ * Running timer is GET/POST /api/work/timer (start/stop), not this route.
  */
 
 import type { APIContext } from 'astro';

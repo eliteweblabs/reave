@@ -106,6 +106,14 @@ export async function storeListTimeEntries(slug: string): Promise<WorkTimeEntry[
   return fileListTimeEntries(slug);
 }
 
+export async function storeAppendTimeEntry(
+  slug: string,
+  raw: unknown,
+): Promise<{ ok: true; entries: WorkTimeEntry[]; totalHours: number } | { ok: false; error: string }> {
+  const existing = await storeListTimeEntries(slug);
+  return storeSaveTimeEntries(slug, [...existing, raw]);
+}
+
 export async function storeSaveTimeEntries(
   slug: string,
   rawEntries: unknown,

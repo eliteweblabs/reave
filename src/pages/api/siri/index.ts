@@ -70,12 +70,13 @@ import { startAuditProposal } from '../../../lib/siriAuditProposal';
 import { hasFeature } from '../../../lib/features';
 import {
   getTimeTrackingPrompt,
+  getTimerStatusView,
   projectVoiceLabel,
   resolveProjectForTimeTracking,
   startTimeTrackingOnProject,
   stopTimeTrackingWithMessage,
 } from '../../../lib/timeTrackingSiri';
-import { formatElapsedDuration, getActiveTimer } from '../../../lib/activeTimers';
+import { formatElapsedDuration } from '../../../lib/activeTimers';
 import {
   isTodoDbConfigured,
   normalizeTodoPriority,
@@ -1104,6 +1105,7 @@ async function handleStartTimeTracking(params: Record<string, unknown>): Promise
       },
       timer: started.timer,
       switched: started.switched,
+      previous: started.previous,
     },
   };
 }
@@ -1130,24 +1132,20 @@ async function handleStopTimeTracking(): Promise<SiriResponse> {
 async function handleTimeTrackingStatus(): Promise<SiriResponse> {
   if (!hasFeature('time_tracking')) return timeTrackingDisabled();
 
-  const active = await getActiveTimer();
-  if (active) {
-    const job = await storeReadWork(active.jobSlug);
-    const label = job ? projectVoiceLabel(job) : active.jobSlug;
-    const elapsed = formatElapsedDuration(active.startedAt);
+  const view = await getTimerStatusView();
+  if (view.running && view.timer) {
+    const label = view.timer.job?.label || view.timer.job_slug;
     return {
       ok: true,
-      text: `Tracking ${label} — ${elapsed}.`,
+      text: `Tracking ${label} — ${view.timer.elapsed}.`,
       data: {
         running: true,
         timer: {
-          job_slug: active.jobSlug,
-          started_at: active.startedAt,
-          elapsed,
+          job_slug: view.timer.job_slug,
+          started_at: view.timer.started_at,
+          elapsed: view.timer.elapsed,
         },
-        job: job
-          ? { slug: job.slug, title: job.title, client: job.client, label: projectVoiceLabel(job) }
-          : null,
+        job: view.timer.job,
       },
     };
   }
