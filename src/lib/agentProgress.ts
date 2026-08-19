@@ -52,3 +52,24 @@ export function getAgentProgress(userId: string, threadId: string): AgentProgres
 export function clearAgentProgress(userId: string, threadId: string): void {
   store.delete(progressKey(userId, threadId));
 }
+
+/**
+ * Compare the bits the chat UI actually shows. `updatedAt` ticks on every
+ * heartbeat, so treating that as a change remounts the thread and steals
+ * focus / closes image previews while the agent is still thinking.
+ */
+export function sameAgentProgressUi(
+  a: AgentProgress | null | undefined,
+  b: AgentProgress | null | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.phase === b.phase &&
+    a.tool === b.tool &&
+    a.toolLabel === b.toolLabel &&
+    a.round === b.round &&
+    a.concurrent === b.concurrent &&
+    (a.partialText ?? '') === (b.partialText ?? '')
+  );
+}

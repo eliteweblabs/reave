@@ -30,6 +30,20 @@ export function updateAgentChat(el: HTMLElement, props: Partial<AgentChatPanelPr
   renderMount(el, { ...record.props, ...props });
 }
 
+/** Import persisted messages into the live runtime without tearing down the tree. */
+export function syncAgentChatMessages(
+  el: HTMLElement,
+  messages: AgentChatPanelProps['initialMessages'],
+) {
+  const record = mounts.get(el);
+  if (!record) return;
+  renderMount(el, {
+    ...record.props,
+    initialMessages: messages,
+    importMessagesGeneration: (record.props.importMessagesGeneration ?? 0) + 1,
+  });
+}
+
 export function unmountAgentChat(el: HTMLElement) {
   const record = mounts.get(el);
   if (!record) return;
@@ -42,6 +56,7 @@ declare global {
     __reaveAgentChat?: {
       mount: typeof mountAgentChat;
       update: typeof updateAgentChat;
+      syncMessages: typeof syncAgentChatMessages;
       unmount: typeof unmountAgentChat;
     };
   }
@@ -50,6 +65,7 @@ declare global {
 window.__reaveAgentChat = {
   mount: mountAgentChat,
   update: updateAgentChat,
+  syncMessages: syncAgentChatMessages,
   unmount: unmountAgentChat,
 };
 

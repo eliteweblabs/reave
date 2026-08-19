@@ -31,6 +31,7 @@ import {
   type PumpableAgentStream,
 } from '../src/lib/chatAgentPump.ts';
 import { AGENT_EMPTY_REPLY_NOTE, describeAgentFailure } from '../src/lib/agentFailure.ts';
+import { sameAgentProgressUi, type AgentProgress } from '../src/lib/agentProgress.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -533,6 +534,26 @@ await test('append on a file that does not exist creates it rather than failing'
   const { rmSync } = await import('node:fs');
   const { codeDevProjectRoot } = await import('../src/lib/codeDevTools.ts');
   rmSync(`${codeDevProjectRoot()}/.tmp-verify-chat2`, { recursive: true, force: true });
+});
+
+await test('progress UI equality ignores heartbeat updatedAt so thinking ticks do not remount', () => {
+  const base: AgentProgress = {
+    phase: 'tool',
+    tool: 'lighthouse',
+    toolLabel: 'Running Lighthouse',
+    round: 2,
+    concurrent: 1,
+    startedAt: 1_000,
+    updatedAt: 1_100,
+    partialText: 'Checking…',
+  };
+  assert.equal(
+    sameAgentProgressUi(base, { ...base, updatedAt: 1_999, startedAt: 1_001 }),
+    true,
+  );
+  assert.equal(sameAgentProgressUi(base, { ...base, toolLabel: 'Still going' }), false);
+  assert.equal(sameAgentProgressUi(base, null), false);
+  assert.equal(sameAgentProgressUi(null, null), true);
 });
 
 console.log(`\nchat resilience checks\n${results.join('\n')}\n`);

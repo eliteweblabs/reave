@@ -19,6 +19,7 @@ import {
   useComposerRuntime,
   useLocalRuntime,
   useAuiState,
+  useThreadRuntime,
   useThreadViewport,
   type AttachmentAdapter,
   type ChatModelAdapter,
@@ -29,7 +30,7 @@ import {
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   filterHelperCommands,
@@ -65,6 +66,7 @@ import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatRespons
 import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
 import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
 import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
+import { sameAgentProgressUi, type AgentProgress } from '../../lib/agentProgress';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -262,19 +264,6 @@ function useCapComposerAttachments(max = MAX_CHAT_IMAGES + MAX_CHAT_DOCS) {
   });
 }
 
-type AgentProgressPhase = 'thinking' | 'tool' | 'complete';
-
-type AgentProgress = {
-  phase: AgentProgressPhase;
-  tool?: string;
-  toolLabel?: string;
-  round?: number;
-  concurrent?: number;
-  startedAt: number;
-  updatedAt: number;
-  partialText?: string;
-};
-
 function formatElapsed(ms: number): string {
   const seconds = Math.max(1, Math.floor(ms / 1000));
   if (seconds < 60) return `${seconds}s`;
@@ -332,7 +321,11 @@ function useAgentRunStatus(
         });
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as { progress?: AgentProgress | null };
-        if (!cancelled && !streamedProgress) setPolledProgress(data.progress ?? null);
+        if (!cancelled && !streamedProgress) {
+          setPolledProgress((prev) =>
+            sameAgentProgressUi(prev, data.progress) ? prev : (data.progress ?? null),
+          );
+        }
       } catch {
         /* ignore transient poll errors */
       }
@@ -655,6 +648,8 @@ export type AgentChatPanelProps = {
   onAgentRunChange?: (running: boolean) => void;
   onAgentProgress?: (progress: AgentProgress | null) => void;
   onRefreshMessages?: () => void | Promise<void>;
+  /** Bump to import `initialMessages` into the live runtime without remounting. */
+  importMessagesGeneration?: number;
   onMessagesPersist?: (
     userContent: string,
     assistant: { content: string; agent_usage?: AgentUsageSummary | null },
@@ -1615,6 +1610,30 @@ function UserTextPart(props: { text?: string }) {
   );
 }
 
+type ChatLightboxApi = {
+  open: (src: string, alt: string) => void;
+  close: () => void;
+  isOpen: boolean;
+};
+
+const ChatLightboxContext = createContext<ChatLightboxApi | null>(null);
+
+function ChatLightboxProvider({ children }: { children: ReactNode }) {
+  const [item, setItem] = useState<{ src: string; alt: string } | null>(null);
+  const open = useCallback((src: string, alt: string) => setItem({ src, alt }), []);
+  const close = useCallback(() => setItem(null), []);
+  const api = useMemo(
+    () => ({ open, close, isOpen: item !== null }),
+    [open, close, item],
+  );
+  return (
+    <ChatLightboxContext.Provider value={api}>
+      {children}
+      {item ? <ChatImageLightbox src={item.src} alt={item.alt} onClose={close} /> : null}
+    </ChatLightboxContext.Provider>
+  );
+}
+
 function ChatImageLightbox({
   src,
   alt,
@@ -1675,6 +1694,7 @@ function ChatImagePreview({
   className?: string;
   thumb?: boolean;
 }) {
+  const lightbox = useContext(ChatLightboxContext);
   const [open, setOpen] = useState(false);
   const label = alt || 'Attached image';
 
@@ -1683,12 +1703,17 @@ function ChatImagePreview({
       <button
         type="button"
         className={`aui-chat-img-btn${thumb ? ' aui-chat-img-btn--thumb' : ''}`}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          if (lightbox) lightbox.open(src, label);
+          else setOpen(true);
+        }}
         aria-label={`View full size: ${label}`}
       >
         <img className={className} src={src} alt={label} loading="lazy" />
       </button>
-      {open ? <ChatImageLightbox src={src} alt={label} onClose={() => setOpen(false)} /> : null}
+      {!lightbox && open ? (
+        <ChatImageLightbox src={src} alt={label} onClose={() => setOpen(false)} />
+      ) : null}
     </>
   );
 }
@@ -2557,43 +2582,84 @@ function ClaudeComposer({
   );
 }
 
-function ChatMessages() {
+function UserChatMessage() {
   return (
-    <>
-      <ThreadPrimitive.Messages
+    <ChatMessageShell align="user" bubbleClassName="aui-msg aui-msg-user">
+      <MessagePrimitive.Parts
         components={{
-          UserMessage: () => (
-            <ChatMessageShell align="user" bubbleClassName="aui-msg aui-msg-user">
-              <MessagePrimitive.Parts
-                components={{
-                  Text: UserTextPart,
-                  Image: UserImagePart,
-                  File: UserFilePart,
-                }}
-              />
-              <MessagePrimitive.Attachments
-                components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
-              />
-            </ChatMessageShell>
-          ),
-          AssistantMessage: () => (
-            <ChatMessageShell align="assistant" bubbleClassName="aui-msg aui-msg-assistant">
-              <MessagePrimitive.Parts
-                components={{
-                  Text: AssistantTextPart,
-                }}
-              />
-            </ChatMessageShell>
-          ),
+          Text: UserTextPart,
+          Image: UserImagePart,
+          File: UserFilePart,
         }}
       />
-    </>
+      <MessagePrimitive.Attachments
+        components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
+      />
+    </ChatMessageShell>
   );
+}
+
+function AssistantChatMessage() {
+  return (
+    <ChatMessageShell align="assistant" bubbleClassName="aui-msg aui-msg-assistant">
+      <MessagePrimitive.Parts
+        components={{
+          Text: AssistantTextPart,
+        }}
+      />
+    </ChatMessageShell>
+  );
+}
+
+/** Stable identities — inline factories remount every thinking tick and close image previews. */
+const THREAD_MESSAGE_COMPONENTS = {
+  UserMessage: UserChatMessage,
+  AssistantMessage: AssistantChatMessage,
+};
+
+function ChatMessages() {
+  return <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />;
+}
+
+function storedMessagesKey(messages: readonly StoredChatMessage[]): string {
+  return messages.map((m) => `${m.role}:${m.content}`).join('\n---\n');
+}
+
+/**
+ * Pull persisted messages into the live runtime. Never remount the React tree —
+ * that aborts the composer, closes lightboxes, and steals the caret.
+ */
+function PersistedMessageImporter({
+  generation,
+  propsRef,
+}: {
+  generation: number;
+  propsRef: RefObject<AgentChatPanelProps>;
+}) {
+  const runtime = useThreadRuntime();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const applied = useRef(0);
+  const lastKey = useRef(storedMessagesKey(propsRef.current?.initialMessages ?? []));
+
+  useEffect(() => {
+    if (!generation || generation === applied.current) return;
+    applied.current = generation;
+    if (isRunning) return;
+    const messages = propsRef.current?.initialMessages ?? [];
+    const key = storedMessagesKey(messages);
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+    runtime.reset(messages.map(storedToThreadMessage));
+  }, [generation, isRunning, propsRef, runtime]);
+
+  return null;
 }
 
 /** Poll cadence while following a server-side run vs. while idle. */
 const RECOVERY_ACTIVE_POLL_MS = 900;
 const RECOVERY_IDLE_POLL_MS = 5_000;
+/** One empty poll is often a heartbeat gap — wait twice before tearing the run down. */
+const RECOVERY_IDLE_CONFIRM_POLLS = 2;
 
 /**
  * Adopt a run that this tab is not streaming.
@@ -2635,6 +2701,7 @@ function useRecoverInFlightRun(
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let checkedForOrphanedTurn = false;
+    let idleStreak = 0;
 
     const schedule = (delay: number) => {
       if (cancelled) return;
@@ -2680,19 +2747,33 @@ function useRecoverInFlightRun(
 
       const active = Boolean(status && (status.running || status.progress));
       if (active && status) {
+        idleStreak = 0;
         checkedForOrphanedTurn = true;
-        recoveringRef.current = true;
-        setRecovering(true);
-        propsRef.current?.onAgentRunChange?.(true);
+        if (!recoveringRef.current) {
+          recoveringRef.current = true;
+          setRecovering(true);
+          propsRef.current?.onAgentRunChange?.(true);
+        }
         if (status.progress) {
-          setRecoveryProgress(status.progress);
-          if (status.progress.partialText) setRecoveryText(status.progress.partialText);
+          setRecoveryProgress((prev) =>
+            sameAgentProgressUi(prev, status.progress) ? prev : status.progress,
+          );
+          if (status.progress.partialText) {
+            const next = status.progress.partialText;
+            setRecoveryText((prev) => (prev === next ? prev : next));
+          }
         }
         schedule(RECOVERY_ACTIVE_POLL_MS);
         return;
       }
 
       if (recoveringRef.current) {
+        idleStreak += 1;
+        if (idleStreak < RECOVERY_IDLE_CONFIRM_POLLS) {
+          schedule(RECOVERY_ACTIVE_POLL_MS);
+          return;
+        }
+        idleStreak = 0;
         // The run we were following ended: pull its persisted reply in, and if it
         // left none, have the server close the turn out.
         const persisted = await fetchPersistedReply(threadId);
@@ -2860,11 +2941,14 @@ function AgentChatThreadBody({
     propsRef,
     isRunning,
   );
+  const lightbox = useContext(ChatLightboxContext);
+  const lightboxOpen = Boolean(lightbox?.isOpen);
   const showThreadStatus = isRunning || recovering;
   const inFlightAssistantText = useAuiState((s) =>
     s.thread.isRunning ? lastAssistantMessageText(s.thread.messages) : '',
   );
   const showInThreadStatus = showThreadStatus && !recoveryText.trim() && !inFlightAssistantText.trim();
+  const followActive = showThreadStatus && !lightboxOpen;
 
   const onFocusInputReady = useCallback(
     (focus: () => void) => {
@@ -2942,8 +3026,8 @@ function AgentChatThreadBody({
         <div className="aui-thread-body">
           <ThreadPrimitive.Viewport
             className="aui-viewport"
-            autoScroll
-            scrollToBottomOnRunStart
+            autoScroll={!lightboxOpen}
+            scrollToBottomOnRunStart={!lightboxOpen}
           >
             <div className="aui-thread-column">
               <ChatMessages />
@@ -2958,7 +3042,7 @@ function AgentChatThreadBody({
               {recovering && recoveryText.trim() ? (
                 <InFlightRecoveryMessage text={recoveryText} />
               ) : null}
-              <ChatFollowBottom followActive={showThreadStatus} recoveryText={recoveryText} />
+              <ChatFollowBottom followActive={followActive} recoveryText={lightboxOpen ? '' : recoveryText} />
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">
@@ -2993,21 +3077,26 @@ function AgentChatThread({
   propsRef,
   pendingDraft,
   pendingAutoSend,
+  importMessagesGeneration = 0,
 }: {
   threadId: string;
   propsRef: RefObject<AgentChatPanelProps>;
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
+  importMessagesGeneration?: number;
 }) {
   const deployChatLock = useDeployChatLock();
   const [queuedSend, setQueuedSend] = useState(
     () => Boolean(pendingAutoSend) || Boolean(readDeployChatDraftPayload(threadId)?.autoSend),
   );
-  const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
+  const [streamedProgress, setStreamedProgressState] = useState<AgentProgress | null>(null);
+  const setStreamedProgress = useCallback((progress: AgentProgress | null) => {
+    setStreamedProgressState((prev) => (sameAgentProgressUi(prev, progress) ? prev : progress));
+  }, []);
   const pendingMentionsRef = useRef<ChatMention[]>([]);
   const adapter = useMemo(
     () => createChatAdapter(threadId, propsRef, setStreamedProgress, pendingMentionsRef),
-    [threadId, propsRef],
+    [threadId, propsRef, setStreamedProgress],
   );
 
   const attachmentAdapter = useMemo(
@@ -3022,28 +3111,31 @@ function AgentChatThread({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <PendingDraftBoot
-        draft={pendingDraft}
-        autoSend={pendingAutoSend}
-        threadId={threadId}
-        onQueuedChange={setQueuedSend}
-      />
-      <DeployDraftBoot
-        threadId={threadId}
-        deployChatLocked={deployChatLock.locked}
-        deployChatLockReady={deployChatLock.ready}
-        skipRestore={Boolean(pendingDraft)}
-        onQueuedChange={setQueuedSend}
-      />
-      <AgentChatThreadBody
-        propsRef={propsRef}
-        threadId={threadId}
-        streamedProgress={streamedProgress}
-        deployChatLock={deployChatLock}
-        pendingMentionsRef={pendingMentionsRef}
-        queuedSend={queuedSend}
-        onQueuedChange={setQueuedSend}
-      />
+      <ChatLightboxProvider>
+        <PersistedMessageImporter generation={importMessagesGeneration} propsRef={propsRef} />
+        <PendingDraftBoot
+          draft={pendingDraft}
+          autoSend={pendingAutoSend}
+          threadId={threadId}
+          onQueuedChange={setQueuedSend}
+        />
+        <DeployDraftBoot
+          threadId={threadId}
+          deployChatLocked={deployChatLock.locked}
+          deployChatLockReady={deployChatLock.ready}
+          skipRestore={Boolean(pendingDraft)}
+          onQueuedChange={setQueuedSend}
+        />
+        <AgentChatThreadBody
+          propsRef={propsRef}
+          threadId={threadId}
+          streamedProgress={streamedProgress}
+          deployChatLock={deployChatLock}
+          pendingMentionsRef={pendingMentionsRef}
+          queuedSend={queuedSend}
+          onQueuedChange={setQueuedSend}
+        />
+      </ChatLightboxProvider>
     </AssistantRuntimeProvider>
   );
 }
@@ -3070,6 +3162,7 @@ export function AgentChatPanel(props: AgentChatPanelProps) {
         propsRef={propsRef}
         pendingDraft={props.pendingDraft}
         pendingAutoSend={props.pendingAutoSend}
+        importMessagesGeneration={props.importMessagesGeneration}
       />
     </div>
   );

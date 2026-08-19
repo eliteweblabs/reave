@@ -1983,6 +1983,11 @@ function mountChatThreadRoot(threadHost) {
         const data = await readApiJson(res);
         chatState.messages = data.thread.messages || [];
         chatState.title = data.thread.title;
+        const host = getChatPanel()?.querySelector('#ch-thread-root');
+        if (host && window.__reaveAgentChat?.syncMessages) {
+          window.__reaveAgentChat.syncMessages(host, chatState.messages);
+          return;
+        }
         renderChatPane();
       } catch {
         /* keep current messages on refresh failure */

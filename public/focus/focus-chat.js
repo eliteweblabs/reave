@@ -194,6 +194,10 @@
           state.messages = data.thread.messages || [];
           state.linkedJobs = data.thread.linked_jobs || [];
           renderProjectChips();
+          if (els.threadHost && window.__reaveAgentChat?.syncMessages) {
+            window.__reaveAgentChat.syncMessages(els.threadHost, state.messages);
+            return;
+          }
           unmountThread();
           mountThread();
         } catch {
