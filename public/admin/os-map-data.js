@@ -61,7 +61,7 @@ const SYSTEM_NODES = [
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
   { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · SSR data · noindex · Mapbox pins', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
   { id: 'dealer_map', title: 'Used-car dealer map', sub: '/dealer-map · public demo · Places search-on-zoom · inventory toggles · /api/dealer-map/places', icon: '🚗', hue: 28, status: true, group: 'reave', x: 400, y: 840 },
-  { id: 'sales_sheet', title: 'Audit sales sheet', sub: '/admin/sales-sheet · custom front · static back with replaced-app + about client icons · google.com Places SERP in iPhone frame', icon: '🧾', hue: 168, status: true, group: 'reave', x: 220, y: 720 },
+  { id: 'sales_sheet', title: 'Audit sales sheet', sub: '/admin/sales-sheet · custom client front · static REΛVE back (hosting / cover / stack logos) · Places SERP in iPhone frame', icon: '🧾', hue: 168, status: true, group: 'reave', x: 220, y: 720 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },

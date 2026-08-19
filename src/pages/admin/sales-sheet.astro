@@ -3,8 +3,8 @@
  * Dummy-first preview for the audit sales one-pager.
  *
  * Hit /admin/sales-sheet with query overrides until the print layout is right.
- * Print is two-sided: custom front + a static icon back (replaced-apps +
- * about-page client marks).
+ * Print is two-sided: custom client audit + a static REΛVE back
+ * (hosting / cover / stack logos).
  * Live audit wiring (pick 3 findings → PDF → project files) comes after.
  */
 export const prerender = false;
@@ -44,11 +44,9 @@ import {
   shortPlaceFromAddress,
 } from '../../lib/salesSheetPlacesView';
 import { qrCodeDataUrl } from '../../lib/qrCode';
-import { companyLogoHtml } from '../../lib/documentPrintLayout';
-import { listBrandLogos, REPLACED_APP_LOGOS } from '../../lib/brandLogos';
+import { companyBrandMarkHtml } from '../../lib/documentPrintLayout';
 import { storeGetMediaBySlug } from '../../lib/mediaLibrary';
-import { getSiteContent } from '../../lib/siteContent';
-import { renderSalesSheetBackHtml } from '../../lib/salesSheetBack';
+import { renderSalesSheetBackHtml, salesSheetStackLogos } from '../../lib/salesSheetBack';
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
@@ -228,26 +226,17 @@ async function inlineMediaSrc(src: string, slugHint = ''): Promise<string> {
   return src;
 }
 
-const backLogos = await Promise.all(
-  listBrandLogos().map(async (logo) => {
-    const ref = REPLACED_APP_LOGOS.find((row) => row.name === logo.name);
-    return { name: logo.name, src: await inlineMediaSrc(logo.src, ref?.image) };
-  }),
-);
-const backClientLogos = await Promise.all(
-  (getSiteContent().clientLogos ?? []).map(async (logo) => ({
-    name: logo.name,
-    src: await inlineMediaSrc(logo.image),
-    width: logo.width,
-    height: logo.height,
+const backStackLogos = await Promise.all(
+  salesSheetStackLogos().map(async (logo) => ({
+    ...logo,
+    src: await inlineMediaSrc(logo.src, logo.slug?.startsWith('stack-') ? logo.slug : ''),
   })),
 );
 const backHtml = renderSalesSheetBackHtml({
   company,
   orientation,
-  logos: backLogos,
-  clientLogos: backClientLogos,
-  logoHtml: companyLogoHtml(company),
+  stackLogos: backStackLogos,
+  iconHtml: companyBrandMarkHtml('icon', company, { size: 'xl', idPrefix: 'ss-back-icon' }),
 });
 
 let error = '';
@@ -429,9 +418,9 @@ const placesNote = places.error
         Pick a company with an existing audit to refill the sheet. {sourceNote}.
         A Places miss is finding #1. The iPhone shows the live google.com
         Places/Maps search — competitors when there is no listing, not a
-        mocked result list. Print is two-sided: custom audit on the front,
-        the same replaced-app wall plus about-page client marks on the back
-        of every sheet. Landscape
+        mocked result list. Print is two-sided: custom audit on the client
+        side, the same REΛVE back (hosting, cover, stack logos) on every
+        sheet. Landscape
         duplex uses short-edge bind so the back is right-side up. Uncheck for
         <code>?google=0</code>. Use <code>?near=</code>,
         <code>?category=plumber</code>, <code>?listed=0</code>,

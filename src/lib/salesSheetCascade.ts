@@ -6,7 +6,7 @@
  *
  * Top of the list is what you lead with in the room — not a lab score.
  *
- * Static duplex back (platform icons) + this list: docs/audit-sales-sheet-back.md
+ * Static duplex back (hosting / cover / stack) + this list: docs/audit-sales-sheet-back.md
  */
 import type { AuditReportCard, LetterGrade, ReportCardCategoryId } from './auditReportCard';
 import { siteSpeedResearchProblem } from './salesSheetResearch';

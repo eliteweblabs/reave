@@ -551,38 +551,33 @@ await test('front footer is page 1 of 2 after fill', () => {
   assert.doesNotMatch(filled, /Page 1 of 1/);
 });
 
-await test('static back shows platform icons and no client fields', () => {
+await test('static back is three REΛVE columns with stack logos and no client fields', () => {
   const back = renderSalesSheetBackHtml({
     company: { name: 'REAVE', supportEmail: 'hello@reave.example' },
     orientation: 'landscape',
-    logos: [
-      { name: 'Gmail', src: '/api/media/replaced-gmail' },
-      { name: 'Outlook', src: '/api/media/replaced-outlook' },
-      { name: 'Slack', src: '/api/media/replaced-slack' },
-    ],
-    clientLogos: [
-      { name: 'Porsche', src: '/api/media/client-porsche', width: 24, height: 24 },
-      { name: 'Red Bull', src: '/api/media/client-redbull', width: 24, height: 24 },
-    ],
   });
   assert.match(back, /data-ss-page="back"/);
-  assert.match(back, /data-ss-section="platforms"/);
-  assert.match(back, /data-ss-section="clients"/);
-  assert.match(back, /Replace the stack/);
-  assert.match(back, /Worked with/);
+  assert.match(back, /data-ss-col="hosting"/);
+  assert.match(back, /data-ss-col="cover"/);
+  assert.match(back, /data-ss-col="stack"/);
+  assert.match(back, /Managed hosting/);
+  assert.match(back, /We host it/);
+  assert.match(back, /Railway™/);
+  assert.match(back, /50M\+/);
+  assert.match(back, /Nearby rate/);
+  assert.match(back, /Custom builds/);
+  assert.match(back, /automating the work/);
+  assert.match(back, /Online presence diagnostic/);
+  assert.match(back, /independent systems scan/);
+  assert.match(back, /reave-bg-pattern/);
+  assert.match(back, /data-stack="anthropic"/);
+  assert.match(back, /data-stack="railway"/);
+  assert.match(back, /data-stack="supabase"/);
+  assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /Page 2 of 2/);
-  assert.match(back, /Printed two sides/);
-  assert.match(back, /REAVE is built to absorb/);
   assert.match(back, /hello@reave\.example/);
-  assert.match(back, /Gmail/);
-  assert.match(back, /Outlook/);
-  assert.match(back, /Slack/);
-  assert.match(back, /\/api\/media\/replaced-gmail/);
-  assert.match(back, /Porsche/);
-  assert.match(back, /Red Bull/);
-  assert.match(back, /\/api\/media\/client-porsche/);
-  assert.equal((back.match(/class="ss-back-tile"/g) || []).length, 3);
-  assert.equal((back.match(/class="ss-back-client"/g) || []).length, 2);
+  assert.doesNotMatch(back, /ss-back-tile|ss-back-mark|border-radius: 10px/);
+  assert.doesNotMatch(back, /Gmail|HubSpot|Replace the stack|Worked with/);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
   assert.doesNotMatch(back, /ss-qr|the full audit/);
 });
