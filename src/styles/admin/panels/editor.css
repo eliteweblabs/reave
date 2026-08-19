@@ -2536,6 +2536,14 @@ button.de-placeholder-action:active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+#work-editor .wk-detail-chrome:has(.wk-client-picker:not(.wk-client-picker--readonly)) {
+  overflow: visible;
+}
+#work-editor .wk-detail-chrome > .wk-client-picker {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.1rem var(--detail-pad-x-right) 0.4rem var(--detail-pad-x);
+}
 #work-editor .wk-detail-panel .wk-client-picker {
   margin-bottom: 0;
 }

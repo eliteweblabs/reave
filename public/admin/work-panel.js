@@ -3043,7 +3043,7 @@ function renderNewWorkForm(pane) {
     if (!inDrawer) void flushWorkField();
   });
 
-  clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl));
+  clientPicker = mountWorkClientPicker(chrome, workState.draft, () => queueWorkAutosave(workActiveEl));
 
   let titleHintTimer = null;
   titleInput.addEventListener('input', () => {
@@ -3449,7 +3449,7 @@ function renderEditWorkForm(pane) {
         workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
         return autosaveWorkQuiet(payloadFn, workActiveEl);
       };
-      clientPicker = mountWorkClientPicker(projectPanel, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
+      clientPicker = mountWorkClientPicker(chrome, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
       fields.insertBefore(linkTrackEl, fields.firstChild);
       renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links, slug);
 
