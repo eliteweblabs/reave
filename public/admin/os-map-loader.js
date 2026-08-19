@@ -1890,7 +1890,6 @@ function defaultTabKeys() {
 function normalizeTabOrderKeys(saved) {
   const baseline = defaultTabKeys();
   const allowed = new Set(baseline);
-  const strict = Boolean(installFooterNav());
 
   if (!Array.isArray(saved)) return baseline;
 
@@ -1918,14 +1917,10 @@ function normalizeTabOrderKeys(saved) {
 
   if (!systemSlot && allowed.has(SYSTEM_TAB_SLOT)) result.unshift(SYSTEM_TAB_SLOT);
 
-  if (strict) {
-    return result.length ? result : baseline;
-  }
-
   for (const k of baseline) {
     if (!result.includes(k)) result.push(k);
   }
-  return result;
+  return result.length ? result : baseline;
 }
 
 function loadTabOrderFromLocal() {
@@ -2341,10 +2336,10 @@ function compareDashboardTitle(a, b) {
   return (MAPS[a]?.title || a).localeCompare(MAPS[b]?.title || b, undefined, { sensitivity: 'base' });
 }
 
-/** Dashboard launcher tiles, A–Z by label. Footer dock order is unchanged. */
-function dashboardGridKeys(order) {
+/** Dashboard launcher tiles from install footerNav, A–Z. Saved tab order does not hide new keys. */
+function dashboardGridKeys() {
   const keys = [];
-  for (const key of dashboardTabKeys(order)) {
+  for (const key of dashboardTabKeys(defaultTabKeys())) {
     const m = MAPS[key];
     if (!m) continue;
     if (m.link) {
@@ -2402,7 +2397,7 @@ function toggleTopbarMenu() {
 
 function dashboardSectionItems(order) {
   const items = [];
-  for (const key of dashboardTabKeys(order || cachedTabOrder || defaultTabKeys())) {
+  for (const key of dashboardTabKeys(order || defaultTabKeys())) {
     const m = MAPS[key];
     if (!m) continue;
     items.push({
@@ -5082,7 +5077,7 @@ function renderAdminDashboard(data) {
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
-  for (const key of dashboardGridKeys(cachedTabOrder || defaultTabKeys())) {
+  for (const key of dashboardGridKeys()) {
     const m = MAPS[key];
     if (!m) continue;
     if (m.link) {
