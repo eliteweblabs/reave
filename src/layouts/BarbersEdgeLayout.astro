@@ -1,7 +1,9 @@
 ---
 import Favicon from "../components/Favicon.astro";
 import ViewportMeta from "../components/ViewportMeta.astro";
+import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { BARBERS_EDGE } from "../lib/barbersEdge";
+import "../styles/scroll-fade.css";
 
 interface Props {
   title: string;
@@ -45,6 +47,7 @@ const canonical = Astro.url.pathname;
       </div>
     </header>
     <slot />
+    <ScrollFadeIn />
   </body>
 </html>
 

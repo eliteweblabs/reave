@@ -1,4 +1,5 @@
 @import "./mobile-touch.css";
+@import "./scroll-fade.css";
 
 /**
  * Reave brand tokens — gradient, accent stops, and shadows.
@@ -282,59 +283,4 @@ body.footer-chat-inline-dashboard
   color: #fff;
   -webkit-text-fill-color: #fff;
   box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
-}
-
-/**
- * Subtle fade-in as blocks enter the viewport (CSS scroll-driven animations).
- * Opt-in via `.scroll-fade-in`, plus automatic coverage for public-layout
- * sections and repeating cards so marketing pages stay consistent.
- * `.home-hero` is excluded — it is already on-screen and has its own motion.
- */
-@keyframes scroll-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@supports (animation-timeline: view()) {
-  :is(
-    .scroll-fade-in,
-    main#main-content section,
-    main#main-content .acc-item,
-    main#main-content .fx-prompt-card,
-    main#main-content .fx-tier-card,
-    main#main-content .cg-card,
-    main#main-content .about-intro,
-    main#main-content .dl-hero,
-    main#main-content .cg-hero,
-    main#main-content .doc-header,
-    main#main-content .site-foot-wrap
-  ):not(.home-hero) {
-    animation: scroll-fade-in linear both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 28%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :is(
-    .scroll-fade-in,
-    main#main-content section,
-    main#main-content .acc-item,
-    main#main-content .fx-prompt-card,
-    main#main-content .fx-tier-card,
-    main#main-content .cg-card,
-    main#main-content .about-intro,
-    main#main-content .dl-hero,
-    main#main-content .cg-hero,
-    main#main-content .doc-header,
-    main#main-content .site-foot-wrap
-  ) {
-    animation: none;
-  }
 }

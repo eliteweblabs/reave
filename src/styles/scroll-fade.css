@@ -1,0 +1,145 @@
+/**
+ * Subtle fade-up as blocks enter the viewport (CSS scroll-driven animations).
+ *
+ * Automatic on public pages: sections, articles, page headers, forms, and
+ * repeating cards/tiles. Opt-in anywhere with `.scroll-fade-in`.
+ *
+ * Excluded: homepage / landing heroes (already on-screen), chrome, and
+ * horizontal marquees (they have their own motion).
+ */
+@keyframes scroll-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  :is(
+    .scroll-fade-in,
+    main#main-content section,
+    main#main-content article,
+    main#main-content footer,
+    main#main-content form,
+    main#main-content > * > header,
+    main#main-content .acc-item,
+    main#main-content .fx-prompt-card,
+    main#main-content .fx-built-item,
+    main#main-content .fx-deploy-mode,
+    main#main-content .demo-card,
+    main#main-content .about-block,
+    main#main-content .doc-header,
+    main#main-content .site-foot-wrap,
+    body.landing-body main section,
+    body.landing-body main article,
+    body.editorial-body main section,
+    body.editorial-body main article,
+    body.be-body main,
+    body.be-body section,
+    body.be-body article,
+    body.be-body li
+  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *) {
+    animation: scroll-fade-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 28%;
+  }
+}
+
+/* IntersectionObserver fallback — activated by ScrollFadeIn.astro */
+html.scroll-fade-io :is(
+  .scroll-fade-in,
+  main#main-content section,
+  main#main-content article,
+  main#main-content footer,
+  main#main-content form,
+  main#main-content > * > header,
+  main#main-content .acc-item,
+  main#main-content .fx-prompt-card,
+  main#main-content .fx-built-item,
+  main#main-content .fx-deploy-mode,
+  main#main-content .demo-card,
+  main#main-content .about-block,
+  main#main-content .doc-header,
+  main#main-content .site-foot-wrap,
+  body.landing-body main section,
+  body.landing-body main article,
+  body.editorial-body main section,
+  body.editorial-body main article,
+  body.be-body main,
+  body.be-body section,
+  body.be-body article,
+  body.be-body li
+):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview) {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+html.scroll-fade-io .is-inview {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .scroll-fade-in,
+    main#main-content section,
+    main#main-content article,
+    main#main-content footer,
+    main#main-content form,
+    main#main-content > * > header,
+    main#main-content .acc-item,
+    main#main-content .fx-prompt-card,
+    main#main-content .fx-built-item,
+    main#main-content .fx-deploy-mode,
+    main#main-content .demo-card,
+    main#main-content .about-block,
+    main#main-content .doc-header,
+    main#main-content .site-foot-wrap,
+    body.landing-body main section,
+    body.landing-body main article,
+    body.editorial-body main section,
+    body.editorial-body main article,
+    body.be-body main,
+    body.be-body section,
+    body.be-body article,
+    body.be-body li
+  ) {
+    animation: none;
+  }
+
+  html.scroll-fade-io :is(
+    .scroll-fade-in,
+    main#main-content section,
+    main#main-content article,
+    main#main-content footer,
+    main#main-content form,
+    main#main-content > * > header,
+    main#main-content .acc-item,
+    main#main-content .fx-prompt-card,
+    main#main-content .fx-built-item,
+    main#main-content .fx-deploy-mode,
+    main#main-content .demo-card,
+    main#main-content .about-block,
+    main#main-content .doc-header,
+    main#main-content .site-foot-wrap,
+    body.landing-body main section,
+    body.landing-body main article,
+    body.editorial-body main section,
+    body.editorial-body main article,
+    body.be-body main,
+    body.be-body section,
+    body.be-body article,
+    body.be-body li
+  ) {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

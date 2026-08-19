@@ -7,6 +7,8 @@ import { getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import CookieNotice from "../components/CookieNotice.astro";
+import ScrollFadeIn from "../components/ScrollFadeIn.astro";
+import "../styles/scroll-fade.css";
 
 export interface Props {
   title?: string;
@@ -80,6 +82,7 @@ const htmlStyle = isEditorial
   </head>
   <body class={isEditorial ? "editorial-body" : "landing-body"}>
     <slot />
+    <ScrollFadeIn />
     <CookieNotice />
   </body>
 </html>

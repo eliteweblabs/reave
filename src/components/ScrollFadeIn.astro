@@ -1,0 +1,116 @@
+---
+/**
+ * Scroll fade-in: IntersectionObserver fallback when CSS
+ * `animation-timeline: view()` is unavailable, plus tagging for nodes
+ * injected after load (demo-loader tiles, deploy wizard).
+ */
+---
+
+<script>
+  const FADE_SELECTOR = [
+    ".scroll-fade-in",
+    "main#main-content section",
+    "main#main-content article",
+    "main#main-content footer",
+    "main#main-content form",
+    "main#main-content > * > header",
+    "main#main-content .acc-item",
+    "main#main-content .fx-prompt-card",
+    "main#main-content .fx-built-item",
+    "main#main-content .fx-deploy-mode",
+    "main#main-content .demo-card",
+    "main#main-content .about-block",
+    "main#main-content .doc-header",
+    "main#main-content .site-foot-wrap",
+    "body.landing-body main section",
+    "body.landing-body main article",
+    "body.editorial-body main section",
+    "body.editorial-body main article",
+    "body.be-body main",
+    "body.be-body section",
+    "body.be-body article",
+    "body.be-body li",
+  ].join(",");
+
+  const SKIP_CLOSEST =
+    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, [data-no-scroll-fade]";
+
+  function shouldFade(el: Element): el is HTMLElement {
+    if (!(el instanceof HTMLElement)) return false;
+    if (el.closest(SKIP_CLOSEST)) return false;
+    return true;
+  }
+
+  function collect(root: ParentNode = document): HTMLElement[] {
+    return [...root.querySelectorAll(FADE_SELECTOR)].filter(shouldFade);
+  }
+
+  function markInView(el: HTMLElement) {
+    el.classList.add("is-inview");
+  }
+
+  function inViewport(el: HTMLElement): boolean {
+    const rect = el.getBoundingClientRect();
+    return rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+  }
+
+  function bootFallback() {
+    if (document.documentElement.dataset.scrollFadeIo === "1") return;
+    document.documentElement.dataset.scrollFadeIo = "1";
+
+    const pending: HTMLElement[] = [];
+    for (const el of collect()) {
+      if (inViewport(el)) markInView(el);
+      else pending.push(el);
+    }
+    document.documentElement.classList.add("scroll-fade-io");
+
+    if (!pending.length && !document.getElementById("demo-loader-app") && !document.getElementById("deploy-wizard-app")) {
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting || !(entry.target instanceof HTMLElement)) continue;
+          markInView(entry.target);
+          io.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -6% 0px" },
+    );
+
+    for (const el of pending) io.observe(el);
+
+    const observeNew = (nodes: HTMLElement[]) => {
+      for (const el of nodes) {
+        if (el.classList.contains("is-inview")) continue;
+        if (inViewport(el)) markInView(el);
+        else io.observe(el);
+      }
+    };
+
+    const mo = new MutationObserver((records) => {
+      const next: HTMLElement[] = [];
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof Element)) continue;
+          if (shouldFade(node) && node.matches(FADE_SELECTOR)) next.push(node);
+          next.push(...collect(node));
+        }
+      }
+      if (next.length) observeNew(next);
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function boot() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (typeof CSS !== "undefined" && CSS.supports("animation-timeline", "view()")) return;
+    if (!("IntersectionObserver" in window)) return;
+    bootFallback();
+  }
+
+  boot();
+  document.addEventListener("astro:page-load", boot);
+</script>

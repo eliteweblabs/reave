@@ -1,6 +1,7 @@
 ---
 import Header from "../components/Header.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
+import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
@@ -137,6 +138,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 			</div>
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
+		<ScrollFadeIn />
 		<CookieNotice />
 		{
 			showSiteAssistant && (
