@@ -637,7 +637,7 @@ function resetDeleteConfirmsIn(el) {
 
 /** Chevron-only back control for panel subheaders (.de-header). Hidden on
  *  desktop split-view by default (`.de-back-btn`); panels that need it at
- *  every viewport (settings, clients referrer) override display in CSS. */
+ *  every viewport (settings, clients, work referrer) override display in CSS. */
 export function createPanelBackBtn(opts = {}) {
   const { label = 'Back', onClick } = opts;
   return createIosIconBtn({

@@ -666,11 +666,12 @@ button.de-placeholder-action:active {
   .de-doc-name { font-size: 0.88rem; }
 }
 /*
- * Clients detail always shows back. The control often returns to a project or
- * schedule referrer (not only the mobile list/detail swap), so it must stay
- * visible on desktop split view as well.
+ * Clients and projects always show back. Those details often return to a
+ * contact, email, to-do, or the list — not only the mobile list/detail swap —
+ * so the chevron stays visible on desktop split view as well.
  */
-#clients-editor .de-back-btn.ios-icon-btn {
+#clients-editor .de-back-btn.ios-icon-btn,
+#work-editor .de-back-btn.ios-icon-btn {
   display: inline-flex;
 }
 .de-doc-name {
