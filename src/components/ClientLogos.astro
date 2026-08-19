@@ -19,8 +19,35 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
+function isCompact(logo: ClientLogo): boolean {
+  return logo.width / Math.max(logo.height, 1) < 1.8;
+}
+
+/** Shuffle, but never put two compact marks next to each other while a wide one remains. */
+function arrangeLogos(items: ClientLogo[]): ClientLogo[] {
+  const compact = shuffle(items.filter(isCompact));
+  const wide = shuffle(items.filter((logo) => !isCompact(logo)));
+  const out: ClientLogo[] = [];
+  let ci = 0;
+  let wi = 0;
+  let compactStreak = 0;
+
+  while (ci < compact.length || wi < wide.length) {
+    const preferWide =
+      wi < wide.length && (compactStreak >= 1 || ci >= compact.length || Math.random() < 0.55);
+    if (preferWide) {
+      out.push(wide[wi++]);
+      compactStreak = 0;
+      continue;
+    }
+    out.push(compact[ci++]);
+    compactStreak += 1;
+  }
+  return out;
+}
+
 const configured = getSiteContent().clientLogos ?? [];
-const logos: ClientLogo[] = shuffle(
+const logos: ClientLogo[] = arrangeLogos(
   configured.map((logo) => ({
     name: logo.name,
     src: logo.image,

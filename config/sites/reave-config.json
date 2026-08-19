@@ -201,7 +201,7 @@
     },
     {
       "name": "Kingdom Trails",
-      "image": "client-kingdom-trails",
+      "image": "/api/media/client-kingdom-trails?v=2",
       "width": 1134,
       "height": 261
     },
