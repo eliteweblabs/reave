@@ -338,6 +338,7 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
   if (!src || !link) return '';
   return `
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 .doc-onepager {
   position: relative;
   --ss-print-inset: 0.25in;
@@ -365,11 +366,47 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
   height: auto;
   background: #fff;
 }
+.ss-qr-note {
+  position: absolute;
+  top: calc(100% - 2px);
+  right: -2px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  color: #1a3d6e;
+  pointer-events: none;
+  transform: rotate(-7deg);
+  transform-origin: 90% 0;
+  line-height: 1;
+}
+.ss-qr-note svg {
+  display: block;
+  width: 34px;
+  height: 22px;
+  margin-right: 10px;
+  margin-bottom: -2px;
+}
+.ss-qr-note span {
+  font-family: Caveat, 'Segoe Script', 'Bradley Hand', cursive;
+  font-size: clamp(14px, 2.15cqi, 18px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: 0 0 3px #fff, 0 0 6px #fff;
+}
 </style>
 <figure class="ss-qr">
   <a href="${escapeHtml(link)}" target="_blank" rel="noopener">
-    <img src="${escapeHtml(src)}" alt="" width="72" height="72" />
+    <img src="${escapeHtml(src)}" alt="the full audit" width="72" height="72" />
   </a>
+  <div class="ss-qr-note" aria-hidden="true">
+    <svg viewBox="0 0 36 24" fill="none" aria-hidden="true">
+      <path d="M16.5 22.5c.4-6.2 3.2-11.4 14.2-18.8" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+      <path d="M25.2 6.8 31.4 3.2 31.8 10.1" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>the full audit</span>
+  </div>
 </figure>`.trim();
 }
 

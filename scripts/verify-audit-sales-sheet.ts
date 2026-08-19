@@ -473,6 +473,8 @@ await test('QR sits in the top-right without caption, title, or date', () => {
   assert.doesNotMatch(qr, /View Full Audit/);
   assert.doesNotMatch(qr, /figcaption/);
   assert.match(qr, /https:\/\/example.com\/digital-audit/);
+  assert.match(qr, /ss-qr-note/);
+  assert.match(qr, /the full audit/);
   assert.match(qr, /doc-onepager-title/);
   assert.match(qr, /doc-onepager-kicker \{ display: none; \}/);
   assert.match(qr, /position: absolute;/);
