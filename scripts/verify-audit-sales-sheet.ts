@@ -42,6 +42,7 @@ import {
   sheetSpeedResearchProblem,
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
+import { renderSalesSheetBackHtml } from '../src/lib/salesSheetBack.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -542,6 +543,37 @@ await test('sales sheet footer gets the portal audit disclaimer', () => {
   assert.ok(injected.indexOf('Prepared for') < injected.indexOf('ss-disclaimer'));
   assert.match(injected, /ss-disclaimer-copy/);
   assert.match(injected, /<\/div><\/footer>/);
+});
+
+await test('front footer is page 1 of 2 after fill', () => {
+  const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
+  assert.match(filled, /Page 1 of 2/);
+  assert.doesNotMatch(filled, /Page 1 of 1/);
+});
+
+await test('static back shows platform icons and no client fields', () => {
+  const back = renderSalesSheetBackHtml({
+    company: { name: 'REAVE', supportEmail: 'hello@reave.example' },
+    orientation: 'landscape',
+    logos: [
+      { name: 'Gmail', src: '/api/media/replaced-gmail' },
+      { name: 'Outlook', src: '/api/media/replaced-outlook' },
+      { name: 'Slack', src: '/api/media/replaced-slack' },
+    ],
+  });
+  assert.match(back, /data-ss-page="back"/);
+  assert.match(back, /Replace the stack/);
+  assert.match(back, /Page 2 of 2/);
+  assert.match(back, /Printed two sides/);
+  assert.match(back, /REAVE is built to absorb/);
+  assert.match(back, /hello@reave\.example/);
+  assert.match(back, /Gmail/);
+  assert.match(back, /Outlook/);
+  assert.match(back, /Slack/);
+  assert.match(back, /\/api\/media\/replaced-gmail/);
+  assert.equal((back.match(/class="ss-back-tile"/g) || []).length, 3);
+  assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
+  assert.doesNotMatch(back, /ss-qr|the full audit/);
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {

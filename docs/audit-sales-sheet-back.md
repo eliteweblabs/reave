@@ -1,11 +1,14 @@
-# Audit sales sheet — back (Figma + cascade)
+# Audit sales sheet — back (static + cascade)
 
-Print spec for the **back** of the `/admin/sales-sheet` leave-behind, plus the ranked exhibit list.
+Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
-Code source of truth for ranks and copy: `src/lib/salesSheetCascade.ts`.
+- **Front** — custom: client, scores, three cascade findings, Places phone, QR.
+- **Back** — static: company chrome + the replaced-app platform icons. Same HTML
+  for every client version (`src/lib/salesSheetBack.ts`).
+
+Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
-
-The back is not 40 findings. It is **the first three cascade hits**, each as a column with a visual.
+Platform icons: `src/lib/brandLogos.ts` (same wall as homepage / `/features`).
 
 ---
 
@@ -13,90 +16,50 @@ The back is not 40 findings. It is **the first three cascade hits**, each as a c
 
 | | |
 |---|---|
-| Paper | US Letter landscape |
-| Live area | **11 × 8.5 in** (same as the front) |
-| Office duplex | 0.5 in safe margin, no bleed |
+| Paper | US Letter landscape (portrait is also wired) |
+| Live area | **11 × 8.5 in** (same both sides) |
+| Office duplex | 0.5 in safe margin, no bleed · art already inset **0.25 in** |
 | Shop print | Optional 11.25 × 8.75 in frame (⅛ in bleed), live art centered |
 | Duplex | **Short-edge bind** so the back is right-side up when you flip landscape |
 
-Do not use the admin dark theme on paper. Near-black type, one accent, lots of white.
+Do not use the admin dark theme on the front. Near-black type, one accent, lots of white.
+The back keeps a white sheet; each platform mark sits on a small charcoal tile so
+light logos (Notion, Square, …) stay visible when printed.
 
 ---
 
-## Figma walkthrough
+## Front (custom)
 
-### 1. New file, print frame
+Header / three columns / footer. Logo left, QR right, client footer line.
 
-1. Figma → **New design file**. Name it `Audit sales sheet — back`.
-2. **F** (Frame). Set units to inches (or type `11in` / `8.5in`).
-3. Size: **W 11** × **H 8.5**. Name the frame `Back — Letter landscape`.
-4. Fill: white (`#FFFFFF`).
-5. Office print: skip bleed, use a **0.5 in** safe margin. Shop print: add a second frame at **11.25 × 8.75** and keep live art on the 11×8.5 centered inside it.
-
-### 2. Guides that match the front
-
-The live sheet is header / three columns / footer. Copy that skeleton.
-
-1. **Layout grid** on the frame: **3 columns**, gutter **0.25 in**, margin **0.5 in**.
-2. **Rulers** (Shift+R). Horizontal guides at:
-   - **0.5 in** — top of header
-   - **1.15 in** — bottom of header / top of body
-   - **7.85 in** — top of footer
-   - **8.0 in** — footer baseline
-3. Duplicate the frame as `Front — reference`. Drop a screenshot of `/admin/sales-sheet` so flip-alignment is obvious (logo left, QR right, footer line).
-
-### 3. Shared chrome (same both sides)
-
-Build as **components**:
-
-- **Header** — logo left, title “Website Audit” center, QR right (same 160px QR as the front).
-- **Footer** — 9–10pt: prepared for, company, date, “Page 2 of 2”.
-
-Place header and footer on the back. Lock them. Keep the QR on the **front** so they can scan without flipping.
-
-### 4. Three exhibit columns
-
-Each cascade hit is one column. Stack, top to bottom:
-
-1. **Kicker** — 10pt, uppercase, tracked: `01  SSL` / `02  GOOGLE PLACES` / `03  SEARCH`
-2. **Problem** — 14–16pt, 2 lines max (cascade `problem`)
-3. **Exhibit** — the `sheet` visual below
-4. **Next step** — 11pt, one sentence (cascade `solution`)
-
-### 5. Two exhibit components (reuse)
-
-**A. Browser chrome** — SSL, down, expired cert, malware, HTTP still live
-
-1. Rectangle ~**3.1 × 2.4 in**, 8px corner.
-2. Top bar 28px: three dots, address field.
-3. Address field: audit URL plus warning chip (`Not Secure` / `Expired` / `Deceptive site`).
-4. Body: warning page or a faded site screenshot. Swap the URL per client.
-
-**B. iPhone** — Places, Apple Maps, reviews, mobile, search
-
-1. Outer rounded rect **2.15 × 4.4 in**.
-2. Notch or Dynamic Island at top.
-3. Screen fill off-white.
-4. Search pill with `{Business name}` and optional city.
-5. Banner (e.g. “No Google listing”).
-6. Three competitor / result rows.
-
-Make **B** a component with text properties: Search, Banner, Row 1–3.
-
-### 6. A real client
-
-1. Duplicate `Back` → `Back — {Client}`.
-2. Take the three hits from `/admin/sales-sheet`.
-3. Swap each column’s kicker / problem / exhibit / next step.
-4. Export **PDF** (or PNG at **2x**) from the 11×8.5 frame.
-
-Do not design 40 unique full-page backs. One back template + two exhibit types. The cascade only picks which three slots to fill.
+The three columns are the first three cascade hits (see below). Only **Google
+Places** is drawn in code today (the phone mock). The other `sheet` lines are
+the spec for later exhibit generators.
 
 ---
 
-## Cascade of terribleness (what the back can show)
+## Back (static — every version)
 
-Walk rank 1 → N. First three hits become the three columns.
+Generated by `renderSalesSheetBackHtml()`. Do not put client name, scores,
+findings, or the audit QR here.
+
+1. **Header** — company logo left, title “Replace the stack”, kicker “One platform”.
+2. **Lead** — the homepage / `/features` “absorb that whole layer” line, with
+   `{company.name}`.
+3. **Icon wall** — every `REPLACED_APP_LOGOS` mark, labeled, 7 columns landscape
+   / 5 portrait. Bytes come from the media library (`replaced-*` slugs), inlined
+   as data URLs when seeded.
+4. **Note** — keep Gmail/Outlook for personal mail; the OS covers the rest.
+5. **Footer** — company name, support email, “Printed two sides”, “Page 2 of 2”.
+
+Print from `/admin/sales-sheet` → Print / Save PDF. Choose two-sided, short-edge
+bind on landscape.
+
+---
+
+## Cascade of terribleness (what the front picks)
+
+Walk rank 1 → N. First three hits become the three front columns.
 
 | Rank | Finding | Sheet (what to draw) |
 | ---: | --- | --- |
@@ -140,5 +103,3 @@ Walk rank 1 → N. First three hits become the three columns.
 | 38 | Social | Instagram/Facebook (or the missing-profile search) next to the site. |
 | 39 | Hosting | Speed score plus the host name (shared / GoDaddy / Bluehost). |
 | 40 | Security Headers | Missing HSTS / CSP / X-Frame-Options list — padlock is fine, headers are not. |
-
-Only **Google Places** is drawn in code today (the phone mock on the front). The other `sheet` lines are the spec for Figma and for later generators.

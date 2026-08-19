@@ -495,7 +495,7 @@ export function fillAuditOnePager(markdown: string, input: AuditSalesSheetInput)
     findingsColumn(input.findings),
     nextStepsColumn(input.findings),
   ]);
-  return setFrontmatterTitle(filled, 'Website Audit');
+  return setFrontmatterTitle(filled, 'Website Audit').replace(/Page 1 of 1/g, 'Page 1 of 2');
 }
 
 const COLUMN_MARK = /^:::column\s*$/m;
