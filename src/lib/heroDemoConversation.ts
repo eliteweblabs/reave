@@ -193,7 +193,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "susie-proposal",
     userAvatar: "hero-nda-signing",
-    holdMs: 1100,
+    holdMs: 1400,
     turns: [
       {
         role: "user",
@@ -459,8 +459,8 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "reggie-payment",
     userAvatar: "hero-henderson-billing",
-    /** Short hold after the invoice card has already swiped away. */
-    holdMs: 900,
+    /** Hold on the settled invoice before the scene fades. */
+    holdMs: 1400,
     turns: [
       {
         role: "user",

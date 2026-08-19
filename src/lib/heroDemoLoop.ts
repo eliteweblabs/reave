@@ -458,15 +458,13 @@ function createInvoiceSkeletonCard(): HTMLElement {
   return row;
 }
 
-/** Beat after the total pulse before the card swipes away. */
-const INVOICE_SIT_MS = 120;
-/** Swipe-off duration (CSS + wait). */
-const INVOICE_SWIPE_MS = 500;
+/** Beat after the total pulse before later chat turns scroll the card up. */
+const INVOICE_SIT_MS = 280;
 
 /**
  * After "View invoice": bounce a full-width skeleton invoice in, stagger a
- * payment row L→R, pulse the total, then swipe the card off to the right.
- * Marks the scene for a fade outro (no stack settle / cascade).
+ * payment row L→R, pulse the total, then leave the card in the stack so later
+ * turns (or the scene outro) scroll it up with the chat.
  */
 async function playInvoicePaymentSkeleton(
   sceneEl: HTMLElement,
@@ -498,10 +496,6 @@ async function playInvoicePaymentSkeleton(
     for (const bone of payBones) bone.classList.add("home-hero-demo-sk-bone--pay-in");
     total?.classList.add("home-hero-demo-sk-bone--total-pulse");
     await wait(INVOICE_SIT_MS);
-    card?.classList.add("home-hero-demo-sk-invoice--exit");
-    await wait(INVOICE_SWIPE_MS);
-    // Fade the remaining chat next — don't relayout or bubbles drop down.
-    sceneEl.dataset.heroHardCut = "1";
     return;
   }
 
@@ -542,16 +536,7 @@ async function playInvoicePaymentSkeleton(
   if (card) {
     card.classList.remove("home-hero-demo-sk-invoice--pop");
     card.classList.add("home-hero-demo-sk-invoice--settled");
-    void card.offsetWidth;
-    card.classList.remove("home-hero-demo-sk-invoice--settled");
-    card.style.setProperty("--hero-sk-invoice-exit-ms", `${scaleMs(INVOICE_SWIPE_MS)}ms`);
-    card.classList.add("home-hero-demo-sk-invoice--exit");
   }
-  await wait(INVOICE_SWIPE_MS);
-  if (!isAlive()) return;
-
-  // Signal playScene to fade the rest of the chat (no settle / cascade).
-  sceneEl.dataset.heroHardCut = "1";
 }
 
 /** Fake draft line items — widths only; bones stay illegible. */
@@ -629,7 +614,7 @@ function appendReviewLineItem(lines: HTMLElement, spec: { lineW: string; amtW: s
 /**
  * After "Review draft": bounce an invoice in, draw the header L→R, then add
  * line items one by one (desc then amount) as if scanning the document.
- * Swipes off and leaves the chat in place for the approval follow-up.
+ * Leaves the finished card in the stack so the approval follow-up scrolls it up.
  */
 async function playInvoiceReviewSkeleton(
   sceneEl: HTMLElement,
@@ -680,8 +665,6 @@ async function playInvoiceReviewSkeleton(
       revealAll();
       relayout(true);
       await wait(700);
-      row.remove();
-      relayout(true);
       return;
     }
     void card.offsetWidth;
@@ -763,16 +746,7 @@ async function playInvoiceReviewSkeleton(
   if (card) {
     card.classList.remove("home-hero-demo-sk-invoice--pop");
     card.classList.add("home-hero-demo-sk-invoice--settled");
-    void card.offsetWidth;
-    card.classList.remove("home-hero-demo-sk-invoice--settled");
-    card.style.setProperty("--hero-sk-invoice-exit-ms", `${scaleMs(INVOICE_SWIPE_MS)}ms`);
-    card.classList.add("home-hero-demo-sk-invoice--exit");
   }
-  await wait(INVOICE_SWIPE_MS);
-  if (!isAlive()) return;
-
-  row.remove();
-  relayout(true);
 }
 
 type DashboardNotificationIcon = { iconEmoji?: string; iconUrl?: string };
@@ -992,7 +966,7 @@ async function playContractSkeleton(
 
 /**
  * After Silver template press: send proposal → viewed/accepted toasts →
- * contract draw + signature. Ends with a hard cut like the invoice beat.
+ * contract draw + signature. Artifacts stay in the stack and scroll up with chat.
  */
 async function playProposalFlow(
   root: HTMLElement,
@@ -1074,12 +1048,6 @@ async function playProposalFlow(
   if (!isAlive()) return;
 
   await playContractSkeleton(sceneEl, relayout, reducedMotion, isAlive);
-  if (!isAlive()) return;
-
-  await wait(1200);
-  if (!isAlive()) return;
-
-  sceneEl.dataset.heroHardCut = "1";
 }
 
 const MAPBOX_CSS = "https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css";
@@ -2494,7 +2462,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
       }
 
       if (sceneEl.dataset.heroHardCut === "1") {
-        // Invoice already swiped away — fade the remaining chat, then next scene.
+        // Signing-status and similar beats skip the hold — fade, then next scene.
         await animateSceneExit(sceneEl);
         resetStack(stack);
         return;
