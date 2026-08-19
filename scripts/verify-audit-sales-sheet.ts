@@ -309,6 +309,7 @@ await test('phone mock-up can embed a real Google SERP screenshot', () => {
     { screenSrc: 'data:image/png;base64,AAA' },
   );
   assert.match(html, /ss-phone-serp/);
+  assert.match(html, /--ss-island-pad/);
   assert.match(html, /data:image\/png;base64,AAA/);
   assert.match(html, /data-places-serp="google"/);
   assert.doesNotMatch(html, /Nearby results/);
