@@ -1863,7 +1863,7 @@ function createListSelectionController(listEl, opts) {
   }
 
   function selectionBarTargetMargin() {
-    return stashedSubheaderMarginBottom || '0.5rem';
+    return stashedSubheaderMarginBottom || '0.35rem';
   }
 
   function clearToolbarLayoutStyles(bar) {

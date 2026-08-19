@@ -96,7 +96,7 @@
 /* Sidebar list subheader — search-only (see admin-ui.js listSearchSubheader) */
 .panel-list-subheader {
   position: relative;
-  margin: 0 var(--sidebar-inset) 0.5rem;
+  margin: 0 var(--sidebar-inset) 0.35rem;
   flex: 0 0 auto;
   transition:
     max-height 0.5s ease,
