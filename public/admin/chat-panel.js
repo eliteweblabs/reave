@@ -1821,6 +1821,9 @@ function renderChatSidebar(savedFilterScroll = 0) {
     below: renderChatFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
+  if (typeof shell.createChatReaveKeyFlag === 'function') {
+    sidebar.appendChild(shell.createChatReaveKeyFlag('banner'));
+  }
 
   const list = document.createElement('div');
   list.className = 'ch-list';

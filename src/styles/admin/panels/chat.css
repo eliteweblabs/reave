@@ -332,9 +332,52 @@ body.sidebar-resize-active * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ch-pane-header .ch-model-cluster,
 .ch-pane-header .ch-model-switcher,
+.de-header-actions .ch-model-cluster,
 .de-header-actions .ch-model-switcher {
   flex-shrink: 0;
+}
+.ch-model-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ch-reave-key-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #7c2d12;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem 0.22rem 0.4rem;
+  white-space: nowrap;
+}
+.ch-reave-key-flag[hidden] {
+  display: none !important;
+}
+.ch-reave-key-flag svg {
+  display: block;
+  flex-shrink: 0;
+}
+.ch-reave-key-flag--banner {
+  margin: 0.45rem 0.75rem 0;
+  align-self: flex-start;
+  font-size: 0.7rem;
+  padding: 0.32rem 0.62rem 0.32rem 0.48rem;
+}
+@media (prefers-color-scheme: dark) {
+  .ch-reave-key-flag {
+    color: #ffedd5;
+    background: rgba(154, 52, 18, 0.45);
+    border-color: #c2410c;
+  }
 }
 .ch-pane-header--nav-only {
   border-bottom: 1px solid var(--panel-border);

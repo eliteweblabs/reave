@@ -11,6 +11,7 @@ import {
 } from '../../../lib/agentModel';
 import { agentModelStorageBackend, setStoredAgentModel } from '../../../lib/agentModelStore';
 import { getAnthropicBalance, type AnthropicBalance } from '../../../lib/anthropicBalance';
+import { getAnthropicKeySource, type AnthropicKeySource } from '../../../lib/anthropicKeySource';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -22,7 +23,11 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function payload(settings: AgentModelSettings, anthropicBalance: AnthropicBalance) {
+function payload(
+  settings: AgentModelSettings,
+  anthropicBalance: AnthropicBalance,
+  anthropicKeySource: AnthropicKeySource = getAnthropicKeySource(),
+) {
   return {
     ok: true,
     model: settings.model,
@@ -33,6 +38,7 @@ function payload(settings: AgentModelSettings, anthropicBalance: AnthropicBalanc
     options: settings.options,
     storage: agentModelStorageBackend(),
     anthropicBalance,
+    anthropicKeySource,
   };
 }
 

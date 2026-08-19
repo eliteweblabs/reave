@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   /** Optional: Anthropic (Claude) key for freeform tool-using replies */
   ANTHROPIC_API_KEY?: string;
+  /** `reave` = copied from the official host; `client` = this install’s own key */
+  ANTHROPIC_KEY_SOURCE?: string;
   /** Optional: defaults to claude-sonnet-4-6 */
   ANTHROPIC_MODEL?: string;
   /** Anthropic Console org id — for live prepaid credit balance in /admin model switcher */

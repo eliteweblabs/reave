@@ -199,7 +199,7 @@ ${modulePicker}
 - [ ] \`INSTALL_CONFIG=${install}\`
 - [ ] \`CONTACT_API_BASE_URL\` + \`CONTACT_API_KEY\`
 - [ ] Resend inbound + \`RESEND_*\`
-- [ ] \`ANTHROPIC_API_KEY\` + \`AGENT_ALERT_USER_ID\`
+- [ ] \`ANTHROPIC_API_KEY\` (blank copies the REΛVE host key) + \`AGENT_ALERT_USER_ID\`
 
 ## Step 2 — Client baseline
 

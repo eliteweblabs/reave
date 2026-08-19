@@ -1049,6 +1049,7 @@ export let agentModelState = {
   loading: true,
   saving: false,
   anthropicBalance: null,
+  anthropicKeySource: 'none',
 };
 
 function formatBalanceUsd(n) {
@@ -1339,7 +1340,31 @@ function createModelDropdown(opts = {}) {
   return { root, entry };
 }
 
+function isReaveSharedAnthropicKey() {
+  return agentModelState.anthropicKeySource === 'reave';
+}
+
+function createChatReaveKeyFlag(variant = 'chip') {
+  const el = document.createElement(variant === 'banner' ? 'div' : 'span');
+  el.className = variant === 'banner' ? 'ch-reave-key-flag ch-reave-key-flag--banner' : 'ch-reave-key-flag';
+  el.hidden = !isReaveSharedAnthropicKey();
+  el.title = 'This install uses the shared REΛVE Claude API key. Add the client’s ANTHROPIC_API_KEY to use their own.';
+  el.innerHTML = `${iosIcon('key', variant === 'banner' ? 14 : 12)}<span>REΛVE key</span>`;
+  return el;
+}
+
+function syncReaveKeyFlags() {
+  const on = isReaveSharedAnthropicKey();
+  document.querySelectorAll('.ch-reave-key-flag').forEach((el) => {
+    el.hidden = !on;
+  });
+}
+
 function createChatModelSwitcher() {
+  const cluster = document.createElement('div');
+  cluster.className = 'ch-model-cluster';
+  cluster.appendChild(createChatReaveKeyFlag('chip'));
+
   const wrap = document.createElement('div');
   wrap.className = 'ch-model-switcher';
 
@@ -1351,7 +1376,8 @@ function createChatModelSwitcher() {
 
   const { root } = createModelDropdown({ compact: true });
   wrap.appendChild(root);
-  return wrap;
+  cluster.appendChild(wrap);
+  return cluster;
 }
 
 function syncModelNodeLabels() {
@@ -1389,12 +1415,14 @@ async function loadAgentModel() {
     agentModelState.source = data.source || 'default';
     agentModelState.options = data.options || [];
     agentModelState.anthropicBalance = data.anthropicBalance || null;
+    agentModelState.anthropicKeySource = data.anthropicKeySource || 'none';
   } catch (e) {
     console.warn('[model] load failed:', e);
   } finally {
     agentModelState.loading = false;
     renderModelSelectOptions();
     syncModelNodeLabels();
+    syncReaveKeyFlags();
   }
 }
 
@@ -1416,6 +1444,7 @@ async function saveAgentModel(model) {
     agentModelState.source = data.source || 'stored';
     agentModelState.options = data.options || agentModelState.options;
     agentModelState.anthropicBalance = data.anthropicBalance || agentModelState.anthropicBalance;
+    if (data.anthropicKeySource) agentModelState.anthropicKeySource = data.anthropicKeySource;
     syncModelNodeLabels();
     if (activeKey === 'system') pollHealth();
   } catch (e) {
@@ -1425,6 +1454,7 @@ async function saveAgentModel(model) {
   } finally {
     agentModelState.saving = false;
     renderModelSelectOptions();
+    syncReaveKeyFlags();
   }
 }
 
@@ -10546,6 +10576,7 @@ initChatPanel({
   placeholderHtml,
   scrollSidebarListItemIntoView,
   agentModelState,
+  createChatReaveKeyFlag,
   chatHasConversation,
   buildChatPaneHeader,
   clearTopbarPanelContext,

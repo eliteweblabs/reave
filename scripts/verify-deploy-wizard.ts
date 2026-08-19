@@ -17,7 +17,7 @@ import {
   deployWizardInboundWebhookUrl,
   deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
-import { generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
+import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
 import { buildGithubAppManifest, githubAppManifestName } from '../src/lib/deployWizardGithubApp.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
@@ -226,9 +226,14 @@ assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.prov
 assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_INSTALLATION_ID')?.provisionedOnApply, true);
 
 const coreSecrets = buildDeployWizardPlan({ features: ['website'] });
-assert.equal(coreSecrets.variables.find((v) => v.name === 'ANTHROPIC_API_KEY')?.required, true);
+const anthropicSecret = coreSecrets.variables.find((v) => v.name === 'ANTHROPIC_API_KEY');
+assert.equal(anthropicSecret?.required, false);
+assert.equal(anthropicSecret?.needsInput, true);
 assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, true);
 assert.equal(coreSecrets.variables.find((v) => v.name === 'CLERK_SECRET_KEY')?.required, false);
+assert.equal(anthropicKeySourceForApply('', 'sk-ant-host'), 'reave');
+assert.equal(anthropicKeySourceForApply('sk-ant-client', 'sk-ant-host'), 'client');
+assert.equal(anthropicKeySourceForApply('', ''), '');
 
 const lawSeed = buildDeployWizardPlan({
   features: ['website'],

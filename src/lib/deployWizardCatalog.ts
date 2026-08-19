@@ -503,7 +503,8 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'ANTHROPIC_API_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Claude API key for the admin agent. Paste the client’s key, or leave blank to copy this host’s.',
+    description:
+      'Claude API key for the admin agent. Leave blank to use this host’s REΛVE key (chat shows a shared-key flag). Paste the client’s key to use theirs.',
   }),
   v({
     name: 'RESEND_API_KEY',
@@ -1436,8 +1437,11 @@ export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM
 /** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
-/** Only these operator secrets block Apply when empty (Anthropic + email). */
-export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set(['ANTHROPIC_API_KEY', 'RESEND_API_KEY']);
+/** Secrets that show a paste field (Anthropic is optional — blank copies the REΛVE host key). */
+export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY', 'RESEND_API_KEY']);
+
+/** Only these operator secrets block Apply when empty (email — skip if sample inbox is on). */
+export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set(['RESEND_API_KEY']);
 
 export const DEPLOY_WIZARD_SEED_INDUSTRIES = [
   { id: 'none', label: 'No sample data' },
@@ -1649,7 +1653,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     const provisionedOnApply = isDeployWizardProvisionedSecret(raw);
     const rolledOnApply = raw.kind === 'generated';
     const required = isDeployWizardRequiredOperatorSecret(raw.name, seed);
-    const needsInput = DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS.has(raw.name);
+    const needsInput = DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS.has(raw.name);
     variables.push({
       ...raw,
       required,

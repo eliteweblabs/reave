@@ -408,7 +408,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">The only tokens you need to bring are <code>ANTHROPIC_API_KEY</code> and <code>RESEND_API_KEY</code> (skip Resend if you seeded a sample inbox). Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
+      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is required unless you seeded a sample inbox. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
@@ -441,7 +441,7 @@
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       `</div>` +
       (missing.length
-        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Paste Anthropic and Resend on Variables — or seed a sample inbox to skip Resend.</p>`
+        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Paste Resend on Variables — or seed a sample inbox to skip it. Anthropic defaults to this host’s REΛVE key.</p>`
         : '') +
       `<label class="dl-field dw-cli-field">` +
       `<span class="dl-field-label">Railway CLI</span>` +

@@ -103,7 +103,24 @@ export async function resolveDeployWizardApply(
     byService.set(variable.service, bucket);
   }
 
+  const anthropicVar = plan.variables.find((variable) => variable.name === 'ANTHROPIC_API_KEY');
+  if (anthropicVar) {
+    const bucket = byService.get(anthropicVar.service);
+    if (bucket?.ANTHROPIC_API_KEY) {
+      const typed = (values[`${anthropicVar.service}:ANTHROPIC_API_KEY`] ?? '').trim();
+      const source = anthropicKeySourceForApply(typed, serverEnv('ANTHROPIC_API_KEY') || '');
+      if (source) bucket.ANTHROPIC_KEY_SOURCE = source;
+    }
+  }
+
   return { ok: true, byService, notes };
+}
+
+/** Typed client key wins; otherwise the copied REΛVE host key. */
+export function anthropicKeySourceForApply(typedValue: string, inheritedValue: string): 'client' | 'reave' | '' {
+  if (typedValue.trim()) return 'client';
+  if (inheritedValue.trim()) return 'reave';
+  return '';
 }
 
 function resolveOne(
@@ -115,7 +132,9 @@ function resolveOne(
     githubApp?: DeployWizardGithubAppCredentials;
   },
 ): string {
-  if (variable.inheritFromHost) return serverEnv(variable.name)?.trim() || '';
+  const key = `${variable.service}:${variable.name}`;
+  const typed = (values[key] ?? '').trim();
+  if (variable.inheritFromHost) return typed || serverEnv(variable.name)?.trim() || '';
   if (variable.provisionedOnApply && variable.name === 'RESEND_WEBHOOK_SECRET') return extras.webhookSecret;
   if (variable.provisionedOnApply && DEPLOY_WIZARD_GITHUB_APP_VARS.has(variable.name)) {
     return extras.githubApp?.[variable.name as keyof DeployWizardGithubAppCredentials] || '';
@@ -125,6 +144,5 @@ function resolveOne(
     if (variable.name === 'VAPID_PRIVATE_KEY') return extras.vapid?.privateKey ?? '';
     return generateDeployWizardSecret(variable.name);
   }
-  const key = `${variable.service}:${variable.name}`;
-  return (values[key] ?? variable.filled ?? '').trim();
+  return typed || (variable.filled ?? '').trim();
 }
