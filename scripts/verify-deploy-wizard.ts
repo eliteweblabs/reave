@@ -18,6 +18,7 @@ import {
   deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
 import { generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
+import { buildGithubAppManifest, githubAppManifestName } from '../src/lib/deployWizardGithubApp.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
   featureVisibility,
@@ -214,8 +215,22 @@ assert.equal(websiteRepoVar?.filled, 'eliteweblabs/tonybarlettajr-site');
 const websiteToken = websitePlan.variables.find((v) => v.name === 'GITHUB_TOKEN');
 assert.equal(websiteToken?.inheritFromHost, false, 'client GITHUB_TOKEN must not copy the REΛVE host PAT');
 assert.equal(websiteToken?.required, false);
-assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_PRIVATE_KEY')?.inheritFromHost, true);
-assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.inheritFromHost, true);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_PRIVATE_KEY')?.inheritFromHost, false);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.inheritFromHost, false);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_PRIVATE_KEY')?.provisionedOnApply, true);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.provisionedOnApply, true);
+assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_INSTALLATION_ID')?.provisionedOnApply, true);
+assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
+const manifest = buildGithubAppManifest({
+  installSlug: 'tonybarlettajr',
+  origin: 'https://reave.app',
+  siteDomain: 'tony.com',
+  state: 'abc',
+});
+assert.equal(manifest.name, 'reave-tonybarlettajr');
+assert.equal((manifest.default_permissions as { contents?: string }).contents, 'write');
+assert.match(String(manifest.redirect_url), /state=abc/);
+assert.equal(manifest.public, false);
 
 const cli = formatDeployWizardCli(billedDns);
 assert.match(cli, /CNAME\s+ap\s+ap\.acme\.com/);

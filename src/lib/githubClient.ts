@@ -923,3 +923,28 @@ export async function githubAddRepoToAppInstallation(opts: {
   }
   return { ok: true, data: { repo: meta.data.repo, installation_id: installationId } };
 }
+
+/** Remove a repo from a GitHub App installation (classic PAT, org admin). */
+export async function githubRemoveRepoFromAppInstallation(opts: {
+  repo: string;
+  installationId?: string;
+}): Promise<GithubResult<{ repo: string; installation_id: string }>> {
+  if (!staticToken()) {
+    return {
+      ok: false,
+      error: 'GITHUB_TOKEN (classic PAT with repo scope) is required to update the GitHub App installation',
+    };
+  }
+  const installationId = (opts.installationId || serverEnv('GITHUB_APP_INSTALLATION_ID') || '').trim();
+  if (!installationId) return { ok: false, error: 'GITHUB_APP_INSTALLATION_ID is not set' };
+
+  const meta = await githubGetRepo(opts.repo);
+  if (!meta.ok) return meta;
+
+  const removed = await ghFetch<unknown>(
+    `/user/installations/${encodeURIComponent(installationId)}/repositories/${meta.data.id}`,
+    { method: 'DELETE' },
+  );
+  if (!removed.ok && removed.status !== 204 && removed.status !== 404) return removed;
+  return { ok: true, data: { repo: meta.data.repo, installation_id: installationId } };
+}

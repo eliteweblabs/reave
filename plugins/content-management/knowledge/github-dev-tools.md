@@ -11,7 +11,7 @@ The Agentic Website Editor writes files via the GitHub REST API. Read-only statu
 | **Client** (`website` / `content_management`, not ops) | Only `websiteRepo` / `GITHUB_WEBSITE_REPO` (usually `eliteweblabs/{slug}-site`). Tools ignore other `repo` arguments. No `create_github_repo`. |
 | **Ops / official REΛVE** | This app (`eliteweblabs/reave`) plus named sibling services. You provision each client’s front-end repo. |
 
-Client installs do **not** get a PAT. GitHub cannot create PATs via API. The deploy wizard copies this host’s **GitHub App** (`GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY`) and mints a 1-hour Contents token scoped to the website repo on each write. Do not copy the official REΛVE `GITHUB_TOKEN` onto a client.
+Client installs do **not** get a PAT. GitHub cannot create PATs via API. The deploy wizard creates a **restricted GitHub App** for `eliteweblabs/{slug}-site` (`GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY`) and mints a 1-hour Contents token scoped to that repo on each write. Do not copy the official REΛVE `GITHUB_TOKEN` onto a client.
 
 On a deployed container there is often no git binary and no `.git` checkout, so `exec_command`/shell `git push` will not work — the GitHub API is the only way to persist code there.
 
@@ -44,7 +44,7 @@ On a deployed container there is often no git binary and no `.git` checkout, so 
 
 ## Provisioning a client website repo (ops)
 
-Use the deploy wizard Apply (website / content_management on). It creates `eliteweblabs/{slug}-site`, adds it to the host GitHub App, and copies `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO`. One-time host setup: a GitHub App on eliteweblabs with Contents read+write, installed on **selected repositories only** (never `eliteweblabs/reave`), plus a classic PAT with `repo` scope as `GITHUB_TOKEN` so Apply can create and attach repos.
+Use the deploy wizard Apply (website / content_management on). It creates `eliteweblabs/{slug}-site`, then GitHub’s App manifest flow creates a restricted App installed on that repo only, and writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO`. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create and attach the repo. Never install that App on `eliteweblabs/reave`.
 
 ## Tools
 

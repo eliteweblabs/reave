@@ -20,13 +20,13 @@ Enabling `website` also turns on the Agentic Website Editor tools and Pexels sea
 ## Required env vars
 
 - `GITHUB_WEBSITE_REPO` — `owner/repo` for this install’s front-end (not `eliteweblabs/reave`)
-- `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` — copied by deploy wizard Apply
+- `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` — created by deploy wizard Apply
 - `PEXELS_API_KEY` — optional; stock photo search
 
 ## External setup
 
 - Enable `website` in install config `features[]`
-- Prefer deploy wizard Apply (creates `{slug}-site` and copies the host GitHub App)
+- Prefer deploy wizard Apply (creates `{slug}-site` and a restricted GitHub App for that repo)
 - Do **not** enable `dev_infra` on a client install
 - Do **not** copy the REΛVE host `GITHUB_TOKEN`
 

@@ -52,6 +52,7 @@
   let applied = null;
   let appliedDns = null;
   let appliedProvisioned = [];
+  let githubBanner = '';
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
@@ -352,7 +353,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Nothing on this page is typed. Apply copies keys from this host, rolls new secrets (including a real VAPID pair), creates the Resend inbound webhook, and writes Railway references. <code>RESEND_FROM</code> is <code>noreply@inbound.{apex}</code>. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and copies this host’s GitHub App (GitHub cannot mint PATs).</p>` +
+      `<p class="dl-footnote">Nothing on this page is typed. Apply copies keys from this host, rolls new secrets (including a real VAPID pair), creates the Resend inbound webhook, and writes Railway references. <code>RESEND_FROM</code> is <code>noreply@inbound.{apex}</code>. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only (GitHub cannot mint PATs).</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
@@ -401,7 +402,7 @@
       `</button>` +
       `</div>` +
       (railway.configured
-        ? `<p class="dl-meta">Apply copies host keys, rolls secrets, creates the Resend webhook, and writes Railway variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Services must already exist with these names.</p>`
+        ? `<p class="dl-meta">Apply copies host keys, rolls secrets, creates the Resend webhook, and writes Railway variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Website module: GitHub will ask you to create and install a restricted App on <code>{slug}-site</code> only. Services must already exist with these names.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
         ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
@@ -435,6 +436,7 @@
       `<div class="dl-panel">` +
       renderStepper() +
       (error ? `<p class="dl-launch-error" role="alert">${esc(error)}</p>` : '') +
+      (githubBanner ? `<p class="dl-footnote" role="status">${esc(githubBanner)}</p>` : '') +
       (step === 0 ? renderModules() : '') +
       (step === 1 ? renderServices() : '') +
       (step === 2 ? renderVariables() : '') +
@@ -548,6 +550,7 @@
     }
     applying = true;
     error = '';
+    let leavingForGithub = false;
     render();
     bind();
     try {
@@ -572,6 +575,11 @@
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json.error || `Apply failed (${res.status})`);
+      if (json.needsGithubApp) {
+        leavingForGithub = true;
+        submitGithubAppManifest(json.needsGithubApp);
+        return;
+      }
       plan = json.plan;
       cli = json.cli || cli;
       applied = json.applied || [];
@@ -580,9 +588,11 @@
     } catch (e) {
       error = e.message || 'Could not apply variables.';
     } finally {
-      applying = false;
-      render();
-      bind();
+      if (!leavingForGithub) {
+        applying = false;
+        render();
+        bind();
+      }
     }
   }
 
@@ -668,6 +678,23 @@
     });
   }
 
+  function submitGithubAppManifest(setup) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = setup.actionUrl;
+    const manifest = document.createElement('input');
+    manifest.type = 'hidden';
+    manifest.name = 'manifest';
+    manifest.value = JSON.stringify(setup.manifest);
+    const state = document.createElement('input');
+    state.type = 'hidden';
+    state.name = 'state';
+    state.value = setup.state;
+    form.append(manifest, state);
+    document.body.appendChild(form);
+    form.submit();
+  }
+
   async function goNextFromExtras() {
     readIdentity();
     try {
@@ -704,6 +731,13 @@
       const allowed = new Set(toggleableModules().map((m) => m.moduleId));
       selectedIds = new Set((data.defaultModuleIds || [...allowed]).filter((id) => allowed.has(id)));
       if (railway.projects?.length === 1) project = railway.projects[0].id;
+      const params = new URLSearchParams(location.search);
+      if (params.get('github') === 'ok') {
+        githubBanner =
+          'Created a restricted GitHub App for this site and applied Railway variables. Redeploy when ready.';
+      } else if (params.get('github') === 'error') {
+        error = params.get('message') || 'GitHub App setup failed.';
+      }
       render();
       bind();
     } catch (e) {

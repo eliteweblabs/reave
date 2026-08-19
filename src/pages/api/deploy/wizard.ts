@@ -17,19 +17,17 @@ import {
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from '../../../lib/deployWizardCatalog';
-import { resolveDeployWizardApply } from '../../../lib/deployWizardResolve';
+import { executeDeployWizardApply, isDeployWizardApplyNeedGithubApp } from '../../../lib/deployWizardApply';
 import { serverEnv } from '../../../lib/serverEnv';
-import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { FEATURE_BLURBS, FEATURE_ID_SET, type FeatureId } from '../../../lib/featureCatalog';
 import { hasFeature } from '../../../lib/features';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
-import { applyDeployWizardDns } from '../../../lib/deployWizardDns';
 import { isCloudflareConfigured } from '../../../lib/cloudflareClient';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
-import { railwaySetVariables } from '../../../lib/railwayAgentApi';
 import { isResendConfigured } from '../../../lib/resendDnsSync';
 import { isGithubAppConfigured } from '../../../lib/githubApp';
+import { createGithubAppPending, githubAppCookieHeader } from '../../../lib/deployWizardGithubApp';
 
 export const prerender = false;
 
@@ -210,61 +208,63 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'project is required to apply variables', plan: publicPlan, cli }, 400);
   }
 
-  const resolved = await resolveDeployWizardApply(plan, values);
-  if (!resolved.ok) {
-    return json({ ok: false, error: resolved.error, plan: publicPlan, cli }, 400);
-  }
-  const byService = resolved.byService;
-
-  const applied: Array<{ service: string; updated: string[] }> = [];
-  for (const [service, variables] of byService) {
-    const result = await railwaySetVariables({
-      project,
-      environment,
-      service: service === 'shared' ? undefined : service,
-      variables,
-      skip_deploys: true,
-    });
-    if (!result.ok) {
-      return json({ ok: false, error: `${service}: ${result.error}`, plan: publicPlan, cli, applied }, 502);
-    }
-    applied.push({ service, updated: result.updated });
-  }
-
-  const identity = features.includes('scheduling')
-    ? await syncCalcomIdentityFromReave({
-        force: true,
-        request: context.request,
-        project,
-      }).catch((e) => ({
-        ok: false,
-        error: e instanceof Error ? e.message : String(e),
-      }))
-    : undefined;
-
-  const dns = await applyDeployWizardDns({
+  const executed = await executeDeployWizardApply({
     plan,
+    values,
     project,
     environment,
-  }).catch((e) => ({
-    ok: false,
-    configured: isCloudflareConfigured(),
-    rows: [],
-    leftover: [e instanceof Error ? e.message : String(e)],
-    summary: e instanceof Error ? e.message : String(e),
-  }));
+    request: context.request,
+  });
 
-  const provisioned = resolved.notes;
+  if (isDeployWizardApplyNeedGithubApp(executed)) {
+    const setup = createGithubAppPending(
+      {
+        features,
+        extras,
+        appService,
+        installSlug: plan.installSlug,
+        siteDomain,
+        postAlias,
+        companyName,
+        adminUsername,
+        timezone,
+        project,
+        environment,
+        values,
+      },
+      context.url.origin,
+    );
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        needsGithubApp: setup,
+        plan: publicPlan,
+        cli,
+        provisioned: executed.notes,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'Set-Cookie': githubAppCookieHeader(setup.state, context.url.protocol === 'https:'),
+        },
+      },
+    );
+  }
+
+  if (!executed.ok) {
+    return json({ ok: false, error: executed.error, plan: publicPlan, cli, applied: executed.applied }, executed.applied?.length ? 502 : 400);
+  }
+
   return json({
     ok: true,
     plan: publicPlan,
     cli,
-    applied,
-    identity,
-    dns,
-    provisioned,
-    hint: [provisioned.join(' '), dns.summary || 'Variables saved without an automatic redeploy. Redeploy each service when you are ready.']
-      .filter(Boolean)
-      .join(' '),
+    applied: executed.applied,
+    identity: executed.identity,
+    dns: executed.dns,
+    provisioned: executed.provisioned,
+    hint: executed.hint,
   });
 }

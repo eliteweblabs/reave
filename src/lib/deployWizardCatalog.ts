@@ -1263,21 +1263,21 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'GITHUB_APP_ID',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'GitHub App id from this host — mints a repo-scoped token on each write.',
+    description: 'Restricted GitHub App created on apply for this site’s repo only.',
     features: ['website', 'content_management'],
   }),
   v({
     name: 'GITHUB_APP_INSTALLATION_ID',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'GitHub App installation on eliteweblabs (selected repos only; never reave).',
+    description: 'Installation of that App on eliteweblabs/{slug}-site only (never reave).',
     features: ['website', 'content_management'],
   }),
   v({
     name: 'GITHUB_APP_PRIVATE_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'GitHub App private key from this host. Tokens are minted scoped to GITHUB_WEBSITE_REPO only.',
+    description: 'Private key for this install’s App. Tokens are minted for GITHUB_WEBSITE_REPO only.',
     features: ['website', 'content_management'],
   }),
   v({
@@ -1433,7 +1433,7 @@ export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM
 /** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
-/** GitHub App credentials copied onto client website-editor installs. */
+/** GitHub App credentials created on apply (or reused from this host if already set). */
 export const DEPLOY_WIZARD_GITHUB_APP_VARS = new Set([
   'GITHUB_APP_ID',
   'GITHUB_APP_INSTALLATION_ID',
@@ -1441,10 +1441,14 @@ export const DEPLOY_WIZARD_GITHUB_APP_VARS = new Set([
 ]);
 
 /** Secrets created via an API on apply (not copied from this host). */
-export const DEPLOY_WIZARD_PROVISIONED_SECRETS = new Set(['RESEND_WEBHOOK_SECRET']);
+export const DEPLOY_WIZARD_PROVISIONED_SECRETS = new Set([
+  'RESEND_WEBHOOK_SECRET',
+  'GITHUB_APP_ID',
+  'GITHUB_APP_INSTALLATION_ID',
+  'GITHUB_APP_PRIVATE_KEY',
+]);
 
 export function isDeployWizardHostSecret(variable: Pick<DeployWizardVariable, 'kind' | 'name'>): boolean {
-  if (DEPLOY_WIZARD_GITHUB_APP_VARS.has(variable.name)) return true;
   return (
     variable.kind === 'secret' &&
     !DEPLOY_WIZARD_DERIVED_SECRETS.has(variable.name) &&

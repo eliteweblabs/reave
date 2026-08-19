@@ -17,8 +17,8 @@ Super-admin module for the official REΛVE Railway install only. Do not add `dep
 
 - `RAILWAY_API_TOKEN` — optional; needed only for Apply. CLI copy works without it.
 - For client **Website** / Agentic Website Editor on Apply:
-  - `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` — GitHub App on eliteweblabs, selected repos only (not `eliteweblabs/reave`)
-  - `GITHUB_TOKEN` — classic PAT with `repo` scope (create `{slug}-site` and add it to the App). GitHub cannot mint PATs.
+  - `GITHUB_TOKEN` — classic PAT with `repo` scope (create `{slug}-site` and attach the App). GitHub cannot mint PATs.
+  - `GITHUB_APP_*` — created on Apply (GitHub App manifest + install on `{slug}-site` only). Reused if already set on this host.
 
 ## External setup
 

@@ -1,9 +1,9 @@
 /**
  * GitHub App installation tokens — the automatic stand-in for a fine-grained PAT.
  *
- * GitHub has no API to create PATs. A GitHub App on the official REΛVE host
- * mints a 1-hour token scoped to one website repo. The deploy wizard copies
- * App credentials onto the client and adds that repo to the installation.
+ * GitHub has no API to create PATs. Deploy-wizard Apply creates a restricted
+ * App for eliteweblabs/{slug}-site (or reuses GITHUB_APP_* if this host has
+ * them). The client mints a 1-hour token scoped to GITHUB_WEBSITE_REPO.
  */
 import { createSign } from 'node:crypto';
 import { serverEnv } from './serverEnv';

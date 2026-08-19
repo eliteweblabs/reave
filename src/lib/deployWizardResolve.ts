@@ -5,11 +5,13 @@
 import { randomBytes } from 'node:crypto';
 import webpush from 'web-push';
 import {
+  DEPLOY_WIZARD_GITHUB_APP_VARS,
   deployWizardInboundWebhookUrl,
   type DeployWizardPlan,
   type DeployWizardPlanVariable,
 } from './deployWizardCatalog';
-import { provisionClientWebsiteGitHub } from './deployWizardGithub';
+import { isProvisionNeedGithubApp, provisionClientWebsiteGitHub } from './deployWizardGithub';
+import type { DeployWizardGithubAppCredentials } from './deployWizardGithubApp';
 import { resendEnsureInboundWebhook } from './resendDnsSync';
 import { serverEnv } from './serverEnv';
 
@@ -22,12 +24,27 @@ export function generateDeployWizardSecret(name: string): string {
 
 export type DeployWizardApplyNotes = string[];
 
+export type DeployWizardResolveNeedGithubApp = {
+  ok: false;
+  needsGithubApp: true;
+  repo: string;
+  notes: DeployWizardApplyNotes;
+};
+
+export function isDeployWizardNeedGithubApp(
+  result: { ok: true } | { ok: false; error: string } | DeployWizardResolveNeedGithubApp,
+): result is DeployWizardResolveNeedGithubApp {
+  return !result.ok && 'needsGithubApp' in result && result.needsGithubApp === true;
+}
+
 export async function resolveDeployWizardApply(
   plan: DeployWizardPlan,
   values: Record<string, string>,
+  opts?: { githubApp?: DeployWizardGithubAppCredentials },
 ): Promise<
   | { ok: true; byService: Map<string, Record<string, string>>; notes: DeployWizardApplyNotes }
   | { ok: false; error: string }
+  | DeployWizardResolveNeedGithubApp
 > {
   const notes: DeployWizardApplyNotes = [];
   const byService = new Map<string, Record<string, string>>();
@@ -50,15 +67,26 @@ export async function resolveDeployWizardApply(
     notes.push(hook.created ? `Created Resend inbound webhook ${endpoint}` : `Reused Resend inbound webhook ${endpoint}`);
   }
 
+  let githubApp = opts?.githubApp;
   const needsWebsiteRepo = plan.features.includes('website') || plan.features.includes('content_management');
   if (needsWebsiteRepo) {
-    const site = await provisionClientWebsiteGitHub({ installSlug: plan.installSlug });
-    if (!site.ok) return { ok: false, error: site.error };
+    const site = await provisionClientWebsiteGitHub({
+      installSlug: plan.installSlug,
+      credentials: githubApp,
+    });
+    if (isProvisionNeedGithubApp(site)) {
+      notes.push(...site.notes);
+      return { ok: false, needsGithubApp: true, repo: site.repo, notes };
+    }
+    if (!site.ok) {
+      return { ok: false, error: site.error };
+    }
+    githubApp = site.credentials;
     notes.push(...site.notes);
   }
 
   for (const variable of plan.variables) {
-    const value = resolveOne(variable, values, { vapid, webhookSecret });
+    const value = resolveOne(variable, values, { vapid, webhookSecret, githubApp });
     if (!value) {
       if (variable.required && (variable.kind === 'secret' || variable.kind === 'generated')) {
         return {
@@ -84,10 +112,14 @@ function resolveOne(
   extras: {
     vapid: { publicKey: string; privateKey: string } | null;
     webhookSecret: string;
+    githubApp?: DeployWizardGithubAppCredentials;
   },
 ): string {
   if (variable.inheritFromHost) return serverEnv(variable.name)?.trim() || '';
   if (variable.provisionedOnApply && variable.name === 'RESEND_WEBHOOK_SECRET') return extras.webhookSecret;
+  if (variable.provisionedOnApply && DEPLOY_WIZARD_GITHUB_APP_VARS.has(variable.name)) {
+    return extras.githubApp?.[variable.name as keyof DeployWizardGithubAppCredentials] || '';
+  }
   if (variable.kind === 'generated') {
     if (variable.name === 'VAPID_PUBLIC_KEY') return extras.vapid?.publicKey ?? '';
     if (variable.name === 'VAPID_PRIVATE_KEY') return extras.vapid?.privateKey ?? '';
