@@ -21,6 +21,7 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
             class="masonry-image"
             loading="lazy"
             decoding="async"
+            style={item.imagePosition ? `--image-position: ${item.imagePosition}` : undefined}
           />
           <div class="masonry-overlay">
             <div class="masonry-overlay-inner">
@@ -45,7 +46,11 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     --masonry-cols: 6;
     --masonry-gap: clamp(8px, 1.2vw, 12px);
     --gutter-x: clamp(12px, 2vw, 28px);
-    --brick-ratio: 0.75;
+    /* One row = this × one column. A 2×1 tile is 2 cols × 1 row, so its
+       aspect is 2 / --brick-ratio. 1.125 → 16:9. 0.75 was ~2.67:1. */
+    --tile-aspect-w: 16;
+    --tile-aspect-h: 9;
+    --brick-ratio: calc(2 * var(--tile-aspect-h) / var(--tile-aspect-w));
     /* Never use 100% here — in grid-auto-rows it resolves against height and collapses. */
     --masonry-col: calc((100vw - (var(--gutter-x) * 2) - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
     --brick-unit: calc(var(--masonry-col) * var(--brick-ratio));
@@ -140,6 +145,7 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: var(--image-position, center);
     filter: grayscale(100%);
     transition:
       transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
@@ -262,7 +268,6 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
   @media (max-width: 960px) {
     .portfolio-masonry {
       --masonry-cols: 4;
-      --brick-ratio: 0.85;
     }
 
     /* Wide desktop sizes → full width, height of two old panorama strips */
@@ -293,7 +298,10 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
       (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
     const col = (root.clientWidth - padX - gap * Math.max(cols - 1, 0)) / cols;
     if (!Number.isFinite(col) || col <= 0) return;
-    const ratio = Number.parseFloat(styles.getPropertyValue("--brick-ratio")) || 0.75;
+    const aspectW = Number.parseFloat(styles.getPropertyValue("--tile-aspect-w")) || 16;
+    const aspectH = Number.parseFloat(styles.getPropertyValue("--tile-aspect-h")) || 9;
+    const ratio =
+      Number.parseFloat(styles.getPropertyValue("--brick-ratio")) || (2 * aspectH) / aspectW;
     root.style.setProperty("--brick-unit", `${Math.round(col * ratio)}px`);
   }
 

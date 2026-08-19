@@ -241,9 +241,9 @@
       "title": "M-Dot",
       "description": "Boston-born East Coast hip-hop artist and producer — a lyric-first MC with two decades in the underground, collaborations with Pete Rock, DJ Premier, and Method Man, 17 European tours, and placements on NBC, STARZ, and Def Jam. REΛVE built his digital home base to match that pedigree.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "Audio",
-        "Hosting"
+        "Managed Hosting"
       ],
       "image": "portfolio-mdot-world-featured",
       "imageAlt": "M-Dot portrait splash page with bottom music and social dock on black",
@@ -259,6 +259,7 @@
       ],
       "image": "portfolio-mohegan-sun-featured",
       "imageAlt": "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
+      "imagePosition": "right center",
       "size": "4x1"
     },
     {
@@ -288,7 +289,7 @@
       "title": "LUXEMEDS",
       "description": "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "E-commerce",
         "Wellness"
       ],
@@ -324,21 +325,28 @@
       "title": "Kingdom Trails",
       "description": "World-renowned, community-supported trail network in Vermont's Northeast Kingdom — 100+ miles of non-motorized, multi-use trails for all abilities, stewarded through private landowner partnerships and careful trail maintenance.",
       "tags": [
-        "Branding",
-        "Outdoor",
-        "Print"
+        "WordPress™",
+        "Managed Hosting",
+        "Web Development"
       ],
-      "image": "portfolio-kingdom-featured",
-      "imageAlt": "Kingdom Trails crown logo over mountain bikers in a pine forest",
+      "image": "/api/media/portfolio-kingdom-featured?v=3",
+      "imageAlt": "Muddy mountain bike tires lined up in a truck bed against pine trees and an overcast sky",
+      "imagePosition": "center",
+      "alternateImages": [
+        {
+          "image": "portfolio-kingdom-featured-alt",
+          "imageAlt": "Golden-hour festival tents and flags on a grassy field below the Kingdom Trails hills"
+        }
+      ],
       "size": "2x1"
     },
     {
       "title": "Students for Haiti",
       "description": "U.S.–Haiti nonprofit supporting education, health, and community programs across Haiti. REΛVE manages WordPress hosting and ongoing site development.",
       "tags": [
-        "Hosting",
-        "Website Development",
-        "WordPress"
+        "Managed Hosting",
+        "Web Development",
+        "WordPress™"
       ],
       "image": "portfolio-featured-sfh",
       "imageAlt": "Students for Haiti logo over volunteer and children in Haiti",
@@ -348,8 +356,8 @@
       "title": "Vasodyn",
       "description": "Hand-blown anatomical glass models for medical education and the life sciences — precision organ and vascular forms for study and demonstration. REΛVE manages WordPress hosting and ongoing marketing.",
       "tags": [
-        "Hosting",
-        "Website Development",
+        "Managed Hosting",
+        "Web Development",
         "Marketing"
       ],
       "image": "portfolio-vasodyn-featured",
@@ -375,9 +383,10 @@
         "Craft",
         "Logo"
       ],
-      "image": "portfolio-lotus-glass-featured",
+      "image": "/api/media/portfolio-lotus-glass-featured?v=2",
       "imageAlt": "Lotus Glass logo system — full wordmark and LGW mark with and without outline",
-      "size": "1x1"
+      "imagePosition": "center",
+      "size": "2x2"
     },
     {
       "title": "Anglerfish Aquatics",
@@ -395,8 +404,8 @@
       "title": "Paradigm Landscape",
       "description": "High-end landscape architecture and design firm in Sutton, Massachusetts, serving clients across the Northeast. REΛVE provides design, development, and managed hosting.",
       "tags": [
-        "Hosting",
-        "Website Development",
+        "Managed Hosting",
+        "Web Development",
         "Design"
       ],
       "image": "portfolio-paradigm-landscape",
@@ -407,8 +416,8 @@
       "title": "DPM Construction",
       "description": "Construction design firm in Cambridge, Massachusetts — recent work includes the Bloomberg Center for Cities at Harvard University, a 12,000 sq ft Kennedy School workspace for mayors and city leaders.",
       "tags": [
-        "Hosting",
-        "Website Development",
+        "Managed Hosting",
+        "Web Development",
         "Design"
       ],
       "image": "portfolio-dpm-construction-featured",
@@ -416,24 +425,12 @@
       "size": "2x1"
     },
     {
-      "title": "Care Plus Mark",
-      "description": "Minimal connected icon system — heart, plus, and circle forms for a wellness identity suite.",
-      "tags": [
-        "Logo",
-        "Healthcare",
-        "Identity"
-      ],
-      "image": "portfolio-care-plus-mark",
-      "imageAlt": "Black line-art logo combining a heart, plus sign, and circle",
-      "size": "1x1"
-    },
-    {
       "title": "Barry Levine, Esq.",
       "description": "Law firm website for LevinesLaw.com — professional attorney branding, practice-area navigation, and client-focused layout.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "Law",
-        "WordPress"
+        "WordPress™"
       ],
       "image": "portfolio-levines-law-featured",
       "imageAlt": "LevinesLaw.com placeholder tile for Barry Levine Esquire law firm",
@@ -443,7 +440,7 @@
       "title": "CAPCO Design Group",
       "description": "Fire protection engineering firm website for CapcoFire.com — MEP, sprinkler, fire alarm, and civil design services with NFPA-compliant project showcases and client portal.",
       "tags": [
-        "Web Design",
+        "Web Development",
         "Engineering",
         "Fire Protection"
       ],
@@ -455,7 +452,7 @@
       "title": "The Barber's Edge",
       "description": "Downtown Beverly barbershop at 324 Rantoul — traditional cuts, hot-towel shaves, and a nine-chair shop that still runs like a trade. REΛVE built TheBarbersEdge.com.",
       "tags": [
-        "Hosting",
+        "Managed Hosting",
         "App Development",
         "Agentic Support"
       ],
@@ -468,7 +465,7 @@
       "title": "PDX Paws",
       "description": "Portland dog grooming, sitting, walks, and pack adventures — a neighborhood shop with a decade in canine care. REΛVE built the site. Logo tile until project photography is ready.",
       "tags": [
-        "Hosting",
+        "Managed Hosting",
         "App Development",
         "Agentic Support"
       ],
@@ -480,7 +477,7 @@
       "title": "Rothco, LLC",
       "description": "Veteran-led SDVOSB general contractor delivering federal, healthcare, and commercial construction in the Northeast — VA medical centers, FAA facilities, and safety-first self-perform work. REΛVE built RothcoLLC.com.",
       "tags": [
-        "Hosting",
+        "Managed Hosting",
         "App Development",
         "Agentic Support"
       ],
