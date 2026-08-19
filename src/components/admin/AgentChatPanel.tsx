@@ -67,6 +67,7 @@ import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsa
 import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
+import { ChatDocumentPreview } from './ChatDocumentPreview';
 import './agent-chat.css';
 
 /** Match API limits in `src/pages/api/chats/[id].ts`. */
@@ -1564,7 +1565,7 @@ function useDeployChatLock(): DeployChatLockState {
 
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
   const isStreaming = props.status?.type === 'running';
-  const { text, buttons } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
+  const { text, buttons, previews } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
 
   if (isStreaming) {
     return text ? <span className="aui-text aui-text-streaming">{text}</span> : null;
@@ -1578,6 +1579,13 @@ function AssistantTextPart(props: { text?: string; status?: { type?: string } })
           className="aui-md"
           preprocess={(raw) => parseAssistantChatButtons(raw).text}
         />
+      ) : null}
+      {previews.length > 0 ? (
+        <div className="aui-chat-previews">
+          {previews.map((preview, idx) => (
+            <ChatDocumentPreview key={`${preview.slug}:${preview.contact_uid ?? ''}:${idx}`} preview={preview} />
+          ))}
+        </div>
       ) : null}
       {buttons.length > 0 ? (
         <div className="aui-chat-buttons">

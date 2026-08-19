@@ -487,6 +487,44 @@ export function wrapPrintOnePager(opts: {
 </div>`.trim();
 }
 
+export function wrapMarkdownPreviewDocument(fragmentHtml: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Document preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #e4e4de; }
+    .doc-md-page {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: 8.5in;
+      min-height: 11in;
+      margin: 16px auto;
+      padding: 0.75in;
+      background: #fff;
+      color: #141414;
+      box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .doc-md-page h1, .doc-md-page h2, .doc-md-page h3 { line-height: 1.25; margin: 0 0 0.6em; }
+    .doc-md-page p { margin: 0 0 0.75em; }
+    .doc-md-page ul, .doc-md-page ol { margin: 0 0 0.75em; padding-left: 1.3em; }
+  </style>
+</head>
+<body>
+<article class="doc-md-page">${fragmentHtml}</article>
+</body>
+</html>`;
+}
+
 export function wrapPrintPreviewDocument(fragmentHtml: string, orientation: DocumentOrientation): string {
   const pageSize = orientation === 'landscape' ? 'letter landscape' : 'letter portrait';
   return `<!doctype html>

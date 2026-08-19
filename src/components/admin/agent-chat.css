@@ -375,6 +375,120 @@
   font-size: 0.86em;
 }
 
+.aui-chat-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.aui-doc-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 168px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: zoom-in;
+}
+
+.aui-doc-thumb:disabled {
+  cursor: default;
+}
+
+.aui-doc-thumb-paper {
+  position: relative;
+  display: block;
+  width: 168px;
+  height: 218px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--img-border, rgba(127, 127, 127, 0.25));
+  background: #e4e4de;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.aui-doc-thumb--landscape .aui-doc-thumb-paper {
+  width: 218px;
+  height: 168px;
+}
+
+.aui-doc-thumb--landscape {
+  width: 218px;
+}
+
+.aui-doc-thumb-scale {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 816px;
+  height: 1056px;
+  transform: scale(0.20588);
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.aui-doc-thumb--landscape .aui-doc-thumb-scale {
+  width: 1056px;
+  height: 816px;
+  transform: scale(0.20644);
+}
+
+.aui-doc-thumb-scale iframe,
+.aui-chat-lightbox-doc-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #e4e4de;
+}
+
+.aui-doc-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--muted);
+}
+
+.aui-doc-thumb-placeholder--loading {
+  opacity: 0.55;
+}
+
+.aui-doc-thumb-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.aui-doc-thumb-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aui-doc-thumb-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.aui-chat-lightbox-doc {
+  width: min(920px, 96vw);
+  height: min(90vh, 1180px);
+  overflow: hidden;
+  border-radius: 12px;
+  background: #e4e4de;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+}
+
 .aui-chat-buttons {
   display: flex;
   flex-wrap: wrap;

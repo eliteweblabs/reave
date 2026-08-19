@@ -112,7 +112,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   analytic_audit: 'Google Search Console, GA4, Plausible, IndexNow',
   site_monitoring: 'Watch pages for changes via ChangeDetection.io',
   uptime_monitoring: 'UptimeRobot checks and outage alerts',
-  documents: 'Reusable templates for e-sign workflows',
+  documents: 'Reusable templates for e-sign workflows, with chat preview thumbnails',
   voice: 'Phone agent and call routing on Telnyx',
   vapi: 'Voice assistant powered by Vapi',
   carddav: 'Sync contacts to iOS and other CardDAV clients',

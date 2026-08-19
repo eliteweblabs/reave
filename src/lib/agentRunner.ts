@@ -67,6 +67,11 @@ import { formatEmailForAgent } from './emailAgentContext';
 import { listJobsForItem } from './projectLinks';
 import { storeReadWork } from './workStore';
 import { formatWorkForAgent } from './workAgentContext';
+import {
+  ensurePreviewBlocks,
+  extractChatPreviewFromToolResult,
+  type ChatPreviewResponse,
+} from './chatResponseRenderer';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -685,10 +690,11 @@ async function runKnowledgeAgentInner(
   });
   const usageAcc = createAgentUsageAccumulator(model);
   const agentCtx = getAgentContext();
+  const chatPreviews: ChatPreviewResponse[] = [];
   const finishRun = async (text: string): Promise<AgentRunResult> => {
     const usage = finalizeAgentUsage(usageAcc);
     if (usage) logAgentUsage(usage, { threadId: agentCtx.threadId, userTextPreview: userText });
-    return { text: await finalizeAgentReply(text, userText), usage };
+    return { text: await finalizeAgentReply(ensurePreviewBlocks(text, chatPreviews), userText), usage };
   };
   const brand = await getCompanyBrandContext();
   const tools = buildAnthropicTools(brand);
@@ -707,6 +713,11 @@ async function runKnowledgeAgentInner(
     formatAgentCapabilityInventory(enabledFeatures()),
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
     'Structured buttons: you may append ```json { "type": "button", "label": "…", "href": "https://…" } ``` blocks for useful external/deep links (projects, billing, docs). Never link to Admin → Sessions or suggest "open session" / "ask the agent" — the owner is already in this session. After create_work or update_work, use the exact profile_url and project_portal_url fields from the tool result for client profile and portal buttons — never put a job slug or business name in /c/… (portal paths use the contact uid UUID only). list_contacts and resolve_contact also return portal_url.',
+    ...(hasFeature('documents')
+      ? [
+          'Document templates: when the owner asks to preview, review, or see a document template, call list_documents if the slug is unclear, then preview_document. Append the chat_preview JSON fence from the tool result so a thumbnail appears in this chat — they tap it to review the rendered page. Do not paste HTML. Optional contact_uid fills {client.*} shortcodes with that client; otherwise a sample contact is used. read_document is for editing the markdown source, not visual review.',
+        ]
+      : []),
     'Never end your turn with future-tense promises ("Let me…", "I\'ll…", "I am going to…") without invoking the relevant tools in the same turn first. If you say you will edit, build, commit, push, deploy, send, or run something, call the tools immediately — do not stop and wait for the user to reply. If you cannot proceed (missing permission, ambiguous input, destructive action needing confirmation), say why and ask — do not imply work is in progress.',
     'Verify before claiming you cannot: never tell the user a service is unavailable, a domain is in another account, a feature is missing, or a tool is scoped away without checking the install inventory in this prompt, calling search_knowledge, and (when code_dev is on) grep_code / read_file. A tool missing from this turn is not proof the product lacks the integration — it usually means a module is off or an API key is unset. Never equate "I don\'t have a live API tool this turn" with "this app does not include that." Prefer "Clerk is the auth system; user-admin tools need CLERK_SECRET_KEY" over "we don\'t have Clerk." If the user corrects you ("yes it is", "I\'m looking at it right now", "check the GitHub logs"), search again immediately — do not defend the earlier guess. When the user says they just changed DNS or hosting, re-run dns_check and only the DNS tools listed in this turn\'s inventory — do not mention Railway, Kinsta, Cloudflare, or Name.com APIs unless those modules are enabled here. Prefer "tool returned X" over "I don\'t have access".',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks; pass forward_to when they ask to relay mail to another address), and delete_email when they want it removed. Filter rules are indefinite by default; if the user mentions an expiration ("for 7 days", "until Friday", "expires next week"), pass expires_in_days or expires_at on create_email_filter_rule. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
@@ -1109,11 +1120,15 @@ async function runKnowledgeAgentInner(
         runTool(block.name, JSON.stringify(block.input ?? {}), {
           signal: stream?.signal,
           timeoutMs: Math.max(5_000, deadline.clamp(agentToolTimeoutMs(block.name))),
-        }).then((out) => ({
-          type: 'tool_result' as const,
-          tool_use_id: block.id,
-          content: truncateToolResult(out),
-        }));
+        }).then((out) => {
+          const preview = extractChatPreviewFromToolResult(out);
+          if (preview) chatPreviews.push(preview);
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: block.id,
+            content: truncateToolResult(out),
+          };
+        });
 
       let toolResults: AnthropicContentBlock[] = [];
       throwIfAborted(stream?.signal);

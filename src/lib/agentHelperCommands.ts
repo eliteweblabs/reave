@@ -373,6 +373,13 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Send document service-agreement to Acme Corp for signing.',
     feature: 'documents',
   },
+  {
+    slash: '/preview-document',
+    summary: 'Preview a document template',
+    template: 'Preview the [template] document template.',
+    example: 'Preview the NDA document template.',
+    feature: 'documents',
+  },
 
   // Voice (plugin)
   {
