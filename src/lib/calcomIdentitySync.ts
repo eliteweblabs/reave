@@ -1,8 +1,8 @@
 /**
  * Push REΛVE install identity (icon, username, email, name) onto Cal.com.
  *
- * Two paths, both sourced from the always-on `reave` node:
- *  1. Railway references on calcom-web-app (`${{ reave.EMAIL_FROM }}`, …)
+ * Two paths, both sourced from Railway shared project variables:
+ *  1. Railway references on calcom-web-app (`${{ shared.EMAIL_FROM }}`, …)
  *     — wizard apply, or pickup when the sibling appears later.
  *  2. Cal.com `users` row (avatar / username / email / name) so the
  *     personal onboarding form is already filled. Stock Cal.com does not
@@ -11,7 +11,7 @@
 import pg from 'pg';
 import { railwayListVariables, railwayResolveScope, railwaySetVariables } from './railwayAgentApi';
 import { isRailwayConfigured } from './railwayClient';
-import { DEPLOY_APP_SERVICE, railwayLocalRef, railwayRef } from './deployWizardCatalog';
+import { DEPLOY_APP_SERVICE, railwayLocalRef, railwayRef, railwaySharedRef } from './deployWizardCatalog';
 import { resolveInstallIdentity, type InstallIdentity } from './installIdentity';
 import { createLogger } from './logger';
 import { serverEnv } from './serverEnv';
@@ -95,16 +95,26 @@ async function applyRailwayIdentity(
     scope.data.services.find((s) => /reave|astro/i.test(s.name))?.name ||
     DEPLOY_APP_SERVICE;
 
+  const sharedVars = await railwayListVariables({ project });
+  const sharedExisting = sharedVars.ok ? sharedVars.variables : {};
+  const sharedDesired: Record<string, string> = {};
+  if (identity.name) sharedDesired.COMPANY_NAME = identity.name;
+  if (identity.email) sharedDesired.EMAIL_FROM = identity.email;
+  const sharedApply = await ensureVars(undefined, sharedDesired, sharedExisting, project);
+  updated.push(...sharedApply.updated.map((n) => `shared.${n}`));
+  skipped.push(...sharedApply.skipped.map((n) => `shared.${n}`));
+
   const reaveVars = await railwayListVariables({ project, service: appService });
   const reaveExisting = reaveVars.ok ? reaveVars.variables : {};
 
   const reaveDesired: Record<string, string> = {
     CALCOM_USERNAME: identity.username,
     COMPANY_ICON_URL: `${railwayLocalRef('PUBLIC_SITE_URL')}/api/branding/icon?size=192`,
+    COMPANY_NAME: railwaySharedRef('COMPANY_NAME'),
+    EMAIL_FROM: railwaySharedRef('EMAIL_FROM'),
+    EMAIL_FROM_NAME: railwaySharedRef('COMPANY_NAME'),
+    RESEND_FROM: railwaySharedRef('EMAIL_FROM'),
   };
-  if (identity.name && !reaveExisting.EMAIL_FROM_NAME?.trim()) {
-    reaveDesired.EMAIL_FROM_NAME = identity.name;
-  }
   if (hasService(names, CALCOM_POSTGRES)) {
     reaveDesired.CALCOM_DATABASE_URL = railwayRef(CALCOM_POSTGRES, 'DATABASE_URL');
   }
@@ -120,11 +130,11 @@ async function applyRailwayIdentity(
   const calVars = await railwayListVariables({ project, service: CALCOM_WEB });
   const calExisting = calVars.ok ? calVars.variables : {};
   const calDesired: Record<string, string> = {
-    EMAIL_FROM: railwayRef(appService, 'EMAIL_FROM'),
-    EMAIL_FROM_NAME: railwayRef(appService, 'EMAIL_FROM_NAME'),
-    NEXT_PUBLIC_APP_NAME: railwayRef(appService, 'EMAIL_FROM_NAME'),
-    NEXT_PUBLIC_COMPANY_NAME: railwayRef(appService, 'EMAIL_FROM_NAME'),
-    NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS: railwayRef(appService, 'EMAIL_FROM'),
+    EMAIL_FROM: railwaySharedRef('EMAIL_FROM'),
+    EMAIL_FROM_NAME: railwaySharedRef('COMPANY_NAME'),
+    NEXT_PUBLIC_APP_NAME: railwaySharedRef('COMPANY_NAME'),
+    NEXT_PUBLIC_COMPANY_NAME: railwaySharedRef('COMPANY_NAME'),
+    NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS: railwaySharedRef('EMAIL_FROM'),
   };
   const calApply = await ensureVars(CALCOM_WEB, calDesired, calExisting, project);
   updated.push(...calApply.updated.map((n) => `${CALCOM_WEB}.${n}`));

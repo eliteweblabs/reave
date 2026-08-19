@@ -741,6 +741,29 @@
   color: #93c5fd;
 }
 
+.dw-wired {
+  margin-top: 0.55rem;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.35rem 0.7rem 0.55rem;
+}
+
+.dw-wired summary {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  padding: 0.25rem 0;
+}
+
+.dw-wired[open] summary {
+  margin-bottom: 0.4rem;
+}
+
+.dw-wired .dw-table-wrap {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
 .dw-domain-field {
   max-width: 22rem;
   margin: 0.25rem 0 0.75rem;

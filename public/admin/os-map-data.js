@@ -151,7 +151,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'uptimerobot', label: 'getMonitors poll', dashed: true },
   { from: 'astro', to: 'calcom_api', label: 'bookings API', dashed: true },
   { from: 'astro', to: 'calcom_web', label: 'icon · username · email', dashed: true },
-  { from: 'deploy_wizard', to: 'calcom_web', label: 'identity refs', dashed: true },
+  { from: 'deploy_wizard', to: 'calcom_web', label: 'shared identity', dashed: true },
   { from: 'calcom_api', to: 'web_push', label: '15m reminder', dashed: true },
   { from: 'calcom_api', to: 'app_pg', label: 'reminder queue', dashed: true },
   { from: 'web', to: 'calcom_api', label: '/form/schedule', dashed: true },
