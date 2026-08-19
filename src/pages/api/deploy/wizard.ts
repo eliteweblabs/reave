@@ -264,9 +264,71 @@ export async function POST(context: APIContext): Promise<Response> {
     environment,
     values,
   };
+  const wantStream =
+    body.stream === true ||
+    (context.request.headers.get('accept') || '').includes('ndjson');
   const mightNeedGithub =
     plan.features.includes('website') || plan.features.includes('content_management');
-  const githubSetup = mightNeedGithub ? createGithubAppPending(applyBody, context.url.origin) : null;
+
+  const githubPayload = (
+    setup: ReturnType<typeof createGithubAppPending>,
+    notes: string[],
+  ) => ({
+    ok: true,
+    needsGithubApp: setup,
+    plan: publicPlan,
+    cli,
+    provisioned: notes,
+  });
+
+  if (!wantStream) {
+    const executed = await executeDeployWizardApply({
+      plan,
+      values,
+      project,
+      projectName,
+      environment,
+      request: context.request,
+    });
+    if (isDeployWizardApplyNeedGithubApp(executed)) {
+      const setup = createGithubAppPending(
+        {
+          ...applyBody,
+          project: executed.projectId || project,
+          projectName: executed.projectName || projectName,
+        },
+        context.url.origin,
+      );
+      return new Response(JSON.stringify(githubPayload(setup, executed.notes)), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'Set-Cookie': githubAppCookieHeader(setup.state, context.url.protocol === 'https:'),
+        },
+      });
+    }
+    if (!executed.ok) {
+      return json(
+        { ok: false, error: executed.error, plan: publicPlan, cli, applied: executed.applied },
+        executed.applied?.length ? 502 : 400,
+      );
+    }
+    return json({
+      ok: true,
+      plan: publicPlan,
+      cli,
+      applied: executed.applied,
+      identity: executed.identity,
+      dns: executed.dns,
+      provisioned: executed.provisioned,
+      hint: executed.hint,
+    });
+  }
+
+  const githubSetup = mightNeedGithub
+    ? createGithubAppPending(applyBody, context.url.origin)
+    : null;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -285,6 +347,16 @@ export async function POST(context: APIContext): Promise<Response> {
           onProgress: (message) => emit({ phase: 'log', message }),
         });
         if (isDeployWizardApplyNeedGithubApp(executed)) {
+          const setup =
+            githubSetup ||
+            createGithubAppPending(
+              {
+                ...applyBody,
+                project: executed.projectId || project,
+                projectName: executed.projectName || projectName,
+              },
+              context.url.origin,
+            );
           if (githubSetup) {
             const pending = getGithubAppPending(githubSetup.state);
             if (pending) {
@@ -300,12 +372,8 @@ export async function POST(context: APIContext): Promise<Response> {
           }
           emit({
             phase: 'github',
-            ok: true,
-            message: `Opening GitHub to create the restricted App for ${githubSetup?.repo || 'the website repo'}…`,
-            needsGithubApp: githubSetup,
-            plan: publicPlan,
-            cli,
-            provisioned: executed.notes,
+            message: `Opening GitHub to create the restricted App for ${setup.repo}…`,
+            ...githubPayload(setup, executed.notes),
           });
           return;
         }
@@ -314,6 +382,7 @@ export async function POST(context: APIContext): Promise<Response> {
             phase: 'error',
             ok: false,
             message: executed.error,
+            error: executed.error,
             plan: publicPlan,
             cli,
             applied: executed.applied,
@@ -333,11 +402,8 @@ export async function POST(context: APIContext): Promise<Response> {
           hint: executed.hint,
         });
       } catch (e) {
-        emit({
-          phase: 'error',
-          ok: false,
-          message: e instanceof Error ? e.message : String(e),
-        });
+        const message = e instanceof Error ? e.message : String(e);
+        emit({ phase: 'error', ok: false, message, error: message });
       } finally {
         controller.close();
       }

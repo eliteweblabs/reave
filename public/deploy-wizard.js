@@ -890,6 +890,33 @@
     el.scrollTop = el.scrollHeight;
   }
 
+  function parseApplyPayload(raw) {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return {};
+    try {
+      const single = JSON.parse(trimmed);
+      if (single && typeof single === 'object' && !Array.isArray(single)) return single;
+    } catch {
+      /* NDJSON from a cached page or a proxy that rewrote Content-Type */
+    }
+    let last = {};
+    for (const line of trimmed.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.message) {
+          pushApplyLog(event.message, event.phase === 'error' ? 'error' : event.phase === 'github' ? 'next' : '');
+        }
+        if (event.phase === 'github' || event.phase === 'done' || event.phase === 'error' || event.ok != null) {
+          last = event;
+        }
+      } catch {
+        /* skip a partial line */
+      }
+    }
+    return last;
+  }
+
   async function applyPlan() {
     if (applying) return;
     readIdentity();
@@ -908,6 +935,7 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
         body: JSON.stringify({
           action: 'apply',
+          stream: true,
           moduleIds: [...selectedIds],
           extras: [...selectedExtras],
           appService,
@@ -925,7 +953,7 @@
         }),
       });
       const ctype = res.headers.get('content-type') || '';
-      if (ctype.includes('ndjson') && res.body) {
+      if ((ctype.includes('ndjson') || ctype.includes('octet-stream')) && res.body) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -983,8 +1011,13 @@
         return;
       }
 
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) throw new Error(json.error || `Apply failed (${res.status})`);
+      const raw = await res.text();
+      const json = parseApplyPayload(raw);
+      if (!res.ok || !json.ok) {
+        throw new Error(
+          json.error || json.message || (res.ok ? 'Apply did not finish.' : `Apply failed (${res.status})`),
+        );
+      }
       if (json.needsGithubApp) {
         leavingForGithub = true;
         (json.provisioned || []).forEach((note) => pushApplyLog(note));
