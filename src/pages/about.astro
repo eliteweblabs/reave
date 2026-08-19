@@ -98,15 +98,16 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
   .about-page {
     min-height: 100vh;
     padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 40px) 0 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: block;
+    overflow: hidden;
   }
 
   .about-intro,
   .about-block {
     width: 100%;
     max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
     padding-left: 24px;
     padding-right: 24px;
   }
@@ -152,9 +153,10 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-finale {
     width: 100%;
-    flex: 0 0 auto;
-    margin-top: 0;
-    margin-bottom: 0;
+    clear: both;
+    position: relative;
+    z-index: 0;
+    margin: 0;
     padding-left: 0;
     padding-right: 0;
     padding-top: 56px;
@@ -165,8 +167,8 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     flex-direction: column;
     justify-content: center;
     background: #000;
-    /* Keep inner horizontal snap-scroll working on iOS. */
-    overflow: visible;
+    overflow: hidden;
+    isolation: isolate;
   }
 
   .about-finale-bg {
@@ -286,9 +288,19 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
   .about-page :global(.about-portfolio) {
     width: 100%;
-    flex: 0 0 auto;
-    margin-bottom: 0;
-    padding-bottom: 12px;
+    clear: both;
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    padding-bottom: 24px;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .about-page :global(.about-portfolio)::after {
+    content: "";
+    display: table;
+    clear: both;
   }
 
   .about-page :global(.about-portfolio .section--full-bleed) {
