@@ -76,16 +76,22 @@ const branded = buildDeployWizardPlan({
   timezone: 'America/Los_Angeles',
 });
 assert.equal(branded.variables.find((v) => v.name === 'POST_ALIAS')?.filled, 'job');
-assert.equal(branded.variables.find((v) => v.name === 'COMPANY_NAME')?.filled, 'Capco Fire');
+assert.equal(branded.variables.find((v) => v.service === 'shared' && v.name === 'COMPANY_NAME')?.filled, 'Capco Fire');
+assert.equal(branded.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_NAME')?.filled, '${{ shared.COMPANY_NAME }}');
 assert.equal(branded.variables.find((v) => v.name === 'ADMIN_USERNAME')?.filled, 'Pat');
-assert.equal(branded.variables.find((v) => v.name === 'COMPANY_DOMAIN')?.filled, 'capcofire.com');
+assert.equal(branded.variables.find((v) => v.service === 'shared' && v.name === 'PUBLIC_SITE_DOMAIN')?.filled, 'capcofire.com');
+assert.equal(branded.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_DOMAIN')?.filled, '${{ shared.PUBLIC_SITE_DOMAIN }}');
 assert.equal(branded.variables.find((v) => v.name === 'BOOKING_TIMEZONE')?.filled, 'America/Los_Angeles');
-assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.filled, 'Capco Fire');
-assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.inheritFromHost, false);
-assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.filled, 'noreply@inbound.capcofire.com');
+assert.equal(branded.variables.find((v) => v.service === 'reave' && v.name === 'EMAIL_FROM_NAME')?.filled, '${{ shared.COMPANY_NAME }}');
+assert.equal(branded.variables.find((v) => v.service === 'reave' && v.name === 'EMAIL_FROM_NAME')?.inheritFromHost, false);
+assert.equal(branded.variables.find((v) => v.service === 'shared' && v.name === 'EMAIL_FROM')?.filled, 'noreply@inbound.capcofire.com');
+assert.equal(branded.variables.find((v) => v.service === 'reave' && v.name === 'RESEND_FROM')?.filled, '${{ shared.EMAIL_FROM }}');
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.needsInput, false);
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.inheritFromHost, false);
+assert.equal(branded.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_NAME')?.autoWired, true);
+assert.equal(branded.variables.find((v) => v.service === 'shared' && v.name === 'COMPANY_NAME')?.autoWired, false);
 const resendKey = branded.variables.find((v) => v.name === 'RESEND_API_KEY');
+assert.equal(resendKey?.service, 'shared');
 assert.equal(resendKey?.inheritFromHost, true);
 assert.equal(resendKey?.needsInput, true);
 assert.equal(resendKey?.filled, '');
@@ -121,19 +127,19 @@ assert.ok(billed.variables.some((v) => v.name === 'BOOKING_API_URL' && v.filled.
 assert.ok(billed.variables.some((v) => v.service === 'shared' && v.name === 'FLEET_API_CLIENT_KEY'));
 
 const reaveEmailFrom = billed.variables.find((v) => v.service === 'reave' && v.name === 'EMAIL_FROM');
-assert.equal(reaveEmailFrom?.filled, '${{RESEND_FROM}}');
+assert.equal(reaveEmailFrom?.filled, '${{ shared.EMAIL_FROM }}');
 const calFromName = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM_NAME');
-assert.equal(calFromName?.filled, '${{ reave.EMAIL_FROM_NAME }}');
-const siteDomain = billed.variables.find((v) => v.service === 'reave' && v.name === 'PUBLIC_SITE_DOMAIN');
+assert.equal(calFromName?.filled, '${{ shared.COMPANY_NAME }}');
+const siteDomain = billed.variables.find((v) => v.service === 'shared' && v.name === 'PUBLIC_SITE_DOMAIN');
 assert.equal(siteDomain?.filled, 'acme.com');
 
 const calFrom = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM');
-assert.equal(calFrom?.kind, 'reference');
-assert.equal(calFrom?.filled, '${{ reave.EMAIL_FROM }}');
+assert.equal(calFrom?.kind, 'shared');
+assert.equal(calFrom?.filled, '${{ shared.EMAIL_FROM }}');
 const calCompany = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_COMPANY_NAME');
-assert.equal(calCompany?.filled, '${{ reave.EMAIL_FROM_NAME }}');
+assert.equal(calCompany?.filled, '${{ shared.COMPANY_NAME }}');
 const calSupport = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS');
-assert.equal(calSupport?.filled, '${{ reave.EMAIL_FROM }}');
+assert.equal(calSupport?.filled, '${{ shared.EMAIL_FROM }}');
 const iconUrl = billed.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_ICON_URL');
 assert.equal(iconUrl?.filled, '${{PUBLIC_SITE_URL}}/api/branding/icon?size=192');
 const calUser = billed.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_USERNAME');
@@ -150,12 +156,16 @@ assert.equal(slugifyCalcomUsername('https://tonybarlettajr.com/'), 'tonybarletta
 assert.equal(parseEmailAddress('Tony Barletta Jr. <hello@tonybarlettajr.com>'), 'hello@tonybarlettajr.com');
 assert.equal(parseEmailAddress('not-an-email'), '');
 const calSmtp = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_SERVER_PASSWORD');
-assert.equal(calSmtp?.filled, '${{ reave.RESEND_API_KEY }}');
+assert.equal(calSmtp?.filled, '${{ shared.RESEND_API_KEY }}');
 const calResend = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'RESEND_API_KEY');
-assert.equal(calResend?.filled, '${{ reave.RESEND_API_KEY }}');
+assert.equal(calResend?.filled, '${{ shared.RESEND_API_KEY }}');
 
 const craterMail = billed.variables.find((v) => v.service === 'crater' && v.name === 'MAIL_PASSWORD');
-assert.equal(craterMail?.filled, '${{ reave.RESEND_API_KEY }}');
+assert.equal(craterMail?.filled, '${{ shared.RESEND_API_KEY }}');
+assert.ok(billed.sharedKeys.includes('COMPANY_NAME'));
+assert.ok(billed.sharedKeys.includes('EMAIL_FROM'));
+assert.ok(billed.sharedKeys.includes('PUBLIC_SITE_DOMAIN'));
+assert.ok(billed.sharedKeys.includes('RESEND_API_KEY'));
 const contactCors = billed.variables.find((v) => v.service === 'contact-api' && v.name === 'ALLOWED_ORIGINS');
 assert.equal(contactCors?.filled, '${{ reave.PUBLIC_SITE_URL }}');
 
@@ -184,7 +194,7 @@ assert.equal(db?.filled, '${{ reave-postgres.DATABASE_URL }}');
 const site = renamed.variables.find((v) => v.service === 'Astro' && v.name === 'PUBLIC_SITE_URL');
 assert.equal(site?.filled, 'https://${{ Astro.RAILWAY_PUBLIC_DOMAIN }}');
 const renamedCalFrom = renamed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM');
-assert.equal(renamedCalFrom?.filled, '${{ Astro.EMAIL_FROM }}');
+assert.equal(renamedCalFrom?.filled, '${{ shared.EMAIL_FROM }}');
 
 assert.equal(normalizeSiteDomain('https://www.Acme.com/'), 'acme.com');
 assert.equal(deployWizardFqdn('ap', 'acme.com'), 'ap.acme.com');

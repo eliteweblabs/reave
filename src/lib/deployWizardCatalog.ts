@@ -358,8 +358,54 @@ function v(
   return { required: partial.required !== false, ...partial };
 }
 
+/** Identity / brand values — set once as Railway shared (project) variables. */
+export const DEPLOY_WIZARD_SHARED_IDENTITY = ['COMPANY_NAME', 'EMAIL_FROM', 'PUBLIC_SITE_DOMAIN'] as const;
+
+export function isDeployWizardSharedIdentity(name: string): boolean {
+  return (DEPLOY_WIZARD_SHARED_IDENTITY as readonly string[]).includes(name);
+}
+
+/** Service-level refs that only point at a sibling or `${{ shared.* }}`. */
+export function isDeployWizardAutoWired(variable: Pick<DeployWizardVariable, 'kind' | 'service'>): boolean {
+  if (variable.service === 'shared') return false;
+  return variable.kind === 'reference' || variable.kind === 'shared';
+}
+
 /** All variables the wizard can emit. Filtered by selected features / extras. */
 export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
+  // ── Shared identity (change here later — every service already references these) ──
+  v({
+    name: 'COMPANY_NAME',
+    service: 'shared',
+    kind: 'literal',
+    value: '',
+    description: 'Display name. Change here — reave, Cal.com, and Crater read ${{ shared.COMPANY_NAME }}.',
+    required: false,
+  }),
+  v({
+    name: 'EMAIL_FROM',
+    service: 'shared',
+    kind: 'literal',
+    value: '',
+    description: 'Verified sender — noreply@inbound.{apex}. Change here; services reference ${{ shared.EMAIL_FROM }}.',
+    required: false,
+  }),
+  v({
+    name: 'PUBLIC_SITE_DOMAIN',
+    service: 'shared',
+    kind: 'literal',
+    value: '',
+    description: 'Install apex (acme.com). COMPANY_DOMAIN on reave aliases this.',
+    required: false,
+  }),
+  v({
+    name: 'RESEND_API_KEY',
+    service: 'shared',
+    kind: 'secret',
+    description:
+      'Resend API key (inbound + outbound). Required unless you seed a sample inbox. Paste the client’s key, or leave blank to copy this host’s.',
+  }),
+
   // ── Shared keys (set once, referenced everywhere) ──
   v({
     name: 'CONTACT_API_CLIENT_KEY',
@@ -450,9 +496,10 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'COMPANY_NAME',
     service: DEPLOY_APP_SERVICE,
-    kind: 'literal',
-    value: '',
-    description: 'Display name for the install. Prefills EMAIL_FROM_NAME when empty.',
+    kind: 'shared',
+    value: railwaySharedRef('COMPANY_NAME'),
+    sharedKey: 'COMPANY_NAME',
+    description: 'Project display name — ${{ shared.COMPANY_NAME }}.',
     required: false,
   }),
   v({
@@ -466,9 +513,10 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'COMPANY_DOMAIN',
     service: DEPLOY_APP_SERVICE,
-    kind: 'literal',
-    value: '',
-    description: 'Same apex as PUBLIC_SITE_DOMAIN — filled from the wizard site-domain field.',
+    kind: 'shared',
+    value: railwaySharedRef('PUBLIC_SITE_DOMAIN'),
+    sharedKey: 'PUBLIC_SITE_DOMAIN',
+    description: 'Same apex as ${{ shared.PUBLIC_SITE_DOMAIN }}.',
     required: false,
   }),
   v({
@@ -509,9 +557,10 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'RESEND_API_KEY',
     service: DEPLOY_APP_SERVICE,
-    kind: 'secret',
-    description:
-      'Resend API key (inbound + outbound). Required unless you seed a sample inbox. Paste the client’s key, or leave blank to copy this host’s.',
+    kind: 'shared',
+    value: railwaySharedRef('RESEND_API_KEY'),
+    sharedKey: 'RESEND_API_KEY',
+    description: 'Same project Resend key — ${{ shared.RESEND_API_KEY }}.',
   }),
   v({
     name: 'RESEND_WEBHOOK_SECRET',
@@ -522,29 +571,35 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'RESEND_FROM',
     service: DEPLOY_APP_SERVICE,
-    kind: 'secret',
-    description: 'Verified sender — noreply@inbound.{apex}, the Resend domain Apply already provisions.',
+    kind: 'shared',
+    value: railwaySharedRef('EMAIL_FROM'),
+    sharedKey: 'EMAIL_FROM',
+    description: 'Outbound From address — ${{ shared.EMAIL_FROM }}.',
   }),
   v({
     name: 'EMAIL_FROM',
     service: DEPLOY_APP_SERVICE,
-    kind: 'reference',
-    value: railwayLocalRef('RESEND_FROM'),
-    description: 'Same-service alias so Cal.com / Crater can reference ${{reave.EMAIL_FROM}}.',
+    kind: 'shared',
+    value: railwaySharedRef('EMAIL_FROM'),
+    sharedKey: 'EMAIL_FROM',
+    description: 'Same project sender as RESEND_FROM — ${{ shared.EMAIL_FROM }}.',
   }),
   v({
     name: 'EMAIL_FROM_NAME',
     service: DEPLOY_APP_SERVICE,
-    kind: 'secret',
-    description: 'From display name — filled from the company name field. Cal.com reads ${{reave.EMAIL_FROM_NAME}}.',
+    kind: 'shared',
+    value: railwaySharedRef('COMPANY_NAME'),
+    sharedKey: 'COMPANY_NAME',
+    description: 'From display name — ${{ shared.COMPANY_NAME }}, not a second paste.',
     required: false,
   }),
   v({
     name: 'PUBLIC_SITE_DOMAIN',
     service: DEPLOY_APP_SERVICE,
-    kind: 'literal',
-    value: '',
-    description: 'Install apex (acme.com). Filled from the wizard site-domain field.',
+    kind: 'shared',
+    value: railwaySharedRef('PUBLIC_SITE_DOMAIN'),
+    sharedKey: 'PUBLIC_SITE_DOMAIN',
+    description: 'Install apex — ${{ shared.PUBLIC_SITE_DOMAIN }}.',
     required: false,
   }),
   v({
@@ -716,25 +771,28 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'MAIL_FROM_ADDRESS',
     service: 'crater',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
-    description: 'Invoice mail from-address — same Resend sender as reave.',
+    kind: 'shared',
+    value: railwaySharedRef('EMAIL_FROM'),
+    sharedKey: 'EMAIL_FROM',
+    description: 'Invoice from-address — ${{ shared.EMAIL_FROM }}.',
     features: ['billing'],
   }),
   v({
     name: 'MAIL_FROM_NAME',
     service: 'crater',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
-    description: 'Invoice from-name — ${{reave.EMAIL_FROM_NAME}}.',
+    kind: 'shared',
+    value: railwaySharedRef('COMPANY_NAME'),
+    sharedKey: 'COMPANY_NAME',
+    description: 'Invoice from-name — ${{ shared.COMPANY_NAME }}.',
     features: ['billing'],
   }),
   v({
     name: 'MAIL_PASSWORD',
     service: 'crater',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'RESEND_API_KEY'),
-    description: 'Resend SMTP password from reave.RESEND_API_KEY.',
+    kind: 'shared',
+    value: railwaySharedRef('RESEND_API_KEY'),
+    sharedKey: 'RESEND_API_KEY',
+    description: 'Resend SMTP password — ${{ shared.RESEND_API_KEY }}.',
     features: ['billing'],
   }),
   v({
@@ -881,49 +939,55 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'EMAIL_FROM',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
-    description: 'Do not leave unset — Cal.com falls back to sendmail and mail never leaves the box.',
+    kind: 'shared',
+    value: railwaySharedRef('EMAIL_FROM'),
+    sharedKey: 'EMAIL_FROM',
+    description: 'Do not leave unset — Cal.com falls back to sendmail. ${{ shared.EMAIL_FROM }}.',
     features: ['scheduling'],
   }),
   v({
     name: 'EMAIL_FROM_NAME',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
-    description: 'Display name — ${{reave.EMAIL_FROM_NAME}}, not a second paste.',
+    kind: 'shared',
+    value: railwaySharedRef('COMPANY_NAME'),
+    sharedKey: 'COMPANY_NAME',
+    description: 'Display name — ${{ shared.COMPANY_NAME }}, not a second paste.',
     features: ['scheduling'],
   }),
   v({
     name: 'NEXT_PUBLIC_APP_NAME',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
-    description: 'Cal.com UI title — same display name as reave.',
+    kind: 'shared',
+    value: railwaySharedRef('COMPANY_NAME'),
+    sharedKey: 'COMPANY_NAME',
+    description: 'Cal.com UI title — ${{ shared.COMPANY_NAME }}.',
     features: ['scheduling'],
   }),
   v({
     name: 'NEXT_PUBLIC_COMPANY_NAME',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM_NAME'),
-    description: 'Cal.com company name — ${{ reave.EMAIL_FROM_NAME }}.',
+    kind: 'shared',
+    value: railwaySharedRef('COMPANY_NAME'),
+    sharedKey: 'COMPANY_NAME',
+    description: 'Cal.com company name — ${{ shared.COMPANY_NAME }}.',
     features: ['scheduling'],
   }),
   v({
     name: 'NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'EMAIL_FROM'),
-    description: 'Cal.com support address — ${{ reave.EMAIL_FROM }}.',
+    kind: 'shared',
+    value: railwaySharedRef('EMAIL_FROM'),
+    sharedKey: 'EMAIL_FROM',
+    description: 'Cal.com support address — ${{ shared.EMAIL_FROM }}.',
     features: ['scheduling'],
   }),
   v({
     name: 'RESEND_API_KEY',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'RESEND_API_KEY'),
-    description: 'Cal.com native Resend transport — same key as reave.',
+    kind: 'shared',
+    value: railwaySharedRef('RESEND_API_KEY'),
+    sharedKey: 'RESEND_API_KEY',
+    description: 'Cal.com native Resend transport — ${{ shared.RESEND_API_KEY }}.',
     features: ['scheduling'],
   }),
   v({
@@ -953,9 +1017,10 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'EMAIL_SERVER_PASSWORD',
     service: 'calcom-web-app',
-    kind: 'reference',
-    value: railwayRef(DEPLOY_APP_SERVICE, 'RESEND_API_KEY'),
-    description: 'SMTP password = reave.RESEND_API_KEY.',
+    kind: 'shared',
+    value: railwaySharedRef('RESEND_API_KEY'),
+    sharedKey: 'RESEND_API_KEY',
+    description: 'SMTP password — ${{ shared.RESEND_API_KEY }}.',
     features: ['scheduling'],
   }),
   v({
@@ -1431,8 +1496,8 @@ export type DeployWizardPlanInput = {
   seed?: Partial<DeployWizardSeedInput>;
 };
 
-/** Secrets filled from identity (not copied from this host). */
-export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
+/** Secrets filled from identity (not copied from this host). None — those live as shared literals. */
+export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set<string>();
 
 /** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
@@ -1540,6 +1605,8 @@ export type DeployWizardPlanVariable = DeployWizardVariable & {
   provisionedOnApply: boolean;
   /** Set only when sanitizing the plan for the browser — no secret values. */
   hostHasValue?: boolean;
+  /** True when this row is only a ${{ shared.* }} / sibling ref (collapsed in the UI). */
+  autoWired: boolean;
 };
 
 export type DeployWizardPlan = {
@@ -1647,14 +1714,14 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'GITHUB_WEBSITE_REPO') filled = defaultWebsiteRepoSlug(installSlug);
     if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
     if (raw.name === 'POST_ALIAS') filled = postAlias;
-    if (raw.name === 'COMPANY_NAME') filled = companyName;
     if (raw.name === 'ADMIN_USERNAME') filled = adminUsername;
     if (raw.name === 'BOOKING_TIMEZONE') filled = timezone;
-    if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
-    if (raw.name === 'COMPANY_DOMAIN' && siteDomain) filled = siteDomain;
-    if (raw.name === 'EMAIL_FROM_NAME' && companyName) filled = companyName;
-    if (raw.name === 'RESEND_FROM' && siteDomain) filled = deployWizardResendFrom(siteDomain);
     if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
+    if (raw.service === 'shared') {
+      if (raw.name === 'COMPANY_NAME') filled = companyName;
+      if (raw.name === 'EMAIL_FROM' && siteDomain) filled = deployWizardResendFrom(siteDomain);
+      if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
+    }
     if (appService !== DEPLOY_APP_SERVICE && filled) {
       filled = substituteAppService(filled, appService);
     }
@@ -1663,7 +1730,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     const provisionedOnApply = isDeployWizardProvisionedSecret(raw);
     const rolledOnApply = raw.kind === 'generated';
     const required = isDeployWizardRequiredOperatorSecret(raw.name, seed);
-    const needsInput = DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS.has(raw.name);
+    const needsInput = DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS.has(raw.name) && raw.kind === 'secret';
     variables.push({
       ...raw,
       required,
@@ -1674,6 +1741,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
       inheritFromHost,
       rolledOnApply,
       provisionedOnApply,
+      autoWired: isDeployWizardAutoWired({ kind: raw.kind, service }),
     });
   }
 
@@ -1734,6 +1802,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
         inheritFromHost: false,
         rolledOnApply: false,
         provisionedOnApply: false,
+        autoWired: false,
       });
     }
   }
@@ -1803,7 +1872,7 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
   }
 
   for (const [service, vars] of byService) {
-    lines.push(`# ${service}`);
+    lines.push(service === 'shared' ? '# Project (shared) — company name, From address, domain, API keys' : `# ${service}`);
     for (const variable of vars) {
       const key = `${variable.service}:${variable.name}`;
       const value = values[key] ?? variable.filled;
@@ -1825,7 +1894,7 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
       }
       const quoted = value.replace(/'/g, `'\\''`);
       if (service === 'shared') {
-        lines.push(`railway variable set ${variable.name}='${quoted}' --skip-deploys`);
+        lines.push(`railway variable set ${variable.name}='${quoted}' --skip-deploys  # project shared`);
       } else {
         lines.push(`railway variable set ${variable.name}='${quoted}' --service ${service} --skip-deploys`);
       }

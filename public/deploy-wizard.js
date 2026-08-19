@@ -448,18 +448,35 @@
       list.push(variable);
       byService.set(variable.service, list);
     }
+    const wiredCount = plan.variables.filter((v) => v.autoWired).length;
     let html =
-      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is required unless you seeded a sample inbox. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
-      `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
+      `<p class="dl-footnote">Company name, From address, and site domain live once as Railway <strong>shared</strong> variables. Change them later under the project’s Shared Variables — every service already references <code>\${{ shared.* }}</code>. Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s REΛVE key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is required unless you seeded a sample inbox. Everything else is copied, rolled, or created on apply.</p>` +
+      `<p class="dl-meta">${plan.sharedKeys?.length || 0} shared · ${wiredCount} auto-wired (collapsed) · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
-      html +=
-        `<section class="dl-section">` +
-        `<h2 class="dl-section-title">${esc(service)}</h2>` +
-        `<div class="dw-table-wrap">` +
-        `<table class="dw-table">` +
-        `<thead><tr><th>Variable</th><th>Kind</th><th>Value</th><th>Notes</th></tr></thead>` +
-        `<tbody>${vars.map(renderVarRow).join('')}</tbody>` +
-        `</table></div></section>`;
+      const shown = vars.filter((v) => !v.autoWired);
+      const wired = vars.filter((v) => v.autoWired);
+      const title = service === 'shared' ? 'Project (shared)' : service;
+      html += `<section class="dl-section"><h2 class="dl-section-title">${esc(title)}</h2>`;
+      if (shown.length) {
+        html +=
+          `<div class="dw-table-wrap">` +
+          `<table class="dw-table">` +
+          `<thead><tr><th>Variable</th><th>Kind</th><th>Value</th><th>Notes</th></tr></thead>` +
+          `<tbody>${shown.map(renderVarRow).join('')}</tbody>` +
+          `</table></div>`;
+      }
+      if (wired.length) {
+        html +=
+          `<details class="dw-wired">` +
+          `<summary>Wired automatically (${wired.length}) — ${wired.map((v) => esc(v.name)).join(', ')}</summary>` +
+          `<div class="dw-table-wrap">` +
+          `<table class="dw-table">` +
+          `<thead><tr><th>Variable</th><th>Kind</th><th>Value</th><th>Notes</th></tr></thead>` +
+          `<tbody>${wired.map(renderVarRow).join('')}</tbody>` +
+          `</table></div>` +
+          `</details>`;
+      }
+      html += `</section>`;
     }
     return html;
   }
@@ -620,10 +637,8 @@
       'ADMIN_USERNAME',
       'BOOKING_TIMEZONE',
       'PUBLIC_SITE_DOMAIN',
-      'COMPANY_DOMAIN',
+      'EMAIL_FROM',
       'VAPID_SUBJECT',
-      'RESEND_FROM',
-      'EMAIL_FROM_NAME',
     ]);
     for (const variable of plan.variables) {
       const key = varKey(variable);

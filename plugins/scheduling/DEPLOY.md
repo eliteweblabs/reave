@@ -25,13 +25,13 @@ stage: 3
 ## External setup
 
 - Deploy calcom-booking-api + calcom-web-app on Railway
-- On **calcom-web-app**, do not type mail or profile secrets — reference `reave`:
-  - `EMAIL_FROM=${{ reave.EMAIL_FROM }}` (alias of `RESEND_FROM` — required or Cal.com uses sendmail)
-  - `EMAIL_FROM_NAME=${{ reave.EMAIL_FROM_NAME }}`
-  - `NEXT_PUBLIC_APP_NAME` / `NEXT_PUBLIC_COMPANY_NAME` = `${{ reave.EMAIL_FROM_NAME }}`
-  - `NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=${{ reave.EMAIL_FROM }}`
-  - `RESEND_API_KEY=${{ reave.RESEND_API_KEY }}`
-  - `EMAIL_SERVER_PASSWORD` — Railway reference to `reave.RESEND_API_KEY` (host `smtp.resend.com` / port `465` / user `resend`)
+- On **calcom-web-app**, do not type mail or profile secrets — reference Railway shared variables:
+  - `EMAIL_FROM=${{ shared.EMAIL_FROM }}` (required or Cal.com uses sendmail)
+  - `EMAIL_FROM_NAME=${{ shared.COMPANY_NAME }}`
+  - `NEXT_PUBLIC_APP_NAME` / `NEXT_PUBLIC_COMPANY_NAME` = `${{ shared.COMPANY_NAME }}`
+  - `NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=${{ shared.EMAIL_FROM }}`
+  - `RESEND_API_KEY=${{ shared.RESEND_API_KEY }}`
+  - `EMAIL_SERVER_PASSWORD` — `${{ shared.RESEND_API_KEY }}` (host `smtp.resend.com` / port `465` / user `resend`)
 - On **reave**, `CALCOM_DATABASE_URL=${{ calcom-postgres.DATABASE_URL }}` so a later Cal.com deploy still gets icon / username / email from company settings (`GET /api/install/identity`)
 - Enable `scheduling` in install config `features[]`
 - Add `schedule` to `footerNav` if not present
