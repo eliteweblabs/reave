@@ -7,6 +7,7 @@
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import { isPracticeArea } from './practiceGate';
 import { normalizePostAlias } from './postAlias';
 import { defaultWebsiteRepoSlug } from './websiteEditorRepo';
 
@@ -1501,12 +1502,26 @@ export type DeployWizardSeedInput = {
   courtCounties?: string[];
   courtStates?: string[];
   practiceArea?: string;
+  practiceAreas?: string[];
 };
+
+function normalizeSeedPracticeAreas(raw?: Partial<DeployWizardSeedInput> | null): string[] {
+  const fromArr = Array.isArray(raw?.practiceAreas) ? raw.practiceAreas : [];
+  const fromSingle = typeof raw?.practiceArea === 'string' ? raw.practiceArea.split(',') : [];
+  return [
+    ...new Set(
+      [...fromArr, ...fromSingle]
+        .map((s) => String(s).trim().toLowerCase())
+        .filter(isPracticeArea),
+    ),
+  ];
+}
 
 export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> | null): DeployWizardSeedInput {
   const industry = raw?.industry && isDeployWizardSeedIndustryId(raw.industry) ? raw.industry : 'none';
   const on = industry !== 'none';
   const radius = Number(raw?.courtRadiusMi);
+  const practiceAreas = normalizeSeedPracticeAreas(raw);
   return {
     industry,
     inbox: on && raw?.inbox !== false,
@@ -1526,7 +1541,8 @@ export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> |
           .filter((s) => /^[A-Z]{2}$/.test(s)),
       ),
     ],
-    practiceArea: (raw?.practiceArea || '').trim().slice(0, 40) || undefined,
+    practiceAreas,
+    practiceArea: practiceAreas[0],
   };
 }
 
@@ -1746,8 +1762,8 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
         },
         {
           name: 'PRACTICE_AREA',
-          value: seed.practiceArea || 'bankruptcy',
-          description: 'Legal department this office serves (bankruptcy, tax, foreclosure, general).',
+          value: (seed.practiceAreas?.length ? seed.practiceAreas : ['bankruptcy']).join(','),
+          description: 'Legal departments this office serves (comma-separated: bankruptcy, tax, foreclosure, general).',
         },
       );
       if ((seed.courtGateMode || 'radius') === 'radius') {

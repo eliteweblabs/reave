@@ -612,6 +612,40 @@
   align-items: flex-end;
 }
 
+.dl-field.dw-field--multi {
+  flex: 1 1 100%;
+  min-width: 100%;
+}
+
+.dw-multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.85rem;
+  max-height: 11rem;
+  overflow-y: auto;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+.dw-multi-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dw-multi-opt input {
+  margin: 0;
+  accent-color: #c4a574;
+}
+
 .dw-places {
   position: relative;
   flex: 1 1 100%;

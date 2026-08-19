@@ -265,12 +265,13 @@ const lawPin = buildDeployWizardPlan({
     practiceAddress: '123 Cabot St, Beverly, MA 01915',
     courtGateMode: 'counties',
     courtRadiusMi: 60,
-    courtCounties: ['Essex'],
-    practiceArea: 'bankruptcy',
+    courtCounties: ['Essex', 'Middlesex'],
+    practiceAreas: ['bankruptcy', 'tax'],
   },
 });
 assert.equal(lawPin.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS')?.filled, '123 Cabot St, Beverly, MA 01915');
-assert.equal(lawPin.variables.find((v) => v.name === 'COURT_COUNTIES')?.filled, 'Essex');
+assert.equal(lawPin.variables.find((v) => v.name === 'COURT_COUNTIES')?.filled, 'Essex,Middlesex');
+assert.equal(lawPin.variables.find((v) => v.name === 'PRACTICE_AREA')?.filled, 'bankruptcy,tax');
 assert.equal(lawPin.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'counties');
 const lawState = buildDeployWizardPlan({
   features: ['website'],
@@ -280,11 +281,13 @@ const lawState = buildDeployWizardPlan({
     todos: true,
     schedule: true,
     courtGateMode: 'state',
-    courtStates: ['MA'],
+    courtStates: ['MA', 'NH'],
+    practiceAreas: ['foreclosure', 'general'],
   },
 });
 assert.equal(lawState.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'state');
-assert.equal(lawState.variables.find((v) => v.name === 'COURT_STATES')?.filled, 'MA');
+assert.equal(lawState.variables.find((v) => v.name === 'COURT_STATES')?.filled, 'MA,NH');
+assert.equal(lawState.variables.find((v) => v.name === 'PRACTICE_AREA')?.filled, 'foreclosure,general');
 assert.equal(lawState.variables.find((v) => v.name === 'COURT_RADIUS_MI'), undefined);
 assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
 const manifest = buildGithubAppManifest({

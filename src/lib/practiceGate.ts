@@ -80,7 +80,9 @@ export type PracticeGate = {
   radiusMi: number;
   counties: string[];
   states: string[];
+  /** First selected department — kept for tags and older installs. */
   practiceArea: PracticeAreaId;
+  practiceAreas: PracticeAreaId[];
   gateMode: PracticeGateMode;
 };
 
@@ -103,8 +105,26 @@ async function ensurePracticeGateSchema(pool: NonNullable<ReturnType<typeof getP
   await pool.query(SCHEMA_STATES);
 }
 
-function isPracticeArea(value: string): value is PracticeAreaId {
+export function isPracticeArea(value: string): value is PracticeAreaId {
   return PRACTICE_AREAS.some((row) => row.id === value);
+}
+
+function normalizePracticeAreas(raw?: Partial<PracticeGate> | null): PracticeAreaId[] {
+  if (Array.isArray(raw?.practiceAreas)) {
+    const unique = [
+      ...new Set(raw.practiceAreas.map((s) => String(s).trim().toLowerCase()).filter(isPracticeArea)),
+    ];
+    return unique.length ? unique : ['bankruptcy'];
+  }
+  const fromSingle = String(raw?.practiceArea || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(isPracticeArea);
+  return fromSingle.length ? fromSingle : ['bankruptcy'];
+}
+
+export function gateIncludesPracticeArea(gate: Pick<PracticeGate, 'practiceArea' | 'practiceAreas'>, id: PracticeAreaId): boolean {
+  return (gate.practiceAreas?.length ? gate.practiceAreas : [gate.practiceArea]).includes(id);
 }
 
 function isGateMode(value: string): value is PracticeGateMode {
@@ -123,13 +143,14 @@ function normalizeStates(raw?: string[] | null): string[] {
 
 export function normalizePracticeGate(raw?: Partial<PracticeGate> | null): PracticeGate {
   const radius = Number(raw?.radiusMi);
-  const area = (raw?.practiceArea || '').trim().toLowerCase();
   const mode = (raw?.gateMode || '').trim().toLowerCase();
+  const areas = normalizePracticeAreas(raw);
   return {
     radiusMi: Number.isFinite(radius) && radius > 0 ? Math.min(250, Math.max(5, radius)) : 60,
     counties: [...new Set((raw?.counties ?? []).map((c) => c.trim()).filter(Boolean))],
     states: normalizeStates(raw?.states),
-    practiceArea: isPracticeArea(area) ? area : 'bankruptcy',
+    practiceArea: areas[0],
+    practiceAreas: areas,
     gateMode: isGateMode(mode) ? mode : 'radius',
   };
 }
@@ -144,11 +165,16 @@ export function gateFromEnv(): Partial<PracticeGate> {
     .map((s) => s.trim())
     .filter(Boolean);
   const radius = Number(serverEnv('COURT_RADIUS_MI'));
+  const areas = (serverEnv('PRACTICE_AREA') || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(isPracticeArea);
   return {
     radiusMi: Number.isFinite(radius) ? radius : undefined,
     counties: counties.length ? counties : undefined,
     states: states.length ? states : undefined,
-    practiceArea: serverEnv('PRACTICE_AREA')?.trim() as PracticeAreaId | undefined,
+    practiceArea: areas[0],
+    practiceAreas: areas.length ? areas : undefined,
     gateMode: serverEnv('COURT_GATE_MODE')?.trim() as PracticeGateMode | undefined,
   };
 }
@@ -187,6 +213,8 @@ export function isDefaultPracticeGate(gate: PracticeGate): boolean {
     gate.counties.length === 0 &&
     gate.states.length === 0 &&
     gate.practiceArea === 'bankruptcy' &&
+    gate.practiceAreas.length === 1 &&
+    gate.practiceAreas[0] === 'bankruptcy' &&
     gate.gateMode === 'radius'
   );
 }
@@ -209,7 +237,7 @@ export async function getPracticeGate(): Promise<PracticeGate> {
         radiusMi: row.radius_mi,
         counties: row.counties ?? [],
         states: row.states ?? [],
-        practiceArea: row.practice_area as PracticeAreaId,
+        practiceArea: row.practice_area,
         gateMode: row.gate_mode as PracticeGateMode,
       });
     }
@@ -221,7 +249,15 @@ export async function getPracticeGate(): Promise<PracticeGate> {
 
 export async function setPracticeGate(input: Partial<PracticeGate>): Promise<PracticeGate> {
   const current = await getPracticeGate();
-  const next = normalizePracticeGate({ ...current, ...input });
+  const next = normalizePracticeGate({
+    radiusMi: input.radiusMi ?? current.radiusMi,
+    counties: input.counties ?? current.counties,
+    states: input.states ?? current.states,
+    gateMode: input.gateMode ?? current.gateMode,
+    practiceAreas:
+      input.practiceAreas ??
+      (input.practiceArea != null ? String(input.practiceArea).split(',') : current.practiceAreas),
+  });
   const pool = getPgPool();
   if (pool) {
     await ensurePracticeGateSchema(pool);
@@ -229,7 +265,7 @@ export async function setPracticeGate(input: Partial<PracticeGate>): Promise<Pra
       `UPDATE practice_gate
        SET radius_mi = $1, counties = $2, states = $3, practice_area = $4, gate_mode = $5, updated_at = now()
        WHERE id = 1`,
-      [next.radiusMi, next.counties, next.states, next.practiceArea, next.gateMode],
+      [next.radiusMi, next.counties, next.states, next.practiceAreas.join(','), next.gateMode],
     );
   } else {
     writeFileGate(next);

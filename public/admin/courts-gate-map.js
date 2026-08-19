@@ -83,7 +83,12 @@ function paintCard(host, data) {
   const usStates = Array.isArray(data.usStates) ? data.usStates : [];
   const counties = Array.isArray(data.counties) ? data.counties : [];
   const selected = new Set((gate.counties || []).map((c) => String(c).toLowerCase()));
-  const selectedState = String(gate.states?.[0] || '').toUpperCase();
+  const selectedStates = new Set((gate.states || []).map((s) => String(s).toUpperCase()));
+  const selectedAreas = new Set(
+    (gate.practiceAreas?.length ? gate.practiceAreas : [gate.practiceArea || 'bankruptcy']).map((id) =>
+      String(id).toLowerCase(),
+    ),
+  );
   const mode = modes.some((row) => row.id === gate.gateMode) ? gate.gateMode : 'radius';
   const courtCount = Array.isArray(data.courts) ? data.courts.length : 0;
   const token = (window.__mapboxAccessToken || '').trim();
@@ -109,28 +114,41 @@ function paintCard(host, data) {
     `<span>Radius <em class="kn-courts-map-miles">${escHtml(String(gate.radiusMi))} mi</em></span>` +
     `<input type="range" min="10" max="150" step="5" value="${escHtml(String(gate.radiusMi))}" data-kn-radius />` +
     `</label>` +
-    `<label class="kn-courts-map-field"${mode === 'state' ? '' : ' hidden'}>` +
-    `<span>State</span>` +
-    `<select data-kn-state>` +
-    `<option value="">Select state…</option>` +
+    `<div class="kn-courts-map-field"${mode === 'state' ? '' : ' hidden'} data-kn-states-field>` +
+    `<span>States</span>` +
+    `<div class="kn-courts-map-counties kn-courts-map-states" data-kn-states>` +
     usStates
-      .map(
-        (row) =>
-          `<option value="${escHtml(row.id)}"${row.id === selectedState ? ' selected' : ''}>${escHtml(row.label)}</option>`,
-      )
+      .map((row) => {
+        const on = selectedStates.has(String(row.id).toUpperCase());
+        return (
+          `<label class="kn-courts-map-county">` +
+          `<input type="checkbox" value="${escHtml(row.id)}"${on ? ' checked' : ''} />` +
+          `${escHtml(row.label)}` +
+          `</label>`
+        );
+      })
       .join('') +
-    `</select>` +
-    `</label>` +
-    `<label class="kn-courts-map-field">` +
-    `<span>Department</span>` +
-    `<select data-kn-area>${areas
-      .map(
-        (row) =>
-          `<option value="${escHtml(row.id)}"${row.id === gate.practiceArea ? ' selected' : ''}>${escHtml(row.label)}</option>`,
-      )
-      .join('')}</select>` +
-    `</label>` +
-    `<div class="kn-courts-map-counties"${mode === 'counties' ? '' : ' hidden'}>` +
+    `</div>` +
+    `</div>` +
+    `<div class="kn-courts-map-field">` +
+    `<span>Departments</span>` +
+    `<div class="kn-courts-map-counties kn-courts-map-areas" data-kn-areas>` +
+    areas
+      .map((row) => {
+        const on = selectedAreas.has(String(row.id).toLowerCase());
+        return (
+          `<label class="kn-courts-map-county">` +
+          `<input type="checkbox" value="${escHtml(row.id)}"${on ? ' checked' : ''} />` +
+          `${escHtml(row.label)}` +
+          `</label>`
+        );
+      })
+      .join('') +
+    `</div>` +
+    `</div>` +
+    `<div class="kn-courts-map-field"${mode === 'counties' ? '' : ' hidden'} data-kn-counties-field>` +
+    `<span>Counties</span>` +
+    `<div class="kn-courts-map-counties" data-kn-counties>` +
     counties
       .map((name) => {
         const on = selected.has(String(name).toLowerCase());
@@ -142,6 +160,7 @@ function paintCard(host, data) {
         );
       })
       .join('') +
+    `</div>` +
     `</div>` +
     `<p class="kn-courts-map-status"></p>` +
     `</div>`;
@@ -178,25 +197,30 @@ function paintCard(host, data) {
   host.querySelector('[data-kn-mode]')?.addEventListener('change', (e) => {
     const next = e.target.value;
     const radiusField = host.querySelector('[data-kn-radius]')?.closest('.kn-courts-map-field');
-    const stateField = host.querySelector('[data-kn-state]')?.closest('.kn-courts-map-field');
-    const countyBox = host.querySelector('.kn-courts-map-counties');
+    const stateField = host.querySelector('[data-kn-states-field]');
+    const countyField = host.querySelector('[data-kn-counties-field]');
     if (radiusField) radiusField.hidden = next !== 'radius';
     if (stateField) stateField.hidden = next !== 'state';
-    if (countyBox) countyBox.hidden = next !== 'counties';
+    if (countyField) countyField.hidden = next !== 'counties';
     save();
   });
-  host.querySelector('[data-kn-state]')?.addEventListener('change', save);
-  host.querySelector('[data-kn-area]')?.addEventListener('change', save);
   host.querySelectorAll('.kn-courts-map-county input').forEach((el) => el.addEventListener('change', save));
 }
 
 function readForm(host) {
   const radius = Number(host.querySelector('[data-kn-radius]')?.value);
   const mode = host.querySelector('[data-kn-mode]')?.value || 'radius';
-  const practiceArea = host.querySelector('[data-kn-area]')?.value || 'bankruptcy';
-  const counties = [...host.querySelectorAll('.kn-courts-map-county input:checked')].map((el) => el.value);
-  const state = host.querySelector('[data-kn-state]')?.value?.trim().toUpperCase() || '';
-  return { radiusMi: radius, gateMode: mode, practiceArea, counties, states: state ? [state] : [] };
+  const practiceAreas = [...host.querySelectorAll('[data-kn-areas] input:checked')].map((el) => el.value);
+  const counties = [...host.querySelectorAll('[data-kn-counties] input:checked')].map((el) => el.value);
+  const states = [...host.querySelectorAll('[data-kn-states] input:checked')].map((el) => el.value);
+  return {
+    radiusMi: radius,
+    gateMode: mode,
+    practiceAreas,
+    practiceArea: practiceAreas[0] || 'bankruptcy',
+    counties,
+    states,
+  };
 }
 
 async function putGate(host, status) {

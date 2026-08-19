@@ -4338,6 +4338,8 @@ button.de-placeholder-action:active {
   max-height: 88px;
   overflow: auto;
 }
+.kn-courts-map-states { max-height: 140px; }
+.kn-courts-map-areas { max-height: none; }
 .kn-courts-map-county {
   display: inline-flex;
   align-items: center;

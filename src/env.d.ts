@@ -262,7 +262,7 @@ interface ImportMetaEnv {
   COURT_COUNTIES?: string;
   /** Comma-separated USPS state codes for the court gate (law installs). */
   COURT_STATES?: string;
-  /** Legal department: bankruptcy | tax | foreclosure | general. */
+  /** Legal departments, comma-separated: bankruptcy | tax | foreclosure | general. */
   PRACTICE_AREA?: string;
   /** Court knowledge aggregation: radius | counties | state | both. */
   COURT_GATE_MODE?: string;

@@ -33,7 +33,7 @@ async function refreshCourtsDoc() {
     slug: 'courts-in-radius',
     title: 'Courts in this office’s gate',
     content: markdown.replace(/^---[\s\S]*?---\n/, ''),
-    tags: ['courts', 'map', resolved.gate.practiceArea],
+    tags: ['courts', 'map', ...resolved.gate.practiceAreas],
   });
   return resolved;
 }
@@ -64,10 +64,14 @@ export async function PUT(context: APIContext): Promise<Response> {
   }
   const counties = Array.isArray(body.counties) ? body.counties.map(String) : undefined;
   const states = Array.isArray(body.states) ? body.states.map(String) : undefined;
+  const practiceAreas = Array.isArray(body.practiceAreas)
+    ? body.practiceAreas.map((id) => String(id) as PracticeAreaId)
+    : undefined;
   await setPracticeGate({
     radiusMi: typeof body.radiusMi === 'number' ? body.radiusMi : undefined,
     counties,
     states,
+    practiceAreas,
     practiceArea: typeof body.practiceArea === 'string' ? (body.practiceArea as PracticeAreaId) : undefined,
     gateMode: typeof body.gateMode === 'string' ? (body.gateMode as PracticeGateMode) : undefined,
   });

@@ -41,6 +41,7 @@
     courtRadiusMi: 60,
     courtCounties: [],
     courtStates: [],
+    practiceAreas: ['bankruptcy'],
     practiceArea: 'bankruptcy',
   };
   let courtGateModes = [
@@ -49,6 +50,28 @@
     { id: 'state', label: 'State' },
   ];
   let usStates = [{ id: 'MA', label: 'Massachusetts' }];
+  let directoryCounties = [
+    'Barnstable',
+    'Berkshire',
+    'Bristol',
+    'Dukes',
+    'Essex',
+    'Franklin',
+    'Hampden',
+    'Hampshire',
+    'Middlesex',
+    'Nantucket',
+    'Norfolk',
+    'Plymouth',
+    'Suffolk',
+    'Worcester',
+  ];
+  let practiceAreas = [
+    { id: 'bankruptcy', label: 'Bankruptcy / debtor' },
+    { id: 'tax', label: 'Tax controversy' },
+    { id: 'foreclosure', label: 'Foreclosure / housing' },
+    { id: 'general', label: 'General practice' },
+  ];
   let selectedIds = new Set();
   let selectedExtras = new Set();
   let step = 0;
@@ -86,6 +109,31 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function renderMulti(id, rows, selected) {
+    const chosen = new Set((selected || []).map((v) => String(v).toLowerCase()));
+    return (
+      `<div class="dw-multi" id="${esc(id)}" role="group">` +
+      rows
+        .map((row) => {
+          const value = typeof row === 'string' ? row : row.id;
+          const label = typeof row === 'string' ? row : row.label;
+          const on = chosen.has(String(value).toLowerCase());
+          return (
+            `<label class="dw-multi-opt">` +
+            `<input type="checkbox" value="${esc(value)}"${on ? ' checked' : ''} />` +
+            `${esc(label)}` +
+            `</label>`
+          );
+        })
+        .join('') +
+      `</div>`
+    );
+  }
+
+  function readChecks(id) {
+    return [...root.querySelectorAll(`#${id} input:checked`)].map((el) => el.value);
   }
 
   function placesEls() {
@@ -521,40 +569,24 @@
               `</label>`
             : '') +
           (seed.courtGateMode === 'counties'
-            ? `<label class="dl-field">` +
+            ? `<label class="dl-field dw-field--multi">` +
               `<span class="dl-field-label">Counties</span>` +
-              `<input id="dw-court-counties" class="dl-input" type="text" maxlength="200" placeholder="Essex" value="${esc((seed.courtCounties || []).join(', '))}" />` +
+              renderMulti('dw-court-counties', directoryCounties, seed.courtCounties) +
               `</label>`
             : '') +
           (seed.courtGateMode === 'state'
-            ? `<label class="dl-field">` +
-              `<span class="dl-field-label">State</span>` +
-              `<select id="dw-court-state" class="dl-select">` +
-              `<option value="">Select state…</option>` +
-              usStates
-                .map((row) => {
-                  const selected = (seed.courtStates || [])[0] === row.id ? ' selected' : '';
-                  return `<option value="${esc(row.id)}"${selected}>${esc(row.label)}</option>`;
-                })
-                .join('') +
-              `</select>` +
+            ? `<label class="dl-field dw-field--multi">` +
+              `<span class="dl-field-label">States</span>` +
+              renderMulti('dw-court-states', usStates, seed.courtStates) +
               `</label>`
             : '') +
-          `<label class="dl-field">` +
-          `<span class="dl-field-label">Department</span>` +
-          `<select id="dw-practice-area" class="dl-select">` +
-          [
-            ['bankruptcy', 'Bankruptcy / debtor'],
-            ['tax', 'Tax controversy'],
-            ['foreclosure', 'Foreclosure / housing'],
-            ['general', 'General practice'],
-          ]
-            .map(([id, label]) => {
-              const selected = (seed.practiceArea || 'bankruptcy') === id ? ' selected' : '';
-              return `<option value="${esc(id)}"${selected}>${esc(label)}</option>`;
-            })
-            .join('') +
-          `</select>` +
+          `<label class="dl-field dw-field--multi">` +
+          `<span class="dl-field-label">Departments</span>` +
+          renderMulti(
+            'dw-practice-areas',
+            practiceAreas,
+            seed.practiceAreas?.length ? seed.practiceAreas : seed.practiceArea ? [seed.practiceArea] : ['bankruptcy'],
+          ) +
           `</label>` +
           `</div>`
         : '') +
@@ -744,23 +776,21 @@
     const addrEl = root.querySelector('#dw-practice-address');
     const radiusEl = root.querySelector('#dw-court-radius');
     const countiesEl = root.querySelector('#dw-court-counties');
-    const areaEl = root.querySelector('#dw-practice-area');
+    const statesEl = root.querySelector('#dw-court-states');
+    const areasEl = root.querySelector('#dw-practice-areas');
     const gateEl = root.querySelector('#dw-court-gate');
-    const stateEl = root.querySelector('#dw-court-state');
     if (addrEl) seed.practiceAddress = addrEl.value.trim();
     if (gateEl) seed.courtGateMode = gateEl.value || 'radius';
     if (radiusEl) {
       const radius = Number(radiusEl.value);
       seed.courtRadiusMi = Number.isFinite(radius) && radius > 0 ? radius : 60;
     }
-    if (countiesEl) {
-      seed.courtCounties = countiesEl.value
-        .split(',')
-        .map((c) => c.trim())
-        .filter(Boolean);
+    if (countiesEl) seed.courtCounties = readChecks('dw-court-counties');
+    if (statesEl) seed.courtStates = readChecks('dw-court-states');
+    if (areasEl) {
+      seed.practiceAreas = readChecks('dw-practice-areas');
+      seed.practiceArea = seed.practiceAreas[0] || 'bankruptcy';
     }
-    if (stateEl) seed.courtStates = stateEl.value ? [stateEl.value] : [];
-    if (areaEl) seed.practiceArea = areaEl.value || 'bankruptcy';
   }
 
   function readVarInputs() {
@@ -1055,6 +1085,8 @@
       seedIndustries = data.seedIndustries || seedIndustries;
       if (Array.isArray(data.courtGateModes) && data.courtGateModes.length) courtGateModes = data.courtGateModes;
       if (Array.isArray(data.usStates) && data.usStates.length) usStates = data.usStates;
+      if (Array.isArray(data.directoryCounties) && data.directoryCounties.length) directoryCounties = data.directoryCounties;
+      if (Array.isArray(data.practiceAreas) && data.practiceAreas.length) practiceAreas = data.practiceAreas;
       railway = data.railway || railway;
       cloudflare = data.cloudflare || cloudflare;
       if (data.defaults) {

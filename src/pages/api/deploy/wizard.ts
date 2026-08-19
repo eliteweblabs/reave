@@ -31,7 +31,8 @@ import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayCl
 import { isResendConfigured } from '../../../lib/resendDnsSync';
 import { isGithubAppConfigured } from '../../../lib/githubApp';
 import { createGithubAppPending, githubAppCookieHeader } from '../../../lib/deployWizardGithubApp';
-import { PRACTICE_GATE_MODES, US_STATES } from '../../../lib/practiceGate';
+import { DIRECTORY_COUNTIES } from '../../../lib/courtDirectory';
+import { PRACTICE_AREAS, PRACTICE_GATE_MODES, US_STATES } from '../../../lib/practiceGate';
 
 export const prerender = false;
 
@@ -94,6 +95,7 @@ function parseSeed(body: Record<string, unknown>) {
   const seed = raw as Record<string, unknown>;
   const counties = Array.isArray(seed.courtCounties) ? seed.courtCounties.map(String) : [];
   const states = Array.isArray(seed.courtStates) ? seed.courtStates.map(String) : [];
+  const areas = Array.isArray(seed.practiceAreas) ? seed.practiceAreas.map(String) : [];
   const gateMode =
     seed.courtGateMode === 'counties' || seed.courtGateMode === 'state' || seed.courtGateMode === 'radius'
       ? seed.courtGateMode
@@ -108,6 +110,7 @@ function parseSeed(body: Record<string, unknown>) {
     courtRadiusMi: typeof seed.courtRadiusMi === 'number' ? seed.courtRadiusMi : undefined,
     courtCounties: counties,
     courtStates: states,
+    practiceAreas: areas,
     practiceArea: typeof seed.practiceArea === 'string' ? seed.practiceArea : undefined,
   });
 }
@@ -165,6 +168,8 @@ export async function GET(context: APIContext): Promise<Response> {
     seedIndustries: [...DEPLOY_WIZARD_SEED_INDUSTRIES],
     courtGateModes: [...PRACTICE_GATE_MODES],
     usStates: [...US_STATES],
+    directoryCounties: [...DIRECTORY_COUNTIES],
+    practiceAreas: [...PRACTICE_AREAS],
     defaultModuleIds: baseline.map((m) => m.moduleId),
     railway: {
       configured: isRailwayConfigured(),
