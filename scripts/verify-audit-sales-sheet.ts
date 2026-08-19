@@ -567,7 +567,13 @@ await test('static back is three REΛVE columns with stack logos and no client f
   assert.match(back, /50M\+/);
   assert.match(back, /Nearby rate/);
   assert.match(back, /Custom builds/);
+  assert.match(back, /Built by operators/);
+  assert.match(back, /one login instead of the SaaS pile/);
   assert.match(back, /automating the work/);
+  assert.match(back, /hosting I could trust/);
+  assert.match(back, /Barber's Edge/);
+  assert.match(back, /The Law Office of Barry Levine/);
+  assert.match(back, /MDOT\.world/);
   assert.match(back, /Online presence diagnostic/);
   assert.match(back, /independent systems scan/);
   assert.match(back, /reave-bg-pattern/);

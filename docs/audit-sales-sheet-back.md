@@ -26,8 +26,8 @@ Cover line: “Online presence diagnostic” / independent systems scan (same as
 | Duplex | **Short-edge bind** so the back is right-side up when you flip landscape |
 
 Do not use the admin dark theme on the front. Near-black type, one accent, lots of white.
-The back keeps a white sheet; each platform mark sits on a small charcoal tile so
-light logos (Notion, Square, …) stay visible when printed.
+The back keeps a white sheet over `/reave-bg-pattern.svg`. Stack marks are black
+silhouettes (CSS mask), not tiles.
 
 ---
 
@@ -48,11 +48,11 @@ name, scores, findings, or QR here.
 
 The whole page uses `/reave-bg-pattern.svg` (same chevron as the marketing site).
 
-1. **Left — Managed hosting** — `/hosting` Care pitch, Railway™ build stats,
-   what the other-side fixes do, and a workshop “Nearby rate” for a first-year
-   plan (not “grand opening”).
-2. **Center — Cover** — company icon dead center, custom-build / automation
-   line (90% + 10%), then “Online presence diagnostic” and the independent
+1. **Left — Managed hosting** — `/hosting` Care pitch, About “20 years”
+   line, Barry Levine hosting quote, Railway™ stats, workshop “Nearby rate”,
+   and local clients (Barber's Edge, The Law Office of Barry Levine, MDOT.world).
+2. **Center — Cover** — company icon dead center, About “operators” + 90/10
+   custom-build line, then “Online presence diagnostic” and the independent
    systems-scan lede at the bottom.
 3. **Right — Stack** — logos only, black, no boxes or captions. Anthropic is
    required. Playwright is omitted (no mark).

@@ -23,6 +23,13 @@ export type SalesSheetBackLogo = {
 /** Stack marks on the leave-behind. Playwright has no redistributable logo. */
 export const SALES_SHEET_STACK = PLATFORM_STACK.filter((tech) => tech.slug !== 'playwright');
 
+/** Nearby shops named on the REΛVE back — matches /about + /#portfolio. */
+export const SALES_SHEET_LOCAL_CLIENTS = [
+  "Barber's Edge",
+  'The Law Office of Barry Levine',
+  'MDOT.world',
+] as const;
+
 export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): SalesSheetBackLogo[] {
   if (overrides.length) {
     const hasAnthropic = overrides.some((logo) => /anthropic|claude/i.test(`${logo.name} ${logo.slug} ${logo.src}`));
@@ -170,6 +177,28 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   color: #2a2a2a;
 }
 .ss-sheet-back .ss-back-list strong { color: var(--doc-ink); }
+.ss-sheet-back .ss-back-locals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+.ss-sheet-back .ss-back-locals li {
+  font-size: clamp(9px, 1.3cqi, 11px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--doc-ink);
+}
+.ss-sheet-back .ss-back-quote {
+  margin: 0;
+  font-size: clamp(8.5px, 1.25cqi, 10.5px);
+  line-height: 1.4;
+  color: #2a2a2a;
+  font-style: italic;
+}
 .ss-sheet-back .ss-back-col--cover {
   align-items: center;
   justify-content: space-between;
@@ -287,6 +316,7 @@ export function renderSalesSheetBackHtml(opts: {
   const footerBits = [esc(name), support ? esc(support) : '', 'Printed two sides', 'Page 2 of 2'].filter(Boolean);
   const iconHtml =
     (opts.iconHtml || '').trim() || `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
 
   return `
 <style>${backPageCss(opts.orientation)}</style>
@@ -297,9 +327,11 @@ export function renderSalesSheetBackHtml(opts: {
         <p class="ss-back-kicker">Managed hosting</p>
         <h2 class="ss-back-h">We host it. We watch it. We fix it.</h2>
         <p class="ss-back-copy">
-          Every finding on the other side of this sheet is work we take on with a
-          one-year Care plan — daily scans, malware cleanup, weekly SEO reports,
-          and the updates nobody wants to babysit.
+          Over 20 years designing logos, sites, plugins, and apps for shops that
+          needed more than a template. Every finding on the other side of this
+          sheet is work we take on with a one-year Care plan — daily scans,
+          malware cleanup, weekly SEO reports, and the updates nobody wants to
+          babysit.
         </p>
         <ul class="ss-back-list">
           <li><strong>Care</strong> ${care ? `${formatHostingUsd(care.annualUsd)}/year` : '$600/year'} · the site, watched</li>
@@ -314,18 +346,25 @@ export function renderSalesSheetBackHtml(opts: {
           What the fixes do: the page loads, the listing shows, the form works,
           and you stop losing calls to a site that looks closed.
         </p>
+        <p class="ss-back-quote">
+          “I already had a site. What I needed was hosting I could trust and
+          someone to consult when the technical side needed a call.”
+        </p>
         <p class="ss-back-offer">
           <strong>Nearby rate</strong> — first-year Care for shops we can actually
           get to. Not on the website. Ask while we’re standing here.
         </p>
+        <p class="ss-back-kicker">Local</p>
+        <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
       </section>
       <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
         <div class="ss-back-icon">${iconHtml}</div>
         <p class="ss-back-kicker">Custom builds</p>
         <p class="ss-back-builds">
-          ${esc(name)} ships about 90% of the operating system on day one.
-          The last 10% is a custom build — we specialize in saving operators
-          time by automating the work they still do by hand.
+          Built by operators, for operators. ${esc(name)} ships about 90% of
+          the operating system on day one — one login instead of the SaaS pile.
+          The last 10% is a custom build. We specialize in saving clients time
+          by automating the work they still do by hand.
         </p>
         <div class="ss-back-diagnostic">
           <h2>Online presence diagnostic</h2>
