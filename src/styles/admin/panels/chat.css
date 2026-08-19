@@ -935,19 +935,12 @@ body.admin-split-view #chat-panel .ch-compose {
 .ch-undo-toast .timing-ring {
   display: block;
   flex-shrink: 0;
+  width: 26px;
+  height: 26px;
 }
 .ch-undo-label {
   display: block;
   line-height: 1;
-}
-.ch-undo-toast.ch-toast-visible .timing-ring-circle {
-  animation: delete-confirm-draw-ring var(--timing-ring-ms, var(--delete-confirm-ms, 5000ms)) linear forwards;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ch-undo-toast.ch-toast-visible .timing-ring-circle {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
 }
 .ch-undo-toast.ch-toast-visible {
   transform: translateX(-50%) translateY(0);
