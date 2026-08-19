@@ -1,11 +1,14 @@
 import { isSafeLinkHref } from './safeLinkUrl';
 
 /**
- * Parse structured button blocks embedded in assistant chat messages.
+ * Parse structured blocks embedded in assistant chat messages.
  *
  * Agents can append:
  * ```json
  * { "type": "button", "label": "Open project", "href": "https://…" }
+ * ```
+ * ```json
+ * { "type": "preview", "kind": "document", "slug": "nda", "title": "NDA" }
  * ```
  */
 
@@ -24,7 +27,22 @@ export type ChatActionResponse = {
   params?: Record<string, unknown>;
 };
 
-export type StructuredChatResponse = ChatButtonResponse | ChatActionResponse | Record<string, unknown>;
+export type ChatPreviewResponse = {
+  type: 'preview';
+  kind: 'document';
+  slug: string;
+  title?: string;
+  orientation?: 'portrait' | 'landscape';
+  contact_uid?: string;
+};
+
+export type StructuredChatResponse =
+  | ChatButtonResponse
+  | ChatActionResponse
+  | ChatPreviewResponse
+  | Record<string, unknown>;
+
+const DOCUMENT_SLUG_RE = /^[a-z0-9_-]+$/i;
 
 const JSON_BLOCK_RE = /```json\n?([\s\S]*?)\n?```/g;
 
@@ -49,6 +67,60 @@ export function sanitizeChatButtonHref(href: string): string | null {
   const trimmed = href.trim();
   if (!trimmed || !isSafeLinkHref(trimmed)) return null;
   return trimmed;
+}
+
+export function isPreviewResponse(data: unknown): data is ChatPreviewResponse {
+  if (!data || typeof data !== 'object') return false;
+  const preview = data as ChatPreviewResponse;
+  return (
+    preview.type === 'preview' &&
+    preview.kind === 'document' &&
+    typeof preview.slug === 'string' &&
+    DOCUMENT_SLUG_RE.test(preview.slug.trim())
+  );
+}
+
+export function renderPreviewBlock(preview: ChatPreviewResponse): string {
+  return `\`\`\`json\n${JSON.stringify({
+    type: 'preview',
+    kind: 'document',
+    slug: preview.slug.trim(),
+    ...(preview.title ? { title: preview.title } : {}),
+    ...(preview.orientation ? { orientation: preview.orientation } : {}),
+    ...(preview.contact_uid ? { contact_uid: preview.contact_uid } : {}),
+  })}\n\`\`\``;
+}
+
+export function extractChatPreviewFromToolResult(raw: string): ChatPreviewResponse | null {
+  try {
+    const parsed = JSON.parse(raw) as { chat_preview?: unknown } | ChatPreviewResponse;
+    if (isPreviewResponse(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object' && isPreviewResponse(parsed.chat_preview)) {
+      return parsed.chat_preview;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function previewKey(preview: ChatPreviewResponse): string {
+  return `${preview.kind}:${preview.slug.trim()}:${preview.contact_uid?.trim() ?? ''}`;
+}
+
+/** Append any tool-produced previews the model forgot to emit. */
+export function ensurePreviewBlocks(text: string, previews: ChatPreviewResponse[]): string {
+  if (!previews.length) return text;
+  const existing = extractStructuredResponses(text).filter(isPreviewResponse);
+  const have = new Set(existing.map(previewKey));
+  let out = text;
+  for (const preview of previews) {
+    const key = previewKey(preview);
+    if (have.has(key)) continue;
+    out = `${out.trim()}\n\n${renderPreviewBlock(preview)}`;
+    have.add(key);
+  }
+  return out;
 }
 
 export function isButtonResponse(data: unknown): data is ChatButtonResponse {
@@ -163,14 +235,17 @@ export function isRedundantInChatButton(href: string): boolean {
 export function parseAssistantChatButtons(text: string): {
   text: string;
   buttons: ChatButtonResponse[];
+  previews: ChatPreviewResponse[];
 } {
   const structured = extractStructuredResponses(text);
   const buttons = structured.filter(
     (item): item is ChatButtonResponse =>
       isButtonResponse(item) && !isRedundantInChatButton(item.href),
   );
+  const previews = structured.filter(isPreviewResponse);
   return {
     text: stripStructuredJsonBlocks(text),
     buttons,
+    previews,
   };
 }

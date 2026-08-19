@@ -1,5 +1,6 @@
 import {
   extractPortal,
+  getContact,
   isContactApiConfigured,
   listContacts,
   type ContactRecord,
@@ -10,6 +11,10 @@ import {
   applyCompanyBrandShortcodes,
   parseDocumentLayout,
   renderPrintOnePagerHtml,
+  wrapMarkdownPreviewDocument,
+  wrapPrintPreviewDocument,
+  type DocumentLayoutKind,
+  type DocumentOrientation,
   type PrintCompany,
 } from './documentPrintLayout';
 
@@ -349,6 +354,52 @@ export async function fillAndRenderTemplate(
   org?: PrintCompany,
 ): Promise<string> {
   return renderFilledDocumentHtml(fillTemplate(markdown, contact, org), org, '', contact);
+}
+
+/** Prefer a named contact when the agent/UI asked to fill a specific client. */
+export async function resolvePreviewContact(contactUid?: string): Promise<ContactRecord> {
+  const uid = contactUid?.trim();
+  if (uid && isContactApiConfigured()) {
+    try {
+      const res = await getContact(uid);
+      if (res.ok) return res.data;
+    } catch {
+      /* fall through to the sample/preview contact */
+    }
+  }
+  return previewDocumentContact();
+}
+
+export type DocumentPreviewPage = {
+  html: string;
+  title: string;
+  layout: DocumentLayoutKind;
+  orientation: DocumentOrientation;
+  contact: ContactRecord;
+};
+
+/** Fill shortcodes and wrap HTML so admin View / chat thumbnails can iframe it. */
+export async function buildDocumentPreviewHtml(opts: {
+  markdown: string;
+  slug?: string;
+  company: PrintCompany;
+  contact?: ContactRecord;
+}): Promise<DocumentPreviewPage> {
+  const contact = opts.contact ?? (await previewDocumentContact());
+  const layout = parseDocumentLayout(opts.markdown, opts.slug);
+  const source = fillTemplate(opts.markdown, contact, opts.company);
+  const html = await renderFilledDocumentHtml(source, opts.company, opts.slug ?? '', contact);
+  const previewHtml =
+    layout.layout === 'onepager'
+      ? wrapPrintPreviewDocument(html, layout.orientation)
+      : wrapMarkdownPreviewDocument(html);
+  return {
+    html: previewHtml,
+    title: layout.title,
+    layout: layout.layout,
+    orientation: layout.orientation,
+    contact,
+  };
 }
 
 /** Sample contact for admin View — prefers a real contact that has a logo/icon. */

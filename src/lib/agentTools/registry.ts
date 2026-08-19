@@ -13,6 +13,7 @@ import { chatsModule } from './core/chats';
 import { sshModule } from './core/ssh';
 import { wpModule } from './core/wp';
 import { deployResumeModule } from './core/deployResume';
+import { documentsModule } from './core/documents';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -47,6 +48,11 @@ import type { AgentToolModule } from './types';
  * agent register a continuation message that fires automatically when the next
  * Railway deploy-success webhook lands, so mid-task workflows (e.g. fix a
  * Crater line item after the Crater deploy) resume without owner intervention.
+ *
+ * Document templates (`list_documents` / `read_document` / `preview_document`)
+ * live in `core/documents.ts` — enabled when the `documents` feature is on.
+ * preview_document returns a chat_preview JSON block the session UI renders as
+ * a thumbnail that opens a review modal.
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -61,6 +67,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   sshModule,
   wpModule,
   deployResumeModule,
+  documentsModule,
 ];
 
 /** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */

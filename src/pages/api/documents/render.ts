@@ -4,8 +4,7 @@
 import type { APIRoute } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { getCompanyConfig } from '../../../lib/companyConfig';
-import { fillTemplate, previewDocumentContact, renderFilledDocumentHtml } from '../../../lib/documentTemplates';
-import { parseDocumentLayout, wrapPrintPreviewDocument } from '../../../lib/documentPrintLayout';
+import { buildDocumentPreviewHtml, resolvePreviewContact } from '../../../lib/documentTemplates';
 
 export const prerender = false;
 
@@ -13,7 +12,7 @@ export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  let body: { content?: unknown };
+  let body: { content?: unknown; contact_uid?: unknown };
   try {
     body = (await context.request.json()) as typeof body;
   } catch {
@@ -30,13 +29,10 @@ export const POST: APIRoute = async (context) => {
 
   try {
     const company = await getCompanyConfig(context.request);
-    const contact = await previewDocumentContact();
-    const layout = parseDocumentLayout(content);
-    const source = fillTemplate(content, contact, company);
-    const html = await renderFilledDocumentHtml(source, company, '', contact);
-    const previewHtml =
-      layout.layout === 'onepager' ? wrapPrintPreviewDocument(html, layout.orientation) : html;
-    return new Response(JSON.stringify({ html: previewHtml }), {
+    const contactUid = typeof body.contact_uid === 'string' ? body.contact_uid : undefined;
+    const contact = await resolvePreviewContact(contactUid);
+    const preview = await buildDocumentPreviewHtml({ markdown: content, company, contact });
+    return new Response(JSON.stringify({ html: preview.html }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   } catch (e) {
