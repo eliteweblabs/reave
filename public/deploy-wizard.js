@@ -198,7 +198,7 @@
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Company name</span>` +
-      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="Capco Fire" value="${esc(companyName)}" />` +
+      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="acme co" value="${esc(companyName)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Admin username</span>` +
