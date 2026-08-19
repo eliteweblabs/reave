@@ -247,7 +247,8 @@
       ],
       "image": "portfolio-mdot-world-featured",
       "imageAlt": "M-Dot portrait splash page with bottom music and social dock on black",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Mohegan Sun",
@@ -260,7 +261,8 @@
       "image": "portfolio-mohegan-sun-featured",
       "imageAlt": "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
       "imagePosition": "right center",
-      "size": "4x1"
+      "size": "4x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Porsche Miami Art Week",
@@ -271,7 +273,8 @@
       ],
       "image": "portfolio-porsche-miami-art-week-featured",
       "imageAlt": "White Porsche Mission E concept on a parquet platform with Tribute to tomorrow branding at Miami Art Week",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "VIP Perks · Marker Security",
@@ -283,7 +286,8 @@
       ],
       "image": "portfolio-vip-perks-marker-security-featured",
       "imageAlt": "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "LUXEMEDS",
@@ -295,7 +299,8 @@
       ],
       "image": "portfolio-luxe-meds-featured",
       "imageAlt": "LUXEMEDS homepage with product vial hero and chat concierge",
-      "size": "1x2"
+      "size": "1x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Creed Lounge",
@@ -307,7 +312,8 @@
       ],
       "image": "portfolio-creed-featured",
       "imageAlt": "CREED hookah lounge sign against a glass skyscraper at dusk",
-      "size": "2x2"
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Air Race 21",
@@ -319,7 +325,8 @@
       ],
       "image": "portfolio-ar-featured",
       "imageAlt": "Red racing jet with Air Race 21 decorative graphic overlay",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Kingdom Trails",
@@ -338,7 +345,8 @@
           "imageAlt": "Golden-hour festival tents and flags on a grassy field below the Kingdom Trails hills"
         }
       ],
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Students for Haiti",
@@ -350,7 +358,8 @@
       ],
       "image": "portfolio-featured-sfh",
       "imageAlt": "Students for Haiti logo over volunteer and children in Haiti",
-      "size": "2x2"
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Vasodyn",
@@ -362,7 +371,8 @@
       ],
       "image": "portfolio-vasodyn-featured",
       "imageAlt": "Glass aortic arch model lit in emerald green for Vasodyn",
-      "size": "1x1"
+      "size": "1x1",
+      "imageOrientation": "vertical"
     },
     {
       "title": "blackWater",
@@ -373,7 +383,8 @@
       ],
       "image": "portfolio-blackwater-featured",
       "imageAlt": "blackWater logo stenciled onto a textured stone wall",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Lotus Glass",
@@ -386,7 +397,8 @@
       "image": "/api/media/portfolio-lotus-glass-featured?v=2",
       "imageAlt": "Lotus Glass logo system — full wordmark and LGW mark with and without outline",
       "imagePosition": "center",
-      "size": "2x2"
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Anglerfish Aquatics",
@@ -398,7 +410,8 @@
       ],
       "image": "portfolio-angler-fish-aquatics-featured",
       "imageAlt": "Anglerfish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
-      "size": "3x1"
+      "size": "3x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Paradigm Landscape",
@@ -410,7 +423,8 @@
       ],
       "image": "portfolio-paradigm-landscape",
       "imageAlt": "Hand-rendered backyard landscape design with stone fire pit and terraced gardens",
-      "size": "3x1"
+      "size": "3x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "DPM Construction",
@@ -422,7 +436,8 @@
       ],
       "image": "portfolio-dpm-construction-featured",
       "imageAlt": "Bloomberg Center for Cities lounge at Harvard with aquarium pillar, modern seating, and campus windows",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "Barry Levine, Esq.",
@@ -434,7 +449,8 @@
       ],
       "image": "portfolio-levines-law-featured",
       "imageAlt": "LevinesLaw.com placeholder tile for Barry Levine Esquire law firm",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "CAPCO Design Group",
@@ -446,7 +462,8 @@
       ],
       "image": "portfolio-capco-fire-featured",
       "imageAlt": "CapcoFire.com placeholder tile for CAPCO Design Group fire protection engineering",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     },
     {
       "title": "The Barber's Edge",
@@ -459,7 +476,8 @@
       "image": "portfolio-barbers-edge-featured",
       "imageAlt": "A barber at The Barber's Edge working a beard under the ring light",
       "size": "2x2",
-      "featured": true
+      "featured": true,
+      "imageOrientation": "vertical"
     },
     {
       "title": "PDX Paws",
@@ -469,9 +487,11 @@
         "App Development",
         "Agentic Support"
       ],
-      "image": "portfolio-pdx-paws-featured",
+      "image": "/api/media/portfolio-pdx-paws-featured?v=2",
       "imageAlt": "PDX Paws shield logo from pdx-paws.com",
-      "size": "2x2"
+      "imagePosition": "center",
+      "size": "2x2",
+      "imageOrientation": "vertical"
     },
     {
       "title": "Rothco, LLC",
@@ -483,7 +503,8 @@
       ],
       "image": "portfolio-rothco-featured",
       "imageAlt": "Rothco Built wordmark over the Worcester FAA airport project",
-      "size": "2x1"
+      "size": "2x1",
+      "imageOrientation": "horizontal"
     }
   ]
 }

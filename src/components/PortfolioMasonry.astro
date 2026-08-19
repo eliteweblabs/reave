@@ -8,7 +8,10 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
 <div class="portfolio-masonry" data-portfolio-masonry>
   {
     items.map((item) => (
-      <article class:list={["masonry-item", `masonry-item--${item.size}`]}>
+      <article
+        class:list={["masonry-item", `masonry-item--${item.imageOrientation ?? "horizontal"}`]}
+        data-orientation={item.imageOrientation ?? "horizontal"}
+      >
         <button
           type="button"
           class="masonry-card"
@@ -46,12 +49,9 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     --masonry-cols: 6;
     --masonry-gap: clamp(8px, 1.2vw, 12px);
     --gutter-x: clamp(12px, 2vw, 28px);
-    /* One row = this × one column. A 2×1 tile is 2 cols × 1 row, so its
-       aspect is 2 / --brick-ratio. 1.125 → 16:9. 0.75 was ~2.67:1. */
     --tile-aspect-w: 16;
     --tile-aspect-h: 9;
     --brick-ratio: calc(2 * var(--tile-aspect-h) / var(--tile-aspect-w));
-    /* Never use 100% here — in grid-auto-rows it resolves against height and collapses. */
     --masonry-col: calc((100vw - (var(--gutter-x) * 2) - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
     --brick-unit: calc(var(--masonry-col) * var(--brick-ratio));
     display: grid;
@@ -81,40 +81,14 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     border-radius: 10px;
   }
 
-  .masonry-item--1x1 {
-    grid-column: span 1;
-    grid-row: span 1;
-  }
-
-  .masonry-item--2x1 {
+  .masonry-item--horizontal {
     grid-column: span 2;
     grid-row: span 1;
   }
 
-  .masonry-item--3x1 {
-    grid-column: span 3;
-    grid-row: span 1;
-  }
-
-  /* Tall 1-col tiles read as a sliver on 6-col desktop — treat as 2×2. */
-  .masonry-item--1x2 {
+  .masonry-item--vertical {
     grid-column: span 2;
     grid-row: span 2;
-  }
-
-  .masonry-item--2x2 {
-    grid-column: span 2;
-    grid-row: span 2;
-  }
-
-  .masonry-item--3x2 {
-    grid-column: span 3;
-    grid-row: span 2;
-  }
-
-  .masonry-item--4x1 {
-    grid-column: span 4;
-    grid-row: span 1;
   }
 
   .masonry-card {
@@ -200,8 +174,8 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     overflow: hidden;
   }
 
-  .masonry-item--1x1 .masonry-desc {
-    -webkit-line-clamp: 2;
+  .masonry-item--vertical .masonry-desc {
+    -webkit-line-clamp: 4;
   }
 
   .masonry-tags {
@@ -263,26 +237,17 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     transform: translateY(0);
   }
 
-  /* Tablet + phone: 4-col — only full-width 4×2 (two panoramas stacked)
-     and half-width 2×2 (paired squares like Luxemeds / Vasodyn). */
   @media (max-width: 960px) {
     .portfolio-masonry {
       --masonry-cols: 4;
     }
 
-    /* Wide desktop sizes → full width, height of two old panorama strips */
-    .masonry-item--2x1,
-    .masonry-item--3x2,
-    .masonry-item--4x1 {
+    .masonry-item--horizontal {
       grid-column: span 4;
       grid-row: span 2;
     }
 
-    /* Tall / square desktop sizes → half-width squares, paired side by side */
-    .masonry-item--1x1,
-    .masonry-item--1x2,
-    .masonry-item--2x2,
-    .masonry-item--3x1 {
+    .masonry-item--vertical {
       grid-column: span 2;
       grid-row: span 2;
     }
@@ -290,51 +255,8 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
 </style>
 
 <script>
-  function syncBrickUnit(root: HTMLElement) {
-    const styles = getComputedStyle(root);
-    const cols = Number.parseInt(styles.getPropertyValue("--masonry-cols"), 10) || 6;
-    const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0;
-    const padX =
-      (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
-    const col = (root.clientWidth - padX - gap * Math.max(cols - 1, 0)) / cols;
-    if (!Number.isFinite(col) || col <= 0) return;
-    const aspectW = Number.parseFloat(styles.getPropertyValue("--tile-aspect-w")) || 16;
-    const aspectH = Number.parseFloat(styles.getPropertyValue("--tile-aspect-h")) || 9;
-    const ratio =
-      Number.parseFloat(styles.getPropertyValue("--brick-ratio")) || (2 * aspectH) / aspectW;
-    root.style.setProperty("--brick-unit", `${Math.round(col * ratio)}px`);
-  }
+  import { bootPortfolioMasonry } from "../lib/portfolioMasonry";
 
-  function initPortfolioMasonry(root: HTMLElement) {
-    syncBrickUnit(root);
-    const resize = new ResizeObserver(() => syncBrickUnit(root));
-    resize.observe(root);
-
-    const cards = root.querySelectorAll<HTMLButtonElement>("[data-masonry-card]");
-
-    const closeAll = (except?: HTMLButtonElement) => {
-      cards.forEach((card) => {
-        if (card !== except) card.classList.remove("is-active");
-      });
-    };
-
-    cards.forEach((card) => {
-      card.addEventListener("click", () => {
-        const isActive = card.classList.contains("is-active");
-        closeAll();
-        if (!isActive) card.classList.add("is-active");
-      });
-    });
-
-    document.addEventListener("click", (event) => {
-      const target = event.target as Node;
-      if (!root.contains(target)) closeAll();
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeAll();
-    });
-  }
-
-  document.querySelectorAll<HTMLElement>("[data-portfolio-masonry]").forEach(initPortfolioMasonry);
+  bootPortfolioMasonry();
+  document.addEventListener("astro:page-load", () => bootPortfolioMasonry());
 </script>

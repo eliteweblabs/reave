@@ -49,6 +49,8 @@ export type SiteClientLogo = {
 
 export type SitePortfolioSize = '1x1' | '2x1' | '3x1' | '1x2' | '2x2' | '3x2' | '4x1';
 
+export type SiteImageOrientation = 'horizontal' | 'vertical';
+
 export type SitePortfolioAlternateImage = {
   image: string;
   imageAlt?: string;
@@ -62,6 +64,8 @@ export type SitePortfolioItem = {
   image: string;
   imageAlt: string;
   size: SitePortfolioSize;
+  /** Best-fit crop: landscape tiles span two units, portrait tiles span one. */
+  imageOrientation?: SiteImageOrientation;
   /** CSS object-position inside the tile (e.g. "right", "center top", "80% 40%"). */
   imagePosition?: string;
   /** Extra shots kept on the item but not shown on the tile yet. */
@@ -248,6 +252,15 @@ function resolveClientLogos(raw: SiteClientLogo[] | undefined): SiteClientLogo[]
 
 const PORTFOLIO_SIZES = new Set<SitePortfolioSize>(['1x1', '2x1', '3x1', '1x2', '2x2', '3x2', '4x1']);
 
+function resolveOrientation(
+  raw: unknown,
+  size: SitePortfolioSize,
+): SiteImageOrientation {
+  if (raw === 'horizontal' || raw === 'vertical') return raw;
+  if (size === '1x2' || size === '2x2') return 'vertical';
+  return 'horizontal';
+}
+
 function resolvePortfolio(raw: SitePortfolioItem[] | undefined): SitePortfolioItem[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const items = raw
@@ -260,6 +273,7 @@ function resolvePortfolio(raw: SitePortfolioItem[] | undefined): SitePortfolioIt
         image: siteMediaSrc(item.image),
         imageAlt: String(item.imageAlt || item.title || '').trim(),
         size,
+        imageOrientation: resolveOrientation(item.imageOrientation, size),
         imagePosition: resolveImagePosition(item.imagePosition),
         alternateImages: Array.isArray(item.alternateImages)
           ? item.alternateImages
