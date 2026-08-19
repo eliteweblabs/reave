@@ -36,6 +36,7 @@ import {
   githubAppCookieHeader,
   saveGithubAppPending,
 } from '../../../lib/deployWizardGithubApp';
+import { requestOrigin } from '../../../lib/requestOrigin';
 import { DIRECTORY_COUNTIES } from '../../../lib/courtDirectory';
 import { PRACTICE_AREAS, PRACTICE_GATE_MODES, US_STATES } from '../../../lib/practiceGate';
 
@@ -245,6 +246,8 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'RAILWAY_API_TOKEN is not set on this service', plan: publicPlan, cli }, 400);
   }
 
+  const origin = requestOrigin(context.request);
+  const cookieSecure = origin.startsWith('https:');
   const project = typeof body.project === 'string' ? body.project.trim() : '';
   const projectName = typeof body.projectName === 'string' ? body.projectName.trim() : '';
   const environment = typeof body.environment === 'string' ? body.environment.trim() : 'production';
@@ -297,14 +300,14 @@ export async function POST(context: APIContext): Promise<Response> {
           project: executed.projectId || project,
           projectName: executed.projectName || projectName,
         },
-        context.url.origin,
+        origin,
       );
       return new Response(JSON.stringify(githubPayload(setup, executed.notes)), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
-          'Set-Cookie': githubAppCookieHeader(setup.state, context.url.protocol === 'https:'),
+          'Set-Cookie': githubAppCookieHeader(setup.state, cookieSecure),
         },
       });
     }
@@ -327,7 +330,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const githubSetup = mightNeedGithub
-    ? createGithubAppPending(applyBody, context.url.origin)
+    ? createGithubAppPending(applyBody, origin)
     : null;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -355,7 +358,7 @@ export async function POST(context: APIContext): Promise<Response> {
                 project: executed.projectId || project,
                 projectName: executed.projectName || projectName,
               },
-              context.url.origin,
+              origin,
             );
           if (githubSetup) {
             const pending = getGithubAppPending(githubSetup.state);
@@ -414,7 +417,7 @@ export async function POST(context: APIContext): Promise<Response> {
     'Cache-Control': 'no-store',
   };
   if (githubSetup) {
-    headers['Set-Cookie'] = githubAppCookieHeader(githubSetup.state, context.url.protocol === 'https:');
+    headers['Set-Cookie'] = githubAppCookieHeader(githubSetup.state, cookieSecure);
   }
   return new Response(stream, { status: 200, headers });
 }

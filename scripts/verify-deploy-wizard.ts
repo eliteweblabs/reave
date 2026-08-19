@@ -21,7 +21,7 @@ import {
   deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
 import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
-import { buildGithubAppManifest, githubAppManifestName } from '../src/lib/deployWizardGithubApp.ts';
+import { buildGithubAppManifest, githubAppManifestName, publicGithubAppOrigin } from '../src/lib/deployWizardGithubApp.ts';
 import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
@@ -299,7 +299,17 @@ const manifest = buildGithubAppManifest({
 });
 assert.equal(manifest.name, 'reave-tonybarlettajr');
 assert.equal((manifest.default_permissions as { contents?: string }).contents, 'write');
-assert.match(String(manifest.redirect_url), /state=abc/);
+assert.equal(manifest.redirect_url, 'https://reave.app/api/deploy/wizard/github-app');
+assert.equal(manifest.setup_url, 'https://reave.app/api/deploy/wizard/github-app');
+assert.equal(publicGithubAppOrigin('http://localhost:8080'), 'https://reave.app');
+assert.equal(
+  buildGithubAppManifest({
+    installSlug: 'demo',
+    origin: 'http://127.0.0.1:8080',
+    state: 'abc',
+  }).redirect_url,
+  'https://reave.app/api/deploy/wizard/github-app',
+);
 assert.equal(manifest.public, false);
 assert.match(CSP_FORM_ACTION, /https:\/\/github\.com/);
 

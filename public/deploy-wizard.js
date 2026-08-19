@@ -1169,7 +1169,15 @@
   function submitGithubAppManifest(setup) {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = setup.actionUrl;
+    let action = setup.actionUrl;
+    try {
+      const url = new URL(setup.actionUrl);
+      if (setup.state && !url.searchParams.get('state')) url.searchParams.set('state', setup.state);
+      action = url.toString();
+    } catch {
+      /* keep the server-provided action */
+    }
+    form.action = action;
     const manifest = document.createElement('input');
     manifest.type = 'hidden';
     manifest.name = 'manifest';
