@@ -11,7 +11,6 @@
     ".scroll-fade-in",
     "main#main-content section",
     "main#main-content article",
-    "main#main-content footer",
     "main#main-content form",
     "main#main-content > * > header",
     "main#main-content .acc-item",
@@ -21,7 +20,6 @@
     "main#main-content .demo-card",
     "main#main-content .about-block",
     "main#main-content .doc-header",
-    "main#main-content .site-foot-wrap",
     "body.landing-body main section",
     "body.landing-body main article",
     "body.editorial-body main section",
@@ -33,7 +31,7 @@
   ].join(",");
 
   const SKIP_CLOSEST =
-    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, [data-no-scroll-fade]";
+    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, footer, .site-foot, .site-foot-wrap, [data-no-scroll-fade]";
 
   function shouldFade(el: Element): el is HTMLElement {
     if (!(el instanceof HTMLElement)) return false;

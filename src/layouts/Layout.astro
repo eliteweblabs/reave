@@ -133,7 +133,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 			*/}
 			{!isIndexPage && <h1 class="sr-only">{company.name}</h1>}
 			<slot />
-			<div class="site-foot-wrap">
+			<div class="site-foot-wrap" data-no-scroll-fade>
 				<SiteFooter showLegalLinks={showLegalLinks} />
 			</div>
 		</main>
@@ -266,6 +266,30 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		max-width: 920px;
 		margin: 0 auto;
 		padding: 0 24px calc(24px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+	}
+
+	body:has(.about-page) .site-foot-wrap {
+		max-width: none;
+		width: 100%;
+		background: #000;
+		padding: 32px 24px calc(28px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+	}
+
+	body:has(.about-page) .site-foot {
+		margin-top: 0;
+		color: rgba(255, 255, 255, 0.68);
+	}
+
+	body:has(.about-page) .site-legal-links-sep {
+		color: rgba(255, 255, 255, 0.4);
+	}
+
+	body:has(.about-page) .site-legal-links-link {
+		color: rgba(255, 255, 255, 0.62);
+	}
+
+	body:has(.about-page) .site-legal-links-link:hover {
+		color: rgba(255, 255, 255, 0.92);
 	}
 
 	/*

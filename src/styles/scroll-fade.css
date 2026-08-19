@@ -4,7 +4,8 @@
  * Automatic on public pages: sections, articles, page headers, forms, and
  * repeating cards/tiles. Opt-in anywhere with `.scroll-fade-in`.
  *
- * Excluded: homepage / landing heroes (already on-screen), chrome, and
+ * Excluded: homepage / landing heroes (already on-screen), chrome, site
+ * footer (never reaches cover 28% at the bottom of the page), and
  * horizontal marquees (they have their own motion).
  */
 @keyframes scroll-fade-in {
@@ -23,7 +24,6 @@
     .scroll-fade-in,
     main#main-content section,
     main#main-content article,
-    main#main-content footer,
     main#main-content form,
     main#main-content > * > header,
     main#main-content .acc-item,
@@ -33,7 +33,6 @@
     main#main-content .demo-card,
     main#main-content .about-block,
     main#main-content .doc-header,
-    main#main-content .site-foot-wrap,
     body.landing-body main section,
     body.landing-body main article,
     body.editorial-body main section,
@@ -42,7 +41,7 @@
     body.be-body section,
     body.be-body article,
     body.be-body li
-  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *) {
+  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
     animation: scroll-fade-in linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 28%;
@@ -54,7 +53,6 @@ html.scroll-fade-io :is(
   .scroll-fade-in,
   main#main-content section,
   main#main-content article,
-  main#main-content footer,
   main#main-content form,
   main#main-content > * > header,
   main#main-content .acc-item,
@@ -64,7 +62,6 @@ html.scroll-fade-io :is(
   main#main-content .demo-card,
   main#main-content .about-block,
   main#main-content .doc-header,
-  main#main-content .site-foot-wrap,
   body.landing-body main section,
   body.landing-body main article,
   body.editorial-body main section,
@@ -73,7 +70,7 @@ html.scroll-fade-io :is(
   body.be-body section,
   body.be-body article,
   body.be-body li
-):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview) {
+):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not([data-no-scroll-fade]) {
   opacity: 0;
   transform: translateY(18px);
 }
@@ -91,7 +88,6 @@ html.scroll-fade-io .is-inview {
     .scroll-fade-in,
     main#main-content section,
     main#main-content article,
-    main#main-content footer,
     main#main-content form,
     main#main-content > * > header,
     main#main-content .acc-item,
@@ -101,7 +97,6 @@ html.scroll-fade-io .is-inview {
     main#main-content .demo-card,
     main#main-content .about-block,
     main#main-content .doc-header,
-    main#main-content .site-foot-wrap,
     body.landing-body main section,
     body.landing-body main article,
     body.editorial-body main section,
@@ -118,7 +113,6 @@ html.scroll-fade-io .is-inview {
     .scroll-fade-in,
     main#main-content section,
     main#main-content article,
-    main#main-content footer,
     main#main-content form,
     main#main-content > * > header,
     main#main-content .acc-item,
@@ -128,7 +122,6 @@ html.scroll-fade-io .is-inview {
     main#main-content .demo-card,
     main#main-content .about-block,
     main#main-content .doc-header,
-    main#main-content .site-foot-wrap,
     body.landing-body main section,
     body.landing-body main article,
     body.editorial-body main section,

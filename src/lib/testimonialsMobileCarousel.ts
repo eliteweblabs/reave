@@ -1,4 +1,4 @@
-const DISPLAY_MS = 5000;
+const DISPLAY_MS = 8000;
 const SETTLE_MS = 140;
 
 function initTestimonialsMobile(viewport: HTMLElement) {
