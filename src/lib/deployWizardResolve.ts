@@ -88,7 +88,7 @@ export async function resolveDeployWizardApply(
   for (const variable of plan.variables) {
     const value = resolveOne(variable, values, { vapid, webhookSecret, githubApp });
     if (!value) {
-      if (variable.required && (variable.kind === 'secret' || variable.kind === 'generated')) {
+      if (variable.required && variable.kind === 'secret') {
         return {
           ok: false,
           error: variable.inheritFromHost

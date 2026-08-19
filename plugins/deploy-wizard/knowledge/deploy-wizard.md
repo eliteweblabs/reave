@@ -103,7 +103,11 @@ This wizard is owner-only. The Variables step is read-only. Apply:
 - **Derives** `RESEND_FROM` as `noreply@inbound.{apex}` (the inbound domain Apply already adds in Resend) and `EMAIL_FROM_NAME` from the company name.
 - **Website editor:** GitHub cannot create PATs via API. Apply creates `eliteweblabs/{slug}-site`, then sends you to GitHub to create a restricted App for that repo only (Contents write). After you install it on `{slug}-site` (not `eliteweblabs/reave`), Apply writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO` onto the client. The client mints a Contents token scoped to that repo on each write. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create the repo and attach it. If this host already has `GITHUB_APP_*`, Apply reuses them instead of opening GitHub.
 
-If a required host key is missing, Apply names it and stops. Clerk CNAMEs are still copied from Clerk → Domains.
+Apply only requires the client’s **Anthropic** key and **Resend** key (Resend is optional if you seed a sample inbox). Other host keys are copied when present and skipped when missing.
+
+**Sample data:** the Modules step has an industry picker (Law firm, Plumbing, General). Apply writes `SEED_ON_BOOT` + `DEMO_INDUSTRY`. The first owner visit to `/admin` seeds inbox, todos, and schedule so the dashboard is not empty before live email is connected.
+
+If a required operator key is missing, Apply names it and stops. Clerk CNAMEs are still copied from Clerk → Domains.
 
 ## Apply
 

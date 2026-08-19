@@ -30,6 +30,7 @@ export type DeployWizardGithubAppApplyBody = {
   companyName?: string;
   adminUsername?: string;
   timezone?: string;
+  seed?: { industry?: string; inbox?: boolean; todos?: boolean; schedule?: boolean };
   project: string;
   environment: string;
   values: Record<string, string>;

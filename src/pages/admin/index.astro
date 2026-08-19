@@ -24,6 +24,7 @@ import { getAuthUser, isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
 import { githubRepoSlug } from "../../lib/githubClient";
+import { ensureInstallSeed, shouldSeedOnBoot } from "../../lib/installSeed";
 import "../../styles/brand.css";
 import "../../styles/admin/index.css";
 
@@ -54,6 +55,9 @@ const signedInAs =
   "";
 if (userId && !isOwner) {
   Astro.response.status = 403;
+}
+if (isOwner && shouldSeedOnBoot()) {
+  void ensureInstallSeed();
 }
 const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';

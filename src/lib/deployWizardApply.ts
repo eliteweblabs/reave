@@ -56,6 +56,7 @@ export function planFromGithubAppApply(apply: DeployWizardGithubAppApplyBody): D
     companyName: apply.companyName,
     adminUsername: apply.adminUsername,
     timezone: apply.timezone,
+    seed: apply.seed,
   });
 }
 

@@ -14,6 +14,7 @@ import {
   type DemoSuiteConfig,
 } from '../../../../lib/demoSuite';
 import { DEMO_SUITE_COOKIE, DEMO_SUITE_COOKIE_MAX_AGE } from '../../../../lib/demoSuite';
+import { shouldSeedOnBoot } from '../../../../lib/installSeed';
 
 export const prerender = false;
 
@@ -45,10 +46,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const owner = await requireDeploymentOwner(context);
   if (owner instanceof Response) return owner;
 
-  if (!hasFeature('demo')) {
+  if (!hasFeature('demo') && !shouldSeedOnBoot()) {
     return json({ error: 'Demo plugin not enabled on this install' }, 403);
   }
-  if (!isDemoMode()) {
+  if (!isDemoMode() && !shouldSeedOnBoot()) {
     return json(
       { error: 'Demo mode is not active (set DEMO_MODE=1 or INSTALL_CONFIG=demo)' },
       403,

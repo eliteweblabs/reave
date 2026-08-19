@@ -30,6 +30,8 @@
   let sections = [];
   let included = [];
   let extrasCatalog = [];
+  let seedIndustries = [];
+  let seed = { industry: 'none', inbox: true, todos: true, schedule: true };
   let selectedIds = new Set();
   let selectedExtras = new Set();
   let step = 0;
@@ -221,6 +223,7 @@
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `</div>` +
+      renderSeed() +
       `<p class="dl-meta">${included.length} core · ${selectedCount} modules selected</p>` +
       `<div class="dl-sections">` +
       `<section class="dl-section" data-section="included">` +
@@ -315,6 +318,55 @@
     );
   }
 
+  function renderSeed() {
+    const options = (seedIndustries.length ? seedIndustries : [
+      { id: 'none', label: 'No sample data' },
+      { id: 'law', label: 'Law firm' },
+      { id: 'plumbing', label: 'Plumbing' },
+      { id: 'general', label: 'General contractor' },
+    ])
+      .map((row) => {
+        const selected = row.id === seed.industry ? ' selected' : '';
+        return `<option value="${esc(row.id)}"${selected}>${esc(row.label)}</option>`;
+      })
+      .join('');
+    const on = seed.industry !== 'none';
+    return (
+      `<section class="dl-section" data-section="seed">` +
+      `<h2 class="dl-section-title">Sample data</h2>` +
+      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet.</p>` +
+      `<div class="dw-identity">` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Industry</span>` +
+      `<select id="dw-seed-industry" class="dl-select">${options}</select>` +
+      `</label>` +
+      `</div>` +
+      (on
+        ? `<div class="dw-extras">` +
+          [
+            ['inbox', 'Inbox', 'Sample client mail, opposing counsel, and court notices'],
+            ['todos', 'Todos', 'Matters and deadlines for the next week'],
+            ['schedule', 'Schedule', 'Consults, closings, and hearings on the calendar'],
+          ]
+            .map(([key, label, blurb]) => {
+              const checked = Boolean(seed[key]);
+              return (
+                `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}" data-seed="${esc(key)}">` +
+                `<div class="dl-tile-body">` +
+                `<h3 class="dl-tile-label">${esc(label)}</h3>` +
+                `<p class="dl-tile-blurb">${esc(blurb)}</p>` +
+                `</div>` +
+                `<div class="dl-tile-foot">${renderSwitch(checked, key, 'data-seed-id')}</div>` +
+                `</article>`
+              );
+            })
+            .join('') +
+          `</div>`
+        : '') +
+      `</section>`
+    );
+  }
+
   function renderVarRow(variable) {
     const current = values[varKey(variable)] ?? variable.filled ?? '';
     const kindKey = variable.provisionedOnApply
@@ -328,17 +380,20 @@
     const display = variable.inheritFromHost
       ? variable.hostHasValue
         ? 'Copied on apply'
-        : 'Missing on this host'
+        : 'Paste if this host does not have it'
       : variable.provisionedOnApply
         ? 'Created on apply'
         : variable.rolledOnApply
           ? 'Rolled on apply'
           : current;
+    const valueCell = variable.needsInput
+      ? `<input class="dl-input dw-var-input" data-var-key="${esc(varKey(variable))}" type="password" autocomplete="off" placeholder="${esc(variable.hostHasValue ? 'Using this host' : 'Paste token')}" value="${esc(values[varKey(variable)] || '')}" />`
+      : `<code class="dw-ref">${esc(display)}</code>`;
     return (
       `<tr>` +
       `<td><code>${esc(variable.name)}</code></td>` +
       `<td><span class="${kindCls}">${esc(KIND_LABEL[kindKey] || variable.kind)}</span></td>` +
-      `<td class="dw-var-value"><code class="dw-ref">${esc(display)}</code></td>` +
+      `<td class="dw-var-value">${valueCell}</td>` +
       `<td class="dw-var-help">${esc(variable.description)}</td>` +
       `</tr>`
     );
@@ -353,7 +408,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Nothing on this page is typed. Apply copies keys from this host, rolls new secrets (including a real VAPID pair), creates the Resend inbound webhook, and writes Railway references. <code>RESEND_FROM</code> is <code>noreply@inbound.{apex}</code>. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only (GitHub cannot mint PATs).</p>` +
+      `<p class="dl-footnote">The only tokens you need to bring are <code>ANTHROPIC_API_KEY</code> and <code>RESEND_API_KEY</code> (skip Resend if you seeded a sample inbox). Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
@@ -373,9 +428,10 @@
     const missing = plan.variables.filter((v) => {
       if (v.kind !== 'secret' || v.required === false) return false;
       if (v.provisionedOnApply || v.rolledOnApply) return false;
+      const typed = values[varKey(v)];
+      if (typed) return false;
       if (v.inheritFromHost) return !v.hostHasValue;
-      const val = values[varKey(v)] ?? v.filled;
-      return !val;
+      return !(v.filled);
     });
     return (
       `<div class="dw-review-stats">` +
@@ -385,7 +441,7 @@
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       `</div>` +
       (missing.length
-        ? `<p class="dl-launch-error" role="alert">${missing.length} required secret${missing.length === 1 ? '' : 's'} missing on this host (${missing.map((v) => v.name).join(', ')}). Set them here first, then apply.</p>`
+        ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Paste Anthropic and Resend on Variables — or seed a sample inbox to skip Resend.</p>`
         : '') +
       `<label class="dl-field dw-cli-field">` +
       `<span class="dl-field-label">Railway CLI</span>` +
@@ -464,6 +520,8 @@
     if (appEl) appService = appEl.value.trim() || 'reave';
     if (projectEl) project = projectEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
+    const seedEl = root.querySelector('#dw-seed-industry');
+    if (seedEl) seed = { ...seed, industry: seedEl.value || 'none' };
   }
 
   function readVarInputs() {
@@ -489,6 +547,7 @@
         companyName,
         adminUsername,
         timezone,
+        seed,
         values,
       }),
     });
@@ -568,6 +627,7 @@
           companyName,
           adminUsername,
           timezone,
+          seed,
           project,
           environment,
           values,
@@ -676,6 +736,35 @@
     root.querySelector('#dw-apply')?.addEventListener('click', () => {
       void applyPlan();
     });
+    root.querySelector('#dw-seed-industry')?.addEventListener('change', () => {
+      readIdentity();
+      if (seed.industry !== 'none') {
+        seed.inbox = true;
+        seed.todos = true;
+        seed.schedule = true;
+      }
+      render();
+      bind();
+    });
+    root.querySelectorAll('[data-seed-id]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = btn.getAttribute('data-seed-id');
+        if (!key || !(key in seed) || key === 'industry') return;
+        seed[key] = !seed[key];
+        render();
+        bind();
+      });
+    });
+    root.querySelectorAll('.dl-tile[data-seed]').forEach((tile) => {
+      tile.addEventListener('click', () => {
+        const key = tile.getAttribute('data-seed');
+        if (!key || !(key in seed) || key === 'industry') return;
+        seed[key] = !seed[key];
+        render();
+        bind();
+      });
+    });
   }
 
   function submitGithubAppManifest(setup) {
@@ -716,6 +805,7 @@
       sections = data.sections || [];
       included = data.included || [];
       extrasCatalog = data.extras || [];
+      seedIndustries = data.seedIndustries || seedIndustries;
       railway = data.railway || railway;
       cloudflare = data.cloudflare || cloudflare;
       if (data.defaults) {

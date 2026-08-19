@@ -15,11 +15,22 @@
 
 import crypto from 'node:crypto';
 import pg from 'pg';
+import { getDemoIndustryFixtures } from './demo-industries/index.ts';
 
 const { Pool } = pg;
 
+function parseCliArg(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  if (idx >= 0 && process.argv[idx + 1] && !process.argv[idx + 1]!.startsWith('-')) {
+    return process.argv[idx + 1];
+  }
+  const prefixed = process.argv.find((a) => a.startsWith(`${flag}=`));
+  return prefixed?.slice(flag.length + 1);
+}
+
 const DRY_RUN = process.argv.includes('--dry-run');
 const FRESH = process.argv.includes('--fresh');
+const INDUSTRY = parseCliArg('--industry') || process.env.DEMO_INDUSTRY || 'general';
 
 const DATABASE_URL =
   process.env.CALCOM_DATABASE_URL?.trim() ||
@@ -44,7 +55,17 @@ type DemoBooking = DemoContact & {
   startLocal: string; // "YYYY-MM-DD HH:mm:ss"
 };
 
-const CONTACTS: DemoContact[] = [
+const FIXTURE_CONTACTS: DemoContact[] = getDemoIndustryFixtures(INDUSTRY).contacts.map((c) => ({
+  name: c.name,
+  email: c.email,
+  phone: c.phone,
+  notes: (c.notes || '').replace(/^\[demo-seed\]\s*/i, '') || c.company || c.name,
+  address: c.address || 'Boston, MA',
+  lat: c.lat ?? 42.3601,
+  lng: c.lng ?? -71.0589,
+}));
+
+const FALLBACK_CONTACTS: DemoContact[] = [
   {
     name: 'Sarah Chen',
     email: 'sarah.chen@demo.reave.app',
@@ -172,6 +193,8 @@ const CONTACTS: DemoContact[] = [
     lng: -71.0589,
   },
 ];
+
+const CONTACTS = FIXTURE_CONTACTS.length ? FIXTURE_CONTACTS : FALLBACK_CONTACTS;
 
 const WEEKDAY_SLOTS = ['09:00:00', '10:30:00', '13:00:00', '14:30:00', '16:00:00'];
 const WEEKEND_SLOTS = ['10:00:00', '11:30:00', '14:00:00'];

@@ -18,6 +18,14 @@ import {
   type DemoTodoDef,
 } from '../demo-data.ts';
 import {
+  LAW_CHATS,
+  LAW_COMPANY,
+  LAW_CONTACTS,
+  LAW_EMAILS,
+  LAW_JOBS,
+  LAW_TODOS,
+} from './law.ts';
+import {
   PLUMBING_CHATS,
   PLUMBING_COMPANY,
   PLUMBING_CONTACTS,
@@ -68,17 +76,58 @@ function defaultFixtures(): DemoIndustryFixtures {
 }
 
 /** Supported industry slugs for ?industry=plumbing etc. */
-export const DEMO_INDUSTRY_SLUGS = ['general', 'plumbing'] as const;
+export const DEMO_INDUSTRY_SLUGS = ['general', 'plumbing', 'law'] as const;
 export type DemoIndustrySlug = (typeof DEMO_INDUSTRY_SLUGS)[number];
 
 export function normalizeDemoIndustry(raw: string | null | undefined): DemoIndustrySlug {
   const slug = (raw ?? '').trim().toLowerCase();
   if (slug === 'plumbing' || slug === 'plumber') return 'plumbing';
+  if (slug === 'law' || slug === 'legal' || slug === 'lawyer' || slug === 'law-firm') return 'law';
   return 'general';
 }
 
 export function getDemoIndustryFixtures(industry?: string | null): DemoIndustryFixtures {
   const slug = normalizeDemoIndustry(industry);
+  if (slug === 'law') {
+    return {
+      industry: slug,
+      contacts: LAW_CONTACTS,
+      jobs: LAW_JOBS,
+      emails: LAW_EMAILS,
+      chats: LAW_CHATS,
+      todos: LAW_TODOS,
+      engagement: DEMO_ENGAGEMENT.map((e) => ({
+        ...e,
+        jobSlug: e.jobSlug
+          ?.replace('demo-james-kitchen', 'demo-james-boylston-lease')
+          .replace('demo-sarah-beacon-deck', 'demo-sarah-estate-plan'),
+        dedupeKey: e.dedupeKey.replace('kitchen', 'lease').replace('deck', 'estate'),
+        title: e.title
+          .replace('deck', 'estate plan')
+          .replace('appliance specs', 'lease redlines'),
+        detail: e.detail
+          .replace('Beacon Hill deck', 'Chen estate plan')
+          .replace('kitchen remodel', 'Boylston lease'),
+      })),
+      jobComments: DEMO_JOB_COMMENTS.map((c) => ({
+        ...c,
+        jobSlug: c.jobSlug
+          .replace('demo-sarah-beacon-deck', 'demo-sarah-estate-plan')
+          .replace('demo-james-kitchen', 'demo-james-boylston-lease'),
+        body: c.body
+          .replace('glass panels', 'successor trustee')
+          .replace('kitchen remodel', 'lease negotiation')
+          .replace('Rough plumbing', 'Redline review'),
+      })),
+      company: {
+        name: LAW_COMPANY.name,
+        description: LAW_COMPANY.tagline,
+        supportEmail: LAW_COMPANY.supportEmail,
+        brandPrimary: LAW_COMPANY.brandPrimary,
+        brandSecondary: LAW_COMPANY.brandSecondary,
+      },
+    };
+  }
   if (slug === 'plumbing') {
     return {
       industry: slug,

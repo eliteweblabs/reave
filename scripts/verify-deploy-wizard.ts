@@ -87,13 +87,17 @@ assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.needsInput
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.inheritFromHost, false);
 const resendKey = branded.variables.find((v) => v.name === 'RESEND_API_KEY');
 assert.equal(resendKey?.inheritFromHost, true);
-assert.equal(resendKey?.needsInput, false);
+assert.equal(resendKey?.needsInput, true);
 assert.equal(resendKey?.filled, '');
 const resendHook = branded.variables.find((v) => v.name === 'RESEND_WEBHOOK_SECRET');
 assert.equal(resendHook?.inheritFromHost, false);
 assert.equal(resendHook?.provisionedOnApply, true);
 assert.equal(branded.variables.find((v) => v.name === 'DASHBOARD_KEY')?.rolledOnApply, true);
-assert.ok(branded.variables.every((v) => v.needsInput === false));
+assert.ok(
+  branded.variables
+    .filter((v) => v.name !== 'ANTHROPIC_API_KEY' && v.name !== 'RESEND_API_KEY')
+    .every((v) => v.needsInput === false),
+);
 assert.equal(deployWizardResendFrom('capcofire.com'), 'noreply@inbound.capcofire.com');
 assert.equal(deployWizardInboundWebhookUrl('capcofire.com'), 'https://capcofire.com/api/email/inbound');
 assert.match(generateDeployWizardSecret('NEXTAUTH_SECRET'), /^[A-Za-z0-9+/=]+$/);
@@ -220,6 +224,21 @@ assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.inhe
 assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_PRIVATE_KEY')?.provisionedOnApply, true);
 assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.provisionedOnApply, true);
 assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_INSTALLATION_ID')?.provisionedOnApply, true);
+
+const coreSecrets = buildDeployWizardPlan({ features: ['website'] });
+assert.equal(coreSecrets.variables.find((v) => v.name === 'ANTHROPIC_API_KEY')?.required, true);
+assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, true);
+assert.equal(coreSecrets.variables.find((v) => v.name === 'CLERK_SECRET_KEY')?.required, false);
+
+const lawSeed = buildDeployWizardPlan({
+  features: ['website'],
+  seed: { industry: 'law', inbox: true, todos: true, schedule: true },
+});
+assert.equal(lawSeed.seed.industry, 'law');
+assert.equal(lawSeed.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, false);
+assert.equal(lawSeed.variables.find((v) => v.name === 'DEMO_INDUSTRY')?.filled, 'law');
+assert.equal(lawSeed.variables.find((v) => v.name === 'SEED_ON_BOOT')?.filled, '1');
+assert.equal(lawSeed.variables.find((v) => v.name === 'SEED_INBOX')?.filled, '1');
 assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
 const manifest = buildGithubAppManifest({
   installSlug: 'tonybarlettajr',

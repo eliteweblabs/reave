@@ -11,9 +11,11 @@ import {
 import { demoModuleById, resolveDemoModuleFeatures } from '../../../lib/demoModuleCatalog';
 import {
   DEPLOY_WIZARD_EXTRAS,
+  DEPLOY_WIZARD_SEED_INDUSTRIES,
   buildDeployWizardPlan,
   formatDeployWizardCli,
   isDeployWizardExtraId,
+  normalizeDeployWizardSeed,
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from '../../../lib/deployWizardCatalog';
@@ -84,6 +86,18 @@ function presentHostSecrets(plan: DeployWizardPlan): DeployWizardPlan {
   };
 }
 
+function parseSeed(body: Record<string, unknown>) {
+  const raw = body.seed;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return normalizeDeployWizardSeed();
+  const seed = raw as Record<string, unknown>;
+  return normalizeDeployWizardSeed({
+    industry: typeof seed.industry === 'string' ? seed.industry : 'none',
+    inbox: seed.inbox !== false,
+    todos: seed.todos !== false,
+    schedule: seed.schedule !== false,
+  });
+}
+
 
 export async function GET(context: APIContext): Promise<Response> {
   const hostDenied = requireCanonicalReaveHost();
@@ -134,6 +148,7 @@ export async function GET(context: APIContext): Promise<Response> {
     sections,
     included: listDemoLoaderIncludedCards(),
     extras: [...DEPLOY_WIZARD_EXTRAS],
+    seedIndustries: [...DEPLOY_WIZARD_SEED_INDUSTRIES],
     defaultModuleIds: baseline.map((m) => m.moduleId),
     railway: {
       configured: isRailwayConfigured(),
@@ -178,6 +193,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const companyName = typeof body.companyName === 'string' ? body.companyName : undefined;
   const adminUsername = typeof body.adminUsername === 'string' ? body.adminUsername : undefined;
   const timezone = typeof body.timezone === 'string' ? body.timezone : undefined;
+  const seed = parseSeed(body);
   const plan = buildDeployWizardPlan({
     features,
     extras,
@@ -188,6 +204,7 @@ export async function POST(context: APIContext): Promise<Response> {
     companyName,
     adminUsername,
     timezone,
+    seed,
   });
   const values = parseValues(body);
   const publicPlan = presentHostSecrets(plan);
@@ -228,6 +245,7 @@ export async function POST(context: APIContext): Promise<Response> {
         companyName,
         adminUsername,
         timezone,
+        seed,
         project,
         environment,
         values,

@@ -10,6 +10,9 @@ export type DemoSeedOptions = {
   fresh?: boolean;
   forceCompany?: boolean;
   withBookings?: boolean;
+  skipInbox?: boolean;
+  skipTodos?: boolean;
+  skipSchedule?: boolean;
   dryRun?: boolean;
   industry?: string;
   moduleIds?: string[];
@@ -48,6 +51,9 @@ export function runDemoSeed(options: DemoSeedOptions = {}): DemoSeedResult {
   if (options.fresh) args.push('--fresh');
   if (options.forceCompany) args.push('--force-company');
   if (options.withBookings) args.push('--with-bookings');
+  if (options.skipInbox) args.push('--no-inbox');
+  if (options.skipTodos) args.push('--no-todos');
+  if (options.skipSchedule) args.push('--no-schedule');
   if (options.dryRun) args.push('--dry-run');
   if (options.industry?.trim()) {
     args.push('--industry', options.industry.trim());

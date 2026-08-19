@@ -503,13 +503,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'ANTHROPIC_API_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Claude API key for the admin agent.',
+    description: 'Claude API key for the admin agent. Paste the client’s key, or leave blank to copy this host’s.',
   }),
   v({
     name: 'RESEND_API_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Resend API key (inbound + outbound). Copied from this host on apply.',
+    description:
+      'Resend API key (inbound + outbound). Required unless you seed a sample inbox. Paste the client’s key, or leave blank to copy this host’s.',
   }),
   v({
     name: 'RESEND_WEBHOOK_SECRET',
@@ -1425,6 +1426,8 @@ export type DeployWizardPlanInput = {
   adminUsername?: string;
   /** IANA timezone (BOOKING_TIMEZONE). Default America/New_York. */
   timezone?: string;
+  /** Sample inbox / todos / schedule for industries we do not have live access to yet. */
+  seed?: Partial<DeployWizardSeedInput>;
 };
 
 /** Secrets filled from identity (not copied from this host). */
@@ -1432,6 +1435,48 @@ export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM
 
 /** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
+
+/** Only these operator secrets block Apply when empty (Anthropic + email). */
+export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set(['ANTHROPIC_API_KEY', 'RESEND_API_KEY']);
+
+export const DEPLOY_WIZARD_SEED_INDUSTRIES = [
+  { id: 'none', label: 'No sample data' },
+  { id: 'law', label: 'Law firm' },
+  { id: 'plumbing', label: 'Plumbing' },
+  { id: 'general', label: 'General contractor' },
+] as const;
+
+export type DeployWizardSeedIndustryId = (typeof DEPLOY_WIZARD_SEED_INDUSTRIES)[number]['id'];
+
+export function isDeployWizardSeedIndustryId(value: string): value is DeployWizardSeedIndustryId {
+  return DEPLOY_WIZARD_SEED_INDUSTRIES.some((row) => row.id === value);
+}
+
+export type DeployWizardSeedInput = {
+  industry: DeployWizardSeedIndustryId;
+  inbox: boolean;
+  todos: boolean;
+  schedule: boolean;
+};
+
+export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> | null): DeployWizardSeedInput {
+  const industry = raw?.industry && isDeployWizardSeedIndustryId(raw.industry) ? raw.industry : 'none';
+  const on = industry !== 'none';
+  return {
+    industry,
+    inbox: on && raw?.inbox !== false,
+    todos: on && raw?.todos !== false,
+    schedule: on && raw?.schedule !== false,
+  };
+}
+
+export function isDeployWizardRequiredOperatorSecret(
+  name: string,
+  seed?: Pick<DeployWizardSeedInput, 'industry' | 'inbox'>,
+): boolean {
+  if (name === 'RESEND_API_KEY' && seed && seed.industry !== 'none' && seed.inbox) return false;
+  return DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS.has(name);
+}
 
 /** GitHub App credentials created on apply (or reused from this host if already set). */
 export const DEPLOY_WIZARD_GITHUB_APP_VARS = new Set([
@@ -1491,6 +1536,7 @@ export type DeployWizardPlan = {
   companyName: string;
   adminUsername: string;
   timezone: string;
+  seed: DeployWizardSeedInput;
   features: FeatureId[];
   extras: DeployWizardExtraId[];
   services: DeployWizardService[];
@@ -1553,6 +1599,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   const adminUsername = (input.adminUsername ?? '').trim().slice(0, 120);
   const timezone = (input.timezone?.trim() || 'America/New_York').slice(0, 64);
   const extraSet = new Set<string>(extras);
+  const seed = normalizeDeployWizardSeed(input.seed);
 
   const services = DEPLOY_WIZARD_SERVICES.filter(
     (s) => featureMatch(s.features, featureSet) && extraMatch(s.extra, extraSet),
@@ -1601,9 +1648,11 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     const inheritFromHost = isDeployWizardHostSecret(raw);
     const provisionedOnApply = isDeployWizardProvisionedSecret(raw);
     const rolledOnApply = raw.kind === 'generated';
-    const needsInput = false;
+    const required = isDeployWizardRequiredOperatorSecret(raw.name, seed);
+    const needsInput = DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS.has(raw.name);
     variables.push({
       ...raw,
+      required,
       service,
       value: filled || raw.value,
       filled,
@@ -1612,6 +1661,34 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
       rolledOnApply,
       provisionedOnApply,
     });
+  }
+
+  if (seed.industry !== 'none') {
+    const seedVars: Array<{ name: string; value: string; description: string }> = [
+      { name: 'DEMO_INDUSTRY', value: seed.industry, description: 'Sample-data industry (law, plumbing, general).' },
+      { name: 'SEED_ON_BOOT', value: '1', description: 'First admin visit seeds inbox, todos, and schedule.' },
+      { name: 'SEED_INBOX', value: seed.inbox ? '1' : '0', description: 'Seed a sample inbox when live email is not connected yet.' },
+      { name: 'SEED_TODOS', value: seed.todos ? '1' : '0', description: 'Seed sample todos / matters.' },
+      { name: 'SEED_SCHEDULE', value: seed.schedule ? '1' : '0', description: 'Seed sample calendar bookings.' },
+    ];
+    for (const row of seedVars) {
+      const dedupe = `${appService}:${row.name}`;
+      if (seen.has(dedupe)) continue;
+      seen.add(dedupe);
+      variables.push({
+        name: row.name,
+        service: appService,
+        kind: 'literal',
+        description: row.description,
+        required: false,
+        filled: row.value,
+        value: row.value,
+        needsInput: false,
+        inheritFromHost: false,
+        rolledOnApply: false,
+        provisionedOnApply: false,
+      });
+    }
   }
 
   const sharedKeys = [...new Set(variables.filter((x) => x.service === 'shared').map((x) => x.name))];
@@ -1638,6 +1715,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     companyName,
     adminUsername,
     timezone,
+    seed,
     features,
     extras,
     services,

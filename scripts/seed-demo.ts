@@ -60,6 +60,12 @@ const FRESH = process.argv.includes('--fresh');
 const WITH_BOOKINGS_FLAG = process.argv.includes('--with-bookings');
 const SEND_PUSH = process.argv.includes('--push');
 const FORCE_COMPANY = process.argv.includes('--force-company') || process.env.DEMO_FORCE_COMPANY === '1';
+const SKIP_INBOX =
+  process.argv.includes('--no-inbox') || process.env.SEED_INBOX === '0' || process.env.SEED_INBOX === 'false';
+const SKIP_TODOS =
+  process.argv.includes('--no-todos') || process.env.SEED_TODOS === '0' || process.env.SEED_TODOS === 'false';
+const SKIP_SCHEDULE =
+  process.argv.includes('--no-schedule') || process.env.SEED_SCHEDULE === '0' || process.env.SEED_SCHEDULE === 'false';
 
 loadDotEnv();
 
@@ -90,7 +96,8 @@ function hasDemoModule(id: string): boolean {
 
 /** Scheduling module id 012 — auto-enable bookings seed when in suite. */
 const WITH_BOOKINGS =
-  WITH_BOOKINGS_FLAG || (hasDemoModule('012') && Boolean(env('CALCOM_DATABASE_URL')));
+  !SKIP_SCHEDULE &&
+  (WITH_BOOKINGS_FLAG || (hasDemoModule('012') && Boolean(env('CALCOM_DATABASE_URL'))));
 
 type ContactRecord = {
   uid: string;
@@ -828,7 +835,15 @@ function runBookingsSeed(): void {
   if (DRY_RUN) return;
   const result = spawnSync(
     process.execPath,
-    ['--import', './scripts/ts-extensionless-resolve.mjs', '--experimental-strip-types', 'scripts/seed-bookings.ts', ...(FRESH ? ['--fresh'] : [])],
+    [
+      '--import',
+      './scripts/ts-extensionless-resolve.mjs',
+      '--experimental-strip-types',
+      'scripts/seed-bookings.ts',
+      '--industry',
+      DEMO_INDUSTRY,
+      ...(FRESH ? ['--fresh'] : []),
+    ],
     { cwd: REPO_ROOT, stdio: 'inherit', env: process.env },
   );
   if (result.status !== 0) {
@@ -942,9 +957,11 @@ async function main(): Promise<void> {
     const contacts = await seedContacts();
     await seedJobs(pool, contacts);
     await seedJobComments(pool);
-    await seedEmails(pool, contacts);
+    if (!SKIP_INBOX) await seedEmails(pool, contacts);
+    else log('Skipping inbox seed (--no-inbox)');
     await seedChats(pool);
-    await seedTodos(pool);
+    if (!SKIP_TODOS) await seedTodos(pool);
+    else log('Skipping todos seed (--no-todos)');
     await seedEngagement(pool, contacts);
 
     if (WITH_BOOKINGS) runBookingsSeed();

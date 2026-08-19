@@ -29,6 +29,7 @@ export const DEFAULT_DECK_INDUSTRIES: ReadonlyArray<{ slug: string; label: strin
   { slug: 'principal', label: 'Principal' },
   { slug: 'marketing', label: 'Marketing' },
   { slug: 'real-estate', label: 'Real estate' },
+  { slug: 'law', label: 'Law firm' },
 ];
 
 const SCHEMA_SQL = `
