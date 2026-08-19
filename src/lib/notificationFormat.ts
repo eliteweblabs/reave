@@ -3,8 +3,15 @@
  * Single source of truth — webPush stores these strings; dashboard reads them back.
  */
 
+import { stripStructuredJsonBlocks } from './chatResponseRenderer';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import type { PushAlert } from './pushAlertStore';
+
+const AUDIT_TITLE_STATUS_RE = /^(?:Full )?audit (?:ready|failed)/i;
+const AUDIT_TITLE_ARROW_RE = /^(?:Full )?audit (?:ready|failed)\s*>\s*(.+)$/i;
+const AUDIT_TITLE_COLON_RE = /^(?:Full )?audit (?:ready|failed):\s*(.+)$/i;
+const DEPLOY_BANNER_LINE_RE =
+  /^(?:🚀 Deploying:|🟢 Live:|🔴 Deploy stale:|🔴 Deploy failed|🔴 ).+$/gm;
 
 export const NOTIFICATION_TITLE_MAX = 120;
 export const NOTIFICATION_DETAIL_MAX = 240;
@@ -48,16 +55,56 @@ export function workSlugFromAdminUrl(url: string): string | null {
 
 export function auditLabelFromTitle(title: string): string | null {
   const cleaned = unwrapDebugField(title, 'title') ?? title.trim();
-  const arrow = cleaned.match(/^(?:Full )?audit ready\s*>\s*(.+)$/i);
+  const arrow = cleaned.match(AUDIT_TITLE_ARROW_RE);
   if (arrow?.[1]?.trim()) return arrow[1].trim();
-  const match = cleaned.match(/^(?:Full )?audit ready:\s*(.+)$/i);
+  const match = cleaned.match(AUDIT_TITLE_COLON_RE);
   return match?.[1]?.trim() || null;
 }
 
 export function isSiriAuditPushAlert(tag: string, title?: string): boolean {
   if (siriProposalSlugFromTag(tag)) return true;
   const cleaned = unwrapDebugField(title ?? '', 'title') ?? (title ?? '').trim();
-  return /^(?:Full )?audit ready(?:\s*>:|\s*:)/i.test(cleaned);
+  return AUDIT_TITLE_STATUS_RE.test(cleaned);
+}
+
+/** Drop deploy banners and structured chat buttons so they never leak into push copy. */
+export function stripNotificationDecorations(text: string): string {
+  let cleaned = stripStructuredJsonBlocks(text);
+  cleaned = cleaned.replace(/```json[\s\S]*$/i, '').trim();
+  cleaned = cleaned.replace(DEPLOY_BANNER_LINE_RE, '').trim();
+  return cleaned.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * Human reason when research died (credits, API error, thrown runner) instead
+ * of writing the audit. Null when the reply looks like a normal summary.
+ */
+export function auditResearchFailureReason(reply: string): string | null {
+  const raw = reply.trim();
+  if (!raw) return null;
+  const cleaned = stripNotificationDecorations(raw);
+  const hay = `${raw}\n${cleaned}`;
+
+  if (/credit balance is too low|can't respond right now/i.test(hay)) {
+    return "Anthropic is out of credits, so the audit couldn't finish.";
+  }
+  if (/^Research failed:/i.test(cleaned)) {
+    const detail = cleaned.replace(/^Research failed:\s*/i, '').trim();
+    return detail || 'The research agent failed before finishing the audit.';
+  }
+  if (/^Anthropic error/i.test(cleaned)) {
+    return 'The research agent hit an Anthropic API error before finishing the audit.';
+  }
+  if (/^ANTHROPIC_API_KEY not set/i.test(cleaned)) {
+    return 'Anthropic is not configured, so the audit could not run.';
+  }
+  if (/^sleep_mode$/i.test(cleaned)) {
+    return 'Sleep mode blocked the research agent before the audit finished.';
+  }
+  if (!cleaned && /🚀 Deploying:/.test(raw)) {
+    return "A deploy was in progress and the research agent didn't finish the audit.";
+  }
+  return null;
 }
 
 export function formatAuditReadyNotification(opts: {
@@ -72,13 +119,42 @@ export function formatAuditReadyNotification(opts: {
   return { title, detail };
 }
 
-/** Strip lightweight markdown and collapse whitespace for alert excerpts. */
+export function formatAuditFailedNotification(opts: {
+  tier?: 'quick' | 'full';
+  displayName: string;
+  reason: string;
+}): { title: string; detail: string } {
+  const prefix = opts.tier === 'full' ? 'Full Audit Failed' : 'Audit Failed';
+  const name = opts.displayName.trim() || 'Project';
+  const title = truncateNotificationText(`${prefix} > ${name}`, NOTIFICATION_TITLE_MAX);
+  const detail = truncateNotificationText(cleanNotificationExcerpt(opts.reason), NOTIFICATION_DETAIL_MAX);
+  return { title, detail };
+}
+
+/** Strip lightweight markdown, deploy banners, and button JSON for alert excerpts. */
 export function cleanNotificationExcerpt(text: string): string {
-  return text
+  return stripNotificationDecorations(text)
     .replace(/\*\*/g, '')
     .replace(/^#+\s+/gm, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Pull the 2–3 sentence finding summary from a finished audit agent reply. */
+export function extractAuditProposalSummary(reply: string, slug?: string | null): string {
+  const trimmed = stripNotificationDecorations(reply);
+  if (!trimmed) return 'Research finished — open the project for the full audit.';
+
+  if (slug) {
+    const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = trimmed.match(new RegExp(`Project:\\s*${escaped}\\s*\\n?([\\s\\S]*)`, 'i'));
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+
+  const generic = trimmed.match(/Project:\s*[a-z0-9._-]+\s*\n([\s\S]*)/i);
+  if (generic?.[1]?.trim()) return generic[1].trim();
+
+  return trimmed.slice(0, 1200);
 }
 
 function unwrapDebugField(value: string, field: string): string | null {
@@ -97,7 +173,7 @@ function extractDebugBody(detail: string): string | null {
 
 function auditTierFromTitle(title: string): 'quick' | 'full' {
   const cleaned = unwrapDebugField(title, 'title') ?? title.trim();
-  return /^full audit ready/i.test(cleaned) ? 'full' : 'quick';
+  return /^full audit (?:ready|failed)/i.test(cleaned) ? 'full' : 'quick';
 }
 
 /**
@@ -122,7 +198,16 @@ export function normalizePushAlertCopy(
       unwrapDebugField(alert.detail, 'body') ??
       alert.detail;
 
-    excerpt = excerpt.replace(/^(?:Full )?audit ready:[^\n]*(?:\n|$)/i, '').trim();
+    excerpt = excerpt.replace(/^(?:Full )?audit (?:ready|failed):[^\n]*(?:\n|$)/i, '').trim();
+
+    const failure = auditResearchFailureReason(excerpt);
+    if (failure || /^(?:Full )?audit failed/i.test(alert.title)) {
+      return formatAuditFailedNotification({
+        tier: auditTierFromTitle(alert.title),
+        displayName,
+        reason: failure || excerpt || 'The research agent stopped before the audit was written.',
+      });
+    }
 
     return formatAuditReadyNotification({
       tier: auditTierFromTitle(alert.title),

@@ -1225,7 +1225,7 @@ function stripClerkSystemAccessSpiel(text: string): string {
  */
 async function finalizeAgentReply(text: string, userText: string): Promise<string> {
   const body = stripClerkSystemAccessSpiel(text?.trim() ? text : AGENT_EMPTY_REPLY_FALLBACK);
-  if (!hasFeature('dev_infra')) return body;
+  if (!hasFeature('dev_infra') || getAgentContext().skipDeployBanner) return body;
   try {
     const withBanner = await withDeadline(
       prependDeployBanner(body, { userText }),

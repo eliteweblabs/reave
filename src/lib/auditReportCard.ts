@@ -1551,6 +1551,19 @@ function scoreCategory(
   };
 }
 
+/** True when the Work doc is still the Siri stub (research never wrote the audit). */
+export function isAuditWorkInProgress(input: {
+  title?: string | null;
+  body?: string | null;
+}): boolean {
+  const body = input.body || '';
+  return (
+    /siri audit in progress/i.test(body) ||
+    /^Auditing\b/i.test(input.title || '') ||
+    (body.length < 400 && /research agent is locating/i.test(body))
+  );
+}
+
 export function isAuditJob(input: {
   status?: string | null;
   tags?: string[] | null;
@@ -1596,10 +1609,7 @@ export function buildAuditReportCard(input: {
     }).trim();
   }
 
-  const inProgress =
-    /siri audit in progress/i.test(body) ||
-    /^Auditing\b/i.test(input.title || '') ||
-    (body.length < 400 && /research agent is locating/i.test(body));
+  const inProgress = isAuditWorkInProgress({ title: input.title, body });
 
   if (inProgress) {
     return {

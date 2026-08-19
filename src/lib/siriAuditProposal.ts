@@ -323,6 +323,7 @@ async function runProposalResearch(input: {
   const agentContext = {
     ...(input.userId ? { userId: input.userId, threadId } : {}),
     ...(input.bypassSleepMode ? { bypassSleepMode: true } : {}),
+    skipDeployBanner: true,
   };
 
   let reply: string;
