@@ -382,10 +382,11 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 }
 .ss-qr-note svg {
   display: block;
-  width: 46px;
-  height: 30px;
-  margin-right: 22px;
-  margin-bottom: -6px;
+  width: 54px;
+  height: 36px;
+  margin-right: 14px;
+  margin-bottom: -8px;
+  overflow: visible;
 }
 .ss-qr-note span {
   font-family: Caveat, 'Segoe Script', 'Bradley Hand', cursive;
@@ -401,9 +402,17 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
     <img src="${escapeHtml(src)}" alt="the full audit" width="72" height="72" />
   </a>
   <div class="ss-qr-note" aria-hidden="true">
-    <svg viewBox="0 0 48 32" fill="none" aria-hidden="true">
-      <path d="M10 3.2c1.2 9.4 10.4 18.6 30.2 22.4" stroke="currentColor" stroke-width="2.15" stroke-linecap="round"/>
-      <path d="M32.6 18.4 42.2 26.1 29.4 27.6z" fill="currentColor"/>
+    <svg viewBox="0 0 52 38" fill="none" aria-hidden="true">
+      <g stroke="#fff" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M43.8 32.6c-11.6.4-25.2-4.2-29.2-16.6C12.8 9.4 13.6 5.2 15.6 3"/>
+        <path d="M8 11.8c2.6-5.4 5.6-8.6 7.8-9.4"/>
+        <path d="M15.4 2.2c3.4 4.4 8.6 10 10.8 13.6"/>
+      </g>
+      <g stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M43.8 32.6c-11.6.4-25.2-4.2-29.2-16.6C12.8 9.4 13.6 5.2 15.6 3"/>
+        <path d="M8 11.8c2.6-5.4 5.6-8.6 7.8-9.4"/>
+        <path d="M15.4 2.2c3.4 4.4 8.6 10 10.8 13.6"/>
+      </g>
     </svg>
     <span>the full audit</span>
   </div>
