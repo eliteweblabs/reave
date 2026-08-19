@@ -172,8 +172,6 @@ export const GET: APIRoute = async ({ url }) => {
       title: doc.title,
       inProgress,
       tier: activeRun?.tier || (doc.tags?.includes('full-audit') ? 'full' : 'quick'),
-      contactUid: doc.contact_uid || null,
-      contactName: doc.contact_name || null,
       updated: doc.updated || doc.created || null,
       /** Lightweight summary for the poller — full card is SSR'd on the page. */
       overall: report && !inProgress ? report.overall : null,

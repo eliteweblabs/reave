@@ -1,14 +1,24 @@
 ---
 /**
- * Standalone contact geo map — public URL under /admin (no auth), noindex,
- * not linked from main nav. Full-bleed Mapbox pins with status toggles.
+ * Standalone contact geo map — owner-only, noindex, not linked from main nav.
+ * Full-bleed Mapbox pins with status toggles.
  */
 export const prerender = false;
 
 import ViewportMeta from "../../components/ViewportMeta.astro";
 import "../../styles/mobile-touch.css";
+import { denyUnlessDeploymentOwner } from "../../lib/deploymentOwner";
 import { loadClientsMapData } from "../../lib/clientsMapData";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = encodeURIComponent(Astro.url.pathname + Astro.url.search);
+  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+}
+
+const denied = await denyUnlessDeploymentOwner(Astro);
+if (denied) return denied;
 
 const mapboxAccessToken = getPublicMapboxAccessToken() || "";
 const assetVersion = __PUBLIC_ASSET_VERSION__;
