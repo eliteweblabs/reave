@@ -137,6 +137,8 @@
 .dl-input {
   font: inherit;
   font-size: max(16px, 0.92rem);
+  line-height: 1.25;
+  min-height: 2.7rem;
   padding: 0.55rem 0.75rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -144,6 +146,14 @@
   color: #fff;
   width: 100%;
   box-sizing: border-box;
+}
+
+.dl-select {
+  appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23ffffff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M3 4.5 6 7.5 9 4.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
 }
 
 .dl-input::placeholder {
