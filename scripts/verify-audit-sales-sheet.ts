@@ -72,12 +72,11 @@ await test('orientation query defaults to landscape', () => {
   assert.equal(parseSalesSheetOrientation('LANDSCAPE'), 'landscape');
 });
 
-await test('live Google shot is on for a picked audit unless google=0', () => {
-  assert.equal(salesSheetWantsGoogleShot(null, true), true);
-  assert.equal(salesSheetWantsGoogleShot('', true), true);
-  assert.equal(salesSheetWantsGoogleShot(null, false), false);
-  assert.equal(salesSheetWantsGoogleShot('1', false), true);
-  assert.equal(salesSheetWantsGoogleShot('0', true), false);
+await test('live Google shot is on unless google=0', () => {
+  assert.equal(salesSheetWantsGoogleShot(null), true);
+  assert.equal(salesSheetWantsGoogleShot(''), true);
+  assert.equal(salesSheetWantsGoogleShot('1'), true);
+  assert.equal(salesSheetWantsGoogleShot('0'), false);
 });
 
 await test('competitor search retries a shorter local category', () => {
@@ -242,7 +241,7 @@ await test('selectTopFindings boosts a Google Places miss ahead of speed', () =>
   assert.equal(picked[0]?.id, 'maps');
 });
 
-await test('phone mock-up shows the miss and competitor names', () => {
+await test('phone fallback lists live Places neighbors without a fake miss banner', () => {
   const html = renderPlacesPhoneMockHtml({
     query: 'Hale & Co.',
     near: 'Boston',
@@ -250,9 +249,9 @@ await test('phone mock-up shows the miss and competitor names', () => {
     competitors: [
       { name: 'Harbor Street Partners', rating: 4.8, reviewCount: 126, address: '18 Atlantic Ave' },
     ],
-    source: 'dummy',
+    source: 'places',
   });
-  assert.match(html, /No Google listing/);
+  assert.doesNotMatch(html, /No Google listing/);
   assert.match(html, /Hale &amp; Co\./);
   assert.match(html, /Harbor Street Partners/);
   assert.match(html, /Nearby results/);
@@ -264,6 +263,19 @@ await test('phone mock-up shows the miss and competitor names', () => {
     html,
   );
   assert.ok(injected.indexOf('ss-phone') < injected.indexOf('Snapshot'));
+});
+
+await test('phone fallback does not invent dummy competitors', () => {
+  const html = renderPlacesPhoneMockHtml({
+    query: 'Blackstone Land Landscape Supply',
+    near: 'Beverly, MA',
+    listed: false,
+    competitors: [],
+    source: 'dummy',
+  });
+  assert.doesNotMatch(html, /Harbor Street Partners/);
+  assert.doesNotMatch(html, /No Google listing/);
+  assert.match(html, /Live Google results were not captured/);
 });
 
 await test('phone mock-up can embed a real Google SERP screenshot', () => {

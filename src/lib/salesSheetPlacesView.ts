@@ -1,6 +1,7 @@
 /**
  * Phone mock-up for a Google Places miss.
- * Prefers a real google.com Places screenshot in the screen hole; HTML list is the fallback.
+ * Prefers a real google.com Places screenshot in the screen hole.
+ * Fallback is live Places neighbors only — never invented competitor rows.
  * Chrome is the media-library iPhone 17 frame overlaid on top.
  */
 import { escapeHtml } from './htmlEscape';
@@ -28,12 +29,6 @@ export type SalesSheetPlacesView = {
   source: 'places' | 'dummy';
   error?: string;
 };
-
-export const DUMMY_PLACES_COMPETITORS: SalesSheetCompetitor[] = [
-  { name: 'Harbor Street Partners', rating: 4.8, reviewCount: 126, address: '18 Atlantic Ave' },
-  { name: 'North Pier Advisors', rating: 4.6, reviewCount: 89, address: '440 Commercial St' },
-  { name: 'Seaport Counsel', rating: 4.5, reviewCount: 74, address: '25 Northern Ave' },
-];
 
 export const PLACES_NOT_LISTED_FINDING_ID = 'places-not-listed';
 
@@ -162,7 +157,7 @@ export function renderPlacesPhoneMockHtml(
   const screenSrc = (opts?.screenSrc || '').trim();
   const query = escapeHtml(view.query || 'Search');
   const near = view.near.trim() ? escapeHtml(view.near.trim()) : '';
-  const competitors = (view.competitors.length ? view.competitors : DUMMY_PLACES_COMPETITORS).slice(0, 3);
+  const competitors = view.source === 'places' ? view.competitors.slice(0, 3) : [];
 
   const rows = competitors
     .map((c) => {
@@ -178,18 +173,12 @@ export function renderPlacesPhoneMockHtml(
     })
     .join('');
 
-  const miss = !view.listed;
-  const banner = miss
-    ? `<div class="ss-phone-miss">
-        <p class="ss-phone-miss-kicker">No Google listing</p>
-        <p class="ss-phone-miss-title">${query}</p>
-        <p class="ss-phone-miss-copy">Customers searching nearby do not see this business. These results come up instead.</p>
-      </div>`
-    : `<div class="ss-phone-hit">
-        <p class="ss-phone-miss-kicker">Listed</p>
-        <p class="ss-phone-miss-title">${escapeHtml(view.matchName || view.query)}</p>
-        <p class="ss-phone-miss-copy">A Google Places match exists. Nearby competitors still appear in the same search.</p>
-      </div>`;
+  const fallback = competitors.length
+    ? `<p class="ss-phone-search">${query}${near ? ` <span>· ${near}</span>` : ''}</p>
+    <p class="ss-phone-near">Nearby results</p>
+    <ol class="ss-phone-list">${rows}</ol>`
+    : `<p class="ss-phone-search">${query}${near ? ` <span>· ${near}</span>` : ''}</p>
+    <p class="ss-phone-empty">Live Google results were not captured for this search.</p>`;
 
   return `
 <style>
@@ -256,19 +245,12 @@ export function renderPlacesPhoneMockHtml(
   text-overflow: ellipsis;
 }
 .ss-phone-search span { color: #8a8a84; font-weight: 500; }
-.ss-phone-miss, .ss-phone-hit { padding: 10px 10px 8px; }
-.ss-phone-miss { background: #fff3f0; }
-.ss-phone-hit { background: #eef7ef; }
-.ss-phone-miss-kicker {
-  margin: 0 0 2px;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: ${miss ? '#b42318' : '#087443'};
+.ss-phone-empty {
+  margin: 10px;
+  font-size: 8.5px;
+  line-height: 1.35;
+  color: #4a4a46;
 }
-.ss-phone-miss-title { margin: 0 0 4px; font-size: 12px; font-weight: 800; line-height: 1.2; }
-.ss-phone-miss-copy { margin: 0; font-size: 8.5px; line-height: 1.35; color: #4a4a46; }
 .ss-phone-near {
   margin: 0;
   padding: 6px 10px 2px;
@@ -294,10 +276,7 @@ export function renderPlacesPhoneMockHtml(
     ${
       screenSrc
         ? `<img class="ss-phone-serp" src="${escapeHtml(screenSrc)}" alt="Google Places results for ${query}" />`
-        : `<p class="ss-phone-search">${query}${near ? ` <span>· ${near}</span>` : ''}</p>
-    ${banner}
-    <p class="ss-phone-near">Nearby results</p>
-    <ol class="ss-phone-list">${rows}</ol>`
+        : fallback
     }
   </div>
   <img class="ss-phone-frame" src="${frameSrc}" alt="" width="736" height="1428" />

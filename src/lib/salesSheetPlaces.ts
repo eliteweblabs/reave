@@ -9,7 +9,6 @@ import {
 } from './googlePlacesAutocomplete';
 import { resolvePlacesLocationBias } from './placesLocationBias';
 import {
-  DUMMY_PLACES_COMPETITORS,
   type SalesSheetCompetitor,
   type SalesSheetPlacesView,
 } from './salesSheetPlacesView';
@@ -143,7 +142,7 @@ export async function fetchSalesSheetPlaces(opts: {
     query,
     near,
     listed: false,
-    competitors: DUMMY_PLACES_COMPETITORS,
+    competitors: [],
     source: 'dummy',
     error: opts.skipNetwork ? 'Places lookup skipped' : 'GOOGLE_MAPS_API_KEY is not configured',
   });
@@ -174,10 +173,10 @@ export async function fetchSalesSheetPlaces(opts: {
     near,
     listed,
     matchName,
-    competitors: competitors.length ? competitors : DUMMY_PLACES_COMPETITORS,
+    competitors,
     source: competitors.length ? 'places' : 'dummy',
     error: competitors.length
       ? undefined
-      : searchError || 'Places returned no nearby competitors — showing sample rows',
+      : searchError || 'Places returned no nearby competitors',
   };
 }
