@@ -54,8 +54,7 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
     grid-auto-rows: var(--brick-unit);
     grid-auto-flow: dense;
     gap: var(--masonry-gap);
-    padding: 0 clamp(12px, 2vw, 28px);
-    overflow: hidden;
+    padding: 0 clamp(12px, 2vw, 28px) 12px;
   }
 
   .masonry-item {
