@@ -341,10 +341,22 @@ export function looksLikeHttpUrl(value) {
   }
 }
 
-// ---- Timing ring (stopwatch + countdown) — one SVG, one center ----
+// ---- Timing ring (stopwatch + countdown) — sealed widget ----
 // Lucide stopwatch clock sits at (12, 13) in 24-space. Translate (2, 1) in a
 // 28 viewBox so the face and ring share (14, 14). Do not split icon / ring
 // into two SVGs — that is what made confirm-delete / undo drift.
+//
+// Isolation rules (do not regress):
+// 1. createTimingRing() is the only public constructor. It mounts the SVG
+//    in a shadow root so parent toast / toolbar / delete-confirm CSS cannot
+//    target the circle.
+// 2. Countdown is an SVG presentation attribute driven by rAF — never a CSS
+//    animation or style.strokeDashoffset (those enter the cascade and get
+//    stolen by .ch-undo-toast / .delete-confirm-btn keyframes).
+// 3. Duration lives on the host (data-timing-ring-ms + WeakMap), not inherited
+//    custom properties a parent can override.
+// 4. This timer is functional (remaining undo / confirm time), not decorative.
+//    Do not snap it off for prefers-reduced-motion.
 
 const DELETE_CONFIRM_MS = 3000;
 const TIMING_RING_VB = 28;
@@ -352,11 +364,58 @@ const TIMING_RING_CX = 14;
 const TIMING_RING_R = 12.25;
 const TIMING_RING_STROKE = 1.75;
 const TIMING_RING_CIRC = (2 * Math.PI * TIMING_RING_R).toFixed(2);
+const TIMING_RING_SEAL_ID = 'reave-timing-ring-seal';
 
 /** @type {WeakMap<HTMLElement, number>} */
 const deleteConfirmTimeouts = new WeakMap();
 /** @type {WeakMap<Element, number>} */
 const timingRingRafs = new WeakMap();
+/** @type {WeakMap<Element, number>} */
+const timingRingDurations = new WeakMap();
+
+const TIMING_RING_SHADOW_CSS = `
+:host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 0;
+  flex-shrink: 0;
+  color: inherit;
+}
+.timing-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.timing-ring-circle,
+.timing-ring-track {
+  animation: none !important;
+  animation-name: none !important;
+}
+`;
+
+const TIMING_RING_DOCUMENT_SEAL_CSS = `
+/* Light-DOM overlay rings (filter-purge) + leftover markup. !important so
+   parent keyframes cannot own stroke-dashoffset even if a stylesheet
+   re-grows a delete-confirm-draw-ring rule. */
+.timing-ring-host,
+.timing-ring-circle,
+.delete-confirm-ring-circle {
+  animation: none !important;
+  animation-name: none !important;
+}
+`;
+
+function ensureTimingRingDocumentSeal() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(TIMING_RING_SEAL_ID)) return;
+  const el = document.createElement('style');
+  el.id = TIMING_RING_SEAL_ID;
+  el.textContent = TIMING_RING_DOCUMENT_SEAL_CSS;
+  (document.head || document.documentElement).appendChild(el);
+}
 
 function stopwatchIconMarkup(size = 18) {
   return (
@@ -389,15 +448,18 @@ export function deleteConfirmRingMarkup(size = 36, radius = 18) {
 /**
  * Canonical stopwatch + countdown ring. Clock face and ring share one center.
  * Paths stay in sync with IOS_ICONS.stopwatch.
+ * Callers should prefer createTimingRing() — this markup is for the sealed
+ * shadow tree (and tests). Do not add delete-confirm-ring-circle here; that
+ * class is how parent delete-confirm CSS used to steal the animation.
  */
 export function timingRingMarkup(size = 26) {
   const c = TIMING_RING_CX;
   const r = TIMING_RING_R;
   return (
-    `<svg class="timing-ring delete-confirm-icon delete-confirm-stopwatch" width="${size}" height="${size}" viewBox="0 0 ${TIMING_RING_VB} ${TIMING_RING_VB}" fill="none" aria-hidden="true">` +
-    `<circle class="timing-ring-track delete-confirm-ring-track" cx="${c}" cy="${c}" r="${r}" stroke="currentColor" stroke-width="${TIMING_RING_STROKE}" opacity="0.35"/>` +
-    `<circle class="timing-ring-circle delete-confirm-ring-circle" cx="${c}" cy="${c}" r="${r}" stroke="currentColor" ` +
-    `stroke-width="${TIMING_RING_STROKE}" stroke-dasharray="${TIMING_RING_CIRC}" stroke-dashoffset="${TIMING_RING_CIRC}" transform="rotate(-90 ${c} ${c})"/>` +
+    `<svg class="timing-ring" width="${size}" height="${size}" viewBox="0 0 ${TIMING_RING_VB} ${TIMING_RING_VB}" fill="none" aria-hidden="true">` +
+    `<circle class="timing-ring-track" cx="${c}" cy="${c}" r="${r}" stroke="currentColor" stroke-width="${TIMING_RING_STROKE}" opacity="0.35"/>` +
+    `<circle class="timing-ring-circle" cx="${c}" cy="${c}" r="${r}" stroke="currentColor" ` +
+    `stroke-width="${TIMING_RING_STROKE}" stroke-linecap="butt" stroke-dasharray="${TIMING_RING_CIRC}" stroke-dashoffset="${TIMING_RING_CIRC}" transform="rotate(-90 ${c} ${c})"/>` +
     `<g class="timing-ring-glyph" transform="translate(2 1)" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">` +
     `<circle cx="12" cy="13" r="8"/>` +
     `<path d="M12 9v4l2 2"/>` +
@@ -407,43 +469,60 @@ export function timingRingMarkup(size = 26) {
   );
 }
 
-function parseCssDurationMs(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return null;
-  const n = Number.parseFloat(raw);
-  if (!Number.isFinite(n)) return null;
-  if (/ms$/i.test(raw)) return n;
-  if (/s$/i.test(raw)) return n * 1000;
-  return n;
-}
-
-function readTimingRingDurationMs(circle) {
-  if (!(circle instanceof Element) || typeof getComputedStyle !== 'function') {
-    return DELETE_CONFIRM_MS;
-  }
-  const style = getComputedStyle(circle);
-  return (
-    parseCssDurationMs(style.getPropertyValue('--timing-ring-ms')) ??
-    parseCssDurationMs(style.getPropertyValue('--delete-confirm-ms')) ??
-    DELETE_CONFIRM_MS
+function isTimingRingCircle(el) {
+  return Boolean(
+    el?.classList?.contains('timing-ring-circle') || el?.classList?.contains('delete-confirm-ring-circle'),
   );
 }
 
 function timingRingCircle(root) {
   if (!root) return null;
-  if (
-    root.classList?.contains('timing-ring-circle') ||
-    root.classList?.contains('delete-confirm-ring-circle')
-  ) {
-    return root;
+  if (isTimingRingCircle(root)) return root;
+
+  if (root.shadowRoot) {
+    const inner = timingRingCircle(root.shadowRoot);
+    if (inner) return inner;
   }
+
+  const hosts = root.querySelectorAll?.('.timing-ring-host');
+  if (hosts) {
+    for (const host of hosts) {
+      const inner = timingRingCircle(host);
+      if (inner) return inner;
+    }
+  }
+
   return root.querySelector?.('.timing-ring-circle, .delete-confirm-ring-circle') || null;
 }
 
+function rememberTimingRingDuration(el, durationMs) {
+  if (!el || durationMs == null) return;
+  const ms = Number(durationMs);
+  if (!Number.isFinite(ms)) return;
+  timingRingDurations.set(el, ms);
+  if (el.dataset) el.dataset.timingRingMs = String(ms);
+}
+
+function readTimingRingDurationMs(circle) {
+  let node = circle;
+  while (node) {
+    const stored = timingRingDurations.get(node);
+    if (Number.isFinite(stored) && stored > 0) return stored;
+    const data = Number.parseFloat(node.dataset?.timingRingMs || '');
+    if (Number.isFinite(data) && data > 0) return data;
+    const root = node.getRootNode?.();
+    node = node.parentElement || (root instanceof ShadowRoot ? root.host : null);
+  }
+  return DELETE_CONFIRM_MS;
+}
+
 function setTimingRingOffset(circle, value) {
-  const v = String(value);
-  circle.setAttribute('stroke-dashoffset', v);
-  circle.style.strokeDashoffset = v;
+  // Attribute only. Setting style.strokeDashoffset puts the value in the CSS
+  // cascade, where parent keyframes / reduced-motion rules pin it.
+  circle.setAttribute('stroke-dashoffset', String(value));
+  circle.style.removeProperty('stroke-dashoffset');
+  circle.style.removeProperty('animation');
+  circle.style.setProperty('animation', 'none', 'important');
 }
 
 /** Stop an in-flight countdown (toast hide / re-arm). */
@@ -457,49 +536,50 @@ export function stopTimingRing(root) {
   }
 }
 
-/** Host + SVG. Use this for undo toasts and any standalone countdown. */
+/**
+ * Sealed stopwatch + countdown. Use this everywhere — undo toast, gallery,
+ * armed paneDeleteIcon. Parent classes cannot reach the animated circle.
+ */
 export function createTimingRing(opts = {}) {
-  const { size = 26, durationMs = 3000, className = '' } = opts;
+  ensureTimingRingDocumentSeal();
+  const { size = 26, durationMs = DELETE_CONFIRM_MS, className = '', autoplay = true } = opts;
   const host = document.createElement('span');
-  host.className = ['timing-ring-host', className].filter(Boolean).join(' ');
+  host.className = ['timing-ring-host', 'delete-confirm-icon', className].filter(Boolean).join(' ');
   host.setAttribute('aria-hidden', 'true');
-  if (durationMs != null) host.style.setProperty('--timing-ring-ms', `${durationMs}ms`);
-  host.style.setProperty('--timing-ring-circ', TIMING_RING_CIRC);
-  host.style.setProperty('--delete-ring-circ', TIMING_RING_CIRC);
-  host.innerHTML = timingRingMarkup(size);
-  restartTimingRing(host);
+  host.style.width = `${size}px`;
+  host.style.height = `${size}px`;
+  rememberTimingRingDuration(host, durationMs);
+
+  const shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = `<style>${TIMING_RING_SHADOW_CSS}</style>${timingRingMarkup(size)}`;
+
+  if (autoplay !== false) restartTimingRing(host);
   return host;
 }
 
 /**
- * Play the countdown. CSS @keyframes cannot interpolate custom properties on
- * iOS Safari (the ring sat still after the combined SVG). Drive dashoffset
- * here and keep `animation: none` so the stylesheet cannot steal the property.
+ * Play the countdown. SVG attribute + rAF only — stylesheets do not own
+ * stroke-dashoffset, so this works in the undo toast, a toolbar, or a chip.
  */
 export function restartTimingRing(root) {
+  ensureTimingRingDocumentSeal();
   const circle = timingRingCircle(root);
   if (!circle) return;
 
+  if (root instanceof Element) rememberTimingRingDuration(root, root.dataset?.timingRingMs);
+
   const circ = Number.parseFloat(circle.getAttribute('stroke-dasharray') || TIMING_RING_CIRC);
   const safeCirc = Number.isFinite(circ) && circ > 0 ? circ : Number.parseFloat(TIMING_RING_CIRC);
-  circle.style.setProperty('--timing-ring-circ', String(safeCirc));
-  circle.style.setProperty('--delete-ring-circ', String(safeCirc));
-  // Leave this set — removing it re-applies delete-confirm-draw-ring, which
-  // WebKit will not interpolate and which then pins stroke-dashoffset.
-  circle.style.animation = 'none';
 
   stopTimingRing(circle);
+  setTimingRingOffset(circle, safeCirc);
 
-  const reduced =
-    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const durationMs = reduced ? 0 : readTimingRingDurationMs(circle);
-
+  const durationMs = readTimingRingDurationMs(circle);
   if (durationMs <= 0) {
     setTimingRingOffset(circle, 0);
     return;
   }
 
-  setTimingRingOffset(circle, safeCirc);
   const started = performance.now();
   const tick = (now) => {
     const t = Math.min(1, (now - started) / durationMs);
@@ -549,21 +629,14 @@ export function resetDeleteConfirmButton(btn) {
   if (btn.dataset.originalAriaLabel) {
     btn.setAttribute('aria-label', btn.dataset.originalAriaLabel);
   }
-  const stopwatch = btn.querySelector('.timing-ring, .delete-confirm-stopwatch');
+  const stopwatch = btn.querySelector('.timing-ring-host, .timing-ring, .delete-confirm-stopwatch');
   if (stopwatch && btn.dataset.originalIconHtml) {
     stopwatch.outerHTML = btn.dataset.originalIconHtml;
-  }
-  const circle = btn.querySelector('.delete-confirm-ring-circle');
-  if (circle) {
-    circle.style.animation = 'none';
-    void circle.getBoundingClientRect();
-    circle.style.removeProperty('animation');
   }
 }
 
 function armDeleteConfirm(btn, timeout) {
-  btn.style.setProperty('--delete-confirm-ms', `${timeout}ms`);
-  btn.style.setProperty('--timing-ring-ms', `${timeout}ms`);
+  rememberTimingRingDuration(btn, timeout);
   if (!btn.dataset.originalAriaLabel) {
     btn.dataset.originalAriaLabel = btn.getAttribute('aria-label') || 'Delete';
   }
@@ -573,17 +646,17 @@ function armDeleteConfirm(btn, timeout) {
   btn.setAttribute('aria-label', 'Tap again to confirm delete');
 
   const overlay = btn.dataset.timingRing === 'overlay';
-  const icon = btn.querySelector('.delete-confirm-icon, svg:not(.delete-confirm-ring)');
+  const icon = btn.querySelector('.delete-confirm-icon, .timing-ring-host, svg:not(.delete-confirm-ring)');
   if (overlay) {
     if (icon && !icon.classList.contains('delete-confirm-stopwatch')) {
       if (!btn.dataset.originalIconHtml) btn.dataset.originalIconHtml = icon.outerHTML;
       const size = icon.getAttribute('width') || '18';
       icon.outerHTML = stopwatchIconMarkup(size);
     }
-  } else if (icon && !icon.classList.contains('timing-ring')) {
+  } else if (icon && !icon.classList.contains('timing-ring-host') && !icon.classList.contains('timing-ring')) {
     if (!btn.dataset.originalIconHtml) btn.dataset.originalIconHtml = icon.outerHTML;
     const size = Number(btn.dataset.timingRingSize) || 26;
-    icon.outerHTML = timingRingMarkup(size);
+    icon.replaceWith(createTimingRing({ size, durationMs: timeout, autoplay: false }));
   }
 
   restartTimingRing(btn);
@@ -597,7 +670,7 @@ function armDeleteConfirm(btn, timeout) {
 
 /**
  * Trash → stopwatch + countdown ring; second tap within timeout runs onConfirm.
- * Armed state uses `timingRingMarkup` except filter-purge (ring rides the chip cap).
+ * Armed state uses `createTimingRing` except filter-purge (ring rides the chip cap).
  */
 export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;

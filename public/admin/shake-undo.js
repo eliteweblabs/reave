@@ -8,7 +8,7 @@
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
  */
 
-import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260818b';
+import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260819c';
 
 const UNDO_WINDOW_MS = 5000;
 const SHAKE_THRESHOLD = 18;
@@ -138,10 +138,8 @@ function showUndoToast(onUndo) {
   stopTimingRing(toast);
   toast.replaceChildren();
   toast.setAttribute('aria-label', 'Undo');
-  toast.style.setProperty('--delete-confirm-ms', `${UNDO_WINDOW_MS}ms`);
-  toast.style.setProperty('--timing-ring-ms', `${UNDO_WINDOW_MS}ms`);
 
-  const ring = createTimingRing({ size: 26, durationMs: UNDO_WINDOW_MS });
+  const ring = createTimingRing({ size: 26, durationMs: UNDO_WINDOW_MS, autoplay: false });
   const label = document.createElement('span');
   label.className = 'ch-undo-label';
   label.textContent = 'Undo';
@@ -156,7 +154,7 @@ function showUndoToast(onUndo) {
   toast.style.top = '';
 
   toast.classList.add('ch-toast-visible');
-  restartTimingRing(toast);
+  restartTimingRing(ring);
 
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {

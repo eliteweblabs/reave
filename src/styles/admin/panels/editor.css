@@ -3654,6 +3654,7 @@ button.de-placeholder-action:active {
   height: 1.25rem;
 }
 .ios-icon-btn .delete-confirm-ring,
+.ios-icon-btn .timing-ring-host,
 .ios-icon-btn .timing-ring {
   display: block;
   flex-shrink: 0;
