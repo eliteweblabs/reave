@@ -1,9 +1,10 @@
 /**
  * Static duplex back for `/admin/sales-sheet`.
  *
- * Same on every client version: company chrome + the replaced-app platform
- * icons from `brandLogos.ts`. Front stays the custom audit; this page is
- * the flip side for two-sided Letter print.
+ * Same on every client version: company chrome + two icon sections
+ * (replaced-app marks from `brandLogos.ts`, about-page client marks from
+ * site content). Front stays the custom audit; this page is the flip side
+ * for two-sided Letter print. Layout of the two sections is a template.
  */
 export type SalesSheetBackCompany = {
   name?: string;
@@ -15,6 +16,8 @@ export type SalesSheetBackOrientation = 'portrait' | 'landscape';
 export type SalesSheetBackLogo = {
   name: string;
   src: string;
+  width?: number;
+  height?: number;
 };
 
 function esc(s: string): string {
@@ -31,6 +34,14 @@ function logoTileHtml(logo: SalesSheetBackLogo): string {
     <img src="${esc(logo.src)}" alt="" width="28" height="28" />
   </span>
   <span class="ss-back-name">${esc(logo.name)}</span>
+</li>`;
+}
+
+function clientMarkHtml(logo: SalesSheetBackLogo): string {
+  const w = logo.width && logo.width > 0 ? String(Math.round(logo.width)) : '120';
+  const h = logo.height && logo.height > 0 ? String(Math.round(logo.height)) : '24';
+  return `<li class="ss-back-client">
+  <img src="${esc(logo.src)}" alt="${esc(logo.name)}" width="${w}" height="${h}" />
 </li>`;
 }
 
@@ -139,9 +150,25 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-size: clamp(9px, 1.35cqi, 11px);
   color: var(--doc-muted);
 }
+.ss-sheet-back .ss-back-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45em;
+  min-height: 0;
+}
+.ss-sheet-back .ss-back-section-title {
+  margin: 0;
+  font-size: clamp(9px, 1.35cqi, 11px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+}
 .ss-sheet-back .ss-back-grid {
   list-style: none;
-  margin: 0.2em 0 0;
+  margin: 0;
   padding: 0;
   width: 100%;
   display: grid;
@@ -149,6 +176,18 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   gap: 0.45em 0.35em;
   flex: 1 1 auto;
   align-content: center;
+}
+.ss-sheet-back .ss-back-clients {
+  list-style: none;
+  margin: 0;
+  padding: 0.35em 0 0;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55em 1.1em;
+  border-top: 1px solid var(--doc-rule);
 }
 .ss-sheet-back .ss-back-tile {
   display: flex;
@@ -184,6 +223,19 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ss-sheet-back .ss-back-client {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.ss-sheet-back .ss-back-client img {
+  display: block;
+  height: clamp(14px, 2.6cqi, 24px);
+  width: auto;
+  max-width: 7.4em;
+  object-fit: contain;
+}
 .ss-sheet-back .doc-onepager-footer {
   flex: 0 0 auto;
   padding-top: 1.6%;
@@ -217,12 +269,15 @@ export function renderSalesSheetBackHtml(opts: {
   company?: SalesSheetBackCompany;
   orientation: SalesSheetBackOrientation;
   logos?: SalesSheetBackLogo[];
+  clientLogos?: SalesSheetBackLogo[];
   logoHtml?: string;
 }): string {
   const name = (opts.company?.name || 'This platform').trim();
   const support = (opts.company?.supportEmail || '').trim();
   const logos = opts.logos || [];
+  const clientLogos = opts.clientLogos || [];
   const items = logos.map(logoTileHtml).join('');
+  const clientItems = clientLogos.map(clientMarkHtml).join('');
   const footerBits = [esc(name), support ? esc(support) : '', 'Printed two sides', 'Page 2 of 2'].filter(Boolean);
   const logoHtml = (opts.logoHtml || '').trim() || `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
 
@@ -243,7 +298,14 @@ export function renderSalesSheetBackHtml(opts: {
         AI, file storage, e-sign, and project tools. ${esc(name)} is built to absorb
         that whole layer — so you stop juggling logins and line items.
       </p>
-      <ul class="ss-back-grid" aria-label="Apps this platform replaces">${items}</ul>
+      <section class="ss-back-section" data-ss-section="platforms">
+        <h2 class="ss-back-section-title">Apps this platform replaces</h2>
+        <ul class="ss-back-grid" aria-label="Apps this platform replaces">${items}</ul>
+      </section>
+      <section class="ss-back-section" data-ss-section="clients">
+        <h2 class="ss-back-section-title">Worked with</h2>
+        <ul class="ss-back-clients" aria-label="Clients from the about page">${clientItems}</ul>
+      </section>
       <p class="ss-back-note">
         Keep Gmail or Outlook for personal mail if you want — the OS handles CRM,
         billing, projects, scheduling, AI, and the client portal that used to

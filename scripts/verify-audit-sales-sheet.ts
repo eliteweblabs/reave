@@ -560,9 +560,16 @@ await test('static back shows platform icons and no client fields', () => {
       { name: 'Outlook', src: '/api/media/replaced-outlook' },
       { name: 'Slack', src: '/api/media/replaced-slack' },
     ],
+    clientLogos: [
+      { name: 'Porsche', src: '/api/media/client-porsche', width: 24, height: 24 },
+      { name: 'Red Bull', src: '/api/media/client-redbull', width: 24, height: 24 },
+    ],
   });
   assert.match(back, /data-ss-page="back"/);
+  assert.match(back, /data-ss-section="platforms"/);
+  assert.match(back, /data-ss-section="clients"/);
   assert.match(back, /Replace the stack/);
+  assert.match(back, /Worked with/);
   assert.match(back, /Page 2 of 2/);
   assert.match(back, /Printed two sides/);
   assert.match(back, /REAVE is built to absorb/);
@@ -571,7 +578,11 @@ await test('static back shows platform icons and no client fields', () => {
   assert.match(back, /Outlook/);
   assert.match(back, /Slack/);
   assert.match(back, /\/api\/media\/replaced-gmail/);
+  assert.match(back, /Porsche/);
+  assert.match(back, /Red Bull/);
+  assert.match(back, /\/api\/media\/client-porsche/);
   assert.equal((back.match(/class="ss-back-tile"/g) || []).length, 3);
+  assert.equal((back.match(/class="ss-back-client"/g) || []).length, 2);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
   assert.doesNotMatch(back, /ss-qr|the full audit/);
 });

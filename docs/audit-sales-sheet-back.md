@@ -3,12 +3,13 @@
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 - **Front** — custom: client, scores, three cascade findings, Places phone, QR.
-- **Back** — static: company chrome + the replaced-app platform icons. Same HTML
-  for every client version (`src/lib/salesSheetBack.ts`).
+- **Back** — static: company chrome + two icon sections. Same HTML for every
+  client version (`src/lib/salesSheetBack.ts`).
 
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
 Platform icons: `src/lib/brandLogos.ts` (same wall as homepage / `/features`).
+About-page client marks: `getSiteContent().clientLogos` (same strip as `/about`).
 
 ---
 
@@ -46,11 +47,12 @@ findings, or the audit QR here.
 1. **Header** — company logo left, title “Replace the stack”, kicker “One platform”.
 2. **Lead** — the homepage / `/features` “absorb that whole layer” line, with
    `{company.name}`.
-3. **Icon wall** — every `REPLACED_APP_LOGOS` mark, labeled, 7 columns landscape
-   / 5 portrait. Bytes come from the media library (`replaced-*` slugs), inlined
-   as data URLs when seeded.
-4. **Note** — keep Gmail/Outlook for personal mail; the OS covers the rest.
-5. **Footer** — company name, support email, “Printed two sides”, “Page 2 of 2”.
+3. **Section — Apps this platform replaces** — every `REPLACED_APP_LOGOS` mark,
+   labeled, 7 columns landscape / 5 portrait. Charcoal tiles.
+4. **Section — Worked with** — about-page `clientLogos` wordmarks in a wrap
+   row (Porsche, NYT, …). Layout is a template; refine later.
+5. **Note** — keep Gmail/Outlook for personal mail; the OS covers the rest.
+6. **Footer** — company name, support email, “Printed two sides”, “Page 2 of 2”.
 
 Print from `/admin/sales-sheet` → Print / Save PDF. Choose two-sided, short-edge
 bind on landscape.
