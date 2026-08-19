@@ -7,6 +7,7 @@
  */
 
 import { ensureGooglePlacesNotListedInAuditBody } from './auditPlacesListing';
+import { siteSpeedResearchProblem } from './salesSheetResearch';
 
 export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -1248,18 +1249,14 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
     problem: (cat) => {
       const blob = `${cat.finding}\n${cat.why.join('\n')}`.toLowerCase();
       if (/server resource issue|shared hosting|godaddy|blue ?host/.test(blob)) {
-        return cat.score != null
-          ? `The site scores ${cat.score}/100 on speed — the build looks lean, so the server/hosting is the bottleneck.`
-          : 'The site feels slow even though the front-end build looks clean — likely a server resource issue.';
+        return siteSpeedResearchProblem({
+          suffix: 'The build looks lean — the server/host is the bottleneck.',
+        });
       }
       if (cat.grade === 'F' || (cat.score != null && cat.score < 25)) {
-        return cat.score != null
-          ? `The site scores ${cat.score}/100 on speed — phones on a slow connection will struggle.`
-          : 'The site feels slow, especially on phones.';
+        return siteSpeedResearchProblem({ suffix: 'This homepage is well past that.' });
       }
-      return cat.score != null
-        ? `Lab speed averaged ${cat.score}/100 — not broken, but phones are slower than they should be.`
-        : 'Speed has room to improve, especially on phones.';
+      return siteSpeedResearchProblem();
     },
     solution:
       'Speed fix: compress images, cut heavy scripts, and move off underpowered shared hosting when the build is already clean.',

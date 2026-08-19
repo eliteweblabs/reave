@@ -217,6 +217,7 @@ if (!tmpl) {
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
     sheetHtml = injectAuditDisclaimerIntoFooter(
       injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml),
+      renderAuditDisclaimerHtml(input.findings),
     );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);

@@ -9,6 +9,7 @@
  * Figma back-of-sheet walkthrough + this list: docs/audit-sales-sheet-back.md
  */
 import type { AuditReportCard, LetterGrade, ReportCardCategoryId } from './auditReportCard';
+import { siteSpeedResearchProblem } from './salesSheetResearch';
 import { isPlacesMissFinding, placesNotListedFinding } from './salesSheetPlacesView';
 
 export const SALES_SHEET_CASCADE_COUNT = 3;
@@ -331,7 +332,11 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
         /lcp (?:is )?(?:over )?(?:5|6|7|8|9|10)|takes more than five seconds|feels slow/.test(ctx.lower)
       );
     },
-    problem: () => 'The homepage is too slow — people leave before they see the offer.',
+    problem: () =>
+      siteSpeedResearchProblem({
+        style: 'footnote',
+        suffix: 'This homepage is well past that.',
+      }),
     solution: () => 'Compress images, cut heavy scripts, and fix the host if the build is already lean.',
   },
   {
@@ -540,7 +545,11 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     sheet:
       'Show the speed score plus the host name (GoDaddy / Bluehost / shared) so the bottleneck is the server, not the design.',
     match: (ctx) => /server resource issue|shared hosting|underpowered/.test(ctx.lower),
-    problem: () => 'The build is lean but the host is the bottleneck.',
+    problem: () =>
+      siteSpeedResearchProblem({
+        style: 'footnote',
+        suffix: 'The build looks lean — the host is the bottleneck.',
+      }),
     solution: () => 'Move off the underpowered shared box once images and scripts are already clean.',
   },
   {

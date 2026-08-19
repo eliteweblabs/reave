@@ -37,6 +37,11 @@ import {
 } from '../src/lib/salesSheetPlacesView.ts';
 import { salesSheetCompetitorQueries } from '../src/lib/salesSheetPlaces.ts';
 import { serpShowsBusiness } from '../src/lib/salesSheetPlacesShot.ts';
+import {
+  GOOGLE_MOBILE_ABANDON_3S,
+  sheetSpeedResearchProblem,
+  siteSpeedResearchProblem,
+} from '../src/lib/salesSheetResearch.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -70,6 +75,18 @@ await test('orientation query defaults to landscape', () => {
   assert.equal(parseSalesSheetOrientation(null), 'landscape');
   assert.equal(parseSalesSheetOrientation('portrait'), 'portrait');
   assert.equal(parseSalesSheetOrientation('LANDSCAPE'), 'landscape');
+});
+
+await test('site speed copy uses a footnotable Google bounce stat', () => {
+  const inline = siteSpeedResearchProblem();
+  assert.match(inline, /53% of mobile visitors leave/);
+  assert.match(inline, /3 seconds/);
+  assert.match(inline, /Google, 2016/);
+  assert.doesNotMatch(inline, /Lab speed/);
+  const marked = sheetSpeedResearchProblem(inline);
+  assert.equal(marked.citations[0], GOOGLE_MOBILE_ABANDON_3S.id);
+  assert.match(marked.problem, /¹/);
+  assert.doesNotMatch(marked.problem, /Google, 2016/);
 });
 
 await test('live Google shot is on unless google=0', () => {
@@ -150,6 +167,7 @@ await test('fillAuditOnePager replaces placeholder columns', () => {
   assert.doesNotMatch(columns[0] ?? '', /Prepared for|Scanned —|haleco\.example/);
   assert.match(columns[0] ?? '', /Overall — C \(64\)/);
   assert.match(columns[1] ?? '', /Site Speed/);
+  assert.match(columns[1] ?? '', /53% of mobile visitors leave/);
   assert.match(columns[1] ?? '', /five seconds/);
   assert.match(columns[2] ?? '', /Compress images/);
   assert.doesNotMatch(filled, /Placeholder finding one/);
@@ -507,15 +525,19 @@ await test('listAuditCompanies is unique by company and skips archived', () => {
 });
 
 await test('sales sheet footer gets the portal audit disclaimer', () => {
-  const block = renderAuditDisclaimerHtml();
+  const block = renderAuditDisclaimerHtml(DUMMY_SALES_SHEET.findings);
   assert.match(block, /Grading scale/);
   assert.match(block, /Measurement stack/);
   assert.match(block, /independent measurement tools/);
   assert.match(block, /not the subjective opinion/);
   assert.match(block, /Google Lighthouse/);
   assert.match(block, /A 90–100/);
+  assert.match(block, /Sources/);
+  assert.match(block, /Think with Google/);
+  assert.match(block, /March 2016/);
   const injected = injectAuditDisclaimerIntoFooter(
     '<footer class="doc-onepager-footer"><p>Prepared for Hale &amp; Co.</p></footer>',
+    block,
   );
   assert.ok(injected.indexOf('Prepared for') < injected.indexOf('ss-disclaimer'));
   assert.match(injected, /ss-disclaimer-copy/);

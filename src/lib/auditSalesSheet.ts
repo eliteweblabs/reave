@@ -22,6 +22,12 @@ import {
   selectCascadeFindings,
   type CascadeFinding,
 } from './salesSheetCascade';
+import {
+  GOOGLE_MOBILE_ABANDON_3S,
+  resolveSalesSheetCitations,
+  sheetSpeedResearchProblem,
+  siteSpeedResearchProblem,
+} from './salesSheetResearch';
 
 export type SalesSheetOrientation = 'portrait' | 'landscape';
 
@@ -39,6 +45,7 @@ export type SalesSheetFinding = {
   solution: string;
   rank?: number;
   sheet?: string;
+  citations?: string[];
 };
 
 export type AuditSalesSheetInput = {
@@ -78,8 +85,12 @@ export const DUMMY_SALES_SHEET: AuditSalesSheetInput = {
     {
       id: 'dummy-speed',
       categoryLabel: 'Site Speed',
-      problem: 'The homepage takes more than five seconds to become useful on a phone.',
+      problem: siteSpeedResearchProblem({
+        style: 'footnote',
+        suffix: 'This homepage takes more than five seconds on a phone.',
+      }),
       solution: 'Compress images and defer scripts so the phone load lands under three seconds.',
+      citations: [GOOGLE_MOBILE_ABANDON_3S.id],
     },
     {
       id: 'dummy-listings',
@@ -236,13 +247,17 @@ export function selectTopFindings(
       return a.priority - b.priority;
     })
     .slice(0, count)
-    .map((idea) => ({
-      id: idea.id,
-      categoryLabel: idea.categoryLabel.trim() || 'Opportunity',
-      problem: clip(idea.problem),
-      solution: clip(idea.solution),
-      rank: cascadeRankForFinding(idea),
-    }));
+    .map((idea) => {
+      const marked = sheetSpeedResearchProblem(idea.problem);
+      return {
+        id: idea.id,
+        categoryLabel: idea.categoryLabel.trim() || 'Opportunity',
+        problem: clip(marked.problem),
+        solution: clip(idea.solution),
+        rank: cascadeRankForFinding(idea),
+        citations: marked.citations.length ? marked.citations : undefined,
+      };
+    });
 }
 
 function categoryGrade(card: AuditReportCard, id: ReportCardCategoryId): LetterGrade | null {
@@ -272,13 +287,15 @@ function resolveSalesSheetWebsite(
 }
 
 function toSheetFinding(hit: CascadeFinding): SalesSheetFinding {
+  const marked = sheetSpeedResearchProblem(hit.problem);
   return {
     id: hit.id,
     categoryLabel: hit.categoryLabel,
-    problem: clip(hit.problem),
+    problem: clip(marked.problem),
     solution: clip(hit.solution),
     rank: hit.rank,
     sheet: hit.sheet,
+    citations: marked.citations.length ? marked.citations : undefined,
   };
 }
 
@@ -366,6 +383,9 @@ function overrideFinding(
   const solution = params.get(`solution${n}`)?.trim();
   return {
     id: base.id,
+    citations: problem
+      ? sheetSpeedResearchProblem(problem).citations
+      : base.citations,
     categoryLabel: label || base.categoryLabel,
     problem: problem ? clip(problem) : base.problem,
     solution: solution ? clip(solution) : base.solution,
@@ -489,9 +509,18 @@ function escHtml(s: string): string {
 }
 
 /** Compact portal-matching disclaimer for the sales one-pager footer. */
-export function renderAuditDisclaimerHtml(): string {
+export function renderAuditDisclaimerHtml(
+  findings: Array<{ citations?: string[]; problem?: string }> = [],
+): string {
+  const citations = resolveSalesSheetCitations(findings);
   const legend = AUDIT_GRADE_LEGEND.map((row) => `${row.grade} ${row.range}`).join(' · ');
   const stack = AUDIT_SCAN_STACK.map((tool) => escHtml(tool.name)).join(' · ');
+  const sources = citations
+    .map(
+      (cite) =>
+        `<p class="ss-disclaimer-row ss-disclaimer-source"><span class="ss-disclaimer-mark">${escHtml(cite.mark)}</span>${escHtml(cite.source)}</p>`,
+    )
+    .join('');
   return `
 <style>
 .ss-disclaimer {
@@ -510,6 +539,13 @@ export function renderAuditDisclaimerHtml(): string {
   text-transform: uppercase;
   margin-right: 0.45em;
 }
+.ss-disclaimer-mark {
+  font-weight: 700;
+  margin-right: 0.3em;
+}
+.ss-disclaimer-source {
+  font-size: 0.92em;
+}
 .ss-disclaimer-copy {
   margin: 0;
   font-style: italic;
@@ -519,6 +555,7 @@ export function renderAuditDisclaimerHtml(): string {
 <div class="ss-disclaimer">
   <p class="ss-disclaimer-row"><span class="ss-disclaimer-kicker">Grading scale</span>${escHtml(legend)}</p>
   <p class="ss-disclaimer-row"><span class="ss-disclaimer-kicker">Measurement stack</span>${stack}</p>
+  ${sources ? `<div class="ss-disclaimer-sources"><p class="ss-disclaimer-row"><span class="ss-disclaimer-kicker">Sources</span></p>${sources}</div>` : ''}
   <p class="ss-disclaimer-copy">${escHtml(AUDIT_REPORT_DISCLAIMER)}</p>
 </div>`.trim();
 }
