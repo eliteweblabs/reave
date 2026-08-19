@@ -31,7 +31,16 @@
   let included = [];
   let extrasCatalog = [];
   let seedIndustries = [];
-  let seed = { industry: 'none', inbox: true, todos: true, schedule: true };
+  let seed = {
+    industry: 'none',
+    inbox: true,
+    todos: true,
+    schedule: true,
+    practiceAddress: '',
+    courtRadiusMi: 60,
+    courtCounties: [],
+    practiceArea: 'bankruptcy',
+  };
   let selectedIds = new Set();
   let selectedExtras = new Set();
   let step = 0;
@@ -334,13 +343,45 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet.</p>` +
+      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. The office pin and court radius use Mapbox, not Google.</p>` +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
       `<select id="dw-seed-industry" class="dl-select">${options}</select>` +
       `</label>` +
       `</div>` +
+      (seed.industry === 'law'
+        ? `<div class="dw-identity">` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Office address (Mapbox pin)</span>` +
+          `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="123 Cabot St, Beverly, MA 01915" value="${esc(seed.practiceAddress || '')}" />` +
+          `</label>` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Court radius (miles)</span>` +
+          `<input id="dw-court-radius" class="dl-input" type="number" min="10" max="250" step="5" value="${esc(String(seed.courtRadiusMi || 60))}" />` +
+          `</label>` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Counties (optional)</span>` +
+          `<input id="dw-court-counties" class="dl-input" type="text" maxlength="200" placeholder="Essex" value="${esc((seed.courtCounties || []).join(', '))}" />` +
+          `</label>` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Department</span>` +
+          `<select id="dw-practice-area" class="dl-select">` +
+          [
+            ['bankruptcy', 'Bankruptcy / debtor'],
+            ['tax', 'Tax controversy'],
+            ['foreclosure', 'Foreclosure / housing'],
+            ['general', 'General practice'],
+          ]
+            .map(([id, label]) => {
+              const selected = (seed.practiceArea || 'bankruptcy') === id ? ' selected' : '';
+              return `<option value="${esc(id)}"${selected}>${esc(label)}</option>`;
+            })
+            .join('') +
+          `</select>` +
+          `</label>` +
+          `</div>`
+        : '') +
       (on
         ? `<div class="dw-extras">` +
           [
@@ -522,6 +563,22 @@
     if (envEl) environment = envEl.value.trim() || 'production';
     const seedEl = root.querySelector('#dw-seed-industry');
     if (seedEl) seed = { ...seed, industry: seedEl.value || 'none' };
+    const addrEl = root.querySelector('#dw-practice-address');
+    const radiusEl = root.querySelector('#dw-court-radius');
+    const countiesEl = root.querySelector('#dw-court-counties');
+    const areaEl = root.querySelector('#dw-practice-area');
+    if (addrEl) seed.practiceAddress = addrEl.value.trim();
+    if (radiusEl) {
+      const radius = Number(radiusEl.value);
+      seed.courtRadiusMi = Number.isFinite(radius) && radius > 0 ? radius : 60;
+    }
+    if (countiesEl) {
+      seed.courtCounties = countiesEl.value
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+    }
+    if (areaEl) seed.practiceArea = areaEl.value || 'bankruptcy';
   }
 
   function readVarInputs() {
@@ -743,6 +800,7 @@
         seed.todos = true;
         seed.schedule = true;
       }
+      if (seed.industry === 'law' && postAlias === 'project') postAlias = 'matter';
       render();
       bind();
     });

@@ -99,25 +99,25 @@ export function getDemoIndustryFixtures(industry?: string | null): DemoIndustryF
       engagement: DEMO_ENGAGEMENT.map((e) => ({
         ...e,
         jobSlug: e.jobSlug
-          ?.replace('demo-james-kitchen', 'demo-james-boylston-lease')
-          .replace('demo-sarah-beacon-deck', 'demo-sarah-estate-plan'),
-        dedupeKey: e.dedupeKey.replace('kitchen', 'lease').replace('deck', 'estate'),
+          ?.replace('demo-james-kitchen', 'demo-james-stay-violation')
+          .replace('demo-sarah-beacon-deck', 'demo-sarah-chapter7'),
+        dedupeKey: e.dedupeKey.replace('kitchen', 'stay').replace('deck', 'chapter7'),
         title: e.title
-          .replace('deck', 'estate plan')
-          .replace('appliance specs', 'lease redlines'),
+          .replace('deck', 'chapter 7')
+          .replace('appliance specs', 'pay stubs'),
         detail: e.detail
-          .replace('Beacon Hill deck', 'Chen estate plan')
-          .replace('kitchen remodel', 'Boylston lease'),
+          .replace('Beacon Hill deck', 'Chen chapter 7')
+          .replace('kitchen remodel', 'stay violation'),
       })),
       jobComments: DEMO_JOB_COMMENTS.map((c) => ({
         ...c,
         jobSlug: c.jobSlug
-          .replace('demo-sarah-beacon-deck', 'demo-sarah-estate-plan')
-          .replace('demo-james-kitchen', 'demo-james-boylston-lease'),
+          .replace('demo-sarah-beacon-deck', 'demo-sarah-chapter7')
+          .replace('demo-james-kitchen', 'demo-james-stay-violation'),
         body: c.body
-          .replace('glass panels', 'successor trustee')
-          .replace('kitchen remodel', 'lease negotiation')
-          .replace('Rough plumbing', 'Redline review'),
+          .replace('glass panels', 'pay stubs')
+          .replace('kitchen remodel', 'stay letter')
+          .replace('Rough plumbing', '341 prep'),
       })),
       company: {
         name: LAW_COMPANY.name,

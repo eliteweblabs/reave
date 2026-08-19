@@ -23,6 +23,7 @@ import { isRailwayConfigured } from './railwayClient';
 import { isCloudflareConfigured } from './cloudflareClient';
 import { isNamecomConfigured } from './namecomClient';
 import { isKinstaConfigured } from './kinstaClient';
+import { knowledgeIndustryId } from './knowledgeIndustry';
 import { serverEnv } from './serverEnv';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import { parseChatMessageContent, serializeChatMessageContent } from './chatTypes';
@@ -716,6 +717,11 @@ async function runKnowledgeAgentInner(
     'Verify before claiming you cannot: never tell the user a service is unavailable, a domain is in another account, a feature is missing, or a tool is scoped away without checking the install inventory in this prompt, calling search_knowledge, and (when code_dev is on) grep_code / read_file. A tool missing from this turn is not proof the product lacks the integration — it usually means a module is off or an API key is unset. Never equate "I don\'t have a live API tool this turn" with "this app does not include that." Prefer "Clerk is the auth system; user-admin tools need CLERK_SECRET_KEY" over "we don\'t have Clerk." If the user corrects you ("yes it is", "I\'m looking at it right now", "check the GitHub logs"), search again immediately — do not defend the earlier guess. When the user says they just changed DNS or hosting, re-run dns_check and only the DNS tools listed in this turn\'s inventory — do not mention Railway, Kinsta, Cloudflare, or Name.com APIs unless those modules are enabled here. Prefer "tool returned X" over "I don\'t have access".',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks; pass forward_to when they ask to relay mail to another address), and delete_email when they want it removed. Filter rules are indefinite by default; if the user mentions an expiration ("for 7 days", "until Friday", "expires next week"), pass expires_in_days or expires_at on create_email_filter_rule. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
   ];
+  if (knowledgeIndustryId() === 'law') {
+    sysParts.push(
+      'Legal knowledge: this install is a law practice. Courts, judges, clerks, hours, and phones are already loaded from the Mapbox office pin plus the radius/county gate — read_knowledge slug "courts-in-radius" or call list_nearby_courts. Search bankruptcy-department / bankruptcy-intake / bankruptcy-practice for procedure. Never invent a courthouse, judge, clerk, or phone. You are an office assistant, not counsel — do not give legal advice.',
+    );
+  }
   // Deployed Railway containers run from a built dist/ with no git binary and no
   // .git checkout, so shell git (exec_command) cannot commit/push there. When true,
   // the agent must use the GitHub REST API (write_github_file) instead of shelling out.

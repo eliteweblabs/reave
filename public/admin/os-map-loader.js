@@ -161,7 +161,7 @@ import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260803g';
+} from './knowledge-panel.js?v=20260819a';
 import {
   initSchedulePanel,
   scheduleState,

@@ -149,6 +149,7 @@ import {
   calcomWebappUrl,
 } from '../../bookingClient';
 
+import { resolveCourtGate } from '../../courtRadius';
 import type { AgentToolDef, AgentToolModule, ToolContext } from '../types';
 import {
   parseEmailListArg,
@@ -204,6 +205,31 @@ async function handle_write_knowledge(args: Record<string, unknown>, _ctx: ToolC
   const result = await storeWriteKnowledge({ slug, title, content, tags, source: 'bot' });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify({ ok: true, slug, title, db: isKnowledgeDbConfigured() });
+}
+
+async function handle_list_nearby_courts(_args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const resolved = await resolveCourtGate();
+  return JSON.stringify({
+    origin: resolved.origin,
+    gate: resolved.gate,
+    courts: resolved.courts.map((court) => ({
+      id: court.id,
+      name: court.name,
+      kind: court.kind,
+      address: `${court.address}, ${court.city}, ${court.state}`,
+      miles: court.miles,
+      reason: court.reason,
+      phone: court.phone || null,
+      fax: court.fax || null,
+      email: court.email || null,
+      hours: court.hours || null,
+      counties: court.counties,
+      notes: court.notes || null,
+      staff: court.staff || [],
+    })),
+    count: resolved.courts.length,
+    note: 'Use only these venues and phones. Confirm on the court site if a number looks stale. Do not invent a judge, clerk, or number.',
+  });
 }
 
 export const knowledgeModule: AgentToolModule = {
@@ -284,7 +310,16 @@ export const knowledgeModule: AgentToolModule = {
                 additionalProperties: false,
               },
             },
-          }
+          },
+          {
+            type: 'function',
+            function: {
+              name: 'list_nearby_courts',
+              description:
+                'List courthouses, trustees, judges, clerks, hours, and phones inside this office’s Mapbox pin + radius/county gate. Prefer this (or read_knowledge slug courts-in-radius) over guessing a venue. Never invent a phone or judge.',
+              parameters: { type: 'object', properties: {}, additionalProperties: false },
+            },
+          },
     ];
   },
   handlers: {
@@ -292,5 +327,6 @@ export const knowledgeModule: AgentToolModule = {
     'read_knowledge': handle_read_knowledge,
     'search_knowledge': handle_search_knowledge,
     'write_knowledge': handle_write_knowledge,
+    'list_nearby_courts': handle_list_nearby_courts,
   },
 };

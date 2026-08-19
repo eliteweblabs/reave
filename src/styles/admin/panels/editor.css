@@ -4240,6 +4240,126 @@ button.de-placeholder-action:active {
   z-index: 1;
   border-radius: 4px;
 }
+.kn-courts-map {
+  margin: 0 0.65rem 0.65rem;
+  padding: 0.6rem 0.65rem 0.55rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--surface-muted, var(--bg));
+}
+.kn-courts-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.45rem;
+}
+.kn-courts-map-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+.kn-courts-map-title svg { flex: none; }
+.kn-courts-map-count {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.kn-courts-map-canvas {
+  height: 160px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #d7dce3;
+}
+.kn-courts-map-canvas.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}
+.kn-courts-map-meta {
+  margin: 0.4rem 0 0.5rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.kn-courts-map-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.kn-courts-map-field span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kn-courts-map-miles { color: var(--fg); font-style: normal; font-weight: 600; }
+.kn-courts-map-field input[type='range'] { width: 100%; accent-color: #2563eb; }
+.kn-courts-map-field select {
+  width: 100%;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.75rem;
+  padding: 0.28rem 0.4rem;
+}
+.kn-courts-map-modes {
+  display: flex;
+  gap: 4px;
+}
+.kn-courts-map-mode {
+  flex: 1;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  padding: 0.28rem 0;
+  cursor: pointer;
+}
+.kn-courts-map-mode.is-on {
+  color: var(--fg);
+  background: var(--mode-tab-active-bg, rgba(37, 99, 235, 0.12));
+  border-color: transparent;
+}
+.kn-courts-map-counties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  max-height: 88px;
+  overflow: auto;
+}
+.kn-courts-map-county {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  color: var(--fg);
+}
+.kn-courts-map-status {
+  min-height: 1em;
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.kn-courts-map-pin {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
+}
+.kn-courts-map-pin--office { background: #2563eb; width: 12px; height: 12px; }
+.kn-courts-map-pin--court { background: #0f172a; }
+
 .wk-comment-staff .wk-comment-head { background: rgba(121, 192, 255, 0.06); }
 .wk-comment-author { font-size: 0.78rem; font-weight: 600; }
 .wk-comment-time { font-size: 0.68rem; color: var(--muted); flex: none; }

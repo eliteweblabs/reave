@@ -244,6 +244,28 @@ assert.equal(lawSeed.variables.find((v) => v.name === 'RESEND_API_KEY')?.require
 assert.equal(lawSeed.variables.find((v) => v.name === 'DEMO_INDUSTRY')?.filled, 'law');
 assert.equal(lawSeed.variables.find((v) => v.name === 'SEED_ON_BOOT')?.filled, '1');
 assert.equal(lawSeed.variables.find((v) => v.name === 'SEED_INBOX')?.filled, '1');
+assert.equal(lawSeed.postAlias, 'matter');
+assert.equal(lawSeed.variables.find((v) => v.name === 'POST_ALIAS')?.filled, 'matter');
+assert.equal(lawSeed.variables.find((v) => v.name === 'COURT_RADIUS_MI')?.filled, '60');
+assert.equal(lawSeed.variables.find((v) => v.name === 'PRACTICE_AREA')?.filled, 'bankruptcy');
+assert.equal(lawSeed.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'radius');
+assert.equal(lawSeed.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS'), undefined);
+const lawPin = buildDeployWizardPlan({
+  features: ['website'],
+  seed: {
+    industry: 'law',
+    inbox: true,
+    todos: true,
+    schedule: true,
+    practiceAddress: '123 Cabot St, Beverly, MA 01915',
+    courtRadiusMi: 60,
+    courtCounties: ['Essex'],
+    practiceArea: 'bankruptcy',
+  },
+});
+assert.equal(lawPin.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS')?.filled, '123 Cabot St, Beverly, MA 01915');
+assert.equal(lawPin.variables.find((v) => v.name === 'COURT_COUNTIES')?.filled, 'Essex');
+assert.equal(lawPin.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'both');
 assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
 const manifest = buildGithubAppManifest({
   installSlug: 'tonybarlettajr',

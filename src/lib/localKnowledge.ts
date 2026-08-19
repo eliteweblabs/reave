@@ -5,11 +5,13 @@
  * - Core install-scoped: `src/knowledge/installs/{slug}/*.md`
  * - Plugin: `plugins/{id}/knowledge/*.md` (only when plugin feature is enabled)
  * - Plugin install-scoped: `plugins/{id}/knowledge/installs/{slug}/*.md`
+ * - Industry: `src/knowledge/industries/{id}/*.md` when DEMO_INDUSTRY matches
  *
  * Job files in `src/knowledge/jobs/` are excluded — loaded via workStore.
  */
 
 import { installConfigSlug } from './installConfig';
+import { knowledgeIndustryId } from './knowledgeIndustry';
 import { isPluginKnowledgeActive } from './pluginRegistry';
 
 const coreRawByPath = import.meta.glob<string>('../knowledge/*.md', {
@@ -38,6 +40,12 @@ const pluginInstallRawByPath = import.meta.glob<string>(
     eager: true,
   },
 );
+
+const industryRawByPath = import.meta.glob<string>('../knowledge/industries/*/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 function pathToSlug(path: string): string {
   const base = path.split('/').pop() ?? path;
@@ -79,6 +87,22 @@ function pluginGlobalEntries(): { slug: string; content: string }[] {
   return out;
 }
 
+function industryFromPath(path: string): string | null {
+  const match = path.match(/knowledge\/industries\/([^/]+)\//);
+  return match?.[1] ?? null;
+}
+
+export function industryKnowledgeEntries(industry?: string | null): { slug: string; content: string }[] {
+  const active = knowledgeIndustryId(industry);
+  if (!active) return [];
+  const out: { slug: string; content: string }[] = [];
+  for (const [path, content] of Object.entries(industryRawByPath)) {
+    if (industryFromPath(path) !== active) continue;
+    out.push({ slug: pathToSlug(path), content: content ?? '' });
+  }
+  return out;
+}
+
 function pluginInstallScopedEntries(): { slug: string; content: string }[] {
   const install = installConfigSlug();
   const out: { slug: string; content: string }[] = [];
@@ -96,7 +120,8 @@ export function listKnowledgeSlugs(): string[] {
   const install = coreInstallScopedEntries().map((e) => e.slug);
   const pluginGlobal = pluginGlobalEntries().map((e) => e.slug);
   const pluginInstall = pluginInstallScopedEntries().map((e) => e.slug);
-  return [...new Set([...global, ...install, ...pluginGlobal, ...pluginInstall])].sort((a, b) =>
+  const industry = industryKnowledgeEntries().map((e) => e.slug);
+  return [...new Set([...global, ...install, ...pluginGlobal, ...pluginInstall, ...industry])].sort((a, b) =>
     a.localeCompare(b),
   );
 }
@@ -122,6 +147,9 @@ export function readKnowledgeMarkdown(slug: string): { slug: string; content: st
     if (installSlugFromPluginPath(path) !== installConfigSlug()) return null;
     return { slug, content: content ?? '' };
   }
+
+  const industryDoc = industryKnowledgeEntries().find((e) => e.slug === slug);
+  if (industryDoc) return { slug: industryDoc.slug, content: industryDoc.content };
 
   return null;
 }

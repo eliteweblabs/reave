@@ -4,6 +4,7 @@
  */
 import { getDemoSetupStatus } from './demoMode';
 import { runDemoSeed } from './demoSeedRunner';
+import { seedIndustryKnowledge } from './seedIndustryKnowledge';
 import { serverEnv } from './serverEnv';
 
 export function shouldSeedOnBoot(): boolean {
@@ -28,21 +29,32 @@ export async function ensureInstallSeed(): Promise<{ ok: boolean; detail: string
   if (running) return running;
 
   running = (async () => {
+    const industry = installSeedIndustry();
+    const knowledge = await seedIndustryKnowledge(industry);
+
     const status = await getDemoSetupStatus();
-    if (status.seeded) return { ok: true, skipped: true, detail: 'Sample data already present' };
+    if (status.seeded) {
+      return {
+        ok: true,
+        skipped: true,
+        detail: knowledge.seeded.length
+          ? `Sample data already present; ${knowledge.detail}`
+          : 'Sample data already present',
+      };
+    }
     if (!status.checks.find((c) => c.id === 'database')?.ok) {
       return { ok: false, detail: 'DATABASE_URL is not ready for sample data' };
     }
 
     const result = runDemoSeed({
-      industry: installSeedIndustry(),
+      industry,
       withBookings: envOn('SEED_SCHEDULE', true),
       skipInbox: !envOn('SEED_INBOX', true),
       skipTodos: !envOn('SEED_TODOS', true),
       skipSchedule: !envOn('SEED_SCHEDULE', true),
     });
     if (!result.ok) return { ok: false, detail: result.error };
-    return { ok: true, detail: `Seeded ${installSeedIndustry()} sample data` };
+    return { ok: true, detail: `Seeded ${industry} sample data. ${knowledge.detail}` };
   })();
 
   try {

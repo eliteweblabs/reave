@@ -42,6 +42,7 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, side
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
+import { destroyCourtsGateMap, mountCourtsGateMap } from './courts-gate-map.js?v=20260819a';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
 let shell = {};
@@ -285,6 +286,7 @@ function renderKnowledgeEditor() {
   if (!root) return;
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
   const { entries, search } = knowledgeState;
+  destroyCourtsGateMap();
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
@@ -308,6 +310,11 @@ function renderKnowledgeEditor() {
   hint.style.padding = '0 0.65rem 0.5rem';
   hint.textContent = 'Live DB + bundled docs · bot reads DB first';
   sidebar.appendChild(hint);
+
+  const gateHost = document.createElement('div');
+  gateHost.className = 'kn-courts-gate';
+  sidebar.appendChild(gateHost);
+  mountCourtsGateMap(gateHost);
 
   const list = document.createElement('div');
   list.className = 'ch-list';

@@ -254,8 +254,16 @@ interface ImportMetaEnv {
   CALENDAR_REMINDER_MINUTES?: string;
   /** Set to 0 to disable calendar booking reminders. */
   CALENDAR_REMINDERS_ENABLED?: string;
-  /** Default job-site address when callers omit one (optional). */
+  /** Default job-site address when callers omit one (optional). Also the Mapbox office pin for the court gate. */
   BOOKING_DEFAULT_ADDRESS?: string;
+  /** Miles from the Mapbox office pin used to pull courthouses (law installs). */
+  COURT_RADIUS_MI?: string;
+  /** Comma-separated counties for the court gate (law installs). */
+  COURT_COUNTIES?: string;
+  /** Legal department: bankruptcy | tax | foreclosure | general. */
+  PRACTICE_AREA?: string;
+  /** Court gate: radius | counties | both. */
+  COURT_GATE_MODE?: string;
   /** Vapi private API key — prebuild assistant sync (scripts/sync-vapi-assistant.ts). */
   VAPI_API_KEY?: string;
   /** Vapi assistant id override for sync (defaults to PUBLIC_VAPI_ASSISTANT_ID). */

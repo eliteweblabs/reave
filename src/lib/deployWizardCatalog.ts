@@ -602,7 +602,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'PUBLIC_MAPBOX_ACCESS_TOKEN',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Mapbox token for admin geo maps.',
+    description: 'Mapbox token for admin geo maps and the Knowledge court-radius pin.',
     required: false,
   }),
 
@@ -1461,16 +1461,26 @@ export type DeployWizardSeedInput = {
   inbox: boolean;
   todos: boolean;
   schedule: boolean;
+  /** Office street address — Mapbox pin for the court radius / county gate. */
+  practiceAddress?: string;
+  courtRadiusMi?: number;
+  courtCounties?: string[];
+  practiceArea?: string;
 };
 
 export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> | null): DeployWizardSeedInput {
   const industry = raw?.industry && isDeployWizardSeedIndustryId(raw.industry) ? raw.industry : 'none';
   const on = industry !== 'none';
+  const radius = Number(raw?.courtRadiusMi);
   return {
     industry,
     inbox: on && raw?.inbox !== false,
     todos: on && raw?.todos !== false,
     schedule: on && raw?.schedule !== false,
+    practiceAddress: (raw?.practiceAddress || '').trim().slice(0, 200) || undefined,
+    courtRadiusMi: Number.isFinite(radius) && radius > 0 ? Math.min(250, radius) : undefined,
+    courtCounties: [...new Set((raw?.courtCounties ?? []).map((c) => String(c).trim()).filter(Boolean))],
+    practiceArea: (raw?.practiceArea || '').trim().slice(0, 40) || undefined,
   };
 }
 
@@ -1598,12 +1608,12 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   const appService = (input.appService?.trim() || DEPLOY_APP_SERVICE).slice(0, 64);
   const installSlug = (input.installSlug?.trim() || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
   const siteDomain = normalizeSiteDomain(input.siteDomain);
-  const postAlias = normalizePostAlias(input.postAlias);
+  const seed = normalizeDeployWizardSeed(input.seed);
+  const postAlias = normalizePostAlias(input.postAlias || (seed.industry === 'law' ? 'matter' : undefined));
   const companyName = (input.companyName ?? '').trim().slice(0, 120);
   const adminUsername = (input.adminUsername ?? '').trim().slice(0, 120);
   const timezone = (input.timezone?.trim() || 'America/New_York').slice(0, 64);
   const extraSet = new Set<string>(extras);
-  const seed = normalizeDeployWizardSeed(input.seed);
 
   const services = DEPLOY_WIZARD_SERVICES.filter(
     (s) => featureMatch(s.features, featureSet) && extraMatch(s.extra, extraSet),
@@ -1675,6 +1685,39 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
       { name: 'SEED_TODOS', value: seed.todos ? '1' : '0', description: 'Seed sample todos / matters.' },
       { name: 'SEED_SCHEDULE', value: seed.schedule ? '1' : '0', description: 'Seed sample calendar bookings.' },
     ];
+    if (seed.industry === 'law') {
+      if (seed.practiceAddress) {
+        seedVars.push({
+          name: 'BOOKING_DEFAULT_ADDRESS',
+          value: seed.practiceAddress,
+          description: 'Office address — Mapbox geocodes this pin for the court radius / county gate.',
+        });
+      }
+      seedVars.push(
+        {
+          name: 'COURT_RADIUS_MI',
+          value: String(seed.courtRadiusMi || 60),
+          description: 'Miles from the Mapbox office pin used to pull courthouses and trustees.',
+        },
+        {
+          name: 'PRACTICE_AREA',
+          value: seed.practiceArea || 'bankruptcy',
+          description: 'Legal department this office serves (bankruptcy, tax, foreclosure, general).',
+        },
+        {
+          name: 'COURT_GATE_MODE',
+          value: (seed.courtCounties || []).length ? 'both' : 'radius',
+          description: 'radius | counties | both',
+        },
+      );
+      if (seed.courtCounties?.length) {
+        seedVars.push({
+          name: 'COURT_COUNTIES',
+          value: seed.courtCounties.join(','),
+          description: 'County gate (comma-separated). Combined with the Mapbox radius when set.',
+        });
+      }
+    }
     for (const row of seedVars) {
       const dedupe = `${appService}:${row.name}`;
       if (seen.has(dedupe)) continue;

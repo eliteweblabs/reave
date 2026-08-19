@@ -15,6 +15,7 @@ import {
   buildDeployWizardPlan,
   formatDeployWizardCli,
   isDeployWizardExtraId,
+  isDeployWizardSeedIndustryId,
   normalizeDeployWizardSeed,
   type DeployWizardExtraId,
   type DeployWizardPlan,
@@ -90,11 +91,16 @@ function parseSeed(body: Record<string, unknown>) {
   const raw = body.seed;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return normalizeDeployWizardSeed();
   const seed = raw as Record<string, unknown>;
+  const counties = Array.isArray(seed.courtCounties) ? seed.courtCounties.map(String) : [];
   return normalizeDeployWizardSeed({
-    industry: typeof seed.industry === 'string' ? seed.industry : 'none',
+    industry: typeof seed.industry === 'string' && isDeployWizardSeedIndustryId(seed.industry) ? seed.industry : 'none',
     inbox: seed.inbox !== false,
     todos: seed.todos !== false,
     schedule: seed.schedule !== false,
+    practiceAddress: typeof seed.practiceAddress === 'string' ? seed.practiceAddress : undefined,
+    courtRadiusMi: typeof seed.courtRadiusMi === 'number' ? seed.courtRadiusMi : undefined,
+    courtCounties: counties,
+    practiceArea: typeof seed.practiceArea === 'string' ? seed.practiceArea : undefined,
   });
 }
 
