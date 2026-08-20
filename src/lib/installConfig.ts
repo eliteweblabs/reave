@@ -45,6 +45,7 @@ const FEATURE_IDS_LIST = [
   'cookie_notice',
   'deploy_wizard',
   'website',
+  'credit_check',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

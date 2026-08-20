@@ -47,6 +47,7 @@ Check modules for this client, then run `npm run deploy:checklist`:
 | 026 | `stock_photos` | Pexels stock photos |
 | 027 | `wordpress_content` | WordPress content plugin |
 | 033 | `website` | Website (client web tools) |
+| 034 | `credit_check` | Credit check (reference) |
 
 **Demo suite URL** (stores config in cookie → redirects to admin):
 

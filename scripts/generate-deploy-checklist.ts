@@ -42,6 +42,7 @@ const FEATURE_LABELS: Record<string, string> = {
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',
   website: 'Website (client web tools)',
+  credit_check: 'Credit check (reference)',
 };
 
 const FEATURE_IDS = Object.keys(FEATURE_LABELS);

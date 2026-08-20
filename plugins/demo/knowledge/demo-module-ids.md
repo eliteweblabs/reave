@@ -44,6 +44,7 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 026 | `stock_photos` | Pexels stock photos |
 | 027 | `wordpress_content` | WordPress content plugin |
 | 033 | `website` | Website |
+| 034 | `credit_check` | Credit check |
 
 ## Default suite (no URL)
 
