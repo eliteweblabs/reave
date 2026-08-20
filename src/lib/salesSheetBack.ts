@@ -2,7 +2,7 @@
  * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
  * Two columns on Letter: managed hosting (stack marks along the bottom) and a
- * cover (site pattern + company icon + diagnostic line). Same HTML for every client.
+ * cover (site pattern + company icon + Q&A + diagnostic line). Same HTML for every client.
  */
 import { formatHostingUsd, HOSTING_CARE_PLANS } from './hostingPlans';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN } from './platformStack';
@@ -29,6 +29,19 @@ export const SALES_SHEET_LOCAL_CLIENTS = [
   'The Law Office of Barry Levine',
   'MDOT.world',
 ] as const;
+
+export type SalesSheetBackQa = {
+  q: string;
+  a: string;
+};
+
+/** Print-tight objections on the REΛVE cover. Add more here as they land. */
+export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
+  {
+    q: 'Worried about working with a small shop?',
+    a: 'The software is open source. You keep full control of every license and every product — yours, not rented from us.',
+  },
+];
 
 export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): SalesSheetBackLogo[] {
   if (overrides.length) {
@@ -223,10 +236,51 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-icon svg {
   display: block;
   width: auto;
-  height: clamp(72px, 22cqh, 140px);
+  height: clamp(56px, 16cqh, 110px);
   max-width: 70%;
   margin: 0 auto;
   object-fit: contain;
+}
+.ss-sheet-back .ss-back-qa {
+  width: 100%;
+  text-align: left;
+}
+.ss-sheet-back .ss-back-qa-list {
+  list-style: none;
+  margin: 0.3em 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+}
+.ss-sheet-back .ss-back-qa-item {
+  margin: 0;
+}
+.ss-sheet-back .ss-back-qa-item dt {
+  margin: 0 0 0.2em;
+  font-size: clamp(9px, 1.3cqi, 11px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--doc-ink);
+}
+.ss-sheet-back .ss-back-qa-item dt::before {
+  content: "Q  ";
+  color: var(--doc-muted);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.ss-sheet-back .ss-back-qa-item dd {
+  margin: 0;
+  font-size: clamp(9px, 1.3cqi, 11px);
+  line-height: 1.4;
+  color: #2a2a2a;
+}
+.ss-sheet-back .ss-back-qa-item dd::before {
+  content: "A  ";
+  color: var(--doc-muted);
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 .ss-sheet-back .ss-back-builds {
   margin: 0;
@@ -370,6 +424,15 @@ export function renderSalesSheetBackHtml(opts: {
           The last 10% is a custom build. We specialize in saving clients time
           by automating the work they still do by hand.
         </p>
+        <div class="ss-back-qa" data-ss-col="qa">
+          <p class="ss-back-kicker">Q&amp;A</p>
+          <dl class="ss-back-qa-list">${SALES_SHEET_BACK_QA.map(
+            (item) => `<div class="ss-back-qa-item">
+            <dt>${esc(item.q)}</dt>
+            <dd>${esc(item.a)}</dd>
+          </div>`,
+          ).join('')}</dl>
+        </div>
         <div class="ss-back-diagnostic">
           <h2>Online presence diagnostic</h2>
           <p>An independent systems scan of your business’s digital footprint.</p>

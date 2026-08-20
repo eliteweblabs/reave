@@ -42,7 +42,7 @@ import {
   sheetSpeedResearchProblem,
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
-import { renderSalesSheetBackHtml } from '../src/lib/salesSheetBack.ts';
+import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA } from '../src/lib/salesSheetBack.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -576,6 +576,12 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.match(back, /MDOT\.world/);
   assert.match(back, /Online presence diagnostic/);
   assert.match(back, /independent systems scan/);
+  assert.match(back, /data-ss-col="qa"/);
+  assert.match(back, /Q&amp;A/);
+  assert.match(back, /Worried about working with a small shop\?/);
+  assert.match(back, /open source/);
+  assert.match(back, /full control of every license/);
+  assert.equal(SALES_SHEET_BACK_QA.length, 1);
   assert.match(back, /reave-bg-pattern/);
   assert.match(back, /opacity: 0\.05/);
   assert.match(back, /data-stack="astro"/);
