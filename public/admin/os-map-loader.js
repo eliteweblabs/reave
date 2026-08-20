@@ -6853,6 +6853,13 @@ function renderProfileOnlyPanel(profile) {
               `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
             `</div>`,
           ) +
+          profSection(
+            'Email signature',
+            'Appended to outbound emails you send from the inbox. Stored on your account, not company settings.',
+            `<div class="prof-field"><label for="profile-emailSignature">Signature</label>` +
+            `<textarea id="profile-emailSignature" name="emailSignature" rows="6" placeholder="Your name&#10;Title&#10;Phone | email">${escHtml(p.emailSignature || '')}</textarea>` +
+            `<span class="prof-hint">Plain text is fine — line breaks are preserved. Leave blank to send without a signature.</span></div>`,
+          ) +
         `</form>` +
       `</div>` +
     `</div>`
