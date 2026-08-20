@@ -49,7 +49,7 @@ import {
   displayProjectTitle,
   isLikelyClientThreadReply,
 } from './emailProjectReply';
-import { isSuggestedProjectMatch } from './emailAutomation';
+import { isSuggestedProjectMatch, projectMatchSuggestedReviewCopy } from './emailAutomation';
 import {
   looksLikeFailedOrDuePayment,
   looksLikeIncomingPayment,
@@ -1771,10 +1771,18 @@ export async function processInboundEmail(
         kind: 'triage',
       });
     } else if (inboxRecord && notify && channelsEffective.notify && !agentWillAlert) {
+      const attachmentCount = attachments.length;
+      const projectMatchCopy =
+        automationKind === 'project_match_suggested'
+          ? projectMatchSuggestedReviewCopy({
+              jobTitle: jobTitle || 'a project',
+              attachmentCount,
+            })
+          : null;
       const pushTitle = isProjectReply
         ? `🚨 Contact reply: ${contactName ?? senderEmail}`
-        : automationKind === 'project_match_suggested'
-          ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
+        : projectMatchCopy
+          ? projectMatchCopy.title
           : automationKind === 'project_created'
           ? `New project: ${contactName ?? jobTitle ?? senderEmail}`
           : automationKind === 'meeting_followup'
@@ -1790,14 +1798,10 @@ export async function processInboundEmail(
               : category === 'client'
                 ? `Contact: ${contactName ?? senderEmail}`
                 : email.subject?.trim() || contactName || senderEmail || 'New email';
-      const attachmentCount = attachments.length;
       const pushBody = isProjectReply
         ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
-        : automationKind === 'project_match_suggested'
-          ? `Looks like "${jobTitle ?? 'a project'}" — add content${attachmentCount ? ` and ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}?`.slice(
-              0,
-              240,
-            )
+        : projectMatchCopy
+          ? projectMatchCopy.detail.slice(0, 240)
           : automationKind === 'project_created'
           ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
           : automationKind === 'meeting_followup'
