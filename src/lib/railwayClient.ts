@@ -4,6 +4,7 @@
  */
 import { cachedCompanyBrandName } from './companyConfig';
 import { isInternalInfraService, isNonProductionLabel, isPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
+import { isActiveRailwayProject, type RailwayProjectListNode } from './railwayProjectList';
 import { serverEnv } from './serverEnv';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -308,24 +309,52 @@ export async function railwayEnsurePublicDomain(opts: {
   return { ok: true, domain: created.data.serviceDomainCreate?.domain ?? undefined, created: true };
 }
 
+type RailwayProjectsPage = {
+  projects?: {
+    edges: GqlEdge<RailwayProjectListNode>[];
+    pageInfo?: { hasNextPage: boolean; endCursor?: string | null };
+  };
+};
+
 export async function railwayListProjects(): Promise<
   { ok: true; projects: { id: string; name: string }[] } | { ok: false; error: string }
 > {
-  const result = await railwayGraphql<{
-    projects?: GqlConnection<{ id: string; name: string }>;
-  }>({
-    query: `query {
-      projects {
-        edges {
-          node { id name }
-        }
-      }
-    }`,
-  });
-  if (!result.ok) {
-    return { ok: false, error: result.errors.map((e) => e.message).join('; ') };
+  const workspaceId = serverEnv('RAILWAY_WORKSPACE_ID')?.trim();
+  const projects: { id: string; name: string }[] = [];
+  let after: string | undefined;
+
+  for (let page = 0; page < 20; page++) {
+    const result = await railwayGraphql<RailwayProjectsPage>({
+      query: workspaceId
+        ? `query($after: String, $workspaceId: String) {
+            projects(first: 100, after: $after, includeDeleted: false, workspaceId: $workspaceId) {
+              edges { node { id name deletedAt expiredAt isTempProject } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }`
+        : `query($after: String) {
+            projects(first: 100, after: $after, includeDeleted: false) {
+              edges { node { id name deletedAt expiredAt isTempProject } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }`,
+      variables: workspaceId ? { after, workspaceId } : { after },
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.errors.map((e) => e.message).join('; ') };
+    }
+
+    for (const edge of result.data.projects?.edges ?? []) {
+      if (!isActiveRailwayProject(edge.node)) continue;
+      projects.push({ id: edge.node.id, name: edge.node.name });
+    }
+
+    const pageInfo = result.data.projects?.pageInfo;
+    if (!pageInfo?.hasNextPage || !pageInfo.endCursor) break;
+    after = pageInfo.endCursor;
   }
-  const projects = (result.data.projects?.edges ?? []).map((e) => e.node);
+
+  projects.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   return { ok: true, projects };
 }
 
@@ -346,13 +375,14 @@ export async function railwayResolveProject(projectRef: string): Promise<
       project?: {
         id: string;
         name: string;
+        deletedAt?: string | null;
         services?: GqlConnection<RailwayService>;
         environments?: GqlConnection<RailwayEnvironment>;
       } | null;
     }>({
       query: `query project($id: String!) {
         project(id: $id) {
-          id name
+          id name deletedAt
           services { edges { node { id name icon } } }
           environments { edges { node { id name } } }
         }
@@ -361,7 +391,7 @@ export async function railwayResolveProject(projectRef: string): Promise<
     });
     if (!result.ok) return { ok: false, error: result.errors.map((e) => e.message).join('; ') };
     const p = result.data.project;
-    if (!p) return { ok: false, error: `Project not found: ${ref}` };
+    if (!p || p.deletedAt) return { ok: false, error: `Project not found: ${ref}` };
     return {
       ok: true,
       project: { id: p.id, name: p.name },

@@ -13,8 +13,6 @@ import {
   isDeployWizardSeedIndustryId,
   mergeDeployWizardSeedIndustries,
   normalizeSiteDomain,
-  isDeployWizardPublicHost,
-  deployWizardSiteOrigin,
   railwayPrivateUrl,
   railwayPublicUrl,
   railwayLocalRef,
@@ -209,12 +207,6 @@ const renamedCalFrom = renamed.variables.find((v) => v.service === 'calcom-web-a
 assert.equal(renamedCalFrom?.filled, '${{ Astro.EMAIL_FROM }}');
 
 assert.equal(normalizeSiteDomain('https://www.Acme.com/'), 'acme.com');
-assert.equal(isDeployWizardPublicHost('app.levineslaw.com'), true);
-assert.equal(isDeployWizardPublicHost('https://app.levineslaw.com/'), true);
-assert.equal(isDeployWizardPublicHost('localhost'), false);
-assert.equal(isDeployWizardPublicHost('not a host'), false);
-assert.equal(deployWizardSiteOrigin('app.levineslaw.com'), 'https://app.levineslaw.com');
-assert.equal(deployWizardSiteOrigin('localhost'), '');
 assert.equal(deployWizardFqdn('ap', 'acme.com'), 'ap.acme.com');
 assert.equal(deployWizardFqdn('@', ''), '{apex}');
 

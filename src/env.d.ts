@@ -68,7 +68,7 @@ interface ImportMetaEnv {
   RAILWAY_API_TOKEN?: string;
   /** Optional default Railway project UUID for list_railway_domains (else match by name "Reave App") */
   RAILWAY_PROJECT_ID?: string;
-  /** Optional: Cmd+K → Copy Active Workspace ID if projectCreate requires it */
+  /** Optional: Cmd+K → Copy Active Workspace ID. Scopes projectCreate and the live-project list. */
   RAILWAY_WORKSPACE_ID?: string;
   /** If "1", /railway project … does not call Railway (safe rehearsal) */
   RAILWAY_DRY_RUN?: string;

@@ -338,7 +338,7 @@ export function railwayAgentToolDefinitions(ctx: ToolContext): AgentToolDef[] {
       type: 'function',
       function: {
         name: 'list_railway_projects',
-        description: 'List all Railway projects the token can access. Requires RAILWAY_API_TOKEN.',
+        description: 'List live Railway projects the token can access (excludes deleted/temp). Requires RAILWAY_API_TOKEN.',
         parameters: { type: 'object', properties: {}, additionalProperties: false },
       },
     },
