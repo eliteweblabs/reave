@@ -132,8 +132,18 @@ function hideUndoToast() {
   if (!toast) return;
   stopTimingRing(toast);
   toast.classList.remove('ch-toast-visible');
+  toast.setAttribute('aria-hidden', 'true');
+  toast.inert = true;
+  toast.onclick = null;
+  if (document.activeElement === toast) toast.blur();
   clearTimeout(toastTimer);
-  toastTimer = null;
+  /* Drop the node after the fade so an invisible pill cannot sit over the header. */
+  toastTimer = setTimeout(() => {
+    toastTimer = null;
+    if (toast.isConnected && !toast.classList.contains('ch-toast-visible')) {
+      toast.remove();
+    }
+  }, 220);
 }
 
 function showUndoToast(onUndo) {
@@ -143,12 +153,16 @@ function showUndoToast(onUndo) {
     toast.type = 'button';
     toast.id = 'ch-undo-toast';
     toast.className = 'ch-toast ch-undo-toast';
+    toast.setAttribute('aria-hidden', 'true');
+    toast.inert = true;
     document.body.appendChild(toast);
   }
 
   stopTimingRing(toast);
   toast.replaceChildren();
   toast.setAttribute('aria-label', 'Undo');
+  toast.removeAttribute('aria-hidden');
+  toast.inert = false;
 
   const ring = createTimingRing({ size: 26, durationMs: UNDO_WINDOW_MS, autoplay: false });
   const label = document.createElement('span');
@@ -169,9 +183,7 @@ function showUndoToast(onUndo) {
 
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
-    stopTimingRing(toast);
-    toast.classList.remove('ch-toast-visible');
-    toastTimer = null;
+    hideUndoToast();
   }, UNDO_WINDOW_MS);
 }
 

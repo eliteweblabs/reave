@@ -181,5 +181,6 @@
   top: auto;
   transform: none;
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }

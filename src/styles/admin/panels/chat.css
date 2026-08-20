@@ -914,7 +914,10 @@ body.admin-split-view #chat-panel .ch-compose {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  pointer-events: auto;
+  /* Hidden leftover must not steal taps or flash the iOS tap-highlight. */
+  pointer-events: none;
+  visibility: hidden;
+  -webkit-tap-highlight-color: transparent;
   /* Below the measured header — desktop PWA titlebars eat safe-top + 1.25rem. */
   top: calc(var(--topbar-measured-h, var(--topbar-h)) + 0.65rem);
   bottom: auto;
@@ -932,6 +935,7 @@ body.admin-split-view #chat-panel .ch-compose {
   box-shadow: 0 8px 28px rgba(var(--brand-magenta-rgb), 0.38);
   white-space: nowrap;
   cursor: pointer;
+  transition: opacity 0.18s, transform 0.18s, visibility 0s linear 0.18s;
 }
 .ch-undo-toast .timing-ring-host,
 .ch-undo-toast .timing-ring {
@@ -945,7 +949,10 @@ body.admin-split-view #chat-panel .ch-compose {
   line-height: 1;
 }
 .ch-undo-toast.ch-toast-visible {
+  pointer-events: auto;
+  visibility: visible;
   transform: translateX(-50%) translateY(0);
+  transition: opacity 0.18s, transform 0.18s, visibility 0s;
 }
 .ch-undo-toast.ch-toast-visible:hover {
   filter: brightness(1.06);
