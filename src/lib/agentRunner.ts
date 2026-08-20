@@ -787,7 +787,7 @@ async function runKnowledgeAgentInner(
       }
       if (isOpsInstall()) {
         sysParts.push(
-          'GitHub scope: write_github_file / create_github_repo only touch source code repos (this app, or an explicitly named sibling service) — a commit is NOT a public URL by itself (no Pages/hosting is wired up) and a brand-new repo is not reachable until deployed. NEVER use these to "host" a one-off asset for a client (an email signature, a vCard/business card, a marketing PDF, etc.), and never invent/guess a path on the client\u2019s own live website — you have no tool that writes files there, so that URL will 404. If the client_portal feature is enabled and the ask is a vCard/business card or an email signature for a specific client to hand out, use get_client_vcard_link / get_client_signature_link instead — those return links this app actually serves. For anything else you cannot really host, say so plainly rather than fabricating a link.',
+          'GitHub scope: write_github_file / create_github_repo only touch source code repos (this app, or an explicitly named sibling service) — a commit is NOT a public URL by itself (no Pages/hosting is wired up) and a brand-new repo is not reachable until deployed. NEVER use these to "host" a one-off asset for a client (an email signature, a vCard/business card, a marketing PDF, etc.), and never invent/guess a path on the client\u2019s own live website — you have no tool that writes files there, so that URL will 404. Outgoing email signatures are set on the owner\u2019s Admin \u2192 Profile account, not on client records. For other one-off assets you cannot really host, say so plainly rather than fabricating a link.',
         );
       }
     } else {
