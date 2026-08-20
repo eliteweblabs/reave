@@ -42,7 +42,8 @@ import {
   sheetSpeedResearchProblem,
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
-import { renderSalesSheetBackHtml } from '../src/lib/salesSheetBack.ts';
+import { renderSalesSheetBackHtml, salesSheetStackLogos } from '../src/lib/salesSheetBack.ts';
+import { PLATFORM_STACK } from '../src/lib/platformStack.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -580,6 +581,7 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.match(back, /opacity: 0\.05/);
   assert.match(back, /data-stack="astro"/);
   assert.match(back, /data-stack="anthropic"/);
+  assert.match(back, /data-stack="cloudflare"/);
   assert.match(back, /data-stack="railway"/);
   assert.match(back, /data-stack="supabase"/);
   assert.match(back, /data-stack="playwright"/);
@@ -589,12 +591,35 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.ok((back.match(/data-stack="/g) || []).length >= 10, 'expected at least 10 stack marks');
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
+  assert.match(back, /simple-icons@v16\/icons\/cloudflare\.svg/);
+  assert.ok(
+    PLATFORM_STACK.some((tech) => tech.slug === 'cloudflare'),
+    'PLATFORM_STACK includes Cloudflare',
+  );
   assert.match(back, /Page 2 of 2/);
   assert.match(back, /hello@reave\.example/);
   assert.doesNotMatch(back, /ss-back-tile|ss-back-mark|border-radius: 10px/);
   assert.doesNotMatch(back, /Gmail|HubSpot|Replace the stack|Worked with/);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
   assert.doesNotMatch(back, /ss-qr|the full audit/);
+});
+
+await test('stack marks keep Cloudflare when overrides omit it', () => {
+  const logos = salesSheetStackLogos([
+    { name: 'Astro', slug: 'astro', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/astro.svg' },
+    { name: 'Anthropic', slug: 'anthropic', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/anthropic.svg' },
+  ]);
+  assert.ok(
+    logos.some((logo) => logo.slug === 'cloudflare'),
+    'Cloudflare is appended to a partial platform logoset',
+  );
+  const back = renderSalesSheetBackHtml({
+    company: { name: 'REAVE', supportEmail: 'hello@reave.example' },
+    orientation: 'landscape',
+    stackLogos: logos,
+  });
+  assert.match(back, /data-stack="cloudflare"/);
+  assert.match(back, /simple-icons@v16\/icons\/cloudflare\.svg/);
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {
