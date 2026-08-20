@@ -130,4 +130,34 @@ assert.equal(
   'login',
 );
 
+assert.equal(
+  homepageTemplateFromConfig({
+    siteTemplate: 'default',
+    siteKey: 'reave',
+    hasLanding: false,
+    hasWebsiteFeature: true,
+    isCanonicalReave: true,
+    isOfficialReaveHost: false,
+    isDemo: false,
+    requestHost: 'app.levineslaw.com',
+  }),
+  'login',
+  'client host must not inherit REΛVE marketing when INSTALL_CONFIG=reave',
+);
+
+assert.equal(
+  homepageTemplateFromConfig({
+    siteTemplate: 'login',
+    siteKey: 'reave',
+    hasLanding: false,
+    hasWebsiteFeature: true,
+    isCanonicalReave: true,
+    isOfficialReaveHost: true,
+    isDemo: false,
+    requestHost: 'reave.app',
+  }),
+  'default',
+  'reave.app stays marketing even when login is configured',
+);
+
 console.log('verify-homepage-login: ok');

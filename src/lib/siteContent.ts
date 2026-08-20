@@ -18,6 +18,7 @@ import {
   parseSiteHomepageTemplate,
   type HomepageTemplate,
 } from './homepageTemplate';
+import { getRequestPublicHost, isReaveMarketingHost } from './requestHost';
 import {
   getInstallConfigSync,
   installConfigSlug,
@@ -483,7 +484,10 @@ export function clearSiteContentCache(): void {
   _cache.clear();
 }
 
-export function resolveHomepageTemplate(site?: SiteContentConfig): HomepageTemplate {
+export function resolveHomepageTemplate(
+  site?: SiteContentConfig,
+  opts?: { requestHost?: string },
+): HomepageTemplate {
   const content = site ?? getSiteContent();
   return homepageTemplateFromConfig({
     siteTemplate: content.homepage.template ?? 'default',
@@ -494,6 +498,7 @@ export function resolveHomepageTemplate(site?: SiteContentConfig): HomepageTempl
     isCanonicalReave: isCanonicalReaveInstall(),
     isOfficialReaveHost: isOfficialReavePublicHost(),
     isDemo: isDemoMode(),
+    requestHost: opts?.requestHost || getRequestPublicHost(),
   });
 }
 
@@ -507,9 +512,15 @@ export function resolveSiteContentKey(industryOverride?: string | null): string 
 
   const install = getInstallConfigSync();
   const explicit = install.siteContentKey?.trim().toLowerCase();
-  if (explicit) return explicit;
-
   const slug = installConfigSlug();
+  const host = getRequestPublicHost();
+
+  // Client domain + leaked REΛVE site key → unbranded standalone chrome.
+  if (host && !isReaveMarketingHost(host) && (explicit === 'reave' || slug === 'reave')) {
+    return slug !== 'reave' && slug !== 'default' ? slug : 'default';
+  }
+
+  if (explicit) return explicit;
   if (slug === 'reave') return 'reave';
   if (slug === 'default') return isCanonicalReaveInstall() || isOfficialReavePublicHost() ? 'reave' : 'default';
   return slug;

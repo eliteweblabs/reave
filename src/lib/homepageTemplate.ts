@@ -17,8 +17,11 @@ export function parseSiteHomepageTemplate(raw: unknown): HomepageTemplate {
 }
 
 /**
- * Effective homepage chrome. Official REΛVE never becomes a login wall —
- * even if a copied client config sets `homepage.template` / `homepageTemplate` to `login`.
+ * Effective homepage chrome.
+ *
+ * The visitor host wins: `reave.app` stays marketing. Any other public host
+ * is a client install — Clerk login unless that install has its own landing
+ * page. `INSTALL_CONFIG=reave` on a client domain must not leak marketing.
  */
 export function homepageTemplateFromConfig(opts: {
   siteTemplate?: HomepageTemplate;
@@ -29,8 +32,12 @@ export function homepageTemplateFromConfig(opts: {
   isCanonicalReave: boolean;
   isOfficialReaveHost: boolean;
   isDemo: boolean;
+  requestHost?: string;
 }): HomepageTemplate {
-  if (opts.isOfficialReaveHost || opts.isCanonicalReave) {
+  const host = (opts.requestHost ?? '').trim().toLowerCase();
+  const onReaveHost = host === 'reave.app' || (!host && (opts.isOfficialReaveHost || opts.isCanonicalReave));
+
+  if (onReaveHost) {
     return opts.siteTemplate === 'landing' && opts.hasLanding ? 'landing' : 'default';
   }
   if (opts.isDemo) {
@@ -41,6 +48,7 @@ export function homepageTemplateFromConfig(opts: {
   if ((opts.siteTemplate === 'landing' || opts.installTemplate === 'landing') && opts.hasLanding) {
     return 'landing';
   }
+  if (host && host !== 'reave.app') return 'login';
   if (!opts.hasWebsiteFeature) return 'login';
   return opts.siteTemplate === 'landing' && opts.hasLanding ? 'landing' : 'default';
 }

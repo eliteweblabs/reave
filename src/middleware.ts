@@ -16,6 +16,7 @@ import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { isClerkFrontendProxyPath, proxyClerkFrontendApi } from "./lib/clerkFrontendProxy";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
+import { publicHostFromRequest, runWithRequestHost } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
 // Arm SIGTERM drain as soon as the server handles any request (incl. health).
@@ -230,7 +231,8 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
     return applySecurityHeaders(await proxyClerkFrontendApi(context.request));
   }
 
-  const run = () => appMiddleware(context, next);
+  const host = publicHostFromRequest(context.request);
+  const run = () => runWithRequestHost(host, () => appMiddleware(context, next));
 
   if (isDemoMode()) {
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
