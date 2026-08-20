@@ -22,7 +22,8 @@
   "profileMenu": [
     "profile",
     "company",
-    "settings"
+    "settings",
+    "addons"
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,

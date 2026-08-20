@@ -277,6 +277,10 @@ import {
   teardownModulesPanel,
 } from './modules-panel.js?v=20260810a';
 import {
+  initAddonsPanel,
+  loadAddonsTab,
+} from './addons-panel.js?v=20260820a';
+import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
@@ -359,6 +363,7 @@ const SETTINGS_MAP_TYPES = new Set([
   'company',
   'settings',
   'socials',
+  'addons',
   'industries',
   'vapi',
   'lead-scanner',
@@ -859,6 +864,8 @@ function activateMapPanel(opts = {}) {
       prependSettingsBackHeader,
       escHtml,
     });
+  } else if (MAP.type === 'addons') {
+    loadAddonsTab();
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -10697,6 +10704,11 @@ initNewsletterPanel({});
 initOnlineReviewsPanel({});
 initMediaPanel({});
 initModulesPanel({ getMap: () => MAP, MAP });
+initAddonsPanel({
+  getMap: () => MAP,
+  MAP,
+  prependSettingsBackHeader,
+});
 
 initTodoPanel({
   setActiveMap,

@@ -1,0 +1,48 @@
+/** Add-ons account page — demo-loader tiles inside admin settings chrome. */
+
+.addons-dl-wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 4px 24px;
+}
+
+.addons-dl-wrap .dl-hero--compact {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.addons-dl-wrap .dl-hero--compact .dl-h1 {
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+}
+
+.addons-dl-wrap .dl-hero--compact .dl-lead {
+  max-width: 52rem;
+}
+
+.addons-dl-wrap .dl-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #4ade80;
+  white-space: nowrap;
+}
+
+.addons-dl-wrap .dl-btn--sm {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+}
+
+.addons-panel-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#settings-panel .addons-dl-wrap .dl-tile {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#settings-panel .addons-dl-wrap .dl-tile--selected {
+  border-color: rgba(74, 222, 128, 0.45);
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
+}
