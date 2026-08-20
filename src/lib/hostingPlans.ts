@@ -28,17 +28,17 @@ export type HostingFeatureGroup = {
   features: string[];
 };
 
-/** Care plans — billed annually. */
+/** Hosting plans — billed annually. Names match /pricing (Core OS, Growth). */
 export const HOSTING_CARE_PLANS: HostingCarePlan[] = [
   {
     id: 'care',
-    name: 'Care',
+    name: 'Core OS',
     tagline: 'We handle everything',
     summary:
       'Fully managed hosting for one WordPress site or web app — security, updates, scans, SEO reports, and light content edits so you can stay focused on the business.',
     annualUsd: 600,
     monthlyEquivalentUsd: 50,
-    ctaLabel: 'Start Care',
+    ctaLabel: 'Start Core OS',
     features: [
       { label: 'Managed WordPress or web-app hosting' },
       { label: 'Daily site health scans' },
@@ -54,16 +54,16 @@ export const HOSTING_CARE_PLANS: HostingCarePlan[] = [
   },
   {
     id: 'care-unlimited',
-    name: 'Care Unlimited',
-    tagline: 'Everything in Care, plus unlimited edits',
+    name: 'Growth',
+    tagline: 'Everything in Core OS, plus unlimited edits',
     summary:
       'Same hands-on care — plus unlimited content and design edits whenever you need a change. Your always-on web team for the year.',
     annualUsd: 900,
     monthlyEquivalentUsd: 75,
     highlighted: true,
-    ctaLabel: 'Start Unlimited',
+    ctaLabel: 'Start Growth',
     features: [
-      { label: 'Everything in Care' },
+      { label: 'Everything in Core OS' },
       { label: 'Unlimited content & design edits', unlimitedOnly: true },
       { label: 'Same-week turnaround on routine changes', unlimitedOnly: true },
       { label: 'Landing pages, copy refreshes & image swaps', unlimitedOnly: true },

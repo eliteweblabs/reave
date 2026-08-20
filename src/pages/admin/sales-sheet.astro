@@ -371,6 +371,13 @@ const placesNote = places.error
         margin-bottom: 1rem;
       }
       .ss-sheet { margin: 0 -1rem; }
+      .ss-sheet .doc-onepager {
+        --ss-print-inset: 0.2in;
+        --ss-print-inset-top: 0.25in;
+        padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
+      }
+      .ss-sheet .doc-onepager-header { border-bottom: none; }
+      .ss-sheet .doc-onepager-footer { border-top: none; }
       .ss-check {
         display: flex;
         align-items: center;

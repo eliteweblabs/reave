@@ -332,8 +332,15 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 .doc-onepager {
   position: relative;
-  --ss-print-inset: 0.25in;
-  padding: var(--ss-print-inset);
+  --ss-print-inset: 0.2in;
+  --ss-print-inset-top: 0.25in;
+  padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
+}
+.doc-onepager-header {
+  border-bottom: none;
+}
+.doc-onepager-footer {
+  border-top: none;
 }
 .doc-onepager-title,
 .doc-onepager-kicker { display: none; }
@@ -345,7 +352,7 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 }
 .ss-qr {
   position: absolute;
-  top: var(--ss-print-inset);
+  top: var(--ss-print-inset-top);
   right: var(--ss-print-inset);
   z-index: 3;
   margin: 0;

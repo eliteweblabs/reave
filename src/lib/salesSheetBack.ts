@@ -5,7 +5,7 @@
  * cover (site pattern + company icon + Q&A + diagnostic line). Same HTML for every client.
  */
 import { formatHostingUsd, HOSTING_CARE_PLANS } from './hostingPlans';
-import { PLATFORM_STACK, SIMPLE_ICONS_CDN } from './platformStack';
+import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
 
 export type SalesSheetBackCompany = {
   name?: string;
@@ -20,8 +20,30 @@ export type SalesSheetBackLogo = {
   slug?: string;
 };
 
-/** Full /platform stack, including Astro and Playwright™. */
-export const SALES_SHEET_STACK = PLATFORM_STACK;
+/** Flyer back — one print row. Yellowed marks stay on /platform, not here. */
+const SALES_SHEET_STACK_SLUGS = [
+  'astro',
+  'nodedotjs',
+  'railway',
+  'supabase',
+  'clerk',
+  'resend',
+  'anthropic',
+  'github',
+  'cloudflare',
+  'caldotcom',
+  'plausibleanalytics',
+] as const;
+
+export const SALES_SHEET_STACK: StackTech[] = SALES_SHEET_STACK_SLUGS.map((slug) => {
+  const tech = PLATFORM_STACK.find((item) => item.slug === slug);
+  if (!tech) throw new Error(`sales sheet stack is missing ${slug}`);
+  return tech;
+});
+
+/** Side and bottom inset. Top stays a hair larger so the mast still clears. */
+export const SALES_SHEET_PRINT_INSET = '0.2in';
+export const SALES_SHEET_PRINT_INSET_TOP = '0.25in';
 
 /** Nearby shops named on the REΛVE back — matches /about + /#portfolio. */
 export const SALES_SHEET_LOCAL_CLIENTS = [
@@ -97,7 +119,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   --doc-ink: #141414;
   --doc-muted: #6b6b6b;
   --doc-rule: #d4d4cc;
-  --ss-print-inset: 0.25in;
+  --ss-print-inset: ${SALES_SHEET_PRINT_INSET};
+  --ss-print-inset-top: ${SALES_SHEET_PRINT_INSET_TOP};
   box-sizing: border-box;
   position: relative;
   isolation: isolate;
@@ -107,7 +130,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   background: #fff;
   color: var(--doc-ink);
   box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
-  padding: var(--ss-print-inset);
+  padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
   display: flex;
   flex-direction: column;
   gap: 2%;
@@ -308,13 +331,13 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-stack {
   list-style: none;
   margin-top: auto;
-  padding: 0.55em 0 0;
+  padding: 0.35em 0 0;
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 0.35em 0.28em;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
   align-items: center;
-  justify-items: center;
+  gap: 0.16em;
 }
 .ss-sheet-back .ss-stack-item {
   display: flex;
@@ -332,8 +355,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .doc-onepager-footer {
   flex: 0 0 auto;
-  padding-top: 1.4%;
-  border-top: 1px solid var(--doc-rule);
+  padding-top: 0.8%;
+  border-top: none;
   font-size: clamp(8px, 1.2cqi, 10.5px);
   line-height: 1.4;
   color: var(--doc-muted);
@@ -386,13 +409,13 @@ export function renderSalesSheetBackHtml(opts: {
         <p class="ss-back-copy">
           Over 20 years designing logos, sites, plugins, and apps for shops that
           needed more than a template. Every finding on the other side of this
-          sheet is work we take on with a one-year Care plan — daily scans,
+          sheet is work we take on with a one-year Core OS plan — daily scans,
           malware cleanup, weekly SEO reports, and the updates nobody wants to
           babysit.
         </p>
         <ul class="ss-back-list">
-          <li><strong>Care</strong> ${care ? `${formatHostingUsd(care.annualUsd)}/year` : '$600/year'} · the site, watched</li>
-          <li><strong>Care Unlimited</strong> ${unlimited ? `${formatHostingUsd(unlimited.annualUsd)}/year` : '$900/year'} · plus edits whenever you need them</li>
+          <li><strong>Core OS</strong> ${care ? `${formatHostingUsd(care.annualUsd)}/year` : '$600/year'} · the site, watched</li>
+          <li><strong>Growth</strong> ${unlimited ? `${formatHostingUsd(unlimited.annualUsd)}/year` : '$900/year'} · plus edits whenever you need them</li>
         </ul>
         <p class="ss-back-stat">
           Infrastructure sits on Railway™ — git-push deploys, isolated containers,
@@ -408,7 +431,7 @@ export function renderSalesSheetBackHtml(opts: {
           someone to consult when the technical side needed a call.”
         </p>
         <p class="ss-back-offer">
-          <strong>Nearby rate</strong> — first-year Care for shops we can actually
+          <strong>Nearby rate</strong> — first-year Core OS for shops we can actually
           get to. Not on the website. Ask while we’re standing here.
         </p>
         <p class="ss-back-kicker">Local</p>

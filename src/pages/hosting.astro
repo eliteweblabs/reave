@@ -9,7 +9,7 @@ const company = await getCompanyConfig(Astro.request);
 
 <Layout
   title="Managed Hosting"
-  description={`${company.name} managed hosting — WordPress or web apps, with Care plans from $600/year. Daily scans, malware protection, weekly SEO reports, and optional unlimited edits.`}
+  description={`${company.name} managed hosting — WordPress or web apps, with Core OS and Growth plans from $600/year. Daily scans, malware protection, weekly SEO reports, and optional unlimited edits.`}
 >
   <div class="hosting-page">
     <section
@@ -19,13 +19,13 @@ const company = await getCompanyConfig(Astro.request);
       <p class="hosting-kicker">Managed hosting</p>
       <h1 id="hosting-title" class="hosting-h1">We host it. We watch it. We fix it.</h1>
       <p class="hosting-lead">
-        Premium WordPress and web-app hosting wrapped in a Care plan — daily site scans,
+        Premium WordPress and web-app hosting wrapped in a Core OS plan — daily site scans,
         malware protection, weekly SEO reports, and a team that actually handles the
         boring stuff. From {company.name}, starting at $600/year.
       </p>
       <div class="hosting-cta-row">
         <a class="hosting-btn hosting-btn--primary" href="#plans">
-          See Care plans
+          See hosting plans
           <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
         </a>
         <a
