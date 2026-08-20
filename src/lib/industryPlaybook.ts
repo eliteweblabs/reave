@@ -18,7 +18,7 @@ export type IndustryPlaybookExtraId = (typeof INDUSTRY_PLAYBOOK_EXTRAS)[number];
 const EXTRA_SET = new Set<string>(INDUSTRY_PLAYBOOK_EXTRAS);
 
 export type DeckIndustryPlaybook = {
-  /** Optional modules (baseline 001–004 always included on apply). */
+  /** Optional modules (tier-1 baseline always included on apply). */
   moduleIds: string[];
   extras: IndustryPlaybookExtraId[];
   seedInbox: boolean;

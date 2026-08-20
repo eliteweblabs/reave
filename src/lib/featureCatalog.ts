@@ -40,6 +40,7 @@ export const FEATURE_IDS = [
   'website',
   'credit_check',
   'materials_pricing',
+  'email_signature',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -104,6 +105,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   website: 'Website',
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing (Home Depot)',
+  email_signature: 'Email signature',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -148,6 +150,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Applicant credit pull for forms and deal flow — reference only until a bureau is chosen',
   materials_pricing:
     'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
+  email_signature:
+    'Branded HTML signature from the account profile — copy for Gmail/Outlook and append to outbound mail',
 };
 
 export type FeatureVisibility = 'public' | 'private';

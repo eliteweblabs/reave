@@ -56,6 +56,8 @@ export async function brandedEmailHtml(opts: {
   unsubscribeUrl?: string;
   /** Marketing footer: physical mailing address (CAN-SPAM requirement). */
   footerAddress?: string;
+  /** Personal account signature (email_signature module) — injected before compliance. */
+  signatureHtml?: string;
 }): Promise<string> {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
@@ -131,6 +133,10 @@ export async function brandedEmailHtml(opts: {
 
   const noteHtml = opts.note
     ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
+    : '';
+
+  const signatureHtml = opts.signatureHtml?.trim()
+    ? `<tr><td style="padding:20px 0 0">${opts.signatureHtml}</td></tr>`
     : '';
 
   const complianceHtml =
@@ -213,6 +219,9 @@ export async function brandedEmailHtml(opts: {
 
                 <!-- Note -->
                 ${noteHtml}
+
+                <!-- Account email signature -->
+                ${signatureHtml}
 
                 <!-- Marketing compliance footer (unsubscribe + address) -->
                 ${complianceHtml}

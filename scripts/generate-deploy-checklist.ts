@@ -43,6 +43,7 @@ const FEATURE_LABELS: Record<string, string> = {
   seo_directory: 'SEO Directory API Kit',
   website: 'Website (client web tools)',
   credit_check: 'Credit check (reference)',
+  email_signature: 'Email signature (account profile)',
 };
 
 const FEATURE_IDS = Object.keys(FEATURE_LABELS);

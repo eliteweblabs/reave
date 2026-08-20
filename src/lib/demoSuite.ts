@@ -6,6 +6,7 @@
 import {
   catalogForChecklist,
   demoModuleById,
+  mergeDemoModuleIds,
   parseDemoModuleIds,
   resolveDemoModuleFeatures,
   type DemoModuleCatalogEntry,
@@ -25,7 +26,7 @@ export function buildDemoSuiteConfig(opts: {
   visitorName?: string | null;
   visitorEmail?: string | null;
 }): DemoSuiteConfig {
-  const moduleIds = opts.moduleIds.map((id) => id.padStart(3, '0'));
+  const moduleIds = mergeDemoModuleIds(opts.moduleIds);
   const visitorName = opts.visitorName?.trim().slice(0, 120) || undefined;
   const visitorEmail = opts.visitorEmail?.trim().toLowerCase().slice(0, 254) || undefined;
   return {
@@ -131,6 +132,7 @@ export function parseDemoSuiteCookie(raw: string | null | undefined): DemoSuiteC
   try {
     const parsed = JSON.parse(raw) as DemoSuiteConfig;
     if (!Array.isArray(parsed.moduleIds) || !parsed.industry) return null;
+    parsed.moduleIds = mergeDemoModuleIds(parsed.moduleIds);
     parsed.features = resolveDemoModuleFeatures(parsed.moduleIds);
     if (typeof parsed.visitorName === 'string') {
       parsed.visitorName = parsed.visitorName.trim().slice(0, 120) || undefined;

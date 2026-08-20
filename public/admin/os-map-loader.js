@@ -5956,13 +5956,96 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   return { refreshPreview };
 }
 
-function bindProfileForm(root) {
+function bindProfileSignaturePreview(root, signature) {
+  if (!installHasFeature('email_signature')) return;
+  const preview = root.querySelector('#profile-sig-preview');
+  const actions = root.querySelector('.prof-sig-preview-actions');
+  if (!preview) return;
+
+  const brand = window.__companyBrand || {};
+  const initial = signature || {};
+
+  function buildPreviewHtml() {
+    const first = root.querySelector('#profile-firstName')?.value?.trim() || '';
+    const last = root.querySelector('#profile-lastName')?.value?.trim() || '';
+    const name = [first, last].filter(Boolean).join(' ') || brand.name || 'Contact';
+    const title = root.querySelector('#profile-jobTitle')?.value?.trim() || '';
+    const email = root.querySelector('#profile-email')?.value?.trim() || '';
+    const phone = root.querySelector('#profile-phone')?.value?.trim() || '';
+    const includeLogo = root.querySelector('#profile-signatureIncludeLogo')?.checked !== false;
+    const company = initial.companyName || brand.name || '';
+    const website = initial.website || (brand.siteUrl || '').replace(/\/$/, '');
+    const websiteDisplay = website.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+    const primary = initial.brandPrimary || '#c026d3';
+    const logoUrl = includeLogo ? (initial.logoUrl || '') : '';
+    const logoCell = logoUrl
+      ? `<td style="padding:0 16px 0 0;vertical-align:top;"><img src="${escHtml(logoUrl)}" width="64" height="64" alt="${escHtml(company || name)}" style="display:block;width:64px;height:64px;object-fit:contain;border-radius:8px;" /></td>`
+      : '';
+    const contactLines = [];
+    if (phone) contactLines.push(escHtml(phone));
+    if (email) contactLines.push(escHtml(email));
+    const titleLine = title
+      ? `<div style="color:${escHtml(primary)};font-weight:600;margin-top:2px;">${escHtml(title)}</div>`
+      : '';
+    const companyLine =
+      company && company.toLowerCase() !== name.toLowerCase()
+        ? `<div style="color:#555;margin-top:2px;">${escHtml(company)}</div>`
+        : '';
+    return `<table data-reave-signature="1" cellpadding="0" cellspacing="0" role="presentation" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:#333;border-collapse:collapse;"><tr>${logoCell}<td style="border-left:3px solid ${escHtml(primary)};padding-left:16px;vertical-align:top;"><div style="font-size:15px;font-weight:bold;color:#111;">${escHtml(name)}</div>${titleLine}${companyLine}${contactLines.length ? `<div style="margin-top:6px;color:#444;">${contactLines.join(' · ')}</div>` : ''}${websiteDisplay ? `<div style="margin-top:2px;color:${escHtml(primary)};">${escHtml(websiteDisplay)}</div>` : ''}</td></tr></table>`;
+  }
+
+  const refresh = () => {
+    preview.innerHTML = buildPreviewHtml();
+  };
+
+  for (const sel of ['#profile-firstName', '#profile-lastName', '#profile-jobTitle', '#profile-phone', '#profile-signatureIncludeLogo']) {
+    root.querySelector(sel)?.addEventListener('input', refresh);
+    root.querySelector(sel)?.addEventListener('change', refresh);
+  }
+  if (!preview.innerHTML.trim()) refresh();
+
+  if (actions && !actions.dataset.bound) {
+    actions.dataset.bound = '1';
+    const copyBtn = createIosIconBtn({
+      iconKey: 'copy',
+      label: 'Copy signature',
+      className: 'ios-icon-btn',
+      onClick: async (btn) => {
+        const html = preview.innerHTML;
+        const text = preview.innerText || preview.textContent || '';
+        try {
+          if (navigator.clipboard?.write && window.ClipboardItem) {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([text], { type: 'text/plain' }),
+              }),
+            ]);
+          } else {
+            await navigator.clipboard.writeText(text);
+          }
+          showCopyButtonFeedback(btn);
+        } catch {
+          showProfileAlert(root.querySelector('#profile-alert'), 'Could not copy — select the preview and copy manually.', 'error');
+        }
+      },
+    });
+    actions.appendChild(copyBtn);
+  }
+}
+
+function bindProfileForm(root, signature) {
   bindFormattedPhoneInputs(root);
+  bindProfileSignaturePreview(root, signature);
   bindAutosaveForm(root, {
     formSelector: '#profile-form',
     alertEl: root.querySelector('#profile-alert'),
     async save(payload) {
       if (payload.phone != null) payload.phone = phoneToStorage(payload.phone);
+      if (installHasFeature('email_signature')) {
+        payload.signatureEnabled = root.querySelector('#profile-signatureEnabled')?.checked ? '1' : '0';
+        payload.signatureIncludeLogo = root.querySelector('#profile-signatureIncludeLogo')?.checked ? '1' : '0';
+      }
       const res = await fetch('/api/admin/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -6358,7 +6441,7 @@ function normalizeIndustryPlaybookClient(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
   const moduleIds = Array.isArray(o.moduleIds)
     ? [...new Set(o.moduleIds.map((id) => String(id).trim().padStart(3, '0')).filter((id) => /^\d{3}$/.test(id)))]
-        .filter((id) => !['001', '002', '003', '004'].includes(id))
+        .filter((id) => !(window.__installConfig?.baselineModuleIds || ['001', '002', '003', '004']).includes(id))
         .sort()
     : [];
   const extras = Array.isArray(o.extras)
@@ -6817,7 +6900,48 @@ function profSection(title, subtitle, fieldsHtml) {
   );
 }
 
-function renderProfileOnlyPanel(profile) {
+function installHasFeature(id) {
+  const features = window.__installConfig?.features;
+  return Array.isArray(features) && features.includes(id);
+}
+
+function profileSignatureSection(profile, signature) {
+  if (!installHasFeature('email_signature')) return '';
+  const p = profile || {};
+  const s = signature || {};
+  const enabled = s.enabled !== false && p.signatureEnabled !== false;
+  const includeLogo = s.includeLogo !== false && p.signatureIncludeLogo !== false;
+  const preview = s.html || '';
+  const publicUrl = s.publicUrl || '/signature.html';
+  return profSection(
+    'Email signature',
+    'Branded block for Gmail, Outlook, and outbound mail from this install.',
+    `<div class="prof-field"><label for="profile-jobTitle">Job title</label>` +
+      `<input id="profile-jobTitle" name="jobTitle" type="text" value="${escHtml(p.jobTitle || '')}" autocomplete="organization-title" placeholder="Owner, Designer, …" /></div>` +
+    `<div class="prof-field">` +
+      `<label class="prof-check-row">` +
+        `<input id="profile-signatureEnabled" name="signatureEnabled" type="checkbox" value="1"${enabled ? ' checked' : ''} />` +
+        `<span>Append this signature to outbound mail</span>` +
+      `</label>` +
+    `</div>` +
+    `<div class="prof-field">` +
+      `<label class="prof-check-row">` +
+        `<input id="profile-signatureIncludeLogo" name="signatureIncludeLogo" type="checkbox" value="1"${includeLogo ? ' checked' : ''} />` +
+        `<span>Include company logo</span>` +
+      `</label>` +
+    `</div>` +
+    `<div class="prof-field">` +
+      `<div class="prof-sig-preview-head">` +
+        `<span class="prof-hint">Preview</span>` +
+        `<span class="prof-sig-preview-actions"></span>` +
+      `</div>` +
+      `<div class="prof-sig-preview" id="profile-sig-preview">${preview}</div>` +
+      `<span class="prof-hint">Open the <a href="${escHtml(publicUrl)}" target="_blank" rel="noopener">copy page</a> to paste into Gmail Settings → Signature.</span>` +
+    `</div>`,
+  );
+}
+
+function renderProfileOnlyPanel(profile, signature) {
   const p = profile || {};
   return (
     `<div class="profile-panel-scroll">` +
@@ -6845,6 +6969,7 @@ function renderProfileOnlyPanel(profile) {
               `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
             `</div>`,
           ) +
+          profileSignatureSection(p, signature) +
         `</form>` +
       `</div>` +
     `</div>`
@@ -7493,9 +7618,9 @@ async function loadProfileTab() {
     const profileRes = await fetch('/api/admin/profile', { cache: 'no-store' });
     const profileData = await profileRes.json();
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
-    root.innerHTML = renderProfileOnlyPanel(profileData.profile);
+    root.innerHTML = renderProfileOnlyPanel(profileData.profile, profileData.signature);
     prependSettingsBackHeader(root);
-    bindProfileForm(root);
+    bindProfileForm(root, profileData.signature);
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +

@@ -130,6 +130,7 @@ import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../dnsCheckClient';
 import { hasFeature } from '../../features';
+import { applyOutboundEmailSignature } from '../../emailSignature';
 import {
   isChangeDetectionConfigured,
   cdGetWatch,
@@ -204,6 +205,13 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
   if (looksHtml) {
     text = plainTextFromHtml(body) || body;
     html = body;
+    const signed = await applyOutboundEmailSignature({
+      text,
+      html,
+      userId: getAgentContext().userId ?? null,
+    });
+    text = signed.text;
+    html = signed.html;
   } else {
     let firstName = to.split('@')[0] || 'there';
     if (inReplyToEmailId) {
@@ -212,7 +220,11 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
         firstName = inbound.contactName.trim().split(/\s+/)[0] || firstName;
       }
     }
-    const wrapped = await brandedPlainTextEmail({ firstName, body });
+    const wrapped = await brandedPlainTextEmail({
+      firstName,
+      body,
+      userId: getAgentContext().userId ?? null,
+    });
     text = wrapped.text;
     html = wrapped.html;
   }

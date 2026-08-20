@@ -40,6 +40,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `inventory/` | `inventory_sync` | `inventory-sync.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
 | `website/` | `website` | `website.md` | — client website pack (bundles editor + stock photos; no hosting APIs) |
+| `email-signature/` | `email_signature` | `email-signature.md` | — **tier-1 default**; account profile signature + outbound append |
 | `content-management/` | `content_management` | `content-management.md`, `github-dev-tools.md` | yes — Git publish to a locked per-install website repo (Agentic Website Editor) |
 | `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | — (stub; companion WP plugin + agent tools TBD) |
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |

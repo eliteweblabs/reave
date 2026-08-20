@@ -42,6 +42,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   website: ['media', '__system__'],
   credit_check: ['__system__'],
   materials_pricing: ['__system__'],
+  email_signature: ['profile'],
 };
 
 /** Human labels for footerNav keys (monitor panel). */

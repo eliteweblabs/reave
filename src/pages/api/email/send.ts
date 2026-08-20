@@ -9,6 +9,7 @@ import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
 import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { applyOutboundEmailSignature } from '../../../lib/emailSignature';
 
 export const prerender = false;
 
@@ -82,9 +83,17 @@ export async function POST(context: APIContext): Promise<Response> {
       inbound?.contactName?.trim().split(/\s+/)[0] ||
       primaryTo.split('@')[0] ||
       'there';
-    const wrapped = await brandedPlainTextEmail({ firstName, body: sendText });
+    const wrapped = await brandedPlainTextEmail({ firstName, body: sendText, userId });
     sendText = wrapped.text;
     sendHtml = wrapped.html;
+  } else {
+    const signed = await applyOutboundEmailSignature({
+      text: sendText,
+      html: sendHtml,
+      userId,
+    });
+    sendText = signed.text;
+    sendHtml = signed.html;
   }
 
   const result = await sendEmail({
