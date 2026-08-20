@@ -194,7 +194,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260817c';
+} from './clients-panel.js?v=20260820b';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -8668,7 +8668,7 @@ function syncProfileMenuActive() {
   const activeSection = isSettingsMapType(MAP?.type) ? MAP.type : null;
   for (const key of window.__installConfig?.profileMenu || []) {
     const el = document.getElementById(`topbar-${key}-link`);
-    if (el) el.classList.toggle('active', activeSection === key);
+    if (el) el.classList.toggle('is-active', activeSection === key);
   }
 }
 
