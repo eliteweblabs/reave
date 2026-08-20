@@ -187,16 +187,18 @@ export async function railwayListVariables(opts: {
   const { project, environment, service } = scope.data;
   const variables: Record<string, unknown> = {};
 
-  const rendered = await railwayGraphql<{ variables?: Record<string, string> | null }>({
-    query: `query vars($projectId: String!, $environmentId: String!, $serviceId: String) {
-      variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
-    }`,
-    variables: {
-      projectId: project.id,
-      environmentId: environment.id,
-      serviceId: service?.id ?? null,
+  const rendered = await railwayGraphql<{ variables?: Record<string, string> | null }>(
+    {
+      query: `query vars($projectId: String!, $environmentId: String!, $serviceId: String) {
+        variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+      }`,
+      variables: {
+        projectId: project.id,
+        environmentId: environment.id,
+        serviceId: service?.id ?? null,
+      },
     },
-  });
+  );
   if (!rendered.ok) return { ok: false, error: gqlError(rendered) };
   Object.assign(variables, rendered.data.variables ?? {});
 
@@ -248,20 +250,22 @@ export async function railwaySetVariables(opts: {
   const updated: string[] = [];
 
   for (const [name, value] of entries) {
-    const result = await railwayGraphql<{ variableUpsert?: boolean | null }>({
-      query: `mutation upsert($input: VariableUpsertInput!) {
-        variableUpsert(input: $input)
-      }`,
-      variables: {
-        input: {
-          projectId: project.id,
-          environmentId: environment.id,
-          serviceId: service?.id ?? null,
-          name,
-          value: String(value),
+    const result = await railwayGraphql<{ variableUpsert?: boolean | null }>(
+      {
+        query: `mutation upsert($input: VariableUpsertInput!) {
+          variableUpsert(input: $input)
+        }`,
+        variables: {
+          input: {
+            projectId: project.id,
+            environmentId: environment.id,
+            serviceId: service?.id ?? null,
+            name,
+            value: String(value),
+          },
         },
       },
-    });
+    );
     if (!result.ok) return { ok: false, error: gqlError(result) };
     updated.push(name);
   }
@@ -295,17 +299,19 @@ export async function railwayDeleteVariable(opts: {
   if (!scope.ok) return scope;
   const { project, environment, service } = scope.data;
 
-  const result = await railwayGraphql<{ variableDelete?: boolean | null }>({
-    query: `mutation del($projectId: String!, $environmentId: String!, $serviceId: String, $name: String!) {
-      variableDelete(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId, name: $name)
-    }`,
-    variables: {
-      projectId: project.id,
-      environmentId: environment.id,
-      serviceId: service?.id ?? null,
-      name,
+  const result = await railwayGraphql<{ variableDelete?: boolean | null }>(
+    {
+      query: `mutation del($projectId: String!, $environmentId: String!, $serviceId: String, $name: String!) {
+        variableDelete(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId, name: $name)
+      }`,
+      variables: {
+        projectId: project.id,
+        environmentId: environment.id,
+        serviceId: service?.id ?? null,
+        name,
+      },
     },
-  });
+  );
   if (!result.ok) return { ok: false, error: gqlError(result) };
 
   return {
@@ -598,12 +604,14 @@ export async function railwayRedeployService(opts: {
   const { environment, service } = scope.data;
   if (!service) return { ok: false, error: 'service is required' };
 
-  const result = await railwayGraphql<{ serviceInstanceRedeploy?: boolean | null }>({
-    query: `mutation redeploy($serviceId: String!, $environmentId: String!) {
-      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
-    }`,
-    variables: { serviceId: service.id, environmentId: environment.id },
-  });
+  const result = await railwayGraphql<{ serviceInstanceRedeploy?: boolean | null }>(
+    {
+      query: `mutation redeploy($serviceId: String!, $environmentId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+      }`,
+      variables: { serviceId: service.id, environmentId: environment.id },
+    },
+  );
   if (!result.ok) return { ok: false, error: gqlError(result) };
 
   return {
@@ -649,12 +657,14 @@ export async function railwayUpdateService(opts: {
   }
   if (!updated.length) return { ok: false, error: 'No fields to update' };
 
-  const result = await railwayGraphql<{ serviceInstanceUpdate?: boolean | null }>({
-    query: `mutation update($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
-      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
-    }`,
-    variables: { serviceId: service.id, environmentId: environment.id, input },
-  });
+  const result = await railwayGraphql<{ serviceInstanceUpdate?: boolean | null }>(
+    {
+      query: `mutation update($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      }`,
+      variables: { serviceId: service.id, environmentId: environment.id, input },
+    },
+  );
   if (!result.ok) return { ok: false, error: gqlError(result) };
 
   return { ok: true, service_id: service.id, updated };
@@ -689,7 +699,11 @@ export async function railwaySearchDocs(query: string): Promise<
       const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
       const title = titleMatch?.[1]?.trim() || url;
       const idx = html.toLowerCase().indexOf(needle);
-      const snippet = html.slice(Math.max(0, idx - 80), idx + 120).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      const snippet = html
+        .slice(Math.max(0, idx - 80), idx + 120)
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       results.push({ title, url, snippet: snippet.slice(0, 240) });
     } catch {
       // skip unreachable doc pages
@@ -754,4 +768,62 @@ export function formatRailwayLogsSummary(streams: Record<string, RailwayLogEntry
     lines.push('');
   }
   return lines.join('\n').trim();
+}
+
+export async function railwayListRegisteredDomains(): Promise<
+  | {
+      ok: true;
+      domains: Array<{
+        id: string;
+        domain: string;
+        createdAt?: string;
+        expiry?: string;
+        registrar?: string;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const gate = requireRailway();
+  if (!gate.ok) return gate;
+
+  const result = await railwayGraphql<{
+    account?: {
+      domains?: {
+        edges?: Array<{
+          node?: {
+            id: string;
+            domain: string;
+            createdAt?: string;
+            expiry?: string;
+            registrar?: string;
+          };
+        }>;
+      };
+    };
+  }>({
+    query: `query {
+      account {
+        domains {
+          edges {
+            node {
+              id
+              domain
+              createdAt
+              expiry
+              registrar
+            }
+          }
+        }
+      }
+    }`,
+  });
+
+  if (!result.ok) return { ok: false, error: gqlError(result) };
+
+  const edges = result.data.account?.domains?.edges ?? [];
+  const domains = edges
+    .map((e) => e.node)
+    .filter((n): n is NonNullable<typeof n> => !!n);
+
+  return { ok: true, domains };
 }
