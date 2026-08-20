@@ -61,6 +61,7 @@ import {
   IOS_ICONS,
   agentIconSvg,
   createIosIconBtn,
+  createAgentBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -13633,6 +13634,68 @@ function emailShareText(ev) {
   return [ev.subject, ev.from, ev.summary || ev.bodySnippet].filter(Boolean).join('\n\n');
 }
 
+function emailComposeToLabel() {
+  return (Array.isArray(emailState.compose.to) ? emailState.compose.to : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean)
+    .map((r) => (r.name ? `${r.name} <${r.email}>` : r.email))
+    .join(', ');
+}
+
+function splitEmailComposeQuote(body) {
+  const text = String(body || '');
+  const match = text.match(/\n\n---\nOn .+ wrote:\n/) || text.match(/\n\nOn .+ wrote:\n/);
+  if (!match || match.index == null) return { draft: text, quote: '' };
+  return { draft: text.slice(0, match.index), quote: text.slice(match.index) };
+}
+
+async function writeEmailComposeWithAgent(btn) {
+  if (emailState.sending) return;
+  const source = emailState.replySourceFull;
+  const { draft, quote } = splitEmailComposeQuote(emailState.compose.body);
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/admin/compose-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'email',
+        to: emailComposeToLabel(),
+        subject: emailState.compose.subject,
+        currentBody: draft.trim(),
+        incoming: source
+          ? {
+              from: source.from || source.fromName || '',
+              subject: source.subject || '',
+              body: source.bodyText || source.bodySnippet || '',
+            }
+          : undefined,
+      }),
+    });
+    const data = await readApiJson(res);
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const nextBody = String(data.draft?.body || '').trim();
+    if (!nextBody) throw new Error('The agent did not return any copy.');
+    if (data.draft?.subject && !emailState.replyToId) {
+      emailState.compose.subject = String(data.draft.subject);
+    }
+    emailState.compose.body = quote ? `${nextBody}${quote}` : nextBody;
+    renderEmailPanel();
+    requestAnimationFrame(() => {
+      const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+      if (bodyEl) {
+        bodyEl.focus();
+        bodyEl.setSelectionRange(0, nextBody.length);
+      }
+    });
+    showChatToast('Draft ready — review before sending');
+  } catch (e) {
+    await osAlert({ title: 'Could not write draft', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderEmailComposePane(pane) {
   const composeTitle = emailState.replyToId
     ? emailState.replyMode === 'reply-all'
@@ -13643,6 +13706,13 @@ function renderEmailComposePane(pane) {
     createPaneHeader({
       back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: composeTitle,
+      icons: [
+        createAgentBtn({
+          title: 'Write with agent',
+          label: 'Write with agent',
+          onClick: (btn) => void writeEmailComposeWithAgent(btn),
+        }),
+      ],
     }).root,
   );
 
@@ -13717,7 +13787,21 @@ function renderEmailComposePane(pane) {
 
   const bodyField = document.createElement('div');
   bodyField.className = 'em-compose-field';
-  bodyField.innerHTML = '<label class="em-compose-label" for="em-compose-body">Message</label>';
+  const bodyHead = document.createElement('div');
+  bodyHead.className = 'em-compose-field-head';
+  const bodyLabel = document.createElement('label');
+  bodyLabel.className = 'em-compose-label';
+  bodyLabel.setAttribute('for', 'em-compose-body');
+  bodyLabel.textContent = 'Message';
+  const writeBtn = document.createElement('button');
+  writeBtn.type = 'button';
+  writeBtn.className = 'em-compose-agent';
+  writeBtn.disabled = emailState.sending;
+  writeBtn.innerHTML = `${IOS_ICONS.agent || ''} Write with agent`;
+  writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
+  bodyHead.appendChild(bodyLabel);
+  bodyHead.appendChild(writeBtn);
+  bodyField.appendChild(bodyHead);
   const bodyInput = document.createElement('textarea');
   bodyInput.id = 'em-compose-body';
   bodyInput.className = 'em-compose-textarea';

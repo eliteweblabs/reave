@@ -4,8 +4,9 @@
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
-import { FEATURE_BLURBS, featureVisibility, isPublicFeature, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, featureVisibility, isPublicFeature } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
+import { MODULE_DISPLAY_GROUPS } from './moduleDisplayGroups';
 import {
   listDemoLoaderFeatures,
   listMarketingFeaturesForModule,
@@ -142,27 +143,7 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
  * Features listed here are pulled out of the default list and rendered under the title
  * (in this array order). Remaining optionals sit under “Optional Modules”.
  */
-export const DEMO_LOADER_SECTION_GROUPS: ReadonlyArray<{
-  id: string;
-  title: string;
-  features: readonly FeatureId[];
-}> = [
-  {
-    id: 'web-development',
-    title: 'Web Development Modules',
-    features: [
-      'site_audits',
-      'website',
-      'content_management',
-      'code_dev',
-      'namecom_dns',
-      'site_monitoring',
-      'uptime_monitoring',
-      'wayback_machine',
-      'seo_directory',
-    ],
-  },
-];
+export const DEMO_LOADER_SECTION_GROUPS = MODULE_DISPLAY_GROUPS;
 
 /** Full module list for the public demo loader UI (baseline modules excluded). */
 export function listDemoLoaderModules(): DemoLoaderModule[] {
@@ -203,8 +184,8 @@ export function listDemoLoaderIncludedCards(): DemoLoaderIncludedCard[] {
 }
 
 /**
- * Optional sections: “Optional Modules” (remaining) then named groups such as
- * Web Development Modules. Tiles within each section are alphabetical by title.
+ * Named groups first (Social, E-commerce, Web Development), then leftover
+ * optionals. Tiles within each section are alphabetical by title.
  */
 export function listDemoLoaderSections(
   modules: readonly DemoLoaderModule[] = listDemoLoaderModules(),
@@ -225,14 +206,10 @@ export function listDemoLoaderSections(
   }).filter((s) => s.modules.length > 0);
 
   const ungrouped = modules.filter((m) => !claimed.has(m.feature)).sort(byTitle);
-  const sections: DemoLoaderSection[] = [];
+  const sections: DemoLoaderSection[] = [...named];
   if (ungrouped.length) {
     sections.push({ id: 'optional', title: 'Optional Modules', modules: ungrouped });
-  } else if (named.length) {
-    // Keep the Optional Modules heading even when everything is in named groups.
-    sections.push({ id: 'optional', title: 'Optional Modules', modules: [] });
   }
-  sections.push(...named);
   return sections;
 }
 

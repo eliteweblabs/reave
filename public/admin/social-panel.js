@@ -3,6 +3,7 @@
  */
 import {
   createIosIconBtn,
+  createAgentBtn,
   createCenteredListEmpty,
   listSearchAddNew,
   attachIosPullToRefresh,
@@ -323,6 +324,77 @@ function openExternal(url) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+async function requestComposeDraft(payload) {
+  const res = await adminFetch('/api/admin/compose-draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return readAdminJson(res, 'compose-draft');
+}
+
+function setButtonBusy(btn, busy, idleLabel) {
+  if (!btn) return;
+  btn.disabled = busy;
+  if (busy) btn.textContent = 'Writing…';
+  else if (idleLabel) btn.textContent = idleLabel;
+}
+
+async function writeSocialComposeWithAgent(btn) {
+  const textarea = rootEl()?.querySelector('#soc-compose-text');
+  const platforms = socialState.composePlatforms
+    .map((id) => networkById(id)?.label || id)
+    .filter(Boolean)
+    .join(', ');
+  setButtonBusy(btn, true);
+  try {
+    const data = await requestComposeDraft({
+      kind: 'social_post',
+      platform: platforms,
+      currentBody: textarea?.value || socialState.composeText,
+    });
+    if (!data.ok) throw new Error(data.error || 'Could not write draft');
+    const body = String(data.draft?.body || '').trim();
+    if (!body) throw new Error('The agent did not return any copy.');
+    socialState.composeText = body;
+    if (textarea) textarea.value = body;
+    shell.osAlert?.('Draft ready — review before posting.', 'success');
+  } catch (e) {
+    shell.osAlert?.(e.message || 'Write failed', 'error');
+  } finally {
+    setButtonBusy(btn, false, 'Write with agent');
+  }
+}
+
+async function writeSocialReplyWithAgent(item, btn) {
+  const textarea = rootEl()?.querySelector('#soc-reply-draft');
+  setButtonBusy(btn, true);
+  try {
+    const data = await requestComposeDraft({
+      kind: 'social_reply',
+      platform: item.platformLabel || item.platform,
+      authorName: item.authorName,
+      incomingText: item.text,
+      currentBody: textarea?.value || item.replyDraft || '',
+    });
+    if (!data.ok) throw new Error(data.error || 'Could not write draft');
+    const body = String(data.draft?.body || '').trim();
+    if (!body) throw new Error('The agent did not return any copy.');
+    if (textarea) textarea.value = body;
+    item.replyDraft = body;
+    try {
+      await saveReply(item);
+    } catch {
+      /* draft is still in the box */
+    }
+    shell.osAlert?.('Draft ready — review before posting.', 'success');
+  } catch (e) {
+    shell.osAlert?.(e.message || 'Write failed', 'error');
+  } finally {
+    setButtonBusy(btn, false, 'Write with agent');
+  }
+}
+
 async function saveReply(item, extras = {}) {
   const root = rootEl();
   const draftEl = root?.querySelector('#soc-reply-draft');
@@ -349,6 +421,13 @@ function renderSocialComposePane(pane) {
     createPaneHeader({
       back: { label: 'Back to feed', onClick: () => clearSocialDetail() },
       title: 'New post',
+      icons: [
+        createAgentBtn({
+          title: 'Write with agent',
+          label: 'Write with agent',
+          onClick: () => void writeSocialComposeWithAgent(rootEl()?.querySelector('#soc-compose-agent')),
+        }),
+      ],
     }).root,
   );
 
@@ -371,7 +450,7 @@ function renderSocialComposePane(pane) {
     `<p class="em-hint">${escHtml(socialState.composeHint || 'Copy the post, then open each network to publish. In-app posting is not live yet.')}</p>` +
     `<div class="soc-compose-nets">${checks || '<p class="em-hint">Add profile links under Socials to choose networks.</p>'}</div>` +
     `<label class="prof-field">` +
-      `<span class="prof-label">Post</span>` +
+      `<span class="prof-label soc-compose-label">Post <button type="button" class="em-compose-agent" id="soc-compose-agent">Write with agent</button></span>` +
       `<textarea id="soc-compose-text" class="em-compose-textarea soc-compose-text" rows="8" placeholder="Write once, open each network to publish…">${escHtml(socialState.composeText)}</textarea>` +
     `</label>` +
     `<div class="soc-detail-actions" id="soc-compose-actions"></div>`;
@@ -392,6 +471,9 @@ function renderSocialComposePane(pane) {
   const textarea = body.querySelector('#soc-compose-text');
   textarea?.addEventListener('input', () => {
     socialState.composeText = textarea.value;
+  });
+  body.querySelector('#soc-compose-agent')?.addEventListener('click', (ev) => {
+    void writeSocialComposeWithAgent(ev.currentTarget);
   });
 
   const actions = body.querySelector('#soc-compose-actions');
@@ -468,6 +550,13 @@ function renderSocialDetailPane(pane, item) {
       onClick: () => rootEl()?.querySelector('#soc-reply-draft')?.focus(),
     }),
   );
+  icons.push(
+    createAgentBtn({
+      title: 'Write with agent',
+      label: 'Write with agent',
+      onClick: () => void writeSocialReplyWithAgent(item, rootEl()?.querySelector('#soc-reply-agent')),
+    }),
+  );
 
   pane.appendChild(
     createPaneHeader({
@@ -503,7 +592,7 @@ function renderSocialDetailPane(pane, item) {
       ? `<p><a class="soc-detail-link" href="${escHtml(item.url)}" target="_blank" rel="noopener">Open on ${escHtml(item.platformLabel)} ↗</a></p>`
       : '') +
     `<label class="prof-field">` +
-      `<span class="prof-label">Reply draft</span>` +
+      `<span class="prof-label soc-compose-label">Reply draft <button type="button" class="em-compose-agent" id="soc-reply-agent">Write with agent</button></span>` +
       `<textarea id="soc-reply-draft" class="em-compose-textarea soc-compose-text" rows="5" placeholder="Write a reply…">${escHtml(item.replyDraft || '')}</textarea>` +
     `</label>` +
     `<label class="prof-field">` +
@@ -513,6 +602,9 @@ function renderSocialDetailPane(pane, item) {
     `<div class="soc-detail-actions" id="soc-item-actions"></div>`;
 
   pane.appendChild(detail);
+  detail.querySelector('#soc-reply-agent')?.addEventListener('click', (ev) => {
+    void writeSocialReplyWithAgent(item, ev.currentTarget);
+  });
   const actions = detail.querySelector('#soc-item-actions');
   if (!actions) return;
 

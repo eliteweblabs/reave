@@ -112,6 +112,17 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.mod-group + .mod-group {
+  margin-top: 1rem;
+}
+
+.mod-group-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
 .mod-table-wrap {
   overflow: auto;
   padding: 0;

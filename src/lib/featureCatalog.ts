@@ -151,7 +151,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   materials_pricing:
     'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
   social_inbox:
-    'One feed for Facebook, Instagram, LinkedIn, and the networks you choose — plus Google and Yelp reviews. Reply or open the post in the network.',
+    'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
 };
 
 export type FeatureVisibility = 'public' | 'private';
