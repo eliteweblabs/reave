@@ -155,7 +155,13 @@
       chip.textContent = job.title || job.slug;
       chip.title = job.slug;
       chip.addEventListener('click', () => {
-        window.location.href = `/admin/?tab=work&slug=${encodeURIComponent(job.slug)}`;
+        const params = new URLSearchParams({
+          tab: 'work',
+          slug: job.slug,
+          fromFocus: '1',
+        });
+        if (state.activeId) params.set('fromChat', state.activeId);
+        window.location.href = `/admin/?${params.toString()}`;
       });
       els.projectChips.appendChild(chip);
     }

@@ -90,6 +90,41 @@ declare global {
   }
 }
 
+/** Stamp a work deep-link so the project Back button can return to this chat. */
+export function withChatReturnHref(
+  href: string,
+  chatId?: string | null,
+  opts?: { fromFocus?: boolean },
+): string {
+  const id = chatId?.trim();
+  if (!href || !id) return href;
+  const { kind, url } = classifyChatButtonHref(href);
+  if (kind !== 'admin' || !url) return href;
+  const tab = url.searchParams.get('tab')?.toLowerCase();
+  const slug = url.searchParams.get('slug')?.trim();
+  if (tab !== 'work' || !slug) return href;
+  url.searchParams.set('fromChat', id);
+  if (opts?.fromFocus) url.searchParams.set('fromFocus', '1');
+  else url.searchParams.delete('fromFocus');
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/** Read the chat return stamped onto a work URL (`fromChat`, `fromFocus`). */
+export function parseWorkChatReturn(
+  href: string,
+  origin = DEFAULT_CHAT_LINK_ORIGIN,
+): { chatId: string; fromFocus: boolean } | null {
+  if (!href?.trim()) return null;
+  try {
+    const url = new URL(href, origin);
+    const chatId = url.searchParams.get('fromChat')?.trim() || '';
+    if (!chatId) return null;
+    return { chatId, fromFocus: url.searchParams.get('fromFocus') === '1' };
+  } catch {
+    return null;
+  }
+}
+
 /** Route structured chat buttons without breaking out of the admin PWA incorrectly. */
 export function openChatButtonHref(href: string): boolean {
   if (typeof window === 'undefined') return false;
