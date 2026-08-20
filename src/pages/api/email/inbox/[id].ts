@@ -14,7 +14,6 @@ import {
 import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 import { patchForMarkJunk } from '../../../../lib/emailJunkNotifyInvariant';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
-import { isPendingReviewNotification } from '../../../../lib/emailAutomation';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 import { parseEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../lib/emailUnsubscribe';
@@ -169,22 +168,6 @@ export async function PATCH(context: APIContext): Promise<Response> {
   }
 
   const { rejectProjectMatch: _reject, ...storePatch } = patch;
-  if (
-    storePatch.markAutomationAck &&
-    !storePatch.acceptAutomationDecision &&
-    isPendingReviewNotification(existing) &&
-    !existing.automationTriageAt
-  ) {
-    return json(
-      {
-        ok: false,
-        error: 'Triage feedback required before dismissing agent review',
-        requiresTriage: true,
-        emailId: id,
-      },
-      409,
-    );
-  }
   if (isEmailArchivedOrRemoved(storePatch)) {
     storePatch.markAutomationAck = true;
   }
