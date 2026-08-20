@@ -2548,7 +2548,7 @@ function armContextDeleteConfirm(btn, originalLabel, timeout) {
 }
 
 /** Fixed-position menu for sidebar rows and other list items (right-click / long-press). */
-export function showContextMenu(x, y, items) {
+export function showContextMenu(x, y, items, opts = {}) {
   const menuItems = (items || [])
     .map(normalizeContextMenuItem)
     .filter((item) => item.run);
@@ -2561,6 +2561,14 @@ export function showContextMenu(x, y, items) {
   const menu = document.createElement('div');
   menu.className = 'ch-context-menu';
   menu.setAttribute('role', 'menu');
+
+  const title = typeof opts.title === 'string' ? opts.title.trim() : '';
+  if (title) {
+    const heading = document.createElement('div');
+    heading.className = 'ch-context-menu-title';
+    heading.textContent = title;
+    menu.appendChild(heading);
+  }
 
   for (const item of menuItems) {
     const btn = document.createElement('button');
@@ -2609,11 +2617,13 @@ export function showContextMenu(x, y, items) {
   }, 250);
 }
 
-function bindSwipeRowContextMenu(row, contentEl, actions) {
+function bindSwipeRowContextMenu(row, contentEl, actions, opts = {}) {
   const handler = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showContextMenu(e.clientX, e.clientY, actions);
+    showContextMenu(e.clientX, e.clientY, actions, {
+      title: opts.contextMenuTitle,
+    });
   };
   row.addEventListener('contextmenu', handler);
   contentEl.addEventListener('contextmenu', handler);
@@ -2868,7 +2878,7 @@ function attachSwipeRow(row, contentEl, revealPxOrGet) {
 }
 
 /** iOS-style swipe row — pass content element + swipeAction() descriptors. */
-export function createSwipeRow(contentEl, actions) {
+export function createSwipeRow(contentEl, actions, opts = {}) {
   const row = document.createElement('div');
   row.className = 'swipe-row';
   if (contentEl.dataset?.id) row.dataset.id = contentEl.dataset.id;
@@ -2906,7 +2916,7 @@ export function createSwipeRow(contentEl, actions) {
   row.appendChild(actionsEl);
   row.appendChild(content);
 
-  bindSwipeRowContextMenu(row, content, actions);
+  bindSwipeRowContextMenu(row, content, actions, opts);
 
   requestAnimationFrame(() => {
     attachSwipeRow(row, content, () => measureSwipeRevealPx(actionsEl, actions.length));

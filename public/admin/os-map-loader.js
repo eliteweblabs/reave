@@ -12194,7 +12194,9 @@ function buildEmailSwipeActions(ev) {
 }
 
 function createEmailSwipeRow(ev) {
-  return createSwipeRow(createEmailListItem(ev), buildEmailSwipeActions(ev));
+  return createSwipeRow(createEmailListItem(ev), buildEmailSwipeActions(ev), {
+    contextMenuTitle: 'This message only',
+  });
 }
 
 function stopEmailPoll() {

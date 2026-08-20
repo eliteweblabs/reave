@@ -963,6 +963,15 @@ body.admin-split-view #chat-panel .ch-compose {
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
 }
+.ch-context-menu-title {
+  padding: 0.35rem 0.65rem 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  pointer-events: none;
+  user-select: none;
+}
 .ch-context-item {
   display: block;
   width: 100%;
