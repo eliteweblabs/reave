@@ -8,7 +8,7 @@ stage: 3
 
 ## Sibling services
 
-- **Crater** — separate Railway service from `eliteweblabs/crater-invoicing`
+- **Crater** — separate Railway service from `eliteweblabs/crater`
 
 ## Required env vars
 

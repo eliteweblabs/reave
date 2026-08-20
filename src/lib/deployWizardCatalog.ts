@@ -294,7 +294,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'Crater',
     kind: 'api',
     description: 'Invoicing UI + API.',
-    repo: 'eliteweblabs/crater-invoicing',
+    repo: 'eliteweblabs/crater',
     features: ['billing'],
   },
   {

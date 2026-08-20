@@ -71,7 +71,7 @@ export function resolveDeployTarget(opts: {
 
   if (svc.includes('crater') || blob.includes('ap.reave.app')) {
     return {
-      repo: 'eliteweblabs/crater-invoicing',
+      repo: 'eliteweblabs/crater',
       healthUrl: 'https://ap.reave.app/',
     };
   }

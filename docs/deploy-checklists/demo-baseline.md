@@ -63,7 +63,7 @@ Status: **pending** · Playbook: `plugins/billing/DEPLOY.md`
 
 ## Sibling services
 
-- **Crater** — separate Railway service from `eliteweblabs/crater-invoicing`
+- **Crater** — separate Railway service from `eliteweblabs/crater`
 
 ## Required env vars
 

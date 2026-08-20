@@ -69,6 +69,9 @@ async function ensurePostgresVars(opts: {
       POSTGRES_USER: 'postgres',
       POSTGRES_DB: 'railway',
       POSTGRES_PASSWORD: password,
+      // Volume mount is /var/lib/postgresql/data, which contains lost+found.
+      // initdb refuses a non-empty mount point unless PGDATA is a subdirectory.
+      PGDATA: '/var/lib/postgresql/data/pgdata',
       DATABASE_URL:
         'postgresql://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{POSTGRES_DB}}',
     },

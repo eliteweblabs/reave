@@ -1,5 +1,5 @@
 /**
- * Crater custom API client (eliteweblabs/crater-invoicing → routes/api-custom.php).
+ * Crater custom API client (eliteweblabs/crater → routes/api-custom.php).
  *
  * The custom routes are mounted under `/api/custom/*` and authenticated with
  * the `X-Crater-Api-Token` header (matches Crater's CRATER_API_TOKEN env).

@@ -10,7 +10,7 @@ When a deploy failure alert fires (webhook or email), follow this playbook **in 
 | Reave App / materials-api | `eliteweblabs/materials-api` | `$MATERIALS_API_BASE_URL/health` |
 | Reave App / fleet-api | `eliteweblabs/fleet-api` | `$FLEET_API_BASE_URL/health` |
 | Reave App / contact-api | `eliteweblabs/contact-api` | `$CONTACT_API_BASE_URL/health` |
-| Reave App / crater | `eliteweblabs/crater-invoicing` | `https://ap.reave.app/` |
+| Reave App / crater | `eliteweblabs/crater` | `https://ap.reave.app/` |
 | Paulino Wizard project | `eliteweblabs/paulino-wizard` | `$PAULINO_WIZARD_API_BASE_URL` |
 
 Always pass `repo` (and `health_url` when known) to `check_deployment_status` and `get_git_status`. Use `get_railway_status`, `list_railway_deployments`, and `get_railway_logs` for Railway-side detail (see read_knowledge slug `railway-agent-tools`).

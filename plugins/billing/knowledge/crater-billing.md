@@ -1,6 +1,6 @@
 # Crater billing (custom API)
 
-Crater is the authoritative invoicing system, hosted at **https://ap.reave.app** (Railway service `crater` in the Reave App project). The admin dashboard and API integrations use Crater's **custom** routes (`eliteweblabs/crater-invoicing` → `routes/api-custom.php`), mounted under `/api/custom/*`.
+Crater is the authoritative invoicing system, hosted at **https://ap.reave.app** (Railway service `crater` in the Reave App project). The admin dashboard and API integrations use Crater's **custom** routes (`eliteweblabs/crater` → `routes/api-custom.php`), mounted under `/api/custom/*`.
 
 ## Auth
 
