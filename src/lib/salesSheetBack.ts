@@ -1,11 +1,12 @@
 /**
- * Static duplex back for `/admin/sales-sheet`.
+ * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
- * Same on every client version: company chrome + two icon sections
- * (replaced-app marks from `brandLogos.ts`, about-page client marks from
- * site content). Front stays the custom audit; this page is the flip side
- * for two-sided Letter print. Layout of the two sections is a template.
+ * Two columns on Letter: managed hosting (stack marks along the bottom) and a
+ * cover (site pattern + company icon + diagnostic line). Same HTML for every client.
  */
+import { formatHostingUsd, HOSTING_CARE_PLANS } from './hostingPlans';
+import { PLATFORM_STACK, SIMPLE_ICONS_CDN } from './platformStack';
+
 export type SalesSheetBackCompany = {
   name?: string;
   supportEmail?: string;
@@ -16,9 +17,38 @@ export type SalesSheetBackOrientation = 'portrait' | 'landscape';
 export type SalesSheetBackLogo = {
   name: string;
   src: string;
-  width?: number;
-  height?: number;
+  slug?: string;
 };
+
+/** Full /platform stack, including Astro and Playwright™. */
+export const SALES_SHEET_STACK = PLATFORM_STACK;
+
+/** Nearby shops named on the REΛVE back — matches /about + /#portfolio. */
+export const SALES_SHEET_LOCAL_CLIENTS = [
+  "Barber's Edge",
+  'The Law Office of Barry Levine',
+  'MDOT.world',
+] as const;
+
+export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): SalesSheetBackLogo[] {
+  if (overrides.length) {
+    const hasAnthropic = overrides.some((logo) => /anthropic|claude/i.test(`${logo.name} ${logo.slug} ${logo.src}`));
+    if (hasAnthropic) return overrides;
+    const anthropic = SALES_SHEET_STACK.find((tech) => tech.slug === 'anthropic');
+    if (!anthropic) return overrides;
+    return [
+      ...overrides,
+      { name: anthropic.name, slug: anthropic.slug, src: SIMPLE_ICONS_CDN(anthropic.slug) },
+    ];
+  }
+  return SALES_SHEET_STACK.map((tech) => ({
+    name: tech.name,
+    slug: tech.slug,
+    src: tech.iconSrc
+      ? `/api/media/${tech.iconSrc}`
+      : tech.iconHref || SIMPLE_ICONS_CDN(tech.slug),
+  }));
+}
 
 function esc(s: string): string {
   return s
@@ -28,20 +58,10 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function logoTileHtml(logo: SalesSheetBackLogo): string {
-  return `<li class="ss-back-tile">
-  <span class="ss-back-mark">
-    <img src="${esc(logo.src)}" alt="" width="28" height="28" />
-  </span>
-  <span class="ss-back-name">${esc(logo.name)}</span>
-</li>`;
-}
-
-function clientMarkHtml(logo: SalesSheetBackLogo): string {
-  const w = logo.width && logo.width > 0 ? String(Math.round(logo.width)) : '120';
-  const h = logo.height && logo.height > 0 ? String(Math.round(logo.height)) : '24';
-  return `<li class="ss-back-client">
-  <img src="${esc(logo.src)}" alt="${esc(logo.name)}" width="${w}" height="${h}" />
+function stackLogoHtml(logo: SalesSheetBackLogo): string {
+  const slug = (logo.slug || logo.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return `<li class="ss-stack-item" data-stack="${esc(slug)}">
+  <img class="ss-stack-logo" src="${esc(logo.src)}" alt="${esc(logo.name)}" />
 </li>`;
 }
 
@@ -49,8 +69,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   const pageSize = orientation === 'landscape' ? 'letter landscape' : 'letter portrait';
   const ratio = orientation === 'landscape' ? '11 / 8.5' : '8.5 / 11';
   const maxWidth = orientation === 'landscape' ? '11in' : '8.5in';
-  const cols = orientation === 'landscape' ? 7 : 5;
-
   return `
 .ss-sheet-back.doc-onepager-stage {
   box-sizing: border-box;
@@ -68,6 +86,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   --doc-rule: #d4d4cc;
   --ss-print-inset: 0.25in;
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
   width: 100%;
   max-width: ${maxWidth};
   aspect-ratio: ${ratio};
@@ -77,173 +97,192 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   padding: var(--ss-print-inset);
   display: flex;
   flex-direction: column;
-  gap: 2.4%;
+  gap: 2%;
   container-type: size;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.ss-sheet-back .doc-onepager-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4%;
-  flex: 0 0 auto;
-  padding-bottom: 2%;
-  border-bottom: 1.5px solid var(--doc-ink);
-}
-.ss-sheet-back .doc-onepager-logo {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 42%;
-}
-.ss-sheet-back .doc-onepager-logo-img,
-.ss-sheet-back .doc-onepager-logo-svg {
-  display: block;
-  height: clamp(22px, 7cqh, 44px);
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
-}
-.ss-sheet-back .doc-onepager-logo-name {
-  font-size: clamp(13px, 2.6cqi, 20px);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.ss-sheet-back .doc-onepager-mast { text-align: right; min-width: 0; }
-.ss-sheet-back .doc-onepager-title {
-  margin: 0;
-  font-size: clamp(13px, 2.5cqi, 20px);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-.ss-sheet-back .doc-onepager-kicker {
-  margin: 0.25em 0 0;
-  font-size: clamp(9px, 1.5cqi, 12px);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--doc-muted);
-}
-.ss-sheet-back .ss-back-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.7em;
-}
-.ss-sheet-back .ss-back-lead,
-.ss-sheet-back .ss-back-note {
-  margin: 0;
-  max-width: 62ch;
-  color: #2a2a2a;
-  line-height: 1.45;
-}
-.ss-sheet-back .ss-back-lead {
-  font-size: clamp(11px, 1.7cqi, 14px);
-}
-.ss-sheet-back .ss-back-note {
-  font-size: clamp(9px, 1.35cqi, 11px);
-  color: var(--doc-muted);
-}
-.ss-sheet-back .ss-back-section {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45em;
-  min-height: 0;
-}
-.ss-sheet-back .ss-back-section-title {
-  margin: 0;
-  font-size: clamp(9px, 1.35cqi, 11px);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--doc-muted);
-}
-.ss-sheet-back .ss-back-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(${cols}, minmax(0, 1fr));
-  gap: 0.45em 0.35em;
-  flex: 1 1 auto;
-  align-content: center;
-}
-.ss-sheet-back .ss-back-clients {
-  list-style: none;
-  margin: 0;
-  padding: 0.35em 0 0;
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 0.55em 1.1em;
-  border-top: 1px solid var(--doc-rule);
-}
-.ss-sheet-back .ss-back-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35em;
-  min-width: 0;
-}
-.ss-sheet-back .ss-back-mark {
-  display: grid;
-  place-items: center;
-  width: clamp(36px, 5.4cqi, 52px);
-  height: clamp(36px, 5.4cqi, 52px);
-  background: #1a1a1a;
-  border-radius: 10px;
+.ss-sheet-back .doc-onepager::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/reave-bg-pattern.svg");
+  background-repeat: repeat;
+  background-position: center;
+  background-size: 260% 260%;
+  opacity: 0.05;
+  filter: grayscale(1);
+  pointer-events: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.ss-sheet-back .ss-back-mark img {
+.ss-sheet-back .ss-back-cols,
+.ss-sheet-back .doc-onepager-footer {
+  position: relative;
+  z-index: 1;
+}
+.ss-sheet-back .ss-back-cols {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: ${orientation === 'landscape' ? '1.12fr 1fr' : '1fr'};
+  grid-template-rows: ${orientation === 'landscape' ? '1fr' : 'auto 1fr'};
+  gap: 0 3.2%;
+}
+.ss-sheet-back .ss-back-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+}
+.ss-sheet-back .ss-back-col--hosting {
+  justify-content: flex-start;
+}
+.ss-sheet-back .ss-back-col + .ss-back-col {
+  padding-left: 3.2%;
+  border-left: 1px solid var(--doc-rule);
+}
+.ss-sheet-back .ss-back-kicker {
+  margin: 0;
+  font-size: clamp(8px, 1.2cqi, 10px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+}
+.ss-sheet-back .ss-back-h {
+  margin: 0;
+  font-size: clamp(13px, 2.15cqi, 18px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.ss-sheet-back .ss-back-copy,
+.ss-sheet-back .ss-back-stat,
+.ss-sheet-back .ss-back-offer {
+  margin: 0;
+  font-size: clamp(9px, 1.35cqi, 11.5px);
+  line-height: 1.45;
+  color: #2a2a2a;
+}
+.ss-sheet-back .ss-back-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+.ss-sheet-back .ss-back-list li {
+  font-size: clamp(9px, 1.3cqi, 11px);
+  line-height: 1.4;
+  color: #2a2a2a;
+}
+.ss-sheet-back .ss-back-list strong { color: var(--doc-ink); }
+.ss-sheet-back .ss-back-locals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+.ss-sheet-back .ss-back-locals li {
+  font-size: clamp(9px, 1.3cqi, 11px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--doc-ink);
+}
+.ss-sheet-back .ss-back-quote {
+  margin: 0;
+  font-size: clamp(8.5px, 1.25cqi, 10.5px);
+  line-height: 1.4;
+  color: #2a2a2a;
+  font-style: italic;
+}
+.ss-sheet-back .ss-back-col--cover {
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  border-left-color: var(--doc-rule);
+}
+.ss-sheet-back .ss-back-icon {
+  display: grid;
+  place-items: center;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+.ss-sheet-back .ss-back-icon .doc-brand,
+.ss-sheet-back .ss-back-icon .doc-onepager-logo-img,
+.ss-sheet-back .ss-back-icon .doc-onepager-logo-svg,
+.ss-sheet-back .ss-back-icon img,
+.ss-sheet-back .ss-back-icon svg {
   display: block;
-  width: 52%;
-  height: 52%;
+  width: auto;
+  height: clamp(72px, 22cqh, 140px);
+  max-width: 70%;
+  margin: 0 auto;
   object-fit: contain;
 }
-.ss-sheet-back .ss-back-name {
-  font-size: clamp(7px, 1.05cqi, 9px);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--doc-muted);
-  line-height: 1.2;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ss-sheet-back .ss-back-builds {
+  margin: 0;
+  max-width: 34ch;
+  font-size: clamp(9px, 1.35cqi, 11.5px);
+  line-height: 1.45;
+  color: #2a2a2a;
 }
-.ss-sheet-back .ss-back-client {
+.ss-sheet-back .ss-back-diagnostic {
+  margin-top: auto;
+  padding-top: 0.6em;
+}
+.ss-sheet-back .ss-back-diagnostic h2 {
+  margin: 0 0 0.25em;
+  font-size: clamp(12px, 1.85cqi, 16px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.ss-sheet-back .ss-back-diagnostic p {
+  margin: 0;
+  font-size: clamp(9px, 1.3cqi, 11px);
+  line-height: 1.4;
+  color: var(--doc-muted);
+}
+.ss-sheet-back .ss-stack {
+  list-style: none;
+  margin-top: auto;
+  padding: 0.55em 0 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.35em 0.28em;
+  align-items: center;
+  justify-items: center;
+}
+.ss-sheet-back .ss-stack-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
 }
-.ss-sheet-back .ss-back-client img {
+.ss-sheet-back .ss-stack-logo {
   display: block;
-  height: clamp(14px, 2.6cqi, 24px);
-  width: auto;
-  max-width: 7.4em;
+  width: clamp(9px, 1.25cqi, 13px);
+  height: clamp(9px, 1.25cqi, 13px);
   object-fit: contain;
+  filter: brightness(0);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .ss-sheet-back .doc-onepager-footer {
   flex: 0 0 auto;
-  padding-top: 1.6%;
+  padding-top: 1.4%;
   border-top: 1px solid var(--doc-rule);
-  font-size: clamp(8px, 1.25cqi, 11px);
+  font-size: clamp(8px, 1.2cqi, 10.5px);
   line-height: 1.4;
   color: var(--doc-muted);
-  letter-spacing: 0.01em;
 }
 @page { size: ${pageSize}; margin: 0; }
 @media print {
@@ -268,49 +307,74 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 export function renderSalesSheetBackHtml(opts: {
   company?: SalesSheetBackCompany;
   orientation: SalesSheetBackOrientation;
-  logos?: SalesSheetBackLogo[];
-  clientLogos?: SalesSheetBackLogo[];
-  logoHtml?: string;
+  stackLogos?: SalesSheetBackLogo[];
+  iconHtml?: string;
 }): string {
   const name = (opts.company?.name || 'This platform').trim();
   const support = (opts.company?.supportEmail || '').trim();
-  const logos = opts.logos || [];
-  const clientLogos = opts.clientLogos || [];
-  const items = logos.map(logoTileHtml).join('');
-  const clientItems = clientLogos.map(clientMarkHtml).join('');
+  const stack = salesSheetStackLogos(opts.stackLogos);
+  const stackItems = stack.map(stackLogoHtml).join('');
+  const care = HOSTING_CARE_PLANS.find((plan) => plan.id === 'care');
+  const unlimited = HOSTING_CARE_PLANS.find((plan) => plan.id === 'care-unlimited');
   const footerBits = [esc(name), support ? esc(support) : '', 'Printed two sides', 'Page 2 of 2'].filter(Boolean);
-  const logoHtml = (opts.logoHtml || '').trim() || `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  const iconHtml =
+    (opts.iconHtml || '').trim() || `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
 
   return `
 <style>${backPageCss(opts.orientation)}</style>
 <div class="doc-onepager-stage ss-sheet-back">
   <article class="doc-onepager" data-orientation="${opts.orientation}" data-ss-page="back">
-    <header class="doc-onepager-header">
-      <div class="doc-onepager-logo">${logoHtml}</div>
-      <div class="doc-onepager-mast">
-        <h1 class="doc-onepager-title">Replace the stack</h1>
-        <p class="doc-onepager-kicker">One platform</p>
-      </div>
-    </header>
-    <div class="ss-back-body">
-      <p class="ss-back-lead">
-        Most small businesses pay separately for email, CRM, invoicing, scheduling,
-        AI, file storage, e-sign, and project tools. ${esc(name)} is built to absorb
-        that whole layer — so you stop juggling logins and line items.
-      </p>
-      <section class="ss-back-section" data-ss-section="platforms">
-        <h2 class="ss-back-section-title">Apps this platform replaces</h2>
-        <ul class="ss-back-grid" aria-label="Apps this platform replaces">${items}</ul>
+    <div class="ss-back-cols">
+      <section class="ss-back-col ss-back-col--hosting" data-ss-col="hosting">
+        <p class="ss-back-kicker">Managed hosting</p>
+        <h2 class="ss-back-h">We host it. We watch it. We fix it.</h2>
+        <p class="ss-back-copy">
+          Over 20 years designing logos, sites, plugins, and apps for shops that
+          needed more than a template. Every finding on the other side of this
+          sheet is work we take on with a one-year Care plan — daily scans,
+          malware cleanup, weekly SEO reports, and the updates nobody wants to
+          babysit.
+        </p>
+        <ul class="ss-back-list">
+          <li><strong>Care</strong> ${care ? `${formatHostingUsd(care.annualUsd)}/year` : '$600/year'} · the site, watched</li>
+          <li><strong>Care Unlimited</strong> ${unlimited ? `${formatHostingUsd(unlimited.annualUsd)}/year` : '$900/year'} · plus edits whenever you need them</li>
+        </ul>
+        <p class="ss-back-stat">
+          Infrastructure sits on Railway™ — git-push deploys, isolated containers,
+          not a shared cPanel box. Their builder clears 50M+ builds a month and
+          has peaked at 66,000 builds an hour on bare metal. Rollbacks in one click.
+        </p>
+        <p class="ss-back-copy">
+          What the fixes do: the page loads, the listing shows, the form works,
+          and you stop losing calls to a site that looks closed.
+        </p>
+        <p class="ss-back-quote">
+          “I already had a site. What I needed was hosting I could trust and
+          someone to consult when the technical side needed a call.”
+        </p>
+        <p class="ss-back-offer">
+          <strong>Nearby rate</strong> — first-year Care for shops we can actually
+          get to. Not on the website. Ask while we’re standing here.
+        </p>
+        <p class="ss-back-kicker">Local</p>
+        <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
+        <ul class="ss-stack" data-ss-col="stack" aria-label="Platform stack">${stackItems}</ul>
       </section>
-      <section class="ss-back-section" data-ss-section="clients">
-        <h2 class="ss-back-section-title">Worked with</h2>
-        <ul class="ss-back-clients" aria-label="Clients from the about page">${clientItems}</ul>
+      <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
+        <div class="ss-back-icon">${iconHtml}</div>
+        <p class="ss-back-kicker">Custom builds</p>
+        <p class="ss-back-builds">
+          Built by operators, for operators. ${esc(name)} ships about 90% of
+          the operating system on day one — one login instead of the SaaS pile.
+          The last 10% is a custom build. We specialize in saving clients time
+          by automating the work they still do by hand.
+        </p>
+        <div class="ss-back-diagnostic">
+          <h2>Online presence diagnostic</h2>
+          <p>An independent systems scan of your business’s digital footprint.</p>
+        </div>
       </section>
-      <p class="ss-back-note">
-        Keep Gmail or Outlook for personal mail if you want — the OS handles CRM,
-        billing, projects, scheduling, AI, and the client portal that used to
-        require all of the above.
-      </p>
     </div>
     <footer class="doc-onepager-footer">${footerBits.join(' · ')}</footer>
   </article>
