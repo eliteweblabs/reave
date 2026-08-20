@@ -57,6 +57,7 @@ export const PROFILE_MENU_KEYS = [
   'company',
   'settings',
   'socials',
+  'addons',
   'industries', // REΛVE-only; stripped from client payload on other installs
   'vapi',
   'lead-scanner',
@@ -88,6 +89,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'company',
   'settings',
   'socials',
+  'addons',
   'industries',
   'vapi',
   'lead-scanner',
@@ -171,6 +173,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   company: 'Company',
   settings: 'Settings',
   socials: 'Socials',
+  addons: 'Add-ons',
   industries: 'Industries',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
