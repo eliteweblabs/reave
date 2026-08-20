@@ -1,6 +1,6 @@
 import { COURT_DIRECTORY, DIRECTORY_COUNTIES, DIRECTORY_STATES, type CourtVenue } from './courtDirectory';
 import { getOfficeCoordinates } from './mapbox';
-import { getPracticeGate, type PracticeGate } from './practiceGate';
+import { countySelectionMatches, getPracticeGate, type PracticeGate } from './practiceGate';
 
 export type CourtMatch = CourtVenue & { miles: number; reason: 'radius' | 'county' | 'state' | 'both' };
 
@@ -48,13 +48,14 @@ export function filterCourts(
   gate: PracticeGate,
   directory: CourtVenue[] = COURT_DIRECTORY,
 ): CourtMatch[] {
-  const selected = new Set(gate.counties.map((c) => c.toLowerCase()));
   const selectedStates = new Set(gate.states.map((s) => s.toUpperCase()));
   const out: CourtMatch[] = [];
   for (const venue of directory) {
     const miles = origin ? milesBetween(origin, venue) : Number.POSITIVE_INFINITY;
     const inRadius = Boolean(origin) && miles <= gate.radiusMi;
-    const inCounty = venue.counties.some((c) => selected.has(c.toLowerCase()));
+    const inCounty = venue.counties.some((c) =>
+      gate.counties.some((sel) => countySelectionMatches(sel, c, venue.state)),
+    );
     const inState = selectedStates.has(venue.state.toUpperCase());
     let reason: CourtMatch['reason'] | null = null;
     if (gate.gateMode === 'radius' && inRadius) reason = 'radius';

@@ -29,6 +29,11 @@ const essexOnly = filterCourts(beverly, normalizePracticeGate({ gateMode: 'count
 assert.ok(essexOnly.every((row) => row.counties.includes('Essex')));
 assert.ok(essexOnly.some((row) => row.id === 'mab-boston'));
 
+const essexMa = filterCourts(beverly, normalizePracticeGate({ gateMode: 'counties', counties: ['Essex, MA'] }));
+assert.deepEqual(essexMa.map((row) => row.id), essexOnly.map((row) => row.id));
+const essexVt = filterCourts(beverly, normalizePracticeGate({ gateMode: 'counties', counties: ['Essex, VT'] }));
+assert.equal(essexVt.length, 0);
+
 const maState = filterCourts(beverly, normalizePracticeGate({ gateMode: 'state', states: ['MA'] }));
 assert.ok(maState.some((row) => row.id === 'mab-springfield'));
 assert.ok(maState.every((row) => row.state === 'MA' && row.reason === 'state'));

@@ -13,6 +13,7 @@ import { knowledgeIndustryId } from './knowledgeIndustry';
 import {
   gateIncludesPracticeArea,
   getPracticeGate,
+  parseCountySelection,
   type PracticeAreaId,
   type PracticeGate,
 } from './practiceGate';
@@ -88,10 +89,14 @@ export function documentMatchesInstall(
   const states = (opts.states ?? []).map((s) => s.trim().toUpperCase()).filter(Boolean);
   if (states.length) return meta.states.some((s) => states.includes(s));
 
-  const counties = (opts.counties ?? []).map((c) => c.trim().toLowerCase()).filter(Boolean);
+  const counties = (opts.counties ?? []).map((c) => c.trim()).filter(Boolean);
   if (counties.length) {
     if (!meta.states.includes('MA')) return false;
-    return counties.some((c) => MA_COUNTIES.has(c));
+    return counties.some((c) => {
+      const parsed = parseCountySelection(c);
+      if (parsed.state && parsed.state !== 'MA') return false;
+      return MA_COUNTIES.has(parsed.name.toLowerCase());
+    });
   }
 
   // Radius / unset region — show the MA pack while it is the only state we stock.

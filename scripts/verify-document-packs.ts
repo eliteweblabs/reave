@@ -21,6 +21,8 @@ assert.ok(bk.departments.includes('bankruptcy'));
 const lawMaBk = { industry: 'law', states: ['MA'], departments: ['bankruptcy'] };
 assert.equal(documentMatchesInstall(bk, lawMaBk), true);
 assert.equal(documentMatchesInstall(bk, { industry: 'law', counties: ['Essex'], departments: ['bankruptcy'] }), true);
+assert.equal(documentMatchesInstall(bk, { industry: 'law', counties: ['Essex, MA'], departments: ['bankruptcy'] }), true);
+assert.equal(documentMatchesInstall(bk, { industry: 'law', counties: ['Essex, VT'], departments: ['bankruptcy'] }), false);
 assert.equal(documentMatchesInstall(bk, { industry: 'law', departments: ['bankruptcy'] }), true);
 assert.equal(documentMatchesInstall(bk, { industry: 'law', states: ['NH'], departments: ['bankruptcy'] }), false);
 assert.equal(documentMatchesInstall(bk, { industry: 'law', states: ['MA'], departments: ['tax'] }), false);

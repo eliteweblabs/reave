@@ -4267,11 +4267,79 @@ button.de-placeholder-action:active {
   font-size: 0.68rem;
   color: var(--muted);
 }
+.kn-courts-map-canvas-wrap {
+  position: relative;
+}
 .kn-courts-map-canvas {
-  height: 160px;
+  height: 280px;
   border-radius: 8px;
   overflow: hidden;
   background: #d7dce3;
+}
+.kn-courts-map-canvas.is-picking { cursor: pointer; }
+.kn-courts-map-home {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--fg);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.22rem 0.4rem;
+  cursor: pointer;
+}
+.kn-courts-map-tip {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  max-width: calc(100% - 16px);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--fg);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.22rem 0.45rem;
+  pointer-events: none;
+}
+.kn-courts-map-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.kn-courts-map-chips-empty {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.kn-courts-map-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.14);
+  color: var(--fg);
+  font-size: 0.68rem;
+  padding: 0.16rem 0.35rem 0.16rem 0.5rem;
+  cursor: pointer;
+}
+.kn-courts-map-chip svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  opacity: 0.7;
+}
+.kn-courts-map-canvas .mapboxgl-ctrl-top-right {
+  top: 6px;
+  right: 6px;
+}
+.kn-courts-map-canvas .mapboxgl-ctrl-group button {
+  width: 26px;
+  height: 26px;
 }
 .kn-courts-map-canvas.is-empty {
   display: flex;
@@ -4300,6 +4368,12 @@ button.de-placeholder-action:active {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+}
+.kn-courts-map-field span em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.64rem;
 }
 .kn-courts-map-miles { color: var(--fg); font-style: normal; font-weight: 600; }
 .kn-courts-map-field input[type='range'] { width: 100%; accent-color: #2563eb; }
