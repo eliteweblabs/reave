@@ -3,9 +3,9 @@
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 - **Front** — custom: client, scores, three cascade findings, Places phone, QR.
-- **Back (REΛVE side)** — static two columns: managed hosting (stack marks
-  along the bottom) and cover. Same HTML for every client
-  (`src/lib/salesSheetBack.ts`).
+- **Back (REΛVE side)** — static three columns (hosting, custom builds,
+  cover/Q&A) plus a full-width “REΛVE builds with” stack strip. Same HTML
+  for every client (`src/lib/salesSheetBack.ts`).
 
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).

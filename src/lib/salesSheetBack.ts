@@ -1,8 +1,8 @@
 /**
  * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
- * Two columns on Letter: managed hosting (stack marks along the bottom) and a
- * cover (site pattern + company icon + Q&A + diagnostic line). Same HTML for every client.
+ * Three columns on Letter: hosting, custom builds, and cover/Q&A, with a full-width
+ * “REΛVE builds with” stack strip along the bottom. Same HTML for every client.
  */
 import { formatHostingUsd, HOSTING_CARE_PLANS } from './hostingPlans';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
@@ -133,7 +133,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
   display: flex;
   flex-direction: column;
-  gap: 2%;
+  gap: 1.2%;
   container-type: size;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -154,6 +154,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   print-color-adjust: exact;
 }
 .ss-sheet-back .ss-back-cols,
+.ss-sheet-back .ss-back-platform,
 .ss-sheet-back .doc-onepager-footer {
   position: relative;
   z-index: 1;
@@ -162,27 +163,27 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: ${orientation === 'landscape' ? '1.12fr 1fr' : '1fr'};
-  grid-template-rows: ${orientation === 'landscape' ? '1fr' : 'auto 1fr'};
-  gap: 0 3.2%;
+  grid-template-columns: ${orientation === 'landscape' ? '1fr 1fr 1fr' : '1fr'};
+  grid-template-rows: ${orientation === 'landscape' ? '1fr' : 'auto'};
+  gap: 0 2.2%;
 }
 .ss-sheet-back .ss-back-col {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55em;
+  gap: 0.38em;
 }
 .ss-sheet-back .ss-back-col--hosting {
   justify-content: flex-start;
 }
 .ss-sheet-back .ss-back-col + .ss-back-col {
-  padding-left: 3.2%;
+  padding-left: 2.2%;
   border-left: 1px solid var(--doc-rule);
 }
 .ss-sheet-back .ss-back-kicker {
   margin: 0;
-  font-size: clamp(8px, 1.2cqi, 10px);
+  font-size: clamp(7px, 1.05cqi, 9px);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -190,7 +191,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-back-h {
   margin: 0;
-  font-size: clamp(13px, 2.15cqi, 18px);
+  font-size: clamp(11px, 1.7cqi, 15px);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -199,8 +200,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-stat,
 .ss-sheet-back .ss-back-offer {
   margin: 0;
-  font-size: clamp(9px, 1.35cqi, 11.5px);
-  line-height: 1.45;
+  font-size: clamp(8px, 1.15cqi, 10px);
+  line-height: 1.38;
   color: #2a2a2a;
 }
 .ss-sheet-back .ss-back-list {
@@ -212,8 +213,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   gap: 0.35em;
 }
 .ss-sheet-back .ss-back-list li {
-  font-size: clamp(9px, 1.3cqi, 11px);
-  line-height: 1.4;
+  font-size: clamp(8px, 1.1cqi, 10px);
+  line-height: 1.35;
   color: #2a2a2a;
 }
 .ss-sheet-back .ss-back-list strong { color: var(--doc-ink); }
@@ -226,31 +227,32 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   gap: 0.2em;
 }
 .ss-sheet-back .ss-back-locals li {
-  font-size: clamp(9px, 1.3cqi, 11px);
+  font-size: clamp(8px, 1.1cqi, 10px);
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.35;
+  line-height: 1.3;
   color: var(--doc-ink);
 }
 .ss-sheet-back .ss-back-quote {
   margin: 0;
-  font-size: clamp(8.5px, 1.25cqi, 10.5px);
-  line-height: 1.4;
+  font-size: clamp(7.5px, 1.05cqi, 9.5px);
+  line-height: 1.35;
   color: #2a2a2a;
   font-style: italic;
 }
 .ss-sheet-back .ss-back-col--cover {
-  align-items: center;
-  justify-content: space-between;
-  text-align: center;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
   border-left-color: var(--doc-rule);
 }
 .ss-sheet-back .ss-back-icon {
   display: grid;
   place-items: center;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   width: 100%;
   min-height: 0;
+  margin-bottom: 0.15em;
 }
 .ss-sheet-back .ss-back-icon .doc-brand,
 .ss-sheet-back .ss-back-icon .doc-onepager-logo-img,
@@ -259,8 +261,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-icon svg {
   display: block;
   width: auto;
-  height: clamp(56px, 16cqh, 110px);
-  max-width: 70%;
+  height: clamp(36px, 9cqh, 64px);
+  max-width: 55%;
   margin: 0 auto;
   object-fit: contain;
 }
@@ -280,11 +282,11 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   margin: 0;
 }
 .ss-sheet-back .ss-back-qa-item dt {
-  margin: 0 0 0.2em;
-  font-size: clamp(9px, 1.3cqi, 11px);
+  margin: 0 0 0.15em;
+  font-size: clamp(8px, 1.1cqi, 10px);
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.3;
+  line-height: 1.25;
   color: var(--doc-ink);
 }
 .ss-sheet-back .ss-back-qa-item dt::before {
@@ -295,8 +297,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-back-qa-item dd {
   margin: 0;
-  font-size: clamp(9px, 1.3cqi, 11px);
-  line-height: 1.4;
+  font-size: clamp(8px, 1.1cqi, 10px);
+  line-height: 1.35;
   color: #2a2a2a;
 }
 .ss-sheet-back .ss-back-qa-item dd::before {
@@ -307,31 +309,62 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-back-builds {
   margin: 0;
-  max-width: 34ch;
-  font-size: clamp(9px, 1.35cqi, 11.5px);
-  line-height: 1.45;
+  max-width: none;
+  font-size: clamp(8px, 1.15cqi, 10px);
+  line-height: 1.38;
   color: #2a2a2a;
 }
 .ss-sheet-back .ss-back-diagnostic {
   margin-top: auto;
-  padding-top: 0.6em;
+  padding-top: 0.35em;
 }
 .ss-sheet-back .ss-back-diagnostic h2 {
-  margin: 0 0 0.25em;
-  font-size: clamp(12px, 1.85cqi, 16px);
+  margin: 0 0 0.2em;
+  font-size: clamp(10px, 1.45cqi, 13px);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 .ss-sheet-back .ss-back-diagnostic p {
   margin: 0;
-  font-size: clamp(9px, 1.3cqi, 11px);
-  line-height: 1.4;
+  font-size: clamp(8px, 1.1cqi, 10px);
+  line-height: 1.35;
   color: var(--doc-muted);
+}
+.ss-sheet-back .ss-back-platform {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  width: 100%;
+}
+.ss-sheet-back .ss-back-builds-with {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  width: 100%;
+  margin: 0;
+  text-align: center;
+}
+.ss-sheet-back .ss-back-builds-with::before,
+.ss-sheet-back .ss-back-builds-with::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--doc-ink);
+  opacity: 0.28;
+}
+.ss-sheet-back .ss-back-builds-with span {
+  flex: 0 0 auto;
+  font-size: clamp(8px, 1.2cqi, 10px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--doc-ink);
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
-  margin-top: auto;
-  padding: 0.35em 0 0;
+  margin: 0;
+  padding: 0;
   width: 100%;
   display: flex;
   flex-wrap: nowrap;
@@ -426,20 +459,12 @@ export function renderSalesSheetBackHtml(opts: {
           What the fixes do: the page loads, the listing shows, the form works,
           and you stop losing calls to a site that looks closed.
         </p>
-        <p class="ss-back-quote">
-          “I already had a site. What I needed was hosting I could trust and
-          someone to consult when the technical side needed a call.”
-        </p>
         <p class="ss-back-offer">
           <strong>Nearby rate</strong> — first-year Core OS for shops we can actually
           get to. Not on the website. Ask while we’re standing here.
         </p>
-        <p class="ss-back-kicker">Local</p>
-        <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
-        <ul class="ss-stack" data-ss-col="stack" aria-label="Platform stack">${stackItems}</ul>
       </section>
-      <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
-        <div class="ss-back-icon">${iconHtml}</div>
+      <section class="ss-back-col ss-back-col--builds" data-ss-col="builds">
         <p class="ss-back-kicker">Custom builds</p>
         <p class="ss-back-builds">
           Built by operators, for operators. ${esc(name)} ships about 90% of
@@ -447,6 +472,15 @@ export function renderSalesSheetBackHtml(opts: {
           The last 10% is a custom build. We specialize in saving clients time
           by automating the work they still do by hand.
         </p>
+        <p class="ss-back-quote">
+          “I already had a site. What I needed was hosting I could trust and
+          someone to consult when the technical side needed a call.”
+        </p>
+        <p class="ss-back-kicker">Local</p>
+        <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
+      </section>
+      <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
+        <div class="ss-back-icon">${iconHtml}</div>
         <div class="ss-back-qa" data-ss-col="qa">
           <p class="ss-back-kicker">Q&amp;A</p>
           <dl class="ss-back-qa-list">${SALES_SHEET_BACK_QA.map(
@@ -461,6 +495,10 @@ export function renderSalesSheetBackHtml(opts: {
           <p>An independent systems scan of your business’s digital footprint.</p>
         </div>
       </section>
+    </div>
+    <div class="ss-back-platform" data-ss-col="stack">
+      <p class="ss-back-builds-with"><span>REΛVE builds with</span></p>
+      <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
     </div>
     <footer class="doc-onepager-footer">${footerBits.join(' · ')}</footer>
   </article>

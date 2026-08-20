@@ -559,8 +559,12 @@ await test('static back is hosting + cover with stack marks and no client fields
   });
   assert.match(back, /data-ss-page="back"/);
   assert.match(back, /data-ss-col="hosting"/);
+  assert.match(back, /data-ss-col="builds"/);
   assert.match(back, /data-ss-col="cover"/);
   assert.match(back, /data-ss-col="stack"/);
+  assert.match(back, /1fr 1fr 1fr/);
+  assert.match(back, /REΛVE builds with/);
+  assert.match(back, /ss-back-builds-with/);
   assert.match(back, /Managed hosting/);
   assert.match(back, /We host it/);
   assert.match(back, /Core OS/);

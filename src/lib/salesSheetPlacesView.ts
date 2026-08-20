@@ -335,13 +335,17 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
   --ss-print-inset: 0.2in;
   --ss-print-inset-top: 0.25in;
   padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
+  gap: 2%;
 }
 .doc-onepager-header {
   border-bottom: none;
+  padding-bottom: 1.6%;
 }
 .doc-onepager-footer {
   border-top: none;
 }
+.doc-onepager-cols { gap: 0 2.8%; }
+.doc-onepager-col + .doc-onepager-col { padding-left: 2.8%; }
 .doc-onepager-title,
 .doc-onepager-kicker { display: none; }
 .doc-onepager-mast {
