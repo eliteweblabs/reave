@@ -26,6 +26,7 @@ import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
 import { demoPlugin } from '../../plugins/demo/manifest';
 import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
 import { inventoryPlugin } from '../../plugins/inventory/manifest';
+import { materialsPlugin } from '../../plugins/materials/manifest';
 import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
 import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
@@ -58,6 +59,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   demoPlugin,
   realEstateDataPlugin,
   inventoryPlugin,
+  materialsPlugin,
   onlineReviewsPlugin,
   waybackMachinePlugin,
   contentManagementPlugin,
@@ -171,6 +173,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['real-estate-data'];
     case 'inventory':
       return ['inventory-sync'];
+    case 'materials':
+      return ['materials-pricing'];
     case 'online-reviews':
       return ['online-reviews'];
     case 'wayback-machine':

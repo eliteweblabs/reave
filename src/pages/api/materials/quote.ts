@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { hasFeature } from '../../../lib/features';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   isMaterialsApiConfigured,
@@ -19,6 +20,9 @@ export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
+  if (!hasFeature('materials_pricing')) {
+    return json({ ok: false, error: 'materials_pricing not enabled' }, 404);
+  }
   if (!isMaterialsApiConfigured()) {
     return json({ ok: false, error: 'MATERIALS_API_BASE_URL is not configured' }, 503);
   }

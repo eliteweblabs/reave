@@ -82,8 +82,8 @@ assert.equal(defaults.enabled, true);
 assert.equal(defaults.includeLogo, true);
 
 assert.equal(FEATURE_IDS.includes('email_signature'), true);
-assert.equal(demoModuleIdForFeature('email_signature'), '035');
-assert.equal(DEMO_BASELINE_MODULE_IDS.includes('035'), true);
+assert.equal(demoModuleIdForFeature('email_signature'), '036');
+assert.equal(DEMO_BASELINE_MODULE_IDS.includes('036'), true);
 assert.equal(
   MARKETING_FEATURES.some((f) => f.id === 'email-signature' && f.modules.includes('email_signature')),
   true,

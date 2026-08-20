@@ -23,10 +23,10 @@ const BY_FEATURE = new Map(DEMO_MODULE_CATALOG.map((e) => [e.feature, e]));
 
 /**
  * Tier-1 baseline — always enabled; hidden from the public demo loader picker.
- * 001–004 are the original client pack; 035 is email_signature (appended so
- * earlier sales IDs stay stable).
+ * 001–004 are the original client pack; 036 is email_signature (appended so
+ * earlier sales IDs stay stable — 035 is materials_pricing on main).
  */
-export const DEMO_BASELINE_MODULE_IDS = ['001', '002', '003', '004', '035'] as const;
+export const DEMO_BASELINE_MODULE_IDS = ['001', '002', '003', '004', '036'] as const;
 
 const BASELINE_MODULE_ID_SET = new Set<string>(DEMO_BASELINE_MODULE_IDS);
 

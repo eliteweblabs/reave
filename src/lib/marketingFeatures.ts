@@ -317,6 +317,12 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'materials-pricing',
+    label: 'Materials pricing (Home Depot)',
+    modules: ['materials_pricing'],
+    kind: 'capability',
+  },
+  {
     id: 'real-estate-data',
     label: 'Real estate data & lead scanner',
     modules: ['real_estate_data'],

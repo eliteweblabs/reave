@@ -39,6 +39,7 @@ export const FEATURE_IDS = [
   'deploy_wizard',
   'website',
   'credit_check',
+  'materials_pricing',
   'email_signature',
 ] as const;
 
@@ -103,6 +104,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   deploy_wizard: 'Deploy wizard',
   website: 'Website',
   credit_check: 'Credit check',
+  materials_pricing: 'Materials pricing (Home Depot)',
   email_signature: 'Email signature',
 };
 
@@ -146,6 +148,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   website: 'Client website tools — edit, stock photos, publish. No hosting APIs',
   credit_check:
     'Applicant credit pull for forms and deal flow — reference only until a bureau is chosen',
+  materials_pricing:
+    'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
   email_signature:
     'Branded HTML signature from the account profile — copy for Gmail/Outlook and append to outbound mail',
 };

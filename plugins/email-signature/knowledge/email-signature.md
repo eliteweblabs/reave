@@ -6,7 +6,7 @@ Tier-1 default module. Builds a branded HTML signature from **Admin → Profile*
 ## Enable
 
 Add `email_signature` to install config `features[]`. New installs and tier-1
-demos include it automatically (demo module id **035**).
+demos include it automatically (demo module id **036**).
 
 ## Account profile
 
