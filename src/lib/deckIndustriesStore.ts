@@ -12,6 +12,7 @@ import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import {
+  backfillCanonicalDeployIndustries,
   defaultFixturePlaybook,
   normalizeIndustryPlaybook,
   type DeckIndustryPlaybook,
@@ -31,13 +32,15 @@ export type DeckIndustry = {
 
 /** Seeded when the store is empty. */
 export const DEFAULT_DECK_INDUSTRIES: ReadonlyArray<{ slug: string; label: string }> = [
-  { slug: 'salon', label: 'Salon' },
   { slug: 'content', label: 'Content' },
   { slug: 'engineer', label: 'Engineer' },
-  { slug: 'principal', label: 'Principal' },
-  { slug: 'marketing', label: 'Marketing' },
-  { slug: 'real-estate', label: 'Real estate' },
+  { slug: 'general', label: 'General contractor' },
   { slug: 'law', label: 'Law firm' },
+  { slug: 'marketing', label: 'Marketing' },
+  { slug: 'plumbing', label: 'Plumbing' },
+  { slug: 'principal', label: 'Principal' },
+  { slug: 'real-estate', label: 'Real estate' },
+  { slug: 'salon', label: 'Salon' },
 ];
 
 const SCHEMA_SQL = `
@@ -56,6 +59,7 @@ ALTER TABLE deck_industries ADD COLUMN IF NOT EXISTS playbook JSONB NOT NULL DEF
 `;
 
 let _schemaReady: Promise<void> | null = null;
+let _persistingBackfill = false;
 
 async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPgPool();
@@ -164,18 +168,27 @@ function normalizeFileList(raw: unknown): DeckIndustry[] {
   return out.length ? out.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id) : defaultsAsIndustries();
 }
 
+function persistBackfill(list: DeckIndustry[]): DeckIndustry[] {
+  const filled = backfillCanonicalDeployIndustries(list);
+  if (!filled.changed) return filled.list;
+  if (deckIndustriesStorageBackend() === 'files') {
+    writeFileIndustries(filled.list);
+  }
+  return filled.list;
+}
+
 function readFileIndustries(): DeckIndustry[] {
   try {
     const path = industriesFilePath();
     if (!existsSync(path)) {
-      const seeded = defaultsAsIndustries();
+      const seeded = persistBackfill(defaultsAsIndustries());
       writeFileIndustries(seeded);
       return seeded;
     }
-    return normalizeFileList(JSON.parse(readFileSync(path, 'utf8')));
+    return persistBackfill(normalizeFileList(JSON.parse(readFileSync(path, 'utf8'))));
   } catch (e) {
     console.error('[deck-industries] file read failed', e);
-    return defaultsAsIndustries();
+    return persistBackfill(defaultsAsIndustries());
   }
 }
 
@@ -233,7 +246,19 @@ async function readPgIndustries(): Promise<DeckIndustry[]> {
      FROM deck_industries
      ORDER BY sort_order ASC, id ASC`,
   );
-  return res.rows.map(rowToIndustry);
+  const filled = backfillCanonicalDeployIndustries(res.rows.map(rowToIndustry));
+  if (filled.changed && !_persistingBackfill) {
+    _persistingBackfill = true;
+    try {
+      await replacePgIndustries(filled.list);
+      return filled.list;
+    } catch (e) {
+      console.error('[deck-industries] canonical backfill persist failed', e);
+    } finally {
+      _persistingBackfill = false;
+    }
+  }
+  return filled.list;
 }
 
 export type DeckIndustryInput = {

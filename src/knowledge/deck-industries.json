@@ -1,34 +1,70 @@
 [
   {
     "id": 1,
-    "slug": "salon",
-    "label": "Salon",
+    "slug": "content",
+    "label": "Content",
     "sortOrder": 0,
     "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": ""
+    },
     "updatedAt": null
   },
   {
     "id": 2,
-    "slug": "content",
-    "label": "Content",
+    "slug": "engineer",
+    "label": "Engineer",
     "sortOrder": 1,
     "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": ""
+    },
     "updatedAt": null
   },
   {
     "id": 3,
-    "slug": "engineer",
-    "label": "Engineer",
+    "slug": "general",
+    "label": "General contractor",
     "sortOrder": 2,
     "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": "General contractor installs seed inbox, todos, and schedule so the dashboard is not empty before live email is connected."
+    },
     "updatedAt": null
   },
   {
     "id": 4,
-    "slug": "principal",
-    "label": "Principal",
+    "slug": "law",
+    "label": "Law firm",
     "sortOrder": 3,
     "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "matter",
+      "notes": "Law installs use “matter” as the work name. Court knowledge can be gated from the office pin after you pick an address in the wizard."
+    },
     "updatedAt": null
   },
   {
@@ -37,14 +73,83 @@
     "label": "Marketing",
     "sortOrder": 4,
     "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": ""
+    },
     "updatedAt": null
   },
   {
     "id": 6,
-    "slug": "real-estate",
-    "label": "Real estate",
+    "slug": "plumbing",
+    "label": "Plumbing",
     "sortOrder": 5,
     "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": "Plumbing installs seed a sample inbox, jobs, and schedule for a trade shop. Live email can replace this after apply."
+    },
+    "updatedAt": null
+  },
+  {
+    "id": 7,
+    "slug": "principal",
+    "label": "Principal",
+    "sortOrder": 6,
+    "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": ""
+    },
+    "updatedAt": null
+  },
+  {
+    "id": 8,
+    "slug": "real-estate",
+    "label": "Real estate",
+    "sortOrder": 7,
+    "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": ""
+    },
+    "updatedAt": null
+  },
+  {
+    "id": 9,
+    "slug": "salon",
+    "label": "Salon",
+    "sortOrder": 8,
+    "enabled": true,
+    "playbook": {
+      "moduleIds": [],
+      "extras": [],
+      "seedInbox": true,
+      "seedTodos": true,
+      "seedSchedule": true,
+      "postAlias": "",
+      "notes": ""
+    },
     "updatedAt": null
   }
 ]

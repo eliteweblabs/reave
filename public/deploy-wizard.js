@@ -550,7 +550,7 @@
     seed.schedule = playbook.seedSchedule !== false;
     if (typeof playbook.postAlias === 'string' && playbook.postAlias.trim()) {
       postAlias = playbook.postAlias.trim();
-    } else if (industryId === 'law' && postAlias === 'project') {
+    } else if ((industryId === 'law' || industryId === 'law-firm' || industryId === 'legal') && postAlias === 'project') {
       postAlias = 'matter';
     }
   }
@@ -581,7 +581,7 @@
       `<select id="dw-seed-industry" class="dl-select">${options}</select>` +
       `</label>` +
       `</div>` +
-      (seed.industry === 'law'
+      ((seed.industry === 'law' || seed.industry === 'law-firm' || seed.industry === 'legal')
         ? `<div class="dw-identity">` +
           `<label class="dl-field">` +
           `<span class="dl-field-label">Knowledge aggregation</span>` +

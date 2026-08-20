@@ -128,7 +128,11 @@ export const GET: APIRoute = async (context) => {
   const [contactProbe, materialsProbe, inventoryProbe, fleetProbe, paulinoWizardProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
     await Promise.all([
     contactBase ? reach(contactBase, healthUserAgent) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
-    materialsBase ? reach(`${materialsBase}/health`, healthUserAgent) : Promise.resolve(unconfigured('MATERIALS_API_BASE_URL not set')),
+    hasFeature('materials_pricing')
+      ? materialsBase
+        ? reach(`${materialsBase}/health`, healthUserAgent)
+        : Promise.resolve(unconfigured('MATERIALS_API_BASE_URL not set'))
+      : Promise.resolve(unconfigured('materials_pricing not in FEATURES')),
     hasFeature('inventory_sync')
       ? inventoryBase
         ? reach(`${inventoryBase}/health`, healthUserAgent)

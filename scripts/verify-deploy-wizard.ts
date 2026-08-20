@@ -28,6 +28,8 @@ import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
   applyIndustryPlaybookToWizard,
+  backfillCanonicalDeployIndustries,
+  EMPTY_INDUSTRY_PLAYBOOK,
   normalizeIndustryPlaybook,
 } from '../src/lib/industryPlaybook.ts';
 import {
@@ -120,13 +122,19 @@ assert.match(formatDeployWizardCli(branded), /DASHBOARD_KEY='<rolled on apply>'/
 assert.equal(buildDeployWizardPlan({ features: [], postAlias: 'Disposition(s)' }).postAlias, 'project');
 
 const billed = buildDeployWizardPlan({
-  features: ['billing', 'fleet_tracking', 'scheduling'],
-  extras: ['materials'],
+  features: ['billing', 'fleet_tracking', 'scheduling', 'materials_pricing'],
   siteDomain: 'acme.com',
 });
 assert.ok(billed.services.some((s) => s.id === 'crater'));
 assert.ok(billed.services.some((s) => s.id === 'fleet-api'));
 assert.ok(billed.services.some((s) => s.id === 'materials-api'));
+
+const legacyMaterials = buildDeployWizardPlan({
+  features: ['billing'],
+  extras: ['materials' as never],
+});
+assert.ok(legacyMaterials.services.some((s) => s.id === 'materials-api'));
+assert.ok(legacyMaterials.features.includes('materials_pricing'));
 assert.ok(billed.variables.some((v) => v.name === 'CRATER_API_BASE_URL' && v.filled.includes('${{ crater.')));
 assert.ok(billed.variables.some((v) => v.name === 'BOOKING_API_URL' && v.filled.includes('calcom-booking-api')));
 assert.ok(billed.variables.some((v) => v.service === 'shared' && v.name === 'FLEET_API_CLIENT_KEY'));
@@ -277,22 +285,54 @@ const salonPlaybook = mergeDeployWizardSeedIndustries([
     playbook: { moduleIds: ['006', '009'], extras: ['materials'], notes: 'Book + voice', postAlias: 'client' },
   },
 ]).find((row) => row.id === 'salon');
-assert.deepEqual(salonPlaybook?.playbook.moduleIds, ['006', '009']);
-assert.deepEqual(salonPlaybook?.playbook.extras, ['materials']);
+assert.deepEqual(salonPlaybook?.playbook.moduleIds, ['006', '009', '035']);
+assert.deepEqual(salonPlaybook?.playbook.extras, []);
 assert.equal(salonPlaybook?.playbook.postAlias, 'client');
 const applied = applyIndustryPlaybookToWizard({
   industryId: 'salon',
   playbook: salonPlaybook?.playbook,
-  allowedModuleIds: new Set(['001', '002', '003', '004', '006', '009']),
+  allowedModuleIds: new Set(['001', '002', '003', '004', '006', '009', '035']),
   baselineModuleIds: ['001', '002', '003', '004'],
   currentModuleIds: ['001', '002', '003', '004'],
   currentExtras: [],
   currentPostAlias: 'project',
 });
-assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009']);
-assert.deepEqual(applied.extras, ['materials']);
+assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009', '035']);
+assert.deepEqual(applied.extras, []);
 assert.equal(applied.postAlias, 'client');
 assert.equal(normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','), '006');
+const backfilled = backfillCanonicalDeployIndustries([
+  {
+    id: 1,
+    slug: 'salon',
+    label: 'Salon',
+    sortOrder: 0,
+    enabled: true,
+    playbook: { ...EMPTY_INDUSTRY_PLAYBOOK },
+    updatedAt: null,
+  },
+  {
+    id: 2,
+    slug: 'plumbers',
+    label: 'Plumbers',
+    sortOrder: 1,
+    enabled: true,
+    playbook: { ...EMPTY_INDUSTRY_PLAYBOOK },
+    updatedAt: null,
+  },
+]);
+assert.equal(backfilled.changed, true);
+assert.deepEqual(
+  backfilled.list.map((row) => row.slug),
+  ['general', 'law', 'plumbing', 'salon'],
+);
+assert.equal(backfilled.list.find((row) => row.slug === 'plumbing')?.label, 'Plumbing');
+assert.match(backfilled.list.find((row) => row.slug === 'plumbing')?.playbook.notes || '', /trade shop/);
+assert.equal(backfilled.list.find((row) => row.slug === 'law')?.playbook.postAlias, 'matter');
+assert.equal(
+  backfillCanonicalDeployIndustries(backfilled.list).changed,
+  false,
+);
 const salonSeed = buildDeployWizardPlan({
   features: ['website'],
   seed: { industry: 'salon', inbox: true, todos: true, schedule: true },
