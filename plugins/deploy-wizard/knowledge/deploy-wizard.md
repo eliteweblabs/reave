@@ -24,7 +24,7 @@ Keep these exact names on new installs:
 | `calcom-booking-api` / `calcom-web-app` / `calcom-postgres` | Scheduling |
 | `fleet-api` / `fleet-postgres` | Fleet GPS |
 | `inventory-api` | Inventory sync |
-| `materials-api` | Materials pricing (optional extra) |
+| `materials-api` | Materials pricing (`materials_pricing` module) |
 | `paulino-wizard` | Dealership wizard |
 | `changedetection` | Self-hosted ChangeDetection (optional extra) |
 | `plausible` | Self-hosted Plausible (optional extra) |

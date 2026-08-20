@@ -24,7 +24,7 @@ export const DEPLOY_APP_POSTGRES = 'reave-postgres';
 export type DeployServiceKind = 'app' | 'api' | 'postgres';
 export type DeployVarKind = 'reference' | 'shared' | 'secret' | 'generated' | 'literal';
 
-export type DeployWizardExtraId = 'materials' | 'changedetection_railway' | 'plausible_railway';
+export type DeployWizardExtraId = 'changedetection_railway' | 'plausible_railway';
 
 export type DeployWizardService = {
   id: string;
@@ -113,11 +113,6 @@ export function railwayPrivateUrl(service: string, port?: number): string {
 }
 
 export const DEPLOY_WIZARD_EXTRAS: readonly DeployWizardExtra[] = [
-  {
-    id: 'materials',
-    label: 'Materials API',
-    blurb: 'Home Depot pricing for estimates — same-project materials-api service.',
-  },
   {
     id: 'changedetection_railway',
     label: 'ChangeDetection on Railway',
@@ -366,7 +361,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     kind: 'api',
     description: 'Retail materials pricing (Home Depot).',
     repo: 'eliteweblabs/materials-api',
-    extra: 'materials',
+    features: ['materials_pricing'],
   },
   {
     id: 'paulino-wizard',
@@ -426,7 +421,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: 'shared',
     kind: 'generated',
     description: 'Shared client key for materials-api and reave.',
-    extra: 'materials',
+    features: ['materials_pricing'],
   }),
   v({
     name: 'CRATER_API_TOKEN',
@@ -1116,7 +1111,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'reference',
     value: railwayPublicUrl('materials-api'),
     description: 'materials-api public URL.',
-    extra: 'materials',
+    features: ['materials_pricing'],
   }),
   v({
     name: 'MATERIALS_API_KEY',
@@ -1125,7 +1120,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     value: railwaySharedRef('MATERIALS_API_CLIENT_KEY'),
     sharedKey: 'MATERIALS_API_CLIENT_KEY',
     description: 'Same shared key materials-api reads as API_KEY.',
-    extra: 'materials',
+    features: ['materials_pricing'],
   }),
   v({
     name: 'API_KEY',
@@ -1134,7 +1129,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     value: railwaySharedRef('MATERIALS_API_CLIENT_KEY'),
     sharedKey: 'MATERIALS_API_CLIENT_KEY',
     description: 'Must match MATERIALS_API_KEY on reave.',
-    extra: 'materials',
+    features: ['materials_pricing'],
   }),
   v({
     name: 'ALLOWED_ORIGINS',
@@ -1142,7 +1137,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'reference',
     value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_SITE_URL'),
     description: 'CORS — pull the public site URL from reave.',
-    extra: 'materials',
+    features: ['materials_pricing'],
   }),
 
   // ── Dealership ──
@@ -1738,6 +1733,10 @@ function substituteAppService(value: string, appService: string): string {
 
 export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizardPlan {
   const features = [...new Set(input.features)];
+  // Legacy deploy wizard calls still pass extras: ['materials'] — treat as the module.
+  if ((input.extras ?? []).includes('materials') && !features.includes('materials_pricing')) {
+    features.push('materials_pricing');
+  }
   const featureSet = new Set<string>(features);
   const extras = [...new Set(input.extras ?? [])].filter((id) => {
     if (!isDeployWizardExtraId(id)) return false;

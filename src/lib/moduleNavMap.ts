@@ -40,6 +40,8 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   cookie_notice: [],
   deploy_wizard: ['deploy'],
   website: ['media', '__system__'],
+  credit_check: ['__system__'],
+  materials_pricing: ['__system__'],
 };
 
 /** Human labels for footerNav keys (monitor panel). */
