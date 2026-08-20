@@ -5,6 +5,7 @@
  *   .sk-list-panel  — full mobile sidebar (search + filters + card rows)
  *   .sk-home        — dashboard panel (alerts, today, stats, uptime, inbox)
  *   .sk-dashboard   — generic stat grid + cards (profile, social, analytics, etc.)
+ *   .ss-nav-skel    — dashboard leave-behind while /admin/sales-sheet boots
  */
 
 @keyframes sk-shimmer {
@@ -394,6 +395,67 @@
   background: none;
   animation: none;
   min-height: unset;
+}
+
+/* ── Sales sheet leave-behind (dashboard tile → /admin/sales-sheet) ── */
+.ss-nav-skel {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow: auto;
+  background: #0d1117;
+  color: #e9eef6;
+  padding: 1.25rem 1rem 2rem;
+}
+
+.ss-nav-skel-chrome {
+  max-width: 1100px;
+  margin: 0 auto 1.25rem;
+}
+
+.ss-nav-skel-back {
+  width: 7.5rem;
+  height: 2.15rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.ss-nav-skel-title {
+  width: min(18rem, 70%);
+  height: 1.7rem;
+  border-radius: 8px;
+  margin-bottom: 0.65rem;
+}
+
+.ss-nav-skel-sub {
+  width: min(42rem, 92%);
+  height: 2.4rem;
+  border-radius: 8px;
+}
+
+.ss-nav-skel-page {
+  max-width: 11in;
+  margin: 0 auto 1rem;
+  aspect-ratio: 11 / 8.5;
+  border-radius: 4px;
+  background: #e4e4de;
+  padding: 16px;
+  box-sizing: border-box;
+  display: flex;
+}
+
+.ss-nav-skel-paper {
+  flex: 1;
+  min-height: 0;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
+  --sk-base: rgba(0, 0, 0, 0.07);
+  --sk-shine: rgba(255, 255, 255, 0.55);
+}
+
+.ss-nav-skel-page--short {
+  opacity: 0.85;
 }
 
 @media (prefers-reduced-motion: reduce) {
