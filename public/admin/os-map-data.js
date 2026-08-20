@@ -55,6 +55,7 @@ const SYSTEM_NODES = [
   { id: 'event_ticketing', title: 'Event ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },
   { id: 'cookie_notice', title: 'Cookie notice', sub: 'implied consent bar · /cookies (FEATURES: cookie_notice)', icon: '🍪', hue: 32, status: true, group: 'reave', x: 640, y: 1020 },
   { id: 'credit_check', title: 'Credit check', sub: 'reference · applicant pull · form API (FEATURES: credit_check · request)', icon: '💳', hue: 8, status: true, ghost: true, group: 'reave', x: 640, y: 1092 },
+  { id: 'email_signature', title: 'Email signature', sub: 'account profile · /signature.html · outbound append (FEATURES: email_signature · tier-1)', icon: '✒️', hue: 318, status: true, group: 'reave', x: 640, y: 1164 },
   { id: 'website', title: 'Website', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
   { id: 'time_tracking', title: 'Project time tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start/stop (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
@@ -174,6 +175,9 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'credit_check', label: 'planned', dashed: true, ghost: true },
   { from: 'web', to: 'cookie_notice', label: 'notice · continue = agree', dashed: true },
   { from: 'astro', to: 'cookie_notice', label: '/cookies', dashed: true },
+  { from: 'astro', to: 'email_signature', label: '/signature.html · /api/admin/profile', dashed: true },
+  { from: 'clerk', to: 'email_signature', label: 'name · title · phone', dashed: true },
+  { from: 'email_signature', to: 'resend', label: 'outbound append', dashed: true },
   { from: 'astro', to: 'visit_planner', label: '/admin/visit-plan · /api/work/visit-plan', dashed: true },
   { from: 'visit_planner', to: 'app_pg', label: 'open inquiries (jobs)', dashed: true },
   { from: 'visit_planner', to: 'contact_api', label: 'address · geo · hours', dashed: true },
@@ -216,7 +220,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'email_signature', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom'] },
 ];
 

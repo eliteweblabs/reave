@@ -8,47 +8,11 @@
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { isPrivateFeature } from './featureCatalog.ts';
+import { FEATURE_IDS, isPrivateFeature, type FeatureId } from './featureCatalog.ts';
+import { DEMO_BASELINE_MODULE_IDS } from './demoModuleCatalog.ts';
 import { serverEnv } from './serverEnv.ts';
 
-const FEATURE_IDS_LIST = [
-  'client_portal',
-  'web_handoff',
-  'portal_assistant',
-  'billing',
-  'site_audits',
-  'analytic_audit',
-  'site_monitoring',
-  'uptime_monitoring',
-  'documents',
-  'voice',
-  'vapi',
-  'carddav',
-  'scheduling',
-  'dev_infra',
-  'code_dev',
-  'email_marketing',
-  'fleet_tracking',
-  'dealership_wizard',
-  'namecom_dns',
-  'time_tracking',
-  'demo',
-  'real_estate_data',
-  'inventory_sync',
-  'online_reviews',
-  'wayback_machine',
-  'content_management',
-  'stock_photos',
-  'wordpress_content',
-  'seo_directory',
-  'event_ticketing',
-  'cookie_notice',
-  'deploy_wizard',
-  'website',
-  'credit_check',
-] as const;
-
-const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
+const FEATURE_SET = new Set<string>(FEATURE_IDS);
 
 export const PROFILE_MENU_KEYS = [
   'profile',
@@ -98,7 +62,7 @@ export const FOOTER_NAV_MAP_KEYS = [
 export type FooterNavMapKey = (typeof FOOTER_NAV_MAP_KEYS)[number];
 export type FooterNavKey = FooterNavMapKey | FooterNavSlotKey;
 
-export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
+export type InstallFeatureId = FeatureId;
 
 /** Per-module deployment lifecycle — overrides DEPLOY.md defaultStatus. */
 export type ModuleDeployStatus =
@@ -158,6 +122,8 @@ export type InstallConfigClient = Pick<
   showDeployWizard?: boolean;
   /** Industries / deploy-playbook editor — official REΛVE Railway install only. */
   showIndustries?: boolean;
+  /** Tier-1 baseline module ids — always on; hidden from the public picker. */
+  baselineModuleIds?: readonly string[];
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -449,6 +415,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     showPersonal: isCanonicalReaveInstall(),
     showDeployWizard: config.features.includes('deploy_wizard'),
     showIndustries: isCanonicalReaveInstall(),
+    baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
   };
 }
 

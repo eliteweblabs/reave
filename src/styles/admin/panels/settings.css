@@ -295,6 +295,26 @@
 .prof-section-fields > .prof-actions {
   padding-top: 0;
 }
+.prof-sig-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.prof-sig-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.prof-sig-preview {
+  background: #fff;
+  color: #18181b;
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+}
 .prof-section-fields > .soc-add-row,
 .prof-section-fields > .soc-hidden-wrap {
   margin-top: 0;

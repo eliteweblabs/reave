@@ -39,6 +39,7 @@ export const FEATURE_IDS = [
   'deploy_wizard',
   'website',
   'credit_check',
+  'email_signature',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -102,6 +103,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   deploy_wizard: 'Deploy wizard',
   website: 'Website',
   credit_check: 'Credit check',
+  email_signature: 'Email signature',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -144,6 +146,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   website: 'Client website tools — edit, stock photos, publish. No hosting APIs',
   credit_check:
     'Applicant credit pull for forms and deal flow — reference only until a bureau is chosen',
+  email_signature:
+    'Branded HTML signature from the account profile — copy for Gmail/Outlook and append to outbound mail',
 };
 
 export type FeatureVisibility = 'public' | 'private';

@@ -37,6 +37,7 @@ import { cookieNoticePlugin } from '../../plugins/cookie-notice/manifest';
 import { deployWizardPlugin } from '../../plugins/deploy-wizard/manifest';
 import { googleWorkspaceDkimPlugin } from '../../plugins/google-workspace-dkim/manifest';
 import { websitePlugin } from '../../plugins/website/manifest';
+import { emailSignaturePlugin } from '../../plugins/email-signature/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -68,6 +69,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   deployWizardPlugin,
   googleWorkspaceDkimPlugin,
   websitePlugin,
+  emailSignaturePlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -199,6 +201,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['google-workspace-dkim'];
     case 'website':
       return ['website'];
+    case 'email-signature':
+      return ['email-signature'];
     default:
       return [];
   }

@@ -1,5 +1,5 @@
 {
-  "features": ["demo"],
+  "features": ["demo", "email_signature"],
   "footerNav": [
     "__system__",
     "modules",

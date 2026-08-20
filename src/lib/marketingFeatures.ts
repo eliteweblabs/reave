@@ -90,6 +90,13 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     href: '/features#feature-email',
   },
   {
+    id: 'email-signature',
+    label: 'Email signature',
+    modules: ['email_signature'],
+    kind: 'capability',
+    href: '/features#feature-email',
+  },
+  {
     id: 'knowledge-base',
     label: 'Knowledge base',
     modules: [],

@@ -7,6 +7,7 @@ import { buildReplyEmailHeaders, buildReplySubject, resolveReplyRecipient } from
 import { brandedEmailHtml, type EmailCta } from './emailTemplates';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from './outbound';
+import { appendSignatureText, buildAccountEmailSignature } from './emailSignature';
 
 export type OutboundMail = { subject: string; text: string; html?: string };
 
@@ -44,15 +45,22 @@ export async function brandedPlainTextEmail(opts: {
   body: string;
   cta?: EmailCta;
   note?: string;
+  /** Clerk user whose profile signature should be appended (email_signature). */
+  userId?: string | null;
 }): Promise<{ text: string; html: string }> {
   const firstName = firstNameFrom(opts.firstName);
   const paragraphs = bodyParagraphs(opts.body);
-  const text = [`Hi ${firstName},`, '', ...paragraphs].join('\n\n');
+  const signature = await buildAccountEmailSignature({ userId: opts.userId });
+  const text = appendSignatureText(
+    [`Hi ${firstName},`, '', ...paragraphs].join('\n\n'),
+    signature?.text ?? '',
+  );
   const html = await brandedEmailHtml({
     firstName,
     paragraphs,
     cta: opts.cta,
     note: opts.note,
+    signatureHtml: signature?.html,
   });
   return { text, html };
 }

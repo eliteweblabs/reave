@@ -5,7 +5,8 @@
     "documents",
     "scheduling",
     "site_audits",
-    "content_management"
+    "content_management",
+    "email_signature"
   ],
   "footerNav": [
     "__system__",

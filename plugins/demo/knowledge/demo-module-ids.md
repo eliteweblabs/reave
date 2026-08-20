@@ -12,7 +12,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 
 ## Module picker
 
-Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistant`, `billing`) are always enabled on tier-1 demos and are **not shown** in the public `/demo-loader` picker.
+Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistant`, `billing`) plus **035** (`email_signature`) are always enabled on tier-1 demos and are **not shown** in the public `/demo-loader` picker.
 
 | ID | Feature | Label |
 |----|---------|-------|
@@ -45,6 +45,7 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 027 | `wordpress_content` | WordPress content plugin |
 | 033 | `website` | Website |
 | 034 | `credit_check` | Credit check |
+| 035 | `email_signature` | Email signature |
 
 ## Default suite (no URL)
 

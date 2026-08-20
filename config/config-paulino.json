@@ -10,7 +10,8 @@
     "time_tracking",
     "online_reviews",
     "site_audits",
-    "stock_photos"
+    "stock_photos",
+    "email_signature"
   ],
   "footerNav": [
     "__system__",
@@ -50,6 +51,7 @@
     "time_tracking": "deployed",
     "online_reviews": "request",
     "site_audits": "request",
-    "stock_photos": "request"
+    "stock_photos": "request",
+    "email_signature": "deployed"
   }
 }

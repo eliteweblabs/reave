@@ -30,6 +30,7 @@
     "check:email-project-title": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-project-title.ts",
     "check:email-triage": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-triage-scenarios.ts",
     "check:email-meeting": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-meeting-parse.ts",
+    "check:email-signature": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-signature.ts",
     "check:inbound-install": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-inbound-install.ts",
     "check:deploy-wizard": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-deploy-wizard.ts",
     "check:court-radius": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-court-radius.ts",

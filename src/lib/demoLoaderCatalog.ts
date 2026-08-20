@@ -101,6 +101,11 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
     blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
   },
   {
+    id: 'email-signature',
+    label: 'Email Signature',
+    blurb: 'A branded HTML signature from your account profile — copy into Gmail or Outlook, appended on outbound mail.',
+  },
+  {
     id: 'handoff-vault',
     label: 'Handoff Vault',
     blurb: 'Bidirectionally share secure credentials and other data in the portal Data tab.',

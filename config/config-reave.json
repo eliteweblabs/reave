@@ -28,7 +28,8 @@
     "event_ticketing",
     "cookie_notice",
     "deploy_wizard",
-    "credit_check"
+    "credit_check",
+    "email_signature"
   ],
   "footerNav": [
     "__system__",
