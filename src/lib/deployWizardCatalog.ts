@@ -7,6 +7,11 @@
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import {
+  defaultFixturePlaybook,
+  normalizeIndustryPlaybook,
+  type DeckIndustryPlaybook,
+} from './industryPlaybook';
 import { isPracticeArea } from './practiceGate';
 import { normalizePostAlias } from './postAlias';
 import { defaultWebsiteRepoSlug } from './websiteEditorRepo';
@@ -1477,17 +1482,89 @@ export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY'
 /** Operator secrets that block Apply when empty. Resend is copied from this host on apply. */
 export const DEPLOY_WIZARD_REQUIRED_OPERATOR_SECRETS = new Set<string>();
 
-export const DEPLOY_WIZARD_SEED_INDUSTRIES = [
-  { id: 'none', label: 'No sample data' },
+export const DEPLOY_WIZARD_NONE_INDUSTRY = { id: 'none', label: 'No sample data' } as const;
+
+/** Industries that have dedicated seed fixtures in `scripts/demo-industries`. */
+export const DEPLOY_WIZARD_FIXTURE_INDUSTRIES = [
   { id: 'law', label: 'Law firm' },
   { id: 'plumbing', label: 'Plumbing' },
   { id: 'general', label: 'General contractor' },
 ] as const;
 
-export type DeployWizardSeedIndustryId = (typeof DEPLOY_WIZARD_SEED_INDUSTRIES)[number]['id'];
+/** Fallback picker when the industries catalog is empty. */
+export const DEPLOY_WIZARD_SEED_INDUSTRIES = [
+  DEPLOY_WIZARD_NONE_INDUSTRY,
+  ...DEPLOY_WIZARD_FIXTURE_INDUSTRIES,
+] as const;
 
-export function isDeployWizardSeedIndustryId(value: string): value is DeployWizardSeedIndustryId {
-  return DEPLOY_WIZARD_SEED_INDUSTRIES.some((row) => row.id === value);
+export type DeployWizardSeedIndustryId = string;
+
+export function slugifyDeployWizardIndustry(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+/** `none` or a slug the industries catalog / seed picker can persist. */
+export function isDeployWizardSeedIndustryId(value: string): boolean {
+  if (value === 'none') return true;
+  const slug = slugifyDeployWizardIndustry(value);
+  return slug.length > 0 && slug === value.trim().toLowerCase();
+}
+
+/**
+ * Picker list: no sample data, then enabled catalog industries, then fixture
+ * industries the seed scripts still understand if the catalog has not listed them.
+ * Disabled catalog rows stay hidden (fixture fallbacks do not re-add them).
+ */
+export type DeployWizardSeedIndustry = {
+  id: string;
+  label: string;
+  playbook: DeckIndustryPlaybook;
+};
+
+export function mergeDeployWizardSeedIndustries(
+  industries: ReadonlyArray<{
+    id?: string | number;
+    slug?: string;
+    label: string;
+    enabled?: boolean;
+    playbook?: unknown;
+  }>,
+): DeployWizardSeedIndustry[] {
+  const seen = new Set<string>(['none']);
+  const catalog = new Set<string>();
+  const rest: DeployWizardSeedIndustry[] = [];
+  const add = (rawId: string, rawLabel: string, playbook?: unknown) => {
+    const id = slugifyDeployWizardIndustry(rawId);
+    const label = rawLabel.trim();
+    if (!id || !label || seen.has(id)) return;
+    seen.add(id);
+    rest.push({
+      id,
+      label,
+      playbook: normalizeIndustryPlaybook(playbook ?? defaultFixturePlaybook(id)),
+    });
+  };
+  for (const row of industries) {
+    const id = slugifyDeployWizardIndustry(String(row.slug || row.id || row.label));
+    if (id) catalog.add(id);
+    if (row.enabled === false) continue;
+    add(String(row.slug || row.id || row.label), row.label, row.playbook);
+  }
+  for (const row of DEPLOY_WIZARD_FIXTURE_INDUSTRIES) {
+    if (catalog.has(row.id)) continue;
+    add(row.id, row.label, defaultFixturePlaybook(row.id));
+  }
+  rest.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  return [
+    { id: 'none', label: 'No sample data', playbook: normalizeIndustryPlaybook(null) },
+    ...rest,
+  ];
 }
 
 export type DeployWizardSeedInput = {
@@ -1740,7 +1817,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
   if (seed.industry !== 'none') {
     const seedVars: Array<{ name: string; value: string; description: string }> = [
-      { name: 'DEMO_INDUSTRY', value: seed.industry, description: 'Sample-data industry (law, plumbing, general).' },
+      { name: 'DEMO_INDUSTRY', value: seed.industry, description: 'Sample-data industry slug from Admin → Industries.' },
       { name: 'SEED_ON_BOOT', value: '1', description: 'First admin visit seeds inbox, todos, and schedule.' },
       { name: 'SEED_INBOX', value: seed.inbox ? '1' : '0', description: 'Seed a sample inbox when live email is not connected yet.' },
       { name: 'SEED_TODOS', value: seed.todos ? '1' : '0', description: 'Seed sample todos / matters.' },

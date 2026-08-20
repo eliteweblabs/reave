@@ -156,7 +156,7 @@ export type InstallConfigClient = Pick<
   showPersonal?: boolean;
   /** Deploy wizard (`/deploy`) — official REΛVE Railway install only. */
   showDeployWizard?: boolean;
-  /** Industries catalog editor — official REΛVE Railway install only. */
+  /** Industries / deploy-playbook editor — official REΛVE Railway install only. */
   showIndustries?: boolean;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;

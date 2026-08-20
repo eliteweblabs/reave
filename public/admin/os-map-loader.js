@@ -6354,11 +6354,84 @@ function setIndustryEnabledToggle(toggle, enabled) {
   toggle.setAttribute('aria-label', on ? 'Enabled' : 'Disabled');
 }
 
-function createIndustryRow(item, { onDelete, onToggle } = {}) {
+function normalizeIndustryPlaybookClient(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const moduleIds = Array.isArray(o.moduleIds)
+    ? [...new Set(o.moduleIds.map((id) => String(id).trim().padStart(3, '0')).filter((id) => /^\d{3}$/.test(id)))]
+        .filter((id) => !['001', '002', '003', '004'].includes(id))
+        .sort()
+    : [];
+  const extras = Array.isArray(o.extras)
+    ? [...new Set(o.extras.filter((id) => typeof id === 'string'))]
+    : [];
+  return {
+    moduleIds,
+    extras,
+    seedInbox: o.seedInbox !== false,
+    seedTodos: o.seedTodos !== false,
+    seedSchedule: o.seedSchedule !== false,
+    postAlias: typeof o.postAlias === 'string' ? o.postAlias.trim().toLowerCase() : '',
+    notes: typeof o.notes === 'string' ? o.notes.replace(/\r\n/g, '\n').trim() : '',
+  };
+}
+
+function playbookFromIndustryCard(card) {
+  let stored = {};
+  try {
+    stored = JSON.parse(card.dataset.playbook || '{}');
+  } catch {
+    stored = {};
+  }
+  const fallback = normalizeIndustryPlaybookClient(stored);
+  const moduleChips = card.querySelectorAll('[data-ind-module]');
+  const extraChips = card.querySelectorAll('[data-ind-extra]');
+  return {
+    notes: card.querySelector('.ind-notes')?.value?.trim() || '',
+    postAlias: card.querySelector('.ind-post-alias')?.value?.trim().toLowerCase() || '',
+    seedInbox: card.querySelector('[data-ind-seed="inbox"]')?.getAttribute('aria-checked') === 'true',
+    seedTodos: card.querySelector('[data-ind-seed="todos"]')?.getAttribute('aria-checked') === 'true',
+    seedSchedule: card.querySelector('[data-ind-seed="schedule"]')?.getAttribute('aria-checked') === 'true',
+    moduleIds: moduleChips.length
+      ? Array.from(card.querySelectorAll('[data-ind-module][aria-checked="true"]'))
+          .map((el) => el.getAttribute('data-ind-module') || '')
+          .filter(Boolean)
+          .sort()
+      : fallback.moduleIds,
+    extras: extraChips.length
+      ? Array.from(card.querySelectorAll('[data-ind-extra][aria-checked="true"]'))
+          .map((el) => el.getAttribute('data-ind-extra') || '')
+          .filter(Boolean)
+      : fallback.extras,
+  };
+}
+
+function setIndustryChip(btn, on) {
+  if (!(btn instanceof HTMLElement)) return;
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  btn.classList.toggle('is-on', on);
+}
+
+function industryChip(kind, id, label, on) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ind-chip';
+  btn.setAttribute('role', 'switch');
+  btn.setAttribute(kind === 'module' ? 'data-ind-module' : kind === 'extra' ? 'data-ind-extra' : 'data-ind-seed', id);
+  btn.textContent = label;
+  setIndustryChip(btn, on);
+  return btn;
+}
+
+function createIndustryRow(item, { onDelete, onToggle, onPlaybookChange, modules = [], extras = [], expanded = false } = {}) {
   const enabled = item?.enabled !== false;
+  const playbook = normalizeIndustryPlaybookClient(item?.playbook);
+  const card = document.createElement('div');
+  card.className = 'ind-card' + (expanded ? ' is-open' : '');
+  if (item?.slug) card.dataset.slug = item.slug;
+  card.dataset.playbook = JSON.stringify(playbook);
+
   const row = document.createElement('div');
   row.className = 'ind-row';
-  if (item?.slug) row.dataset.slug = item.slug;
 
   const labelInput = document.createElement('input');
   labelInput.className = 'ind-label';
@@ -6366,6 +6439,12 @@ function createIndustryRow(item, { onDelete, onToggle } = {}) {
   labelInput.value = item?.label || '';
   labelInput.placeholder = 'Industry';
   labelInput.setAttribute('aria-label', 'Industry label');
+
+  const expandBtn = document.createElement('button');
+  expandBtn.type = 'button';
+  expandBtn.className = 'prof-btn-secondary ind-expand';
+  expandBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  expandBtn.textContent = 'Playbook';
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
@@ -6382,11 +6461,103 @@ function createIndustryRow(item, { onDelete, onToggle } = {}) {
 
   const removeBtn = paneDeleteIcon({
     label: 'Delete industry',
-    onClick: () => onDelete?.(row),
+    onClick: () => onDelete?.(card),
   });
 
-  row.append(labelInput, toggle, removeBtn);
-  return row;
+  row.append(labelInput, expandBtn, toggle, removeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'ind-playbook';
+  if (!expanded) body.hidden = true;
+
+  const notesField = document.createElement('label');
+  notesField.className = 'ind-field';
+  notesField.innerHTML = `<span>What to include</span>`;
+  const notes = document.createElement('textarea');
+  notes.className = 'ind-notes';
+  notes.rows = 3;
+  notes.maxLength = 2000;
+  notes.placeholder = 'Operator notes for this deploy — modules to stress, sample-data caveats, court/knowledge setup…';
+  notes.value = playbook.notes;
+  notes.setAttribute('aria-label', 'Deployment instructions');
+  notesField.appendChild(notes);
+
+  const aliasField = document.createElement('label');
+  aliasField.className = 'ind-field';
+  aliasField.innerHTML = `<span>Work name</span>`;
+  const alias = document.createElement('input');
+  alias.className = 'ind-post-alias';
+  alias.type = 'text';
+  alias.maxLength = 32;
+  alias.placeholder = 'project';
+  alias.value = playbook.postAlias;
+  alias.setAttribute('aria-label', 'Work record name');
+  aliasField.appendChild(alias);
+
+  const seedWrap = document.createElement('div');
+  seedWrap.className = 'ind-chip-list';
+  seedWrap.setAttribute('role', 'group');
+  seedWrap.setAttribute('aria-label', 'Sample data');
+  seedWrap.append(
+    industryChip('seed', 'inbox', 'Inbox', playbook.seedInbox),
+    industryChip('seed', 'todos', 'Todos', playbook.seedTodos),
+    industryChip('seed', 'schedule', 'Schedule', playbook.seedSchedule),
+  );
+
+  const moduleWrap = document.createElement('div');
+  moduleWrap.className = 'ind-chip-list';
+  moduleWrap.setAttribute('role', 'group');
+  moduleWrap.setAttribute('aria-label', 'Optional modules');
+  const moduleSet = new Set(playbook.moduleIds);
+  if (modules.length) {
+    for (const mod of modules) {
+      moduleWrap.appendChild(industryChip('module', mod.id, mod.label, moduleSet.has(mod.id)));
+    }
+  } else {
+    moduleWrap.innerHTML = `<p class="ind-empty">Module catalog unavailable.</p>`;
+  }
+
+  const extraWrap = document.createElement('div');
+  extraWrap.className = 'ind-chip-list';
+  extraWrap.setAttribute('role', 'group');
+  extraWrap.setAttribute('aria-label', 'Optional extras');
+  const extraSet = new Set(playbook.extras);
+  for (const extra of extras) {
+    extraWrap.appendChild(industryChip('extra', extra.id, extra.label, extraSet.has(extra.id)));
+  }
+
+  const seedLabel = document.createElement('p');
+  seedLabel.className = 'ind-field-label';
+  seedLabel.textContent = 'Sample data';
+  const moduleLabel = document.createElement('p');
+  moduleLabel.className = 'ind-field-label';
+  moduleLabel.textContent = 'Optional modules';
+  const extraLabel = document.createElement('p');
+  extraLabel.className = 'ind-field-label';
+  extraLabel.textContent = extras.length ? 'Optional extras' : '';
+
+  body.append(notesField, aliasField, seedLabel, seedWrap, moduleLabel, moduleWrap);
+  if (extras.length) body.append(extraLabel, extraWrap);
+
+  expandBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const open = !card.classList.contains('is-open');
+    card.classList.toggle('is-open', open);
+    body.hidden = !open;
+    expandBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  body.addEventListener('click', (e) => {
+    const chip = e.target?.closest?.('.ind-chip');
+    if (!chip) return;
+    e.preventDefault();
+    const next = chip.getAttribute('aria-checked') !== 'true';
+    setIndustryChip(chip, next);
+    onPlaybookChange?.(chip);
+  });
+
+  card.append(row, body);
+  return card;
 }
 
 function mountIndustriesList(listEl, industries, rowHandlers) {
@@ -6396,20 +6567,36 @@ function mountIndustriesList(listEl, industries, rowHandlers) {
     listEl.innerHTML = industriesEmptyHtml();
     return;
   }
+  const openSlugs = rowHandlers.openSlugs instanceof Set ? rowHandlers.openSlugs : new Set();
   for (const item of list) {
-    listEl.appendChild(createIndustryRow(item, rowHandlers));
+    listEl.appendChild(
+      createIndustryRow(item, {
+        ...rowHandlers,
+        expanded: Boolean(item?.slug && openSlugs.has(item.slug)),
+      }),
+    );
   }
 }
 
 function collectIndustriesFromDom(root) {
-  return Array.from(root.querySelectorAll('.ind-row'))
-    .map((row, i) => {
-      const label = row.querySelector('.ind-label')?.value?.trim() || '';
-      const slug = row.dataset.slug?.trim() || '';
-      const enabled = row.querySelector('.ind-enabled-toggle')?.getAttribute('aria-checked') === 'true';
-      return { label, slug: slug || undefined, enabled, sortOrder: i };
+  return Array.from(root.querySelectorAll('.ind-card'))
+    .map((card, i) => {
+      const label = card.querySelector('.ind-label')?.value?.trim() || '';
+      const slug = card.dataset.slug?.trim() || '';
+      const enabled = card.querySelector('.ind-enabled-toggle')?.getAttribute('aria-checked') === 'true';
+      return {
+        label,
+        slug: slug || undefined,
+        enabled,
+        sortOrder: i,
+        playbook: normalizeIndustryPlaybookClient(playbookFromIndustryCard(card)),
+      };
     })
     .filter((r) => r.label);
+}
+
+function industriesIdentity(industries) {
+  return (industries || []).map((item) => `${item.slug || ''}\t${item.label || ''}`).join('\n');
 }
 
 function industriesBaselineFromList(industries) {
@@ -6419,6 +6606,7 @@ function industriesBaselineFromList(industries) {
       slug: item.slug || '',
       enabled: item.enabled !== false,
       sortOrder: i,
+      playbook: normalizeIndustryPlaybookClient(item.playbook),
     })),
   );
 }
@@ -6431,25 +6619,43 @@ function industriesBaselineFromList(industries) {
  */
 function syncIndustriesListFromServer(listEl, industries, rowHandlers) {
   const active = document.activeElement;
-  const wasInList = active instanceof HTMLInputElement && listEl.contains(active);
-  const activeRow = wasInList ? active.closest('.ind-row') : null;
-  const activeSlug = activeRow?.dataset.slug || '';
-  const activeLabel = wasInList ? active.value.trim() : '';
-  const selStart = wasInList ? active.selectionStart : null;
-  const selEnd = wasInList ? active.selectionEnd : null;
+  const wasInList = active instanceof HTMLElement && listEl.contains(active);
+  const activeCard = wasInList ? active.closest('.ind-card') : null;
+  const activeSlug = activeCard?.dataset.slug || '';
+  const activeLabel = activeCard?.querySelector('.ind-label')?.value?.trim() || '';
+  const focusKey = wasInList
+    ? active.classList.contains('ind-label')
+      ? 'label'
+      : active.classList.contains('ind-notes')
+        ? 'notes'
+        : active.classList.contains('ind-post-alias')
+          ? 'alias'
+          : null
+    : null;
+  const selStart = wasInList && 'selectionStart' in active ? active.selectionStart : null;
+  const selEnd = wasInList && 'selectionEnd' in active ? active.selectionEnd : null;
+  const openSlugs = new Set(rowHandlers.openSlugs instanceof Set ? rowHandlers.openSlugs : []);
+  listEl.querySelectorAll('.ind-card.is-open').forEach((card) => {
+    if (card.dataset.slug) openSlugs.add(card.dataset.slug);
+  });
+  rowHandlers.openSlugs = openSlugs;
 
   mountIndustriesList(listEl, industries, rowHandlers);
 
   if (!wasInList) return null;
 
-  const rows = Array.from(listEl.querySelectorAll('.ind-row'));
+  const cards = Array.from(listEl.querySelectorAll('.ind-card'));
   const match =
-    (activeSlug && rows.find((r) => r.dataset.slug === activeSlug)) ||
-    (activeLabel &&
-      rows.find((r) => r.querySelector('.ind-label')?.value?.trim() === activeLabel)) ||
+    (activeSlug && cards.find((c) => c.dataset.slug === activeSlug)) ||
+    (activeLabel && cards.find((c) => c.querySelector('.ind-label')?.value?.trim() === activeLabel)) ||
     null;
-  const input = match?.querySelector('.ind-label');
-  if (!(input instanceof HTMLInputElement)) return null;
+  const input =
+    focusKey === 'notes'
+      ? match?.querySelector('.ind-notes')
+      : focusKey === 'alias'
+        ? match?.querySelector('.ind-post-alias')
+        : match?.querySelector('.ind-label');
+  if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLTextAreaElement)) return null;
   input.focus();
   try {
     const len = input.value.length;
@@ -6463,7 +6669,7 @@ function syncIndustriesListFromServer(listEl, industries, rowHandlers) {
   return input;
 }
 
-function bindIndustriesEditor(root, industries) {
+function bindIndustriesEditor(root, industries, catalogs = {}) {
   const listEl = root.querySelector('#industries-list');
   const alertEl = root.querySelector('#industries-alert');
   const addBtn = root.querySelector('#industries-add-btn');
@@ -6474,7 +6680,11 @@ function bindIndustriesEditor(root, industries) {
   let debounceTimer = null;
   let saving = false;
   let pendingFlush = false;
-  const rowHandlers = {};
+  const rowHandlers = {
+    modules: Array.isArray(catalogs.modules) ? catalogs.modules : [],
+    extras: Array.isArray(catalogs.extras) ? catalogs.extras : [],
+    openSlugs: new Set(),
+  };
 
   const snapshot = () => JSON.stringify(collectIndustriesFromDom(root));
 
@@ -6502,8 +6712,18 @@ function bindIndustriesEditor(root, industries) {
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.ok) {
-        const focused = syncIndustriesListFromServer(listEl, json.industries, rowHandlers);
-        if (focused) activeEl = focused;
+        if (industriesIdentity(json.industries) !== industriesIdentity(nextIndustries)) {
+          const focused = syncIndustriesListFromServer(listEl, json.industries, rowHandlers);
+          if (focused) activeEl = focused;
+        } else {
+          const cards = Array.from(listEl.querySelectorAll('.ind-card'));
+          for (const item of json.industries || []) {
+            const card =
+              cards.find((c) => c.dataset.slug === item.slug) ||
+              cards.find((c) => c.querySelector('.ind-label')?.value?.trim() === item.label);
+            if (card && item.slug) card.dataset.slug = item.slug;
+          }
+        }
         baseline = industriesBaselineFromList(json.industries);
         if (activeEl) flashFormFieldSaved(activeEl);
       } else {
@@ -6542,9 +6762,10 @@ function bindIndustriesEditor(root, industries) {
     debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
-  const removeRow = (row) => {
-    row?.remove();
-    if (!listEl.querySelector('.ind-row')) {
+  const removeRow = (card) => {
+    if (card?.dataset?.slug) rowHandlers.openSlugs.delete(card.dataset.slug);
+    card?.remove();
+    if (!listEl.querySelector('.ind-card')) {
       listEl.innerHTML = industriesEmptyHtml();
     }
     activeEl = null;
@@ -6558,6 +6779,7 @@ function bindIndustriesEditor(root, industries) {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
+  rowHandlers.onPlaybookChange = (el) => schedule(el);
 
   mountIndustriesList(listEl, industries, rowHandlers);
   baseline = industriesBaselineFromList(
@@ -6565,14 +6787,17 @@ function bindIndustriesEditor(root, industries) {
   );
 
   listEl.addEventListener('input', (e) => {
-    if (e.target?.matches?.('.ind-label')) schedule(e.target);
+    if (e.target?.matches?.('.ind-label, .ind-notes, .ind-post-alias')) schedule(e.target);
   });
 
   addBtn?.addEventListener('click', () => {
     listEl.querySelector('.ind-empty')?.remove();
-    const row = createIndustryRow({ label: '', slug: '', enabled: true }, rowHandlers);
-    listEl.appendChild(row);
-    const labelInput = row.querySelector('.ind-label');
+    const card = createIndustryRow(
+      { label: '', slug: '', enabled: true, playbook: normalizeIndustryPlaybookClient(null) },
+      { ...rowHandlers, expanded: true },
+    );
+    listEl.appendChild(card);
+    const labelInput = card.querySelector('.ind-label');
     labelInput?.focus();
     if (labelInput) schedule(labelInput);
   });
@@ -7176,12 +7401,12 @@ function renderIndustriesPanel() {
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Industries</h1>` +
-        `<p class="prof-subtitle">Categories used for deck presets and client-facing filters.</p>` +
+        `<p class="prof-subtitle">Deployment playbooks — what each industry install should include.</p>` +
         `<div id="industries-alert" class="prof-alert" hidden></div>` +
         `<div class="prof-form">` +
           profSection(
-            'Categories',
-            'Used for <code>/deck?type=…</code> presets. Edit names; turn Off to hide without deleting.',
+            'Playbooks',
+            'Each industry is a deploy recipe: operator notes, work name, sample data, and modules. The deploy wizard applies this when you pick the industry. Turn Off to hide without deleting.',
             `<div id="industries-list" class="ind-list"></div>` +
             `<div class="prof-actions ind-actions">` +
               `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
@@ -7584,7 +7809,10 @@ async function loadIndustriesTab() {
     }
     root.innerHTML = renderIndustriesPanel();
     prependSettingsBackHeader(root);
-    bindIndustriesEditor(root, industriesData.industries);
+    bindIndustriesEditor(root, industriesData.industries, {
+      modules: industriesData.modules || [],
+      extras: industriesData.extras || [],
+    });
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +

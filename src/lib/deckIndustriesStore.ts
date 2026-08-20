@@ -2,7 +2,7 @@
  * Editable deck industry / category list.
  * Postgres (DATABASE_URL) when set, otherwise JSON under src/knowledge/.
  *
- * Used by `/deck?type=salon` presets (and admin Profile editor).
+ * Used by `/deck?type=salon` presets, the demo loader, and deploy playbooks.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -11,6 +11,13 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
+import {
+  defaultFixturePlaybook,
+  normalizeIndustryPlaybook,
+  type DeckIndustryPlaybook,
+} from './industryPlaybook';
+
+export type { DeckIndustryPlaybook } from './industryPlaybook';
 
 export type DeckIndustry = {
   id: number;
@@ -18,6 +25,7 @@ export type DeckIndustry = {
   label: string;
   sortOrder: number;
   enabled: boolean;
+  playbook: DeckIndustryPlaybook;
   updatedAt: string | null;
 };
 
@@ -39,10 +47,12 @@ CREATE TABLE IF NOT EXISTS deck_industries (
   label       VARCHAR(120) NOT NULL,
   sort_order  INT NOT NULL DEFAULT 0,
   enabled     BOOLEAN NOT NULL DEFAULT true,
+  playbook    JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_deck_industries_sort ON deck_industries (sort_order, id);
+ALTER TABLE deck_industries ADD COLUMN IF NOT EXISTS playbook JSONB NOT NULL DEFAULT '{}'::jsonb;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -101,6 +111,7 @@ function rowToIndustry(row: {
   label: string;
   sort_order: number;
   enabled: boolean;
+  playbook?: unknown;
   updated_at: Date | string | null;
 }): DeckIndustry {
   return {
@@ -109,6 +120,7 @@ function rowToIndustry(row: {
     label: row.label,
     sortOrder: row.sort_order,
     enabled: row.enabled,
+    playbook: normalizeIndustryPlaybook(row.playbook ?? defaultFixturePlaybook(row.slug)),
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   };
 }
@@ -121,6 +133,7 @@ function defaultsAsIndustries(): DeckIndustry[] {
     label: d.label,
     sortOrder: i,
     enabled: true,
+    playbook: defaultFixturePlaybook(d.slug),
     updatedAt: now,
   }));
 }
@@ -144,6 +157,7 @@ function normalizeFileList(raw: unknown): DeckIndustry[] {
           ? o.sortOrder
           : i,
       enabled: o.enabled === false ? false : true,
+      playbook: normalizeIndustryPlaybook(o.playbook ?? defaultFixturePlaybook(slug)),
       updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : null,
     });
   });
@@ -175,6 +189,7 @@ function writeFileIndustries(list: DeckIndustry[]): boolean {
       label: item.label,
       sortOrder: item.sortOrder ?? i,
       enabled: item.enabled !== false,
+      playbook: normalizeIndustryPlaybook(item.playbook),
       updatedAt: new Date().toISOString(),
     }));
     writeFileSync(path, JSON.stringify(payload, null, 2) + '\n', 'utf8');
@@ -193,10 +208,10 @@ async function seedPgIfEmpty(pool: pg.Pool): Promise<void> {
   for (let i = 0; i < DEFAULT_DECK_INDUSTRIES.length; i++) {
     const d = DEFAULT_DECK_INDUSTRIES[i]!;
     await pool.query(
-      `INSERT INTO deck_industries (slug, label, sort_order, enabled)
-       VALUES ($1, $2, $3, true)
+      `INSERT INTO deck_industries (slug, label, sort_order, enabled, playbook)
+       VALUES ($1, $2, $3, true, $4::jsonb)
        ON CONFLICT (slug) DO NOTHING`,
-      [d.slug, d.label, i],
+      [d.slug, d.label, i, JSON.stringify(defaultFixturePlaybook(d.slug))],
     );
   }
 }
@@ -211,9 +226,10 @@ async function readPgIndustries(): Promise<DeckIndustry[]> {
     label: string;
     sort_order: number;
     enabled: boolean;
+    playbook: unknown;
     updated_at: Date | string | null;
   }>(
-    `SELECT id, slug, label, sort_order, enabled, updated_at
+    `SELECT id, slug, label, sort_order, enabled, playbook, updated_at
      FROM deck_industries
      ORDER BY sort_order ASC, id ASC`,
   );
@@ -226,6 +242,7 @@ export type DeckIndustryInput = {
   label: string;
   sortOrder?: number;
   enabled?: boolean;
+  playbook?: unknown;
 };
 
 function normalizeInputList(raw: DeckIndustryInput[]): DeckIndustryInput[] {
@@ -252,6 +269,7 @@ function normalizeInputList(raw: DeckIndustryInput[]): DeckIndustryInput[] {
       slug: candidate,
       label,
       enabled: item.enabled === false ? false : true,
+      playbook: normalizeIndustryPlaybook(item.playbook ?? defaultFixturePlaybook(candidate)),
     });
   });
   // Alphabetical by label on every save; sortOrder is derived from that order.
@@ -270,9 +288,15 @@ async function replacePgIndustries(inputs: DeckIndustryInput[]): Promise<DeckInd
     for (let i = 0; i < list.length; i++) {
       const item = list[i]!;
       await client.query(
-        `INSERT INTO deck_industries (slug, label, sort_order, enabled, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())`,
-        [item.slug, item.label, item.sortOrder ?? i, item.enabled !== false],
+        `INSERT INTO deck_industries (slug, label, sort_order, enabled, playbook, updated_at)
+         VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
+        [
+          item.slug,
+          item.label,
+          item.sortOrder ?? i,
+          item.enabled !== false,
+          JSON.stringify(normalizeIndustryPlaybook(item.playbook)),
+        ],
       );
     }
     await client.query('COMMIT');
@@ -332,6 +356,7 @@ export async function replaceDeckIndustries(
       label: item.label,
       sortOrder: item.sortOrder ?? i,
       enabled: item.enabled !== false,
+      playbook: normalizeIndustryPlaybook(item.playbook),
       updatedAt: new Date().toISOString(),
     }));
     if (!writeFileIndustries(industries)) {

@@ -10,6 +10,8 @@ import {
   deployWizardFqdn,
   formatDeployWizardCli,
   isDeployWizardNewProjectRef,
+  isDeployWizardSeedIndustryId,
+  mergeDeployWizardSeedIndustries,
   normalizeSiteDomain,
   railwayPrivateUrl,
   railwayPublicUrl,
@@ -24,6 +26,10 @@ import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/l
 import { buildGithubAppManifest, githubAppInstallUrl, githubAppManifestName, publicGithubAppOrigin } from '../src/lib/deployWizardGithubApp.ts';
 import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
+import {
+  applyIndustryPlaybookToWizard,
+  normalizeIndustryPlaybook,
+} from '../src/lib/industryPlaybook.ts';
 import {
   featureVisibility,
   isPrivateFeature,
@@ -246,6 +252,54 @@ const lawSeed = buildDeployWizardPlan({
   seed: { industry: 'law', inbox: true, todos: true, schedule: true },
 });
 assert.equal(lawSeed.seed.industry, 'law');
+assert.equal(isDeployWizardSeedIndustryId('salon'), true);
+assert.equal(isDeployWizardSeedIndustryId('not a slug!!!'), false);
+assert.equal(isDeployWizardSeedIndustryId('none'), true);
+const catalogPicker = mergeDeployWizardSeedIndustries([
+  { slug: 'salon', label: 'Salon' },
+  { slug: 'real-estate', label: 'Real estate' },
+  { slug: 'law', label: 'Law firm', enabled: false },
+]);
+assert.deepEqual(
+  catalogPicker.map((row) => row.id),
+  ['none', 'general', 'plumbing', 'real-estate', 'salon'],
+);
+const emptyCatalogPicker = mergeDeployWizardSeedIndustries([]);
+assert.deepEqual(
+  emptyCatalogPicker.map((row) => row.id),
+  ['none', 'general', 'law', 'plumbing'],
+);
+assert.equal(emptyCatalogPicker.find((row) => row.id === 'law')?.playbook.postAlias, 'matter');
+const salonPlaybook = mergeDeployWizardSeedIndustries([
+  {
+    slug: 'salon',
+    label: 'Salon',
+    playbook: { moduleIds: ['006', '009'], extras: ['materials'], notes: 'Book + voice', postAlias: 'client' },
+  },
+]).find((row) => row.id === 'salon');
+assert.deepEqual(salonPlaybook?.playbook.moduleIds, ['006', '009']);
+assert.deepEqual(salonPlaybook?.playbook.extras, ['materials']);
+assert.equal(salonPlaybook?.playbook.postAlias, 'client');
+const applied = applyIndustryPlaybookToWizard({
+  industryId: 'salon',
+  playbook: salonPlaybook?.playbook,
+  allowedModuleIds: new Set(['001', '002', '003', '004', '006', '009']),
+  baselineModuleIds: ['001', '002', '003', '004'],
+  currentModuleIds: ['001', '002', '003', '004'],
+  currentExtras: [],
+  currentPostAlias: 'project',
+});
+assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009']);
+assert.deepEqual(applied.extras, ['materials']);
+assert.equal(applied.postAlias, 'client');
+assert.equal(normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','), '006');
+const salonSeed = buildDeployWizardPlan({
+  features: ['website'],
+  seed: { industry: 'salon', inbox: true, todos: true, schedule: true },
+});
+assert.equal(salonSeed.seed.industry, 'salon');
+assert.equal(salonSeed.variables.find((v) => v.name === 'DEMO_INDUSTRY')?.filled, 'salon');
+assert.equal(salonSeed.variables.find((v) => v.name === 'COURT_GATE_MODE'), undefined);
 assert.equal(lawSeed.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, false);
 assert.equal(lawSeed.variables.find((v) => v.name === 'DEMO_INDUSTRY')?.filled, 'law');
 assert.equal(lawSeed.variables.find((v) => v.name === 'SEED_ON_BOOT')?.filled, '1');

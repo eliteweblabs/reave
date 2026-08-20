@@ -1,7 +1,7 @@
 /**
- * Admin CRUD for deck industry / category list.
- * GET  — list industries
- * PUT  — replace full list { industries: [{ slug?, label, enabled?, sortOrder? }] }
+ * Admin CRUD for deck industry / category list + deploy playbooks.
+ * GET  — list industries and the module/extra catalog for the editor
+ * PUT  — replace full list { industries: [{ slug?, label, enabled?, playbook? }] }
  */
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -11,7 +11,9 @@ import {
   replaceDeckIndustries,
   type DeckIndustryInput,
 } from '../../../lib/deckIndustriesStore';
+import { DEPLOY_WIZARD_EXTRAS } from '../../../lib/deployWizardCatalog';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
+import { listIndustryPlaybookModules } from '../../../lib/industryPlaybook';
 
 export const prerender = false;
 
@@ -39,6 +41,12 @@ export async function GET(context: APIContext): Promise<Response> {
     ok: true,
     backend: deckIndustriesStorageBackend(),
     industries,
+    modules: listIndustryPlaybookModules(),
+    extras: DEPLOY_WIZARD_EXTRAS.map((e) => ({
+      id: e.id,
+      label: e.label,
+      blurb: e.blurb,
+    })),
   });
 }
 
@@ -76,6 +84,7 @@ export async function PUT(context: APIContext): Promise<Response> {
       label: o.label,
       sortOrder: typeof o.sortOrder === 'number' ? o.sortOrder : undefined,
       enabled: o.enabled === false ? false : true,
+      playbook: o.playbook,
     });
   }
 

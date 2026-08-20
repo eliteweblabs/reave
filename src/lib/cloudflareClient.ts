@@ -452,3 +452,58 @@ export async function cloudflareVerifyToken(): Promise<CfResult<{ id: string; st
       (accounts.ok ? 'Cloudflare token could not be verified' : accounts.error),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Zone creation
+// ---------------------------------------------------------------------------
+
+export type CfZone = {
+  id: string;
+  name: string;
+  status: string;
+  name_servers: string[];
+  original_name_servers?: string[];
+};
+
+/**
+ * Create a new Cloudflare zone (add a domain to the account).
+ * Returns the zone id and the assigned Cloudflare nameservers.
+ * Requires the token to have Zone → Zone → Edit on the account.
+ */
+export async function cloudflareCreateZone(
+  domain: string,
+  opts?: { jump_start?: boolean; account_id?: string },
+): Promise<CfResult<CfZone>> {
+  const verify = await cloudflareVerifyToken();
+  if (!verify.ok) {
+    return {
+      ok: false,
+      error: `Cloudflare token invalid — cannot create zone (${verify.error})`,
+    };
+  }
+
+  // We need an account id to create a zone
+  let accountId = opts?.account_id;
+  if (!accountId) {
+    const accounts = await cfFetch<{ id: string; name: string }[]>('/accounts?per_page=1');
+    if (!accounts.ok || accounts.data.length === 0) {
+      return {
+        ok: false,
+        error: 'Could not resolve Cloudflare account id — pass account_id explicitly or ensure token has Account → Account Settings → Read',
+      };
+    }
+    accountId = accounts.data[0].id;
+  }
+
+  const body: Record<string, unknown> = {
+    name: domain.toLowerCase().replace(/\.$/, ''),
+    account: { id: accountId },
+    jump_start: opts?.jump_start ?? true,
+  };
+
+  const out = await cfFetch<CfZone>('/zones', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return out;
+}
