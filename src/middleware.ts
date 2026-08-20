@@ -15,6 +15,7 @@ import { isDemoMode } from "./lib/demoMode";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { isClerkFrontendProxyPath, proxyClerkFrontendApi } from "./lib/clerkFrontendProxy";
+import { isClerkRuntimeConfigured } from "./lib/clerkClient";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
 import { publicHostFromRequest, runWithRequestHost } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
@@ -88,7 +89,7 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
   "/services": "contact",
 };
 
-const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
+const appHandler: MiddlewareHandler = async (context, next) => {
   maybePruneRateLimitStore();
   const url = new URL(context.request.url);
   const { pathname } = url;
@@ -219,7 +220,32 @@ const appMiddleware = clerkMiddleware(async (_auth, context, next) => {
     response.headers.set("Expires", "0");
   }
   return applySecurityHeaders(response);
-});
+};
+
+let clerkWrapped: MiddlewareHandler | undefined;
+
+function clerkAppMiddleware(): MiddlewareHandler {
+  if (!clerkWrapped) {
+    clerkWrapped = clerkMiddleware(async (_auth, context, next) => appHandler(context, next));
+  }
+  return clerkWrapped;
+}
+
+async function runAppMiddleware(
+  context: Parameters<MiddlewareHandler>[0],
+  next: Parameters<MiddlewareHandler>[1],
+): Promise<Response> {
+  if (!isClerkRuntimeConfigured()) {
+    console.warn("[middleware] Clerk keys missing — serving without auth hydration");
+    return appHandler(context, next);
+  }
+  try {
+    return await clerkAppMiddleware()(context, next);
+  } catch (err) {
+    console.error("[middleware] clerkMiddleware failed", err);
+    return appHandler(context, next);
+  }
+}
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
   const pathname = new URL(context.request.url).pathname;
@@ -232,7 +258,7 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   }
 
   const host = publicHostFromRequest(context.request);
-  const run = () => runWithRequestHost(host, () => appMiddleware(context, next));
+  const run = () => runWithRequestHost(host, () => runAppMiddleware(context, next));
 
   if (isDemoMode()) {
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);

@@ -50,8 +50,12 @@ const {
 const company = await getCompanyConfig(Astro.request);
 const profileIconSrc = companyStaffAvatarUrl(company);
 
-const auth = Astro.locals.auth?.();
-const userId = auth?.userId ?? null;
+let userId: string | null = null;
+try {
+  userId = Astro.locals.auth?.()?.userId ?? null;
+} catch {
+  userId = null;
+}
 /** Owner-only bulb matches /api/deploy/indicator (unless DEPLOY_STATUS_PUBLIC). */
 const deployStatusPublic = serverEnv("DEPLOY_STATUS_PUBLIC") === "1";
 const showDeployIndicator =

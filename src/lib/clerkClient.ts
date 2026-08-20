@@ -14,6 +14,15 @@ export function isClerkConfigured(): boolean {
   return Boolean(serverEnv('CLERK_SECRET_KEY')?.trim());
 }
 
+export function isClerkFrontendConfigured(): boolean {
+  return Boolean(serverEnv('PUBLIC_CLERK_PUBLISHABLE_KEY')?.trim());
+}
+
+/** Both Clerk keys needed before clerkMiddleware can hydrate a request. */
+export function isClerkRuntimeConfigured(): boolean {
+  return isClerkConfigured() && isClerkFrontendConfigured();
+}
+
 export function isClerkPlatformConfigured(): boolean {
   return Boolean(serverEnv('CLERK_PLATFORM_KEY')?.trim());
 }

@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { isClerkRuntimeConfigured } from '../src/lib/clerkClient.ts';
 import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
 
 const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf8')) as {
@@ -159,5 +160,7 @@ assert.equal(
   'default',
   'reave.app stays marketing even when login is configured',
 );
+
+assert.equal(isClerkRuntimeConfigured(), false, 'unset Clerk keys are not runtime-ready');
 
 console.log('verify-homepage-login: ok');

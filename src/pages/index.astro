@@ -30,7 +30,12 @@ const barbersEdgeOwner = getBarbersEdgeBarber("horell-cruz");
 const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteContent.landing;
 
 if (isLogin) {
-  const userId = Astro.locals.auth()?.userId;
+  let userId: string | null = null;
+  try {
+    userId = Astro.locals.auth?.()?.userId ?? null;
+  } catch {
+    userId = null;
+  }
   if (userId) {
     return Astro.redirect("/admin/");
   }
