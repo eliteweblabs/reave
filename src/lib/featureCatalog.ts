@@ -117,7 +117,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   vapi: 'Voice assistant powered by Vapi',
   carddav: 'Sync contacts to iOS and other CardDAV clients',
   scheduling: 'Bookings, availability, and meeting links via Cal.com',
-  dev_infra: 'Railway, Kinsta, and deploy tooling — owner installs only',
+  dev_infra: 'Railway, Kinsta, Cloudflare, and deploy tooling — owner installs only',
   code_dev: 'Agent read/write/list/exec on the local codebase — owner/agency installs only',
   email_marketing: 'Welcome, follow-ups, review requests, and broadcasts',
   fleet_tracking: 'Live vehicle location and GPS history',
@@ -222,5 +222,5 @@ export function formatMarketingCapabilityCatalog(): string {
   const modules = FEATURE_IDS.filter((id) => isPublicFeature(id))
     .map((id) => FEATURE_LABELS[id])
     .join(', ');
-  return `${CORE_FEATURE_NOTE} Optional modules the platform ships: ${modules}. Sign-in is Clerk. Voice can be Vapi and/or Telnyx. Hosting/deploy is Railway. Mail is Resend. Billing is Crater. Scheduling is Cal.com.`;
+  return `${CORE_FEATURE_NOTE} Optional modules the platform ships: ${modules}. Sign-in is Clerk. Voice can be Vapi and/or Telnyx. Hosting/deploy is Railway. DNS and edge are Cloudflare. Mail is Resend. Billing is Crater. Scheduling is Cal.com.`;
 }

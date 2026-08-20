@@ -20,8 +20,35 @@ export type SalesSheetBackLogo = {
   slug?: string;
 };
 
-/** Full /platform stack, including Astro and Playwright™. */
+/** Full /platform stack, including Astro, Playwright™, and Cloudflare. */
 export const SALES_SHEET_STACK = PLATFORM_STACK;
+
+const REQUIRED_STACK_SLUGS = ['anthropic', 'cloudflare'] as const;
+
+function stackLogoFromTech(tech: (typeof SALES_SHEET_STACK)[number]): SalesSheetBackLogo {
+  return {
+    name: tech.name,
+    slug: tech.slug,
+    src: tech.iconSrc
+      ? `/api/media/${tech.iconSrc}`
+      : tech.iconHref || SIMPLE_ICONS_CDN(tech.slug),
+  };
+}
+
+function hasStackLogo(logos: SalesSheetBackLogo[], slug: string): boolean {
+  const aliases = slug === 'anthropic' ? /anthropic|claude/i : new RegExp(slug, 'i');
+  return logos.some((logo) => aliases.test(`${logo.name} ${logo.slug} ${logo.src}`));
+}
+
+function ensureRequiredStackLogos(logos: SalesSheetBackLogo[]): SalesSheetBackLogo[] {
+  const next = [...logos];
+  for (const slug of REQUIRED_STACK_SLUGS) {
+    if (hasStackLogo(next, slug)) continue;
+    const tech = SALES_SHEET_STACK.find((row) => row.slug === slug);
+    if (tech) next.push(stackLogoFromTech(tech));
+  }
+  return next;
+}
 
 /** Nearby shops named on the REΛVE back — matches /about + /#portfolio. */
 export const SALES_SHEET_LOCAL_CLIENTS = [
@@ -31,23 +58,10 @@ export const SALES_SHEET_LOCAL_CLIENTS = [
 ] as const;
 
 export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): SalesSheetBackLogo[] {
-  if (overrides.length) {
-    const hasAnthropic = overrides.some((logo) => /anthropic|claude/i.test(`${logo.name} ${logo.slug} ${logo.src}`));
-    if (hasAnthropic) return overrides;
-    const anthropic = SALES_SHEET_STACK.find((tech) => tech.slug === 'anthropic');
-    if (!anthropic) return overrides;
-    return [
-      ...overrides,
-      { name: anthropic.name, slug: anthropic.slug, src: SIMPLE_ICONS_CDN(anthropic.slug) },
-    ];
-  }
-  return SALES_SHEET_STACK.map((tech) => ({
-    name: tech.name,
-    slug: tech.slug,
-    src: tech.iconSrc
-      ? `/api/media/${tech.iconSrc}`
-      : tech.iconHref || SIMPLE_ICONS_CDN(tech.slug),
-  }));
+  const logos = overrides.length
+    ? overrides
+    : SALES_SHEET_STACK.map(stackLogoFromTech);
+  return ensureRequiredStackLogos(logos);
 }
 
 function esc(s: string): string {

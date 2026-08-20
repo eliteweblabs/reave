@@ -10,7 +10,7 @@ Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
 Stack logos: `PLATFORM_STACK` in `src/lib/platformStack.ts` (Railway™, Supabase,
-Anthropic/Claude, …) — black marks only, no labels or tiles.
+Anthropic/Claude, Cloudflare, …) — black marks only, no labels or tiles.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
 `/digital-audit`). Hosting copy: `/hosting` Care plans.
 
