@@ -138,7 +138,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260819a';
+} from './work-panel.js?v=20260820a';
 import {
   initTodoPanel,
   todoState,
@@ -9234,8 +9234,18 @@ function syncAdminTabUrl(key, opts = {}) {
       const workSlug = opts.workSlug || workState.activeSlug || parseWorkDeepLinkFromUrl() || null;
       if (workSlug) url.searchParams.set('slug', workSlug);
       else url.searchParams.delete('slug');
+      if (workState.returnToChatId) {
+        url.searchParams.set('fromChat', workState.returnToChatId);
+        if (workState.returnToFocusChat) url.searchParams.set('fromFocus', '1');
+        else url.searchParams.delete('fromFocus');
+      } else {
+        url.searchParams.delete('fromChat');
+        url.searchParams.delete('fromFocus');
+      }
     } else {
       url.searchParams.delete('slug');
+      url.searchParams.delete('fromChat');
+      url.searchParams.delete('fromFocus');
     }
 
     if (key === 'chats') {
@@ -9326,6 +9336,14 @@ function handleNotificationOpen(url) {
     }
     const workSlug = u.searchParams.get('slug')?.trim();
     if (tab === 'work' && workSlug) {
+      const fromChat =
+        u.searchParams.get('fromChat')?.trim() ||
+        (MAP?.type === 'chats' ? chatState.activeId : null);
+      const fromFocus = u.searchParams.get('fromFocus') === '1';
+      if (fromChat) {
+        navigateToWork(workSlug, { fromChatId: fromChat, fromFocus });
+        return;
+      }
       queueWorkDeepLink(workSlug);
       setActiveMap('work', { force: true, workSlug });
       return;
@@ -9537,6 +9555,18 @@ export function buildChatPaneHeader() {
   const main = document.createElement('div');
   main.className = 'ch-pane-header-main';
   main.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
+  if (chatState.linkedJobs?.length) {
+    const links = document.createElement('div');
+    links.className = 'ch-pane-project-links';
+    for (const job of chatState.linkedJobs) {
+      links.appendChild(
+        createProjectLinkChip(job.title || job.slug, () =>
+          navigateToWork(job.slug, { fromChatId: chatState.activeId }),
+        ),
+      );
+    }
+    main.appendChild(links);
+  }
 
   const transcript = chatTranscriptText();
   const thread = activeChatThread();

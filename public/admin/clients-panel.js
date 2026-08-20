@@ -58,7 +58,7 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260819a';
+} from './work-panel.js?v=20260820a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260812b';
@@ -2156,7 +2156,7 @@ async function closeClientEditor(checkDirty = true) {
   // Navigate to the referrer first so a failed hop cannot leave mobile on the
   // list view after de-pane-active was already cleared.
   if (returnWorkSlug) {
-    navigateToWork(returnWorkSlug);
+    navigateToWork(returnWorkSlug, { keepReturn: true });
     return;
   }
   if (returnScheduleUid) {

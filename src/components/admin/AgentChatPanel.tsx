@@ -62,7 +62,13 @@ import {
   type StoredChatDoc,
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
-import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
+import {
+  classifyChatButtonHref,
+  getButtonProps,
+  openChatButtonHref,
+  parseAssistantChatButtons,
+  withChatReturnHref,
+} from '../../lib/chatResponseRenderer';
 import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
 import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
 import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
@@ -1557,9 +1563,37 @@ function useDeployChatLock(): DeployChatLockState {
   return state;
 }
 
+type ChatNavContextValue = {
+  threadId: string | null;
+  fromFocus: boolean;
+};
+
+const ChatNavContext = createContext<ChatNavContextValue>({ threadId: null, fromFocus: false });
+
+function ChatMarkdownLink(props: { href?: string; children?: ReactNode }) {
+  const { threadId, fromFocus } = useContext(ChatNavContext);
+  const href = withChatReturnHref(props.href || '', threadId, { fromFocus });
+  const { kind } = classifyChatButtonHref(href);
+  if (kind === 'admin') {
+    return (
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          openChatButtonHref(href);
+        }}
+      >
+        {props.children}
+      </a>
+    );
+  }
+  return <a {...props} href={href} />;
+}
+
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
   const isStreaming = props.status?.type === 'running';
   const { text, buttons } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
+  const { threadId, fromFocus } = useContext(ChatNavContext);
 
   if (isStreaming) {
     return text ? <span className="aui-text aui-text-streaming">{text}</span> : null;
@@ -1572,13 +1606,18 @@ function AssistantTextPart(props: { text?: string; status?: { type?: string } })
           remarkPlugins={[remarkGfm]}
           className="aui-md"
           preprocess={(raw) => parseAssistantChatButtons(raw).text}
+          components={{ a: ChatMarkdownLink }}
         />
       ) : null}
       {buttons.length > 0 ? (
         <div className="aui-chat-buttons">
-          {buttons.map((button, idx) => (
-            <ChatButton key={`${button.href}-${idx}`} {...getButtonProps(button)} />
-          ))}
+          {buttons.map((button, idx) => {
+            const stamped = {
+              ...button,
+              href: withChatReturnHref(button.href, threadId, { fromFocus }),
+            };
+            return <ChatButton key={`${stamped.href}-${idx}`} {...getButtonProps(stamped)} />;
+          })}
         </div>
       ) : null}
     </>
@@ -3154,16 +3193,23 @@ export function AgentChatPanel(props: AgentChatPanelProps) {
     ...(isFocus ? { '--footer-nav-h': '0px' } : {}),
   } as CSSProperties;
 
+  const chatNav = useMemo(
+    () => ({ threadId: props.threadId || null, fromFocus: isFocus }),
+    [props.threadId, isFocus],
+  );
+
   return (
-    <div className={isFocus ? 'aui-root aui-root--focus' : 'aui-root'} style={style}>
-      <AgentChatThread
-        key={props.threadId}
-        threadId={props.threadId}
-        propsRef={propsRef}
-        pendingDraft={props.pendingDraft}
-        pendingAutoSend={props.pendingAutoSend}
-        importMessagesGeneration={props.importMessagesGeneration}
-      />
-    </div>
+    <ChatNavContext.Provider value={chatNav}>
+      <div className={isFocus ? 'aui-root aui-root--focus' : 'aui-root'} style={style}>
+        <AgentChatThread
+          key={props.threadId}
+          threadId={props.threadId}
+          propsRef={propsRef}
+          pendingDraft={props.pendingDraft}
+          pendingAutoSend={props.pendingAutoSend}
+          importMessagesGeneration={props.importMessagesGeneration}
+        />
+      </div>
+    </ChatNavContext.Provider>
   );
 }

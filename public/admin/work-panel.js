@@ -148,6 +148,8 @@ let workState = {
   returnToEmailId: null,
   returnToTodoId: null,
   returnToClientUid: null,
+  returnToChatId: null,
+  returnToFocusChat: false,
   detailTab: 'project',
   auditingSlugs: new Set(),
   auditingProgress: new Map(),
@@ -157,6 +159,78 @@ let workState = {
 let workAutosaveTimer = null;
 let workAutosaveFlush = null;
 let workSettingsListenerBound = false;
+
+function clearWorkReturnTargets() {
+  workState.returnToEmailId = null;
+  workState.returnToTodoId = null;
+  workState.returnToClientUid = null;
+  workState.returnToChatId = null;
+  workState.returnToFocusChat = false;
+}
+
+function applyWorkReturnFromUrl() {
+  if (
+    workState.returnToEmailId ||
+    workState.returnToTodoId ||
+    workState.returnToClientUid ||
+    workState.returnToChatId
+  ) {
+    return;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get('fromChat')?.trim() || '';
+    if (!chatId) return;
+    workState.returnToChatId = chatId;
+    workState.returnToFocusChat = params.get('fromFocus') === '1';
+  } catch {
+    /* ignore */
+  }
+}
+
+function workReturnBackLabel() {
+  if (workState.returnToEmailId) return 'Back to email';
+  if (workState.returnToTodoId) return 'Back to to‑do';
+  if (workState.returnToClientUid) return 'Back to contact';
+  if (workState.returnToChatId) return 'Back to chat';
+  return `Back to ${postLower(2)}`;
+}
+
+async function leaveWorkToReturn() {
+  await flushWorkAutosave();
+  const returnEmailId = workState.returnToEmailId;
+  const returnTodoId = workState.returnToTodoId;
+  const returnClientUid = workState.returnToClientUid;
+  const returnChatId = workState.returnToChatId;
+  const returnFocus = workState.returnToFocusChat;
+  const slug = workState.activeSlug;
+  clearWorkReturnTargets();
+  workState.activeSlug = null;
+  workState.draft = null;
+  syncWorkDeepLinkUrl(null);
+  getWorkEditor()?.classList.remove('de-pane-active');
+  if (returnEmailId) {
+    shell.navigateToEmail(returnEmailId);
+    return true;
+  }
+  if (returnTodoId) {
+    shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
+    return true;
+  }
+  if (returnClientUid) {
+    shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
+    return true;
+  }
+  if (returnChatId) {
+    if (returnFocus) {
+      window.location.assign(`/focus?chat=${encodeURIComponent(returnChatId)}`);
+      return true;
+    }
+    shell.navigateToChat(returnChatId);
+    return true;
+  }
+  return false;
+}
 
 function syncWorkSidebarTitle(slug, title) {
   const job = workState.jobs.find((j) => j.slug === slug);
@@ -1862,6 +1936,7 @@ async function loadWorkTab(opts = {}) {
     console.warn('[work] project list unavailable', e);
   }
   pendingWorkDeepLinkSlug = null;
+  applyWorkReturnFromUrl();
 
   let restoreSlug = deepSlug || null;
   if (!restoreSlug && preserveNew) restoreSlug = '__new__';
@@ -1935,21 +2010,14 @@ function beginNewProjectDrawer() {
       await openWork(slug, { keepReturn: true });
       if (returnClientUid) workState.returnToClientUid = returnClientUid;
     },
-    onDismiss: () => {
-      const returnTodoId = workState.returnToTodoId;
-      const returnClientUid = workState.returnToClientUid;
+    onDismiss: async () => {
+      if (await leaveWorkToReturn()) return;
       workState.activeSlug = null;
       workState.draft = null;
-      workState.returnToTodoId = null;
-      workState.returnToClientUid = null;
       syncWorkDeepLinkUrl(null);
       getWorkEditor()?.classList.remove('de-pane-active');
-      if (returnTodoId) shell.navigateToTodo(returnTodoId);
-      else if (returnClientUid) shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
-      else {
-        syncWorkSidebarActiveState();
-        renderWorkPane();
-      }
+      syncWorkSidebarActiveState();
+      renderWorkPane();
     },
   });
 }
@@ -1957,9 +2025,7 @@ function beginNewProjectDrawer() {
 function startNewProject() {
   shell.armTitleFocus('work');
   beginNewProjectDrawer();
-  workState.returnToEmailId = null;
-  workState.returnToTodoId = null;
-  workState.returnToClientUid = null;
+  clearWorkReturnTargets();
   workState.detailTab = 'project';
   workState.activeSlug = '__new__';
   workState.dirty = false;
@@ -3115,37 +3181,13 @@ function createWorkFormScroll(pane) {
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const inDrawer = shell.isCreateDrawerOpen('work');
-  const returnTodoId = workState.returnToTodoId;
-  const returnClientUid = workState.returnToClientUid;
   const { header, titleInput } = createPaneSubheader({
     back: inDrawer
       ? null
       : {
-          label: returnTodoId
-            ? 'Back to to‑do'
-            : returnClientUid
-              ? 'Back to contact'
-              : `Back to ${postLower(2)}`,
+          label: workReturnBackLabel(),
           onClick: async () => {
-            await flushWorkAutosave();
-            if (returnTodoId) {
-              workState.returnToTodoId = null;
-              workState.activeSlug = null;
-              workState.draft = null;
-              syncWorkDeepLinkUrl(null);
-              getWorkEditor()?.classList.remove('de-pane-active');
-              shell.navigateToTodo(returnTodoId);
-              return;
-            }
-            if (returnClientUid) {
-              workState.returnToClientUid = null;
-              workState.activeSlug = null;
-              workState.draft = null;
-              syncWorkDeepLinkUrl(null);
-              getWorkEditor()?.classList.remove('de-pane-active');
-              shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
-              return;
-            }
+            if (await leaveWorkToReturn()) return;
             workState.activeSlug = null;
             workState.draft = null;
             syncWorkDeepLinkUrl(null);
@@ -3406,38 +3448,9 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
     });
 }
 
-function workEditBackHandler(slug) {
+function workEditBackHandler() {
   return async () => {
-    await flushWorkAutosave();
-    const returnEmailId = workState.returnToEmailId;
-    const returnTodoId = workState.returnToTodoId;
-    const returnClientUid = workState.returnToClientUid;
-    if (returnEmailId) {
-      workState.returnToEmailId = null;
-      workState.activeSlug = null;
-      workState.draft = null;
-      syncWorkDeepLinkUrl(null);
-      shell.navigateToEmail(returnEmailId);
-      return;
-    }
-    if (returnTodoId) {
-      workState.returnToTodoId = null;
-      workState.activeSlug = null;
-      workState.draft = null;
-      syncWorkDeepLinkUrl(null);
-      getWorkEditor()?.classList.remove('de-pane-active');
-      shell.navigateToTodo(returnTodoId, { fromWorkSlug: slug });
-      return;
-    }
-    if (returnClientUid) {
-      workState.returnToClientUid = null;
-      workState.activeSlug = null;
-      workState.draft = null;
-      syncWorkDeepLinkUrl(null);
-      getWorkEditor()?.classList.remove('de-pane-active');
-      shell.navigateToClient(returnClientUid, { detailTab: 'projects' });
-      return;
-    }
+    if (await leaveWorkToReturn()) return;
     closeWorkDetailPane();
     syncWorkSidebarActiveState();
     renderWorkPane();
@@ -3447,9 +3460,6 @@ function workEditBackHandler(slug) {
 function renderEditWorkForm(pane) {
   const slug = workState.activeSlug;
   const listJob = workState.jobs.find((j) => j.slug === slug);
-  const returnEmailId = workState.returnToEmailId;
-  const returnTodoId = workState.returnToTodoId;
-  const returnClientUid = workState.returnToClientUid;
   pane.innerHTML = '';
 
   // Mount chrome actions immediately so refresh doesn't land on an empty
@@ -3463,14 +3473,8 @@ function renderEditWorkForm(pane) {
 
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: returnEmailId
-        ? 'Back to email'
-        : returnTodoId
-          ? 'Back to to‑do'
-          : returnClientUid
-            ? 'Back to contact'
-            : `Back to ${postLower(2)}`,
-      onClick: workEditBackHandler(slug),
+      label: workReturnBackLabel(),
+      onClick: workEditBackHandler(),
     },
     editableTitle: {
       value: workState.draft?.title || listJob?.title || '',
@@ -3769,11 +3773,7 @@ async function openWork(slug, opts = {}) {
     return;
   }
   await flushWorkAutosave();
-  if (!opts.keepReturn) {
-    workState.returnToEmailId = null;
-    workState.returnToTodoId = null;
-    workState.returnToClientUid = null;
-  }
+  if (!opts.keepReturn) clearWorkReturnTargets();
   workState.detailTab = 'project';
   workState.activeSlug = slug;
   workState.dirty = false;
@@ -4141,6 +4141,14 @@ function syncWorkDeepLinkUrl(slug) {
       url.searchParams.delete('slug');
       if (!slug) clearWorkLastActiveSlug();
     }
+    if (workState.returnToChatId) {
+      url.searchParams.set('fromChat', workState.returnToChatId);
+      if (workState.returnToFocusChat) url.searchParams.set('fromFocus', '1');
+      else url.searchParams.delete('fromFocus');
+    } else {
+      url.searchParams.delete('fromChat');
+      url.searchParams.delete('fromFocus');
+    }
     history.replaceState({}, '', url.pathname + url.search + url.hash);
   } catch {
     /* ignore */
@@ -4157,19 +4165,21 @@ function closeWorkDetailPane() {
 
 function navigateToWork(slug, opts = {}) {
   if (!slug) return;
-  if (opts.fromEmailId) {
+  if (opts.keepReturn) {
+    /* leave email / todo / contact / chat return targets in place */
+  } else if (opts.fromEmailId) {
+    clearWorkReturnTargets();
     workState.returnToEmailId = opts.fromEmailId;
-    workState.returnToTodoId = null;
-    workState.returnToClientUid = null;
   } else if (opts.fromTodoId) {
-    workState.returnToEmailId = null;
+    clearWorkReturnTargets();
     workState.returnToTodoId = opts.fromTodoId;
-    workState.returnToClientUid = null;
     shell.todoState.returnToWorkSlug = slug;
+  } else if (opts.fromChatId) {
+    clearWorkReturnTargets();
+    workState.returnToChatId = opts.fromChatId;
+    workState.returnToFocusChat = opts.fromFocus === true;
   } else {
-    workState.returnToEmailId = null;
-    workState.returnToTodoId = null;
-    workState.returnToClientUid = null;
+    clearWorkReturnTargets();
   }
   pendingWorkDeepLinkSlug = slug;
   shell.setActiveMap('work', { force: true, workSlug: slug });
@@ -4200,9 +4210,8 @@ async function navigateToNewWorkFromTodo(opts = {}) {
     todoId = shell.todoState.activeId;
   }
   beginNewProjectDrawer();
-  workState.returnToEmailId = null;
+  clearWorkReturnTargets();
   workState.returnToTodoId = todoId;
-  workState.returnToClientUid = null;
   workState.detailTab = 'project';
   workState.activeSlug = '__new__';
   workState.dirty = false;
@@ -4229,8 +4238,7 @@ function navigateToNewWorkFromClient(opts = {}) {
   const contactName = String(opts.contactName || draft?.name || draft?.company || '').trim();
   shell.armTitleFocus('work');
   beginNewProjectDrawer();
-  workState.returnToEmailId = null;
-  workState.returnToTodoId = null;
+  clearWorkReturnTargets();
   workState.returnToClientUid = contactUid;
   workState.detailTab = 'project';
   workState.activeSlug = '__new__';
