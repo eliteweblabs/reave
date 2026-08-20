@@ -52,6 +52,45 @@ export async function getUserEmailSignature(
   }
 }
 
+export function isHtmlSignature(signature: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(signature.trim());
+}
+
+/** Strip scripts and inline handlers from admin-authored signature HTML. */
+export function sanitizeSignatureHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/javascript:/gi, '')
+    .trim();
+}
+
+export function signatureToPlainText(signature: string): string {
+  const trimmed = signature.trim();
+  if (!trimmed) return '';
+  if (!isHtmlSignature(trimmed)) return trimmed;
+  return trimmed
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr)>/gi, '\n')
+    .replace(/<img[^>]*alt=["']([^"']*)["'][^>]*>/gi, (_, alt) => (alt ? `[${alt}]` : '[Logo]'))
+    .replace(/<img[^>]*>/gi, '[Logo]')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function signatureHtmlForEmail(signature: string): string {
+  const trimmed = signature.trim();
+  if (!trimmed) return '';
+  if (isHtmlSignature(trimmed)) return sanitizeSignatureHtml(trimmed);
+  return signatureToHtml(trimmed);
+}
+
 export function signatureToHtml(signature: string): string {
   return signature
     .split('\n')
@@ -60,7 +99,7 @@ export function signatureToHtml(signature: string): string {
 }
 
 export function appendSignatureToPlainText(body: string, signature: string): string {
-  const sig = signature.trim();
+  const sig = signatureToPlainText(signature);
   if (!sig) return body;
   const trimmed = body.trimEnd();
   if (trimmed.endsWith(sig)) return body;
@@ -68,9 +107,9 @@ export function appendSignatureToPlainText(body: string, signature: string): str
 }
 
 export function appendSignatureToHtmlFragment(html: string, signature: string): string {
-  const sig = signature.trim();
-  if (!sig) return html;
+  const sigHtml = signatureHtmlForEmail(signature);
+  if (!sigHtml) return html;
   const block =
-    `<div style="margin-top:24px;color:#444444;font-size:14px;line-height:1.55;font-family:Arial,Helvetica,sans-serif">${signatureToHtml(sig)}</div>`;
+    `<div style="margin-top:24px;color:#444444;font-size:14px;line-height:1.55;font-family:Arial,Helvetica,sans-serif">${sigHtml}</div>`;
   return `${html}${block}`;
 }

@@ -286,6 +286,7 @@ import {
   brandingMediaFilter,
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
+import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260820a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -6856,9 +6857,10 @@ function renderProfileOnlyPanel(profile) {
           profSection(
             'Email signature',
             'Appended to outbound emails you send from the inbox. Stored on your account, not company settings.',
-            `<div class="prof-field"><label for="profile-emailSignature">Signature</label>` +
-            `<textarea id="profile-emailSignature" name="emailSignature" rows="6" placeholder="Your name&#10;Title&#10;Phone | email">${escHtml(p.emailSignature || '')}</textarea>` +
-            `<span class="prof-hint">Plain text is fine — line breaks are preserved. Leave blank to send without a signature.</span></div>`,
+            `<div class="prof-field prof-field--signature">` +
+              `<div id="profile-signature-editor"></div>` +
+              `<textarea id="profile-emailSignature" name="emailSignature" hidden>${escHtml(p.emailSignature || '')}</textarea>` +
+              `<span class="prof-hint">Drag a logo in, or use Upload / Library / Company logo. Switch to Preview to see how it looks in email.</span></div>`,
           ) +
         `</form>` +
       `</div>` +
@@ -7505,12 +7507,20 @@ async function loadProfileTab() {
   prependSettingsBackHeader(root);
 
   try {
-    const profileRes = await fetch('/api/admin/profile', { cache: 'no-store' });
+    const [profileRes, companyRes] = await Promise.all([
+      fetch('/api/admin/profile', { cache: 'no-store' }),
+      fetch('/api/admin/company', { cache: 'no-store' }),
+    ]);
     const profileData = await profileRes.json();
+    const companyData = companyRes.ok ? await companyRes.json() : null;
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
     root.innerHTML = renderProfileOnlyPanel(profileData.profile);
     prependSettingsBackHeader(root);
     bindProfileForm(root);
+    bindProfileSignatureEditor(root, {
+      initialHtml: profileData.profile?.emailSignature || '',
+      companyLogoUrl: companyData?.ok ? companyLogoPreviewUrl(companyData.company) : '',
+    });
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +

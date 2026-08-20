@@ -12,6 +12,7 @@
 import { getCompanyConfig, deckQuantumHeroLogo } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
+import { signatureHtmlForEmail } from './userEmailSignature';
 
 function esc(s: string): string {
   return s
@@ -136,11 +137,7 @@ export async function brandedEmailHtml(opts: {
     : '';
 
   const signatureHtml = opts.signature?.trim()
-    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-size:14px;line-height:1.55">${opts.signature
-        .trim()
-        .split('\n')
-        .map((line) => esc(line.trimEnd()))
-        .join('<br />')}</div></td></tr>`
+    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-size:14px;line-height:1.55">${signatureHtmlForEmail(opts.signature)}</div></td></tr>`
     : '';
 
   const complianceHtml =

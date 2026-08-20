@@ -1188,3 +1188,77 @@
   font-weight: 700;
   margin: 1.5rem 0 0.5rem;
 }
+
+/* Profile → Email signature editor */
+.prof-field--signature {
+  gap: 0.55rem;
+}
+.prof-sig-mode-tabs {
+  margin: 0 0 0.65rem;
+}
+.prof-sig-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.prof-sig-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+.prof-sig-surface {
+  min-height: 10rem;
+  margin: 0;
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  cursor: text;
+}
+.prof-sig-surface:empty::before {
+  content: attr(data-placeholder);
+  color: var(--fg-secondary);
+  opacity: 0.65;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+.prof-sig-surface.prof-sig-dragover {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+.prof-sig-figure {
+  margin: 0.5rem 0;
+  line-height: 0;
+}
+.prof-sig-img {
+  display: block;
+  max-width: 160px;
+  max-height: 64px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+.prof-sig-preview-card {
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input);
+  background: #ffffff;
+  color: #1a1a1a;
+  padding: 1rem 1.1rem;
+}
+.prof-sig-preview-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #444444;
+}
+.prof-sig-preview-body img {
+  display: block;
+  max-width: 160px;
+  max-height: 64px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: 0.35rem 0;
+}
