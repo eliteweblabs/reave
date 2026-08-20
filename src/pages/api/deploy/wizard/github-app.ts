@@ -29,6 +29,7 @@ import { githubGetOrgId } from '../../../../lib/githubClient';
 import { GITHUB_WEBSITE_OWNER } from '../../../../lib/websiteEditorRepo';
 import { hasFeature } from '../../../../lib/features';
 import { isCanonicalReaveInstall } from '../../../../lib/installConfig';
+import { isDeployWizardPublicHost, normalizeSiteDomain } from '../../../../lib/deployWizardCatalog';
 
 export const prerender = false;
 
@@ -136,9 +137,10 @@ export async function GET(context: APIContext): Promise<Response> {
     }
 
     deleteGithubAppPending(state);
+    const site = normalizeSiteDomain(plan.siteDomain);
     return redirectToDeploy(
       origin,
-      { github: 'ok' },
+      site && isDeployWizardPublicHost(site) ? { github: 'ok', site } : { github: 'ok' },
       { 'Set-Cookie': clearGithubAppCookieHeader() },
     );
   }

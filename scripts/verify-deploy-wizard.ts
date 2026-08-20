@@ -13,6 +13,8 @@ import {
   isDeployWizardSeedIndustryId,
   mergeDeployWizardSeedIndustries,
   normalizeSiteDomain,
+  isDeployWizardPublicHost,
+  deployWizardSiteOrigin,
   railwayPrivateUrl,
   railwayPublicUrl,
   railwayLocalRef,
@@ -22,6 +24,7 @@ import {
   deployWizardInboundWebhookUrl,
   deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
+import { isActiveRailwayProject } from '../src/lib/railwayProjectList.ts';
 import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
 import { buildGithubAppManifest, githubAppInstallUrl, githubAppManifestName, publicGithubAppOrigin } from '../src/lib/deployWizardGithubApp.ts';
 import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
@@ -206,6 +209,12 @@ const renamedCalFrom = renamed.variables.find((v) => v.service === 'calcom-web-a
 assert.equal(renamedCalFrom?.filled, '${{ Astro.EMAIL_FROM }}');
 
 assert.equal(normalizeSiteDomain('https://www.Acme.com/'), 'acme.com');
+assert.equal(isDeployWizardPublicHost('app.levineslaw.com'), true);
+assert.equal(isDeployWizardPublicHost('https://app.levineslaw.com/'), true);
+assert.equal(isDeployWizardPublicHost('localhost'), false);
+assert.equal(isDeployWizardPublicHost('not a host'), false);
+assert.equal(deployWizardSiteOrigin('app.levineslaw.com'), 'https://app.levineslaw.com');
+assert.equal(deployWizardSiteOrigin('localhost'), '');
 assert.equal(deployWizardFqdn('ap', 'acme.com'), 'ap.acme.com');
 assert.equal(deployWizardFqdn('@', ''), '{apex}');
 
@@ -414,6 +423,11 @@ assert.match(cli, /MX\s+inbound/);
 assert.match(cli, /railway variable set CONTACT_API_BASE_URL=/);
 assert.match(cli, /--service reave/);
 assert.match(cli, /--skip-deploys/);
+
+assert.equal(isActiveRailwayProject({ id: '1', name: 'The Barbers Edge' }), true);
+assert.equal(isActiveRailwayProject({ id: '1', name: 'gone', deletedAt: '2026-01-01T00:00:00Z' }), false);
+assert.equal(isActiveRailwayProject({ id: '1', name: 'expired', expiredAt: '2026-01-01T00:00:00Z' }), false);
+assert.equal(isActiveRailwayProject({ id: '1', name: 'helpful-imagination', isTempProject: true }), false);
 
 assert.equal(isDeployWizardNewProjectRef(''), true);
 assert.equal(isDeployWizardNewProjectRef(DEPLOY_WIZARD_NEW_PROJECT), true);

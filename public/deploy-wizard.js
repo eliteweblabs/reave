@@ -98,6 +98,7 @@
   let appliedProvisioned = [];
   let applyLog = [];
   let githubBanner = '';
+  let githubSiteUrl = '';
   let placesTimer = 0;
   let placesSeq = 0;
   let placesHighlight = -1;
@@ -786,7 +787,16 @@
       `<div class="dl-panel">` +
       renderStepper() +
       (error ? `<p class="dl-launch-error" role="alert">${esc(error)}</p>` : '') +
-      (githubBanner ? `<p class="dl-footnote" role="status">${esc(githubBanner)}</p>` : '') +
+      (githubBanner || githubSiteUrl
+        ? `<div class="dw-github-done">` +
+          (githubBanner ? `<p class="dl-footnote" role="status">${esc(githubBanner)}</p>` : '') +
+          (githubSiteUrl
+            ? `<p><a class="dl-btn dl-btn--primary" href="${esc(githubSiteUrl)}/">Open ${esc(
+                githubSiteUrl.replace(/^https:\/\//, ''),
+              )}</a></p>`
+            : '') +
+          `</div>`
+        : '') +
       (step === 0 ? renderModules() : '') +
       (step === 1 ? renderServices() : '') +
       (step === 2 ? renderVariables() : '') +
@@ -1265,17 +1275,42 @@
       selectedIds = new Set((data.defaultModuleIds || [...allowed]).filter((id) => allowed.has(id)));
       project = '__new__';
       const params = new URLSearchParams(location.search);
+      const returnedSite = (params.get('site') || '').trim().toLowerCase();
+      if (returnedSite && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(returnedSite)) {
+        siteDomain = returnedSite;
+        githubSiteUrl = `https://${returnedSite}`;
+      }
       if (params.get('github') === 'ok') {
-        githubBanner =
-          'Created a restricted GitHub App for this site and applied Railway variables. Redeploy when ready.';
+        githubBanner = githubSiteUrl
+          ? `GitHub App is installed. Checking ${returnedSite}…`
+          : 'Created a restricted GitHub App for this site and applied Railway variables. Redeploy when ready.';
       } else if (params.get('github') === 'error') {
         error = params.get('message') || 'GitHub App setup failed.';
       }
       render();
       bind();
+      if (params.get('github') === 'ok' && returnedSite) {
+        void openSiteWhenReachable(returnedSite);
+      }
     } catch (e) {
       root.innerHTML = `<p class="dl-error">Could not load wizard: ${esc(e.message)}</p>`;
     }
+  }
+
+  async function openSiteWhenReachable(host) {
+    try {
+      const res = await fetch(`/api/deploy/wizard?probeSite=${encodeURIComponent(host)}`);
+      const data = await res.json().catch(() => ({}));
+      if (data.reachable && typeof data.url === 'string') {
+        location.assign(`${data.url.replace(/\/+$/, '')}/`);
+        return;
+      }
+    } catch {
+      /* stay on /deploy */
+    }
+    githubBanner = `${host} is not answering yet (DNS or the first Railway deploy). Use Open when the name resolves.`;
+    render();
+    bind();
   }
 
   void init();
