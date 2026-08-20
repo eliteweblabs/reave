@@ -7,6 +7,11 @@
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import {
+  defaultFixturePlaybook,
+  normalizeIndustryPlaybook,
+  type DeckIndustryPlaybook,
+} from './industryPlaybook';
 import { isPracticeArea } from './practiceGate';
 import { normalizePostAlias } from './postAlias';
 import { defaultWebsiteRepoSlug } from './websiteEditorRepo';
@@ -1516,31 +1521,50 @@ export function isDeployWizardSeedIndustryId(value: string): boolean {
  * industries the seed scripts still understand if the catalog has not listed them.
  * Disabled catalog rows stay hidden (fixture fallbacks do not re-add them).
  */
+export type DeployWizardSeedIndustry = {
+  id: string;
+  label: string;
+  playbook: DeckIndustryPlaybook;
+};
+
 export function mergeDeployWizardSeedIndustries(
-  industries: ReadonlyArray<{ id?: string | number; slug?: string; label: string; enabled?: boolean }>,
-): Array<{ id: string; label: string }> {
+  industries: ReadonlyArray<{
+    id?: string | number;
+    slug?: string;
+    label: string;
+    enabled?: boolean;
+    playbook?: unknown;
+  }>,
+): DeployWizardSeedIndustry[] {
   const seen = new Set<string>(['none']);
   const catalog = new Set<string>();
-  const rest: Array<{ id: string; label: string }> = [];
-  const add = (rawId: string, rawLabel: string) => {
+  const rest: DeployWizardSeedIndustry[] = [];
+  const add = (rawId: string, rawLabel: string, playbook?: unknown) => {
     const id = slugifyDeployWizardIndustry(rawId);
     const label = rawLabel.trim();
     if (!id || !label || seen.has(id)) return;
     seen.add(id);
-    rest.push({ id, label });
+    rest.push({
+      id,
+      label,
+      playbook: normalizeIndustryPlaybook(playbook ?? defaultFixturePlaybook(id)),
+    });
   };
   for (const row of industries) {
     const id = slugifyDeployWizardIndustry(String(row.slug || row.id || row.label));
     if (id) catalog.add(id);
     if (row.enabled === false) continue;
-    add(String(row.slug || row.id || row.label), row.label);
+    add(String(row.slug || row.id || row.label), row.label, row.playbook);
   }
   for (const row of DEPLOY_WIZARD_FIXTURE_INDUSTRIES) {
     if (catalog.has(row.id)) continue;
-    add(row.id, row.label);
+    add(row.id, row.label, defaultFixturePlaybook(row.id));
   }
   rest.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
-  return [{ id: 'none', label: 'No sample data' }, ...rest];
+  return [
+    { id: 'none', label: 'No sample data', playbook: normalizeIndustryPlaybook(null) },
+    ...rest,
+  ];
 }
 
 export type DeployWizardSeedInput = {

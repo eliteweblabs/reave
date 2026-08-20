@@ -74,6 +74,7 @@
   ];
   let selectedIds = new Set();
   let selectedExtras = new Set();
+  let defaultModuleIds = [];
   let step = 0;
   let appService = 'reave';
   let installSlug = 'demo';
@@ -522,6 +523,38 @@
     );
   }
 
+  function currentIndustry() {
+    return seedIndustries.find((row) => row.id === seed.industry) || null;
+  }
+
+  function currentPlaybookNotes() {
+    const notes = currentIndustry()?.playbook?.notes;
+    return typeof notes === 'string' ? notes.trim() : '';
+  }
+
+  function applyIndustryPlaybook(industryId) {
+    const row = seedIndustries.find((item) => item.id === industryId);
+    const playbook = row?.playbook || {};
+    if (!industryId || industryId === 'none') return;
+    const allowed = new Set(toggleableModules().map((m) => m.moduleId));
+    const baseline = defaultModuleIds.filter((id) => allowed.has(id));
+    const extras = Array.isArray(playbook.extras) ? playbook.extras : [];
+    const moduleIds = Array.isArray(playbook.moduleIds) ? playbook.moduleIds : [];
+    selectedIds = new Set([
+      ...baseline,
+      ...moduleIds.map((id) => String(id).padStart(3, '0')).filter((id) => allowed.has(id)),
+    ]);
+    selectedExtras = new Set(extras.filter((id) => typeof id === 'string'));
+    seed.inbox = playbook.seedInbox !== false;
+    seed.todos = playbook.seedTodos !== false;
+    seed.schedule = playbook.seedSchedule !== false;
+    if (typeof playbook.postAlias === 'string' && playbook.postAlias.trim()) {
+      postAlias = playbook.postAlias.trim();
+    } else if (industryId === 'law' && postAlias === 'project') {
+      postAlias = 'matter';
+    }
+  }
+
   function renderSeed() {
     const options = (seedIndustries.length ? seedIndustries : [
       { id: 'none', label: 'No sample data' },
@@ -538,7 +571,10 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet. Industries come from Admin → Industries. <strong>Law firm</strong> adds court knowledge options; office address uses Google Places.</p>` +
+      `<p class="dl-footnote">Industry playbooks come from Admin → Industries — modules, extras, sample data, and notes. <strong>Law firm</strong> still adds court knowledge options; office address uses Google Places.</p>` +
+      (currentPlaybookNotes()
+        ? `<p class="dl-footnote dw-playbook-notes">${esc(currentPlaybookNotes())}</p>`
+        : '') +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
@@ -1136,12 +1172,7 @@
     });
     root.querySelector('#dw-seed-industry')?.addEventListener('change', () => {
       readIdentity();
-      if (seed.industry !== 'none') {
-        seed.inbox = true;
-        seed.todos = true;
-        seed.schedule = true;
-      }
-      if (seed.industry === 'law' && postAlias === 'project') postAlias = 'matter';
+      applyIndustryPlaybook(seed.industry);
       render();
       bind();
     });
@@ -1213,6 +1244,7 @@
       included = data.included || [];
       extrasCatalog = data.extras || [];
       seedIndustries = data.seedIndustries || seedIndustries;
+      defaultModuleIds = Array.isArray(data.defaultModuleIds) ? data.defaultModuleIds : defaultModuleIds;
       if (Array.isArray(data.courtGateModes) && data.courtGateModes.length) courtGateModes = data.courtGateModes;
       if (Array.isArray(data.usStates) && data.usStates.length) usStates = data.usStates;
       if (Array.isArray(data.directoryCounties) && data.directoryCounties.length) directoryCounties = data.directoryCounties;

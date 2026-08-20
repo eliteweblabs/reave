@@ -27,6 +27,10 @@ import { buildGithubAppManifest, githubAppInstallUrl, githubAppManifestName, pub
 import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
+  applyIndustryPlaybookToWizard,
+  normalizeIndustryPlaybook,
+} from '../src/lib/industryPlaybook.ts';
+import {
   featureVisibility,
   isPrivateFeature,
   isPublicFeature,
@@ -265,6 +269,30 @@ assert.deepEqual(
   emptyCatalogPicker.map((row) => row.id),
   ['none', 'general', 'law', 'plumbing'],
 );
+assert.equal(emptyCatalogPicker.find((row) => row.id === 'law')?.playbook.postAlias, 'matter');
+const salonPlaybook = mergeDeployWizardSeedIndustries([
+  {
+    slug: 'salon',
+    label: 'Salon',
+    playbook: { moduleIds: ['006', '009'], extras: ['materials'], notes: 'Book + voice', postAlias: 'client' },
+  },
+]).find((row) => row.id === 'salon');
+assert.deepEqual(salonPlaybook?.playbook.moduleIds, ['006', '009']);
+assert.deepEqual(salonPlaybook?.playbook.extras, ['materials']);
+assert.equal(salonPlaybook?.playbook.postAlias, 'client');
+const applied = applyIndustryPlaybookToWizard({
+  industryId: 'salon',
+  playbook: salonPlaybook?.playbook,
+  allowedModuleIds: new Set(['001', '002', '003', '004', '006', '009']),
+  baselineModuleIds: ['001', '002', '003', '004'],
+  currentModuleIds: ['001', '002', '003', '004'],
+  currentExtras: [],
+  currentPostAlias: 'project',
+});
+assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009']);
+assert.deepEqual(applied.extras, ['materials']);
+assert.equal(applied.postAlias, 'client');
+assert.equal(normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','), '006');
 const salonSeed = buildDeployWizardPlan({
   features: ['website'],
   seed: { industry: 'salon', inbox: true, todos: true, schedule: true },
