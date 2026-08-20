@@ -165,8 +165,12 @@ export function deleteGithubAppPending(state: string): void {
   pending.delete(state);
 }
 
-export function githubAppInstallUrl(appSlug: string): string {
-  return `https://github.com/apps/${encodeURIComponent(appSlug)}/installations/new`;
+export function githubAppInstallUrl(appSlug: string, opts?: { targetId?: number }): string {
+  const slug = encodeURIComponent(appSlug);
+  if (opts?.targetId) {
+    return `https://github.com/apps/${slug}/installations/new/permissions?target_id=${opts.targetId}`;
+  }
+  return `https://github.com/apps/${slug}/installations/new`;
 }
 
 export async function convertGithubAppManifest(code: string): Promise<
@@ -211,9 +215,9 @@ export async function convertGithubAppManifest(code: string): Promise<
 }
 
 export function pendingToCredentials(
-  row: DeployWizardGithubAppPending,
+  row: DeployWizardGithubAppPending | null | undefined,
 ): DeployWizardGithubAppCredentials | null {
-  if (!row.appId || !row.privateKey || !row.installationId) return null;
+  if (!row?.appId || !row.privateKey || !row.installationId) return null;
   return {
     GITHUB_APP_ID: row.appId,
     GITHUB_APP_INSTALLATION_ID: row.installationId,

@@ -25,6 +25,8 @@ import {
 } from '../../../../lib/deployWizardGithubApp';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { requestOrigin } from '../../../../lib/requestOrigin';
+import { githubGetOrgId } from '../../../../lib/githubClient';
+import { GITHUB_WEBSITE_OWNER } from '../../../../lib/websiteEditorRepo';
 import { hasFeature } from '../../../../lib/features';
 import { isCanonicalReaveInstall } from '../../../../lib/installConfig';
 
@@ -91,8 +93,9 @@ export async function GET(context: APIContext): Promise<Response> {
       appSlug: converted.appSlug,
       privateKey: converted.privateKey,
     });
+    const targetId = await githubGetOrgId(GITHUB_WEBSITE_OWNER);
     const install = converted.appSlug
-      ? githubAppInstallUrl(converted.appSlug)
+      ? githubAppInstallUrl(converted.appSlug, { targetId })
       : `https://github.com/settings/apps`;
     return new Response(null, { status: 302, headers: { Location: install } });
   }
@@ -124,15 +127,15 @@ export async function GET(context: APIContext): Promise<Response> {
       request: context.request,
       githubApp: credentials,
     });
-    deleteGithubAppPending(state);
 
     if (!executed.ok) {
       const message = isDeployWizardApplyNeedGithubApp(executed)
         ? 'GitHub App was created but Apply still needs an installation. Click Apply again.'
         : executed.error;
-      return redirectToDeploy(origin, { github: 'error', message }, { 'Set-Cookie': clearGithubAppCookieHeader() });
+      return redirectToDeploy(origin, { github: 'error', message });
     }
 
+    deleteGithubAppPending(state);
     return redirectToDeploy(
       origin,
       { github: 'ok' },

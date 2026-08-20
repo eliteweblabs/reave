@@ -846,6 +846,13 @@ export type GithubRepoMeta = {
   private: boolean;
 };
 
+export async function githubGetOrgId(org: string): Promise<number | undefined> {
+  const slug = org.trim().replace(/^@/, '');
+  if (!slug) return undefined;
+  const res = await ghFetch<{ id?: number }>(`/orgs/${encodeURIComponent(slug)}`);
+  return res.ok && typeof res.data.id === 'number' ? res.data.id : undefined;
+}
+
 export async function githubGetRepo(repo: string): Promise<GithubResult<GithubRepoMeta>> {
   const slug = normalizeRepoSlug(repo);
   if (!slug) return { ok: false, error: 'invalid repo (expected owner/name)' };

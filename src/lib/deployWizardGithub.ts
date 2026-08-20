@@ -2,17 +2,16 @@
  * Deploy-wizard GitHub provisioning for a client website repo.
  *
  * GitHub cannot create PATs via API. Apply creates eliteweblabs/{slug}-site
- * and a restricted GitHub App installed on that repo only. If this host
- * already has GITHUB_APP_* (from an earlier Apply), those are reused.
+ * and a restricted GitHub App installed on that repo only. Never reuse this
+ * host’s GITHUB_APP_* — on reave.app that App is for the REΛVE site, not the client.
  */
 import {
   githubAddRepoToAppInstallation,
   githubEnsureRepo,
   githubRemoveRepoFromAppInstallation,
 } from './githubClient';
-import { isGithubAppConfigured } from './githubApp';
+import { githubAppCanWriteRepo } from './githubApp';
 import { PROTECTED_APP_REPOS, defaultWebsiteRepoSlug } from './websiteEditorRepo';
-import { serverEnv } from './serverEnv';
 import type { DeployWizardGithubAppCredentials } from './deployWizardGithubApp';
 
 export type ProvisionClientWebsiteGitHubOk = {
@@ -57,7 +56,7 @@ export async function provisionClientWebsiteGitHub(opts: {
       : `Reused website repo ${ensured.data.repo}`,
   ];
 
-  const credentials = opts.credentials ?? hostGithubAppCredentials();
+  const credentials = opts.credentials;
   if (!credentials) {
     return {
       ok: false,
@@ -71,39 +70,46 @@ export async function provisionClientWebsiteGitHub(opts: {
     };
   }
 
-  const attached = await githubAddRepoToAppInstallation({
-    repo: ensured.data.repo,
+  const tokenCreds = {
+    appId: credentials.GITHUB_APP_ID,
     installationId: credentials.GITHUB_APP_INSTALLATION_ID,
-  });
-  if (!attached.ok) {
+    privateKey: credentials.GITHUB_APP_PRIVATE_KEY,
+  };
+  const siteRepo = ensured.data.repo;
+  let canWrite = await githubAppCanWriteRepo(tokenCreds, siteRepo);
+  if (!canWrite) {
+    const attached = await githubAddRepoToAppInstallation({
+      repo: siteRepo,
+      installationId: credentials.GITHUB_APP_INSTALLATION_ID,
+    });
+    if (attached.ok) {
+      canWrite = await githubAppCanWriteRepo(tokenCreds, siteRepo);
+      if (canWrite) notes.push(`Added ${siteRepo} to the GitHub App installation`);
+    }
+  } else {
+    notes.push(`GitHub App can write ${siteRepo}`);
+  }
+  if (!canWrite) {
     return {
       ok: false,
-      error: `${ensured.data.created ? 'Created' : 'Found'} ${ensured.data.repo}, but could not add it to the GitHub App: ${attached.error}`,
+      error: `GitHub App cannot write ${siteRepo}. On the App install screen choose Only select repositories and pick ${siteRepo} — not eliteweblabs/reave.`,
     };
   }
-  notes.push(`Added ${ensured.data.repo} to the GitHub App installation`);
 
-  await Promise.all(
-    PROTECTED_APP_REPOS.map((protectedRepo) =>
-      githubRemoveRepoFromAppInstallation({
-        repo: protectedRepo,
-        installationId: credentials.GITHUB_APP_INSTALLATION_ID,
-      }),
-    ),
-  );
+  for (const protectedRepo of PROTECTED_APP_REPOS) {
+    if (!(await githubAppCanWriteRepo(tokenCreds, protectedRepo))) continue;
+    await githubRemoveRepoFromAppInstallation({
+      repo: protectedRepo,
+      installationId: credentials.GITHUB_APP_INSTALLATION_ID,
+    });
+    if (await githubAppCanWriteRepo(tokenCreds, protectedRepo)) {
+      return {
+        ok: false,
+        error: `This GitHub App can still access ${protectedRepo}. Edit the installation: Only select repositories → ${siteRepo} only.`,
+      };
+    }
+    notes.push(`Removed ${protectedRepo} from the GitHub App`);
+  }
 
-  return { ok: true, repo: ensured.data.repo, created: ensured.data.created, notes, credentials };
-}
-
-function hostGithubAppCredentials(): DeployWizardGithubAppCredentials | null {
-  if (!isGithubAppConfigured()) return null;
-  const id = serverEnv('GITHUB_APP_ID')?.trim();
-  const installation = serverEnv('GITHUB_APP_INSTALLATION_ID')?.trim();
-  const pem = serverEnv('GITHUB_APP_PRIVATE_KEY')?.trim();
-  if (!id || !installation || !pem) return null;
-  return {
-    GITHUB_APP_ID: id,
-    GITHUB_APP_INSTALLATION_ID: installation,
-    GITHUB_APP_PRIVATE_KEY: pem,
-  };
+  return { ok: true, repo: siteRepo, created: ensured.data.created, notes, credentials };
 }

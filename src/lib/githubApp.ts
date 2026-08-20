@@ -2,8 +2,8 @@
  * GitHub App installation tokens — the automatic stand-in for a fine-grained PAT.
  *
  * GitHub has no API to create PATs. Deploy-wizard Apply creates a restricted
- * App for eliteweblabs/{slug}-site (or reuses GITHUB_APP_* if this host has
- * them). The client mints a 1-hour token scoped to GITHUB_WEBSITE_REPO.
+ * App for eliteweblabs/{slug}-site. The client mints a 1-hour token scoped to
+ * that website repo. Do not reuse this host’s GITHUB_APP_* for a new client.
  */
 import { createSign } from 'node:crypto';
 import { serverEnv } from './serverEnv';
@@ -54,19 +54,31 @@ function websiteRepoName(): string | undefined {
 
 export async function githubAppInstallationToken(opts?: {
   repositories?: string[];
+  credentials?: { appId: string; installationId: string; privateKey: string };
+  skipCache?: boolean;
 }): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
-  const appId = serverEnv('GITHUB_APP_ID')?.trim();
-  const installationId = serverEnv('GITHUB_APP_INSTALLATION_ID')?.trim();
-  const pem = serverEnv('GITHUB_APP_PRIVATE_KEY')?.trim();
+  const appId = opts?.credentials?.appId?.trim() || serverEnv('GITHUB_APP_ID')?.trim();
+  const installationId =
+    opts?.credentials?.installationId?.trim() || serverEnv('GITHUB_APP_INSTALLATION_ID')?.trim();
+  const pem = opts?.credentials?.privateKey?.trim() || serverEnv('GITHUB_APP_PRIVATE_KEY')?.trim();
   if (!appId || !installationId || !pem) {
     return { ok: false, error: 'GitHub App is not configured (GITHUB_APP_ID / INSTALLATION_ID / PRIVATE_KEY)' };
   }
 
-  const repositories = opts?.repositories?.filter(Boolean) ?? (websiteRepoName() ? [websiteRepoName()!] : []);
-  const cacheKey = `${installationId}:${repositories.slice().sort().join(',')}`;
-  const hit = cache.get(cacheKey);
-  if (hit && hit.expiresAt - 60_000 > Date.now()) {
-    return { ok: true, token: hit.token };
+  const repositories =
+    opts?.repositories !== undefined
+      ? opts.repositories.filter(Boolean)
+      : opts?.credentials
+        ? []
+        : websiteRepoName()
+          ? [websiteRepoName()!]
+          : [];
+  const cacheKey = `${appId}:${installationId}:${repositories.slice().sort().join(',')}`;
+  if (!opts?.skipCache) {
+    const hit = cache.get(cacheKey);
+    if (hit && hit.expiresAt - 60_000 > Date.now()) {
+      return { ok: true, token: hit.token };
+    }
   }
 
   const jwt = githubAppJwt(appId, pem);
@@ -110,6 +122,27 @@ export async function githubAppInstallationToken(opts?: {
   const expiresAt = parsed.expires_at ? Date.parse(parsed.expires_at) : Date.now() + 50 * 60_000;
   cache.set(cacheKey, { token: parsed.token, expiresAt, repos: cacheKey });
   return { ok: true, token: parsed.token };
+}
+
+export type GithubAppTokenCredentials = {
+  appId: string;
+  installationId: string;
+  privateKey: string;
+};
+
+/** True when this App installation can mint a contents-write token for owner/repo. */
+export async function githubAppCanWriteRepo(
+  credentials: GithubAppTokenCredentials,
+  repo: string,
+): Promise<boolean> {
+  const name = repo.trim().split('/')[1]?.trim();
+  if (!name) return false;
+  const minted = await githubAppInstallationToken({
+    credentials,
+    repositories: [name],
+    skipCache: true,
+  });
+  return minted.ok;
 }
 
 /** Test helper. */

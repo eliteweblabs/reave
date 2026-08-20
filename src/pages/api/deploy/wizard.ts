@@ -34,6 +34,8 @@ import {
   createGithubAppPending,
   getGithubAppPending,
   githubAppCookieHeader,
+  pendingToCredentials,
+  readGithubAppCookie,
   saveGithubAppPending,
 } from '../../../lib/deployWizardGithubApp';
 import { requestOrigin } from '../../../lib/requestOrigin';
@@ -272,6 +274,9 @@ export async function POST(context: APIContext): Promise<Response> {
     (context.request.headers.get('accept') || '').includes('ndjson');
   const mightNeedGithub =
     plan.features.includes('website') || plan.features.includes('content_management');
+  const resumeGithubApp = pendingToCredentials(
+    getGithubAppPending(readGithubAppCookie(context.request.headers.get('cookie'))),
+  );
 
   const githubPayload = (
     setup: ReturnType<typeof createGithubAppPending>,
@@ -292,6 +297,7 @@ export async function POST(context: APIContext): Promise<Response> {
       projectName,
       environment,
       request: context.request,
+      githubApp: resumeGithubApp || undefined,
     });
     if (isDeployWizardApplyNeedGithubApp(executed)) {
       const setup = createGithubAppPending(
@@ -329,7 +335,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  const githubSetup = mightNeedGithub
+  const githubSetup = mightNeedGithub && !resumeGithubApp
     ? createGithubAppPending(applyBody, origin)
     : null;
   const encoder = new TextEncoder();
@@ -347,6 +353,7 @@ export async function POST(context: APIContext): Promise<Response> {
           projectName,
           environment,
           request: context.request,
+          githubApp: resumeGithubApp || undefined,
           onProgress: (message) => emit({ phase: 'log', message }),
         });
         if (isDeployWizardApplyNeedGithubApp(executed)) {

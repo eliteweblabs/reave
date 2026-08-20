@@ -21,7 +21,7 @@ import {
   deployWizardResendFrom,
 } from '../src/lib/deployWizardCatalog.ts';
 import { anthropicKeySourceForApply, generateDeployWizardSecret } from '../src/lib/deployWizardResolve.ts';
-import { buildGithubAppManifest, githubAppManifestName, publicGithubAppOrigin } from '../src/lib/deployWizardGithubApp.ts';
+import { buildGithubAppManifest, githubAppInstallUrl, githubAppManifestName, publicGithubAppOrigin } from '../src/lib/deployWizardGithubApp.ts';
 import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
@@ -301,6 +301,7 @@ assert.equal(manifest.name, 'reave-tonybarlettajr');
 assert.equal((manifest.default_permissions as { contents?: string }).contents, 'write');
 assert.equal(manifest.redirect_url, 'https://reave.app/api/deploy/wizard/github-app');
 assert.equal(manifest.setup_url, 'https://reave.app/api/deploy/wizard/github-app');
+assert.match(githubAppInstallUrl('reave-barry', { targetId: 123 }), /target_id=123/);
 assert.equal(publicGithubAppOrigin('http://localhost:8080'), 'https://reave.app');
 assert.equal(
   buildGithubAppManifest({
