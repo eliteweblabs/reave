@@ -1,9 +1,10 @@
-/** Add-ons account page — demo-loader tiles inside admin settings chrome. */
+/** Add-ons account page — demo-loader tiles remapped onto admin light/dark tokens. */
 
 .addons-dl-wrap {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 4px 24px;
+  color: var(--fg);
 }
 
 .addons-dl-wrap .dl-hero--compact {
@@ -13,23 +14,69 @@
 
 .addons-dl-wrap .dl-hero--compact .dl-h1 {
   font-size: clamp(1.35rem, 3vw, 1.75rem);
+  color: var(--fg);
 }
 
-.addons-dl-wrap .dl-hero--compact .dl-lead {
+.addons-dl-wrap .dl-hero--compact .dl-lead,
+.addons-dl-wrap .dl-lead,
+.addons-dl-wrap .dl-meta,
+.addons-dl-wrap .dl-footnote {
   max-width: 52rem;
+  color: var(--muted);
+}
+
+.addons-dl-wrap .dl-footnote {
+  max-width: none;
+  border-color: var(--panel-border);
+  background: var(--panel);
+}
+
+.addons-dl-wrap .dl-section-title {
+  color: var(--fg);
+  border-color: var(--panel-border);
+  background: var(--panel);
 }
 
 .addons-dl-wrap .dl-price {
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #4ade80;
+  color: #15803d;
   white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .addons-dl-wrap .dl-price {
+    color: #4ade80;
+  }
 }
 
 .addons-dl-wrap .dl-btn--sm {
   padding: 0.45rem 0.85rem;
   font-size: 0.78rem;
+}
+
+.addons-dl-wrap .dl-btn--ghost {
+  color: var(--fg);
+  background: var(--surface-muted);
+  border-color: var(--card-border);
+}
+
+.addons-dl-wrap .dl-tile-label {
+  color: var(--fg);
+}
+
+.addons-dl-wrap .dl-tile-blurb {
+  color: var(--muted);
+}
+
+.addons-dl-wrap .dl-switch {
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+
+.addons-dl-wrap .dl-badge--included {
+  background: color-mix(in srgb, #a855f7 16%, var(--panel));
+  color: color-mix(in srgb, #6d28d9 55%, var(--fg));
 }
 
 .addons-panel-scroll {
@@ -38,11 +85,17 @@
 }
 
 #settings-panel .addons-dl-wrap .dl-tile {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--card);
+  border-color: var(--card-border);
 }
 
 #settings-panel .addons-dl-wrap .dl-tile--selected {
-  border-color: rgba(74, 222, 128, 0.45);
-  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
+  border-color: color-mix(in srgb, #22c55e 55%, var(--card-border));
+  background: color-mix(in srgb, #22c55e 10%, var(--card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, #22c55e 22%, transparent);
+}
+
+#settings-panel .addons-dl-wrap .dl-tile--included {
+  border-color: color-mix(in srgb, #a855f7 32%, var(--card-border));
+  background: color-mix(in srgb, #a855f7 8%, var(--card));
 }
