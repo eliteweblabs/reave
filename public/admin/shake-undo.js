@@ -8,12 +8,14 @@
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
  */
 
-import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260819c';
+import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260820a';
 
 const UNDO_WINDOW_MS = 5000;
 const SHAKE_THRESHOLD = 18;
 const SHAKE_COOLDOWN_MS = 900;
 const MOTION_PREF_KEY = 'reave-motion-permission';
+/** Ignore momentary hides (desktop PWA titlebar / permission dialogs). */
+const VISIBILITY_COMMIT_MS = 400;
 
 /** @type {{ key: string, commit: () => (void|Promise<void>), undo: () => (void|Promise<void>), timer: ReturnType<typeof setTimeout> } | null} */
 let pending = null;
@@ -22,6 +24,8 @@ let lastShakeAt = 0;
 let lastAcc = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let toastTimer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let visibilityCommitTimer = null;
 
 function motionPermissionCached() {
   try {
@@ -43,9 +47,16 @@ export function shakeMotionSupported() {
   return typeof window !== 'undefined' && typeof window.DeviceMotionEvent !== 'undefined';
 }
 
+/** Handhelds only — desktop still exposes DeviceMotionEvent and may prompt. */
+function isShakeDevice() {
+  if (typeof window === 'undefined') return false;
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')) return true;
+  return Boolean(window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches);
+}
+
 /** True when we can (or already may) listen for shakes. */
 export function shakeUndoLikelyAvailable() {
-  if (!shakeMotionSupported()) return false;
+  if (!isShakeDevice() || !shakeMotionSupported()) return false;
   const cached = motionPermissionCached();
   if (cached === 'denied') return false;
   return true;
@@ -56,7 +67,7 @@ export function shakeUndoLikelyAvailable() {
  * @returns {Promise<boolean>}
  */
 export async function ensureShakePermission() {
-  if (!shakeMotionSupported()) return false;
+  if (!isShakeDevice() || !shakeMotionSupported()) return false;
   const cached = motionPermissionCached();
   if (cached === 'granted') {
     startShakeListening();
@@ -235,6 +246,14 @@ if (typeof window !== 'undefined') {
     void flushPendingCommit();
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) void flushPendingCommit();
+    if (visibilityCommitTimer) {
+      clearTimeout(visibilityCommitTimer);
+      visibilityCommitTimer = null;
+    }
+    if (!document.hidden) return;
+    visibilityCommitTimer = setTimeout(() => {
+      visibilityCommitTimer = null;
+      if (document.hidden) void flushPendingCommit();
+    }, VISIBILITY_COMMIT_MS);
   });
 }
