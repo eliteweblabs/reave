@@ -40,6 +40,48 @@ export const EMPTY_INDUSTRY_PLAYBOOK: DeckIndustryPlaybook = {
   notes: '',
 };
 
+/** Seed industries the deploy wizard already shipped before the catalog existed. */
+export const CANONICAL_DEPLOY_INDUSTRIES = [
+  { slug: 'general', label: 'General contractor' },
+  { slug: 'law', label: 'Law firm' },
+  { slug: 'plumbing', label: 'Plumbing' },
+] as const;
+
+const DEPLOY_INDUSTRY_ALIASES: Record<string, string> = {
+  plumber: 'plumbing',
+  plumbers: 'plumbing',
+  'law-firm': 'law',
+  legal: 'law',
+  lawyer: 'law',
+  bankruptcy: 'law',
+  'general-contractor': 'general',
+  contractor: 'general',
+};
+
+export function canonicalDeployIndustrySlug(raw: string): string | null {
+  const slug = raw.trim().toLowerCase();
+  if (!slug) return null;
+  if (CANONICAL_DEPLOY_INDUSTRIES.some((row) => row.slug === slug)) return slug;
+  return DEPLOY_INDUSTRY_ALIASES[slug] ?? null;
+}
+
+export function isLawIndustrySlug(raw: string): boolean {
+  return canonicalDeployIndustrySlug(raw) === 'law';
+}
+
+export function isBlankIndustryPlaybook(raw: unknown): boolean {
+  const playbook = normalizeIndustryPlaybook(raw);
+  return (
+    playbook.moduleIds.length === 0 &&
+    playbook.extras.length === 0 &&
+    !playbook.postAlias &&
+    !playbook.notes &&
+    playbook.seedInbox &&
+    playbook.seedTodos &&
+    playbook.seedSchedule
+  );
+}
+
 export function normalizePlaybookPostAlias(raw: unknown): string {
   if (typeof raw !== 'string') return '';
   const t = raw.trim().toLowerCase();
@@ -91,9 +133,10 @@ export function normalizeIndustryPlaybook(raw: unknown): DeckIndustryPlaybook {
   };
 }
 
-/** Fallback recipe when a seed fixture is not in the industries catalog yet. */
+/** Recipe the deploy wizard already used for each seed industry. */
 export function defaultFixturePlaybook(id: string): DeckIndustryPlaybook {
-  if (id === 'law') {
+  const canonical = canonicalDeployIndustrySlug(id) ?? id.trim().toLowerCase();
+  if (canonical === 'law') {
     return {
       ...EMPTY_INDUSTRY_PLAYBOOK,
       postAlias: 'matter',
@@ -101,7 +144,93 @@ export function defaultFixturePlaybook(id: string): DeckIndustryPlaybook {
         'Law installs use “matter” as the work name. Court knowledge can be gated from the office pin after you pick an address in the wizard.',
     };
   }
+  if (canonical === 'plumbing') {
+    return {
+      ...EMPTY_INDUSTRY_PLAYBOOK,
+      notes:
+        'Plumbing installs seed a sample inbox, jobs, and schedule for a trade shop. Live email can replace this after apply.',
+    };
+  }
+  if (canonical === 'general') {
+    return {
+      ...EMPTY_INDUSTRY_PLAYBOOK,
+      notes:
+        'General contractor installs seed inbox, todos, and schedule so the dashboard is not empty before live email is connected.',
+    };
+  }
   return { ...EMPTY_INDUSTRY_PLAYBOOK };
+}
+
+export type CanonicalIndustryRow = {
+  id: number;
+  slug: string;
+  label: string;
+  sortOrder: number;
+  enabled: boolean;
+  playbook: DeckIndustryPlaybook;
+  updatedAt: string | null;
+};
+
+/**
+ * Ensure Law firm, Plumbing, and General contractor exist with the recipes
+ * the deploy wizard already used. Alias rows like “Plumbers” become Plumbing
+ * when that official slug is free. Blank playbooks on those slugs are filled.
+ */
+export function backfillCanonicalDeployIndustries(
+  list: CanonicalIndustryRow[],
+): { list: CanonicalIndustryRow[]; changed: boolean } {
+  const now = new Date().toISOString();
+  const next = list.map((item) => ({
+    ...item,
+    playbook: normalizeIndustryPlaybook(item.playbook),
+  }));
+  let changed = false;
+  const bySlug = new Map(next.map((item) => [item.slug, item]));
+
+  for (const item of next) {
+    const canonical = canonicalDeployIndustrySlug(item.slug);
+    if (!canonical) continue;
+    const official = CANONICAL_DEPLOY_INDUSTRIES.find((row) => row.slug === canonical);
+    if (!official) continue;
+
+    if (item.slug !== canonical && !bySlug.has(canonical)) {
+      bySlug.delete(item.slug);
+      item.slug = official.slug;
+      item.label = official.label;
+      bySlug.set(canonical, item);
+      changed = true;
+    }
+
+    if (isBlankIndustryPlaybook(item.playbook)) {
+      item.playbook = defaultFixturePlaybook(canonical);
+      changed = true;
+    }
+  }
+
+  let maxId = next.reduce((max, item) => Math.max(max, item.id || 0), 0);
+  for (const official of CANONICAL_DEPLOY_INDUSTRIES) {
+    if (bySlug.has(official.slug)) continue;
+    maxId += 1;
+    const row: CanonicalIndustryRow = {
+      id: maxId,
+      slug: official.slug,
+      label: official.label,
+      sortOrder: next.length,
+      enabled: true,
+      playbook: defaultFixturePlaybook(official.slug),
+      updatedAt: now,
+    };
+    next.push(row);
+    bySlug.set(official.slug, row);
+    changed = true;
+  }
+
+  if (!changed) return { list: next, changed: false };
+  next.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  next.forEach((item, i) => {
+    item.sortOrder = i;
+  });
+  return { list: next, changed: true };
 }
 
 export function listIndustryPlaybookModules(): Array<{ id: string; label: string }> {
@@ -142,7 +271,7 @@ export function applyIndustryPlaybookToWizard(input: {
   ].sort();
   const postAlias =
     playbook.postAlias ||
-    (input.industryId === 'law' ? 'matter' : input.currentPostAlias || 'project');
+    (isLawIndustrySlug(input.industryId) ? 'matter' : input.currentPostAlias || 'project');
   return {
     moduleIds,
     extras: playbook.extras.filter((id) => EXTRA_SET.has(id)),

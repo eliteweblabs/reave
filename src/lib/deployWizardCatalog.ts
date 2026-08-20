@@ -9,6 +9,7 @@
 import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
 import {
   defaultFixturePlaybook,
+  isLawIndustrySlug,
   normalizeIndustryPlaybook,
   type DeckIndustryPlaybook,
 } from './industryPlaybook';
@@ -1747,7 +1748,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   const installSlug = (input.installSlug?.trim() || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
   const siteDomain = normalizeSiteDomain(input.siteDomain);
   const seed = normalizeDeployWizardSeed(input.seed);
-  const postAlias = normalizePostAlias(input.postAlias || (seed.industry === 'law' ? 'matter' : undefined));
+  const postAlias = normalizePostAlias(input.postAlias || (isLawIndustrySlug(seed.industry) ? 'matter' : undefined));
   const companyName = (input.companyName ?? '').trim().slice(0, 120);
   const adminUsername = (input.adminUsername ?? '').trim().slice(0, 120);
   const timezone = (input.timezone?.trim() || 'America/New_York').slice(0, 64);
@@ -1823,7 +1824,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
       { name: 'SEED_TODOS', value: seed.todos ? '1' : '0', description: 'Seed sample todos / matters.' },
       { name: 'SEED_SCHEDULE', value: seed.schedule ? '1' : '0', description: 'Seed sample calendar bookings.' },
     ];
-    if (seed.industry === 'law') {
+    if (isLawIndustrySlug(seed.industry)) {
       if (seed.practiceAddress) {
         seedVars.push({
           name: 'BOOKING_DEFAULT_ADDRESS',

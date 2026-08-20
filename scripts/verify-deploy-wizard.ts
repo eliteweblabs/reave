@@ -28,6 +28,8 @@ import { CSP_FORM_ACTION } from '../src/lib/securityHeaders.ts';
 import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIdentityFormat.ts';
 import {
   applyIndustryPlaybookToWizard,
+  backfillCanonicalDeployIndustries,
+  EMPTY_INDUSTRY_PLAYBOOK,
   normalizeIndustryPlaybook,
 } from '../src/lib/industryPlaybook.ts';
 import {
@@ -293,6 +295,38 @@ assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009']);
 assert.deepEqual(applied.extras, ['materials']);
 assert.equal(applied.postAlias, 'client');
 assert.equal(normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','), '006');
+const backfilled = backfillCanonicalDeployIndustries([
+  {
+    id: 1,
+    slug: 'salon',
+    label: 'Salon',
+    sortOrder: 0,
+    enabled: true,
+    playbook: { ...EMPTY_INDUSTRY_PLAYBOOK },
+    updatedAt: null,
+  },
+  {
+    id: 2,
+    slug: 'plumbers',
+    label: 'Plumbers',
+    sortOrder: 1,
+    enabled: true,
+    playbook: { ...EMPTY_INDUSTRY_PLAYBOOK },
+    updatedAt: null,
+  },
+]);
+assert.equal(backfilled.changed, true);
+assert.deepEqual(
+  backfilled.list.map((row) => row.slug),
+  ['general', 'law', 'plumbing', 'salon'],
+);
+assert.equal(backfilled.list.find((row) => row.slug === 'plumbing')?.label, 'Plumbing');
+assert.match(backfilled.list.find((row) => row.slug === 'plumbing')?.playbook.notes || '', /trade shop/);
+assert.equal(backfilled.list.find((row) => row.slug === 'law')?.playbook.postAlias, 'matter');
+assert.equal(
+  backfillCanonicalDeployIndustries(backfilled.list).changed,
+  false,
+);
 const salonSeed = buildDeployWizardPlan({
   features: ['website'],
   seed: { industry: 'salon', inbox: true, todos: true, schedule: true },
