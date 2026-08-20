@@ -853,9 +853,9 @@ async function runKnowledgeAgentInner(
       `Media drop folder: Enable a Mac/iPhone folder for the media library by setting MEDIA_WEBDAV_USERNAME + MEDIA_WEBDAV_PASSWORD (or reuse CardDAV credentials). Call read_knowledge slug "media-drop-folder" for Finder and iOS Files setup.`,
     );
   }
-  if (isMaterialsApiConfigured()) {
+  if (hasFeature('materials_pricing') && isMaterialsApiConfigured()) {
     sysParts.push(
-      'Materials pricing: live Home Depot (and future retailer) prices via materials-api. For lumber, drywall, paint, fixtures, or pasted Home Depot URLs, call read_knowledge slug "materials-api-reference" before quoting — do not guess prices. Use POST /api/materials/search, /api/materials/lookup, or /api/materials/quote (or upstream materials-api). Pass zip for store-specific pricing. Map quote line items to Crater invoices via billing tools (whole-dollar prices).',
+      'Materials pricing: live Home Depot (and future retailer) prices via materials-api. For lumber, drywall, paint, fixtures, or pasted Home Depot URLs, call read_knowledge slug "materials-api-reference" before quoting — do not guess prices. Use search_materials, lookup_materials_url, quote_materials, or POST /api/materials/search, /api/materials/lookup, /api/materials/quote. Pass zip for store-specific pricing. Map quote line items to Crater invoices via billing tools (whole-dollar prices).',
     );
   }
   if (hasFeature('scheduling') && isBookingConfigured()) {

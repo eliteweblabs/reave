@@ -6,6 +6,14 @@ Use for Home Depot (and future retailer) product search, price lookup, and batch
 
 Bootstrap source (before the GitHub repo exists): `bootstrap/materials-api/` in this repo. Agent playbook also ships in the service repo as `KNOWLEDGE.md` (`GET /knowledge` on the service).
 
+## Feature gate
+
+Install config:
+
+```json
+{ "features": ["materials_pricing", ...] }
+```
+
 ## Railway (Reave App only)
 
 Add a **`materials-api`** service inside the **Reave App** Railway project (same project as Astro, contact-api, Crater).

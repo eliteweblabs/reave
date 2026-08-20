@@ -4,11 +4,11 @@
  */
 import {
   catalogForChecklist,
+  demoModuleIdForFeature,
   isDemoBaselineModuleId,
 } from './demoModuleCatalog';
 
 export const INDUSTRY_PLAYBOOK_EXTRAS = [
-  'materials',
   'changedetection_railway',
   'plausible_railway',
 ] as const;
@@ -80,9 +80,20 @@ export function normalizePlaybookExtras(raw: unknown): IndustryPlaybookExtraId[]
 
 export function normalizeIndustryPlaybook(raw: unknown): DeckIndustryPlaybook {
   const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const moduleIds = normalizePlaybookModuleIds(o.moduleIds);
+  const extras = normalizePlaybookExtras(o.extras);
+
+  // Legacy playbooks stored materials as an extra — promote to the materials_pricing module.
+  const legacyMaterials = Array.isArray(o.extras) && o.extras.includes('materials');
+  if (legacyMaterials) {
+    const materialsId = demoModuleIdForFeature('materials_pricing');
+    if (materialsId && !moduleIds.includes(materialsId)) moduleIds.push(materialsId);
+    moduleIds.sort();
+  }
+
   return {
-    moduleIds: normalizePlaybookModuleIds(o.moduleIds),
-    extras: normalizePlaybookExtras(o.extras),
+    moduleIds,
+    extras,
     seedInbox: o.seedInbox !== false,
     seedTodos: o.seedTodos !== false,
     seedSchedule: o.seedSchedule !== false,
