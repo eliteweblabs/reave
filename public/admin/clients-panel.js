@@ -1208,37 +1208,6 @@ function portalFieldsEqual(a, b) {
   return left.every((row, i) => row.label === right[i].label && row.value === right[i].value);
 }
 
-function hasInstallFeature(id) {
-  const features = window.__installConfig?.features;
-  return Array.isArray(features) && features.includes(id);
-}
-
-function mountClientHandoutsSection(parent, uid, draft) {
-  if (!uid || !hasInstallFeature('client_portal') || clientKindFromRecord(draft) === 'personal') return;
-
-  const wrap = document.createElement('div');
-  wrap.className = 'de-label cl-handouts-label';
-  const title = document.createElement('span');
-  title.textContent = 'Email signature & vCard';
-  wrap.appendChild(title);
-
-  const hint = document.createElement('span');
-  hint.className = 'prof-hint prof-hint--block';
-  hint.textContent =
-    'Built from this contact\'s profile and portal branding. Open the signature page to copy HTML into Gmail or Outlook; download the vCard for Apple Contacts or Android.';
-  wrap.appendChild(hint);
-
-  const links = document.createElement('div');
-  links.className = 'cl-portal-actions';
-  const sigUrl = `${window.location.origin}/c/${encodeURIComponent(uid)}/signature.html`;
-  const vcardUrl = `${window.location.origin}/c/${encodeURIComponent(uid)}/card.vcf`;
-  links.innerHTML =
-    `<a class="prof-btn-secondary" href="${escHtml(sigUrl)}" target="_blank" rel="noopener noreferrer">Email signature</a>` +
-    `<a class="prof-btn-secondary" href="${escHtml(vcardUrl)}" target="_blank" rel="noopener noreferrer">vCard (.vcf)</a>`;
-  wrap.appendChild(links);
-  parent.appendChild(wrap);
-}
-
 function mountClientPortalContentSection(parent, draft) {
   const taglineInput = document.createElement('input');
   taglineInput.className = 'de-input';
@@ -1963,7 +1932,6 @@ function renderEditClientForm(pane) {
         },
       });
       const portalContent = mountClientPortalContentSection(brandingFields, clientState.draft);
-      mountClientHandoutsSection(brandingFields, uid, clientState.draft);
       clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
       websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
       brandingBody.appendChild(brandingFields);
