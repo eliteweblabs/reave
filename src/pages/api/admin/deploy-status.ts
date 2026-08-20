@@ -19,6 +19,18 @@ import {
   isFeatureInFooterNav,
 } from '../../../lib/moduleNavMap';
 import type { FeatureId } from '../../../lib/featureCatalog';
+import { listModuleEntitlements } from '../../../lib/moduleEntitlements';
+import {
+  formatModulePrice,
+  isPaidModule,
+  modulePrice,
+  moduleStorefrontEnabled,
+} from '../../../lib/moduleStorefront';
+import { isDeploymentOwner } from '../../../lib/deploymentOwner';
+import {
+  MODULE_DISPLAY_GROUPS,
+  moduleDisplayGroupFor,
+} from '../../../lib/moduleDisplayGroups';
 
 export const prerender = false;
 
@@ -56,11 +68,22 @@ export async function GET(context: APIContext): Promise<Response> {
     ? parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value)
     : null;
 
+  const [entitlements, owner] = await Promise.all([
+    listModuleEntitlements(),
+    isDeploymentOwner(context),
+  ]);
+  const entitlementByFeature = new Map(entitlements.map((e) => [e.feature, e]));
+  const storefront = moduleStorefrontEnabled();
+
   const modules = listAllDeployModules().map((m) => {
     const navKeys = footerNavKeysForFeature(m.feature);
     const inFooterNav = isFeatureInFooterNav(m.feature, footerNav);
     const inDemoSuite =
       demoSuite != null ? demoSuite.features.includes(m.feature as FeatureId) : null;
+
+    const price = modulePrice(m.feature);
+    const entitlement = entitlementByFeature.get(m.feature) ?? null;
+    const purchasable = storefront && isPaidModule(m.feature) && !m.enabled;
 
     return {
       moduleId: demoModuleIdForFeature(m.feature),
@@ -81,6 +104,10 @@ export async function GET(context: APIContext): Promise<Response> {
       inFooterNav,
       inDemoSuite,
       needsAttention: moduleNeedsAttention(m),
+      purchasable,
+      price: price ? { ...price, label: formatModulePrice(price) } : null,
+      entitlement,
+      group: moduleDisplayGroupFor(m.feature),
     };
   });
 
@@ -98,8 +125,15 @@ export async function GET(context: APIContext): Promise<Response> {
           summary: demoSuiteSummary(demoSuite),
         }
       : null,
+    storefront,
+    canMarkPaid: owner,
     footerNav,
     catalog: demoModuleCatalog(),
+    groups: MODULE_DISPLAY_GROUPS.map((g) => ({
+      id: g.id,
+      title: g.title,
+      features: [...g.features],
+    })),
     summary: {
       total: modules.length,
       enabled: enabled.length,

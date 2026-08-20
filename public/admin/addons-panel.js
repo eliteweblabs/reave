@@ -1,0 +1,219 @@
+/**
+ * Account → Add-ons — demo-loader tile grid with owner toggles or client requests.
+ */
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
+import { osAlert } from './os-dialog.js?v=20260815a';
+
+const API = '/api/admin/addons';
+
+let pending = new Set();
+let shell = {};
+
+export function initAddonsPanel(deps = {}) {
+  shell = deps;
+}
+
+function rootEl() {
+  return document.getElementById('settings-panel');
+}
+
+function isActiveTab() {
+  const map = typeof shell.getMap === 'function' ? shell.getMap() : shell.MAP;
+  return map?.type === 'addons';
+}
+
+function renderSwitch(checked, feature, disabled) {
+  return (
+    `<button type="button" class="dl-switch" role="switch" ` +
+    `aria-checked="${checked ? 'true' : 'false'}" data-feature="${escHtml(feature)}" ` +
+    `${disabled ? ' disabled aria-disabled="true"' : ''} ` +
+    `aria-label="${checked ? 'Turn off add-on' : 'Turn on add-on'}"></button>`
+  );
+}
+
+function renderIncludedTile(card) {
+  return (
+    `<article class="dl-tile dl-tile--included" aria-disabled="true">` +
+    `<div class="dl-tile-body">` +
+    `<span class="dl-badge dl-badge--included">Included</span>` +
+    `<h3 class="dl-tile-label">${escHtml(card.label)}</h3>` +
+    (card.blurb ? `<p class="dl-tile-blurb">${escHtml(card.blurb)}</p>` : '') +
+    `</div></article>`
+  );
+}
+
+function renderTile(m, mode) {
+  const checked = Boolean(m.enabled);
+  const canToggle = mode === 'toggle' && m.toggleable;
+  const canRequest = mode === 'request' && m.purchasable && !m.entitlement;
+  const requested =
+    m.entitlement?.status === 'requested' || m.entitlement?.status === 'invoiced';
+  const busy = pending.has(m.feature);
+  const priceLabel = m.price?.label ? `<span class="dl-price">${escHtml(m.price.label)}</span>` : '';
+
+  let foot = '';
+  if (canToggle) {
+    foot = `<div class="dl-tile-foot">${renderSwitch(checked, m.feature, busy)}</div>`;
+  } else if (canRequest && !requested) {
+    foot =
+      `<div class="dl-tile-foot">` +
+      `<button type="button" class="dl-btn dl-btn--primary dl-btn--sm mod-addons-request" data-feature="${escHtml(m.feature)}"${busy ? ' disabled' : ''}>Request</button>` +
+      `</div>`;
+  } else if (requested) {
+    foot = `<div class="dl-tile-foot"><span class="dl-badge dl-badge--included">Requested</span></div>`;
+  } else if (checked) {
+    foot = `<div class="dl-tile-foot"><span class="dl-badge dl-badge--included">Active</span></div>`;
+  }
+
+  const selectedClass = checked ? ' dl-tile--selected' : '';
+  const readonlyClass = !canToggle && !canRequest && !checked ? ' dl-tile--readonly' : '';
+
+  return (
+    `<article class="dl-tile${selectedClass}${readonlyClass}" data-feature="${escHtml(m.feature)}">` +
+    `<div class="dl-tile-body">` +
+    `<div class="dl-tile-head">` +
+    `<h3 class="dl-tile-label">${escHtml(m.label)}</h3>` +
+    priceLabel +
+    `</div>` +
+    (m.blurb ? `<p class="dl-tile-blurb">${escHtml(m.blurb)}</p>` : '') +
+    `</div>` +
+    foot +
+    `</article>`
+  );
+}
+
+function renderSection(section, mode) {
+  const title = section.title ? `<h2 class="dl-section-title">${escHtml(section.title)}</h2>` : '';
+  const grid =
+    section.modules?.length ?
+      `<div class="dl-grid">${section.modules.map((m) => renderTile(m, mode)).join('')}</div>`
+    : '';
+  return `<section class="dl-section">${title}${grid}</section>`;
+}
+
+function renderPanel(data) {
+  const mode = data.mode || (data.owner ? 'toggle' : 'request');
+  const summary = data.summary || {};
+  const lead =
+    mode === 'toggle'
+      ? 'Flip add-ons on or off to test combinations. Runtime only — config features[] updates on deploy.'
+      : 'Add-ons you have are on. Request any missing module — we will follow up to enable it after payment.';
+
+  return (
+    `<div class="profile-panel-scroll addons-panel-scroll">` +
+    `<div class="addons-dl-wrap">` +
+    `<header class="dl-hero dl-hero--compact">` +
+    `<p class="dl-kicker">Account</p>` +
+    `<h1 class="dl-h1">Add-ons</h1>` +
+    `<p class="dl-lead">${escHtml(lead)}</p>` +
+    `<p class="dl-meta">${summary.enabled ?? 0} active · ${summary.available ?? 0} available · ${summary.total ?? 0} total</p>` +
+    `</header>` +
+    `<div class="dl-panel">` +
+    `<div class="dl-sections">` +
+    (data.included?.length
+      ? `<section class="dl-section"><h2 class="dl-section-title">Core OS</h2><div class="dl-grid">${data.included.map(renderIncludedTile).join('')}</div></section>`
+      : '') +
+    (data.sections || []).map((s) => renderSection(s, mode)).join('') +
+    `</div>` +
+    `</div>` +
+    `<p class="dl-footnote">Prices are one-time add-on fees for now. Stripe checkout coming soon — requests alert the team immediately.</p>` +
+    `</div></div>`
+  );
+}
+
+async function postAddons(body) {
+  const res = await adminFetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return readAdminJson(res, 'addons');
+}
+
+function bindPanelEvents(root) {
+  root.querySelectorAll('.dl-switch').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const feature = btn.getAttribute('data-feature');
+      if (!feature || pending.has(feature)) return;
+      const enabled = btn.getAttribute('aria-checked') !== 'true';
+      pending.add(feature);
+      btn.disabled = true;
+      try {
+        const data = await postAddons({ action: 'toggle', feature, enabled });
+        if (!data.ok) throw new Error(data.error || 'Toggle failed');
+        await loadAddonsTab({ quiet: true });
+      } catch (err) {
+        void osAlert({ title: 'Could not update add-on', bodyHtml: escHtml(err.message) });
+        btn.disabled = false;
+      } finally {
+        pending.delete(feature);
+      }
+    });
+  });
+
+  root.querySelectorAll('.mod-addons-request').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const feature = btn.getAttribute('data-feature');
+      if (!feature || pending.has(feature)) return;
+      pending.add(feature);
+      btn.disabled = true;
+      try {
+        const data = await postAddons({ action: 'request', feature });
+        if (!data.ok) throw new Error(data.error || 'Request failed');
+        void osAlert({
+          title: 'Request sent',
+          bodyHtml: 'We got your add-on request and will follow up shortly.',
+        });
+        await loadAddonsTab({ quiet: true });
+      } catch (err) {
+        btn.disabled = false;
+        void osAlert({ title: 'Request failed', bodyHtml: escHtml(err.message) });
+      } finally {
+        pending.delete(feature);
+      }
+    });
+  });
+
+  root.querySelectorAll('.dl-tile .dl-switch').forEach((sw) => {
+    const tile = sw.closest('.dl-tile');
+    tile?.addEventListener('click', () => {
+      if (!sw.disabled) sw.click();
+    });
+  });
+}
+
+export async function loadAddonsTab(opts = {}) {
+  if (!isActiveTab() && !opts.force) return;
+  const root = rootEl();
+  if (!root) return;
+
+  if (!opts.quiet) {
+    mountPanelSkeleton(root, 'dashboard', 'Loading add-ons…', {
+      contentSelector: '.dl-panel',
+      wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+    });
+    if (typeof shell.prependSettingsBackHeader === 'function') {
+      shell.prependSettingsBackHeader(root);
+    }
+  }
+
+  try {
+    const res = await adminFetch(API, { cache: 'no-store' });
+    const data = await readAdminJson(res, 'addons');
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    root.innerHTML = renderPanel(data);
+    if (typeof shell.prependSettingsBackHeader === 'function') {
+      shell.prependSettingsBackHeader(root);
+    }
+    bindPanelEvents(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+      `<div class="prof-card"><h1 class="prof-title">Add-ons</h1>` +
+      `<p class="dash-empty">Could not load add-ons: ${escHtml(e.message)}</p></div></div>`;
+    if (typeof shell.prependSettingsBackHeader === 'function') {
+      shell.prependSettingsBackHeader(root);
+    }
+  }
+}

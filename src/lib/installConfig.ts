@@ -53,6 +53,8 @@ const FEATURE_IDS_LIST = [
   'deploy_wizard',
   'website',
   'credit_check',
+  'materials_pricing',
+  'social_inbox',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
@@ -62,6 +64,7 @@ export const PROFILE_MENU_KEYS = [
   'company',
   'settings',
   'socials',
+  'addons',
   'industries', // REΛVE-only; stripped from client payload on other installs
   'vapi',
   'lead-scanner',
@@ -93,6 +96,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'company',
   'settings',
   'socials',
+  'addons',
   'industries',
   'vapi',
   'lead-scanner',
@@ -181,6 +185,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   company: 'Company',
   settings: 'Settings',
   socials: 'Socials',
+  addons: 'Add-ons',
   industries: 'Industries',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
@@ -348,7 +353,6 @@ export function defaultFooterNav(): FooterNavKey[] {
     'work',
     'schedule',
     'clients',
-    'social',
     'analytics',
     'profile',
     'company',
@@ -447,6 +451,12 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   }
   if (!config.features.includes('site_audits')) {
     nav = nav.filter((key) => key !== 'sales-sheet');
+  }
+  if (!config.features.includes('social_inbox')) {
+    nav = nav.filter((key) => key !== 'social');
+  }
+  if (!config.features.includes('online_reviews')) {
+    nav = nav.filter((key) => key !== 'reviews');
   }
   if (!isCanonicalReaveInstall()) {
     nav = nav.filter((key) => key !== 'industries');

@@ -14,9 +14,11 @@ import {
   buildDeployWizardPlan,
   formatDeployWizardCli,
   isDeployWizardExtraId,
+  isDeployWizardPublicHost,
   isDeployWizardSeedIndustryId,
   mergeDeployWizardSeedIndustries,
   normalizeDeployWizardSeed,
+  normalizeSiteDomain,
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from '../../../lib/deployWizardCatalog';
@@ -131,6 +133,30 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
+
+  const probeRaw = context.url.searchParams.get('probeSite')?.trim() || '';
+  if (probeRaw) {
+    const host = normalizeSiteDomain(probeRaw);
+    if (!isDeployWizardPublicHost(host)) {
+      return json({ ok: false, error: 'Invalid site host' }, 400);
+    }
+    const origin = `https://${host}`;
+    const live = `${origin}/api/health/live`;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch(live, {
+        method: 'GET',
+        redirect: 'follow',
+        signal: ctrl.signal,
+        headers: { 'User-Agent': 'reave-deploy-wizard/1.0' },
+      });
+      clearTimeout(timer);
+      return json({ ok: true, url: origin, reachable: res.ok, status: res.status });
+    } catch {
+      return json({ ok: true, url: origin, reachable: false });
+    }
+  }
 
   const modules = listDemoLoaderModules();
   const baseline = ['001', '002', '003', '004']

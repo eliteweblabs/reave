@@ -141,6 +141,25 @@ function normalizeStates(raw?: string[] | null): string[] {
   ];
 }
 
+/** Gate values are `"Essex"` (legacy) or `"Essex, MA"`. */
+export type CountySelection = { name: string; state: string | null };
+
+export function parseCountySelection(raw: string): CountySelection {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return { name: '', state: null };
+  const withState = trimmed.match(/^(.*?)(?:,\s*([A-Za-z]{2}))$/);
+  const head = (withState ? withState[1] : trimmed).replace(/\s+county$/i, '').trim();
+  return { name: head, state: withState ? withState[2].toUpperCase() : null };
+}
+
+export function countySelectionMatches(selected: string, venueCounty: string, venueState: string): boolean {
+  const parsed = parseCountySelection(selected);
+  if (!parsed.name) return false;
+  if (parsed.name.toLowerCase() !== venueCounty.trim().toLowerCase()) return false;
+  if (!parsed.state) return true;
+  return parsed.state === venueState.trim().toUpperCase();
+}
+
 export function normalizePracticeGate(raw?: Partial<PracticeGate> | null): PracticeGate {
   const radius = Number(raw?.radiusMi);
   const mode = (raw?.gateMode || '').trim().toLowerCase();

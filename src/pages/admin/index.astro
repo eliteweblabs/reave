@@ -18,7 +18,7 @@ import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from "../../lib/companyConfig";
 import { getInstallConfigClient } from "../../lib/installConfig";
 import { isSpecialAdminPageKey } from "../../lib/adminSpecialPages";
-import { enabledFeatures } from "../../lib/features";
+import { enabledFeatures, ensureFeatureOverridesLoaded } from "../../lib/features";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
 import { getAuthUser, isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
@@ -42,12 +42,15 @@ if (!userId) {
 const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
 const staffAvatarUrl = companyStaffAvatarUrl(company);
+const isOwner = userId ? await isDeploymentOwner(Astro) : false;
+if (isOwner) {
+  await ensureFeatureOverridesLoaded();
+}
 const installConfigClient = {
   ...getInstallConfigClient(),
   features: [...enabledFeatures()],
   deployStatus: getDeployStatusClientSummary(),
 };
-const isOwner = userId ? await isDeploymentOwner(Astro) : false;
 const deniedUser = userId && !isOwner ? await getAuthUser(Astro) : null;
 const signedInAs =
   deniedUser?.emailAddresses?.[0]?.emailAddress?.trim() ||

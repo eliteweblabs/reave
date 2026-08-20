@@ -915,8 +915,10 @@ body.admin-split-view #chat-panel .ch-compose {
   justify-content: center;
   gap: 0.45rem;
   pointer-events: auto;
-  top: calc(var(--safe-top) + 1.25rem);
+  /* Below the measured header — desktop PWA titlebars eat safe-top + 1.25rem. */
+  top: calc(var(--topbar-measured-h, var(--topbar-h)) + 0.65rem);
   bottom: auto;
+  z-index: 11000;
   transform: translateX(-50%) translateY(-0.5rem);
   padding: 0.72rem 1.35rem;
   border: none;

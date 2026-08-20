@@ -1701,6 +1701,7 @@ const SPLIT_VIEW_TYPES = new Set([
   'rules',
   'schedule',
   'todo',
+  'social',
 ]);
 const SIDEBAR_PANEL_IDS = [
   'email-panel',
@@ -1712,6 +1713,7 @@ const SIDEBAR_PANEL_IDS = [
   'rule-editor',
   'schedule-panel',
   'todo-editor',
+  'social-panel',
 ];
 /** Split view (list + detail side-by-side) and sidebar resize at ≥640px. */
 export const ADMIN_SPLIT_VIEW_MQ = window.matchMedia('(min-width: 640px)');

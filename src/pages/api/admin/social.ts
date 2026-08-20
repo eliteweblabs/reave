@@ -11,6 +11,7 @@ import type { APIContext } from 'astro';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { buildSocialDashboard } from '../../../lib/social/index.ts';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { hasFeature } from '../../../lib/features';
 
 export const prerender = false;
 
@@ -39,7 +40,9 @@ function parseTags(raw: string | null): string[] | undefined {
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
+  if (!hasFeature('social_inbox')) {
+    return json({ ok: false, error: 'social_inbox not enabled' }, 404);
+  }
 
   try {
     const url = new URL(context.request.url);

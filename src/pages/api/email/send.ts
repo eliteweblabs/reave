@@ -9,6 +9,11 @@ import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
 import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import {
+  appendSignatureToHtmlFragment,
+  appendSignatureToPlainText,
+  getUserEmailSignature,
+} from '../../../lib/userEmailSignature';
 
 export const prerender = false;
 
@@ -75,6 +80,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   let sendText = text || html || '';
   let sendHtml = html;
+  const signature = await getUserEmailSignature(userId, context);
 
   if (!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) {
     const primaryTo = to[0] || '';
@@ -82,9 +88,12 @@ export async function POST(context: APIContext): Promise<Response> {
       inbound?.contactName?.trim().split(/\s+/)[0] ||
       primaryTo.split('@')[0] ||
       'there';
-    const wrapped = await brandedPlainTextEmail({ firstName, body: sendText });
+    const wrapped = await brandedPlainTextEmail({ firstName, body: sendText, signature });
     sendText = wrapped.text;
     sendHtml = wrapped.html;
+  } else {
+    sendText = appendSignatureToPlainText(sendText, signature);
+    if (sendHtml) sendHtml = appendSignatureToHtmlFragment(sendHtml, signature);
   }
 
   const result = await sendEmail({

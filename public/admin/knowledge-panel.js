@@ -42,7 +42,7 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, side
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
-import { destroyCourtsGateMap, mountCourtsGateMap } from './courts-gate-map.js?v=20260819b';
+import { destroyCourtsGateMap, mountCourtsGateMap } from './courts-gate-map.js?v=20260820a';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
 let shell = {};

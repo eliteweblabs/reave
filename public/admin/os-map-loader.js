@@ -61,6 +61,7 @@ import {
   IOS_ICONS,
   agentIconSvg,
   createIosIconBtn,
+  createAgentBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -161,7 +162,7 @@ import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260819a';
+} from './knowledge-panel.js?v=20260820a';
 import {
   initSchedulePanel,
   scheduleState,
@@ -193,14 +194,14 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260817c';
+} from './clients-panel.js?v=20260820c';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
   isShakeUndoPendingKey,
   pendingShakeUndoKey,
   queueShakeUndo,
-} from './shake-undo.js?v=20260819c';
+} from './shake-undo.js?v=20260820a';
 import {
   initChatPanel,
   chatState,
@@ -251,7 +252,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260802c';
+} from './insights-panels.js?v=20260820a';
 import {
   initRulesPanel,
   ruleState,
@@ -277,10 +278,15 @@ import {
   teardownModulesPanel,
 } from './modules-panel.js?v=20260810a';
 import {
+  initAddonsPanel,
+  loadAddonsTab,
+} from './addons-panel.js?v=20260820a';
+import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
+import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260820a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -359,6 +365,7 @@ const SETTINGS_MAP_TYPES = new Set([
   'company',
   'settings',
   'socials',
+  'addons',
   'industries',
   'vapi',
   'lead-scanner',
@@ -859,6 +866,8 @@ function activateMapPanel(opts = {}) {
       prependSettingsBackHeader,
       escHtml,
     });
+  } else if (MAP.type === 'addons') {
+    loadAddonsTab();
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -6845,6 +6854,14 @@ function renderProfileOnlyPanel(profile) {
               `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
             `</div>`,
           ) +
+          profSection(
+            'Email signature',
+            'Appended to outbound emails you send from the inbox. Stored on your account, not company settings.',
+            `<div class="prof-field prof-field--signature">` +
+              `<div id="profile-signature-editor"></div>` +
+              `<textarea id="profile-emailSignature" name="emailSignature" hidden>${escHtml(p.emailSignature || '')}</textarea>` +
+              `<span class="prof-hint">Drag a logo in, or use Upload / Library / Company logo. Switch to Preview to see how it looks in email.</span></div>`,
+          ) +
         `</form>` +
       `</div>` +
     `</div>`
@@ -7333,7 +7350,7 @@ function renderSocialConnectionsCard(connections) {
   const rows = list.map(socialConnectionRow).join('');
   return profSection(
     'API access',
-    'Connect an account to pull real metrics into the Social dashboard. Each platform needs a one-time app setup first (expand “How to set this up” below to add credentials); once configured, a Connect button appears so you can sign in and authorize. Tokens are stored securely on the server.',
+    'Connect an account so the Social inbox can pull live posts and comments. Until then, saved profile links show sample activity, and Google reviews sync into the same feed. Each platform needs a one-time app setup first (expand “How to set this up”); tokens stay on the server.',
     `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>`,
   );
 }
@@ -7490,12 +7507,20 @@ async function loadProfileTab() {
   prependSettingsBackHeader(root);
 
   try {
-    const profileRes = await fetch('/api/admin/profile', { cache: 'no-store' });
+    const [profileRes, companyRes] = await Promise.all([
+      fetch('/api/admin/profile', { cache: 'no-store' }),
+      fetch('/api/admin/company', { cache: 'no-store' }),
+    ]);
     const profileData = await profileRes.json();
+    const companyData = companyRes.ok ? await companyRes.json() : null;
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
     root.innerHTML = renderProfileOnlyPanel(profileData.profile);
     prependSettingsBackHeader(root);
     bindProfileForm(root);
+    bindProfileSignatureEditor(root, {
+      initialHtml: profileData.profile?.emailSignature || '',
+      companyLogoUrl: companyData?.ok ? companyLogoPreviewUrl(companyData.company) : '',
+    });
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
@@ -8667,7 +8692,7 @@ function syncProfileMenuActive() {
   const activeSection = isSettingsMapType(MAP?.type) ? MAP.type : null;
   for (const key of window.__installConfig?.profileMenu || []) {
     const el = document.getElementById(`topbar-${key}-link`);
-    if (el) el.classList.toggle('active', activeSection === key);
+    if (el) el.classList.toggle('is-active', activeSection === key);
   }
 }
 
@@ -10667,6 +10692,7 @@ initInsightsPanels({
   companyBrand,
   osAlert,
   getMap: () => MAP,
+  appendEmptyDetailPane,
 });
 
 initRulesPanel({
@@ -10696,6 +10722,11 @@ initNewsletterPanel({});
 initOnlineReviewsPanel({});
 initMediaPanel({});
 initModulesPanel({ getMap: () => MAP, MAP });
+initAddonsPanel({
+  getMap: () => MAP,
+  MAP,
+  prependSettingsBackHeader,
+});
 
 initTodoPanel({
   setActiveMap,
@@ -13620,6 +13651,68 @@ function emailShareText(ev) {
   return [ev.subject, ev.from, ev.summary || ev.bodySnippet].filter(Boolean).join('\n\n');
 }
 
+function emailComposeToLabel() {
+  return (Array.isArray(emailState.compose.to) ? emailState.compose.to : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean)
+    .map((r) => (r.name ? `${r.name} <${r.email}>` : r.email))
+    .join(', ');
+}
+
+function splitEmailComposeQuote(body) {
+  const text = String(body || '');
+  const match = text.match(/\n\n---\nOn .+ wrote:\n/) || text.match(/\n\nOn .+ wrote:\n/);
+  if (!match || match.index == null) return { draft: text, quote: '' };
+  return { draft: text.slice(0, match.index), quote: text.slice(match.index) };
+}
+
+async function writeEmailComposeWithAgent(btn) {
+  if (emailState.sending) return;
+  const source = emailState.replySourceFull;
+  const { draft, quote } = splitEmailComposeQuote(emailState.compose.body);
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/admin/compose-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'email',
+        to: emailComposeToLabel(),
+        subject: emailState.compose.subject,
+        currentBody: draft.trim(),
+        incoming: source
+          ? {
+              from: source.from || source.fromName || '',
+              subject: source.subject || '',
+              body: source.bodyText || source.bodySnippet || '',
+            }
+          : undefined,
+      }),
+    });
+    const data = await readApiJson(res);
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const nextBody = String(data.draft?.body || '').trim();
+    if (!nextBody) throw new Error('The agent did not return any copy.');
+    if (data.draft?.subject && !emailState.replyToId) {
+      emailState.compose.subject = String(data.draft.subject);
+    }
+    emailState.compose.body = quote ? `${nextBody}${quote}` : nextBody;
+    renderEmailPanel();
+    requestAnimationFrame(() => {
+      const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+      if (bodyEl) {
+        bodyEl.focus();
+        bodyEl.setSelectionRange(0, nextBody.length);
+      }
+    });
+    showChatToast('Draft ready — review before sending');
+  } catch (e) {
+    await osAlert({ title: 'Could not write draft', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderEmailComposePane(pane) {
   const composeTitle = emailState.replyToId
     ? emailState.replyMode === 'reply-all'
@@ -13630,6 +13723,13 @@ function renderEmailComposePane(pane) {
     createPaneHeader({
       back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: composeTitle,
+      icons: [
+        createAgentBtn({
+          title: 'Write with agent',
+          label: 'Write with agent',
+          onClick: (btn) => void writeEmailComposeWithAgent(btn),
+        }),
+      ],
     }).root,
   );
 
@@ -13704,7 +13804,21 @@ function renderEmailComposePane(pane) {
 
   const bodyField = document.createElement('div');
   bodyField.className = 'em-compose-field';
-  bodyField.innerHTML = '<label class="em-compose-label" for="em-compose-body">Message</label>';
+  const bodyHead = document.createElement('div');
+  bodyHead.className = 'em-compose-field-head';
+  const bodyLabel = document.createElement('label');
+  bodyLabel.className = 'em-compose-label';
+  bodyLabel.setAttribute('for', 'em-compose-body');
+  bodyLabel.textContent = 'Message';
+  const writeBtn = document.createElement('button');
+  writeBtn.type = 'button';
+  writeBtn.className = 'em-compose-agent';
+  writeBtn.disabled = emailState.sending;
+  writeBtn.innerHTML = `${IOS_ICONS.agent || ''} Write with agent`;
+  writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
+  bodyHead.appendChild(bodyLabel);
+  bodyHead.appendChild(writeBtn);
+  bodyField.appendChild(bodyHead);
   const bodyInput = document.createElement('textarea');
   bodyInput.id = 'em-compose-body';
   bodyInput.className = 'em-compose-textarea';
@@ -14781,6 +14895,10 @@ function loadActiveKey() {
 
 function canOpenMapKey(key) {
   if (key === 'industries') return showIndustries();
+  const features = window.__installConfig?.features;
+  const has = (id) => Array.isArray(features) && features.includes(id);
+  if (key === 'social') return has('social_inbox');
+  if (key === 'reviews') return has('online_reviews');
   return true;
 }
 function saveActiveKey() {

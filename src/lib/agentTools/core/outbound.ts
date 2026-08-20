@@ -109,6 +109,11 @@ import {
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
 import { buildReplyEmailHeaders } from '../../emailReply';
 import { brandedPlainTextEmail } from '../../inboundEmailReply';
+import {
+  appendSignatureToHtmlFragment,
+  appendSignatureToPlainText,
+  getUserEmailSignature,
+} from '../../userEmailSignature';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from '../../projectLinks';
 import { markInboxEmailAsProject } from '../../emailProjectCategory';
 import { importEmailAttachmentsToProject } from '../../emailProjectAttachments';
@@ -199,11 +204,12 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
   }
 
   const looksHtml = /<[a-z][\s\S]*>/i.test(body);
+  const signature = await getUserEmailSignature(getAgentContext().userId);
   let text = body;
   let html: string | undefined;
   if (looksHtml) {
-    text = plainTextFromHtml(body) || body;
-    html = body;
+    text = appendSignatureToPlainText(plainTextFromHtml(body) || body, signature);
+    html = appendSignatureToHtmlFragment(body, signature);
   } else {
     let firstName = to.split('@')[0] || 'there';
     if (inReplyToEmailId) {
@@ -212,7 +218,7 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
         firstName = inbound.contactName.trim().split(/\s+/)[0] || firstName;
       }
     }
-    const wrapped = await brandedPlainTextEmail({ firstName, body });
+    const wrapped = await brandedPlainTextEmail({ firstName, body, signature });
     text = wrapped.text;
     html = wrapped.html;
   }

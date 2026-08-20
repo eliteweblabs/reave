@@ -67,13 +67,94 @@ function formatCheckedAt(iso) {
 
 function filterModules(modules) {
   if (filter === 'enabled') return modules.filter((m) => m.enabled);
+  if (filter === 'shop') return modules.filter((m) => m.purchasable || m.entitlement);
   if (filter === 'attention') return modules.filter((m) => m.needsAttention);
+  if (filter === 'social') return modules.filter((m) => m.group?.id === 'social');
+  if (filter === 'e-commerce') return modules.filter((m) => m.group?.id === 'e-commerce');
   return modules;
+}
+
+function groupModules(modules) {
+  const groups = lastPayload?.groups || [];
+  const claimed = new Set();
+  const sections = [];
+  for (const group of groups) {
+    const rows = modules.filter((m) => m.group?.id === group.id);
+    rows.forEach((m) => claimed.add(m.feature));
+    if (rows.length) sections.push({ id: group.id, title: group.title, modules: rows });
+  }
+  const rest = modules.filter((m) => !claimed.has(m.feature));
+  if (rest.length) sections.push({ id: 'other', title: 'Other modules', modules: rest });
+  return sections;
+}
+
+function renderPurchaseCell(m) {
+  if (m.enabled) {
+    return m.price
+      ? `<span class="mod-muted">Included</span>`
+      : '<span class="mod-muted">—</span>';
+  }
+  const price = m.price?.label ? `<span class="mod-price">${escHtml(m.price.label)}</span>` : '';
+  const ent = m.entitlement;
+  if (ent?.status === 'paid') {
+    return `${price}<span class="mod-buy-note">Paid — we turn it on</span>`;
+  }
+  if (ent?.status === 'invoiced' && ent.invoiceUrl) {
+    return (
+      `${price}` +
+      `<a class="de-btn de-btn-primary mod-buy-link" href="${escHtml(ent.invoiceUrl)}" target="_blank" rel="noopener">Pay invoice</a>` +
+      (lastPayload?.canMarkPaid
+        ? `<button type="button" class="de-btn de-btn-secondary mod-mark-paid" data-feature="${escHtml(m.feature)}">Mark paid</button>`
+        : '')
+    );
+  }
+  if (ent?.status === 'requested' || ent?.status === 'invoiced') {
+    return `${price}<span class="mod-buy-note">Requested — we will follow up</span>`;
+  }
+  if (!m.purchasable) return price || '<span class="mod-muted">—</span>';
+  return (
+    `${price}` +
+    `<button type="button" class="de-btn de-btn-primary mod-buy-btn" data-feature="${escHtml(m.feature)}">Buy</button>`
+  );
 }
 
 function renderFlag(on, label) {
   const cls = on ? 'mod-flag mod-flag--yes' : 'mod-flag mod-flag--no';
   return `<span class="${cls}" title="${escHtml(label)}">${on ? '✓' : '—'}</span>`;
+}
+
+function renderTable(modules) {
+  return (
+    `<div class="mod-table-wrap prof-card">` +
+    `<table class="mod-table">` +
+    `<thead><tr>` +
+    `<th>ID</th><th>Module</th><th>Status</th>` +
+    `<th title="Enabled · In nav · Configured · Runtime · Active · Demo suite">Flags</th>` +
+    `<th>Admin tabs</th><th>Add-on</th>` +
+    `</tr></thead>` +
+    `<tbody>${
+      modules.length
+        ? modules.map(renderRow).join('')
+        : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`
+    }</tbody>` +
+    `</table>` +
+    `</div>`
+  );
+}
+
+function renderGroupedTables(modules) {
+  if (!modules.length) return renderTable(modules);
+  const sections = groupModules(modules);
+  if (sections.length <= 1) return renderTable(modules);
+  return sections
+    .map(
+      (section) =>
+        `<section class="mod-group" data-group="${escHtml(section.id)}">` +
+        `<h2 class="mod-group-title">${escHtml(section.title)}</h2>` +
+        renderTable(section.modules) +
+        `</section>`,
+    )
+    .join('');
 }
 
 function renderRow(m) {
@@ -100,7 +181,7 @@ function renderRow(m) {
     (m.inDemoSuite != null ? renderFlag(m.inDemoSuite, 'In active demo suite') : '') +
     `</td>` +
     `<td class="mod-cell-nav">${nav}</td>` +
-    `<td class="mod-cell-playbook">${m.playbook ? `<code class="mod-playbook">${escHtml(m.playbook)}</code>` : '<span class="mod-muted">—</span>'}</td>` +
+    `<td class="mod-cell-buy">${renderPurchaseCell(m)}</td>` +
     `</tr>`
   );
 }
@@ -117,7 +198,11 @@ function renderPanel(data) {
     `<div class="mod-header-row">` +
     `<div>` +
     `<h1 class="prof-title">Modules</h1>` +
-    `<p class="prof-subtitle">Optional features, deploy status, and admin navigation links. Refreshes every ${Math.round((data.pollMs || pollMs) / 1000)}s.</p>` +
+    `<p class="prof-subtitle">${
+      data.storefront
+        ? 'Buy add-ons here. Paying does not turn a module on — we activate it after the card clears. You cannot flip modules yourself.'
+        : 'Optional features, deploy status, and admin navigation links.'
+    } Refreshes every ${Math.round((data.pollMs || pollMs) / 1000)}s.</p>` +
     `</div>` +
     `<div class="mod-header-actions">` +
     (window.__installConfig?.showDeployWizard
@@ -139,22 +224,27 @@ function renderPanel(data) {
     `</div>` +
     `<div class="mod-filters sliding-pill" role="tablist" aria-label="Filter modules">` +
     `<button type="button" class="mod-filter${filter === 'all' ? ' active' : ''}" data-filter="all">All</button>` +
+    `<button type="button" class="mod-filter${filter === 'social' ? ' active' : ''}" data-filter="social">Social</button>` +
+    `<button type="button" class="mod-filter${filter === 'e-commerce' ? ' active' : ''}" data-filter="e-commerce">E-commerce</button>` +
     `<button type="button" class="mod-filter${filter === 'enabled' ? ' active' : ''}" data-filter="enabled">Enabled</button>` +
+    (data.storefront
+      ? `<button type="button" class="mod-filter${filter === 'shop' ? ' active' : ''}" data-filter="shop">Shop</button>`
+      : '') +
     `<button type="button" class="mod-filter${filter === 'attention' ? ' active' : ''}" data-filter="attention">Needs attention</button>` +
     `</div>` +
-    `<div class="mod-table-wrap prof-card">` +
-    `<table class="mod-table">` +
-    `<thead><tr>` +
-    `<th>ID</th><th>Module</th><th>Status</th>` +
-    `<th title="Enabled · In nav · Configured · Runtime · Active · Demo suite">Flags</th>` +
-    `<th>Admin tabs</th><th>Playbook</th>` +
-    `</tr></thead>` +
-    `<tbody>${modules.length ? modules.map(renderRow).join('') : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`}</tbody>` +
-    `</table>` +
-    `</div>` +
-    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts, Clerk sign-in) is always on and not listed here. Numeric IDs are for demo URLs: <code>?modules=[001,004]</code></p>` +
+    renderGroupedTables(modules) +
+    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts, Clerk sign-in) is always on and not listed here. Add-ons are sold in this tab — a config flag on the client install is not a purchase.</p>` +
     `</div>`
   );
+}
+
+async function purchaseModule(feature, action) {
+  const res = await adminFetch('/api/admin/modules/purchase', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, feature }),
+  });
+  return readAdminJson(res, 'module-purchase');
 }
 
 function bindPanelEvents(root) {
@@ -168,6 +258,56 @@ function bindPanelEvents(root) {
       if (lastPayload) {
         root.innerHTML = renderPanel(lastPayload);
         bindPanelEvents(root);
+      }
+    });
+  });
+
+  root.querySelectorAll('.mod-buy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const feature = btn.getAttribute('data-feature');
+      if (!feature) return;
+      btn.disabled = true;
+      try {
+        const data = await purchaseModule(feature, 'purchase');
+        if (!data.ok) throw new Error(data.error || 'Purchase failed');
+        if (data.checkoutUrl) {
+          window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+          void osAlert({
+            title: 'Invoice ready',
+            bodyHtml: 'Pay the invoice to purchase this module. We turn it on after the payment clears — you cannot enable it yourself.',
+          });
+        } else {
+          void osAlert({
+            title: 'Request sent',
+            bodyHtml: data.invoiceError
+              ? `We logged the request. Invoicing is not available here yet (${escHtml(data.invoiceError)}). We will call you for a card.`
+              : 'We logged the request and will follow up for payment. Modules are not self-serve toggles.',
+          });
+        }
+        void loadModulesTab({ force: true });
+      } catch (e) {
+        btn.disabled = false;
+        void osAlert({ title: 'Purchase failed', bodyHtml: escHtml(e.message) });
+      }
+    });
+  });
+
+  root.querySelectorAll('.mod-mark-paid').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const feature = btn.getAttribute('data-feature');
+      if (!feature) return;
+      btn.disabled = true;
+      try {
+        const data = await purchaseModule(feature, 'mark_paid');
+        if (!data.ok) throw new Error(data.error || 'Update failed');
+        void osAlert({
+          title: 'Marked paid',
+          bodyHtml: 'Payment recorded. Enable the module in this install’s features[] on the next deploy.',
+        });
+        void loadModulesTab({ force: true });
+      } catch (e) {
+        btn.disabled = false;
+        void osAlert({ title: 'Update failed', bodyHtml: escHtml(e.message) });
       }
     });
   });

@@ -44,15 +44,20 @@ export async function brandedPlainTextEmail(opts: {
   body: string;
   cta?: EmailCta;
   note?: string;
+  signature?: string;
 }): Promise<{ text: string; html: string }> {
   const firstName = firstNameFrom(opts.firstName);
   const paragraphs = bodyParagraphs(opts.body);
-  const text = [`Hi ${firstName},`, '', ...paragraphs].join('\n\n');
+  const signature = opts.signature?.trim() || '';
+  const textParts = [`Hi ${firstName},`, '', ...paragraphs];
+  if (signature) textParts.push('', signature);
+  const text = textParts.join('\n\n');
   const html = await brandedEmailHtml({
     firstName,
     paragraphs,
     cta: opts.cta,
     note: opts.note,
+    signature: signature || undefined,
   });
   return { text, html };
 }

@@ -28,6 +28,7 @@ import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
 import { inventoryPlugin } from '../../plugins/inventory/manifest';
 import { materialsPlugin } from '../../plugins/materials/manifest';
 import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
+import { socialInboxPlugin } from '../../plugins/social-inbox/manifest';
 import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
 import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
@@ -60,6 +61,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   inventoryPlugin,
   materialsPlugin,
   onlineReviewsPlugin,
+  socialInboxPlugin,
   waybackMachinePlugin,
   contentManagementPlugin,
   stockPhotosPlugin,
@@ -175,6 +177,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['materials-pricing'];
     case 'online-reviews':
       return ['online-reviews'];
+    case 'social-inbox':
+      return ['social-inbox'];
     case 'wayback-machine':
       return ['wayback-machine'];
     case 'content-management':

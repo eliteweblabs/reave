@@ -29,6 +29,7 @@ export async function GET(context: APIContext): Promise<Response> {
         phone: meta.phone ?? "",
         timezone: meta.timezone ?? "",
         address: meta.address ?? "",
+        emailSignature: meta.emailSignature ?? "",
       },
     });
   } catch (err) {
@@ -52,7 +53,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  const { firstName, lastName, phone, timezone, address } = body;
+  const { firstName, lastName, phone, timezone, address, emailSignature } = body;
 
   try {
     const client = clerkClient(context);
@@ -67,6 +68,7 @@ export async function POST(context: APIContext): Promise<Response> {
         phone: phone ?? "",
         timezone: timezone ?? "",
         address: address ?? "",
+        emailSignature: emailSignature ?? "",
       },
     });
 

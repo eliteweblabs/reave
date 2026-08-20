@@ -18,6 +18,7 @@ import {
   type FeatureId,
   type FeatureVisibility,
 } from './featureCatalog.ts';
+import { featureOverrideCache, loadFeatureOverrides } from './featureOverridesStore.ts';
 import { serverEnv } from './serverEnv';
 import { createLogger } from './logger';
 
@@ -35,7 +36,7 @@ export {
   type FeatureVisibility,
 };
 
-let _cached: Set<FeatureId> | null = null;
+let _baseCached: Set<FeatureId> | null = null;
 
 function parseFeaturesEnv(): Set<FeatureId> {
   const raw = serverEnv('FEATURES')?.trim();
@@ -66,11 +67,28 @@ function bootstrapEnabled(): Set<FeatureId> {
   return parseFeaturesEnv();
 }
 
+function applyFeatureOverrides(base: Set<FeatureId>): Set<FeatureId> {
+  const overrides = featureOverrideCache();
+  if (!overrides.size) return base;
+  const out = new Set(base);
+  for (const [feature, enabled] of overrides) {
+    if (enabled) out.add(feature);
+    else out.delete(feature);
+  }
+  return out;
+}
+
+/** Load Postgres overrides — call from admin routes before reading features. */
+export async function ensureFeatureOverridesLoaded(): Promise<void> {
+  if (isDemoMode()) return;
+  await loadFeatureOverrides();
+}
+
 /** Enabled optional modules for this deployment. */
 export function enabledFeatures(): ReadonlySet<FeatureId> {
   if (isDemoMode()) return demoEnabledFeatures();
-  if (!_cached) _cached = bootstrapEnabled();
-  return _cached;
+  if (!_baseCached) _baseCached = bootstrapEnabled();
+  return applyFeatureOverrides(_baseCached);
 }
 
 export function hasFeature(id: FeatureId): boolean {
@@ -90,5 +108,9 @@ export function hasStockPhotoSearch(): boolean {
 
 /** Reset parse cache (tests / hot reload). */
 export function clearFeatureCache(): void {
-  _cached = null;
+  _baseCached = null;
+}
+
+export function refreshFeatureCache(): void {
+  _baseCached = bootstrapEnabled();
 }

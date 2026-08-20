@@ -249,6 +249,21 @@ export function normalizeSiteDomain(raw: string | undefined): string {
     .replace(/^www\./, '') ?? '';
 }
 
+/** Public hostname only — used on the GitHub-App success return. */
+export function isDeployWizardPublicHost(raw: string | undefined): boolean {
+  const host = normalizeSiteDomain(raw);
+  if (!host || host.length > 253) return false;
+  if (host === 'localhost' || host.endsWith('.localhost')) return false;
+  if (host.endsWith('.internal') || host.endsWith('.local')) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
+  return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host);
+}
+
+export function deployWizardSiteOrigin(raw: string | undefined): string {
+  const host = normalizeSiteDomain(raw);
+  return isDeployWizardPublicHost(host) ? `https://${host}` : '';
+}
+
 export function deployWizardFqdn(host: string, apex: string): string {
   const label = host === '@' ? '' : host;
   if (!apex) return label ? `${label}.{apex}` : '{apex}';
@@ -312,13 +327,15 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'calcom-booking-api',
     kind: 'api',
     description: 'Booking REST API (private network to reave).',
+    repo: 'eliteweblabs/calcom-booking-api',
     features: ['scheduling'],
   },
   {
     id: 'calcom-web-app',
     label: 'calcom-web-app',
     kind: 'api',
-    description: 'Cal.com admin UI.',
+    description: 'Cal.com admin UI (same Docker image as REΛVE.app — not the GitHub fork).',
+    image: 'calcom/cal.com:latest',
     features: ['scheduling'],
   },
   {
