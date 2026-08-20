@@ -2,8 +2,9 @@
  * First-boot sample data for a new install (deploy-wizard SEED_ON_BOOT).
  * Runs inbox / todos / schedule seeds without turning on sales DEMO_MODE.
  */
-import { getDemoSetupStatus } from './demoMode';
+import { getDemoSetupStatus, isDemoMode } from './demoMode';
 import { runDemoSeed } from './demoSeedRunner';
+import { isEmailApiConfigured, ensureSeededInboxClearedOnLiveEmail } from './seededInboxCleanup';
 import { seedIndustryKnowledge } from './seedIndustryKnowledge';
 import { serverEnv } from './serverEnv';
 
@@ -34,6 +35,9 @@ export async function ensureInstallSeed(): Promise<{ ok: boolean; detail: string
 
     const status = await getDemoSetupStatus();
     if (status.seeded) {
+      await ensureSeededInboxClearedOnLiveEmail().catch((e) =>
+        console.warn('[install-seed] seeded inbox cleanup failed', e),
+      );
       return {
         ok: true,
         skipped: true,
@@ -46,14 +50,19 @@ export async function ensureInstallSeed(): Promise<{ ok: boolean; detail: string
       return { ok: false, detail: 'DATABASE_URL is not ready for sample data' };
     }
 
+    const skipInbox =
+      !envOn('SEED_INBOX', true) || (isEmailApiConfigured() && !isDemoMode());
     const result = runDemoSeed({
       industry,
       withBookings: envOn('SEED_SCHEDULE', true),
-      skipInbox: !envOn('SEED_INBOX', true),
+      skipInbox,
       skipTodos: !envOn('SEED_TODOS', true),
       skipSchedule: !envOn('SEED_SCHEDULE', true),
     });
     if (!result.ok) return { ok: false, detail: result.error };
+    await ensureSeededInboxClearedOnLiveEmail().catch((e) =>
+      console.warn('[install-seed] seeded inbox cleanup failed', e),
+    );
     return { ok: true, detail: `Seeded ${industry} sample data. ${knowledge.detail}` };
   })();
 

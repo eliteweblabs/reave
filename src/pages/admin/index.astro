@@ -25,6 +25,7 @@ import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
 import { githubRepoSlug } from "../../lib/githubClient";
 import { ensureInstallSeed, shouldSeedOnBoot } from "../../lib/installSeed";
+import { ensureSeededInboxClearedOnLiveEmail } from "../../lib/seededInboxCleanup";
 import "../../styles/brand.css";
 import "../../styles/admin/index.css";
 
@@ -61,6 +62,8 @@ if (userId && !isOwner) {
 }
 if (isOwner && shouldSeedOnBoot()) {
   void ensureInstallSeed();
+} else if (isOwner) {
+  void ensureSeededInboxClearedOnLiveEmail();
 }
 const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';

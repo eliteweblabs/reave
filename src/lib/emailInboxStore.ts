@@ -20,6 +20,9 @@ import {
   parseClassificationAudit,
   type ClassificationAuditStep,
 } from './emailClassificationAudit';
+import { isSeededInboxRecord } from './seededInboxMarkers';
+
+export { isSeededInboxRecord };
 
 export type { EmailAttachmentMeta };
 export type { ClassificationAuditStep };
@@ -1221,6 +1224,44 @@ function listExpiredFromFile(limit: number): EmailInboxRecord[] {
         new Date(a.deleteAfterAt!).getTime() - new Date(b.deleteAfterAt!).getTime(),
     )
     .slice(0, limit);
+}
+
+async function deleteSeededFromPg(): Promise<{ deleted: number; ids: string[] }> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return { deleted: 0, ids: [] };
+    const { rows } = await pool.query<{ id: string }>(
+      `DELETE FROM email_inbox
+       WHERE resend_email_id LIKE 'demo-%'
+          OR message_id LIKE 'demo-msg-%'
+       RETURNING id`,
+    );
+    const ids = rows.map((r) => r.id);
+    return { deleted: ids.length, ids };
+  } catch (e) {
+    console.error('[email-inbox] pg seeded purge failed', e);
+    return { deleted: 0, ids: [] };
+  }
+}
+
+function deleteSeededFromFile(): { deleted: number; ids: string[] } {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return { deleted: 0, ids: [] };
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const keep: EmailInboxRecord[] = [];
+  const ids: string[] = [];
+  for (const event of events) {
+    if (isSeededInboxRecord(event)) ids.push(event.id);
+    else keep.push(event);
+  }
+  if (!ids.length) return { deleted: 0, ids: [] };
+  return writeFileEvents(keep) ? { deleted: ids.length, ids } : { deleted: 0, ids: [] };
+}
+
+/** Remove first-boot sample inbox rows (`resend_email_id` / `message_id` demo-* markers). */
+export async function storeDeleteSeededInboxEmails(): Promise<{ deleted: number; ids: string[] }> {
+  if (databaseUrl()) return deleteSeededFromPg();
+  return deleteSeededFromFile();
 }
 
 /** Inbox rows whose delete_after_at has passed — for scheduled cleanup. */
