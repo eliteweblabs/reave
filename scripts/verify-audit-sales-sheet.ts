@@ -580,7 +580,7 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.match(back, /Q&amp;A/);
   assert.match(back, /Worried about working with a small shop\?/);
   assert.match(back, /open source/);
-  assert.match(back, /full control of every license/);
+  assert.match(back, /client retains full control of all licensing and products/);
   assert.equal(SALES_SHEET_BACK_QA.length, 1);
   assert.match(back, /reave-bg-pattern/);
   assert.match(back, /opacity: 0\.05/);

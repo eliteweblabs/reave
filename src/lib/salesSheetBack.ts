@@ -39,7 +39,7 @@ export type SalesSheetBackQa = {
 export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
   {
     q: 'Worried about working with a small shop?',
-    a: 'The software is open source. You keep full control of every license and every product — yours, not rented from us.',
+    a: 'The software is open source. The client retains full control of all licensing and products.',
   },
 ];
 
