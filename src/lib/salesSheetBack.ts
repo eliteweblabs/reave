@@ -1,8 +1,8 @@
 /**
  * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
- * Three columns on Letter: managed hosting, a cover (site pattern + company icon
- * + diagnostic line), and black stack logos only. Same HTML for every client.
+ * Two columns on Letter: managed hosting (stack marks along the bottom) and a
+ * cover (site pattern + company icon + diagnostic line). Same HTML for every client.
  */
 import { formatHostingUsd, HOSTING_CARE_PLANS } from './hostingPlans';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN } from './platformStack';
@@ -20,8 +20,8 @@ export type SalesSheetBackLogo = {
   slug?: string;
 };
 
-/** Stack marks on the leave-behind. Playwright has no redistributable logo. */
-export const SALES_SHEET_STACK = PLATFORM_STACK.filter((tech) => tech.slug !== 'playwright');
+/** Full /platform stack, including Astro and Playwright™. */
+export const SALES_SHEET_STACK = PLATFORM_STACK;
 
 /** Nearby shops named on the REΛVE back — matches /about + /#portfolio. */
 export const SALES_SHEET_LOCAL_CLIENTS = [
@@ -44,7 +44,9 @@ export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): Sale
   return SALES_SHEET_STACK.map((tech) => ({
     name: tech.name,
     slug: tech.slug,
-    src: tech.iconSrc ? `/api/media/${tech.iconSrc}` : SIMPLE_ICONS_CDN(tech.slug),
+    src: tech.iconSrc
+      ? `/api/media/${tech.iconSrc}`
+      : tech.iconHref || SIMPLE_ICONS_CDN(tech.slug),
   }));
 }
 
@@ -59,7 +61,7 @@ function esc(s: string): string {
 function stackLogoHtml(logo: SalesSheetBackLogo): string {
   const slug = (logo.slug || logo.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
   return `<li class="ss-stack-item" data-stack="${esc(slug)}">
-  <span class="ss-stack-logo" role="img" aria-label="${esc(logo.name)}" style="--ss-stack-icon:url(${JSON.stringify(logo.src)})"></span>
+  <img class="ss-stack-logo" src="${esc(logo.src)}" alt="${esc(logo.name)}" />
 </li>`;
 }
 
@@ -67,8 +69,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   const pageSize = orientation === 'landscape' ? 'letter landscape' : 'letter portrait';
   const ratio = orientation === 'landscape' ? '11 / 8.5' : '8.5 / 11';
   const maxWidth = orientation === 'landscape' ? '11in' : '8.5in';
-  const stackCols = orientation === 'landscape' ? 4 : 3;
-
   return `
 .ss-sheet-back.doc-onepager-stage {
   box-sizing: border-box;
@@ -111,7 +111,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   background-repeat: repeat;
   background-position: center;
   background-size: 260% 260%;
-  opacity: 0.16;
+  opacity: 0.05;
+  filter: grayscale(1);
   pointer-events: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -125,8 +126,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: ${orientation === 'landscape' ? '1.05fr 1.15fr 0.9fr' : '1fr'};
-  grid-template-rows: ${orientation === 'landscape' ? '1fr' : 'auto 1fr auto'};
+  grid-template-columns: ${orientation === 'landscape' ? '1.12fr 1fr' : '1fr'};
+  grid-template-rows: ${orientation === 'landscape' ? '1fr' : 'auto 1fr'};
   gap: 0 3.2%;
 }
 .ss-sheet-back .ss-back-col {
@@ -135,6 +136,9 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   display: flex;
   flex-direction: column;
   gap: 0.55em;
+}
+.ss-sheet-back .ss-back-col--hosting {
+  justify-content: flex-start;
 }
 .ss-sheet-back .ss-back-col + .ss-back-col {
   padding-left: 3.2%;
@@ -249,12 +253,12 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
-  margin: auto 0;
-  padding: 0;
+  margin-top: auto;
+  padding: 0.55em 0 0;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(${stackCols}, minmax(0, 1fr));
-  gap: 0.7em 0.55em;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.35em 0.28em;
   align-items: center;
   justify-items: center;
 }
@@ -265,11 +269,10 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-stack-logo {
   display: block;
-  width: clamp(22px, 3.6cqi, 32px);
-  height: clamp(22px, 3.6cqi, 32px);
-  background: #111;
-  -webkit-mask: var(--ss-stack-icon) center / contain no-repeat;
-  mask: var(--ss-stack-icon) center / contain no-repeat;
+  width: clamp(9px, 1.25cqi, 13px);
+  height: clamp(9px, 1.25cqi, 13px);
+  object-fit: contain;
+  filter: brightness(0);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -356,6 +359,7 @@ export function renderSalesSheetBackHtml(opts: {
         </p>
         <p class="ss-back-kicker">Local</p>
         <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
+        <ul class="ss-stack" data-ss-col="stack" aria-label="Platform stack">${stackItems}</ul>
       </section>
       <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
         <div class="ss-back-icon">${iconHtml}</div>
@@ -370,9 +374,6 @@ export function renderSalesSheetBackHtml(opts: {
           <h2>Online presence diagnostic</h2>
           <p>An independent systems scan of your business’s digital footprint.</p>
         </div>
-      </section>
-      <section class="ss-back-col ss-back-col--stack" data-ss-col="stack">
-        <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
       </section>
     </div>
     <footer class="doc-onepager-footer">${footerBits.join(' · ')}</footer>

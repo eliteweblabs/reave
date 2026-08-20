@@ -3,8 +3,9 @@
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 - **Front** — custom: client, scores, three cascade findings, Places phone, QR.
-- **Back (REΛVE side)** — static three columns: managed hosting, cover, stack
-  logos. Same HTML for every client (`src/lib/salesSheetBack.ts`).
+- **Back (REΛVE side)** — static two columns: managed hosting (stack marks
+  along the bottom) and cover. Same HTML for every client
+  (`src/lib/salesSheetBack.ts`).
 
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
@@ -26,8 +27,8 @@ Cover line: “Online presence diagnostic” / independent systems scan (same as
 | Duplex | **Short-edge bind** so the back is right-side up when you flip landscape |
 
 Do not use the admin dark theme on the front. Near-black type, one accent, lots of white.
-The back keeps a white sheet over `/reave-bg-pattern.svg`. Stack marks are black
-silhouettes (CSS mask), not tiles.
+The back keeps a white sheet over `/reave-bg-pattern.svg` at **5% black**
+(opacity 0.05, grayscale). Stack marks are small black `<img>`s, not tiles.
 
 ---
 
@@ -50,13 +51,13 @@ The whole page uses `/reave-bg-pattern.svg` (same chevron as the marketing site)
 
 1. **Left — Managed hosting** — `/hosting` Care pitch, About “20 years”
    line, Barry Levine hosting quote, Railway™ stats, workshop “Nearby rate”,
-   and local clients (Barber's Edge, The Law Office of Barry Levine, MDOT.world).
-2. **Center — Cover** — company icon dead center, About “operators” + 90/10
+   local clients (Barber's Edge, The Law Office of Barry Levine, MDOT.world),
+   then a 10-across row of small stack marks (Astro, Playwright™, and the rest
+   of `PLATFORM_STACK`) pinned to the bottom of the panel.
+2. **Right — Cover** — company icon dead center, About “operators” + 90/10
    custom-build line, then “Online presence diagnostic” and the independent
    systems-scan lede at the bottom.
-3. **Right — Stack** — logos only, black, no boxes or captions. Anthropic is
-   required. Playwright is omitted (no mark).
-4. **Footer** — company name, support email, “Printed two sides”, “Page 2 of 2”.
+3. **Footer** — company name, support email, “Printed two sides”, “Page 2 of 2”.
 
 Print from `/admin/sales-sheet` → Print / Save PDF. Choose two-sided, short-edge
 bind on landscape.

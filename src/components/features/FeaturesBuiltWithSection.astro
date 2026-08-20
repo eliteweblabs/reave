@@ -11,7 +11,7 @@ import { siteMediaSrc } from '../../lib/siteMedia';
 
 const stack = PLATFORM_STACK.map((tech) => ({
   ...tech,
-  iconSrc: siteMediaSrc(tech.iconSrc),
+  iconSrc: siteMediaSrc(tech.iconSrc) || tech.iconHref || '',
 }));
 ---
 

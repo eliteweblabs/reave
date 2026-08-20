@@ -6,6 +6,8 @@ export type StackTech = {
   color: string;
   role: string;
   iconSrc?: string;
+  /** Public path when the mark is not in the media library (e.g. /stack/playwright.svg). */
+  iconHref?: string;
 };
 
 export const SIMPLE_ICONS_CDN = (slug: string) =>
@@ -56,6 +58,12 @@ export const PLATFORM_STACK: StackTech[] = [
     role: 'Uptime monitoring',
     iconSrc: 'stack-uptimerobot',
   },
-  // Simple Icons dropped Playwright (Microsoft brand terms); letter fallback is intentional.
-  { slug: 'playwright', name: 'Playwright', color: '#2EAD33', role: 'Browser UX audits' },
+  // Simple Icons dropped Playwright (Microsoft brand terms); use the local mark.
+  {
+    slug: 'playwright',
+    name: 'Playwright™',
+    color: '#2EAD33',
+    role: 'Browser UX audits',
+    iconHref: '/stack/playwright.svg',
+  },
 ];

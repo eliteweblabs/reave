@@ -552,7 +552,7 @@ await test('front footer is page 1 of 2 after fill', () => {
   assert.doesNotMatch(filled, /Page 1 of 1/);
 });
 
-await test('static back is three REΛVE columns with stack logos and no client fields', () => {
+await test('static back is hosting + cover with stack marks and no client fields', () => {
   const back = renderSalesSheetBackHtml({
     company: { name: 'REAVE', supportEmail: 'hello@reave.example' },
     orientation: 'landscape',
@@ -577,10 +577,18 @@ await test('static back is three REΛVE columns with stack logos and no client f
   assert.match(back, /Online presence diagnostic/);
   assert.match(back, /independent systems scan/);
   assert.match(back, /reave-bg-pattern/);
+  assert.match(back, /opacity: 0\.05/);
+  assert.match(back, /data-stack="astro"/);
   assert.match(back, /data-stack="anthropic"/);
   assert.match(back, /data-stack="railway"/);
   assert.match(back, /data-stack="supabase"/);
+  assert.match(back, /data-stack="playwright"/);
+  assert.match(back, /Playwright™/);
+  assert.match(back, /\/stack\/playwright\.svg/);
+  assert.match(back, /repeat\(10,/);
+  assert.ok((back.match(/data-stack="/g) || []).length >= 10, 'expected at least 10 stack marks');
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
+  assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
   assert.match(back, /Page 2 of 2/);
   assert.match(back, /hello@reave\.example/);
   assert.doesNotMatch(back, /ss-back-tile|ss-back-mark|border-radius: 10px/);
