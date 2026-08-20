@@ -11,15 +11,16 @@ import {
 import { demoModuleById, resolveDemoModuleFeatures } from '../../../lib/demoModuleCatalog';
 import {
   DEPLOY_WIZARD_EXTRAS,
-  DEPLOY_WIZARD_SEED_INDUSTRIES,
   buildDeployWizardPlan,
   formatDeployWizardCli,
   isDeployWizardExtraId,
   isDeployWizardSeedIndustryId,
+  mergeDeployWizardSeedIndustries,
   normalizeDeployWizardSeed,
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from '../../../lib/deployWizardCatalog';
+import { listDeckIndustries } from '../../../lib/deckIndustriesStore';
 import { executeDeployWizardApply, isDeployWizardApplyNeedGithubApp } from '../../../lib/deployWizardApply';
 import { serverEnv } from '../../../lib/serverEnv';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
@@ -173,7 +174,7 @@ export async function GET(context: APIContext): Promise<Response> {
     sections,
     included: listDemoLoaderIncludedCards(),
     extras: [...DEPLOY_WIZARD_EXTRAS],
-    seedIndustries: [...DEPLOY_WIZARD_SEED_INDUSTRIES],
+    seedIndustries: mergeDeployWizardSeedIndustries(await listDeckIndustries()),
     courtGateModes: [...PRACTICE_GATE_MODES],
     usStates: [...US_STATES],
     directoryCounties: [...DIRECTORY_COUNTIES],

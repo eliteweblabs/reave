@@ -538,7 +538,7 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet — pick <strong>Law firm</strong> for a practice that is not on email yet. Office address uses Google Places. Knowledge aggregation decides whether courts load by distance from that pin, by county, or by state.</p>` +
+      `<p class="dl-footnote">Pre-fill inbox, todos, and schedule when you do not have the live account yet. Industries come from Admin → Industries. <strong>Law firm</strong> adds court knowledge options; office address uses Google Places.</p>` +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +

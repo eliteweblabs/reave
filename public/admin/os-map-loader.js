@@ -7181,7 +7181,7 @@ function renderIndustriesPanel() {
         `<div class="prof-form">` +
           profSection(
             'Categories',
-            'Used for <code>/deck?type=…</code> presets. Edit names; turn Off to hide without deleting.',
+            'Used for <code>/deck?type=…</code> presets, the demo loader, and the deploy wizard industry picker. Edit names; turn Off to hide without deleting.',
             `<div id="industries-list" class="ind-list"></div>` +
             `<div class="prof-actions ind-actions">` +
               `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
