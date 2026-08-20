@@ -26,5 +26,7 @@
     "company",
     "settings",
     "socials"
-  ]
+  ],
+  "homepageTemplate": "login",
+  "siteContentKey": "default"
 }

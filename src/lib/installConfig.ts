@@ -4,12 +4,19 @@
  * Files: config/config-{slug}.json (project root)
  * Slug: INSTALL_CONFIG env → COMPANY_DOMAIN / PUBLIC_SITE_DOMAIN → "default"
  * Override path: INSTALL_CONFIG_FILE
+ *
+ * `default` is the unbranded new-install fallback (Clerk login on `/`).
+ * Company name/logo still come from admin Company settings (Postgres).
+ * Official REΛVE uses config-reave.json and is never a login wall.
  */
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { isPrivateFeature } from './featureCatalog.ts';
+import { parseHomepageTemplate, type HomepageTemplate } from './homepageTemplate.ts';
 import { serverEnv } from './serverEnv.ts';
+
+export type { HomepageTemplate };
 
 const FEATURE_IDS_LIST = [
   'client_portal',
@@ -128,6 +135,11 @@ export type InstallConfig = {
   /** Public site content key — config/sites/{key}-config.json (default: install slug or reave). */
   siteContentKey?: string;
   /**
+   * Homepage chrome for this install (`default` marketing, `landing` client site, `login` Clerk).
+   * Ignored on the official REΛVE host / install — reave.app stays the marketing homepage.
+   */
+  homepageTemplate?: HomepageTemplate;
+  /**
    * Dedicated front-end website repo (`owner/repo`) for the Agentic Website Editor.
    * Client installs may only commit here — never eliteweblabs/reave.
    * Override with GITHUB_WEBSITE_REPO.
@@ -232,6 +244,18 @@ export function isCanonicalReaveInstall(): boolean {
   const demoFlag = trim(serverEnv('DEMO_MODE')).toLowerCase();
   if (demoFlag === '1' || demoFlag === 'true' || demoFlag === 'yes') return false;
   if (installConfigSlug() === 'reave') return true;
+  const host = (
+    trim(serverEnv('PUBLIC_SITE_DOMAIN')) || trim(serverEnv('COMPANY_DOMAIN'))
+  )
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    ?.toLowerCase()
+    .replace(/^www\./, '') || '';
+  return host === 'reave.app';
+}
+
+/** Public hostname for this process is the official marketing site. */
+export function isOfficialReavePublicHost(): boolean {
   const host = (
     trim(serverEnv('PUBLIC_SITE_DOMAIN')) || trim(serverEnv('COMPANY_DOMAIN'))
   )
@@ -363,6 +387,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     homepageVoice: typeof o.homepageVoice === 'boolean' ? o.homepageVoice : undefined,
     chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
     siteContentKey: typeof o.siteContentKey === 'string' && o.siteContentKey.trim() ? o.siteContentKey.trim().toLowerCase() : undefined,
+    homepageTemplate: parseHomepageTemplate(o.homepageTemplate),
     websiteRepo: typeof o.websiteRepo === 'string' && o.websiteRepo.trim() ? o.websiteRepo.trim() : undefined,
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
     opsInstall: o.opsInstall === true ? true : undefined,

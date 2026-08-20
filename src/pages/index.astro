@@ -9,21 +9,33 @@ import FeaturesPageContent from "../components/features/FeaturesPageContent.astr
 import HomeFeaturedProjectSection from "../components/home/HomeFeaturedProjectSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
 import SiteLandingPage from "../components/home/SiteLandingPage.astro";
+import HomeLoginPage from "../components/home/HomeLoginPage.astro";
 import BarbersEdgeLayout from "../layouts/BarbersEdgeLayout.astro";
 import BarbersEdgeProfile from "../components/barbers-edge/BarbersEdgeProfile.astro";
 import { BARBERS_EDGE, getBarbersEdgeBarber } from "../lib/barbersEdge";
-import { getSiteContent } from "../lib/siteContent";
+import { getSiteContent, resolveHomepageTemplate } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
 
 const siteContent = getSiteContent();
 const homepage = siteContent.homepage;
+const homepageTemplate = resolveHomepageTemplate(siteContent);
+const isLogin = homepageTemplate === "login";
 const isBarbersEdge = siteContent.key === "barbersedge";
 const barbersEdgeOwner = getBarbersEdgeBarber("horell-cruz");
-const isLanding = !isBarbersEdge && homepage.template === "landing" && siteContent.landing;
+const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteContent.landing;
+
+if (isLogin) {
+  const userId = Astro.locals.auth()?.userId;
+  if (userId) {
+    return Astro.redirect("/admin/");
+  }
+}
 ---
 
 {
-  isBarbersEdge && barbersEdgeOwner ? (
+  isLogin ? (
+    <HomeLoginPage />
+  ) : isBarbersEdge && barbersEdgeOwner ? (
     <BarbersEdgeLayout
       title={`${barbersEdgeOwner.name} — ${BARBERS_EDGE.name}`}
       description={`${barbersEdgeOwner.role} at Barber's Edge. ${barbersEdgeOwner.tagline}.`}
@@ -56,7 +68,7 @@ const isLanding = !isBarbersEdge && homepage.template === "landing" && siteConte
 }
 
 {
-  !isLanding && (
+  !isLanding && !isLogin && (
     <style>
       .home-scroll {
         position: relative;

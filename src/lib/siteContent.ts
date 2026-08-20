@@ -1,8 +1,11 @@
 /**
- * Per-install / per-industry public website content — nav, allowed pages, homepage copy.
+ * Public website chrome — nav, allowed pages, homepage template.
  *
- * Files: config/sites/{key}-config.json
- * Reave prod: reave-config.json
+ * Company name, logo, and copy come from admin Company settings (Postgres) or
+ * that install’s own `config/sites/{key}-config.json`. A new install without a
+ * site file is unbranded (Clerk login on `/`) — it must not inherit REΛVE
+ * marketing. Official REΛVE still uses `reave-config.json`.
+ *
  * Demo installs: demo-{industry}-config.json (from ?industry= cookie)
  */
 import { existsSync, readFileSync } from 'fs';
@@ -10,9 +13,22 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { getActiveDemoSuite } from './demoSuiteContext';
 import { isDemoMode } from './demoMode';
-import { getInstallConfig, installConfigSlug } from './installConfig';
+import {
+  homepageTemplateFromConfig,
+  parseSiteHomepageTemplate,
+  type HomepageTemplate,
+} from './homepageTemplate';
+import {
+  getInstallConfigSync,
+  installConfigSlug,
+  isCanonicalReaveInstall,
+  isOfficialReavePublicHost,
+} from './installConfig';
 import { serverEnv } from './serverEnv';
 import { siteMediaSrc } from './siteMedia';
+
+export type { HomepageTemplate };
+export { homepageTemplateFromConfig };
 
 function normalizeDemoIndustry(raw: string | null | undefined): string {
   const slug = (raw ?? '').trim().toLowerCase();
@@ -204,8 +220,12 @@ export type SiteContentConfig = {
     showSignIn?: boolean;
   };
   homepage: {
-    /** "landing" = config-driven client site (no Reave marketing sections). */
-    template?: 'default' | 'landing';
+    /**
+     * `landing` = config-driven client site (no Reave marketing sections).
+     * `login` = Clerk sign-in on `/` for standalone admin installs.
+     * Official REΛVE (`reave.app`) never honors `login`.
+     */
+    template?: HomepageTemplate;
     heroHeadlineHtml: string;
     showHeroDemo?: boolean;
     showDialogue?: boolean;
@@ -340,6 +360,29 @@ function normalizePagePath(pathname: string): string {
   return path;
 }
 
+function fallbackStandaloneConfig(key: string): SiteContentConfig {
+  return {
+    key,
+    pages: ['/', '/privacy', '/terms', '/cookies'],
+    nav: {
+      links: [],
+      groups: [],
+      showDemoCta: false,
+      showSignIn: true,
+    },
+    homepage: {
+      template: 'login',
+      heroHeadlineHtml: '',
+      showHeroDemo: false,
+      showDialogue: false,
+      showIntegrations: false,
+      showFeatures: false,
+      showContact: false,
+      showLegalLinks: false,
+    },
+  };
+}
+
 function fallbackReaveConfig(): SiteContentConfig {
   return {
     key: 'reave',
@@ -392,14 +435,14 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
       _cache.set(slug, { ...general, key: slug });
       return _cache.get(slug)!;
     }
-    const fallback = fallbackReaveConfig();
-    _cache.set(slug, { ...fallback, key: slug });
-    return _cache.get(slug)!;
+    const fallback = slug === 'reave' ? { ...fallbackReaveConfig(), key: slug } : fallbackStandaloneConfig(slug);
+    _cache.set(slug, fallback);
+    return fallback;
   }
 
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as SiteContentConfig;
-    const template = raw.homepage?.template === 'landing' ? 'landing' : 'default';
+    const template = parseSiteHomepageTemplate(raw.homepage?.template);
     const config: SiteContentConfig = {
       key: raw.key || slug,
       pages: Array.isArray(raw.pages) ? raw.pages.map(normalizePagePath) : ['/'],
@@ -430,10 +473,28 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
     _cache.set(slug, config);
     return config;
   } catch {
-    const fallback = fallbackReaveConfig();
+    const fallback = slug === 'reave' ? fallbackReaveConfig() : fallbackStandaloneConfig(slug);
     _cache.set(slug, fallback);
     return fallback;
   }
+}
+
+export function clearSiteContentCache(): void {
+  _cache.clear();
+}
+
+export function resolveHomepageTemplate(site?: SiteContentConfig): HomepageTemplate {
+  const content = site ?? getSiteContent();
+  return homepageTemplateFromConfig({
+    siteTemplate: content.homepage.template ?? 'default',
+    installTemplate: getInstallConfigSync().homepageTemplate,
+    siteKey: content.key,
+    hasLanding: Boolean(content.landing),
+    hasWebsiteFeature: getInstallConfigSync().features.includes('website'),
+    isCanonicalReave: isCanonicalReaveInstall(),
+    isOfficialReaveHost: isOfficialReavePublicHost(),
+    isDemo: isDemoMode(),
+  });
 }
 
 /** Resolve site content key for the active install / demo industry. */
@@ -444,12 +505,13 @@ export function resolveSiteContentKey(industryOverride?: string | null): string 
     return `demo-${industry}`;
   }
 
-  const install = getInstallConfig();
+  const install = getInstallConfigSync();
   const explicit = install.siteContentKey?.trim().toLowerCase();
   if (explicit) return explicit;
 
   const slug = installConfigSlug();
-  if (slug === 'reave' || slug === 'default') return 'reave';
+  if (slug === 'reave') return 'reave';
+  if (slug === 'default') return isCanonicalReaveInstall() || isOfficialReavePublicHost() ? 'reave' : 'default';
   return slug;
 }
 
