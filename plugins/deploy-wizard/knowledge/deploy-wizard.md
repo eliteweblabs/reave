@@ -105,7 +105,7 @@ This wizard is owner-only. The Variables step is read-only. Apply:
 
 Apply copies **Resend** from this host and creates the inbound domain plus `email.received` webhook. Anthropic is optional (blank uses the REΛVE host key). Other host keys are copied when present and skipped when missing.
 
-**Sample data:** the Modules step industry picker loads the industries catalog (`GET /api/admin/deck-industries` — same list as Admin → Industries). Disabled rows stay hidden. Law firm, Plumbing, and General contractor still appear when they are not in the catalog yet, because those slugs have seed fixtures. Apply writes `SEED_ON_BOOT` + `DEMO_INDUSTRY`. The first owner visit to `/admin` seeds inbox, todos, and schedule so the dashboard is not empty before live email is connected. Law firm still adds court-knowledge options.
+**Sample data:** the Modules step industry picker loads the industries catalog (`GET /api/admin/deck-industries` — same list as Admin → Industries). Disabled rows stay hidden. Law firm, Plumbing, and General contractor still appear when they are not in the catalog yet, because those slugs have seed fixtures. Apply writes `SEED_ON_BOOT` + `DEMO_INDUSTRY`. The first owner visit to `/admin` seeds inbox, todos, and schedule so the dashboard is not empty before live email is connected. When `RESEND_API_KEY` is later set for the first time (it was blank/null), seeded inbox rows are wiped so they do not mix with live mail — rotating an existing key does not wipe. Law firm still adds court-knowledge options.
 
 If a required operator key is missing, Apply names it and stops. Clerk CNAMEs are still copied from Clerk → Domains.
 

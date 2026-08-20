@@ -4,6 +4,7 @@ import { serverEnv } from '../../../lib/serverEnv';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
+import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
 import { inboundBelongsToInstall, recipientList } from '../../../lib/inboundEmailInstall';
 
@@ -31,6 +32,8 @@ export const POST: APIRoute = async ({ request }) => {
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     );
   }
+
+  await ensureSeededInboxClearedOnLiveEmail().catch(() => undefined);
 
   // Raw body is required for signature verification.
   const payload = await request.text();
