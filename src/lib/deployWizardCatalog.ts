@@ -327,13 +327,15 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'calcom-booking-api',
     kind: 'api',
     description: 'Booking REST API (private network to reave).',
+    repo: 'eliteweblabs/calcom-booking-api',
     features: ['scheduling'],
   },
   {
     id: 'calcom-web-app',
     label: 'calcom-web-app',
     kind: 'api',
-    description: 'Cal.com admin UI.',
+    description: 'Cal.com admin UI (same Docker image as REΛVE.app — not the GitHub fork).',
+    image: 'calcom/cal.com:latest',
     features: ['scheduling'],
   },
   {

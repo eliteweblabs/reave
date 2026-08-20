@@ -129,6 +129,8 @@ const billed = buildDeployWizardPlan({
   siteDomain: 'acme.com',
 });
 assert.ok(billed.services.some((s) => s.id === 'crater'));
+assert.equal(billed.services.find((s) => s.id === 'calcom-booking-api')?.repo, 'eliteweblabs/calcom-booking-api');
+assert.equal(billed.services.find((s) => s.id === 'calcom-web-app')?.image, 'calcom/cal.com:latest');
 assert.ok(billed.services.some((s) => s.id === 'fleet-api'));
 assert.ok(billed.services.some((s) => s.id === 'materials-api'));
 
