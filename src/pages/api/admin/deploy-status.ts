@@ -27,6 +27,10 @@ import {
   moduleStorefrontEnabled,
 } from '../../../lib/moduleStorefront';
 import { isDeploymentOwner } from '../../../lib/deploymentOwner';
+import {
+  MODULE_DISPLAY_GROUPS,
+  moduleDisplayGroupFor,
+} from '../../../lib/moduleDisplayGroups';
 
 export const prerender = false;
 
@@ -103,6 +107,7 @@ export async function GET(context: APIContext): Promise<Response> {
       purchasable,
       price: price ? { ...price, label: formatModulePrice(price) } : null,
       entitlement,
+      group: moduleDisplayGroupFor(m.feature),
     };
   });
 
@@ -124,6 +129,11 @@ export async function GET(context: APIContext): Promise<Response> {
     canMarkPaid: owner,
     footerNav,
     catalog: demoModuleCatalog(),
+    groups: MODULE_DISPLAY_GROUPS.map((g) => ({
+      id: g.id,
+      title: g.title,
+      features: [...g.features],
+    })),
     summary: {
       total: modules.length,
       enabled: enabled.length,

@@ -17,7 +17,6 @@ import {
 import { accountsFromCompany } from './accounts.ts';
 import { getActivityReplies, type SocialActivityReply } from './activityStore.ts';
 import {
-  DEFAULT_VISIBLE_SOCIAL_PLATFORMS,
   SOCIAL_PLATFORM_CATALOG,
   parseHiddenSocialPlatforms,
   visibleSocialPlatforms,
@@ -79,17 +78,8 @@ const REVIEW_ONLY_META: Record<
   other: { label: 'Other', iconSlug: 'star', color: '#64748b' },
 };
 
-const INBOX_CORE: SocialPlatformId[] = [
-  'twitter',
-  'instagram',
-  'linkedin',
-  'facebook',
-  'youtube',
-  'tiktok',
-  'threads',
-  'yelp',
-  'googlebusiness',
-];
+/** Always-on inbox tabs for reviews destinations, even without a saved handle. */
+const REVIEW_INBOX_CORE: SocialPlatformId[] = ['yelp', 'googlebusiness'];
 
 const REVIEW_TO_FEED: Record<ReviewPlatform, SocialFeedNetworkId> = {
   google: 'googlebusiness',
@@ -298,11 +288,12 @@ function chosenNetworks(
     });
   };
 
-  for (const id of INBOX_CORE) {
-    const isReviewDest = id === 'yelp' || id === 'googlebusiness';
-    if (visibleIds.has(id) && (byAccount.has(id) || isReviewDest && reviewsEnabled || DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes(id))) {
-      if (byAccount.has(id) || isReviewDest || visibleIds.has(id)) push(id);
-    }
+  for (const platform of visible) {
+    push(platform.id);
+  }
+
+  for (const id of REVIEW_INBOX_CORE) {
+    if (reviewsEnabled || byAccount.has(id) || visibleIds.has(id)) push(id);
   }
 
   for (const account of accounts) {

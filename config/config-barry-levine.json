@@ -1,0 +1,45 @@
+{
+  "features": [
+    "client_portal",
+    "documents",
+    "scheduling",
+    "carddav",
+    "online_reviews",
+    "social_inbox",
+    "stock_photos"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "email",
+    "rules",
+    "work",
+    "schedule",
+    "clients",
+    "social",
+    "reviews",
+    "media"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "socials"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "moduleStatus": {
+    "client_portal": "deployed",
+    "documents": "deployed",
+    "scheduling": "deployed",
+    "carddav": "request",
+    "online_reviews": "deployed",
+    "social_inbox": "deployed",
+    "stock_photos": "deployed"
+  }
+}

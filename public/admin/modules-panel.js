@@ -69,7 +69,23 @@ function filterModules(modules) {
   if (filter === 'enabled') return modules.filter((m) => m.enabled);
   if (filter === 'shop') return modules.filter((m) => m.purchasable || m.entitlement);
   if (filter === 'attention') return modules.filter((m) => m.needsAttention);
+  if (filter === 'social') return modules.filter((m) => m.group?.id === 'social');
+  if (filter === 'e-commerce') return modules.filter((m) => m.group?.id === 'e-commerce');
   return modules;
+}
+
+function groupModules(modules) {
+  const groups = lastPayload?.groups || [];
+  const claimed = new Set();
+  const sections = [];
+  for (const group of groups) {
+    const rows = modules.filter((m) => m.group?.id === group.id);
+    rows.forEach((m) => claimed.add(m.feature));
+    if (rows.length) sections.push({ id: group.id, title: group.title, modules: rows });
+  }
+  const rest = modules.filter((m) => !claimed.has(m.feature));
+  if (rest.length) sections.push({ id: 'other', title: 'Other modules', modules: rest });
+  return sections;
 }
 
 function renderPurchaseCell(m) {
@@ -105,6 +121,40 @@ function renderPurchaseCell(m) {
 function renderFlag(on, label) {
   const cls = on ? 'mod-flag mod-flag--yes' : 'mod-flag mod-flag--no';
   return `<span class="${cls}" title="${escHtml(label)}">${on ? '✓' : '—'}</span>`;
+}
+
+function renderTable(modules) {
+  return (
+    `<div class="mod-table-wrap prof-card">` +
+    `<table class="mod-table">` +
+    `<thead><tr>` +
+    `<th>ID</th><th>Module</th><th>Status</th>` +
+    `<th title="Enabled · In nav · Configured · Runtime · Active · Demo suite">Flags</th>` +
+    `<th>Admin tabs</th><th>Add-on</th>` +
+    `</tr></thead>` +
+    `<tbody>${
+      modules.length
+        ? modules.map(renderRow).join('')
+        : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`
+    }</tbody>` +
+    `</table>` +
+    `</div>`
+  );
+}
+
+function renderGroupedTables(modules) {
+  if (!modules.length) return renderTable(modules);
+  const sections = groupModules(modules);
+  if (sections.length <= 1) return renderTable(modules);
+  return sections
+    .map(
+      (section) =>
+        `<section class="mod-group" data-group="${escHtml(section.id)}">` +
+        `<h2 class="mod-group-title">${escHtml(section.title)}</h2>` +
+        renderTable(section.modules) +
+        `</section>`,
+    )
+    .join('');
 }
 
 function renderRow(m) {
@@ -174,22 +224,15 @@ function renderPanel(data) {
     `</div>` +
     `<div class="mod-filters sliding-pill" role="tablist" aria-label="Filter modules">` +
     `<button type="button" class="mod-filter${filter === 'all' ? ' active' : ''}" data-filter="all">All</button>` +
+    `<button type="button" class="mod-filter${filter === 'social' ? ' active' : ''}" data-filter="social">Social</button>` +
+    `<button type="button" class="mod-filter${filter === 'e-commerce' ? ' active' : ''}" data-filter="e-commerce">E-commerce</button>` +
     `<button type="button" class="mod-filter${filter === 'enabled' ? ' active' : ''}" data-filter="enabled">Enabled</button>` +
     (data.storefront
       ? `<button type="button" class="mod-filter${filter === 'shop' ? ' active' : ''}" data-filter="shop">Shop</button>`
       : '') +
     `<button type="button" class="mod-filter${filter === 'attention' ? ' active' : ''}" data-filter="attention">Needs attention</button>` +
     `</div>` +
-    `<div class="mod-table-wrap prof-card">` +
-    `<table class="mod-table">` +
-    `<thead><tr>` +
-    `<th>ID</th><th>Module</th><th>Status</th>` +
-    `<th title="Enabled · In nav · Configured · Runtime · Active · Demo suite">Flags</th>` +
-    `<th>Admin tabs</th><th>Add-on</th>` +
-    `</tr></thead>` +
-    `<tbody>${modules.length ? modules.map(renderRow).join('') : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`}</tbody>` +
-    `</table>` +
-    `</div>` +
+    renderGroupedTables(modules) +
     `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts, Clerk sign-in) is always on and not listed here. Add-ons are sold in this tab — a config flag on the client install is not a purchase.</p>` +
     `</div>`
   );
