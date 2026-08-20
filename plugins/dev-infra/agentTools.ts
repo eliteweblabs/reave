@@ -346,6 +346,7 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
     'get_ssl_mode',
     'set_ssl_mode',
     'create_redirect_rule',
+    'create_zone',
   ];
   if (!validActions.includes(actionRaw)) {
     return JSON.stringify({
@@ -363,7 +364,8 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
       | 'delete_record'
       | 'get_ssl_mode'
       | 'set_ssl_mode'
-      | 'create_redirect_rule',
+      | 'create_redirect_rule'
+      | 'create_zone',
     domain,
     type: args.type != null ? String(args.type) : undefined,
     name: args.name != null ? String(args.name) : undefined,
@@ -379,6 +381,8 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
       args.redirect_status_code === 302 ? 302 : args.redirect_status_code === 301 ? 301 : undefined,
     preserve_query_string: typeof args.preserve_query_string === 'boolean' ? args.preserve_query_string : undefined,
     redirect_description: args.redirect_description != null ? String(args.redirect_description) : undefined,
+    // create_zone fields
+    jump_start: typeof args.jump_start === 'boolean' ? args.jump_start : undefined,
   });
   if (!result.ok) {
     return JSON.stringify({ error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
@@ -610,7 +614,7 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'cloudflare_dns',
               description:
-                'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Actions: upsert_record (SPF, DMARC, MX, CNAME — pass proxied:true to enable orange-cloud proxy), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken), create_redirect_rule (Cloudflare Redirect Rules / Rulesets API — use to redirect www → apex or other dynamic 301/302s without touching Railway). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
+                'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. Actions: upsert_record (SPF, DMARC, MX, CNAME — pass proxied:true to enable orange-cloud proxy), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken), create_redirect_rule (Cloudflare Redirect Rules / Rulesets API — use to redirect www → apex or other dynamic 301/302s without touching Railway), create_zone (add a new domain to Cloudflare — returns the assigned nameservers to set at the registrar). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -624,9 +628,10 @@ export const devInfraModule: AgentToolModule = {
                       'get_ssl_mode',
                       'set_ssl_mode',
                       'create_redirect_rule',
+                      'create_zone',
                     ],
                     description:
-                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record (pass proxied:true for orange cloud); delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap); create_redirect_rule = add/update a dynamic redirect rule (www → apex, etc.) via the Rulesets API',
+                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record (pass proxied:true for orange cloud); delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap); create_redirect_rule = add/update a dynamic redirect rule (www → apex, etc.) via the Rulesets API; create_zone = add a new domain to this Cloudflare account and return the nameservers to set at the registrar',
                   },
                   domain: {
                     type: 'string',
@@ -681,6 +686,10 @@ export const devInfraModule: AgentToolModule = {
                   redirect_description: {
                     type: 'string',
                     description: 'Optional label for the redirect rule shown in Cloudflare dashboard',
+                  },
+                  jump_start: {
+                    type: 'boolean',
+                    description: 'For create_zone: auto-scan existing DNS records when adding the domain (default true)',
                   },
                 },
                 required: ['action', 'domain'],
