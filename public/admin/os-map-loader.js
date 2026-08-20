@@ -12135,7 +12135,7 @@ function buildEmailSwipeActions(ev) {
         onClick: () => unarchiveEmail(ev),
       }),
       swipeDeleteAction({
-        label: 'Trash',
+        label: 'Delete',
         onClick: () => deleteEmail(ev),
       }),
     ];
@@ -12146,6 +12146,10 @@ function buildEmailSwipeActions(ev) {
     swipeArchiveAction({
       label: 'Archive',
       onClick: () => archiveEmail(ev),
+    }),
+    swipeDeleteAction({
+      label: 'Delete',
+      onClick: () => deleteEmail(ev),
     }),
   ];
 
