@@ -46,6 +46,8 @@ const FEATURE_IDS_LIST = [
   'deploy_wizard',
   'website',
   'credit_check',
+  'materials_pricing',
+  'social_inbox',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
@@ -324,7 +326,6 @@ export function defaultFooterNav(): FooterNavKey[] {
     'work',
     'schedule',
     'clients',
-    'social',
     'analytics',
     'profile',
     'company',
@@ -422,6 +423,12 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   }
   if (!config.features.includes('site_audits')) {
     nav = nav.filter((key) => key !== 'sales-sheet');
+  }
+  if (!config.features.includes('social_inbox')) {
+    nav = nav.filter((key) => key !== 'social');
+  }
+  if (!config.features.includes('online_reviews')) {
+    nav = nav.filter((key) => key !== 'reviews');
   }
   if (!isCanonicalReaveInstall()) {
     nav = nav.filter((key) => key !== 'industries');

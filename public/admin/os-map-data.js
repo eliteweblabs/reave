@@ -50,6 +50,7 @@ const SYSTEM_NODES = [
   { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews triage', sub: 'Google™ · Apple Maps · Yelp · Facebook · Tripadvisor (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
+  { id: 'social_feed', title: 'Social inbox', sub: 'Paid add-on · Modules purchase · /api/admin/social/feed (FEATURES: social_inbox)', icon: '📣', hue: 330, status: true, group: 'reave', x: 880, y: 768 },
   { id: 'analytic_audit', title: 'Analytic audit', sub: 'GSC · GA4 · Plausible · IndexNow (FEATURES: analytic_audit)', icon: '📊', brand: 'google', hue: 145, status: true, group: 'reave', x: 640, y: 804 },
   { id: 'seo_directory', title: 'SEO Directory API Kit', sub: 'second-tier citations · BrightLocal Citation Builder (FEATURES: seo_directory)', icon: '📂', hue: 200, status: true, group: 'reave', x: 640, y: 876 },
   { id: 'event_ticketing', title: 'Event ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },
@@ -168,6 +169,9 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'online_reviews', label: '/api/admin/online-reviews', dashed: true },
   { from: 'online_reviews', to: 'app_pg', label: 'reviews inbox', dashed: true },
   { from: 'online_reviews', to: 'google_places', label: 'Places API sync', dashed: true },
+  { from: 'astro', to: 'social_feed', label: '/api/admin/social/feed', dashed: true },
+  { from: 'social_feed', to: 'online_reviews', label: 'reviews in feed', dashed: true },
+  { from: 'social_feed', to: 'app_pg', label: 'reply drafts', dashed: true },
   { from: 'astro', to: 'seo_directory', label: '/api/admin/seo-directory', dashed: true },
   { from: 'seo_directory', to: 'brightlocal', label: 'Citation Builder API', dashed: true, ghost: true },
   { from: 'astro', to: 'event_ticketing', label: 'planned', dashed: true, ghost: true },
@@ -216,7 +220,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom'] },
 ];
 

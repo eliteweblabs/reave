@@ -257,12 +257,39 @@
   margin-top: 1rem;
 }
 
+.mod-cell-buy {
+  min-width: 7.5rem;
+}
+
+.mod-price {
+  display: block;
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 0.3rem;
+}
+
+.mod-buy-note {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.mod-buy-btn,
+.mod-buy-link,
+.mod-mark-paid {
+  margin-top: 0.2rem;
+}
+
+.mod-buy-link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
 @media (max-width: 900px) {
-  .mod-cell-playbook {
-    display: none;
-  }
-  .mod-table th:nth-child(6),
-  .mod-table td:nth-child(6) {
+  .mod-cell-nav,
+  .mod-table th:nth-child(5),
+  .mod-table td:nth-child(5) {
     display: none;
   }
 }
