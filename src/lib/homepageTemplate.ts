@@ -35,7 +35,8 @@ export function homepageTemplateFromConfig(opts: {
   requestHost?: string;
 }): HomepageTemplate {
   const host = (opts.requestHost ?? '').trim().toLowerCase();
-  const onReaveHost = host === 'reave.app' || (!host && (opts.isOfficialReaveHost || opts.isCanonicalReave));
+  const onReaveHost =
+    host === 'reave.app' || (!host && (opts.isOfficialReaveHost || opts.isCanonicalReave));
 
   if (onReaveHost) {
     return opts.siteTemplate === 'landing' && opts.hasLanding ? 'landing' : 'default';
@@ -43,12 +44,9 @@ export function homepageTemplateFromConfig(opts: {
   if (opts.isDemo) {
     return opts.siteTemplate === 'landing' && opts.hasLanding ? 'landing' : 'default';
   }
-  if (opts.siteTemplate === 'login' || opts.installTemplate === 'login') return 'login';
   if (opts.siteKey === 'barbersedge') return 'default';
   if ((opts.siteTemplate === 'landing' || opts.installTemplate === 'landing') && opts.hasLanding) {
     return 'landing';
   }
-  if (host && host !== 'reave.app') return 'login';
-  if (!opts.hasWebsiteFeature) return 'login';
-  return opts.siteTemplate === 'landing' && opts.hasLanding ? 'landing' : 'default';
+  return 'login';
 }

@@ -14,13 +14,15 @@ import BarbersEdgeLayout from "../layouts/BarbersEdgeLayout.astro";
 import BarbersEdgeProfile from "../components/barbers-edge/BarbersEdgeProfile.astro";
 import { BARBERS_EDGE, getBarbersEdgeBarber } from "../lib/barbersEdge";
 import { getSiteContent, resolveHomepageTemplate } from "../lib/siteContent";
-import { publicHostFromRequest } from "../lib/requestHost";
+import { resolvePublicHost } from "../lib/requestHost";
 import "../styles/marketing-sections.css";
+
+export const prerender = false;
 
 const siteContent = getSiteContent();
 const homepage = siteContent.homepage;
 const homepageTemplate = resolveHomepageTemplate(siteContent, {
-  requestHost: publicHostFromRequest(Astro.request),
+  requestHost: resolvePublicHost(Astro.request),
 });
 const isLogin = homepageTemplate === "login";
 const isBarbersEdge = siteContent.key === "barbersedge";
