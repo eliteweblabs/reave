@@ -3,6 +3,7 @@
  * Resend-specific sync stays in resendDnsSync.ts.
  */
 import {
+  cloudflareCreateZone,
   cloudflareDeleteDnsRecord,
   cloudflareFindZone,
   cloudflareGetSslMode,
@@ -18,6 +19,7 @@ import {
   isCloudflareConfigured,
   type CfDnsRecord,
   type CfSslMode,
+  type CfZone,
 } from './cloudflareClient.ts';
 
 export type CloudflareDnsAction =
@@ -27,14 +29,15 @@ export type CloudflareDnsAction =
   | 'delete_record'
   | 'get_ssl_mode'
   | 'set_ssl_mode'
-  | 'create_redirect_rule';
+  | 'create_redirect_rule'
+  | 'create_zone';
 
 export type CloudflareDnsActionResult =
   | {
       ok: true;
       action: CloudflareDnsAction;
       domain: string;
-      zone: { id: string; name: string };
+      zone?: { id: string; name: string };
       summary: string;
       records?: CfDnsRecord[];
       upsert?: { action: 'unchanged' | 'created' | 'updated'; record: CfDnsRecord };
@@ -42,6 +45,7 @@ export type CloudflareDnsActionResult =
       ssl_mode?: CfSslMode;
       previous_ssl_mode?: CfSslMode;
       redirect_rule?: unknown;
+      created_zone?: CfZone;
     }
   | { ok: false; error: string; hint?: string };
 
@@ -169,6 +173,8 @@ export async function cloudflareDnsManage(input: {
   redirect_status_code?: 301 | 302;
   preserve_query_string?: boolean;
   redirect_description?: string;
+  // create_zone fields
+  jump_start?: boolean;
 }): Promise<CloudflareDnsActionResult> {
   const domain = input.domain.trim().toLowerCase().replace(/\.$/, '');
   if (!domain) return { ok: false, error: 'domain is required' };
@@ -178,6 +184,31 @@ export async function cloudflareDnsManage(input: {
       ok: false,
       error: 'CLOUDFLARE_API_TOKEN is not set on this service',
       hint: 'Set CLOUDFLARE_API_TOKEN on Railway with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit on the zones you manage.',
+    };
+  }
+
+  // ── create_zone — does NOT require the zone to already exist ─────────────
+  if (input.action === 'create_zone') {
+    const out = await cloudflareCreateZone(domain, { jump_start: input.jump_start ?? true });
+    if (!out.ok) {
+      return {
+        ok: false,
+        error: out.error,
+        hint: 'Token needs Zone → Zone → Edit (or higher) at the account level. If using a scoped token, ensure "All zones" or this specific domain is included.',
+      };
+    }
+    const z = out.data;
+    const nsLines = z.name_servers.map((ns) => `  • ${ns}`).join('\n');
+    return {
+      ok: true,
+      action: 'create_zone',
+      domain,
+      created_zone: z,
+      summary:
+        `Zone created: ${z.name} (id: ${z.id}, status: ${z.status}).\n` +
+        `Cloudflare nameservers assigned:\n${nsLines}\n\n` +
+        `Next step: update the domain registrar (e.g. Railway) to use these nameservers. ` +
+        `Once propagated, DNS records can be managed via cloudflare_dns upsert_record / list_records.`,
     };
   }
 
