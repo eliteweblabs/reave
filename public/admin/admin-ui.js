@@ -923,7 +923,7 @@ export function syncSearchFieldAdornment(input, btn) {
   if (hint) syncSlashSearchHintVisibility(input, hint);
 }
 
-function createSearchFieldAdornment(input, onClear) {
+export function createSearchFieldAdornment(input, onClear) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'panel-list-search-clear search-overlay-clear panel-list-search-adornment';
