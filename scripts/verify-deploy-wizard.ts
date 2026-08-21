@@ -118,6 +118,7 @@ assert.ok(
 assert.equal(deployWizardResendFrom('capcofire.com'), 'noreply@inbound.capcofire.com');
 assert.equal(deployWizardInboundWebhookUrl('capcofire.com'), 'https://capcofire.com/api/email/inbound');
 assert.match(generateDeployWizardSecret('NEXTAUTH_SECRET'), /^[A-Za-z0-9+/=]+$/);
+assert.match(generateDeployWizardSecret('CALENDSO_ENCRYPTION_KEY'), /^[A-Za-z0-9+/=]+$/);
 assert.match(generateDeployWizardSecret('DASHBOARD_KEY'), /^[0-9a-f]{48}$/);
 assert.ok((branded.hostSecretCount || 0) > 0);
 assert.match(formatDeployWizardCli(branded), /RESEND_API_KEY='<from this host>'/);
@@ -178,6 +179,12 @@ const calSmtp = billed.variables.find((v) => v.service === 'calcom-web-app' && v
 assert.equal(calSmtp?.filled, '${{ reave.RESEND_API_KEY }}');
 const calResend = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'RESEND_API_KEY');
 assert.equal(calResend?.filled, '${{ reave.RESEND_API_KEY }}');
+const calEnc = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'CALENDSO_ENCRYPTION_KEY');
+assert.equal(calEnc?.kind, 'generated');
+assert.ok(!billed.variables.some((v) => v.service === 'calcom-web-app' && v.name === 'CALENDAR_ENCRYPTION_KEY'));
+const calHosts = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'ALLOWED_HOSTNAMES');
+assert.match(calHosts?.filled || '', /RAILWAY_PUBLIC_DOMAIN/);
+assert.equal(billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_LICENSE_CONSENT')?.filled, 'agree');
 
 const craterMail = billed.variables.find((v) => v.service === 'crater' && v.name === 'MAIL_PASSWORD');
 assert.equal(craterMail?.filled, '${{ reave.RESEND_API_KEY }}');

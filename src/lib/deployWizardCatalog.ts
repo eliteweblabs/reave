@@ -107,6 +107,11 @@ export function railwayPublicUrl(service: string): string {
   return `https://\${{ ${service}.RAILWAY_PUBLIC_DOMAIN }}`;
 }
 
+/** Cal.com ALLOWED_HOSTNAMES JSON array — hostname only, no protocol. */
+export function railwayAllowedHostnames(service: string): string {
+  return `["\${{ ${service}.RAILWAY_PUBLIC_DOMAIN }}"]`;
+}
+
 export function railwayPrivateUrl(service: string, port?: number): string {
   const host = `\${{ ${service}.RAILWAY_PRIVATE_DOMAIN }}`;
   return port ? `http://${host}:${port}` : `http://${host}`;
@@ -1044,14 +1049,46 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'NEXTAUTH_SECRET',
     service: 'calcom-web-app',
     kind: 'generated',
-    description: 'NextAuth secret (openssl rand -base64 32).',
+    description: 'NextAuth secret (openssl rand -base64 32). next.config throws without it.',
     features: ['scheduling'],
   }),
   v({
-    name: 'CALENDAR_ENCRYPTION_KEY',
+    name: 'CALENDSO_ENCRYPTION_KEY',
     service: 'calcom-web-app',
     kind: 'generated',
-    description: 'Cal.com calendar encryption key.',
+    description: 'Cal.com calendar encryption key. next.config throws without this exact name.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'ALLOWED_HOSTNAMES',
+    service: 'calcom-web-app',
+    kind: 'reference',
+    value: railwayAllowedHostnames('calcom-web-app'),
+    description: 'JSON hostname list matching RAILWAY_PUBLIC_DOMAIN (no https://).',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXT_PUBLIC_LICENSE_CONSENT',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: 'agree',
+    description: 'Required by the official Cal.com Docker image.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'PORT',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: '3000',
+    description: 'Cal.com listens on 3000.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'NEXT_PUBLIC_DISABLE_SIGNUP',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: 'true',
+    description: 'Public signup off — owner is provisioned from REΛVE identity.',
     features: ['scheduling'],
   }),
 

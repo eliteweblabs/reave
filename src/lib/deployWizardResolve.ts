@@ -16,7 +16,7 @@ import { resendEnsureInboundWebhook } from './resendDnsSync';
 import { serverEnv } from './serverEnv';
 
 export function generateDeployWizardSecret(name: string): string {
-  if (name === 'NEXTAUTH_SECRET' || name === 'CALENDAR_ENCRYPTION_KEY') {
+  if (name === 'NEXTAUTH_SECRET' || name === 'CALENDSO_ENCRYPTION_KEY' || name === 'CALENDAR_ENCRYPTION_KEY') {
     return randomBytes(32).toString('base64');
   }
   return randomBytes(24).toString('hex');
