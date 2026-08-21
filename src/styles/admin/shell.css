@@ -528,6 +528,27 @@ select,
   line-height: 1.4;
   color: var(--muted);
 }
+.admin-setup-alert-project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.45rem;
+  margin: 0.2rem 0 0.15rem;
+  color: var(--fg);
+}
+.admin-setup-alert-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.admin-setup-alert-project-name {
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--fg);
+}
 .admin-otp-code-display {
   margin: 0.35rem 0 0;
   font-size: 1.65rem;
