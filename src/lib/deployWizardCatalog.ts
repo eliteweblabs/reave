@@ -1367,6 +1367,21 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
 
   // ── Other module secrets ──
   v({
+    name: 'REAVE_WP_API_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'generated',
+    description: 'Shared Reave Connect plugin key (X-Reave-Key). Paste the same value in WP Admin → Settings → Reave Connect.',
+    features: ['wordpress_content'],
+  }),
+  v({
+    name: 'REAVE_WP_SITE_URL',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    description: 'Default WordPress site URL for content tools (optional). Tools still accept site_url per call.',
+    features: ['wordpress_content'],
+    required: false,
+  }),
+  v({
     name: 'PEXELS_API_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',

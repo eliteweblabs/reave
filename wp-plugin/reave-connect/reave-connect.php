@@ -2,8 +2,8 @@
 /**
  * Plugin Name:  Reave Connect
  * Plugin URI:   https://reave.app/
- * Description:  Secure REST API bridge for remote WordPress management via Reave Automation. Supports plugin install/activate, option updates, WP-CLI-style commands, and auto-updates from reave.app.
- * Version:      1.0.0
+ * Description:  Secure REST API bridge for remote WordPress management via Reave Automation. Supports posts, pages, media, plugin install/activate, option updates, and auto-updates from reave.app.
+ * Version:      1.1.0
  * Author:       Elite Web Labs
  * Author URI:   https://eliteweblabs.com/
  * License:      GPL-2.0+
@@ -13,7 +13,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'REAVE_CONNECT_VERSION', '1.0.0' );
+define( 'REAVE_CONNECT_VERSION', '1.1.0' );
 define( 'REAVE_CONNECT_UPDATE_URL', 'https://reave.app/api/wp-update/reave-connect' );
 
 // ---------------------------------------------------------------------------
@@ -112,6 +112,43 @@ function reave_connect_auth( WP_REST_Request $request ): bool {
     }
 
     return hash_equals( $expected, (string) $provided );
+}
+
+function reave_connect_ensure_admin(): void {
+    if ( get_current_user_id() ) return;
+    $admins = get_users( [ 'role' => 'administrator', 'number' => 1, 'orderby' => 'ID' ] );
+    if ( $admins ) wp_set_current_user( $admins[0]->ID );
+}
+
+function reave_connect_serialize_post( WP_Post $post ): array {
+    return [
+        'id'       => (int) $post->ID,
+        'type'     => $post->post_type,
+        'status'   => $post->post_status,
+        'title'    => html_entity_decode( get_the_title( $post ), ENT_QUOTES, 'UTF-8' ),
+        'slug'     => $post->post_name,
+        'excerpt'  => html_entity_decode( wp_strip_all_tags( $post->post_excerpt ), ENT_QUOTES, 'UTF-8' ),
+        'url'      => get_permalink( $post ),
+        'date'     => $post->post_date,
+        'modified' => $post->post_modified,
+        'featured_media' => (int) get_post_thumbnail_id( $post ),
+    ];
+}
+
+function reave_connect_serialize_media( int $id ): ?array {
+    $post = get_post( $id );
+    if ( ! $post || $post->post_type !== 'attachment' ) return null;
+    $file = get_attached_file( $id );
+    return [
+        'id'       => $id,
+        'title'    => html_entity_decode( get_the_title( $post ), ENT_QUOTES, 'UTF-8' ),
+        'alt'      => (string) get_post_meta( $id, '_wp_attachment_image_alt', true ),
+        'caption'  => html_entity_decode( wp_strip_all_tags( $post->post_excerpt ), ENT_QUOTES, 'UTF-8' ),
+        'mime'     => $post->post_mime_type,
+        'url'      => wp_get_attachment_url( $id ),
+        'filename' => $file ? basename( $file ) : '',
+        'date'     => $post->post_date,
+    ];
 }
 
 function reave_connect_status( WP_REST_Request $request ): WP_REST_Response {
@@ -276,6 +313,215 @@ function reave_connect_exec( WP_REST_Request $request ): WP_REST_Response {
                 'active_plugins' => get_option( 'active_plugins', [] ),
             ], 200 );
 
+        // --- Posts / pages ---
+        case 'list_content':
+            $type = sanitize_key( $params['post_type'] ?? $params['type'] ?? 'page' );
+            if ( ! in_array( $type, [ 'post', 'page' ], true ) ) $type = 'page';
+            $status = sanitize_key( $params['status'] ?? '' );
+            $search = sanitize_text_field( $params['search'] ?? $params['s'] ?? '' );
+            $per_page = max( 1, min( 50, (int) ( $params['per_page'] ?? 20 ) ) );
+            $page = max( 1, (int) ( $params['page'] ?? 1 ) );
+            $query = new WP_Query( [
+                'post_type'      => $type,
+                'post_status'    => $status ?: [ 'publish', 'draft', 'pending', 'private', 'future' ],
+                's'              => $search,
+                'posts_per_page' => $per_page,
+                'paged'          => $page,
+                'orderby'        => 'modified',
+                'order'          => 'DESC',
+            ] );
+            $items = [];
+            foreach ( $query->posts as $post ) {
+                if ( $post instanceof WP_Post ) $items[] = reave_connect_serialize_post( $post );
+            }
+            return new WP_REST_Response( [
+                'ok'         => true,
+                'items'      => $items,
+                'total'      => (int) $query->found_posts,
+                'page'       => $page,
+                'per_page'   => $per_page,
+            ], 200 );
+
+        case 'get_content':
+            $id = (int) ( $params['id'] ?? 0 );
+            $post = $id ? get_post( $id ) : null;
+            if ( ! $post || ! in_array( $post->post_type, [ 'post', 'page' ], true ) ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'Not found' ], 404 );
+            }
+            $row = reave_connect_serialize_post( $post );
+            $row['content'] = $post->post_content;
+            return new WP_REST_Response( [ 'ok' => true, 'item' => $row ], 200 );
+
+        case 'create_content':
+        case 'update_content':
+            reave_connect_ensure_admin();
+            $id = (int) ( $params['id'] ?? 0 );
+            $type = sanitize_key( $params['post_type'] ?? $params['type'] ?? 'page' );
+            if ( ! in_array( $type, [ 'post', 'page' ], true ) ) $type = 'page';
+            $payload = [ 'post_type' => $type ];
+            if ( $id ) $payload['ID'] = $id;
+            if ( isset( $params['title'] ) ) $payload['post_title'] = wp_kses_post( (string) $params['title'] );
+            if ( isset( $params['content'] ) ) $payload['post_content'] = wp_kses_post( (string) $params['content'] );
+            if ( isset( $params['excerpt'] ) ) $payload['post_excerpt'] = wp_kses_post( (string) $params['excerpt'] );
+            if ( isset( $params['slug'] ) ) $payload['post_name'] = sanitize_title( (string) $params['slug'] );
+            if ( isset( $params['status'] ) ) {
+                $st = sanitize_key( (string) $params['status'] );
+                if ( in_array( $st, [ 'publish', 'draft', 'pending', 'private', 'future' ], true ) ) {
+                    $payload['post_status'] = $st;
+                }
+            }
+            if ( $action === 'create_content' && empty( $payload['post_title'] ) ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'title is required' ], 400 );
+            }
+            if ( $action === 'create_content' && empty( $payload['post_status'] ) ) {
+                $payload['post_status'] = 'draft';
+            }
+            if ( $action === 'update_content' ) {
+                if ( ! $id ) return new WP_REST_Response( [ 'ok' => false, 'error' => 'id is required' ], 400 );
+                $existing = get_post( $id );
+                if ( ! $existing || ! in_array( $existing->post_type, [ 'post', 'page' ], true ) ) {
+                    return new WP_REST_Response( [ 'ok' => false, 'error' => 'Not found' ], 404 );
+                }
+                unset( $payload['post_type'] );
+                $saved = wp_update_post( $payload, true );
+            } else {
+                $saved = wp_insert_post( $payload, true );
+            }
+            if ( is_wp_error( $saved ) ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => $saved->get_error_message() ], 400 );
+            }
+            $post = get_post( (int) $saved );
+            return new WP_REST_Response( [
+                'ok'   => true,
+                'item' => $post instanceof WP_Post ? reave_connect_serialize_post( $post ) : [ 'id' => (int) $saved ],
+            ], 200 );
+
+        case 'delete_content':
+            reave_connect_ensure_admin();
+            $id = (int) ( $params['id'] ?? 0 );
+            if ( ! $id ) return new WP_REST_Response( [ 'ok' => false, 'error' => 'id is required' ], 400 );
+            $post = get_post( $id );
+            if ( ! $post || ! in_array( $post->post_type, [ 'post', 'page' ], true ) ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'Not found' ], 404 );
+            }
+            $force = filter_var( $params['force'] ?? false, FILTER_VALIDATE_BOOLEAN );
+            $deleted = wp_delete_post( $id, $force );
+            if ( ! $deleted ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'Could not delete' ], 400 );
+            }
+            return new WP_REST_Response( [
+                'ok'      => true,
+                'id'      => $id,
+                'trashed' => ! $force,
+            ], 200 );
+
+        // --- Media ---
+        case 'list_media':
+            $search = sanitize_text_field( $params['search'] ?? $params['s'] ?? '' );
+            $per_page = max( 1, min( 50, (int) ( $params['per_page'] ?? 20 ) ) );
+            $page = max( 1, (int) ( $params['page'] ?? 1 ) );
+            $query = new WP_Query( [
+                'post_type'      => 'attachment',
+                'post_status'    => 'inherit',
+                's'              => $search,
+                'posts_per_page' => $per_page,
+                'paged'          => $page,
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            ] );
+            $items = [];
+            foreach ( $query->posts as $post ) {
+                if ( $post instanceof WP_Post ) {
+                    $row = reave_connect_serialize_media( (int) $post->ID );
+                    if ( $row ) $items[] = $row;
+                }
+            }
+            return new WP_REST_Response( [
+                'ok'       => true,
+                'items'    => $items,
+                'total'    => (int) $query->found_posts,
+                'page'     => $page,
+                'per_page' => $per_page,
+            ], 200 );
+
+        case 'get_media':
+            $id = (int) ( $params['id'] ?? 0 );
+            $row = $id ? reave_connect_serialize_media( $id ) : null;
+            if ( ! $row ) return new WP_REST_Response( [ 'ok' => false, 'error' => 'Not found' ], 404 );
+            return new WP_REST_Response( [ 'ok' => true, 'item' => $row ], 200 );
+
+        case 'upload_media':
+            reave_connect_ensure_admin();
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            require_once ABSPATH . 'wp-admin/includes/media.php';
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+
+            $title = sanitize_text_field( $params['title'] ?? '' );
+            $alt = sanitize_text_field( $params['alt'] ?? '' );
+            $parent = (int) ( $params['post_id'] ?? 0 );
+            $url = esc_url_raw( (string) ( $params['url'] ?? '' ) );
+            $filename = sanitize_file_name( (string) ( $params['filename'] ?? '' ) );
+            $b64 = (string) ( $params['data_base64'] ?? $params['data'] ?? '' );
+
+            $tmp = '';
+            if ( $url ) {
+                $tmp = download_url( $url, 30 );
+                if ( is_wp_error( $tmp ) ) {
+                    return new WP_REST_Response( [ 'ok' => false, 'error' => $tmp->get_error_message() ], 400 );
+                }
+                if ( ! $filename ) $filename = basename( wp_parse_url( $url, PHP_URL_PATH ) ?: 'upload.bin' );
+            } elseif ( $b64 ) {
+                if ( ! $filename ) $filename = 'upload.bin';
+                $tmp = wp_tempnam( $filename );
+                $decoded = base64_decode( $b64, true );
+                if ( $decoded === false || $decoded === '' ) {
+                    @unlink( $tmp );
+                    return new WP_REST_Response( [ 'ok' => false, 'error' => 'Invalid base64 media data' ], 400 );
+                }
+                if ( strlen( $decoded ) > 8 * 1024 * 1024 ) {
+                    @unlink( $tmp );
+                    return new WP_REST_Response( [ 'ok' => false, 'error' => 'Media exceeds 8MB' ], 400 );
+                }
+                file_put_contents( $tmp, $decoded );
+            } else {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'url or data_base64 is required' ], 400 );
+            }
+
+            $file_array = [ 'name' => $filename, 'tmp_name' => $tmp ];
+            $saved = media_handle_sideload( $file_array, $parent, $title ?: null );
+            if ( is_wp_error( $saved ) ) {
+                @unlink( $tmp );
+                return new WP_REST_Response( [ 'ok' => false, 'error' => $saved->get_error_message() ], 400 );
+            }
+            if ( $alt ) update_post_meta( (int) $saved, '_wp_attachment_image_alt', $alt );
+            $row = reave_connect_serialize_media( (int) $saved );
+            return new WP_REST_Response( [ 'ok' => true, 'item' => $row ], 200 );
+
+        case 'set_featured_image':
+            reave_connect_ensure_admin();
+            $post_id = (int) ( $params['post_id'] ?? $params['id'] ?? 0 );
+            $media_id = (int) ( $params['media_id'] ?? 0 );
+            if ( ! $post_id || ! $media_id ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'post_id and media_id are required' ], 400 );
+            }
+            $post = get_post( $post_id );
+            if ( ! $post || ! in_array( $post->post_type, [ 'post', 'page' ], true ) ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'Post not found' ], 404 );
+            }
+            if ( ! wp_attachment_is_image( $media_id ) ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'media_id is not an image' ], 400 );
+            }
+            $ok = set_post_thumbnail( $post_id, $media_id );
+            if ( ! $ok ) {
+                return new WP_REST_Response( [ 'ok' => false, 'error' => 'Could not set featured image' ], 400 );
+            }
+            $updated = get_post( $post_id );
+            return new WP_REST_Response( [
+                'ok'      => true,
+                'item'    => reave_connect_serialize_post( $updated instanceof WP_Post ? $updated : $post ),
+                'media'   => reave_connect_serialize_media( $media_id ),
+            ], 200 );
+
         default:
             return new WP_REST_Response( [
                 'ok'    => false,
@@ -285,6 +531,8 @@ function reave_connect_exec( WP_REST_Request $request ): WP_REST_Response {
                     'enable_indexing', 'disable_indexing', 'get_indexing_status',
                     'list_plugins', 'activate_plugin', 'deactivate_plugin', 'install_plugin',
                     'get_active_theme', 'flush_cache', 'site_info',
+                    'list_content', 'get_content', 'create_content', 'update_content', 'delete_content',
+                    'list_media', 'get_media', 'upload_media', 'set_featured_image',
                 ],
             ], 400 );
     }
@@ -313,7 +561,7 @@ function reave_connect_settings_page() {
     ?>
     <div class="wrap">
         <h1>Reave Connect</h1>
-        <p>This plugin allows <a href="https://reave.app/" target="_blank">Reave Automation</a> to manage this WordPress site remotely.</p>
+        <p>This plugin allows <a href="https://reave.app/" target="_blank">Reave Automation</a> to manage this WordPress site remotely — posts, pages, media, plugins, cache, and options.</p>
         <form method="post">
             <?php wp_nonce_field( 'reave_connect_save' ); ?>
             <table class="form-table">
