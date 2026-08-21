@@ -17,10 +17,19 @@ export type ClerkUserLike = {
 
 export function deploymentOwnerUsernames(): string[] {
   const raw = serverEnv('ADMIN_USERNAME')?.trim() || cachedCompanyBrandName() || SITE.name;
-  return raw
+  const names = raw
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
+  const first = (serverEnv('OWNER_FIRST_NAME') ?? '').trim();
+  const last = (serverEnv('OWNER_LAST_NAME') ?? '').trim();
+  const email = (serverEnv('OWNER_EMAIL') ?? '').trim();
+  const extras = [first, last, [first, last].filter(Boolean).join(' '), email];
+  if (email.includes('@')) extras.push(email.split('@')[0]!.trim());
+  for (const extra of extras) {
+    if (extra && !names.some((name) => name.toLowerCase() === extra.toLowerCase())) names.push(extra);
+  }
+  return names;
 }
 
 /** @deprecated Use deploymentOwnerUsernames() */
@@ -191,6 +200,69 @@ async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<stri
   }
 }
 
+function ownerProfileFromEnv(): {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  timezone: string;
+} {
+  return {
+    firstName: (serverEnv('OWNER_FIRST_NAME') ?? '').trim(),
+    lastName: (serverEnv('OWNER_LAST_NAME') ?? '').trim(),
+    email: (serverEnv('OWNER_EMAIL') ?? '').trim(),
+    phone: (serverEnv('OWNER_PHONE') ?? '').trim(),
+    timezone: (serverEnv('BOOKING_TIMEZONE') ?? '').trim(),
+  };
+}
+
+const appliedOwnerProfileIds = new Set<string>();
+
+/**
+ * Fill empty Clerk Profile fields from deploy-wizard OWNER_* / BOOKING_TIMEZONE.
+ * Only writes blanks so a later Profile save is never overwritten.
+ */
+export async function ensureOwnerProfileFromEnv(context: APIContext): Promise<void> {
+  const { userId } = context.locals.auth();
+  if (!userId || appliedOwnerProfileIds.has(userId)) return;
+  const seeded = ownerProfileFromEnv();
+  if (!seeded.firstName && !seeded.lastName && !seeded.phone && !seeded.timezone) {
+    appliedOwnerProfileIds.add(userId);
+    return;
+  }
+
+  try {
+    const client = clerkClient(context);
+    const user = await client.users.getUser(userId);
+    const existing = (user.publicMetadata ?? {}) as Record<string, string>;
+    const firstName = (user.firstName ?? '').trim() || seeded.firstName || undefined;
+    const lastName = (user.lastName ?? '').trim() || seeded.lastName || undefined;
+    const phone = (existing.phone ?? '').trim() || seeded.phone;
+    const timezone = (existing.timezone ?? '').trim() || seeded.timezone;
+    const changed =
+      firstName !== (user.firstName ?? '').trim() ||
+      lastName !== (user.lastName ?? '').trim() ||
+      phone !== (existing.phone ?? '').trim() ||
+      timezone !== (existing.timezone ?? '').trim();
+    if (!changed) {
+      appliedOwnerProfileIds.add(userId);
+      return;
+    }
+    await client.users.updateUser(userId, {
+      firstName,
+      lastName,
+      publicMetadata: {
+        ...existing,
+        phone,
+        timezone,
+      },
+    });
+    appliedOwnerProfileIds.add(userId);
+  } catch {
+    /* next owner visit retries */
+  }
+}
+
 /** Admin → Profile time zone; defaults to Eastern when unset. */
 export async function getDeploymentOwnerTimezone(context?: APIContext): Promise<string> {
   if (context) {
@@ -204,6 +276,9 @@ export async function getDeploymentOwnerTimezone(context?: APIContext): Promise<
     const tz = (meta.timezone ?? '').trim();
     if (tz) return tz;
   }
+
+  const fromEnv = (serverEnv('BOOKING_TIMEZONE') ?? '').trim();
+  if (fromEnv) return fromEnv;
 
   return DEFAULT_DEPLOYMENT_TIMEZONE;
 }

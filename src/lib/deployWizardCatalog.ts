@@ -264,6 +264,47 @@ export function isDeployWizardPublicHost(raw: string | undefined): boolean {
   return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host);
 }
 
+export function normalizeDeployWizardEmail(raw: string | undefined): string {
+  const email = (raw ?? '').trim().toLowerCase().slice(0, 254);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return '';
+  return email;
+}
+
+export function normalizeDeployWizardPhone(raw: string | undefined): string {
+  const digits = (raw ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  const us = (digits.startsWith('1') && digits.length >= 11 ? digits.slice(1) : digits).slice(0, 10);
+  if (us.length === 10) return `+1${us}`;
+  if (digits.length >= 10 && digits.length <= 15) return `+${digits}`;
+  return '';
+}
+
+export function normalizeDeployWizardPersonName(raw: string | undefined): string {
+  return (raw ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+/** Comma-separated ADMIN_USERNAME matches from optional owner name/email. */
+export function defaultAdminUsernameFromOwner(input: {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}): string {
+  const first = normalizeDeployWizardPersonName(input.firstName);
+  const last = normalizeDeployWizardPersonName(input.lastName);
+  const email = normalizeDeployWizardEmail(input.email);
+  const parts: string[] = [];
+  const add = (value: string) => {
+    if (value && !parts.some((part) => part.toLowerCase() === value.toLowerCase())) parts.push(value);
+  };
+  add(first);
+  add(last);
+  add([first, last].filter(Boolean).join(' '));
+  add(email);
+  const local = email.split('@')[0]?.trim() || '';
+  add(local);
+  return parts.join(', ');
+}
+
 export function deployWizardSiteOrigin(raw: string | undefined): string {
   const host = normalizeSiteDomain(raw);
   return isDeployWizardPublicHost(host) ? `https://${host}` : '';
@@ -525,7 +566,39 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
     value: '',
-    description: 'Deployment owner match (comma-separated). Falls back to company name.',
+    description: 'Deployment owner match (comma-separated). Falls back to owner name/email, then company name.',
+    required: false,
+  }),
+  v({
+    name: 'OWNER_FIRST_NAME',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Optional owner first name. Applied to Profile on first sign-in.',
+    required: false,
+  }),
+  v({
+    name: 'OWNER_LAST_NAME',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Optional owner last name. Applied to Profile on first sign-in.',
+    required: false,
+  }),
+  v({
+    name: 'OWNER_EMAIL',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Optional owner email. Used for Web Push mailto and owner sign-in match. Clerk still owns the live login email.',
+    required: false,
+  }),
+  v({
+    name: 'OWNER_PHONE',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Optional owner phone (E.164). Applied to Profile on first sign-in.',
     required: false,
   }),
   v({
@@ -645,7 +718,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
     value: 'mailto:admin@localhost',
-    description: 'Web Push subject (mailto:). Update to the owner email.',
+    description: 'Web Push subject (mailto:). Filled from the owner email when provided.',
     required: false,
   }),
   v({
@@ -1551,7 +1624,12 @@ export type DeployWizardPlanInput = {
   postAlias?: string;
   companyName?: string;
   adminUsername?: string;
-  /** IANA timezone (BOOKING_TIMEZONE). Default America/New_York. */
+  /** Optional owner Profile fields — applied on first sign-in. */
+  ownerFirstName?: string;
+  ownerLastName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  /** IANA timezone (BOOKING_TIMEZONE + Profile). Default America/New_York. */
   timezone?: string;
   /** Sample inbox / todos / schedule for industries we do not have live access to yet. */
   seed?: Partial<DeployWizardSeedInput>;
@@ -1774,6 +1852,10 @@ export type DeployWizardPlan = {
   postAlias: string;
   companyName: string;
   adminUsername: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail: string;
+  ownerPhone: string;
   timezone: string;
   seed: DeployWizardSeedInput;
   features: FeatureId[];
@@ -1852,7 +1934,13 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   const seed = normalizeDeployWizardSeed(input.seed);
   const postAlias = normalizePostAlias(input.postAlias || (isLawIndustrySlug(seed.industry) ? 'matter' : undefined));
   const companyName = (input.companyName ?? '').trim().slice(0, 120);
-  const adminUsername = (input.adminUsername ?? '').trim().slice(0, 120);
+  const ownerFirstName = normalizeDeployWizardPersonName(input.ownerFirstName);
+  const ownerLastName = normalizeDeployWizardPersonName(input.ownerLastName);
+  const ownerEmail = normalizeDeployWizardEmail(input.ownerEmail);
+  const ownerPhone = normalizeDeployWizardPhone(input.ownerPhone);
+  const adminUsername =
+    (input.adminUsername ?? '').trim().slice(0, 120) ||
+    defaultAdminUsernameFromOwner({ firstName: ownerFirstName, lastName: ownerLastName, email: ownerEmail });
   const timezone = (input.timezone?.trim() || 'America/New_York').slice(0, 64);
   const extraSet = new Set<string>(extras);
 
@@ -1891,12 +1979,17 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'POST_ALIAS') filled = postAlias;
     if (raw.name === 'COMPANY_NAME') filled = companyName;
     if (raw.name === 'ADMIN_USERNAME') filled = adminUsername;
+    if (raw.name === 'OWNER_FIRST_NAME') filled = ownerFirstName;
+    if (raw.name === 'OWNER_LAST_NAME') filled = ownerLastName;
+    if (raw.name === 'OWNER_EMAIL') filled = ownerEmail;
+    if (raw.name === 'OWNER_PHONE') filled = ownerPhone;
     if (raw.name === 'BOOKING_TIMEZONE') filled = timezone;
     if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'COMPANY_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'EMAIL_FROM_NAME' && companyName) filled = companyName;
     if (raw.name === 'RESEND_FROM' && siteDomain) filled = deployWizardResendFrom(siteDomain);
-    if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
+    if (raw.name === 'VAPID_SUBJECT' && ownerEmail) filled = `mailto:${ownerEmail}`;
+    else if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
     if (appService !== DEPLOY_APP_SERVICE && filled) {
       filled = substituteAppService(filled, appService);
     }
@@ -2012,6 +2105,10 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     postAlias,
     companyName,
     adminUsername,
+    ownerFirstName,
+    ownerLastName,
+    ownerEmail,
+    ownerPhone,
     timezone,
     seed,
     features,
@@ -2033,7 +2130,10 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
     `# App service: ${plan.appService} · install: ${plan.installSlug}` +
       (plan.siteDomain ? ` · apex: ${plan.siteDomain}` : '') +
       ` · post: ${plan.postAlias}` +
-      (plan.companyName ? ` · company: ${plan.companyName}` : ''),
+      (plan.companyName ? ` · company: ${plan.companyName}` : '') +
+      (plan.ownerEmail || plan.ownerFirstName
+        ? ` · owner: ${[plan.ownerFirstName, plan.ownerLastName].filter(Boolean).join(' ')}${plan.ownerEmail ? ` <${plan.ownerEmail}>` : ''}`
+        : ''),
     '',
   ];
 

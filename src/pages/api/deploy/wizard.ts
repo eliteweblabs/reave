@@ -221,6 +221,10 @@ export async function GET(context: APIContext): Promise<Response> {
       postAlias: 'project',
       companyName: '',
       adminUsername: '',
+      ownerFirstName: '',
+      ownerLastName: '',
+      ownerEmail: '',
+      ownerPhone: '',
       timezone: 'America/New_York',
     },
   });
@@ -248,6 +252,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const postAlias = typeof body.postAlias === 'string' ? body.postAlias : undefined;
   const companyName = typeof body.companyName === 'string' ? body.companyName : undefined;
   const adminUsername = typeof body.adminUsername === 'string' ? body.adminUsername : undefined;
+  const ownerFirstName = typeof body.ownerFirstName === 'string' ? body.ownerFirstName : undefined;
+  const ownerLastName = typeof body.ownerLastName === 'string' ? body.ownerLastName : undefined;
+  const ownerEmail = typeof body.ownerEmail === 'string' ? body.ownerEmail : undefined;
+  const ownerPhone = typeof body.ownerPhone === 'string' ? body.ownerPhone : undefined;
   const timezone = typeof body.timezone === 'string' ? body.timezone : undefined;
   const seed = parseSeed(body);
   const plan = buildDeployWizardPlan({
@@ -259,6 +267,10 @@ export async function POST(context: APIContext): Promise<Response> {
     postAlias,
     companyName,
     adminUsername,
+    ownerFirstName,
+    ownerLastName,
+    ownerEmail,
+    ownerPhone,
     timezone,
     seed,
   });
@@ -289,6 +301,10 @@ export async function POST(context: APIContext): Promise<Response> {
     postAlias,
     companyName,
     adminUsername,
+    ownerFirstName,
+    ownerLastName,
+    ownerEmail,
+    ownerPhone,
     timezone,
     seed,
     project,

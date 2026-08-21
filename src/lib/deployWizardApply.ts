@@ -60,6 +60,10 @@ export function planFromGithubAppApply(apply: DeployWizardGithubAppApplyBody): D
     postAlias: apply.postAlias,
     companyName: apply.companyName,
     adminUsername: apply.adminUsername,
+    ownerFirstName: apply.ownerFirstName,
+    ownerLastName: apply.ownerLastName,
+    ownerEmail: apply.ownerEmail,
+    ownerPhone: apply.ownerPhone,
     timezone: apply.timezone,
     seed: apply.seed,
   });

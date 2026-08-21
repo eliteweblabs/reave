@@ -82,7 +82,52 @@
   let postAlias = 'project';
   let companyName = '';
   let adminUsername = '';
+  let ownerFirstName = '';
+  let ownerLastName = '';
+  let ownerEmail = '';
+  let ownerPhone = '';
   let timezone = 'America/New_York';
+
+  const OWNER_TIMEZONES = [
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+    'America/Anchorage',
+    'Pacific/Honolulu',
+    'America/Toronto',
+    'America/Vancouver',
+    'Europe/London',
+    'Europe/Paris',
+    'Europe/Berlin',
+    'Asia/Tokyo',
+    'Asia/Shanghai',
+    'Asia/Kolkata',
+    'Australia/Sydney',
+    'Pacific/Auckland',
+    'UTC',
+  ];
+
+  function timezoneOptions(selected) {
+    const list = [...OWNER_TIMEZONES];
+    if (selected && !list.includes(selected)) list.unshift(selected);
+    return list
+      .map((tz) => {
+        const label = tz.replace(/_/g, ' ');
+        const sel = tz === selected ? ' selected' : '';
+        return `<option value="${esc(tz)}"${sel}>${esc(label)}</option>`;
+      })
+      .join('');
+  }
+
+  function formatOwnerPhone(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    const us = (digits.startsWith('1') ? digits.slice(1) : digits).slice(0, 10);
+    if (us.length < 4) return `+1 (${us}`;
+    if (us.length < 7) return `+1 (${us.slice(0, 3)}) ${us.slice(3)}`;
+    return `+1 (${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}`;
+  }
   let project = '__new__';
   let projectName = '';
   let environment = 'production';
@@ -371,6 +416,8 @@
     const newSelected = project === '__new__' || !project ? ' selected' : '';
     const nameHint = projectName || companyName || installSlug || 'barry-levine';
     return (
+      `<div class="dw-identity-block">` +
+      `<h2 class="dl-section-title">Install</h2>` +
       `<div class="dl-toolbar dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Install slug</span>` +
@@ -390,11 +437,7 @@
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Admin username</span>` +
-      `<input id="dw-admin" class="dl-input" type="text" maxlength="120" placeholder="Optional — defaults to company" value="${esc(adminUsername)}" />` +
-      `</label>` +
-      `<label class="dl-field">` +
-      `<span class="dl-field-label">Timezone</span>` +
-      `<input id="dw-tz" class="dl-input" type="text" maxlength="64" placeholder="America/New_York" value="${esc(timezone)}" />` +
+      `<input id="dw-admin" class="dl-input" type="text" maxlength="120" placeholder="Optional — defaults to owner name" value="${esc(adminUsername)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">App service name</span>` +
@@ -416,6 +459,33 @@
       `<span class="dl-field-label">Environment</span>` +
       `<input id="dw-env" class="dl-input" type="text" value="${esc(environment)}" />` +
       `</label>` +
+      `</div>` +
+      `</div>` +
+      `<div class="dw-identity-block">` +
+      `<h2 class="dl-section-title">Owner account</h2>` +
+      `<p class="dl-footnote">Optional — same fields as Admin → Profile. Applied on first sign-in, used for Web Push mailto, and added to owner match.</p>` +
+      `<div class="dl-toolbar dw-identity">` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">First name</span>` +
+      `<input id="dw-owner-first" class="dl-input" type="text" maxlength="80" autocomplete="given-name" value="${esc(ownerFirstName)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Last name</span>` +
+      `<input id="dw-owner-last" class="dl-input" type="text" maxlength="80" autocomplete="family-name" value="${esc(ownerLastName)}" />` +
+      `</label>` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Email</span>` +
+      `<input id="dw-owner-email" class="dl-input" type="email" maxlength="254" autocomplete="email" placeholder="Optional — owner sign-in email" value="${esc(ownerEmail)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Phone</span>` +
+      `<input id="dw-owner-phone" class="dl-input" type="tel" inputmode="tel" autocomplete="tel" placeholder="+1 (555) 000-0000" value="${esc(formatOwnerPhone(ownerPhone))}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Time zone</span>` +
+      `<select id="dw-tz" class="dl-select">${timezoneOptions(timezone)}</select>` +
+      `</label>` +
+      `</div>` +
       `</div>`
     );
   }
@@ -814,6 +884,10 @@
     const postEl = root.querySelector('#dw-post');
     const companyEl = root.querySelector('#dw-company');
     const adminEl = root.querySelector('#dw-admin');
+    const ownerFirstEl = root.querySelector('#dw-owner-first');
+    const ownerLastEl = root.querySelector('#dw-owner-last');
+    const ownerEmailEl = root.querySelector('#dw-owner-email');
+    const ownerPhoneEl = root.querySelector('#dw-owner-phone');
     const tzEl = root.querySelector('#dw-tz');
     const appEl = root.querySelector('#dw-app');
     const projectEl = root.querySelector('#dw-project');
@@ -823,6 +897,10 @@
     if (postEl) postAlias = postEl.value.trim() || 'project';
     if (companyEl) companyName = companyEl.value.trim();
     if (adminEl) adminUsername = adminEl.value.trim();
+    if (ownerFirstEl) ownerFirstName = ownerFirstEl.value.trim();
+    if (ownerLastEl) ownerLastName = ownerLastEl.value.trim();
+    if (ownerEmailEl) ownerEmail = ownerEmailEl.value.trim();
+    if (ownerPhoneEl) ownerPhone = ownerPhoneEl.value.trim();
     if (tzEl) timezone = tzEl.value.trim() || 'America/New_York';
     if (appEl) appService = appEl.value.trim() || 'reave';
     if (projectEl) project = projectEl.value.trim() || '__new__';
@@ -873,6 +951,10 @@
         postAlias,
         companyName,
         adminUsername,
+        ownerFirstName,
+        ownerLastName,
+        ownerEmail,
+        ownerPhone,
         timezone,
         seed,
         values,
@@ -888,6 +970,10 @@
       'POST_ALIAS',
       'COMPANY_NAME',
       'ADMIN_USERNAME',
+      'OWNER_FIRST_NAME',
+      'OWNER_LAST_NAME',
+      'OWNER_EMAIL',
+      'OWNER_PHONE',
       'BOOKING_TIMEZONE',
       'PUBLIC_SITE_DOMAIN',
       'COMPANY_DOMAIN',
@@ -993,6 +1079,10 @@
           postAlias,
           companyName,
           adminUsername,
+          ownerFirstName,
+          ownerLastName,
+          ownerEmail,
+          ownerPhone,
           timezone,
           seed,
           project,
@@ -1178,6 +1268,18 @@
       void applyPlan();
     });
     bindPlacesAddress();
+    const ownerPhoneEl = root.querySelector('#dw-owner-phone');
+    if (ownerPhoneEl instanceof HTMLInputElement) {
+      ownerPhoneEl.addEventListener('input', () => {
+        const formatted = formatOwnerPhone(ownerPhoneEl.value);
+        if (ownerPhoneEl.value !== formatted) {
+          const start = ownerPhoneEl.selectionStart;
+          ownerPhoneEl.value = formatted;
+          if (start != null) ownerPhoneEl.setSelectionRange(formatted.length, formatted.length);
+        }
+        ownerPhone = formatted;
+      });
+    }
     root.querySelector('#dw-court-gate')?.addEventListener('change', () => {
       readIdentity();
       render();
@@ -1272,6 +1374,10 @@
         postAlias = data.defaults.postAlias || postAlias;
         if (typeof data.defaults.companyName === 'string') companyName = data.defaults.companyName;
         if (typeof data.defaults.adminUsername === 'string') adminUsername = data.defaults.adminUsername;
+        if (typeof data.defaults.ownerFirstName === 'string') ownerFirstName = data.defaults.ownerFirstName;
+        if (typeof data.defaults.ownerLastName === 'string') ownerLastName = data.defaults.ownerLastName;
+        if (typeof data.defaults.ownerEmail === 'string') ownerEmail = data.defaults.ownerEmail;
+        if (typeof data.defaults.ownerPhone === 'string') ownerPhone = data.defaults.ownerPhone;
         timezone = data.defaults.timezone || timezone;
       }
       const allowed = new Set(toggleableModules().map((m) => m.moduleId));

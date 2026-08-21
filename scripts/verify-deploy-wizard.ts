@@ -13,6 +13,10 @@ import {
   isDeployWizardNewProjectRef,
   isDeployWizardSeedIndustryId,
   mergeDeployWizardSeedIndustries,
+  defaultAdminUsernameFromOwner,
+  normalizeDeployWizardEmail,
+  normalizeDeployWizardPersonName,
+  normalizeDeployWizardPhone,
   normalizeSiteDomain,
   isDeployWizardPublicHost,
   deployWizardSiteOrigin,
@@ -105,11 +109,43 @@ const branded = buildDeployWizardPlan({
   adminUsername: 'Pat',
   timezone: 'America/Los_Angeles',
 });
+assert.equal(normalizeDeployWizardEmail(' Jane.Doe@Acme.com '), 'jane.doe@acme.com');
+assert.equal(normalizeDeployWizardEmail('not-an-email'), '');
+assert.equal(normalizeDeployWizardPersonName('  Jane   Q  '), 'Jane Q');
+assert.equal(normalizeDeployWizardPhone('(555) 000-0000'), '+15550000000');
+assert.equal(
+  defaultAdminUsernameFromOwner({ firstName: 'Jane', lastName: 'Doe', email: 'jane@acme.com' }),
+  'Jane, Doe, Jane Doe, jane@acme.com',
+);
+
 assert.equal(branded.variables.find((v) => v.name === 'POST_ALIAS')?.filled, 'job');
 assert.equal(branded.variables.find((v) => v.name === 'COMPANY_NAME')?.filled, 'Capco Fire');
 assert.equal(branded.variables.find((v) => v.name === 'ADMIN_USERNAME')?.filled, 'Pat');
 assert.equal(branded.variables.find((v) => v.name === 'COMPANY_DOMAIN')?.filled, 'capcofire.com');
 assert.equal(branded.variables.find((v) => v.name === 'BOOKING_TIMEZONE')?.filled, 'America/Los_Angeles');
+const ownerPlan = buildDeployWizardPlan({
+  features: [],
+  installSlug: 'capco',
+  siteDomain: 'capcofire.com',
+  companyName: 'Capco Fire',
+  ownerFirstName: 'Jane',
+  ownerLastName: 'Doe',
+  ownerEmail: 'jane@capcofire.com',
+  ownerPhone: '(781) 555-0100',
+  timezone: 'America/Los_Angeles',
+});
+assert.equal(ownerPlan.ownerFirstName, 'Jane');
+assert.equal(ownerPlan.ownerLastName, 'Doe');
+assert.equal(ownerPlan.ownerEmail, 'jane@capcofire.com');
+assert.equal(ownerPlan.ownerPhone, '+17815550100');
+assert.equal(ownerPlan.adminUsername, 'Jane, Doe, Jane Doe, jane@capcofire.com');
+assert.equal(ownerPlan.variables.find((v) => v.name === 'OWNER_FIRST_NAME')?.filled, 'Jane');
+assert.equal(ownerPlan.variables.find((v) => v.name === 'OWNER_LAST_NAME')?.filled, 'Doe');
+assert.equal(ownerPlan.variables.find((v) => v.name === 'OWNER_EMAIL')?.filled, 'jane@capcofire.com');
+assert.equal(ownerPlan.variables.find((v) => v.name === 'OWNER_PHONE')?.filled, '+17815550100');
+assert.equal(ownerPlan.variables.find((v) => v.name === 'VAPID_SUBJECT')?.filled, 'mailto:jane@capcofire.com');
+assert.equal(ownerPlan.variables.find((v) => v.name === 'ADMIN_USERNAME')?.filled, ownerPlan.adminUsername);
+
 assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.filled, 'Capco Fire');
 assert.equal(branded.variables.find((v) => v.name === 'EMAIL_FROM_NAME')?.inheritFromHost, false);
 assert.equal(branded.variables.find((v) => v.name === 'RESEND_FROM')?.filled, 'noreply@inbound.capcofire.com');

@@ -20,7 +20,7 @@ import { getInstallConfigClient } from "../../lib/installConfig";
 import { isSpecialAdminPageKey } from "../../lib/adminSpecialPages";
 import { enabledFeatures, ensureFeatureOverridesLoaded } from "../../lib/features";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
-import { getAuthUser, isDeploymentOwner } from "../../lib/deploymentOwner";
+import { ensureOwnerProfileFromEnv, getAuthUser, isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
 import { githubRepoSlug } from "../../lib/githubClient";
@@ -61,6 +61,9 @@ const signedInAs =
   "";
 if (userId && !isOwner) {
   Astro.response.status = 403;
+}
+if (isOwner) {
+  void ensureOwnerProfileFromEnv(Astro);
 }
 if (isOwner && shouldSeedOnBoot()) {
   void ensureInstallSeed();

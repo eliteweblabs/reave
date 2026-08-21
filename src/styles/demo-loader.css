@@ -618,6 +618,30 @@
   align-items: flex-end;
 }
 
+.dw-identity-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.dw-identity-block + .dw-identity-block {
+  margin-top: 1.15rem;
+}
+
+.dw-identity-block .dl-section-title {
+  margin: 0;
+}
+
+.dw-identity-block .dl-footnote {
+  margin: 0;
+}
+
+.dl-field.dw-field--wide {
+  flex: 1 1 100%;
+  min-width: 100%;
+}
+
 .dl-field.dw-field--multi {
   flex: 1 1 100%;
   min-width: 100%;

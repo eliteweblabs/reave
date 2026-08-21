@@ -57,6 +57,10 @@ export type DeployWizardGithubAppApplyBody = {
   postAlias?: string;
   companyName?: string;
   adminUsername?: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
   timezone?: string;
   seed?: Partial<DeployWizardSeedInput>;
   project: string;

@@ -246,6 +246,14 @@ interface ImportMetaEnv {
   CALCOM_EVENT_TYPE_ID?: string;
   /** Timezone for schedule display (default America/New_York). */
   BOOKING_TIMEZONE?: string;
+  /** Optional owner first name from the deploy wizard — applied to Profile on first sign-in. */
+  OWNER_FIRST_NAME?: string;
+  /** Optional owner last name from the deploy wizard — applied to Profile on first sign-in. */
+  OWNER_LAST_NAME?: string;
+  /** Optional owner email from the deploy wizard — Web Push mailto + owner match. */
+  OWNER_EMAIL?: string;
+  /** Optional owner phone (E.164) from the deploy wizard — applied to Profile on first sign-in. */
+  OWNER_PHONE?: string;
   /** Shared secret for /api/calendar/reminders/poll?key= */
   CALENDAR_REMINDER_POLL_SECRET?: string;
   /** Reminder poll interval in minutes (1–5, default 1). */

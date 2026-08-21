@@ -90,8 +90,14 @@ The first step writes these onto `reave` (same keys live client installs already
 | Site domain | `PUBLIC_SITE_DOMAIN` / `COMPANY_DOMAIN` | (empty) |
 | Post name | `POST_ALIAS` | `project` |
 | Company name | `COMPANY_NAME` (also prefills `EMAIL_FROM_NAME`) | (empty) |
-| Admin username | `ADMIN_USERNAME` | falls back to company name |
+| Admin username | `ADMIN_USERNAME` | owner name/email, then company name |
+| First name | `OWNER_FIRST_NAME` | (empty, optional) |
+| Last name | `OWNER_LAST_NAME` | (empty, optional) |
+| Email | `OWNER_EMAIL` | (empty, optional — also fills `VAPID_SUBJECT`) |
+| Phone | `OWNER_PHONE` | (empty, optional, stored E.164) |
 | Timezone | `BOOKING_TIMEZONE` | `America/New_York` |
+
+Owner name, email, phone, and timezone are the same fields as Admin → Profile. They are optional. On the first owner visit to `/admin`, empty Clerk Profile fields are filled from these values. `OWNER_EMAIL` also becomes the Web Push `mailto:` and is added to owner-match names so the first sign-in can match before `AGENT_ALERT_USER_ID` is set.
 
 ## Apply fills every value
 
