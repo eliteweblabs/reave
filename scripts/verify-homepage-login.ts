@@ -7,10 +7,12 @@ import { readFileSync } from 'node:fs';
 import {
   clerkPublishableKey,
   clerkSecretKey,
+  clerkDomainRows,
   isClerkFrontendConfigured,
   isClerkRuntimeConfigured,
   normalizeClerkRuntimeEnv,
 } from '../src/lib/clerkClient.ts';
+import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual } from '../src/lib/clerkProxyUrl.ts';
 import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
 
 const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf8')) as {
@@ -192,5 +194,45 @@ if (prevCanonPk === undefined) delete process.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
 else process.env.PUBLIC_CLERK_PUBLISHABLE_KEY = prevCanonPk;
 if (prevCanonSk === undefined) delete process.env.CLERK_SECRET_KEY;
 else process.env.CLERK_SECRET_KEY = prevCanonSk;
+
+assert.equal(clerkProxyUrlFromEnv({}), '/__clerk', 'production default is same-origin /__clerk');
+assert.equal(
+  clerkProxyUrlFromEnv({ PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_example' }),
+  '/__clerk',
+);
+assert.equal(
+  clerkProxyUrlFromEnv({ PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_example' }),
+  undefined,
+  'development instances cannot use the Frontend API proxy',
+);
+assert.equal(clerkProxyUrlFromEnv({ PUBLIC_CLERK_PROXY_URL: 'none' }), undefined);
+assert.equal(
+  clerkProxyUrlFromEnv({ PUBLIC_CLERK_PROXY_URL: 'https://app.example.com/__clerk/' }),
+  'https://app.example.com/__clerk/',
+);
+assert.equal(
+  clerkProxyUrlsEqual('https://app.example.com/__clerk/', 'https://app.example.com/__clerk'),
+  true,
+);
+
+const prevProxy = process.env.PUBLIC_CLERK_PROXY_URL;
+delete process.env.PUBLIC_CLERK_PROXY_URL;
+delete process.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
+delete process.env.CLERK_PUBLISHABLE_KEY;
+delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+normalizeClerkRuntimeEnv();
+assert.equal(process.env.PUBLIC_CLERK_PROXY_URL, '/__clerk');
+if (prevProxy === undefined) delete process.env.PUBLIC_CLERK_PROXY_URL;
+else process.env.PUBLIC_CLERK_PROXY_URL = prevProxy;
+if (prevCanonPk === undefined) delete process.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
+else process.env.PUBLIC_CLERK_PUBLISHABLE_KEY = prevCanonPk;
+if (prevPk === undefined) delete process.env.CLERK_PUBLISHABLE_KEY;
+else process.env.CLERK_PUBLISHABLE_KEY = prevPk;
+
+assert.equal(clerkDomainRows({ data: [{ id: 'dmn_1', is_satellite: false, proxy_url: null }] })[0]?.id, 'dmn_1');
+
+const astroConfig = readFileSync('astro.config.mjs', 'utf8');
+assert.match(astroConfig, /clerkProxyUrlFromEnv/);
+assert.match(astroConfig, /proxyUrl/);
 
 console.log('verify-homepage-login: ok');

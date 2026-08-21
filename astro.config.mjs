@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
 import react from '@astrojs/react';
 import clerk from '@clerk/astro';
+import { clerkProxyUrlFromEnv } from './src/lib/clerkProxyUrl.ts';
 import { publicAssetVersion } from './scripts/asset-version.mjs';
 
 const usePolling = process.env.VITE_USE_POLLING === '1';
@@ -23,8 +24,11 @@ const usePolling = process.env.VITE_USE_POLLING === '1';
  */
 const allowedDomains = [{ protocol: 'https' }];
 
+/** Production clerk-js must not load from `clerk.{apex}` when that host is WordPress. */
+const clerkProxyUrl = clerkProxyUrlFromEnv();
+
 export default defineConfig({
-  integrations: [clerk(), react()],
+  integrations: [clerk(clerkProxyUrl ? { proxyUrl: clerkProxyUrl } : {}), react()],
   output: 'server',
   security: {
     allowedDomains,

@@ -4,6 +4,7 @@
  * Backend API — https://api.clerk.com/v1  (per-app, requires CLERK_SECRET_KEY)
  * Clerk does not allow system-level access. Clerk Pro does not provide a platform key.
  */
+import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual, isClerkProxyOptOut, normalizeClerkProxyUrl } from './clerkProxyUrl';
 import { serverEnv } from './serverEnv';
 
 const CLERK_API_BASE = 'https://api.clerk.com/v1';
@@ -51,6 +52,12 @@ export function normalizeClerkRuntimeEnv(): void {
   }
   if (secret && !process.env['CLERK_SECRET_KEY']?.trim()) {
     process.env['CLERK_SECRET_KEY'] = secret;
+  }
+  const proxy = clerkProxyUrlFromEnv();
+  if (proxy) {
+    process.env['PUBLIC_CLERK_PROXY_URL'] = proxy;
+  } else if (isClerkProxyOptOut(process.env['PUBLIC_CLERK_PROXY_URL'])) {
+    delete process.env['PUBLIC_CLERK_PROXY_URL'];
   }
 }
 
@@ -501,4 +508,74 @@ export async function clerkGetInstanceStatus(): Promise<{
     return { ok: false, error: String(msg) };
   }
   return { ok: true, instance: r.body as Record<string, unknown> };
+}
+
+type ClerkDomainRow = {
+  id?: string;
+  name?: string;
+  is_satellite?: boolean;
+  proxy_url?: string | null;
+};
+
+function clerkApiErrorMessage(body: unknown, status: number): string {
+  if (body && typeof body === 'object') {
+    const rec = body as Record<string, unknown>;
+    if (typeof rec.message === 'string' && rec.message.trim()) return rec.message;
+    const errors = rec.errors;
+    if (Array.isArray(errors) && errors.length) {
+      const first = errors[0];
+      if (first && typeof first === 'object') {
+        const row = first as Record<string, unknown>;
+        const long = typeof row.long_message === 'string' ? row.long_message : '';
+        const short = typeof row.message === 'string' ? row.message : '';
+        if (long || short) return long || short;
+      }
+    }
+  }
+  return `Clerk API error ${status}`;
+}
+
+export function clerkDomainRows(body: unknown): ClerkDomainRow[] {
+  if (!body || typeof body !== 'object') return [];
+  const rec = body as Record<string, unknown>;
+  const data = rec.data ?? rec.domains ?? body;
+  if (!Array.isArray(data)) return [];
+  return data.filter((row): row is ClerkDomainRow => Boolean(row) && typeof row === 'object');
+}
+
+/**
+ * Point the production Clerk domain at this install's `/__clerk` proxy.
+ * Clerk validates the URL before saving; failures are non-fatal.
+ */
+export async function clerkEnsureDomainProxy(proxyUrl: string): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  error?: string;
+}> {
+  if (!secretKey()) {
+    return { ok: false, skipped: true, error: 'CLERK_SECRET_KEY not configured' };
+  }
+  if (clerkPublishableKey()?.startsWith('pk_test_')) {
+    return { ok: true, skipped: true };
+  }
+  const wanted = normalizeClerkProxyUrl(proxyUrl);
+  if (!wanted) return { ok: false, skipped: true, error: 'empty proxy URL' };
+
+  const listed = await backendGet('/domains');
+  if (!listed.ok) {
+    return { ok: false, error: clerkApiErrorMessage(listed.body, listed.status) };
+  }
+  const rows = clerkDomainRows(listed.body);
+  const primary = rows.find((row) => row.is_satellite === false) ?? rows[0];
+  if (!primary?.id) {
+    return { ok: false, error: 'no Clerk domain to attach a proxy URL' };
+  }
+  if (clerkProxyUrlsEqual(primary.proxy_url, wanted)) {
+    return { ok: true, skipped: true };
+  }
+  const patched = await backendPatch(`/domains/${primary.id}`, { proxy_url: wanted });
+  if (!patched.ok) {
+    return { ok: false, error: clerkApiErrorMessage(patched.body, patched.status) };
+  }
+  return { ok: true };
 }
