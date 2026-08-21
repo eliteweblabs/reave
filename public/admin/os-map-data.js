@@ -32,7 +32,7 @@ const SYSTEM_NODES = [
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'deploy_wizard', title: 'Deploy wizard', sub: '/deploy · module toggles · industries API · Railway ${{ }} refs', icon: '🪄', brand: 'railway', hue: 185, status: true, group: 'reave', x: 220, y: 200 },
   { id: 'deck_industries', title: 'Industries catalog', sub: '/api/admin/deck-industries · deploy playbooks · demo loader', icon: '🎯', hue: 200, status: true, group: 'reave', x: 220, y: 80 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · job_time_entries · active_timers · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_memories · agent_run_leases · knowledge · jobs · job_time_entries · active_timers · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'media_webdav', title: 'Media drop folder', sub: '/webdav · Finder · iOS Files · MEDIA_WEBDAV_* or CardDAV creds', icon: '📁', hue: 28, status: true, group: 'reave', x: 220, y: 430 },
   { id: 'media_public', title: 'Public media', sub: '/api/media/{slug} · site photos · no-auth GET', icon: '🖼️', hue: 32, status: true, group: 'reave', x: 220, y: 520 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views · calendar reminders', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
