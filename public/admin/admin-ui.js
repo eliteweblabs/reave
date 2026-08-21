@@ -282,6 +282,52 @@ export function showCopyButtonFeedback(btn, opts = {}) {
 }
 
 /**
+ * Canonical on/off switch — `.prof-plugin-toggle` in settings.css.
+ * Use this (or that class on a <button role="switch">) everywhere an admin
+ * toggle appears. Do not invent a second switch look.
+ *
+ * @param {{
+ *   checked?: boolean,
+ *   disabled?: boolean,
+ *   label?: string,
+ *   title?: string,
+ *   className?: string,
+ *   onClick?: (btn: HTMLButtonElement, ev: MouseEvent) => void,
+ * }} [opts]
+ */
+export function createToggleSwitch(opts = {}) {
+  const { checked = false, disabled = false, label = '', title, className = '', onClick } = opts;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = ['prof-plugin-toggle', className].filter(Boolean).join(' ');
+  btn.setAttribute('role', 'switch');
+  setToggleSwitch(btn, checked);
+  if (label) {
+    btn.setAttribute('aria-label', label);
+    btn.title = title ?? label;
+  } else if (title) {
+    btn.title = title;
+  }
+  if (disabled) btn.disabled = true;
+  if (typeof onClick === 'function') {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (btn.disabled) return;
+      onClick(btn, e);
+    });
+  }
+  return btn;
+}
+
+/** Set aria-checked on a `.prof-plugin-toggle`. */
+export function setToggleSwitch(el, checked) {
+  if (!(el instanceof HTMLElement)) return;
+  const on = Boolean(checked);
+  el.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+
+/**
  * Canonical copy control: IOS_ICONS.copy → checkmark via showCopyButtonFeedback.
  * Prefer this over hand-rolled Copy text buttons or one-off createIosIconBtn({ iconKey: 'copy' }).
  *

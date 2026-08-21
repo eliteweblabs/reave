@@ -106,9 +106,11 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   createCopyIconBtn,
+  createToggleSwitch,
+  setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260815a';
+} from './admin-ui.js?v=20260821a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -280,7 +282,7 @@ import {
 import {
   initAddonsPanel,
   loadAddonsTab,
-} from './addons-panel.js?v=20260820a';
+} from './addons-panel.js?v=20260821a';
 import {
   openMediaPicker,
   brandingMediaFilter,
@@ -6358,7 +6360,7 @@ function industriesEmptyHtml() {
 function setIndustryEnabledToggle(toggle, enabled) {
   if (!(toggle instanceof HTMLElement)) return;
   const on = enabled !== false;
-  toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+  setToggleSwitch(toggle, on);
   toggle.title = on ? 'On' : 'Off';
   toggle.setAttribute('aria-label', on ? 'Enabled' : 'Disabled');
 }
@@ -6455,18 +6457,18 @@ function createIndustryRow(item, { onDelete, onToggle, onPlaybookChange, modules
   expandBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   expandBtn.textContent = 'Playbook';
 
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'prof-plugin-toggle ind-enabled-toggle';
-  toggle.setAttribute('role', 'switch');
-  setIndustryEnabledToggle(toggle, enabled);
-  toggle.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const next = toggle.getAttribute('aria-checked') !== 'true';
-    setIndustryEnabledToggle(toggle, next);
-    onToggle?.(toggle);
+  const toggle = createToggleSwitch({
+    className: 'ind-enabled-toggle',
+    checked: enabled,
+    label: enabled ? 'Enabled' : 'Disabled',
+    title: enabled ? 'On' : 'Off',
+    onClick: (btn) => {
+      const next = btn.getAttribute('aria-checked') !== 'true';
+      setIndustryEnabledToggle(btn, next);
+      onToggle?.(btn);
+    },
   });
+  setIndustryEnabledToggle(toggle, enabled);
 
   const removeBtn = paneDeleteIcon({
     label: 'Delete industry',

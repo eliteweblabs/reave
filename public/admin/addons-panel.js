@@ -24,7 +24,7 @@ function isActiveTab() {
 
 function renderSwitch(checked, feature, disabled) {
   return (
-    `<button type="button" class="dl-switch" role="switch" ` +
+    `<button type="button" class="prof-plugin-toggle" role="switch" ` +
     `aria-checked="${checked ? 'true' : 'false'}" data-feature="${escHtml(feature)}" ` +
     `${disabled ? ' disabled aria-disabled="true"' : ''} ` +
     `aria-label="${checked ? 'Turn off add-on' : 'Turn on add-on'}"></button>`
@@ -131,7 +131,7 @@ async function postAddons(body) {
 }
 
 function bindPanelEvents(root) {
-  root.querySelectorAll('.dl-switch').forEach((btn) => {
+  root.querySelectorAll('.prof-plugin-toggle').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const feature = btn.getAttribute('data-feature');
@@ -175,7 +175,7 @@ function bindPanelEvents(root) {
     });
   });
 
-  root.querySelectorAll('.dl-tile .dl-switch').forEach((sw) => {
+  root.querySelectorAll('.dl-tile .prof-plugin-toggle').forEach((sw) => {
     const tile = sw.closest('.dl-tile');
     tile?.addEventListener('click', () => {
       if (!sw.disabled) sw.click();

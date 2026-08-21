@@ -70,10 +70,6 @@
   color: var(--muted);
 }
 
-.addons-dl-wrap .dl-switch {
-  background: color-mix(in srgb, var(--fg) 18%, transparent);
-}
-
 .addons-dl-wrap .dl-badge--included {
   background: color-mix(in srgb, #a855f7 16%, var(--panel));
   color: color-mix(in srgb, #6d28d9 55%, var(--fg));
