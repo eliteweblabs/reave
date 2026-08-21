@@ -180,7 +180,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * scrolling content never enters the upper safe area. Let the
 		 * document grow; viewport-fit=cover then paints into the chrome.
 		 * Do not set overscroll-behavior or overflow-y here — either one
-		 * kills iOS pull-to-refresh.
+		 * kills iOS pull-to-refresh. Public iOS pages opt in from
+		 * Header.astro so the bar does not rubber-band.
 		 */
 		min-height: 100%;
 		background-color: var(--site-canvas, #0c0614);
@@ -295,12 +296,19 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). Negative top
 	 * margin pulls the hero under the sticky header so the first screen
-	 * stays full-bleed.
+	 * stays full-bleed. iOS public header is position:fixed (out of flow),
+	 * so the pull-up would hide the first screen — drop it there.
 	 */
 	main#main-content {
 		position: relative;
 		z-index: 2;
 		margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem)));
+	}
+
+	@supports (-webkit-touch-callout: none) {
+		main#main-content {
+			margin-top: 0;
+		}
 	}
 
 	@media (min-width: 769px) {

@@ -478,6 +478,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
    * Public header: sticky + transparent so the page atmosphere shows
    * through. Pad logo/actions below the notch. Overlay the hero by
    * pulling main up. Admin stays fixed/transparent.
+   *
+   * iOS (below) switches this to position:fixed and kills rubber-band
+   * overscroll. Do not chase visualViewport — writing top/safe-area from
+   * toolbar resize is what made the bar jump.
    */
   .app-header {
     position: sticky;
@@ -502,14 +506,39 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
+   * Phone / tablet: stop the document rubber-band from dragging a sticky
+   * header. Desktop keeps native overscroll / pull-to-refresh.
+   */
+  @media (hover: none), (pointer: coarse) {
+    html:has(body > .app-header:not(.app-header--admin)),
+    html:has(body > .app-header:not(.app-header--admin)) body {
+      overscroll-behavior-y: none;
+    }
+  }
+
+  /*
    * iOS Safari only. Safari 26 samples this background-color into the
    * status bar, so the notch strip and the bar read as one piece.
    * -webkit-touch-callout is iOS WebKit — desktop Safari / Chrome /
    * Firefox / Android stay transparent.
+   *
+   * Sticky still translates with overscroll even when the document is
+   * contained. Take the bar out of flow (layout-fixed, CSS env() only)
+   * so it stays at the screen top. Layout.astro drops the main pull-up
+   * in this same @supports so the hero is not clipped.
    */
   @supports (-webkit-touch-callout: none) {
     .app-header:not(.app-header--admin) {
       background-color: #000;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+
+    html:has(body > .app-header:not(.app-header--admin)),
+    html:has(body > .app-header:not(.app-header--admin)) body {
+      overscroll-behavior-y: none;
     }
   }
 
