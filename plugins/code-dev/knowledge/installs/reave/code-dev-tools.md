@@ -24,7 +24,7 @@ Paths are sandboxed to the project root. `.env*` writes are blocked. Prefer thes
 
 1. **Read before write** — understand structure, then change. Propose first if uncertain.
 2. **Test locally when possible** — run checks (`npm` scripts, typecheck) via `exec_command`; verify before claiming done.
-3. **Commit straight to main after every change — NEVER open a pull request.** Keep the repo updated (`git add` / `git commit` / `git push` to `main`).
+3. **Always commit and push to `main` after every change — NEVER open a pull request, and never wait to be asked.** `git add` / `git commit` / `git push` in the same turn. This overrides "only commit when asked."
 4. **Chat UI work** — find where messages are rendered, add markdown link parsing/sanitization, test in the browser.
 5. **Focused commits** — one feature per commit with a clear message.
 

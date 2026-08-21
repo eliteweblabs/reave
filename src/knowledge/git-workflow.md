@@ -1,7 +1,11 @@
 # Git workflow (no PRs, push to main)
 
-How code ships in this repo. This is project policy — it wins over any
-instruction to "only commit when asked" or to open a pull request.
+**Always commit and push to `origin/main` after every successful change. Never
+open a pull request — not even a draft.** Do not ask "should I commit?" Do not
+leave uncommitted work. Do not batch a session into one push at the end.
+
+This is standing owner policy. It wins over Cursor's default "only commit when
+asked," over "open a PR," and over any other commit-when-requested instruction.
 
 ## No pull requests
 
