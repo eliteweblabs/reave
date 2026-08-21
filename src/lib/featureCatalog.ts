@@ -45,8 +45,7 @@ export const FEATURE_IDS = [
   'microsoft_365',
   'google_business_profile',
   'apple_business_connect',
-  'domain_registration',
-  'business_phone',
+  'cloud_number',
   'mobile_content_editing',
 ] as const;
 
@@ -117,8 +116,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   microsoft_365: 'Microsoft 365',
   google_business_profile: 'Google™ Business Profile',
   apple_business_connect: 'Apple Business Connect',
-  domain_registration: 'Domain registration',
-  business_phone: 'Business phone number',
+  cloud_number: 'Cloud number',
   mobile_content_editing: 'Mobile Content Editing',
 };
 
@@ -173,11 +171,9 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   google_business_profile:
     'Your business on Google™ Search and Maps — name, hours, photos, and the listing customers actually tap. Setup and claim; Google™ hosts the profile.',
   apple_business_connect:
-    'Your business on Apple Maps and Siri — so iPhone customers can find you, call, and get directions without a Google™ listing alone.',
-  domain_registration:
-    'Your own web address (yourbusiness.com) instead of a free subdomain. Registrar bills the yearly renewal separately.',
-  business_phone:
-    'A dedicated business number so you stop handing out a personal cell. Carrier bills the monthly line separately.',
+    'Your business on Apple Maps and Siri — so iPhone customers can find you, call, and get directions without a Google™ listing alone. Needs an Apple ID and business verification (EIN, domain, or docs) — not an Apple Developer account.',
+  cloud_number:
+    'A local, toll-free, or vanity number in the cloud — voice and text on one line, not a cable-company desk phone. Telnyx bills the number monthly (from about a dollar).',
   mobile_content_editing:
     'A bolt-on editor on the site you already have — update copy and photos from your phone without a WordPress login or a ticket to the developer.',
 };
@@ -202,8 +198,7 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
   microsoft_365: 'private',
   google_business_profile: 'private',
   apple_business_connect: 'private',
-  domain_registration: 'private',
-  business_phone: 'private',
+  cloud_number: 'private',
   mobile_content_editing: 'private',
 };
 
@@ -216,8 +211,7 @@ export const EXTERNAL_SERVICE_IDS = [
   'microsoft_365',
   'google_business_profile',
   'apple_business_connect',
-  'domain_registration',
-  'business_phone',
+  'cloud_number',
   'mobile_content_editing',
 ] as const;
 

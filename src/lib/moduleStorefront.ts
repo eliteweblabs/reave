@@ -47,8 +47,11 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   credit_check: { amount: 300, interval: 'once', currency: 'usd' },
   materials_pricing: { amount: 200, interval: 'once', currency: 'usd' },
   social_inbox: { amount: 200, interval: 'once', currency: 'usd' },
-  // Third-party setup — private catalog only; Google bills ~$8/user/month separately.
+  // Third-party / bolt-on setup — private catalog only; vendors bill their own subscriptions.
   google_workspace: { amount: 150, interval: 'once', currency: 'usd' },
+  microsoft_365: { amount: 150, interval: 'once', currency: 'usd' },
+  google_business_profile: { amount: 50, interval: 'once', currency: 'usd' },
+  mobile_content_editing: { amount: 200, interval: 'once', currency: 'usd' },
   // Internal — listed for owner testing on ops installs; not sold to clients.
   dev_infra: { amount: 0, interval: 'once', currency: 'usd' },
   code_dev: { amount: 0, interval: 'once', currency: 'usd' },

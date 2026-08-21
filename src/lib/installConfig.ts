@@ -59,8 +59,7 @@ const FEATURE_IDS_LIST = [
   'microsoft_365',
   'google_business_profile',
   'apple_business_connect',
-  'domain_registration',
-  'business_phone',
+  'cloud_number',
   'mobile_content_editing',
 ] as const;
 

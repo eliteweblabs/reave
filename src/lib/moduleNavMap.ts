@@ -47,8 +47,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   microsoft_365: [],
   google_business_profile: [],
   apple_business_connect: [],
-  domain_registration: [],
-  business_phone: [],
+  cloud_number: [],
   mobile_content_editing: [],
 };
 

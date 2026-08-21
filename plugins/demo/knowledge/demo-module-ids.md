@@ -50,9 +50,8 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 038 | `microsoft_365` | Microsoft 365 (private service) |
 | 039 | `google_business_profile` | Google™ Business Profile (private service) |
 | 040 | `apple_business_connect` | Apple Business Connect (private service) |
-| 041 | `domain_registration` | Domain registration (private service) |
-| 042 | `business_phone` | Business phone number (private service) |
-| 043 | `mobile_content_editing` | Mobile Content Editing (private service) |
+| 041 | `cloud_number` | Cloud number (private service) |
+| 042 | `mobile_content_editing` | Mobile Content Editing (private service) |
 
 ## Default suite (no URL)
 
