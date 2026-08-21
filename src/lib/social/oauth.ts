@@ -71,8 +71,8 @@ export const OAUTH_CONFIGS: Partial<Record<SocialPlatformId, OAuthPlatformConfig
     clientSecretEnv: 'META_APP_SECRET',
     usePkce: false,
     tokenAuth: 'body',
-    developerPortal: 'https://developers.facebook.com/apps',
-    setupHint: 'Instagram uses a Meta app with Instagram Graph API. Add the callback URL to Facebook Login.',
+    developerPortal: 'https://www.facebook.com/login.php?next=https%3A%2F%2Fdevelopers.facebook.com%2Fapps%2Fcreation%2F',
+    setupHint: 'Log into Facebook first — Meta’s apps list often opens a blank Business login page if you are not already signed in. Create a Meta app, add Instagram Graph API + Facebook Login, then paste the callback URL.',
   },
   facebook: {
     platform: 'facebook',
@@ -86,8 +86,8 @@ export const OAUTH_CONFIGS: Partial<Record<SocialPlatformId, OAuthPlatformConfig
     clientSecretEnv: 'META_APP_SECRET',
     usePkce: false,
     tokenAuth: 'body',
-    developerPortal: 'https://developers.facebook.com/apps',
-    setupHint: 'Create a Meta app with Facebook Login and add the callback URL below.',
+    developerPortal: 'https://www.facebook.com/login.php?next=https%3A%2F%2Fdevelopers.facebook.com%2Fapps%2Fcreation%2F',
+    setupHint: 'Log into Facebook first — Meta’s apps list often opens a blank Business login page if you are not already signed in. Create a Meta app with Facebook Login, then paste the callback URL.',
   },
   linkedin: {
     platform: 'linkedin',
