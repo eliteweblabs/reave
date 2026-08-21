@@ -911,14 +911,12 @@
 }
 
 .aui-mention-item {
-  align-items: flex-start;
-  white-space: normal;
+  align-items: center;
 }
 
 .aui-mention-kind {
   flex-shrink: 0;
-  min-width: 2.6rem;
-  margin-top: 0.1rem;
+  min-width: 3.4rem;
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -926,12 +924,10 @@
   color: var(--muted);
 }
 
-.aui-mention-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
+.aui-mention-item .aui-helper-item-slash {
   min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .aui-mention-chip {
