@@ -34,7 +34,8 @@
     "profile",
     "company",
     "settings",
-    "socials"
+    "socials",
+    "addons"
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,

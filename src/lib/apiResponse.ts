@@ -3,11 +3,12 @@
 export function jsonResponse(
   body: unknown,
   status = 200,
-  opts?: { cache?: string },
+  opts?: { cache?: string; headers?: Record<string, string> },
 ): Response {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Cache-Control': opts?.cache ?? 'no-store',
+    ...opts?.headers,
   };
   return new Response(JSON.stringify(body), { status, headers });
 }

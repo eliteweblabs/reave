@@ -2,22 +2,11 @@
  * Parse markdown todo files from src/knowledge/todo/*.md
  */
 
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { readdirSync, readFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
+import { projectRoot } from './projectRoot';
 
 const ITEM_RE = /^- \[([ xX])\] (.+)$/;
-
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 export interface MarkdownTodoItem {
   lineIndex: number;

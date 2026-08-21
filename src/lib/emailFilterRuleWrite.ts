@@ -9,17 +9,21 @@ export type EmailFilterRuleWritePlan = 'create' | 'skip' | 'update';
 export function planEmailFilterRuleWrite(opts: {
   existing: {
     forwardTo?: string | null;
+    createProject?: boolean;
     status: string;
     catalog: boolean;
   } | null;
   forwardTo: string | null;
+  createProject?: boolean | null;
   statusRaw: string;
 }): EmailFilterRuleWritePlan {
   if (!opts.existing) return 'create';
   const sameForward = (opts.existing.forwardTo ?? null) === (opts.forwardTo ?? null);
   const wantsForwardChange = opts.forwardTo != null && !sameForward;
   const wantsStatusChange = Boolean(opts.statusRaw) && opts.statusRaw !== opts.existing.status;
-  if (!wantsForwardChange && !wantsStatusChange) return 'skip';
+  const wantsCreateProjectChange =
+    opts.createProject === true && opts.existing.createProject !== true;
+  if (!wantsForwardChange && !wantsStatusChange && !wantsCreateProjectChange) return 'skip';
   if (opts.existing.catalog) return 'create';
   return 'update';
 }
@@ -44,4 +48,16 @@ export function defaultEmailFilterRuleTitle(opts: {
   if (opts.forwardTo) return `Forward to ${opts.forwardTo}`;
   if (opts.sender) return `Block sender ${opts.sender}`;
   return `Block: ${opts.phrases[0]?.slice(0, 40) || 'rule'}`;
+}
+
+/**
+ * Forwarded mail does not auto-create a project unless the rule opts in.
+ * Rules without `forwardTo` keep the existing auto-project pipeline.
+ */
+export function ruleAllowsAutoProject(rule: {
+  forwardTo?: string | null;
+  createProject?: boolean | null;
+} | null | undefined): boolean {
+  if (!rule?.forwardTo?.trim()) return true;
+  return rule.createProject === true;
 }

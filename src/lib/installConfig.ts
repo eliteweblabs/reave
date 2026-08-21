@@ -4,12 +4,19 @@
  * Files: config/config-{slug}.json (project root)
  * Slug: INSTALL_CONFIG env → COMPANY_DOMAIN / PUBLIC_SITE_DOMAIN → "default"
  * Override path: INSTALL_CONFIG_FILE
+ *
+ * `default` is the unbranded new-install fallback (Clerk login on `/`).
+ * Company name/logo still come from admin Company settings (Postgres).
+ * Official REΛVE uses config-reave.json and is never a login wall.
  */
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { isPrivateFeature } from './featureCatalog.ts';
+import { parseHomepageTemplate, type HomepageTemplate } from './homepageTemplate.ts';
 import { serverEnv } from './serverEnv.ts';
+
+export type { HomepageTemplate };
 
 const FEATURE_IDS_LIST = [
   'client_portal',
@@ -46,6 +53,8 @@ const FEATURE_IDS_LIST = [
   'deploy_wizard',
   'website',
   'credit_check',
+  'materials_pricing',
+  'social_inbox',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
@@ -55,6 +64,7 @@ export const PROFILE_MENU_KEYS = [
   'company',
   'settings',
   'socials',
+  'addons',
   'industries', // REΛVE-only; stripped from client payload on other installs
   'vapi',
   'lead-scanner',
@@ -86,6 +96,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'company',
   'settings',
   'socials',
+  'addons',
   'industries',
   'vapi',
   'lead-scanner',
@@ -128,6 +139,11 @@ export type InstallConfig = {
   /** Public site content key — config/sites/{key}-config.json (default: install slug or reave). */
   siteContentKey?: string;
   /**
+   * Homepage chrome for this install (`default` marketing, `landing` client site, `login` Clerk).
+   * Ignored on the official REΛVE host / install — reave.app stays the marketing homepage.
+   */
+  homepageTemplate?: HomepageTemplate;
+  /**
    * Dedicated front-end website repo (`owner/repo`) for the Agentic Website Editor.
    * Client installs may only commit here — never eliteweblabs/reave.
    * Override with GITHUB_WEBSITE_REPO.
@@ -169,6 +185,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   company: 'Company',
   settings: 'Settings',
   socials: 'Socials',
+  addons: 'Add-ons',
   industries: 'Industries',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
@@ -232,6 +249,18 @@ export function isCanonicalReaveInstall(): boolean {
   const demoFlag = trim(serverEnv('DEMO_MODE')).toLowerCase();
   if (demoFlag === '1' || demoFlag === 'true' || demoFlag === 'yes') return false;
   if (installConfigSlug() === 'reave') return true;
+  const host = (
+    trim(serverEnv('PUBLIC_SITE_DOMAIN')) || trim(serverEnv('COMPANY_DOMAIN'))
+  )
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    ?.toLowerCase()
+    .replace(/^www\./, '') || '';
+  return host === 'reave.app';
+}
+
+/** Public hostname for this process is the official marketing site. */
+export function isOfficialReavePublicHost(): boolean {
   const host = (
     trim(serverEnv('PUBLIC_SITE_DOMAIN')) || trim(serverEnv('COMPANY_DOMAIN'))
   )
@@ -324,7 +353,6 @@ export function defaultFooterNav(): FooterNavKey[] {
     'work',
     'schedule',
     'clients',
-    'social',
     'analytics',
     'profile',
     'company',
@@ -363,6 +391,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     homepageVoice: typeof o.homepageVoice === 'boolean' ? o.homepageVoice : undefined,
     chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
     siteContentKey: typeof o.siteContentKey === 'string' && o.siteContentKey.trim() ? o.siteContentKey.trim().toLowerCase() : undefined,
+    homepageTemplate: parseHomepageTemplate(o.homepageTemplate),
     websiteRepo: typeof o.websiteRepo === 'string' && o.websiteRepo.trim() ? o.websiteRepo.trim() : undefined,
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
     opsInstall: o.opsInstall === true ? true : undefined,
@@ -422,6 +451,12 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   }
   if (!config.features.includes('site_audits')) {
     nav = nav.filter((key) => key !== 'sales-sheet');
+  }
+  if (!config.features.includes('social_inbox')) {
+    nav = nav.filter((key) => key !== 'social');
+  }
+  if (!config.features.includes('online_reviews')) {
+    nav = nav.filter((key) => key !== 'reviews');
   }
   if (!isCanonicalReaveInstall()) {
     nav = nav.filter((key) => key !== 'industries');

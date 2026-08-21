@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { isClerkFrontendConfigured, isClerkConfigured } from '../../../lib/clerkClient';
 import { isProcessDraining } from '../../../lib/processDrain';
 
 /** Public liveness probe for Railway deploy healthchecks (no auth). */
@@ -28,11 +29,20 @@ export const GET: APIRoute = async () => {
     .then((m) => m.maybeTriggerDeployResumeOnNewReplica())
     .catch(() => undefined);
 
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      clerk: {
+        secret: isClerkConfigured(),
+        publishable: isClerkFrontendConfigured(),
+      },
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
     },
-  });
+  );
 };

@@ -22,8 +22,11 @@ export type ChatUserMention = {
 
 export type ChatMention = ChatContactMention | ChatUserMention;
 
+export type MentionableClientKind = 'professional' | 'proposed';
+
 export type PeopleSearchContact = ChatContactMention & {
   phone?: string;
+  clientKind?: MentionableClientKind;
 };
 
 export type PeopleSearchUser = ChatUserMention & {
@@ -31,6 +34,11 @@ export type PeopleSearchUser = ChatUserMention & {
 };
 
 export type PeopleSearchResult = PeopleSearchContact | PeopleSearchUser;
+
+/** @-mention roster: project clients and proposed prospects — not personal or service. */
+export function isMentionableClientKind(kind: string | null | undefined): kind is MentionableClientKind {
+  return kind === 'professional' || kind === 'proposed';
+}
 
 /** Durable mention token: `@[Display Name](contact:uuid)` or `@[Display Name](user:id)`. */
 export const MENTION_TOKEN_RE =

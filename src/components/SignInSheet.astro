@@ -1,5 +1,6 @@
 ---
 import IosBottomSheet from './IosBottomSheet.astro';
+import { isClerkFrontendConfigured } from '../lib/clerkClient';
 
 interface Props {
   /** Where to send the user after a successful sign-in. */
@@ -25,8 +26,10 @@ const {
 } = Astro.props;
 
 /** Required sign-in (auto-open on protected pages) must stay until auth succeeds. */
+const clerkReady = isClerkFrontendConfigured();
 const dismissible = dismissibleProp ?? !autoOpen;
 const startOnSignUp = allowSignUp && Astro.url.searchParams.get('mode') === 'sign-up';
+const sheetAutoOpen = autoOpen && clerkReady;
 
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
@@ -83,13 +86,21 @@ const clerkAppearance = {
 };
 ---
 
-<IosBottomSheet id="sign-in-sheet" title={startOnSignUp ? 'Sign up' : 'Sign in'} dismissible={dismissible} startOpen={autoOpen} class="sign-in-sheet">
+<IosBottomSheet id="sign-in-sheet" title={startOnSignUp ? 'Sign up' : 'Sign in'} dismissible={dismissible} startOpen={sheetAutoOpen} class="sign-in-sheet">
   {/*
     Mount Clerk client-side only. Never SSR-mount <SignIn> on /admin when the
     browser already has a Clerk user but the server cookie is missing — Clerk
     would redirect to fallbackRedirectUrl (/admin/) forever.
   */}
-  <div id="sign-in-clerk-root"></div>
+  {
+    clerkReady ? (
+      <div id="sign-in-clerk-root"></div>
+    ) : (
+      <p id="sign-in-clerk-missing" class="sign-in-clerk-missing">
+        Sign-in is not connected on this install yet.
+      </p>
+    )
+  }
   <div id="sign-in-session-stuck" class="sign-in-session-stuck" hidden>
     <p>
       This browser is signed in, but the server still does not see your session.
@@ -111,6 +122,14 @@ const clerkAppearance = {
 
   #sign-in-sheet .ios-sheet-body {
     padding: 0.75rem 1.35rem 1.5rem;
+  }
+
+  #sign-in-sheet .sign-in-clerk-missing {
+    margin: 0;
+    color: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    opacity: 0.78;
   }
 
   #sign-in-sheet .cl-rootBox,
@@ -165,7 +184,7 @@ const clerkAppearance = {
   }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: autoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance }}>
+<script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance }}>
   import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260813a';
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';

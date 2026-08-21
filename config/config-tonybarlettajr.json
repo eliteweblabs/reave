@@ -15,7 +15,8 @@
     "time_tracking",
     "real_estate_data",
     "online_reviews",
-    "stock_photos"
+    "stock_photos",
+    "social_inbox"
   ],
   "footerNav": [
     "__system__",
@@ -42,6 +43,7 @@
     "company",
     "settings",
     "socials",
+    "addons",
     "lead-scanner"
   ],
   "homepageVoice": false,
@@ -63,6 +65,7 @@
     "time_tracking": "deployed",
     "real_estate_data": "request",
     "online_reviews": "request",
-    "stock_photos": "deployed"
+    "stock_photos": "deployed",
+    "social_inbox": "deployed"
   }
 }

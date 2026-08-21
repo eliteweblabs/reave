@@ -9,8 +9,11 @@
 @import './panels/schedule.css';
 @import './panels/social-analytics-fleet.css';
 @import './panels/modules.css';
+@import '../demo-loader.css';
+@import './panels/addons.css';
 @import './panels/online-reviews.css';
 @import './panels/settings.css';
+@import './panels/sales-sheet.css';
 @import './panels/media.css';
 @import './panels/search.css';
 @import './panels/components-gallery.css';

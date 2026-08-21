@@ -53,7 +53,7 @@ function formatDuration(seconds) {
 
 /**
  * @param {HTMLElement} container
- * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string, emptyHint?: string, showDirections?: boolean, showOpenMaps?: boolean }} opts
+ * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string, emptyHint?: string, showDirections?: boolean, showOpenMaps?: boolean, overview?: { lat: number, lng: number, zoom?: number }, flyDurationMs?: number }} opts
  */
 export function createClientMap(container, opts = {}) {
   /** @type {import('mapbox-gl').Map | import('leaflet').Map | null} */
@@ -69,6 +69,18 @@ export function createClientMap(container, opts = {}) {
   let currentAddress = (opts.address || '').trim();
   const emptyHint =
     (opts.emptyHint || '').trim() || 'Enter an address to show the map.';
+  const overviewLat = opts.overview == null ? NaN : Number(opts.overview.lat);
+  const overviewLng = opts.overview == null ? NaN : Number(opts.overview.lng);
+  const overviewZoom = Number(opts.overview?.zoom);
+  const overview =
+    Number.isFinite(overviewLat) && Number.isFinite(overviewLng)
+      ? {
+          lat: overviewLat,
+          lng: overviewLng,
+          zoom: Number.isFinite(overviewZoom) ? overviewZoom : 5.5,
+        }
+      : null;
+  const flyDurationMs = Math.max(0, Number(opts.flyDurationMs) || 0);
   let mapReady = false;
   let geocodeFailed = false;
   let mapLoadFailed = false;
@@ -138,8 +150,9 @@ export function createClientMap(container, opts = {}) {
 
   function syncEmptyState() {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
-    const mapWorking = hasGeo && mapReady;
-    const showMap = hasGeo && !mapLoadFailed;
+    const showOverviewMap = Boolean(overview) && !hasGeo;
+    const mapWorking = (hasGeo || showOverviewMap) && mapReady;
+    const showMap = (hasGeo || showOverviewMap) && !mapLoadFailed;
     mapEl.hidden = !showMap;
     mapShell.hidden = !showMap;
     directionsBtn.disabled = !hasGeo || mapEngine !== 'mapbox';
@@ -152,9 +165,9 @@ export function createClientMap(container, opts = {}) {
     }
     centerBtn.disabled = !hasGeo || !mapReady;
 
-    if (mapWorking || (hasGeo && !mapLoadFailed)) {
+    if (mapWorking || (showMap && !mapLoadFailed)) {
       emptyEl.hidden = true;
-    } else if (hasGeo && mapLoadFailed) {
+    } else if ((hasGeo || showOverviewMap) && mapLoadFailed) {
       emptyEl.hidden = false;
       emptyEl.textContent = mapLoadError || 'Could not load map.';
     } else if (currentAddress && !geocodeFailed) {
@@ -198,6 +211,9 @@ export function createClientMap(container, opts = {}) {
           touchZoom: false,
           boxZoom: false,
         });
+        if (overview) {
+          map.setView([overview.lat, overview.lng], overview.zoom);
+        }
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap contributors',
           maxZoom: 19,
@@ -230,8 +246,8 @@ export function createClientMap(container, opts = {}) {
         map = new mapboxgl.Map({
           container: mapEl,
           style: 'mapbox://styles/mapbox/streets-v12',
-          center: [-71.0589, 42.3601],
-          zoom: 11,
+          center: overview ? [overview.lng, overview.lat] : [-71.0589, 42.3601],
+          zoom: overview ? overview.zoom : 11,
           attributionControl: true,
           scrollZoom: false,
           doubleClickZoom: false,
@@ -269,7 +285,46 @@ export function createClientMap(container, opts = {}) {
     return ensureLeafletMap();
   }
 
-  async function setLocation(lat, lng, address) {
+  function removeMarker() {
+    marker?.remove?.();
+    marker = null;
+  }
+
+  function applyView(lat, lng, zoom, animate) {
+    if (!map) return;
+    const durationMs = animate && flyDurationMs > 0 ? flyDurationMs : 0;
+    if (mapEngine === 'leaflet') {
+      if (durationMs > 0 && typeof map.flyTo === 'function') {
+        map.flyTo([lat, lng], zoom, { duration: durationMs / 1000 });
+      } else {
+        map.setView([lat, lng], zoom);
+      }
+      return;
+    }
+    if (durationMs > 0) {
+      map.flyTo({ center: [lng, lat], zoom, duration: durationMs });
+    } else {
+      map.setCenter([lng, lat]);
+      map.setZoom(zoom);
+    }
+  }
+
+  async function showOverview(move = {}) {
+    currentGeo = null;
+    geocodeFailed = false;
+    clearRoute();
+    removeMarker();
+    syncEmptyState();
+    if (!overview) return;
+    const ready = await ensureMap();
+    if (!ready || destroyed) return;
+    applyView(overview.lat, overview.lng, overview.zoom, Boolean(move.animate));
+    mapReady = true;
+    syncEmptyState();
+    requestAnimationFrame(() => map?.invalidateSize?.() || map?.resize?.());
+  }
+
+  async function setLocation(lat, lng, address, move = {}) {
     if (typeof address === 'string') currentAddress = address.trim();
     const parsedLat = lat == null ? NaN : Number(lat);
     const parsedLng = lng == null ? NaN : Number(lng);
@@ -277,7 +332,8 @@ export function createClientMap(container, opts = {}) {
       Number.isFinite(parsedLat) && Number.isFinite(parsedLng)
         ? { lat: parsedLat, lng: parsedLng, address: address || currentAddress || '' }
         : null;
-    if (!currentGeo) {
+    const animate = move.animate === true;
+    if (!currentGeo && !overview) {
       mapReady = false;
       mapLoadFailed = false;
       mapLoadError = '';
@@ -294,27 +350,32 @@ export function createClientMap(container, opts = {}) {
     }
     clearRoute();
 
-    if (!currentGeo) return;
+    if (!currentGeo) {
+      if (overview) {
+        await showOverview({ animate });
+        return;
+      }
+      removeMarker();
+      return;
+    }
 
     const ready = await ensureMap();
     if (!ready || destroyed) return;
 
+    applyView(currentGeo.lat, currentGeo.lng, 14, animate);
     if (ready.engine === 'leaflet') {
-      const { map: liveMap, L } = ready;
-      liveMap.setView([currentGeo.lat, currentGeo.lng], 14);
+      const { L } = ready;
       if (!marker) {
-        marker = L.marker([currentGeo.lat, currentGeo.lng]).addTo(liveMap);
+        marker = L.marker([currentGeo.lat, currentGeo.lng]).addTo(map);
       } else {
         marker.setLatLng([currentGeo.lat, currentGeo.lng]);
       }
     } else {
-      const { map: liveMap, mapboxgl } = ready;
-      liveMap.setCenter([currentGeo.lng, currentGeo.lat]);
-      liveMap.setZoom(14);
+      const { mapboxgl } = ready;
       if (!marker) {
         marker = new mapboxgl.Marker({ color: '#0a84ff' })
           .setLngLat([currentGeo.lng, currentGeo.lat])
-          .addTo(liveMap);
+          .addTo(map);
       } else {
         marker.setLngLat([currentGeo.lng, currentGeo.lat]);
       }
@@ -404,6 +465,8 @@ export function createClientMap(container, opts = {}) {
 
   if (opts.lat != null && opts.lng != null) {
     void setLocation(opts.lat, opts.lng, opts.address || '');
+  } else if (overview) {
+    void showOverview();
   } else {
     syncEmptyState();
   }

@@ -50,8 +50,12 @@ const {
 const company = await getCompanyConfig(Astro.request);
 const profileIconSrc = companyStaffAvatarUrl(company);
 
-const auth = Astro.locals.auth?.();
-const userId = auth?.userId ?? null;
+let userId: string | null = null;
+try {
+  userId = Astro.locals.auth?.()?.userId ?? null;
+} catch {
+  userId = null;
+}
 /** Owner-only bulb matches /api/deploy/indicator (unless DEPLOY_STATUS_PUBLIC). */
 const deployStatusPublic = serverEnv("DEPLOY_STATUS_PUBLIC") === "1";
 const showDeployIndicator =
@@ -291,10 +295,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       aria-label="Account"
     >
       <div class="overlay-menu-scroll">
-        <section class="overlay-menu-group" aria-labelledby="account-menu-heading">
-          <h2 id="account-menu-heading" class="overlay-menu-group-label">
-            {staffPreview ? "Viewing as admin" : "Account"}
-          </h2>
+        <section class="overlay-menu-group" aria-label={staffPreview ? "Viewing as admin" : "Account"}>
+          {staffPreview && (
+            <h2 class="overlay-menu-group-label">Viewing as admin</h2>
+          )}
           <ul class="overlay-menu-list">
             {accountMenuItems.map((key) => (
               <li>

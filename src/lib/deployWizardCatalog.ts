@@ -533,15 +533,29 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   }),
   v({
     name: 'PUBLIC_CLERK_PUBLISHABLE_KEY',
+    service: 'shared',
+    kind: 'secret',
+    description:
+      'Clerk publishable key (pk_live_ / pk_test_). Shared so every service in the project sees it, not only `reave`.',
+  }),
+  v({
+    name: 'CLERK_SECRET_KEY',
+    service: 'shared',
+    kind: 'secret',
+    description:
+      'Clerk secret key (sk_live_ / sk_test_). Shared so the serving app sees it even when the public domain is not on `reave`.',
+  }),
+  v({
+    name: 'PUBLIC_CLERK_PUBLISHABLE_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Clerk publishable key (pk_live_ / pk_test_).',
+    description: 'Clerk publishable key (pk_live_ / pk_test_). Copied onto the app service as well as shared.',
   }),
   v({
     name: 'CLERK_SECRET_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Clerk secret key (sk_live_ / sk_test_).',
+    description: 'Clerk secret key (sk_live_ / sk_test_). Copied onto the app service as well as shared.',
   }),
   v({
     name: 'PUBLIC_CLERK_ALLOW_SIGN_UP',

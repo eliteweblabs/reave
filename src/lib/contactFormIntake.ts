@@ -13,6 +13,7 @@ import { smsOptInConfirmationMessage } from './smsConsent';
 import { siteBaseUrl } from './requestOrigin';
 import { parseWorkJobInput } from './workJobInput';
 import { updateContact } from './contactApi';
+import { escapeHtml } from './htmlEscape';
 import {
   ensureWorkContact,
   isSafeWorkSlug,
@@ -52,14 +53,6 @@ function phoneToE164(raw: string): string {
   if (us.length === 10) return `+1${us}`;
   if (digits.length >= 10) return `+${digits}`;
   return '';
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function projectTitle(name: string): string {

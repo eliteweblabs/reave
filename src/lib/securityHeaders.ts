@@ -3,6 +3,7 @@
  * CSP is enforced in production; report-only in dev so Clerk / Vapi integrations
  * can be tested without blocking.
  */
+import { clerkPublishableKey } from './clerkClient';
 import { serverEnv } from './serverEnv';
 
 /**
@@ -12,7 +13,7 @@ import { serverEnv } from './serverEnv';
  * another literal domain per install.
  */
 function clerkInstanceOrigins(): string[] {
-  const encoded = (serverEnv('PUBLIC_CLERK_PUBLISHABLE_KEY') ?? '').replace(/^pk_(test|live)_/, '');
+  const encoded = (clerkPublishableKey() ?? '').replace(/^pk_(test|live)_/, '');
   if (!encoded) return [];
 
   let host: string;

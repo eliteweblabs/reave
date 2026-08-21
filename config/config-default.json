@@ -25,6 +25,9 @@
     "profile",
     "company",
     "settings",
-    "socials"
-  ]
+    "socials",
+    "addons"
+  ],
+  "homepageTemplate": "login",
+  "siteContentKey": "default"
 }

@@ -18,19 +18,13 @@ import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
 import { getSiriAuditRun } from '../../../lib/siriAuditRuns';
 import type { SiriAuditTier } from '../../../lib/siriAuditRuns';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
 const MAX_FIELD = 500;
 const BOT_UA_RE =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function trimField(raw: unknown, max = MAX_FIELD): string {
   if (typeof raw !== 'string') return '';
@@ -60,27 +54,27 @@ function isPublicAuditJob(doc: {
 
 export const POST: APIRoute = async ({ request }) => {
   if (!hasFeature('site_audits')) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'Audits are temporarily unavailable.' }, 503);
+    return jsonResponse({ ok: false, error: 'Audits are temporarily unavailable.' }, 503);
   }
 
   const ua = request.headers.get('user-agent') || '';
   if (BOT_UA_RE.test(ua)) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   // Honeypot — bots fill hidden "website_url"; real form uses "url".
   if (trimField(body.website_url) || trimField(body.company_website)) {
-    return json({ ok: true, data: { started: true, slug: 'ok', tier: 'quick', label: 'ok' } });
+    return jsonResponse({ ok: true, data: { started: true, slug: 'ok', tier: 'quick', label: 'ok' } });
   }
 
   const business = trimField(body.business ?? body.query ?? body.name, 300);
@@ -91,7 +85,7 @@ export const POST: APIRoute = async ({ request }) => {
   const tier = parseTier(body.tier);
 
   if (!business) {
-    return json(
+    return jsonResponse(
       { ok: false, error: 'Tell us the business name — add a street or town if the name is common.' },
       400,
     );
@@ -103,7 +97,7 @@ export const POST: APIRoute = async ({ request }) => {
     maxPerWindow: 4,
   });
   if (!rate.ok) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'Too many audits from this network. Please try again later.',
@@ -121,10 +115,10 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (!result.ok) {
     const status = result.code === 'anthropic_credits' ? 503 : 400;
-    return json({ ok: false, error: result.error }, status);
+    return jsonResponse({ ok: false, error: result.error }, status);
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     text: result.text,
     data: {
@@ -140,17 +134,17 @@ export const POST: APIRoute = async ({ request }) => {
 
 export const GET: APIRoute = async ({ url }) => {
   if (!hasFeature('site_audits')) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
   const slug = (url.searchParams.get('slug') || '').trim().toLowerCase();
   if (!slug || !isSafeWorkSlug(slug)) {
-    return json({ ok: false, error: 'Invalid slug' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
   }
 
   const doc = await storeReadWork(slug);
   if (!doc || !isPublicAuditJob(doc)) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
   const googlePlacesListed = await googlePlacesListedForContact(doc.contact_uid);
@@ -166,15 +160,13 @@ export const GET: APIRoute = async ({ url }) => {
   const activeRun = getSiriAuditRun(slug);
   const inProgress = Boolean(report?.inProgress) || Boolean(activeRun);
 
-  return json({
+  return jsonResponse({
     ok: true,
     data: {
       slug: doc.slug,
       title: doc.title,
       inProgress,
       tier: activeRun?.tier || (doc.tags?.includes('full-audit') ? 'full' : 'quick'),
-      contactUid: doc.contact_uid || null,
-      contactName: doc.contact_name || null,
       updated: doc.updated || doc.created || null,
       /** Lightweight summary for the poller — full card is SSR'd on the page. */
       overall: report && !inProgress ? report.overall : null,

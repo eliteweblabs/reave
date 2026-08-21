@@ -1602,10 +1602,6 @@ async function animateSlashPickerToTarget(
   }
 }
 
-function mentionSubline(option: HeroDemoMentionOption): string {
-  return [option.company, option.email, option.phone].filter(Boolean).join(" · ");
-}
-
 function buildMentionPicker(options: HeroDemoMentionOption[]): HTMLElement {
   const panel = document.createElement("div");
   panel.className = "home-hero-demo-mention-picker";
@@ -1621,26 +1617,14 @@ function buildMentionPicker(options: HeroDemoMentionOption[]): HTMLElement {
 
     const kind = document.createElement("span");
     kind.className = "home-hero-demo-mention-option-kind";
-    kind.textContent = option.kind === "team" ? "Team" : "Contact";
-
-    const body = document.createElement("span");
-    body.className = "home-hero-demo-mention-option-body";
+    kind.textContent = option.kind === "team" ? "Team" : option.kind === "proposed" ? "Proposed" : "Client";
 
     const name = document.createElement("span");
     name.className = "home-hero-demo-mention-option-name";
     name.textContent = `@${option.name}`;
 
-    const sub = mentionSubline(option);
-    body.appendChild(name);
-    if (sub) {
-      const summary = document.createElement("span");
-      summary.className = "home-hero-demo-mention-option-summary";
-      summary.textContent = sub;
-      body.appendChild(summary);
-    }
-
     item.appendChild(kind);
-    item.appendChild(body);
+    item.appendChild(name);
     list.appendChild(item);
   }
 

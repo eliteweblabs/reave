@@ -12,6 +12,7 @@
 import { getCompanyConfig, deckQuantumHeroLogo } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
+import { signatureHtmlForEmail } from './userEmailSignature';
 
 function esc(s: string): string {
   return s
@@ -52,6 +53,8 @@ export async function brandedEmailHtml(opts: {
   qr?: EmailQr;
   metaRows?: EmailMetaRow[];
   note?: string;
+  /** Optional sender sign-off appended after body paragraphs (Admin → Profile). */
+  signature?: string;
   /** Marketing footer: one-click unsubscribe link (adds CAN-SPAM footer row). */
   unsubscribeUrl?: string;
   /** Marketing footer: physical mailing address (CAN-SPAM requirement). */
@@ -133,6 +136,10 @@ export async function brandedEmailHtml(opts: {
     ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
     : '';
 
+  const signatureHtml = opts.signature?.trim()
+    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-size:14px;line-height:1.55">${signatureHtmlForEmail(opts.signature)}</div></td></tr>`
+    : '';
+
   const complianceHtml =
     opts.unsubscribeUrl || opts.footerAddress
       ? `<tr><td style="padding:18px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.6">${
@@ -201,6 +208,9 @@ export async function brandedEmailHtml(opts: {
 
                 <!-- Body paragraphs -->
                 ${bodyRows}
+
+                <!-- Sender signature -->
+                ${signatureHtml}
 
                 <!-- CTA button -->
                 ${ctaHtml}

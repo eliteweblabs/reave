@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import {
+  isMentionableClientKind,
   serializeMentionToken,
   splitMentionText,
   stripMentionTokensForDisplay,
@@ -55,6 +56,14 @@ test('splitMentionText leaves plain text alone', () => {
     { type: 'text', value: 'no mentions here' },
   ]);
   assert.deepEqual(splitMentionText(''), []);
+});
+
+test('isMentionableClientKind keeps clients and proposed only', () => {
+  assert.equal(isMentionableClientKind('professional'), true);
+  assert.equal(isMentionableClientKind('proposed'), true);
+  assert.equal(isMentionableClientKind('personal'), false);
+  assert.equal(isMentionableClientKind('service'), false);
+  assert.equal(isMentionableClientKind(undefined), false);
 });
 
 for (const line of results) console.log(line);

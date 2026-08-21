@@ -9,7 +9,7 @@ import {
   ensureBrandFontEntry,
   type BrandFontRole,
 } from './brandFonts';
-import { normalizePublicUrl } from './publicUrl';
+import { isPrivateHost, normalizePublicUrl } from './publicUrl';
 
 const SCRAPE_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -126,6 +126,12 @@ export function extractGoogleFontRefs(html: string): GoogleFontRef[] {
   return refs;
 }
 
+function isSafeStylesheetUrl(raw: string): boolean {
+  const normalized = normalizePublicUrl(raw, true);
+  if (!normalized) return false;
+  return !isPrivateHost(normalized.hostname);
+}
+
 function stylesheetUrls(html: string, pageUrl: string): string[] {
   const base = normalizePublicUrl(pageUrl, true);
   if (!base) return [];
@@ -139,6 +145,7 @@ function stylesheetUrls(html: string, pageUrl: string): string[] {
     if (!href) return;
     try {
       const abs = new URL(href, base).toString();
+      if (!isSafeStylesheetUrl(abs)) return;
       if (seen.has(abs)) return;
       seen.add(abs);
       urls.push(abs);
@@ -151,6 +158,7 @@ function stylesheetUrls(html: string, pageUrl: string): string[] {
 }
 
 async function fetchStylesheetText(url: string): Promise<string> {
+  if (!isSafeStylesheetUrl(url)) return '';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {

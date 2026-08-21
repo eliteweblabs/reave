@@ -1,0 +1,20 @@
+{
+  "key": "default",
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "login",
+    "heroHeadlineHtml": "",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": false
+  }
+}

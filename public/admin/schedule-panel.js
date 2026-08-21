@@ -33,7 +33,9 @@ import {
   deBtnIconSvg,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20260811a';
+  createSearchFieldAdornment,
+  syncSearchFieldAdornment,
+} from './admin-ui.js?v=20260821b';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260810a';
 import { postLower } from './post-alias.js?v=20260805a';
@@ -47,7 +49,8 @@ import {
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260815a';
 import { navigateToWork, workClientSubline } from './work-panel.js?v=20260820a';
-import { navigateToClient } from './clients-panel.js?v=20260817c';
+import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260821a';
+import { createClientMap } from './client-map.js?v=20260821c';
 import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -960,6 +963,8 @@ function bindDropdownReposition(anchorInput, repositionFn) {
 }
 
 const ADDRESS_PICKER_ID = 'address-picker-backdrop';
+/** Wide Northeast view so the map is a backdrop, not a random street pin. */
+const ADDRESS_PICKER_OVERVIEW = { lat: 42.1, lng: -72.8, zoom: 5.4 };
 
 /** @type {{ addressInput: HTMLInputElement, onPick?: Function } | null} */
 let addressPickerBinding = null;
@@ -970,13 +975,82 @@ let addressPickerLastPickAt = 0;
 let addressPickerLastPickLabel = '';
 let addressPickerClearPickTimer = null;
 let addressPickerFocusTimer = null;
+let addressPickerAdornment = null;
+let addressPickerMap = null;
+let addressPickerPinned = false;
+let addressPickerDidConfirm = false;
 
 function getAddressPickerEls() {
   const backdrop = document.getElementById(ADDRESS_PICKER_ID);
   const searchInput = document.getElementById('address-picker-search');
   const list = document.getElementById('address-picker-list');
+  const mapHost = document.getElementById('address-picker-map');
+  const confirmBtn = document.getElementById('address-picker-confirm');
   if (!backdrop || !searchInput || !list) return null;
-  return { backdrop, searchInput, list };
+  return { backdrop, searchInput, list, mapHost, confirmBtn };
+}
+
+function syncAddressPickerConfirm() {
+  const els = getAddressPickerEls();
+  if (!els?.confirmBtn) return;
+  els.confirmBtn.hidden = !els.searchInput.value.trim();
+}
+
+function syncAddressPickerAdornment() {
+  const els = getAddressPickerEls();
+  if (!els || !addressPickerAdornment) return;
+  syncSearchFieldAdornment(els.searchInput, addressPickerAdornment);
+}
+
+function resetAddressPickerMap({ animate = false } = {}) {
+  const map = ensureAddressPickerMap();
+  if (!map) return;
+  if (!addressPickerPinned) {
+    requestAnimationFrame(() => map.resize());
+    return;
+  }
+  addressPickerPinned = false;
+  map.setLocation(null, null, '', { animate });
+}
+
+function destroyAddressPickerMap() {
+  addressPickerMap?.destroy();
+  addressPickerMap = null;
+  addressPickerPinned = false;
+}
+
+function ensureAddressPickerMap() {
+  const els = getAddressPickerEls();
+  if (!els?.mapHost) return null;
+  if (!addressPickerMap) {
+    addressPickerMap = createClientMap(els.mapHost, {
+      token: window.__mapboxAccessToken,
+      overview: ADDRESS_PICKER_OVERVIEW,
+      flyDurationMs: 500,
+      showDirections: false,
+      showOpenMaps: false,
+    });
+  }
+  return addressPickerMap;
+}
+
+/** Pin and zoom only after a list pick (or a saved address) — never while typing. */
+async function previewAddressOnMap(address) {
+  const q = (address || '').trim();
+  if (!q) {
+    resetAddressPickerMap();
+    return;
+  }
+  const map = ensureAddressPickerMap();
+  if (!map) return;
+  const geo = await geocodeClientAddressPreview(q);
+  const els = getAddressPickerEls();
+  if (els && els.searchInput.value.trim() !== q) return;
+  if (geo) {
+    addressPickerPinned = true;
+    map.setLocation(geo.lat, geo.lng, q, { animate: true });
+  } else map.setGeocodeFailed(true);
+  requestAnimationFrame(() => map.resize());
 }
 
 function renderAddressPickerList(predictions, query) {
@@ -985,11 +1059,10 @@ function renderAddressPickerList(predictions, query) {
   const { list } = els;
   list.innerHTML = '';
   if (!predictions.length) {
+    if (!query.trim()) return;
     const empty = document.createElement('div');
     empty.className = 'address-picker-empty';
-    empty.textContent = query.trim()
-      ? 'No matching addresses.'
-      : 'Type to search addresses.';
+    empty.textContent = 'No matching addresses.';
     list.appendChild(empty);
     return;
   }
@@ -1052,26 +1125,39 @@ function scheduleAddressPickerSearch() {
 
 async function pickAddressFromSheet(description) {
   const els = getAddressPickerEls();
-  const binding = addressPickerBinding;
-  if (!els || !binding) return;
+  if (!els) return;
   const label = formatScheduleAddressLabel(description);
   const now = Date.now();
-  if (
-    addressPickerPickInFlight ||
-    (label === addressPickerLastPickLabel && now - addressPickerLastPickAt < 600)
-  ) {
+  if (label === addressPickerLastPickLabel && now - addressPickerLastPickAt < 400) {
     return;
   }
-  addressPickerPickInFlight = true;
   addressPickerLastPickLabel = label;
   addressPickerLastPickAt = now;
+  els.searchInput.value = label;
+  els.searchInput.dataset.autocompletePick = '1';
+  syncAddressPickerAdornment();
+  syncAddressPickerConfirm();
+  renderAddressPickerList([], label);
+  await previewAddressOnMap(label);
+}
+
+async function confirmAddressFromSheet() {
+  const els = getAddressPickerEls();
+  const binding = addressPickerBinding;
+  if (!els || !binding) return;
+  const label = formatScheduleAddressLabel(els.searchInput.value.trim());
+  if (!label) {
+    window.IosSheet?.close(ADDRESS_PICKER_ID);
+    return;
+  }
+  if (addressPickerPickInFlight) return;
+  addressPickerPickInFlight = true;
+  addressPickerDidConfirm = true;
   if (addressPickerClearPickTimer) {
     clearTimeout(addressPickerClearPickTimer);
     addressPickerClearPickTimer = null;
   }
 
-  // Set synchronously before any await so blur/close handlers never persist
-  // the typed query, and so onPick can PATCH the selected label immediately.
   binding.addressInput.value = label;
   els.searchInput.value = label;
   binding.addressInput.dataset.autocompletePick = '1';
@@ -1099,10 +1185,27 @@ function ensureAddressPickerSheet() {
   if (addressPickerSheetReady) return els;
   addressPickerSheetReady = true;
 
-  const { backdrop, searchInput, list } = els;
+  const { backdrop, searchInput, list, confirmBtn } = els;
+  const field = searchInput.closest('.address-picker-search-field');
+  if (field && !addressPickerAdornment) {
+    addressPickerAdornment = createSearchFieldAdornment(searchInput, () => {
+      delete searchInput.dataset.autocompletePick;
+      renderAddressPickerList([], '');
+      resetAddressPickerMap({ animate: true });
+      syncAddressPickerConfirm();
+    });
+    field.appendChild(addressPickerAdornment);
+  }
   searchInput.addEventListener('input', () => {
-    if (searchInput.dataset.autocompletePick) return;
+    syncAddressPickerAdornment();
+    syncAddressPickerConfirm();
+    if (searchInput.dataset.autocompletePick) delete searchInput.dataset.autocompletePick;
+    resetAddressPickerMap({ animate: true });
     scheduleAddressPickerSearch();
+  });
+  confirmBtn?.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    void confirmAddressFromSheet();
   });
   attachAutosuggestKeyboardNav(searchInput, list, {
     optionSelector: '.address-picker-option',
@@ -1111,21 +1214,16 @@ function ensureAddressPickerSheet() {
   });
   backdrop.addEventListener('ios-sheet-close', () => {
     const binding = addressPickerBinding;
+    const didConfirm = addressPickerDidConfirm;
     addressPickerBinding = null;
+    addressPickerDidConfirm = false;
     binding?.addressInput?.setAttribute('aria-expanded', 'false');
     clearTimeout(schedAddressSearchTimer);
     clearTimeout(addressPickerFocusTimer);
     addressPickerFocusTimer = null;
+    destroyAddressPickerMap();
     if (!binding) return;
-    const wasPick = !!searchInput.dataset.autocompletePick;
-    // Sync freeform text when the sheet is dismissed without a Places pick.
-    // Picks own the suppress-open lifecycle so a slow onPick cannot reopen the sheet.
-    if (!wasPick) {
-      const next = searchInput.value;
-      if (binding.addressInput.value !== next) {
-        binding.addressInput.value = next;
-        binding.addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+    if (!didConfirm) {
       addressPickerSuppressOpen = true;
       setTimeout(() => {
         addressPickerSuppressOpen = false;
@@ -1146,17 +1244,24 @@ function openAddressPickerSheet(addressInput, onPick) {
   }
 
   addressPickerBinding = { addressInput, onPick };
+  addressPickerDidConfirm = false;
   els.searchInput.value = addressInput.value || '';
   delete els.searchInput.dataset.autocompletePick;
   renderAddressPickerList([], els.searchInput.value);
+  syncAddressPickerAdornment();
+  syncAddressPickerConfirm();
   addressInput.setAttribute('aria-expanded', 'true');
   window.IosSheet?.open(ADDRESS_PICKER_ID);
+  ensureAddressPickerMap();
+  if (els.searchInput.value.trim()) void previewAddressOnMap(els.searchInput.value);
+  else resetAddressPickerMap();
 
   clearTimeout(addressPickerFocusTimer);
   addressPickerFocusTimer = setTimeout(() => {
     addressPickerFocusTimer = null;
     els.searchInput.focus({ preventScroll: true });
     if (els.searchInput.value.trim().length >= 2) scheduleAddressPickerSearch();
+    addressPickerMap?.resize();
   }, 60);
 }
 

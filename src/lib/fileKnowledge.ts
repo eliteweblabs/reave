@@ -3,9 +3,9 @@
  * Same persistence model as todo / documents: writes survive until redeploy.
  */
 
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { readdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
+import { projectRoot } from './projectRoot';
 
 export interface KnowledgeFileSummary {
   slug: string;
@@ -17,17 +17,6 @@ export interface KnowledgeFileDoc extends KnowledgeFileSummary {
 }
 
 const SAFE_SLUG_RE = /^[a-z0-9._-]+$/i;
-
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 export function knowledgeDir(): string {
   return process.env.KNOWLEDGE_DIR?.trim() || join(projectRoot(), 'src', 'knowledge');

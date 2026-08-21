@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import {
   buildDeployWizardPlan,
+  DEPLOY_APP_SERVICE,
   DEPLOY_WIZARD_NEW_PROJECT,
   deployWizardDesiredProjectName,
   deployWizardFqdn,
@@ -261,7 +262,17 @@ assert.equal(anthropicSecret?.required, false);
 assert.equal(anthropicSecret?.needsInput, true);
 assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.required, false);
 assert.equal(coreSecrets.variables.find((v) => v.name === 'RESEND_API_KEY')?.needsInput, false);
-assert.equal(coreSecrets.variables.find((v) => v.name === 'CLERK_SECRET_KEY')?.required, false);
+const clerkSecretVars = coreSecrets.variables.filter((v) => v.name === 'CLERK_SECRET_KEY');
+assert.equal(clerkSecretVars.length, 2, 'Clerk secret is written on shared and the app service');
+assert.deepEqual(
+  clerkSecretVars.map((v) => v.service).sort(),
+  [DEPLOY_APP_SERVICE, 'shared'].sort(),
+);
+assert.ok(clerkSecretVars.every((v) => v.required === false));
+assert.ok(clerkSecretVars.every((v) => v.inheritFromHost === true), 'Clerk keys copy from this host when present');
+const clerkPublishableVars = coreSecrets.variables.filter((v) => v.name === 'PUBLIC_CLERK_PUBLISHABLE_KEY');
+assert.equal(clerkPublishableVars.length, 2);
+assert.ok(clerkPublishableVars.every((v) => v.inheritFromHost === true));
 assert.equal(anthropicKeySourceForApply('', 'sk-ant-host'), 'reave');
 assert.equal(anthropicKeySourceForApply('sk-ant-client', 'sk-ant-host'), 'client');
 assert.equal(anthropicKeySourceForApply('', ''), '');

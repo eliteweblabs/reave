@@ -240,9 +240,9 @@
   --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
   --ios-sheet-close-bg: var(--surface-hover);
   --ios-sheet-close-hover: var(--surface-hover-strong);
-  /* Fixed height so the sheet doesn't jump as Places results arrive. */
-  height: min(70dvh, 520px);
-  max-height: min(70dvh, 520px);
+  /* Tall enough for the search field + preview map. */
+  height: min(88dvh, 720px);
+  max-height: min(88dvh, 720px);
 }
 #address-picker-backdrop .ios-sheet-header {
   padding: 0 1rem;
@@ -256,29 +256,80 @@
   padding: 0;
   overflow: hidden;
 }
+.address-picker-search-wrap {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+  padding: 0.75rem 1rem 0.55rem;
+}
+.address-picker-search-field {
+  margin: 0;
+}
 .address-picker-search {
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 0.7rem 1rem;
-  border: none;
-  border-bottom: 1px solid var(--panel-border);
-  border-radius: 0;
-  background: var(--surface);
-  color: var(--fg);
   font: inherit;
   font-size: max(16px, 0.95rem);
 }
-.address-picker-search:focus {
-  outline: none;
-  border-bottom-color: #0a84ff;
+.address-picker-search::-webkit-search-cancel-button,
+.address-picker-search::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
 }
-.address-picker-list {
+.address-picker-stage {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
+}
+.address-picker-list {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  max-height: min(56%, 22rem);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--panel-border);
+}
+.address-picker-list:empty {
+  display: none;
+}
+.address-picker-map {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+.address-picker-map .cl-map-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  gap: 0;
+}
+.address-picker-map .cl-map-shell {
+  flex: 1 1 auto;
+  aspect-ratio: auto;
+  min-height: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--panel-border);
+}
+.address-picker-map .cl-map-empty,
+.address-picker-map .cl-map-meta {
+  display: none;
+}
+.address-picker-map .cl-map-actions {
+  display: none;
 }
 .address-picker-option {
   display: block;

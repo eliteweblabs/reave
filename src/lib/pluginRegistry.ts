@@ -28,6 +28,7 @@ import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
 import { inventoryPlugin } from '../../plugins/inventory/manifest';
 import { materialsPlugin } from '../../plugins/materials/manifest';
 import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
+import { socialInboxPlugin } from '../../plugins/social-inbox/manifest';
 import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
 import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
@@ -60,6 +61,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   inventoryPlugin,
   materialsPlugin,
   onlineReviewsPlugin,
+  socialInboxPlugin,
   waybackMachinePlugin,
   contentManagementPlugin,
   stockPhotosPlugin,
@@ -138,6 +140,7 @@ export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'siri-quick-reference',
   'siri-shortcuts',
   'media-drop-folder',
+  'agent-recall',
 ]);
 
 /** @deprecated Prefer isDefaultKnowledgeSlug — core slugs only */
@@ -156,7 +159,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'client-portal':
       return ['client-portal'];
     case 'dev-infra':
-      return ['kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage'];
+      return ['kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage', 'google-workspace-dns'];
     case 'email-marketing':
       return ['newsletter'];
     case 'uptime-monitoring':
@@ -175,6 +178,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['materials-pricing'];
     case 'online-reviews':
       return ['online-reviews'];
+    case 'social-inbox':
+      return ['social-inbox'];
     case 'wayback-machine':
       return ['wayback-machine'];
     case 'content-management':
@@ -188,7 +193,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'code-dev':
       return ['code-dev-tools'];
     case 'site-audits':
-      return ['inquiry-website-audit', 'inquiry-website-audit-quick'];
+      return ['inquiry-website-audit', 'inquiry-website-audit-quick', 'cloudflare-dns'];
     case 'analytic-audit':
       return ['analytic-audit'];
     case 'clerk-auth':

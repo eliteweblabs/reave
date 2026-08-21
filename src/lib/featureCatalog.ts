@@ -40,6 +40,7 @@ export const FEATURE_IDS = [
   'website',
   'credit_check',
   'materials_pricing',
+  'social_inbox',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -104,6 +105,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   website: 'Website',
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing (Home Depot)',
+  social_inbox: 'Social inbox',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -148,6 +150,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Applicant credit pull for forms and deal flow — reference only until a bureau is chosen',
   materials_pricing:
     'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
+  social_inbox:
+    'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
 };
 
 export type FeatureVisibility = 'public' | 'private';
@@ -179,7 +183,7 @@ export function isPrivateFeature(id: string): boolean {
 }
 
 export const CORE_FEATURE_NOTE =
-  'Contacts, email inbox, work/jobs, knowledge, personal to-dos, chat / commands, and Clerk sign-in (passkeys, phone) are always on.';
+  'Contacts, email inbox, work/jobs, knowledge, durable recall, personal to-dos, chat / commands, and Clerk sign-in (passkeys, phone) are always on.';
 
 /**
  * Ground-truth inventory for the admin agent. A missing tool this turn is not

@@ -61,6 +61,7 @@ import {
   IOS_ICONS,
   agentIconSvg,
   createIosIconBtn,
+  createAgentBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -105,9 +106,11 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   createCopyIconBtn,
+  createToggleSwitch,
+  setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260815a';
+} from './admin-ui.js?v=20260821a';
 import { createPaneHeader } from './pane-header.js?v=20260808d';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -180,7 +183,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260812b';
+} from './schedule-panel.js?v=20260821c';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -193,14 +196,14 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260817c';
+} from './clients-panel.js?v=20260820c';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
   isShakeUndoPendingKey,
   pendingShakeUndoKey,
   queueShakeUndo,
-} from './shake-undo.js?v=20260820a';
+} from './shake-undo.js?v=20260820b';
 import {
   initChatPanel,
   chatState,
@@ -251,7 +254,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260802c';
+} from './insights-panels.js?v=20260820a';
 import {
   initRulesPanel,
   ruleState,
@@ -277,10 +280,15 @@ import {
   teardownModulesPanel,
 } from './modules-panel.js?v=20260810a';
 import {
+  initAddonsPanel,
+  loadAddonsTab,
+} from './addons-panel.js?v=20260821a';
+import {
   openMediaPicker,
   brandingMediaFilter,
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
+import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260820a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -359,6 +367,7 @@ const SETTINGS_MAP_TYPES = new Set([
   'company',
   'settings',
   'socials',
+  'addons',
   'industries',
   'vapi',
   'lead-scanner',
@@ -859,6 +868,8 @@ function activateMapPanel(opts = {}) {
       prependSettingsBackHeader,
       escHtml,
     });
+  } else if (MAP.type === 'addons') {
+    loadAddonsTab();
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -3211,7 +3222,49 @@ function otpPurposeLabel(item) {
   return 'Verification code';
 }
 
+function projectMatchDisplayName(item) {
+  const direct = String(item?.jobTitle || item?.jobSlug || '').trim();
+  if (direct) return direct;
+  const title = String(item?.title || '').trim();
+  const prefixed = title.match(/^possible(?:\s+\w+)?\s+match:\s*(.+)$/i);
+  if (prefixed?.[1]) return prefixed[1].trim();
+  const fromDetail = String(item?.detail || '').match(
+    /^(?:project|deal|lead|job):\s*(.+?)(?:\.|$)/i,
+  );
+  if (fromDetail?.[1]) return fromDetail[1].trim();
+  return postTitle(1);
+}
+
+function projectMatchAttachmentBit(item) {
+  const count = Number(item?.attachmentCount);
+  if (Number.isFinite(count) && count > 0) {
+    return `${count} attachment${count === 1 ? '' : 's'}`;
+  }
+  const fromDetail = String(item?.detail || '');
+  const n = fromDetail.match(/(\d+)\s+attachments?/i);
+  if (n) return `${n[1]} attachment${n[1] === '1' ? '' : 's'}`;
+  return 'no attachments';
+}
+
 function reviewAlertCopyHtml(item) {
+  if (item?.type === 'project_match') {
+    const when = formatReviewAlertWhen(item.receivedAt);
+    const projectName = projectMatchDisplayName(item);
+    const headline = when
+      ? `${escHtml(when)} · Possible ${escHtml(postLower(1))} match`
+      : `Possible ${escHtml(postLower(1))} match`;
+    const projectNameHtml = item.jobSlug
+      ? `<button type="button" class="project-link-chip admin-setup-alert-project-link">${escHtml(projectName)}</button>`
+      : `<span class="admin-setup-alert-project-name">${escHtml(projectName)}</span>`;
+    return (
+      `<strong>${headline}</strong>` +
+      `<p class="admin-setup-alert-project">` +
+        `<span class="admin-setup-alert-kicker">${escHtml(postTitle(1))}</span>` +
+        projectNameHtml +
+      `</p>` +
+      `<p>Add this email's content and ${escHtml(projectMatchAttachmentBit(item))} to this ${escHtml(postLower(1))}?</p>`
+    );
+  }
   if (isOtpReviewAlert(item)) {
     const when = formatReviewAlertWhen(item.receivedAt);
     const purpose = otpPurposeLabel(item);
@@ -3829,10 +3882,6 @@ async function commitDismissReviewNotification(item) {
 
 async function dismissReviewNotification(item, btn) {
   if (!item?.alertId && !item?.engagementId && !item?.commentId && !item?.emailId) return;
-  if (isEmailAutomationReview(item) && item.awaitingTriage) {
-    await openNotificationTriageDialog(item);
-    return;
-  }
 
   const key = reviewNotificationUndoKey(item);
   if (!key) return;
@@ -4317,12 +4366,12 @@ function buildReviewAlertBanner(item) {
     });
   } else if (isProjectMatch) {
     actions.push({
-      label: 'Add to project',
+      label: `Add to ${postLower(1)}`,
       primary: true,
       onClick: (btn) => void confirmSuggestedProjectMatch(item, btn),
     });
     actions.push({
-      label: 'Not this project',
+      label: `Not this ${postLower(1)}`,
       onClick: (btn) => void rejectSuggestedProjectMatch(item, btn),
     });
   } else if (isProject) {
@@ -4449,10 +4498,6 @@ function buildReviewAlertBanner(item) {
       else openReviewNotificationTarget(item);
     },
     onDismiss: (dismissBtn) => {
-      if (emailAwaitingTriage) {
-        void openNotificationTriageDialog(item);
-        return;
-      }
       dismissBtn.disabled = true;
       void dismissReviewNotification(item).finally(() => {
         dismissBtn.disabled = false;
@@ -4462,6 +4507,10 @@ function buildReviewAlertBanner(item) {
 
   notice.copy?.querySelectorAll?.('.admin-classification-audit')?.forEach((el) => {
     el.addEventListener('click', (ev) => ev.stopPropagation());
+  });
+  notice.copy?.querySelector('.admin-setup-alert-project-link')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    void openReviewNotificationTarget(item);
   });
 
   bindReviewAlertSwipe(notice.root, item);
@@ -4516,12 +4565,6 @@ function bindReviewAlertSwipe(alert, item) {
         alert.style.transform = 'translateX(120%)';
         alert.style.opacity = '0';
         window.setTimeout(() => {
-          if (isEmailAutomationReview(item) && item.awaitingTriage) {
-            alert.style.transform = '';
-            alert.style.opacity = '';
-            void openNotificationTriageDialog(item);
-            return;
-          }
           void dismissReviewNotification(item).catch(() => {
             alert.style.transform = '';
             alert.style.opacity = '';
@@ -4604,7 +4647,7 @@ function resolveNotificationEmailId(item) {
   }
 }
 
-function notificationTriageDialogHtml(item) {
+function notificationTriageDialogHtml(_item) {
   const options = TRIAGE_FEEDBACK_OPTIONS.map(
     (opt) =>
       `<label class="alert-triage-option">` +
@@ -4615,12 +4658,8 @@ function notificationTriageDialogHtml(item) {
         `</span>` +
       `</label>`,
   ).join('');
-  const limboHint =
-    isEmailAutomationReview(item) && item.awaitingTriage
-      ? 'This alert stays in limbo until you choose. '
-      : '';
   return (
-    `<p class="alert-triage-intro">${limboHint}Pick how similar notifications should be handled in the future.</p>` +
+    `<p class="alert-triage-intro">Pick how similar notifications should be handled in the future.</p>` +
     `<div class="alert-triage-options">${options}</div>` +
     `<label class="alert-triage-note-wrap" hidden>` +
       `<span class="alert-triage-note-label">What should the agent know?</span>` +
@@ -6349,7 +6388,7 @@ function industriesEmptyHtml() {
 function setIndustryEnabledToggle(toggle, enabled) {
   if (!(toggle instanceof HTMLElement)) return;
   const on = enabled !== false;
-  toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+  setToggleSwitch(toggle, on);
   toggle.title = on ? 'On' : 'Off';
   toggle.setAttribute('aria-label', on ? 'Enabled' : 'Disabled');
 }
@@ -6446,18 +6485,18 @@ function createIndustryRow(item, { onDelete, onToggle, onPlaybookChange, modules
   expandBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   expandBtn.textContent = 'Playbook';
 
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'prof-plugin-toggle ind-enabled-toggle';
-  toggle.setAttribute('role', 'switch');
-  setIndustryEnabledToggle(toggle, enabled);
-  toggle.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const next = toggle.getAttribute('aria-checked') !== 'true';
-    setIndustryEnabledToggle(toggle, next);
-    onToggle?.(toggle);
+  const toggle = createToggleSwitch({
+    className: 'ind-enabled-toggle',
+    checked: enabled,
+    label: enabled ? 'Enabled' : 'Disabled',
+    title: enabled ? 'On' : 'Off',
+    onClick: (btn) => {
+      const next = btn.getAttribute('aria-checked') !== 'true';
+      setIndustryEnabledToggle(btn, next);
+      onToggle?.(btn);
+    },
   });
+  setIndustryEnabledToggle(toggle, enabled);
 
   const removeBtn = paneDeleteIcon({
     label: 'Delete industry',
@@ -6844,6 +6883,14 @@ function renderProfileOnlyPanel(profile) {
               `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
               `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
             `</div>`,
+          ) +
+          profSection(
+            'Email signature',
+            'Appended to outbound emails you send from the inbox. Stored on your account, not company settings.',
+            `<div class="prof-field prof-field--signature">` +
+              `<div id="profile-signature-editor"></div>` +
+              `<textarea id="profile-emailSignature" name="emailSignature" hidden>${escHtml(p.emailSignature || '')}</textarea>` +
+              `<span class="prof-hint">Drag a logo in, or use Upload / Library / Company logo. Switch to Preview to see how it looks in email.</span></div>`,
           ) +
         `</form>` +
       `</div>` +
@@ -7333,7 +7380,7 @@ function renderSocialConnectionsCard(connections) {
   const rows = list.map(socialConnectionRow).join('');
   return profSection(
     'API access',
-    'Connect an account to pull real metrics into the Social dashboard. Each platform needs a one-time app setup first (expand “How to set this up” below to add credentials); once configured, a Connect button appears so you can sign in and authorize. Tokens are stored securely on the server.',
+    'Connect an account so the Social inbox can pull live posts and comments. Until then, saved profile links show sample activity, and Google reviews sync into the same feed. Each platform needs a one-time app setup first (expand “How to set this up”); tokens stay on the server.',
     `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>`,
   );
 }
@@ -7490,12 +7537,20 @@ async function loadProfileTab() {
   prependSettingsBackHeader(root);
 
   try {
-    const profileRes = await fetch('/api/admin/profile', { cache: 'no-store' });
+    const [profileRes, companyRes] = await Promise.all([
+      fetch('/api/admin/profile', { cache: 'no-store' }),
+      fetch('/api/admin/company', { cache: 'no-store' }),
+    ]);
     const profileData = await profileRes.json();
+    const companyData = companyRes.ok ? await companyRes.json() : null;
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
     root.innerHTML = renderProfileOnlyPanel(profileData.profile);
     prependSettingsBackHeader(root);
     bindProfileForm(root);
+    bindProfileSignatureEditor(root, {
+      initialHtml: profileData.profile?.emailSignature || '',
+      companyLogoUrl: companyData?.ok ? companyLogoPreviewUrl(companyData.company) : '',
+    });
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
@@ -8667,7 +8722,7 @@ function syncProfileMenuActive() {
   const activeSection = isSettingsMapType(MAP?.type) ? MAP.type : null;
   for (const key of window.__installConfig?.profileMenu || []) {
     const el = document.getElementById(`topbar-${key}-link`);
-    if (el) el.classList.toggle('active', activeSection === key);
+    if (el) el.classList.toggle('is-active', activeSection === key);
   }
 }
 
@@ -10667,6 +10722,7 @@ initInsightsPanels({
   companyBrand,
   osAlert,
   getMap: () => MAP,
+  appendEmptyDetailPane,
 });
 
 initRulesPanel({
@@ -10696,6 +10752,11 @@ initNewsletterPanel({});
 initOnlineReviewsPanel({});
 initMediaPanel({});
 initModulesPanel({ getMap: () => MAP, MAP });
+initAddonsPanel({
+  getMap: () => MAP,
+  MAP,
+  prependSettingsBackHeader,
+});
 
 initTodoPanel({
   setActiveMap,
@@ -13620,6 +13681,68 @@ function emailShareText(ev) {
   return [ev.subject, ev.from, ev.summary || ev.bodySnippet].filter(Boolean).join('\n\n');
 }
 
+function emailComposeToLabel() {
+  return (Array.isArray(emailState.compose.to) ? emailState.compose.to : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean)
+    .map((r) => (r.name ? `${r.name} <${r.email}>` : r.email))
+    .join(', ');
+}
+
+function splitEmailComposeQuote(body) {
+  const text = String(body || '');
+  const match = text.match(/\n\n---\nOn .+ wrote:\n/) || text.match(/\n\nOn .+ wrote:\n/);
+  if (!match || match.index == null) return { draft: text, quote: '' };
+  return { draft: text.slice(0, match.index), quote: text.slice(match.index) };
+}
+
+async function writeEmailComposeWithAgent(btn) {
+  if (emailState.sending) return;
+  const source = emailState.replySourceFull;
+  const { draft, quote } = splitEmailComposeQuote(emailState.compose.body);
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/admin/compose-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'email',
+        to: emailComposeToLabel(),
+        subject: emailState.compose.subject,
+        currentBody: draft.trim(),
+        incoming: source
+          ? {
+              from: source.from || source.fromName || '',
+              subject: source.subject || '',
+              body: source.bodyText || source.bodySnippet || '',
+            }
+          : undefined,
+      }),
+    });
+    const data = await readApiJson(res);
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const nextBody = String(data.draft?.body || '').trim();
+    if (!nextBody) throw new Error('The agent did not return any copy.');
+    if (data.draft?.subject && !emailState.replyToId) {
+      emailState.compose.subject = String(data.draft.subject);
+    }
+    emailState.compose.body = quote ? `${nextBody}${quote}` : nextBody;
+    renderEmailPanel();
+    requestAnimationFrame(() => {
+      const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+      if (bodyEl) {
+        bodyEl.focus();
+        bodyEl.setSelectionRange(0, nextBody.length);
+      }
+    });
+    showChatToast('Draft ready — review before sending');
+  } catch (e) {
+    await osAlert({ title: 'Could not write draft', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderEmailComposePane(pane) {
   const composeTitle = emailState.replyToId
     ? emailState.replyMode === 'reply-all'
@@ -13630,6 +13753,13 @@ function renderEmailComposePane(pane) {
     createPaneHeader({
       back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: composeTitle,
+      icons: [
+        createAgentBtn({
+          title: 'Write with agent',
+          label: 'Write with agent',
+          onClick: (btn) => void writeEmailComposeWithAgent(btn),
+        }),
+      ],
     }).root,
   );
 
@@ -13704,7 +13834,21 @@ function renderEmailComposePane(pane) {
 
   const bodyField = document.createElement('div');
   bodyField.className = 'em-compose-field';
-  bodyField.innerHTML = '<label class="em-compose-label" for="em-compose-body">Message</label>';
+  const bodyHead = document.createElement('div');
+  bodyHead.className = 'em-compose-field-head';
+  const bodyLabel = document.createElement('label');
+  bodyLabel.className = 'em-compose-label';
+  bodyLabel.setAttribute('for', 'em-compose-body');
+  bodyLabel.textContent = 'Message';
+  const writeBtn = document.createElement('button');
+  writeBtn.type = 'button';
+  writeBtn.className = 'em-compose-agent';
+  writeBtn.disabled = emailState.sending;
+  writeBtn.innerHTML = `${IOS_ICONS.agent || ''} Write with agent`;
+  writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
+  bodyHead.appendChild(bodyLabel);
+  bodyHead.appendChild(writeBtn);
+  bodyField.appendChild(bodyHead);
   const bodyInput = document.createElement('textarea');
   bodyInput.id = 'em-compose-body';
   bodyInput.className = 'em-compose-textarea';
@@ -14494,7 +14638,9 @@ function renderEmailPane() {
   let detailHtml =
     `<div class="em-item-row">` +
     `<span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
-    (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev)) ? emailProjectContextHtml(ev) : '') +
+    (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))
+      ? emailProjectContextHtml(ev)
+      : '') +
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
   if (ev.verificationCode) {
@@ -14560,20 +14706,26 @@ function renderEmailPane() {
         `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Reschedule</button>` +
       `</div>`;
   } else if (isProjectMatchSuggested(ev)) {
+    const matchProjectName = ev.jobTitle || ev.jobSlug || postTitle(1);
     const attachmentCount = Array.isArray(ev.attachments) ? ev.attachments.length : 0;
     const attachmentHint =
       attachmentCount > 0
-        ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'} will be added to the project.`
+        ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'} will be added to ${matchProjectName}.`
         : 'No attachments on this message.';
+    const projectChip = ev.jobSlug
+      ? `<button type="button" class="project-link-chip em-project-link">${escHtml(matchProjectName)}</button>`
+      : `<span>${escHtml(matchProjectName)}</span>`;
     detailHtml +=
       `<div class="em-book-card em-project-match-card">` +
-        `<div class="em-book-card-title">Possible project match</div>` +
-        `<div class="em-book-card-when">${escHtml(ev.jobTitle || ev.jobSlug || 'Project')}</div>` +
-        `<div class="em-book-card-note">Add this email's content to the project notes? ${escHtml(attachmentHint)}</div>` +
+        `<div class="em-book-card-title">Possible ${escHtml(postLower(1))} match</div>` +
+        `<div class="em-book-card-project">` +
+          `<strong>${escHtml(postTitle(1))}</strong> ${projectChip}` +
+        `</div>` +
+        `<div class="em-book-card-note">Add this email's content to <strong>${escHtml(matchProjectName)}</strong>? ${escHtml(attachmentHint)}</div>` +
       `</div>` +
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
-        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary em-project-match-add">Add to project</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary em-project-match-reject">Not this project</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary em-project-match-add">Add to ${escHtml(postLower(1))}</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary em-project-match-reject">Not this ${escHtml(postLower(1))}</button>` +
       `</div>`;
   } else if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
     detailHtml +=
@@ -14684,9 +14836,9 @@ function renderEmailPane() {
     });
   }
   void mountEmailScheduleActions(detail.querySelector('.em-schedule-actions'), ev);
-  detail.querySelector('.em-project-link')?.addEventListener('click', () =>
-    navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
-  );
+  detail.querySelectorAll('.em-project-link').forEach((btn) => {
+    btn.addEventListener('click', () => navigateToWork(ev.jobSlug, { fromEmailId: ev.id }));
+  });
   detail.querySelector('[data-em-add-contact]')?.addEventListener('click', () => {
     openNewContactFromEmail(ev);
   });
@@ -14695,7 +14847,7 @@ function renderEmailPane() {
       bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
     }
   });
-  if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev))) {
+  if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))) {
     void hydrateEmailProjectContextIcon(detail, ev);
   }
   pane.appendChild(detail);
@@ -14781,6 +14933,10 @@ function loadActiveKey() {
 
 function canOpenMapKey(key) {
   if (key === 'industries') return showIndustries();
+  const features = window.__installConfig?.features;
+  const has = (id) => Array.isArray(features) && features.includes(id);
+  if (key === 'social') return has('social_inbox');
+  if (key === 'reviews') return has('online_reviews');
   return true;
 }
 function saveActiveKey() {

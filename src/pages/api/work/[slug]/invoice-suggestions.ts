@@ -16,15 +16,10 @@ import {
   groupedTimeInvoiceDescription,
   timeEntriesToInvoiceSuggestions,
 } from '../../../../lib/workTimeBilling';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -32,10 +27,10 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
   const doc = await storeReadWork(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const checklist = parseMarkdownCheckboxes(doc.body);
   const suggestions = completedItemsToInvoiceSuggestions(doc.body, doc.title);
@@ -50,7 +45,7 @@ export async function GET(context: APIContext): Promise<Response> {
     ? groupedTimeInvoiceDescription(timeEntries, doc.title)
     : null;
 
-  return json({
+  return jsonResponse({
     ok: true,
     slug: doc.slug,
     title: doc.title,

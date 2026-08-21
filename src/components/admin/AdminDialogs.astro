@@ -63,14 +63,30 @@ import IosBottomSheet from '../IosBottomSheet.astro';
   sheetClass="address-picker-panel"
   bodyClass="address-picker-body"
 >
-  <input
-    id="address-picker-search"
-    class="address-picker-search"
-    type="search"
-    placeholder="Business or street address"
-    autocomplete="off"
-    autocapitalize="words"
-    enterkeyhint="search"
-  />
-  <div id="address-picker-list" class="address-picker-list" role="listbox" aria-labelledby="address-picker-title"></div>
+  <button
+    slot="header-action"
+    type="button"
+    class="ios-sheet-header-action"
+    id="address-picker-confirm"
+    hidden
+  >
+    Confirm
+  </button>
+  <div class="address-picker-search-wrap">
+    <div class="address-picker-search-field control-field panel-list-search-field">
+      <input
+        id="address-picker-search"
+        class="address-picker-search panel-list-search"
+        type="search"
+        placeholder="Business or street address"
+        autocomplete="off"
+        autocapitalize="words"
+        enterkeyhint="search"
+      />
+    </div>
+  </div>
+  <div class="address-picker-stage">
+    <div id="address-picker-map" class="address-picker-map" aria-label="Address preview map"></div>
+    <div id="address-picker-list" class="address-picker-list" role="listbox" aria-labelledby="address-picker-title"></div>
+  </div>
 </IosBottomSheet>

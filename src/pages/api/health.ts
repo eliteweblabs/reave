@@ -9,6 +9,7 @@ import { isPlausibleConfigured } from '../../lib/plausibleClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
 import { paulinoWizardPing } from '../../lib/paulinoWizardClient';
 import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
+import { isClerkConfigured } from '../../lib/clerkClient';
 import { serverEnv } from '../../lib/serverEnv';
 import { isPexelsConfigured } from '../../lib/pexelsClient';
 import { requireDashboardUser } from '../../lib/dashboardAuth';
@@ -228,7 +229,7 @@ export const GET: APIRoute = async (context) => {
       : unconfigured('uptime_monitoring not in FEATURES'),
     calcom_booking: bookingProbe,
     calcom_web: calWebProbe,
-    clerk: serverEnv('CLERK_SECRET_KEY')
+    clerk: isClerkConfigured()
       ? configured('CLERK_SECRET_KEY set')
       : unconfigured('CLERK_SECRET_KEY not set'),
     web_push: pushConfigured

@@ -8,10 +8,67 @@ import { serverEnv } from './serverEnv';
 
 const CLERK_API_BASE = 'https://api.clerk.com/v1';
 
+/** Canonical + Clerk-dashboard / Next.js aliases operators paste onto Railway. */
+export const CLERK_PUBLISHABLE_KEY_NAMES = [
+  'PUBLIC_CLERK_PUBLISHABLE_KEY',
+  'CLERK_PUBLISHABLE_KEY',
+  'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+] as const;
+
+export const CLERK_SECRET_KEY_NAMES = [
+  'CLERK_SECRET_KEY',
+  'CLERK_BACKEND_API_KEY',
+  'CLERK_SECRET',
+] as const;
+
+function firstClerkEnv(names: readonly string[]): string | undefined {
+  for (const name of names) {
+    const value = serverEnv(name)?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+export function clerkPublishableKey(): string | undefined {
+  return firstClerkEnv(CLERK_PUBLISHABLE_KEY_NAMES);
+}
+
+export function clerkSecretKey(): string | undefined {
+  return firstClerkEnv(CLERK_SECRET_KEY_NAMES);
+}
+
+/**
+ * Copy alias values onto the names @clerk/astro reads.
+ * Uses dynamic `process.env[name]` so Vite cannot inline empty PUBLIC_ keys
+ * from a Docker build that did not see Railway runtime variables.
+ */
+export function normalizeClerkRuntimeEnv(): void {
+  if (typeof process === 'undefined' || !process.env) return;
+  const publishable = clerkPublishableKey();
+  const secret = clerkSecretKey();
+  if (publishable && !process.env['PUBLIC_CLERK_PUBLISHABLE_KEY']?.trim()) {
+    process.env['PUBLIC_CLERK_PUBLISHABLE_KEY'] = publishable;
+  }
+  if (secret && !process.env['CLERK_SECRET_KEY']?.trim()) {
+    process.env['CLERK_SECRET_KEY'] = secret;
+  }
+}
+
+normalizeClerkRuntimeEnv();
+
 // ─── key helpers ─────────────────────────────────────────────────────────────
 
 export function isClerkConfigured(): boolean {
-  return Boolean(serverEnv('CLERK_SECRET_KEY')?.trim());
+  return Boolean(clerkSecretKey());
+}
+
+export function isClerkFrontendConfigured(): boolean {
+  return Boolean(clerkPublishableKey());
+}
+
+/** Both Clerk keys needed before clerkMiddleware can hydrate a request. */
+export function isClerkRuntimeConfigured(): boolean {
+  return isClerkConfigured() && isClerkFrontendConfigured();
 }
 
 export function isClerkPlatformConfigured(): boolean {
@@ -19,7 +76,7 @@ export function isClerkPlatformConfigured(): boolean {
 }
 
 function secretKey(): string | null {
-  return serverEnv('CLERK_SECRET_KEY')?.trim() || null;
+  return clerkSecretKey() || null;
 }
 
 function platformKey(): string | null {

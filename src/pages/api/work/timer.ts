@@ -12,18 +12,13 @@ import {
   stopTimeTrackingWithMessage,
 } from '../../../lib/timeTrackingSiri';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureDisabled(): Response {
-  return json({ ok: false, error: 'Time tracking is not enabled on this install' }, 404);
+  return jsonResponse({ ok: false, error: 'Time tracking is not enabled on this install' }, 404);
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -33,7 +28,7 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const view = await getTimerStatusView();
-  return json({ ok: true, ...view });
+  return jsonResponse({ ok: true, ...view });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -46,17 +41,17 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const action = String(body.action ?? '').trim().toLowerCase();
   if (action === 'stop') {
     const result = await stopTimeTrackingWithMessage();
     if (!result.ok) {
-      return json({ ok: false, error: result.error, text: result.text ?? result.error }, 400);
+      return jsonResponse({ ok: false, error: result.error, text: result.text ?? result.error }, 400);
     }
     const view = await getTimerStatusView();
-    return json({
+    return jsonResponse({
       ok: true,
       ...view,
       text: result.text,
@@ -67,21 +62,21 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (action !== 'start') {
-    return json({ ok: false, error: 'action must be start or stop' }, 400);
+    return jsonResponse({ ok: false, error: 'action must be start or stop' }, 400);
   }
 
   const slug = String(body.slug ?? '').trim();
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
   const doc = await storeReadWork(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, 500) : '';
   const started = await startTimeTrackingOnProject(doc, note);
-  if (!started.ok) return json({ ok: false, error: started.error }, 400);
+  if (!started.ok) return jsonResponse({ ok: false, error: started.error }, 400);
 
   const view = await getTimerStatusView();
-  return json({
+  return jsonResponse({
     ok: true,
     ...view,
     text: started.text,
