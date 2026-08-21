@@ -2466,6 +2466,35 @@ function buildHomeMapTile(key, m) {
   return tile;
 }
 
+function isSalesSheetHref(href) {
+  return typeof href === 'string' && href.startsWith('/admin/sales-sheet');
+}
+
+function showSalesSheetNavSkeleton() {
+  if (document.getElementById('ss-nav-skel')) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'ss-nav-skel';
+  wrap.className = 'ss-nav-skel';
+  wrap.setAttribute('role', 'status');
+  wrap.setAttribute('aria-live', 'polite');
+  wrap.setAttribute('aria-busy', 'true');
+  wrap.innerHTML =
+    `<span class="sk-sr">Loading sales sheet…</span>` +
+    `<div class="ss-nav-skel-chrome">` +
+    `<div class="sk-bone ss-nav-skel-back"></div>` +
+    `<div class="sk-bone ss-nav-skel-title"></div>` +
+    `<div class="sk-bone ss-nav-skel-sub"></div>` +
+    `</div>` +
+    `<div class="ss-nav-skel-page"><div class="sk-bone ss-nav-skel-paper"></div></div>` +
+    `<div class="ss-nav-skel-page ss-nav-skel-page--short"><div class="sk-bone ss-nav-skel-paper"></div></div>`;
+  document.body.appendChild(wrap);
+}
+
+function onSalesSheetDashboardClick(ev) {
+  if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+  showSalesSheetNavSkeleton();
+}
+
 function buildHomeLinkTile(item) {
   const tile = document.createElement('a');
   tile.className = 'home-dashboard-tile';
@@ -2477,6 +2506,9 @@ function buildHomeLinkTile(item) {
   tile.innerHTML =
     `<span class="home-dashboard-tile-icon">${navIcon(item.icon)}</span>` +
     `<span class="home-dashboard-tile-label">${escHtml(item.label)}</span>`;
+  if (isSalesSheetHref(item.href)) {
+    tile.addEventListener('click', onSalesSheetDashboardClick);
+  }
   return tile;
 }
 

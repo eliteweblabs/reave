@@ -43,6 +43,10 @@ import {
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
 import { renderSalesSheetBackHtml } from '../src/lib/salesSheetBack.ts';
+import {
+  renderSalesSheetSkeletonHtml,
+  salesSheetShellFromParams,
+} from '../src/lib/salesSheetSkeleton.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -595,6 +599,37 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.doesNotMatch(back, /Gmail|HubSpot|Replace the stack|Worked with/);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
   assert.doesNotMatch(back, /ss-qr|the full audit/);
+});
+
+await test('sales sheet skeleton is two letter pages with a status label', () => {
+  const html = renderSalesSheetSkeletonHtml('landscape', 'Loading Google Places…');
+  assert.match(html, /class="ss-skel"/);
+  assert.match(html, /role="status"/);
+  assert.match(html, /aria-busy="true"/);
+  assert.match(html, /Loading Google Places/);
+  assert.match(html, /data-ss-skel="front"/);
+  assert.match(html, /data-ss-skel="back"/);
+  assert.match(html, /data-orientation="landscape"/);
+  const portrait = renderSalesSheetSkeletonHtml('portrait');
+  assert.match(portrait, /data-orientation="portrait"/);
+  assert.match(portrait, /ss-skel-cols--portrait/);
+});
+
+await test('salesSheetShellFromParams stays dummy-first and sync', () => {
+  const shell = salesSheetShellFromParams(new URLSearchParams(), 'https://example.com');
+  assert.equal(shell.orientation, 'landscape');
+  assert.equal(shell.runSlug, '');
+  assert.equal(shell.form.name, DUMMY_SALES_SHEET.contact.name);
+  assert.equal(shell.form.site, DUMMY_SALES_SHEET.website);
+  assert.equal(shell.wantGoogleShot, true);
+  assert.match(shell.auditUrl, /digital-audit/);
+  const portrait = salesSheetShellFromParams(
+    new URLSearchParams({ orientation: 'portrait', google: '0', name: 'Ada' }),
+    'https://example.com',
+  );
+  assert.equal(portrait.orientation, 'portrait');
+  assert.equal(portrait.wantGoogleShot, false);
+  assert.equal(portrait.form.name, 'Ada');
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {
