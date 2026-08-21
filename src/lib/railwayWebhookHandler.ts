@@ -77,9 +77,9 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
 /**
  * Railway project webhook → admin repair chat + deploy indicator.
  *
- * Deploy failures always open a new chat with Railway logs and auto-run the
- * agent to fix (typos / lockfile / collisions). Full incident lock + verify
- * loop runs when RAILWAY_INCIDENT_HANDLER=1. No phone push for build failures.
+ * Deploy failures open one repair Session per service (reused on later
+ * crashes) with Railway logs and auto-run the agent. Full incident lock +
+ * verify loop runs when RAILWAY_INCIDENT_HANDLER=1. No phone push.
  *
  * Deploy success resumes the registered admin chat (same thread, with
  * history) so mid-task workflows continue after the deploy lands.
@@ -171,8 +171,7 @@ export async function handleRailwayWebhook(opts: {
     return { ok: true, status: 200, message: msg };
   }
 
-  // Always open a repair chat with logs and auto-fix — even when the
-  // heavier incident lock/verify loop is off.
+  // Continue the one repair Session for this service (create if needed).
   const { openDeployFailureRepairChat } = await import('./deployFailureChat');
   const opened = await openDeployFailureRepairChat({
     source: 'webhook',

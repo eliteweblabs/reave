@@ -23,6 +23,7 @@
     "check:chat-nav": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-button-nav.ts",
     "check:agent-model": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-agent-model.ts",
     "check:agent-memory": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-agent-memory.ts",
+    "check:agent-awareness": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-agent-awareness.ts",
     "check:drain": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-agent-run-drain.ts",
     "check:notif-dedupe": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-dashboard-notification-dedupe.ts",
     "check:calendar-reminders": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-calendar-reminders.ts",

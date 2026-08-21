@@ -1,5 +1,6 @@
 /**
- * Post operational alerts into isolated admin agent chat threads (one per event).
+ * Post operational alerts into admin agent chat threads (one per event,
+ * except deploy-failure repairs which reuse one Session per service).
  */
 
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
