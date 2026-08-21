@@ -61,7 +61,7 @@ import {
 } from './work-panel.js?v=20260820a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260821b';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260821c';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 

@@ -183,7 +183,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260821b';
+} from './schedule-panel.js?v=20260821c';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
