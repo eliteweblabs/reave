@@ -32,6 +32,7 @@
     "check:email-triage": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-triage-scenarios.ts",
     "check:email-meeting": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-meeting-parse.ts",
     "check:inbound-install": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-inbound-install.ts",
+    "check:seeded-inbox": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-seeded-inbox-cleanup.ts",
     "check:deploy-wizard": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-deploy-wizard.ts",
     "check:court-radius": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-court-radius.ts",
     "check:website-editor": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-website-editor-repo.ts",

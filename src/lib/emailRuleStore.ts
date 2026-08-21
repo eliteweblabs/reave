@@ -51,6 +51,12 @@ export interface EmailRulesConfig {
   inboundSince?: string | null;
   /** One-time: catalog statuses backfilled to universal after scope column landed. */
   scopeSeeded?: boolean;
+  /**
+   * Whether RESEND_API_KEY has ever been observed as set on this install.
+   * null = never observed, false = observed blank/null, true = observed set.
+   * Once true, it must not go back to false (key rotation must not re-arm seed wipe).
+   */
+  emailApiSeen?: boolean | null;
   rules: EmailRuleRecord[];
 }
 
@@ -65,6 +71,7 @@ INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS inbound_since TIMESTAMPTZ;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_hits_seeded BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_scope_seeded BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS email_api_seen BOOLEAN;
 
 CREATE TABLE IF NOT EXISTS email_rules (
   id          UUID PRIMARY KEY,
@@ -281,6 +288,8 @@ function parseConfig(raw: string): EmailRulesConfig | null {
           ? null
           : String(data.inboundSince),
       scopeSeeded: data.scopeSeeded === true,
+      emailApiSeen:
+        data.emailApiSeen === true ? true : data.emailApiSeen === false ? false : null,
       rules: data.rules.map((r, i) => {
         const notifyFields = coalesceRuleNotifyFields({
           notify: !!r.notify,
@@ -376,8 +385,9 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
       notify_on_unmatched: boolean;
       inbound_since: Date | string | null;
       rule_scope_seeded: boolean;
+      email_api_seen: boolean | null;
     }>(
-      `SELECT notify_on_unmatched, inbound_since, rule_scope_seeded FROM email_triage_config WHERE id = 1`
+      `SELECT notify_on_unmatched, inbound_since, rule_scope_seeded, email_api_seen FROM email_triage_config WHERE id = 1`
     );
     const notifyOnUnmatched = cfgRes.rows[0]?.notify_on_unmatched ?? NOTIFY_ON_UNMATCHED;
     const inboundSinceRaw = cfgRes.rows[0]?.inbound_since;
@@ -385,6 +395,9 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
       ? new Date(inboundSinceRaw).toISOString()
       : null;
     const scopeSeeded = cfgRes.rows[0]?.rule_scope_seeded === true;
+    const emailApiSeenRaw = cfgRes.rows[0]?.email_api_seen;
+    const emailApiSeen =
+      emailApiSeenRaw === true ? true : emailApiSeenRaw === false ? false : null;
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
@@ -397,7 +410,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
       // An in-flight rewrite used to DELETE the table first — don't treat that
       // as a blank install or we re-seed catalog-only and wipe personal rules.
       if (scopeSeeded) {
-        return { notifyOnUnmatched, inboundSince, scopeSeeded, rules: [] };
+        return { notifyOnUnmatched, inboundSince, scopeSeeded, emailApiSeen, rules: [] };
       }
       const seeded = seedFromDefaults();
       await saveToPg(seeded);
@@ -408,6 +421,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
       notifyOnUnmatched,
       inboundSince,
       scopeSeeded,
+      emailApiSeen,
       rules: rows.map(rowToRecord),
     };
   } catch (e) {
@@ -1044,6 +1058,64 @@ export async function storeSetInboundSince(iso: string): Promise<boolean> {
   const config = await loadEmailRulesConfig();
   if (config.inboundSince) return true;
   config.inboundSince = parsed.toISOString();
+  return persistConfig(config);
+}
+
+function coerceEmailApiSeen(raw: unknown): boolean | null {
+  if (raw === true) return true;
+  if (raw === false) return false;
+  return null;
+}
+
+/** Whether RESEND_API_KEY has ever been observed as set. null = never observed. */
+export async function storeGetEmailApiSeen(): Promise<boolean | null> {
+  if (emailRulesStorageBackend() === 'postgres') {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return null;
+      const { rows } = await pool.query<{ email_api_seen: boolean | null }>(
+        `SELECT email_api_seen FROM email_triage_config WHERE id = 1`,
+      );
+      return coerceEmailApiSeen(rows[0]?.email_api_seen);
+    } catch (e) {
+      console.error('[email-rules] pg get email_api_seen failed', e);
+      return null;
+    }
+  }
+  const config = await loadEmailRulesConfig();
+  return coerceEmailApiSeen(config.emailApiSeen);
+}
+
+/**
+ * Persist whether the email API has been observed as set.
+ * Once true, later false writes are ignored so key rotation cannot re-arm the seed wipe.
+ */
+export async function storeSetEmailApiSeen(seen: boolean): Promise<boolean> {
+  if (emailRulesStorageBackend() === 'postgres') {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return false;
+      await pool.query(
+        `INSERT INTO email_triage_config (id, notify_on_unmatched, email_api_seen, updated_at)
+         VALUES (1, true, $1, now())
+         ON CONFLICT (id) DO UPDATE SET
+           email_api_seen = CASE
+             WHEN email_triage_config.email_api_seen IS TRUE THEN TRUE
+             ELSE EXCLUDED.email_api_seen
+           END,
+           updated_at = now()`,
+        [seen],
+      );
+      return true;
+    } catch (e) {
+      console.error('[email-rules] pg set email_api_seen failed', e);
+      return false;
+    }
+  }
+
+  const config = await loadEmailRulesConfig();
+  if (config.emailApiSeen === true) return true;
+  config.emailApiSeen = seen;
   return persistConfig(config);
 }
 

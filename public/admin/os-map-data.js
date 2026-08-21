@@ -357,7 +357,7 @@ const EMAIL_TRIAGE_NODES = [
   { id: 'et_sort', title: 'Junk · receipt · alert', sub: 'Hide / expense · why-classified', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
 
   // Surfaces
-  { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · Email tab', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },
+  { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · wipe sample seed on first API', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },
   { id: 'et_dash', title: 'Dashboard banner', sub: 'Explain · Confirm · OTP · audit trail', icon: '📊', hue: 185, status: true, group: 'et_surfaces', x: 1440, y: 300 },
   { id: 'et_push', title: 'Web Push', sub: 'Phone PWA · tag per email', icon: '🔔', hue: 45, status: true, group: 'et_surfaces', x: 1440, y: 440 },
   { id: 'et_chat', title: 'System alerts chat', sub: 'Agent for ops automations', icon: '💬', hue: 300, status: true, group: 'et_surfaces', x: 1440, y: 580 },

@@ -5,6 +5,7 @@
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
 import { storeDeleteEmailInbox, storeDeleteInboxNotForInstall, storeListExpiredEmailInbox } from './emailInboxStore';
 import { installEmailDomains } from './inboundEmailInstall';
+import { ensureSeededInboxClearedOnLiveEmail } from './seededInboxCleanup';
 import { serverEnv } from './serverEnv';
 import { runSleepDeferredCatchUp } from './inboundEmailHandler';
 import { scheduleReviewsBadgePush } from './pushBadgeSync';
@@ -12,6 +13,7 @@ import { scheduleReviewsBadgePush } from './pushBadgeSync';
 let _timer: ReturnType<typeof setInterval> | null = null;
 let _running = false;
 let _foreignPurgeStarted = false;
+let _seededInboxCleanupStarted = false;
 
 /** Poll interval for expired-row cleanup (default 1 minute). */
 function pollIntervalMs(): number {
@@ -64,6 +66,12 @@ export function ensureEmailCleanupScheduler(): void {
   void purgeForeignInstallInboxOnce().catch((e) =>
     console.warn('[email-cleanup] foreign-install purge failed', e),
   );
+  if (!_seededInboxCleanupStarted) {
+    _seededInboxCleanupStarted = true;
+    void ensureSeededInboxClearedOnLiveEmail().catch((e) =>
+      console.warn('[email-cleanup] seeded inbox cleanup failed', e),
+    );
+  }
   void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
   _timer = setInterval(() => {
     void runEmailCleanup().catch((e) => console.warn('[email-cleanup] run failed', e));

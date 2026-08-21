@@ -17,6 +17,7 @@ import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
+import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
 
 export const prerender = false;
 
@@ -42,6 +43,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   ensureEmailCleanupScheduler();
+  await ensureSeededInboxClearedOnLiveEmail().catch(() => undefined);
   const { userId } = auth;
 
   const limitRaw = context.url.searchParams.get('limit');

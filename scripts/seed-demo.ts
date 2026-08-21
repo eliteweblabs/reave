@@ -674,6 +674,23 @@ async function seedJobComments(pool: pg.Pool): Promise<void> {
   }
 }
 
+/** Remember this install started without RESEND_API_KEY so a later first set can wipe seed mail. */
+async function markEmailApiUnset(pool: pg.Pool): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_triage_config (
+      id                  INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      notify_on_unmatched BOOLEAN NOT NULL DEFAULT true,
+      updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
+      ON CONFLICT (id) DO NOTHING;
+    ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS email_api_seen BOOLEAN;
+    UPDATE email_triage_config
+       SET email_api_seen = false, updated_at = now()
+     WHERE id = 1 AND email_api_seen IS DISTINCT FROM TRUE
+  `);
+}
+
 async function seedEmails(pool: pg.Pool, contacts: Map<string, SeededContact>): Promise<void> {
   await ensureEmailSchema(pool);
   log(`Seeding ${DEMO_EMAILS.length} inbox messages…`);
@@ -957,8 +974,10 @@ async function main(): Promise<void> {
     const contacts = await seedContacts();
     await seedJobs(pool, contacts);
     await seedJobComments(pool);
-    if (!SKIP_INBOX) await seedEmails(pool, contacts);
-    else log('Skipping inbox seed (--no-inbox)');
+    if (!SKIP_INBOX) {
+      await seedEmails(pool, contacts);
+      if (!env('RESEND_API_KEY')) await markEmailApiUnset(pool);
+    } else log('Skipping inbox seed (--no-inbox)');
     await seedChats(pool);
     if (!SKIP_TODOS) await seedTodos(pool);
     else log('Skipping todos seed (--no-todos)');
