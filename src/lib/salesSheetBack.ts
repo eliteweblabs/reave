@@ -1,15 +1,18 @@
 /**
  * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
- * Three columns on Letter: hosting, custom builds, and cover/Q&A, with a full-width
- * “REΛVE builds with” stack strip along the bottom. Same HTML for every client.
+ * Three columns on Letter: inner gate (portal welcome + Q&A), back cover
+ * (custom builds + full platform stack), and front cover (icon dead center +
+ * diagnostic). Same HTML for every client.
  */
-import { formatHostingUsd, HOSTING_CARE_PLANS } from './hostingPlans';
+import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
 
 export type SalesSheetBackCompany = {
   name?: string;
   supportEmail?: string;
+  /** Admin → Company “Outreach note” / portal welcome sheet. */
+  portalOutreachNotice?: string;
 };
 
 export type SalesSheetBackOrientation = 'portrait' | 'landscape';
@@ -20,26 +23,8 @@ export type SalesSheetBackLogo = {
   slug?: string;
 };
 
-/** Flyer back — one print row. Yellowed marks stay on /platform, not here. */
-const SALES_SHEET_STACK_SLUGS = [
-  'astro',
-  'nodedotjs',
-  'railway',
-  'supabase',
-  'clerk',
-  'resend',
-  'anthropic',
-  'github',
-  'cloudflare',
-  'caldotcom',
-  'plausibleanalytics',
-] as const;
-
-export const SALES_SHEET_STACK: StackTech[] = SALES_SHEET_STACK_SLUGS.map((slug) => {
-  const tech = PLATFORM_STACK.find((item) => item.slug === slug);
-  if (!tech) throw new Error(`sales sheet stack is missing ${slug}`);
-  return tech;
-});
+/** Full /platform stack — print every mark so the set can be edited again. */
+export const SALES_SHEET_STACK: StackTech[] = PLATFORM_STACK;
 
 /** Side and bottom inset. Top stays a hair larger so the mast still clears. */
 export const SALES_SHEET_PRINT_INSET = '0.2in';
@@ -57,7 +42,7 @@ export type SalesSheetBackQa = {
   a: string;
 };
 
-/** Print-tight objections on the REΛVE cover. Add more here as they land. */
+/** Print-tight objections on the inner gate. Add more here as they land. */
 export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
   {
     q: 'Worried about working with a small shop?',
@@ -93,11 +78,29 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function noticeParagraphsHtml(notice: string): string {
+  return notice
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p class="ss-back-copy">${esc(p).replace(/\n/g, '<br />')}</p>`)
+    .join('');
+}
+
 function stackLogoHtml(logo: SalesSheetBackLogo): string {
   const slug = (logo.slug || logo.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
   return `<li class="ss-stack-item" data-stack="${esc(slug)}">
   <img class="ss-stack-logo" src="${esc(logo.src)}" alt="${esc(logo.name)}" />
 </li>`;
+}
+
+function qaListHtml(): string {
+  return SALES_SHEET_BACK_QA.map(
+    (item) => `<div class="ss-back-qa-item">
+            <dt>${esc(item.q)}</dt>
+            <dd>${esc(item.a)}</dd>
+          </div>`,
+  ).join('');
 }
 
 function backPageCss(orientation: SalesSheetBackOrientation): string {
@@ -153,13 +156,9 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.ss-sheet-back .ss-back-cols,
-.ss-sheet-back .ss-back-platform,
-.ss-sheet-back .doc-onepager-footer {
+.ss-sheet-back .ss-back-cols {
   position: relative;
   z-index: 1;
-}
-.ss-sheet-back .ss-back-cols {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
@@ -169,12 +168,12 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-back-col {
   min-width: 0;
-  min-height: 0;
+  min-height: ${orientation === 'portrait' ? '2.8in' : '0'};
   display: flex;
   flex-direction: column;
   gap: 0.38em;
 }
-.ss-sheet-back .ss-back-col--hosting {
+.ss-sheet-back .ss-back-col--gate {
   justify-content: flex-start;
 }
 .ss-sheet-back .ss-back-col + .ss-back-col {
@@ -197,27 +196,12 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   line-height: 1.15;
 }
 .ss-sheet-back .ss-back-copy,
-.ss-sheet-back .ss-back-stat,
 .ss-sheet-back .ss-back-offer {
   margin: 0;
   font-size: clamp(8px, 1.15cqi, 10px);
   line-height: 1.38;
   color: #2a2a2a;
 }
-.ss-sheet-back .ss-back-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35em;
-}
-.ss-sheet-back .ss-back-list li {
-  font-size: clamp(8px, 1.1cqi, 10px);
-  line-height: 1.35;
-  color: #2a2a2a;
-}
-.ss-sheet-back .ss-back-list strong { color: var(--doc-ink); }
 .ss-sheet-back .ss-back-locals {
   list-style: none;
   margin: 0;
@@ -241,18 +225,22 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-style: italic;
 }
 .ss-sheet-back .ss-back-col--cover {
+  position: relative;
   align-items: stretch;
-  justify-content: flex-start;
+  justify-content: flex-end;
   text-align: left;
   border-left-color: var(--doc-rule);
 }
 .ss-sheet-back .ss-back-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  flex: 0 1 auto;
-  width: 100%;
-  min-height: 0;
-  margin-bottom: 0.15em;
+  width: auto;
+  max-width: 70%;
+  pointer-events: none;
 }
 .ss-sheet-back .ss-back-icon .doc-brand,
 .ss-sheet-back .ss-back-icon .doc-onepager-logo-img,
@@ -261,14 +249,32 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-icon svg {
   display: block;
   width: auto;
-  height: clamp(36px, 9cqh, 64px);
-  max-width: 55%;
+  height: clamp(56px, 16cqh, 110px);
+  max-width: 70%;
   margin: 0 auto;
+  object-fit: contain;
+}
+.ss-sheet-back .ss-back-gate-icon {
+  margin-top: auto;
+  display: grid;
+  place-items: start;
+  padding-top: 0.4em;
+}
+.ss-sheet-back .ss-back-gate-icon .doc-brand,
+.ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-img,
+.ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-svg,
+.ss-sheet-back .ss-back-gate-icon img,
+.ss-sheet-back .ss-back-gate-icon svg {
+  display: block;
+  width: auto;
+  height: clamp(16px, 3.6cqh, 24px);
+  max-width: 28%;
   object-fit: contain;
 }
 .ss-sheet-back .ss-back-qa {
   width: 100%;
   text-align: left;
+  margin-top: 0.45em;
 }
 .ss-sheet-back .ss-back-qa-list {
   list-style: none;
@@ -315,6 +321,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   color: #2a2a2a;
 }
 .ss-sheet-back .ss-back-diagnostic {
+  position: relative;
+  z-index: 1;
   margin-top: auto;
   padding-top: 0.35em;
 }
@@ -336,30 +344,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex-direction: column;
   gap: 0.4em;
   width: 100%;
-}
-.ss-sheet-back .ss-back-builds-with {
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-  width: 100%;
-  margin: 0;
-  text-align: center;
-}
-.ss-sheet-back .ss-back-builds-with::before,
-.ss-sheet-back .ss-back-builds-with::after {
-  content: "";
-  flex: 1 1 auto;
-  height: 1px;
-  background: var(--doc-ink);
-  opacity: 0.28;
-}
-.ss-sheet-back .ss-back-builds-with span {
-  flex: 0 0 auto;
-  font-size: clamp(8px, 1.2cqi, 10px);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--doc-ink);
+  margin-top: auto;
+  padding-top: 0.55em;
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
@@ -367,10 +353,10 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   padding: 0;
   width: 100%;
   display: flex;
-  flex-wrap: nowrap;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   align-items: center;
-  gap: 0.16em;
+  gap: 0.42em 0.55em;
 }
 .ss-sheet-back .ss-stack-item {
   display: flex;
@@ -379,20 +365,12 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-stack-logo {
   display: block;
-  width: clamp(9px, 1.25cqi, 13px);
-  height: clamp(9px, 1.25cqi, 13px);
+  width: clamp(12px, 1.7cqi, 16px);
+  height: clamp(12px, 1.7cqi, 16px);
   object-fit: contain;
   filter: brightness(0);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-}
-.ss-sheet-back .doc-onepager-footer {
-  flex: 0 0 auto;
-  padding-top: 0.8%;
-  border-top: none;
-  font-size: clamp(8px, 1.2cqi, 10.5px);
-  line-height: 1.4;
-  color: var(--doc-muted);
 }
 @page { size: ${pageSize}; margin: 0; }
 @media print {
@@ -421,12 +399,9 @@ export function renderSalesSheetBackHtml(opts: {
   iconHtml?: string;
 }): string {
   const name = (opts.company?.name || 'This platform').trim();
-  const support = (opts.company?.supportEmail || '').trim();
   const stack = salesSheetStackLogos(opts.stackLogos);
   const stackItems = stack.map(stackLogoHtml).join('');
-  const care = HOSTING_CARE_PLANS.find((plan) => plan.id === 'care');
-  const unlimited = HOSTING_CARE_PLANS.find((plan) => plan.id === 'care-unlimited');
-  const footerBits = [esc(name), support ? esc(support) : '', 'Printed two sides', 'Page 2 of 2'].filter(Boolean);
+  const notice = (opts.company?.portalOutreachNotice || '').trim() || DEFAULT_PORTAL_OUTREACH_NOTICE;
   const iconHtml =
     (opts.iconHtml || '').trim() || `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
   const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
@@ -436,33 +411,15 @@ export function renderSalesSheetBackHtml(opts: {
 <div class="doc-onepager-stage ss-sheet-back">
   <article class="doc-onepager" data-orientation="${opts.orientation}" data-ss-page="back">
     <div class="ss-back-cols">
-      <section class="ss-back-col ss-back-col--hosting" data-ss-col="hosting">
+      <section class="ss-back-col ss-back-col--gate" data-ss-col="gate">
         <p class="ss-back-kicker">Managed hosting</p>
         <h2 class="ss-back-h">We host it. We watch it. We fix it.</h2>
-        <p class="ss-back-copy">
-          Over 20 years designing logos, sites, plugins, and apps for shops that
-          needed more than a template. Every finding on the other side of this
-          sheet is work we take on with a one-year Core OS plan — daily scans,
-          malware cleanup, weekly SEO reports, and the updates nobody wants to
-          babysit.
-        </p>
-        <ul class="ss-back-list">
-          <li><strong>Core OS</strong> ${care ? `${formatHostingUsd(care.annualUsd)}/year` : '$600/year'} · the site, watched</li>
-          <li><strong>Growth</strong> ${unlimited ? `${formatHostingUsd(unlimited.annualUsd)}/year` : '$900/year'} · plus edits whenever you need them</li>
-        </ul>
-        <p class="ss-back-stat">
-          Infrastructure sits on Railway™ — git-push deploys, isolated containers,
-          not a shared cPanel box. Their builder clears 50M+ builds a month and
-          has peaked at 66,000 builds an hour on bare metal. Rollbacks in one click.
-        </p>
-        <p class="ss-back-copy">
-          What the fixes do: the page loads, the listing shows, the form works,
-          and you stop losing calls to a site that looks closed.
-        </p>
-        <p class="ss-back-offer">
-          <strong>Nearby rate</strong> — first-year Core OS for shops we can actually
-          get to. Not on the website. Ask while we’re standing here.
-        </p>
+        <div class="ss-back-intro" data-ss-col="welcome">${noticeParagraphsHtml(notice)}</div>
+        <div class="ss-back-qa" data-ss-col="qa">
+          <p class="ss-back-kicker">Q&amp;A</p>
+          <dl class="ss-back-qa-list">${qaListHtml()}</dl>
+        </div>
+        <div class="ss-back-gate-icon" data-ss-col="gate-icon">${iconHtml}</div>
       </section>
       <section class="ss-back-col ss-back-col--builds" data-ss-col="builds">
         <p class="ss-back-kicker">Custom builds</p>
@@ -478,29 +435,19 @@ export function renderSalesSheetBackHtml(opts: {
         </p>
         <p class="ss-back-kicker">Local</p>
         <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
+        <div class="ss-back-platform" data-ss-col="stack">
+          <p class="ss-back-kicker">REΛVE builds with</p>
+          <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
+        </div>
       </section>
       <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
         <div class="ss-back-icon">${iconHtml}</div>
-        <div class="ss-back-qa" data-ss-col="qa">
-          <p class="ss-back-kicker">Q&amp;A</p>
-          <dl class="ss-back-qa-list">${SALES_SHEET_BACK_QA.map(
-            (item) => `<div class="ss-back-qa-item">
-            <dt>${esc(item.q)}</dt>
-            <dd>${esc(item.a)}</dd>
-          </div>`,
-          ).join('')}</dl>
-        </div>
         <div class="ss-back-diagnostic">
           <h2>Online presence diagnostic</h2>
           <p>An independent systems scan of your business’s digital footprint.</p>
         </div>
       </section>
     </div>
-    <div class="ss-back-platform" data-ss-col="stack">
-      <p class="ss-back-builds-with"><span>REΛVE builds with</span></p>
-      <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
-    </div>
-    <footer class="doc-onepager-footer">${footerBits.join(' · ')}</footer>
   </article>
 </div>`.trim();
 }

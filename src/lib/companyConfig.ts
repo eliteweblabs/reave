@@ -13,10 +13,8 @@ import {
 import { BRAND_ICON_SIZES } from './brandIconRaster';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 
-/** Default copy for the client portal outreach sheet (admin-editable in Company settings). */
-export const DEFAULT_PORTAL_OUTREACH_NOTICE = `This is not spam. I live/work in Beverly and have over 20 years of experience building websites and apps.
-
-Please leave a comment, schedule a consultation or call. This is not automated or random, I most likely have been to your establishment with my dog Rekko. 🐕 🙏`;
+import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
+export { DEFAULT_PORTAL_OUTREACH_NOTICE };
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
 import { serverEnv } from './serverEnv';

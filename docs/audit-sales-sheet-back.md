@@ -3,16 +3,19 @@
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 - **Front** — custom: client, scores, three cascade findings, Places phone, QR.
-- **Back (REΛVE side)** — static three columns (hosting, custom builds,
-  cover/Q&A) plus a full-width “REΛVE builds with” stack strip. Same HTML
-  for every client (`src/lib/salesSheetBack.ts`).
+- **Back (REΛVE side)** — static three columns: inner gate (portal welcome +
+  Q&A), back cover (custom builds + full `PLATFORM_STACK`), front cover
+  (icon dead center + diagnostic). Same HTML for every client
+  (`src/lib/salesSheetBack.ts`).
 
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
-Stack logos: `PLATFORM_STACK` in `src/lib/platformStack.ts` (Railway™, Supabase,
-Anthropic/Claude, …) — black marks only, no labels or tiles.
+Stack logos: full `PLATFORM_STACK` in `src/lib/platformStack.ts` (Railway™,
+Supabase, Anthropic/Claude, Playwright™, …) — black marks only, no labels
+or tiles, pinned to the bottom of the back-cover column.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
-`/digital-audit`). Hosting copy: `/hosting` Core OS and Growth plans.
+`/digital-audit`). Inner-gate copy: Company outreach note / portal welcome
+(`portalOutreachNotice`, default “This is not spam…”).
 
 ---
 
@@ -49,15 +52,15 @@ name, scores, findings, or QR here.
 
 The whole page uses `/reave-bg-pattern.svg` (same chevron as the marketing site).
 
-1. **Left — Managed hosting** — `/hosting` Care pitch, About “20 years”
-   line, Barry Levine hosting quote, Railway™ stats, workshop “Nearby rate”,
+1. **Left — Inner gate** — “We host it…” hook, then the portal / Admin
+   outreach welcome (this is not spam), the small-shop Q&A, and a small
+   company icon at the bottom left.
+2. **Middle — Back cover** — custom-build line, Barry Levine hosting quote,
    local clients (Barber's Edge, The Law Office of Barry Levine, MDOT.world),
-   then a 10-across row of small stack marks (Astro, Playwright™, and the rest
-   of `PLATFORM_STACK`) pinned to the bottom of the panel.
-2. **Right — Cover** — company icon dead center, About “operators” + 90/10
-   custom-build line, then “Online presence diagnostic” and the independent
-   systems-scan lede at the bottom.
-3. **Footer** — company name, support email, “Printed two sides”, “Page 2 of 2”.
+   then every `PLATFORM_STACK` mark along the bottom of this panel.
+3. **Right — Front cover** — company icon dead center, then “Online presence
+   diagnostic” and the independent systems-scan lede at the bottom. No
+   page footer on the back.
 
 Print from `/admin/sales-sheet` → Print / Save PDF. Choose two-sided, short-edge
 bind on landscape.

@@ -43,6 +43,7 @@ import {
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
 import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA } from '../src/lib/salesSheetBack.ts';
+import { PLATFORM_STACK } from '../src/lib/platformStack.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -552,26 +553,25 @@ await test('front footer is page 1 of 2 after fill', () => {
   assert.doesNotMatch(filled, /Page 1 of 1/);
 });
 
-await test('static back is hosting + cover with stack marks and no client fields', () => {
+await test('static back is gate + builds + cover with full stack and no client fields', () => {
   const back = renderSalesSheetBackHtml({
     company: { name: 'REAVE', supportEmail: 'hello@reave.example' },
     orientation: 'landscape',
   });
   assert.match(back, /data-ss-page="back"/);
-  assert.match(back, /data-ss-col="hosting"/);
+  assert.match(back, /data-ss-col="gate"/);
+  assert.match(back, /data-ss-col="welcome"/);
   assert.match(back, /data-ss-col="builds"/);
   assert.match(back, /data-ss-col="cover"/);
   assert.match(back, /data-ss-col="stack"/);
   assert.match(back, /1fr 1fr 1fr/);
   assert.match(back, /REΛVE builds with/);
-  assert.match(back, /ss-back-builds-with/);
   assert.match(back, /Managed hosting/);
   assert.match(back, /We host it/);
-  assert.match(back, /Core OS/);
-  assert.match(back, />Growth</);
-  assert.match(back, /Railway™/);
-  assert.match(back, /50M\+/);
-  assert.match(back, /Nearby rate/);
+  assert.match(back, /This is not spam/);
+  assert.match(back, /Beverly/);
+  assert.match(back, /20 years/);
+  assert.match(back, /This is not automated or random/);
   assert.match(back, /Custom builds/);
   assert.match(back, /Built by operators/);
   assert.match(back, /one login instead of the SaaS pile/);
@@ -588,35 +588,30 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.match(back, /open source/);
   assert.match(back, /client retains full control of all licensing and products/);
   assert.equal(SALES_SHEET_BACK_QA.length, 1);
+  assert.ok(back.indexOf('data-ss-col="qa"') < back.indexOf('data-ss-col="builds"'));
+  assert.ok(back.indexOf('data-ss-col="stack"') > back.indexOf('data-ss-col="builds"'));
+  assert.match(back, /data-ss-col="cover"[\s\S]*class="ss-back-icon"/);
+  assert.match(back, /data-ss-col="gate-icon"/);
+  assert.match(back, /top: 50%/);
+  assert.match(back, /left: 50%/);
+  assert.match(back, /translate\(-50%, -50%\)/);
   assert.match(back, /reave-bg-pattern/);
   assert.match(back, /opacity: 0\.05/);
-  assert.match(back, /data-stack="astro"/);
-  assert.match(back, /data-stack="anthropic"/);
-  assert.match(back, /data-stack="railway"/);
-  assert.match(back, /data-stack="supabase"/);
-  assert.match(back, /data-stack="nodedotjs"/);
-  assert.match(back, /data-stack="github"/);
-  assert.match(back, /data-stack="cloudflare"/);
-  assert.match(back, /data-stack="caldotcom"/);
-  assert.match(back, /data-stack="plausibleanalytics"/);
-  assert.match(back, /flex-wrap: nowrap/);
+  for (const tech of PLATFORM_STACK) {
+    assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
+  }
+  assert.match(back, /flex-wrap: wrap/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
   assert.match(back, /padding: var\(--ss-print-inset-top\) var\(--ss-print-inset\) var\(--ss-print-inset\)/);
-  assert.match(back, /border-top: none/);
-  assert.equal((back.match(/data-stack="/g) || []).length, 11);
-  assert.doesNotMatch(back, /data-stack="react"/);
-  assert.doesNotMatch(back, /data-stack="typescript"/);
-  assert.doesNotMatch(back, /data-stack="postgresql"/);
-  assert.doesNotMatch(back, /data-stack="telnyx"/);
-  assert.doesNotMatch(back, /data-stack="pexels"/);
-  assert.doesNotMatch(back, /data-stack="uptimerobot"/);
-  assert.doesNotMatch(back, /data-stack="playwright"/);
-  assert.doesNotMatch(back, /Playwright™/);
-  assert.doesNotMatch(back, /repeat\(10,/);
+  assert.equal((back.match(/data-stack="/g) || []).length, PLATFORM_STACK.length);
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
-  assert.match(back, /Page 2 of 2/);
-  assert.match(back, /hello@reave\.example/);
+  assert.match(back, /\/stack\/playwright\.svg/);
+  assert.doesNotMatch(back, /Printed two sides/);
+  assert.doesNotMatch(back, /Page 2 of 2/);
+  assert.doesNotMatch(back, /hello@reave\.example/);
+  assert.doesNotMatch(back, /doc-onepager-footer/);
+  assert.doesNotMatch(back, /ss-back-builds-with/);
   assert.doesNotMatch(back, /ss-back-tile|ss-back-mark|border-radius: 10px/);
   assert.doesNotMatch(back, /Gmail|HubSpot|Replace the stack|Worked with/);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);

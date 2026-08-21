@@ -1,0 +1,4 @@
+/** Default copy for the client portal outreach sheet (admin-editable in Company settings). */
+export const DEFAULT_PORTAL_OUTREACH_NOTICE = `This is not spam. I live/work in Beverly and have over 20 years of experience building websites and apps.
+
+Please leave a comment, schedule a consultation or call. This is not automated or random, I most likely have been to your establishment with my dog Rekko. 🐕 🙏`;
