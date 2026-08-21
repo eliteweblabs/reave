@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS email_rules (
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS summary_override TEXT;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS forward_to TEXT;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS create_project BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS hit_count INT NOT NULL DEFAULT 0;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS last_matched_at TIMESTAMPTZ;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS except_phrases JSONB NOT NULL DEFAULT '[]';
@@ -216,6 +217,7 @@ function rowToRecord(row: {
   updated_at?: Date | string | null;
   summary_override?: string | null;
   forward_to?: string | null;
+  create_project?: boolean | null;
   except_phrases?: unknown;
   notify_push?: boolean | null;
   notify_dashboard?: boolean | null;
@@ -264,6 +266,7 @@ function rowToRecord(row: {
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
     summaryOverride: row.summary_override ?? undefined,
     forwardTo: row.forward_to?.trim() || null,
+    createProject: row.create_project === true,
   };
 }
 
@@ -317,6 +320,7 @@ function parseConfig(raw: string): EmailRulesConfig | null {
           updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
           summaryOverride: r.summaryOverride ? String(r.summaryOverride) : undefined,
           forwardTo: r.forwardTo ? String(r.forwardTo).trim() : null,
+          createProject: r.createProject === true,
         };
       }),
     };
@@ -384,7 +388,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-              expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
+              expires_at, created_at, updated_at, summary_override, forward_to, create_project, hit_count, last_matched_at,
               except_phrases, notify_push, notify_dashboard, notify_actions, scope
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
@@ -433,9 +437,9 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-           expires_at, created_at, updated_at, summary_override, forward_to, hit_count, last_matched_at,
+           expires_at, created_at, updated_at, summary_override, forward_to, create_project, hit_count, last_matched_at,
            except_phrases, notify_push, notify_dashboard, notify_actions, scope)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
          ON CONFLICT (id) DO UPDATE SET
            sort_order = EXCLUDED.sort_order,
            title = EXCLUDED.title,
@@ -450,6 +454,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
            updated_at = EXCLUDED.updated_at,
            summary_override = EXCLUDED.summary_override,
            forward_to = EXCLUDED.forward_to,
+           create_project = EXCLUDED.create_project,
            hit_count = EXCLUDED.hit_count,
            last_matched_at = EXCLUDED.last_matched_at,
            except_phrases = EXCLUDED.except_phrases,
@@ -473,6 +478,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.updatedAt ? new Date(r.updatedAt) : null,
           r.summaryOverride ?? null,
           r.forwardTo?.trim() || null,
+          r.createProject === true,
           Math.max(0, Number(r.hitCount) || 0),
           r.lastMatchedAt ? new Date(r.lastMatchedAt) : null,
           JSON.stringify(
@@ -642,6 +648,7 @@ function catalogDefinition(def: EmailRule) {
     scope: 'universal' as const,
     expiresAt: null as string | null,
     forwardTo: null as string | null,
+    createProject: false,
   };
 }
 
@@ -661,6 +668,7 @@ function catalogDefinitionKey(r: {
   summaryOverride?: string;
   expiresAt?: string | null;
   forwardTo?: string | null;
+  createProject?: boolean;
 }): string {
   const notifyFields = coalesceRuleNotifyFields({
     notify: r.notify,
@@ -684,6 +692,7 @@ function catalogDefinitionKey(r: {
     summaryOverride: r.summaryOverride || '',
     expiresAt: r.expiresAt ?? null,
     forwardTo: r.forwardTo ?? null,
+    createProject: r.createProject === true,
   });
 }
 
@@ -823,6 +832,8 @@ export type RuleInput = {
   expiresAt?: string | null;
   /** Optional address to auto-forward matched mail to (Resend outbound). */
   forwardTo?: string | null;
+  /** When forwarding, also auto-create a project. Default false. */
+  createProject?: boolean;
   /** universal = all Reave installs (catalog); personal = this install only. */
   scope?: EmailRuleScope;
 };
@@ -866,6 +877,7 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
     enabled: input.enabled !== false,
     expiresAt,
     forwardTo,
+    createProject: input.createProject === true,
     ...(input.scope !== undefined
       ? { scope: normalizeEmailRuleScope(input.scope, 'personal') }
       : {}),

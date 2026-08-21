@@ -342,6 +342,7 @@ async function handle_list_email_filter_rules(_args: Record<string, unknown>, _c
     expired: isEmailRuleExpired(r, now),
     expiresAt: r.expiresAt ?? null,
     forwardTo: r.forwardTo ?? null,
+    createProject: r.createProject === true,
     createdAt: r.createdAt ?? null,
   }));
   return JSON.stringify({
@@ -373,6 +374,8 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
   const forwardRaw = args.forward_to ?? args.forwardTo;
   const forwardTo =
     forwardRaw != null && String(forwardRaw).trim() ? String(forwardRaw).trim() : null;
+  const createProjectRaw = args.create_project ?? args.createProject;
+  const createProject = createProjectRaw === true || createProjectRaw === 'true';
   const statusRaw = String(args.status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
   const status = defaultEmailFilterRuleStatus({ statusRaw, forwardTo });
   const title = defaultEmailFilterRuleTitle({
@@ -394,11 +397,13 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     existing: existing
       ? {
           forwardTo: existing.forwardTo ?? null,
+          createProject: existing.createProject === true,
           status: existing.status,
           catalog: isRepoCatalogRule(existing),
         }
       : null,
     forwardTo,
+    createProject,
     statusRaw,
   });
 
@@ -412,6 +417,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
         title: existing.title,
         phrases: existing.phrases,
         forwardTo: existing.forwardTo ?? null,
+        createProject: existing.createProject === true,
         expiresAt: existing.expiresAt ?? null,
       },
     });
@@ -435,6 +441,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       enabled: true,
       expiresAt: expiresAt === null ? existing.expiresAt ?? null : expiresAt,
       forwardTo: forwardTo ?? existing.forwardTo ?? null,
+      createProject,
       scope: 'personal',
     });
     if (updated) {
@@ -450,6 +457,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
           fields: updated.fields,
           matchMode: updated.matchMode,
           forwardTo: updated.forwardTo ?? null,
+          createProject: updated.createProject === true,
           expiresAt: updated.expiresAt ?? null,
           sortOrder: updated.sortOrder,
         },
@@ -482,6 +490,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     enabled: true,
     expiresAt,
     forwardTo,
+    createProject,
     scope: 'personal',
   });
   if (!rule) return JSON.stringify({ error: 'failed to create rule' });
@@ -496,6 +505,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       fields: rule.fields,
       matchMode: rule.matchMode,
       forwardTo: rule.forwardTo ?? null,
+      createProject: rule.createProject === true,
       expiresAt: rule.expiresAt ?? null,
       sortOrder: rule.sortOrder,
     },
@@ -638,7 +648,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is junk/DELETE (no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. If an enabled from-rule already exists for that sender, patch it with forward_to / status instead of skipping. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
+                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is junk/DELETE (no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. Forwarded mail does not auto-create a project unless create_project is true. If an enabled from-rule already exists for that sender, patch it with forward_to / status / create_project instead of skipping. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -675,7 +685,12 @@ export const emailInboxModule: AgentToolModule = {
                   forward_to: {
                     type: 'string',
                     description:
-                      'Optional email address to auto-forward matched messages to (e.g. teammate@company.com)',
+                      'Optional email address to auto-forward matched messages to (e.g. teammate@company.com). Forwarded mail does not create a project unless create_project is true.',
+                  },
+                  create_project: {
+                    type: 'boolean',
+                    description:
+                      'When true and forward_to is set, still auto-create a project from matched mail. Default false — relay only.',
                   },
                   expires_at: {
                     type: 'string',

@@ -13,6 +13,7 @@ import {
   defaultEmailFilterRuleStatus,
   defaultEmailFilterRuleTitle,
   planEmailFilterRuleWrite,
+  ruleAllowsAutoProject,
 } from '../src/lib/emailFilterRuleWrite';
 
 const googleSecurity = {
@@ -104,6 +105,15 @@ assert.equal(
   }),
   'create',
 );
+assert.equal(
+  planEmailFilterRuleWrite({
+    existing: { forwardTo: 'jk@capcofire.com', createProject: false, status: 'CUSTOM', catalog: false },
+    forwardTo: 'jk@capcofire.com',
+    createProject: true,
+    statusRaw: '',
+  }),
+  'update',
+);
 
 {
   const forward: EmailRule = {
@@ -123,6 +133,10 @@ assert.equal(
   const result = classifyEmail(upwork, [forward, ...DEFAULT_RULES]);
   assert.equal(result.status, 'CUSTOM');
   assert.equal(result.matched?.forwardTo, 'jk@capcofire.com');
+  assert.equal(ruleAllowsAutoProject(result.matched), false);
+  assert.equal(ruleAllowsAutoProject({ ...forward, createProject: true }), true);
+  assert.equal(ruleAllowsAutoProject({}), true);
+  assert.equal(ruleAllowsAutoProject({ forwardTo: null }), true);
 }
 
 {

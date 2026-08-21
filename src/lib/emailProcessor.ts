@@ -16,6 +16,7 @@ import {
   type RuleEvaluation,
 } from './emailRules';
 import { incrementEmailRuleHit, loadActiveEmailRules, type EmailRuleRecord } from './emailRuleStore';
+import { ruleAllowsAutoProject } from './emailFilterRuleWrite';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
 import { importEmailAttachmentsToProject } from './emailProjectAttachments';
@@ -1483,7 +1484,7 @@ export async function processInboundEmail(
       automationKind = null;
     }
 
-    if (inboxRecord?.id && bookingUid && !jobSlug) {
+    if (inboxRecord?.id && bookingUid && !jobSlug && ruleAllowsAutoProject(ruleResult.matched)) {
       const meetingProject = await ensureProjectForMeetingEmail({
         emailId: inboxRecord.id,
         from,
@@ -1560,7 +1561,9 @@ export async function processInboundEmail(
     bodySnippet: snippet(bodyText),
   });
 
+  const forwardedWithoutProject = !ruleAllowsAutoProject(ruleResult.matched);
   const blockAutoProject =
+    forwardedWithoutProject ||
     needsExplain ||
     action === 'project_reply' ||
     action === 'junk' ||
@@ -1577,7 +1580,13 @@ export async function processInboundEmail(
     (aiTrusted && aiClassify != null && aiClassify.label !== 'project' && aiClassify.label !== 'client');
 
   if (dryRun) {
-    if (!automationKind && !jobSlug && !blockAutoProject) {
+    if (forwardedWithoutProject) {
+      pushAudit(
+        'project',
+        'Skip auto-create project',
+        `Rule forwards to ${forwardTo} — createProject is off by default`,
+      );
+    } else if (!automationKind && !jobSlug && !blockAutoProject) {
       pushAudit(
         'project',
         'Would evaluate auto-create project',

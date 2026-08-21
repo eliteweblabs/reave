@@ -182,6 +182,10 @@ export function formatRuleLabMeta(rule) {
   if (status && !derived) bits.push(status);
   bits.push(formatRuleProcessLabel(rule));
   if (rule?.enabled === false) bits.push('Off');
+  if (rule?.forwardTo) {
+    bits.push(`→ ${rule.forwardTo}`);
+    if (rule.createProject) bits.push('create project');
+  }
   return bits.join(' · ');
 }
 
@@ -195,7 +199,7 @@ export const PIPELINE_FUNCTIONS = [
   { id: 'override', label: 'Receipt / OTP overrides', sub: 'Money heuristics · auth links' },
   { id: 'project_reply', label: 'Project reply detect', sub: 'Thread / subject match' },
   { id: 'meeting', label: 'Meeting automation', sub: 'Follow-up · auto-book · conflict' },
-  { id: 'project', label: 'Project automation', sub: 'Match · auto-create' },
+  { id: 'project', label: 'Project automation', sub: 'Match · skip if forwarded' },
   { id: 'persist', label: 'Inbox + notify', sub: 'Push · agent alerts · dashboard' },
 ];
 
@@ -326,6 +330,7 @@ export function createEmailTriageLab(deps) {
       formatRuleLabMeta(rule),
       rule.scope === 'universal' ? 'Universal' : showPersonal() ? 'Personal' : '',
       rule.forwardTo,
+      rule.createProject ? 'create project' : '',
       ...(rule.phrases || []),
       ...(rule.exceptPhrases || []),
     ];

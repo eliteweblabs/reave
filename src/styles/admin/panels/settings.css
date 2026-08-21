@@ -742,15 +742,6 @@
   opacity: 0.6;
   cursor: wait;
 }
-.prof-branding-download {
-  margin-top: 0.1rem;
-  padding: 0.35rem 0.65rem;
-  font-size: 0.82rem;
-}
-.prof-branding-download[hidden] {
-  display: none !important;
-}
-
 .prof-check-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
