@@ -69,7 +69,7 @@ const SYSTEM_NODES = [
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'outbound · projectCreate · domains', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 220 },
-  { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
+  { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · one repair Session per service · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
   { id: 'kinsta_api', title: 'Kinsta API', sub: 'outbound · list_kinsta_sites · clear cache', icon: '🟣', brand: 'kinsta', hue: 280, status: true, group: 'external', x: 1160, y: 460 },
   { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound portal/forms/docs', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
   { id: 'github', title: 'GitHub', sub: 'owner/repo · REST · create repo · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
@@ -220,7 +220,7 @@ const SYSTEM_EDGES = [
   { from: 'dev', to: 'deploy_wizard', label: 'owner', dashed: true },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
-  { from: 'railway_webhook', to: 'anthropic', label: 'System alerts chat', dashed: true },
+  { from: 'railway_webhook', to: 'anthropic', label: 'one repair Session / service', dashed: true },
 ];
 
 const SYSTEM_GROUPS = [
@@ -360,7 +360,7 @@ const EMAIL_TRIAGE_NODES = [
   { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · wipe sample seed on first API', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },
   { id: 'et_dash', title: 'Dashboard banner', sub: 'Explain · Confirm · OTP · audit trail', icon: '📊', hue: 185, status: true, group: 'et_surfaces', x: 1440, y: 300 },
   { id: 'et_push', title: 'Web Push', sub: 'Phone PWA · tag per email', icon: '🔔', hue: 45, status: true, group: 'et_surfaces', x: 1440, y: 440 },
-  { id: 'et_chat', title: 'System alerts chat', sub: 'Agent for ops automations', icon: '💬', hue: 300, status: true, group: 'et_surfaces', x: 1440, y: 580 },
+  { id: 'et_chat', title: 'System alerts chat', sub: 'Ops automations · deploy repair reuses one Session per service', icon: '💬', hue: 300, status: true, group: 'et_surfaces', x: 1440, y: 580 },
 ];
 
 const EMAIL_TRIAGE_EDGES = [

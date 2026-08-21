@@ -7,8 +7,13 @@ export interface AgentRunContext {
   userId?: string;
   threadId?: string;
   emailId?: string;
-  /** Automated system alert — do not replay chat history or "wait for instructions". */
+  /** Automated system alert — do not wait for the owner; still reuse Session history when present. */
   systemAlert?: boolean;
+  /**
+   * Deploy / crash auto-repair — more tool rounds so the agent can actually
+   * diagnose and ship a fix instead of stopping at a 5-round diagnosis.
+   */
+  repairRun?: boolean;
   /**
    * Owner-initiated Siri Shortcuts (and similar) may run Claude during sleep mode.
    * Checked by the agent runner and Anthropic client — automated overnight work stays blocked.

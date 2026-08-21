@@ -70,7 +70,7 @@ export const chatsModule: AgentToolModule = {
       function: {
         name: 'list_chats',
         description:
-          'List recent active (non-archived) admin chat sessions. Returns title, id, dates, and last-message role. Use to find a session by name/date before renaming, archiving, or deleting.',
+          'List recent active (non-archived) admin chat sessions. Returns title, id, dates, and last-message role. You are the same agent in every Session — use this (then get_chat) to recall prior work before starting over or opening a duplicate repair.',
         parameters: {
           type: 'object',
           properties: {
@@ -114,7 +114,7 @@ export const chatsModule: AgentToolModule = {
       function: {
         name: 'get_chat',
         description:
-          'Fetch the full message history for a chat session by thread_id. Use list_chats first to find the id. Omit thread_id to read the current session.',
+          'Fetch the full message history for a chat session by thread_id. Use list_chats first to find the id. Omit thread_id to read the current session. Call this when a recent Session already covers the same problem (especially a prior deploy failure).',
         parameters: {
           type: 'object',
           properties: {
@@ -136,7 +136,7 @@ export const chatsModule: AgentToolModule = {
       function: {
         name: 'search_chats',
         description:
-          'Search chat session titles by keyword. Checks both active and archived sessions by default.',
+          'Search chat session titles by keyword. Checks both active and archived sessions by default. Use when you need a prior Session about the same client, service, or failure.',
         parameters: {
           type: 'object',
           properties: {
