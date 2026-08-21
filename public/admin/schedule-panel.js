@@ -973,7 +973,6 @@ let addressPickerLastPickAt = 0;
 let addressPickerLastPickLabel = '';
 let addressPickerClearPickTimer = null;
 let addressPickerFocusTimer = null;
-let addressPickerGeocodeTimer = null;
 let addressPickerAdornment = null;
 let addressPickerMap = null;
 let addressPickerDidConfirm = false;
@@ -1000,9 +999,21 @@ function syncAddressPickerAdornment() {
   syncSearchFieldAdornment(els.searchInput, addressPickerAdornment);
 }
 
+function setAddressPickerMapVisible(visible) {
+  const els = getAddressPickerEls();
+  if (!els?.mapHost) return;
+  els.mapHost.hidden = !visible;
+}
+
+function hideAddressPickerMap() {
+  addressPickerMap?.setLocation(null, null, '');
+  setAddressPickerMapVisible(false);
+}
+
 function destroyAddressPickerMap() {
   addressPickerMap?.destroy();
   addressPickerMap = null;
+  setAddressPickerMapVisible(false);
 }
 
 function ensureAddressPickerMap() {
@@ -1011,7 +1022,7 @@ function ensureAddressPickerMap() {
   if (!addressPickerMap) {
     addressPickerMap = createClientMap(els.mapHost, {
       token: window.__mapboxAccessToken,
-      emptyHint: 'Search an address to preview it on the map.',
+      emptyHint: 'Select an address to preview it on the map.',
       showDirections: false,
       showOpenMaps: false,
     });
@@ -1019,34 +1030,22 @@ function ensureAddressPickerMap() {
   return addressPickerMap;
 }
 
+/** Preview only after a list pick (or a saved address) — never while typing. */
 async function previewAddressOnMap(address) {
-  const map = ensureAddressPickerMap();
-  if (!map) return;
   const q = (address || '').trim();
   if (!q) {
-    map.setLocation(null, null, '');
+    hideAddressPickerMap();
     return;
   }
+  setAddressPickerMapVisible(true);
+  const map = ensureAddressPickerMap();
+  if (!map) return;
   const geo = await geocodeClientAddressPreview(q);
   const els = getAddressPickerEls();
   if (els && els.searchInput.value.trim() !== q) return;
   if (geo) map.setLocation(geo.lat, geo.lng, q);
   else map.setGeocodeFailed(true);
   requestAnimationFrame(() => map.resize());
-}
-
-function scheduleAddressPickerGeocode() {
-  clearTimeout(addressPickerGeocodeTimer);
-  const els = getAddressPickerEls();
-  if (!els) return;
-  const q = els.searchInput.value.trim();
-  if (!q) {
-    addressPickerMap?.setLocation(null, null, '');
-    return;
-  }
-  addressPickerGeocodeTimer = setTimeout(() => {
-    void previewAddressOnMap(q);
-  }, 400);
 }
 
 function renderAddressPickerList(predictions, query) {
@@ -1134,7 +1133,6 @@ async function pickAddressFromSheet(description) {
   syncAddressPickerAdornment();
   syncAddressPickerConfirm();
   renderAddressPickerList([], label);
-  clearTimeout(addressPickerGeocodeTimer);
   await previewAddressOnMap(label);
 }
 
@@ -1188,7 +1186,7 @@ function ensureAddressPickerSheet() {
     addressPickerAdornment = createSearchFieldAdornment(searchInput, () => {
       delete searchInput.dataset.autocompletePick;
       renderAddressPickerList([], '');
-      addressPickerMap?.setLocation(null, null, '');
+      hideAddressPickerMap();
       syncAddressPickerConfirm();
     });
     field.appendChild(addressPickerAdornment);
@@ -1197,8 +1195,8 @@ function ensureAddressPickerSheet() {
     syncAddressPickerAdornment();
     syncAddressPickerConfirm();
     if (searchInput.dataset.autocompletePick) delete searchInput.dataset.autocompletePick;
+    hideAddressPickerMap();
     scheduleAddressPickerSearch();
-    scheduleAddressPickerGeocode();
   });
   confirmBtn?.addEventListener('click', (ev) => {
     ev.preventDefault();
@@ -1217,7 +1215,6 @@ function ensureAddressPickerSheet() {
     binding?.addressInput?.setAttribute('aria-expanded', 'false');
     clearTimeout(schedAddressSearchTimer);
     clearTimeout(addressPickerFocusTimer);
-    clearTimeout(addressPickerGeocodeTimer);
     addressPickerFocusTimer = null;
     destroyAddressPickerMap();
     if (!binding) return;
@@ -1250,8 +1247,8 @@ function openAddressPickerSheet(addressInput, onPick) {
   syncAddressPickerConfirm();
   addressInput.setAttribute('aria-expanded', 'true');
   window.IosSheet?.open(ADDRESS_PICKER_ID);
-  ensureAddressPickerMap();
   if (els.searchInput.value.trim()) void previewAddressOnMap(els.searchInput.value);
+  else hideAddressPickerMap();
 
   clearTimeout(addressPickerFocusTimer);
   addressPickerFocusTimer = setTimeout(() => {

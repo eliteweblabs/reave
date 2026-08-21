@@ -277,8 +277,7 @@
   display: none;
 }
 .address-picker-list {
-  flex: 0 1 auto;
-  max-height: 36%;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -293,6 +292,12 @@
   display: flex;
   flex-direction: column;
   padding: 0 1rem 1rem;
+}
+.address-picker-map[hidden] {
+  display: none !important;
+  flex: none;
+  min-height: 0;
+  padding: 0;
 }
 .address-picker-map .cl-map-wrap {
   flex: 1 1 auto;
