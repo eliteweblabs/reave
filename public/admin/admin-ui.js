@@ -2391,7 +2391,7 @@ const SWIPE_ACTIONS = {
   agent: { iconKey: 'agent', className: 'swipe-act swipe-act-agent', label: 'Send to Agent' },
   archive: { iconKey: 'archive', className: 'swipe-act swipe-act-archive', label: 'Archive' },
   delete: { iconKey: 'trash', className: 'swipe-act swipe-act-delete', label: 'Delete' },
-  junk: { iconKey: 'trash', className: 'swipe-act swipe-act-junk', label: 'Junk' },
+  junk: { iconKey: 'ban', className: 'swipe-act swipe-act-junk', label: 'Junk' },
   receipt: { iconKey: 'receipt', className: 'swipe-act swipe-act-receipt', label: 'Receipt' },
   clear: { iconKey: 'rewind', className: 'swipe-act swipe-act-archive', label: 'Rewind' },
   copy: { iconKey: 'copy', className: 'swipe-act swipe-act-archive', label: 'Copy' },
