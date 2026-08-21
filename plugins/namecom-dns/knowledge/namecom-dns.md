@@ -24,7 +24,7 @@ Granular aliases (`namecom_list_records`, `namecom_create_record`, …) still wo
 2. **`namecom_dns` `get_domain`** (or `ping` if you only need creds)
 3. Read `namecom_hosted_zone` and `nameservers`
 4. If Name.com hosts DNS → `list_records` / `upsert_record` / `delete_record`
-5. If NS is Cloudflare (or other) → **do not** treat empty Name.com zone records as "no DNS". Use `cloudflare_dns` for records. Use `set_nameservers` only when they want to move NS.
+5. If NS is Cloudflare (or other) → **do not** treat empty Name.com zone records as "no DNS". Use `cloudflare_dns` for records (Google Workspace / Gmail → `setup_google_workspace` in the same turn). Use `set_nameservers` only when they want to move NS.
 
 ## Never do this
 

@@ -103,12 +103,13 @@ export function dnsRecordsMatch(
 }
 
 /** Recognized TXT semantics for disambiguating multiple records at the same name. */
-export type TxtRecordKind = 'spf' | 'dmarc' | 'unknown';
+export type TxtRecordKind = 'spf' | 'dmarc' | 'google_verification' | 'unknown';
 
 export function txtRecordKind(content: string): TxtRecordKind {
   const c = normalizeDnsContent('TXT', content).toLowerCase();
   if (c.startsWith('v=spf1')) return 'spf';
   if (c.startsWith('v=dmarc1')) return 'dmarc';
+  if (c.startsWith('google-site-verification=')) return 'google_verification';
   return 'unknown';
 }
 
@@ -127,12 +128,18 @@ export function pickTxtRecordForUpsert(
   if (kind === 'unknown') {
     return {
       action: 'error',
-      error: `Multiple TXT records for ${host}; cannot pick which to update — use v=spf1 (SPF) or v=DMARC1 (DMARC), or resolve manually in Cloudflare`,
+      error: `Multiple TXT records for ${host}; cannot pick which to update — use v=spf1 (SPF), v=DMARC1 (DMARC), or google-site-verification=, or resolve manually in Cloudflare`,
     };
   }
 
-  const prefix = kind === 'spf' ? 'v=spf1' : 'v=dmarc1';
-  const label = kind === 'spf' ? 'SPF' : 'DMARC';
+  const prefix =
+    kind === 'spf'
+      ? 'v=spf1'
+      : kind === 'dmarc'
+        ? 'v=dmarc1'
+        : 'google-site-verification=';
+  const label =
+    kind === 'spf' ? 'SPF' : kind === 'dmarc' ? 'DMARC' : 'Google site verification';
   const matches = existing.filter((r) =>
     normalizeDnsContent('TXT', r.content).toLowerCase().startsWith(prefix),
   );
@@ -170,8 +177,11 @@ export async function cloudflareFindZone(zoneName: string): Promise<CfResult<{ i
   const explicit = serverEnv('CLOUDFLARE_ZONE_ID')?.trim();
   if (explicit) {
     const out = await cfFetch<{ id: string; name: string }>(`/zones/${explicit}`);
-    if (!out.ok) return out;
-    return { ok: true, data: out.data };
+    if (out.ok && out.data.name.toLowerCase() === zoneName.toLowerCase()) {
+      return { ok: true, data: out.data };
+    }
+    // ZONE_ID points at a different zone — look up the requested name so client
+    // domains (Google Workspace, etc.) are not written onto the company zone.
   }
 
   const out = await cfFetch<{ id: string; name: string }[]>(
@@ -247,10 +257,23 @@ export async function cloudflareUpsertDnsRecord(
     body.priority = expected.priority;
   }
 
-  if (sameNameType.length === 1) {
-    const out = await patchDnsRecord(zoneId, sameNameType[0].id, body);
-    if (!out.ok) return out;
-    return { ok: true, data: out.data };
+  if (sameNameType.length === 1 && type !== 'MX') {
+    if (type === 'TXT') {
+      const existingKind = txtRecordKind(sameNameType[0].content);
+      const wantedKind = txtRecordKind(expected.content);
+      const replaceable =
+        existingKind === wantedKind || (existingKind === 'unknown' && wantedKind === 'unknown');
+      if (replaceable) {
+        const out = await patchDnsRecord(zoneId, sameNameType[0].id, body);
+        if (!out.ok) return out;
+        return { ok: true, data: out.data };
+      }
+      // Different TXT kinds at the same name (SPF vs verification) — add another record.
+    } else {
+      const out = await patchDnsRecord(zoneId, sameNameType[0].id, body);
+      if (!out.ok) return out;
+      return { ok: true, data: out.data };
+    }
   }
 
   if (sameNameType.length > 1) {
@@ -263,12 +286,14 @@ export async function cloudflareUpsertDnsRecord(
         return { ok: true, data: out.data };
       }
       // No matching SPF/DMARC TXT yet — add another TXT record at this name (valid in DNS).
-    } else {
+    } else if (type !== 'MX') {
       return {
         ok: false,
         error: `Multiple ${type} records for ${expected.name}; resolve manually in Cloudflare`,
       };
     }
+    // MX: several hosts at the same name are normal (Google Workspace has five).
+    // Fall through and POST the missing target instead of replacing an existing one.
   }
 
   const out = await cfFetch<CfDnsRecord>(`/zones/${zoneId}/dns_records`, {
@@ -287,6 +312,33 @@ export async function cloudflareDeleteDnsRecord(
   return cfFetch<{ id: string }>(`/zones/${zoneId}/dns_records/${recordId}`, {
     method: 'DELETE',
   });
+}
+
+/**
+ * Disable Cloudflare Email Routing so Google (or other) MX records can take over.
+ * No-ops when routing is already off or the zone never enabled it.
+ */
+export async function cloudflareDisableEmailRouting(
+  zoneId: string,
+): Promise<CfResult<{ disabled: boolean; detail: string }>> {
+  const current = await cfFetch<{ enabled?: boolean; name?: string }>(
+    `/zones/${zoneId}/email/routing`,
+  );
+  if (!current.ok) {
+    // Zone without the Email Routing product returns 404 — treat as already off.
+    if (current.status === 404) {
+      return { ok: true, data: { disabled: false, detail: 'Email Routing is not configured on this zone.' } };
+    }
+    return current;
+  }
+  if (!current.data?.enabled) {
+    return { ok: true, data: { disabled: false, detail: 'Email Routing is already off.' } };
+  }
+  const disabled = await cfFetch<{ enabled?: boolean }>(`/zones/${zoneId}/email/routing/disable`, {
+    method: 'POST',
+  });
+  if (!disabled.ok) return disabled;
+  return { ok: true, data: { disabled: true, detail: 'Disabled Cloudflare Email Routing so Google MX can be authoritative.' } };
 }
 
 /** Read one zone setting (e.g. ssl). */
