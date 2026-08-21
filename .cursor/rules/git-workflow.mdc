@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Git Workflow
 
+**End-of-turn gate:** if this turn changed the repo, `git commit` and `git push origin/main` before you reply. Uncommitted work is a failed turn.
+
 ## Commit and push after every change
 
 **Always commit and push after every successful code change.** Do not leave uncommitted work for the user. Do not batch multiple changes into one push at the end of a long session — one commit and push per change.
