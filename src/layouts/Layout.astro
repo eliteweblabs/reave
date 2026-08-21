@@ -202,6 +202,18 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		color-scheme: dark;
 	}
 
+	/*
+	 * After the html/body canvas color. iOS overscroll rubber-band paints
+	 * the html background — match the fixed header so a pull at the top
+	 * does not flash purple around the wordmark. Atmosphere still paints
+	 * the page. Desktop keeps the canvas (rule below).
+	 */
+	@supports (-webkit-touch-callout: none) {
+		html:has(.app-header:not(.app-header--admin)) {
+			background-color: #000;
+		}
+	}
+
 	body {
 		min-height: 100%;
 		position: relative;
@@ -293,14 +305,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * Page content above the fixed atmosphere (z-index 0). Negative top
-	 * margin pulls the hero under the sticky header so the first screen
-	 * stays full-bleed.
+	 * Page content above the fixed atmosphere (z-index 0). The public
+	 * header is position:fixed (out of flow), so the hero already starts
+	 * at the viewport top — do not pull main up. A negative margin plus
+	 * a sticky/fixed bar is what made the chrome bounce on iOS.
 	 */
 	main#main-content {
 		position: relative;
 		z-index: 2;
-		margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem)));
 	}
 
 	@media (min-width: 769px) {
