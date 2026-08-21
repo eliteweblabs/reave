@@ -1,3 +1,4 @@
+import { setDefaultResultOrder } from 'node:dns';
 import { clerkEnsureDomainProxy, clerkFrontendApiHost, clerkFrontendApiOrigin, clerkSecretKey } from './clerkClient';
 import { DEFAULT_CLERK_FRONTEND_PROXY_PATH } from './clerkProxyUrl';
 import { publicHostFromEnv } from './requestHost';
@@ -5,17 +6,18 @@ import { publicHostFromEnv } from './requestHost';
 /** Official Clerk Frontend API — required when using a same-origin proxy. */
 export const CLERK_OFFICIAL_FRONTEND_API_ORIGIN = 'https://frontend-api.clerk.dev';
 
-const HOP_BY_HOP = new Set([
-  'connection',
-  'content-length',
-  'host',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailers',
-  'transfer-encoding',
-  'upgrade',
+// Railway → Cloudflare (Clerk) often fails on IPv6 (undici TypeError: fetch failed).
+setDefaultResultOrder('ipv4first');
+
+const FORWARD_HEADERS = new Set([
+  'accept',
+  'accept-language',
+  'clerk-api-version',
+  'content-type',
+  'cookie',
+  'origin',
+  'referer',
+  'user-agent',
 ]);
 
 function clientIp(request: Request): string {
@@ -49,7 +51,7 @@ export function absoluteClerkProxyUrl(request: Request): string {
 export function clerkProxyRequestHeaders(request: Request, proxyUrl: string): Headers {
   const headers = new Headers();
   for (const [key, value] of request.headers.entries()) {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) headers.set(key, value);
+    if (FORWARD_HEADERS.has(key.toLowerCase())) headers.set(key, value);
   }
   headers.set('Clerk-Proxy-Url', proxyUrl);
   const secret = clerkSecretKey();
@@ -92,6 +94,17 @@ export function rewriteClerkProxyLocation(
 /** Drop Domain= so `__client` is stored on the app host, not clerk.{apex}. */
 export function rewriteClerkProxySetCookie(cookie: string): string {
   return cookie.replace(/;\s*Domain=[^;]*/gi, '');
+}
+
+/** Fetch Clerk FAPI without throwing — instance hosts often fail TLS (alert 40). */
+export async function fetchClerkUpstream(url: string, init: RequestInit): Promise<Response | null> {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    const cause = err instanceof Error && 'cause' in err ? (err as Error & { cause?: unknown }).cause : undefined;
+    console.warn('[clerk-proxy] fetch failed', url, err, cause);
+    return null;
+  }
 }
 
 async function isOfficialProxyRejected(response: Response): Promise<boolean> {
@@ -162,16 +175,21 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   const officialTarget = `${CLERK_OFFICIAL_FRONTEND_API_ORIGIN}/${rest}${incoming.search}`;
   const instanceTarget = instanceOrigin ? `${instanceOrigin}/${rest}${incoming.search}` : '';
 
-  let upstream: Response;
+  let upstream: Response | null = null;
   if (clerkSecretKey()) {
-    upstream = await fetch(officialTarget, init);
-    if ((await isOfficialProxyRejected(upstream)) && instanceTarget) {
-      upstream = await fetch(instanceTarget, init);
+    upstream = await fetchClerkUpstream(officialTarget, init);
+    if (upstream && (await isOfficialProxyRejected(upstream)) && instanceTarget) {
+      const fallback = await fetchClerkUpstream(instanceTarget, init);
+      if (fallback) upstream = fallback;
     }
   } else if (instanceTarget) {
-    upstream = await fetch(instanceTarget, init);
+    upstream = await fetchClerkUpstream(instanceTarget, init);
   } else {
     return new Response('Clerk is not configured', { status: 503 });
+  }
+
+  if (!upstream) {
+    return new Response('Clerk Frontend API unreachable', { status: 502 });
   }
 
   if (upstream.status >= 400 && rest.startsWith('v1/')) {

@@ -16,6 +16,8 @@ import {
 } from '../src/lib/clerkClient.ts';
 import {
   absoluteClerkProxyUrl,
+  clerkProxyRequestHeaders,
+  fetchClerkUpstream,
   isClerkFrontendApiHost,
   rewriteClerkProxyLocation,
   rewriteClerkProxySetCookie,
@@ -269,6 +271,31 @@ assert.equal(
   rewriteClerkProxySetCookie('__client=abc; Path=/; Domain=clerk.reave.app; Secure; HttpOnly'),
   '__client=abc; Path=/; Secure; HttpOnly',
 );
+assert.equal(
+  await fetchClerkUpstream('https://clerk.app.levineslaw.com/v1/environment', { redirect: 'manual' }),
+  null,
+  'broken instance FAPI TLS must not throw out of the proxy',
+);
+{
+  const forwarded = clerkProxyRequestHeaders(
+    new Request('https://app.levineslaw.com/__clerk/v1/environment', {
+      headers: {
+        accept: 'application/json',
+        cookie: '__client=abc',
+        host: 'app.levineslaw.com',
+        'cf-ray': 'should-not-forward',
+        'accept-encoding': 'zstd, gzip',
+      },
+    }),
+    'https://app.levineslaw.com/__clerk',
+  );
+  assert.equal(forwarded.get('accept'), 'application/json');
+  assert.equal(forwarded.get('cookie'), '__client=abc');
+  assert.equal(forwarded.get('Clerk-Proxy-Url'), 'https://app.levineslaw.com/__clerk');
+  assert.equal(forwarded.get('host'), null);
+  assert.equal(forwarded.get('cf-ray'), null);
+  assert.equal(forwarded.get('accept-encoding'), null);
+}
 
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);
