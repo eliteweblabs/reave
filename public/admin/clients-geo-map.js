@@ -713,7 +713,6 @@ export function mountClientsGeoMap(container, opts = {}) {
       ? window.setTimeout(() => controller.abort(), 45000)
       : 0;
     try {
-      // Plain fetch — this page is public; adminFetch would bounce 401 → /sign-in.
       const res = await fetch('/api/clients/map', {
         credentials: 'same-origin',
         cache: 'no-store',
