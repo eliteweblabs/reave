@@ -98,7 +98,7 @@ The first step writes these onto `reave` (same keys live client installs already
 This wizard is owner-only. The Variables step is read-only. Apply:
 
 - **Copies** third-party keys from this host (Clerk, Anthropic, Resend API key, Telnyx, Vapi, Google, GitHub, Railway, …). Values never go to the browser.
-- **Rolls** new secrets on the server (shared API keys, CardDAV password, Cal.com `NEXTAUTH_SECRET` / `CALENDAR_ENCRYPTION_KEY`, dashboard key, cron secrets) and a real Web Push VAPID pair.
+- **Rolls** new secrets on the server (shared API keys, CardDAV password, Cal.com `NEXTAUTH_SECRET` / `CALENDSO_ENCRYPTION_KEY`, dashboard key, cron secrets) and a real Web Push VAPID pair.
 - **Creates** a Resend `email.received` webhook at `https://{apex}/api/email/inbound` and writes the signing secret as `RESEND_WEBHOOK_SECRET`.
 - **Derives** `RESEND_FROM` as `noreply@inbound.{apex}` (the inbound domain Apply already adds in Resend) and `EMAIL_FROM_NAME` from the company name.
 - **Website editor:** GitHub cannot create PATs via API. Apply creates `eliteweblabs/{slug}-site`, then POSTs the App manifest to GitHub (`/organizations/eliteweblabs/settings/apps/new`). CSP `form-action` must include `https://github.com` or the browser blocks that step. After you install the App on `{slug}-site` (not `eliteweblabs/reave`), Apply writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO` onto the client. The client mints a Contents token scoped to that repo on each write. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create the repo and attach it. If this host already has `GITHUB_APP_*`, Apply reuses them instead of opening GitHub. The Review step streams a live Apply log (Railway project, each service, repo, then the GitHub handoff).

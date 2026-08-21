@@ -16,8 +16,12 @@ import { resendEnsureInboundWebhook } from './resendDnsSync';
 import { serverEnv } from './serverEnv';
 
 export function generateDeployWizardSecret(name: string): string {
-  if (name === 'NEXTAUTH_SECRET' || name === 'CALENDAR_ENCRYPTION_KEY') {
+  if (name === 'NEXTAUTH_SECRET') {
     return randomBytes(32).toString('base64');
+  }
+  if (name === 'CALENDSO_ENCRYPTION_KEY' || name === 'CALENDAR_ENCRYPTION_KEY') {
+    // AES-256 needs exactly 32 chars. base64(32 bytes) is 44 and crashes Cal.com.
+    return randomBytes(24).toString('base64');
   }
   return randomBytes(24).toString('hex');
 }

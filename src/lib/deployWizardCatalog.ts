@@ -34,6 +34,8 @@ export type DeployWizardService = {
   repo?: string;
   image?: string;
   volumeMount?: string;
+  /** Railway public-domain target port when the image ignores $PORT. */
+  targetPort?: number;
   /** Empty / omitted = core (always provisioned). */
   features?: readonly FeatureId[];
   extra?: DeployWizardExtraId;
@@ -336,6 +338,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     kind: 'api',
     description: 'Cal.com admin UI (same Docker image as REΛVE.app — not the GitHub fork).',
     image: 'calcom/cal.com:latest',
+    targetPort: 3000,
     features: ['scheduling'],
   },
   {
@@ -858,7 +861,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'reference',
     value: railwayPublicUrl('calcom-web-app'),
-    description: 'Cal.com admin UI.',
+    description: 'Cal.com admin UI — cal.{apex} once DNS is attached; Railway public domain until then.',
     features: ['scheduling'],
   }),
   v({
@@ -1041,6 +1044,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['scheduling'],
   }),
   v({
+    name: 'NEXT_PUBLIC_LICENSE_CONSENT',
+    service: 'calcom-web-app',
+    kind: 'literal',
+    value: 'agree',
+    description: 'Required by calcom/cal.com — the image exits without license consent.',
+    features: ['scheduling'],
+  }),
+  v({
     name: 'NEXTAUTH_SECRET',
     service: 'calcom-web-app',
     kind: 'generated',
@@ -1048,10 +1059,10 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['scheduling'],
   }),
   v({
-    name: 'CALENDAR_ENCRYPTION_KEY',
+    name: 'CALENDSO_ENCRYPTION_KEY',
     service: 'calcom-web-app',
     kind: 'generated',
-    description: 'Cal.com calendar encryption key.',
+    description: 'Cal.com AES key — must be exactly 32 characters (openssl rand -base64 24). Official image reads this name, not CALENDAR_ENCRYPTION_KEY.',
     features: ['scheduling'],
   }),
 
@@ -1830,6 +1841,14 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
     if (raw.name === 'GITHUB_WEBSITE_REPO') filled = defaultWebsiteRepoSlug(installSlug);
     if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
+    if (
+      siteDomain &&
+      (raw.name === 'CALCOM_WEBAPP_URL' ||
+        raw.name === 'NEXT_PUBLIC_WEBAPP_URL' ||
+        raw.name === 'NEXTAUTH_URL')
+    ) {
+      filled = `https://cal.${siteDomain}`;
+    }
     if (raw.name === 'POST_ALIAS') filled = postAlias;
     if (raw.name === 'COMPANY_NAME') filled = companyName;
     if (raw.name === 'ADMIN_USERNAME') filled = adminUsername;
