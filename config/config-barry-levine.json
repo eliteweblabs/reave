@@ -6,7 +6,15 @@
     "carddav",
     "online_reviews",
     "social_inbox",
-    "stock_photos"
+    "stock_photos",
+    "cookie_notice",
+    "email_marketing",
+    "time_tracking",
+    "analytic_audit",
+    "voice",
+    "vapi",
+    "website",
+    "content_management"
   ],
   "footerNav": [
     "__system__",
@@ -18,19 +26,22 @@
     "chats",
     "email",
     "rules",
+    "newsletter",
     "work",
     "schedule",
     "clients",
     "social",
     "reviews",
-    "media"
+    "media",
+    "analytics"
   ],
   "profileMenu": [
     "profile",
     "company",
     "settings",
     "socials",
-    "addons"
+    "addons",
+    "vapi"
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,
@@ -42,6 +53,14 @@
     "carddav": "request",
     "online_reviews": "deployed",
     "social_inbox": "deployed",
-    "stock_photos": "deployed"
+    "stock_photos": "deployed",
+    "cookie_notice": "deployed",
+    "email_marketing": "deployed",
+    "time_tracking": "deployed",
+    "analytic_audit": "deployed",
+    "voice": "deployed",
+    "vapi": "deployed",
+    "website": "deployed",
+    "content_management": "deployed"
   }
 }

@@ -6,7 +6,7 @@
  *
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
-import { FEATURE_BLURBS, FEATURE_LABELS, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, FEATURE_LABELS, isPublicFeature, type FeatureId } from './featureCatalog';
 import {
   defaultFixturePlaybook,
   isLawIndustrySlug,
@@ -496,6 +496,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'literal',
     value: 'demo',
     description: 'Install slug — loads config/config-{slug}.json.',
+  }),
+  v({
+    name: 'FEATURES',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '[]',
+    description:
+      'Enabled optional modules as a JSON array. Merged with config/config-{slug}.json so Add-ons match what you toggled.',
   }),
   v({
     name: 'POST_ALIAS',
@@ -1802,6 +1810,18 @@ function extraMatch(
   return selected.has(extra);
 }
 
+/** Public-module host secrets still copy when the feature was not selected — a Law playbook must not strip Vapi / Telnyx / Pexels keys. Private ops tokens stay gated. */
+function includeVariable(
+  raw: DeployWizardVariable,
+  featureSet: ReadonlySet<string>,
+  extraSet: ReadonlySet<string>,
+): boolean {
+  if (!extraMatch(raw.extra, extraSet)) return false;
+  if (featureMatch(raw.features, featureSet)) return true;
+  if (!isDeployWizardHostSecret(raw) || !raw.features?.length) return false;
+  return raw.features.every((feature) => isPublicFeature(feature));
+}
+
 export function listDeployWizardExtras(features: readonly FeatureId[]): DeployWizardExtra[] {
   const selected = new Set(features);
   return DEPLOY_WIZARD_EXTRAS.filter((e) => featureMatch(e.whenFeatures, selected));
@@ -1844,7 +1864,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   const variables: DeployWizardPlanVariable[] = [];
 
   for (const raw of DEPLOY_WIZARD_VARIABLES) {
-    if (!featureMatch(raw.features, featureSet) || !extraMatch(raw.extra, extraSet)) continue;
+    if (!includeVariable(raw, featureSet, extraSet)) continue;
 
     // Prefer the Railway-hosted ChangeDetection / Plausible URL when that extra is on.
     if (
@@ -1865,6 +1885,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
     let filled = raw.value ?? '';
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
+    if (raw.name === 'FEATURES') filled = JSON.stringify([...features].sort());
     if (raw.name === 'GITHUB_WEBSITE_REPO') filled = defaultWebsiteRepoSlug(installSlug);
     if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
     if (raw.name === 'POST_ALIAS') filled = postAlias;

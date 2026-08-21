@@ -63,8 +63,11 @@ function parseFeaturesEnv(): Set<FeatureId> {
 
 function bootstrapEnabled(): Set<FeatureId> {
   const fromInstall = getInstallConfigSync().features;
-  if (fromInstall.length) return new Set(fromInstall);
-  return parseFeaturesEnv();
+  const fromEnv = parseFeaturesEnv();
+  if (fromInstall.length || fromEnv.size) {
+    return new Set<FeatureId>([...fromInstall, ...fromEnv]);
+  }
+  return new Set();
 }
 
 function applyFeatureOverrides(base: Set<FeatureId>): Set<FeatureId> {

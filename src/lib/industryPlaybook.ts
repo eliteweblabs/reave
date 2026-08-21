@@ -274,8 +274,11 @@ export function applyIndustryPlaybookToWizard(input: {
     };
   }
   const playbook = normalizeIndustryPlaybook(input.playbook);
+  // Keep modules the operator already toggled — a blank Law playbook must
+  // not wipe Cal.com / Vapi / Pexels / etc. down to baseline 001–004.
   const moduleIds = [
     ...new Set([
+      ...input.currentModuleIds.filter((id) => input.allowedModuleIds.has(id)),
       ...input.baselineModuleIds,
       ...playbook.moduleIds.filter((id) => input.allowedModuleIds.has(id)),
     ]),
@@ -285,7 +288,7 @@ export function applyIndustryPlaybookToWizard(input: {
     (isLawIndustrySlug(input.industryId) ? 'matter' : input.currentPostAlias || 'project');
   return {
     moduleIds,
-    extras: playbook.extras.filter((id) => EXTRA_SET.has(id)),
+    extras: [...new Set([...input.currentExtras, ...playbook.extras])].filter((id) => EXTRA_SET.has(id)),
     seed: {
       inbox: playbook.seedInbox,
       todos: playbook.seedTodos,

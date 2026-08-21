@@ -542,10 +542,13 @@
     const extras = Array.isArray(playbook.extras) ? playbook.extras : [];
     const moduleIds = Array.isArray(playbook.moduleIds) ? playbook.moduleIds : [];
     selectedIds = new Set([
+      ...[...selectedIds].filter((id) => allowed.has(id)),
       ...baseline,
       ...moduleIds.map((id) => String(id).padStart(3, '0')).filter((id) => allowed.has(id)),
     ]);
-    selectedExtras = new Set(extras.filter((id) => typeof id === 'string'));
+    for (const extra of extras) {
+      if (typeof extra === 'string') selectedExtras.add(extra);
+    }
     seed.inbox = playbook.seedInbox !== false;
     seed.todos = playbook.seedTodos !== false;
     seed.schedule = playbook.seedSchedule !== false;

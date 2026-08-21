@@ -33,6 +33,7 @@ import { parseEmailAddress, slugifyCalcomUsername } from '../src/lib/installIden
 import {
   applyIndustryPlaybookToWizard,
   backfillCanonicalDeployIndustries,
+  defaultFixturePlaybook,
   EMPTY_INDUSTRY_PLAYBOOK,
   normalizeIndustryPlaybook,
 } from '../src/lib/industryPlaybook.ts';
@@ -77,7 +78,20 @@ assert.equal(contactUrl?.filled, 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN 
 
 const install = core.variables.find((v) => v.name === 'INSTALL_CONFIG');
 assert.equal(install?.filled, 'acme');
+assert.equal(core.variables.find((v) => v.name === 'FEATURES')?.filled, '[]');
 assert.equal(core.postAlias, 'project');
+assert.ok(
+  core.variables.some((v) => v.name === 'VAPI_API_KEY' && v.inheritFromHost),
+  'public host secrets copy even when the module was not selected',
+);
+assert.ok(
+  core.variables.some((v) => v.name === 'PEXELS_API_KEY' && v.inheritFromHost),
+  'Pexels copies from this host without stock_photos selected',
+);
+assert.ok(
+  !core.variables.some((v) => v.name === 'RAILWAY_API_TOKEN'),
+  'private ops tokens stay gated on dev_infra',
+);
 const postAlias = core.variables.find((v) => v.name === 'POST_ALIAS');
 assert.equal(postAlias?.filled, 'project');
 assert.equal(core.timezone, 'America/New_York');
@@ -329,6 +343,20 @@ const applied = applyIndustryPlaybookToWizard({
 assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009', '035']);
 assert.deepEqual(applied.extras, []);
 assert.equal(applied.postAlias, 'client');
+const lawKept = applyIndustryPlaybookToWizard({
+  industryId: 'law',
+  playbook: defaultFixturePlaybook('law'),
+  allowedModuleIds: new Set(['001', '002', '003', '004', '009', '011', '013']),
+  baselineModuleIds: ['001', '002', '003', '004'],
+  currentModuleIds: ['001', '002', '003', '004', '009', '011', '013'],
+  currentExtras: ['plausible_railway'],
+  currentPostAlias: 'project',
+});
+assert.deepEqual(lawKept.moduleIds, ['001', '002', '003', '004', '009', '011', '013']);
+assert.deepEqual(lawKept.extras, ['plausible_railway']);
+assert.equal(lawKept.postAlias, 'matter');
+const vapiPlan = buildDeployWizardPlan({ features: ['vapi'], installSlug: 'levineslaw' });
+assert.equal(vapiPlan.variables.find((v) => v.name === 'FEATURES')?.filled, '["vapi"]');
 assert.equal(normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','), '006');
 const backfilled = backfillCanonicalDeployIndustries([
   {

@@ -240,10 +240,10 @@ function parseFeaturesEnv(): string[] {
 export async function loadBuildEnabledFeatures(): Promise<string[]> {
   const { getInstallConfigSync } = await import('./installConfig.ts');
   const fromInstall = getInstallConfigSync().features;
-  if (fromInstall.length) return fromInstall;
-
   const fromEnv = parseFeaturesEnv();
-  if (fromEnv.length) return fromEnv;
+  if (fromInstall.length || fromEnv.length) {
+    return [...new Set([...fromInstall, ...fromEnv])];
+  }
 
   return [];
 }
