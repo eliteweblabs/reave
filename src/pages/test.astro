@@ -1,23 +1,26 @@
 ---
 /**
  * Temporary video-cover test — 0819 loop, full-width, pinned to the bottom.
- * Defaults to 0819-sm; 1080p only when the browser already reports a fast link.
+ * Starts on 0819-sm (autoplay, no JS required). A real download-speed probe
+ * upgrades to 1080p when the link can take it.
  * Not in nav. noindex. Delete when the experiment is done.
  */
 import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Video cover test" description="Full-width looping video cover pinned to the bottom." noIndex>
-  <section class="video-test" aria-label="Looping video background">
+  <section class="video-test" aria-label="Looping video background" data-no-scroll-fade>
     <video
       class="video-test-media"
+      src="/video/0819-sm.mp4"
       data-src-sm="/video/0819-sm.mp4"
       data-src-hq="/video/0819.mp4"
+      autoplay
       muted
       loop
       playsinline
       disablepictureinpicture
-      preload="none"
+      preload="auto"
       aria-hidden="true"
     ></video>
   </section>
@@ -25,30 +28,81 @@ import Layout from "../layouts/Layout.astro";
     (function () {
       var video = document.querySelector(".video-test-media");
       if (!video) return;
-      var sm = video.getAttribute("data-src-sm");
-      var hq = video.getAttribute("data-src-hq");
-      if (!sm) return;
+      var hq = video.getAttribute("data-src-hq") || "/video/0819.mp4";
+      var upgraded = false;
+      var started = performance.now();
 
-      // Local hint only — no speed test, so this never delays the first paint.
-      // Safari / Firefox usually lack Network Information, so they stay on sm.
+      function play() {
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+
+      function currentIsHq() {
+        var src = video.currentSrc || video.getAttribute("src") || "";
+        return src.indexOf("0819-sm") === -1 && src.indexOf("0819") !== -1;
+      }
+
       function useHq() {
-        var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        if (!c) return false;
-        if (c.saveData) return false;
-        if (c.effectiveType && c.effectiveType !== "4g") return false;
-        if (c.type === "cellular") return false;
-        if (typeof c.downlink === "number" && c.downlink < 10) return false;
-        if (typeof c.rtt === "number" && c.rtt > 50) return false;
-        return true;
+        if (upgraded || currentIsHq()) return;
+        upgraded = true;
+        var t = video.currentTime || 0;
+        var onMeta = function () {
+          video.removeEventListener("loadedmetadata", onMeta);
+          try {
+            if (t > 0) video.currentTime = t;
+          } catch (e) {}
+          play();
+        };
+        video.addEventListener("loadedmetadata", onMeta);
+        video.src = hq;
       }
 
       try {
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          video.removeAttribute("autoplay");
+          video.pause();
+          return;
+        }
       } catch (e) {}
 
-      video.src = useHq() && hq ? hq : sm;
-      var play = video.play();
-      if (play && play.catch) play.catch(function () {});
+      play();
+
+      var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn) {
+        if (conn.saveData) return;
+        if (conn.effectiveType === "slow-2g" || conn.effectiveType === "2g") return;
+        // Chrome's Network Information hint — only skip the probe when it
+        // already says this is a fast, non-metered link.
+        if (
+          conn.effectiveType === "4g" &&
+          conn.type !== "cellular" &&
+          typeof conn.downlink === "number" &&
+          conn.downlink >= 8
+        ) {
+          useHq();
+          return;
+        }
+      }
+
+      // Real speed test: time how long the small clip takes to become
+      // playable. 0819-sm is ~1.07 MB; 8 Mbps ≈ 1.1 s. The 1080p file is
+      // ~12 Mbps, so this is enough to start cleanly. Cached visits upgrade.
+      var SM_BYTES = 1068170;
+      var MIN_MBPS = 8;
+      var MAX_WAIT_MS = 1200;
+
+      function maybeUpgradeFromSm() {
+        if (upgraded || currentIsHq()) return;
+        var ms = Math.max(performance.now() - started, 1);
+        var mbps = (SM_BYTES * 8) / (ms / 1000) / 1e6;
+        if (mbps >= MIN_MBPS) useHq();
+      }
+
+      video.addEventListener("canplaythrough", maybeUpgradeFromSm, { once: true });
+      setTimeout(function () {
+        if (upgraded || currentIsHq()) return;
+        if (video.readyState >= 3) maybeUpgradeFromSm();
+      }, MAX_WAIT_MS);
     })();
   </script>
 </Layout>
