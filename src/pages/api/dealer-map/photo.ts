@@ -6,17 +6,9 @@
 import type { APIContext } from 'astro';
 import { fetchDealerPlacePhoto } from '../../../lib/dealerMapPlaces';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const ip = clientIp(context.request);

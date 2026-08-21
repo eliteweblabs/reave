@@ -55,6 +55,7 @@ import '../../styles/brand.css';
 import '../../styles/mobile-touch.css';
 import PortalOutreachSheet from '../../components/PortalOutreachSheet.astro';
 import { contactGreetingName, splitClientNameParts } from '../../lib/contactPersonName';
+import { richText, workBodyHtml } from '../../lib/portalRichText';
 
 const org = await getCompanyConfig(Astro.request);
 
@@ -125,54 +126,10 @@ const fmtDate = (s: string | null | undefined) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-function richText(s: string): string {
-  const escaped = escapeHtml(s);
-  const linked = escaped.replace(
-    /(https?:\/\/[^\s<]+)/g,
-    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
-  );
-  return linked.replace(/\n/g, '<br />');
-}
-
 function vaultDataHref(value: string): string | null {
   const trimmed = value.trim();
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return null;
-}
-
-function workFileUrlForPortal(url: string, contactUid: string, jobSlug: string): string {
-  const m = url.match(/\/api\/work\/([^/]+)\/files\/([^/?#]+)/);
-  if (!m || m[1] !== jobSlug) return url;
-  return `/api/c/${encodeURIComponent(contactUid)}/work/${encodeURIComponent(jobSlug)}/files/${encodeURIComponent(m[2])}`;
-}
-
-function workBodyHtml(body: string, contactUid: string, jobSlug: string): string {
-  const lines = body.split('\n');
-  const out: string[] = [];
-  const imgRe = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const m = trimmed.match(imgRe);
-    if (m) {
-      const src = workFileUrlForPortal(m[2], contactUid, jobSlug);
-      out.push(
-        `<img class="work-body-img" src="${escapeHtml(src)}" alt="${escapeHtml(m[1])}" loading="lazy" />`,
-      );
-    } else if (trimmed) {
-      out.push(richText(trimmed));
-    } else {
-      out.push('');
-    }
-  }
-  return out.join('<br />');
 }
 
 const displayName = contactStringField(contact?.name) || 'Contact';

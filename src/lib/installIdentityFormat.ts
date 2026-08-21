@@ -11,6 +11,11 @@ export function parseEmailAddress(raw: string | null | undefined): string {
   return EMAIL_RE.test(candidate) ? candidate.toLowerCase() : '';
 }
 
+/** True when the string looks like a deliverable email address. */
+export function isValidEmail(raw: string | null | undefined): boolean {
+  return parseEmailAddress(raw) !== '';
+}
+
 /**
  * Cal.com / booking-link username: lowercase alphanumeric, first DNS label
  * when the input looks like a host (`tonybarlettajr.com` → `tonybarlettajr`).
