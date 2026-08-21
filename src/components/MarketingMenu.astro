@@ -352,8 +352,14 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     text-decoration: none;
   }
 
-  .marketing-nav-link.is-active {
-    color: #fff;
+  .marketing-nav-link.is-active,
+  .marketing-nav-link.is-active:hover {
+    background: none;
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
   }
 
   .marketing-nav-link--button {
