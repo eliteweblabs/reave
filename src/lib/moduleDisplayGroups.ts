@@ -36,6 +36,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
       'site_audits',
       'website',
       'content_management',
+      'wordpress_content',
       'code_dev',
       'namecom_dns',
       'site_monitoring',

@@ -60,7 +60,7 @@ const SYSTEM_NODES = [
   { id: 'time_tracking', title: 'Project time tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start/stop (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'site_repo', title: 'Client site repo', sub: 'wizard creates {slug}-site · restricted GitHub App · not eliteweblabs/reave', icon: '📄', brand: 'github', hue: 220, status: true, group: 'external', x: 1400, y: 700 },
-  { id: 'wp_content', title: 'WordPress content plugin', sub: 'agent edits WP posts/pages (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
+  { id: 'wp_content', title: 'WordPress content plugin', sub: 'Reave Connect — posts, pages, media (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
   { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · SSR data · noindex · Mapbox pins', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
   { id: 'dealer_map', title: 'Used-car dealer map', sub: '/dealer-map · public demo · Places search-on-zoom · inventory toggles · /api/dealer-map/places', icon: '🚗', hue: 28, status: true, group: 'reave', x: 400, y: 840 },

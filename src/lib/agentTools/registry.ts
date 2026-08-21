@@ -45,7 +45,9 @@ import type { AgentToolModule } from './types';
  * WordPress remote management (`exec_wp`) lives in `core/wp.ts` — enabled when
  * REAVE_WP_API_KEY is set. Calls the reave-connect plugin REST API across all
  * managed WordPress sites with a single shared API key. Supports enable/disable
- * indexing, install/activate plugins, flush cache, update options, and more.
+ * indexing, install/activate plugins, flush cache, update options, plus
+ * posts/pages/media. Dedicated wp_* content tools live in
+ * `plugins/wordpress-content/` (feature-gated `wordpress_content`).
  * Plugin auto-updates from https://reave.app/api/wp-update/reave-connect/
  *
  * Deploy resume (`set_deploy_resume` / `clear_deploy_resume`) lives in

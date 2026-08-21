@@ -41,7 +41,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `demo/` | `demo` | `demo-setup.md` | yes |
 | `website/` | `website` | `website.md` | — client website pack (bundles editor + stock photos; no hosting APIs) |
 | `content-management/` | `content_management` | `content-management.md`, `github-dev-tools.md` | yes — Git publish to a locked per-install website repo (Agentic Website Editor) |
-| `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | — (stub; companion WP plugin + agent tools TBD) |
+| `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | yes — posts, pages, media via Reave Connect |
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |
 | `social-inbox/` | `social_inbox` | `social-inbox.md` | — **paid add-on**; buy from admin → Modules |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
