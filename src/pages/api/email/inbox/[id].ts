@@ -23,9 +23,17 @@ import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
 import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
+  attachClassificationRuleLinks,
   explainReceiptClassification,
   parseClassificationAudit,
+  primaryClassificationRule,
 } from '../../../../lib/emailClassificationAudit';
+import { storeListEmailRules } from '../../../../lib/emailRuleStore';
+import {
+  displayInboxRecipients,
+  hasOriginalRecipientHeaders,
+  isGenericInboundMailbox,
+} from '../../../../lib/emailOriginalRecipient';
 
 export const prerender = false;
 
@@ -93,22 +101,37 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
 
   let headers = event.headers;
-  if (!hasListUnsubscribeHeader(headers) && event.resendEmailId) {
+  const envelopeTo = Array.isArray(event.to) ? event.to : [];
+  const needsOriginalTo =
+    envelopeTo.length > 0 &&
+    envelopeTo.every((addr) => isGenericInboundMailbox(addr)) &&
+    !hasOriginalRecipientHeaders(headers);
+  if ((!hasListUnsubscribeHeader(headers) || needsOriginalTo) && event.resendEmailId) {
     const fresh = await fetchResendInboundEmailHeaders(event.resendEmailId);
     if (Object.keys(fresh).length) headers = { ...headers, ...fresh };
   }
 
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   const unsubscribe = parseEmailUnsubscribe(headers);
-  const classificationAudit =
+  const rawAudit =
     event.category === 'receipt'
       ? explainReceiptClassification(event)
-      : event.classificationAudit;
+      : parseClassificationAudit(event.classificationAudit);
+  const rules = (await storeListEmailRules().catch(() => ({ rules: [] }))).rules;
+  const classificationAudit = attachClassificationRuleLinks(rawAudit, rules, {
+    routeNote: event.routeNote,
+  });
+  const matchedRule = primaryClassificationRule(classificationAudit);
+  const toDisplay = displayInboxRecipients(envelopeTo, headers);
   return json({
     ok: true,
     event: {
       ...event,
       headers,
+      to: envelopeTo,
+      toDisplay,
+      matchedRuleId: matchedRule?.ruleId ?? null,
+      matchedRuleTitle: matchedRule?.ruleTitle ?? null,
       bodyHtml: resolveEmailHtmlForDisplay(event.bodyHtml, event.bodyText),
       bodyText: plainTextForDisplay(event.bodyText),
       bodySnippet: plainTextForDisplay(event.bodySnippet),

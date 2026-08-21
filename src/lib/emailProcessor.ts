@@ -61,7 +61,9 @@ import {
 import {
   auditForMatchedRule,
   classificationAuditStep,
+  findShipmentArchiveRule,
   type ClassificationAuditStep,
+  type ClassificationRuleLink,
 } from './emailClassificationAudit';
 import {
   describeOtpPurpose,
@@ -605,9 +607,22 @@ export async function processInboundEmail(
       ),
     );
   }
-  const pushAudit = (step: string, decision: string, detail?: string) => {
-    classificationAudit.push(classificationAuditStep(step, decision, detail));
+  const pushAudit = (
+    step: string,
+    decision: string,
+    detail?: string,
+    link?: ClassificationRuleLink,
+  ) => {
+    classificationAudit.push(classificationAuditStep(step, decision, detail, link));
   };
+  const matchedRuleRecord = ruleResult.matched as EmailRuleRecord | null;
+  const matchedRuleLink: ClassificationRuleLink | undefined = matchedRuleRecord?.id
+    ? { ruleId: matchedRuleRecord.id, ruleTitle: matchedRuleRecord.title }
+    : undefined;
+  const shipmentRule = findShipmentArchiveRule(rules as EmailRuleRecord[]);
+  const shipmentRuleLink: ClassificationRuleLink | undefined = shipmentRule?.id
+    ? { ruleId: shipmentRule.id, ruleTitle: shipmentRule.title }
+    : undefined;
 
   const skippedCatalogJunk = ruleWalk.evaluations.find((e) => e.outcome === 'skipped_known_contact');
   if (skippedCatalogJunk) {
@@ -648,6 +663,7 @@ export async function processInboundEmail(
       'rules',
       `Silent rule short-circuit: ${ruleResult.status}`,
       'notify:false / DELETE — skip agent-first AI override',
+      matchedRuleLink,
     );
   }
 
@@ -728,10 +744,15 @@ export async function processInboundEmail(
       html: email.html,
       verificationCode,
     });
+    const aiHay = `${aiClassify.label} ${aiClassify.reason || ''} ${applied.routeNote || ''}`;
+    const aiRuleLink = /shipment|shipping notice|not a tax receipt|has shipped/i.test(aiHay)
+      ? shipmentRuleLink
+      : matchedRuleLink;
     pushAudit(
       'ai',
       `Trusted AI label: ${aiClassify.label}`,
       `${Math.round(aiClassify.confidence * 100)}% confidence · ${aiClassify.reason || applied.routeNote}`,
+      aiRuleLink,
     );
     category = applied.category;
     action = applied.action;
@@ -783,6 +804,14 @@ export async function processInboundEmail(
       action = 'classified';
       inboxStatusOverride = 'AUTO_ARCHIVED';
       routeNote = 'Shipment tracking — auto-archived (not a tax receipt)';
+      if (shipmentRuleLink) {
+        pushAudit(
+          'correction',
+          'Shipment tracking — not a tax receipt',
+          'Shipping / package-tracked notices auto-archive',
+          shipmentRuleLink,
+        );
+      }
     } else if (
       aiClassify.label === 'failed_payment' ||
       looksLikeFailedOrDuePayment({
@@ -1207,6 +1236,7 @@ export async function processInboundEmail(
       'correction',
       'Unfiled as tax receipt',
       'Shipment tracking / shipped notices are not expense receipts',
+      shipmentRuleLink,
     );
   }
 
@@ -1450,12 +1480,14 @@ export async function processInboundEmail(
   // No keyword rule → agent (AI classify / Explain) handles this mail.
   // Rules are only added when the owner teaches/corrects — not auto-drafted here.
   if (ruleResult.matched == null) {
+    const agentHay = `${routeNote} ${summary}`;
     pushAudit(
       'agent',
       needsExplain
         ? 'No keyword rule — agent triage (uncertain → Explain)'
         : 'No keyword rule — agent handles this message',
       'Teach/correct from the dashboard if this should become a permanent rule',
+      /shipment|shipping notice|auto-archiv/i.test(agentHay) ? shipmentRuleLink : undefined,
     );
   }
 

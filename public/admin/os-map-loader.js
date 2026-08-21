@@ -260,8 +260,9 @@ import {
   ruleState,
   loadRulesTab,
   openRulesLabWithEmail,
+  openRulesLabWithRule,
   startNewRule,
-} from './rules-panel.js?v=20260818a';
+} from './rules-panel.js?v=20260821a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -3321,6 +3322,21 @@ function reviewAlertCopyHtml(item) {
 }
 
 /** Expandable decision path for receipt / classification notifications. */
+function classificationAuditRuleLinkHtml(step, { asTitle = false } = {}) {
+  const ruleId = String(step?.ruleId || '').trim();
+  const openLab = Boolean(step?.openLab) && !ruleId;
+  if (!ruleId && !openLab) return '';
+  const label = asTitle
+    ? String(step?.ruleTitle || step?.detail || 'Edit rule').trim() || 'Edit rule'
+    : openLab
+      ? 'Open Email Lab'
+      : 'Edit rule';
+  const attrs = ruleId
+    ? `data-em-open-rule="${escHtml(ruleId)}"`
+    : 'data-em-open-lab';
+  return `<a class="admin-classification-audit-rule" href="/admin/?tab=rules" ${attrs}>${escHtml(label)}</a>`;
+}
+
 function classificationAuditTrailHtml(item) {
   const steps = Array.isArray(item?.auditTrail) ? item.auditTrail : [];
   if (!steps.length) return '';
@@ -3329,9 +3345,18 @@ function classificationAuditTrailHtml(item) {
       const decision = String(step?.decision || '').trim();
       if (!decision) return '';
       const detail = String(step?.detail || '').trim();
-      const detailHtml = detail
-        ? `<span class="admin-classification-audit-detail">${escHtml(detail)}</span>`
-        : '';
+      const isRuleRow = decision.toLowerCase() === 'rule';
+      const link = classificationAuditRuleLinkHtml(step, { asTitle: isRuleRow });
+      let detailHtml = '';
+      if (isRuleRow && link) {
+        detailHtml = `<span class="admin-classification-audit-detail">${link}</span>`;
+      } else if (detail) {
+        detailHtml = `<span class="admin-classification-audit-detail">${escHtml(detail)}${
+          link ? ` ${link}` : ''
+        }</span>`;
+      } else if (link) {
+        detailHtml = `<span class="admin-classification-audit-detail">${link}</span>`;
+      }
       return `<li><span class="admin-classification-audit-decision">${escHtml(decision)}</span>${detailHtml}</li>`;
     })
     .filter(Boolean)
@@ -4507,6 +4532,7 @@ function buildReviewAlertBanner(item) {
 
   notice.copy?.querySelectorAll?.('.admin-classification-audit')?.forEach((el) => {
     el.addEventListener('click', (ev) => ev.stopPropagation());
+    bindClassificationAuditLinks(el, item.emailId ? { id: item.emailId } : null);
   });
   notice.copy?.querySelector('.admin-setup-alert-project-link')?.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -10528,14 +10554,64 @@ function emailDetailClassificationHtml(ev) {
   const action = formatEmailAction(ev);
   const route = String(ev.routeNote || '').trim();
   const steps = [];
+  const ruleId = String(ev.matchedRuleId || '').trim();
+  const ruleTitle = String(ev.matchedRuleTitle || '').trim();
+  if (ruleId) {
+    steps.push({
+      step: 'rule',
+      decision: 'Rule',
+      detail: ruleTitle || 'Edit rule',
+      ruleId,
+      ruleTitle,
+    });
+  }
   if (action) steps.push({ decision: 'Action', detail: action });
-  if (route) steps.push({ decision: 'Route', detail: route });
+  if (route) {
+    steps.push({
+      decision: 'Route',
+      detail: route,
+      ...(ruleId ? { ruleId, ruleTitle } : {}),
+    });
+  }
   const existing = Array.isArray(ev.classificationAudit) ? ev.classificationAudit : [];
-  for (const step of existing) steps.push(step);
+  for (const step of existing) {
+    const copy = { ...step };
+    if (!ruleId && String(step.step || '') === 'agent') copy.openLab = true;
+    steps.push(copy);
+  }
   if (!steps.length) return '';
   return classificationAuditTrailHtml({
     type: ev.category === 'receipt' ? 'receipt_expense' : 'classification',
     auditTrail: steps,
+  });
+}
+
+function inboxToAddresses(ev) {
+  if (Array.isArray(ev?.toDisplay) && ev.toDisplay.length) return ev.toDisplay;
+  if (Array.isArray(ev?.to) && ev.to.length) return ev.to;
+  return [];
+}
+
+async function openClassificationRule(ruleId, ev, opts = {}) {
+  const id = String(ruleId || '').trim();
+  const full = ev?._fullLoaded ? ev : ev?.id ? await fetchFullEmailRecord(ev) : ev;
+  if (id) {
+    await openRulesLabWithRule(id, { email: full, run: true });
+    return;
+  }
+  if (opts.lab && full) await openRulesLabWithEmail(full, { run: true });
+}
+
+function bindClassificationAuditLinks(root, ev) {
+  if (!root) return;
+  root.querySelectorAll('[data-em-open-rule], [data-em-open-lab]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const ruleId = el.getAttribute('data-em-open-rule') || '';
+      const openLab = el.hasAttribute('data-em-open-lab');
+      void openClassificationRule(ruleId, ev, { lab: openLab });
+    });
   });
 }
 
@@ -14737,8 +14813,8 @@ function renderEmailPane() {
   detailHtml +=
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
-      (Array.isArray(ev.to) && ev.to.length
-        ? `<span><strong>To</strong> <span class="em-to-value">${escHtml(ev.to.join(', '))}</span></span>`
+      (inboxToAddresses(ev).length
+        ? `<span><strong>To</strong> <span class="em-to-value">${escHtml(inboxToAddresses(ev).join(', '))}</span></span>`
         : '') +
       `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>` +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
@@ -14842,6 +14918,7 @@ function renderEmailPane() {
   detail.querySelector('[data-em-add-contact]')?.addEventListener('click', () => {
     openNewContactFromEmail(ev);
   });
+  bindClassificationAuditLinks(detail, ev);
   void hydrateEmailFromClient(detail, ev).then(() => {
     if (isEmailLabModeFor(ev)) {
       bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');

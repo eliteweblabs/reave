@@ -22,15 +22,28 @@ export type ClassificationAuditStep = {
   decision: string;
   /** Optional why / evidence */
   detail?: string;
+  /** Persisted email_rules.id when this step is a keyword / catalog rule. */
+  ruleId?: string;
+  ruleTitle?: string;
+};
+
+export type ClassificationRuleLink = {
+  ruleId?: string | null;
+  ruleTitle?: string | null;
 };
 
 export function classificationAuditStep(
   step: string,
   decision: string,
   detail?: string,
+  link?: ClassificationRuleLink,
 ): ClassificationAuditStep {
   const out: ClassificationAuditStep = { step, decision };
   if (detail?.trim()) out.detail = detail.trim();
+  const ruleId = String(link?.ruleId || '').trim();
+  if (ruleId) out.ruleId = ruleId;
+  const ruleTitle = String(link?.ruleTitle || '').trim();
+  if (ruleTitle) out.ruleTitle = ruleTitle;
   return out;
 }
 
@@ -55,7 +68,12 @@ export function parseClassificationAudit(raw: unknown): ClassificationAuditStep[
     const decision = String(rec.decision ?? '').trim();
     if (!step || !decision) continue;
     const detail = rec.detail != null ? String(rec.detail).trim() : '';
-    steps.push(classificationAuditStep(step, decision, detail || undefined));
+    steps.push(
+      classificationAuditStep(step, decision, detail || undefined, {
+        ruleId: rec.ruleId != null ? String(rec.ruleId) : undefined,
+        ruleTitle: rec.ruleTitle != null ? String(rec.ruleTitle) : undefined,
+      }),
+    );
   }
   return steps;
 }
@@ -86,8 +104,16 @@ function fieldHitLabel(phrase: string, email: Pick<InboundEmail, 'subject' | 'te
   return 'message';
 }
 
+function ruleLinkFrom(rule: EmailRule | (EmailRule & { id?: string; title?: string }) | null | undefined): ClassificationRuleLink | undefined {
+  if (!rule || typeof rule !== 'object') return undefined;
+  const id = 'id' in rule ? String(rule.id || '').trim() : '';
+  const title = 'title' in rule ? String(rule.title || '').trim() : '';
+  if (!id && !title) return undefined;
+  return { ruleId: id || undefined, ruleTitle: title || undefined };
+}
+
 export function auditForMatchedRule(
-  rule: EmailRule | null | undefined,
+  rule: EmailRule | (EmailRule & { id?: string; title?: string }) | null | undefined,
   status: string,
   email: InboundEmail,
 ): ClassificationAuditStep {
@@ -110,7 +136,103 @@ export function auditForMatchedRule(
   ]
     .filter(Boolean)
     .join(' · ');
-  return classificationAuditStep('rules', `Matched ${rule.status} rule`, detail || undefined);
+  return classificationAuditStep(
+    'rules',
+    `Matched ${rule.status} rule`,
+    detail || undefined,
+    ruleLinkFrom(rule),
+  );
+}
+
+export type ClassificationRuleRef = {
+  id?: string;
+  status?: string;
+  phrases?: string[];
+  description?: string;
+  title?: string;
+};
+
+export function findShipmentArchiveRule<T extends ClassificationRuleRef>(rules: T[]): T | null {
+  return (
+    rules.find((r) => {
+      const phrases = Array.isArray(r.phrases) ? r.phrases : [];
+      return (
+        String(r.status || '').toUpperCase() === 'AUTO_ARCHIVED' &&
+        phrases.some((p) => /shipment\s*[-]?track/i.test(String(p)))
+      );
+    }) ?? null
+  );
+}
+
+function findRuleByStatusHint<T extends ClassificationRuleRef>(
+  rules: T[],
+  status: string,
+  haystack: string,
+): T | null {
+  const key = String(status || '')
+    .trim()
+    .toUpperCase();
+  if (!key) return null;
+  const candidates = rules.filter((r) => String(r.status || '').toUpperCase() === key);
+  if (!candidates.length) return null;
+  if (candidates.length === 1) return candidates[0];
+  const hay = haystack.toLowerCase();
+  return (
+    candidates.find((r) => {
+      const bits = [r.description, r.title].filter(Boolean).join(' ').toLowerCase();
+      return Boolean(bits && hay && (hay.includes(bits.slice(0, 20)) || bits.includes(hay.slice(0, 20))));
+    }) ?? candidates[0]
+  );
+}
+
+/** Attach rule ids to older audit rows that only stored the status/description. */
+export function attachClassificationRuleLinks(
+  steps: ClassificationAuditStep[],
+  rules: ClassificationRuleRef[],
+  extras?: { routeNote?: string },
+): ClassificationAuditStep[] {
+  const shipment = findShipmentArchiveRule(rules);
+  const hay = [...steps.map((s) => `${s.decision} ${s.detail || ''}`), extras?.routeNote || ''].join(
+    '\n',
+  );
+  const shipmentRelated = /shipment|shipping notice|not a tax receipt|auto-archiv/i.test(hay);
+
+  return steps.map((step) => {
+    if (step.ruleId) return step;
+    const matched = /^Matched (\S+) rule/i.exec(step.decision);
+    if (matched) {
+      const rule = findRuleByStatusHint(rules, matched[1], step.detail || '');
+      if (rule?.id) return { ...step, ruleId: rule.id, ruleTitle: rule.title };
+    }
+    const silent = /^Silent rule short-circuit:\s*(\S+)/i.exec(step.decision);
+    if (silent) {
+      const rule = findRuleByStatusHint(rules, silent[1], step.detail || '');
+      if (rule?.id) return { ...step, ruleId: rule.id, ruleTitle: rule.title };
+    }
+    const stepHay = `${step.step} ${step.decision} ${step.detail || ''}`;
+    if (
+      shipmentRelated &&
+      shipment?.id &&
+      /^(ai|rules|correction|route_note|agent|auto_file|payment_language)\b/i.test(step.step) &&
+      /shipment|shipping|auto-archiv|junk per rules|not a tax receipt/i.test(
+        `${stepHay} ${extras?.routeNote || ''}`,
+      )
+    ) {
+      return { ...step, ruleId: shipment.id, ruleTitle: shipment.title };
+    }
+    return step;
+  });
+}
+
+export function primaryClassificationRule(
+  steps: ClassificationAuditStep[],
+): { ruleId: string; ruleTitle?: string } | null {
+  const preferred = steps.find(
+    (s) => s.ruleId && /^(Matched |Rule$|Silent rule)/i.test(s.decision),
+  );
+  if (preferred?.ruleId) return { ruleId: preferred.ruleId, ruleTitle: preferred.ruleTitle };
+  const any = steps.find((s) => s.ruleId);
+  return any?.ruleId ? { ruleId: any.ruleId, ruleTitle: any.ruleTitle } : null;
 }
 
 /**

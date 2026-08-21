@@ -1564,6 +1564,22 @@ async function openRulesLabWithEmail(emailRecord, opts = {}) {
   await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });
 }
 
+/** Open Email Lab and expand the rule the inbox classification landed on. */
+async function openRulesLabWithRule(ruleId, opts = {}) {
+  const id = String(ruleId || '').trim();
+  shell.setActiveMap?.('rules', { force: true });
+  await loadRulesTab();
+  if (opts.email && typeof opts.email === 'object') {
+    await getTriageLab().loadInboxEmail(opts.email, { run: opts.run !== false });
+  }
+  if (!id) return;
+  if (String(ruleState.activeId) === id) {
+    getTriageLab().syncExpandedRule();
+    return;
+  }
+  await openRuleEditor(id);
+}
+
 export {
   ruleState,
   loadRulesTab,
@@ -1575,4 +1591,5 @@ export {
   formatRuleHitLabel,
   startNewRule,
   openRulesLabWithEmail,
+  openRulesLabWithRule,
 };

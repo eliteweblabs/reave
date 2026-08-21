@@ -690,6 +690,17 @@ select,
   margin-top: 0.1rem;
   opacity: 0.9;
 }
+.admin-classification-audit-rule {
+  display: inline;
+  margin-left: 0.15rem;
+  color: #79c0ff;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+}
+.admin-classification-audit-rule:hover {
+  color: var(--text, inherit);
+}
 .admin-setup-alert-error {
   margin: 0.35rem 0 0;
   font-size: 0.74rem;
