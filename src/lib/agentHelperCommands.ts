@@ -135,6 +135,20 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Add to my to-do list: renew domain for Acme.',
   },
 
+  // Durable recall
+  {
+    slash: '/remember',
+    summary: 'What the agent already knows',
+    template: 'What do you remember about me and how we work?',
+    example: 'What do you remember about me and how we work?',
+  },
+  {
+    slash: '/forget',
+    summary: 'Drop a saved recall note',
+    template: 'Forget that [note].',
+    example: 'Forget that invoice terms are net-30.',
+  },
+
   // Outbound comms & search
   {
     slash: '/send',

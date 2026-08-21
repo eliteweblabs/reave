@@ -18,10 +18,7 @@ import { handleInboundSms } from '../../lib/inboundSmsHandler';
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
-  return new Response(
-    JSON.stringify({ status: 'ok', message: 'SMS webhook endpoint is running' }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
-  );
+  return new Response(null, { status: 404 });
 };
 
 export const POST: APIRoute = async ({ request }) => {

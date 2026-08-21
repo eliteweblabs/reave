@@ -42,7 +42,7 @@ import {
   sheetSpeedResearchProblem,
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
-import { renderSalesSheetBackHtml } from '../src/lib/salesSheetBack.ts';
+import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA } from '../src/lib/salesSheetBack.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -559,10 +559,16 @@ await test('static back is hosting + cover with stack marks and no client fields
   });
   assert.match(back, /data-ss-page="back"/);
   assert.match(back, /data-ss-col="hosting"/);
+  assert.match(back, /data-ss-col="builds"/);
   assert.match(back, /data-ss-col="cover"/);
   assert.match(back, /data-ss-col="stack"/);
+  assert.match(back, /1fr 1fr 1fr/);
+  assert.match(back, /REΛVE builds with/);
+  assert.match(back, /ss-back-builds-with/);
   assert.match(back, /Managed hosting/);
   assert.match(back, /We host it/);
+  assert.match(back, /Core OS/);
+  assert.match(back, />Growth</);
   assert.match(back, /Railway™/);
   assert.match(back, /50M\+/);
   assert.match(back, /Nearby rate/);
@@ -576,17 +582,37 @@ await test('static back is hosting + cover with stack marks and no client fields
   assert.match(back, /MDOT\.world/);
   assert.match(back, /Online presence diagnostic/);
   assert.match(back, /independent systems scan/);
+  assert.match(back, /data-ss-col="qa"/);
+  assert.match(back, /Q&amp;A/);
+  assert.match(back, /Worried about working with a small shop\?/);
+  assert.match(back, /open source/);
+  assert.match(back, /client retains full control of all licensing and products/);
+  assert.equal(SALES_SHEET_BACK_QA.length, 1);
   assert.match(back, /reave-bg-pattern/);
   assert.match(back, /opacity: 0\.05/);
   assert.match(back, /data-stack="astro"/);
   assert.match(back, /data-stack="anthropic"/);
   assert.match(back, /data-stack="railway"/);
   assert.match(back, /data-stack="supabase"/);
-  assert.match(back, /data-stack="playwright"/);
-  assert.match(back, /Playwright™/);
-  assert.match(back, /\/stack\/playwright\.svg/);
-  assert.match(back, /repeat\(10,/);
-  assert.ok((back.match(/data-stack="/g) || []).length >= 10, 'expected at least 10 stack marks');
+  assert.match(back, /data-stack="nodedotjs"/);
+  assert.match(back, /data-stack="github"/);
+  assert.match(back, /data-stack="cloudflare"/);
+  assert.match(back, /data-stack="caldotcom"/);
+  assert.match(back, /data-stack="plausibleanalytics"/);
+  assert.match(back, /flex-wrap: nowrap/);
+  assert.match(back, /--ss-print-inset: 0\.2in/);
+  assert.match(back, /padding: var\(--ss-print-inset-top\) var\(--ss-print-inset\) var\(--ss-print-inset\)/);
+  assert.match(back, /border-top: none/);
+  assert.equal((back.match(/data-stack="/g) || []).length, 11);
+  assert.doesNotMatch(back, /data-stack="react"/);
+  assert.doesNotMatch(back, /data-stack="typescript"/);
+  assert.doesNotMatch(back, /data-stack="postgresql"/);
+  assert.doesNotMatch(back, /data-stack="telnyx"/);
+  assert.doesNotMatch(back, /data-stack="pexels"/);
+  assert.doesNotMatch(back, /data-stack="uptimerobot"/);
+  assert.doesNotMatch(back, /data-stack="playwright"/);
+  assert.doesNotMatch(back, /Playwright™/);
+  assert.doesNotMatch(back, /repeat\(10,/);
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
   assert.match(back, /Page 2 of 2/);
@@ -607,9 +633,12 @@ await test('QR sits in the top-right without caption, title, or date', () => {
   assert.match(qr, /doc-onepager-title/);
   assert.match(qr, /doc-onepager-kicker \{ display: none; \}/);
   assert.match(qr, /position: absolute;/);
-  assert.match(qr, /--ss-print-inset: 0\.25in;/);
-  assert.match(qr, /top: var\(--ss-print-inset\)/);
+  assert.match(qr, /--ss-print-inset: 0\.2in;/);
+  assert.match(qr, /--ss-print-inset-top: 0\.25in;/);
+  assert.match(qr, /top: var\(--ss-print-inset-top\)/);
   assert.match(qr, /right: var\(--ss-print-inset\)/);
+  assert.match(qr, /border-bottom: none/);
+  assert.match(qr, /border-top: none/);
   const injected = injectAuditQrIntoHeader(
     '<header><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
     qr,

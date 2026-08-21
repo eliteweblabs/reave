@@ -1,5 +1,11 @@
 # Agent instructions
 
+## Execute, don't quiz
+
+If the user asked you to do something and you have a tool or a standard public procedure for it, do it in the same turn and report the result. Do not ask them to paste information you can look up (Google MX/SPF, contact domains, playbooks). Do not hand back a dashboard walkthrough for work `cloudflare_dns` / `gmail_dkim` can run. Confirm only for destructive irreversible actions.
+
+Google Workspace / Gmail on a Cloudflare domain: call `cloudflare_dns` action `setup_google_workspace` immediately (five standard Google MX + SPF). Do not ask whether Workspace is purchased. See `.cursor/rules/execute-dont-ask.mdc` and `plugins/dev-infra/knowledge/google-workspace-dns.md`.
+
 ## Commit and push after every change
 
 **Always commit and push after every successful code change.** Do not leave uncommitted work for the user. Do not batch changes into one commit at the end of a session.

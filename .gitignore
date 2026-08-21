@@ -26,6 +26,7 @@ cloud-agent-settings-export.json
 # Ephemeral file-based chat threads (Postgres is production backend)
 src/knowledge/chats/*.md
 !src/knowledge/chats/.gitkeep
+src/knowledge/agent-memories.json
 src/knowledge/social-tokens.json
 src/knowledge/integration-tokens.json
 src/knowledge/.media/

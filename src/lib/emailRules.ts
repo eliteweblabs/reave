@@ -143,6 +143,11 @@ export interface EmailRule {
    * to a team member or secondary inbox.
    */
   forwardTo?: string | null;
+  /**
+   * When a rule forwards mail (`forwardTo` is set), auto-create project is
+   * skipped unless this is true. Default false — relay-only.
+   */
+  createProject?: boolean;
 }
 
 export interface InboundEmail {

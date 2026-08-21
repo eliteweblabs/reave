@@ -15,6 +15,7 @@ import {
 import { buildAutoProjectNotificationTitle } from './emailProjectAuto';
 import { buildMeetingFollowupNotificationTitle } from './emailMeetingFollowup';
 import { meetingThreadDedupKey } from './emailThreadDedup';
+import { getPostAlias } from './postAlias';
 
 export type MeetingReviewNotification = {
   id: string;
@@ -357,20 +358,34 @@ export function toMeetingRequestReviewNotification(
   };
 }
 
+export function projectMatchSuggestedReviewCopy(opts: {
+  jobTitle: string;
+  attachmentCount: number;
+}): { title: string; detail: string } {
+  const post = getPostAlias();
+  const jobTitle = opts.jobTitle.trim() || post.singularTitle;
+  const attachmentBit =
+    opts.attachmentCount > 0
+      ? `${opts.attachmentCount} attachment${opts.attachmentCount === 1 ? '' : 's'}`
+      : 'no attachments';
+  return {
+    title: `Possible ${post.singular} match`,
+    detail: `${post.singularTitle}: ${jobTitle}. Add this email's content and ${attachmentBit} to this ${post.singular}?`,
+  };
+}
+
 export function toProjectMatchSuggestedReviewNotification(
   record: EmailInboxRecord,
 ): ProjectMatchSuggestedReviewNotification {
-  const jobTitle = record.jobTitle || record.jobSlug || 'Project';
+  const post = getPostAlias();
+  const jobTitle = record.jobTitle || record.jobSlug || post.singularTitle;
   const attachmentCount = Array.isArray(record.attachments) ? record.attachments.length : 0;
-  const attachmentBit =
-    attachmentCount > 0
-      ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}`
-      : 'no attachments';
+  const copy = projectMatchSuggestedReviewCopy({ jobTitle, attachmentCount });
   return {
     id: record.id,
     type: 'project_match',
-    title: `Possible match: ${jobTitle}`,
-    detail: `Add this email's content and ${attachmentBit} to the project?`,
+    title: copy.title,
+    detail: copy.detail,
     subject: record.subject || '(no subject)',
     from: record.from || '',
     receivedAt: record.receivedAt,

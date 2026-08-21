@@ -9,8 +9,8 @@
  * specific contact record to be created manually.
  */
 
+import { clerkSecretKey } from './clerkClient';
 import { resolveContact, listContacts } from './contactApi';
-import { serverEnv } from './serverEnv';
 
 export interface OwnerContactRecord {
   uid: string;
@@ -88,8 +88,7 @@ export async function resolveOwnerContact(
  * Returns null when CLERK_SECRET_KEY is unavailable or the request fails.
  */
 async function getClerkUserEmail(userId: string): Promise<string | null> {
-  const secretKey =
-    serverEnv('CLERK_SECRET_KEY') || serverEnv('CLERK_BACKEND_API_KEY');
+  const secretKey = clerkSecretKey();
   if (!secretKey) return null;
 
   try {

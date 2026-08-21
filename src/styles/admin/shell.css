@@ -93,6 +93,8 @@ body {
 #rule-editor > .ch-sidebar,
 #rule-editor > .re-flow-shell,
 #rule-editor > .re-lab-shell,
+#sales-sheet-editor > .ch-sidebar,
+#sales-sheet-editor > .de-pane,
 .de-pane {
   padding-top: var(
     --topbar-measured-h,
@@ -118,6 +120,7 @@ body {
 #modules-panel,
 #media-panel,
 #rule-editor,
+#sales-sheet-editor,
 #dashboard-panel,
 #settings-panel,
 #search-overlay,
@@ -528,6 +531,27 @@ select,
   line-height: 1.4;
   color: var(--muted);
 }
+.admin-setup-alert-project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.45rem;
+  margin: 0.2rem 0 0.15rem;
+  color: var(--fg);
+}
+.admin-setup-alert-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.admin-setup-alert-project-name {
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--fg);
+}
 .admin-otp-code-display {
   margin: 0.35rem 0 0;
   font-size: 1.65rem;
@@ -724,7 +748,7 @@ select,
   position: absolute;
   top: 0.55rem;
   right: 0.55rem;
-  z-index: 1;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -736,6 +760,17 @@ select,
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+}
+/* Keep the visible X small, but give the control a 44px finger target so the
+   top-right dismiss cannot lose to the Triage action below it. */
+.admin-setup-alert-dismiss::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 .admin-setup-alert--triage {
   --notice-accent: 167, 139, 250;

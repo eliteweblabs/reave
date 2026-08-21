@@ -4,7 +4,7 @@
  */
 import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
-import { serverEnv } from './serverEnv';
+import { clerkSecretKey } from './clerkClient';
 
 function escHtml(s: string): string {
   return s
@@ -15,7 +15,7 @@ function escHtml(s: string): string {
 }
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
-  const secretKey = serverEnv('CLERK_SECRET_KEY') || serverEnv('CLERK_BACKEND_API_KEY');
+  const secretKey = clerkSecretKey();
   if (!secretKey) return {};
   try {
     const res = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {

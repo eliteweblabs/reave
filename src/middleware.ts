@@ -15,7 +15,7 @@ import { isDemoMode } from "./lib/demoMode";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { isClerkFrontendProxyPath, proxyClerkFrontendApi } from "./lib/clerkFrontendProxy";
-import { isClerkRuntimeConfigured } from "./lib/clerkClient";
+import { isClerkRuntimeConfigured, normalizeClerkRuntimeEnv } from "./lib/clerkClient";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
 import { publicHostFromRequest, runWithRequestHost } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
@@ -248,6 +248,7 @@ async function runAppMiddleware(
 }
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
+  normalizeClerkRuntimeEnv();
   const pathname = new URL(context.request.url).pathname;
   if (isHealthLiveProbe(pathname)) {
     const response = await next();

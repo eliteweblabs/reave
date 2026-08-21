@@ -3,6 +3,7 @@ import { cachedCompanyBrandName } from './companyConfig';
 import { SITE } from '../config/site';
 import { clerkClient } from '@clerk/astro/server';
 import { agentAlertUserId } from './adminAgentAlert';
+import { clerkSecretKey } from './clerkClient';
 import { serverEnv } from './serverEnv';
 
 export const DEFAULT_DEPLOYMENT_TIMEZONE = 'America/New_York';
@@ -173,7 +174,7 @@ export async function getDeploymentOwnerProfile(
 }
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
-  const secretKey = serverEnv('CLERK_SECRET_KEY') || serverEnv('CLERK_BACKEND_API_KEY');
+  const secretKey = clerkSecretKey();
   if (!secretKey) return {};
   try {
     const res = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {

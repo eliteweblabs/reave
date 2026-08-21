@@ -14,7 +14,7 @@ import {
 const company = await getCompanyConfig(Astro.request);
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const quoteHref = supportMail
-  ? `mailto:${supportMail}?subject=${encodeURIComponent("Managed hosting — Care plan")}`
+  ? `mailto:${supportMail}?subject=${encodeURIComponent("Managed hosting — Core OS plan")}`
   : "/schedule";
 
 const featureGroups = [
@@ -26,11 +26,11 @@ const featureGroups = [
 
 <section
   class="hx-pricing scroll-fade-in"
-  aria-label="Managed hosting care plans"
+  aria-label="Managed hosting plans"
   id="plans"
 >
-  <p class="hx-pricing-kicker">Care plans</p>
-  <h2 class="hx-pricing-h2">Two tiers — pick how hands-on you want us.</h2>
+  <p class="hx-pricing-kicker">Hosting plans</p>
+  <h2 class="hx-pricing-h2">Two tiers — Core OS or Growth.</h2>
   <p class="hx-pricing-lead">
     Both plans include premium managed hosting for WordPress or a modern web app,
     plus daily scans, malware protection, and weekly SEO reports. Billed annually.
@@ -85,7 +85,7 @@ const featureGroups = [
   <p class="hx-pricing-kicker">What's included</p>
   <h2 class="hx-pricing-h2">Hosting stack + ongoing care.</h2>
   <p class="hx-pricing-lead">
-    Choose WordPress or a git-deployed web app — Care covers the infrastructure and the
+    Choose WordPress or a git-deployed web app — Core OS covers the infrastructure and the
     day-to-day watching, updating, and reporting either way.
   </p>
 
