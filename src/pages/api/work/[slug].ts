@@ -22,15 +22,10 @@ import { projectPortalUrl, auditPortalUrl } from '../../../lib/contactApi';
 import { requestOrigin } from '../../../lib/requestOrigin';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { isAuditJob } from '../../../lib/auditReportCard';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -38,10 +33,10 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
   const doc = await storeReadWork(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   const related = await listRelatedForJob(slug);
   const tracked_links = await listTrackedLinksForJob(slug, {
     limit: 20,
@@ -55,7 +50,7 @@ export async function GET(context: APIContext): Promise<Response> {
       ? auditPortalUrl(contactUid, slug, { base: origin })
       : projectPortalUrl(contactUid, slug, { base: origin })
     : '';
-  return json({ ok: true, ...doc, related, tracked_links, files, portal_url });
+  return jsonResponse({ ok: true, ...doc, related, tracked_links, files, portal_url });
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
@@ -64,23 +59,23 @@ export async function PUT(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
+  if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const parsed = parseWorkJobInput(body);
-  if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
+  if ('error' in parsed) return jsonResponse({ ok: false, error: parsed.error }, 400);
 
   const existing = (await storeReadWork(slug))!;
   const result = await storeWriteWork(slug, { ...parsed, record_origin: existing.record_origin ?? 'dashboard' });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, ...result.doc });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, ...result.doc });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -89,8 +84,8 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
-  if (!(await storeDeleteWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, slug, deleted: true });
+  if (!(await storeDeleteWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, slug, deleted: true });
 }

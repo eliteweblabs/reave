@@ -8,15 +8,10 @@
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { normalizeTravelMode, planInquiryVisits } from '../../../lib/visitPlanner';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function intParam(params: URLSearchParams, name: string): number | undefined {
   const raw = params.get(name);
@@ -53,7 +48,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const params = context.url.searchParams;
   const startRaw = params.get('start')?.trim() ?? '';
   if (startRaw && !/^\d{4}-\d{2}-\d{2}$/.test(startRaw)) {
-    return json({ ok: false, error: 'start must be YYYY-MM-DD' }, 400);
+    return jsonResponse({ ok: false, error: 'start must be YYYY-MM-DD' }, 400);
   }
 
   try {
@@ -72,10 +67,10 @@ export async function GET(context: APIContext): Promise<Response> {
       skipWeekends: boolParam(params, 'skip_weekends'),
     });
 
-    return json({ ok: true, plan });
+    return jsonResponse({ ok: true, plan });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[visit-plan] GET error:', e);
-    return json({ ok: false, error: msg }, 500);
+    return jsonResponse({ ok: false, error: msg }, 500);
   }
 }

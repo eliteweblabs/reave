@@ -4,12 +4,12 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join, dirname } from 'path';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
+import { projectRoot } from './projectRoot';
 
 export type StoredCompanyLogo = {
   dataBase64: string;
@@ -169,17 +169,6 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   }
   await _schemaReady;
   return pool;
-}
-
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
 }
 
 function configFilePath(): string {

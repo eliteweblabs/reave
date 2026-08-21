@@ -14,18 +14,13 @@ import {
   timeEntriesToInvoiceSuggestions,
 } from '../../../../lib/workTimeBilling';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureDisabled(): Response {
-  return json({ ok: false, error: 'Time tracking is not enabled on this install' }, 404);
+  return jsonResponse({ ok: false, error: 'Time tracking is not enabled on this install' }, 404);
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -35,17 +30,17 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
   const doc = await storeReadWork(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const entries = await storeListTimeEntries(slug);
   const totalHours = sumTimeEntryHours(entries);
   const invoiceSuggestions = timeEntriesToInvoiceSuggestions(entries, doc.title);
   const groupedLineItem = groupedTimeInvoiceDescription(entries, doc.title);
 
-  return json({
+  return jsonResponse({
     ok: true,
     slug: doc.slug,
     title: doc.title,
@@ -63,22 +58,22 @@ export async function PUT(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
   const doc = await storeReadWork(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const result = await storeSaveTimeEntries(slug, body.entries);
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
 
-  return json({
+  return jsonResponse({
     ok: true,
     entries: result.entries,
     total_hours: result.totalHours,

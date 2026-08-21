@@ -2,6 +2,12 @@
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Basic RFC5322-style check for public form intake (max 254 chars). */
+export function isValidEmail(raw: string | null | undefined): boolean {
+  const candidate = (raw ?? '').trim();
+  return candidate.length > 0 && candidate.length <= 254 && EMAIL_RE.test(candidate);
+}
+
 /** Bare address from `Name <addr@host>` or a plain email. */
 export function parseEmailAddress(raw: string | null | undefined): string {
   const t = (raw ?? '').trim();

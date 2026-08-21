@@ -12,15 +12,10 @@ import {
 } from '../../../../../lib/projectFiles';
 import { isSafeWorkSlug, storeReadWork } from '../../../../../lib/workStore';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -28,11 +23,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
+  if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const files = await storeListProjectFiles(slug);
-  return json({ ok: true, files, count: files.length });
+  return jsonResponse({ ok: true, files, count: files.length });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -41,27 +36,27 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
+  if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let form: FormData;
   try {
     form = await context.request.formData();
   } catch {
-    return json({ ok: false, error: 'Expected multipart form data' }, 400);
+    return jsonResponse({ ok: false, error: 'Expected multipart form data' }, 400);
   }
 
   const file = form.get('file');
   if (!(file instanceof File) || !file.size) {
-    return json({ ok: false, error: 'Missing file' }, 400);
+    return jsonResponse({ ok: false, error: 'Missing file' }, 400);
   }
 
   const mediaType = file.type.trim().toLowerCase();
   if (!PROJECT_UPLOAD_MEDIA_TYPES.has(mediaType)) {
-    return json({ ok: false, error: 'File must be an image (JPEG, PNG, GIF, WebP) or PDF' }, 400);
+    return jsonResponse({ ok: false, error: 'File must be an image (JPEG, PNG, GIF, WebP) or PDF' }, 400);
   }
   if (file.size > PROJECT_FILE_MAX_BYTES) {
-    return json({ ok: false, error: `File too large (max ${PROJECT_FILE_MAX_BYTES / (1024 * 1024)} MB)` }, 400);
+    return jsonResponse({ ok: false, error: `File too large (max ${PROJECT_FILE_MAX_BYTES / (1024 * 1024)} MB)` }, 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -72,6 +67,6 @@ export async function POST(context: APIContext): Promise<Response> {
     uploadedBy: userId,
     source: 'admin',
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, file: result.file });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, file: result.file });
 }
