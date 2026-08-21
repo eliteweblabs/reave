@@ -343,7 +343,7 @@ export const DEFAULT_RULES: EmailRule[] = [
     status: 'RECEIPT',
     scope: 'universal',
     description:
-      'Expense tax receipts (you paid / your receipt) — auto-file silently. Not income like “Payment of $… from …”.',
+      'Expense tax receipts (you paid / your receipt) — auto-file silently. Not income like "Payment of $… from …".',
     phrases: [
       'payment confirmation',
       'payment receipt',
@@ -372,6 +372,33 @@ export const DEFAULT_RULES: EmailRule[] = [
   },
 
   // ── 3. DELETE / JUNK ─────────────────────────────────────────────────────
+
+  {
+    status: 'DELETE',
+    scope: 'universal',
+    description:
+      'New sign-in / new device notifications — sent by GoDaddy, Google, Apple, and other platforms whenever a login is detected. Pure notification spam with no actionable content; silently deleted on every install.',
+    phrases: [
+      "There's been a new sign-in",
+      'signed in to your account',
+      'new sign-in to your account',
+      'Someone signed in to your account',
+      'signed in from a new device',
+      'signed in from a new location',
+      'new device sign-in',
+      'new location or device',
+    ],
+    exceptPhrases: [
+      'unusual sign-in',
+      'suspicious activity',
+      'your account may be compromised',
+      'reset your password',
+    ],
+    matchMode: 'any',
+    fields: ['subject', 'body'],
+    notify: false,
+    enabled: true,
+  },
 
   {
     status: 'DELETE',
