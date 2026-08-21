@@ -39,6 +39,7 @@ const showSignIn = siteContent.nav.showSignIn !== false;
           href={link.href}
           class:list={[
             "marketing-nav-link",
+            link.primary && "marketing-nav-link--primary",
             marketingNavActivePath(pathname, link.href) && "is-active",
           ]}
           data-hide-below={link.hideBelow ?? undefined}
@@ -353,6 +354,25 @@ const showSignIn = siteContent.nav.showSignIn !== false;
   }
 
   .marketing-nav-link.is-active {
+    color: #fff;
+  }
+
+  .marketing-nav-link--primary {
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    font-weight: 600;
+    background: var(--brand-gradient);
+    box-shadow: 0 6px 20px rgba(var(--brand-magenta-rgb), 0.28);
+  }
+
+  .marketing-nav-link--primary:hover {
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    filter: brightness(1.06);
+    background: var(--brand-gradient);
+  }
+
+  .marketing-nav-link--primary.is-active {
     color: #fff;
   }
 

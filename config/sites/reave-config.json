@@ -10,6 +10,7 @@
     "/pricing",
     "/hosting",
     "/modules",
+    "/custom",
     "/demo",
     "/demo-loader",
     "/deploy",
@@ -25,28 +26,13 @@
   "nav": {
     "links": [
       {
-        "href": "/features",
-        "label": "Features"
-      },
-      {
-        "href": "/platform",
-        "label": "Platform"
-      },
-      {
-        "href": "/compare",
-        "label": "Compare"
-      },
-      {
-        "href": "/pricing",
-        "label": "Pricing"
-      },
-      {
-        "href": "/modules",
-        "label": "Modules"
-      },
-      {
         "href": "/about",
         "label": "About"
+      },
+      {
+        "href": "/custom",
+        "label": "Custom",
+        "primary": true
       },
       {
         "href": "/#contact",
@@ -56,7 +42,7 @@
     "groups": [
       {
         "id": "product",
-        "label": "Product",
+        "label": "The OS",
         "links": [
           {
             "href": "/features",
@@ -76,16 +62,11 @@
           },
           {
             "href": "/modules",
-            "label": "Modules"
+            "label": "Add-ons"
           },
           {
             "href": "/demo-loader",
-            "label": "Demo",
-            "primary": true
-          },
-          {
-            "href": "/demo-loader",
-            "label": "Build demo"
+            "label": "Demo"
           }
         ]
       },
@@ -96,6 +77,11 @@
           {
             "href": "/about",
             "label": "About"
+          },
+          {
+            "href": "/custom",
+            "label": "Custom",
+            "primary": true
           },
           {
             "href": "/about#portfolio",
@@ -116,22 +102,22 @@
     "showSignIn": true
   },
   "homepage": {
-    "heroHeadlineHtml": "Small Business, <br class=\"home-hero-title-break\" />Smaller Workday",
-    "showHeroDemo": true,
+    "heroHeadlineHtml": "Help for small businesses <br class=\"home-hero-title-break\" /> on the internet.",
+    "showHeroDemo": false,
     "showDialogue": true,
     "showIntegrations": true,
-    "showFeatures": true,
+    "showFeatures": false,
     "showContact": true,
     "showLegalLinks": true,
     "ctas": [
       {
-        "href": "/features",
-        "label": "How's it Work?",
+        "href": "/#contact",
+        "label": "Get in touch",
         "variant": "ghost"
       },
       {
-        "href": "/demo-loader",
-        "label": "Demo",
+        "href": "/custom",
+        "label": "What's stuck?",
         "variant": "primary"
       }
     ],

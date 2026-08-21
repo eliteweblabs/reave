@@ -41,6 +41,7 @@ export const FEATURE_IDS = [
   'credit_check',
   'materials_pricing',
   'social_inbox',
+  'google_workspace',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -106,6 +107,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing (Home Depot)',
   social_inbox: 'Social inbox',
+  google_workspace: 'Google™ Workspace',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -152,6 +154,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
   social_inbox:
     'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
+  google_workspace:
+    'A branded email (you@yourbusiness.com) looks more professional than a free Gmail™ address. This costs about eight dollars per month per user, billed by Google™.',
 };
 
 export type FeatureVisibility = 'public' | 'private';
@@ -160,13 +164,32 @@ export type FeatureVisibility = 'public' | 'private';
  * Module storefront classification. Unlisted modules default to **public**
  * (demo loader, /modules, /features, marketing chips). Private modules are
  * super-admin / ops-only and are not sold as add-ons.
+ *
+ * Third-party services (Google™ Workspace, etc.) are also private: they live
+ * in this catalog for invoicing and owner bookkeeping, but they are not
+ * REΛVE plugins and must not appear on deploy, demo, or the add-ons page.
  */
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
   dev_infra: 'private',
   code_dev: 'private',
   namecom_dns: 'private',
+  google_workspace: 'private',
 };
+
+/**
+ * Catalog-only third-party services. Not plugins — no runtime gates, no
+ * install enablement, no deploy/demo/add-on tiles.
+ */
+export const EXTERNAL_SERVICE_IDS = ['google_workspace'] as const;
+
+export type ExternalServiceId = (typeof EXTERNAL_SERVICE_IDS)[number];
+
+const EXTERNAL_SERVICE_SET = new Set<string>(EXTERNAL_SERVICE_IDS);
+
+export function isExternalService(id: string): boolean {
+  return EXTERNAL_SERVICE_SET.has(id);
+}
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 

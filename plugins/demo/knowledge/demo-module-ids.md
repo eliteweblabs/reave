@@ -46,6 +46,7 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 033 | `website` | Website |
 | 034 | `credit_check` | Credit check |
 | 036 | `social_inbox` | Social inbox |
+| 037 | `google_workspace` | Google™ Workspace (private service) |
 
 ## Default suite (no URL)
 

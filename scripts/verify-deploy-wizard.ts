@@ -51,10 +51,12 @@ assert.equal(isPrivateFeature('deploy_wizard'), true);
 assert.equal(isPrivateFeature('dev_infra'), true);
 assert.equal(isPrivateFeature('code_dev'), true);
 assert.equal(isPrivateFeature('namecom_dns'), true);
+assert.equal(isPrivateFeature('google_workspace'), true);
 assert.equal(isPublicFeature('deploy_wizard'), false);
 assert.equal(isPublicFeature('dev_infra'), false);
 assert.equal(isPublicFeature('code_dev'), false);
 assert.equal(isPublicFeature('namecom_dns'), false);
+assert.equal(isPublicFeature('google_workspace'), false);
 assert.equal(isPublicFeature('content_management'), true);
 assert.equal(isPublicFeature('website'), true);
 
