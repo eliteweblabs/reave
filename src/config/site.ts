@@ -12,7 +12,7 @@ export const SITE = {
   name: "Business OS",
 
   /** Fallback meta description when company details are not configured yet. */
-  description: "Help for small businesses on the internet — websites, email, listings, and the messy parts of running a shop.",
+  description: "Automated client communication platform",
 
   /** Fallback logo path (root-relative, under /public). Override in admin → Company details. */
   logoPath: "/reave-logo.png",

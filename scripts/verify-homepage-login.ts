@@ -12,8 +12,7 @@ const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf
   pages?: string[];
 };
 assert.notEqual(reaveSite.homepage?.template, 'login');
-assert.match(String(reaveSite.homepage?.heroHeadlineHtml || ''), /small businesses/i);
-assert.match(String(reaveSite.homepage?.heroHeadlineHtml || ''), /internet/i);
+assert.match(String(reaveSite.homepage?.heroHeadlineHtml || ''), /Small Business/);
 assert.equal(reaveSite.pages?.includes('/features'), true);
 
 const reaveInstall = JSON.parse(readFileSync('config/config-reave.json', 'utf8')) as {

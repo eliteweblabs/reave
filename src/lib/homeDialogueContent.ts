@@ -13,23 +13,27 @@ export type HomeDialogueContent = {
 
 export const HOME_DIALOGUE: HomeDialogueContent = {
   eyebrow: "From the founder",
-  title: "What we actually do",
+  title: "Why REΛVE exists",
   turns: [
     {
       role: "visitor",
-      text: "Are you selling an app, or do you just fix websites?",
+      text: "Why did you build REΛVE?",
     },
     {
       role: "founder",
-      text: "We help small businesses on the internet. That’s the job. If the site is chunky and you need someone to clean it up for a few hundred bucks, we’ll do that. If you need branded email so you don’t look like a free Gmail™, we’ll set that up too. Listings, hosting, the leftover tool you never wanted to learn — we’ll take the work.",
+      text: "The logic is simple. The majority of small businesses all need the same basic services to cover 90% of their operation — email, scheduling, and customer management. The REΛVE platform provides all of these on day zero with an integrated agent. With one click, you can research a company from an email, turn rough notes into a proposal, see what your competitors are charging — and literally anything else you can imagine.",
     },
     {
       role: "founder",
-      text: "There is also an operating system we built for running the shop — inbox, clients, billing, an agent that actually does the clicking. We bring it up when it fits. We’re not going to make you buy software just to get help with the thing that’s in the way this week.",
+      text: "REΛVE differs from standard SaaS apps because we're not a multimillion-dollar operation. We developed this entire application in-house and know it inside and out. We've built over a dozen modules to extend the standard REΛVE app.",
     },
     {
       role: "founder",
-      text: "We’ve been doing websites and apps for over 20 years. The OS is what we use ourselves, and we can put you on it if you want the whole pile in one login. Most people start with whatever is actually hurting — and that’s fine. We’ll take any of it.",
+      text: "The goal was to give the small business owner everything they needed from a distance — without bloating the price with unnecessary features — all in a framework that is easily extendable. That's where REΛVE is different. We can customize your installation quickly, and it is not a five-figure operation, as it is with many agencies.",
+    },
+    {
+      role: "founder",
+      text: "We have over 20 years of experience developing websites and applications. I use REΛVE every day, and I actually build the REΛVE app from within itself — change copy, swap a picture, ship an update, all by asking the agent. No CMS login, no page builder. I have since stopped using all other apps, and the decrease in noise has been absolutely phenomenal. I used to get well over 100 dings and beeps a day — and only maybe 5% of them were relevant. Now all I see is that 5%.",
     },
   ],
   attribution: "Thomas Reave",

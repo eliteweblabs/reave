@@ -16,7 +16,7 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 
 <Layout
   title="About"
-  description={`About ${company.name} — two decades helping small businesses on the internet: websites, email, listings, and the messy leftover work.`}
+  description={`About ${company.name} — the team behind the Business OS and two decades of client work across branding, development, and automation.`}
 >
   <div class="about-page">
     <header class="about-intro">
@@ -24,11 +24,9 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
       <h1 class="about-h1">We help small businesses on the internet.</h1>
       <p class="about-lead">
         {company.name} started as a design and development studio — logos, sites,
-        plugins, and custom apps. We still take that work: clean up a chunky
-        website, stand up branded email, fix the listing that never got claimed.
-        When the whole shop should run in one place, we have an operating system
-        we built for that — it comes up in the conversation, not as a requirement
-        to get help.
+        plugins, and custom apps for clients who needed more than a template. That
+        work turned into a platform when we kept rebuilding the same CRM, inbox,
+        billing, and portal stack from scratch.
       </p>
     </header>
 
@@ -83,13 +81,12 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
         <div class="about-block about-closing">
           <h2 id="about-contact-title">Work with us</h2>
           <p>
-            Need the site cleaned up, branded email, a listing fixed, or help
-            getting off a pile of tools? Tell us what’s in the way this week.
-            If the whole shop should run in one place, we can talk about that
-            too — it isn’t a requirement.
+            Need the full platform, a custom integration, or help migrating off the tools
+            you're paying for separately? Tell us what you're running today and we'll map
+            the shortest path.
           </p>
           <div class="about-cta-row">
-            <a class="about-btn about-btn--primary" href="/custom">What's stuck?</a>
+            <a class="about-btn about-btn--primary" href="/schedule">Book a call</a>
             <a class="about-btn about-btn--ghost brand-btn-glass" href={contactHref}>Get in touch</a>
           </div>
         </div>

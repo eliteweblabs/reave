@@ -26,6 +26,26 @@
   "nav": {
     "links": [
       {
+        "href": "/features",
+        "label": "Features"
+      },
+      {
+        "href": "/platform",
+        "label": "Platform"
+      },
+      {
+        "href": "/compare",
+        "label": "Compare"
+      },
+      {
+        "href": "/pricing",
+        "label": "Pricing"
+      },
+      {
+        "href": "/modules",
+        "label": "Add-ons"
+      },
+      {
         "href": "/about",
         "label": "About"
       },
@@ -42,7 +62,7 @@
     "groups": [
       {
         "id": "product",
-        "label": "The OS",
+        "label": "Product",
         "links": [
           {
             "href": "/features",
@@ -66,7 +86,12 @@
           },
           {
             "href": "/demo-loader",
-            "label": "Demo"
+            "label": "Demo",
+            "primary": true
+          },
+          {
+            "href": "/demo-loader",
+            "label": "Build demo"
           }
         ]
       },
@@ -102,22 +127,22 @@
     "showSignIn": true
   },
   "homepage": {
-    "heroHeadlineHtml": "Help for small businesses <br class=\"home-hero-title-break\" /> on the internet.",
-    "showHeroDemo": false,
+    "heroHeadlineHtml": "Small Business, <br class=\"home-hero-title-break\" />Smaller Workday",
+    "showHeroDemo": true,
     "showDialogue": true,
     "showIntegrations": true,
-    "showFeatures": false,
+    "showFeatures": true,
     "showContact": true,
     "showLegalLinks": true,
     "ctas": [
       {
-        "href": "/#contact",
-        "label": "Get in touch",
+        "href": "/features",
+        "label": "How's it Work?",
         "variant": "ghost"
       },
       {
-        "href": "/custom",
-        "label": "What's stuck?",
+        "href": "/demo-loader",
+        "label": "Demo",
         "variant": "primary"
       }
     ],

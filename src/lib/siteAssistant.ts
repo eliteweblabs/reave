@@ -47,7 +47,7 @@ const DEFAULT_GREETING = 'Hi. What can I assist you with today?';
 const SITE_ASSISTANT_PAGES: Record<string, Omit<SiteAssistantPageContext, 'path'>> = {
   '/': {
     label: 'Homepage',
-    topic: 'help for small businesses on the internet — websites, email, listings, and custom workflow bottlenecks',
+    topic: 'the homepage overview of the company and platform',
     greeting: DEFAULT_GREETING,
   },
   '/features': {
@@ -62,7 +62,7 @@ const SITE_ASSISTANT_PAGES: Record<string, Omit<SiteAssistantPageContext, 'path'
   },
   '/custom': {
     label: 'Custom',
-    topic: 'custom workflow bottlenecks and one-off automation',
+    topic: 'custom workflow bottlenecks and one-off work',
     greeting: 'Hi. What’s the biggest bottleneck in your workflow?',
   },
   '/pricing': {
@@ -164,12 +164,12 @@ function buildSystemPrompt(ctx: SiteAssistantContext): string {
     brand.description
       ? `${brand.name}: ${brand.description}`
       : `You represent ${brand.name}.`,
-    'Your job: help a small-business visitor figure out how this company can take work off their plate — websites, branded email, listings, hosting, cleanup jobs, and custom bottlenecks. The operating system / app is real and can come up if they ask, but do not lead with it or make them feel they have to buy software to get help. Point them to /custom to describe what’s stuck, /#contact or /schedule to reach a person, /hosting for Care plans, /pricing only if they ask about the OS. Be warm, brief, and non-technical unless they ask for detail.',
+    'Your job: quickly answer questions about what the company does, how the platform works, pricing/install tiers (point them to /pricing for specifics), managed hosting Care plans (point them to /hosting), booking a call, and how to get in touch. Be warm, brief, and non-technical unless they ask for detail.',
     formatMarketingCapabilityCatalog(),
     'Never tell a visitor the platform lacks a named integration that is in the catalog above (Clerk, Vapi, Telnyx, Railway, GitHub, Resend, Crater, Cal.com, Cloudflare, Kinsta, Pexels, CardDAV, and the modules listed). If you are unsure, send them to /features — do not guess "we don\'t have that." A question about whether this chat can take an action (book, send, change) is different: you cannot take actions.',
-    'You have NO tools and cannot take any action — you cannot book a meeting, send an email, or change anything. Never claim to have done something you have not. If they want a human, quote, or custom project, tell them how to reach the team (see contact info below) or suggest /custom, the contact form, or /schedule. Only mention /demo-loader or /features if they ask how the operating system works.',
-    'Scope: stay focused on this business and how it helps small businesses on the internet. A brief friendly reply to something harmless but unrelated is fine, but steer back to how you can help. Never discuss other clients, internal operations, or confidential details.',
-    'Useful public pages when relevant: /custom (describe a workflow bottleneck), /about (team and story), /#contact (contact on the homepage), /schedule (book a call), /hosting (managed WordPress & web-app hosting Care plans from $600/year), /features (the OS, if they ask), /pricing (OS installation tiers, if they ask), /modules (optional add-ons), /demo-loader (live OS demo, if they ask).',
+    'You have NO tools and cannot take any action — you cannot book a meeting, send an email, or change anything. Never claim to have done something you have not. If they want a human, quote, demo, or custom project, tell them how to reach the team (see contact info below) or suggest the contact form, schedule page, or /demo-loader.',
+    'Scope: stay focused on this business, its services, and its platform capabilities. A brief friendly reply to something harmless but unrelated is fine, but steer back to how you can help. Never discuss other clients, internal operations, or confidential details.',
+    'Useful public pages when relevant: /demo-loader (build and launch a live demo), /about (team and story), /custom (describe a workflow bottleneck), /platform (tech stack and deployment), /features (full platform feature tour), /pricing (installation tiers), /hosting (managed WordPress & web-app hosting Care plans from $600/year), /modules (optional industry add-ons), /demo (demo hub), /schedule (book a call), /#contact (contact section on homepage).',
   ];
 
   if (page) {
