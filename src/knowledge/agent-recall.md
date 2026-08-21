@@ -22,6 +22,12 @@ Personal facts are scoped to the signed-in admin. Shared business habits are ins
 
 ## How a new chat sees it
 
-Each run injects a short “Durable recall” block into the system prompt. If the list is long, the agent can `search_memories` / `list_memories`. `forget_memory` (or `DELETE /api/admin/memories`) drops a note the owner says is wrong.
+Each run injects:
+
+1. **Who you work for** — company name/domain and the deployment owner (Profile / `ADMIN_USERNAME` / contact-api).
+2. **Recent Sessions** — last dozen titles so the agent can see work it already did (including an open deploy-failure repair) and `get_chat` instead of starting over.
+3. A short **Durable recall** block. If the list is long, the agent can `search_memories` / `list_memories`. `forget_memory` (or `DELETE /api/admin/memories`) drops a note the owner says is wrong.
 
 This is not the knowledge playbook store. Playbooks stay in Knowledge (`write_knowledge`). Recall is the short “already know this” list.
+
+Deploy-failure repairs are one Session per Railway service. Later crashes append to that same chat so the agent continues the fix instead of opening nine identical “Deploy failed — …” threads.

@@ -1,10 +1,14 @@
 /**
- * Open a dedicated repair chat when a Railway deploy fails.
- * Dumps build/deploy logs and auto-runs the agent — do not wait for the owner.
+ * Open (or continue) a dedicated repair chat when a Railway deploy fails.
+ * One Session per service — later failures append and keep fixing.
  */
 import { postToSystemAlertsThread } from './systemAlertsThread';
 import { formatRailwayLogsSummary, railwayGetLogs } from './railwayAgentApi';
 import { createLogger } from './logger';
+import {
+  deployFailureAlertTitle,
+  deployFailureServiceName,
+} from './agentSituationalContext';
 
 const log = createLogger('deploy-failure-chat');
 
@@ -65,11 +69,11 @@ function buildRepairPrompt(opts: {
   playbookExtra?: string;
   service?: string;
 }): string {
-  const who = opts.service?.trim() || 'service';
+  const who = deployFailureServiceName({ service: opts.service, message: opts.baseMessage });
   const lines = [
     `Deploy failed — ${who}`,
     '',
-    'GO FIX IT NOW. Do not wait for further instructions.',
+    'GO FIX IT NOW. Do not wait for further instructions. This is the one repair Session for this service — later failures will come back here.',
     '',
     'Railway keeps the previous successful deployment live, so the site is still up.',
     'This is almost always a typo, lockfile mismatch, missing env var, or merge collision.',
@@ -90,15 +94,21 @@ function buildRepairPrompt(opts: {
 }
 
 /**
- * Creates a new System alerts chat with failure context + Railway logs,
- * then auto-runs the agent to repair (unless autoRun is false).
+ * Opens or continues the one repair Session for this service, with logs,
+ * then auto-runs the agent (unless autoRun is false).
  */
 export async function openDeployFailureRepairChat(
   input: DeployFailureChatInput,
-): Promise<{ threadId?: string; agentReply?: string }> {
+): Promise<{ threadId?: string; agentReply?: string; reused?: boolean; suppressed?: boolean }> {
+  const service = deployFailureServiceName({
+    service: input.service,
+    message: input.message,
+  });
+  const reuseTitle = deployFailureAlertTitle(service);
+
   const logs = await fetchFailureLogs({
     project: input.project,
-    service: input.service,
+    service: input.service || service,
     environment: input.environment,
     deploymentId: input.deploymentId,
   });
@@ -107,7 +117,7 @@ export async function openDeployFailureRepairChat(
     baseMessage: input.message,
     logs,
     playbookExtra: input.playbookExtra,
-    service: input.service,
+    service,
   });
 
   const result = await postToSystemAlertsThread({
@@ -116,13 +126,17 @@ export async function openDeployFailureRepairChat(
     emailId: input.emailId,
     model: input.model ?? DEPLOY_FAILURE_REPAIR_MODEL,
     bypassSleep: true,
-    // No phone push — build failures open a chat; owner reviews async.
+    reuseTitle,
+    repairRun: true,
+    // No phone push — build failures stay in the one repair Session.
   });
 
   log.info('repair chat opened', {
     threadId: result.threadId,
     source: input.source,
-    service: input.service,
+    service,
+    reused: result.reused,
+    suppressed: result.suppressed,
     autoRun: input.autoRun !== false,
   });
 

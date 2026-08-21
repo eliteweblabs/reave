@@ -1,6 +1,6 @@
 # Railway build failure triage — agent playbook
 
-When a deploy failure alert fires (webhook or email), follow this playbook **in order**. Duplicate alerts for the same GitHub repo are blocked automatically — you hold the repo lock until you close the incident with a RESOLVED or UNRESOLVED marker.
+When a deploy failure alert fires (webhook or email), follow this playbook **in order**. The app opens **one repair Session per Railway service** and appends later crashes there — do not start a new Session, and do not treat a follow-up as a first look. Read prior turns in this chat (and Recent Sessions) before you act. Duplicate alerts for the same GitHub repo are also blocked when the incident lock is on — you hold that lock until you close with a RESOLVED or UNRESOLVED marker.
 
 ## Service → repo mapping
 
@@ -93,7 +93,8 @@ The system uses these markers to:
 
 ## What you cannot do
 
-- Run parallel repairs for the same repo — blocked by incident lock
+- Open a second repair Session for the same service — the app reuses the existing one
+- Run parallel repairs for the same repo — blocked by incident lock when enabled
 - Delete Railway projects/services via API (not exposed in agent tools)
 
 ## Multi-location note

@@ -75,6 +75,8 @@ import { storeReadWork } from './workStore';
 import { formatWorkForAgent } from './workAgentContext';
 import { formatDurableRecallBlock } from './agentMemoryStore';
 import { scheduleAgentMemoryExtract } from './agentMemoryExtract';
+import { loadOwnerIdentityBlock, loadRecentSessionsBlock } from './agentSituationalContextStore';
+import { resolveOwnerContact } from './ownerContact';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -243,6 +245,8 @@ const MAX_TURN_CHARS = 8_000;
 const MAX_TOOL_RESULT_CHARS = 50_000;
 const MAX_AGENT_TOOL_ROUNDS = 40;
 const MAX_SYSTEM_ALERT_TOOL_ROUNDS = 5;
+/** Deploy-failure repair needs read → fix → commit, not a 5-round diagnosis. */
+const MAX_REPAIR_TOOL_ROUNDS = 24;
 
 /**
  * Output-token budget per LLM turn. This must be large: when the agent writes a
@@ -396,7 +400,9 @@ function truncateToolResult(content: string): string {
 }
 
 function agentMaxToolRounds(): number {
-  return getAgentContext().systemAlert ? MAX_SYSTEM_ALERT_TOOL_ROUNDS : MAX_AGENT_TOOL_ROUNDS;
+  const ctx = getAgentContext();
+  if (ctx.repairRun) return MAX_REPAIR_TOOL_ROUNDS;
+  return ctx.systemAlert ? MAX_SYSTEM_ALERT_TOOL_ROUNDS : MAX_AGENT_TOOL_ROUNDS;
 }
 
 function turnHasAnthropicContent(turn: ChatTurn): boolean {
@@ -710,8 +716,21 @@ async function runKnowledgeAgentInner(
   const brand = await getCompanyBrandContext();
   const tools = buildAnthropicTools(brand);
 
+  const ownerContact =
+    agentCtx.ownerContact !== undefined
+      ? agentCtx.ownerContact
+      : agentCtx.userId
+        ? await resolveOwnerContact(agentCtx.userId).catch(() => null)
+        : null;
+  const identityBlock = await loadOwnerIdentityBlock({
+    ownerName: ownerContact?.name,
+    ownerEmail: ownerContact?.email,
+  });
+  const recentSessions = await loadRecentSessionsBlock(agentCtx.userId, agentCtx.threadId);
+
   const sysParts = [
     `You are the built-in admin assistant for ${brand.name}'s business OS.`,
+    identityBlock,
     `Terminology: work/job records in the admin Work tab are called "${brand.postAlias.pluralTitle}" (singular "${brand.postAlias.singularTitle}"). Use that term when speaking to the user — not "project" unless that is the configured alias.`,
     `Runtime identity: you run INSIDE the deployed app at ${brand.siteUrl} (Astro on Railway) — not Cursor, not a generic external API, and not on the owner's laptop. The owner chats with you from Admin → Sessions; your tools execute server-side on this same service (Postgres, GitHub, Railway GraphQL, Crater, contact-api, etc.). Never open with "log into Railway", "install the Railway CLI", or "configure a Railway token" — diagnose with your tools first. You cannot fetch Railway build/runtime logs via API; when raw logs are truly needed, say so briefly and point to Railway dashboard → ${brand.projectLabel} → production → service → Logs. Do not claim RAILWAY_API_TOKEN is missing or expired without calling run_dev_task ping_railway first.`,
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
@@ -731,6 +750,12 @@ async function runKnowledgeAgentInner(
     'Verify before claiming you cannot: never tell the user a service is unavailable, a domain is in another account, a feature is missing, or a tool is scoped away without checking the install inventory in this prompt, calling search_knowledge, and (when code_dev is on) grep_code / read_file. A tool missing from this turn is not proof the product lacks the integration — it usually means a module is off or an API key is unset. Never equate "I don\'t have a live API tool this turn" with "this app does not include that." Prefer "Clerk is the auth system; user-admin tools need CLERK_SECRET_KEY" over "we don\'t have Clerk." If the user corrects you ("yes it is", "I\'m looking at it right now", "check the GitHub logs"), search again immediately — do not defend the earlier guess. When the user says they just changed DNS or hosting, re-run dns_check and only the DNS tools listed in this turn\'s inventory — do not mention Railway, Kinsta, Cloudflare, or Name.com APIs unless those modules are enabled here. Prefer "tool returned X" over "I don\'t have access".',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks; pass forward_to when they ask to relay mail to another address — forwarded mail does not create a project unless they explicitly ask and you set create_project), and delete_email when they want it removed. Filter rules are indefinite by default; if the user mentions an expiration ("for 7 days", "until Friday", "expires next week"), pass expires_in_days or expires_at on create_email_filter_rule. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
   ];
+  if (recentSessions) sysParts.push(recentSessions);
+  if (agentCtx.systemAlert) {
+    sysParts.push(
+      'This Session is an automated system alert. You are still the same agent who works for this owner. If this is a follow-up in an existing repair Session, read the prior turns and continue that fix — do not treat it as a first look, and do not open another Session.',
+    );
+  }
   if (knowledgeIndustryId() === 'law') {
     sysParts.push(
       'Legal knowledge: this install is a law practice. Courts, judges, clerks, hours, and phones are already loaded from the knowledge aggregation gate (distance from the Mapbox office pin, county, or state) — read_knowledge slug "courts-in-radius" or call list_nearby_courts. Search bankruptcy-department / bankruptcy-intake / bankruptcy-practice for procedure. Never invent a courthouse, judge, clerk, or phone. You are an office assistant, not counsel — do not give legal advice.',
