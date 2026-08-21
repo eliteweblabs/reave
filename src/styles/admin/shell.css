@@ -724,7 +724,7 @@ select,
   position: absolute;
   top: 0.55rem;
   right: 0.55rem;
-  z-index: 1;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -736,6 +736,17 @@ select,
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+}
+/* Keep the visible X small, but give the control a 44px finger target so the
+   top-right dismiss cannot lose to the Triage action below it. */
+.admin-setup-alert-dismiss::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 .admin-setup-alert--triage {
   --notice-accent: 167, 139, 250;
