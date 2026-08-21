@@ -5,7 +5,7 @@ Sign-in for this app is **Clerk** (`@clerk/astro`, `@clerk/backend`). That is al
 ## What is always wired
 
 - Admin sign-in sheets, passkeys, phone sign-in
-- Publishable key + frontend proxy (`src/lib/clerkFrontendProxy.ts`). Production installs default clerk-js to same-origin `/__clerk` so `clerk.{apex}` does not have to be a live Clerk CNAME (WordPress/Kinsta zones often intercept it). Opt out with `PUBLIC_CLERK_PROXY_URL=none`. Development keys (`pk_test_`) never use the proxy.
+- Publishable key + frontend proxy (`src/lib/clerkFrontendProxy.ts`). Production installs default clerk-js to same-origin `/__clerk` so `clerk.{apex}` does not have to be a live Clerk CNAME (WordPress/Kinsta zones often intercept it). The Node proxy forwards to `frontend-api.clerk.dev` with `Clerk-Proxy-Url`, `Clerk-Secret-Key`, and `X-Forwarded-For`, and registers that URL on the Clerk domain. Opt out with `PUBLIC_CLERK_PROXY_URL=none`. Development keys (`pk_test_`) never use the proxy.
 - Session checks on admin routes
 - `AGENT_ALERT_USER_ID` is a Clerk user id (deployment owner)
 

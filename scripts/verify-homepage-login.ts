@@ -14,6 +14,12 @@ import {
   isClerkRuntimeConfigured,
   normalizeClerkRuntimeEnv,
 } from '../src/lib/clerkClient.ts';
+import {
+  absoluteClerkProxyUrl,
+  isClerkFrontendApiHost,
+  rewriteClerkProxyLocation,
+  rewriteClerkProxySetCookie,
+} from '../src/lib/clerkFrontendProxy.ts';
 import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual } from '../src/lib/clerkProxyUrl.ts';
 import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
 
@@ -240,6 +246,29 @@ if (prevPk === undefined) delete process.env.CLERK_PUBLISHABLE_KEY;
 else process.env.CLERK_PUBLISHABLE_KEY = prevPk;
 
 assert.equal(clerkDomainRows({ data: [{ id: 'dmn_1', is_satellite: false, proxy_url: null }] })[0]?.id, 'dmn_1');
+
+assert.equal(
+  absoluteClerkProxyUrl(
+    new Request('https://internal/__clerk/v1/client', {
+      headers: { 'X-Forwarded-Proto': 'https', 'X-Forwarded-Host': 'reave.app' },
+    }),
+  ),
+  'https://reave.app/__clerk',
+);
+assert.equal(isClerkFrontendApiHost('clerk.reave.app'), true);
+assert.equal(isClerkFrontendApiHost('frontend-api.clerk.dev'), true);
+assert.equal(isClerkFrontendApiHost('reave.app'), false);
+assert.equal(
+  rewriteClerkProxyLocation(
+    'https://clerk.reave.app/v1/client/handshake?foo=1',
+    'https://reave.app/__clerk/v1/client/handshake',
+  ),
+  'https://reave.app/__clerk/v1/client/handshake?foo=1',
+);
+assert.equal(
+  rewriteClerkProxySetCookie('__client=abc; Path=/; Domain=clerk.reave.app; Secure; HttpOnly'),
+  '__client=abc; Path=/; Secure; HttpOnly',
+);
 
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);

@@ -30,6 +30,12 @@ export const GET: APIRoute = async () => {
     .then((m) => m.maybeTriggerDeployResumeOnNewReplica())
     .catch(() => undefined);
 
+  // Register /__clerk on the Clerk domain after deploy (not on the proxy
+  // path — Clerk validates proxy_url by calling back into /__clerk).
+  void import('../../../lib/clerkFrontendProxy')
+    .then((m) => m.ensureClerkDomainProxy())
+    .catch(() => undefined);
+
   return new Response(
     JSON.stringify({
       ok: true,
