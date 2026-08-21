@@ -1,26 +1,23 @@
 import { cachedCompanyBrandName } from '../companyConfig';
 import { serverEnv } from '../serverEnv';
-import { secretMatches } from '../secretCompare';
+import {
+  basicAuthMatches,
+  parseBasicAuth,
+  parseBearerToken,
+  tokenAuthMatches,
+  type BasicCredentials,
+} from '../basicAuth';
 
 export type CardDavAuth = {
   username: string;
   method: 'basic' | 'token';
 };
 
-function parseBasicAuth(header: string): { username: string; password: string } | null {
-  const m = /^Basic\s+(.+)$/i.exec(header.trim());
-  if (!m) return null;
-  try {
-    const decoded = atob(m[1].trim());
-    const sep = decoded.indexOf(':');
-    if (sep < 0) return null;
-    return { username: decoded.slice(0, sep), password: decoded.slice(sep + 1) };
-  } catch {
-    return null;
-  }
+function parseBasicAuthHeader(header: string): { username: string; password: string } | null {
+  return parseBasicAuth(header);
 }
 
-function configuredCredentials(): { username: string; password: string; token: string | null } | null {
+function configuredCredentials(): BasicCredentials | null {
   const username = serverEnv('CARDDAV_USERNAME')?.trim();
   const password = serverEnv('CARDDAV_PASSWORD')?.trim();
   const token = serverEnv('CARDDAV_TOKEN')?.trim() ?? serverEnv('CONTACT_API_KEY')?.trim() ?? null;
@@ -51,20 +48,18 @@ export function requireCardDavAuth(request: Request): CardDavAuth | Response {
     '';
 
   if (authHeader) {
-    const basic = parseBasicAuth(authHeader);
-    if (basic) {
-      const userOk = secretMatches(basic.username, creds.username);
-      const passOk = secretMatches(basic.password, creds.password);
-      if (userOk && passOk) return { username: creds.username, method: 'basic' };
+    const basic = parseBasicAuthHeader(authHeader);
+    if (basic && basicAuthMatches(basic, creds)) {
+      return { username: creds.username, method: 'basic' };
     }
 
-    const bearer = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-    if (bearer && creds.token && secretMatches(bearer[1].trim(), creds.token)) {
+    const bearerToken = parseBearerToken(authHeader);
+    if (bearerToken && tokenAuthMatches(bearerToken, creds)) {
       return { username: creds.username, method: 'token' };
     }
   }
 
-  if (tokenHeader && creds.token && secretMatches(tokenHeader, creds.token)) {
+  if (tokenHeader && tokenAuthMatches(tokenHeader, creds)) {
     return { username: creds.username, method: 'token' };
   }
 

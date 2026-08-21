@@ -1,7 +1,13 @@
 import { cachedCompanyBrandName } from '../companyConfig';
 import { siteBaseUrl } from '../requestOrigin';
 import { serverEnv } from '../serverEnv';
-import { secretMatches } from '../secretCompare';
+import {
+  basicAuthMatches,
+  parseBasicAuth,
+  parseBearerToken,
+  tokenAuthMatches,
+  type BasicCredentials,
+} from '../basicAuth';
 
 export const MEDIA_WEBDAV_PREFIX = '/webdav';
 
@@ -20,20 +26,7 @@ export type MediaDropFolderInfo = {
   authSource: 'media' | 'carddav' | null;
 };
 
-function parseBasicAuth(header: string): { username: string; password: string } | null {
-  const m = /^Basic\s+(.+)$/i.exec(header.trim());
-  if (!m) return null;
-  try {
-    const decoded = atob(m[1].trim());
-    const sep = decoded.indexOf(':');
-    if (sep < 0) return null;
-    return { username: decoded.slice(0, sep), password: decoded.slice(sep + 1) };
-  } catch {
-    return null;
-  }
-}
-
-function mediaCredentials(): { username: string; password: string; token: string | null } | null {
+function mediaCredentials(): BasicCredentials | null {
   const username = serverEnv('MEDIA_WEBDAV_USERNAME')?.trim();
   const password = serverEnv('MEDIA_WEBDAV_PASSWORD')?.trim();
   const token = serverEnv('MEDIA_WEBDAV_TOKEN')?.trim() ?? null;
@@ -42,7 +35,7 @@ function mediaCredentials(): { username: string; password: string; token: string
   return null;
 }
 
-function cardDavFallbackCredentials(): { username: string; password: string; token: string | null } | null {
+function cardDavFallbackCredentials(): BasicCredentials | null {
   const username = serverEnv('CARDDAV_USERNAME')?.trim();
   const password = serverEnv('CARDDAV_PASSWORD')?.trim();
   const token = serverEnv('CARDDAV_TOKEN')?.trim() ?? serverEnv('CONTACT_API_KEY')?.trim() ?? null;
@@ -51,12 +44,7 @@ function cardDavFallbackCredentials(): { username: string; password: string; tok
   return null;
 }
 
-function configuredCredentials(): {
-  username: string;
-  password: string;
-  token: string | null;
-  source: 'media' | 'carddav';
-} | null {
+function configuredCredentials(): (BasicCredentials & { source: 'media' | 'carddav' }) | null {
   const media = mediaCredentials();
   if (media) return { ...media, source: 'media' };
   const carddav = cardDavFallbackCredentials();
@@ -109,21 +97,17 @@ export function requireMediaWebdavAuth(request: Request): MediaWebdavAuth | Resp
 
   if (authHeader) {
     const basic = parseBasicAuth(authHeader);
-    if (basic) {
-      const userOk = secretMatches(basic.username, creds.username);
-      const passOk = secretMatches(basic.password, creds.password);
-      if (userOk && passOk) {
-        return { username: creds.username, method: 'basic', source: creds.source };
-      }
+    if (basic && basicAuthMatches(basic, creds)) {
+      return { username: creds.username, method: 'basic', source: creds.source };
     }
 
-    const bearer = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-    if (bearer && creds.token && secretMatches(bearer[1].trim(), creds.token)) {
+    const bearerToken = parseBearerToken(authHeader);
+    if (bearerToken && tokenAuthMatches(bearerToken, creds)) {
       return { username: creds.username, method: 'token', source: creds.source };
     }
   }
 
-  if (tokenHeader && creds.token && secretMatches(tokenHeader, creds.token)) {
+  if (tokenHeader && tokenAuthMatches(tokenHeader, creds)) {
     return { username: creds.username, method: 'token', source: creds.source };
   }
 

@@ -8,24 +8,10 @@
 import type { APIContext } from 'astro';
 import { searchUsedCarDealersInBounds } from '../../../lib/dealerMapPlaces';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const ip = clientIp(context.request);
@@ -34,9 +20,10 @@ export async function GET(context: APIContext): Promise<Response> {
     maxPerWindow: 40,
   });
   if (!limit.ok) {
-    return json(
+    return jsonResponse(
       { ok: false, error: 'Too many searches — wait a moment and try again.' },
       429,
+      { headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
     );
   }
 
@@ -48,10 +35,10 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const result = await searchUsedCarDealersInBounds({ south, west, north, east });
   if (!result.ok) {
-    return json({ ok: false, error: result.error }, result.status);
+    return jsonResponse({ ok: false, error: result.error }, result.status);
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     dealers: result.dealers,
     note: 'Inventory sizes are demo estimates (Places has no lot-size field).',
