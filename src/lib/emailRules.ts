@@ -321,6 +321,25 @@ export const DEFAULT_RULES: EmailRule[] = [
   // ── 2. AUTO-FILING ───────────────────────────────────────────────────────
 
   {
+    status: 'AUTO_ARCHIVED',
+    scope: 'universal',
+    description:
+      'Shipment tracked — package/order shipping notices. Auto-archive silently; not a tax receipt.',
+    phrases: [
+      'shipment tracked',
+      'shipment tracking',
+      'shipment-tracking',
+      'your order has shipped',
+      'your package has shipped',
+      'your package was shipped',
+    ],
+    matchMode: 'any',
+    fields: ['subject', 'body', 'from'],
+    notify: false,
+    enabled: true,
+  },
+
+  {
     status: 'RECEIPT',
     scope: 'universal',
     description:

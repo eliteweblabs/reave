@@ -117,6 +117,4 @@ If a required operator key is missing, Apply names it and stops. Clerk CNAMEs ar
 - Postgres services use Railway’s `postgres-ssl` image plus a volume at `/var/lib/postgresql/data`, and set `DATABASE_URL` for `${{ <name>.DATABASE_URL }}` refs.
 - Cal.com / extras without a catalog repo are created as empty named services.
 
-Then Apply writes the variable plan (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Redeploy after apply. Clerk CNAMEs are the only DNS leftover.
-
-Catalog source: `src/lib/deployWizardCatalog.ts`.
+Then Apply writes the variable plan (`RAILWAY_API_TOKEN` on this host) and, when `CLOUDFLARE_API_TOKEN` is set, attaches Railway custom hosts and upserts DNS. Redeploy after apply. Clerk `clerk.` / `accounts.` CNAMEs are optional: production installs proxy Frontend API at `/__clerk` so WordPress/Kinsta zones do not need to serve those hosts.

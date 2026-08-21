@@ -15,12 +15,18 @@ export function googlePlacesNotListedBullet(
 ): string {
   const name = businessName.trim() || 'This business';
   const q = (query || businessName).trim();
-  const matchNote = q
-    ? ` (no exact address match for "${q}")`
-    : '';
+  const matchNote = q ? ` (no business match found)` : '';
   return (
     `- Google Business Profile: Missing — ${name} is not listed in the Google Places API` +
     `${matchNote}. Local customers will not find them on Google Maps.`
+  );
+}
+
+/** Rewrite leftover "address match" phrasing on already-written audits. */
+export function rewriteGooglePlacesNotListedCopy(text: string): string {
+  return text.replace(
+    /no exact (?:street-level )?address match(?: for "[^"]+")?/gi,
+    'no business match found',
   );
 }
 
@@ -28,19 +34,21 @@ export function auditMentionsGooglePlacesNotListed(body: string): boolean {
   const text = body.toLowerCase();
   return (
     text.includes('google places api') &&
-    (/not listed/.test(text) || /no exact address match/.test(text))
+    (/not listed/.test(text) ||
+      /no exact address match/.test(text) ||
+      /no business match found/.test(text))
   );
 }
 
 /**
  * Inject or replace the Google Business Profile bullet when Places found no
- * exact address match. Idempotent.
+ * business-name match. Idempotent.
  */
 export function ensureGooglePlacesNotListedInAuditBody(
   body: string,
   opts: { businessName: string; query?: string },
 ): string {
-  const src = body ?? '';
+  const src = rewriteGooglePlacesNotListedCopy(body ?? '');
   if (!src.trim()) return src;
   if (auditMentionsGooglePlacesNotListed(src)) return src;
 

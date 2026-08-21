@@ -117,7 +117,9 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - Contact form / click-to-call / chat present and working? Or missing/broken
 
 ### Analytics & Conversion Tracking
-- Analytics installed? Conversion goals configured? Or untracked leads
+- **Client-facing.** Scan `fetch_url` HTML for tracking snippets (`gtag(`, `G-` / `UA-` ids, `GTM-`, `plausible.io`, `fbq(`, Hotjar, Fathom) even though quick tier skips `detect_tech_stack`.
+- List what is installed on the website, or write "No analytics or conversion tracking was found on the website."
+- Do **not** mention owned property, Search Console / GA4 / Plausible access, or that we don't control the domain.
 
 ### Search Rich Results
 - JSON-LD types from seo_inventory: {list or "none"}
@@ -142,8 +144,8 @@ Write one bullet per channel (the client portal rolls Google / Apple / Yelp / Bi
 - Reviews: {platform, stars, count} — {notes}
 - Social: {Instagram / Facebook / other}
 
-**Google Places API (contact create):** When Places returns no exact address match (`placesListing.status = "not_listed"`), you MUST write:
-`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no exact address match).`
+**Google Places API (contact create):** When Places returns no business-name match (`placesListing.status = "not_listed"`), you MUST write:
+`Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no business match found).`
 Do not soften or omit this — the client must be 100% aware.
 
 ---

@@ -2017,7 +2017,7 @@ export function formatDeployWizardCli(plan: DeployWizardPlan, values: Record<str
   ];
 
   if (plan.domains.length) {
-    lines.push('# DNS — Apply writes Railway CNAMEs + _railway-verify TXT on Cloudflare (skip book.; Clerk still manual)');
+    lines.push('# DNS — Apply writes Railway CNAMEs + _railway-verify TXT on Cloudflare (skip book.; Clerk CNAMEs optional with /__clerk)');
     for (const domain of plan.domains) {
       const host = domain.host === '@' ? '@' : domain.host;
       lines.push(`# ${domain.type.padEnd(5)} ${host.padEnd(12)} ${domain.fqdn}  →  ${domain.attach}`);

@@ -125,15 +125,14 @@ export function hasStreetAddress(description: string): boolean {
 }
 
 /**
- * Exact-enough business+address match for audit / contact enrichment.
- * Requires a street address in the Places prediction and strong name overlap
- * with the lookup query (company / contact name).
+ * Business-name overlap with a Places prediction. Used to decide whether the
+ * business exists in the Places API (can someone find them on Google?), not
+ * whether we got a street address back.
  */
-export function isExactBusinessAddressMatch(query: string, description: string): boolean {
+export function isBusinessNameMatch(query: string, description: string): boolean {
   const q = query.trim();
   const d = description.trim();
   if (q.length < 2 || d.length < 2) return false;
-  if (!hasStreetAddress(d)) return false;
 
   const placeName = d.split(',')[0]?.trim() || d;
   const qNorm = q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -155,14 +154,32 @@ export function isExactBusinessAddressMatch(query: string, description: string):
   return hits >= Math.ceil(qTokens.length * 0.7);
 }
 
+/**
+ * Name match plus a street in the prediction — only needed when saving an
+ * address onto the contact, not for the Maps & Directories listing grade.
+ */
+export function isExactBusinessAddressMatch(query: string, description: string): boolean {
+  return hasStreetAddress(description) && isBusinessNameMatch(query, description);
+}
+
+function pickBusinessMatch(
+  predictions: PlacePrediction[],
+  query: string,
+): PlacePrediction | undefined {
+  const nameHits = predictions.filter((p) => isBusinessNameMatch(query, p.description));
+  return nameHits.find((p) => hasStreetAddress(p.description)) ?? nameHits[0];
+}
+
 export type BusinessAddressLookupResult =
   | { status: 'matched'; place: PlacePrediction; query: string }
   | { status: 'not_listed'; query: string }
   | { status: 'unavailable'; query: string };
 
 /**
- * Resolve a business address from Google Places with an exact-match gate.
- * No street-level name match → `not_listed` (caller should surface this in audits).
+ * Look the business up by name in Google Places.
+ * No business-name match → `not_listed` (they are not findable on Google Maps).
+ * A street in the prediction is preferred when one exists, but is not required
+ * to count as listed.
  */
 export async function lookupBusinessAddressMatch(
   query: string,
@@ -175,21 +192,19 @@ export async function lookupBusinessAddressMatch(
     maxResults: 5,
     types: 'establishment',
   });
-  const establishmentHit = establishment.find((p) =>
-    isExactBusinessAddressMatch(q, p.description),
-  );
+  const establishmentHit = pickBusinessMatch(establishment, q);
   if (establishmentHit) {
     return { status: 'matched', place: establishmentHit, query: q };
   }
 
   const any = await autocompletePlaces(q, { maxResults: 5 });
-  const anyHit = any.find((p) => isExactBusinessAddressMatch(q, p.description));
+  const anyHit = pickBusinessMatch(any, q);
   if (anyHit) return { status: 'matched', place: anyHit, query: q };
 
   return { status: 'not_listed', query: q };
 }
 
-/** Best-effort address for a business or place name (exact street-level match only). */
+/** Best-effort address for a business or place name (business-name match). */
 export async function lookupBusinessAddress(query: string): Promise<PlacePrediction | null> {
   const result = await lookupBusinessAddressMatch(query);
   return result.status === 'matched' ? result.place : null;
