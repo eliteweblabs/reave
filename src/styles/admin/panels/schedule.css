@@ -884,10 +884,13 @@
   margin-top: 0.35rem;
 }
 .home-dashboard-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--dash-nav-gap);
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--dash-nav-pad-y) var(--dash-nav-pad-x);
   border-radius: 12px;
   border: none;
@@ -896,10 +899,19 @@
   cursor: pointer;
   text-align: left;
   font: inherit;
+  text-decoration: none;
   transition: background 0.15s;
+}
+/* iOS flex <a> only hits the text — stretch the tap target over the gray card. */
+a.home-dashboard-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
 }
 .home-dashboard-tile:hover {
   background: var(--surface-hover-strong);
+  color: inherit;
+  text-decoration: none;
 }
 .home-dashboard-tile-icon {
   display: inline-flex;

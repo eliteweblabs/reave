@@ -87,8 +87,11 @@
 #dashboard-panel button.dash-inbox-item {
   border-radius: 10px;
 }
-#dashboard-panel button.home-dashboard-tile {
+#dashboard-panel button.home-dashboard-tile,
+#dashboard-panel a.home-dashboard-tile {
   border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
 }
 .dash-stat:hover {
   background: var(--surface-hover-strong);
