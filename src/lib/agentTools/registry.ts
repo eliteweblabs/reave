@@ -10,6 +10,7 @@ import { outboundModule } from './core/outbound';
 import { techStackModule } from './core/techStack';
 import { playwrightAuditModule } from './core/playwrightAudit';
 import { chatsModule } from './core/chats';
+import { memoryModule } from './core/memory';
 import { sshModule } from './core/ssh';
 import { wpModule } from './core/wp';
 import { deployResumeModule } from './core/deployResume';
@@ -32,6 +33,10 @@ import type { AgentToolModule } from './types';
  *
  * Chat management tools (list, get, archive, unarchive, rename, delete, search)
  * live in `core/chats.ts` — always-on when DATABASE_URL is configured.
+ *
+ * Durable recall (`remember` / `list_memories` / `search_memories` / `forget_memory`)
+ * lives in `core/memory.ts` — always-on. Postgres when DATABASE_URL is set,
+ * JSON file fallback for local/dev.
  *
  * SSH remote execution (`exec_ssh`) lives in `core/ssh.ts` — enabled when
  * KINSTA_SSH_HOST + KINSTA_SSH_USER + KINSTA_SSH_PRIVATE_KEY are set. Used
@@ -62,6 +67,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   techStackModule,
   playwrightAuditModule,
   chatsModule,
+  memoryModule,
   sshModule,
   wpModule,
   deployResumeModule,

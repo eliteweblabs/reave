@@ -73,6 +73,8 @@ import { formatEmailForAgent } from './emailAgentContext';
 import { listJobsForItem } from './projectLinks';
 import { storeReadWork } from './workStore';
 import { formatWorkForAgent } from './workAgentContext';
+import { formatDurableRecallBlock } from './agentMemoryStore';
+import { scheduleAgentMemoryExtract } from './agentMemoryExtract';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -694,6 +696,15 @@ async function runKnowledgeAgentInner(
   const finishRun = async (text: string): Promise<AgentRunResult> => {
     const usage = finalizeAgentUsage(usageAcc);
     if (usage) logAgentUsage(usage, { threadId: agentCtx.threadId, userTextPreview: userText });
+    if (!agentCtx.systemAlert) {
+      scheduleAgentMemoryExtract({
+        userText,
+        assistantText: text,
+        userId: agentCtx.userId,
+        threadId: agentCtx.threadId,
+        systemAlert: agentCtx.systemAlert,
+      });
+    }
     return { text: await finalizeAgentReply(text, userText), usage };
   };
   const brand = await getCompanyBrandContext();
@@ -704,6 +715,7 @@ async function runKnowledgeAgentInner(
     `Terminology: work/job records in the admin Work tab are called "${brand.postAlias.pluralTitle}" (singular "${brand.postAlias.singularTitle}"). Use that term when speaking to the user — not "project" unless that is the configured alias.`,
     `Runtime identity: you run INSIDE the deployed app at ${brand.siteUrl} (Astro on Railway) — not Cursor, not a generic external API, and not on the owner's laptop. The owner chats with you from Admin → Sessions; your tools execute server-side on this same service (Postgres, GitHub, Railway GraphQL, Crater, contact-api, etc.). Never open with "log into Railway", "install the Railway CLI", or "configure a Railway token" — diagnose with your tools first. You cannot fetch Railway build/runtime logs via API; when raw logs are truly needed, say so briefly and point to Railway dashboard → ${brand.projectLabel} → production → service → Logs. Do not claim RAILWAY_API_TOKEN is missing or expired without calling run_dev_task ping_railway first.`,
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
+    'Durable recall: lasting preferences, procedures you already completed the same way, client-specific habits, decisions, and stable facts. When this turn reveals something that will matter again in a *different* chat, call remember in the same turn — do not wait for "remember this" or "save that." Skip one-offs, secrets, API keys, and anything already listed in the Durable recall block. Do not narrate that you saved a memory unless the user asked you to remember something. Call search_memories when a question might be answered by an older note that is not in the block. Call forget_memory when the user says a stored note is wrong or outdated. This is separate from knowledge playbooks (write_knowledge) and from personal to-dos.',
     'Ground answers in tools: call search_knowledge (or list_knowledge) before answering "do we have / is X wired / where is" questions — playbooks are not optional for capability claims. Call resolve_contact when the user mentions a contact/person name or asks who they are (typos, nicknames) — unless this turn already includes structured @-mentions with contact uids (prefer those). resolve_contact accepts name, email, phone (last 4 ok), or q for free-text search across company, notes, and website. To browse or show the full contact list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
     'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. When creating a project and the client is unclear, call create_work with title only (or resolve_contact first with any hints from the chat). create_work returns needs_client when you must ask the user who it is; needs_selection + candidates when fuzzy — list the options and ask the user to confirm, then re-call create_work with contact_uid. Never guess a client on ambiguous matches. After create_work or when filing mail to an existing job, call link_to_work so the email/chat stays linked on the project page. Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it. When creating a project from an inbound email, set title to a 2–7 word summary of what they want (from the body/summary) — never copy the email subject line.',
     'Project files: each job has a file repository (list_project_files / add_file_to_project). Images/SVGs/PDFs/PowerPoint files uploaded in a chat linked to a project are saved there automatically. When the user asks to add/save an attachment to a specific client project (e.g. "add this to Reggie\'s newest project"), call add_file_to_project with client name or slug — attachments from the current message are used automatically. read_work includes a files list.',
@@ -955,7 +967,11 @@ async function runKnowledgeAgentInner(
     );
   }
 
-  const system = cachedSystemBlocks(sysParts.join('\n'), await runtimeContextLine(model, modelOverride));
+  const recallBlock = await formatDurableRecallBlock(agentCtx.userId);
+  const system = cachedSystemBlocks(
+    sysParts.join('\n'),
+    [await runtimeContextLine(model, modelOverride), recallBlock].filter(Boolean).join('\n\n'),
+  );
   const cachedTools = withToolPromptCaching(tools);
   const messages: AnthropicMessage[] = await Promise.all([
     ...trimTurnsForAgent(priorTurns).map(async (turn) => ({

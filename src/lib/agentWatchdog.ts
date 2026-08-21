@@ -81,6 +81,8 @@ const READ_ONLY_TOOLS = new Set([
   'list_knowledge',
   'read_knowledge',
   'search_knowledge',
+  'list_memories',
+  'search_memories',
   'list_work',
   'read_work',
   'list_project_files',
