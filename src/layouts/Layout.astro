@@ -180,7 +180,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * scrolling content never enters the upper safe area. Let the
 		 * document grow; viewport-fit=cover then paints into the chrome.
 		 * Do not set overscroll-behavior or overflow-y here — either one
-		 * kills iOS pull-to-refresh.
+		 * kills iOS pull-to-refresh. Public iOS pages opt in from
+		 * Header.astro so the bar does not rubber-band.
 		 */
 		min-height: 100%;
 		background-color: var(--site-canvas, #0c0614);

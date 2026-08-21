@@ -516,6 +516,18 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
+   * Phone / tablet: contain document rubber-band so the visual viewport
+   * does not drag the fixed bar. Desktop keeps native overscroll /
+   * pull-to-refresh.
+   */
+  @media (hover: none), (pointer: coarse) {
+    html:has(body > .app-header:not(.app-header--admin)),
+    html:has(body > .app-header:not(.app-header--admin)) body {
+      overscroll-behavior-y: none;
+    }
+  }
+
+  /*
    * iOS Safari only. Safari 26 samples this background-color into the
    * status bar, so the notch strip and the bar read as one piece.
    * -webkit-touch-callout is iOS WebKit — desktop Safari / Chrome /
