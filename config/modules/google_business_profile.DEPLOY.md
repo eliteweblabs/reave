@@ -8,7 +8,7 @@ stage: 3
 
 Catalog-only third-party service — not a REΛVE plugin. Invoice and bookkeeping only.
 
-Claim or create the Google™ Business Profile (Search + Maps). Do not enable in install `features[]`. Must not appear on deploy, the demo builder, or the public add-ons page.
+REΛVE setup is **$50** once. Claim or create the Google™ Business Profile (Search + Maps). Do not enable in install `features[]`. Must not appear on deploy, the demo builder, or the public add-ons page.
 
 ## External setup
 
