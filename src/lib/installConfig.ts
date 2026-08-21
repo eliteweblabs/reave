@@ -464,12 +464,26 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   return nav;
 }
 
+function ensureProfileMenuAddons(menu: ProfileMenuKey[]): ProfileMenuKey[] {
+  if (menu.includes('addons')) return menu;
+  const socialsAt = menu.indexOf('socials');
+  if (socialsAt >= 0) {
+    return [...menu.slice(0, socialsAt + 1), 'addons', ...menu.slice(socialsAt + 1)];
+  }
+  const settingsAt = menu.indexOf('settings');
+  if (settingsAt >= 0) {
+    return [...menu.slice(0, settingsAt + 1), 'addons', ...menu.slice(settingsAt + 1)];
+  }
+  return [...menu, 'addons'];
+}
+
 function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   let menu = config.profileMenu;
   if (!isCanonicalReaveInstall()) {
     menu = menu.filter((key) => key !== 'industries');
   }
-  return menu;
+  // End users buy/request modules from account → Add-ons. Always show it.
+  return ensureProfileMenuAddons(menu);
 }
 
 export function getInstallConfigClient(): InstallConfigClient {
