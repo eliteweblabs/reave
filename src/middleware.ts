@@ -47,6 +47,7 @@ function isServiceWorkerScript(pathname: string): boolean {
 function isAdminHotReloadAsset(pathname: string): boolean {
   if (pathname === "/admin" || pathname === "/admin/") return true;
   if (pathname === "/admin/copy" || pathname === "/admin/copy/") return true;
+  if (pathname === "/admin/login" || pathname === "/admin/login/") return true;
   return pathname.startsWith("/admin/") && pathname.endsWith(".js");
 }
 

@@ -1,7 +1,10 @@
 ---
+/**
+ * In-scope PWA sign-in. The admin manifest scope is `/admin`, so `/sign-in`
+ * opens Safari on iOS and the Clerk session never returns to the installed app.
+ */
 import Header from "../../components/Header.astro";
-import Favicon from "../../components/Favicon.astro";
-import ViewportMeta from "../../components/ViewportMeta.astro";
+import AdminHead from "../../components/admin/AdminHead.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import "../../styles/mobile-touch.css";
 
@@ -9,21 +12,17 @@ const company = await getCompanyConfig(Astro.request);
 const { userId } = Astro.locals.auth();
 if (userId) {
   const next = Astro.url.searchParams.get("redirect_url") || "/admin/";
-  return Astro.redirect(next.startsWith("/") ? next : "/admin/");
+  return Astro.redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/admin/");
 }
 ---
 
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <ViewportMeta />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
-    <title>Sign In — {company.name}</title>
-    <Favicon />
-  </head>
+  <AdminHead
+    companyName={company.name}
+    fonts={company.fonts}
+    pageTitle={`Sign in — ${company.name}`}
+  />
   <body data-user-id={userId ?? ""}>
     <Header signInAutoOpen={!userId} />
   </body>

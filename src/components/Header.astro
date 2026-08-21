@@ -73,6 +73,8 @@ const signInRedirect =
   requestedReturn.startsWith("/") && !requestedReturn.startsWith("//")
     ? requestedReturn
     : "/admin/";
+/** In-scope PWA login. `/sign-in` is outside manifest scope `/admin`. */
+const authPath = inAdminRoute ? "/admin/login" : "/sign-in";
 const signInAutoOpen =
   signInAutoOpenProp ||
   Astro.url.searchParams.get("auth") === "sign-in" ||
@@ -336,7 +338,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
     autoOpen={signInAutoOpen && !showMarketingNav}
-    authPath="/sign-in"
+    authPath={authPath}
   />
 )}
 

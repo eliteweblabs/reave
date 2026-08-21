@@ -70,7 +70,9 @@ export async function adminFetch(url, opts = {}) {
     if (signInSheet && window.IosSheet?.open) {
       window.IosSheet.open('sign-in-sheet');
     } else {
-      window.location.assign('/sign-in');
+      window.location.assign(
+        window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in',
+      );
     }
     throw new Error('Session expired');
   }

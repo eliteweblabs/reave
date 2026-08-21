@@ -37,8 +37,10 @@ if (!userId) {
   if (Astro.url.searchParams.get('copy') === '1') {
     return Astro.redirect('/admin/copy');
   }
+  // Stay under /admin. The installed PWA scope is `/admin`, so a bounce to
+  // `/sign-in` opens Safari and Clerk’s session never returns to the app.
   const returnTo = Astro.url.pathname + Astro.url.search;
-  return Astro.redirect(`/sign-in?redirect_url=${encodeURIComponent(returnTo)}`);
+  return Astro.redirect(`/admin/login?redirect_url=${encodeURIComponent(returnTo)}`);
 }
 const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
