@@ -321,7 +321,10 @@ function ruleSubline(rule) {
   if (rule.expiresAt) {
     bits.push(isRuleExpired(rule) ? 'Expired' : `Until ${formatRuleExpiresLabel(rule.expiresAt)}`);
   }
-  if (rule.forwardTo) bits.push(`→ ${rule.forwardTo}`);
+  if (rule.forwardTo) {
+    bits.push(`→ ${rule.forwardTo}`);
+    if (rule.createProject) bits.push('create project');
+  }
   return bits.join(' · ');
 }
 
@@ -1020,6 +1023,17 @@ function renderRuleEditPane(pane, opts = {}) {
   forwardIn.value = rule.forwardTo || '';
   forwardIn.addEventListener('input', () => { ruleState.dirty = true; });
 
+  const createProjectLb = document.createElement('label');
+  createProjectLb.className = 're-check';
+  const createProjectCb = document.createElement('input');
+  createProjectCb.type = 'checkbox';
+  createProjectCb.checked = rule.createProject === true;
+  createProjectCb.addEventListener('change', () => { ruleState.dirty = true; });
+  createProjectLb.append(createProjectCb, document.createTextNode(' Also create a project'));
+
+  const forwardWrap = document.createElement('div');
+  forwardWrap.append(forwardIn, createProjectLb);
+
   const expiresLb = document.createElement('label');
   expiresLb.className = 're-check';
   const expiresCb = document.createElement('input');
@@ -1107,7 +1121,12 @@ function renderRuleEditPane(pane, opts = {}) {
   form.appendChild(processFieldWrap);
   processField = { wrap: processFieldWrap, hintEl: processHint };
   form.appendChild(statusIn);
-  appendRuleField(form, 'Forward to', forwardIn);
+  appendRuleField(
+    form,
+    'Forward to',
+    forwardWrap,
+    'Relays matched mail via Resend. Does not create a project unless you check the box.',
+  );
   notifyField = appendRuleField(
     form,
     'Notify',
@@ -1140,6 +1159,7 @@ function renderRuleEditPane(pane, opts = {}) {
     notifyActionsWrap,
     enabledCb,
     forwardIn,
+    createProjectCb,
     expiresCb,
     expiresAtIn,
     expireInCb,
@@ -1196,6 +1216,7 @@ function collectRulePayload(inputs) {
     notifyActions,
     enabled: inputs.enabledCb.checked,
     forwardTo: inputs.forwardIn.value.trim() || null,
+    createProject: !!inputs.createProjectCb?.checked,
     expiresAt,
   };
 }
@@ -1263,6 +1284,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     ...inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.enabledCb,
     inputs.forwardIn,
+    inputs.createProjectCb,
     inputs.expiresCb,
     inputs.expiresAtIn,
     inputs.expireInCb,
@@ -1490,6 +1512,7 @@ async function startNewRule(draft = null) {
           : ['view', 'archive'],
         enabled: draft.enabled !== false,
         expiresAt: draft.expiresAt ?? null,
+        createProject: draft.createProject === true,
       }
     : {
         title: 'New rule',
@@ -1506,6 +1529,7 @@ async function startNewRule(draft = null) {
         notifyActions: ['view', 'archive'],
         enabled: true,
         expiresAt: null,
+        createProject: false,
       };
   try {
     const res = await fetch('/api/email/rules', {
