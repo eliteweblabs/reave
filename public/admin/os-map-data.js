@@ -77,7 +77,7 @@ const SYSTEM_NODES = [
   { id: 'wayback', title: 'Wayback Machine', sub: 'Internet Archive snapshots (FEATURES: wayback_machine)', icon: '🕰️', brand: 'internetarchive', hue: 42, status: true, group: 'external', x: 1160, y: 880 },
   { id: 'changedetection', title: 'ChangeDetection.io', sub: 'site watches (FEATURES: site_monitoring)', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 940 },
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
-  { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
+  { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile · Railway PUBLIC_CLERK_* / CLERK_SECRET_* (+ aliases)', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
   { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats · agent plausible_stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
   { id: 'google_search_console', title: 'Google Search Console', sub: 'OAuth · search analytics · URL inspect · sitemaps (FEATURES: analytic_audit)', icon: '🔎', brand: 'google', hue: 145, status: true, group: 'external', x: 1400, y: 1420 },

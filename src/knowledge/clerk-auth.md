@@ -11,7 +11,7 @@ Sign-in for this app is **Clerk** (`@clerk/astro`, `@clerk/backend`). That is al
 
 ## Admin tools (keys, not a module)
 
-Admin **Backend API tools** (`clerk_list_users`, `clerk_get_user`, `clerk_list_sessions`, orgs, ban/unban) live in `plugins/clerk-auth/`. They are core — not an optional module — and appear when `CLERK_SECRET_KEY` is set on the service.
+Admin **Backend API tools** (`clerk_list_users`, `clerk_get_user`, `clerk_list_sessions`, orgs, ban/unban) live in `plugins/clerk-auth/`. They are core — not an optional module — and appear when `CLERK_SECRET_KEY` is set on the service (aliases: `CLERK_BACKEND_API_KEY`, `CLERK_SECRET`). The sign-in sheet reads `PUBLIC_CLERK_PUBLISHABLE_KEY` (aliases: `CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`).
 
 If those tools are missing this turn, Clerk is still the auth system. Say "user-admin tools need CLERK_SECRET_KEY" — never "we don't have Clerk."
 

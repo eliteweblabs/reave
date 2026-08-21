@@ -1,5 +1,5 @@
+import { clerkSecretKey } from './clerkClient';
 import { requestOrigin } from './requestOrigin';
-import { serverEnv } from './serverEnv';
 
 const CLERK_FAPI = 'https://frontend-api.clerk.dev';
 
@@ -15,7 +15,7 @@ function clientIp(request: Request): string {
 
 /** Same-origin Clerk Frontend API proxy so custom domains are not blocked by FAPI origin checks. */
 export async function proxyClerkFrontendApi(request: Request): Promise<Response> {
-  const secret = serverEnv('CLERK_SECRET_KEY')?.trim();
+  const secret = clerkSecretKey();
   if (!secret) {
     return new Response('Clerk is not configured', { status: 503 });
   }

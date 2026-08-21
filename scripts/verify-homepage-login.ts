@@ -4,7 +4,13 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isClerkRuntimeConfigured } from '../src/lib/clerkClient.ts';
+import {
+  clerkPublishableKey,
+  clerkSecretKey,
+  isClerkFrontendConfigured,
+  isClerkRuntimeConfigured,
+  normalizeClerkRuntimeEnv,
+} from '../src/lib/clerkClient.ts';
 import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
 
 const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf8')) as {
@@ -162,5 +168,29 @@ assert.equal(
 );
 
 assert.equal(isClerkRuntimeConfigured(), false, 'unset Clerk keys are not runtime-ready');
+
+const prevPk = process.env.CLERK_PUBLISHABLE_KEY;
+const prevSk = process.env.CLERK_SECRET;
+const prevCanonPk = process.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
+const prevCanonSk = process.env.CLERK_SECRET_KEY;
+delete process.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
+delete process.env.CLERK_SECRET_KEY;
+process.env.CLERK_PUBLISHABLE_KEY = 'pk_test_alias';
+process.env.CLERK_SECRET = 'sk_test_alias';
+assert.equal(clerkPublishableKey(), 'pk_test_alias', 'Clerk dashboard publishable alias is accepted');
+assert.equal(clerkSecretKey(), 'sk_test_alias', 'Clerk dashboard secret alias is accepted');
+assert.equal(isClerkFrontendConfigured(), true);
+normalizeClerkRuntimeEnv();
+assert.equal(process.env.PUBLIC_CLERK_PUBLISHABLE_KEY, 'pk_test_alias');
+assert.equal(process.env.CLERK_SECRET_KEY, 'sk_test_alias');
+assert.equal(isClerkRuntimeConfigured(), true);
+if (prevPk === undefined) delete process.env.CLERK_PUBLISHABLE_KEY;
+else process.env.CLERK_PUBLISHABLE_KEY = prevPk;
+if (prevSk === undefined) delete process.env.CLERK_SECRET;
+else process.env.CLERK_SECRET = prevSk;
+if (prevCanonPk === undefined) delete process.env.PUBLIC_CLERK_PUBLISHABLE_KEY;
+else process.env.PUBLIC_CLERK_PUBLISHABLE_KEY = prevCanonPk;
+if (prevCanonSk === undefined) delete process.env.CLERK_SECRET_KEY;
+else process.env.CLERK_SECRET_KEY = prevCanonSk;
 
 console.log('verify-homepage-login: ok');
