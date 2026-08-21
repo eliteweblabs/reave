@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { isClerkFrontendConfigured, isClerkConfigured } from '../../../lib/clerkClient';
+import { clerkProxyUrlFromEnv } from '../../../lib/clerkProxyUrl';
 import { isProcessDraining } from '../../../lib/processDrain';
 
 /** Public liveness probe for Railway deploy healthchecks (no auth). */
@@ -35,6 +36,7 @@ export const GET: APIRoute = async () => {
       clerk: {
         secret: isClerkConfigured(),
         publishable: isClerkFrontendConfigured(),
+        proxy: clerkProxyUrlFromEnv() || null,
       },
     }),
     {

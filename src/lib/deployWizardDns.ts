@@ -1,7 +1,7 @@
 /**
  * Deploy wizard → Cloudflare DNS.
  * Attach Railway custom hosts, then upsert CNAME + _railway-verify TXT.
- * Resend inbound MX is synced the same way. Clerk CNAMEs stay manual.
+ * Resend inbound MX is synced the same way. Clerk CNAMEs stay optional (`/__clerk` proxy).
  */
 import {
   cloudflareFindZone,
@@ -318,13 +318,15 @@ export async function applyDeployWizardDns(opts: {
       continue;
     }
     if (kind === 'clerk') {
-      leftover.push(`${domain.fqdn} — copy the CNAME from Clerk → Domains, then ask the agent to upsert it.`);
+      leftover.push(
+        `${domain.fqdn} — optional. Production sign-in uses /__clerk; add this CNAME only if you are not using the proxy.`,
+      );
       rows.push({
         host: domain.host,
         fqdn: domain.fqdn,
         kind,
         action: 'skipped',
-        detail: 'Clerk supplies this CNAME. Add the host in Clerk → Domains.',
+        detail: 'Optional Clerk CNAME. Production installs proxy Frontend API at /__clerk.',
       });
       continue;
     }
