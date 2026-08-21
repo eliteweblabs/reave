@@ -25,6 +25,10 @@ stage: 3
 ## External setup
 
 - Deploy calcom-booking-api + calcom-web-app on Railway
+- On **calcom-web-app**, the official `calcom/cal.com` image listens on **3000** and requires:
+  - `CALENDSO_ENCRYPTION_KEY` — 32 characters (`openssl rand -base64 24`). Do not use `CALENDAR_ENCRYPTION_KEY`; the image ignores that name and exits.
+  - `NEXT_PUBLIC_LICENSE_CONSENT=agree`
+  - `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_WEBAPP_URL` (use `https://cal.{apex}` once that CNAME is attached — the Railway `*.up.railway.app` hostname 502s if the target port is not 3000)
 - On **calcom-web-app**, do not type mail or profile secrets — reference `reave`:
   - `EMAIL_FROM=${{ reave.EMAIL_FROM }}` (alias of `RESEND_FROM` — required or Cal.com uses sendmail)
   - `EMAIL_FROM_NAME=${{ reave.EMAIL_FROM_NAME }}`

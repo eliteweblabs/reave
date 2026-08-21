@@ -286,11 +286,28 @@ export async function railwayEnsurePublicDomain(opts: {
   projectId: string;
   environmentId: string;
   serviceId: string;
+  targetPort?: number;
 }): Promise<{ ok: true; domain?: string; created: boolean } | { ok: false; error: string }> {
   const existing = await railwayGetServiceDomains(opts);
   if (!existing.ok) return existing;
-  const already = existing.serviceDomains[0]?.domain;
-  if (already) return { ok: true, domain: already, created: false };
+  const already = existing.serviceDomains[0];
+  if (already?.domain) {
+    if (opts.targetPort && already.targetPort !== opts.targetPort && already.id) {
+      await railwayGraphql({
+        query: `mutation serviceDomainUpdate($id: String!, $targetPort: Int!) {
+          serviceDomainUpdate(id: $id, input: { targetPort: $targetPort }) { id targetPort }
+        }`,
+        variables: { id: already.id, targetPort: opts.targetPort },
+      });
+    }
+    return { ok: true, domain: already.domain, created: false };
+  }
+
+  const input: Record<string, unknown> = {
+    serviceId: opts.serviceId,
+    environmentId: opts.environmentId,
+  };
+  if (opts.targetPort) input.targetPort = opts.targetPort;
 
   const created = await railwayGraphql<{
     serviceDomainCreate?: { id: string; domain?: string | null } | null;
@@ -298,12 +315,7 @@ export async function railwayEnsurePublicDomain(opts: {
     query: `mutation serviceDomainCreate($input: ServiceDomainCreateInput!) {
       serviceDomainCreate(input: $input) { id domain }
     }`,
-    variables: {
-      input: {
-        serviceId: opts.serviceId,
-        environmentId: opts.environmentId,
-      },
-    },
+    variables: { input },
   });
   if (!created.ok) return { ok: false, error: railwayGqlError(created) };
   return { ok: true, domain: created.data.serviceDomainCreate?.domain ?? undefined, created: true };

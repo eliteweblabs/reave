@@ -128,6 +128,7 @@ async function ensureService(opts: {
         projectId,
         environmentId,
         serviceId: already.id,
+        targetPort: service.targetPort,
       });
     }
     return {
@@ -181,6 +182,7 @@ async function ensureService(opts: {
       projectId,
       environmentId,
       serviceId: created.id,
+      targetPort: service.targetPort,
     });
   }
 

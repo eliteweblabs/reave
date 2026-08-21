@@ -118,6 +118,7 @@ assert.ok(
 assert.equal(deployWizardResendFrom('capcofire.com'), 'noreply@inbound.capcofire.com');
 assert.equal(deployWizardInboundWebhookUrl('capcofire.com'), 'https://capcofire.com/api/email/inbound');
 assert.match(generateDeployWizardSecret('NEXTAUTH_SECRET'), /^[A-Za-z0-9+/=]+$/);
+assert.equal(generateDeployWizardSecret('CALENDSO_ENCRYPTION_KEY').length, 32);
 assert.match(generateDeployWizardSecret('DASHBOARD_KEY'), /^[0-9a-f]{48}$/);
 assert.ok((branded.hostSecretCount || 0) > 0);
 assert.match(formatDeployWizardCli(branded), /RESEND_API_KEY='<from this host>'/);
@@ -132,6 +133,7 @@ const billed = buildDeployWizardPlan({
 assert.ok(billed.services.some((s) => s.id === 'crater'));
 assert.equal(billed.services.find((s) => s.id === 'calcom-booking-api')?.repo, 'eliteweblabs/calcom-booking-api');
 assert.equal(billed.services.find((s) => s.id === 'calcom-web-app')?.image, 'calcom/cal.com:latest');
+assert.equal(billed.services.find((s) => s.id === 'calcom-web-app')?.targetPort, 3000);
 assert.ok(billed.services.some((s) => s.id === 'fleet-api'));
 assert.ok(billed.services.some((s) => s.id === 'materials-api'));
 
@@ -147,6 +149,16 @@ assert.ok(billed.variables.some((v) => v.service === 'shared' && v.name === 'FLE
 
 const reaveEmailFrom = billed.variables.find((v) => v.service === 'reave' && v.name === 'EMAIL_FROM');
 assert.equal(reaveEmailFrom?.filled, '${{RESEND_FROM}}');
+const calWebappUrl = billed.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_WEBAPP_URL');
+assert.equal(calWebappUrl?.filled, 'https://cal.acme.com');
+const calNextUrl = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_WEBAPP_URL');
+assert.equal(calNextUrl?.filled, 'https://cal.acme.com');
+const calAuthUrl = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXTAUTH_URL');
+assert.equal(calAuthUrl?.filled, 'https://cal.acme.com');
+const calLicense = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'NEXT_PUBLIC_LICENSE_CONSENT');
+assert.equal(calLicense?.filled, 'agree');
+const calEncrypt = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'CALENDSO_ENCRYPTION_KEY');
+assert.equal(calEncrypt?.kind, 'generated');
 const calFromName = billed.variables.find((v) => v.service === 'calcom-web-app' && v.name === 'EMAIL_FROM_NAME');
 assert.equal(calFromName?.filled, '${{ reave.EMAIL_FROM_NAME }}');
 const siteDomain = billed.variables.find((v) => v.service === 'reave' && v.name === 'PUBLIC_SITE_DOMAIN');
