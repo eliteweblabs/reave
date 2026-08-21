@@ -2,15 +2,14 @@
 /**
  * Dummy-first preview for the audit sales one-pager.
  *
- * Hit /admin/sales-sheet with query overrides until the print layout is right.
+ * Same admin shell as the rest of /admin: header, deploy indicator, footer
+ * nav, settings in a resizable sidebar, print preview in the detail pane.
  * Print is two-sided: custom client audit + a static REΛVE back
  * (three columns + “REΛVE builds with” stack strip).
- * Live audit wiring (pick 3 findings → PDF → project files) comes after.
  */
 export const prerender = false;
 
-import ViewportMeta from '../../components/ViewportMeta.astro';
-import Favicon from '../../components/Favicon.astro';
+import AdminSpecialLayout from '../../layouts/AdminSpecialLayout.astro';
 import { denyUnlessDeploymentOwner } from '../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../lib/companyConfig';
 import { getTemplate, fillTemplate, renderFilledDocumentHtml } from '../../lib/documentTemplates';
@@ -213,10 +212,10 @@ try {
 
 async function inlineMediaSrc(src: string, slugHint = ''): Promise<string> {
   const fromUrl = src.match(/\/api\/media\/([^/?#]+)/)?.[1] || '';
-  const slug = decodeURIComponent(slugHint || fromUrl).trim();
-  if (!slug) return src;
+  const mediaSlug = decodeURIComponent(slugHint || fromUrl).trim();
+  if (!mediaSlug) return src;
   try {
-    const rec = await storeGetMediaBySlug(slug);
+    const rec = await storeGetMediaBySlug(mediaSlug);
     if (rec?.dataBase64 && rec.mediaType) {
       return `data:${rec.mediaType};base64,${rec.dataBase64}`;
     }
@@ -266,194 +265,45 @@ const placesNote = places.error
   : places.source === 'places'
     ? `Google Places · ${places.competitors.length} nearby results`
     : 'No Places neighbors for this search';
+
+const assetVersion = __PUBLIC_ASSET_VERSION__;
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <ViewportMeta />
-    <meta name="robots" content="noindex, nofollow" />
-    <title>Audit sales sheet (dummy)</title>
-    <Favicon />
-    <link rel="stylesheet" href="/admin-shell.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <style>
-      :root {
-        --bg: #0d1117;
-        --fg: #e9eef6;
-        --panel: #161b22;
-        --panel-border: #30363d;
-        --card: #1c2128;
-        --muted: #8b949e;
-        --accent: #58a6ff;
-        --surface-hover: rgba(177, 186, 196, 0.12);
-        --radius-input: 8px;
-      }
-      html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--fg); }
-      body {
-        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      }
-      .ss-chrome { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
-      .ss-back {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.45rem 0.65rem;
-        border: 1px solid var(--panel-border);
-        border-radius: var(--radius-input);
-        color: inherit;
-        text-decoration: none;
-        font-size: 0.88rem;
-        margin-bottom: 1rem;
-      }
-      .ss-back:hover { background: var(--surface-hover); }
-      .ss-title { font-size: 1.6rem; font-weight: 700; margin: 0 0 0.35rem; }
-      .ss-sub { color: var(--muted); margin: 0 0 1.25rem; line-height: 1.5; font-size: 0.95rem; }
-      .ss-panel {
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 12px;
-        padding: 1.1rem 1.15rem 1.2rem;
-        margin-bottom: 1.25rem;
-      }
-      .ss-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 0.75rem;
-        align-items: end;
-      }
-      .ss-grid-wide { grid-template-columns: 1fr; }
-      .ss-field { display: flex; flex-direction: column; gap: 0.3rem; }
-      .ss-field label {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
-      .ss-field input, .ss-field select, .ss-field textarea {
-        padding: 0.5rem 0.6rem;
-        border: 1px solid var(--panel-border);
-        border-radius: var(--radius-input);
-        background: var(--card);
-        color: var(--fg);
-        font-size: 0.9rem;
-        font-family: inherit;
-      }
-      .ss-field textarea { min-height: 3.2rem; resize: vertical; }
-      .ss-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.9rem; }
-      .ss-btn {
-        padding: 0.55rem 1rem;
-        border: none;
-        border-radius: var(--radius-input);
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #fff;
-        font-size: 0.9rem;
-        font-weight: 600;
-        cursor: pointer;
-        font-family: inherit;
-        text-decoration: none;
-      }
-      .ss-btn-secondary {
-        background: var(--card);
-        border: 1px solid var(--panel-border);
-        color: var(--fg);
-      }
-      .ss-error {
-        background: #3d1f1f;
-        border: 1px solid #8b3a3a;
-        color: #ffd7d7;
-        border-radius: 10px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 1rem;
-      }
-      .ss-sheet { margin: 0 -1rem; }
-      .ss-sheet .doc-onepager {
-        --ss-print-inset: 0.2in;
-        --ss-print-inset-top: 0.25in;
-        padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
-        gap: 2%;
-      }
-      .ss-sheet .doc-onepager-header {
-        border-bottom: none;
-        padding-bottom: 1.6%;
-      }
-      .ss-sheet .doc-onepager-footer { border-top: none; }
-      .ss-sheet .doc-onepager-cols { gap: 0 2.8%; }
-      .ss-sheet .doc-onepager-col + .doc-onepager-col { padding-left: 2.8%; }
-      .ss-check {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        min-height: 2.35rem;
-        font-size: 0.88rem;
-      }
-      .ss-check input { width: 1rem; height: 1rem; accent-color: #667eea; }
-      .ss-busy-mask {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 80;
-        align-items: center;
-        justify-content: center;
-        background: rgba(13, 17, 23, 0.55);
-        color: #e9eef6;
-        font-size: 1rem;
-        font-weight: 600;
-      }
-      body.ss-busy { cursor: wait; }
-      body.ss-busy .ss-busy-mask { display: flex; }
-      body.ss-busy .ss-btn[type="submit"] { opacity: 0.7; }
-      @media print {
-        .ss-chrome { display: none !important; }
-        .ss-busy-mask { display: none !important; }
-        html, body { background: #fff !important; }
-        .ss-sheet { margin: 0; }
-        .ss-sheet .doc-onepager-stage {
-          break-after: page;
-          page-break-after: always;
-        }
-        .ss-sheet .doc-onepager-stage:last-child {
-          break-after: auto;
-          page-break-after: auto;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="ss-chrome">
-      <a class="ss-back" href="/admin/?tab=documents">← Documents</a>
-      <h1 class="ss-title">Audit sales sheet</h1>
-      <p class="ss-sub">
-        Pick a company with an existing audit to refill the sheet. {sourceNote}.
-        A Places miss is finding #1. The iPhone shows the live google.com
-        Places/Maps search — competitors when there is no listing, not a
-        mocked result list. Print is two-sided: custom audit on the client
-        side, the same REΛVE back (three columns + stack strip) on every
-        sheet. Landscape
-        duplex uses short-edge bind so the back is right-side up. Uncheck for
-        <code>?google=0</code>. Use <code>?near=</code>,
-        <code>?category=plumber</code>, <code>?listed=0</code>,
-        <code>?shot=1</code> (rasterize the phone), <code>?places=0</code>
-        (skip the API), or <code>?audit=</code> / <code>?run=</code> for the
-        header QR.
-      </p>
+<AdminSpecialLayout
+  title="Audit sales sheet"
+  requireOwner
+  showFooterNav
+  backHref="/admin/?tab=documents"
+  backLabel="Back to documents"
+  bodyClass="admin-split-view"
+>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap"
+    rel="stylesheet"
+  />
 
-      {error ? <div class="ss-error">{error}</div> : null}
+  <div id="sales-sheet-editor">
+    <aside class="ch-sidebar" aria-label="Sales sheet settings">
+      <form class="ss-settings" id="ss-form" method="get" action="/admin/sales-sheet">
+        <header>
+          <h1 class="prof-title">Audit sales sheet</h1>
+          <p class="prof-subtitle">
+            {sourceNote}. Places miss is finding #1. Print is two-sided — client
+            audit on the front, REΛVE back on every sheet.
+          </p>
+        </header>
 
-      <form class="ss-panel" id="ss-form" method="get" action="/admin/sales-sheet">
-        <div class="ss-grid">
-          <div class="ss-field">
+        {error ? <p class="ss-error">{error}</p> : null}
+
+        <div class="ss-settings-grid">
+          <div class="prof-field">
             <label for="orientation">Orientation</label>
             <select id="orientation" name="orientation">
               <option value="landscape" selected={orientation === 'landscape'}>Landscape</option>
               <option value="portrait" selected={orientation === 'portrait'}>Portrait</option>
             </select>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="run">Company</label>
             <select id="run" name="run">
               <option value="" selected={!selectedAudit}>Dummy — Hale &amp; Co.</option>
@@ -464,43 +314,43 @@ const placesNote = places.error
               ))}
             </select>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="name">Prepared for</label>
             <input id="name" name="name" value={input.contact.name} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="site">Site</label>
             <input id="site" name="site" value={input.website} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="overall">Overall</label>
             <input id="overall" name="overall" maxlength="1" value={input.overall ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="score">Score</label>
             <input id="score" name="score" inputmode="numeric" value={input.overallScore ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="performance">Performance</label>
             <input id="performance" name="performance" maxlength="1" value={input.performance ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="security">Security</label>
             <input id="security" name="security" maxlength="1" value={input.security ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="visibility">Visibility</label>
             <input id="visibility" name="visibility" maxlength="1" value={input.visibility ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="near">Near (city or lat,lng)</label>
             <input id="near" name="near" value={near} placeholder="Boston, MA" />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="category">Competitor search</label>
             <input id="category" name="category" value={category} placeholder="law firm" />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="listed">Listed override</label>
             <select id="listed" name="listed">
               <option value="" selected={listedParam === ''}>Use Places</option>
@@ -508,139 +358,137 @@ const placesNote = places.error
               <option value="1" selected={listedParam === '1'}>Force listed</option>
             </select>
           </div>
-          <div class="ss-field">
-            <span class="ss-check">
-              <input id="google" name="google" type="checkbox" value="1" checked={wantGoogleShot} />
-              <label for="google">Live Google screenshot</label>
-            </span>
+          <div class="ss-check prof-field">
+            <input id="google" name="google" type="checkbox" value="1" checked={wantGoogleShot} />
+            <label for="google">Live Google screenshot</label>
           </div>
-        </div>
-
-        <div class="ss-grid ss-grid-wide" style="margin-top: 0.85rem;">
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="headline">Headline</label>
             <input id="headline" name="headline" value={input.headline} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="audit">Full audit URL (QR)</label>
             <input id="audit" name="audit" value={auditUrl} />
           </div>
-        </div>
-
-        <div class="ss-grid" style="margin-top: 0.85rem;">
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="label1">Finding 1 label</label>
             <input id="label1" name="label1" value={finding1?.categoryLabel ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="finding1">Finding 1 problem</label>
             <textarea id="finding1" name="finding1">{finding1?.problem ?? ''}</textarea>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="solution1">Finding 1 next step</label>
             <textarea id="solution1" name="solution1">{finding1?.solution ?? ''}</textarea>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="label2">Finding 2 label</label>
             <input id="label2" name="label2" value={finding2?.categoryLabel ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="finding2">Finding 2 problem</label>
             <textarea id="finding2" name="finding2">{finding2?.problem ?? ''}</textarea>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="solution2">Finding 2 next step</label>
             <textarea id="solution2" name="solution2">{finding2?.solution ?? ''}</textarea>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="label3">Finding 3 label</label>
             <input id="label3" name="label3" value={finding3?.categoryLabel ?? ''} />
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="finding3">Finding 3 problem</label>
             <textarea id="finding3" name="finding3">{finding3?.problem ?? ''}</textarea>
           </div>
-          <div class="ss-field">
+          <div class="prof-field">
             <label for="solution3">Finding 3 next step</label>
             <textarea id="solution3" name="solution3">{finding3?.solution ?? ''}</textarea>
           </div>
         </div>
 
-        <div class="ss-actions">
-          <button class="ss-btn" id="ss-update" type="submit">Update sheet</button>
-          <a class="ss-btn ss-btn-secondary" href="/admin/sales-sheet">Reset dummy</a>
-          <button class="ss-btn ss-btn-secondary" type="button" onclick="window.print()">Print / Save PDF</button>
+        <div class="prof-actions">
+          <button class="prof-btn-primary" id="ss-update" type="submit">Update sheet</button>
+          <a class="prof-btn-secondary" href="/admin/sales-sheet">Reset dummy</a>
+          <button class="prof-btn-secondary" type="button" onclick="window.print()">Print / Save PDF</button>
         </div>
-        <p class="ss-sub" style="margin: 0.85rem 0 0;">
+        <p class="prof-subtitle">
           {placesNote}. {shotNote}
           {notListed ? ' Finding 1 is the Google Places miss.' : ' Places found a listing — miss is not pinned.'}
         </p>
       </form>
-    </div>
+    </aside>
 
-    {sheetHtml ? (
-      <div class="ss-sheet">
-        <div set:html={sheetHtml} />
-        <div set:html={backHtml} />
-      </div>
-    ) : null}
-    <div class="ss-busy-mask" id="ss-busy-mask" hidden>Updating…</div>
-    <script is:inline>
-      (function () {
-        const form = document.getElementById('ss-form');
-        const run = document.getElementById('run');
-        const updateBtn = document.getElementById('ss-update');
-        const mask = document.getElementById('ss-busy-mask');
+    <section class="de-pane" aria-label="Sales sheet preview">
+      {sheetHtml ? (
+        <div class="ss-sheet">
+          <div set:html={sheetHtml} />
+          <div set:html={backHtml} />
+        </div>
+      ) : (
+        <p class="de-placeholder">No sheet to preview.</p>
+      )}
+      <div class="ss-busy-mask" id="ss-busy-mask" hidden>Updating…</div>
+    </section>
+  </div>
 
-        function busy(label) {
-          document.body.classList.add('ss-busy');
-          if (mask) {
-            mask.hidden = false;
-            mask.textContent = label || 'Updating…';
-          }
-          if (updateBtn) {
-            updateBtn.disabled = true;
-            updateBtn.textContent = label || 'Updating…';
-          }
+  <script is:inline type="module" src={`/admin/sales-sheet-page.js?v=${assetVersion}`}></script>
+  <script is:inline>
+    (function () {
+      const form = document.getElementById('ss-form');
+      const run = document.getElementById('run');
+      const updateBtn = document.getElementById('ss-update');
+      const mask = document.getElementById('ss-busy-mask');
+
+      function busy(label) {
+        document.body.classList.add('ss-busy');
+        if (mask) {
+          mask.hidden = false;
+          mask.textContent = label || 'Updating…';
         }
-
-        function loadClient() {
-          const q = new URLSearchParams();
-          if (run && run.value) q.set('run', run.value);
-          const ori = document.getElementById('orientation');
-          if (ori && ori.value && ori.value !== 'landscape') q.set('orientation', ori.value);
-          const google = document.getElementById('google');
-          if (google && !google.checked) q.set('google', '0');
-          else if (google && google.checked && !(run && run.value)) q.set('google', '1');
-          busy(google && !google.checked ? 'Loading sheet…' : 'Loading Google Places…');
-          location.assign('/admin/sales-sheet' + (q.toString() ? '?' + q : ''));
+        if (updateBtn) {
+          updateBtn.disabled = true;
+          updateBtn.textContent = label || 'Updating…';
         }
+      }
 
-        run?.addEventListener('change', loadClient);
-        form?.addEventListener('submit', function () {
-          const google = document.getElementById('google');
-          if (form && google && !google.checked) {
-            google.disabled = true;
-            let hidden = form.querySelector('input[name="google"][type="hidden"]');
-            if (!hidden) {
-              hidden = document.createElement('input');
-              hidden.type = 'hidden';
-              hidden.name = 'google';
-              form.appendChild(hidden);
-            }
-            hidden.value = '0';
+      function loadClient() {
+        const q = new URLSearchParams();
+        if (run && run.value) q.set('run', run.value);
+        const ori = document.getElementById('orientation');
+        if (ori && ori.value && ori.value !== 'landscape') q.set('orientation', ori.value);
+        const google = document.getElementById('google');
+        if (google && !google.checked) q.set('google', '0');
+        else if (google && google.checked && !(run && run.value)) q.set('google', '1');
+        busy(google && !google.checked ? 'Loading sheet…' : 'Loading Google Places…');
+        location.assign('/admin/sales-sheet' + (q.toString() ? '?' + q : ''));
+      }
+
+      run?.addEventListener('change', loadClient);
+      form?.addEventListener('submit', function () {
+        const google = document.getElementById('google');
+        if (form && google && !google.checked) {
+          google.disabled = true;
+          let hidden = form.querySelector('input[name="google"][type="hidden"]');
+          if (!hidden) {
+            hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'google';
+            form.appendChild(hidden);
           }
-          busy(wantGoogleShotOnSubmit() ? 'Capturing Google Places…' : 'Updating…');
-        });
-
-        function wantGoogleShotOnSubmit() {
-          const google = document.getElementById('google');
-          const runEl = document.getElementById('run');
-          if (google && google.checked) return true;
-          if (google && !google.checked) return false;
-          return !!(runEl && runEl.value);
+          hidden.value = '0';
         }
-      })();
-    </script>
-  </body>
-</html>
+        busy(wantGoogleShotOnSubmit() ? 'Capturing Google Places…' : 'Updating…');
+      });
+
+      function wantGoogleShotOnSubmit() {
+        const google = document.getElementById('google');
+        const runEl = document.getElementById('run');
+        if (google && google.checked) return true;
+        if (google && !google.checked) return false;
+        return !!(runEl && runEl.value);
+      }
+    })();
+  </script>
+</AdminSpecialLayout>
