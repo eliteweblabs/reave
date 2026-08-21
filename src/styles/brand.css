@@ -176,10 +176,14 @@
  * Paint lives on the absolute ::before (ignored by the sampler).
  */
 .site-bg-atmosphere {
+  --site-bg-bleed-top: calc(env(safe-area-inset-top, 0px) + 80px);
+  --site-bg-bleed-bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
+  /* Centered on X; Y skips the chrome bleed so the field starts at the visible top and tiles down. */
+  --reave-bg-pattern-position: center var(--site-bg-bleed-top);
   position: fixed;
-  top: calc(-1 * env(safe-area-inset-top, 0px) - 80px);
+  top: calc(-1 * var(--site-bg-bleed-top));
   right: 0;
-  bottom: calc(-1 * env(safe-area-inset-bottom, 0px) - 160px);
+  bottom: calc(-1 * var(--site-bg-bleed-bottom));
   left: 0;
   z-index: 0;
   width: auto;
@@ -206,7 +210,7 @@
   background-image: var(--reave-bg-pattern-url);
   background-repeat: repeat;
   background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
-  background-position: center center;
+  background-position: var(--reave-bg-pattern-position);
   mix-blend-mode: soft-light;
   opacity: var(--site-bg-pattern-opacity, 0.085);
   pointer-events: none;
