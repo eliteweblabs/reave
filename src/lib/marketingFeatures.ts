@@ -199,7 +199,7 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
   },
   {
     id: 'website',
-    label: 'Website',
+    label: 'Agentic Web Editor',
     modules: ['website'],
     kind: 'capability',
     href: '/features#feature-site-editing',

@@ -41,7 +41,7 @@ const FEATURE_LABELS: Record<string, string> = {
   stock_photos: 'Pexels stock photos',
   wordpress_content: 'WordPress content plugin',
   seo_directory: 'SEO Directory API Kit',
-  website: 'Website (client web tools)',
+  website: 'Agentic Web Editor (client web tools)',
   credit_check: 'Credit check (reference)',
 };
 

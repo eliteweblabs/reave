@@ -102,7 +102,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   event_ticketing: 'Event ticketing',
   cookie_notice: 'Cookie notice',
   deploy_wizard: 'Deploy wizard',
-  website: 'Website',
+  website: 'Agentic Web Editor',
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing (Home Depot)',
   social_inbox: 'Social inbox',
