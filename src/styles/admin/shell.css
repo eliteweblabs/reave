@@ -93,6 +93,8 @@ body {
 #rule-editor > .ch-sidebar,
 #rule-editor > .re-flow-shell,
 #rule-editor > .re-lab-shell,
+#sales-sheet-editor > .ch-sidebar,
+#sales-sheet-editor > .de-pane,
 .de-pane {
   padding-top: var(
     --topbar-measured-h,
@@ -118,6 +120,7 @@ body {
 #modules-panel,
 #media-panel,
 #rule-editor,
+#sales-sheet-editor,
 #dashboard-panel,
 #settings-panel,
 #search-overlay,

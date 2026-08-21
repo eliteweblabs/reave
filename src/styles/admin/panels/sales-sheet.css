@@ -1,0 +1,201 @@
+/* Audit sales sheet — same split rail as documents / chats. */
+#sales-sheet-editor {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: row;
+  background: var(--bg);
+  overflow: hidden;
+  z-index: 10;
+}
+
+#sales-sheet-editor .ch-sidebar {
+  overflow: hidden;
+}
+
+#sales-sheet-editor .ss-settings {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.85rem var(--sidebar-inset) var(--footer-scroll-pad);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+#sales-sheet-editor .ss-settings .prof-title {
+  font-size: 1.05rem;
+}
+
+#sales-sheet-editor .ss-settings .prof-subtitle {
+  margin-bottom: 0;
+}
+
+#sales-sheet-editor .ss-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+#sales-sheet-editor .ss-settings .prof-field textarea {
+  min-height: 3.4rem;
+  resize: vertical;
+}
+
+#sales-sheet-editor .ss-settings .prof-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+#sales-sheet-editor .ss-settings .prof-btn-primary,
+#sales-sheet-editor .ss-settings .prof-btn-secondary {
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+#sales-sheet-editor .ss-check.prof-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.1rem;
+}
+
+#sales-sheet-editor .ss-check.prof-field input {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+#sales-sheet-editor .ss-check.prof-field label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.82rem;
+  color: var(--fg);
+}
+
+#sales-sheet-editor .ss-error {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  border-radius: var(--radius-input);
+  border: 1px solid color-mix(in srgb, #f85149 45%, var(--panel-border));
+  background: color-mix(in srgb, #f85149 10%, transparent);
+  color: var(--fg);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+#sales-sheet-editor .de-pane {
+  background: var(--bg);
+}
+
+#sales-sheet-editor .ss-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 0.75rem var(--footer-scroll-pad);
+}
+
+#sales-sheet-editor .ss-sheet .doc-onepager {
+  --ss-print-inset: 0.2in;
+  --ss-print-inset-top: 0.25in;
+  padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
+  gap: 2%;
+}
+
+#sales-sheet-editor .ss-sheet .doc-onepager-header {
+  border-bottom: none;
+  padding-bottom: 1.6%;
+}
+
+#sales-sheet-editor .ss-sheet .doc-onepager-footer {
+  border-top: none;
+}
+
+#sales-sheet-editor .ss-sheet .doc-onepager-cols {
+  gap: 0 2.8%;
+}
+
+#sales-sheet-editor .ss-sheet .doc-onepager-col + .doc-onepager-col {
+  padding-left: 2.8%;
+}
+
+#sales-sheet-editor .ss-busy-mask {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--fg);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+body.ss-busy #sales-sheet-editor .ss-busy-mask {
+  display: flex;
+}
+
+body.ss-busy #ss-update {
+  opacity: 0.7;
+}
+
+@media (max-width: 639px) {
+  #sales-sheet-editor {
+    flex-direction: column;
+  }
+  #sales-sheet-editor .ch-sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 42%;
+  }
+  #sales-sheet-editor .de-pane {
+    display: flex;
+    flex: 1 1 auto;
+  }
+}
+
+@media print {
+  #topbar,
+  .admin-footer-nav,
+  .deploy-status-banner,
+  #sales-sheet-editor .ch-sidebar,
+  #sales-sheet-editor .ss-busy-mask {
+    display: none !important;
+  }
+  html,
+  body {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: auto !important;
+    background: #fff !important;
+  }
+  #sales-sheet-editor,
+  #sales-sheet-editor .de-pane,
+  #sales-sheet-editor .ss-sheet {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    inset: auto !important;
+  }
+  #sales-sheet-editor .ss-sheet .doc-onepager-stage {
+    break-after: page;
+    page-break-after: always;
+  }
+  #sales-sheet-editor .ss-sheet .doc-onepager-stage:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
