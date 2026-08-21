@@ -34,6 +34,28 @@ export function clerkPublishableKey(): string | undefined {
   return firstClerkEnv(CLERK_PUBLISHABLE_KEY_NAMES);
 }
 
+/**
+ * Frontend API host encoded in a publishable key (`clerk.example.com` or
+ * `foo.clerk.accounts.dev`). Used for CSP and the same-origin `/__clerk` proxy.
+ */
+export function clerkFrontendApiHost(publishableKey = clerkPublishableKey()): string | undefined {
+  const encoded = (publishableKey ?? '').replace(/^pk_(test|live)_/, '');
+  if (!encoded) return undefined;
+  let host: string;
+  try {
+    host = atob(encoded).replace(/\$$/, '');
+  } catch {
+    return undefined;
+  }
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(host)) return undefined;
+  return host;
+}
+
+export function clerkFrontendApiOrigin(publishableKey = clerkPublishableKey()): string | undefined {
+  const host = clerkFrontendApiHost(publishableKey);
+  return host ? `https://${host}` : undefined;
+}
+
 export function clerkSecretKey(): string | undefined {
   return firstClerkEnv(CLERK_SECRET_KEY_NAMES);
 }

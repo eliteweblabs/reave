@@ -5,6 +5,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  clerkFrontendApiHost,
+  clerkFrontendApiOrigin,
   clerkPublishableKey,
   clerkSecretKey,
   clerkDomainRows,
@@ -170,6 +172,14 @@ assert.equal(
 );
 
 assert.equal(isClerkRuntimeConfigured(), false, 'unset Clerk keys are not runtime-ready');
+
+assert.equal(
+  clerkFrontendApiHost('pk_live_Y2xlcmsucmVhdmUuYXBwJA'),
+  'clerk.reave.app',
+  'publishable key decodes to the instance FAPI host',
+);
+assert.equal(clerkFrontendApiOrigin('pk_live_Y2xlcmsucmVhdmUuYXBwJA'), 'https://clerk.reave.app');
+assert.equal(clerkFrontendApiHost('pk_test_not-a-host'), undefined);
 
 const prevPk = process.env.CLERK_PUBLISHABLE_KEY;
 const prevSk = process.env.CLERK_SECRET;

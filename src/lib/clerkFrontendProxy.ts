@@ -1,8 +1,4 @@
-import { clerkEnsureDomainProxy, clerkPublishableKey, clerkSecretKey } from './clerkClient';
-import { clerkProxyUrlFromEnv, normalizeClerkProxyUrl } from './clerkProxyUrl';
-import { requestOrigin } from './requestOrigin';
-
-const CLERK_FAPI = 'https://frontend-api.clerk.dev';
+import { clerkFrontendApiOrigin } from './clerkClient';
 
 function clientIp(request: Request): string {
   return (
@@ -14,17 +10,24 @@ function clientIp(request: Request): string {
   );
 }
 
-/** Same-origin Clerk Frontend API proxy so custom domains are not blocked by FAPI origin checks. */
+/**
+ * Same-origin Clerk Frontend API proxy so client domains can sign in without a
+ * per-host `clerk.*` CNAME.
+ *
+ * Forward to this instance's FAPI host (from the publishable key), not
+ * `frontend-api.clerk.dev`. That shared host only accepts official proxy mode
+ * (`Clerk-Proxy-Url` registered in the Dashboard) and otherwise returns
+ * `host_invalid`.
+ */
 export async function proxyClerkFrontendApi(request: Request): Promise<Response> {
-  const secret = clerkSecretKey();
-  if (!secret) {
+  const fapiOrigin = clerkFrontendApiOrigin();
+  if (!fapiOrigin) {
     return new Response('Clerk is not configured', { status: 503 });
   }
 
   const incoming = new URL(request.url);
   const rest = incoming.pathname.replace(/^\/__clerk\/?/, '');
-  const target = `${CLERK_FAPI}/${rest}${incoming.search}`;
-  const proxyUrl = `${requestOrigin(request).replace(/\/$/, '')}/__clerk`;
+  const target = `${fapiOrigin}/${rest}${incoming.search}`;
 
   const headers = new Headers();
   const allow = new Set([
@@ -40,8 +43,6 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   for (const [key, value] of request.headers.entries()) {
     if (allow.has(key.toLowerCase())) headers.set(key, value);
   }
-  headers.set('Clerk-Proxy-Url', proxyUrl);
-  headers.set('Clerk-Secret-Key', secret);
   const ip = clientIp(request);
   if (ip) headers.set('X-Forwarded-For', ip);
 
@@ -68,49 +69,4 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
 
 export function isClerkFrontendProxyPath(pathname: string): boolean {
   return pathname === '/__clerk' || pathname.startsWith('/__clerk/');
-}
-
-function isPublicHttpsOrigin(origin: string): boolean {
-  try {
-    const url = new URL(origin);
-    const host = url.hostname.toLowerCase();
-    if (url.protocol !== 'https:') return false;
-    if (host === 'localhost' || host.startsWith('127.') || host.endsWith('.internal')) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Absolute `https://{app-host}/__clerk` for Clerk Dashboard / Backend API. */
-export function absoluteClerkFrontendProxyUrl(request: Request): string | undefined {
-  const configured = clerkProxyUrlFromEnv();
-  if (!configured) return undefined;
-  if (/^https?:\/\//i.test(configured)) return normalizeClerkProxyUrl(configured);
-  const origin = requestOrigin(request);
-  if (!isPublicHttpsOrigin(origin)) return undefined;
-  const path = configured.startsWith('/') ? configured : `/${configured}`;
-  return `${origin.replace(/\/$/, '')}${normalizeClerkProxyUrl(path)}`;
-}
-
-let proxyRegistration: Promise<void> | undefined;
-
-/**
- * Register `/__clerk` on the Clerk instance once per process.
- * Fire-and-forget so Clerk's own proxy probe is never blocked on the PATCH.
- */
-export function scheduleClerkFrontendProxyRegistration(request: Request): void {
-  if (proxyRegistration) return;
-  if (clerkPublishableKey()?.startsWith('pk_test_')) return;
-  const proxyUrl = absoluteClerkFrontendProxyUrl(request);
-  if (!proxyUrl) return;
-  proxyRegistration = clerkEnsureDomainProxy(proxyUrl)
-    .then((result) => {
-      if (!result.ok && !result.skipped) {
-        console.warn('[clerk] Frontend API proxy URL was not registered', proxyUrl, result.error);
-      }
-    })
-    .catch((err) => {
-      console.warn('[clerk] Frontend API proxy URL registration failed', err);
-    });
 }
