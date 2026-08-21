@@ -180,7 +180,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * scrolling content never enters the upper safe area. Let the
 		 * document grow; viewport-fit=cover then paints into the chrome.
 		 * Do not set overscroll-behavior or overflow-y here — either one
-		 * kills iOS pull-to-refresh.
+		 * kills iOS pull-to-refresh. Public iOS pages opt in from
+		 * Header.astro so the bar does not rubber-band.
 		 */
 		min-height: 100%;
 		background-color: var(--site-canvas, #0c0614);
@@ -200,6 +201,18 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
 		color-scheme: dark;
+	}
+
+	/*
+	 * After the html/body canvas color. iOS overscroll rubber-band paints
+	 * the html background — match the fixed header so a pull at the top
+	 * does not flash purple around the wordmark. Atmosphere still paints
+	 * the page. Desktop keeps the canvas (rule below).
+	 */
+	@supports (-webkit-touch-callout: none) {
+		html:has(.app-header:not(.app-header--admin)) {
+			background-color: #000;
+		}
 	}
 
 	body {
@@ -293,14 +306,14 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	}
 
 	/*
-	 * Page content above the fixed atmosphere (z-index 0). Negative top
-	 * margin pulls the hero under the sticky header so the first screen
-	 * stays full-bleed.
+	 * Page content above the fixed atmosphere (z-index 0). The public
+	 * header is position:fixed (out of flow), so the hero already starts
+	 * at the viewport top — do not pull main up. A negative margin plus
+	 * a sticky/fixed bar is what made the chrome bounce on iOS.
 	 */
 	main#main-content {
 		position: relative;
 		z-index: 2;
-		margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + var(--app-header-h, 3.25rem)));
 	}
 
 	@media (min-width: 769px) {

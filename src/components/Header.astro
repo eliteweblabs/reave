@@ -352,10 +352,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
 <script>
   /**
-   * Admin-only. iOS reports 0 for env(safe-area-inset-top) when body is
-   * position:fixed (the admin shell). Marketing pages must NOT write --safe-top
-   * from visualViewport — that is what makes the public header jump when the
-   * Safari toolbar shows and hides. Public chrome uses CSS env() only.
+   * Probe env(safe-area-inset-top) once. Admin must do this because iOS reports
+   * 0 while body is position:fixed. Public pages freeze the first non-zero
+   * value so live env() cannot resize the bar mid-scroll (that bounce).
+   * Never write --safe-top from visualViewport — chasing the toolbar is worse.
    */
   function overlayMenuTouchGuard(e: TouchEvent) {
     const open = document.querySelector(".overlay-menu:not([hidden])");
@@ -381,15 +381,23 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   (window as Window & { __syncOverlayMenuScrollLock?: () => void }).__syncOverlayMenuScrollLock =
     syncOverlayMenuScrollLock;
 
-  function syncAppHeaderSafeArea() {
-    if (!document.querySelector(".app-header--admin")) return;
+  function probeSafeAreaInsetTop() {
     const probe = document.createElement("div");
     probe.style.cssText =
       "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
     document.documentElement.appendChild(probe);
     const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
     probe.remove();
+    return insetTop;
+  }
+
+  function syncAppHeaderSafeArea() {
+    const isAdmin = Boolean(document.querySelector(".app-header--admin"));
+    if (!isAdmin && document.documentElement.dataset.safeTopFrozen === "1") return;
+    const insetTop = probeSafeAreaInsetTop();
+    if (!isAdmin && insetTop <= 0) return;
     document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    if (!isAdmin) document.documentElement.dataset.safeTopFrozen = "1";
   }
 
   /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
@@ -475,23 +483,29 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
-   * Public header: sticky + transparent so the page atmosphere shows
-   * through. Pad logo/actions below the notch. Overlay the hero by
-   * pulling main up. Admin stays fixed/transparent.
+   * Public header: fixed overlay, not sticky. Sticky stays in the document
+   * scroll layer, so iOS rubber-band / URL-bar animation moves the bar
+   * (reads as bounce). Fixed + no visualViewport chase keeps it pinned.
+   * Pad logo/actions below the notch. Hero is full-bleed underneath
+   * because the bar is out of flow. Admin stays fixed/transparent.
    */
   .app-header {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 2000;
-    width: 100%;
+    width: auto;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
+    overflow: visible;
     background-color: transparent;
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-top);
     padding-right: var(--app-header-inline-pad);
     padding-bottom: 0;
     padding-left: var(--app-header-inline-pad);
@@ -499,6 +513,18 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+  }
+
+  /*
+   * Phone / tablet: contain document rubber-band so the visual viewport
+   * does not drag the fixed bar. Desktop keeps native overscroll /
+   * pull-to-refresh.
+   */
+  @media (hover: none), (pointer: coarse) {
+    html:has(body > .app-header:not(.app-header--admin)),
+    html:has(body > .app-header:not(.app-header--admin)) body {
+      overscroll-behavior-y: none;
+    }
   }
 
   /*
@@ -510,6 +536,24 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   @supports (-webkit-touch-callout: none) {
     .app-header:not(.app-header--admin) {
       background-color: #000;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+
+    /*
+     * When iOS rubber-bands the visual viewport, a sliver opens above
+     * the bar. Paint black into that gap so the wordmark does not
+     * appear to bounce off the purple canvas.
+     */
+    .app-header:not(.app-header--admin)::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 100%;
+      height: 100lvh;
+      background-color: #000;
+      pointer-events: none;
     }
   }
 
