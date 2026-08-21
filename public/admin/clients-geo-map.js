@@ -182,17 +182,16 @@ export function mountClientsGeoMap(container, opts = {}) {
       .cgm-toggle-label { font-size:.86rem; font-weight:600; }
       .cgm-toggle-count { margin-left:auto; font-size:.75rem; color:#8b949e; font-variant-numeric:tabular-nums; }
       .cgm-toggle:not(.is-on) { opacity:.55; }
-      .cgm-pin { position:relative; width:36px; height:42px; padding:0; border:none; background:transparent; cursor:pointer;
-        filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
-      .cgm-pin-face { position:absolute; top:4px; left:50%; transform:translateX(-50%); width:32px; height:32px; border-radius:50%;
-        border:2.5px solid var(--cgm-kind,#2563eb); background:#fff; overflow:hidden; display:flex; align-items:center; justify-content:center; z-index:1; }
-      .cgm-pin-face--initial { background:var(--cgm-kind,#2563eb); color:#fff; font-size:.85rem; font-weight:700; }
+      .cgm-pin { position:relative; box-sizing:border-box; width:36px; height:52px; padding:0; border:none; background:transparent; cursor:pointer;
+        filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)); transform-origin:bottom center; }
+      .cgm-pin-body { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; }
+      .cgm-pin-body path { fill:var(--cgm-kind,#2563eb); stroke:none; }
+      .cgm-pin-face { position:absolute; top:6px; left:50%; transform:translateX(-50%); width:20px; height:20px; border:none; border-radius:50%;
+        background:transparent; overflow:hidden; display:flex; align-items:center; justify-content:center; z-index:1; }
+      .cgm-pin-face--initial { background:transparent; color:#fff; font-size:.78rem; font-weight:700; line-height:1; }
+      .cgm-pin-face--photo { background:#fff; }
       .cgm-pin-icon { width:100%; height:100%; object-fit:cover; display:block; }
-      /* Triangle tip — base tucked under the face so only a clean point shows. */
-      .cgm-pin-tip { position:absolute; left:50%; bottom:0; width:12px; height:10px; transform:translateX(-50%);
-        background:var(--cgm-kind,#2563eb); clip-path:polygon(0 0, 100% 0, 50% 100%); z-index:0; }
-      .cgm-pin.is-active { z-index:2; filter:drop-shadow(0 3px 8px rgba(0,0,0,.45)); }
-      .cgm-pin.is-active .cgm-pin-face { width:36px; height:36px; border-width:3px; }
+      .cgm-pin.is-active { z-index:2; filter:drop-shadow(0 3px 8px rgba(0,0,0,.45)); transform:scale(1.08); }
       .cgm-status { position:absolute; z-index:6; left:50%; bottom:max(1rem, env(safe-area-inset-bottom)); transform:translateX(-50%);
         max-width:min(420px, calc(100vw - 2rem)); padding:.7rem .95rem; border-radius:10px; border:1px solid rgba(48,54,61,.95);
         background:rgba(22,27,34,.92); font-size:.88rem; }
@@ -422,6 +421,13 @@ export function mountClientsGeoMap(container, opts = {}) {
     markers.clear();
   }
 
+  const PIN_W = 36;
+  const PIN_H = 52;
+  const PIN_BODY =
+    '<svg class="cgm-pin-body" viewBox="0 0 36 52" aria-hidden="true">' +
+    '<path d="M18 2C10.27 2 4 8.27 4 16C4 23.4 10.2 35.2 18 51C25.8 35.2 32 23.4 32 16C32 8.27 25.73 2 18 2Z"/>' +
+    '</svg>';
+
   function buildPinElement(c) {
     const kind = normalizeKind(c.kind);
     const color = kindColor(kind);
@@ -431,11 +437,13 @@ export function mountClientsGeoMap(container, opts = {}) {
     el.style.setProperty('--cgm-kind', color);
     el.title = displayName(c);
     el.setAttribute('aria-label', displayName(c));
+    el.insertAdjacentHTML('afterbegin', PIN_BODY);
 
     const face = document.createElement('span');
     face.className = 'cgm-pin-face';
     const iconUrl = pinIconUrl(c);
     if (iconUrl) {
+      face.classList.add('cgm-pin-face--photo');
       const img = document.createElement('img');
       img.className = 'cgm-pin-icon';
       img.src = iconUrl;
@@ -446,6 +454,7 @@ export function mountClientsGeoMap(container, opts = {}) {
         'error',
         () => {
           face.replaceChildren();
+          face.classList.remove('cgm-pin-face--photo');
           face.textContent = pinInitial(c);
           face.classList.add('cgm-pin-face--initial');
         },
@@ -457,11 +466,7 @@ export function mountClientsGeoMap(container, opts = {}) {
       face.classList.add('cgm-pin-face--initial');
     }
 
-    const tip = document.createElement('span');
-    tip.className = 'cgm-pin-tip';
-    tip.setAttribute('aria-hidden', 'true');
     el.appendChild(face);
-    el.appendChild(tip);
     return el;
   }
 
@@ -537,8 +542,8 @@ export function mountClientsGeoMap(container, opts = {}) {
           icon: leaflet.divIcon({
             className: '',
             html: pin.outerHTML,
-            iconSize: [36, 42],
-            iconAnchor: [18, 42],
+            iconSize: [PIN_W, PIN_H],
+            iconAnchor: [PIN_W / 2, PIN_H],
           }),
         });
         marker.bindPopup(popupHtml(c));
@@ -557,7 +562,7 @@ export function mountClientsGeoMap(container, opts = {}) {
         });
         const marker = new mapboxgl.Marker({ element: pin, anchor: 'bottom' })
           .setLngLat([c.geo.lng, c.geo.lat])
-          .setPopup(new mapboxgl.Popup({ offset: 18, maxWidth: '240px' }).setHTML(popupHtml(c)))
+          .setPopup(new mapboxgl.Popup({ offset: PIN_H + 4, maxWidth: '240px' }).setHTML(popupHtml(c)))
           .addTo(map);
         markers.set(c.uid, marker);
       }
