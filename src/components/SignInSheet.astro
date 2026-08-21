@@ -199,13 +199,6 @@ const clerkAppearance = {
     return window.location.pathname.startsWith('/admin');
   }
 
-  function hasSessionCookie() {
-    return document.cookie.split(';').some((part) => {
-      const name = part.trim().split('=')[0];
-      return name === '__session' || name.startsWith('__session_');
-    });
-  }
-
   function ssrSyncAlreadyTried() {
     try {
       return sessionStorage.getItem(SSR_SYNC_KEY) === '1';
@@ -231,20 +224,18 @@ const clerkAppearance = {
   }
 
   /**
-   * After OTP, Clerk often sets __session while this page still has empty
-   * data-user-id. Session JWTs are ~60s — reload once immediately so SSR can
-   * see the cookie. Never reload again for the same tab session.
+   * After phone OTP, Clerk JS has a user and an HttpOnly `__session` the
+   * page cannot read. Reload once so SSR can see the cookie. Never loop.
    */
   function reloadOnceForSsrCookie() {
     if (serverHasStaffSession()) {
       clearSsrSyncMark();
       return false;
     }
-    if (!hasSessionCookie()) return false;
     if (ssrSyncAlreadyTried()) return false;
     markSsrSyncTried();
     console.info('[reave] syncing Clerk session cookie to SSR (one reload)');
-    window.location.reload();
+    window.setTimeout(() => window.location.reload(), 50);
     return true;
   }
 

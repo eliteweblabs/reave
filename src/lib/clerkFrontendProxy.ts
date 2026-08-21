@@ -131,9 +131,19 @@ export function rewriteClerkRedirectResponse(response: Response, request: Reques
   });
 }
 
-/** Drop Domain= so `__client` is stored on the app host, not clerk.{apex}. */
+/**
+ * Drop Domain= so `__client` is stored on the app host, not clerk.{apex}.
+ * Force Path=/ — a cookie set from `/__clerk` or `/admin/__clerk` otherwise
+ * defaults to that prefix and never reaches `/admin` SSR after phone OTP.
+ */
 export function rewriteClerkProxySetCookie(cookie: string): string {
-  return cookie.replace(/;\s*Domain=[^;]*/gi, '');
+  let next = cookie.replace(/;\s*Domain=[^;]*/gi, '');
+  if (/;\s*Path=/i.test(next)) {
+    next = next.replace(/;\s*Path=[^;]*/gi, '; Path=/');
+  } else {
+    next = `${next}; Path=/`;
+  }
+  return next;
 }
 
 /** Fetch Clerk FAPI without throwing — instance hosts often fail TLS (alert 40). */

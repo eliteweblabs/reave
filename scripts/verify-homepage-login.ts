@@ -305,6 +305,14 @@ assert.equal(
   '__client=abc; Path=/; Secure; HttpOnly',
 );
 assert.equal(
+  rewriteClerkProxySetCookie('__session=abc; Path=/__clerk; Domain=clerk.reave.app; Secure; HttpOnly'),
+  '__session=abc; Path=/; Secure; HttpOnly',
+);
+assert.equal(
+  rewriteClerkProxySetCookie('__client=abc; Secure; HttpOnly'),
+  '__client=abc; Secure; HttpOnly; Path=/',
+);
+assert.equal(
   await fetchClerkUpstream('https://clerk.app.levineslaw.com/v1/environment', { redirect: 'manual' }),
   null,
   'broken instance FAPI TLS must not throw out of the proxy',
