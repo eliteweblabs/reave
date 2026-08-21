@@ -140,6 +140,7 @@ export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'siri-quick-reference',
   'siri-shortcuts',
   'media-drop-folder',
+  'agent-recall',
 ]);
 
 /** @deprecated Prefer isDefaultKnowledgeSlug — core slugs only */
@@ -158,7 +159,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'client-portal':
       return ['client-portal'];
     case 'dev-infra':
-      return ['kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage'];
+      return ['kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage', 'google-workspace-dns'];
     case 'email-marketing':
       return ['newsletter'];
     case 'uptime-monitoring':
@@ -192,7 +193,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'code-dev':
       return ['code-dev-tools'];
     case 'site-audits':
-      return ['inquiry-website-audit', 'inquiry-website-audit-quick'];
+      return ['inquiry-website-audit', 'inquiry-website-audit-quick', 'cloudflare-dns'];
     case 'analytic-audit':
       return ['analytic-audit'];
     case 'clerk-auth':

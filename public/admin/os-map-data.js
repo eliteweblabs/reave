@@ -32,7 +32,7 @@ const SYSTEM_NODES = [
   { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'deploy_wizard', title: 'Deploy wizard', sub: '/deploy · module toggles · industries API · Railway ${{ }} refs', icon: '🪄', brand: 'railway', hue: 185, status: true, group: 'reave', x: 220, y: 200 },
   { id: 'deck_industries', title: 'Industries catalog', sub: '/api/admin/deck-industries · deploy playbooks · demo loader', icon: '🎯', hue: 200, status: true, group: 'reave', x: 220, y: 80 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_run_leases · knowledge · jobs · job_time_entries · active_timers · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'chats · agent_memories · agent_run_leases · knowledge · jobs · job_time_entries · active_timers · calendar_reminders · project_files · media_library · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'media_webdav', title: 'Media drop folder', sub: '/webdav · Finder · iOS Files · MEDIA_WEBDAV_* or CardDAV creds', icon: '📁', hue: 28, status: true, group: 'reave', x: 220, y: 430 },
   { id: 'media_public', title: 'Public media', sub: '/api/media/{slug} · site photos · no-auth GET', icon: '🖼️', hue: 32, status: true, group: 'reave', x: 220, y: 520 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views · calendar reminders', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
@@ -89,6 +89,8 @@ const SYSTEM_NODES = [
   { id: 'ipwhois', title: 'ipwho.is', sub: 'IP → ASN/org hosting lookup · dns_check (FEATURES: site_audits)', icon: '🌐', hue: 190, status: true, group: 'external', x: 1400, y: 1900 },
   { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · REΛVE agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
   { id: 'namecom', title: 'Name.com', sub: 'registrar DNS · zone records + nameservers · namecom_dns (FEATURES: namecom_dns)', icon: '🌐', hue: 210, status: true, group: 'external', x: 1160, y: 1780 },
+  { id: 'cloudflare', title: 'Cloudflare', sub: 'DNS · SSL · cloudflare_dns · setup_google_workspace · CLOUDFLARE_API_TOKEN', icon: '☁️', brand: 'cloudflare', hue: 22, status: true, group: 'external', x: 1160, y: 1900 },
+  { id: 'google_workspace', title: 'Google Workspace', sub: 'Admin domains · DKIM · MX/SPF via Cloudflare · gmail_dkim', icon: '📧', brand: 'google', hue: 155, status: true, group: 'external', x: 1400, y: 1300 },
 ];
 
 const SYSTEM_EDGES = [
@@ -196,6 +198,9 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'pexels', label: 'photo search · agent + /api/pexels/search', dashed: true },
   { from: 'astro', to: 'ipwhois', label: 'dns_check hosting lookup', dashed: true },
   { from: 'astro', to: 'namecom', label: 'namecom_dns · records + NS', dashed: true },
+  { from: 'astro', to: 'cloudflare', label: 'cloudflare_dns · MX/SSL/zones', dashed: true },
+  { from: 'astro', to: 'google_workspace', label: 'gmail_dkim · domains', dashed: true },
+  { from: 'google_workspace', to: 'cloudflare', label: 'setup_google_workspace · DKIM TXT', dashed: true },
   { from: 'dev', to: 'website', label: 'client website pack', dashed: true },
   { from: 'website', to: 'content_mgmt', label: 'editor + Git', dashed: true },
   { from: 'website', to: 'pexels', label: 'stock photos', dashed: true },
@@ -221,7 +226,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
   { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────
@@ -347,7 +352,7 @@ const EMAIL_TRIAGE_NODES = [
   // Automate outcomes
   { id: 'et_otp', title: 'OTP / auth link', sub: 'Copy · Activate · 5 min TTL', icon: '🔑', hue: 55, status: true, group: 'et_automate', x: 1160, y: 60 },
   { id: 'et_meeting', title: 'Meeting automation', sub: 'Intent + clock in email · never invent', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
-  { id: 'et_project', title: 'Project automation', sub: 'Match existing · auto-create', icon: '💼', hue: 195, status: true, group: 'et_automate', x: 1160, y: 300 },
+  { id: 'et_project', title: 'Project automation', sub: 'Match existing · skip if forwarded', icon: '💼', hue: 195, status: true, group: 'et_automate', x: 1160, y: 300 },
   { id: 'et_file', title: 'File to job', sub: 'Append note · attachments', icon: '📎', hue: 210, status: true, group: 'et_automate', x: 1160, y: 420 },
   { id: 'et_sort', title: 'Junk · receipt · alert', sub: 'Hide / expense · why-classified', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
 

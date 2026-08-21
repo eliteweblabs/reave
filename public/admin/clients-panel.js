@@ -29,11 +29,6 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   createAgentBtn,
-  setDeBtnLabel,
-  getDeBtnLabel,
-  updateDeBtnLabel,
-  deBtnIconSvg,
-  downloadBrandingImage,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   createInputClearAdornment,
@@ -61,7 +56,7 @@ import {
 } from './work-panel.js?v=20260820a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260812b';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260821b';
 import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
@@ -1147,7 +1142,6 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<img id="cl-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
           `<button type="button" id="cl-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
         `</div>` +
-        `<button type="button" id="cl-logo-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasLogo ? '' : ' hidden'}></button>` +
         `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !disabled ? ' hidden' : ''}>` +
           `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
         `</div>` +
@@ -1161,7 +1155,6 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<img id="cl-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
           `<button type="button" id="cl-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasIcon ? '' : ' hidden'}>×</button>` +
         `</div>` +
-        `<button type="button" id="cl-icon-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasIcon ? '' : ' hidden'}></button>` +
         `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !disabled ? ' hidden' : ''}>` +
           `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
         `</div>` +
@@ -1347,19 +1340,12 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
   const logoPreviewWrap = root.querySelector('#cl-logo-preview-wrap');
   const logoPreview = root.querySelector('#cl-logo-preview');
   const logoRemove = root.querySelector('#cl-logo-remove');
-  const logoDownload = root.querySelector('#cl-logo-download');
 
   const iconFile = root.querySelector('#cl-icon-file');
   const iconFileWrap = root.querySelector('#cl-icon-file-wrap');
   const iconPreviewWrap = root.querySelector('#cl-icon-preview-wrap');
   const iconPreview = root.querySelector('#cl-icon-preview');
   const iconRemove = root.querySelector('#cl-icon-remove');
-  const iconDownload = root.querySelector('#cl-icon-download');
-
-  if (logoDownload instanceof HTMLButtonElement) setDeBtnLabel(logoDownload, 'Download', 'download');
-  if (iconDownload instanceof HTMLButtonElement) setDeBtnLabel(iconDownload, 'Download', 'download');
-
-  const fileBase = String(uid || 'client').trim() || 'client';
 
   const refreshLogo = (logoUrl, logoSource) => {
     const url = clientBrandingPreviewUrl(logoUrl);
@@ -1368,7 +1354,6 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
     logoPreviewWrap?.toggleAttribute('hidden', !has);
     logoFileWrap?.toggleAttribute('hidden', has);
     logoRemove?.toggleAttribute('hidden', !has);
-    logoDownload?.toggleAttribute('hidden', !has);
   };
 
   const refreshIcon = (iconUrl, iconSource) => {
@@ -1378,34 +1363,7 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
     iconPreviewWrap?.toggleAttribute('hidden', !has);
     iconFileWrap?.toggleAttribute('hidden', has);
     iconRemove?.toggleAttribute('hidden', !has);
-    iconDownload?.toggleAttribute('hidden', !has);
   };
-
-  logoDownload?.addEventListener('click', async () => {
-    const url = logoPreview instanceof HTMLImageElement ? logoPreview.src : '';
-    if (!url || !(logoDownload instanceof HTMLButtonElement)) return;
-    logoDownload.disabled = true;
-    try {
-      await downloadBrandingImage(url, `${fileBase}-logo`);
-    } catch {
-      alert('Download failed — please try again.');
-    } finally {
-      logoDownload.disabled = false;
-    }
-  });
-
-  iconDownload?.addEventListener('click', async () => {
-    const url = iconPreview instanceof HTMLImageElement ? iconPreview.src : '';
-    if (!url || !(iconDownload instanceof HTMLButtonElement)) return;
-    iconDownload.disabled = true;
-    try {
-      await downloadBrandingImage(url, `${fileBase}-icon`);
-    } catch {
-      alert('Download failed — please try again.');
-    } finally {
-      iconDownload.disabled = false;
-    }
-  });
 
   logoFile?.addEventListener('change', async () => {
     if (!(logoFile instanceof HTMLInputElement) || !logoFile.files?.length) return;

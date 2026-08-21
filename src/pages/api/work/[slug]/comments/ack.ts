@@ -8,15 +8,10 @@ import { storeAckWorkCommentsForSlug } from '../../../../../lib/workComments';
 import { scheduleReviewsBadgePush } from '../../../../../lib/pushBadgeSync';
 import { getReviewsPendingCount } from '../../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -24,14 +19,14 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+  if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
+  if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const result = await storeAckWorkCommentsForSlug(slug);
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
   if (result.acked > 0) scheduleReviewsBadgePush();
   const badgeCount = await getReviewsPendingCount().catch(() => undefined);
-  return json({
+  return jsonResponse({
     ok: true,
     acked: result.acked,
     ...(badgeCount != null ? { badgeCount } : {}),

@@ -10,6 +10,7 @@
 import Header from "../components/Header.astro";
 import AdminFooterNav from "../components/AdminFooterNav.astro";
 import AdminHead from "../components/admin/AdminHead.astro";
+import DeployStatusBanner from "../components/DeployStatusBanner.astro";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { getInstallConfigClient } from "../lib/installConfig";
@@ -63,6 +64,7 @@ const installConfigClient = getInstallConfigClient();
 >
   <AdminHead companyName={company.name} fonts={company.fonts} pageTitle={title} />
   <body class:list={["admin-special-page", bodyClass]} data-user-id={userId ?? ""}>
+    <DeployStatusBanner />
     <Header
       adminShell
       specialPage

@@ -357,6 +357,7 @@ function stepsFromAuditAndResult(
       result.wouldNotify ? 'Would notify' : 'Silent',
       result.wouldAgentAlert ? 'Would agent-alert' : null,
       result.wouldForwardTo ? `Would forward → ${result.wouldForwardTo}` : null,
+      result.wouldForwardTo ? 'No auto-project unless createProject is on' : null,
     ]
       .filter(Boolean)
       .join(' · '),

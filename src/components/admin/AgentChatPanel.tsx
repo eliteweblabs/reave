@@ -1910,11 +1910,9 @@ function peopleResultToMention(person: PeopleSearchResult): ChatMention {
   };
 }
 
-function peopleSubline(person: PeopleSearchResult): string {
-  if (person.kind === 'contact') {
-    return [person.company, person.email, person.phone].filter(Boolean).join(' · ') || 'Contact';
-  }
-  return [person.email, person.username].filter(Boolean).join(' · ') || 'Team';
+function mentionKindLabel(person: PeopleSearchResult): string {
+  if (person.kind === 'user') return 'Team';
+  return person.clientKind === 'proposed' ? 'Proposed' : 'Client';
 }
 
 function MentionsPanel({
@@ -1943,7 +1941,6 @@ function MentionsPanel({
         ) : null}
         {people.map((person, i) => {
           const key = person.kind === 'contact' ? `c:${person.uid}` : `u:${person.userId}`;
-          const sub = peopleSubline(person);
           return (
             <li key={key}>
               <button
@@ -1954,11 +1951,8 @@ function MentionsPanel({
                 ref={i === activeIdx ? activeRef : undefined}
                 onClick={() => onPick(person)}
               >
-                <span className="aui-mention-kind">{person.kind === 'contact' ? 'Contact' : 'Team'}</span>
-                <span className="aui-mention-body">
-                  <span className="aui-helper-item-slash">@{person.name}</span>
-                  {sub ? <span className="aui-helper-item-summary">{sub}</span> : null}
-                </span>
+                <span className="aui-mention-kind">{mentionKindLabel(person)}</span>
+                <span className="aui-helper-item-slash">@{person.name}</span>
               </button>
             </li>
           );

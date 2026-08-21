@@ -219,7 +219,8 @@ const gmailDkimDefinition: AgentToolDef = {
       'publish_to_cloudflare: auto-publish the DKIM TXT record to Cloudflare DNS (requires CLOUDFLARE_API_TOKEN). ' +
       'enable_dkim: turn on DKIM signing once the TXT record is live. ' +
       'disable_dkim: turn off DKIM signing. ' +
-      'Typical flow: generate_key → publish_to_cloudflare → enable_dkim. ' +
+      'Typical flow after MX/SPF: generate_key → publish_to_cloudflare → enable_dkim. ' +
+      'If mail DNS is not on Google yet, call cloudflare_dns setup_google_workspace first — do not ask the user to paste MX, SPF, or DKIM. ' +
       'Requires Google re-auth with admin.directory.domain scope.',
     parameters: {
       type: 'object',
@@ -255,6 +256,7 @@ const googleWorkspaceDomainsDefinition: AgentToolDef = {
       'action "list": returns all domains with their type (primary/secondary) and any aliases. ' +
       'action "get": returns details for a specific domain including whether it is primary or secondary. ' +
       'Use this before gmail_dkim to confirm a domain exists and its type — secondary domains get their own DKIM key; aliases share the primary domain DKIM. ' +
+      'Call this instead of asking the user whether a domain is on the Workspace account. ' +
       'Requires Google re-auth with admin.directory.domain scope.',
     parameters: {
       type: 'object',

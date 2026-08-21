@@ -96,6 +96,11 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
         : body.forward_to !== undefined
           ? String(body.forward_to)
           : null,
+    createProject:
+      body.createProject === true ||
+      body.createProject === 'true' ||
+      body.create_project === true ||
+      body.create_project === 'true',
     ...(hasScope ? { scope: normalizeEmailRuleScope(body.scope, 'personal') } : {}),
   };
 }

@@ -238,6 +238,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-chat {
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-height: 0;
     height: 100%;
   }
@@ -294,45 +295,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     flex-direction: column;
     gap: 10px;
     -webkit-overflow-scrolling: touch;
-  }
-  .aw-msg { display: flex; }
-  .aw-msg-user { justify-content: flex-end; }
-  .aw-msg-assistant { justify-content: flex-start; }
-  .aw-bubble {
-    max-width: 84%;
-    padding: 10px 13px;
-    border-radius: 16px;
-    font-size: 14.5px;
-    line-height: 1.5;
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
-  }
-  .aw-msg-assistant .aw-bubble {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.92);
-    border-bottom-left-radius: 4px;
-  }
-  .aw-root--site .aw-msg-user .aw-bubble {
-    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
-    color: #fff;
-    border-bottom-right-radius: 4px;
-  }
-  .aw-root--portal .aw-msg-user .aw-bubble {
-    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-    border: 1px solid var(--portal-brand-fill-border, transparent);
-    color: #fff;
-    border-bottom-right-radius: 4px;
-  }
-  .aw-root--site .aw-bubble a { color: #d8b4fe; text-decoration: underline; }
-  .aw-root--portal .aw-bubble a { color: var(--portal-accent, #d8b4fe); text-decoration: underline; }
-  .aw-msg-user .aw-bubble a { color: #fff; }
-  .aw-bubble strong { font-weight: 700; }
-  .aw-bubble.aw-bubble-error {
-    background: rgba(248, 113, 113, 0.12);
-    border-color: rgba(248, 113, 113, 0.3);
-    color: #fca5a5;
   }
 
   .aw-typing {
@@ -445,6 +407,62 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     display: flex;
     flex-direction: column;
     min-height: 0;
+  }
+
+  /* JS-created turns do not get Astro scoped attributes — keep bubble
+     alignment in the global sheet so user messages sit on the right. */
+  .aw-msg {
+    display: flex;
+    width: 100%;
+  }
+  .aw-msg-user { justify-content: flex-end; }
+  .aw-msg-assistant { justify-content: flex-start; }
+  .aw-bubble {
+    max-width: 84%;
+    padding: 10px 13px;
+    border-radius: 16px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .aw-msg-assistant .aw-bubble {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    border-bottom-left-radius: 4px;
+  }
+  .aw-root--site .aw-msg-user .aw-bubble {
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .aw-root--portal .aw-msg-user .aw-bubble {
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .aw-root--site .aw-bubble a { color: #d8b4fe; text-decoration: underline; }
+  .aw-root--portal .aw-bubble a { color: var(--portal-accent, #d8b4fe); text-decoration: underline; }
+  .aw-msg-user .aw-bubble a { color: #fff; }
+  .aw-bubble strong { font-weight: 700; }
+  .aw-bubble.aw-bubble-error {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: #fca5a5;
+  }
+
+  /* Backdrop is pinned to visualViewport while the keyboard is open.
+     Fill that box so the composer sits on the keys, not under them. */
+  .aw-sheet.open.ios-sheet-keyboard .ios-sheet {
+    height: 100%;
+    max-height: 100%;
+    padding-bottom: 0;
+  }
+  .aw-sheet.open.ios-sheet-keyboard .aw-footer {
+    display: none;
   }
 </style>
 
@@ -638,6 +656,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
       input!.style.height = `${Math.min(input!.scrollHeight, 110)}px`;
     }
     input.addEventListener('input', autosize);
+    input.addEventListener('focus', () => {
+      requestAnimationFrame(scrollToBottom);
+    });
 
     let sending = false;
     async function sendMessage(rawText: string) {

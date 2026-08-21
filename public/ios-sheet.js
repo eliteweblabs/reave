@@ -67,7 +67,11 @@
   function keyboardInset() {
     const vv = window.visualViewport;
     if (!vv) return 0;
-    return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    // Height of the layout viewport the visual viewport no longer covers.
+    // Do not subtract offsetTop: iOS often scrolls the visual viewport when a
+    // field is focused so offsetTop + height ≈ innerHeight, which hid the
+    // keyboard from the previous formula while the keys still covered the sheet.
+    return Math.max(0, Math.round(window.innerHeight - vv.height));
   }
 
   function clearBackdropPin(el) {
@@ -101,6 +105,17 @@
     ) {
       return;
     }
+    const sheet = active.closest('.ios-sheet');
+    if (!sheet) return;
+
+    // Chat sheets scroll the transcript, not the body (overflow:hidden).
+    // Keep the latest turn in view so the composer stays docked above the keys.
+    const messages = sheet.querySelector('.aw-messages');
+    if (messages instanceof HTMLElement) {
+      messages.scrollTop = messages.scrollHeight;
+      return;
+    }
+
     const body = active.closest('.ios-sheet-body');
     if (!body) return;
     const bodyRect = body.getBoundingClientRect();

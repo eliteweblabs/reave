@@ -44,6 +44,7 @@ export const HERO_DEMO_SLASH_PICKER = [
   { slash: "/knowledge", summary: "List knowledge docs" },
   { slash: "/inbox", summary: "List inbox emails" },
   { slash: "/todo", summary: "List personal todos" },
+  { slash: "/remember", summary: "What the agent already knows" },
   { slash: "/work", summary: "List open jobs" },
   { slash: "/contact", summary: "Look up a contact" },
   { slash: "/invoice", summary: "List recent invoices" },
@@ -58,7 +59,7 @@ export type HeroDemoMentionOption = {
   company: string;
   email?: string;
   phone?: string;
-  kind?: "contact" | "team";
+  kind?: "contact" | "proposed" | "team";
 };
 
 /**

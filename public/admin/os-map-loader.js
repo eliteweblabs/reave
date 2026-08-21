@@ -183,7 +183,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260821a';
+} from './schedule-panel.js?v=20260821b';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -203,7 +203,7 @@ import {
   isShakeUndoPendingKey,
   pendingShakeUndoKey,
   queueShakeUndo,
-} from './shake-undo.js?v=20260820a';
+} from './shake-undo.js?v=20260820b';
 import {
   initChatPanel,
   chatState,
@@ -3222,7 +3222,49 @@ function otpPurposeLabel(item) {
   return 'Verification code';
 }
 
+function projectMatchDisplayName(item) {
+  const direct = String(item?.jobTitle || item?.jobSlug || '').trim();
+  if (direct) return direct;
+  const title = String(item?.title || '').trim();
+  const prefixed = title.match(/^possible(?:\s+\w+)?\s+match:\s*(.+)$/i);
+  if (prefixed?.[1]) return prefixed[1].trim();
+  const fromDetail = String(item?.detail || '').match(
+    /^(?:project|deal|lead|job):\s*(.+?)(?:\.|$)/i,
+  );
+  if (fromDetail?.[1]) return fromDetail[1].trim();
+  return postTitle(1);
+}
+
+function projectMatchAttachmentBit(item) {
+  const count = Number(item?.attachmentCount);
+  if (Number.isFinite(count) && count > 0) {
+    return `${count} attachment${count === 1 ? '' : 's'}`;
+  }
+  const fromDetail = String(item?.detail || '');
+  const n = fromDetail.match(/(\d+)\s+attachments?/i);
+  if (n) return `${n[1]} attachment${n[1] === '1' ? '' : 's'}`;
+  return 'no attachments';
+}
+
 function reviewAlertCopyHtml(item) {
+  if (item?.type === 'project_match') {
+    const when = formatReviewAlertWhen(item.receivedAt);
+    const projectName = projectMatchDisplayName(item);
+    const headline = when
+      ? `${escHtml(when)} · Possible ${escHtml(postLower(1))} match`
+      : `Possible ${escHtml(postLower(1))} match`;
+    const projectNameHtml = item.jobSlug
+      ? `<button type="button" class="project-link-chip admin-setup-alert-project-link">${escHtml(projectName)}</button>`
+      : `<span class="admin-setup-alert-project-name">${escHtml(projectName)}</span>`;
+    return (
+      `<strong>${headline}</strong>` +
+      `<p class="admin-setup-alert-project">` +
+        `<span class="admin-setup-alert-kicker">${escHtml(postTitle(1))}</span>` +
+        projectNameHtml +
+      `</p>` +
+      `<p>Add this email's content and ${escHtml(projectMatchAttachmentBit(item))} to this ${escHtml(postLower(1))}?</p>`
+    );
+  }
   if (isOtpReviewAlert(item)) {
     const when = formatReviewAlertWhen(item.receivedAt);
     const purpose = otpPurposeLabel(item);
@@ -3840,10 +3882,6 @@ async function commitDismissReviewNotification(item) {
 
 async function dismissReviewNotification(item, btn) {
   if (!item?.alertId && !item?.engagementId && !item?.commentId && !item?.emailId) return;
-  if (isEmailAutomationReview(item) && item.awaitingTriage) {
-    await openNotificationTriageDialog(item);
-    return;
-  }
 
   const key = reviewNotificationUndoKey(item);
   if (!key) return;
@@ -4328,12 +4366,12 @@ function buildReviewAlertBanner(item) {
     });
   } else if (isProjectMatch) {
     actions.push({
-      label: 'Add to project',
+      label: `Add to ${postLower(1)}`,
       primary: true,
       onClick: (btn) => void confirmSuggestedProjectMatch(item, btn),
     });
     actions.push({
-      label: 'Not this project',
+      label: `Not this ${postLower(1)}`,
       onClick: (btn) => void rejectSuggestedProjectMatch(item, btn),
     });
   } else if (isProject) {
@@ -4460,10 +4498,6 @@ function buildReviewAlertBanner(item) {
       else openReviewNotificationTarget(item);
     },
     onDismiss: (dismissBtn) => {
-      if (emailAwaitingTriage) {
-        void openNotificationTriageDialog(item);
-        return;
-      }
       dismissBtn.disabled = true;
       void dismissReviewNotification(item).finally(() => {
         dismissBtn.disabled = false;
@@ -4473,6 +4507,10 @@ function buildReviewAlertBanner(item) {
 
   notice.copy?.querySelectorAll?.('.admin-classification-audit')?.forEach((el) => {
     el.addEventListener('click', (ev) => ev.stopPropagation());
+  });
+  notice.copy?.querySelector('.admin-setup-alert-project-link')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    void openReviewNotificationTarget(item);
   });
 
   bindReviewAlertSwipe(notice.root, item);
@@ -4527,12 +4565,6 @@ function bindReviewAlertSwipe(alert, item) {
         alert.style.transform = 'translateX(120%)';
         alert.style.opacity = '0';
         window.setTimeout(() => {
-          if (isEmailAutomationReview(item) && item.awaitingTriage) {
-            alert.style.transform = '';
-            alert.style.opacity = '';
-            void openNotificationTriageDialog(item);
-            return;
-          }
           void dismissReviewNotification(item).catch(() => {
             alert.style.transform = '';
             alert.style.opacity = '';
@@ -4615,7 +4647,7 @@ function resolveNotificationEmailId(item) {
   }
 }
 
-function notificationTriageDialogHtml(item) {
+function notificationTriageDialogHtml(_item) {
   const options = TRIAGE_FEEDBACK_OPTIONS.map(
     (opt) =>
       `<label class="alert-triage-option">` +
@@ -4626,12 +4658,8 @@ function notificationTriageDialogHtml(item) {
         `</span>` +
       `</label>`,
   ).join('');
-  const limboHint =
-    isEmailAutomationReview(item) && item.awaitingTriage
-      ? 'This alert stays in limbo until you choose. '
-      : '';
   return (
-    `<p class="alert-triage-intro">${limboHint}Pick how similar notifications should be handled in the future.</p>` +
+    `<p class="alert-triage-intro">Pick how similar notifications should be handled in the future.</p>` +
     `<div class="alert-triage-options">${options}</div>` +
     `<label class="alert-triage-note-wrap" hidden>` +
       `<span class="alert-triage-note-label">What should the agent know?</span>` +
@@ -14610,7 +14638,9 @@ function renderEmailPane() {
   let detailHtml =
     `<div class="em-item-row">` +
     `<span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
-    (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev)) ? emailProjectContextHtml(ev) : '') +
+    (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))
+      ? emailProjectContextHtml(ev)
+      : '') +
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
   if (ev.verificationCode) {
@@ -14676,20 +14706,26 @@ function renderEmailPane() {
         `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Reschedule</button>` +
       `</div>`;
   } else if (isProjectMatchSuggested(ev)) {
+    const matchProjectName = ev.jobTitle || ev.jobSlug || postTitle(1);
     const attachmentCount = Array.isArray(ev.attachments) ? ev.attachments.length : 0;
     const attachmentHint =
       attachmentCount > 0
-        ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'} will be added to the project.`
+        ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'} will be added to ${matchProjectName}.`
         : 'No attachments on this message.';
+    const projectChip = ev.jobSlug
+      ? `<button type="button" class="project-link-chip em-project-link">${escHtml(matchProjectName)}</button>`
+      : `<span>${escHtml(matchProjectName)}</span>`;
     detailHtml +=
       `<div class="em-book-card em-project-match-card">` +
-        `<div class="em-book-card-title">Possible project match</div>` +
-        `<div class="em-book-card-when">${escHtml(ev.jobTitle || ev.jobSlug || 'Project')}</div>` +
-        `<div class="em-book-card-note">Add this email's content to the project notes? ${escHtml(attachmentHint)}</div>` +
+        `<div class="em-book-card-title">Possible ${escHtml(postLower(1))} match</div>` +
+        `<div class="em-book-card-project">` +
+          `<strong>${escHtml(postTitle(1))}</strong> ${projectChip}` +
+        `</div>` +
+        `<div class="em-book-card-note">Add this email's content to <strong>${escHtml(matchProjectName)}</strong>? ${escHtml(attachmentHint)}</div>` +
       `</div>` +
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
-        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary em-project-match-add">Add to project</button>` +
-        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary em-project-match-reject">Not this project</button>` +
+        `<button type="button" class="em-schedule-action-primary de-btn de-btn-primary em-project-match-add">Add to ${escHtml(postLower(1))}</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary em-project-match-reject">Not this ${escHtml(postLower(1))}</button>` +
       `</div>`;
   } else if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
     detailHtml +=
@@ -14800,9 +14836,9 @@ function renderEmailPane() {
     });
   }
   void mountEmailScheduleActions(detail.querySelector('.em-schedule-actions'), ev);
-  detail.querySelector('.em-project-link')?.addEventListener('click', () =>
-    navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
-  );
+  detail.querySelectorAll('.em-project-link').forEach((btn) => {
+    btn.addEventListener('click', () => navigateToWork(ev.jobSlug, { fromEmailId: ev.id }));
+  });
   detail.querySelector('[data-em-add-contact]')?.addEventListener('click', () => {
     openNewContactFromEmail(ev);
   });
@@ -14811,7 +14847,7 @@ function renderEmailPane() {
       bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
     }
   });
-  if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev))) {
+  if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))) {
     void hydrateEmailProjectContextIcon(detail, ev);
   }
   pane.appendChild(detail);

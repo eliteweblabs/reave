@@ -69,8 +69,10 @@ html.ios-sheet-locked body {
  * box so iOS does not scroll the overlay to keep the focused field on screen.
  */
 .ios-sheet-backdrop.open.ios-sheet-keyboard .ios-sheet {
+  height: 100%;
   max-height: 100%;
   min-height: 0;
+  padding-bottom: 0;
 }
 
 .ios-sheet {

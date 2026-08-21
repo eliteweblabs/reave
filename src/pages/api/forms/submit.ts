@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
+import { jsonResponse } from '../../../lib/apiResponse';
+import { isValidEmail } from '../../../lib/installIdentityFormat';
 
 export const POST: APIRoute = async ({ request }) => {
   const rate = checkInMemoryRateLimit(`form:${clientIp(request)}`, {
@@ -9,20 +11,22 @@ export const POST: APIRoute = async ({ request }) => {
     maxPerWindow: 10,
   });
   if (!rate.ok) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Too many submissions. Please try again later.' }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'Retry-After': String(rate.retryAfterSeconds),
-        },
-      },
+    return jsonResponse(
+      { success: false, error: 'Too many submissions. Please try again later.' },
+      429,
+      { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
     );
   }
 
   try {
-    const formData = await request.json();
+    const formData = (await request.json()) as Record<string, unknown>;
+
+    // Honeypot — bots fill hidden "website_url"; real forms use "url" or omit.
+    const honeypot = String(formData.website_url ?? formData.company_website ?? '').trim();
+    if (honeypot) {
+      return jsonResponse({ success: true, message: 'Form submitted successfully' });
+    }
+
     const name = String(
       formData.name || formData.fullName || formData.full_name || '',
     ).trim();
@@ -40,13 +44,11 @@ export const POST: APIRoute = async ({ request }) => {
     const subject = String(formData.subject || 'New form submission').trim();
 
     if (!name && !email && !message) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Empty submission' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
+      return jsonResponse({ success: false, error: 'Empty submission' }, 400);
+    }
+
+    if (email && !isValidEmail(email)) {
+      return jsonResponse({ success: false, error: 'Invalid email address' }, 400);
     }
 
     const result = await processContactFormIntake({
@@ -72,26 +74,18 @@ export const POST: APIRoute = async ({ request }) => {
       noticeCreated: result.noticeCreated,
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Form submitted successfully',
-      }),
-      {
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+    return jsonResponse({
+      success: true,
+      message: 'Form submitted successfully',
+    });
   } catch (error) {
     console.error('[Form Submission Error]', error);
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         success: false,
         error: 'Failed to process submission',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
       },
+      500,
     );
   }
 };

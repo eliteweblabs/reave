@@ -16,6 +16,7 @@ import {
   type RuleEvaluation,
 } from './emailRules';
 import { incrementEmailRuleHit, loadActiveEmailRules, type EmailRuleRecord } from './emailRuleStore';
+import { ruleAllowsAutoProject } from './emailFilterRuleWrite';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
 import { importEmailAttachmentsToProject } from './emailProjectAttachments';
@@ -49,7 +50,7 @@ import {
   displayProjectTitle,
   isLikelyClientThreadReply,
 } from './emailProjectReply';
-import { isSuggestedProjectMatch } from './emailAutomation';
+import { isSuggestedProjectMatch, projectMatchSuggestedReviewCopy } from './emailAutomation';
 import {
   looksLikeFailedOrDuePayment,
   looksLikeIncomingPayment,
@@ -1483,7 +1484,7 @@ export async function processInboundEmail(
       automationKind = null;
     }
 
-    if (inboxRecord?.id && bookingUid && !jobSlug) {
+    if (inboxRecord?.id && bookingUid && !jobSlug && ruleAllowsAutoProject(ruleResult.matched)) {
       const meetingProject = await ensureProjectForMeetingEmail({
         emailId: inboxRecord.id,
         from,
@@ -1560,7 +1561,9 @@ export async function processInboundEmail(
     bodySnippet: snippet(bodyText),
   });
 
+  const forwardedWithoutProject = !ruleAllowsAutoProject(ruleResult.matched);
   const blockAutoProject =
+    forwardedWithoutProject ||
     needsExplain ||
     action === 'project_reply' ||
     action === 'junk' ||
@@ -1577,7 +1580,13 @@ export async function processInboundEmail(
     (aiTrusted && aiClassify != null && aiClassify.label !== 'project' && aiClassify.label !== 'client');
 
   if (dryRun) {
-    if (!automationKind && !jobSlug && !blockAutoProject) {
+    if (forwardedWithoutProject) {
+      pushAudit(
+        'project',
+        'Skip auto-create project',
+        `Rule forwards to ${forwardTo} — createProject is off by default`,
+      );
+    } else if (!automationKind && !jobSlug && !blockAutoProject) {
       pushAudit(
         'project',
         'Would evaluate auto-create project',
@@ -1771,10 +1780,18 @@ export async function processInboundEmail(
         kind: 'triage',
       });
     } else if (inboxRecord && notify && channelsEffective.notify && !agentWillAlert) {
+      const attachmentCount = attachments.length;
+      const projectMatchCopy =
+        automationKind === 'project_match_suggested'
+          ? projectMatchSuggestedReviewCopy({
+              jobTitle: jobTitle || 'a project',
+              attachmentCount,
+            })
+          : null;
       const pushTitle = isProjectReply
         ? `🚨 Contact reply: ${contactName ?? senderEmail}`
-        : automationKind === 'project_match_suggested'
-          ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
+        : projectMatchCopy
+          ? projectMatchCopy.title
           : automationKind === 'project_created'
           ? `New project: ${contactName ?? jobTitle ?? senderEmail}`
           : automationKind === 'meeting_followup'
@@ -1790,14 +1807,10 @@ export async function processInboundEmail(
               : category === 'client'
                 ? `Contact: ${contactName ?? senderEmail}`
                 : email.subject?.trim() || contactName || senderEmail || 'New email';
-      const attachmentCount = attachments.length;
       const pushBody = isProjectReply
         ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
-        : automationKind === 'project_match_suggested'
-          ? `Looks like "${jobTitle ?? 'a project'}" — add content${attachmentCount ? ` and ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}?`.slice(
-              0,
-              240,
-            )
+        : projectMatchCopy
+          ? projectMatchCopy.detail.slice(0, 240)
           : automationKind === 'project_created'
           ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
           : automationKind === 'meeting_followup'
