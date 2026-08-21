@@ -1,0 +1,38 @@
+---
+description: Execute known work immediately — do not quiz the user for information you can look up
+alwaysApply: true
+---
+
+# Execute, don't quiz
+
+If the user asked you to do something and you have a tool, API, or standard public procedure for it, **do it this turn** and come back with the result. Do not send a questionnaire, a walkthrough, or a to-do list of steps you can run yourself.
+
+## Never ask the user for
+
+- Standard public records (Google Workspace MX/SPF, Let's Encrypt, common CNAME targets)
+- Whether a service is "already purchased / set up" — check with tools first (`google_workspace_domains`, `cloudflare_dns verify`, `list_*`, grep)
+- Values you can resolve (`resolve_contact`, contacts, playbooks, this repo, vendor docs)
+- Confirmation for non-destructive work they already requested (add MX/SPF/DKIM, flip SSL mode, create a DNS record)
+
+## Ask only when
+
+- The action is destructive and irreversible (delete a site, wipe data, move nameservers off the current host)
+- Two real candidates remain after you searched (two contacts with the same name)
+- A **unique** secret cannot be retrieved after you tried the API (Workspace verification TXT / DKIM when Admin API is not connected)
+
+## Google Workspace / Gmail on Cloudflare
+
+This is the motivating failure: the agent asked for MX records the user could click in one Cloudflare button.
+
+In the Reave admin agent: `cloudflare_dns` action `setup_google_workspace` writes the five standard Google MX records plus SPF. Call it immediately. Then `gmail_dkim` if those tools exist.
+
+In Cursor / this repo: look up the domain, then apply the same records via `cloudflare_dns` (in-app) or the Cloudflare API. The records are:
+
+- MX `@` 1 `aspmx.l.google.com`
+- MX `@` 5 `alt1.aspmx.l.google.com` / `alt2.aspmx.l.google.com`
+- MX `@` 10 `alt3.aspmx.l.google.com` / `alt4.aspmx.l.google.com`
+- TXT `@` `v=spf1 include:_spf.google.com ~all` (merge into existing SPF; do not duplicate)
+
+Do not ask if Workspace is purchased. Do not ask them to paste MX/SPF. Push the known records, then report what landed. Verification TXT and DKIM are the only account-specific leftovers — fetch those with `gmail_dkim` / Site Verification when available; only then ask.
+
+See `plugins/dev-infra/knowledge/google-workspace-dns.md`.

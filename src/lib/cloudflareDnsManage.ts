@@ -5,6 +5,7 @@
 import {
   cloudflareCreateZone,
   cloudflareDeleteDnsRecord,
+  cloudflareDisableEmailRouting,
   cloudflareFindZone,
   cloudflareGetSslMode,
   cloudflareGetZoneSetting,
@@ -17,10 +18,19 @@ import {
   dnsRecordsMatch,
   fqdnRecordName,
   isCloudflareConfigured,
+  txtRecordKind,
   type CfDnsRecord,
   type CfSslMode,
   type CfZone,
 } from './cloudflareClient.ts';
+import {
+  GOOGLE_WORKSPACE_DMARC,
+  GOOGLE_WORKSPACE_MX,
+  googleMxKey,
+  isGoogleWorkspaceMx,
+  mergeGoogleSpf,
+  normalizeVerificationTxt,
+} from './googleWorkspaceDns.ts';
 
 export type CloudflareDnsAction =
   | 'verify'
@@ -30,7 +40,14 @@ export type CloudflareDnsAction =
   | 'get_ssl_mode'
   | 'set_ssl_mode'
   | 'create_redirect_rule'
-  | 'create_zone';
+  | 'create_zone'
+  | 'setup_google_workspace';
+
+export type WorkspaceDnsRow = {
+  kind: 'mx' | 'spf' | 'dmarc' | 'verification' | 'email_routing';
+  action: 'unchanged' | 'created' | 'updated' | 'deleted' | 'disabled' | 'skipped' | 'error';
+  detail: string;
+};
 
 export type CloudflareDnsActionResult =
   | {
@@ -46,6 +63,7 @@ export type CloudflareDnsActionResult =
       previous_ssl_mode?: CfSslMode;
       redirect_rule?: unknown;
       created_zone?: CfZone;
+      workspace?: WorkspaceDnsRow[];
     }
   | { ok: false; error: string; hint?: string };
 
@@ -175,6 +193,9 @@ export async function cloudflareDnsManage(input: {
   redirect_description?: string;
   // create_zone fields
   jump_start?: boolean;
+  // setup_google_workspace fields
+  verification_txt?: string;
+  replace_existing_mx?: boolean;
 }): Promise<CloudflareDnsActionResult> {
   const domain = input.domain.trim().toLowerCase().replace(/\.$/, '');
   if (!domain) return { ok: false, error: 'domain is required' };
@@ -341,6 +362,13 @@ export async function cloudflareDnsManage(input: {
     };
   }
 
+  if (input.action === 'setup_google_workspace') {
+    return setupGoogleWorkspaceDns(zone.data, domain, {
+      verificationTxt: input.verification_txt,
+      replaceExistingMx: input.replace_existing_mx !== false,
+    });
+  }
+
   if (input.action === 'delete_record') {
     const recordId = String(input.record_id ?? '').trim();
     if (recordId) {
@@ -485,5 +513,176 @@ export async function cloudflareZoneSettingManage(input: {
     setting: input.setting,
     value: res.data.value,
     summary: `SET zone ${zone.data.name} → ${input.setting} = ${JSON.stringify(res.data.value)}`,
+  };
+}
+
+async function setupGoogleWorkspaceDns(
+  zone: { id: string; name: string },
+  domain: string,
+  opts: { verificationTxt?: string; replaceExistingMx: boolean },
+): Promise<CloudflareDnsActionResult> {
+  const rows: WorkspaceDnsRow[] = [];
+  const apex = zone.name;
+
+  const routing = await cloudflareDisableEmailRouting(zone.id);
+  if (!routing.ok) {
+    rows.push({
+      kind: 'email_routing',
+      action: 'skipped',
+      detail: `Could not check Email Routing (${routing.error}) — continuing with MX.`,
+    });
+  } else {
+    rows.push({
+      kind: 'email_routing',
+      action: routing.data.disabled ? 'disabled' : 'unchanged',
+      detail: routing.data.detail,
+    });
+  }
+
+  const listed = await cloudflareListDnsRecords(zone.id);
+  if (!listed.ok) return { ok: false, error: listed.error };
+  let records = listed.data;
+
+  const existingMx = records.filter(
+    (r) => r.type.toUpperCase() === 'MX' && r.name.toLowerCase() === apex,
+  );
+  if (opts.replaceExistingMx) {
+    for (const mx of existingMx) {
+      if (isGoogleWorkspaceMx(mx.content)) continue;
+      const del = await cloudflareDeleteDnsRecord(zone.id, mx.id);
+      if (!del.ok) {
+        rows.push({
+          kind: 'mx',
+          action: 'error',
+          detail: `Could not remove ${mx.content} (${del.error})`,
+        });
+        continue;
+      }
+      records = records.filter((r) => r.id !== mx.id);
+      rows.push({
+        kind: 'mx',
+        action: 'deleted',
+        detail: `Removed non-Google MX ${mx.content} (pri ${mx.priority ?? '?'})`,
+      });
+    }
+  }
+
+  const haveMx = new Set(
+    records
+      .filter((r) => r.type.toUpperCase() === 'MX' && r.name.toLowerCase() === apex)
+      .map((r) => googleMxKey(r.priority ?? 0, r.content)),
+  );
+  for (const mx of GOOGLE_WORKSPACE_MX) {
+    if (haveMx.has(googleMxKey(mx.priority, mx.content))) {
+      rows.push({
+        kind: 'mx',
+        action: 'unchanged',
+        detail: `${mx.priority} ${mx.content}`,
+      });
+      continue;
+    }
+    const upsert = await cloudflareUpsertDnsRecord(
+      zone.id,
+      { type: 'MX', name: apex, content: mx.content, priority: mx.priority, ttl: 1, proxied: false },
+      records,
+    );
+    if (!upsert.ok) {
+      rows.push({ kind: 'mx', action: 'error', detail: `${mx.priority} ${mx.content}: ${upsert.error}` });
+      continue;
+    }
+    records = [
+      ...records.filter((r) => r.id !== upsert.data.record.id),
+      upsert.data.record,
+    ];
+    haveMx.add(googleMxKey(mx.priority, mx.content));
+    rows.push({
+      kind: 'mx',
+      action: upsert.data.action,
+      detail: `${mx.priority} ${mx.content}`,
+    });
+  }
+
+  const apexTxt = records.filter(
+    (r) => r.type.toUpperCase() === 'TXT' && r.name.toLowerCase() === apex,
+  );
+  const existingSpf = apexTxt.find((r) => txtRecordKind(r.content) === 'spf');
+  const nextSpf = mergeGoogleSpf(existingSpf?.content ?? null);
+  const spfUpsert = await cloudflareUpsertDnsRecord(
+    zone.id,
+    { type: 'TXT', name: apex, content: nextSpf, ttl: 1, proxied: false },
+    apexTxt,
+  );
+  if (!spfUpsert.ok) {
+    rows.push({ kind: 'spf', action: 'error', detail: spfUpsert.error });
+  } else {
+    rows.push({
+      kind: 'spf',
+      action: spfUpsert.data.action,
+      detail: nextSpf,
+    });
+  }
+
+  const dmarcName = `_dmarc.${apex}`;
+  const existingDmarc = records.filter(
+    (r) => r.type.toUpperCase() === 'TXT' && r.name.toLowerCase() === dmarcName,
+  );
+  if (existingDmarc.some((r) => txtRecordKind(r.content) === 'dmarc')) {
+    rows.push({
+      kind: 'dmarc',
+      action: 'unchanged',
+      detail: existingDmarc.find((r) => txtRecordKind(r.content) === 'dmarc')?.content ?? '',
+    });
+  } else {
+    const dmarcUpsert = await cloudflareUpsertDnsRecord(
+      zone.id,
+      { type: 'TXT', name: dmarcName, content: GOOGLE_WORKSPACE_DMARC, ttl: 1, proxied: false },
+      existingDmarc,
+    );
+    if (!dmarcUpsert.ok) {
+      rows.push({ kind: 'dmarc', action: 'error', detail: dmarcUpsert.error });
+    } else {
+      rows.push({
+        kind: 'dmarc',
+        action: dmarcUpsert.data.action,
+        detail: GOOGLE_WORKSPACE_DMARC,
+      });
+    }
+  }
+
+  const verification = normalizeVerificationTxt(opts.verificationTxt ?? '');
+  if (verification) {
+    const verifyUpsert = await cloudflareUpsertDnsRecord(
+      zone.id,
+      { type: 'TXT', name: apex, content: verification, ttl: 3600, proxied: false },
+      records.filter((r) => r.type.toUpperCase() === 'TXT' && r.name.toLowerCase() === apex),
+    );
+    if (!verifyUpsert.ok) {
+      rows.push({ kind: 'verification', action: 'error', detail: verifyUpsert.error });
+    } else {
+      rows.push({
+        kind: 'verification',
+        action: verifyUpsert.data.action,
+        detail: verification,
+      });
+    }
+  }
+
+  const failed = rows.filter((r) => r.action === 'error');
+  if (failed.length && failed.length === rows.length) {
+    return { ok: false, error: failed.map((r) => r.detail).join('; ') };
+  }
+
+  const lines = rows.map((r) => `  • ${r.kind} ${r.action}: ${r.detail}`);
+  const next =
+    'DKIM is account-specific — if gmail_dkim is available, call generate_key → publish_to_cloudflare → enable_dkim next. Do not ask the user to paste MX or SPF.';
+  return {
+    ok: true,
+    action: 'setup_google_workspace',
+    domain,
+    zone,
+    workspace: rows,
+    summary:
+      `Google Workspace mail DNS on ${apex}:\n${lines.join('\n')}\n\n${next}` +
+      (failed.length ? `\n${failed.length} step(s) failed — see rows above.` : ''),
   };
 }

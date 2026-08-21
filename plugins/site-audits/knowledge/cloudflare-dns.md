@@ -9,6 +9,7 @@ Use when the user asks to **check, fix, or audit DNS or SSL in Cloudflare** — 
 | `cloudflare_dns` action `verify` | First step — confirms token + zone exist **before** claiming "wrong account" or "no access" |
 | `cloudflare_dns` action `list_records` | Read current SPF, DMARC, MX, A, CNAME in Cloudflare (authoritative when NS is Cloudflare). Output includes **record ids** for delete_record. |
 | `cloudflare_dns` action `upsert_record` | Create or update one record (SPF TXT at `@`, DMARC at `_dmarc`, etc.) |
+| `cloudflare_dns` action `setup_google_workspace` | **Google / Gmail mail in one call** — 5 standard MX + SPF (+ starter DMARC). Do not ask the user to paste these. |
 | `cloudflare_dns` action `delete_record` | Remove a record by `record_id` (from list_records) or by `type` + `name` (+ optional `content`) |
 | `cloudflare_dns` action `get_ssl_mode` | Read SSL/TLS encryption mode (off, flexible, full, strict) |
 | `cloudflare_dns` action `set_ssl_mode` | Change SSL/TLS mode — **fixes Error 525** when origin cert is broken (use `flexible` as stopgap) |
@@ -24,8 +25,9 @@ Use when the user asks to **check, fix, or audit DNS or SSL in Cloudflare** — 
 2. **`cloudflare_dns` verify** with the apex domain (e.g. `tonybarlettajr.com`)
 3. If verify succeeds → **`list_records`** and/or **`get_ssl_mode`** as needed
 4. Compare to what the user needs (M365 → `spf.protection.outlook.com`, DMARC at `_dmarc`, etc.)
-5. If user approved changes → **`upsert_record`**, **`delete_record`**, or **`set_ssl_mode`** — **in the same turn**, do not hand off to the dashboard unless the tool errors
+5. If user approved changes → **`upsert_record`**, **`delete_record`**, **`set_ssl_mode`**, or **`setup_google_workspace`** — **in the same turn**, do not hand off to the dashboard unless the tool errors
 6. After SSL or DNS changes, **`fetch_url`** the website to confirm it loads
+7. Google Workspace / Gmail: skip the quiz — call **`setup_google_workspace`** immediately (see `google-workspace-dns`)
 
 ## Error 525 — SSL handshake failed
 
@@ -45,6 +47,14 @@ When `fetch_url` or the browser shows **Cloudflare Error 525**:
 - Do **not** create junk TXT records as a workaround for SSL mode — use `set_ssl_mode`
 
 ## Common fixes
+
+**Google Workspace / Gmail on Cloudflare:**
+
+- Call `setup_google_workspace` — do not ask for MX/SPF and do not send them to the Cloudflare "Gmail" button
+- MX: `1 aspmx.l.google.com`, `5 alt1/alt2`, `10 alt3/alt4`
+- SPF (TXT `@`): merge `include:_spf.google.com` into the existing `v=spf1` record
+- DKIM: `gmail_dkim` generate_key → publish_to_cloudflare → enable_dkim
+- Full playbook: `google-workspace-dns`
 
 **Microsoft 365 mail on Cloudflare:**
 
