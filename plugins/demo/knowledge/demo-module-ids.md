@@ -46,6 +46,12 @@ Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistan
 | 033 | `website` | Website |
 | 034 | `credit_check` | Credit check |
 | 036 | `social_inbox` | Social inbox |
+| 037 | `google_workspace` | Google™ Workspace (private service) |
+| 038 | `microsoft_365` | Microsoft 365 (private service) |
+| 039 | `google_business_profile` | Google™ Business Profile (private service) |
+| 040 | `apple_business_connect` | Apple Business Connect (private service) |
+| 041 | `cloud_number` | Cloud number (private service) |
+| 042 | `mobile_content_editing` | Mobile Content Editing (private service) |
 
 ## Default suite (no URL)
 

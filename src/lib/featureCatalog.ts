@@ -41,6 +41,12 @@ export const FEATURE_IDS = [
   'credit_check',
   'materials_pricing',
   'social_inbox',
+  'google_workspace',
+  'microsoft_365',
+  'google_business_profile',
+  'apple_business_connect',
+  'cloud_number',
+  'mobile_content_editing',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -106,6 +112,12 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing (Home Depot)',
   social_inbox: 'Social inbox',
+  google_workspace: 'Google™ Workspace',
+  microsoft_365: 'Microsoft 365',
+  google_business_profile: 'Google™ Business Profile',
+  apple_business_connect: 'Apple Business Connect',
+  cloud_number: 'Cloud number',
+  mobile_content_editing: 'Mobile Content Editing',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -152,6 +164,18 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
   social_inbox:
     'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
+  google_workspace:
+    'A branded email (you@yourbusiness.com) looks more professional than a free Gmail™ address. This costs about eight dollars per month per user, billed by Google™.',
+  microsoft_365:
+    'A branded Outlook™ inbox (you@yourbusiness.com) — the Microsoft® alternative to a free Hotmail or personal Outlook address. Microsoft bills the monthly seat separately.',
+  google_business_profile:
+    'Your business on Google™ Search and Maps — name, hours, photos, and the listing customers actually tap. Setup and claim; Google™ hosts the profile.',
+  apple_business_connect:
+    'Your business on Apple Maps and Siri — so iPhone customers can find you, call, and get directions without a Google™ listing alone. Needs an Apple ID and business verification (EIN, domain, or docs) — not an Apple Developer account.',
+  cloud_number:
+    'A local, toll-free, or vanity number in the cloud — voice and text on one line, not a cable-company desk phone. Telnyx bills the number monthly (from about a dollar).',
+  mobile_content_editing:
+    'A bolt-on editor on the site you already have — update copy and photos from your phone without a WordPress login or a ticket to the developer.',
 };
 
 export type FeatureVisibility = 'public' | 'private';
@@ -160,13 +184,44 @@ export type FeatureVisibility = 'public' | 'private';
  * Module storefront classification. Unlisted modules default to **public**
  * (demo loader, /modules, /features, marketing chips). Private modules are
  * super-admin / ops-only and are not sold as add-ons.
+ *
+ * Third-party services (Google™ Workspace, etc.) are also private: they live
+ * in this catalog for invoicing and owner bookkeeping, but they are not
+ * REΛVE plugins and must not appear on deploy, demo, or the add-ons page.
  */
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
   dev_infra: 'private',
   code_dev: 'private',
   namecom_dns: 'private',
+  google_workspace: 'private',
+  microsoft_365: 'private',
+  google_business_profile: 'private',
+  apple_business_connect: 'private',
+  cloud_number: 'private',
+  mobile_content_editing: 'private',
 };
+
+/**
+ * Catalog-only third-party / bolt-on services. Not plugins — no runtime gates,
+ * no install enablement, no deploy/demo/add-on tiles.
+ */
+export const EXTERNAL_SERVICE_IDS = [
+  'google_workspace',
+  'microsoft_365',
+  'google_business_profile',
+  'apple_business_connect',
+  'cloud_number',
+  'mobile_content_editing',
+] as const;
+
+export type ExternalServiceId = (typeof EXTERNAL_SERVICE_IDS)[number];
+
+const EXTERNAL_SERVICE_SET = new Set<string>(EXTERNAL_SERVICE_IDS);
+
+export function isExternalService(id: string): boolean {
+  return EXTERNAL_SERVICE_SET.has(id);
+}
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 

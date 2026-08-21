@@ -396,6 +396,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/pricing',
       '/hosting',
       '/modules',
+      '/custom',
       '/demo',
       '/demo-loader',
       '/deploy',

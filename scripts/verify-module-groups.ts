@@ -3,7 +3,13 @@
  * Run: npm run check:module-groups
  */
 import assert from 'node:assert/strict';
-import { FEATURE_IDS, FEATURE_LABELS } from '../src/lib/featureCatalog.ts';
+import {
+  EXTERNAL_SERVICE_IDS,
+  FEATURE_IDS,
+  FEATURE_LABELS,
+  isExternalService,
+  isPrivateFeature,
+} from '../src/lib/featureCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
   MODULE_DISPLAY_GROUPS,
@@ -22,6 +28,26 @@ function configFeatures(slug: string): string[] {
 assert.ok(FEATURE_IDS.includes('social_inbox'));
 assert.equal(FEATURE_LABELS.social_inbox, 'Social inbox');
 assert.equal(demoModuleIdForFeature('social_inbox'), '036');
+assert.ok(FEATURE_IDS.includes('google_workspace'));
+assert.equal(FEATURE_LABELS.google_workspace, 'Google™ Workspace');
+assert.equal(FEATURE_LABELS.mobile_content_editing, 'Mobile Content Editing');
+assert.equal(demoModuleIdForFeature('google_workspace'), '037');
+assert.equal(demoModuleIdForFeature('microsoft_365'), '038');
+assert.equal(demoModuleIdForFeature('google_business_profile'), '039');
+assert.equal(demoModuleIdForFeature('apple_business_connect'), '040');
+assert.equal(demoModuleIdForFeature('cloud_number'), '041');
+assert.equal(demoModuleIdForFeature('mobile_content_editing'), '042');
+assert.equal(FEATURE_LABELS.cloud_number, 'Cloud number');
+assert.equal(isPrivateFeature('google_workspace'), true);
+assert.equal(isExternalService('google_workspace'), true);
+assert.equal(moduleDisplayGroupId('google_workspace'), null);
+
+for (const id of EXTERNAL_SERVICE_IDS) {
+  assert.ok(FEATURE_IDS.includes(id), `${id} must be a feature id`);
+  assert.equal(isPrivateFeature(id), true, `${id} must be private`);
+  assert.equal(isExternalService(id), true, `${id} must be an external service`);
+  assert.equal(moduleDisplayGroupId(id), null, `${id} must not sit in a public group`);
+}
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);
 assert.ok(groupIds.includes('social'));
@@ -39,6 +65,9 @@ assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('tiktok'));
 
 for (const slug of ['reave', 'tonybarlettajr', 'barry-levine', 'barrylevine', 'levineslaw']) {
   assert.ok(configFeatures(slug).includes('social_inbox'), `${slug} must enable social_inbox`);
+  for (const id of EXTERNAL_SERVICE_IDS) {
+    assert.ok(!configFeatures(slug).includes(id), `${slug} must not enable ${id}`);
+  }
 }
 
 const emailDraft = parseComposeDraftResponse(

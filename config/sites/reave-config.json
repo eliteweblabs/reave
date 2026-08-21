@@ -10,6 +10,7 @@
     "/pricing",
     "/hosting",
     "/modules",
+    "/custom",
     "/demo",
     "/demo-loader",
     "/deploy",
@@ -42,11 +43,16 @@
       },
       {
         "href": "/modules",
-        "label": "Modules"
+        "label": "Add-ons"
       },
       {
         "href": "/about",
         "label": "About"
+      },
+      {
+        "href": "/custom",
+        "label": "Custom",
+        "primary": true
       },
       {
         "href": "/#contact",
@@ -76,7 +82,7 @@
           },
           {
             "href": "/modules",
-            "label": "Modules"
+            "label": "Add-ons"
           },
           {
             "href": "/demo-loader",
@@ -96,6 +102,11 @@
           {
             "href": "/about",
             "label": "About"
+          },
+          {
+            "href": "/custom",
+            "label": "Custom",
+            "primary": true
           },
           {
             "href": "/about#portfolio",

@@ -55,6 +55,12 @@ const FEATURE_IDS_LIST = [
   'credit_check',
   'materials_pricing',
   'social_inbox',
+  'google_workspace',
+  'microsoft_365',
+  'google_business_profile',
+  'apple_business_connect',
+  'cloud_number',
+  'mobile_content_editing',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

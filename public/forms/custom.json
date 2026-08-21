@@ -1,0 +1,50 @@
+{
+  "title": "Custom",
+  "description": "Tell us the biggest bottleneck in your workflow.",
+  "fields": [
+    {
+      "name": "message",
+      "type": "textarea",
+      "required": true,
+      "cf-questions": "What's the biggest bottleneck in your workflow — the step that still eats the day?"
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "cf-questions": "What's your name?"
+    },
+    {
+      "name": "email",
+      "type": "email",
+      "required": true,
+      "cf-questions": "What's the best email to reach you?"
+    },
+    {
+      "name": "company",
+      "type": "text",
+      "required": false,
+      "cf-questions": "What company are you with? (optional)"
+    },
+    {
+      "name": "phone",
+      "type": "tel",
+      "required": false,
+      "cf-questions": "What's the best phone number to reach you? (optional)"
+    },
+    {
+      "name": "sms_opt_in",
+      "type": "sms_consent",
+      "required": false,
+      "cf-show-if": "phone",
+      "cf-questions": "Optional SMS updates about your inquiry"
+    }
+  ],
+  "submitEndpoint": "/api/forms/submit",
+  "submitSubject": "Custom workflow bottleneck",
+  "submittingMessage": "Sending your note...",
+  "onComplete": {
+    "message": "Thanks — we'll read this and follow up with a path through it.",
+    "redirect": null
+  }
+}

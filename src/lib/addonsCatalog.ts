@@ -8,7 +8,7 @@ import {
   DEMO_LOADER_SECTION_GROUPS,
   type DemoLoaderIncludedCard,
 } from './demoLoaderCatalog';
-import { FEATURE_BLURBS, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, isExternalService, type FeatureId } from './featureCatalog';
 import { hasFeature } from './features';
 import {
   formatModulePrice,
@@ -63,6 +63,7 @@ export function buildAddonsCatalog(opts: {
 
   const modules: AddonsModule[] = [];
   for (const m of listAllDeployModules()) {
+    if (isExternalService(m.feature)) continue;
     const moduleId = demoModuleIdForFeature(m.feature);
     if (moduleId && isDemoBaselineModuleId(moduleId)) continue;
 
