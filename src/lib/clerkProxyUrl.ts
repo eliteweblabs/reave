@@ -10,6 +10,11 @@
  */
 
 export const DEFAULT_CLERK_FRONTEND_PROXY_PATH = '/__clerk';
+/**
+ * Installed admin PWA scope is `/admin`. Clerk document handshakes must stay
+ * under this path or iOS opens Safari and the session never returns.
+ */
+export const ADMIN_SCOPED_CLERK_PROXY_PATH = '/admin/__clerk';
 
 const PROXY_OFF = new Set(['0', 'false', 'off', 'none']);
 

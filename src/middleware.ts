@@ -14,7 +14,11 @@ import { runWithDemoSuite } from "./lib/demoSuiteContext";
 import { isDemoMode } from "./lib/demoMode";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
-import { isClerkFrontendProxyPath, proxyClerkFrontendApi } from "./lib/clerkFrontendProxy";
+import {
+  isClerkFrontendProxyPath,
+  proxyClerkFrontendApi,
+  rewriteClerkRedirectResponse,
+} from "./lib/clerkFrontendProxy";
 import { isClerkRuntimeConfigured, normalizeClerkRuntimeEnv } from "./lib/clerkClient";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
 import { publicHostFromRequest, runWithRequestHost } from "./lib/requestHost";
@@ -262,10 +266,13 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
   const host = publicHostFromRequest(context.request);
   const run = () => runWithRequestHost(host, () => runAppMiddleware(context, next));
 
-  if (isDemoMode()) {
-    const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
-    return runWithDemoSuite(cookieSuite ?? DEFAULT_DEMO_SUITE, run);
-  }
-
-  return run();
+  const response = isDemoMode()
+    ? await runWithDemoSuite(
+        parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value) ?? DEFAULT_DEMO_SUITE,
+        run,
+      )
+    : await run();
+  // Clerk handshake is a document 307 to /__clerk or clerk.{apex}. That leaves
+  // the installed PWA (scope /admin), so iOS opens Safari and the app stays blank.
+  return rewriteClerkRedirectResponse(response, context.request);
 };

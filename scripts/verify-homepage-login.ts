@@ -19,8 +19,10 @@ import {
   clerkProxyRequestHeaders,
   fetchClerkUpstream,
   isClerkFrontendApiHost,
+  isClerkFrontendProxyPath,
   rewriteClerkProxyLocation,
   rewriteClerkProxySetCookie,
+  rewriteClerkRedirectResponse,
 } from '../src/lib/clerkFrontendProxy.ts';
 import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual } from '../src/lib/clerkProxyUrl.ts';
 import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
@@ -260,13 +262,44 @@ assert.equal(
 assert.equal(isClerkFrontendApiHost('clerk.reave.app'), true);
 assert.equal(isClerkFrontendApiHost('frontend-api.clerk.dev'), true);
 assert.equal(isClerkFrontendApiHost('reave.app'), false);
+assert.equal(isClerkFrontendProxyPath('/__clerk/v1/client/handshake'), true);
+assert.equal(isClerkFrontendProxyPath('/admin/__clerk/v1/client/handshake'), true);
+assert.equal(isClerkFrontendProxyPath('/admin/login'), false);
 assert.equal(
   rewriteClerkProxyLocation(
     'https://clerk.reave.app/v1/client/handshake?foo=1',
-    'https://reave.app/__clerk/v1/client/handshake',
+    'https://reave.app/admin/?tab=dashboard',
   ),
-  'https://reave.app/__clerk/v1/client/handshake?foo=1',
+  'https://reave.app/admin/__clerk/v1/client/handshake?foo=1',
 );
+assert.equal(
+  rewriteClerkProxyLocation(
+    'https://reave.app/__clerk/v1/client/handshake?foo=1',
+    'https://reave.app/admin/?tab=dashboard',
+  ),
+  'https://reave.app/admin/__clerk/v1/client/handshake?foo=1',
+);
+assert.equal(
+  rewriteClerkProxyLocation(
+    'https://reave.app/sign-in?redirect_url=%2Fadmin%2F',
+    'https://reave.app/admin/',
+  ),
+  'https://reave.app/admin/login?redirect_url=%2Fadmin%2F',
+);
+{
+  const rewritten = rewriteClerkRedirectResponse(
+    new Response(null, {
+      status: 307,
+      headers: { Location: 'https://frontend-api.clerk.dev/v1/client/handshake?redirect_url=https://reave.app/admin/' },
+    }),
+    new Request('https://reave.app/admin/?tab=dashboard'),
+  );
+  assert.equal(rewritten.status, 307);
+  assert.equal(
+    rewritten.headers.get('location'),
+    'https://reave.app/admin/__clerk/v1/client/handshake?redirect_url=https://reave.app/admin/',
+  );
+}
 assert.equal(
   rewriteClerkProxySetCookie('__client=abc; Path=/; Domain=clerk.reave.app; Secure; HttpOnly'),
   '__client=abc; Path=/; Secure; HttpOnly',

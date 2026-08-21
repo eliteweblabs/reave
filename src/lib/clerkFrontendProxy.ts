@@ -1,6 +1,6 @@
 import { setDefaultResultOrder } from 'node:dns';
 import { clerkEnsureDomainProxy, clerkFrontendApiHost, clerkFrontendApiOrigin, clerkSecretKey } from './clerkClient';
-import { DEFAULT_CLERK_FRONTEND_PROXY_PATH } from './clerkProxyUrl';
+import { ADMIN_SCOPED_CLERK_PROXY_PATH, DEFAULT_CLERK_FRONTEND_PROXY_PATH } from './clerkProxyUrl';
 import { publicHostFromEnv } from './requestHost';
 
 /** Official Clerk Frontend API — required when using a same-origin proxy. */
@@ -70,7 +70,22 @@ export function isClerkFrontendApiHost(hostname: string, extraHosts: string[] = 
   return host.startsWith('clerk.');
 }
 
-/** Keep handshake redirects on the same-origin proxy instead of clerk.{apex}. */
+function adminScopedClerkProxyPath(pathname: string): string {
+  if (pathname === ADMIN_SCOPED_CLERK_PROXY_PATH || pathname.startsWith(`${ADMIN_SCOPED_CLERK_PROXY_PATH}/`)) {
+    return pathname;
+  }
+  if (pathname === DEFAULT_CLERK_FRONTEND_PROXY_PATH || pathname.startsWith(`${DEFAULT_CLERK_FRONTEND_PROXY_PATH}/`)) {
+    return `/admin${pathname}`;
+  }
+  const rest = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return `${ADMIN_SCOPED_CLERK_PROXY_PATH}${rest}`;
+}
+
+/**
+ * Keep handshake redirects inside the installed PWA (`scope: /admin`).
+ * `/__clerk` and clerk.{apex} / accounts.dev are outside that scope, so iOS
+ * opens Safari, sets the session there, and leaves the home-screen app blank.
+ */
 export function rewriteClerkProxyLocation(
   location: string,
   requestUrl: string,
@@ -83,12 +98,37 @@ export function rewriteClerkProxyLocation(
     return location;
   }
   const incoming = new URL(requestUrl);
-  if (url.host === incoming.host) return location;
+  if (url.host === incoming.host) {
+    if (url.pathname === '/sign-in' || url.pathname.startsWith('/sign-in/')) {
+      return `${incoming.origin}/admin/login${url.search}${url.hash}`;
+    }
+    if (
+      url.pathname === DEFAULT_CLERK_FRONTEND_PROXY_PATH ||
+      url.pathname.startsWith(`${DEFAULT_CLERK_FRONTEND_PROXY_PATH}/`)
+    ) {
+      return `${incoming.origin}${adminScopedClerkProxyPath(url.pathname)}${url.search}${url.hash}`;
+    }
+    return location;
+  }
   if (!isClerkFrontendApiHost(url.hostname, extraFapiHosts)) return location;
-  const path = url.pathname.startsWith(DEFAULT_CLERK_FRONTEND_PROXY_PATH)
-    ? url.pathname
-    : `${DEFAULT_CLERK_FRONTEND_PROXY_PATH}${url.pathname.startsWith('/') ? url.pathname : `/${url.pathname}`}`;
-  return `${incoming.origin}${path}${url.search}${url.hash}`;
+  return `${incoming.origin}${adminScopedClerkProxyPath(url.pathname)}${url.search}${url.hash}`;
+}
+
+/** Rewrite Clerk middleware / proxy 3xx Location so the PWA never leaves `/admin`. */
+export function rewriteClerkRedirectResponse(response: Response, request: Request): Response {
+  if (response.status < 300 || response.status >= 400) return response;
+  const location = response.headers.get('location');
+  if (!location) return response;
+  const extra = clerkFrontendApiHost() ? [clerkFrontendApiHost() as string] : [];
+  const next = rewriteClerkProxyLocation(location, request.url, extra);
+  if (next === location) return response;
+  const headers = new Headers(response.headers);
+  headers.set('location', next);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 /** Drop Domain= so `__client` is stored on the app host, not clerk.{apex}. */
@@ -157,7 +197,7 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   }
 
   const incoming = new URL(request.url);
-  const rest = incoming.pathname.replace(/^\/__clerk\/?/, '');
+  const rest = incoming.pathname.replace(/^\/admin/, '').replace(/^\/__clerk\/?/, '');
   const proxyUrl = absoluteClerkProxyUrl(request);
   ensureClerkDomainProxy(proxyUrl);
 
@@ -227,5 +267,10 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
 }
 
 export function isClerkFrontendProxyPath(pathname: string): boolean {
-  return pathname === '/__clerk' || pathname.startsWith('/__clerk/');
+  return (
+    pathname === DEFAULT_CLERK_FRONTEND_PROXY_PATH ||
+    pathname.startsWith(`${DEFAULT_CLERK_FRONTEND_PROXY_PATH}/`) ||
+    pathname === ADMIN_SCOPED_CLERK_PROXY_PATH ||
+    pathname.startsWith(`${ADMIN_SCOPED_CLERK_PROXY_PATH}/`)
+  );
 }
