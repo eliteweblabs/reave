@@ -72,7 +72,7 @@ let ruleState = {
   scopeFilter: 'all',
   activeId: null,
   dirty: false,
-  /** Unified Flow lab (rule generator + accordion rule editor). */
+  /** Live tester (left filter) + accordion rule editor (right). */
   view: 'flow',
 };
 
@@ -100,8 +100,6 @@ function getTriageLab() {
       toggleRuleEditor: (id) => openRuleEditor(id),
       renderRuleForm: (container) => renderRuleEditPane(container, { accordion: true }),
       getActiveRuleId: () => ruleState.activeId,
-      startNewRule: () => startNewRule(),
-      createRuleFromLab: (draft) => startNewRule(draft),
       flushRuleAutosave: () => flushRuleAutosave(),
       inboundAddressExample: () =>
         String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
@@ -1573,7 +1571,7 @@ async function startNewRule(draft = null) {
 }
 
 /**
- * Open Rules and prefill generator chips from an inbox record (notification deep link).
+ * Open Rules and prefill tester terms from an inbox record (notification deep link).
  * @param {object} emailRecord
  * @param {{ run?: boolean }} [opts]
  */

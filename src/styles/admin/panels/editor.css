@@ -1704,17 +1704,18 @@ button.de-placeholder-action:active {
   .re-flow-row-main > .re-flow-node--then { grid-area: then; }
 }
 
-/* ── Rules Lab (triage simulator) ── */
+/* ── Rules Lab (live tester + rules pane) ── */
 #rule-editor.re-view-lab {
-  flex-direction: column;
+  flex-direction: row;
   position: relative;
 }
-#rule-editor.re-view-lab .re-lab-shell {
-  flex: 1 1 auto;
-  min-height: 0;
+#rule-editor.re-view-lab .ch-sidebar {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-height: 0;
+}
+#rule-editor.re-view-lab .de-pane {
+  min-height: 0;
 }
 .re-lab-toolbar-actions {
   display: flex;
@@ -1722,39 +1723,46 @@ button.de-placeholder-action:active {
   gap: 0.45rem;
   align-items: center;
 }
-.re-lab-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding-bottom: var(--footer-scroll-pad, 5rem);
-}
-@media (min-width: 640px) {
-  .re-lab-body {
-    display: grid;
-    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
-    overflow: hidden;
-    padding-bottom: 0;
-  }
-}
 .re-lab-compose,
 .re-lab-pipeline,
 .re-lab-play {
   padding: 1rem max(1rem, env(safe-area-inset-right, 0px)) 1.25rem max(1rem, env(safe-area-inset-left, 0px));
-  border-bottom: 1px solid var(--panel-border);
 }
 .re-lab-compose {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: var(--footer-scroll-pad, 5rem);
 }
-@media (min-width: 640px) {
-  .re-lab-compose,
-  .re-lab-pipeline {
+.re-lab-pipeline {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: var(--footer-scroll-pad, 5rem);
+}
+.re-lab-rules-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.re-lab-rules-head h2 {
+  margin: 0 0 0.25rem;
+}
+@media (max-width: 639px) {
+  #rule-editor.re-view-lab {
+    flex-direction: column;
+  }
+  #rule-editor.re-view-lab .ch-sidebar {
+    width: 100%;
+    flex: 0 1 auto;
+    max-height: 42vh;
+  }
+  #rule-editor.re-view-lab:not(.de-pane-active) .de-pane {
+    display: flex;
+    flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
-    border-bottom: none;
-    padding-bottom: var(--footer-scroll-pad, 5rem);
   }
 }
 .re-lab-live-spin {
@@ -1783,11 +1791,6 @@ button.de-placeholder-action:active {
 }
 .re-lab-pipeline {
   border-left: none;
-}
-@media (min-width: 640px) {
-  .re-lab-pipeline {
-    border-left: 1px solid var(--panel-border);
-  }
 }
 .re-lab-rules-filter {
   display: flex;
@@ -1986,15 +1989,6 @@ button.de-placeholder-action:active {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
-}
-.re-lab-chip-add-btn {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  min-width: 2.75rem;
-  padding: 0;
 }
 .re-lab-create-wrap {
   display: flex;

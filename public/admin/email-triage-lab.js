@@ -1,7 +1,7 @@
 /**
- * Email triage Lab — mobile-first rule generator.
- * Add field:phrase chips, see rules that hit, or create one.
- * Live-test (POST /api/email/simulate rulesOnly) highlights the first match.
+ * Email triage Lab — live rule tester / complex filter.
+ * Type field:phrase terms (Enter pins another field). Matching rules update
+ * on the right; simulate (POST /api/email/simulate rulesOnly) highlights the first hit.
  */
 import {
   iosIcon,
@@ -72,29 +72,11 @@ function normalizeTargetPhrase(raw) {
   return String(raw || '').replace(/\s+/g, ' ').trim();
 }
 
-const LAB_PROCESS_OPTIONS = [
-  { value: 'delete', label: 'Delete' },
-  { value: 'archive', label: 'Archive' },
-  { value: 'receipt', label: 'Receipt' },
-  { value: 'classify', label: 'Keep' },
-];
-
 const CHIP_FIELD_OPTIONS = [
   { value: 'from', label: 'From' },
   { value: 'subject', label: 'Subject' },
   { value: 'body', label: 'Body' },
 ];
-
-function labProcessIsSilent(process) {
-  return process === 'delete' || process === 'archive' || process === 'receipt';
-}
-
-function labStatusForProcess(process) {
-  if (process === 'delete') return 'DELETE';
-  if (process === 'archive') return 'AUTO_ARCHIVED';
-  if (process === 'receipt') return 'RECEIPT';
-  return 'CUSTOM';
-}
 
 function chipFieldLabel(field) {
   if (field === 'from') return 'email';
@@ -211,8 +193,6 @@ export const PIPELINE_FUNCTIONS = [
  * @param {(ruleId: string) => void | Promise<void>} deps.toggleRuleEditor
  * @param {(container: HTMLElement) => void} deps.renderRuleForm
  * @param {() => string | null} deps.getActiveRuleId
- * @param {() => void | Promise<void>} [deps.startNewRule]
- * @param {(draft: object) => Promise<object | null | void>} [deps.createRuleFromLab]
  * @param {() => Promise<void>} [deps.flushRuleAutosave]
  * @param {() => string} [deps.inboundAddressExample]
  */
@@ -248,8 +228,6 @@ export function createEmailTriageLab(deps) {
     liveMatchIndex: 0,
     liveMatchWhen: '',
     liveMatchMeta: '',
-    ruleProcess: 'delete',
-    creatingRule: false,
   };
 
   const LIVE_DEBOUNCE_MS = 500;
@@ -297,10 +275,22 @@ export function createEmailTriageLab(deps) {
     return state.contacts.find((c) => String(c.email || '').toLowerCase() === needle) || null;
   }
 
+  function draftTerm() {
+    const text = normalizeTargetPhrase(state.chipDraft);
+    if (text.length < 2) return null;
+    return { field: state.chipField, text };
+  }
+
+  function filterTerms() {
+    const draft = draftTerm();
+    return draft ? [...state.chips, draft] : state.chips.slice();
+  }
+
   function syncComposeFromChips() {
-    const fromChips = state.chips.filter((c) => c.field === 'from');
-    const subChips = state.chips.filter((c) => c.field === 'subject');
-    const bodyChips = state.chips.filter((c) => c.field === 'body');
+    const terms = filterTerms();
+    const fromChips = terms.filter((c) => c.field === 'from');
+    const subChips = terms.filter((c) => c.field === 'subject');
+    const bodyChips = terms.filter((c) => c.field === 'body');
     const from = fromChips[0];
     state.fromName = from?.contact?.name || '';
     state.from = from?.text || '';
@@ -337,14 +327,15 @@ export function createEmailTriageLab(deps) {
   }
 
   function ruleMatchesComposeFilter(rule) {
-    if (!state.chips.length) return true;
-    const chipHay = state.chips.map((c) => c.text).join(' ').toLowerCase();
+    const terms = filterTerms();
+    if (!terms.length) return true;
+    const chipHay = terms.map((c) => c.text).join(' ').toLowerCase();
     const phrases = (rule.phrases || [])
       .map((p) => String(p || '').trim().toLowerCase())
       .filter((p) => p.length >= 2);
     if (phrases.some((p) => chipHay.includes(p))) return true;
     const ruleHay = ruleSearchHaystack(rule).filter(Boolean).join(' ').toLowerCase();
-    return state.chips.some((c) => {
+    return terms.some((c) => {
       const t = String(c.text || '').trim().toLowerCase();
       return t.length >= 2 && ruleHay.includes(t);
     });
@@ -352,7 +343,7 @@ export function createEmailTriageLab(deps) {
 
   function isRulesFilterActive() {
     const rs = ruleState();
-    return (rs.scopeFilter && rs.scopeFilter !== 'all') || state.chips.length > 0;
+    return (rs.scopeFilter && rs.scopeFilter !== 'all') || filterTerms().length > 0;
   }
 
   function ruleMatchesLabFilter(rule) {
@@ -362,20 +353,6 @@ export function createEmailTriageLab(deps) {
     if (rs.scopeFilter === 'universal' && rule.scope !== 'universal') return false;
     if (rs.scopeFilter === 'personal' && rule.scope === 'universal') return false;
     return ruleMatchesComposeFilter(rule);
-  }
-
-  function visibleRuleCount(root) {
-    return [...(root?.querySelectorAll('.re-lab-pipe-card--rule') || [])].filter(
-      (card) => !card.hidden,
-    ).length;
-  }
-
-  function syncCreateVisibility(root = deps.getRuleEditor()) {
-    if (!root) return;
-    const wrap = root.querySelector('[data-lab-create-wrap]');
-    if (!wrap) return;
-    const hits = visibleRuleCount(root);
-    wrap.hidden = state.chips.length === 0 || hits > 0;
   }
 
   function applyRulesFilter(root = deps.getRuleEditor()) {
@@ -392,8 +369,8 @@ export function createEmailTriageLab(deps) {
     const empty = root.querySelector('[data-lab-rules-empty]');
     if (empty) {
       empty.hidden = visible > 0;
-      empty.textContent = state.chips.length
-        ? 'No hits — create a rule above.'
+      empty.textContent = filterTerms().length
+        ? 'No matching rules.'
         : 'No rules yet.';
     }
     const filterActive = isRulesFilterActive();
@@ -403,16 +380,15 @@ export function createEmailTriageLab(deps) {
       grip.title = locked
         ? 'Catalog rule order comes from the repo'
         : filterActive
-          ? 'Clear chips to reorder'
+          ? 'Clear the filter to reorder'
           : 'Drag to reorder';
     });
     const headSub = root.querySelector('[data-lab-rules-sub]');
     if (headSub) {
-      headSub.textContent = state.chips.length
-        ? 'Rules that hit these chips'
+      headSub.textContent = filterTerms().length
+        ? 'Rules that match this filter · first hit highlighted'
         : 'Tap a rule to edit · drag to set priority';
     }
-    syncCreateVisibility(root);
   }
 
   function chipPlaceholder() {
@@ -518,7 +494,7 @@ export function createEmailTriageLab(deps) {
   }
 
   function hasTestableContent() {
-    return state.chips.length > 0;
+    return filterTerms().length > 0;
   }
 
   function liveResultHtml() {
@@ -572,54 +548,6 @@ export function createEmailTriageLab(deps) {
     state.liveMatchIndex = 0;
     state.liveMatchWhen = '';
     state.liveMatchMeta = '';
-  }
-
-  async function createRuleFromCompose() {
-    const root = deps.getRuleEditor();
-    if (!root || state.creatingRule) return;
-    const phrases = state.chips.map((c) => c.text).filter((s) => s.length >= 2);
-    if (!phrases.length) {
-      await osAlert('Add at least one chip to match.');
-      return;
-    }
-    const fields = [...new Set(state.chips.map((c) => c.field))];
-    const process = state.ruleProcess || 'delete';
-    const silent = labProcessIsSilent(process);
-    const title = phrases[0].length > 48 ? `${phrases[0].slice(0, 47)}…` : phrases[0];
-    state.creatingRule = true;
-    const btn = root.querySelector('[data-lab-create-rule]');
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Creating…';
-    }
-    try {
-      await deps.createRuleFromLab?.({
-        title,
-        status: labStatusForProcess(process),
-        scope: 'personal',
-        description: '',
-        phrases,
-        exceptPhrases: [],
-        matchMode: phrases.length > 1 ? 'all' : 'any',
-        fields: fields.length ? fields : ['body'],
-        notify: silent ? false : true,
-        notifyPush: silent ? false : true,
-        notifyDashboard: silent ? false : true,
-        notifyActions: ['view', 'archive'],
-        enabled: true,
-        expiresAt: null,
-      });
-      scheduleLiveTest();
-    } catch (e) {
-      await osAlert(`Could not create rule: ${e.message}`);
-    } finally {
-      state.creatingRule = false;
-      const next = deps.getRuleEditor()?.querySelector('[data-lab-create-rule]');
-      if (next) {
-        next.disabled = false;
-        next.textContent = 'Create rule';
-      }
-    }
   }
 
   function loadFromInboxEmail(record) {
@@ -940,49 +868,16 @@ export function createEmailTriageLab(deps) {
     root.classList.add('re-view-lab');
     root.classList.remove('re-view-flow', 're-view-list', 'de-pane-active');
 
-    const shellEl = document.createElement('div');
-    shellEl.className = 're-lab-shell';
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 're-flow-toolbar';
-    const left = document.createElement('div');
-    left.className = 're-flow-toolbar-left';
-    const hint = document.createElement('p');
-    hint.className = 're-flow-hint';
-    hint.textContent = 'Type a phrase · pick a field · add a chip · repeat';
-    left.appendChild(hint);
-    toolbar.appendChild(left);
-
-    const right = document.createElement('div');
-    right.className = 're-flow-toolbar-right re-lab-toolbar-actions';
-    const newRuleBtn = document.createElement('button');
-    newRuleBtn.type = 'button';
-    newRuleBtn.className = 'dash-panel-btn';
-    newRuleBtn.dataset.labNewRule = '1';
-    newRuleBtn.textContent = 'New rule';
-    newRuleBtn.addEventListener('click', () => void deps.startNewRule?.());
-    const saveOrder = document.createElement('button');
-    saveOrder.type = 'button';
-    saveOrder.className = 'dash-panel-btn';
-    saveOrder.dataset.labSaveOrder = '1';
-    saveOrder.textContent = 'Save rule order';
-    saveOrder.hidden = !state.dirtyOrder;
-    saveOrder.disabled = !state.dirtyOrder;
-    saveOrder.addEventListener('click', () => void persistRuleOrder());
-    right.append(newRuleBtn, saveOrder);
-    toolbar.appendChild(right);
-    shellEl.appendChild(toolbar);
-
-    const body = document.createElement('div');
-    body.className = 're-lab-body';
+    const sidebar = document.createElement('aside');
+    sidebar.className = 'ch-sidebar';
 
     const compose = document.createElement('section');
     compose.className = 're-lab-compose';
 
     const composeHead = document.createElement('header');
     composeHead.className = 're-lab-section-head';
-    composeHead.innerHTML = `<h2>Rule generator</h2>
-      <p>Type a term, pick the target, add a chip. Matching rules land below.</p>`;
+    composeHead.innerHTML = `<h2>Rule tester</h2>
+      <p>Live filter — type a term, pick From / Subject / Body. Enter pins another field.</p>`;
     compose.appendChild(composeHead);
 
     const liveBanner = document.createElement('div');
@@ -996,7 +891,7 @@ export function createEmailTriageLab(deps) {
 
     const fieldPills = createSlidingPillSelect({
       value: state.chipField,
-      ariaLabel: 'Chip target field',
+      ariaLabel: 'Filter target field',
       options: CHIP_FIELD_OPTIONS,
       scrollable: true,
       onChange: (value) => {
@@ -1012,6 +907,9 @@ export function createEmailTriageLab(deps) {
         if (state.chipField !== 'from') {
           closeContactSuggestions(root.querySelector('.re-lab-suggest-box'));
         }
+        syncComposeFromChips();
+        applyRulesFilter(root);
+        scheduleLiveTest();
       },
     });
     const fieldBar = document.createElement('div');
@@ -1036,11 +934,6 @@ export function createEmailTriageLab(deps) {
     suggest.hidden = true;
     draftWrap.append(draftIn, suggest);
 
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'dash-panel-btn re-lab-chip-add-btn';
-    addBtn.setAttribute('aria-label', 'Add chip');
-    addBtn.innerHTML = iosIcon('plus', 18);
     const commitDraft = () => {
       state.chipDraft = draftIn.value;
       if (addChip({ field: state.chipField, text: draftIn.value })) {
@@ -1048,9 +941,11 @@ export function createEmailTriageLab(deps) {
         draftIn.focus();
       }
     };
-    addBtn.addEventListener('click', commitDraft);
     draftIn.addEventListener('input', () => {
       state.chipDraft = draftIn.value;
+      syncComposeFromChips();
+      applyRulesFilter(root);
+      scheduleLiveTest();
       if (state.chipField === 'from') {
         void openContactSuggestions(suggest, draftIn, draftWrap);
       }
@@ -1070,43 +965,31 @@ export function createEmailTriageLab(deps) {
         closeContactSuggestions(suggest);
       }
     });
-    addRow.append(draftWrap, addBtn);
+    addRow.appendChild(draftWrap);
     compose.appendChild(addRow);
+    sidebar.appendChild(compose);
 
-    const createWrap = document.createElement('div');
-    createWrap.className = 're-lab-create-wrap';
-    createWrap.dataset.labCreateWrap = '1';
-    createWrap.hidden = true;
-    const processSel = document.createElement('input');
-    processSel.type = 'hidden';
-    processSel.value = state.ruleProcess || 'delete';
-    const processPill = createSlidingPillSelect({
-      label: 'Then',
-      value: processSel.value,
-      options: LAB_PROCESS_OPTIONS,
-      ariaLabel: 'Email processing action',
-      scrollable: true,
-      onChange: (value) => {
-        processSel.value = value;
-        state.ruleProcess = value;
-      },
-    });
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'dash-panel-btn de-btn-primary';
-    createBtn.dataset.labCreateRule = '1';
-    createBtn.textContent = 'Create rule';
-    createBtn.addEventListener('click', () => void createRuleFromCompose());
-    createWrap.append(processPill.el, processSel, createBtn);
-    compose.appendChild(createWrap);
-    body.appendChild(compose);
+    const pane = document.createElement('div');
+    pane.className = 'de-pane';
 
     const pipe = document.createElement('section');
     pipe.className = 're-lab-pipeline';
-    pipe.innerHTML = `<header class="re-lab-section-head">
-      <h2>Rules</h2>
-      <p data-lab-rules-sub>Tap a rule to edit · drag to set priority</p>
-    </header>`;
+
+    const pipeHead = document.createElement('header');
+    pipeHead.className = 're-lab-section-head re-lab-rules-head';
+    const pipeCopy = document.createElement('div');
+    pipeCopy.innerHTML = `<h2>Rules</h2>
+      <p data-lab-rules-sub>Tap a rule to edit · drag to set priority</p>`;
+    const saveOrder = document.createElement('button');
+    saveOrder.type = 'button';
+    saveOrder.className = 'dash-panel-btn';
+    saveOrder.dataset.labSaveOrder = '1';
+    saveOrder.textContent = 'Save order';
+    saveOrder.hidden = !state.dirtyOrder;
+    saveOrder.disabled = !state.dirtyOrder;
+    saveOrder.addEventListener('click', () => void persistRuleOrder());
+    pipeHead.append(pipeCopy, saveOrder);
+    pipe.appendChild(pipeHead);
 
     const pipeList = document.createElement('div');
     pipeList.className = 're-lab-pipe-list';
@@ -1196,10 +1079,8 @@ export function createEmailTriageLab(deps) {
 
     pipe.appendChild(pipeList);
     attachRuleReorder(pipeList);
-    body.appendChild(pipe);
-
-    shellEl.appendChild(body);
-    root.appendChild(shellEl);
+    pane.appendChild(pipe);
+    root.append(sidebar, pane);
     refreshChipList(root);
     syncExpandedRule(root);
     applyRulesFilter(root);
