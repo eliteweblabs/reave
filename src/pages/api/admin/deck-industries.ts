@@ -4,7 +4,7 @@
  * PUT  — replace full list { industries: [{ slug?, label, enabled?, playbook? }] }
  */
 import type { APIContext } from 'astro';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import {
   deckIndustriesStorageBackend,
   listDeckIndustries,
@@ -33,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const hostDenied = requireReaveIndustriesAdmin();
   if (hostDenied) return hostDenied;
 
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   const industries = await listDeckIndustries();
@@ -54,7 +54,7 @@ export async function PUT(context: APIContext): Promise<Response> {
   const hostDenied = requireReaveIndustriesAdmin();
   if (hostDenied) return hostDenied;
 
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   let body: unknown;

@@ -5,15 +5,25 @@
  */
 import type { APIRoute } from 'astro';
 import { resolveInstallIdentity } from '../../../lib/installIdentity';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
-  const identity = await resolveInstallIdentity(request);
-  return new Response(JSON.stringify({ ok: true, identity }), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=60',
-    },
+  const rate = checkInMemoryRateLimit(`install-identity:${clientIp(request)}`, {
+    windowMs: 60_000,
+    maxPerWindow: 30,
   });
+  if (!rate.ok) {
+    return jsonResponse(
+      { ok: false, error: 'Too many requests' },
+      429,
+      { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
+    );
+  }
+
+  const identity = await resolveInstallIdentity(request);
+  return jsonResponse({ ok: true, identity }, 200, { cache: 'public, max-age=60' });
 };
