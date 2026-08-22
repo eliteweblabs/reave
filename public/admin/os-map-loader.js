@@ -263,7 +263,7 @@ import {
   openRulesLabWithEmail,
   openRulesLabWithRule,
   startNewRule,
-} from './rules-panel.js?v=20260822b';
+} from './rules-panel.js?v=20260822c';
 import {
   initNewsletterPanel,
   loadNewsletterTab,

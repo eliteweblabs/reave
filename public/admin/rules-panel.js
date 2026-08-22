@@ -10,6 +10,8 @@ import {
   listSearchAddNew,
   syncSearchFieldAdornment,
   createSlidingPillSelect,
+  createToggleSwitch,
+  setToggleSwitch,
   createPanelBackBtn,
   createEditableHeaderTitleInput,
   wrapEditableHeaderTitle,
@@ -330,6 +332,36 @@ function ruleSubline(rule) {
     if (rule.createProject) bits.push('create project');
   }
   return bits.join(' · ');
+}
+
+function ruleToggleOn(el) {
+  return el?.getAttribute?.('aria-checked') === 'true';
+}
+
+function createRuleToggle({ checked = false, label, onToggle }) {
+  return createToggleSwitch({
+    checked,
+    label,
+    onClick: (btn) => {
+      const next = btn.getAttribute('aria-checked') !== 'true';
+      setToggleSwitch(btn, next);
+      onToggle?.(next, btn);
+      btn.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+  });
+}
+
+function createRuleToggleRow(label, toggle) {
+  const row = document.createElement('div');
+  row.className = 'prof-plugin-row re-toggle-row';
+  const copy = document.createElement('div');
+  copy.className = 'prof-plugin-copy';
+  const lab = document.createElement('div');
+  lab.className = 'prof-plugin-label';
+  lab.textContent = label;
+  copy.appendChild(lab);
+  row.append(copy, toggle);
+  return row;
 }
 
 function appendRuleField(parent, label, el, hint) {
@@ -901,23 +933,22 @@ function renderRuleEditPane(pane, opts = {}) {
   let processPill = null;
 
   const notifyChannelsWrap = document.createElement('div');
-  notifyChannelsWrap.className = 're-checks';
+  notifyChannelsWrap.className = 're-toggle-stack';
   const channels = ruleNotifyChannels(rule);
-  const pushLb = document.createElement('label');
-  pushLb.className = 're-check';
-  const pushCb = document.createElement('input');
-  pushCb.type = 'checkbox';
-  pushCb.checked = channels.push;
-  pushCb.addEventListener('change', () => { syncNotifyActionsEnabled(); });
-  pushLb.append(pushCb, document.createTextNode(' Push'));
-  const dashLb = document.createElement('label');
-  dashLb.className = 're-check';
-  const dashCb = document.createElement('input');
-  dashCb.type = 'checkbox';
-  dashCb.checked = channels.dashboard;
-  dashCb.addEventListener('change', () => { syncNotifyActionsEnabled(); });
-  dashLb.append(dashCb, document.createTextNode(' Dashboard'));
-  notifyChannelsWrap.append(pushLb, dashLb);
+  const pushToggle = createRuleToggle({
+    checked: channels.push,
+    label: 'Push notifications',
+    onToggle: () => syncNotifyActionsEnabled(),
+  });
+  const dashToggle = createRuleToggle({
+    checked: channels.dashboard,
+    label: 'Dashboard notifications',
+    onToggle: () => syncNotifyActionsEnabled(),
+  });
+  notifyChannelsWrap.append(
+    createRuleToggleRow('Push', pushToggle),
+    createRuleToggleRow('Dashboard', dashToggle),
+  );
 
   const notifyActionsWrap = document.createElement('div');
   notifyActionsWrap.className = 're-checks';
@@ -953,13 +984,17 @@ function renderRuleEditPane(pane, opts = {}) {
     actionCbs.push(cb);
   }
   const syncNotifyActionsEnabled = () => {
-    const silent = processIsSilentFile(processSel.value);
-    const on = !silent && (pushCb.checked || dashCb.checked);
+    const process = processSel.value;
+    const isDelete = process === 'delete';
+    const silent = processIsSilentFile(process);
+    const on = !silent && (ruleToggleOn(pushToggle) || ruleToggleOn(dashToggle));
     actionCbs.forEach((cb) => {
       cb.disabled = !on;
     });
-    if (notifyField) notifyField.wrap.hidden = silent;
-    if (actionsField) actionsField.wrap.hidden = !on;
+    if (createProjectRow) createProjectRow.hidden = isDelete;
+    if (expiresWrap) expiresWrap.hidden = isDelete;
+    if (notifyField) notifyField.wrap.hidden = silent || isDelete;
+    if (actionsField) actionsField.wrap.hidden = !on || isDelete;
   };
 
   let notifyField = null;
@@ -972,8 +1007,8 @@ function renderRuleEditPane(pane, opts = {}) {
       statusIn.value = statusForProcess(process, statusIn.value);
     }
     if (processIsSilentFile(process)) {
-      pushCb.checked = false;
-      dashCb.checked = false;
+      setToggleSwitch(pushToggle, false);
+      setToggleSwitch(dashToggle, false);
     }
     if (processField?.hintEl) processField.hintEl.textContent = processHintText(process);
     syncNotifyActionsEnabled();
@@ -995,13 +1030,6 @@ function renderRuleEditPane(pane, opts = {}) {
     },
   });
 
-  const enabledLb = document.createElement('label');
-  enabledLb.className = 're-check';
-  const enabledCb = document.createElement('input');
-  enabledCb.type = 'checkbox';
-  enabledCb.checked = rule.enabled !== false;
-  enabledLb.append(enabledCb, document.createTextNode(' Rule enabled'));
-
   const forwardIn = document.createElement('input');
   forwardIn.className = 'de-input';
   forwardIn.type = 'email';
@@ -1009,35 +1037,21 @@ function renderRuleEditPane(pane, opts = {}) {
   forwardIn.placeholder = 'e.g. teammate@company.com (optional)';
   forwardIn.value = rule.forwardTo || '';
 
-  const createProjectLb = document.createElement('label');
-  createProjectLb.className = 're-check';
-  const createProjectCb = document.createElement('input');
-  createProjectCb.type = 'checkbox';
-  createProjectCb.checked = rule.createProject === true;
-  createProjectLb.append(createProjectCb, document.createTextNode(' Also create a project'));
-
+  const createProjectToggle = createRuleToggle({
+    checked: rule.createProject === true,
+    label: 'Also create a project',
+  });
+  const createProjectRow = createRuleToggleRow('Also create a project', createProjectToggle);
   const forwardWrap = document.createElement('div');
-  forwardWrap.append(forwardIn, createProjectLb);
-
-  const expiresLb = document.createElement('label');
-  expiresLb.className = 're-check';
-  const expiresCb = document.createElement('input');
-  expiresCb.type = 'checkbox';
-  expiresCb.checked = !!rule.expiresAt;
-  expiresLb.append(expiresCb, document.createTextNode(' Expires'));
+  forwardWrap.className = 're-forward-field';
+  forwardWrap.append(forwardIn, createProjectRow);
 
   const expiresAtIn = document.createElement('input');
   expiresAtIn.className = 'de-input';
   expiresAtIn.type = 'datetime-local';
   expiresAtIn.value = toRuleDatetimeLocalValue(rule.expiresAt);
-  expiresAtIn.disabled = !expiresCb.checked;
-  expiresAtIn.style.marginTop = '0.4rem';
+  expiresAtIn.setAttribute('aria-label', 'Expiration date and time');
 
-  const expireInLb = document.createElement('label');
-  expireInLb.className = 're-check re-expire-in';
-  const expireInCb = document.createElement('input');
-  expireInCb.type = 'checkbox';
-  expireInCb.checked = false;
   const expireInSecs = document.createElement('input');
   expireInSecs.className = 'de-input re-expire-in-secs';
   expireInSecs.type = 'number';
@@ -1045,44 +1059,53 @@ function renderRuleEditPane(pane, opts = {}) {
   expireInSecs.step = '1';
   expireInSecs.placeholder = '300';
   expireInSecs.value = '300';
-  expireInSecs.disabled = true;
   expireInSecs.setAttribute('aria-label', 'Seconds until this rule expires');
-  expireInLb.append(
-    expireInCb,
-    document.createTextNode(' Expire in '),
-    expireInSecs,
-    document.createTextNode(' seconds'),
-  );
+
+  const expireInReveal = document.createElement('div');
+  expireInReveal.className = 're-toggle-reveal re-expire-in-reveal';
+  expireInReveal.append(expireInSecs, document.createTextNode(' seconds'));
+
+  const expiresAtReveal = document.createElement('div');
+  expiresAtReveal.className = 're-toggle-reveal';
+  expiresAtReveal.appendChild(expiresAtIn);
+
+  const expiresToggle = createRuleToggle({
+    checked: !!rule.expiresAt,
+    label: 'Expires',
+    onToggle: (on) => {
+      if (on && ruleToggleOn(expireInToggle)) setToggleSwitch(expireInToggle, false);
+      if (on && !expiresAtIn.value) expiresAtIn.value = defaultRuleExpiresLocalValue();
+      syncExpireUi();
+    },
+  });
+  const expireInToggle = createRuleToggle({
+    checked: false,
+    label: 'Expire in',
+    onToggle: (on) => {
+      if (on && ruleToggleOn(expiresToggle)) setToggleSwitch(expiresToggle, false);
+      if (on && (!expireInSecs.value || Number(expireInSecs.value) < 1)) expireInSecs.value = '300';
+      syncExpireUi();
+    },
+  });
+
+  const syncExpireUi = () => {
+    const absOn = ruleToggleOn(expiresToggle);
+    const relOn = ruleToggleOn(expireInToggle);
+    expiresAtReveal.hidden = !absOn;
+    expireInReveal.hidden = !relOn;
+    expiresAtIn.disabled = !absOn;
+    expireInSecs.disabled = !relOn;
+  };
+  syncExpireUi();
 
   const expiresWrap = document.createElement('div');
   expiresWrap.className = 're-expires-field';
-  expiresWrap.appendChild(expiresLb);
-  expiresWrap.appendChild(expiresAtIn);
-  expiresWrap.appendChild(expireInLb);
-
-  const syncExpiresUi = () => {
-    if (expiresCb.checked && expireInCb.checked) {
-      // Absolute date wins when toggling Expires on.
-      expireInCb.checked = false;
-    }
-    expiresAtIn.disabled = !expiresCb.checked;
-    expireInSecs.disabled = !expireInCb.checked;
-    if (expiresCb.checked && !expiresAtIn.value) {
-      expiresAtIn.value = defaultRuleExpiresLocalValue();
-    }
-  };
-  const syncExpireInUi = () => {
-    if (expireInCb.checked && expiresCb.checked) {
-      expiresCb.checked = false;
-    }
-    expiresAtIn.disabled = !expiresCb.checked;
-    expireInSecs.disabled = !expireInCb.checked;
-    if (expireInCb.checked && (!expireInSecs.value || Number(expireInSecs.value) < 1)) {
-      expireInSecs.value = '300';
-    }
-  };
-  expiresCb.addEventListener('change', syncExpiresUi);
-  expireInCb.addEventListener('change', syncExpireInUi);
+  expiresWrap.append(
+    createRuleToggleRow('Expires', expiresToggle),
+    expiresAtReveal,
+    createRuleToggleRow('Expire in', expireInToggle),
+    expireInReveal,
+  );
 
   appendRuleField(form, 'Title', titleIn);
   if (scopeWrap.childNodes.length) appendRuleField(form, 'Applies to', scopeWrap);
@@ -1100,12 +1123,7 @@ function renderRuleEditPane(pane, opts = {}) {
   form.appendChild(processFieldWrap);
   processField = { wrap: processFieldWrap, hintEl: processHint };
   form.appendChild(statusIn);
-  appendRuleField(
-    form,
-    'Forward to',
-    forwardWrap,
-    'Relays matched mail via Resend. Does not create a project unless you check the box.',
-  );
+  appendRuleField(form, 'Forward to', forwardWrap);
   notifyField = appendRuleField(
     form,
     'Notify',
@@ -1118,9 +1136,8 @@ function renderRuleEditPane(pane, opts = {}) {
     notifyActionsWrap,
     'Buttons on the Push/Dashboard alert only — they do not process the email.',
   );
-  syncProcessUi({ fromStatus: true });
-  form.appendChild(enabledLb);
   form.appendChild(expiresWrap);
+  syncProcessUi({ fromStatus: true });
   pane.appendChild(form);
 
   const ruleInputs = {
@@ -1133,16 +1150,16 @@ function renderRuleEditPane(pane, opts = {}) {
     exceptIn,
     matchSel,
     fieldsWrap,
-    pushCb,
-    dashCb,
+    pushToggle,
+    dashToggle,
     notifyActionsWrap,
-    enabledCb,
     forwardIn,
-    createProjectCb,
-    expiresCb,
+    createProjectToggle,
+    expiresToggle,
     expiresAtIn,
-    expireInCb,
+    expireInToggle,
     expireInSecs,
+    syncExpireUi,
   };
   const inDrawer = !accordion && shell.isCreateDrawerOpen('rules');
   if (isCatalogReadOnly(rule)) {
@@ -1166,25 +1183,24 @@ function collectRulePayload(inputs) {
   inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     if (cb.checked) notifyActions.push(cb.value);
   });
-  const notifyPush = !!inputs.pushCb.checked;
-  const notifyDashboard = !!inputs.dashCb.checked;
+  const process = inputs.processSel?.value || ruleProcessValue(inputs.statusIn.value);
+  const isDelete = process === 'delete';
+  const notifyPush = !isDelete && ruleToggleOn(inputs.pushToggle);
+  const notifyDashboard = !isDelete && ruleToggleOn(inputs.dashToggle);
   const scopeRb = inputs.scopeWrap.querySelector('input[type=radio]:checked');
   let expiresAt = null;
-  if (inputs.expireInCb?.checked) {
+  if (!isDelete && ruleToggleOn(inputs.expireInToggle)) {
     const secs = Math.floor(Number(inputs.expireInSecs?.value));
     if (Number.isFinite(secs) && secs > 0) {
       expiresAt = new Date(Date.now() + secs * 1000).toISOString();
     }
-  } else if (inputs.expiresCb.checked) {
+  } else if (!isDelete && ruleToggleOn(inputs.expiresToggle)) {
     expiresAt = fromRuleDatetimeLocalValue(inputs.expiresAtIn.value);
   }
   return {
     title: inputs.titleIn.value.trim(),
     scope: scopeRb?.value === 'universal' ? 'universal' : 'personal',
-    status: statusForProcess(
-      inputs.processSel?.value || ruleProcessValue(inputs.statusIn.value),
-      inputs.statusIn.value.trim(),
-    ),
+    status: statusForProcess(process, inputs.statusIn.value.trim()),
     description: inputs.descIn.value.trim(),
     phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
     exceptPhrases: inputs.exceptIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -1193,10 +1209,10 @@ function collectRulePayload(inputs) {
     notify: notifyPush || notifyDashboard,
     notifyPush,
     notifyDashboard,
-    notifyActions,
-    enabled: inputs.enabledCb.checked,
+    notifyActions: isDelete ? [] : notifyActions,
+    enabled: true,
     forwardTo: inputs.forwardIn.value.trim() || null,
-    createProject: !!inputs.createProjectCb?.checked,
+    createProject: !isDelete && ruleToggleOn(inputs.createProjectToggle),
     expiresAt,
   };
 }
@@ -1255,17 +1271,16 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     inputs.exceptIn,
     inputs.matchSel,
     ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
-    inputs.pushCb,
-    inputs.dashCb,
+    inputs.pushToggle,
+    inputs.dashToggle,
     ...inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]'),
-    inputs.enabledCb,
     inputs.forwardIn,
-    inputs.createProjectCb,
-    inputs.expiresCb,
+    inputs.createProjectToggle,
+    inputs.expiresToggle,
     inputs.expiresAtIn,
-    inputs.expireInCb,
+    inputs.expireInToggle,
     inputs.expireInSecs,
-  ];
+  ].filter(Boolean);
 
   const flush = async () => {
     const previous = savingLock;
@@ -1305,14 +1320,15 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
       return false;
     }
-    if (inputs.expireInCb?.checked) {
+    const process = inputs.processSel?.value || '';
+    if (process !== 'delete' && ruleToggleOn(inputs.expireInToggle)) {
       const secs = Math.floor(Number(inputs.expireInSecs?.value));
       if (!Number.isFinite(secs) || secs < 1 || !payload.expiresAt) {
         ruleAutosaveError = 'Enter a valid expire-in time.';
         shell.setFormFieldState(inputs.expireInSecs, 'invalid');
         return false;
       }
-    } else if (inputs.expiresCb.checked && !payload.expiresAt) {
+    } else if (process !== 'delete' && ruleToggleOn(inputs.expiresToggle) && !payload.expiresAt) {
       ruleAutosaveError = 'Enter an expiration date.';
       shell.setFormFieldState(inputs.expiresAtIn, 'invalid');
       return false;
@@ -1330,13 +1346,12 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       // Relative TTL is write-time only — switch to absolute so autosave doesn't keep extending.
-      if (inputs.expireInCb?.checked && data.rule?.expiresAt) {
-        inputs.expireInCb.checked = false;
-        inputs.expireInSecs.disabled = true;
-        inputs.expiresCb.checked = true;
-        inputs.expiresAtIn.disabled = false;
+      if (ruleToggleOn(inputs.expireInToggle) && data.rule?.expiresAt) {
+        setToggleSwitch(inputs.expireInToggle, false);
+        setToggleSwitch(inputs.expiresToggle, true);
         inputs.expiresAtIn.value = toRuleDatetimeLocalValue(data.rule.expiresAt);
         payload.expiresAt = data.rule.expiresAt;
+        inputs.syncExpireUi?.();
       }
       baseline = serializeRulePayload(payload);
       ruleState.dirty = false;

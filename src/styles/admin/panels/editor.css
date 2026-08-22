@@ -1355,19 +1355,46 @@ button.de-placeholder-action:active {
   min-width: 0;
 }
 .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
-.re-expires-field {
-  margin-top: 0.55rem;
+.re-forward-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
-.re-expire-in {
-  margin-top: 0.55rem;
+.re-toggle-stack {
+  display: flex;
+  flex-direction: column;
+}
+.re-lab-rule-form .re-toggle-row,
+.re-form-scroll .re-toggle-row {
+  padding: 0.4rem 0;
+}
+.re-toggle-row[hidden] {
+  display: none !important;
+}
+.re-toggle-reveal {
+  padding: 0 0 0.45rem;
+}
+.re-toggle-reveal[hidden] {
+  display: none !important;
+}
+.re-expire-in-reveal {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.re-expires-field {
+  margin-top: 0.35rem;
+}
+.re-expires-field[hidden] {
+  display: none !important;
 }
 .re-expire-in-secs {
   width: 5.5rem;
   max-width: 5.5rem;
-  margin: 0 0.25rem;
-  padding: 0.25rem 0.4rem;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
   font-size: 0.78rem;
 }
 .re-scope-filter {
