@@ -556,10 +556,13 @@ export async function storeEmailInboxDigest(hideJunk = true): Promise<EmailInbox
 async function listFromFile(limit: number, hideJunk: boolean): Promise<EmailInboxRecord[]> {
   const path = inboxFilePath();
   if (!existsSync(path)) return [];
-  let events = parseFileEvents(readFileSync(path, 'utf8'));
-  events = events.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-  if (hideJunk) events = events.filter((e) => e.category !== 'junk');
-  return events.slice(0, limit);
+  const events = parseFileEvents(readFileSync(path, 'utf8')).sort(
+    (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+  );
+  if (hideJunk) return events.filter((e) => e.category !== 'junk').slice(0, limit);
+  const visible = events.filter((e) => e.category !== 'junk').slice(0, limit);
+  const junk = events.filter((e) => e.category === 'junk').slice(0, limit);
+  return mergeInboxByReceivedAt([visible, junk]);
 }
 
 async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | null> {
@@ -611,18 +614,46 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
   return record;
 }
 
+function mergeInboxByReceivedAt(batches: EmailInboxRecord[][]): EmailInboxRecord[] {
+  const byId = new Map<string, EmailInboxRecord>();
+  for (const batch of batches) {
+    for (const row of batch) byId.set(row.id, row);
+  }
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+  );
+}
+
 async function listFromPg(limit: number, hideJunk: boolean): Promise<EmailInboxRecord[]> {
   try {
     const pool = await ensureSchema();
     if (!pool) return [];
-    const junkFilter = hideJunk ? `AND category <> 'junk'` : '';
-    const { rows } = await pool.query(
-      `SELECT ${INBOX_LIST_SELECT}
-       FROM email_inbox WHERE 1=1 ${junkFilter}
-       ORDER BY received_at DESC LIMIT $1`,
-      [limit],
-    );
-    return rows.map(rowToRecord);
+    if (hideJunk) {
+      const { rows } = await pool.query(
+        `SELECT ${INBOX_LIST_SELECT}
+         FROM email_inbox WHERE category <> 'junk'
+         ORDER BY received_at DESC LIMIT $1`,
+        [limit],
+      );
+      return rows.map(rowToRecord);
+    }
+    // Including junk must not crowd All/Alert/Review off the page when a
+    // burst of DELETE mail is the newest slice.
+    const [visible, junk] = await Promise.all([
+      pool.query(
+        `SELECT ${INBOX_LIST_SELECT}
+         FROM email_inbox WHERE category <> 'junk'
+         ORDER BY received_at DESC LIMIT $1`,
+        [limit],
+      ),
+      pool.query(
+        `SELECT ${INBOX_LIST_SELECT}
+         FROM email_inbox WHERE category = 'junk'
+         ORDER BY received_at DESC LIMIT $1`,
+        [limit],
+      ),
+    ]);
+    return mergeInboxByReceivedAt([visible.rows.map(rowToRecord), junk.rows.map(rowToRecord)]);
   } catch (e) {
     console.error('[email-inbox] pg list failed', e);
     return [];

@@ -12728,7 +12728,7 @@ async function loadEmailTab(quiet) {
   if (!quiet) mountPanelSkeleton(root, 'list', 'Loading inbox…', { contentSelector: '.em-sidebar' });
   try {
     const [inboxRes] = await Promise.all([
-      adminFetch('/api/email/inbox?junk=1'),
+      adminFetch('/api/email/inbox?junk=1&limit=500'),
       loadEmailSentEvents(true),
       loadEmailDraftEvents(true),
       ensureContactAuthorIconsReady(),
