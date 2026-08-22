@@ -1,5 +1,7 @@
 /**
  * Keep dashboard review alerts in sync when inbox messages are deleted or archived.
+ * Deleting an inbox row is a guaranteed no-notification — every delete path
+ * (store + list-time orphan heal) must dismiss alerts tied to that email.
  */
 
 import { storeUpdateEmailInbox } from './emailInboxStore';

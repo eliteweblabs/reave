@@ -337,7 +337,7 @@ const EMAIL_TRIAGE_NODES = [
   { id: 'et_gates', title: 'Cutoff · Sleep mode', sub: 'Drop pre-golive · defer 11pm–7am', icon: '😴', hue: 220, status: true, group: 'et_ingest', x: 320, y: 460 },
 
   // Classify
-  { id: 'et_contact', title: 'Resolve sender', sub: 'known contact skips catalog junk', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
+  { id: 'et_contact', title: 'Resolve sender', sub: 'known contact skips marketing junk only', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
   { id: 'et_rules', title: 'Keyword rules', sub: 'Flow · universal/personal · else inbox', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
   { id: 'et_lab', title: 'Try email (Flow)', sub: 'Compose · live test · first match', icon: '🧪', hue: 70, status: true, group: 'et_classify', x: 600, y: 330 },
   { id: 'et_agent', title: 'Agent-first AI', sub: 'Unknown / service · silent classify', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
@@ -358,7 +358,7 @@ const EMAIL_TRIAGE_NODES = [
 
   // Surfaces
   { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · wipe sample seed on first API', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },
-  { id: 'et_dash', title: 'Dashboard banner', sub: 'Explain · Confirm · OTP · audit trail', icon: '📊', hue: 185, status: true, group: 'et_surfaces', x: 1440, y: 300 },
+  { id: 'et_dash', title: 'Dashboard banner', sub: 'No banner if email deleted or junk', icon: '📊', hue: 185, status: true, group: 'et_surfaces', x: 1440, y: 300 },
   { id: 'et_push', title: 'Web Push', sub: 'Phone PWA · tag per email', icon: '🔔', hue: 45, status: true, group: 'et_surfaces', x: 1440, y: 440 },
   { id: 'et_chat', title: 'System alerts chat', sub: 'Ops automations · deploy repair reuses one Session per service', icon: '💬', hue: 300, status: true, group: 'et_surfaces', x: 1440, y: 580 },
 ];

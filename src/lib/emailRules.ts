@@ -10,8 +10,9 @@
  * Sender-based rules do not scale; every new service needs a new rule.
  * Instead, rules match subject and body language so they generalise across
  * any sending address.
- * Known contacts are a junk green light: the catalog DELETE catch-all
- * (unsubscribe / opt-out) does not apply to senders in Contacts. Personal
+ * Known contacts are a junk green light: the catalog marketing DELETE
+ * catch-all (unsubscribe / opt-out) does not apply to senders in Contacts.
+ * Other catalog DELETE rules (new sign-in notices) still apply. Personal
  * sender DELETE rules still run and can junk.
  *
  * Triage is sequential priority — never parallel.
@@ -377,8 +378,10 @@ export const DEFAULT_RULES: EmailRule[] = [
     status: 'DELETE',
     scope: 'universal',
     description:
-      'New sign-in / new device notifications — sent by GoDaddy, Google, Apple, and other platforms whenever a login is detected. Pure notification spam with no actionable content; silently deleted on every install.',
+      'New sign-in / new device notifications — Vercel, GoDaddy, Google, Apple, and others. Pure notification spam; silently deleted on every install, including known/service contacts. Does not apply to unusual/suspicious sign-ins (NEEDS_CHECK).',
     phrases: [
+      'detected a new sign-in',
+      'a new sign-in',
       "There's been a new sign-in",
       'signed in to your account',
       'new sign-in to your account',
@@ -392,7 +395,6 @@ export const DEFAULT_RULES: EmailRule[] = [
       'unusual sign-in',
       'suspicious activity',
       'your account may be compromised',
-      'reset your password',
     ],
     matchMode: 'any',
     fields: ['subject', 'body'],
@@ -447,22 +449,35 @@ export function isRepoCatalogRule(rule: {
   return !(rule.fields || []).includes('from');
 }
 
+/** Phrase set for the catalog unsubscribe / opt-out DELETE catch-all. */
+const CATALOG_MARKETING_DELETE_PHRASES = new Set([
+  'unsubscribe',
+  'you received this because',
+  'manage your email preferences',
+  'opt out',
+]);
+
 /**
  * Universal catalog junk catch-all (unsubscribe / opt-out). Known contacts
  * skip this rule so product mail from Cursor, Railway, etc. is not hidden
- * just because the footer says "unsubscribe". Personal `from` DELETE rules
- * are not catalog rows and still apply.
+ * just because the footer says "unsubscribe". Other catalog DELETE rules
+ * (new sign-in notices) still apply to known/service contacts. Personal
+ * `from` DELETE rules are not catalog rows and still apply.
  */
 export function isCatalogMarketingDeleteRule(rule: {
   status?: string;
   scope?: string | null;
   fields?: readonly string[] | null;
+  phrases?: readonly string[] | null;
 }): boolean {
   const s = String(rule.status || '')
     .trim()
     .toUpperCase();
   if (s !== 'DELETE' && s !== 'JUNK') return false;
-  return isRepoCatalogRule(rule);
+  if (!isRepoCatalogRule(rule)) return false;
+  return (rule.phrases || []).some((p) =>
+    CATALOG_MARKETING_DELETE_PHRASES.has(String(p).trim().toLowerCase()),
+  );
 }
 
 function fieldValue(email: InboundEmail, field: RuleField): string {

@@ -1108,6 +1108,8 @@ export async function storeUpdateEmailInbox(
 }
 
 export async function storeDeleteEmailInbox(id: string): Promise<boolean> {
+  const { dismissEmailRelatedNotifications } = await import('./emailNotificationSync');
+  await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
   if (databaseUrl()) return deleteFromPg(id);
   return deleteFromFile(id);
 }
@@ -1140,8 +1142,20 @@ async function deleteManyFromPg(ids: string[]): Promise<number> {
 export async function storeDeleteEmailInboxMany(ids: string[]): Promise<number> {
   const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
   if (!unique.length) return 0;
-  if (databaseUrl()) return deleteManyFromPg(unique);
-  return deleteManyFromFile(unique);
+  const { dismissEmailRelatedNotifications } = await import('./emailNotificationSync');
+  await Promise.all(
+    unique.map((id) =>
+      dismissEmailRelatedNotifications(id, { markAutomationAck: false, syncBadge: false }).catch(
+        () => undefined,
+      ),
+    ),
+  );
+  const deleted = databaseUrl() ? await deleteManyFromPg(unique) : await deleteManyFromFile(unique);
+  if (deleted > 0) {
+    const { scheduleReviewsBadgePush } = await import('./pushBadgeSync');
+    scheduleReviewsBadgePush();
+  }
+  return deleted;
 }
 
 /** Remove inbox rows whose To/Cc/Bcc is not on this install's domain. */

@@ -715,19 +715,32 @@ function phraseOverlap(rule: EmailRuleRecord, def: EmailRule): number {
   return (rule.phrases || []).filter((p) => want.has(String(p).trim().toLowerCase())).length;
 }
 
-/** Existing install row for a DEFAULT_RULES status — never a personal `from` block. */
-function findCatalogRecord(rules: EmailRuleRecord[], status: string): EmailRuleRecord | undefined {
-  const key = status.toUpperCase();
+/**
+ * Existing install row for one DEFAULT_RULES definition.
+ * Status alone is not unique (two DELETE rules, two AUTO_ARCHIVED rules) —
+ * match by phrase overlap so sign-in DELETE cannot steal the marketing row.
+ */
+function findCatalogRecord(
+  rules: EmailRuleRecord[],
+  def: EmailRule,
+  claimedIds?: Set<string>,
+): EmailRuleRecord | undefined {
+  const key = String(def.status || '').toUpperCase();
   const candidates = rules.filter(
     (r) =>
+      (!claimedIds || !claimedIds.has(r.id)) &&
       r.scope === 'universal' &&
       String(r.status || '').toUpperCase() === key &&
       !(r.fields || []).includes('from'),
   );
   if (!candidates.length) return undefined;
-  const def = DEFAULT_RULES.find((d) => d.status.toUpperCase() === key);
-  if (!def || candidates.length === 1) return candidates[0];
-  return [...candidates].sort((a, b) => phraseOverlap(b, def) - phraseOverlap(a, def))[0];
+  const ranked = [...candidates].sort((a, b) => phraseOverlap(b, def) - phraseOverlap(a, def));
+  const best = ranked[0]!;
+  const sameStatusDefaults = DEFAULT_RULES.filter(
+    (d) => String(d.status || '').toUpperCase() === key,
+  ).length;
+  if (phraseOverlap(best, def) === 0 && sameStatusDefaults > 1) return undefined;
+  return best;
 }
 
 /**
@@ -735,7 +748,7 @@ function findCatalogRecord(rules: EmailRuleRecord[], status: string): EmailRuleR
  * Customer installs: overwrite catalog content from the repo (read-only).
  * REΛVE production: seed missing catalog rows only — home can edit/create universal rules.
  */
-function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[]; changed: boolean } {
+export function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[]; changed: boolean } {
   const now = new Date().toISOString();
   const home = isCanonicalReaveInstall();
   let changed = false;
@@ -745,7 +758,7 @@ function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[];
   for (let i = 0; i < DEFAULT_RULES.length; i++) {
     const def = DEFAULT_RULES[i];
     const payload = catalogDefinition(def);
-    const existing = findCatalogRecord(next, def.status);
+    const existing = findCatalogRecord(next, def, chosenIds);
     if (existing) {
       chosenIds.add(existing.id);
       if (home) {
@@ -765,7 +778,7 @@ function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[];
     } else {
       changed = true;
       const prevDef = i > 0 ? DEFAULT_RULES[i - 1] : null;
-      const prev = prevDef ? findCatalogRecord(next, prevDef.status) : undefined;
+      const prev = prevDef ? findCatalogRecord(next, prevDef) : undefined;
       const sortOrder = prev ? prev.sortOrder + 1 : 0;
       for (const r of next) {
         if (r.sortOrder >= sortOrder) r.sortOrder += 1;

@@ -5,6 +5,24 @@
 
 import type { EmailInboxPatch, EmailInboxRecord } from './emailInboxStore';
 
+/**
+ * Deleted inbox rows and junk/DELETE/auto-archive classifications must never
+ * keep a dashboard or push notification. Missing record = already deleted.
+ */
+export function deletedOrJunkedEmailBlocksNotification(
+  record:
+    | {
+        category?: string | null;
+        action?: string | null;
+        status?: string | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!record) return true;
+  return isJunkClassification(record);
+}
+
 export function isJunkClassification(opts: {
   category?: string | null;
   action?: string | null;

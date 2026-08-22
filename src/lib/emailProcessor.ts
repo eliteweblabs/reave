@@ -89,7 +89,8 @@ import {
   formatAttachmentListForPrompt,
   normalizeEmailAttachments,
 } from './emailAttachments';
-import { enforceNotificationNotJunk } from './emailJunkNotifyInvariant';
+import { enforceNotificationNotJunk, isJunkClassification } from './emailJunkNotifyInvariant';
+import { dismissEmailRelatedNotifications } from './emailNotificationSync';
 
 /** ISO timestamp for OTP / auth-link auto-delete, or null when disabled. TTL from admin Settings (fallback: `EMAIL_OTP_TTL_MINUTES` / 5). */
 export async function verificationCodeDeleteAfterAt(): Promise<string | null> {
@@ -1547,6 +1548,14 @@ export async function processInboundEmail(
         });
 
     inboxRecord = record;
+
+    // Delete/junk is a guaranteed no-notification: drop leftover alerts if this
+    // row was re-triaged (sleep catch-up / existingInboxId) after an earlier ping.
+    if (inboxRecord?.id && isJunkClassification({ category, action, status: inboxStatus })) {
+      await dismissEmailRelatedNotifications(inboxRecord.id, { markAutomationAck: false }).catch(
+        () => undefined,
+      );
+    }
 
     if (inboxRecord?.id && suppressDuplicateMeetingAlert) {
       const updated = await storeUpdateEmailInbox(inboxRecord.id, {

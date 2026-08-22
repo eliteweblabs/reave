@@ -115,14 +115,28 @@ const scenarios: Scenario[] = [
     expectNotify: true,
   },
   {
-    id: 'google-security-unmatched',
-    label: 'Bare Google security alert (no NEEDS_CHECK catch-all)',
+    id: 'google-new-signin-silent',
+    label: 'Google new sign-in notice → silent DELETE',
     email: {
       from: 'Google <no-reply@accounts.google.com>',
       subject: 'Security alert',
       text: 'A new sign-in on Mac. We noticed a new sign-in to your Google Account.',
     },
-    expectStatus: 'UNMATCHED',
+    expectStatus: 'DELETE',
+    expectNotify: false,
+  },
+  {
+    id: 'vercel-detected-signin-silent',
+    label: 'Vercel detected a new sign-in → silent DELETE (known contact)',
+    email: {
+      from: 'Vercel <noreply@vercel.com>',
+      subject: 'New sign-in to your Vercel account',
+      text:
+        'Vercel detected a new sign-in to your account (sen@eliteweblabs.com) from Hartford, CT using Safari on macOS at 3:08 PM UTC. Review your recent activity and tokens if you don\'t recognize this. If this wasn\'t you, reset your password.',
+    },
+    knownContact: true,
+    expectStatus: 'DELETE',
+    expectNotify: false,
   },
   {
     id: 'google-security-silent',

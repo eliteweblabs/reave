@@ -9,7 +9,9 @@ import {
   siriProposalSlugFromTag,
   workSlugFromAdminUrl,
 } from './notificationFormat';
+import { deletedOrJunkedEmailBlocksNotification } from './emailJunkNotifyInvariant';
 import { storeGetEmailInbox } from './emailInboxStore';
+import { dismissEmailRelatedNotifications } from './emailNotificationSync';
 import {
   storeCountPendingPushAlerts,
   storeListPendingPushAlerts,
@@ -47,16 +49,19 @@ async function resolvePushAlertDisplayName(alert: PushAlert): Promise<string | u
   return bestWorkDisplayName(job);
 }
 
-async function resolveLinkedInboxEmail(alert: PushAlert) {
-  let emailId = emailIdFromPushAlertTag(alert.tag);
-  if (!emailId && alert.url?.trim()) {
-    try {
-      emailId =
-        new URL(alert.url.trim(), 'https://example.com').searchParams.get('email')?.trim() || null;
-    } catch {
-      emailId = null;
-    }
+function emailIdFromPushAlert(alert: PushAlert): string | null {
+  const fromTag = emailIdFromPushAlertTag(alert.tag);
+  if (fromTag) return fromTag;
+  if (!alert.url?.trim()) return null;
+  try {
+    return new URL(alert.url.trim(), 'https://example.com').searchParams.get('email')?.trim() || null;
+  } catch {
+    return null;
   }
+}
+
+async function resolveLinkedInboxEmail(alert: PushAlert) {
+  const emailId = emailIdFromPushAlert(alert);
   if (!emailId) return null;
   return storeGetEmailInbox(emailId).catch(() => null);
 }
@@ -99,7 +104,29 @@ export async function listPushAlertNotifications(opts?: {
   maxAgeDays?: number;
 }): Promise<PushAlertReviewNotification[]> {
   const pending = await storeListPendingPushAlerts(opts);
-  return Promise.all(pending.map((alert) => toPushAlertReviewNotification(alert)));
+  const kept: PushAlert[] = [];
+  const staleEmailIds: string[] = [];
+  for (const alert of pending) {
+    const emailId = emailIdFromPushAlert(alert);
+    if (!emailId) {
+      kept.push(alert);
+      continue;
+    }
+    const inbox = await storeGetEmailInbox(emailId).catch(() => null);
+    if (deletedOrJunkedEmailBlocksNotification(inbox)) {
+      staleEmailIds.push(emailId);
+      continue;
+    }
+    kept.push(alert);
+  }
+  if (staleEmailIds.length) {
+    void Promise.all(
+      [...new Set(staleEmailIds)].map((id) =>
+        dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined),
+      ),
+    );
+  }
+  return Promise.all(kept.map((alert) => toPushAlertReviewNotification(alert)));
 }
 
 export async function countPushAlertNotifications(): Promise<number> {

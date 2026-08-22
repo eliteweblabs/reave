@@ -400,6 +400,7 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
   const otpTag = `otp-${id}`.slice(0, 120);
   const authTag = `auth-${id}`.slice(0, 120);
   const triageTag = `triage-${id}`.slice(0, 120);
+  const emailTag = `email-${id}`.slice(0, 120);
   const urlNeedle = `%email=${id}%`;
   const urlNeedleEnc = `%email=${encodeURIComponent(id)}%`;
 
@@ -412,9 +413,9 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
          WHERE staff_ack_at IS NULL
            AND created_at >= $3::timestamptz
            AND (
-             tag = $1 OR tag = $4 OR tag = $5 OR tag = $8 OR url LIKE $6 OR url LIKE $7
+             tag = $1 OR tag = $4 OR tag = $5 OR tag = $8 OR tag = $9 OR url LIKE $6 OR url LIKE $7
            )`,
-        [id, now, cutoff, otpTag, authTag, urlNeedle, urlNeedleEnc, triageTag],
+        [id, now, cutoff, otpTag, authTag, urlNeedle, urlNeedleEnc, triageTag, emailTag],
       );
       return rowCount ?? 0;
     }
@@ -428,7 +429,11 @@ export async function storeAckPushAlertsForEmail(emailId: string): Promise<numbe
   for (const alert of alerts) {
     if (alert.staffAckAt || new Date(alert.createdAt).getTime() < cutoffMs) continue;
     const matchesTag =
-      alert.tag === id || alert.tag === otpTag || alert.tag === authTag || alert.tag === triageTag;
+      alert.tag === id ||
+      alert.tag === otpTag ||
+      alert.tag === authTag ||
+      alert.tag === triageTag ||
+      alert.tag === emailTag;
     const matchesUrl = alert.url.includes(`email=${id}`) || alert.url.includes(`email=${encodeURIComponent(id)}`);
     if (!matchesTag && !matchesUrl) continue;
     alert.staffAckAt = now;
