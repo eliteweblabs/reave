@@ -557,7 +557,7 @@ ${iphoneCss()}
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(${Math.max(1, items.length)}, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0 1.6%;
   align-items: start;
 }

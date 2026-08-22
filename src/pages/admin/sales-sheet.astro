@@ -76,6 +76,11 @@ const selectedAudit = auditCompanies.find((c) => c.slug === runSlug) || null;
 
 let input = salesSheetInputFromSearchParams(params);
 let sourceNote = 'Dummy fixture';
+const renderStarted = Date.now();
+const renderLog: string[] = [];
+const logRender = (line: string) => {
+  renderLog.push(line);
+};
 
 if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
   const doc = await storeReadWork(selectedAudit.slug);
@@ -122,10 +127,12 @@ if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
         params,
       );
       sourceNote = `Live audit · ${selectedAudit.company}`;
+      logRender(`Audit ${selectedAudit.slug} · ${selectedAudit.company}`);
     } else {
       sourceNote = card?.inProgress
         ? `Audit still running for ${selectedAudit.company} — showing dummy until it finishes.`
         : `Could not parse the audit for ${selectedAudit.company} — showing dummy.`;
+      logRender(sourceNote);
     }
   }
 }
@@ -148,6 +155,10 @@ const category = (params.get('category') || '').trim();
 const placesQuery = (input.contact.company || input.contact.name || '').trim();
 const businessName = (input.contact.company || input.contact.name || '').trim();
 
+if (!selectedAudit) logRender('Dummy fixture');
+logRender(`Site ${input.website || '(none)'} · ${input.findings.length} cascade rows`);
+logRender(`Pool: ${input.findings.map((f) => f.id).join(', ') || '(empty)'}`);
+
 const places = await fetchSalesSheetPlaces({
   query: placesQuery,
   near,
@@ -155,6 +166,12 @@ const places = await fetchSalesSheetPlaces({
   forceNotListed,
   skipNetwork: skipPlaces,
 });
+if (places.error) logRender(`FAIL Places lookup — ${places.error}`);
+else {
+  logRender(
+    `Places ${places.source} · listed=${places.listed ? 'yes' : 'no'} · ${places.competitors.length} nearby`,
+  );
+}
 
 const frameSrc = await resolveIphoneFrameSrc();
 let placesScreenSrc = '';
@@ -164,10 +181,11 @@ let serpListed: boolean | null = null;
 
 const notListedGuess = forceListed ? false : forceNotListed ? true : !places.listed;
 input = applyPlacesMissToSalesSheet(input, notListedGuess);
-let findings = input.findings.slice(0, 4);
+let findings = input.findings;
 const showPlaces = salesSheetWantsPlacesExhibit(findings);
 
 if (showPlaces && wantGoogleShot && notListedGuess) {
+  logRender(`Capturing search results for “${placesQuery}”${near ? ` near ${near}` : ''}…`);
   const serp = await screenshotGoogleSearchResults({
     query: placesQuery,
     near,
@@ -178,15 +196,20 @@ if (showPlaces && wantGoogleShot && notListedGuess) {
     serpListed = serp.listed;
     if (serp.listed) {
       input = applyPlacesMissToSalesSheet(input, false);
-      findings = input.findings.slice(0, 4);
+      findings = input.findings;
       shotNote = 'Google opened their listing — Maps is working, so it is not an exhibit.';
+      logRender('Search results show a listing — dropped the Places phone.');
     } else {
       placesScreenSrc = `data:image/png;base64,${serp.pngBase64}`;
       shotNote = 'Live Google results in the Places iPhone — they are missing.';
+      logRender('Search results captured — business is missing.');
     }
   } else {
     shotNote = `Google screenshot failed (${serp.error}).`;
+    logRender(`FAIL search screenshot — ${serp.error}`);
   }
+} else if (showPlaces && !wantGoogleShot) {
+  logRender('Live search screenshot is off.');
 }
 
 const notListed = forceListed
@@ -196,7 +219,7 @@ const notListed = forceListed
     : serpListed === true
       ? false
       : notListedGuess;
-findings = input.findings.slice(0, 4);
+findings = input.findings;
 
 const hasDownExhibit = findings.some((f) => {
   const kind = salesSheetExhibitKind(f);
@@ -204,33 +227,50 @@ const hasDownExhibit = findings.some((f) => {
 });
 const hasSslExhibit = findings.some((f) => salesSheetExhibitKind(f) === 'ssl');
 if ((hasDownExhibit || hasSslExhibit) && input.website.trim()) {
+  logRender(`Probing HTTPS for ${input.website} (www + apex)…`);
   const probe = await probeAuditHttps(input.website);
+  for (const url of probe.cleanUrls) logRender(`OK ${url}`);
+  for (const url of probe.insecureUrls) logRender(`FAIL cert/HTTP ${url}`);
+  for (const url of probe.downUrls) logRender(`FAIL down ${url}`);
   const live = applyLiveUrlToFindings(findings, probe);
   findings = live.findings;
   if (live.website) input = { ...input, website: live.website, findings };
   else input = { ...input, findings };
-  if (live.note) shotNote = `${shotNote} ${live.note}`.trim();
+  if (live.note) {
+    shotNote = `${shotNote} ${live.note}`.trim();
+    logRender(live.note);
+  }
 
   const stillDown = findings.some((f) => {
     const kind = salesSheetExhibitKind(f);
     return kind === 'site-down' || kind === 'domain';
   });
   if (stillDown && probe.downUrls[0]) {
+    logRender(`Capturing down page ${probe.downUrls[0]}…`);
     const siteShot = await screenshotAuditUrl(probe.downUrls[0]);
     if (siteShot.ok && !auditUrlShotLooksDown(siteShot)) {
       findings = dropWorkingSiteDownFindings(findings);
       input = { ...input, findings };
       shotNote = `${shotNote} Live site loaded — dropped Site Down.`.trim();
+      logRender('Live capture loaded — dropped Site Down.');
     } else if (siteShot.ok && auditUrlShotLooksDown(siteShot)) {
       siteScreenSrc = `data:image/png;base64,${siteShot.pngBase64}`;
       shotNote = `${shotNote} Live ${probe.downUrls[0]} is down — showing the error screen.`.trim();
+      logRender(`Down capture kept (${siteShot.status ?? 'no status'} · ${siteShot.title || siteShot.finalUrl}).`);
     } else if (!siteShot.ok) {
       shotNote = `${shotNote} Live site shot failed (${siteShot.error}) — using the phone error screen.`.trim();
+      logRender(`FAIL site shot — ${siteShot.error}`);
     }
   }
+} else if ((hasDownExhibit || hasSslExhibit) && !input.website.trim()) {
+  logRender('FAIL no site URL — cannot live-check SSL / Site Down.');
 }
 
+findings = findings.slice(0, 4);
+input = { ...input, findings };
 if (!shotNote) shotNote = 'Four iPhone exhibits from the top cascade hits.';
+logRender(`Four phones: ${findings.map((f) => `${f.categoryLabel} (${f.id})`).join(', ') || '(none)'}`);
+logRender(`Done in ${((Date.now() - renderStarted) / 1000).toFixed(1)}s`);
 
 const exhibitPhones = findings.map((finding) => {
   const kind = salesSheetExhibitKind(finding);
@@ -308,6 +348,7 @@ let sheetHtml = '';
 
 if (!tmpl) {
   error = `Template ${slug} is missing.`;
+  logRender(`FAIL ${error}`);
 } else {
   try {
     const source = fillAuditOnePager(tmpl.markdown, input);
@@ -322,6 +363,7 @@ if (!tmpl) {
     );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
+    logRender(`FAIL render — ${error}`);
   }
 }
 
@@ -478,12 +520,20 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
           <a class="prof-btn-secondary" href="/admin/sales-sheet">Reset dummy</a>
           <button class="prof-btn-secondary" type="button" onclick="window.print()">Print / Save PDF</button>
         </div>
-        <p class="prof-subtitle">
-          {placesNote}. {shotNote}
-          {notListed
-            ? ' Places miss is on the sheet because they are not listed.'
-            : ' Maps listing is working — not shown.'}
-        </p>
+        <section class="ss-log" id="ss-render-log" aria-label="Render log">
+          <h2>Render log</h2>
+          <ol>
+            {renderLog.map((line) => (
+              <li class={/fail|error|timeout/i.test(line) ? 'ss-log-fail' : ''}>{line}</li>
+            ))}
+          </ol>
+          <p>
+            {placesNote}. {shotNote}
+            {notListed
+              ? ' Places miss is on the sheet because they are not listed.'
+              : ' Maps listing is working — not shown.'}
+          </p>
+        </section>
       </form>
     </aside>
 
@@ -496,66 +546,16 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
       ) : (
         <p class="de-placeholder">No sheet to preview.</p>
       )}
-      <div class="ss-busy-mask" id="ss-busy-mask" hidden>Updating…</div>
+      <div class="ss-busy-mask" id="ss-busy-mask" hidden>
+        <div class="ss-render" role="status" aria-live="polite">
+          <div class="ss-render-spin" aria-hidden="true"></div>
+          <p class="ss-render-title">Rendering</p>
+          <p class="ss-render-time" id="ss-render-time">0s</p>
+          <ol class="ss-render-live" id="ss-render-live"></ol>
+        </div>
+      </div>
     </section>
   </div>
 
   <script is:inline type="module" src={`/admin/sales-sheet-page.js?v=${assetVersion}`}></script>
-  <script is:inline>
-    (function () {
-      const form = document.getElementById('ss-form');
-      const run = document.getElementById('run');
-      const updateBtn = document.getElementById('ss-update');
-      const mask = document.getElementById('ss-busy-mask');
-
-      function busy(label) {
-        document.body.classList.add('ss-busy');
-        if (mask) {
-          mask.hidden = false;
-          mask.textContent = label || 'Updating…';
-        }
-        if (updateBtn) {
-          updateBtn.disabled = true;
-          updateBtn.textContent = label || 'Updating…';
-        }
-      }
-
-      function loadClient() {
-        const q = new URLSearchParams();
-        if (run && run.value) q.set('run', run.value);
-        const ori = document.getElementById('orientation');
-        if (ori && ori.value && ori.value !== 'landscape') q.set('orientation', ori.value);
-        const google = document.getElementById('google');
-        if (google && !google.checked) q.set('google', '0');
-        else if (google && google.checked && !(run && run.value)) q.set('google', '1');
-        busy(google && !google.checked ? 'Loading sheet…' : 'Loading Google Places…');
-        location.assign('/admin/sales-sheet' + (q.toString() ? '?' + q : ''));
-      }
-
-      run?.addEventListener('change', loadClient);
-      form?.addEventListener('submit', function () {
-        const google = document.getElementById('google');
-        if (form && google && !google.checked) {
-          google.disabled = true;
-          let hidden = form.querySelector('input[name="google"][type="hidden"]');
-          if (!hidden) {
-            hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'google';
-            form.appendChild(hidden);
-          }
-          hidden.value = '0';
-        }
-        busy(wantGoogleShotOnSubmit() ? 'Capturing Google Places…' : 'Updating…');
-      });
-
-      function wantGoogleShotOnSubmit() {
-        const google = document.getElementById('google');
-        const runEl = document.getElementById('run');
-        if (google && google.checked) return true;
-        if (google && !google.checked) return false;
-        return !!(runEl && runEl.value);
-      }
-    })();
-  </script>
 </AdminSpecialLayout>

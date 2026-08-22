@@ -37,6 +37,8 @@ export const AUDIT_ONEPAGER_SLUGS = {
 } as const;
 
 export const SALES_SHEET_FINDING_COUNT = 4;
+/** Extra cascade rows so a live HTTPS drop can still fill four phones. */
+export const SALES_SHEET_FINDING_POOL = 8;
 
 export type SalesSheetFinding = {
   id: string;
@@ -308,15 +310,16 @@ function toSheetFinding(hit: CascadeFinding): SalesSheetFinding {
 function fillFindingsFromIdeas(
   hits: SalesSheetFinding[],
   ideas: ReportCardIdea[],
+  count = SALES_SHEET_FINDING_POOL,
 ): SalesSheetFinding[] {
-  if (hits.length >= SALES_SHEET_FINDING_COUNT) return hits.slice(0, SALES_SHEET_FINDING_COUNT);
+  if (hits.length >= count) return hits.slice(0, count);
   const used = new Set(hits.map((h) => h.id));
   const usedLabels = new Set(hits.map((h) => h.categoryLabel.toLowerCase()));
   const extra = selectTopFindings(
     ideas.filter((idea) => !used.has(idea.id) && !usedLabels.has(idea.categoryLabel.toLowerCase())),
-    SALES_SHEET_FINDING_COUNT - hits.length,
+    count - hits.length,
   );
-  return [...hits, ...extra].slice(0, SALES_SHEET_FINDING_COUNT);
+  return [...hits, ...extra].slice(0, count);
 }
 
 export function salesSheetInputFromReportCard(
@@ -325,13 +328,16 @@ export function salesSheetInputFromReportCard(
   opts?: { googlePlacesListed?: boolean | null; body?: string },
 ): AuditSalesSheetInput {
   const businessName = (contact.company || contact.name || '').trim();
-  const cascadeHits = selectCascadeFindings({
-    body: opts?.body || '',
-    businessName,
-    card,
-    googlePlacesListed: opts?.googlePlacesListed,
-    securityGrade: categoryGrade(card, 'security'),
-  });
+  const cascadeHits = selectCascadeFindings(
+    {
+      body: opts?.body || '',
+      businessName,
+      card,
+      googlePlacesListed: opts?.googlePlacesListed,
+      securityGrade: categoryGrade(card, 'security'),
+    },
+    SALES_SHEET_FINDING_POOL,
+  );
   let findings = fillFindingsFromIdeas(cascadeHits.map(toSheetFinding), card.ideas);
   let visibility = categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo');
   if (opts?.googlePlacesListed === false) visibility = 'F';
@@ -368,6 +374,7 @@ export function applyPlacesMissToSalesSheet(
     })),
     notListed,
     businessName,
+    Math.max(SALES_SHEET_FINDING_POOL, input.findings.length),
   ).map(toSheetFinding);
   const lead = findings[0];
   return {

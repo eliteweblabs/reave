@@ -240,7 +240,7 @@ await test('salesSheetInputFromReportCard maps authored opportunities', () => {
 `,
   });
   assert.equal(input.website, 'haleco.example');
-  assert.ok(input.findings.length >= 3 && input.findings.length <= 4);
+  assert.ok(input.findings.length >= 3 && input.findings.length <= 8);
   assert.match(input.findings[0]?.problem ?? '', /Google Business|not listed|Missing from Google|not listed on Google/i);
   assert.ok(input.performance === 'D' || input.performance === 'F');
 });
@@ -684,6 +684,21 @@ await test('front exhibits are four phones with captions and no next steps', () 
   });
   assert.equal((html.match(/class="ss-exhibit"/g) || []).length, 4);
   assert.match(html, /repeat\(4,/);
+  const two = renderSalesSheetFrontExhibitsHtml({
+    findings: DUMMY_SALES_SHEET.findings.slice(0, 2),
+    phones: DUMMY_SALES_SHEET.findings.slice(0, 2).map((finding) =>
+      renderFindingPhoneHtml(finding, { website: DUMMY_SALES_SHEET.website }),
+    ),
+    snapshot: {
+      overall: 'C',
+      overallScore: 64,
+      performance: 'F',
+      security: 'B',
+      visibility: 'D',
+    },
+  });
+  assert.equal((two.match(/class="ss-exhibit"/g) || []).length, 2);
+  assert.match(two, /repeat\(4,/);
   assert.match(html, /max-width: none/);
   assert.doesNotMatch(html, /max-width: 700px/);
   assert.match(html, /1 · Site Speed/);
