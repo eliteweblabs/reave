@@ -351,21 +351,37 @@ function createRuleToggle({ checked = false, label, onToggle }) {
   });
 }
 
-function createRuleToggleRow(label, toggle) {
+function createRuleToggleRow(label, toggle, opts = {}) {
   const row = document.createElement('div');
   row.className = 'prof-plugin-row re-toggle-row';
   const copy = document.createElement('div');
   copy.className = 'prof-plugin-copy';
   const lab = document.createElement('div');
   lab.className = 'prof-plugin-label';
-  lab.textContent = label;
+  if (opts.iconKey) {
+    lab.classList.add('re-toggle-label--icon');
+    const icon = document.createElement('span');
+    icon.className = 're-action-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = iosIcon(opts.iconKey, 16);
+    const text = document.createElement('span');
+    text.textContent = label;
+    lab.append(icon, text);
+  } else {
+    lab.textContent = label;
+  }
   copy.appendChild(lab);
   row.append(copy, toggle);
+  row.addEventListener('click', (e) => {
+    if (toggle.disabled) return;
+    if (e.target === toggle || toggle.contains(/** @type {Node} */ (e.target))) return;
+    toggle.click();
+  });
   return row;
 }
 
-function appendRuleField(parent, label, el, hint) {
-  const wrap = document.createElement('label');
+function appendRuleField(parent, label, el, hint, opts = {}) {
+  const wrap = document.createElement(opts.as === 'div' ? 'div' : 'label');
   wrap.className = 'de-label';
   wrap.textContent = label;
   let hintEl = null;
@@ -951,7 +967,7 @@ function renderRuleEditPane(pane, opts = {}) {
   );
 
   const notifyActionsWrap = document.createElement('div');
-  notifyActionsWrap.className = 're-checks';
+  notifyActionsWrap.className = 're-toggle-stack';
   const selectedActions = new Set(ruleNotifyActions(rule));
   const actionDefs = [
     ['view', 'View'],
@@ -963,33 +979,25 @@ function renderRuleEditPane(pane, opts = {}) {
     ['expense', 'Expense'],
     ['rules', 'Email Lab'],
   ];
-  const actionCbs = [];
+  const actionToggles = [];
   for (const [val, lab] of actionDefs) {
-    const lb = document.createElement('label');
-    lb.className = 're-check re-check--action';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = val;
-    cb.checked = selectedActions.has(val);
-    const iconKey = NOTICE_ACTION_ICONS[val];
-    const icon = document.createElement('span');
-    icon.className = 're-action-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = iconKey ? iosIcon(iconKey, 16) : '';
-    const text = document.createElement('span');
-    text.className = 're-action-label';
-    text.textContent = lab;
-    lb.append(cb, icon, text);
-    notifyActionsWrap.appendChild(lb);
-    actionCbs.push(cb);
+    const toggle = createRuleToggle({
+      checked: selectedActions.has(val),
+      label: lab,
+    });
+    toggle.dataset.notifyAction = val;
+    actionToggles.push(toggle);
+    notifyActionsWrap.appendChild(
+      createRuleToggleRow(lab, toggle, { iconKey: NOTICE_ACTION_ICONS[val] }),
+    );
   }
   const syncNotifyActionsEnabled = () => {
     const process = processSel.value;
     const isDelete = process === 'delete';
     const silent = processIsSilentFile(process);
     const on = !silent && (ruleToggleOn(pushToggle) || ruleToggleOn(dashToggle));
-    actionCbs.forEach((cb) => {
-      cb.disabled = !on;
+    actionToggles.forEach((btn) => {
+      btn.disabled = !on;
     });
     if (createProjectRow) createProjectRow.hidden = isDelete;
     if (expiresWrap) expiresWrap.hidden = isDelete;
@@ -1054,9 +1062,9 @@ function renderRuleEditPane(pane, opts = {}) {
 
   const expireInSecs = document.createElement('input');
   expireInSecs.className = 'de-input re-expire-in-secs';
-  expireInSecs.type = 'number';
-  expireInSecs.min = '1';
-  expireInSecs.step = '1';
+  expireInSecs.type = 'text';
+  expireInSecs.inputMode = 'numeric';
+  expireInSecs.autocomplete = 'off';
   expireInSecs.placeholder = '300';
   expireInSecs.value = '300';
   expireInSecs.setAttribute('aria-label', 'Seconds until this rule expires');
@@ -1129,12 +1137,14 @@ function renderRuleEditPane(pane, opts = {}) {
     'Notify',
     notifyChannelsWrap,
     'Optional alert. Off = silent. Does not delete or archive the email.',
+    { as: 'div' },
   );
   actionsField = appendRuleField(
     form,
     'Notification buttons',
     notifyActionsWrap,
     'Buttons on the Push/Dashboard alert only — they do not process the email.',
+    { as: 'div' },
   );
   form.appendChild(expiresWrap);
   syncProcessUi({ fromStatus: true });
@@ -1180,8 +1190,8 @@ function collectRulePayload(inputs) {
     if (cb.checked) fields.push(cb.value);
   });
   const notifyActions = [];
-  inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]').forEach((cb) => {
-    if (cb.checked) notifyActions.push(cb.value);
+  inputs.notifyActionsWrap.querySelectorAll('[data-notify-action]').forEach((btn) => {
+    if (ruleToggleOn(btn)) notifyActions.push(btn.dataset.notifyAction);
   });
   const process = inputs.processSel?.value || ruleProcessValue(inputs.statusIn.value);
   const isDelete = process === 'delete';
@@ -1273,7 +1283,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.pushToggle,
     inputs.dashToggle,
-    ...inputs.notifyActionsWrap.querySelectorAll('input[type=checkbox]'),
+    ...inputs.notifyActionsWrap.querySelectorAll('[data-notify-action]'),
     inputs.forwardIn,
     inputs.createProjectToggle,
     inputs.expiresToggle,

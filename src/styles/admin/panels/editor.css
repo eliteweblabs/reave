@@ -1354,6 +1354,14 @@ button.de-placeholder-action:active {
 .re-action-label {
   min-width: 0;
 }
+.re-toggle-label--icon {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.re-toggle-label--icon .re-action-icon {
+  color: inherit;
+}
 .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .re-forward-field {
   display: flex;
@@ -1367,6 +1375,7 @@ button.de-placeholder-action:active {
 .re-lab-rule-form .re-toggle-row,
 .re-form-scroll .re-toggle-row {
   padding: 0.4rem 0;
+  cursor: pointer;
 }
 .re-toggle-row[hidden] {
   display: none !important;
@@ -1396,6 +1405,21 @@ button.de-placeholder-action:active {
   margin: 0;
   padding: 0.35rem 0.5rem;
   font-size: 0.78rem;
+  /* Native number steppers keep a WebKit invalid/focus ring that reads as a
+     red outline even when the value is valid. Text + inputmode avoids that. */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.re-expire-in-secs::-webkit-outer-spin-button,
+.re-expire-in-secs::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  display: none;
+}
+.re-expire-in-secs:invalid,
+.de-input:invalid {
+  box-shadow: none;
 }
 .re-scope-filter {
   padding: 0 0.65rem 0.55rem;
