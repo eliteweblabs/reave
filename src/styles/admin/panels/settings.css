@@ -32,6 +32,16 @@
   flex: 0 0 auto;
   padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
 }
+/* Back lives in the logo topbar — keep this node as a spacer only. */
+#settings-panel .settings-subheader:empty {
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  border-bottom: none;
+  padding-bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
 #settings-panel .de-back-btn.ios-icon-btn {
   display: inline-flex;
 }

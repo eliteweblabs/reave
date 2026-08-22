@@ -108,6 +108,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   id={adminShell ? "topbar" : undefined}
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
+  <div class="app-header-brand">
   {adminShell && (
     <a
       id="admin-special-back"
@@ -130,8 +131,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       <BrandLogoInline company={company} />
     </span>
   </a>
+  </div>
 
-  <!-- Detail pane title/back/actions: public/admin/pane-header.js (createPaneHeader) -->
+  <!-- Detail pane title/actions: public/admin/pane-header.js (createPaneHeader). Back: #admin-special-back. -->
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
   {showMarketingNav && (
@@ -793,6 +795,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   .app-header > *,
   .app-header-row > * {
     pointer-events: auto;
+  }
+
+  .app-header-brand {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 0;
+    gap: 0;
   }
 
   .app-header-logo {

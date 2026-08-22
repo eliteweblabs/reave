@@ -35,7 +35,7 @@ import {
   syncInputClearAdornment,
   contactAvatarHtml,
   mountContactAvatars,
-} from './admin-ui.js?v=20260811d';
+} from './admin-ui.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter, showPersonal } from './shared.js?v=20260811d';
 import { osConfirm } from './os-dialog.js?v=20260815a';
 import {

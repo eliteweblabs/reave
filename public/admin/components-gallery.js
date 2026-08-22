@@ -28,7 +28,7 @@ import {
   deBtnIconSvg,
   setDeBtnLabel,
 } from './admin-ui.js?v=20260819c';
-import { createPaneHeader } from './pane-header.js?v=20260808d';
+import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260815a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
 

@@ -761,7 +761,11 @@ function resetDeleteConfirmsIn(el) {
 
 /** Chevron-only back control for panel subheaders (.de-header). Hidden on
  *  desktop split-view by default (`.de-back-btn`); panels that need it at
- *  every viewport (settings, clients, work referrer) override display in CSS. */
+ *  every viewport (settings, clients, work referrer) override display in CSS.
+ *
+ *  Detail panes should pass `back` to createPaneHeader / createPaneSubheader
+ *  instead — that hoists the control to `#admin-special-back` (left of the
+ *  wordmark). Keep this helper for gallery demos and one-off in-pane chevrons. */
 export function createPanelBackBtn(opts = {}) {
   const { label = 'Back', onClick } = opts;
   return createIosIconBtn({
@@ -770,6 +774,118 @@ export function createPanelBackBtn(opts = {}) {
     className: 'ios-icon-btn nav-chevron-btn de-back-btn',
     onClick,
   });
+}
+
+let headerBackOwner = null;
+let headerBackHandler = null;
+let headerBackWasConnected = false;
+let headerBackMo = null;
+let headerBackSyncTimer = 0;
+
+function headerBackButton() {
+  return document.getElementById('admin-special-back');
+}
+
+function onAppHeaderBackClick(ev) {
+  if (!headerBackHandler) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  headerBackHandler(ev);
+}
+
+function ensureHeaderBackClickBound() {
+  const btn = headerBackButton();
+  if (!btn || btn.dataset.appHeaderBackBound === '1') return;
+  btn.dataset.appHeaderBackBound = '1';
+  btn.addEventListener('click', onAppHeaderBackClick, true);
+}
+
+function applyHeaderBackLabel(label) {
+  const btn = headerBackButton();
+  if (!btn) return;
+  const text = label || 'Back';
+  btn.setAttribute('aria-label', text);
+  btn.title = text;
+}
+
+function isHeaderBackOwnerVisible(owner) {
+  if (!(owner instanceof HTMLElement) || !owner.isConnected) return false;
+  const host = owner.closest(
+    '#settings-panel, #dashboard-panel, #doc-editor, #knowledge-editor, #work-editor, #schedule-panel, #clients-editor, #social-panel, #chat-panel, #email-panel, #rule-editor, #todo-editor, #sales-sheet-editor, .de-pane--drawer',
+  );
+  if (!host) return true;
+  if (host.hidden) return false;
+  if (host.style.display === 'none') return false;
+  return getComputedStyle(host).display !== 'none';
+}
+
+function syncHeaderBackClass() {
+  const show =
+    Boolean(headerBackHandler) &&
+    (!(headerBackOwner instanceof HTMLElement) || isHeaderBackOwnerVisible(headerBackOwner));
+  document.documentElement.classList.toggle('admin-header-back', show);
+}
+
+function stopHeaderBackWatch() {
+  headerBackMo?.disconnect();
+  headerBackMo = null;
+}
+
+function ensureHeaderBackWatch() {
+  if (headerBackMo || typeof MutationObserver === 'undefined' || !document.body) return;
+  headerBackMo = new MutationObserver(() => {
+    if (headerBackSyncTimer) return;
+    headerBackSyncTimer = requestAnimationFrame(() => {
+      headerBackSyncTimer = 0;
+      syncAppHeaderBack();
+    });
+  });
+  headerBackMo.observe(document.body, { childList: true, subtree: true });
+}
+
+/**
+ * Bind the global header chevron (left of the wordmark). Pass the pane
+ * header as `owner` so the control hides when that chrome leaves the DOM
+ * or its panel is hidden.
+ *
+ * @param {{ label?: string, onClick?: Function, owner?: HTMLElement }} [opts]
+ */
+export function bindAppHeaderBack(opts = {}) {
+  const { label = 'Back', onClick, owner } = opts;
+  headerBackOwner = owner || null;
+  headerBackHandler = typeof onClick === 'function' ? onClick : null;
+  headerBackWasConnected = owner instanceof HTMLElement && owner.isConnected;
+  ensureHeaderBackClickBound();
+  applyHeaderBackLabel(label);
+  document.documentElement.classList.add('admin-header-back');
+  ensureHeaderBackWatch();
+}
+
+/** Release a header-back binding. No-op when `owner` is not the current owner. */
+export function clearAppHeaderBack(owner) {
+  if (owner && headerBackOwner && owner !== headerBackOwner) return;
+  headerBackOwner = null;
+  headerBackHandler = null;
+  headerBackWasConnected = false;
+  applyHeaderBackLabel('Back to dashboard');
+  document.documentElement.classList.remove('admin-header-back');
+  stopHeaderBackWatch();
+}
+
+/** Hide or drop the header back when its owner is gone or in a hidden panel. */
+export function syncAppHeaderBack() {
+  const owner = headerBackOwner;
+  if (owner instanceof HTMLElement) {
+    if (headerBackWasConnected && !owner.isConnected) {
+      clearAppHeaderBack(owner);
+      return;
+    }
+    if (owner.isConnected) headerBackWasConnected = true;
+  } else if (!headerBackHandler) {
+    document.documentElement.classList.remove('admin-header-back');
+    return;
+  }
+  syncHeaderBackClass();
 }
 
 /** Circular create FAB used in sidebar list subheaders. */
@@ -1652,7 +1768,8 @@ export function createEditableHeaderTitleInput(opts = {}) {
 }
 
 /**
- * Detail-pane title row: back + title + optional middle + icon actions.
+ * Detail-pane title row: title + optional middle + icon actions.
+ * `back` hoists to `#admin-special-back` (left of the wordmark), not this row.
  *
  * Prefer `createPaneHeader` from `pane-header.js` when mounting under the logo
  * topbar — that API owns the full header/subheader stack (optional secondary
@@ -1660,7 +1777,7 @@ export function createEditableHeaderTitleInput(opts = {}) {
  * bare `.de-header` node (e.g. inside `.detail-chrome`).
  *
  * @param {object} opts
- * @param {object|false} [opts.back] — back button opts; omit for none
+ * @param {object|false} [opts.back] — hoisted to the logo topbar; omit for none
  * @param {string} [opts.title] — static title text
  * @param {object} [opts.editableTitle] — passed to createEditableHeaderTitleInput
  * @param {HTMLElement} [opts.titleNode] — custom title block (click-to-edit, client name, etc.)
@@ -1676,7 +1793,12 @@ export function createPaneSubheader(opts = {}) {
   header.className = 'de-header' + (opts.className ? ` ${opts.className}` : '');
 
   if (opts.back) {
-    header.appendChild(createPanelBackBtn(opts.back));
+    bindAppHeaderBack({
+      label: opts.back.label,
+      onClick: opts.back.onClick,
+      owner: header,
+    });
+    header.dataset.headerBack = '1';
   }
 
   let titleInput = null;

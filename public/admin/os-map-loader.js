@@ -70,6 +70,7 @@ import {
   focusVisibleListSearch,
   createSlidingPillSelect,
   createPanelBackBtn,
+  syncAppHeaderBack,
   createEditableHeaderTitleInput,
   wrapEditableHeaderTitle,
   armTitleFocus,
@@ -110,8 +111,8 @@ import {
   setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260821a';
-import { createPaneHeader } from './pane-header.js?v=20260808d';
+} from './admin-ui.js?v=20260821c';
+import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
   buildAdminNotice,
@@ -797,6 +798,7 @@ function setActiveMap(key, opts = {}) {
   syncProfileMenuActive();
   syncTopbarPanelContext();
   syncSpecialPageChrome();
+  syncAppHeaderBack();
   syncAdminSplitView(MAP?.type);
   if (prevType === 'email' && MAP.type !== 'email' && emailState.composing) {
     void leaveEmailCompose();
@@ -7537,11 +7539,9 @@ function renderVapiPanel(company) {
 /**
  * Every settings/account page (Profile, Company, Socials, Industries, Vapi —
  * everything reached from the profile menu in the top-right) fully replaces
- * root.innerHTML per tab load, so the back control has to be re-prepended
- * after every render, including loading/error states. Unlike the mobile-only
- * .de-back-btn used for split-view "back to list" panes, this back button is
- * shown at every viewport size (#settings-panel is a full-screen takeover
- * with no adjacent sidebar to fall back to on desktop).
+ * root.innerHTML per tab load, so the back binding has to be re-prepended
+ * after every render, including loading/error states. The chevron itself
+ * lives in the logo topbar (#admin-special-back).
  */
 function prependSettingsBackHeader(root) {
   root.prepend(
@@ -15088,6 +15088,7 @@ async function boot() {
   syncProfileMenuActive();
   syncTopbarPanelContext();
   syncSpecialPageChrome();
+  syncAppHeaderBack();
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
   void consumePendingOtpCopy();

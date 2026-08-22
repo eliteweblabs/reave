@@ -42,7 +42,7 @@ import {
   paneShareIcon,
   createAgentBtn,
 } from './admin-ui.js?v=20260812a';
-import { createPaneHeader } from './pane-header.js?v=20260808d';
+import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260815a';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
