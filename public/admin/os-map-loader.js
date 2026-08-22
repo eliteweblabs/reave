@@ -9543,8 +9543,12 @@ function applyEmailInboxFilterForEvent(ev) {
 
 async function openEmailFromDeepLink(id) {
   if (!id) return false;
+  const knownDraft = (emailState.draftEvents || []).some((d) => d.id === id);
+  if (knownDraft) return openDraftEvent(id, { fromDeepLink: true });
   let ev = emailState.allEvents.find((e) => e.id === id);
   if (!ev) {
+    const openedDraft = await openDraftEvent(id, { fromDeepLink: true });
+    if (openedDraft) return true;
     try {
       const res = await fetch(`/api/email/inbox/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
@@ -9587,11 +9591,12 @@ function syncAdminTabUrl(key, opts = {}) {
 
     if (key === 'email') {
       const emailId =
-        opts.emailId ||
-        emailState.activeId ||
-        pendingEmailDeepLinkId ||
-        parseEmailDeepLinkFromUrl() ||
-        null;
+        opts.emailId !== undefined
+          ? opts.emailId
+          : emailState.activeDraftId ||
+            emailState.activeId ||
+            pendingEmailDeepLinkId ||
+            null;
       if (emailId) url.searchParams.set('email', emailId);
       else url.searchParams.delete('email');
     } else {
@@ -9660,7 +9665,7 @@ function syncAdminTabUrl(key, opts = {}) {
 
 /** Mobile inbox is list-only until em-pane-active — ensure detail opens after deep links. */
 function ensureEmailMobilePaneOpen() {
-  if (!isMobileTabs() || !emailState.activeId) return;
+  if (!isMobileTabs() || (!emailState.activeId && !emailState.composing)) return;
   getEmailPanel()?.classList.add('em-pane-active');
 }
 
@@ -9688,13 +9693,25 @@ function resumeEmailDeepLinkFromUrl() {
     setActiveMap('email', { force: true, emailId });
     return;
   }
-  if (emailState.activeId === emailId) {
+  if (emailState.composing && (emailState.activeDraftId === emailId || emailState.activeId === emailId)) {
     ensureEmailMobilePaneOpen();
     syncAdminTabUrl('email', { emailId });
     return;
   }
-  if (emailState.allEvents.length) void openEmailFromDeepLink(emailId);
-  else pendingEmailDeepLinkId = emailId;
+  if (emailState.activeId === emailId && !emailState.composing) {
+    ensureEmailMobilePaneOpen();
+    syncAdminTabUrl('email', { emailId });
+    return;
+  }
+  if (emailState.composing) {
+    void leaveEmailCompose().then(() => openEmailFromDeepLink(emailId));
+    return;
+  }
+  if (emailState.allEvents.length || (emailState.draftEvents || []).length) {
+    void openEmailFromDeepLink(emailId);
+  } else {
+    pendingEmailDeepLinkId = emailId;
+  }
 }
 
 function handleNotificationOpen(url) {
@@ -10287,7 +10304,7 @@ function closeEmailDetail() {
   emailState.composing = false;
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
-  if (MAP?.type === 'email') syncAdminTabUrl('email');
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
 }
 
 function emailHasFullBody(ev) {
@@ -12709,11 +12726,18 @@ async function loadEmailSentEvents(quiet) {
 }
 
 async function loadEmailDraftEvents(quiet) {
+  const activeId = emailState.activeDraftId;
+  const activeLocal = activeId
+    ? (emailState.draftEvents || []).find((d) => d.id === activeId)
+    : null;
   try {
     const res = await adminFetch('/api/email/drafts?limit=200');
     const data = await readAdminJson(res, 'Draft mail');
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     emailState.draftEvents = data.events || [];
+    if (activeLocal && emailState.composing) {
+      upsertDraftEvent(activeLocal);
+    }
   } catch (e) {
     if (e.message === 'Session expired') throw e;
     if (!quiet) console.warn('[email] drafts fetch failed', e);
@@ -12727,9 +12751,9 @@ async function switchEmailInboxFilter(nextFilter) {
   emailState.centerInboxFilterTab = shouldCenterEmailFilterTab(nextFilter);
   emailState.activeId = null;
   getEmailPanel()?.classList.remove('em-pane-active');
-  if (MAP?.type === 'email') syncAdminTabUrl('email');
   if (nextFilter === 'sent') await loadEmailSentEvents(true);
   if (nextFilter === 'draft') await loadEmailDraftEvents(true);
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
   renderEmailPanel();
 }
 
@@ -12763,12 +12787,15 @@ async function loadEmailTab(quiet) {
   seedInboxSessionDots();
   const explicitDeepLink = pendingEmailDeepLinkId;
   pendingEmailDeepLinkId = null;
-  const deepLinkId = explicitDeepLink || (!quiet ? parseEmailDeepLinkFromUrl() : null);
+  const deepLinkId =
+    explicitDeepLink ||
+    (!quiet ? parseEmailDeepLinkFromUrl() || rememberedOpenEmailDraft() : null);
   let openedFromDeepLink = false;
   if (deepLinkId) {
     openedFromDeepLink = await openEmailFromDeepLink(deepLinkId);
   } else if (
     emailState.activeId &&
+    !emailState.composing &&
     (emailState.inboxFilter === 'sent'
       ? !filteredSentEvents().some((ev) => ev.id === emailState.activeId)
       : emailState.inboxFilter === 'draft'
@@ -12777,11 +12804,16 @@ async function loadEmailTab(quiet) {
   ) {
     emailState.activeId = null;
   }
-  if (!openedFromDeepLink && !emailState.activeId) {
+  if (!openedFromDeepLink && !emailState.activeId && !emailState.composing) {
     getEmailPanel()?.classList.remove('em-pane-active');
   }
   if (quiet && root.querySelector('.ch-sidebar .ch-list')) {
     refreshEmailSidebarList();
+    if (emailState.composing) {
+      ensureEmailMobilePaneOpen();
+      syncInboxAppBadge(emailState.allEvents);
+      return;
+    }
     const stillVisible =
       !emailState.activeId ||
       (emailState.inboxFilter === 'sent'
@@ -12794,6 +12826,8 @@ async function loadEmailTab(quiet) {
     } else {
       renderEmailPanel({ preserveSidebar: true });
     }
+  } else if (emailState.composing && quiet) {
+    refreshEmailSidebarList();
   } else {
     renderEmailPanel();
   }
@@ -13133,29 +13167,100 @@ function createDraftListItem(ev) {
     `</span>` +
     `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>` +
     `</span>`;
-  item.addEventListener('click', () => openDraftEvent(ev.id));
+  item.addEventListener('click', () => void openDraftEvent(ev.id));
   return item;
 }
 
-function openDraftEvent(id) {
-  const draft = (emailState.draftEvents || []).find((d) => d.id === id);
-  if (!draft) return;
-  emailState.activeId = id;
-  emailState.activeDraftId = id;
+function upsertDraftEvent(event) {
+  if (!event?.id) return;
+  const next = {
+    ...event,
+    to: (event.to || []).map(normalizeEmailRecipient).filter(Boolean),
+    cc: (event.cc || []).map(normalizeEmailRecipient).filter(Boolean),
+  };
+  const idx = (emailState.draftEvents || []).findIndex((d) => d.id === next.id);
+  if (idx !== -1) {
+    const current = emailState.draftEvents[idx];
+    const currentTs = new Date(current.updatedAt || current.createdAt || 0).getTime();
+    const nextTs = new Date(next.updatedAt || next.createdAt || 0).getTime();
+    if (nextTs < currentTs) return;
+    emailState.draftEvents[idx] = { ...current, ...next };
+  } else {
+    emailState.draftEvents.unshift(next);
+  }
+  emailState.draftEvents.sort(
+    (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime(),
+  );
+}
+
+const EMAIL_DRAFT_RESUME_KEY = 'reave-email-draft';
+
+function rememberOpenEmailDraft(id) {
+  try {
+    if (id) sessionStorage.setItem(EMAIL_DRAFT_RESUME_KEY, id);
+    else sessionStorage.removeItem(EMAIL_DRAFT_RESUME_KEY);
+  } catch {}
+}
+
+function rememberedOpenEmailDraft() {
+  try {
+    return sessionStorage.getItem(EMAIL_DRAFT_RESUME_KEY)?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function applyDraftToCompose(draft, opts = {}) {
+  emailState.activeId = draft.id;
+  emailState.activeDraftId = draft.id;
   emailState.composing = true;
   emailState.replyToId = draft.inReplyToEmailId || null;
-  emailState.replyMode = draft.inReplyToEmailId ? 'reply' : null;
-  emailState.replySourceFull = null;
+  emailState.replyMode = opts.replyMode || (draft.inReplyToEmailId ? emailState.replyMode || 'reply' : null);
   emailState.sending = false;
   emailState.compose = {
     to: (draft.to || []).map(normalizeEmailRecipient).filter(Boolean),
-    cc: [],
+    cc: (draft.cc || []).map(normalizeEmailRecipient).filter(Boolean),
     subject: draft.subject || '',
     body: draft.body || '',
   };
+}
+
+async function fetchEmailDraftById(id) {
+  const local = (emailState.draftEvents || []).find((d) => d.id === id) || null;
+  try {
+    const res = await adminFetch(`/api/email/drafts/${encodeURIComponent(id)}`);
+    const data = await readAdminJson(res, 'Draft');
+    if (res.ok && data.event) {
+      upsertDraftEvent(data.event);
+      return data.event;
+    }
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+  }
+  return local;
+}
+
+async function openDraftEvent(id, opts = {}) {
+  if (!id) return false;
+  if (emailState.composing && emailState.activeDraftId === id) return true;
+  if (emailState.composing) await saveActiveEmailDraft(true);
+  const draft = await fetchEmailDraftById(id);
+  if (!draft) return false;
+  emailState.search = '';
+  const filterChanged = emailState.inboxFilter !== 'draft';
+  emailState.inboxFilter = 'draft';
+  emailState.replySourceFull = null;
+  applyDraftToCompose(draft, opts);
+  if (opts.replyMode === 'reply-all') emailState.replyMode = 'reply-all';
+  rememberOpenEmailDraft(id);
   getEmailPanel()?.classList.add('em-pane-active');
-  syncEmailSidebarActiveState({ scroll: true });
-  renderEmailPane();
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: id });
+  if (filterChanged) {
+    renderEmailPanel();
+  } else {
+    syncEmailSidebarActiveState({ scroll: true });
+    renderEmailPane();
+  }
   syncFooterNav();
   requestAnimationFrame(() => {
     const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
@@ -13167,11 +13272,18 @@ function openDraftEvent(id) {
   });
   if (draft.inReplyToEmailId) {
     void fetchFullEmailRecord({ id: draft.inReplyToEmailId }).then((full) => {
-      if (emailState.activeDraftId !== id || !full?.id) return;
+      if (emailState.activeDraftId !== id || !emailState.composing || !full?.id) return;
       emailState.replySourceFull = full;
-      renderEmailPanel();
+      if (opts.replyMode === 'reply-all') {
+        const { to, cc } = buildReplyRecipients(full, 'reply-all');
+        emailState.compose.to = to;
+        emailState.compose.cc = cc;
+        emailState.replyMode = 'reply-all';
+      }
+      renderEmailPane();
     });
   }
+  return true;
 }
 
 function isValidEmailAddress(value) {
@@ -13642,50 +13754,128 @@ function isEmailComposeDirty() {
   );
 }
 
-async function saveActiveEmailDraft(silent = true) {
-  if (!isEmailComposeDirty()) return true;
-  const { to, subject, body } = emailState.compose;
-  const payload = {
+function commitPendingComposeRecipient(input, field) {
+  if (!(input instanceof HTMLInputElement)) return;
+  const raw = input.value.trim();
+  if (!isValidEmailAddress(raw)) return;
+  const next = normalizeEmailRecipient(raw);
+  if (!next) return;
+  const list = Array.isArray(emailState.compose[field]) ? emailState.compose[field] : [];
+  if (list.some((r) => r.email === next.email)) return;
+  emailState.compose[field] = [...list, next];
+  input.value = '';
+}
+
+function syncComposeFromDom() {
+  const root = getEmailPanel();
+  if (!root) return;
+  const subjectEl = root.querySelector('#em-compose-subject');
+  const bodyEl = root.querySelector('#em-compose-body, .em-compose-textarea');
+  const toInput = root.querySelector('#em-compose-to');
+  const ccInput = root.querySelector('#em-compose-cc');
+  if (subjectEl instanceof HTMLInputElement) emailState.compose.subject = subjectEl.value;
+  if (bodyEl instanceof HTMLTextAreaElement) emailState.compose.body = bodyEl.value;
+  commitPendingComposeRecipient(toInput, 'to');
+  commitPendingComposeRecipient(ccInput, 'cc');
+}
+
+let emailDraftSaveTimer = 0;
+let emailDraftSaveInFlight = null;
+
+function emailDraftPayload() {
+  const { to, cc, subject, body } = emailState.compose;
+  return {
     to: (Array.isArray(to) ? to : []).map(normalizeEmailRecipient).filter(Boolean),
+    cc: (Array.isArray(cc) ? cc : []).map(normalizeEmailRecipient).filter(Boolean),
     subject: String(subject || '').trim(),
     body: String(body || ''),
     inReplyToEmailId: emailState.replyToId || null,
   };
-  try {
-    if (emailState.activeDraftId) {
-      const res = await adminFetch(
-        `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`,
-        {
-          method: 'PATCH',
+}
+
+function persistEmailDraftKeepAlive() {
+  if (!emailState.composing) return;
+  syncComposeFromDom();
+  if (!isEmailComposeDirty() && !emailState.activeDraftId) return;
+  const payload = JSON.stringify(emailDraftPayload());
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  const url = emailState.activeDraftId
+    ? `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`
+    : '/api/email/drafts';
+  void fetch(url, {
+    method: emailState.activeDraftId ? 'PATCH' : 'POST',
+    headers,
+    body: payload,
+    credentials: 'same-origin',
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
+function scheduleEmailDraftSave() {
+  if (emailDraftSaveTimer) window.clearTimeout(emailDraftSaveTimer);
+  emailDraftSaveTimer = window.setTimeout(() => {
+    emailDraftSaveTimer = 0;
+    void saveActiveEmailDraft(true);
+  }, 500);
+}
+
+function flushScheduledEmailDraftSave() {
+  if (emailDraftSaveTimer) {
+    window.clearTimeout(emailDraftSaveTimer);
+    emailDraftSaveTimer = 0;
+  }
+}
+
+async function saveActiveEmailDraft(silent = true) {
+  if (emailDraftSaveInFlight) await emailDraftSaveInFlight;
+  if (!emailState.composing) return true;
+  flushScheduledEmailDraftSave();
+  syncComposeFromDom();
+  if (!isEmailComposeDirty() && !emailState.activeDraftId) return true;
+  const payload = emailDraftPayload();
+  const pending = (async () => {
+    try {
+      if (emailState.activeDraftId) {
+        const res = await adminFetch(
+          `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          },
+        );
+        const data = await readAdminJson(res, 'Save draft');
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        upsertDraftEvent(data.event);
+      } else {
+        const res = await adminFetch('/api/email/drafts', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-        },
-      );
-      const data = await readAdminJson(res, 'Save draft');
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      const idx = emailState.draftEvents.findIndex((d) => d.id === emailState.activeDraftId);
-      if (idx !== -1) emailState.draftEvents[idx] = data.event;
-      else emailState.draftEvents.unshift(data.event);
-    } else {
-      const res = await adminFetch('/api/email/drafts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await readAdminJson(res, 'Save draft');
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      emailState.activeDraftId = data.event.id;
-      emailState.draftEvents.unshift(data.event);
+        });
+        const data = await readAdminJson(res, 'Save draft');
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        emailState.activeDraftId = data.event.id;
+        emailState.activeId = data.event.id;
+        upsertDraftEvent(data.event);
+      }
+      if (emailState.composing && MAP?.type === 'email') {
+        syncAdminTabUrl('email', { emailId: emailState.activeDraftId });
+      }
+      if (emailState.composing) rememberOpenEmailDraft(emailState.activeDraftId);
+      if (!silent) showChatToast('Draft saved');
+      return true;
+    } catch (e) {
+      if (e.message === 'Session expired') throw e;
+      if (!silent) osAlert({ title: 'Could not save draft', bodyHtml: escHtml(e.message) });
+      return false;
     }
-    emailState.draftEvents.sort(
-      (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime(),
-    );
-    if (!silent) showChatToast('Draft saved');
-    return true;
-  } catch (e) {
-    if (e.message === 'Session expired') throw e;
-    if (!silent) osAlert({ title: 'Could not save draft', bodyHtml: escHtml(e.message) });
-    return false;
+  })();
+  emailDraftSaveInFlight = pending;
+  try {
+    return await pending;
+  } finally {
+    if (emailDraftSaveInFlight === pending) emailDraftSaveInFlight = null;
   }
 }
 
@@ -13704,17 +13894,20 @@ async function deleteEmailDraftById(id) {
 
 async function leaveEmailCompose() {
   if (!emailState.composing) return;
-  if (isEmailComposeDirty()) await saveActiveEmailDraft(true);
+  await saveActiveEmailDraft(true);
   emailState.composing = false;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
   emailState.compose = { to: [], cc: [], subject: '', body: '' };
   emailState.sending = false;
+  rememberOpenEmailDraft(null);
 }
 
 async function closeEmailCompose(opts = { saveDraft: true }) {
-  if (opts.saveDraft && isEmailComposeDirty()) {
+  if (opts.saveDraft) {
     await saveActiveEmailDraft(true);
+  } else {
+    flushScheduledEmailDraftSave();
   }
   emailState.composing = false;
   clearEmailReplyContext();
@@ -13722,19 +13915,24 @@ async function closeEmailCompose(opts = { saveDraft: true }) {
   emailState.activeId = null;
   emailState.compose = { to: [], cc: [], subject: '', body: '' };
   emailState.sending = false;
+  rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
   syncFooterNav();
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
 }
 
-function startNewEmail() {
+async function startNewEmail() {
+  if (emailState.composing) await saveActiveEmailDraft(true);
   emailState.activeId = null;
   emailState.composing = true;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
   emailState.compose = { to: [], cc: [], subject: '', body: '' };
   emailState.sending = false;
+  rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.add('em-pane-active');
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
   renderEmailPanel();
   syncFooterNav();
   requestAnimationFrame(() => {
@@ -13745,6 +13943,13 @@ function startNewEmail() {
 async function startReplyEmail(ev, mode = 'reply') {
   if (!ev?.id) return;
   const replyMode = mode === 'reply-all' ? 'reply-all' : 'reply';
+  if (emailState.composing) await saveActiveEmailDraft(true);
+  if (!(emailState.draftEvents || []).length) await loadEmailDraftEvents(true);
+  const existing = (emailState.draftEvents || []).find((d) => d.inReplyToEmailId === ev.id);
+  if (existing) {
+    await openDraftEvent(existing.id, { replyMode });
+    return;
+  }
   emailState.activeId = ev.id;
   emailState.composing = true;
   emailState.replyToId = ev.id;
@@ -13754,19 +13959,24 @@ async function startReplyEmail(ev, mode = 'reply') {
   emailState.sending = false;
   emailState.compose = { to: [], cc: [], subject: '', body: '' };
   getEmailPanel()?.classList.add('em-pane-active');
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
   renderEmailPanel();
   syncFooterNav();
 
   const full = await fetchFullEmailRecord(ev);
+  if (!emailState.composing || emailState.replyToId !== ev.id) return;
   emailState.replySourceFull = full;
   const { to, cc } = buildReplyRecipients(full, replyMode);
-  emailState.compose = {
-    to,
-    cc,
-    subject: buildReplySubjectClient(full.subject),
-    body: buildReplyQuoteClient(full),
-  };
+  if (!emailState.compose.to.length) emailState.compose.to = to;
+  if (!emailState.compose.cc.length) emailState.compose.cc = cc;
+  if (!String(emailState.compose.subject || '').trim()) {
+    emailState.compose.subject = buildReplySubjectClient(full.subject);
+  }
+  if (!String(emailState.compose.body || '').trim()) {
+    emailState.compose.body = buildReplyQuoteClient(full);
+  }
   renderEmailPanel();
+  void saveActiveEmailDraft(true);
   requestAnimationFrame(() => {
     const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
     if (bodyEl) {
@@ -13913,6 +14123,7 @@ async function writeEmailComposeWithAgent(btn) {
       bodyEl.focus();
       bodyEl.setSelectionRange(0, nextBody.length);
     }
+    void saveActiveEmailDraft(true);
     showChatToast('Draft ready — review before sending');
   } catch (e) {
     if (e instanceof Error && e.message === 'Session expired') return;
@@ -13973,6 +14184,7 @@ function renderEmailComposePane(pane) {
     emailState.compose.to,
     (next) => {
       emailState.compose.to = next;
+      scheduleEmailDraftSave();
     },
     { disabled: emailState.sending },
   );
@@ -13985,6 +14197,7 @@ function renderEmailComposePane(pane) {
     emailState.compose.cc,
     (next) => {
       emailState.compose.cc = next;
+      scheduleEmailDraftSave();
     },
     { disabled: emailState.sending, inputId: 'em-compose-cc' },
   );
@@ -14001,6 +14214,7 @@ function renderEmailComposePane(pane) {
   subjectInput.disabled = emailState.sending;
   subjectInput.addEventListener('input', () => {
     emailState.compose.subject = subjectInput.value;
+    scheduleEmailDraftSave();
   });
   subjectField.appendChild(subjectInput);
 
@@ -14029,6 +14243,7 @@ function renderEmailComposePane(pane) {
   bodyInput.disabled = emailState.sending;
   bodyInput.addEventListener('input', () => {
     emailState.compose.body = bodyInput.value;
+    scheduleEmailDraftSave();
   });
   bodyField.appendChild(bodyInput);
 
@@ -14272,9 +14487,20 @@ async function consumePendingOtpCopy() {
 function openEmailEvent(id) {
   const list = getEmailPanel()?.querySelector('.ch-sidebar .ch-list');
   if (list && isListInSelectionMode(list)) return;
+  if (emailState.composing) {
+    void saveActiveEmailDraft(true).then(() => {
+      emailState.composing = false;
+      emailState.activeDraftId = null;
+      rememberOpenEmailDraft(null);
+      clearEmailReplyContext();
+      openEmailEvent(id);
+    });
+    return;
+  }
   queueEmailSeen(id);
   emailState.activeId = id;
   emailState.composing = false;
+  emailState.activeDraftId = null;
   clearEmailReplyContext();
   syncEmailSidebarActiveState({ scroll: true });
   renderEmailPane();
@@ -14309,9 +14535,11 @@ function clearEmailDetailSelection() {
   exitEmailLabMode({ silent: true });
   emailState.activeId = null;
   emailState.composing = false;
+  emailState.activeDraftId = null;
   getEmailPanel()?.classList.remove('em-pane-active');
   syncEmailSidebarActiveState();
   renderEmailPane();
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
 }
 
 function normalizeEmailLabPhrase(raw) {
@@ -15088,7 +15316,7 @@ function resolveMapKey(key) {
 function loadActiveKey() {
   try {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('email')?.trim()) return 'email';
+    if (params.get('email')?.trim() || rememberedOpenEmailDraft()) return 'email';
     if (params.get('client')?.trim()) return 'clients';
     if (params.get('chat')?.trim()) return 'chats';
     if (params.get('slug')?.trim()) return 'work';
@@ -15196,6 +15424,10 @@ boot().catch(showBootError);
 
 queueTriageEmailFromUrl();
 
+window.addEventListener('pagehide', () => {
+  persistEmailDraftKeepAlive();
+});
+
 window.addEventListener('pageshow', (ev) => {
   resumeEmailDeepLinkFromUrl();
   resumeClientDeepLinkFromUrl();
@@ -15226,6 +15458,7 @@ if ('serviceWorker' in navigator) {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    if (emailState.composing) void saveActiveEmailDraft(true);
     stopHealth();
     stopEmailPoll();
     stopInboxBadgePoll();

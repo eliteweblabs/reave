@@ -45,6 +45,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const draft = await createEmailDraft({
     to: normalizeEmailDraftRecipients(body.to),
+    cc: normalizeEmailDraftRecipients(body.cc),
     subject: String(body.subject ?? ''),
     body: String(body.body ?? body.text ?? ''),
     inReplyToEmailId:

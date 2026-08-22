@@ -18,6 +18,7 @@ export type EmailDraftRecipient = {
 export type EmailDraftRecord = {
   id: string;
   to: EmailDraftRecipient[];
+  cc: EmailDraftRecipient[];
   subject: string;
   body: string;
   inReplyToEmailId: string | null;
@@ -28,6 +29,7 @@ export type EmailDraftRecord = {
 
 export type CreateEmailDraftInput = {
   to?: EmailDraftRecipient[];
+  cc?: EmailDraftRecipient[];
   subject?: string;
   body?: string;
   inReplyToEmailId?: string | null;
@@ -36,6 +38,7 @@ export type CreateEmailDraftInput = {
 
 export type UpdateEmailDraftInput = {
   to?: EmailDraftRecipient[];
+  cc?: EmailDraftRecipient[];
   subject?: string;
   body?: string;
   inReplyToEmailId?: string | null;
@@ -47,6 +50,7 @@ const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS email_drafts (
   id                    UUID PRIMARY KEY,
   to_recipients         JSONB NOT NULL DEFAULT '[]',
+  cc_recipients         JSONB NOT NULL DEFAULT '[]',
   subject               TEXT NOT NULL DEFAULT '',
   body                  TEXT NOT NULL DEFAULT '',
   in_reply_to_email_id  TEXT,
@@ -54,6 +58,7 @@ CREATE TABLE IF NOT EXISTS email_drafts (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by            TEXT
 );
+ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS cc_recipients JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS email_drafts_updated_idx
   ON email_drafts (updated_at DESC);
 CREATE INDEX IF NOT EXISTS email_drafts_created_by_idx
@@ -108,7 +113,12 @@ function readFileRows(): EmailDraftRecord[] {
   try {
     if (!existsSync(FILE_PATH)) return [];
     const parsed = JSON.parse(readFileSync(FILE_PATH, 'utf8'));
-    return Array.isArray(parsed?.rows) ? (parsed.rows as EmailDraftRecord[]) : [];
+    if (!Array.isArray(parsed?.rows)) return [];
+    return (parsed.rows as EmailDraftRecord[]).map((row) => ({
+      ...row,
+      to: normalizeEmailDraftRecipients(row.to),
+      cc: normalizeEmailDraftRecipients(row.cc),
+    }));
   } catch {
     return [];
   }
@@ -122,6 +132,7 @@ function writeFileRows(rows: EmailDraftRecord[]): void {
 function rowToRecord(row: {
   id: string;
   to_recipients: unknown;
+  cc_recipients?: unknown;
   subject: string;
   body: string;
   in_reply_to_email_id: string | null;
@@ -132,6 +143,7 @@ function rowToRecord(row: {
   return {
     id: row.id,
     to: normalizeEmailDraftRecipients(row.to_recipients),
+    cc: normalizeEmailDraftRecipients(row.cc_recipients),
     subject: row.subject || '',
     body: row.body || '',
     inReplyToEmailId: row.in_reply_to_email_id?.trim() || null,
@@ -150,6 +162,7 @@ export async function listEmailDrafts(limit = 200): Promise<EmailDraftRecord[]> 
       const { rows } = await pool.query<{
         id: string;
         to_recipients: unknown;
+        cc_recipients: unknown;
         subject: string;
         body: string;
         in_reply_to_email_id: string | null;
@@ -157,7 +170,7 @@ export async function listEmailDrafts(limit = 200): Promise<EmailDraftRecord[]> 
         updated_at: Date;
         created_by: string | null;
       }>(
-        `SELECT id, to_recipients, subject, body, in_reply_to_email_id, created_at, updated_at, created_by
+        `SELECT id, to_recipients, cc_recipients, subject, body, in_reply_to_email_id, created_at, updated_at, created_by
          FROM email_drafts
          ORDER BY updated_at DESC
          LIMIT $1`,
@@ -184,6 +197,7 @@ export async function getEmailDraft(id: string): Promise<EmailDraftRecord | null
       const { rows } = await pool.query<{
         id: string;
         to_recipients: unknown;
+        cc_recipients: unknown;
         subject: string;
         body: string;
         in_reply_to_email_id: string | null;
@@ -191,7 +205,7 @@ export async function getEmailDraft(id: string): Promise<EmailDraftRecord | null
         updated_at: Date;
         created_by: string | null;
       }>(
-        `SELECT id, to_recipients, subject, body, in_reply_to_email_id, created_at, updated_at, created_by
+        `SELECT id, to_recipients, cc_recipients, subject, body, in_reply_to_email_id, created_at, updated_at, created_by
          FROM email_drafts
          WHERE id = $1
          LIMIT 1`,
@@ -211,6 +225,7 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
   const record: EmailDraftRecord = {
     id: randomUUID(),
     to: normalizeEmailDraftRecipients(input.to),
+    cc: normalizeEmailDraftRecipients(input.cc),
     subject: input.subject?.trim() || '',
     body: input.body ?? '',
     inReplyToEmailId: input.inReplyToEmailId?.trim() || null,
@@ -224,11 +239,12 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
     if (pool) {
       await pool.query(
         `INSERT INTO email_drafts
-          (id, to_recipients, subject, body, in_reply_to_email_id, created_by)
-         VALUES ($1, $2::jsonb, $3, $4, $5, $6)`,
+          (id, to_recipients, cc_recipients, subject, body, in_reply_to_email_id, created_by)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7)`,
         [
           record.id,
           JSON.stringify(record.to),
+          JSON.stringify(record.cc),
           record.subject,
           record.body,
           record.inReplyToEmailId,
@@ -256,6 +272,7 @@ export async function updateEmailDraft(
   const updated: EmailDraftRecord = {
     ...existing,
     to: input.to !== undefined ? normalizeEmailDraftRecipients(input.to) : existing.to,
+    cc: input.cc !== undefined ? normalizeEmailDraftRecipients(input.cc) : existing.cc || [],
     subject: input.subject !== undefined ? input.subject.trim() : existing.subject,
     body: input.body !== undefined ? input.body : existing.body,
     inReplyToEmailId:
@@ -271,14 +288,16 @@ export async function updateEmailDraft(
       const { rowCount } = await pool.query(
         `UPDATE email_drafts
          SET to_recipients = $2::jsonb,
-             subject = $3,
-             body = $4,
-             in_reply_to_email_id = $5,
+             cc_recipients = $3::jsonb,
+             subject = $4,
+             body = $5,
+             in_reply_to_email_id = $6,
              updated_at = now()
          WHERE id = $1`,
         [
           id,
           JSON.stringify(updated.to),
+          JSON.stringify(updated.cc),
           updated.subject,
           updated.body,
           updated.inReplyToEmailId,

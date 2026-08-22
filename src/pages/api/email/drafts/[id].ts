@@ -1,4 +1,5 @@
 /**
+ * GET    /api/email/drafts/:id — fetch one draft
  * PATCH  /api/email/drafts/:id — update draft
  * DELETE /api/email/drafts/:id — remove draft
  */
@@ -7,6 +8,7 @@ import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   deleteEmailDraft,
+  getEmailDraft,
   normalizeEmailDraftRecipients,
   updateEmailDraft,
 } from '../../../../lib/emailDraftStore';
@@ -25,6 +27,18 @@ function parseId(raw: string | undefined): string | null {
   return id || null;
 }
 
+export async function GET(context: APIContext): Promise<Response> {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const id = parseId(context.params.id);
+  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+
+  const event = await getEmailDraft(id);
+  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  return json({ ok: true, event });
+}
+
 export async function PATCH(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
@@ -41,12 +55,14 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   const patch: {
     to?: ReturnType<typeof normalizeEmailDraftRecipients>;
+    cc?: ReturnType<typeof normalizeEmailDraftRecipients>;
     subject?: string;
     body?: string;
     inReplyToEmailId?: string | null;
   } = {};
 
   if (body.to !== undefined) patch.to = normalizeEmailDraftRecipients(body.to);
+  if (body.cc !== undefined) patch.cc = normalizeEmailDraftRecipients(body.cc);
   if (body.subject !== undefined) patch.subject = String(body.subject);
   if (body.body !== undefined) patch.body = String(body.body);
   else if (body.text !== undefined) patch.body = String(body.text);
