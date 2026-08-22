@@ -139,8 +139,8 @@ const scenarios: Scenario[] = [
     expectNotify: false,
   },
   {
-    id: 'google-security-silent',
-    label: 'Sender-silent DELETE beats NEEDS_CHECK',
+    id: 'google-security-catalog-wins',
+    label: 'Catalog NEEDS_CHECK beats personal sender DELETE',
     email: {
       from: 'Google <no-reply@accounts.google.com>',
       subject: 'Security alert',
@@ -149,6 +149,29 @@ const scenarios: Scenario[] = [
     extraRules: [
       {
         status: 'DELETE',
+        scope: 'personal',
+        phrases: ['no-reply@accounts.google.com', 'Security alert'],
+        matchMode: 'all',
+        fields: ['from', 'subject', 'body'],
+        notify: false,
+        enabled: true,
+      },
+    ],
+    expectStatus: 'NEEDS_CHECK',
+    expectNotify: true,
+  },
+  {
+    id: 'google-security-personal-when-no-catalog',
+    label: 'Personal sender DELETE when catalog does not match',
+    email: {
+      from: 'Google <no-reply@accounts.google.com>',
+      subject: 'Security alert',
+      text: 'Review this activity in your Google Account.',
+    },
+    extraRules: [
+      {
+        status: 'DELETE',
+        scope: 'personal',
         phrases: ['no-reply@accounts.google.com', 'Security alert'],
         matchMode: 'all',
         fields: ['from', 'subject', 'body'],

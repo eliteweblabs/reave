@@ -16,7 +16,13 @@ import {
   planEmailFilterRuleWrite,
   ruleAllowsAutoProject,
 } from '../src/lib/emailFilterRuleWrite';
-import { applyRepoCatalog, type EmailRuleRecord } from '../src/lib/emailRuleStore';
+import {
+  applyRepoCatalog,
+  normalizeEmailRuleSortOrder,
+  sortOrderForNewRule,
+  type EmailRuleRecord,
+  type EmailRulesConfig,
+} from '../src/lib/emailRuleStore';
 import { deletedOrJunkedEmailBlocksNotification } from '../src/lib/emailJunkNotifyInvariant';
 
 const googleSecurity = {
@@ -193,6 +199,88 @@ assert.equal(
   assert.ok(catalogDeletes.length >= 2, 'sign-in DELETE must seed as its own catalog row');
   assert.ok(catalogDeletes.some((r) => r.phrases.includes('detected a new sign-in')));
   assert.ok(catalogDeletes.some((r) => r.phrases.includes('unsubscribe')));
+}
+
+function testRule(partial: Partial<EmailRuleRecord> & Pick<EmailRuleRecord, 'id' | 'scope' | 'sortOrder'>): EmailRuleRecord {
+  return {
+    title: partial.title || partial.id,
+    status: partial.status || 'DELETE',
+    phrases: partial.phrases || ['x'],
+    matchMode: 'any',
+    fields: ['body'],
+    notify: false,
+    enabled: true,
+    ...partial,
+  };
+}
+
+{
+  const mixed = [
+    testRule({ id: 'p1', scope: 'personal', sortOrder: 0 }),
+    testRule({ id: 'u1', scope: 'universal', sortOrder: 1 }),
+    testRule({ id: 'p2', scope: 'personal', sortOrder: 2 }),
+    testRule({ id: 'u2', scope: 'universal', sortOrder: 3 }),
+  ];
+  const { rules, changed } = normalizeEmailRuleSortOrder(mixed);
+  assert.equal(changed, true);
+  assert.deepEqual(
+    rules.map((r) => [r.id, r.sortOrder, r.scope]),
+    [
+      ['u1', 0, 'universal'],
+      ['u2', 1, 'universal'],
+      ['p1', 2, 'personal'],
+      ['p2', 3, 'personal'],
+    ],
+  );
+}
+
+{
+  const already = normalizeEmailRuleSortOrder([
+    testRule({ id: 'u0', scope: 'universal', sortOrder: 0 }),
+    testRule({ id: 'p1', scope: 'personal', sortOrder: 1 }),
+  ]);
+  assert.equal(already.changed, false);
+}
+
+{
+  const universals = Array.from({ length: 13 }, (_, i) =>
+    testRule({ id: `u${i}`, scope: 'universal', sortOrder: i }),
+  );
+  const personals = [
+    testRule({ id: 'p13', scope: 'personal', sortOrder: 13 }),
+    testRule({ id: 'p14', scope: 'personal', sortOrder: 14 }),
+  ];
+  const config: EmailRulesConfig = {
+    notifyOnUnmatched: false,
+    rules: [...universals, ...personals],
+  };
+  const next = sortOrderForNewRule(config, 'universal', false);
+  assert.equal(next, 13);
+  assert.equal(config.rules.find((r) => r.id === 'p13')?.sortOrder, 14);
+  assert.equal(config.rules.find((r) => r.id === 'p14')?.sortOrder, 15);
+}
+
+{
+  const personal: EmailRule = {
+    status: 'DELETE',
+    scope: 'personal',
+    phrases: ['Security alert'],
+    matchMode: 'any',
+    fields: ['subject'],
+    notify: false,
+    enabled: true,
+  };
+  const universal: EmailRule = {
+    status: 'NEEDS_CHECK',
+    scope: 'universal',
+    phrases: ['Security alert'],
+    matchMode: 'any',
+    fields: ['subject'],
+    notify: true,
+    enabled: true,
+  };
+  const result = classifyEmail(googleSecurity, [personal, universal]);
+  assert.equal(result.status, 'NEEDS_CHECK');
 }
 
 assert.equal(deletedOrJunkedEmailBlocksNotification(null), true);

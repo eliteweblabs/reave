@@ -52,7 +52,8 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260822a';
+  insertDragWithinScope,
+} from './email-triage-lab.js?v=20260822b';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -533,6 +534,7 @@ function createFlowRuleCard(rule, index) {
   const row = document.createElement('div');
   row.className = `re-flow-row${rule.enabled === false || isRuleExpired(rule) ? ' re-flow-row--off' : ''}${String(ruleState.activeId) === String(rule.id) ? ' re-flow-row--active' : ''}`;
   row.dataset.id = rule.id;
+  row.dataset.scope = ruleScope(rule);
   row.setAttribute('aria-label', `Priority ${index + 1}: ${rule.title || rule.status}`);
 
   const catalog = isCatalogReadOnly(rule);
@@ -620,17 +622,7 @@ function attachFlowRuleReorder(rowsEl) {
       const onMove = (moveEv) => {
         if (!dragEl) return;
         moved = true;
-        const siblings = [...rowsEl.querySelectorAll(':scope > .re-flow-row')].filter(
-          (n) => n !== dragEl,
-        );
-        for (const sib of siblings) {
-          const rect = sib.getBoundingClientRect();
-          if (moveEv.clientY < rect.top + rect.height / 2) {
-            rowsEl.insertBefore(dragEl, sib);
-            return;
-          }
-        }
-        rowsEl.appendChild(dragEl);
+        insertDragWithinScope(rowsEl, dragEl, moveEv.clientY, ':scope > .re-flow-row');
       };
 
       const onUp = (upEv) => {
@@ -666,7 +658,7 @@ function renderRulesFlowShell(root) {
 
   const hint = document.createElement('p');
   hint.className = 're-flow-hint';
-  hint.textContent = 'First match wins · drag ⋮⋮ to set priority · tap a rule to edit';
+  hint.textContent = 'Universal first · drag within each group · tap a rule to edit';
   left.appendChild(hint);
   toolbar.appendChild(left);
 

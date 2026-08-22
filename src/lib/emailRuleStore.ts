@@ -15,10 +15,9 @@ import {
   DEFAULT_RULES,
   NOTIFY_ON_UNMATCHED,
   coalesceRuleNotifyFields,
-  isAuthLinkRuleStatus,
   isRepoCatalogRule,
   isSilentTriageStatus,
-  isVerificationCodeRuleStatus,
+  isUniversalEmailRuleScope,
   normalizeEmailRuleScope,
   normalizeNotifyActions,
   type EmailRule,
@@ -805,20 +804,22 @@ export function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRe
         return { ...r, scope: 'personal' as const, updatedAt: now };
       });
   out.sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)));
-  return { rules: out, changed };
+  const numbered = normalizeEmailRuleSortOrder(out);
+  return { rules: numbered.rules, changed: changed || numbered.changed };
 }
 
 /** Keep DEFAULT_RULES in sync on every load; persist only when the catalog drifted. */
 async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
   const synced = applyRepoCatalog(config.rules);
+  const numbered = normalizeEmailRuleSortOrder(synced.rules);
   const scopeSeeded = true;
-  if (!synced.changed && config.scopeSeeded) {
-    return { ...config, rules: synced.rules, scopeSeeded };
+  if (!synced.changed && !numbered.changed && config.scopeSeeded) {
+    return { ...config, rules: numbered.rules, scopeSeeded };
   }
   const merged: EmailRulesConfig = {
     ...config,
     scopeSeeded,
-    rules: synced.rules,
+    rules: numbered.rules,
   };
   await persistConfig(merged);
   return merged;
@@ -921,8 +922,29 @@ export async function storeGetEmailRule(id: string): Promise<EmailRuleRecord | n
 }
 
 /**
- * Sender-specific silent rules must beat broad alert catch-alls.
- * Insert just after pinned OTP/auth rules; shift the rest down.
+ * Universals occupy 0..n-1; personals follow. Relative order within each
+ * group is kept. Every install persists this so the numbered list matches
+ * evaluation order.
+ */
+export function normalizeEmailRuleSortOrder(rules: EmailRuleRecord[]): {
+  rules: EmailRuleRecord[];
+  changed: boolean;
+} {
+  const sorted = [...rules].sort(
+    (a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)),
+  );
+  const universals = sorted.filter((r) => isUniversalEmailRuleScope(r.scope));
+  const personals = sorted.filter((r) => !isUniversalEmailRuleScope(r.scope));
+  const next = [...universals, ...personals].map((r, i) =>
+    r.sortOrder === i ? r : { ...r, sortOrder: i },
+  );
+  const changed = next.some((r, i) => r.id !== rules[i]?.id || r.sortOrder !== rules[i]?.sortOrder);
+  return { rules: next, changed };
+}
+
+/**
+ * Sender-specific silent rules must beat later personal catch-alls.
+ * Insert at the start of the personal block (after every universal).
  * Catch-all junk (no `from` field) still appends at the end.
  */
 function shouldElevateNewRule(input: RuleInput): boolean {
@@ -931,21 +953,25 @@ function shouldElevateNewRule(input: RuleInput): boolean {
   return isSilentTriageStatus(input.status);
 }
 
-function sortOrderForNewRule(config: EmailRulesConfig, elevate: boolean): number {
-  if (!elevate) {
-    return config.rules.reduce((m, r) => Math.max(m, r.sortOrder), -1) + 1;
-  }
-  let afterPinned = -1;
-  for (const r of config.rules) {
-    if (isVerificationCodeRuleStatus(r.status) || isAuthLinkRuleStatus(r.status)) {
-      afterPinned = Math.max(afterPinned, r.sortOrder);
+/**
+ * New universal → end of the universal block; later rules bump by one.
+ * Elevated personal → first personal slot (after last universal).
+ * Other personals append.
+ */
+export function sortOrderForNewRule(
+  config: EmailRulesConfig,
+  scope: EmailRuleScope,
+  elevate: boolean,
+): number {
+  const universalCount = config.rules.filter((r) => isUniversalEmailRuleScope(r.scope)).length;
+  if (scope === 'universal' || elevate) {
+    const sortOrder = universalCount;
+    for (const r of config.rules) {
+      if (r.sortOrder >= sortOrder) r.sortOrder += 1;
     }
+    return sortOrder;
   }
-  const sortOrder = afterPinned + 1;
-  for (const r of config.rules) {
-    if (r.sortOrder >= sortOrder) r.sortOrder += 1;
-  }
-  return sortOrder;
+  return config.rules.reduce((m, r) => Math.max(m, r.sortOrder), -1) + 1;
 }
 
 export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleRecord | null> {
@@ -953,23 +979,24 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
   if (!clean) return null;
   const config = await loadEmailRulesConfig();
   const now = new Date().toISOString();
-  const sortOrder = sortOrderForNewRule(config, shouldElevateNewRule(clean));
+  const scope = isCanonicalReaveInstall()
+    ? normalizeEmailRuleScope(clean.scope, 'personal')
+    : 'personal';
+  const sortOrder = sortOrderForNewRule(config, scope, shouldElevateNewRule(clean));
   const record: EmailRuleRecord = {
     id: randomUUID(),
     sortOrder,
     ...clean,
-    scope: isCanonicalReaveInstall()
-      ? normalizeEmailRuleScope(clean.scope, 'personal')
-      : 'personal',
+    scope,
     hitCount: 0,
     lastMatchedAt: null,
     createdAt: now,
     updatedAt: now,
   };
   config.rules.push(record);
-  config.rules.sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)));
+  config.rules = normalizeEmailRuleSortOrder(config.rules).rules;
   if (!(await persistConfig(config))) return null;
-  return record;
+  return config.rules.find((r) => r.id === record.id) ?? record;
 }
 
 export async function storeUpdateEmailRule(id: string, input: RuleInput): Promise<EmailRuleRecord | null> {
@@ -987,8 +1014,9 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
     scope: home ? normalizeEmailRuleScope(clean.scope ?? prev.scope, 'personal') : 'personal',
     updatedAt: new Date().toISOString(),
   };
+  config.rules = normalizeEmailRuleSortOrder(config.rules).rules;
   if (!(await persistConfig(config))) return null;
-  return config.rules[idx];
+  return config.rules.find((r) => r.id === id) ?? null;
 }
 
 export async function storeDeleteEmailRule(id: string): Promise<boolean> {
@@ -997,7 +1025,7 @@ export async function storeDeleteEmailRule(id: string): Promise<boolean> {
   if (!prev || isRepoCatalogRule(prev)) return false;
   const next = config.rules.filter((r) => r.id !== id);
   if (next.length === config.rules.length) return false;
-  config.rules = next;
+  config.rules = normalizeEmailRuleSortOrder(next).rules;
   return persistConfig(config);
 }
 
@@ -1033,9 +1061,12 @@ export async function storeReorderEmailRules(
   }
 
   const now = new Date().toISOString();
-  // Honor the explicit drag order — do not re-run silent-rule elevation here
-  // (that runs on load/seed; Lab/Flow persist what the owner just arranged).
-  config.rules = ordered.map((r, i) => ({ ...r, sortOrder: i, updatedAt: now }));
+  // Honor drag order within each scope, then pin universals at 0..n-1.
+  const tentative = ordered.map((r, i) => ({ ...r, sortOrder: i, updatedAt: now }));
+  config.rules = normalizeEmailRuleSortOrder(tentative).rules.map((r) => ({
+    ...r,
+    updatedAt: now,
+  }));
   if (!(await persistConfig(config))) return { ok: false, error: 'Failed to save rule order' };
   return { ok: true, rules: config.rules };
 }

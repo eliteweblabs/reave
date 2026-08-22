@@ -154,6 +154,36 @@ export function formatRuleProcessLabel(rule) {
   return bits.join('+') || 'Silent';
 }
 
+/** Keep universal and personal cards in their own blocks while dragging. */
+export function insertDragWithinScope(listEl, dragEl, clientY, cardSelector) {
+  const scope = dragEl?.dataset.scope === 'universal' ? 'universal' : 'personal';
+  const siblings = [...listEl.querySelectorAll(cardSelector)].filter(
+    (n) => n !== dragEl && (n.dataset.scope === 'universal' ? 'universal' : 'personal') === scope,
+  );
+  for (const sib of siblings) {
+    const rect = sib.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      sib.before(dragEl);
+      return;
+    }
+  }
+  const last = siblings[siblings.length - 1];
+  if (last) {
+    last.after(dragEl);
+    return;
+  }
+  const others = [...listEl.querySelectorAll(cardSelector)].filter((n) => n !== dragEl);
+  if (scope === 'universal') {
+    const firstPersonal = others.find((n) => n.dataset.scope !== 'universal');
+    if (firstPersonal) firstPersonal.before(dragEl);
+    else listEl.appendChild(dragEl);
+    return;
+  }
+  const lastUniversal = [...others].reverse().find((n) => n.dataset.scope === 'universal');
+  if (lastUniversal) lastUniversal.after(dragEl);
+  else listEl.appendChild(dragEl);
+}
+
 /** Scope · process · notify/silent meta under the WHEN clause. */
 export function formatRuleLabMeta(rule) {
   const scope = rule?.scope === 'universal' ? 'Universal' : 'Personal';
@@ -387,7 +417,7 @@ export function createEmailTriageLab(deps) {
     if (headSub) {
       headSub.textContent = filterTerms().length
         ? 'Rules that match this filter · first hit highlighted'
-        : 'Tap a rule to edit · drag to set priority';
+        : 'Tap a rule to edit · drag within universal or personal';
     }
   }
 
@@ -673,6 +703,7 @@ export function createEmailTriageLab(deps) {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       state.dirtyOrder = false;
       await deps.reloadRules();
+      state.ruleOrder = [];
       syncRuleOrderFromState();
       const root = deps.getRuleEditor();
       if (root) renderLabShell(root);
@@ -732,20 +763,7 @@ export function createEmailTriageLab(deps) {
         const onMove = (moveEv) => {
           if (!dragEl) return;
           moved = true;
-          const siblings = [...listEl.querySelectorAll(':scope > .re-lab-pipe-card')].filter(
-            (n) => n !== dragEl && n.dataset.kind === 'rule',
-          );
-          for (const sib of siblings) {
-            const rect = sib.getBoundingClientRect();
-            if (moveEv.clientY < rect.top + rect.height / 2) {
-              listEl.insertBefore(dragEl, sib);
-              return;
-            }
-          }
-          const lastRule = [...listEl.querySelectorAll(':scope > .re-lab-pipe-card[data-kind="rule"]')].pop();
-          if (lastRule && lastRule !== dragEl) {
-            lastRule.after(dragEl);
-          }
+          insertDragWithinScope(listEl, dragEl, moveEv.clientY, ':scope > .re-lab-pipe-card[data-kind="rule"]');
         };
 
         const onUp = (upEv) => {
@@ -979,7 +997,7 @@ export function createEmailTriageLab(deps) {
     pipeHead.className = 're-lab-section-head re-lab-rules-head';
     const pipeCopy = document.createElement('div');
     pipeCopy.innerHTML = `<h2>Rules</h2>
-      <p data-lab-rules-sub>Tap a rule to edit · drag to set priority</p>`;
+      <p data-lab-rules-sub>Tap a rule to edit · drag within universal or personal</p>`;
     const saveOrder = document.createElement('button');
     saveOrder.type = 'button';
     saveOrder.className = 'dash-panel-btn';
@@ -1022,6 +1040,7 @@ export function createEmailTriageLab(deps) {
       card.dataset.kind = 'rule';
       card.dataset.stage = 'rules';
       card.dataset.ruleId = rule.id;
+      card.dataset.scope = rule.scope === 'universal' ? 'universal' : 'personal';
       const show = ruleMatchesLabFilter(rule);
       card.hidden = !show;
       card.classList.toggle('re-lab-pipe-card--filtered-out', !show);

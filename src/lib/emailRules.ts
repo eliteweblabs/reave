@@ -25,8 +25,9 @@
  * Keep high-signal operational alerts (RAILWAY, DOWN, NEEDS_CHECK) ABOVE
  * catch-all filing rules (RECEIPT, AUTO_ARCHIVED, DELETE) so a Railway build
  * failure is never silently mis-classified as a receipt.
- * Sender-specific silent rules (from-field DELETE / notify:false) are inserted
- * just after OTP/auth so they beat broad alert catch-alls — not the reverse.
+ * Universal (catalog) rules always evaluate before personal rules on every
+ * install. Sender-specific silent rules still insert first among personals
+ * so they beat later personal catch-alls — they cannot intercept the catalog.
  */
 
 import { isAuthLinkEmail } from './emailAuthLinkParser';
@@ -61,6 +62,35 @@ export function normalizeEmailRuleScope(
   if (v === 'universal' || v === 'global' || v === 'shared' || v === 'all') return 'universal';
   if (v === 'personal' || v === 'local' || v === 'install') return 'personal';
   return fallback;
+}
+
+export function isUniversalEmailRuleScope(scope: unknown): boolean {
+  return normalizeEmailRuleScope(scope, 'personal') === 'universal';
+}
+
+/**
+ * Catalog rules first, then personal. Within a scope, honor sortOrder when
+ * present, otherwise the incoming array index (stable).
+ */
+export function orderEmailRulesForEvaluation<T extends EmailRule>(rules: T[]): T[] {
+  return rules
+    .map((rule, index) => ({ rule, index }))
+    .sort((a, b) => {
+      const as = isUniversalEmailRuleScope(a.rule.scope) ? 0 : 1;
+      const bs = isUniversalEmailRuleScope(b.rule.scope) ? 0 : 1;
+      if (as !== bs) return as - bs;
+      const ao =
+        'sortOrder' in a.rule && typeof (a.rule as { sortOrder?: number }).sortOrder === 'number'
+          ? (a.rule as { sortOrder: number }).sortOrder
+          : a.index;
+      const bo =
+        'sortOrder' in b.rule && typeof (b.rule as { sortOrder?: number }).sortOrder === 'number'
+          ? (b.rule as { sortOrder: number }).sortOrder
+          : b.index;
+      if (ao !== bo) return ao - bo;
+      return a.index - b.index;
+    })
+    .map(({ rule }) => rule);
 }
 
 /** Action buttons on push / dashboard alerts for a matched rule. */
@@ -585,7 +615,8 @@ export type RuleEvaluationResult = {
 /**
  * Walk the rule table exactly as production triage does and record every rule's
  * outcome. OTP then AUTH_LINK are always checked first (pinned); remaining
- * enabled rules follow array / sort order; first match short-circuits.
+ * enabled rules are universal first, then personal, then sort order.
+ * First match short-circuits.
  */
 export function evaluateEmailRules(
   email: InboundEmail,
@@ -598,13 +629,14 @@ export function evaluateEmailRules(
   const evaluations: RuleEvaluation[] = [];
   let order = 0;
   let matched: EmailRule | null = null;
+  const ordered = orderEmailRulesForEvaluation(rules);
 
   const pushEval = (rule: EmailRule, outcome: RuleEvaluationOutcome) => {
     evaluations.push({ rule, order: order++, outcome });
   };
 
   // Global OTP rule — always first, regardless of persisted sort_order.
-  const verificationRule = rules.find(
+  const verificationRule = ordered.find(
     (r) => r.enabled && isVerificationCodeRuleStatus(r.status),
   );
   if (verificationRule) {
@@ -617,7 +649,7 @@ export function evaluateEmailRules(
   }
 
   // Global auth-link rule — before DELETE/junk (footers often match unsubscribe).
-  const authLinkRule = rules.find((r) => r.enabled && isAuthLinkRuleStatus(r.status));
+  const authLinkRule = ordered.find((r) => r.enabled && isAuthLinkRuleStatus(r.status));
   if (!matched && authLinkRule) {
     if (ruleMatches(authLinkRule, email)) {
       pushEval(authLinkRule, 'matched');
@@ -629,7 +661,7 @@ export function evaluateEmailRules(
     pushEval(authLinkRule, 'skipped_after_match');
   }
 
-  for (const rule of rules) {
+  for (const rule of ordered) {
     if (isVerificationCodeRuleStatus(rule.status) || isAuthLinkRuleStatus(rule.status)) {
       // Already recorded in the pinned pass (or disabled / missing from pin find).
       if (
@@ -677,7 +709,8 @@ export function evaluateEmailRules(
 
 /**
  * Classify an inbound email against the rule table.
- * First matching enabled rule (in table / sort order) wins; evaluation stops.
+ * First matching enabled rule wins (OTP/AUTH pinned, then universal, then
+ * personal); evaluation stops.
  */
 export function classifyEmail(
   email: InboundEmail,

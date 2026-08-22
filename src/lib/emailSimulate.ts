@@ -18,6 +18,7 @@ import { parseEmailDate } from './emailDate';
 import { isSleepModeActive, sleepModeStatus } from './pushQuietHours';
 import {
   isEmailRuleExpired,
+  normalizeEmailRuleSortOrder,
   storeListEmailRules,
   type EmailRuleRecord,
 } from './emailRuleStore';
@@ -98,7 +99,8 @@ function reorderRules(
   for (const rule of [...rules].sort((a, b) => a.sortOrder - b.sortOrder)) {
     if (!seen.has(rule.id)) ordered.push(rule);
   }
-  return ordered.map((r, i) => ({ ...r, sortOrder: i }));
+  const tentative = ordered.map((r, i) => ({ ...r, sortOrder: i }));
+  return normalizeEmailRuleSortOrder(tentative).rules;
 }
 
 function stepsFromGates(opts: {
