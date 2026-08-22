@@ -45,10 +45,15 @@ import {
 import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA } from '../src/lib/salesSheetBack.ts';
 import { PLATFORM_STACK } from '../src/lib/platformStack.ts';
 import {
+  applyLiveUrlToFindings,
+  dropWorkingSiteDownFindings,
+  dropWorkingSslFindings,
+  httpsAuditCandidates,
   renderFindingPhoneHtml,
   renderSalesSheetFrontExhibitsHtml,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
+import { auditUrlShotLooksDown, auditUrlShotLooksInsecure } from '../src/lib/salesSheetPlacesShot.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -454,6 +459,12 @@ await test('terribleness cascade is 40 unique ranks and SSL beats Places', () =>
   });
   assert.equal(hits[0]?.id, 'ssl-missing');
   assert.equal(hits[1]?.id, 'places-not-listed');
+  const gradeOnly = selectCascadeFindings({
+    businessName: 'Kowalski Dental',
+    body: 'Security headers are missing. Mixed content on two images.',
+    securityGrade: 'F',
+  });
+  assert.notEqual(gradeOnly[0]?.id, 'ssl-missing');
   const down = selectCascadeFindings({
     businessName: 'Hale',
     body: 'The site does not load — connection timed out. Domain expired. NXDOMAIN.',
@@ -673,11 +684,106 @@ await test('front exhibits are four phones with captions and no next steps', () 
   });
   assert.equal((html.match(/class="ss-exhibit"/g) || []).length, 4);
   assert.match(html, /repeat\(4,/);
+  assert.match(html, /max-width: none/);
+  assert.doesNotMatch(html, /max-width: 700px/);
   assert.match(html, /1 · Site Speed/);
   assert.match(html, /4 · No Offer/);
   assert.match(html, /Overall C \(64\)/);
   assert.doesNotMatch(html, /Next steps/);
   assert.doesNotMatch(html, /Compress images and defer/);
+});
+
+await test('a live homepage is not Site Down', () => {
+  assert.equal(
+    auditUrlShotLooksDown({
+      down: false,
+      status: 200,
+      title: 'Kowalski Dental, PC',
+      finalUrl: 'https://kowalskidental.com/',
+    }),
+    false,
+  );
+  assert.equal(
+    auditUrlShotLooksDown({
+      down: false,
+      status: null,
+      title: 'This site can’t be reached',
+      finalUrl: 'chrome-error://chromewebdata/',
+    }),
+    true,
+  );
+  const kept = dropWorkingSiteDownFindings([
+    {
+      id: 'site-down',
+      categoryLabel: 'Site Down',
+      problem: 'The front door is closed.',
+      solution: 'Fix hosting',
+    },
+    {
+      id: 'no-offer',
+      categoryLabel: 'No Offer',
+      problem: 'No next step.',
+      solution: 'Rewrite the hero',
+    },
+  ]);
+  assert.deepEqual(kept.map((f) => f.id), ['no-offer']);
+});
+
+await test('clean HTTPS drops the Not Secure graphic; a broken host keeps it', () => {
+  assert.deepEqual(httpsAuditCandidates('kowalskidental.com'), [
+    'https://kowalskidental.com/',
+    'https://www.kowalskidental.com/',
+  ]);
+  assert.equal(
+    auditUrlShotLooksInsecure({
+      down: false,
+      status: 200,
+      title: 'Kowalski Dental, PC',
+      finalUrl: 'https://www.kowalskidental.com/',
+    }),
+    false,
+  );
+  const sslAndDown = [
+    {
+      id: 'ssl-missing',
+      categoryLabel: 'SSL',
+      problem: 'Not Secure warning.',
+      solution: 'Install SSL',
+    },
+    {
+      id: 'site-down',
+      categoryLabel: 'Site Down',
+      problem: 'The front door is closed.',
+      solution: 'Fix hosting',
+    },
+    {
+      id: 'no-offer',
+      categoryLabel: 'No Offer',
+      problem: 'No next step.',
+      solution: 'Rewrite the hero',
+    },
+  ];
+  const clean = applyLiveUrlToFindings(sslAndDown, {
+    cleanUrls: ['https://www.kowalskidental.com/'],
+    insecureUrls: [],
+    downUrls: [],
+  });
+  assert.deepEqual(clean.findings.map((f) => f.id), ['no-offer']);
+  assert.equal(dropWorkingSslFindings(sslAndDown).every((f) => f.id !== 'ssl-missing'), true);
+  const brokenTwin = applyLiveUrlToFindings(sslAndDown, {
+    cleanUrls: ['https://www.example.com/'],
+    insecureUrls: ['https://example.com/'],
+    downUrls: [],
+  });
+  assert.ok(brokenTwin.findings.some((f) => f.id === 'ssl-missing'));
+  assert.equal(brokenTwin.website, 'example.com');
+  assert.ok(!brokenTwin.findings.some((f) => f.id === 'site-down'));
+  const sslPhone = renderFindingPhoneHtml(sslAndDown[0]!, {
+    website: 'example.com',
+    screenSrc: 'data:image/png;base64,AAA',
+  });
+  assert.match(sslPhone, /Your connection is not private/);
+  assert.doesNotMatch(sslPhone, /ss-phone-serp/);
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {

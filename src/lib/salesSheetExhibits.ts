@@ -51,6 +51,33 @@ export function auditHttpUrl(website: string): string {
   return host === 'this site' ? 'http://example.com' : `http://${host}`;
 }
 
+/** https://host plus the www / apex twin — live checks should not miss a working www cert. */
+export function httpsAuditCandidates(website: string): string[] {
+  const raw = (website || '').trim();
+  if (!raw) return [];
+  let host = '';
+  let path = '/';
+  try {
+    const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const u = new URL(withProto);
+    host = u.hostname.replace(/\.$/, '');
+    path = `${u.pathname || '/'}${u.search || ''}`;
+  } catch {
+    host = raw.replace(/^https?:\/\//i, '').split('/')[0] || '';
+  }
+  if (!host) return [];
+  const hosts = host.startsWith('www.') ? [host, host.slice(4)] : [host, `www.${host}`];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const h of hosts) {
+    const url = `https://${h}${path.startsWith('/') ? path : `/${path}`}`;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out;
+}
+
 export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'categoryLabel'>): SalesSheetExhibitKind {
   const id = (finding.id || '').toLowerCase();
   if (id === 'ssl-missing' || id === 'ssl-expired' || id === 'ssl-untrusted' || id.startsWith('ssl')) return 'ssl';
@@ -84,6 +111,64 @@ export function salesSheetWantsSiteShot(findings: SalesSheetFinding[]): boolean 
   });
 }
 
+/** A live homepage means the cascade’s Site Down / NXDOMAIN row is stale. */
+export function dropWorkingSiteDownFindings(findings: SalesSheetFinding[]): SalesSheetFinding[] {
+  return findings.filter((f) => {
+    const kind = salesSheetExhibitKind(f);
+    return kind !== 'site-down' && kind !== 'domain';
+  });
+}
+
+/** A live HTTPS homepage means the drawn Not Secure graphic is wrong. */
+export function dropWorkingSslFindings(findings: SalesSheetFinding[]): SalesSheetFinding[] {
+  return findings.filter((f) => salesSheetExhibitKind(f) !== 'ssl');
+}
+
+export type LiveUrlProbe = {
+  cleanUrls: string[];
+  insecureUrls: string[];
+  downUrls: string[];
+};
+
+/**
+ * Keep the Not Secure graphic only when a host actually fails HTTPS.
+ * A clean padlock (www or apex) drops the drawing. A broken twin host keeps it.
+ */
+export function applyLiveUrlToFindings(
+  findings: SalesSheetFinding[],
+  probe: LiveUrlProbe,
+): { findings: SalesSheetFinding[]; website?: string; note: string } {
+  const hasClean = probe.cleanUrls.length > 0;
+  const hasInsecure = probe.insecureUrls.length > 0;
+  let next = findings;
+  let website: string | undefined;
+  const notes: string[] = [];
+
+  if (hasClean && !hasInsecure) {
+    next = dropWorkingSslFindings(next);
+    notes.push('Live HTTPS is clean — dropped the Not Secure graphic.');
+  } else if (hasInsecure) {
+    try {
+      website = new URL(probe.insecureUrls[0] || '').hostname;
+    } catch {
+      website = undefined;
+    }
+    notes.push(
+      website
+        ? `HTTPS fails at ${website} — keeping the Not Secure graphic.`
+        : 'HTTPS fails — keeping the Not Secure graphic.',
+    );
+  }
+
+  if (hasClean || hasInsecure) {
+    const before = next.length;
+    next = dropWorkingSiteDownFindings(next);
+    if (next.length < before) notes.push('Homepage responded — dropped Site Down.');
+  }
+
+  return { findings: next, website, note: notes.join(' ') };
+}
+
 function iphoneCss(): string {
   return `
 .ss-phone {
@@ -92,7 +177,7 @@ function iphoneCss(): string {
   position: relative;
   box-sizing: border-box;
   width: 100%;
-  max-width: 168px;
+  max-width: none;
   aspect-ratio: 736 / 1428;
   margin: 0 auto 0.45em;
   background: transparent;
@@ -429,7 +514,7 @@ export function renderFindingPhoneHtml(finding: SalesSheetFinding, opts: SalesSh
   const screen = screenFor(kind, finding, host, name);
   return iphone(screen, {
     frameSrc,
-    screenSrc: opts.screenSrc,
+    screenSrc: kind === 'ssl' ? '' : opts.screenSrc,
     alt: `${finding.categoryLabel} on ${host}`,
     kind,
   });
@@ -469,12 +554,18 @@ ${iphoneCss()}
   height: 100%;
 }
 .ss-exhibits {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(${Math.max(1, items.length)}, minmax(0, 1fr));
-  gap: 0 1.4%;
+  gap: 0 1.6%;
   align-items: start;
 }
-.ss-exhibit { min-width: 0; }
+.ss-exhibit {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 .ss-exhibit-kicker {
   margin: 0 0 0.2em;
   font-size: clamp(8px, 1.15cqi, 10px);
@@ -506,8 +597,8 @@ ${iphoneCss()}
   padding-left: 0;
   border-left: none;
 }
-@media (max-width: 700px) {
-  .ss-exhibits { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8em 1.4%; }
+.doc-onepager:has(.ss-front) .doc-onepager-cols {
+  flex: 1 1 auto;
 }
 </style>
 <div class="ss-front">

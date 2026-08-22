@@ -76,8 +76,6 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     sheet:
       'Show a browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning in the address bar — padlock crossed out, HTTP, no lock.',
     match: (ctx) =>
-      ctx.securityGrade === 'F' ||
-      gradeOf(ctx.card, 'security') === 'F' ||
       /\bnot secure\b|may not be safe|no ssl\b|missing ssl|tls inspection failed|http,? not https|http only|\bnot https\b|no certificate|lacks? (?:an? )?ssl|without ssl|unencrypted|(?:update|fix|missing|invalid|no).{0,40}security certificate/.test(
         ctx.lower,
       ),
@@ -101,7 +99,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
       ) {
         return false;
       }
-      return /does not load|timed? ?out|connection refused|site (?:is )?(?:down|unreachable)|failed to (?:fetch|connect)|err_connection|http 5\d\d|\b502\b|\b503\b|origin is unreachable/.test(
+      return /does not load|timed? ?out|connection refused|site (?:is )?(?:down|unreachable)|err_connection|origin is unreachable|(?:homepage|website|site) failed to (?:fetch|connect)|http 5\d\d/.test(
         ctx.lower,
       );
     },

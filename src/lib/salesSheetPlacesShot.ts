@@ -3,6 +3,8 @@
  * Isolated so a missing browser does not break the HTML preview.
  */
 
+import https from 'node:https';
+import { URL } from 'node:url';
 import {
   googleMapsSearchUrl,
   googlePlacesSearchUrl,
@@ -11,6 +13,7 @@ import {
   type PlacesPhoneMockOpts,
   type SalesSheetPlacesView,
 } from './salesSheetPlacesView';
+import { httpsAuditCandidates, type LiveUrlProbe } from './salesSheetExhibits';
 
 const LAUNCH_ARGS = [
   '--no-sandbox',
@@ -198,10 +201,128 @@ export async function screenshotGoogleSearchResults(
   }
 }
 
-/** Capture whatever a phone browser shows for the audit URL — error page or live fail. */
+export type AuditUrlShot = {
+  ok: true;
+  pngBase64: string;
+  down: boolean;
+  status: number | null;
+  title: string;
+  finalUrl: string;
+};
+
+/** True when the captured tab is an error page, not a real homepage. */
+export function auditUrlShotLooksDown(shot: Pick<AuditUrlShot, 'down' | 'status' | 'title' | 'finalUrl'>): boolean {
+  if (shot.down) return true;
+  const url = (shot.finalUrl || '').toLowerCase();
+  const title = (shot.title || '').toLowerCase();
+  if (/chrome-error|chromewebdata|about:neterror|edge:\/\//.test(url)) return true;
+  if (
+    /can'?t be reached|cannot open the page|site can.t be reached|err_connection|err_name_not|err_timed_out|err_address|this site can.t provide a secure connection/.test(
+      title,
+    )
+  ) {
+    return true;
+  }
+  if (shot.status != null && shot.status >= 500) return true;
+  return false;
+}
+
+/** True when the tab is a cert / Not Secure interstitial, not a clean HTTPS page. */
+export function auditUrlShotLooksInsecure(
+  shot: Pick<AuditUrlShot, 'down' | 'status' | 'title' | 'finalUrl'>,
+): boolean {
+  const url = (shot.finalUrl || '').toLowerCase();
+  const title = (shot.title || '').toLowerCase();
+  if (/^http:\/\//.test(url)) return true;
+  if (/not private|privacy error|err_cert|net::err_cert|certificate/.test(title)) return true;
+  if (/chrome-error|chromewebdata/.test(url) && /cert|ssl|privacy|secure/.test(title)) return true;
+  return false;
+}
+
+const CERT_ERR_RE =
+  /CERT_|UNABLE_TO_VERIFY|ERR_TLS|DEPTH_ZERO|HOSTNAME_MISMATCH|self.?signed|unable to verify|certificate/i;
+
+function classifyHttpsError(err: unknown): 'insecure' | 'down' {
+  const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : '';
+  const msg = err instanceof Error ? err.message : String(err || '');
+  if (CERT_ERR_RE.test(code) || CERT_ERR_RE.test(msg)) return 'insecure';
+  return 'down';
+}
+
+function probeOneHttps(url: string, hops = 0): Promise<'ok' | 'insecure' | 'down'> {
+  if (hops > 5) return Promise.resolve('down');
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (value: 'ok' | 'insecure' | 'down') => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    let target: URL;
+    try {
+      target = new URL(url);
+    } catch {
+      done('down');
+      return;
+    }
+    if (target.protocol === 'http:') {
+      done('insecure');
+      return;
+    }
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        port: target.port || 443,
+        path: `${target.pathname || '/'}${target.search || ''}`,
+        method: 'GET',
+        timeout: 8000,
+        servername: target.hostname,
+        headers: { Accept: 'text/html', 'User-Agent': IPHONE_UA },
+      },
+      (res) => {
+        const loc = res.headers.location;
+        if (loc && res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
+          res.resume();
+          const next = new URL(loc, target);
+          if (next.protocol === 'http:') {
+            done('insecure');
+            return;
+          }
+          void probeOneHttps(next.href, hops + 1).then(done);
+          return;
+        }
+        res.resume();
+        if ((res.statusCode || 0) >= 500) done('down');
+        else done('ok');
+      },
+    );
+    req.on('error', (err) => done(classifyHttpsError(err)));
+    req.on('timeout', () => {
+      req.destroy();
+      done('down');
+    });
+    req.end();
+  });
+}
+
+/** Probe www and apex. Used to keep the Not Secure graphic only when HTTPS actually fails. */
+export async function probeAuditHttps(website: string): Promise<LiveUrlProbe> {
+  const cleanUrls: string[] = [];
+  const insecureUrls: string[] = [];
+  const downUrls: string[] = [];
+  for (const url of httpsAuditCandidates(website)) {
+    const result = await probeOneHttps(url);
+    if (result === 'ok') cleanUrls.push(url);
+    else if (result === 'insecure') insecureUrls.push(url);
+    else downUrls.push(url);
+  }
+  return { cleanUrls, insecureUrls, downUrls };
+}
+
+/** Capture the audit URL and say whether the front door is actually closed. */
 export async function screenshotAuditUrl(
   url: string,
-): Promise<{ ok: true; pngBase64: string } | { ok: false; error: string }> {
+): Promise<AuditUrlShot | { ok: false; error: string }> {
   const target = url.trim();
   if (!target) return { ok: false, error: 'No audit URL' };
   let pw: typeof import('playwright');
@@ -220,10 +341,19 @@ export async function screenshotAuditUrl(
       hasTouch: true,
       userAgent: IPHONE_UA,
     });
-    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 12_000 }).catch(() => undefined);
+    let status: number | null = null;
+    let timedOut = false;
+    const response = await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 12_000 }).catch((err: unknown) => {
+      timedOut = /timeout/i.test(err instanceof Error ? err.message : String(err));
+      return null;
+    });
+    status = response?.status() ?? null;
     await new Promise((r) => setTimeout(r, 800));
+    const finalUrl = page.url();
+    const title = await page.title().catch(() => '');
     const buf = await page.screenshot({ type: 'png' });
-    return { ok: true, pngBase64: buf.toString('base64') };
+    const down = timedOut || !response || auditUrlShotLooksDown({ down: false, status, title, finalUrl });
+    return { ok: true, pngBase64: buf.toString('base64'), down, status, title, finalUrl };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   } finally {

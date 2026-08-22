@@ -32,7 +32,12 @@ import { buildAuditReportCard } from '../../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from '../../lib/workStore';
 import { fetchSalesSheetPlaces } from '../../lib/salesSheetPlaces';
-import { screenshotAuditUrl, screenshotGoogleSearchResults } from '../../lib/salesSheetPlacesShot';
+import {
+  auditUrlShotLooksDown,
+  probeAuditHttps,
+  screenshotAuditUrl,
+  screenshotGoogleSearchResults,
+} from '../../lib/salesSheetPlacesShot';
 import {
   injectAuditQrIntoHeader,
   renderPlacesPhoneMockHtml,
@@ -41,6 +46,8 @@ import {
   shortPlaceFromAddress,
 } from '../../lib/salesSheetPlacesView';
 import {
+  applyLiveUrlToFindings,
+  dropWorkingSiteDownFindings,
   renderFindingPhoneHtml,
   renderSalesSheetFrontExhibitsHtml,
   replaceOnePagerColsInner,
@@ -195,14 +202,31 @@ const hasDownExhibit = findings.some((f) => {
   const kind = salesSheetExhibitKind(f);
   return kind === 'site-down' || kind === 'domain';
 });
-if (hasDownExhibit && input.website.trim()) {
-  const siteUrl = /^https?:\/\//i.test(input.website) ? input.website : `https://${input.website}`;
-  const siteShot = await screenshotAuditUrl(siteUrl);
-  if (siteShot.ok) {
-    siteScreenSrc = `data:image/png;base64,${siteShot.pngBase64}`;
-    shotNote = `${shotNote} Captured the live ${siteUrl} screen.`.trim();
-  } else {
-    shotNote = `${shotNote} Live site shot failed (${siteShot.error}) — using the phone error screen.`.trim();
+const hasSslExhibit = findings.some((f) => salesSheetExhibitKind(f) === 'ssl');
+if ((hasDownExhibit || hasSslExhibit) && input.website.trim()) {
+  const probe = await probeAuditHttps(input.website);
+  const live = applyLiveUrlToFindings(findings, probe);
+  findings = live.findings;
+  if (live.website) input = { ...input, website: live.website, findings };
+  else input = { ...input, findings };
+  if (live.note) shotNote = `${shotNote} ${live.note}`.trim();
+
+  const stillDown = findings.some((f) => {
+    const kind = salesSheetExhibitKind(f);
+    return kind === 'site-down' || kind === 'domain';
+  });
+  if (stillDown && probe.downUrls[0]) {
+    const siteShot = await screenshotAuditUrl(probe.downUrls[0]);
+    if (siteShot.ok && !auditUrlShotLooksDown(siteShot)) {
+      findings = dropWorkingSiteDownFindings(findings);
+      input = { ...input, findings };
+      shotNote = `${shotNote} Live site loaded — dropped Site Down.`.trim();
+    } else if (siteShot.ok && auditUrlShotLooksDown(siteShot)) {
+      siteScreenSrc = `data:image/png;base64,${siteShot.pngBase64}`;
+      shotNote = `${shotNote} Live ${probe.downUrls[0]} is down — showing the error screen.`.trim();
+    } else if (!siteShot.ok) {
+      shotNote = `${shotNote} Live site shot failed (${siteShot.error}) — using the phone error screen.`.trim();
+    }
   }
 }
 
