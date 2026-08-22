@@ -525,7 +525,7 @@ export function placeholderHtml(iconName, bodyHtml) {
 }
 
 /** Detail-pane empty state — icon, message, optional Create New action (matches to-do). */
-function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create New', onCreate }) {
+function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create New', onCreate, extra }) {
   const placeholder = document.createElement('div');
   placeholder.className = 'de-placeholder';
   placeholder.innerHTML = placeholderHtml(iconName, bodyHtml);
@@ -537,6 +537,7 @@ function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create N
     createBtn.addEventListener('click', () => onCreate());
     placeholder.appendChild(createBtn);
   }
+  if (extra) placeholder.appendChild(extra);
   return placeholder;
 }
 
@@ -545,11 +546,11 @@ function mapPaneTitle(mapKey) {
 }
 
 /** Empty detail pane: subheader title + centered placeholder with create action. */
-function appendEmptyDetailPane(pane, { mapKey, iconName, bodyHtml, btnLabel = 'Create New', onCreate }) {
+function appendEmptyDetailPane(pane, { mapKey, iconName, bodyHtml, btnLabel = 'Create New', onCreate, extra }) {
   pane.appendChild(createPaneHeader({ title: mapPaneTitle(mapKey) }).root);
   const body = document.createElement('div');
   body.className = 'de-pane-empty-body';
-  body.appendChild(createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel, onCreate }));
+  body.appendChild(createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel, onCreate, extra }));
   pane.appendChild(body);
 }
 
@@ -2376,6 +2377,30 @@ function dashboardTabKeys(order) {
 
 function compareDashboardTitle(a, b) {
   return (MAPS[a]?.title || a).localeCompare(MAPS[b]?.title || b, undefined, { sensitivity: 'base' });
+}
+
+/** Dashboard tiles that are email tools — second route from the inbox empty pane. */
+const EMAIL_DASHBOARD_LINK_KEYS = new Set(['rules', 'newsletter']);
+
+function emailDashboardLinkKeys() {
+  return dashboardGridKeys().filter((key) => EMAIL_DASHBOARD_LINK_KEYS.has(key));
+}
+
+function buildEmailDashboardLinkGrid() {
+  const keys = emailDashboardLinkKeys();
+  if (!keys.length) return null;
+  const grid = document.createElement('div');
+  grid.className = 'home-dashboard-grid em-empty-dash-links';
+  for (const key of keys) {
+    const m = MAPS[key];
+    if (!m) continue;
+    if (m.link) {
+      grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
+    } else {
+      grid.appendChild(buildHomeMapTile(key, m));
+    }
+  }
+  return grid;
 }
 
 /** Dashboard launcher tiles from install footerNav, A–Z. Saved tab order does not hide new keys. */
@@ -14653,6 +14678,7 @@ function renderEmailPane() {
           '<p class="em-hint">Outbound mail sent from Compose, Reply, or share flows is logged here with a Resend reference when available.</p>',
         btnLabel: 'Compose',
         onCreate: () => startNewEmail(),
+        extra: buildEmailDashboardLinkGrid(),
       });
       root.appendChild(pane);
       root.classList.remove('em-pane-active');
@@ -14715,6 +14741,7 @@ function renderEmailPane() {
         '<p class="em-hint">Inbound mail arrives via Resend — forward or BCC to your receiving address.</p>',
       btnLabel: 'Compose',
       onCreate: () => startNewEmail(),
+      extra: buildEmailDashboardLinkGrid(),
     });
     root.appendChild(pane);
     root.classList.remove('em-pane-active');
