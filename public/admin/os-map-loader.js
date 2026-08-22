@@ -61,7 +61,6 @@ import {
   IOS_ICONS,
   agentIconSvg,
   createIosIconBtn,
-  createAgentBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -13850,13 +13849,29 @@ function splitEmailComposeQuote(body) {
   return { draft: text.slice(0, match.index), quote: text.slice(match.index) };
 }
 
+function emailComposeAgentLabelHtml() {
+  return `${IOS_ICONS.agent || ''} Write with agent`;
+}
+
+function setEmailComposeAgentBusy(btn, busy) {
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+  btn.innerHTML = busy ? 'Writing…' : emailComposeAgentLabelHtml();
+}
+
 async function writeEmailComposeWithAgent(btn) {
   if (emailState.sending) return;
+  const root = getEmailPanel();
+  const subjectEl = root?.querySelector('#em-compose-subject');
+  const bodyEl = root?.querySelector('.em-compose-textarea');
+  if (subjectEl instanceof HTMLInputElement) emailState.compose.subject = subjectEl.value;
+  if (bodyEl instanceof HTMLTextAreaElement) emailState.compose.body = bodyEl.value;
   const source = emailState.replySourceFull;
   const { draft, quote } = splitEmailComposeQuote(emailState.compose.body);
-  if (btn) btn.disabled = true;
+  setEmailComposeAgentBusy(btn, true);
   try {
-    const res = await fetch('/api/admin/compose-draft', {
+    const res = await adminFetch('/api/admin/compose-draft', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -13873,27 +13888,26 @@ async function writeEmailComposeWithAgent(btn) {
           : undefined,
       }),
     });
-    const data = await readApiJson(res);
+    const data = await readAdminJson(res, 'compose-draft');
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const nextBody = String(data.draft?.body || '').trim();
     if (!nextBody) throw new Error('The agent did not return any copy.');
     if (data.draft?.subject && !emailState.replyToId) {
       emailState.compose.subject = String(data.draft.subject);
+      if (subjectEl instanceof HTMLInputElement) subjectEl.value = emailState.compose.subject;
     }
     emailState.compose.body = quote ? `${nextBody}${quote}` : nextBody;
-    renderEmailPanel();
-    requestAnimationFrame(() => {
-      const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
-      if (bodyEl) {
-        bodyEl.focus();
-        bodyEl.setSelectionRange(0, nextBody.length);
-      }
-    });
+    if (bodyEl instanceof HTMLTextAreaElement) {
+      bodyEl.value = emailState.compose.body;
+      bodyEl.focus();
+      bodyEl.setSelectionRange(0, nextBody.length);
+    }
     showChatToast('Draft ready — review before sending');
   } catch (e) {
+    if (e instanceof Error && e.message === 'Session expired') return;
     await osAlert({ title: 'Could not write draft', bodyHtml: escHtml(e.message) });
   } finally {
-    if (btn) btn.disabled = false;
+    setEmailComposeAgentBusy(btn, false);
   }
 }
 
@@ -13907,13 +13921,6 @@ function renderEmailComposePane(pane) {
     createPaneHeader({
       back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: composeTitle,
-      icons: [
-        createAgentBtn({
-          title: 'Write with agent',
-          label: 'Write with agent',
-          onClick: (btn) => void writeEmailComposeWithAgent(btn),
-        }),
-      ],
     }).root,
   );
 
@@ -13998,7 +14005,7 @@ function renderEmailComposePane(pane) {
   writeBtn.type = 'button';
   writeBtn.className = 'em-compose-agent';
   writeBtn.disabled = emailState.sending;
-  writeBtn.innerHTML = `${IOS_ICONS.agent || ''} Write with agent`;
+  writeBtn.innerHTML = emailComposeAgentLabelHtml();
   writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
   bodyHead.appendChild(bodyLabel);
   bodyHead.appendChild(writeBtn);
