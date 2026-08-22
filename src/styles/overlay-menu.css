@@ -159,16 +159,13 @@
   transition: color 0.2s ease, -webkit-text-fill-color 0.2s ease;
 }
 
-[data-account-menu] .overlay-menu-link:hover,
-[data-account-menu] .overlay-menu-link.is-active:hover {
+[data-account-menu] .overlay-menu-link:hover {
   color: #000;
   -webkit-text-fill-color: #000;
-  background: transparent;
-  background-image: none;
-  box-shadow: none;
 }
 
-[data-account-menu] .overlay-menu-link.is-active {
+[data-account-menu] .overlay-menu-link.is-active,
+[data-account-menu] .overlay-menu-link.is-active:hover {
   background: transparent;
   background-image: var(--brand-gradient);
   -webkit-background-clip: text;
@@ -176,6 +173,8 @@
   color: transparent;
   -webkit-text-fill-color: transparent;
   box-shadow: none;
+  /* Gradient text uses a transparent fill; transitioning it flashes blank. */
+  transition: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -193,8 +192,7 @@
     color: rgba(255, 255, 255, 0.8);
   }
 
-  [data-account-menu] .overlay-menu-link:hover,
-  [data-account-menu] .overlay-menu-link.is-active:hover {
+  [data-account-menu] .overlay-menu-link:hover {
     color: #fff;
     -webkit-text-fill-color: #fff;
   }
