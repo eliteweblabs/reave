@@ -1,4 +1,4 @@
-import type { APIRoute } from 'astro';
+import type { APIContext, APIRoute } from 'astro';
 import {
   contactStringField,
   contactSummary,
@@ -33,6 +33,8 @@ import {
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 import { syncContactToCrater } from '../../../lib/contactCraterSync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { isDeploymentOwner } from '../../../lib/deploymentOwner';
+import { maskVaultSecrets } from '../../../lib/portalVault';
 
 export const prerender = false;
 
@@ -41,6 +43,15 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+}
+
+async function vaultDataForResponse(
+  context: APIContext,
+  data: ClientDataEntry[] | undefined,
+): Promise<ClientDataEntry[]> {
+  const rows = data ?? [];
+  if (await isDeploymentOwner(context)) return rows;
+  return maskVaultSecrets(rows);
 }
 
 function parseClientPortalData(raw: unknown): ClientDataEntry[] | null {
@@ -354,6 +365,8 @@ export const GET: APIRoute = async (context) => {
     websiteFromNotes(contact.notes ?? '') ||
     '';
 
+  const vaultData = await vaultDataForResponse(context, portal?.data ?? []);
+
   return json({
     ok: true,
     ...contactSummary(contact),
@@ -376,7 +389,7 @@ export const GET: APIRoute = async (context) => {
     ...clientPortalEditorFields(portal),
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
-    data: portal?.data ?? [],
+    data: vaultData,
   });
 };
 
@@ -440,7 +453,7 @@ export const PATCH: APIRoute = async (context) => {
     ...clientPortalEditorFields(portal),
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
-    data: vaultData ?? portal?.data ?? [],
+    data: await vaultDataForResponse(context, vaultData ?? portal?.data ?? []),
   });
 };
 
@@ -504,7 +517,7 @@ export const PUT: APIRoute = async (context) => {
     ...clientPortalEditorFields(portal),
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
-    data: vaultData ?? portal?.data ?? [],
+    data: await vaultDataForResponse(context, vaultData ?? portal?.data ?? []),
   });
 };
 

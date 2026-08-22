@@ -12,7 +12,7 @@
  * deployment owner. This endpoint lets them reclaim that history.
  */
 import type { APIContext } from 'astro';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { agentAlertUserId } from '../../../lib/adminAgentAlert';
 import {
   chatStorageBackend,
@@ -30,7 +30,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   const backend = chatStorageBackend();
@@ -66,7 +66,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   const backend = chatStorageBackend();

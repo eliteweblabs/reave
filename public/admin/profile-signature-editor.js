@@ -15,6 +15,18 @@ function absoluteSiteUrl(path) {
   return `${window.location.origin}${v.startsWith('/') ? v : `/${v}`}`;
 }
 
+function sanitizeSignatureHtmlClient(html) {
+  return (html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/?(?:iframe|object|embed|form|meta|link|base|svg|math)[\s>]/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s(href|src)\s*=\s*["']\s*(javascript|vbscript|data):[^"']*["']/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/vbscript:/gi, '')
+    .trim();
+}
+
 function normalizeSignatureHtml(raw) {
   const v = (raw || '').trim();
   if (!v) return '';
@@ -185,7 +197,7 @@ export function bindProfileSignatureEditor(root, opts = {}) {
       previewBody.innerHTML = '<p class="prof-hint">Nothing to preview yet.</p>';
       return;
     }
-    previewBody.innerHTML = html;
+    previewBody.innerHTML = sanitizeSignatureHtmlClient(html);
   }
 
   function setMode(next) {

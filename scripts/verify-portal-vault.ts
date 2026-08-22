@@ -136,4 +136,16 @@ const c = { id: 'c', label: 'DNS', value: 'A 1.2.3.4' };
   assert.ok(docs?.some((d) => d.id === 'doc-2'));
 }
 
+// Empty password in an update must not wipe stored credentials.
+{
+  const merged = mergePortalVaultData({
+    latest: [a, b],
+    incoming: [{ id: 'a', label: 'WordPress', username: 'admin' }],
+    knownIds: ['a', 'b'],
+  });
+  assert.equal(merged?.length, 1);
+  assert.equal(merged?.[0]?.id, 'a');
+  assert.equal(merged?.[0]?.password, 'one');
+}
+
 console.log('ok: vault merge preserves concurrent items and honors known deletes');

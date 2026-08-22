@@ -2,6 +2,8 @@
  * Branded outbound share delivery — email (Resend) and SMS (Telnyx).
  * Used by the admin share sheet, agent tools, and document send API.
  */
+import { isPrivateHost, normalizePublicUrl } from './publicUrl';
+import { isSafeLinkHref } from './safeLinkUrl';
 import { bookingGet, bookingManageUrl, publicBookingPageUrl } from './bookingClient';
 import {
   clientPortalUrl,
@@ -153,11 +155,30 @@ async function resolveShareRecipient(input: ShareRecipientInput): Promise<Resolv
   };
 }
 
+function isAllowedShareUrl(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return false;
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    isSafeLinkHref(trimmed)
+  ) {
+    return true;
+  }
+  const normalized = normalizePublicUrl(trimmed, false);
+  if (!normalized) return false;
+  return !isPrivateHost(normalized.hostname);
+}
+
 async function resolveShareUrl(
   input: DeliverShareInput,
   recipient: ResolvedRecipient,
 ): Promise<{ url: string; tracked?: { token: string; job_slug: string } }> {
-  if (input.url?.trim()) return { url: input.url.trim() };
+  const explicit = input.url?.trim();
+  if (explicit) {
+    if (!isAllowedShareUrl(explicit)) return { url: '' };
+    return { url: explicit };
+  }
 
   const contactUid = recipient.contactUid?.trim();
   if (!contactUid) return { url: '' };
@@ -191,18 +212,9 @@ async function resolveShareUrl(
   return { url, tracked };
 }
 
-function isPrivateShareUrl(url: string): boolean {
-  try {
-    const h = new URL(url).hostname.toLowerCase();
-    return h.endsWith('.internal') || h === 'localhost' || h.startsWith('127.');
-  } catch {
-    return false;
-  }
-}
-
 function resolveBookingShareUrl(input: { url?: string; booking?: ShareBookingInput }): string {
   let url = input.url?.trim() || '';
-  if (url && isPrivateShareUrl(url)) url = '';
+  if (url && !isAllowedShareUrl(url)) url = '';
   if (!url && input.booking?.uid) {
     url = bookingManageUrl(input.booking.uid) || publicBookingPageUrl() || '';
   }
@@ -377,6 +389,9 @@ export async function deliverShare(input: DeliverShareInput): Promise<DeliverSha
     const docTitle = input.docTitle?.trim() || 'Document';
     if (!template || !docUrl) {
       return { ok: false, error: 'Document share requires template and url.' };
+    }
+    if (!isAllowedShareUrl(docUrl)) {
+      return { ok: false, error: 'Document URL is not allowed.' };
     }
     const result = await sendDocumentLink({
       contact: recipient.contact,

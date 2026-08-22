@@ -4,7 +4,7 @@
  */
 import type { APIContext } from 'astro';
 import { getCompanyBrandContext, getCompanyConfig } from '../../../lib/companyConfig';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import {
   isVapiAdminConfigured,
   isVapiAdminPluginEnabled,
@@ -36,7 +36,7 @@ function vapiTemplatesFromCompany(company: Awaited<ReturnType<typeof getCompanyC
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   const company = await getCompanyConfig(context.request);
@@ -59,7 +59,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   if (!isVapiAdminPluginEnabled()) {

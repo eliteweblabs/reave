@@ -60,8 +60,12 @@ export function isHtmlSignature(signature: string): boolean {
 export function sanitizeSignatureHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/?(?:iframe|object|embed|form|meta|link|base|svg|math)[\s>]/gi, '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s(href|src)\s*=\s*["']\s*(javascript|vbscript|data):[^"']*["']/gi, '')
     .replace(/javascript:/gi, '')
+    .replace(/vbscript:/gi, '')
     .trim();
 }
 

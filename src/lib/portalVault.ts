@@ -90,7 +90,16 @@ export function mergePortalVaultData(opts: {
   const latest = normalizeVaultEntries(opts.latest);
   if (!latest.length) return incoming;
 
-  const incomingIds = identitySet(incoming);
+  // Empty password in an update means "unchanged" — do not wipe stored credentials.
+  const incomingWithSecrets = incoming.map((entry) => {
+    const id = entry.id?.trim();
+    if (!id || entry.password?.trim()) return entry;
+    const prev = latest.find((row) => row.id?.trim() === id);
+    if (prev?.password?.trim()) return { ...entry, password: prev.password };
+    return entry;
+  });
+
+  const incomingIds = identitySet(incomingWithSecrets);
   const known = opts.knownIds
     ? new Set(opts.knownIds.map((id) => String(id).trim()).filter(Boolean))
     : incomingIds;
@@ -103,7 +112,18 @@ export function mergePortalVaultData(opts: {
     return true;
   });
 
-  return [...incoming, ...preserved];
+  return [...incomingWithSecrets, ...preserved];
+}
+
+/** Strip vault passwords for API responses when the viewer lacks vault access. */
+export function maskVaultSecrets(entries: VaultEntry[] | undefined | null): VaultEntry[] {
+  if (!Array.isArray(entries)) return [];
+  return entries.map((entry) => {
+    if (!entry.password?.trim()) return { ...entry };
+    const masked = { ...entry };
+    delete masked.password;
+    return masked;
+  });
 }
 
 /**
