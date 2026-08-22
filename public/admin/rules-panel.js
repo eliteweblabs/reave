@@ -45,7 +45,6 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260815a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
 import {
   createEmailTriageLab,
   formatRuleWhenClause,
@@ -77,6 +76,11 @@ let ruleState = {
 
 /** @type {ReturnType<typeof createEmailTriageLab> | null} */
 let triageLab = null;
+
+let ruleAutosaveTimer = null;
+/** @type {null | (() => Promise<boolean>)} */
+let ruleAutosaveFlush = null;
+let ruleAutosaveError = '';
 
 function getTriageLab() {
   if (!triageLab) {
@@ -696,16 +700,30 @@ function renderRulesEditor() {
   getTriageLab().render(root);
 }
 
+function isRuleAccordionMounted(id) {
+  const root = getRuleEditor();
+  if (!root || id == null) return false;
+  const card = root.querySelector(`.re-lab-pipe-card[data-rule-id="${CSS.escape(String(id))}"]`);
+  const body = card?.querySelector('.re-lab-pipe-card-body');
+  return Boolean(body && body.dataset.mounted === '1' && !body.hidden);
+}
+
+async function leaveRuleIfSaved() {
+  const ok = await flushRuleAutosave();
+  if (ok) return true;
+  const detail = ruleAutosaveError ? ` ${ruleAutosaveError}` : ' Check the highlighted fields.';
+  await osAlert(`Couldn’t save this rule.${detail}`);
+  return false;
+}
+
 async function openRuleEditor(id) {
-  // Tap the open rule again to collapse the accordion.
-  if (String(id) === String(ruleState.activeId)) {
+  // Tap the open accordion again to collapse. If activeId is stale and the
+  // form never mounted, treat the tap as open — not a discard/close.
+  if (String(id) === String(ruleState.activeId) && isRuleAccordionMounted(id)) {
     await closeRuleEditor(true);
     return;
   }
-  await flushRuleAutosave();
-  if (ruleState.dirty && ruleState.activeId && String(ruleState.activeId) !== String(id)) {
-    if (!(await confirmDiscardChanges())) return;
-  }
+  if (!(await leaveRuleIfSaved())) return;
   ruleState.activeId = id;
   ruleState.dirty = false;
   shell.clearEditorFooterSave();
@@ -714,8 +732,12 @@ async function openRuleEditor(id) {
 }
 
 async function closeRuleEditor(checkDirty = true) {
-  await flushRuleAutosave();
-  if (checkDirty && ruleState.dirty && !(await confirmDiscardChanges())) return;
+  if (checkDirty) {
+    if (!(await leaveRuleIfSaved())) return;
+  } else {
+    await flushRuleAutosave();
+  }
+  ruleAutosaveFlush = null;
   ruleState.activeId = null;
   ruleState.dirty = false;
   shell.clearEditorFooterSave();
@@ -725,6 +747,7 @@ async function closeRuleEditor(checkDirty = true) {
 
 function renderRuleEditPane(pane, opts = {}) {
   const accordion = opts.accordion === true;
+  ruleState.dirty = false;
   const rule = ruleState.rules.find((r) => r.id === ruleState.activeId);
   if (!rule) {
     pane.innerHTML = '<div class="de-loading de-error">Rule not found.</div>';
@@ -778,7 +801,7 @@ function renderRuleEditPane(pane, opts = {}) {
   titleIn.className = 'de-input';
   titleIn.type = 'text';
   titleIn.value = rule.title || '';
-  titleIn.addEventListener('input', () => { ruleState.dirty = true; });
+  titleIn.autocomplete = 'off';
   if (!isCatalogReadOnly(rule)) requestTitleFocus('rules', titleIn);
 
   const scopeWrap = document.createElement('div');
@@ -808,7 +831,6 @@ function renderRuleEditPane(pane, opts = {}) {
         if (!rb.checked) return;
         scopeValue = val;
         syncScopeHint(val);
-        ruleState.dirty = true;
       });
       lb.append(rb, document.createTextNode(` ${lab}`));
       scopeWrap.appendChild(lb);
@@ -841,27 +863,23 @@ function renderRuleEditPane(pane, opts = {}) {
   descIn.className = 're-textarea';
   descIn.rows = 2;
   descIn.value = rule.description || '';
-  descIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const phrasesIn = document.createElement('textarea');
   phrasesIn.className = 're-textarea';
   phrasesIn.rows = 6;
   phrasesIn.placeholder = 'One keyword or phrase per line';
   phrasesIn.value = (rule.phrases || []).join('\n');
-  phrasesIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const exceptIn = document.createElement('textarea');
   exceptIn.className = 're-textarea';
   exceptIn.rows = 3;
   exceptIn.placeholder = 'One phrase per line — if any appear, this rule does not match';
   exceptIn.value = (rule.exceptPhrases || []).join('\n');
-  exceptIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const matchSel = document.createElement('select');
   matchSel.className = 'de-input';
   matchSel.innerHTML = '<option value="any">Any phrase matches</option><option value="all">All phrases must match</option>';
   matchSel.value = rule.matchMode === 'all' ? 'all' : 'any';
-  matchSel.addEventListener('change', () => { ruleState.dirty = true; });
 
   const fieldsWrap = document.createElement('div');
   fieldsWrap.className = 're-checks';
@@ -873,7 +891,6 @@ function renderRuleEditPane(pane, opts = {}) {
     cb.type = 'checkbox';
     cb.value = val;
     cb.checked = fieldSet.has(val);
-    cb.addEventListener('change', () => { ruleState.dirty = true; });
     lb.append(cb, document.createTextNode(` ${lab}`));
     fieldsWrap.appendChild(lb);
   }
@@ -891,14 +908,14 @@ function renderRuleEditPane(pane, opts = {}) {
   const pushCb = document.createElement('input');
   pushCb.type = 'checkbox';
   pushCb.checked = channels.push;
-  pushCb.addEventListener('change', () => { ruleState.dirty = true; syncNotifyActionsEnabled(); });
+  pushCb.addEventListener('change', () => { syncNotifyActionsEnabled(); });
   pushLb.append(pushCb, document.createTextNode(' Push'));
   const dashLb = document.createElement('label');
   dashLb.className = 're-check';
   const dashCb = document.createElement('input');
   dashCb.type = 'checkbox';
   dashCb.checked = channels.dashboard;
-  dashCb.addEventListener('change', () => { ruleState.dirty = true; syncNotifyActionsEnabled(); });
+  dashCb.addEventListener('change', () => { syncNotifyActionsEnabled(); });
   dashLb.append(dashCb, document.createTextNode(' Dashboard'));
   notifyChannelsWrap.append(pushLb, dashLb);
 
@@ -923,7 +940,6 @@ function renderRuleEditPane(pane, opts = {}) {
     cb.type = 'checkbox';
     cb.value = val;
     cb.checked = selectedActions.has(val);
-    cb.addEventListener('change', () => { ruleState.dirty = true; });
     const iconKey = NOTICE_ACTION_ICONS[val];
     const icon = document.createElement('span');
     icon.className = 're-action-icon';
@@ -964,7 +980,6 @@ function renderRuleEditPane(pane, opts = {}) {
   };
 
   processSel.addEventListener('change', () => {
-    ruleState.dirty = true;
     syncProcessUi();
   });
 
@@ -985,22 +1000,20 @@ function renderRuleEditPane(pane, opts = {}) {
   const enabledCb = document.createElement('input');
   enabledCb.type = 'checkbox';
   enabledCb.checked = rule.enabled !== false;
-  enabledCb.addEventListener('change', () => { ruleState.dirty = true; });
   enabledLb.append(enabledCb, document.createTextNode(' Rule enabled'));
 
   const forwardIn = document.createElement('input');
   forwardIn.className = 'de-input';
   forwardIn.type = 'email';
+  forwardIn.autocomplete = 'off';
   forwardIn.placeholder = 'e.g. teammate@company.com (optional)';
   forwardIn.value = rule.forwardTo || '';
-  forwardIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const createProjectLb = document.createElement('label');
   createProjectLb.className = 're-check';
   const createProjectCb = document.createElement('input');
   createProjectCb.type = 'checkbox';
   createProjectCb.checked = rule.createProject === true;
-  createProjectCb.addEventListener('change', () => { ruleState.dirty = true; });
   createProjectLb.append(createProjectCb, document.createTextNode(' Also create a project'));
 
   const forwardWrap = document.createElement('div');
@@ -1057,7 +1070,6 @@ function renderRuleEditPane(pane, opts = {}) {
     if (expiresCb.checked && !expiresAtIn.value) {
       expiresAtIn.value = defaultRuleExpiresLocalValue();
     }
-    ruleState.dirty = true;
   };
   const syncExpireInUi = () => {
     if (expireInCb.checked && expiresCb.checked) {
@@ -1068,14 +1080,9 @@ function renderRuleEditPane(pane, opts = {}) {
     if (expireInCb.checked && (!expireInSecs.value || Number(expireInSecs.value) < 1)) {
       expireInSecs.value = '300';
     }
-    ruleState.dirty = true;
   };
   expiresCb.addEventListener('change', syncExpiresUi);
   expireInCb.addEventListener('change', syncExpireInUi);
-  expiresAtIn.addEventListener('input', () => { ruleState.dirty = true; });
-  expiresAtIn.addEventListener('change', () => { ruleState.dirty = true; });
-  expireInSecs.addEventListener('input', () => { ruleState.dirty = true; });
-  expireInSecs.addEventListener('change', () => { ruleState.dirty = true; });
 
   appendRuleField(form, 'Title', titleIn);
   if (scopeWrap.childNodes.length) appendRuleField(form, 'Applies to', scopeWrap);
@@ -1139,6 +1146,7 @@ function renderRuleEditPane(pane, opts = {}) {
   };
   const inDrawer = !accordion && shell.isCreateDrawerOpen('rules');
   if (isCatalogReadOnly(rule)) {
+    ruleAutosaveFlush = null;
     form.classList.add('re-lab-rule-form--catalog');
     form.querySelectorAll('input, textarea, select, button').forEach((el) => {
       el.disabled = true;
@@ -1193,9 +1201,6 @@ function collectRulePayload(inputs) {
   };
 }
 
-let ruleAutosaveTimer = null;
-let ruleAutosaveFlush = null;
-
 function serializeRulePayload(payload) {
   return JSON.stringify(payload);
 }
@@ -1239,8 +1244,7 @@ function syncRuleListItem(id, payload, savedRule) {
 function bindRuleAutosave(rule, inputs, opts = {}) {
   let baseline = serializeRulePayload(collectRulePayload(inputs));
   let activeEl = null;
-  let saving = false;
-  let pendingFlush = false;
+  let savingLock = Promise.resolve();
 
   const allFields = () => [
     inputs.titleIn,
@@ -1264,44 +1268,58 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
   ];
 
   const flush = async () => {
+    const previous = savingLock;
+    let release = () => {};
+    savingLock = new Promise((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await runFlush();
+    } finally {
+      release();
+    }
+  };
+
+  const runFlush = async () => {
     clearTimeout(ruleAutosaveTimer);
     ruleAutosaveTimer = null;
-
-    if (saving) {
-      pendingFlush = true;
-      return;
-    }
 
     let payload;
     try {
       payload = collectRulePayload(inputs);
     } catch (e) {
       console.warn('[rules] collect payload failed', e);
+      ruleAutosaveError = e instanceof Error ? e.message : 'Could not read the form.';
       if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
-      return;
+      return false;
     }
     const current = serializeRulePayload(payload);
     if (current === baseline) {
       ruleState.dirty = false;
-      return;
+      ruleAutosaveError = '';
+      return true;
     }
     if (!payload.title || !payload.status) {
+      ruleAutosaveError = 'Title is required.';
       if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
-      return;
+      return false;
     }
     if (inputs.expireInCb?.checked) {
       const secs = Math.floor(Number(inputs.expireInSecs?.value));
       if (!Number.isFinite(secs) || secs < 1 || !payload.expiresAt) {
+        ruleAutosaveError = 'Enter a valid expire-in time.';
         shell.setFormFieldState(inputs.expireInSecs, 'invalid');
-        return;
+        return false;
       }
     } else if (inputs.expiresCb.checked && !payload.expiresAt) {
+      ruleAutosaveError = 'Enter an expiration date.';
       shell.setFormFieldState(inputs.expiresAtIn, 'invalid');
-      return;
+      return false;
     }
 
-    saving = true;
     if (activeEl) shell.setFormFieldState(activeEl, 'saving');
+    let ok = false;
 
     try {
       const res = await fetch(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
@@ -1322,13 +1340,16 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       }
       baseline = serializeRulePayload(payload);
       ruleState.dirty = false;
+      ruleAutosaveError = '';
       syncRuleListItem(rule.id, payload, data.rule);
       if (activeEl) shell.flashFormFieldSaved(activeEl);
+      ok = true;
     } catch (e) {
       console.warn('[rules] autosave failed', e);
+      ruleAutosaveError = e instanceof Error ? e.message : 'Save failed.';
       if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
+      ok = false;
     } finally {
-      saving = false;
       if (
         activeEl &&
         !activeEl.classList.contains(shell.FORM_FIELD_SAVED) &&
@@ -1336,16 +1357,17 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       ) {
         shell.setFormFieldState(activeEl, null);
       }
-      if (pendingFlush) {
-        pendingFlush = false;
-        await flush();
-      }
     }
+    return ok;
   };
 
   const schedule = (el) => {
     activeEl = el;
-    ruleState.dirty = serializeRulePayload(collectRulePayload(inputs)) !== baseline;
+    try {
+      ruleState.dirty = serializeRulePayload(collectRulePayload(inputs)) !== baseline;
+    } catch {
+      return;
+    }
     shell.setFormFieldState(el, null);
     clearTimeout(ruleAutosaveTimer);
     ruleAutosaveTimer = setTimeout(flush, shell.AUTOSAVE_DEBOUNCE_MS);
@@ -1377,9 +1399,12 @@ async function flushRuleAutosave() {
     ruleAutosaveTimer = null;
   }
   if (typeof ruleAutosaveFlush === 'function') {
-    await ruleAutosaveFlush();
-    ruleAutosaveFlush = null;
+    return (await ruleAutosaveFlush()) !== false;
   }
+  // No live form — leftover dirty is a false positive (teardown blur / catalog).
+  ruleState.dirty = false;
+  ruleAutosaveError = '';
+  return true;
 }
 
 async function saveRule(id, inputs) {
@@ -1456,8 +1481,7 @@ async function deleteRule(id) {
 async function startNewRule(draft = null) {
   const fromLab = Boolean(draft && typeof draft === 'object');
   if (!fromLab) armTitleFocus('rules');
-  await flushRuleAutosave();
-  if (ruleState.dirty && !(await confirmDiscardChanges())) {
+  if (!(await leaveRuleIfSaved())) {
     if (!fromLab) cancelTitleFocus();
     return null;
   }
