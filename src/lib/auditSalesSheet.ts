@@ -36,7 +36,7 @@ export const AUDIT_ONEPAGER_SLUGS = {
   portrait: 'audit-onepager-portrait',
 } as const;
 
-export const SALES_SHEET_FINDING_COUNT = 3;
+export const SALES_SHEET_FINDING_COUNT = 4;
 
 export type SalesSheetFinding = {
   id: string;
@@ -103,6 +103,12 @@ export const DUMMY_SALES_SHEET: AuditSalesSheetInput = {
       categoryLabel: 'SEO Fundamentals',
       problem: 'Title tags and Open Graph are incomplete, so shares look unfinished.',
       solution: 'Finish titles, meta, and share cards so every link looks like the brand.',
+    },
+    {
+      id: 'dummy-offer',
+      categoryLabel: 'No Offer',
+      problem: 'The homepage does not tell you what they do or what to do next.',
+      solution: 'Rewrite the hero with one offer and one action.',
     },
   ],
 };
@@ -451,31 +457,11 @@ function snapshotColumn(input: AuditSalesSheetInput): string {
   return lines.join('\n');
 }
 
-function findingsColumn(findings: SalesSheetFinding[]): string {
-  const items = findings.length ? findings : DUMMY_SALES_SHEET.findings;
-  const rows = items.map((finding, i) => {
-    const label = escMarkdown(finding.categoryLabel);
-    const problem = escMarkdown(finding.problem);
-    return `${i + 1}. **${label}** — ${problem}`;
-  });
-  return ['### Findings', '', ...rows].join('\n');
-}
-
-function nextStepsColumn(findings: SalesSheetFinding[]): string {
-  const items = findings.length ? findings : DUMMY_SALES_SHEET.findings;
-  const rows = items.map((finding, i) => {
-    const label = escMarkdown(finding.categoryLabel);
-    const solution = escMarkdown(finding.solution);
-    return `${i + 1}. **${label}** — ${solution}`;
-  });
-  return ['### Next steps', '', ...rows].join('\n');
-}
-
 export function replaceOnePagerColumns(markdown: string, columns: string[]): string {
   const fmMatch = markdown.match(/^---\r?\n[\s\S]*?\r?\n---/);
   const frontmatter = fmMatch?.[0] ?? '---\n---';
   const body = columns
-    .slice(0, 3)
+    .slice(0, 4)
     .map((col) => `:::column\n${col.trim()}\n`)
     .join('');
   return `${frontmatter}\n\n${body}`;
@@ -488,13 +474,9 @@ export function setFrontmatterTitle(markdown: string, title: string): string {
   return markdown.replace(/^---\r?\n/, `---\ntitle: ${title}\n`);
 }
 
-/** Rewrite Snapshot / Findings / Next steps; leave footer shortcodes for fillTemplate. */
+/** Rewrite the body to a single slot; exhibits are injected after HTML render. */
 export function fillAuditOnePager(markdown: string, input: AuditSalesSheetInput): string {
-  const filled = replaceOnePagerColumns(markdown, [
-    snapshotColumn(input),
-    findingsColumn(input.findings),
-    nextStepsColumn(input.findings),
-  ]);
+  const filled = replaceOnePagerColumns(markdown, [snapshotColumn(input)]);
   return setFrontmatterTitle(filled, 'Website Audit').replace(/Page 1 of 1/g, 'Page 1 of 2');
 }
 
@@ -577,6 +559,5 @@ export function parseFilledOnePagerColumns(markdown: string): string[] {
     .split(COLUMN_MARK)
     .map((part) => part.trim())
     .filter(Boolean);
-  while (parts.length < 3) parts.push('');
-  return parts.slice(0, 3);
+  return parts;
 }

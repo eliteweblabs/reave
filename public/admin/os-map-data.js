@@ -189,7 +189,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'dealer_map', label: '/dealer-map · /api/dealer-map/places', dashed: true },
   { from: 'dealer_map', to: 'google_places', label: 'used car dealer text search', dashed: true },
   { from: 'astro', to: 'sales_sheet', label: '/admin/sales-sheet', dashed: true },
-  { from: 'digital_audit', to: 'sales_sheet', label: '3 findings (later)', dashed: true },
+  { from: 'digital_audit', to: 'sales_sheet', label: '4 phone exhibits', dashed: true },
   { from: 'sales_sheet', to: 'google_places', label: 'listing + google.com SERP shot', dashed: true },
   { from: 'sales_sheet', to: 'app_pg', label: 'project_files (later)', dashed: true },
   { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },

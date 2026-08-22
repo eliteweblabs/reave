@@ -44,6 +44,11 @@ import {
 } from '../src/lib/salesSheetResearch.ts';
 import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA } from '../src/lib/salesSheetBack.ts';
 import { PLATFORM_STACK } from '../src/lib/platformStack.ts';
+import {
+  renderFindingPhoneHtml,
+  renderSalesSheetFrontExhibitsHtml,
+  salesSheetExhibitKind,
+} from '../src/lib/salesSheetExhibits.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -68,8 +73,8 @@ const portrait = readFileSync(
   'utf8',
 );
 
-await test('dummy fixture has three findings', () => {
-  assert.equal(DUMMY_SALES_SHEET.findings.length, 3);
+await test('dummy fixture has four findings', () => {
+  assert.equal(DUMMY_SALES_SHEET.findings.length, 4);
   assert.ok(DUMMY_SALES_SHEET.findings.every((f) => f.problem && f.solution));
 });
 
@@ -152,35 +157,33 @@ await test('query params override a live audit sheet without wiping the rest', (
   assert.equal(edited.findings[0]?.id, DUMMY_SALES_SHEET.findings[0]?.id);
 });
 
-await test('selectTopFindings keeps the three weakest ideas', () => {
+await test('selectTopFindings keeps the four weakest ideas', () => {
   const picked = selectTopFindings([
     { id: 'c', categoryLabel: 'SEO', problem: 'Thin titles', solution: 'Rewrite titles', priority: 3 },
     { id: 'a', categoryLabel: 'Speed', problem: 'Slow LCP', solution: 'Compress images', priority: 1 },
     { id: 'd', categoryLabel: 'Social', problem: 'No Instagram', solution: 'Set up a profile', priority: 4 },
     { id: 'b', categoryLabel: 'Maps', problem: 'Missing GBP', solution: 'Claim the listing', priority: 2 },
   ]);
-  assert.deepEqual(picked.map((f) => f.id), ['a', 'b', 'c']);
+  assert.deepEqual(picked.map((f) => f.id), ['a', 'b', 'c', 'd']);
 });
 
 await test('fillAuditOnePager replaces placeholder columns', () => {
   const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
   const columns = parseFilledOnePagerColumns(filled);
-  assert.equal(columns.length, 3);
+  assert.equal(columns.length, 1);
   assert.doesNotMatch(columns[0] ?? '', /Prepared for|Scanned —|haleco\.example/);
   assert.match(columns[0] ?? '', /Overall — C \(64\)/);
-  assert.match(columns[1] ?? '', /Site Speed/);
-  assert.match(columns[1] ?? '', /53% of mobile visitors leave/);
-  assert.match(columns[1] ?? '', /five seconds/);
-  assert.match(columns[2] ?? '', /Compress images/);
+  assert.doesNotMatch(filled, /Next steps/);
   assert.doesNotMatch(filled, /Placeholder finding one/);
   assert.match(filled, /^title: Website Audit$/m);
   assert.match(filled, /orientation: landscape/);
 });
 
-await test('portrait template fills the same three columns', () => {
+await test('portrait template fills the same snapshot slot', () => {
   const filled = fillAuditOnePager(portrait, DUMMY_SALES_SHEET);
   assert.match(filled, /orientation: portrait/);
-  assert.match(parseFilledOnePagerColumns(filled)[2] ?? '', /Claim both listings/);
+  assert.match(parseFilledOnePagerColumns(filled)[0] ?? '', /Overall — C \(64\)/);
+  assert.doesNotMatch(filled, /Next steps/);
 });
 
 await test('setFrontmatterTitle replaces an existing title', () => {
@@ -232,7 +235,7 @@ await test('salesSheetInputFromReportCard maps authored opportunities', () => {
 `,
   });
   assert.equal(input.website, 'haleco.example');
-  assert.equal(input.findings.length, 3);
+  assert.ok(input.findings.length >= 3 && input.findings.length <= 4);
   assert.match(input.findings[0]?.problem ?? '', /Google Business|not listed|Missing from Google|not listed on Google/i);
   assert.ok(input.performance === 'D' || input.performance === 'F');
 });
@@ -240,7 +243,7 @@ await test('salesSheetInputFromReportCard maps authored opportunities', () => {
 await test('Places miss is pinned as finding 1', () => {
   const next = promotePlacesNotListedFinding(DUMMY_SALES_SHEET.findings, 'Hale & Co.');
   assert.equal(next[0]?.id, 'places-not-listed');
-  assert.equal(next.length, 3);
+  assert.equal(next.length, 4);
   assert.ok(!next.some((f) => f.id === 'dummy-listings'));
   const applied = applyPlacesMissToSalesSheet(DUMMY_SALES_SHEET, true);
   assert.equal(applied.visibility, 'F');
@@ -621,6 +624,60 @@ await test('static back is gate + builds + cover with full stack and no client f
   assert.doesNotMatch(back, /Gmail|HubSpot|Replace the stack|Worked with/);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
   assert.doesNotMatch(back, /ss-qr|the full audit/);
+});
+
+await test('SSL and site-down exhibits look like a real phone warning', () => {
+  const ssl = renderFindingPhoneHtml(
+    {
+      id: 'ssl-missing',
+      categoryLabel: 'SSL',
+      problem: "Auto Dyne's site shows a Not Secure warning.",
+      solution: 'Install SSL',
+    },
+    { website: 'autodyne.com', businessName: 'Auto Dyne' },
+  );
+  assert.match(ssl, /data-ss-exhibit="ssl"/);
+  assert.match(ssl, /Not Secure/);
+  assert.match(ssl, /Your connection is not private/);
+  assert.match(ssl, /autodyne\.com/);
+  assert.match(ssl, /ss-phone-lock/);
+  const down = renderFindingPhoneHtml(
+    {
+      id: 'site-down',
+      categoryLabel: 'Site Down',
+      problem: "Auto Dyne's website does not load — the front door is closed.",
+      solution: 'Get the host up',
+    },
+    { website: 'autodyne.com', businessName: 'Auto Dyne' },
+  );
+  assert.match(down, /data-ss-exhibit="site-down"/);
+  assert.match(down, /Safari cannot open the page/);
+  assert.match(down, /ERR_CONNECTION_REFUSED/);
+  assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
+});
+
+await test('front exhibits are four phones with captions and no next steps', () => {
+  const phones = DUMMY_SALES_SHEET.findings.map((finding) =>
+    renderFindingPhoneHtml(finding, { website: DUMMY_SALES_SHEET.website, businessName: 'Hale & Co.' }),
+  );
+  const html = renderSalesSheetFrontExhibitsHtml({
+    findings: DUMMY_SALES_SHEET.findings,
+    phones,
+    snapshot: {
+      overall: 'C',
+      overallScore: 64,
+      performance: 'F',
+      security: 'B',
+      visibility: 'D',
+    },
+  });
+  assert.equal((html.match(/class="ss-exhibit"/g) || []).length, 4);
+  assert.match(html, /repeat\(4,/);
+  assert.match(html, /1 · Site Speed/);
+  assert.match(html, /4 · No Offer/);
+  assert.match(html, /Overall C \(64\)/);
+  assert.doesNotMatch(html, /Next steps/);
+  assert.doesNotMatch(html, /Compress images and defer/);
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {

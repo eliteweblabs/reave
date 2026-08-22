@@ -198,6 +198,39 @@ export async function screenshotGoogleSearchResults(
   }
 }
 
+/** Capture whatever a phone browser shows for the audit URL — error page or live fail. */
+export async function screenshotAuditUrl(
+  url: string,
+): Promise<{ ok: true; pngBase64: string } | { ok: false; error: string }> {
+  const target = url.trim();
+  if (!target) return { ok: false, error: 'No audit URL' };
+  let pw: typeof import('playwright');
+  try {
+    pw = await import('playwright');
+  } catch {
+    return { ok: false, error: 'Playwright is not installed' };
+  }
+  let browser: Awaited<ReturnType<typeof pw.chromium.launch>> | undefined;
+  try {
+    browser = await pw.chromium.launch(launchOptions());
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+      userAgent: IPHONE_UA,
+    });
+    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 12_000 }).catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 800));
+    const buf = await page.screenshot({ type: 'png' });
+    return { ok: true, pngBase64: buf.toString('base64') };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
 export async function screenshotPlacesPhoneMock(
   view: SalesSheetPlacesView,
   opts?: PlacesPhoneMockOpts,

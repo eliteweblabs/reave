@@ -310,7 +310,7 @@ export function applyCompanyBrandShortcodes(
   return `<style data-doc-brand-mark-css>${DOCUMENT_BRAND_MARK_CSS}</style>\n${next}`;
 }
 
-function printPageCss(orientation: DocumentOrientation): string {
+function printPageCss(orientation: DocumentOrientation, colCount = 3): string {
   const pageSize = orientation === 'landscape' ? 'letter landscape' : 'letter portrait';
   const ratio = orientation === 'landscape' ? '11 / 8.5' : '8.5 / 11';
   const maxWidth = orientation === 'landscape' ? '11in' : '8.5in';
@@ -399,7 +399,7 @@ ${DOCUMENT_BRAND_MARK_CSS}
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(${Math.max(1, colCount)}, minmax(0, 1fr));
   gap: 0 4%;
 }
 .doc-onepager-col {
@@ -461,17 +461,16 @@ export function wrapPrintOnePager(opts: {
   logoHtml: string;
   kicker?: string;
 }): string {
-  const cols = [...opts.columnsHtml];
-  while (cols.length < 3) cols.push('');
-  const colMarkup = cols
-    .slice(0, 3)
+  const cols = opts.columnsHtml.filter((html) => (html || '').trim());
+  const columnHtml = cols.length ? cols : ['<p></p>'];
+  const colMarkup = columnHtml
     .map((html) => `<div class="doc-onepager-col">${html || '<p></p>'}</div>`)
     .join('');
   const kicker = (opts.kicker || '').trim();
   const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
 
   return `
-<style>${printPageCss(opts.orientation)}</style>
+<style>${printPageCss(opts.orientation, columnHtml.length)}</style>
 <div class="doc-onepager-stage">
   <article class="doc-onepager" data-orientation="${opts.orientation}">
     <header class="doc-onepager-header">

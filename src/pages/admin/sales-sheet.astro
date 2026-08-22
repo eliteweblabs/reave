@@ -32,16 +32,21 @@ import { buildAuditReportCard } from '../../lib/auditReportCard';
 import { googlePlacesListedForContact } from '../../lib/auditPlacesListing';
 import { isSafeWorkSlug, storeListWork, storeReadWork } from '../../lib/workStore';
 import { fetchSalesSheetPlaces } from '../../lib/salesSheetPlaces';
-import { screenshotGoogleSearchResults, screenshotPlacesPhoneMock } from '../../lib/salesSheetPlacesShot';
+import { screenshotAuditUrl, screenshotGoogleSearchResults } from '../../lib/salesSheetPlacesShot';
 import {
   injectAuditQrIntoHeader,
-  injectPhoneIntoFirstColumn,
-  placesPhoneShotImg,
   renderPlacesPhoneMockHtml,
   renderSalesSheetQrHtml,
   resolveIphoneFrameSrc,
   shortPlaceFromAddress,
 } from '../../lib/salesSheetPlacesView';
+import {
+  renderFindingPhoneHtml,
+  renderSalesSheetFrontExhibitsHtml,
+  replaceOnePagerColsInner,
+  salesSheetExhibitKind,
+  salesSheetWantsPlacesExhibit,
+} from '../../lib/salesSheetExhibits';
 import { qrCodeDataUrl } from '../../lib/qrCode';
 import { companyBrandMarkHtml } from '../../lib/documentPrintLayout';
 import { storeGetMediaBySlug } from '../../lib/mediaLibrary';
@@ -123,7 +128,6 @@ const slug = auditOnePagerSlug(orientation);
 const tmpl = getTemplate(slug);
 
 const skipPlaces = params.get('places') === '0';
-const skipShot = params.get('shot') !== '1';
 const googleParam = params.get('google');
 const wantGoogleShot = salesSheetWantsGoogleShot(googleParam);
 const listedParam = (params.get('listed') || '').trim();
@@ -135,6 +139,7 @@ const near =
   shortPlaceFromAddress(contactPortal?.address || '');
 const category = (params.get('category') || '').trim();
 const placesQuery = (input.contact.company || input.contact.name || '').trim();
+const businessName = (input.contact.company || input.contact.name || '').trim();
 
 const places = await fetchSalesSheetPlaces({
   query: placesQuery,
@@ -145,11 +150,17 @@ const places = await fetchSalesSheetPlaces({
 });
 
 const frameSrc = await resolveIphoneFrameSrc();
-let screenSrc = '';
+let placesScreenSrc = '';
+let siteScreenSrc = '';
 let shotNote = '';
 let serpListed: boolean | null = null;
 
-if (wantGoogleShot) {
+const notListedGuess = forceListed ? false : forceNotListed ? true : !places.listed;
+input = applyPlacesMissToSalesSheet(input, notListedGuess);
+let findings = input.findings.slice(0, 4);
+const showPlaces = salesSheetWantsPlacesExhibit(findings);
+
+if (showPlaces && wantGoogleShot && notListedGuess) {
   const serp = await screenshotGoogleSearchResults({
     query: placesQuery,
     near,
@@ -157,16 +168,18 @@ if (wantGoogleShot) {
     lng: contactPortal?.geo?.lng,
   });
   if (serp.ok) {
-    screenSrc = `data:image/png;base64,${serp.pngBase64}`;
     serpListed = serp.listed;
-    shotNote = serp.listed
-      ? 'Playwright screenshot of google.com/maps — this search opens their listing.'
-      : 'Playwright screenshot of google.com Places/Maps results in the iPhone frame.';
+    if (serp.listed) {
+      input = applyPlacesMissToSalesSheet(input, false);
+      findings = input.findings.slice(0, 4);
+      shotNote = 'Google opened their listing — Maps is working, so it is not an exhibit.';
+    } else {
+      placesScreenSrc = `data:image/png;base64,${serp.pngBase64}`;
+      shotNote = 'Live Google results in the Places iPhone — they are missing.';
+    }
   } else {
-    shotNote = `Google screenshot failed (${serp.error}) — showing live Places neighbors, not a mock listing.`;
+    shotNote = `Google screenshot failed (${serp.error}).`;
   }
-} else if (skipShot) {
-  shotNote = 'iPhone 17 frame from the media library (live HTML).';
 }
 
 const notListed = forceListed
@@ -175,26 +188,54 @@ const notListed = forceListed
     ? true
     : serpListed === true
       ? false
-      : !places.listed;
-input = applyPlacesMissToSalesSheet(input, notListed);
+      : notListedGuess;
+findings = input.findings.slice(0, 4);
 
-const phoneHtml = renderPlacesPhoneMockHtml(
-  { ...places, near, listed: !notListed },
-  { frameSrc, screenSrc },
-);
-let phoneEmbed = phoneHtml;
-
-if (!skipShot) {
-  const shot = await screenshotPlacesPhoneMock({ ...places, listed: !notListed }, { frameSrc, screenSrc });
-  if (shot.ok) {
-    phoneEmbed = placesPhoneShotImg(shot.pngBase64);
-    shotNote = screenSrc
-      ? 'Playwright screenshot of the iPhone frame over a live google.com Places page.'
-      : 'Playwright screenshot of the iPhone frame mock-up.';
+const hasDownExhibit = findings.some((f) => {
+  const kind = salesSheetExhibitKind(f);
+  return kind === 'site-down' || kind === 'domain';
+});
+if (hasDownExhibit && input.website.trim()) {
+  const siteUrl = /^https?:\/\//i.test(input.website) ? input.website : `https://${input.website}`;
+  const siteShot = await screenshotAuditUrl(siteUrl);
+  if (siteShot.ok) {
+    siteScreenSrc = `data:image/png;base64,${siteShot.pngBase64}`;
+    shotNote = `${shotNote} Captured the live ${siteUrl} screen.`.trim();
   } else {
-    shotNote = `${shotNote} Frame rasterize failed (${shot.error}) — using the live iPhone frame.`.trim();
+    shotNote = `${shotNote} Live site shot failed (${siteShot.error}) — using the phone error screen.`.trim();
   }
 }
+
+if (!shotNote) shotNote = 'Four iPhone exhibits from the top cascade hits.';
+
+const exhibitPhones = findings.map((finding) => {
+  const kind = salesSheetExhibitKind(finding);
+  if (kind === 'places' && notListed) {
+    return renderPlacesPhoneMockHtml(
+      { ...places, near, listed: false },
+      { frameSrc, screenSrc: placesScreenSrc },
+    );
+  }
+  const live = (kind === 'site-down' || kind === 'domain') && siteScreenSrc ? siteScreenSrc : '';
+  return renderFindingPhoneHtml(finding, {
+    website: input.website,
+    businessName,
+    frameSrc,
+    screenSrc: live,
+  });
+});
+
+const frontExhibits = renderSalesSheetFrontExhibitsHtml({
+  findings,
+  phones: exhibitPhones,
+  snapshot: {
+    overall: input.overall,
+    overallScore: input.overallScore,
+    performance: input.performance,
+    security: input.security,
+    visibility: input.visibility,
+  },
+});
 
 const auditUrl = selectedAudit?.contactUid
   ? salesSheetAuditUrl(
@@ -249,7 +290,10 @@ if (!tmpl) {
     const filled = fillTemplate(source, input.contact, company);
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
     sheetHtml = injectAuditDisclaimerIntoFooter(
-      injectAuditQrIntoHeader(injectPhoneIntoFirstColumn(rendered, phoneEmbed), qrHtml),
+      injectAuditQrIntoHeader(
+        replaceOnePagerColsInner(rendered, `<div class="doc-onepager-col">${frontExhibits}</div>`),
+        qrHtml,
+      ),
       renderAuditDisclaimerHtml(input.findings),
     );
   } catch (e) {
@@ -260,6 +304,7 @@ if (!tmpl) {
 const finding1 = input.findings[0];
 const finding2 = input.findings[1];
 const finding3 = input.findings[2];
+const finding4 = input.findings[3];
 const placesNote = places.error
   ? `${places.source === 'places' ? 'Places' : 'Places lookup'} — ${places.error}`
   : places.source === 'places'
@@ -288,8 +333,8 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         <header>
           <h1 class="prof-title">Audit sales sheet</h1>
           <p class="prof-subtitle">
-            {sourceNote}. Places miss is finding #1. Print is two-sided — client
-            audit on the front, REΛVE back on every sheet.
+            {sourceNote}. Top four problems, each as an iPhone. Print is
+            two-sided — client audit on the front, REΛVE back on every sheet.
           </p>
         </header>
 
@@ -379,20 +424,12 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
             <textarea id="finding1" name="finding1">{finding1?.problem ?? ''}</textarea>
           </div>
           <div class="prof-field">
-            <label for="solution1">Finding 1 next step</label>
-            <textarea id="solution1" name="solution1">{finding1?.solution ?? ''}</textarea>
-          </div>
-          <div class="prof-field">
             <label for="label2">Finding 2 label</label>
             <input id="label2" name="label2" value={finding2?.categoryLabel ?? ''} />
           </div>
           <div class="prof-field">
             <label for="finding2">Finding 2 problem</label>
             <textarea id="finding2" name="finding2">{finding2?.problem ?? ''}</textarea>
-          </div>
-          <div class="prof-field">
-            <label for="solution2">Finding 2 next step</label>
-            <textarea id="solution2" name="solution2">{finding2?.solution ?? ''}</textarea>
           </div>
           <div class="prof-field">
             <label for="label3">Finding 3 label</label>
@@ -403,8 +440,12 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
             <textarea id="finding3" name="finding3">{finding3?.problem ?? ''}</textarea>
           </div>
           <div class="prof-field">
-            <label for="solution3">Finding 3 next step</label>
-            <textarea id="solution3" name="solution3">{finding3?.solution ?? ''}</textarea>
+            <label for="label4">Finding 4 label</label>
+            <input id="label4" name="label4" value={finding4?.categoryLabel ?? ''} />
+          </div>
+          <div class="prof-field">
+            <label for="finding4">Finding 4 problem</label>
+            <textarea id="finding4" name="finding4">{finding4?.problem ?? ''}</textarea>
           </div>
         </div>
 
@@ -415,7 +456,9 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
         </div>
         <p class="prof-subtitle">
           {placesNote}. {shotNote}
-          {notListed ? ' Finding 1 is the Google Places miss.' : ' Places found a listing — miss is not pinned.'}
+          {notListed
+            ? ' Places miss is on the sheet because they are not listed.'
+            : ' Maps listing is working — not shown.'}
         </p>
       </form>
     </aside>

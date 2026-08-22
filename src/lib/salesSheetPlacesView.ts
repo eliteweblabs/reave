@@ -61,7 +61,7 @@ export function promotePlacesNotListedFinding(
 ): PlacesMissFinding[] {
   const pinned = placesNotListedFinding(businessName);
   const rest = findings.filter((f) => !isPlacesMissFinding(f));
-  return [pinned, ...rest].slice(0, 3);
+  return [pinned, ...rest].slice(0, 4);
 }
 
 function stars(rating: number | undefined): string {

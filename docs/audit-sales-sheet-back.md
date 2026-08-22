@@ -37,11 +37,12 @@ The back keeps a white sheet over `/reave-bg-pattern.svg` at **5% black**
 
 ## Front (custom)
 
-Header / three columns / footer. Logo left, QR right, client footer line.
+Header / four iPhone exhibits across / caption under each / snapshot strip /
+footer. Logo left, QR right.
 
-The three columns are the first three cascade hits (see below). Only **Google
-Places** is drawn in code today (the phone mock). The other `sheet` lines are
-the spec for later exhibit generators.
+The phones are the first four cascade hits. Each screen is a visual of the
+problem (Not Secure bar, Safari cannot open, missing Places SERP, and so on).
+Working Maps listings are not shown. There is no Next steps column.
 
 ---
 

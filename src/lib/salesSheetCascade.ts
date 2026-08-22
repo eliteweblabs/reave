@@ -1,8 +1,8 @@
 /**
  * Ranked “cascade of terribleness” for the audit sales sheet.
  *
- * Walk rank 1 → N. The first three hits become the three findings
- * (and their next-step lines) on `/admin/sales-sheet`.
+ * Walk rank 1 → N. The first four hits become the four iPhone exhibits
+ * on `/admin/sales-sheet`.
  *
  * Top of the list is what you lead with in the room — not a lab score.
  *
@@ -12,7 +12,7 @@ import type { AuditReportCard, LetterGrade, ReportCardCategoryId } from './audit
 import { siteSpeedResearchProblem } from './salesSheetResearch';
 import { isPlacesMissFinding, placesNotListedFinding } from './salesSheetPlacesView';
 
-export const SALES_SHEET_CASCADE_COUNT = 3;
+export const SALES_SHEET_CASCADE_COUNT = 4;
 
 export type CascadeFinding = {
   id: string;
