@@ -370,24 +370,22 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 }
 .ss-qr-note {
   position: absolute;
-  top: calc(100% - 2px);
-  right: -2px;
+  right: calc(100% + 4px);
+  top: 50%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
   color: #1a3d6e;
   pointer-events: none;
-  transform: rotate(-7deg);
-  transform-origin: 90% 0;
+  transform: translateY(-50%) rotate(-6deg);
+  transform-origin: 100% 50%;
   line-height: 1;
 }
 .ss-qr-note svg {
   display: block;
-  width: 54px;
-  height: 36px;
-  margin-right: 14px;
-  margin-bottom: -8px;
+  width: 48px;
+  height: 28px;
   overflow: visible;
 }
 .ss-qr-note span {
@@ -400,24 +398,24 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 }
 </style>
 <figure class="ss-qr">
+  <div class="ss-qr-note" aria-hidden="true">
+    <span>the full audit</span>
+    <svg viewBox="0 0 48 28" fill="none" aria-hidden="true">
+      <g stroke="#fff" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 16c10-7 22-6 34-2"/>
+        <path d="M29 7c5 3 8 6 10 8"/>
+        <path d="M27 22c6-2 9-5 12-7"/>
+      </g>
+      <g stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 16c10-7 22-6 34-2"/>
+        <path d="M29 7c5 3 8 6 10 8"/>
+        <path d="M27 22c6-2 9-5 12-7"/>
+      </g>
+    </svg>
+  </div>
   <a href="${escapeHtml(link)}" target="_blank" rel="noopener">
     <img src="${escapeHtml(src)}" alt="the full audit" width="72" height="72" />
   </a>
-  <div class="ss-qr-note" aria-hidden="true">
-    <svg viewBox="0 0 52 38" fill="none" aria-hidden="true">
-      <g stroke="#fff" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M43.8 32.6c-11.6.4-25.2-4.2-29.2-16.6C12.8 9.4 13.6 5.2 15.6 3"/>
-        <path d="M8 11.8c2.6-5.4 5.6-8.6 7.8-9.4"/>
-        <path d="M15.4 2.2c3.4 4.4 8.6 10 10.8 13.6"/>
-      </g>
-      <g stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M43.8 32.6c-11.6.4-25.2-4.2-29.2-16.6C12.8 9.4 13.6 5.2 15.6 3"/>
-        <path d="M8 11.8c2.6-5.4 5.6-8.6 7.8-9.4"/>
-        <path d="M15.4 2.2c3.4 4.4 8.6 10 10.8 13.6"/>
-      </g>
-    </svg>
-    <span>the full audit</span>
-  </div>
 </figure>`.trim();
 }
 
