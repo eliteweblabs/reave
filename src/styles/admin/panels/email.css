@@ -1781,7 +1781,7 @@ html.reave-agent-asleep
   --dash-nav-cols: 2;
   width: min(100%, 22rem);
   margin: 1.25rem auto 0;
-  text-align: left;
+  text-align: center;
 }
 #email-panel button.home-dashboard-tile,
 #email-panel a.home-dashboard-tile {

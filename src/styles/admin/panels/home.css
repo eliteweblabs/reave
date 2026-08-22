@@ -55,7 +55,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 0.15rem;
   padding: var(--dash-stat-pad-y) var(--dash-stat-pad-x);
   border-radius: 14px;
@@ -63,7 +64,7 @@
   background: var(--surface-muted);
   color: var(--fg);
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   font: inherit;
   transition: background 0.15s, transform 0.12s;
   min-height: var(--dash-stat-min-h);

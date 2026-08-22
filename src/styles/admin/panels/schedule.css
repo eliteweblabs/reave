@@ -887,7 +887,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: var(--dash-nav-gap);
   width: 100%;
   box-sizing: border-box;
@@ -897,7 +898,7 @@
   background: var(--surface-muted);
   color: var(--fg);
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   font: inherit;
   text-decoration: none;
   transition: background 0.15s;
@@ -930,4 +931,5 @@ a.home-dashboard-tile::after {
   font-size: var(--dash-nav-label-size);
   font-weight: 600;
   line-height: 1.25;
+  text-align: center;
 }
