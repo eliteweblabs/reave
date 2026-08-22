@@ -759,12 +759,7 @@ function setActiveMap(key, opts = {}) {
     opts = { ...opts, force: true };
   }
   let force = opts.force === true;
-  if (
-    force &&
-    key === activeKey &&
-    isSettingsMapType(MAPS[key]?.type) &&
-    settingsPanelHasFocusedInput()
-  ) {
+  if (force && key === activeKey && isSettingsMapType(MAPS[key]?.type)) {
     force = false;
   }
   if (!MAPS[key]) return;
@@ -851,8 +846,11 @@ function isPanelMapKey(key) {
 
 function activateMapPanel(opts = {}) {
   if (MAP.type === 'dashboard') {
-    const quiet = !opts.refreshDashboard && dashboardPanelHasContent();
-    loadAdminDashboard({ quiet });
+    if (dashboardPanelHasContent() && !opts.refreshDashboard) {
+      void refreshInboxBadgeQuiet(true);
+    } else {
+      loadAdminDashboard({ quiet: dashboardPanelHasContent() });
+    }
   } else if (MAP.type === 'profile') {
     loadProfileTab();
   } else if (MAP.type === 'company') {
@@ -909,7 +907,7 @@ function activateMapPanel(opts = {}) {
       const fromUrl = parseEmailDeepLinkFromUrl();
       if (fromUrl) pendingEmailDeepLinkId = fromUrl;
     }
-    loadEmailTab();
+    loadEmailTab(emailPanelHasList());
   } else if (MAP.type === 'rules') {
     loadRulesTab();
   } else if (MAP.type === 'newsletter') {
@@ -7546,7 +7544,7 @@ function renderVapiPanel(company) {
 function prependSettingsBackHeader(root) {
   root.prepend(
     createPaneHeader({
-      back: { label: 'Back', onClick: () => setActiveMap('dashboard', { force: true, refreshDashboard: true }) },
+      back: { label: 'Back', onClick: () => setActiveMap('dashboard') },
       className: 'settings-subheader',
     }).root,
   );
@@ -8410,7 +8408,8 @@ function activateFooterNavFromDrag(nav) {
       expandFooterNav();
       return;
     }
-    setActiveMap('dashboard', { force: activeKey === 'dashboard', refreshDashboard: activeKey === 'dashboard' });
+    if (activeKey === 'dashboard') pollActiveViewQuiet();
+    else setActiveMap('dashboard');
     return;
   }
   if (nav === 'chat') {
@@ -8759,7 +8758,8 @@ function initFooterNav() {
       expandFooterNav();
       return;
     }
-    setActiveMap('dashboard', { force: activeKey === 'dashboard', refreshDashboard: activeKey === 'dashboard' });
+    if (activeKey === 'dashboard') pollActiveViewQuiet();
+    else setActiveMap('dashboard');
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     activateFooterChatNav();
@@ -9265,7 +9265,8 @@ function onAdminHomeClick(ev) {
     window.location.href = href;
     return;
   }
-  setActiveMap('dashboard', { force: true, refreshDashboard: true });
+  if (activeKey === 'dashboard') pollActiveViewQuiet();
+  else setActiveMap('dashboard');
 }
 
 function syncSpecialPageChrome() {
@@ -12601,6 +12602,19 @@ function stopEmailPoll() {
   }
 }
 
+function emailPanelHasList() {
+  return Boolean(getEmailPanel()?.querySelector('.ch-sidebar .ch-list'));
+}
+
+/** In-place data refresh — never remount the current view. */
+function pollActiveViewQuiet() {
+  if (document.hidden || !MAP) return;
+  if (MAP.type === 'email' && emailPanelHasList() && !emailState.composing) {
+    void loadEmailTab(true);
+  }
+  if (MAP.type === 'dashboard' && dashboardPanelHasContent()) void refreshInboxBadgeQuiet(true);
+}
+
 function syncEmailPoll() {
   stopEmailPoll();
   if (MAP.type === 'email' && !document.hidden) {
@@ -15098,13 +15112,14 @@ boot().catch(showBootError);
 
 queueTriageEmailFromUrl();
 
-window.addEventListener('pageshow', () => {
+window.addEventListener('pageshow', (ev) => {
   resumeEmailDeepLinkFromUrl();
   resumeClientDeepLinkFromUrl();
   resumeScheduleDeepLinkFromUrl();
   queueTriageEmailFromUrl();
   void purgeExpiredOtpsQuietly();
   void consumePendingOtpCopy();
+  if (ev.persisted) pollActiveViewQuiet();
 });
 
 if ('serviceWorker' in navigator) {
@@ -15141,6 +15156,7 @@ document.addEventListener('visibilitychange', () => {
     syncChatRunningPoll();
     syncWorkAuditingPoll();
     if (isDeploymentOwnerClient) startDeployPoll();
+    pollActiveViewQuiet();
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();
     void consumePendingOtpCopy();
