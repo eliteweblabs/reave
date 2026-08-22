@@ -133,10 +133,10 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   background: #fff;
   color: var(--doc-ink);
   box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
-  padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
+  padding: var(--ss-print-inset-top) 0 var(--ss-print-inset);
   display: flex;
   flex-direction: column;
-  gap: 1.2%;
+  gap: 0;
   container-type: size;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -161,24 +161,26 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   z-index: 1;
   flex: 1 1 auto;
   min-height: 0;
+  width: 100%;
   display: grid;
   grid-template-columns: ${orientation === 'landscape' ? '1fr 1fr 1fr' : '1fr'};
   grid-template-rows: ${orientation === 'landscape' ? '1fr' : 'auto'};
-  gap: 0 2.2%;
+  gap: 0;
 }
 .ss-sheet-back .ss-back-col {
+  box-sizing: border-box;
   min-width: 0;
   min-height: ${orientation === 'portrait' ? '2.8in' : '0'};
   display: flex;
   flex-direction: column;
   gap: 0.38em;
+  padding: 0 var(--ss-print-inset);
 }
 .ss-sheet-back .ss-back-col--gate {
   justify-content: flex-start;
 }
 .ss-sheet-back .ss-back-col + .ss-back-col {
-  padding-left: 2.2%;
-  border-left: 1px solid var(--doc-rule);
+  ${orientation === 'landscape' ? 'border-left: 1px solid var(--doc-rule);' : 'border-top: 1px solid var(--doc-rule); padding-top: 0.55em;'}
 }
 .ss-sheet-back .ss-back-kicker {
   margin: 0;

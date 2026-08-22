@@ -602,7 +602,12 @@ await test('static back is gate + builds + cover with full stack and no client f
   }
   assert.match(back, /flex-wrap: wrap/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
-  assert.match(back, /padding: var\(--ss-print-inset-top\) var\(--ss-print-inset\) var\(--ss-print-inset\)/);
+  assert.match(back, /padding: var\(--ss-print-inset-top\) 0 var\(--ss-print-inset\)/);
+  assert.match(back, /grid-template-columns: 1fr 1fr 1fr/);
+  assert.match(back, /\.ss-back-cols \{[\s\S]*gap: 0;/);
+  assert.match(back, /\.ss-back-col \{[\s\S]*padding: 0 var\(--ss-print-inset\)/);
+  assert.doesNotMatch(back, /gap: 0 2\.2%/);
+  assert.doesNotMatch(back, /padding-left: 2\.2%/);
   assert.equal((back.match(/data-stack="/g) || []).length, PLATFORM_STACK.length);
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
