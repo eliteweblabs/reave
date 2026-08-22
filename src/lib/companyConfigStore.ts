@@ -438,10 +438,10 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
   });
 }
 
-async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
+async function writePgConfig(config: StoredCompanyConfig, retried = false): Promise<boolean> {
   const pool = await ensureSchema();
   if (!pool) return false;
-  await pool.query(
+  const result = await pool.query(
     `UPDATE company_config SET
        name = $1,
        legal_name = $2,
@@ -554,7 +554,10 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.portalOutreachNotice ?? null,
     ],
   );
-  return true;
+  if ((result.rowCount ?? 0) > 0) return true;
+  if (retried) return false;
+  await pool.query(`INSERT INTO company_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING`);
+  return writePgConfig(config, true);
 }
 
 function mergeStored(existing: StoredCompanyConfig | null, patch: StoredCompanyConfig): StoredCompanyConfig {

@@ -69,6 +69,17 @@ export async function parseCompanyBrandUpload(
     return { ok: true, kind: 'svg', svg };
   }
 
+  const type = file.type.trim().toLowerCase();
+  const name = file.name.trim().toLowerCase();
+  if (
+    type === 'image/heic' ||
+    type === 'image/heif' ||
+    name.endsWith('.heic') ||
+    name.endsWith('.heif')
+  ) {
+    return { ok: false, error: 'HEIC photos need to be exported as JPEG or PNG first.' };
+  }
+
   const mediaType = inferLogoUploadMediaType(file);
   if (!mediaType) {
     return { ok: false, error: 'File must be PNG, JPEG, WebP, or SVG' };

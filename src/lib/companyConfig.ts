@@ -144,8 +144,8 @@ export type CompanyConfig = {
   logoVersion: string;
   /** Square brand icon — favicons, PWA, staff comment avatars. */
   iconPath: string;
-  /** Where iconPath came from. */
-  iconSource: 'admin' | 'default';
+  /** Where iconPath came from. `logo` means favicons/avatars reuse the logo. */
+  iconSource: 'admin' | 'default' | 'logo';
   /** Bust browser cache after admin icon changes. */
   iconVersion: string;
   /** Inline SVG for header wordmark (admin paste or empty = built-in animated default). */
@@ -276,7 +276,7 @@ function resolveIcon(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'i
     return { iconPath: storedIcon, iconSource: 'admin', iconVersion: version };
   }
   if ((stored?.logoData && stored?.logoMediaType) || trim(stored?.logoSvg)) {
-    return { iconPath: BRANDING_ICON_PATH, iconSource: 'admin', iconVersion: version };
+    return { iconPath: BRANDING_ICON_PATH, iconSource: 'logo', iconVersion: version };
   }
   return {
     iconPath: pick(serverEnv('COMPANY_ICON_PATH'), SITE.favicons.png192),

@@ -173,10 +173,25 @@
   width: 42px;
   height: 42px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
   background: transparent;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.prof-color-input-row input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 3px;
+}
+.prof-color-input-row input[type='color']::-webkit-color-swatch {
+  border: none;
+  border-radius: 7px;
+}
+.prof-color-input-row input[type='color'].form-field--saving,
+.prof-color-input-row input[type='color'].form-field--saved,
+.prof-color-input-row input[type='color'].form-field--invalid {
+  border-color: var(--panel-border);
+  box-shadow: none;
 }
 .prof-color-input-row input[type='text'] {
   flex: 1 1 auto;
@@ -580,6 +595,9 @@
 .prof-branding-upload-item > label {
   display: block;
   margin-bottom: 0.35rem;
+}
+.prof-branding-upload-item > .prof-hint {
+  margin-top: 0.45rem;
 }
 .prof-font-picker {
   position: relative;

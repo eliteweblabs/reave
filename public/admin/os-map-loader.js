@@ -5610,7 +5610,7 @@ function defaultFieldValidator(el) {
 
 function getFormEditableFields(form) {
   return [...form.querySelectorAll(
-    'input:not([disabled]):not([type=file]):not([type=hidden]), select, textarea',
+    'input:not([disabled]):not([type=file]):not([type=hidden]):not([type=color]), select, textarea',
   )];
 }
 
@@ -5732,6 +5732,7 @@ function showProfileAlert(el, msg, type) {
   el.textContent = msg;
   el.className = `prof-alert prof-alert--${type}`;
   el.hidden = false;
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   clearTimeout(el.dataset.timerId ? Number(el.dataset.timerId) : 0);
   const timerId = window.setTimeout(() => {
     el.hidden = true;
@@ -5818,6 +5819,10 @@ function hasCustomCompanyIcon(company) {
   );
 }
 
+function usesLogoAsIconFallback(company) {
+  return company?.iconSource === 'logo' && hasCustomCompanyLogo(company) && !hasCustomCompanyIcon(company);
+}
+
 function svgPreviewDataUri(svg) {
   const t = String(svg || '').trim();
   if (!t) return '';
@@ -5826,13 +5831,16 @@ function svgPreviewDataUri(svg) {
 
 function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
   const fileInput = root.querySelector('#company-logo-file');
+  const uploadBtn = root.querySelector('#company-logo-upload-btn');
   const fileWrap = root.querySelector('#company-logo-file-wrap');
   const previewWrap = root.querySelector('#company-logo-preview-wrap');
   const preview = root.querySelector('#company-logo-preview');
   const removeBtn = root.querySelector('#company-logo-remove');
   const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
+  let lastCompany = opts.company || null;
 
   const refreshPreview = (company) => {
+    lastCompany = company;
     const hasLogo = hasCustomCompanyLogo(company);
     const hasPng = hasUploadedCompanyLogoPng(company);
     const hasSvg = !!(company?.logoSvg?.trim());
@@ -5852,6 +5860,10 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
     }
   };
 
+  uploadBtn?.addEventListener('click', () => {
+    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
+  });
+
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
     const file = fileInput.files[0];
@@ -5859,21 +5871,35 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
     fd.append('logo', file);
     if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
     fileInput.disabled = true;
+    if (uploadBtn instanceof HTMLButtonElement) {
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading…';
+    }
+    if (preview instanceof HTMLImageElement) {
+      preview.src = URL.createObjectURL(file);
+    }
+    if (previewWrap instanceof HTMLElement) previewWrap.hidden = false;
     try {
-      const res = await fetch('/api/admin/company/logo', { method: 'POST', body: fd });
-      const json = await res.json();
+      const res = await adminFetch('/api/admin/company/logo', { method: 'POST', body: fd });
+      const json = await readAdminJson(res, 'logo upload');
       if (res.ok && json.company) {
         refreshPreview(json.company);
         onCompany?.(json.company);
         showProfileAlert(companyAlert, 'Logo updated.', 'success');
       } else {
+        refreshPreview(lastCompany);
         showProfileAlert(companyAlert, json.error || 'Logo upload failed.', 'error');
       }
-    } catch {
-      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } catch (e) {
+      refreshPreview(lastCompany);
+      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
     } finally {
       fileInput.value = '';
       fileInput.disabled = false;
+      if (uploadBtn instanceof HTMLButtonElement) {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload';
+      }
       if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
     }
   });
@@ -5921,10 +5947,12 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
 
 function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   const fileInput = root.querySelector('#company-icon-file');
+  const uploadBtn = root.querySelector('#company-icon-upload-btn');
   const fileWrap = root.querySelector('#company-icon-file-wrap');
   const previewWrap = root.querySelector('#company-icon-preview-wrap');
   const preview = root.querySelector('#company-icon-preview');
   const removeBtn = root.querySelector('#company-icon-remove');
+  const fallbackHint = root.querySelector('#company-icon-fallback-hint');
   const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
 
   const refreshPreview = (company) => {
@@ -5946,9 +5974,16 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasRemovableIcon;
     }
+    if (fallbackHint instanceof HTMLElement) {
+      fallbackHint.hidden = !usesLogoAsIconFallback(company);
+    }
     window.__companyStaffAvatarUrl = avatarUrl;
     syncHeaderProfileIcon(`${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`);
   };
+
+  uploadBtn?.addEventListener('click', () => {
+    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
+  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5958,8 +5993,8 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
     fileInput.disabled = true;
     try {
-      const res = await fetch('/api/admin/company/icon', { method: 'POST', body: fd });
-      const json = await res.json();
+      const res = await adminFetch('/api/admin/company/icon', { method: 'POST', body: fd });
+      const json = await readAdminJson(res, 'icon upload');
       if (res.ok && json.company) {
         refreshPreview(json.company);
         onCompany?.(json.company);
@@ -5967,8 +6002,8 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
       } else {
         showProfileAlert(companyAlert, json.error || 'Icon upload failed.', 'error');
       }
-    } catch {
-      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } catch (e) {
+      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
     } finally {
       fileInput.value = '';
       fileInput.disabled = false;
@@ -5980,8 +6015,8 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     if (!(removeBtn instanceof HTMLButtonElement)) return;
     removeBtn.disabled = true;
     try {
-      const res = await fetch('/api/admin/company/icon', { method: 'DELETE' });
-      const json = await res.json();
+      const res = await adminFetch('/api/admin/company/icon', { method: 'DELETE' });
+      const json = await readAdminJson(res, 'icon delete');
       if (res.ok && json.company) {
         refreshPreview(json.company);
         onCompany?.(json.company);
@@ -5989,8 +6024,8 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
       } else {
         showProfileAlert(companyAlert, json.error || 'Could not remove icon.', 'error');
       }
-    } catch {
-      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } catch (e) {
+      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
     } finally {
       removeBtn.disabled = false;
     }
@@ -6062,6 +6097,15 @@ function bindCompanyForm(root, company, fontCatalog) {
     companyFontPickers.destroy();
     companyFontPickers = null;
   }
+
+  const companyAlert = root.querySelector('#company-alert');
+  let refreshIconPreview = () => {};
+  bindCompanyLogoUpload(root, companyAlert, {
+    company,
+    onCompany(next) { refreshIconPreview(next); },
+  });
+  const iconBranding = bindCompanyIconUpload(root, companyAlert, company);
+  refreshIconPreview = iconBranding.refreshPreview;
 
   const addressInput = root.querySelector('#company-address');
   const mapHost = root.querySelector('#company-map-host');
@@ -6140,14 +6184,6 @@ function bindCompanyForm(root, company, fontCatalog) {
       void geocodeCompanyAddressFromInput();
     }
   }
-
-  const companyAlert = root.querySelector('#company-alert');
-  let refreshIconPreview = () => {};
-  bindCompanyLogoUpload(root, companyAlert, {
-    onCompany(next) { refreshIconPreview(next); },
-  });
-  const iconBranding = bindCompanyIconUpload(root, companyAlert, company);
-  refreshIconPreview = iconBranding.refreshPreview;
 
   bindFormattedPhoneInputs(root);
   bindAutosaveForm(root, {
@@ -7124,7 +7160,8 @@ function renderCompanyPanel(company, fontCatalog) {
                     `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
                   `</div>` +
                   `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) ? ' hidden' : ''}>` +
-                    `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />` +
+                    `<input id="company-logo-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
+                    `<button type="button" id="company-logo-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
                   `</div>` +
                   `<button type="button" id="company-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
                 `</div>` +
@@ -7137,10 +7174,12 @@ function renderCompanyPanel(company, fontCatalog) {
                     `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
                   `</div>` +
                   `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng || (c.iconSvg && String(c.iconSvg).trim()) ? ' hidden' : ''}>` +
-                    `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />` +
+                    `<input id="company-icon-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
+                    `<button type="button" id="company-icon-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
                   `</div>` +
                   `<button type="button" id="company-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
                 `</div>` +
+                `<span id="company-icon-fallback-hint" class="prof-hint"${usesLogoAsIconFallback(c) ? '' : ' hidden'}>Favicons and avatars use the logo until you add an icon.</span>` +
               `</div>` +
             `</div>` +
             `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here.</span>`,
