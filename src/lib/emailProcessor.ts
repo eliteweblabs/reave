@@ -489,6 +489,8 @@ export function shouldSendInboxPush(opts: {
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
 
+  // No keyword rule → inbox only. Do not also ping dashboard / agent.
+  if (status === 'UNMATCHED' && !opts.isProjectReply && !opts.automationKind) return false;
   if (action === 'needs_explain') return true;
   if (opts.category === 'receipt') return false;
   if (opts.action === 'verification_code' || opts.action === 'activation_link') return false;
@@ -576,6 +578,7 @@ export async function processInboundEmail(
       : loaded.notifyOnUnmatched;
   const ruleWalk = evaluateEmailRules(email, rules, notifyOnUnmatched, { knownContact });
   const ruleResult = ruleWalk.classification;
+  const noKeywordRule = ruleResult.matched == null;
   const matchedId = (ruleResult.matched as EmailRuleRecord | null)?.id;
   if (matchedId && !dryRun) {
     void incrementEmailRuleHit(matchedId).catch((e) => {
@@ -1252,10 +1255,11 @@ export async function processInboundEmail(
     );
   }
 
-  if (needsExplain) {
+  if (needsExplain && !noKeywordRule) {
     // Prefer review visibility over silent junk when we're unsure.
     // Always stamp needs_explain so meeting/project review banners do not
     // appear alongside the triage "Explain" alert for the same email.
+    // Unmatched mail (no keyword rule) stays in the inbox — no Explain notice.
     if (category === 'junk' && action === 'junk') {
       category = 'review';
       action = 'needs_explain';
@@ -1441,23 +1445,25 @@ export async function processInboundEmail(
     isVerificationCode || isAuthLink ? await verificationCodeDeleteAfterAt() : null;
 
   // Hard rule: if we will fire a dashboard/push notification, the stored message is not junk.
-  const agentWillAlertPreview = shouldAgentAlertForInboundEmail({
-    category,
-    status: ruleResult.status,
-    isUptimeRobot: isUptimeRobotEmail(email),
-  });
+  const agentWillAlertPreview =
+    !noKeywordRule &&
+    shouldAgentAlertForInboundEmail({
+      category,
+      status: ruleResult.status,
+      isUptimeRobot: isUptimeRobotEmail(email),
+    });
   const willNotifyPreview =
     isProjectReply ||
     Boolean(verificationCode) ||
     isVerificationCode ||
     isAuthLink ||
-    needsExplain ||
+    (needsExplain && !noKeywordRule) ||
     agentWillAlertPreview ||
     Boolean(automationKind) ||
     shouldSendInboxPush({
       category,
       action,
-      ruleNotify: ruleResult.notify || needsExplain,
+      ruleNotify: ruleResult.notify || (needsExplain && !noKeywordRule),
       ruleStatus: ruleResult.status,
       isProjectReply,
       automationKind,
@@ -1477,16 +1483,14 @@ export async function processInboundEmail(
 
   let inboxRecord: EmailInboxRecord | null = null;
 
-  // No keyword rule → agent (AI classify / Explain) handles this mail.
-  // Rules are only added when the owner teaches/corrects — not auto-drafted here.
-  if (ruleResult.matched == null) {
+  // No keyword rule → inbox only. Notices / agent chats are reserved for a
+  // matched rule (or OTP / auth / meeting / project automations).
+  if (noKeywordRule) {
     const agentHay = `${routeNote} ${summary}`;
     pushAudit(
-      'agent',
-      needsExplain
-        ? 'No keyword rule — agent triage (uncertain → Explain)'
-        : 'No keyword rule — agent handles this message',
-      'Teach/correct from the dashboard if this should become a permanent rule',
+      'persist',
+      'No keyword rule — filed in inbox',
+      'No notice or agent chat. Teach/correct from the dashboard if this should become a permanent rule',
       /shipment|shipping notice|auto-archiv/i.test(agentHay) ? shipmentRuleLink : undefined,
     );
   }
@@ -1717,14 +1721,15 @@ export async function processInboundEmail(
   }
 
   const matchedRule = ruleResult.matched as EmailRuleRecord | null;
+  const explainNotify = needsExplain && !noKeywordRule;
   const channels = resolveRuleNotifyChannels(
     matchedRule,
-    ruleResult.notify || needsExplain,
+    ruleResult.notify || explainNotify,
   );
   // OTP / auth / explain still want an alert path unless the matched rule
   // explicitly turns both channels off.
   const forceKindNotify =
-    Boolean(verificationCode) || isVerificationCode || isAuthLink || needsExplain;
+    Boolean(verificationCode) || isVerificationCode || isAuthLink || explainNotify;
   const channelsEffective = forceKindNotify
     ? {
         push: matchedRule ? channels.push : true,
@@ -1736,27 +1741,29 @@ export async function processInboundEmail(
   if (!matchedRule) {
     if (isVerificationCode || verificationCode) notifyActions = ['copy', 'delete'];
     else if (isAuthLink) notifyActions = ['activate', 'delete'];
-    else if (needsExplain) notifyActions = ['explain', 'view', 'archive'];
+    else if (explainNotify) notifyActions = ['explain', 'view', 'archive'];
   }
 
   const notify = shouldSendInboxPush({
     category,
     action,
-    ruleNotify: channelsEffective.notify || needsExplain,
+    ruleNotify: channelsEffective.notify || explainNotify,
     ruleStatus: ruleResult.status,
     isProjectReply,
     automationKind,
   });
 
-  const agentWillAlert = shouldAgentAlertForInboundEmail({
-    category,
-    status: ruleResult.status,
-    isUptimeRobot: isUptimeRobotEmail(email),
-  });
+  const agentWillAlert =
+    !noKeywordRule &&
+    shouldAgentAlertForInboundEmail({
+      category,
+      status: ruleResult.status,
+      isUptimeRobot: isUptimeRobotEmail(email),
+    });
 
   const wouldNotify =
     (notify && channelsEffective.notify) ||
-    ((Boolean(verificationCode) || isAuthLink || needsExplain) && channelsEffective.notify);
+    ((Boolean(verificationCode) || isAuthLink || explainNotify) && channelsEffective.notify);
 
   if (dryRun) {
     const channelLabel = [
@@ -1769,7 +1776,7 @@ export async function processInboundEmail(
       pushAudit('push', `Would send OTP (${channelLabel})`, otpPurpose || 'Verification code');
     } else if (isAuthLink && channelsEffective.notify) {
       pushAudit('push', `Would send auth-link (${channelLabel})`, authLinkPurpose || 'Activation link');
-    } else if (needsExplain && channelsEffective.notify) {
+    } else if (explainNotify && channelsEffective.notify) {
       pushAudit('push', `Would send uncertain-email triage (${channelLabel})`);
     } else if (notify && channelsEffective.notify && !agentWillAlert) {
       pushAudit('push', `Would send inbox alert (${channelLabel})`, summary.slice(0, 120));
@@ -1840,7 +1847,7 @@ export async function processInboundEmail(
         kind: 'auth_link',
         urgent: true,
       });
-    } else if (inboxRecord && needsExplain && channelsEffective.notify) {
+    } else if (inboxRecord && explainNotify && channelsEffective.notify) {
       const guess = aiClassify
         ? `${aiClassify.label} at ${Math.round(aiClassify.confidence * 100)}%`
         : 'rules fallback';

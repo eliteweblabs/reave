@@ -45,6 +45,8 @@ export function shouldAgentAlertForInboundEmail(opts: {
   if (!agentAlertUserId()) return false;
   // First-match silent rules must not open System alerts / push.
   if (isSilentTriageStatus(opts.status)) return false;
+  // Unmatched mail is inbox-only — do not open an agentic chat for the leftover.
+  if (opts.status.toUpperCase() === 'UNMATCHED') return false;
   if (opts.category === 'junk') return false;
   if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return false;
   if (opts.isUptimeRobot && hasFeature('uptime_monitoring')) return false;

@@ -25,7 +25,7 @@ type Scenario = {
   id: string;
   label: string;
   email: InboundEmail;
-  /** Expected keyword-rule status, or UNMATCHED when agent else. */
+  /** Expected keyword-rule status, or UNMATCHED when no rule matches. */
   expectStatus: string;
   /** Extra rules for except / silent-sender cases. */
   extraRules?: EmailRule[];
@@ -275,7 +275,7 @@ const scenarios: Scenario[] = [
   },
   {
     id: 'except-veto',
-    label: 'Except (NOT) vetoes an otherwise matching rule → agent else',
+    label: 'Except (NOT) vetoes an otherwise matching rule → inbox',
     email: {
       from: 'News <digest@vendor.example>',
       subject: 'Weekly digest',
@@ -297,7 +297,7 @@ const scenarios: Scenario[] = [
   },
   {
     id: 'client-inquiry',
-    label: 'Client project inquiry → agent else',
+    label: 'Client project inquiry → inbox',
     email: {
       from: 'Jane Client <jane@clientco.com>',
       subject: 'Website redesign quote',
@@ -340,7 +340,7 @@ const scenarios: Scenario[] = [
   },
   {
     id: 'newsletter-no-junk-phrase',
-    label: 'Newsletter without unsubscribe phrase → agent else',
+    label: 'Newsletter without unsubscribe phrase → inbox',
     email: {
       from: 'Substack <hello@substack.com>',
       subject: 'Issue #42: Shipping notes',
@@ -350,7 +350,7 @@ const scenarios: Scenario[] = [
   },
   {
     id: 'blankish-body',
-    label: 'Thin body / scan subject → agent else',
+    label: 'Thin body / scan subject → inbox',
     email: {
       from: 'Scanner <scan@office.example>',
       subject: 'Scan from MF425',

@@ -313,16 +313,12 @@ function stepsFromAuditAndResult(
     steps.push({
       id: 'fn-agent-else',
       stage: 'agent_else',
-      label: 'Agent (else)',
+      label: 'Inbox (else)',
       kind: 'function',
-      status: result.needsExplain ? 'would' : 'ran',
-      decision: result.needsExplain
-        ? 'Agent uncertain — Explain banner'
-        : result.aiClassify
-          ? `Agent handled → ${result.aiClassify.label} (${Math.round(result.aiClassify.confidence * 100)}%)`
-          : 'Agent handles unmatched mail',
+      status: 'ran',
+      decision: 'No keyword rule — filed in inbox (no notice or agent chat)',
       detail:
-        'No keyword rule matched. Teach/correct from the dashboard only if this should become a permanent rule.',
+        'Teach/correct from the dashboard only if this should become a permanent rule.',
     });
   }
 

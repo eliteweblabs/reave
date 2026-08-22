@@ -419,10 +419,11 @@ export const DEFAULT_RULES: EmailRule[] = [
 ];
 
 /**
- * When no rule matches, should the owner still be notified? Defaults to true so
- * nothing slips through silently while rules are being tuned.
+ * Unmatched mail stays in the inbox only — no dashboard notice and no agent
+ * chat. The stored `notify_on_unmatched` flag is ignored so one message is not
+ * handled three times (inbox + notice + agentic chat).
  */
-export const NOTIFY_ON_UNMATCHED = true;
+export const NOTIFY_ON_UNMATCHED = false;
 
 /** Statuses that live in `DEFAULT_RULES` and ship to every install on deploy. */
 export function isRepoCatalogStatus(status: string): boolean {
@@ -574,9 +575,11 @@ export type RuleEvaluationResult = {
 export function evaluateEmailRules(
   email: InboundEmail,
   rules: EmailRule[] = DEFAULT_RULES,
+  /** Kept for call-site compatibility; unmatched mail never notifies. */
   notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED,
   options?: EvaluateEmailRulesOptions,
 ): RuleEvaluationResult {
+  void notifyOnUnmatched;
   const evaluations: RuleEvaluation[] = [];
   let order = 0;
   let matched: EmailRule | null = null;
@@ -652,7 +655,7 @@ export function evaluateEmailRules(
         matched,
         notify: resolveRuleNotifyChannels(matched).notify,
       }
-    : { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
+    : { status: 'UNMATCHED', matched: null, notify: false };
 
   return { classification, evaluations };
 }

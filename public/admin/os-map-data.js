@@ -338,15 +338,15 @@ const EMAIL_TRIAGE_NODES = [
 
   // Classify
   { id: 'et_contact', title: 'Resolve sender', sub: 'known contact skips catalog junk', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
-  { id: 'et_rules', title: 'Keyword rules', sub: 'Flow · universal/personal · Agent else', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
+  { id: 'et_rules', title: 'Keyword rules', sub: 'Flow · universal/personal · else inbox', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
   { id: 'et_lab', title: 'Try email (Flow)', sub: 'Compose · live test · first match', icon: '🧪', hue: 70, status: true, group: 'et_classify', x: 600, y: 330 },
-  { id: 'et_agent', title: 'Agent else', sub: 'No match → agent handles · teach creates rules', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
+  { id: 'et_agent', title: 'Agent-first AI', sub: 'Unknown / service · silent classify', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
   { id: 'et_legacy', title: 'Rules + AI triage', sub: 'Known professional / personal', icon: '🧠', brand: 'anthropic', hue: 280, status: true, group: 'et_classify', x: 600, y: 540 },
 
   // Decide
   { id: 'et_confidence', title: 'Confidence gate', sub: 'EMAIL_AI_CONFIDENCE_MIN · 0.72', icon: '🎚️', hue: 200, status: true, group: 'et_decide', x: 880, y: 260 },
   { id: 'et_trusted', title: 'Trusted label', sub: 'Apply AI category · meeting fields', icon: '✅', hue: 140, status: true, group: 'et_decide', x: 880, y: 120 },
-  { id: 'et_explain', title: 'Uncertain → Explain', sub: 'Rules fallback · one triage banner', icon: '❓', hue: 10, status: true, group: 'et_decide', x: 880, y: 400 },
+  { id: 'et_explain', title: 'Uncertain → Explain', sub: 'Only if a keyword rule matched', icon: '❓', hue: 10, status: true, group: 'et_decide', x: 880, y: 400 },
   { id: 'et_dedupe', title: 'One banner / email', sub: 'Triage wins over meeting Confirm', icon: '🎯', hue: 350, status: true, group: 'et_decide', x: 880, y: 540 },
 
   // Automate outcomes
@@ -377,6 +377,7 @@ const EMAIL_TRIAGE_EDGES = [
   { from: 'et_contact', to: 'et_agent', label: 'unknown / service' },
   { from: 'et_contact', to: 'et_legacy', label: 'known client' },
   { from: 'et_rules', to: 'et_otp', label: 'OTP · AUTH_LINK' },
+  { from: 'et_rules', to: 'et_inbox', label: 'no match', dashed: true },
   { from: 'et_rules', to: 'et_sort', label: 'junk · receipt', dashed: true },
 
   { from: 'et_agent', to: 'et_confidence' },

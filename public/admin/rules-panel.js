@@ -51,7 +51,7 @@ import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
-} from './email-triage-lab.js?v=20260815e';
+} from './email-triage-lab.js?v=20260822a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -64,7 +64,7 @@ export function initRulesPanel(deps) {
 // ---- extracted from os-map-loader.js:8260-8914 ----
 let ruleState = {
   rules: [],
-  notifyOnUnmatched: true,
+  notifyOnUnmatched: false,
   storage: 'files',
   search: '',
   /** @type {'all' | 'universal' | 'personal'} */
@@ -638,34 +638,6 @@ function renderRulesFlowShell(root) {
     shellEl.appendChild(warn);
   }
 
-  const settings = document.createElement('div');
-  settings.className = 're-settings re-flow-settings';
-  const notifyLb = document.createElement('label');
-  notifyLb.className = 're-check';
-  const notifyCb = document.createElement('input');
-  notifyCb.type = 'checkbox';
-  notifyCb.checked = ruleState.notifyOnUnmatched;
-  notifyCb.addEventListener('change', async (e) => {
-    const next = e.target.checked;
-    try {
-      const res = await fetch('/api/email/rules', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notifyOnUnmatched: next }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      ruleState.notifyOnUnmatched = next;
-      const elseSub = shellEl.querySelector('.re-flow-else .re-flow-sub');
-      if (elseSub) elseSub.textContent = next ? 'Notify by default' : 'Stay silent';
-    } catch (err) {
-      e.target.checked = !next;
-      alert(`Could not save setting: ${err.message}`);
-    }
-  });
-  notifyLb.append(notifyCb, document.createTextNode(' Notify when no rule matches'));
-  settings.appendChild(notifyLb);
-  shellEl.appendChild(settings);
-
   const scroll = document.createElement('div');
   scroll.className = 're-flow-scroll';
 
@@ -702,14 +674,14 @@ function renderRulesFlowShell(root) {
   elseRow.innerHTML = `
     <span class="re-flow-node re-flow-node--when re-flow-node--else">
       <span class="re-flow-badge">Else</span>
-      <span class="re-flow-title">Agent</span>
-      <span class="re-flow-sub">No match → agent handles this mail</span>
+      <span class="re-flow-title">Inbox</span>
+      <span class="re-flow-sub">No match → stay in inbox</span>
     </span>
     <span class="re-flow-arrow" aria-hidden="true">→</span>
-    <span class="re-flow-node re-flow-node--then re-flow-node--alert">
+    <span class="re-flow-node re-flow-node--then">
       <span class="re-flow-badge">Then</span>
-      <span class="re-flow-title">Classify / notify</span>
-      <span class="re-flow-sub">Teach from dashboard if wrong → new rule</span>
+      <span class="re-flow-title">Review later</span>
+      <span class="re-flow-sub">Teach from dashboard if it should become a rule</span>
     </span>`;
   scroll.appendChild(elseRow);
   shellEl.appendChild(scroll);
