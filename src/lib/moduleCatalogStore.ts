@@ -99,9 +99,11 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
         ? slugifyCatalogFeature(o.feature)
         : slugifyCatalogFeature(label);
     if (!feature) return;
-    let group: CatalogGroupId = isCatalogGroupId(String(o.group || ''))
-      ? (o.group as CatalogGroupId)
-      : 'other';
+    const rawGroup = String(o.group || '')
+      .trim()
+      .replace(/^e-commerce$/, 'e_commerce')
+      .replace(/^web-development$/, 'web_development');
+    let group: CatalogGroupId = isCatalogGroupId(rawGroup) ? rawGroup : 'other';
     if (feature === 'google_workspace') group = 'google_workspace';
     const kind = normalizeKind(o.kind);
     let key = typeof o.key === 'string' && o.key.trim() ? o.key.trim().slice(0, 80) : `${kind}:${feature}`;

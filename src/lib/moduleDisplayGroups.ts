@@ -6,8 +6,8 @@ import type { FeatureId } from './featureCatalog.ts';
 
 export type ModuleDisplayGroupId =
   | 'social'
-  | 'e-commerce'
-  | 'web-development'
+  | 'e_commerce'
+  | 'web_development'
   | 'work'
   | 'google_workspace';
 
@@ -34,7 +34,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
     features: ['social_inbox', 'online_reviews'],
   },
   {
-    id: 'e-commerce',
+    id: 'e_commerce',
     title: 'E-commerce',
     features: [
       'inventory_sync',
@@ -45,7 +45,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
     ],
   },
   {
-    id: 'web-development',
+    id: 'web_development',
     title: 'Web Development Modules',
     features: [
       'site_audits',

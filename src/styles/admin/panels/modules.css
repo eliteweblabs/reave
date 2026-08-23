@@ -1,14 +1,146 @@
-/* Modules monitor panel */
+/* Modules — inbox-style catalog + deploy status */
 
 #modules-panel {
+  --mod-tone-core: #2563eb;
+  --mod-tone-work: #d97706;
+  --mod-tone-workspace: #059669;
+  --mod-tone-social: #7c3aed;
+  --mod-tone-commerce: #0d9488;
+  --mod-tone-web: #4f46e5;
+  --mod-tone-other: #64748b;
+  --mod-tone-internal: #78716c;
   position: fixed;
   inset: 0;
   height: 100dvh;
   display: none;
-  flex-direction: column;
+  flex-direction: row;
   background: var(--bg);
   z-index: 10;
   overflow: hidden;
+}
+
+#modules-panel .ch-sidebar .panel-list-subheader {
+  margin-bottom: 0.35rem;
+  flex: 0 0 auto;
+}
+
+#modules-panel .em-filter-tab--tone-core { --em-chip-accent: var(--mod-tone-core); }
+#modules-panel .em-filter-tab--tone-work { --em-chip-accent: var(--mod-tone-work); }
+#modules-panel .em-filter-tab--tone-workspace { --em-chip-accent: var(--mod-tone-workspace); }
+#modules-panel .em-filter-tab--tone-social { --em-chip-accent: var(--mod-tone-social); }
+#modules-panel .em-filter-tab--tone-commerce { --em-chip-accent: var(--mod-tone-commerce); }
+#modules-panel .em-filter-tab--tone-web { --em-chip-accent: var(--mod-tone-web); }
+#modules-panel .em-filter-tab--tone-other { --em-chip-accent: var(--mod-tone-other); }
+#modules-panel .em-filter-tab--tone-internal { --em-chip-accent: var(--mod-tone-internal); }
+
+.mod-list-item {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.mod-list-icon {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--mod-icon-accent, var(--muted));
+  background: color-mix(in srgb, var(--mod-icon-accent, var(--muted)) 14%, transparent);
+}
+
+.mod-list-icon svg {
+  display: block;
+}
+
+.mod-tone-core { --mod-icon-accent: var(--mod-tone-core); }
+.mod-tone-work { --mod-icon-accent: var(--mod-tone-work); }
+.mod-tone-workspace { --mod-icon-accent: var(--mod-tone-workspace); }
+.mod-tone-social { --mod-icon-accent: var(--mod-tone-social); }
+.mod-tone-commerce { --mod-icon-accent: var(--mod-tone-commerce); }
+.mod-tone-web { --mod-icon-accent: var(--mod-tone-web); }
+.mod-tone-other { --mod-icon-accent: var(--mod-tone-other); }
+.mod-tone-internal { --mod-icon-accent: var(--mod-tone-internal); }
+
+.mod-chip {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--mod-chip-accent, var(--muted));
+  background: color-mix(in srgb, var(--mod-chip-accent, var(--muted)) 14%, transparent);
+}
+
+.mod-chip--core { --mod-chip-accent: var(--mod-tone-core); }
+.mod-chip--work { --mod-chip-accent: var(--mod-tone-work); }
+.mod-chip--workspace { --mod-chip-accent: var(--mod-tone-workspace); }
+.mod-chip--social { --mod-chip-accent: var(--mod-tone-social); }
+.mod-chip--commerce { --mod-chip-accent: var(--mod-tone-commerce); }
+.mod-chip--web { --mod-chip-accent: var(--mod-tone-web); }
+.mod-chip--other { --mod-chip-accent: var(--mod-tone-other); }
+.mod-chip--internal { --mod-chip-accent: var(--mod-tone-internal); }
+
+.mod-detail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--footer-scroll-pad, 2rem);
+}
+
+#modules-panel .de-fields .de-input {
+  max-width: none;
+}
+
+#modules-panel textarea.de-input {
+  min-height: 4.5rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.mod-detail-blurb {
+  margin: 0.7rem 1rem 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.mod-detail-heading {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.mod-detail-status {
+  margin: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.mod-detail-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.mod-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mod-sheet-row .de-label {
+  margin: 0;
 }
 
 .mod-auth-gate {
@@ -33,43 +165,6 @@
   padding: 0.75rem var(--detail-pad-x) 2rem;
 }
 
-.mod-header-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.mod-header-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-}
-
-.mod-checked {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.mod-suite-banner {
-  margin: 0.75rem 0 0;
-  padding: 0.55rem 0.75rem;
-  border-radius: 8px;
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
-
-.mod-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0.75rem 0;
-}
-
 .mod-summary-pill {
   display: inline-block;
   padding: 0.15rem 0.55rem;
@@ -86,95 +181,6 @@
   border-color: #fcd34d;
 }
 
-.mod-filters {
-  display: inline-flex;
-  gap: 0.15rem;
-  margin-bottom: 0.75rem;
-  padding: 0.15rem;
-  border-radius: 8px;
-  background: var(--btn-group-track-bg);
-}
-
-.mod-filter {
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  padding: 0.35rem 0.65rem;
-  font: inherit;
-  font-size: 0.82rem;
-  cursor: pointer;
-  color: var(--muted);
-}
-
-.mod-filter.active {
-  background: var(--card);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.mod-group + .mod-group {
-  margin-top: 1rem;
-}
-
-.mod-group-title {
-  margin: 0 0 0.45rem;
-  font-size: 0.82rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-}
-
-.mod-table-wrap {
-  overflow: auto;
-  padding: 0;
-}
-
-.mod-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-
-.mod-table th,
-.mod-table td {
-  padding: 0.55rem 0.65rem;
-  text-align: left;
-  vertical-align: top;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.mod-table th {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  background: var(--btn-group-track-bg);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.mod-row--attention {
-  background: rgba(251, 191, 36, 0.06);
-}
-
-.mod-cell-id code {
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.mod-label {
-  display: block;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.mod-feature {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
 .mod-status {
   display: inline-block;
   padding: 0.12rem 0.45rem;
@@ -187,11 +193,6 @@
 .mod-status--deployed {
   background: #d1fae5;
   color: #065f46;
-}
-
-.mod-status--pending {
-  background: #fef3c7;
-  color: #92400e;
 }
 
 .mod-status--development {
@@ -211,6 +212,7 @@
 
 .mod-cell-flags {
   white-space: nowrap;
+  margin-bottom: 0.55rem;
 }
 
 .mod-flag {
@@ -245,11 +247,6 @@
   border: 1px solid var(--panel-border);
 }
 
-.mod-playbook {
-  font-size: 0.68rem;
-  word-break: break-all;
-}
-
 .mod-muted {
   color: var(--muted);
 }
@@ -264,12 +261,9 @@
   color: #b91c1c;
 }
 
-.mod-footnote {
-  margin-top: 1rem;
-}
-
 .mod-cell-buy {
   min-width: 7.5rem;
+  margin-top: 0.45rem;
 }
 
 .mod-price {
@@ -297,11 +291,17 @@
   text-decoration: none;
 }
 
-@media (max-width: 900px) {
-  .mod-cell-nav,
-  .mod-table th:nth-child(5),
-  .mod-table td:nth-child(5) {
-    display: none;
+@media (max-width: 639px) {
+  #modules-panel { flex-direction: column; }
+  #modules-panel:not(.de-pane-active) .de-pane { display: none; }
+  #modules-panel.de-pane-active .ch-sidebar { display: none; }
+  #modules-panel.de-pane-active .de-pane {
+    display: flex;
+    flex: 1 1 auto;
+    padding-top: calc(
+      var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px)))
+      + var(--pane-header-clearance, 0.2rem)
+    );
   }
 }
 
@@ -315,11 +315,6 @@
   .mod-status--deployed {
     background: rgba(16, 185, 129, 0.18);
     color: #6ee7b7;
-  }
-
-  .mod-status--pending {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fde68a;
   }
 
   .mod-flag--yes {

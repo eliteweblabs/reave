@@ -41,8 +41,8 @@ export const CATALOG_GROUPS = [
   'work',
   'google_workspace',
   'social',
-  'e-commerce',
-  'web-development',
+  'e_commerce',
+  'web_development',
   'other',
   'internal',
 ] as const;
@@ -54,8 +54,8 @@ export const CATALOG_ID_BANDS: Record<CatalogGroupId, { start: number; end: numb
   work: { start: 101, end: 200 },
   google_workspace: { start: 701, end: 800 },
   social: { start: 201, end: 300 },
-  'e-commerce': { start: 301, end: 400 },
-  'web-development': { start: 401, end: 500 },
+  e_commerce: { start: 301, end: 400 },
+  web_development: { start: 401, end: 500 },
   other: { start: 501, end: 600 },
   internal: { start: 601, end: 700 },
 };
@@ -112,8 +112,8 @@ export const CATALOG_GROUP_TITLES: Record<CatalogGroupId, string> = {
   work: 'Work',
   google_workspace: 'Google™ Workspace',
   social: 'Social',
-  'e-commerce': 'E-commerce',
-  'web-development': 'Web Development',
+  e_commerce: 'E-commerce',
+  web_development: 'Web Development',
   other: 'Other',
   internal: 'Internal',
 };
@@ -219,8 +219,8 @@ export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
   const grouped = MODULE_DISPLAY_GROUPS.find((g) => g.features.includes(feature));
   if (grouped?.id === 'work') return 'work';
   if (grouped?.id === 'social') return 'social';
-  if (grouped?.id === 'e-commerce') return 'e-commerce';
-  if (grouped?.id === 'web-development') return 'web-development';
+  if (grouped?.id === 'e_commerce') return 'e_commerce';
+  if (grouped?.id === 'web_development') return 'web_development';
   return 'other';
 }
 

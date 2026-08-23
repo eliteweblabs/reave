@@ -69,6 +69,8 @@ body {
 #chat-panel > .ch-pane,
 #email-panel > .ch-sidebar,
 #email-panel > .ch-pane,
+#modules-panel > .ch-sidebar,
+#modules-panel > .de-pane,
 #social-panel > .ch-sidebar,
 #social-panel > .ch-pane,
 #doc-editor > .de-sidebar,

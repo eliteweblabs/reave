@@ -10,7 +10,7 @@ The deployment owner username defaults to the **company display name** from admi
 Owner-only UI today:
 - **Deploy wizard** (`/deploy`, `GET`/`POST /api/deploy/wizard`) — `deploy_wizard` module in `config/config-reave.json` only, plus official REΛVE host. Client installs 404. Dashboard tile is `footerNav: ["deploy"]` in that same file.
 - **Industries** (account menu + `GET`/`PUT /api/admin/deck-industries`) — official REΛVE host only. Each industry is a deploy playbook (notes, modules, extras, sample data). Client installs hide the menu item and the API 404s. Deck/demo consumers still read the enabled list; the deploy wizard applies the playbook.
-- **Catalog** (account menu + `GET`/`PUT /api/admin/module-catalog`) — official REΛVE host only. Sale-sheet flags, labels, prices, and groups for Core OS + add-ons. Client installs hide the menu item and the API 404s. Public `/modules` and Add-ons read the overlay after load.
+- **Catalog** (dashboard → Modules list + `GET`/`PUT /api/admin/module-catalog`) — official REΛVE host only. Sale-sheet flags, labels, prices, and groups for Core OS + add-ons. Client installs get deploy status only; the catalog API 404s. Public `/modules` and Add-ons read the overlay after load. `?tab=catalog` opens Modules.
 - **Vapi sync** (`POST /api/admin/vapi`, `/vapi-sync` agent command)
 - **Chat recovery** (`GET`/`POST /api/admin/chats`) — lists the distinct
   `user_id`s that own chat threads and reassigns threads orphaned under a

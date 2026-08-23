@@ -1,17 +1,39 @@
 /**
- * Admin modules monitor — live deployment status for optional feature modules.
+ * Admin modules — inbox-style catalog + deploy status.
+ * Official REΛVE host can edit the sale-sheet catalog from this list.
  */
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
+import {
+  iosIcon,
+  setToggleSwitch,
+  createCenteredListEmpty,
+  listSearchAddNew,
+  createIosIconBtn,
+  createSwipeRow,
+  bindSwipeListScroll,
+  swipeDeleteAction,
+  attachIosPullToRefresh,
+} from './admin-ui.js?v=20260823b';
+import { mountListFilterTabs, captureFilterTabsScroll } from './filter-tabs.js?v=20260823a';
+import { createPaneHeader } from './pane-header.js?v=20260821c';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260815a';
 
-const API = '/api/admin/deploy-status';
+const STATUS_API = '/api/admin/deploy-status';
+const CATALOG_API = '/api/admin/module-catalog';
 const DEFAULT_POLL_MS = 30_000;
 
-let pollTimer = null;
-let pollMs = DEFAULT_POLL_MS;
-let filter = 'all';
-let lastPayload = null;
-let shell = {};
+const GROUP_META = {
+  core: { title: 'Core OS', short: 'Core OS', icon: 'layers', tone: 'core' },
+  work: { title: 'Work', short: 'Work', icon: 'briefcase', tone: 'work' },
+  google_workspace: { title: 'Google™ Workspace', short: 'Workspace', icon: 'mail', tone: 'workspace' },
+  social: { title: 'Social', short: 'Social', icon: 'share', tone: 'social' },
+  e_commerce: { title: 'E-commerce', short: 'E-comm', icon: 'shopping-bag', tone: 'commerce' },
+  web_development: { title: 'Web Development', short: 'Web', icon: 'globe', tone: 'web' },
+  other: { title: 'Other', short: 'Other', icon: 'puzzle', tone: 'other' },
+  internal: { title: 'Internal', short: 'Internal', icon: 'key', tone: 'internal' },
+};
+
+const GROUP_ORDER = Object.keys(GROUP_META);
 
 const STATUS_LABELS = {
   deployed: 'Deployed',
@@ -27,12 +49,31 @@ const STATUS_CLASS = {
   rejected: 'mod-status--rejected',
 };
 
+let pollTimer = null;
+let pollMs = DEFAULT_POLL_MS;
+let filter = 'all';
+let search = '';
+let lastPayload = null;
+let catalogRows = [];
+let catalogGroups = [];
+let items = [];
+let activeKey = null;
+let saveTimer = 0;
+let saving = false;
+let dirty = false;
+let shell = {};
+let skipQuietUntil = 0;
+
 export function initModulesPanel(deps = {}) {
   shell = deps;
 }
 
 function rootEl() {
   return document.getElementById('modules-panel');
+}
+
+function canEditCatalog() {
+  return showModuleCatalog();
 }
 
 function isActiveTab() {
@@ -56,39 +97,269 @@ function startPoll() {
   }, pollMs);
 }
 
-function formatCheckedAt(iso) {
-  if (!iso) return '';
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  } catch {
-    return iso;
-  }
+function groupMeta(id) {
+  return GROUP_META[id] || GROUP_META.other;
 }
 
-function filterModules(modules) {
-  if (filter === 'enabled') return modules.filter((m) => m.enabled);
-  if (filter === 'shop') return modules.filter((m) => m.purchasable || m.entitlement);
-  if (filter === 'attention') return modules.filter((m) => m.needsAttention);
-  if (filter === 'social') return modules.filter((m) => m.group?.id === 'social');
-  if (filter === 'e-commerce') return modules.filter((m) => m.group?.id === 'e-commerce');
-  return modules;
+function itemKey(item) {
+  return item?.key || '';
 }
 
-function groupModules(modules) {
-  const groups = lastPayload?.groups || [];
+function findItem(key) {
+  return items.find((item) => itemKey(item) === key) || null;
+}
+
+function captureSidebarScroll(root) {
+  return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
+}
+
+function restoreSidebarScroll(root, top = 0) {
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (list && top > 0) list.scrollTop = top;
+}
+
+function newCustomRow(group) {
+  const n = Date.now().toString(36);
+  return {
+    key: `custom:${group}:${n}`,
+    kind: 'custom',
+    group,
+    id: '',
+    feature: `custom_${n}`,
+    label: 'New module',
+    blurb: '',
+    priceAmount: null,
+    priceLabel: group === 'core' ? 'Included' : group === 'internal' ? 'Internal' : '$200',
+    saleSheet: group !== 'internal',
+    visibility: group === 'internal' ? 'private' : 'public',
+  };
+}
+
+function mergeItems(catalog, deploy) {
+  const deployByFeature = new Map((deploy?.modules || []).map((m) => [m.feature, m]));
+  const out = [];
   const claimed = new Set();
-  const sections = [];
-  for (const group of groups) {
-    const rows = modules.filter((m) => m.group?.id === group.id);
-    rows.forEach((m) => claimed.add(m.feature));
-    if (rows.length) sections.push({ id: group.id, title: group.title, modules: rows });
+
+  if (catalog?.length) {
+    for (const row of catalog) {
+      claimed.add(row.feature);
+      out.push({
+        key: row.key,
+        catalogKey: row.key,
+        kind: row.kind,
+        group: row.group || 'other',
+        id: row.id || '',
+        feature: row.feature,
+        label: row.label,
+        blurb: row.blurb || '',
+        priceLabel: row.priceLabel || '',
+        saleSheet: row.saleSheet === true,
+        visibility: row.visibility || 'public',
+        deploy: deployByFeature.get(row.feature) || null,
+      });
+    }
   }
-  const rest = modules.filter((m) => !claimed.has(m.feature));
-  if (rest.length) sections.push({ id: 'other', title: 'Other modules', modules: rest });
-  return sections;
+
+  for (const m of deploy?.modules || []) {
+    if (claimed.has(m.feature)) continue;
+    out.push({
+      key: `deploy:${m.feature}`,
+      catalogKey: null,
+      kind: 'module',
+      group: m.group?.id || 'other',
+      id: m.moduleId || '',
+      feature: m.feature,
+      label: m.label,
+      blurb: '',
+      priceLabel: m.price?.label || '',
+      saleSheet: m.saleSheet === true,
+      visibility: m.visibility || 'public',
+      deploy: m,
+    });
+  }
+
+  return out;
 }
 
-function renderPurchaseCell(m) {
+function matchesSearch(item, q) {
+  if (!q) return true;
+  const hay = [item.label, item.feature, item.id, item.blurb, item.priceLabel]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return hay.includes(q);
+}
+
+function filteredItems() {
+  const q = search.trim().toLowerCase();
+  return items.filter((item) => {
+    if (filter !== 'all' && item.group !== filter) return false;
+    return matchesSearch(item, q);
+  });
+}
+
+function groupCounts() {
+  const q = search.trim().toLowerCase();
+  const counts = { all: 0 };
+  for (const id of GROUP_ORDER) counts[id] = 0;
+  for (const item of items) {
+    if (!matchesSearch(item, q)) continue;
+    counts.all += 1;
+    if (counts[item.group] != null) counts[item.group] += 1;
+    else counts.other += 1;
+  }
+  return counts;
+}
+
+function groupsForChips() {
+  const present = new Set(items.map((item) => item.group));
+  const fromApi = catalogGroups.length
+    ? catalogGroups
+    : lastPayload?.groups?.map((g) => ({ id: g.id, title: g.title })) || [];
+  const ordered = [];
+  for (const id of GROUP_ORDER) {
+    const api = fromApi.find((g) => g.id === id);
+    if (api || present.has(id) || GROUP_META[id]) {
+      ordered.push({ id, title: api?.title || GROUP_META[id].title });
+    }
+  }
+  return ordered.filter((g) => present.has(g.id) || g.id === filter);
+}
+
+function renderFilterTabs(savedScrollLeft = 0) {
+  const counts = groupCounts();
+  const tabs = [{ id: 'all', label: 'All', count: counts.all }];
+  for (const group of groupsForChips()) {
+    const meta = groupMeta(group.id);
+    tabs.push({
+      id: group.id,
+      label: meta.short,
+      count: counts[group.id] || 0,
+      tone: meta.tone,
+    });
+  }
+  return mountListFilterTabs({
+    tabs,
+    activeId: filter,
+    ariaLabel: 'Module groups',
+    savedScrollLeft,
+    onSelect(id) {
+      filter = id;
+      const visible = filteredItems();
+      if (activeKey && !visible.some((item) => itemKey(item) === activeKey)) {
+        activeKey = null;
+        rootEl()?.classList.remove('de-pane-active');
+      }
+      refreshSidebarList();
+      renderDetailPane();
+    },
+  });
+}
+
+function itemSubline(item) {
+  const bits = [];
+  if (item.feature) bits.push(item.feature);
+  if (item.priceLabel) bits.push(item.priceLabel);
+  else if (item.deploy?.price?.label) bits.push(item.deploy.price.label);
+  return bits.join(' · ') || '—';
+}
+
+function createListItem(item) {
+  const meta = groupMeta(item.group);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'em-list-item mod-list-item' + (itemKey(item) === activeKey ? ' active' : '');
+  btn.dataset.key = itemKey(item);
+  btn.dataset.id = itemKey(item);
+  btn.style.setProperty('--em-item-accent', `var(--mod-tone-${meta.tone})`);
+  btn.innerHTML =
+    `<span class="mod-list-icon mod-tone-${meta.tone}" aria-hidden="true">${iosIcon(meta.icon, 16)}</span>` +
+    `<span class="ch-list-content">` +
+    `<span class="em-item-row em-item-header">` +
+    `<span class="em-status mod-chip mod-chip--${meta.tone}">${escHtml(meta.short)}</span>` +
+    `<span class="em-item-from">${escHtml(item.label || item.feature)}</span>` +
+    `</span>` +
+    `<span class="em-item-summary">${escHtml(itemSubline(item))}</span>` +
+    `</span>`;
+  btn.addEventListener('click', () => openItem(itemKey(item)));
+  return btn;
+}
+
+function canDeleteItem(item) {
+  return canEditCatalog() && !!item?.catalogKey;
+}
+
+function createItemRow(item) {
+  const content = createListItem(item);
+  if (!canDeleteItem(item)) return content;
+  return createSwipeRow(content, [
+    swipeDeleteAction({
+      onClick: () => deleteItem(item),
+    }),
+  ]);
+}
+
+function fillSidebarList(list) {
+  const visible = filteredItems();
+  list.replaceChildren();
+  for (const item of visible) list.appendChild(createItemRow(item));
+  if (!visible.length) {
+    list.appendChild(
+      createCenteredListEmpty({
+        innerHtml: search.trim()
+          ? 'No matches.'
+          : canEditCatalog()
+            ? 'No modules in this group.<br><span class="em-hint">Tap + to add a catalog row.</span>'
+            : 'No modules in this group.',
+      }),
+    );
+  }
+}
+
+function refreshSidebarList() {
+  const root = rootEl();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderShell();
+    return;
+  }
+  const visible = filteredItems();
+  const input = root.querySelector('.panel-list-search');
+  if (input instanceof HTMLInputElement) {
+    const n = visible.length;
+    input.placeholder = `Search ${n} ${n === 1 ? 'Module' : 'Modules'}`;
+  }
+  fillSidebarList(list);
+}
+
+function openItem(key) {
+  activeKey = key;
+  syncSidebarActive();
+  renderDetailPane();
+  rootEl()?.classList.add('de-pane-active');
+}
+
+function closeDetail() {
+  activeKey = null;
+  rootEl()?.classList.remove('de-pane-active');
+  syncSidebarActive();
+  renderDetailPane();
+}
+
+function syncSidebarActive() {
+  const root = rootEl();
+  root?.querySelectorAll('.em-list-item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.key === activeKey);
+  });
+}
+
+function renderFlag(on, label) {
+  const cls = on ? 'mod-flag mod-flag--yes' : 'mod-flag mod-flag--no';
+  return `<span class="${cls}" title="${escHtml(label)}">${on ? '✓' : '—'}</span>`;
+}
+
+function renderPurchaseHtml(m) {
+  if (!m) return '';
   if (m.enabled) {
     return m.price
       ? `<span class="mod-muted">Included</span>`
@@ -118,124 +389,229 @@ function renderPurchaseCell(m) {
   );
 }
 
-function renderFlag(on, label) {
-  const cls = on ? 'mod-flag mod-flag--yes' : 'mod-flag mod-flag--no';
-  return `<span class="${cls}" title="${escHtml(label)}">${on ? '✓' : '—'}</span>`;
+function catalogFieldValue(pane, field) {
+  return pane.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
 }
 
-function renderTable(modules) {
+function readDetailIntoCatalog() {
+  const pane = rootEl()?.querySelector('.de-pane');
+  const item = findItem(activeKey);
+  if (!pane || !item?.catalogKey) return;
+  const row = catalogRows.find((r) => r.key === item.catalogKey);
+  if (!row) return;
+  const locked = row.kind === 'core' || row.kind === 'module';
+  row.label = catalogFieldValue(pane, 'label') || row.label;
+  if (!locked) {
+    row.feature = (catalogFieldValue(pane, 'feature') || row.feature).toLowerCase().replace(/-/g, '_');
+  }
+  row.id = catalogFieldValue(pane, 'id') || row.id;
+  row.priceLabel = catalogFieldValue(pane, 'price');
+  row.blurb = catalogFieldValue(pane, 'blurb');
+  const groupEl = pane.querySelector('[data-field="group"]');
+  if (groupEl?.value && GROUP_META[groupEl.value]) row.group = groupEl.value;
+  const sheet = pane.querySelector('[data-field="sheet"]');
+  if (sheet) row.saleSheet = sheet.getAttribute('aria-checked') === 'true';
+}
+
+function renderEmptyPane(pane) {
+  pane.innerHTML = '';
+  pane.appendChild(createPaneHeader({ title: 'Modules' }).root);
+  const body = document.createElement('div');
+  body.className = 'de-pane-empty-body';
+  const hint = document.createElement('p');
+  hint.className = 'de-empty';
+  hint.textContent = canEditCatalog()
+    ? 'Select a module to edit the sale sheet, or add a row.'
+    : 'Select a module to see deploy status and add-on purchase.';
+  body.appendChild(hint);
+  if (canEditCatalog()) {
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'de-btn de-btn-secondary';
+    reset.textContent = 'Reset catalog';
+    reset.addEventListener('click', () => void resetCatalog());
+    body.appendChild(reset);
+  }
+  pane.appendChild(body);
+}
+
+function groupSelectHtml(selected) {
+  const groups = catalogGroups.length
+    ? catalogGroups
+    : GROUP_ORDER.map((id) => ({ id, title: GROUP_META[id].title }));
   return (
-    `<div class="mod-table-wrap prof-card">` +
-    `<table class="mod-table">` +
-    `<thead><tr>` +
-    `<th>ID</th><th>Module</th><th>Status</th>` +
-    `<th title="Enabled · In nav · Configured · Runtime · Active · Demo suite">Flags</th>` +
-    `<th>Admin tabs</th><th>Add-on</th>` +
-    `</tr></thead>` +
-    `<tbody>${
-      modules.length
-        ? modules.map(renderRow).join('')
-        : `<tr><td colspan="6" class="mod-empty">No modules match this filter.</td></tr>`
-    }</tbody>` +
-    `</table>` +
-    `</div>`
+    `<select data-field="group" class="de-input">` +
+    groups
+      .map(
+        (g) =>
+          `<option value="${escHtml(g.id)}"${g.id === selected ? ' selected' : ''}>${escHtml(g.title)}</option>`,
+      )
+      .join('') +
+    `</select>`
   );
 }
 
-function renderGroupedTables(modules) {
-  if (!modules.length) return renderTable(modules);
-  const sections = groupModules(modules);
-  if (sections.length <= 1) return renderTable(modules);
-  return sections
-    .map(
-      (section) =>
-        `<section class="mod-group" data-group="${escHtml(section.id)}">` +
-        `<h2 class="mod-group-title">${escHtml(section.title)}</h2>` +
-        renderTable(section.modules) +
-        `</section>`,
-    )
-    .join('');
+function renderDetailPane() {
+  const root = rootEl();
+  const pane = root?.querySelector('.de-pane');
+  if (!pane) return;
+  const item = findItem(activeKey);
+  if (!item) {
+    renderEmptyPane(pane);
+    return;
+  }
+
+  const meta = groupMeta(item.group);
+  const deploy = item.deploy;
+  const locked = item.kind === 'core' || item.kind === 'module';
+  const editable = canEditCatalog() && item.catalogKey;
+
+  const icons = [];
+  if (canDeleteItem(item)) {
+    icons.push(
+      createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Delete module',
+        confirmDelete: true,
+        onClick: () => deleteItem(item),
+      }),
+    );
+  }
+
+  pane.innerHTML = '';
+  pane.appendChild(
+    createPaneHeader({
+      back: {
+        label: 'Back to modules',
+        onClick: closeDetail,
+      },
+      title: item.label || item.feature,
+      subtitle: item.feature,
+      icons,
+    }).root,
+  );
+
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll mod-detail-scroll';
+
+  if (editable) {
+    const fields = document.createElement('div');
+    fields.className = 'de-fields';
+    fields.dataset.catalogRow = item.catalogKey;
+    fields.innerHTML =
+      `<label class="de-label">Module<input type="text" data-field="label" class="de-input" value="${escHtml(item.label || '')}"></label>` +
+      `<label class="de-label">Feature<input type="text" data-field="feature" class="de-input" value="${escHtml(item.feature || '')}" ${locked ? 'readonly' : ''} spellcheck="false"></label>` +
+      `<label class="de-label">ID<input type="text" data-field="id" class="de-input" value="${escHtml(item.id || '')}" spellcheck="false"></label>` +
+      `<label class="de-label">Group${groupSelectHtml(item.group)}</label>` +
+      `<label class="de-label">Price<input type="text" data-field="price" class="de-input" value="${escHtml(item.priceLabel || '')}" spellcheck="false"></label>` +
+      `<label class="de-label">Description<textarea data-field="blurb" class="de-input" rows="3">${escHtml(item.blurb || '')}</textarea></label>` +
+      `<div class="re-toggle-row mod-sheet-row">` +
+      `<span class="de-label">Sale sheet</span>` +
+      `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
+      `aria-checked="${item.saleSheet ? 'true' : 'false'}" aria-label="On sale sheet" title="Sale sheet"></button>` +
+      `</div>`;
+    scroll.appendChild(fields);
+  } else {
+    const blurb = document.createElement('p');
+    blurb.className = 'mod-detail-blurb';
+    blurb.textContent = item.blurb || deploy?.label || meta.title;
+    scroll.appendChild(blurb);
+  }
+
+  const status = document.createElement('section');
+  status.className = 'mod-detail-status';
+  if (deploy) {
+    const statusCls = STATUS_CLASS[deploy.status] || 'mod-status--development';
+    const nav =
+      deploy.footerNavLabels?.length
+        ? deploy.footerNavLabels.map((l) => `<span class="mod-nav-pill">${escHtml(l)}</span>`).join('')
+        : '<span class="mod-muted">—</span>';
+    status.innerHTML =
+      `<h2 class="mod-detail-heading">This install</h2>` +
+      `<div class="mod-detail-status-row">` +
+      `<span class="mod-status ${statusCls}">${escHtml(STATUS_LABELS[deploy.status] || deploy.status)}</span>` +
+      (deploy.needsAttention ? `<span class="mod-summary-pill mod-summary-pill--warn">Needs attention</span>` : '') +
+      `</div>` +
+      `<div class="mod-cell-flags">` +
+      renderFlag(deploy.enabled, 'Enabled on install') +
+      renderFlag(deploy.inFooterNav, 'Linked tab in footer nav') +
+      renderFlag(deploy.configured, 'Plugin / env configured') +
+      renderFlag(deploy.runtimeAllowed, 'Runtime allowed') +
+      renderFlag(deploy.active, 'Active') +
+      (deploy.inDemoSuite != null ? renderFlag(deploy.inDemoSuite, 'In active demo suite') : '') +
+      `</div>` +
+      `<div class="mod-cell-nav">${nav}</div>` +
+      `<div class="mod-cell-buy">${renderPurchaseHtml(deploy)}</div>`;
+  } else if (editable) {
+    status.innerHTML =
+      `<h2 class="mod-detail-heading">This install</h2>` +
+      `<p class="mod-muted">Catalog-only row — not a deployed feature on this install.</p>`;
+  }
+  scroll.appendChild(status);
+  pane.appendChild(scroll);
+  bindDetailEvents(pane);
 }
 
-function renderRow(m) {
-  const statusCls = STATUS_CLASS[m.status] || 'mod-status--development';
-  const nav =
-    m.footerNavLabels?.length ?
-      m.footerNavLabels.map((l) => `<span class="mod-nav-pill">${escHtml(l)}</span>`).join('')
-    : '<span class="mod-muted">—</span>';
-
-  return (
-    `<tr class="mod-row${m.needsAttention ? ' mod-row--attention' : ''}" data-feature="${escHtml(m.feature)}">` +
-    `<td class="mod-cell-id"><code>${escHtml(m.moduleId || '—')}</code></td>` +
-    `<td class="mod-cell-label">` +
-    `<span class="mod-label">${escHtml(m.label)}</span>` +
-    `<span class="mod-feature">${escHtml(m.feature)}</span>` +
-    `</td>` +
-    `<td><span class="mod-status ${statusCls}">${escHtml(STATUS_LABELS[m.status] || m.status)}</span></td>` +
-    `<td class="mod-cell-flags">` +
-    renderFlag(m.enabled, 'Enabled on install') +
-    renderFlag(m.inFooterNav, 'Linked tab in footer nav') +
-    renderFlag(m.configured, 'Plugin / env configured') +
-    renderFlag(m.runtimeAllowed, 'Runtime allowed') +
-    renderFlag(m.active, 'Active') +
-    (m.inDemoSuite != null ? renderFlag(m.inDemoSuite, 'In active demo suite') : '') +
-    `</td>` +
-    `<td class="mod-cell-nav">${nav}</td>` +
-    `<td class="mod-cell-buy">${renderPurchaseCell(m)}</td>` +
-    `</tr>`
-  );
+function bindDetailEvents(pane) {
+  pane.addEventListener('input', (e) => {
+    if (!e.target?.closest?.('[data-catalog-row], [data-field]')) return;
+    dirty = true;
+    scheduleSave();
+  });
+  pane.addEventListener('change', (e) => {
+    if (!e.target?.closest?.('[data-field]')) return;
+    dirty = true;
+    scheduleSave();
+  });
+  pane.querySelector('[data-field="sheet"]')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    setToggleSwitch(btn, btn.getAttribute('aria-checked') !== 'true');
+    dirty = true;
+    scheduleSave();
+  });
+  pane.querySelector('.mod-buy-btn')?.addEventListener('click', (e) => {
+    void purchaseFromButton(e.currentTarget, 'purchase');
+  });
+  pane.querySelector('.mod-mark-paid')?.addEventListener('click', (e) => {
+    void purchaseFromButton(e.currentTarget, 'mark_paid');
+  });
 }
 
-function renderPanel(data) {
-  const modules = filterModules(data.modules || []);
-  const summary = data.summary || {};
-  const demoSuite = data.demoSuite;
-  const checked = formatCheckedAt(data.checkedAt);
-
-  return (
-    `<div class="modules-panel-scroll">` +
-    `<div class="mod-header prof-card">` +
-    `<div class="mod-header-row">` +
-    `<div>` +
-    `<h1 class="prof-title">Modules</h1>` +
-    `<p class="prof-subtitle">${
-      data.storefront
-        ? 'Buy add-ons here. Paying does not turn a module on — we activate it after the card clears. You cannot flip modules yourself.'
-        : 'Optional features, deploy status, and admin navigation links.'
-    } Refreshes every ${Math.round((data.pollMs || pollMs) / 1000)}s.</p>` +
-    `</div>` +
-    `<div class="mod-header-actions">` +
-    (window.__installConfig?.showDeployWizard
-      ? `<a class="de-btn de-btn-secondary" href="/deploy">Deploy wizard</a>`
-      : '') +
-    `<button type="button" class="de-btn de-btn-secondary" id="mod-refresh-btn">Refresh</button>` +
-    `<span class="mod-checked" id="mod-checked-at">Updated ${escHtml(checked)}</span>` +
-    `</div>` +
-    `</div>` +
-    (demoSuite ?
-      `<div class="mod-suite-banner">` +
-      `<strong>Demo suite</strong> — ${escHtml(demoSuite.summary || '')}` +
-      `</div>`
-    : '') +
-    `<div class="mod-summary">` +
-    `<span class="mod-summary-pill">${summary.enabled ?? 0} enabled</span>` +
-    `<span class="mod-summary-pill">${summary.deployed ?? 0} deployed</span>` +
-    `<span class="mod-summary-pill mod-summary-pill--warn">${summary.needsAttention ?? 0} need attention</span>` +
-    `</div>` +
-    `<div class="mod-filters sliding-pill" role="tablist" aria-label="Filter modules">` +
-    `<button type="button" class="mod-filter${filter === 'all' ? ' active' : ''}" data-filter="all">All</button>` +
-    `<button type="button" class="mod-filter${filter === 'social' ? ' active' : ''}" data-filter="social">Social</button>` +
-    `<button type="button" class="mod-filter${filter === 'e-commerce' ? ' active' : ''}" data-filter="e-commerce">E-commerce</button>` +
-    `<button type="button" class="mod-filter${filter === 'enabled' ? ' active' : ''}" data-filter="enabled">Enabled</button>` +
-    (data.storefront
-      ? `<button type="button" class="mod-filter${filter === 'shop' ? ' active' : ''}" data-filter="shop">Shop</button>`
-      : '') +
-    `<button type="button" class="mod-filter${filter === 'attention' ? ' active' : ''}" data-filter="attention">Needs attention</button>` +
-    `</div>` +
-    renderGroupedTables(modules) +
-    `<p class="mod-footnote prof-hint">Core platform (Sessions, Inbox, Projects, Knowledge, To-do, Contacts, Clerk sign-in) is always on and not listed here. Add-ons are sold in this tab — a config flag on the client install is not a purchase.</p>` +
-    `</div>`
-  );
+async function purchaseFromButton(btn, action) {
+  const feature = btn?.getAttribute('data-feature');
+  if (!feature) return;
+  btn.disabled = true;
+  try {
+    const data = await purchaseModule(feature, action);
+    if (!data.ok) throw new Error(data.error || 'Update failed');
+    if (action === 'purchase') {
+      if (data.checkoutUrl) {
+        window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+        void osAlert({
+          title: 'Invoice ready',
+          bodyHtml:
+            'Pay the invoice to purchase this module. We turn it on after the payment clears — you cannot enable it yourself.',
+        });
+      } else {
+        void osAlert({
+          title: 'Request sent',
+          bodyHtml: data.invoiceError
+            ? `We logged the request. Invoicing is not available here yet (${escHtml(data.invoiceError)}). We will call you for a card.`
+            : 'We logged the request and will follow up for payment. Modules are not self-serve toggles.',
+        });
+      }
+    } else {
+      void osAlert({
+        title: 'Marked paid',
+        bodyHtml: 'Payment recorded. Enable the module in this install’s features[] on the next deploy.',
+      });
+    }
+    skipQuietUntil = Date.now() + 1500;
+    void loadModulesTab({ force: true });
+  } catch (e) {
+    btn.disabled = false;
+    void osAlert({ title: action === 'purchase' ? 'Purchase failed' : 'Update failed', bodyHtml: escHtml(e.message) });
+  }
 }
 
 async function purchaseModule(feature, action) {
@@ -247,76 +623,162 @@ async function purchaseModule(feature, action) {
   return readAdminJson(res, 'module-purchase');
 }
 
-function bindPanelEvents(root) {
-  root.querySelector('#mod-refresh-btn')?.addEventListener('click', () => {
-    void loadModulesTab({ force: true });
-  });
+function scheduleSave() {
+  if (!canEditCatalog()) return;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    void persistCatalog();
+  }, 700);
+}
 
-  root.querySelectorAll('.mod-filter').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      filter = btn.getAttribute('data-filter') || 'all';
-      if (lastPayload) {
-        root.innerHTML = renderPanel(lastPayload);
-        bindPanelEvents(root);
-      }
+async function persistCatalog({ reset = false } = {}) {
+  if (!canEditCatalog() || saving) return;
+  if (!reset) readDetailIntoCatalog();
+  saving = true;
+  try {
+    const body = reset ? { reset: true } : { rows: catalogRows };
+    const res = await fetch(CATALOG_API, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
-  });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    const selectedFeature = findItem(activeKey)?.feature;
+    catalogRows = json.rows || [];
+    if (Array.isArray(json.groups) && json.groups.length) catalogGroups = json.groups;
+    items = mergeItems(catalogRows, lastPayload);
+    dirty = false;
+    if (activeKey && !findItem(activeKey)) {
+      const byFeature = selectedFeature
+        ? items.find((item) => item.feature === selectedFeature)
+        : null;
+      activeKey = byFeature ? itemKey(byFeature) : null;
+      if (!activeKey) rootEl()?.classList.remove('de-pane-active');
+    }
+    const selected = findItem(activeKey);
+    const groupChanged = selected && filter !== 'all' && selected.group !== filter;
+    if (groupChanged) filter = selected.group;
+    if (reset || groupChanged) renderShell();
+    else refreshSidebarList();
+  } catch (e) {
+    void osAlert({ title: 'Catalog', bodyHtml: escHtml(e.message || 'Could not save catalog.') });
+  } finally {
+    saving = false;
+  }
+}
 
-  root.querySelectorAll('.mod-buy-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const feature = btn.getAttribute('data-feature');
-      if (!feature) return;
-      btn.disabled = true;
-      try {
-        const data = await purchaseModule(feature, 'purchase');
-        if (!data.ok) throw new Error(data.error || 'Purchase failed');
-        if (data.checkoutUrl) {
-          window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
-          void osAlert({
-            title: 'Invoice ready',
-            bodyHtml: 'Pay the invoice to purchase this module. We turn it on after the payment clears — you cannot enable it yourself.',
-          });
-        } else {
-          void osAlert({
-            title: 'Request sent',
-            bodyHtml: data.invoiceError
-              ? `We logged the request. Invoicing is not available here yet (${escHtml(data.invoiceError)}). We will call you for a card.`
-              : 'We logged the request and will follow up for payment. Modules are not self-serve toggles.',
-          });
-        }
-        void loadModulesTab({ force: true });
-      } catch (e) {
-        btn.disabled = false;
-        void osAlert({ title: 'Purchase failed', bodyHtml: escHtml(e.message) });
-      }
-    });
-  });
+async function resetCatalog() {
+  if (!canEditCatalog()) return;
+  if (!window.confirm('Reset the catalog to the shipped defaults? Your saved edits will be replaced.')) return;
+  window.clearTimeout(saveTimer);
+  dirty = false;
+  await persistCatalog({ reset: true });
+}
 
-  root.querySelectorAll('.mod-mark-paid').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const feature = btn.getAttribute('data-feature');
-      if (!feature) return;
-      btn.disabled = true;
-      try {
-        const data = await purchaseModule(feature, 'mark_paid');
-        if (!data.ok) throw new Error(data.error || 'Update failed');
-        void osAlert({
-          title: 'Marked paid',
-          bodyHtml: 'Payment recorded. Enable the module in this install’s features[] on the next deploy.',
-        });
-        void loadModulesTab({ force: true });
-      } catch (e) {
-        btn.disabled = false;
-        void osAlert({ title: 'Update failed', bodyHtml: escHtml(e.message) });
-      }
+async function deleteItem(item) {
+  if (!canDeleteItem(item)) return;
+  if (catalogRows.length <= 1) {
+    void osAlert({
+      title: 'Catalog',
+      bodyHtml: 'At least one catalog row is required.',
     });
+    return;
+  }
+  window.clearTimeout(saveTimer);
+  readDetailIntoCatalog();
+  catalogRows = catalogRows.filter((row) => row.key !== item.catalogKey);
+  if (activeKey === itemKey(item)) {
+    activeKey = null;
+    rootEl()?.classList.remove('de-pane-active');
+  }
+  dirty = true;
+  await persistCatalog();
+  renderDetailPane();
+}
+
+function addCustomRow() {
+  if (!canEditCatalog()) return;
+  readDetailIntoCatalog();
+  const group = filter !== 'all' && GROUP_META[filter] ? filter : 'other';
+  const row = newCustomRow(group);
+  catalogRows.push(row);
+  items = mergeItems(catalogRows, lastPayload);
+  activeKey = row.key;
+  dirty = true;
+  refreshSidebarList();
+  renderDetailPane();
+  rootEl()?.classList.add('de-pane-active');
+  scheduleSave();
+  rootEl()?.querySelector('[data-field="label"]')?.focus();
+}
+
+function renderShell() {
+  const root = rootEl();
+  if (!root) return;
+  const savedScroll = captureSidebarScroll(root);
+  const savedFilter = captureFilterTabsScroll(root);
+  const visible = filteredItems();
+  root.innerHTML = '';
+  root.classList.toggle('de-pane-active', !!findItem(activeKey));
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const searchOpts = {
+    value: search,
+    placeholder: `Search ${visible.length} ${visible.length === 1 ? 'Module' : 'Modules'}`,
+    onInput(value) {
+      search = value;
+      const next = filteredItems();
+      if (activeKey && !next.some((item) => itemKey(item) === activeKey)) {
+        activeKey = null;
+        root.classList.remove('de-pane-active');
+        renderDetailPane();
+      }
+      refreshSidebarList();
+    },
+  };
+
+  const subheader = listSearchAddNew({
+    itemCount: visible.length,
+    search: searchOpts,
+    addNew: canEditCatalog() ? { label: 'New module', onClick: addCustomRow } : false,
+    below: renderFilterTabs(savedFilter),
   });
+  if (subheader) sidebar.appendChild(subheader.el);
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
+  fillSidebarList(list);
+  attachIosPullToRefresh(list, () => {
+    if (!isActiveTab()) return;
+    return loadModulesTab({ force: true });
+  });
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+  root.appendChild(pane);
+  renderDetailPane();
+  restoreSidebarScroll(root, savedScroll);
 }
 
 async function fetchStatus() {
-  const res = await adminFetch(API, { cache: 'no-store' });
+  const res = await adminFetch(STATUS_API, { cache: 'no-store' });
   const data = await readAdminJson(res, 'deploy-status');
   if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function fetchCatalog() {
+  if (!canEditCatalog()) return null;
+  const res = await fetch(CATALOG_API, { cache: 'no-store' });
+  if (res.status === 404) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
@@ -325,7 +787,7 @@ function renderSignedOutGate(title) {
     `<div class="modules-panel-scroll">` +
     `<div class="mod-auth-gate prof-card">` +
     `<h1 class="prof-title">${escHtml(title)}</h1>` +
-    `<p class="prof-subtitle">Sign in to view module status and deployment health for this install.</p>` +
+    `<p class="prof-subtitle">Sign in to view module status and the catalog for this install.</p>` +
     `<button type="button" class="de-btn de-btn-primary mod-auth-sign-in">Sign in</button>` +
     `</div>` +
     `</div>`
@@ -351,19 +813,34 @@ export async function loadModulesTab(opts = {}) {
   }
 
   const quiet = opts.quiet === true;
+  if (quiet && (dirty || saving || Date.now() < skipQuietUntil)) return;
 
-  if (!quiet && !root.querySelector('.mod-table')) {
-    mountPanelSkeleton(root, 'dashboard', 'Loading modules…', {
-      contentSelector: '.modules-panel-scroll',
-    });
+  if (!quiet && !root.querySelector('.ch-sidebar')) {
+    mountPanelSkeleton(root, 'list', 'Loading modules…');
   }
 
   try {
-    const data = await fetchStatus();
-    lastPayload = data;
-    if (data.pollMs) pollMs = data.pollMs;
-    root.innerHTML = renderPanel(data);
-    bindPanelEvents(root);
+    const [status, catalog] = await Promise.all([fetchStatus(), fetchCatalog().catch(() => null)]);
+    lastPayload = status;
+    if (status.pollMs) pollMs = status.pollMs;
+    if (catalog) {
+      catalogRows = Array.isArray(catalog.rows) ? catalog.rows : [];
+      catalogGroups = Array.isArray(catalog.groups) ? catalog.groups : [];
+    } else if (!canEditCatalog()) {
+      catalogRows = [];
+      catalogGroups = Array.isArray(status.groups) ? status.groups : [];
+    }
+    items = mergeItems(catalogRows.length ? catalogRows : null, status);
+    if (activeKey && !findItem(activeKey)) {
+      activeKey = null;
+      root.classList.remove('de-pane-active');
+    }
+    if (quiet && root.querySelector('.ch-sidebar')) {
+      refreshSidebarList();
+      if (activeKey) renderDetailPane();
+    } else {
+      renderShell();
+    }
     startPoll();
   } catch (e) {
     if (e.message === 'Session expired') return;
@@ -377,5 +854,6 @@ export async function loadModulesTab(opts = {}) {
 }
 
 export function teardownModulesPanel() {
+  window.clearTimeout(saveTimer);
   stopPoll();
 }

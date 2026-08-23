@@ -42,7 +42,7 @@ function chipsForModule(moduleId: FeatureId): MarketingFeature[] {
  * unless they are intentional green nav chips (e.g. pricing).
  * Module-owned extras live in FEATURE_MARKETING and are spread in here.
  */
-export const MARKETING_FEATURES: readonly MarketingFeature[] = [
+const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   // —— Core / always-on ——
   {
     id: 'ai-agent',
@@ -354,6 +354,12 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
 ];
+
+/** Chip ids match FeatureIds — underscores, never hyphens. */
+export const MARKETING_FEATURES: readonly MarketingFeature[] = MARKETING_FEATURES_RAW.map((item) => ({
+  ...item,
+  id: item.id.replace(/-/g, '_'),
+}));
 
 export type DemoLoaderFeature = {
   id: string;

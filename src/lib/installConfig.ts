@@ -67,7 +67,7 @@ export const PROFILE_MENU_KEYS = [
   'socials',
   'addons',
   'industries', // REΛVE-only; stripped from client payload on other installs
-  'catalog', // REΛVE-only module catalog editor
+  'catalog', // legacy; catalog editor now lives in dashboard → Modules
   'vapi',
   'lead-scanner',
 ] as const;
@@ -478,6 +478,8 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   if (!isCanonicalReaveInstall()) {
     menu = menu.filter((key) => key !== 'industries' && key !== 'catalog');
   }
+  // Catalog editor lives in dashboard → Modules, not a separate account page.
+  menu = menu.filter((key) => key !== 'catalog');
   // End users buy/request modules from account → Add-ons. Always show it.
   return ensureProfileMenuAddons(menu);
 }
