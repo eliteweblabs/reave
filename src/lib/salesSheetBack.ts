@@ -2,8 +2,8 @@
  * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
  * Three columns on Letter: inner gate (portal welcome + Q&A), back cover
- * (custom builds + full platform stack), and front cover (icon dead center +
- * diagnostic). Same HTML for every client.
+ * (custom builds + full platform stack), and front cover (full logo dead
+ * center + diagnostic). Same HTML for every client.
  */
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
@@ -141,21 +141,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.ss-sheet-back .doc-onepager::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url("/reave-bg-pattern.svg");
-  background-repeat: repeat;
-  background-position: center;
-  background-size: 260% 260%;
-  opacity: 0.05;
-  filter: grayscale(1);
-  pointer-events: none;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
 .ss-sheet-back .ss-back-cols {
   position: relative;
   z-index: 1;
@@ -169,12 +154,36 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-back-col {
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   min-width: 0;
   min-height: ${orientation === 'portrait' ? '2.8in' : '0'};
   display: flex;
   flex-direction: column;
   gap: 0.38em;
   padding: 0 var(--ss-print-inset);
+}
+.ss-sheet-back .ss-back-col::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/reave-bg-pattern.svg");
+  background-repeat: repeat;
+  background-position: center;
+  background-size: 220% 220%;
+  opacity: 0.15;
+  filter: grayscale(1);
+  -webkit-mask-image: radial-gradient(ellipse 70% 68% at 50% 50%, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.4) 48%, #000 100%);
+  mask-image: radial-gradient(ellipse 70% 68% at 50% 50%, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.4) 48%, #000 100%);
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.ss-sheet-back .ss-back-col > * {
+  position: relative;
+  z-index: 1;
 }
 .ss-sheet-back .ss-back-col--gate {
   justify-content: flex-start;
@@ -240,8 +249,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  width: auto;
-  max-width: 70%;
+  width: 84%;
+  max-width: 84%;
   pointer-events: none;
 }
 .ss-sheet-back .ss-back-icon .doc-brand,
@@ -250,17 +259,20 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-icon img,
 .ss-sheet-back .ss-back-icon svg {
   display: block;
-  width: auto;
-  height: clamp(56px, 16cqh, 110px);
-  max-width: 70%;
+  width: 100%;
+  height: auto;
+  max-height: clamp(52px, 16cqh, 112px);
+  max-width: 100%;
   margin: 0 auto;
   object-fit: contain;
 }
 .ss-sheet-back .ss-back-gate-icon {
   margin-top: auto;
   display: grid;
-  place-items: start;
-  padding-top: 0.4em;
+  place-items: center;
+  justify-items: center;
+  width: 100%;
+  padding-top: 0.55em;
 }
 .ss-sheet-back .ss-back-gate-icon .doc-brand,
 .ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-img,
@@ -269,8 +281,9 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-gate-icon svg {
   display: block;
   width: auto;
-  height: clamp(16px, 3.6cqh, 24px);
-  max-width: 28%;
+  height: clamp(56px, 12cqh, 96px);
+  max-width: 52%;
+  margin: 0 auto;
   object-fit: contain;
 }
 .ss-sheet-back .ss-back-qa {
@@ -399,13 +412,15 @@ export function renderSalesSheetBackHtml(opts: {
   orientation: SalesSheetBackOrientation;
   stackLogos?: SalesSheetBackLogo[];
   iconHtml?: string;
+  logoHtml?: string;
 }): string {
   const name = (opts.company?.name || 'This platform').trim();
   const stack = salesSheetStackLogos(opts.stackLogos);
   const stackItems = stack.map(stackLogoHtml).join('');
   const notice = (opts.company?.portalOutreachNotice || '').trim() || DEFAULT_PORTAL_OUTREACH_NOTICE;
-  const iconHtml =
-    (opts.iconHtml || '').trim() || `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  const fallbackMark = `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  const iconHtml = (opts.iconHtml || '').trim() || fallbackMark;
+  const logoHtml = (opts.logoHtml || '').trim() || iconHtml;
   const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
 
   return `
@@ -443,7 +458,7 @@ export function renderSalesSheetBackHtml(opts: {
         </div>
       </section>
       <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">
-        <div class="ss-back-icon">${iconHtml}</div>
+        <div class="ss-back-icon">${logoHtml}</div>
         <div class="ss-back-diagnostic">
           <h2>Online presence diagnostic</h2>
           <p>An independent systems scan of your business’s digital footprint.</p>

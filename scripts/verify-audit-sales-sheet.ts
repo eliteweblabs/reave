@@ -625,7 +625,11 @@ await test('static back is gate + builds + cover with full stack and no client f
   assert.match(back, /left: 50%/);
   assert.match(back, /translate\(-50%, -50%\)/);
   assert.match(back, /reave-bg-pattern/);
-  assert.match(back, /opacity: 0\.05/);
+  assert.match(back, /opacity: 0\.15/);
+  assert.match(back, /mask-image: radial-gradient/);
+  assert.match(back, /\.ss-back-col::before/);
+  assert.match(back, /place-items: center/);
+  assert.match(back, /clamp\(56px, 12cqh, 96px\)/);
   for (const tech of PLATFORM_STACK) {
     assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
   }
