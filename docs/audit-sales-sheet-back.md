@@ -12,7 +12,7 @@ Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape
 Stack logos: curated `SALES_SHEET_STACK` in A–Z name order (Anthropic, Astro,
 Clerk, Cloudflare, GitHub, Plausible, Railway, Resend, Supabase) —
 black marks only, no labels, no “builds with” line, pinned to the bottom of
-the **back** (center) panel. Handwritten objections
+the **back** (center) panel. Chat-bubble objections
 (`SALES_SHEET_BACK_COVER_QA`) sit directly above those marks.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
 `/digital-audit`). Inner-gate copy: Company outreach note / portal welcome
@@ -70,7 +70,7 @@ Unfolded, this is a brochure. Fold the right panel in first:
    and a large company icon centered at the bottom.
 2. **Center — Back** — outside back when folded. Custom-build line, Barry Levine
    hosting quote, local clients (Barber's Edge, The Law Office of Barry Levine,
-   MDOT.world), then the handwritten objections in Caveat (no Q/A labels), then the
+   MDOT.world), then the three objections as left/right chat bubbles, then the
    curated stack marks along the bottom of this panel.
 3. **Right — Front** — the face of the folded brochure. Full company logo dead
    center, then “Online presence diagnostic” and the independent systems-scan

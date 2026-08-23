@@ -3,7 +3,7 @@
  *
  * Letter landscape reads left → right as the unfolded brochure:
  * inner gate (portal welcome + small-shop Q&A), back cover (custom builds +
- * handwritten objections above the stack marks), front cover (full logo dead
+ * chat-bubble objections above the stack marks), front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
@@ -67,7 +67,7 @@ export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
   },
 ];
 
-/** Handwritten objections on the back cover, above the stack marks. */
+/** Chat-thread objections on the back cover, above the stack marks. */
 export const SALES_SHEET_BACK_COVER_QA: SalesSheetBackQa[] = [
   {
     q: 'How can you offer these services for so cheap?',
@@ -138,12 +138,12 @@ function qaListHtml(): string {
 
 function backCoverQaHtml(): string {
   const items = SALES_SHEET_BACK_COVER_QA.map(
-    (item, i) => `<div class="ss-back-hand-qa-item" data-qa="${i + 1}">
-  <p class="ss-back-hand-qa-q">${esc(item.q)}</p>
-  <p class="ss-back-hand-qa-a">${esc(item.a)}</p>
+    (item, i) => `<div class="ss-back-chat-pair" data-qa="${i + 1}">
+  <p class="ss-back-chat-q">${esc(item.q)}</p>
+  <p class="ss-back-chat-a">${esc(item.a)}</p>
 </div>`,
   ).join('');
-  return `<aside class="ss-back-hand-qa" data-ss-col="back-qa" aria-label="Questions">${items}</aside>`;
+  return `<aside class="ss-back-chat" data-ss-col="back-qa" aria-label="Questions">${items}</aside>`;
 }
 
 function backPageCss(orientation: SalesSheetBackOrientation): string {
@@ -151,7 +151,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   const ratio = orientation === 'landscape' ? '11 / 8.5' : '8.5 / 11';
   const maxWidth = orientation === 'landscape' ? '11in' : '8.5in';
   return `
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 .ss-sheet-back.doc-onepager-stage {
   box-sizing: border-box;
   width: 100%;
@@ -423,33 +422,40 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   margin-bottom: 0;
   padding: 0;
 }
-.ss-sheet-back .ss-back-hand-qa {
+.ss-sheet-back .ss-back-chat {
   display: flex;
   flex-direction: column;
-  gap: 0.55em;
+  gap: 0.42em;
   width: 100%;
-  color: #1a3d6e;
 }
-.ss-sheet-back .ss-back-hand-qa-item:nth-child(1) { transform: rotate(-0.85deg); }
-.ss-sheet-back .ss-back-hand-qa-item:nth-child(2) { transform: rotate(0.7deg); }
-.ss-sheet-back .ss-back-hand-qa-item:nth-child(3) { transform: rotate(-0.45deg); }
-.ss-sheet-back .ss-back-hand-qa-q,
-.ss-sheet-back .ss-back-hand-qa-a {
+.ss-sheet-back .ss-back-chat-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18em;
+}
+.ss-sheet-back .ss-back-chat-q,
+.ss-sheet-back .ss-back-chat-a {
   margin: 0;
-  font-family: Caveat, 'Segoe Script', 'Bradley Hand', cursive;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.18;
+  max-width: 88%;
+  padding: 0.38em 0.58em;
+  font-size: clamp(8px, 1.12cqi, 10px);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.32;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-.ss-sheet-back .ss-back-hand-qa-q {
-  margin-bottom: 0.1em;
-  font-size: clamp(12px, 1.7cqi, 16px);
-  font-weight: 700;
-  color: #1a3d6e;
+.ss-sheet-back .ss-back-chat-q {
+  align-self: flex-start;
+  background: #e9e9eb;
+  color: #1d1d1f;
+  border-radius: 14px 14px 14px 4px;
 }
-.ss-sheet-back .ss-back-hand-qa-a {
-  font-size: clamp(11px, 1.5cqi, 14px);
-  color: #3a3328;
+.ss-sheet-back .ss-back-chat-a {
+  align-self: flex-end;
+  background: #007aff;
+  color: #fff;
+  border-radius: 14px 14px 4px 14px;
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
