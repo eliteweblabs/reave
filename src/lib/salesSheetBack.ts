@@ -54,6 +54,13 @@ export const SALES_SHEET_LOCAL_CLIENTS = [
   'MDOT.world',
 ] as const;
 
+/** Hero-demo stock faces for the back-cover chat questions (one per pair). */
+export const SALES_SHEET_BACK_CHAT_HEADSHOTS = [
+  'hero-field-checkin',
+  'hero-nda-signing',
+  'hero-henderson-billing',
+] as const;
+
 export type SalesSheetBackQa = {
   q: string;
   a: string;
@@ -71,7 +78,7 @@ export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
 export const SALES_SHEET_BACK_COVER_QA: SalesSheetBackQa[] = [
   {
     q: 'How can you offer these services for so cheap?',
-    a: 'Agility and automation tools. What takes an agency a dozen emails and three days, I can do in 15 minutes walking the dog.',
+    a: 'Agility, automation tools, and niche knowledge gained over 20+ years. What takes an agency a dozen emails and three days, I can do in 15 minutes walking the dog.',
   },
   {
     q: 'What happens if you go out of business or disappear?',
@@ -167,13 +174,28 @@ function qaListHtml(): string {
   ).join('');
 }
 
+function chatUserAvatarHtml(slug: string): string {
+  return `<span class="ss-back-chat-avatar ss-back-chat-avatar--user" aria-hidden="true"><img src="/api/media/${esc(slug)}" alt="" /></span>`;
+}
+
+function chatReaveAvatarHtml(index: number): string {
+  return `<span class="ss-back-chat-avatar ss-back-chat-avatar--reave" aria-hidden="true">${reaveWebsiteIconHtml(`ss-back-chat-reave-${index}`)}</span>`;
+}
+
 function backCoverQaHtml(): string {
-  const items = SALES_SHEET_BACK_COVER_QA.map(
-    (item, i) => `<div class="ss-back-chat-pair" data-qa="${i + 1}">
-  <p class="ss-back-chat-q">${esc(item.q)}</p>
-  <p class="ss-back-chat-a">${esc(item.a)}</p>
-</div>`,
-  ).join('');
+  const items = SALES_SHEET_BACK_COVER_QA.map((item, i) => {
+    const face = SALES_SHEET_BACK_CHAT_HEADSHOTS[i % SALES_SHEET_BACK_CHAT_HEADSHOTS.length];
+    return `<div class="ss-back-chat-pair" data-qa="${i + 1}">
+  <div class="ss-back-chat-row ss-back-chat-row--q">
+    ${chatUserAvatarHtml(face)}
+    <p class="ss-back-chat-q">${esc(item.q)}</p>
+  </div>
+  <div class="ss-back-chat-row ss-back-chat-row--a">
+    <p class="ss-back-chat-a">${esc(item.a)}</p>
+    ${chatReaveAvatarHtml(i + 1)}
+  </div>
+</div>`;
+  }).join('');
   return `<aside class="ss-back-chat" data-ss-col="back-qa" aria-label="Questions">${items}</aside>`;
 }
 
@@ -492,10 +514,52 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex-direction: column;
   gap: 0.18em;
 }
+.ss-sheet-back .ss-back-chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.28em;
+  width: 100%;
+}
+.ss-sheet-back .ss-back-chat-row--q {
+  justify-content: flex-start;
+}
+.ss-sheet-back .ss-back-chat-row--a {
+  justify-content: flex-end;
+}
+.ss-sheet-back .ss-back-chat-avatar {
+  flex: none;
+  width: clamp(14px, 2cqi, 18px);
+  height: clamp(14px, 2cqi, 18px);
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.ss-sheet-back .ss-back-chat-avatar--user {
+  background: #d8d8d4;
+}
+.ss-sheet-back .ss-back-chat-avatar--user img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ss-sheet-back .ss-back-chat-avatar--reave {
+  padding: 2px;
+  background: #111114;
+  box-sizing: border-box;
+}
+.ss-sheet-back .ss-back-chat-avatar--reave .ss-back-reave-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .ss-sheet-back .ss-back-chat-q,
 .ss-sheet-back .ss-back-chat-a {
   margin: 0;
-  max-width: 88%;
+  max-width: 82%;
   padding: 0.38em 0.58em;
   font-size: clamp(8px, 1.12cqi, 10px);
   font-weight: 500;
@@ -505,13 +569,11 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   print-color-adjust: exact;
 }
 .ss-sheet-back .ss-back-chat-q {
-  align-self: flex-start;
   background: #e9e9eb;
   color: #1d1d1f;
   border-radius: 14px 14px 14px 4px;
 }
 .ss-sheet-back .ss-back-chat-a {
-  align-self: flex-end;
   background: #007aff;
   color: #fff;
   border-radius: 14px 14px 4px 14px;

@@ -655,10 +655,16 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /ss-back-chat/);
   assert.match(back, /ss-back-chat-q/);
   assert.match(back, /ss-back-chat-a/);
-  assert.match(back, /align-self: flex-start/);
-  assert.match(back, /align-self: flex-end/);
+  assert.match(back, /ss-back-chat-row--q/);
+  assert.match(back, /ss-back-chat-row--a/);
+  assert.match(back, /ss-back-chat-avatar--user/);
+  assert.match(back, /ss-back-chat-avatar--reave/);
+  assert.match(back, /\/api\/media\/hero-field-checkin/);
+  assert.match(back, /\/api\/media\/hero-nda-signing/);
+  assert.match(back, /\/api\/media\/hero-henderson-billing/);
   assert.match(back, /#007aff/);
   assert.match(back, /How can you offer these services for so cheap\?/);
+  assert.match(back, /Agility, automation tools, and niche knowledge gained over 20\+ years/);
   assert.match(back, /15 minutes walking the dog/);
   assert.doesNotMatch(back, /while walking the dog/);
   assert.match(back, /never take possession/);
