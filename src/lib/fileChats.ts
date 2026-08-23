@@ -6,12 +6,12 @@
  */
 
 import { randomUUID } from 'crypto';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import type { ChatTurn } from './chatTypes';
 import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './chatTypes';
 import { titleFromMessage } from './chatTypes';
+import { projectRoot } from './projectRoot';
 
 export { titleFromMessage };
 
@@ -19,16 +19,6 @@ const META_RE = /^<!--\s*(id|user|created|updated|archived|last_seen):\s*(.+?)\s
 const MSG_USAGE_RE = /^<!--\s*agent_usage:\s*(.+?)\s*-->$/;
 const MSG_HEADING_RE = /^##\s+(user|assistant)\s*$/i;
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function chatsDir(): string {
   const dir = process.env.CHATS_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'chats');

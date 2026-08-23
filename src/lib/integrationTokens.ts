@@ -1,3 +1,4 @@
+import { projectRoot } from './projectRoot';
 /**
  * OAuth / API tokens keyed by (subject, provider).
  *
@@ -9,7 +10,6 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import type pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv.ts';
@@ -83,16 +83,6 @@ function usePostgres(): boolean {
   return Boolean(databaseUrl());
 }
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function filePath(): string {
   const override = serverEnv('INTEGRATION_TOKENS_FILE')?.trim();

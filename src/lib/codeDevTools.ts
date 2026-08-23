@@ -15,8 +15,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { maybeDeferExecCommand } from './deferredDeploy';
+import { projectRoot } from './projectRoot';
 
 const MAX_READ_BYTES = 512 * 1024;
 const MAX_WRITE_BYTES = 512 * 1024;
@@ -26,16 +26,34 @@ const MAX_GREP_MATCHES = 200;
 const MAX_GREP_LINE_LEN = 500;
 const EXEC_TIMEOUT_MS = 60_000;
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
+/** Block obviously destructive or exfiltration-oriented shell patterns. */
+const BLOCKED_EXEC_PATTERNS: RegExp[] = [
+  /\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|--recursive\b)/i,
+  /\bmkfs\b/i,
+  /\bdd\s+if=/i,
+  /\b(curl|wget)\s+[^\s|;&]+\s*\|/i,
+  /\b(nc|netcat|ncat)\s+/i,
+  /\bssh\s+[^\s]+@/i,
+  />\s*\/dev\/(tcp|udp)\//i,
+  /\|\s*(ba)?sh\b/i,
+  /\bchmod\s+[0-7]*[67][0-7]{2}\b/,
+  /\bsudo\b/i,
+  /\bsu\s+-/i,
+  /\bkillall\b/i,
+  /\bpkill\s+-9\b/i,
+  /\b(shutdown|reboot|halt|poweroff)\b/i,
+  /\b(chown|chgrp)\s+root\b/i,
+];
+
+function validateExecCommand(cmd: string): string | null {
+  for (const pattern of BLOCKED_EXEC_PATTERNS) {
+    if (pattern.test(cmd)) {
+      return 'command blocked by safety policy';
+    }
   }
-  return process.cwd();
+  return null;
 }
+
 
 function resolveSafePath(
   userPath: string,
@@ -311,6 +329,8 @@ export async function codeDevExecCommand(command: string): Promise<CodeDevResult
   if (/\b\.env(?:\.|$|\s)/.test(cmd)) {
     return { ok: false, error: 'commands that reference .env files are blocked' };
   }
+  const blocked = validateExecCommand(cmd);
+  if (blocked) return { ok: false, error: blocked };
 
   const deferred = await maybeDeferExecCommand(cmd);
   if (deferred) {

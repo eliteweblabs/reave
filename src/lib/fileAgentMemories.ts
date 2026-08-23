@@ -1,11 +1,11 @@
+import { projectRoot } from './projectRoot';
 /**
  * JSON-file durable recall for local/dev when DATABASE_URL is unset.
  * Writes live under src/knowledge/ until the next deploy.
  */
 
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
 import {
   memoriesAreSimilar,
   normalizeMemoryContent,
@@ -20,16 +20,6 @@ import {
 
 type FilePayload = { nextId: number; memories: AgentMemory[] };
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function memoriesPath(): string {
   const dir =

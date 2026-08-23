@@ -1,3 +1,4 @@
+import { projectRoot } from '../../../lib/projectRoot';
 /**
  * POST /api/todo/toggle — toggle a GFM checkbox in a todo markdown file.
  *
@@ -10,23 +11,12 @@
  */
 import type { APIRoute } from 'astro';
 import type { APIContext } from 'astro';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function todoDir(): string {
   return process.env.TODO_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'todo');

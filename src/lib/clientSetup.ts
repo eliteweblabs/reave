@@ -1,10 +1,10 @@
+import { projectRoot } from './projectRoot';
 /**
  * First-run client setup — steps REΛVE cannot complete from the deploy wizard
  * (device install, the client’s mailbox admin, their own API keys).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { isCardDavConfigured } from './carddav/auth';
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { hasFeature } from './features';
@@ -89,14 +89,6 @@ function emptyProgress(): ClientSetupProgress {
   return { completed: [], skipped: [], dismissedUntil: null, finishedAt: null };
 }
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 8; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    dir = dirname(dir);
-  }
-  return process.cwd();
-}
 
 function filePath(): string {
   return join(projectRoot(), 'src', 'knowledge', 'client-setup.json');

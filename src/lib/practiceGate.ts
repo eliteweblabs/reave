@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
+import { projectRoot } from './projectRoot';
 
 export const PRACTICE_AREAS = [
   { id: 'bankruptcy', label: 'Bankruptcy / debtor' },
@@ -198,14 +198,6 @@ export function gateFromEnv(): Partial<PracticeGate> {
   };
 }
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 8; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    dir = dirname(dir);
-  }
-  return process.cwd();
-}
 
 function filePath(): string {
   return join(projectRoot(), 'src', 'knowledge', 'practice-gate.json');

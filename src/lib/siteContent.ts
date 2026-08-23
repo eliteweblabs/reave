@@ -1,3 +1,4 @@
+import { projectRoot } from './projectRoot';
 /**
  * Public website chrome — nav, allowed pages, homepage template.
  *
@@ -9,8 +10,7 @@
  * Demo installs: demo-{industry}-config.json (from ?industry= cookie)
  */
 import { existsSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { getActiveDemoSuite } from './demoSuiteContext';
 import { isDemoMode } from './demoMode';
 import {
@@ -333,16 +333,6 @@ function resolveLandingMedia(landing: SiteLandingConfig): SiteLandingConfig {
 
 const _cache = new Map<string, SiteContentConfig>();
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function sitesDir(): string {
   const override = serverEnv('SITE_CONTENT_DIR')?.trim();

@@ -10,9 +10,9 @@
  * Official REΛVE uses config-reave.json and is never a login wall.
  */
 import { existsSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { isPrivateFeature } from './featureCatalog.ts';
+import { projectRoot } from './projectRoot.ts';
 import { parseHomepageTemplate, type HomepageTemplate } from './homepageTemplate.ts';
 import { serverEnv } from './serverEnv.ts';
 
@@ -197,16 +197,6 @@ const FOOTER_NAV_SLOT_SET = new Set<string>(FOOTER_NAV_SLOT_KEYS);
 
 let _cached: InstallConfig | null = null;
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function trim(v: string | null | undefined): string {
   return (v ?? '').trim();

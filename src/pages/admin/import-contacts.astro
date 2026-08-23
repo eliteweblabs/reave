@@ -414,6 +414,17 @@ const companyBrand = { contactsLabel: 'Contacts' };
     </div>
 
     <script>
+      function escapeHtml(value: string): string {
+        return value
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      const ALERT_TYPES = new Set(['error', 'success', 'info']);
+
       const form = document.getElementById('import-form') as HTMLFormElement | null;
       const statusDiv = document.getElementById('import-status');
       const submitBtn = form?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
@@ -468,7 +479,8 @@ const companyBrand = { contactsLabel: 'Contacts' };
 
       function showAlert(type: string, message: string) {
         if (!statusDiv) return;
-        statusDiv.innerHTML = `<div class="import-alert import-alert-${type}">${message}</div>`;
+        const safeType = ALERT_TYPES.has(type) ? type : 'error';
+        statusDiv.innerHTML = `<div class="import-alert import-alert-${safeType}">${escapeHtml(message)}</div>`;
       }
 
       function showResults(results: {
@@ -496,10 +508,11 @@ const companyBrand = { contactsLabel: 'Contacts' };
           html += `<div class="import-errors-title">Errors (${results.errors.length})</div>`;
           html += '<ul class="import-error-list">';
           results.errors.slice(0, 10).forEach((error: string) => {
-            html += `<li class="import-error-item">${error}</li>`;
+            html += `<li class="import-error-item">${escapeHtml(error)}</li>`;
           });
           if (results.errors.length > 10) {
-            html += `<li class="import-error-item">... and ${results.errors.length - 10} more errors</li>`;
+            const remaining = results.errors.length - 10;
+            html += `<li class="import-error-item">... and ${remaining} more error${remaining !== 1 ? 's' : ''}</li>`;
           }
           html += '</ul>';
           html += '</div>';

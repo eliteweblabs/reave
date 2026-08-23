@@ -1,3 +1,4 @@
+import { projectRoot } from './projectRoot';
 /**
  * Persist the runtime Claude model choice for admin chats and dashboard agent.
  * Postgres (DATABASE_URL) when set, otherwise JSON under src/knowledge/.
@@ -5,7 +6,6 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { normalizeAgentModelInput } from './agentModel';
@@ -40,16 +40,6 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   return pool;
 }
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function modelFilePath(): string {
   const override = serverEnv('AGENT_MODEL_FILE')?.trim();
