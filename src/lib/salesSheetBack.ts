@@ -158,6 +158,21 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+.ss-sheet-back .doc-onepager::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/reave-bg-pattern.svg");
+  background-repeat: repeat;
+  background-position: center center;
+  background-size: ${orientation === 'landscape' ? '28.6in 22.1in' : '22.1in 28.6in'};
+  opacity: 0.15;
+  filter: grayscale(1);
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 .ss-sheet-back .ss-back-cols {
   position: relative;
   z-index: 1;
@@ -180,23 +195,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex-direction: column;
   gap: 0.38em;
   padding: 0 var(--ss-print-inset);
-}
-.ss-sheet-back .ss-back-col::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url("/reave-bg-pattern.svg");
-  background-repeat: repeat;
-  background-position: center;
-  background-size: ${orientation === 'landscape' ? '28.6in 22.1in' : '22.1in 28.6in'};
-  opacity: 0.15;
-  filter: grayscale(1);
-  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 36%, rgba(0,0,0,0.7) 72%, #000 100%);
-  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 36%, rgba(0,0,0,0.7) 72%, #000 100%);
-  pointer-events: none;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
 }
 .ss-sheet-back .ss-back-col > * {
   position: relative;
