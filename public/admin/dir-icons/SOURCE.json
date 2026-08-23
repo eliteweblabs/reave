@@ -75,7 +75,8 @@
   {
     "slug": "hotfrog",
     "name": "Hotfrog",
-    "src": "https://www.google.com/s2/favicons?domain=hotfrog.com&sz=256"
+    "src": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Hotfrog.jpg",
+    "note": "Vector reconstruction of the official frog-foot mark (geometry from the Wikimedia wordmark). Google favicon was 16px."
   },
   {
     "slug": "houzz",
@@ -97,7 +98,8 @@
   {
     "slug": "manta",
     "name": "Manta",
-    "src": "https://www.google.com/s2/favicons?domain=manta.com&sz=256"
+    "src": "https://cc3.manta-r3.com/dist/f07e4a54/img/manta_logo_coral.svg",
+    "note": "Vector reconstruction of the coral magnifying-glass icon (#FF6B61 from official SVG). Google favicon was 16px."
   },
   {
     "slug": "merchantcircle",
@@ -119,7 +121,8 @@
   {
     "slug": "superpages",
     "name": "Superpages",
-    "src": "https://www.google.com/s2/favicons?domain=superpages.com&sz=256"
+    "src": "https://www.superpages.com/",
+    "note": "Vector reconstruction of the live \"sp\" tile (#1EA8E3). Google favicon was 16px."
   },
   {
     "slug": "thumbtack",
