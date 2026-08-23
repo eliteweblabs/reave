@@ -705,6 +705,38 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
 });
 
+await test('directory exhibit is a 2x2 of brand-color tiles with an X on missing listings', () => {
+  assert.equal(salesSheetExhibitKind({ id: 'directories', categoryLabel: 'Directories' }), 'directories');
+  const finding = {
+    id: 'directories',
+    categoryLabel: 'Directories',
+    problem: 'Directory coverage is thin — Yelp, Bing, or Apple still point nowhere.',
+    solution: 'Claim the remaining major directories and keep NAP identical.',
+  };
+  const dirs = renderFindingPhoneHtml(finding, { website: 'weprintwraps.com' });
+  const page = renderSalesSheetFrontExhibitsHtml({
+    findings: [finding],
+    phones: [dirs],
+    snapshot: { overall: 'C', overallScore: 64, performance: 'F', security: 'B', visibility: 'D' },
+  });
+  assert.match(dirs, /data-ss-exhibit="directories"/);
+  assert.match(dirs, /Directory coverage/);
+  assert.match(page, /grid-template-columns: 1fr 1fr/);
+  assert.match(page, /fill: #fff/);
+  assert.match(dirs, /data-dir="yelp"/);
+  assert.match(dirs, /data-dir="bing"/);
+  assert.match(dirs, /data-dir="apple"/);
+  assert.match(dirs, /data-dir="googlemaps"/);
+  assert.match(dirs, /--dir-bg:#FF1A1A/);
+  assert.match(dirs, /--dir-bg:#00809D/);
+  assert.match(dirs, /--dir-bg:#111111/);
+  assert.match(dirs, /--dir-bg:#4285F4/);
+  assert.equal((dirs.match(/ss-phone-dir--missing/g) || []).length, 3);
+  assert.equal((dirs.match(/ss-phone-dir-x/g) || []).length, 3);
+  assert.match(dirs, /IOS_ICONS\.x/);
+  assert.doesNotMatch(dirs, /data-dir="googlemaps"[\s\S]*ss-phone-dir-x/);
+});
+
 await test('missing Open Graph exhibit is SMS, Facebook, and Instagram as plain text', () => {
   assert.equal(salesSheetExhibitKind({ id: 'dummy-seo', categoryLabel: 'SEO Fundamentals' }), 'share-cards');
   assert.equal(salesSheetExhibitKind({ id: 'no-og-image', categoryLabel: 'Share Cards' }), 'share-cards');
