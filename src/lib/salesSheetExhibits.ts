@@ -1199,37 +1199,6 @@ export function injectAuditHeroIntoHeader(sheetHtml: string, heroHtml: string): 
   return `${sheetHtml.slice(0, at)}${heroHtml}${sheetHtml.slice(at)}`;
 }
 
-export type SalesSheetFrontQa = {
-  q: string;
-  a: string;
-};
-
-/** Leave-behind objections — sits above the directory icons for now. */
-export const SALES_SHEET_FRONT_QA: SalesSheetFrontQa[] = [
-  {
-    q: 'How can you offer these services for so cheap?',
-    a: 'Agility and automation tools. What takes an agency a dozen emails and three days, I can do in 15 minutes while walking the dog.',
-  },
-  {
-    q: 'What happens if you go out of business or disappear?',
-    a: 'We never take possession of anything. Be wary of anyone who registers anything “for your convenience”. If you ever feel unsatisfied, you just delete two records with your domain registrar.',
-  },
-  {
-    q: 'Who owns what?',
-    a: 'Clients automatically get sent access to the private repositories where everything lives. If you discontinue service, everything will continue to work, only updates discontinue.',
-  },
-];
-
-function frontQaHtml(): string {
-  const items = SALES_SHEET_FRONT_QA.map(
-    (item, i) => `<div class="ss-front-qa-item" data-qa="${i + 1}">
-  <p class="ss-front-qa-q"><span class="ss-front-qa-mark" aria-hidden="true">?</span> ${escapeHtml(item.q)}</p>
-  <p class="ss-front-qa-a"><span class="ss-front-qa-mark ss-front-qa-mark--a" aria-hidden="true">A.</span> ${escapeHtml(item.a)}</p>
-</div>`,
-  ).join('');
-  return `<aside class="ss-front-qa" aria-label="Questions">${items}</aside>`;
-}
-
 export function renderSalesSheetFrontExhibitsHtml(opts: {
   findings: SalesSheetFinding[];
   phones: string[];
@@ -1252,54 +1221,14 @@ export function renderSalesSheetFrontExhibitsHtml(opts: {
   const snap = opts.snapshot;
   return `
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 ${iphoneCss()}
 .ss-front {
   display: flex;
   flex-direction: column;
-  gap: 0.4em;
+  gap: 0.55em;
   min-height: 0;
   height: 100%;
 }
-.ss-front-qa {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35em 2.4%;
-  margin: 0 0 0.15em;
-}
-.ss-front-qa-item {
-  min-width: 0;
-  color: #1a3d6e;
-}
-.ss-front-qa-item:nth-child(1) { transform: rotate(-1.15deg); }
-.ss-front-qa-item:nth-child(2) { transform: rotate(0.85deg); margin-top: 0.12em; }
-.ss-front-qa-item:nth-child(3) { transform: rotate(-0.65deg); }
-.ss-front-qa-q,
-.ss-front-qa-a {
-  margin: 0;
-  font-family: Caveat, 'Segoe Script', 'Bradley Hand', cursive;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.18;
-}
-.ss-front-qa-q {
-  margin-bottom: 0.12em;
-  font-size: clamp(13px, 1.85cqi, 17px);
-  font-weight: 700;
-  color: #1a3d6e;
-}
-.ss-front-qa-a {
-  font-size: clamp(12px, 1.65cqi, 15px);
-  color: #3a3328;
-}
-.ss-front-qa-mark {
-  display: inline-block;
-  margin-right: 0.12em;
-  font-weight: 700;
-  color: #c05621;
-}
-.ss-front-qa-mark--a { color: #1b7f4a; }
 .ss-exhibits {
   flex: 1 1 auto;
   min-height: 0;
@@ -1349,7 +1278,6 @@ ${iphoneCss()}
 }
 </style>
 <div class="ss-front">
-  ${frontQaHtml()}
   <div class="ss-exhibits">${cells}</div>
   <p class="ss-front-snap">
     <strong>Snapshot</strong>

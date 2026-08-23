@@ -3,9 +3,8 @@
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 - **Front** — custom: client, scores, four cascade findings (iPhone exhibits), QR.
-- **Back (REΛVE side)** — static three columns: inner gate (portal welcome +
-  Q&A), back cover (custom builds + curated stack marks), front cover
-  (icon dead center + diagnostic). Same HTML for every client
+- **Back (REΛVE trifold)** — unfolded Letter landscape, left to right:
+  inner **gate**, **back** cover, **front** cover. Same HTML for every client
   (`src/lib/salesSheetBack.ts`).
 
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
@@ -13,7 +12,8 @@ Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape
 Stack logos: curated `SALES_SHEET_STACK` in A–Z name order (Anthropic, Astro,
 Clerk, Cloudflare, GitHub, Plausible, Railway, Resend, Supabase) —
 black marks only, no labels, no “builds with” line, pinned to the bottom of
-the back-cover column.
+the **back** (center) panel. Handwritten objections
+(`SALES_SHEET_BACK_COVER_QA`) sit directly above those marks.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
 `/digital-audit`). Inner-gate copy: Company outreach note / portal welcome
 (`portalOutreachNotice`, default “This is not spam…”).
@@ -39,15 +39,13 @@ tall center oval. Stack marks are small black `<img>`s, not tiles.
 
 ## Front (custom)
 
-Header / handwritten Q&A (`?` / `A`, Caveat) / four iPhone exhibits across /
-caption under each / snapshot strip / footer. Logo left, QR right.
+Header / four iPhone exhibits across / caption under each / snapshot strip /
+footer. Logo left, QR right.
 
 Directory coverage is always the first iPhone (28 official app icons). The
 other three phones are the next cascade hits. Each screen is a visual of the
 problem (Not Secure bar, Safari cannot open, missing Places SERP, and so on).
-Working Maps listings are not shown. There is no Next steps column. The
-three leave-behind objections sit above the phones for now
-(`SALES_SHEET_FRONT_QA` in `src/lib/salesSheetExhibits.ts`).
+Working Maps listings are not shown. There is no Next steps column.
 
 ---
 
@@ -63,15 +61,18 @@ column then fades the pattern with a white radial — the 50% stop is the
 tall center oval (~52% × 74% of the panel), so the middle reads lighter
 and the rim keeps the grid.
 
-1. **Left — Inner gate** — “We host it…” hook, then the portal / Admin
-   outreach welcome (this is not spam), the small-shop Q&A, and a large
-   company icon centered at the bottom.
-2. **Middle — Back cover** — custom-build line, Barry Levine hosting quote,
-   local clients (Barber's Edge, The Law Office of Barry Levine, MDOT.world),
-   then the curated stack marks along the bottom of this panel.
-3. **Right — Front cover** — full company logo dead center, then “Online presence
-   diagnostic” and the independent systems-scan lede at the bottom. No
-   page footer on the back.
+Unfolded, this is a brochure. Fold the right panel in first:
+
+1. **Left — Gate** — inside flap after you open the cover. “We host it…” hook,
+   the portal / Admin outreach welcome (this is not spam), the small-shop Q&A,
+   and a large company icon centered at the bottom.
+2. **Center — Back** — outside back when folded. Custom-build line, Barry Levine
+   hosting quote, local clients (Barber's Edge, The Law Office of Barry Levine,
+   MDOT.world), then the handwritten objections in Caveat (no Q/A labels), then the
+   curated stack marks along the bottom of this panel.
+3. **Right — Front** — the face of the folded brochure. Full company logo dead
+   center, then “Online presence diagnostic” and the independent systems-scan
+   lede at the bottom. No page footer on the back.
 
 Print from `/admin/sales-sheet` → Print / Save PDF. Choose two-sided, short-edge
 bind on landscape.

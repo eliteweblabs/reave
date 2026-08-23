@@ -43,7 +43,12 @@ import {
   sheetSpeedResearchProblem,
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
-import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA, SALES_SHEET_STACK } from '../src/lib/salesSheetBack.ts';
+import {
+  renderSalesSheetBackHtml,
+  SALES_SHEET_BACK_COVER_QA,
+  SALES_SHEET_BACK_QA,
+  SALES_SHEET_STACK,
+} from '../src/lib/salesSheetBack.ts';
 import {
   applyLiveUrlToFindings,
   dropWorkingSiteDownFindings,
@@ -54,7 +59,6 @@ import {
   renderSalesSheetFrontExhibitsHtml,
   renderSalesSheetHeaderHeroHtml,
   salesSheetExhibitKind,
-  SALES_SHEET_FRONT_QA,
 } from '../src/lib/salesSheetExhibits.ts';
 import {
   DIRECTORY_ICON_GROUPS,
@@ -638,7 +642,21 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /open source/);
   assert.match(back, /client retains full control of all licensing and products/);
   assert.equal(SALES_SHEET_BACK_QA.length, 1);
+  assert.equal(SALES_SHEET_BACK_COVER_QA.length, 3);
+  assert.match(back, /data-ss-col="back-qa"/);
+  assert.match(back, /ss-back-hand-qa/);
+  assert.match(back, /How can you offer these services for so cheap\?/);
+  assert.match(back, /15 minutes walking the dog/);
+  assert.doesNotMatch(back, /while walking the dog/);
+  assert.match(back, /never take possession/);
+  assert.match(back, /domain registrar/);
+  assert.match(back, /third-party private repositories/);
+  assert.doesNotMatch(back, /ss-back-hand-qa-mark/);
+  assert.doesNotMatch(back, />A\.</);
+  assert.match(back, /font-family: Caveat/);
   assert.ok(back.indexOf('data-ss-col="qa"') < back.indexOf('data-ss-col="builds"'));
+  assert.ok(back.indexOf('data-ss-col="back-qa"') > back.indexOf('data-ss-col="builds"'));
+  assert.ok(back.indexOf('data-ss-col="back-qa"') < back.indexOf('class="ss-stack"'));
   assert.ok(back.indexOf('data-ss-col="stack"') > back.indexOf('data-ss-col="builds"'));
   assert.match(back, /data-ss-col="cover"[\s\S]*class="ss-back-icon"/);
   assert.match(back, /data-ss-col="gate-icon"/);
@@ -952,16 +970,8 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(html, /1 · Directories/);
   assert.match(html, /ss-exhibit-legend/);
   assert.doesNotMatch(html, /Most of the places customers look/);
-  assert.match(html, /ss-front-qa/);
-  assert.equal(SALES_SHEET_FRONT_QA.length, 3);
-  assert.match(html, /How can you offer these services for so cheap\?/);
-  assert.match(html, /walking the dog/);
-  assert.match(html, /never take possession/);
-  assert.match(html, /domain registrar/);
-  assert.match(html, /private repositories/);
-  assert.match(html, /ss-front-qa-mark" aria-hidden="true">\?</);
-  assert.match(html, /font-family: Caveat/);
-  assert.ok(html.indexOf('ss-front-qa') < html.indexOf('ss-exhibits'));
+  assert.doesNotMatch(html, /ss-front-qa/);
+  assert.doesNotMatch(html, /How can you offer these services for so cheap/);
   assert.match(html, /2 · Site Speed/);
   assert.match(html, /4 · SEO Fundamentals/);
   assert.match(html, /Overall C \(64\)/);

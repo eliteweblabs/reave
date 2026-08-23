@@ -1,8 +1,9 @@
 /**
- * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
+ * Static duplex back for `/admin/sales-sheet` — the REΛVE trifold, not the client audit.
  *
- * Three columns on Letter: inner gate (portal welcome + Q&A), back cover
- * (custom builds + curated stack marks), and front cover (full logo dead
+ * Letter landscape reads left → right as the unfolded brochure:
+ * inner gate (portal welcome + small-shop Q&A), back cover (custom builds +
+ * handwritten objections above the stack marks), front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
@@ -66,6 +67,22 @@ export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
   },
 ];
 
+/** Handwritten objections on the back cover, above the stack marks. */
+export const SALES_SHEET_BACK_COVER_QA: SalesSheetBackQa[] = [
+  {
+    q: 'How can you offer these services for so cheap?',
+    a: 'Agility and automation tools. What takes an agency a dozen emails and three days, I can do in 15 minutes walking the dog.',
+  },
+  {
+    q: 'What happens if you go out of business or disappear?',
+    a: 'We never take possession of anything. Be wary of anyone who registers anything “for your convenience”. If you ever feel unsatisfied, you just delete two records with your domain registrar.',
+  },
+  {
+    q: 'Who owns what?',
+    a: 'Clients automatically get sent access to the third-party private repositories where everything lives. If you discontinue service, everything will continue to work, only updates discontinue.',
+  },
+];
+
 export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): SalesSheetBackLogo[] {
   if (overrides.length) {
     const hasAnthropic = overrides.some((logo) => /anthropic|claude/i.test(`${logo.name} ${logo.slug} ${logo.src}`));
@@ -119,11 +136,22 @@ function qaListHtml(): string {
   ).join('');
 }
 
+function backCoverQaHtml(): string {
+  const items = SALES_SHEET_BACK_COVER_QA.map(
+    (item, i) => `<div class="ss-back-hand-qa-item" data-qa="${i + 1}">
+  <p class="ss-back-hand-qa-q">${esc(item.q)}</p>
+  <p class="ss-back-hand-qa-a">${esc(item.a)}</p>
+</div>`,
+  ).join('');
+  return `<aside class="ss-back-hand-qa" data-ss-col="back-qa" aria-label="Questions">${items}</aside>`;
+}
+
 function backPageCss(orientation: SalesSheetBackOrientation): string {
   const pageSize = orientation === 'landscape' ? 'letter landscape' : 'letter portrait';
   const ratio = orientation === 'landscape' ? '11 / 8.5' : '8.5 / 11';
   const maxWidth = orientation === 'landscape' ? '11in' : '8.5in';
   return `
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 .ss-sheet-back.doc-onepager-stage {
   box-sizing: border-box;
   width: 100%;
@@ -389,11 +417,39 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 0.5em;
   width: 100%;
   margin-top: auto;
   margin-bottom: 0;
   padding: 0;
+}
+.ss-sheet-back .ss-back-hand-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  width: 100%;
+  color: #1a3d6e;
+}
+.ss-sheet-back .ss-back-hand-qa-item:nth-child(1) { transform: rotate(-0.85deg); }
+.ss-sheet-back .ss-back-hand-qa-item:nth-child(2) { transform: rotate(0.7deg); }
+.ss-sheet-back .ss-back-hand-qa-item:nth-child(3) { transform: rotate(-0.45deg); }
+.ss-sheet-back .ss-back-hand-qa-q,
+.ss-sheet-back .ss-back-hand-qa-a {
+  margin: 0;
+  font-family: Caveat, 'Segoe Script', 'Bradley Hand', cursive;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.18;
+}
+.ss-sheet-back .ss-back-hand-qa-q {
+  margin-bottom: 0.1em;
+  font-size: clamp(12px, 1.7cqi, 16px);
+  font-weight: 700;
+  color: #1a3d6e;
+}
+.ss-sheet-back .ss-back-hand-qa-a {
+  font-size: clamp(11px, 1.5cqi, 14px);
+  color: #3a3328;
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
@@ -486,6 +542,7 @@ export function renderSalesSheetBackHtml(opts: {
         <p class="ss-back-kicker">Local</p>
         <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
         <div class="ss-back-platform" data-ss-col="stack">
+          ${backCoverQaHtml()}
           <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
         </div>
       </section>
