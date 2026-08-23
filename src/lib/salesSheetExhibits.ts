@@ -5,6 +5,7 @@
 import { escapeHtml } from './htmlEscape';
 import {
   directoryIconSrc,
+  directoryShortLabel,
   directorySlugsForGroup,
   listedDirectorySlugs,
   verdictsFromListed,
@@ -303,7 +304,7 @@ function iphoneCss(): string {
   flex: 1 1 auto;
   min-height: 0;
   box-sizing: border-box;
-  padding-bottom: 11%;
+  padding: 0 5px 8%;
 }
 .ss-phone-h {
   margin: 0 0 4px;
@@ -390,17 +391,24 @@ function iphoneCss(): string {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
-  gap: 7px 6px;
-  margin-top: 2px;
-  padding: 3px 1px 2px;
+  gap: 3px 4px;
+  margin: 0;
+  padding: 1px 0 0;
   overflow: visible;
 }
 .ss-phone-dir {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   min-height: 0;
-  aspect-ratio: 1;
   background: transparent;
   overflow: visible;
+}
+.ss-phone-dir-mark {
+  position: relative;
+  width: 84%;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
 }
 .ss-phone-dir-icon {
   display: block;
@@ -416,30 +424,73 @@ function iphoneCss(): string {
   height: 100%;
   object-fit: cover;
 }
-.ss-phone-dir--fail .ss-phone-dir-icon img {
-  filter: grayscale(1);
+.ss-phone-dir-name {
+  display: block;
+  width: 100%;
+  margin-top: 1.5px;
+  font-size: 4.6px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #1d1d1f;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ss-phone-dir-badge {
   position: absolute;
   top: -3px;
   right: -3px;
   z-index: 2;
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  box-shadow: 0 0 0 1.25px #fff;
+  box-shadow: 0 0 0 1.15px #fff;
 }
 .ss-phone-dir-badge svg {
   display: block;
-  width: 7px;
-  height: 7px;
+  width: 6.5px;
+  height: 6.5px;
 }
 .ss-phone-dir-badge--ok { background: #34c759; }
 .ss-phone-dir-badge--half { background: #ff9f0a; }
 .ss-phone-dir-badge--miss { background: #ff3b30; }
+.ss-phone-dir-legend {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5px;
+  margin-top: 5px;
+  padding: 0 3px 1px;
+}
+.ss-phone-dir-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 5.6px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #3a3a3c;
+}
+.ss-phone-dir-legend-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+}
+.ss-phone-dir-legend-dot svg {
+  display: block;
+  width: 5px;
+  height: 5px;
+}
 .ss-og {
   display: flex;
   flex-direction: column;
@@ -763,11 +814,30 @@ const DIR_BADGE: Record<DirectoryVerdict, string> = {
 };
 
 function directoryTileHtml(check: DirectoryCheck): string {
-  const mark = `<span class="ss-phone-dir-icon"><img src="${escapeHtml(directoryIconSrc(check.slug))}" alt="" width="72" height="72" /></span>`;
-  return `<div class="ss-phone-dir ss-phone-dir--${check.verdict}" data-dir="${check.slug}" data-verdict="${check.verdict}" title="${escapeHtml(check.title)}">${mark}${DIR_BADGE[check.verdict]}</div>`;
+  const label = escapeHtml(directoryShortLabel(check.slug));
+  const mark = `<span class="ss-phone-dir-mark"><span class="ss-phone-dir-icon"><img src="${escapeHtml(directoryIconSrc(check.slug))}" alt="${label}" width="72" height="72" /></span>${DIR_BADGE[check.verdict]}</span>`;
+  return `<div class="ss-phone-dir ss-phone-dir--${check.verdict}" data-dir="${check.slug}" data-verdict="${check.verdict}" title="${escapeHtml(check.title)}">${mark}<span class="ss-phone-dir-name">${label}</span></div>`;
 }
 
-function directoriesScreen(host: string, finding: SalesSheetFinding, opts: SalesSheetExhibitOpts): string {
+const DIR_LEGEND = [
+  { verdict: 'pass' as const, text: 'Linked from the website' },
+  { verdict: 'half' as const, text: 'Found, not linked' },
+  { verdict: 'fail' as const, text: 'No matching profile' },
+];
+
+function directoryLegendHtml(): string {
+  const dots: Record<DirectoryVerdict, string> = {
+    pass: '<!-- IOS_ICONS.check — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-legend-dot ss-phone-dir-badge--ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>',
+    half: '<span class="ss-phone-dir-legend-dot ss-phone-dir-badge--half" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></span>',
+    fail: '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-legend-dot ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>',
+  };
+  return `<div class="ss-phone-dir-legend">${DIR_LEGEND.map(
+    (row) =>
+      `<div class="ss-phone-dir-legend-row">${dots[row.verdict]}<span>${escapeHtml(row.text)}</span></div>`,
+  ).join('')}</div>`;
+}
+
+function directoriesScreen(_host: string, finding: SalesSheetFinding, opts: SalesSheetExhibitOpts): string {
   const slugs = directorySlugsForGroup(opts.directoryIconGroup);
   const checks =
     opts.directoryChecks?.length === slugs.length
@@ -780,10 +850,9 @@ function directoriesScreen(host: string, finding: SalesSheetFinding, opts: Sales
           }),
           slugs,
         );
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
-      <p class="ss-phone-h">Directory coverage</p>
+  return `<div class="ss-phone-body">
       <div class="ss-phone-dirs" data-icon-group="${escapeHtml(opts.directoryIconGroup || 'general')}">${checks.map(directoryTileHtml).join('')}</div>
+      ${directoryLegendHtml()}
     </div>`;
 }
 

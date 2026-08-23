@@ -43,9 +43,9 @@ export type DirectoryCheck = {
   foundOffSite: boolean;
 };
 
-export const DIRECTORY_APPS: { slug: DirectorySlug; title: string; host: RegExp }[] = [
-  { slug: 'googlemaps', title: 'Google Maps', host: /(?:^|\.)(?:maps\.google\.com|google\.com|g\.page|goo\.gl)$/i },
-  { slug: 'apple', title: 'Apple Maps', host: /(?:^|\.)maps\.apple\.com$/i },
+export const DIRECTORY_APPS: { slug: DirectorySlug; title: string; short?: string; host: RegExp }[] = [
+  { slug: 'googlemaps', title: 'Google Maps', short: 'Maps', host: /(?:^|\.)(?:maps\.google\.com|google\.com|g\.page|goo\.gl)$/i },
+  { slug: 'apple', title: 'Apple Maps', short: 'Apple', host: /(?:^|\.)maps\.apple\.com$/i },
   { slug: 'yelp', title: 'Yelp', host: /(?:^|\.)yelp\.com$/i },
   { slug: 'facebook', title: 'Facebook', host: /(?:^|\.)(?:facebook\.com|fb\.com|fb\.me)$/i },
   { slug: 'instagram', title: 'Instagram', host: /(?:^|\.)(?:instagram\.com|instagr\.am)$/i },
@@ -66,7 +66,7 @@ export const DIRECTORY_APPS: { slug: DirectorySlug; title: string; host: RegExp 
   { slug: 'whatsapp', title: 'WhatsApp', host: /(?:^|\.)(?:whatsapp\.com|wa\.me)$/i },
   { slug: 'snapchat', title: 'Snapchat', host: /(?:^|\.)snapchat\.com$/i },
   { slug: 'houzz', title: 'Houzz', host: /(?:^|\.)houzz\.com$/i },
-  { slug: 'yellowpages', title: 'Yellow Pages', host: /(?:^|\.)(?:yellowpages\.com|yp\.com)$/i },
+  { slug: 'yellowpages', title: 'Yellow Pages', short: 'YP', host: /(?:^|\.)(?:yellowpages\.com|yp\.com)$/i },
   { slug: 'threads', title: 'Threads', host: /(?:^|\.)threads\.net$/i },
 ];
 
@@ -141,6 +141,11 @@ export function directoryIconSrc(slug: DirectorySlug): string {
 
 export function directoryTitle(slug: DirectorySlug): string {
   return DIRECTORY_APPS.find((app) => app.slug === slug)?.title || slug;
+}
+
+export function directoryShortLabel(slug: DirectorySlug): string {
+  const app = DIRECTORY_APPS.find((row) => row.slug === slug);
+  return app?.short || app?.title || slug;
 }
 
 /**

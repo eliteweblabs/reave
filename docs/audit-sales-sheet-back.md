@@ -93,7 +93,7 @@ Directory coverage is **always phone 1** (24 official iOS app icons). Walk rank 
 | 12 | Apple Maps | iPhone Maps search, no pin for them, competitors showing. |
 | 13 | No Reviews | Listing card with a blank or near-zero review count. |
 | 14 | Poor Reviews | Live star rating plus two or three of the worst recent reviews. |
-| 15 | Directories | Sticky first. 4×6 of official App Store icons from the **Industry icon group** (only General local today; music / restaurant packs later). Site link = color + green bubble; name-match only = color + amber minus; nothing = gray + red X. |
+| 15 | Directories | Sticky first. 4×6 of official App Store icons (color, labeled, no URL bar) from the **Industry icon group** (General local today). Green check = linked from the site; amber minus = found, not linked; red X = no matching profile. |
 | 16 | Wrong Hours | Google hours next to the real hours (or “Closed” when they are open). |
 | 17 | Duplicate Listings | Two Google results for the same business, or a suspended listing. |
 | 18 | Not Public | Password wall, coming-soon, or staging page. |

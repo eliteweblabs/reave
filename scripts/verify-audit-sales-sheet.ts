@@ -772,12 +772,24 @@ await test('directory exhibit is a 4x6 of official icons scored pass / half / fa
     snapshot: { overall: 'C', overallScore: 64, performance: 'F', security: 'B', visibility: 'D' },
   });
   assert.match(dirs, /data-ss-exhibit="directories"/);
-  assert.match(dirs, /Directory coverage/);
+  assert.doesNotMatch(dirs, /Directory coverage/);
+  assert.doesNotMatch(dirs, /ss-phone-chrome/);
   assert.match(page, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
   assert.match(page, /grid-template-rows: repeat\(6, minmax\(0, 1fr\)\);/);
-  assert.match(page, /grayscale\(1\)/);
+  assert.doesNotMatch(page, /grayscale\(1\)/);
   assert.match(dirs, /data-icon-group="general"/);
   assert.match(dirs, /admin\/dir-icons\/instagram\.png/);
+  assert.match(dirs, /admin\/dir-icons\/youtube\.png/);
+  assert.match(dirs, /admin\/dir-icons\/nextdoor\.png/);
+  assert.match(dirs, /admin\/dir-icons\/thumbtack\.png/);
+  assert.match(dirs, /admin\/dir-icons\/foursquare\.png/);
+  assert.match(dirs, /admin\/dir-icons\/waze\.png/);
+  assert.match(dirs, /admin\/dir-icons\/yellowpages\.png/);
+  assert.match(dirs, /ss-phone-dir-name">Maps</);
+  assert.match(dirs, /ss-phone-dir-name">YouTube</);
+  assert.match(dirs, /Linked from the website/);
+  assert.match(dirs, /Found, not linked/);
+  assert.match(dirs, /No matching profile/);
   assert.match(dirs, /data-dir="yelp"/);
   assert.match(dirs, /data-dir="instagram"/);
   assert.match(dirs, /data-dir="youtube"/);
@@ -790,9 +802,9 @@ await test('directory exhibit is a 4x6 of official icons scored pass / half / fa
   assert.equal((dirs.match(/ss-phone-dir--pass/g) || []).length, 2);
   assert.equal((dirs.match(/ss-phone-dir--half/g) || []).length, 2);
   assert.equal((dirs.match(/ss-phone-dir--fail/g) || []).length, DIRECTORY_SLUGS.length - 4);
-  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 2);
-  assert.equal((dirs.match(/ss-phone-dir-badge--half/g) || []).length, 2);
-  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, DIRECTORY_SLUGS.length - 4);
+  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 3);
+  assert.equal((dirs.match(/ss-phone-dir-badge--half/g) || []).length, 3);
+  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, DIRECTORY_SLUGS.length - 3);
   assert.match(dirs, /IOS_ICONS\.check/);
   assert.match(dirs, /IOS_ICONS\.x/);
 
