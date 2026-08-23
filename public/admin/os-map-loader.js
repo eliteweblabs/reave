@@ -7283,7 +7283,7 @@ function renderCompanyPanel(company, fontCatalog) {
             'Shown in an auto-open bottom sheet when someone opens a client portal link.',
             `<div class="prof-field"><label for="company-portalOutreachNotice">Outreach note</label>` +
             `<textarea id="company-portalOutreachNotice" name="portalOutreachNotice" class="prof-svg-input" rows="6" spellcheck="true">${escHtml(c.portalOutreachNotice || '')}</textarea>` +
-            `<span class="prof-hint">Separate paragraphs with a blank line. Clear the field to disable the sheet.</span></div>`,
+            `<span class="prof-hint">Starts blank on new installs. Separate paragraphs with a blank line. Clear the field to disable the sheet.</span></div>`,
           ) +
         `</form>` +
       `</div>` +

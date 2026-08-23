@@ -17,6 +17,7 @@ import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 export { DEFAULT_PORTAL_OUTREACH_NOTICE };
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
+import { isCanonicalReaveInstall } from './installConfig';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 import { getPostAlias, type PostAliasLabels } from './postAlias.ts';
@@ -389,6 +390,13 @@ function resolveCompanyGeo(stored: StoredCompanyConfig | null): CompanyGeo | und
 function resolvePortalOutreachNotice(stored: StoredCompanyConfig | null): string {
   if (stored?.portalOutreachNotice === '') return '';
   const custom = stored?.portalOutreachNotice?.trim();
+  const officialDefault = DEFAULT_PORTAL_OUTREACH_NOTICE.trim();
+  // Client clones must not inherit the official REΛVE welcome (code default or
+  // a copy that landed in company_config). Empty = sheet hidden.
+  if (!isCanonicalReaveInstall()) {
+    if (!custom || custom === officialDefault) return '';
+    return custom;
+  }
   if (custom) return custom;
   return DEFAULT_PORTAL_OUTREACH_NOTICE;
 }
