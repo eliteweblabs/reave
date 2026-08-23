@@ -9,6 +9,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { FeatureId } from '../src/lib/featureCatalog.ts';
+import { catalogIdForFeature } from '../src/lib/moduleCatalog.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -47,8 +49,8 @@ const FEATURE_LABELS: Record<string, string> = {
 
 const FEATURE_IDS = Object.keys(FEATURE_LABELS);
 
-const DEMO_MODULE_CATALOG = FEATURE_IDS.map((feature, i) => ({
-  id: String(i + 1).padStart(3, '0'),
+const DEMO_MODULE_CATALOG = FEATURE_IDS.map((feature) => ({
+  id: catalogIdForFeature(feature as FeatureId),
   feature,
   label: FEATURE_LABELS[feature] ?? feature,
 }));

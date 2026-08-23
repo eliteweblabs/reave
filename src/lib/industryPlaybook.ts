@@ -7,6 +7,7 @@ import {
   demoModuleIdForFeature,
   isDemoBaselineModuleId,
 } from './demoModuleCatalog';
+import { migrateLegacyModuleId } from './moduleCatalog';
 
 export const INDUSTRY_PLAYBOOK_EXTRAS = [
   'changedetection_railway',
@@ -18,7 +19,7 @@ export type IndustryPlaybookExtraId = (typeof INDUSTRY_PLAYBOOK_EXTRAS)[number];
 const EXTRA_SET = new Set<string>(INDUSTRY_PLAYBOOK_EXTRAS);
 
 export type DeckIndustryPlaybook = {
-  /** Optional modules (baseline 001–003 always included on apply). */
+  /** Optional modules (Core OS baseline FeatureIds always included on apply). */
   moduleIds: string[];
   extras: IndustryPlaybookExtraId[];
   seedInbox: boolean;
@@ -100,7 +101,8 @@ export function normalizePlaybookModuleIds(raw: unknown): string[] {
   const out: string[] = [];
   for (const item of raw) {
     if (typeof item !== 'string') continue;
-    const id = item.trim().padStart(3, '0');
+    const padded = item.trim().padStart(3, '0');
+    const id = /^\d{3}$/.test(padded) ? migrateLegacyModuleId(padded) : '';
     if (!/^\d{3}$/.test(id) || seen.has(id) || isDemoBaselineModuleId(id)) continue;
     seen.add(id);
     out.push(id);
@@ -275,7 +277,7 @@ export function applyIndustryPlaybookToWizard(input: {
   }
   const playbook = normalizeIndustryPlaybook(input.playbook);
   // Keep modules the operator already toggled — a blank Law playbook must
-  // not wipe Cal.com / Vapi / Pexels / etc. down to baseline 001–003.
+  // not wipe Cal.com / Vapi / Pexels / etc. down to Core OS baseline.
   const moduleIds = [
     ...new Set([
       ...input.currentModuleIds.filter((id) => input.allowedModuleIds.has(id)),

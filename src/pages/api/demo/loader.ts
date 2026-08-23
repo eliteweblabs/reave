@@ -17,7 +17,7 @@ import {
 import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
 import { buildDemoSuiteUrl, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from '../../../lib/demoSuite';
 import { checkDemoLoaderCatalogRateLimit } from '../../../lib/demoLaunch';
-import { DEMO_BASELINE_MODULE_IDS, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
+import { DEMO_BASELINE_MODULE_IDS, demoModuleIdForFeature, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
 import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
 
 export const prerender = false;
@@ -69,7 +69,10 @@ export async function GET(context: APIContext): Promise<Response> {
       demoSiteUrl,
       exampleLaunchUrl: demoSiteUrl
         ? buildDemoSuiteUrl(demoSiteUrl, {
-            moduleIds: mergeDemoModuleIds(['006', '009']),
+            moduleIds: mergeDemoModuleIds([
+              demoModuleIdForFeature('site_monitoring'),
+              demoModuleIdForFeature('voice'),
+            ]),
             industry: industries[0]?.slug ?? 'general',
             tier: 1,
           })

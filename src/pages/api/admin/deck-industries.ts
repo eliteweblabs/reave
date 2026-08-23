@@ -13,6 +13,7 @@ import {
 } from '../../../lib/deckIndustriesStore';
 import { DEPLOY_WIZARD_EXTRAS } from '../../../lib/deployWizardCatalog';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
+import { DEMO_BASELINE_MODULE_IDS } from '../../../lib/demoModuleCatalog';
 import { listIndustryPlaybookModules } from '../../../lib/industryPlaybook';
 
 export const prerender = false;
@@ -42,6 +43,7 @@ export async function GET(context: APIContext): Promise<Response> {
     backend: deckIndustriesStorageBackend(),
     industries,
     modules: listIndustryPlaybookModules(),
+    baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
     extras: DEPLOY_WIZARD_EXTRAS.map((e) => ({
       id: e.id,
       label: e.label,

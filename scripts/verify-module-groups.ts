@@ -27,8 +27,10 @@ assert.equal(FEATURE_LABELS.google_workspace, 'Google Workspace');
 assert.equal(FEATURE_LABELS.time_tracking, 'Time Tracking');
 assert.equal(FEATURE_LABELS.materials_pricing, 'Materials pricing');
 assert.equal(FEATURE_LABELS.website, 'Agentic Website Editor');
-assert.equal(demoModuleIdForFeature('social_inbox'), '036');
-assert.equal(demoModuleIdForFeature('google_workspace'), '037');
+const socialId = Number(demoModuleIdForFeature('social_inbox'));
+const workspaceId = Number(demoModuleIdForFeature('google_workspace'));
+assert.ok(socialId >= 201 && socialId <= 300, 'social_inbox should be in the Social 201–300 band');
+assert.ok(workspaceId >= 101 && workspaceId <= 200, 'google_workspace should be in the Work 101–200 band');
 assert.ok(FEATURE_SALE_SHEET.has('time_tracking'));
 assert.ok(FEATURE_SALE_SHEET.has('social_inbox'));
 assert.ok(FEATURE_SALE_SHEET.has('google_workspace'));
@@ -53,7 +55,8 @@ for (const id of FEATURE_SALE_SHEET) {
 }
 
 const catalog = defaultModuleCatalog();
-assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet));
+assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet && /^\d{3}$/.test(row.id)));
+assert.ok(catalog.every((row) => row.id !== '—'));
 assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
 assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'work' && row.saleSheet));

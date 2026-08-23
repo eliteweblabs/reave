@@ -6498,6 +6498,13 @@ function industriesEmptyHtml() {
   return `<div class="ind-empty">No industries yet — add one below.</div>`;
 }
 
+let industryBaselineIds = new Set(['001', '002', '003']);
+
+function setIndustryBaselineIds(ids) {
+  if (!Array.isArray(ids) || !ids.length) return;
+  industryBaselineIds = new Set(ids.map((id) => String(id).trim().padStart(3, '0')));
+}
+
 function setIndustryEnabledToggle(toggle, enabled) {
   if (!(toggle instanceof HTMLElement)) return;
   const on = enabled !== false;
@@ -6510,7 +6517,7 @@ function normalizeIndustryPlaybookClient(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
   const moduleIds = Array.isArray(o.moduleIds)
     ? [...new Set(o.moduleIds.map((id) => String(id).trim().padStart(3, '0')).filter((id) => /^\d{3}$/.test(id)))]
-        .filter((id) => !['001', '002', '003'].includes(id))
+        .filter((id) => !industryBaselineIds.has(id))
         .sort()
     : [];
   const extras = Array.isArray(o.extras)
@@ -6822,6 +6829,7 @@ function syncIndustriesListFromServer(listEl, industries, rowHandlers) {
 }
 
 function bindIndustriesEditor(root, industries, catalogs = {}) {
+  setIndustryBaselineIds(catalogs.baselineModuleIds);
   const listEl = root.querySelector('#industries-list');
   const alertEl = root.querySelector('#industries-alert');
   const addBtn = root.querySelector('#industries-add-btn');
@@ -7981,6 +7989,7 @@ async function loadIndustriesTab() {
     bindIndustriesEditor(root, industriesData.industries, {
       modules: industriesData.modules || [],
       extras: industriesData.extras || [],
+      baselineModuleIds: industriesData.baselineModuleIds || [],
     });
   } catch (e) {
     root.innerHTML =

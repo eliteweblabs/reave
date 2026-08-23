@@ -3,6 +3,7 @@
  * POST /api/demo/suite — store demo suite in cookie and return redirect target
  */
 import type { APIContext } from 'astro';
+import { demoModuleIdForFeature } from '../../../lib/demoModuleCatalog';
 import {
   DEMO_SUITE_COOKIE,
   DEMO_SUITE_COOKIE_MAX_AGE,
@@ -33,7 +34,12 @@ export async function GET(context: APIContext): Promise<Response> {
       catalog: demoModuleCatalog(),
       suite: cookieSuite,
       example: buildDemoSuiteUrl(url.origin, {
-        moduleIds: ['001', '004', '006', '009'],
+        moduleIds: [
+          demoModuleIdForFeature('client_portal'),
+          demoModuleIdForFeature('billing'),
+          demoModuleIdForFeature('site_monitoring'),
+          demoModuleIdForFeature('voice'),
+        ],
         industry: 'plumbing',
         tier: 1,
       }),

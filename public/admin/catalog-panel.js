@@ -3,7 +3,7 @@
  * Official REΛVE host only (`window.__installConfig.showModuleCatalog`).
  */
 import { escHtml, mountPanelSkeleton } from './shared.js?v=20260810a';
-import { iosIcon } from './admin-ui.js?v=20260822a';
+import { iosIcon, setToggleSwitch } from './admin-ui.js?v=20260822a';
 
 const API = '/api/admin/module-catalog';
 
@@ -50,7 +50,7 @@ function collectRows(root) {
     label: el.querySelector('[data-field="label"]')?.value?.trim() || '',
     blurb: el.querySelector('[data-field="blurb"]')?.value?.trim() || '',
     priceLabel: el.querySelector('[data-field="price"]')?.value?.trim() || '',
-    saleSheet: el.querySelector('[data-field="sheet"]')?.checked === true,
+    saleSheet: el.querySelector('[data-field="sheet"]')?.getAttribute('aria-checked') === 'true',
     visibility: el.dataset.visibility || 'public',
   }));
 }
@@ -60,10 +60,8 @@ function renderRow(row) {
   return (
     `<tr class="cat-row" data-catalog-row data-key="${escHtml(row.key)}" data-kind="${escHtml(row.kind)}" data-group="${escHtml(row.group)}" data-visibility="${escHtml(row.visibility || 'public')}">` +
     `<td class="cat-cell cat-cell--sheet">` +
-      `<label class="cat-sheet">` +
-        `<input type="checkbox" data-field="sheet"${row.saleSheet ? ' checked' : ''} aria-label="On sale sheet">` +
-        `<span>Sheet</span>` +
-      `</label>` +
+      `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
+        `aria-checked="${row.saleSheet ? 'true' : 'false'}" aria-label="On sale sheet" title="Sale sheet"></button>` +
     `</td>` +
     `<td class="cat-cell cat-cell--id"><input type="text" data-field="id" class="cat-input" value="${escHtml(row.id || '—')}" spellcheck="false"></td>` +
     `<td class="cat-cell"><input type="text" data-field="label" class="cat-input" value="${escHtml(row.label || '')}"></td>` +
@@ -125,7 +123,7 @@ function newCustomRow(group) {
     key: `custom:${group}:${n}`,
     kind: 'custom',
     group,
-    id: '—',
+    id: '',
     feature: `custom_${n}`,
     label: 'New module',
     blurb: '',
@@ -182,6 +180,12 @@ function bindEditor(root) {
     if (e.target?.closest?.('[data-catalog-row]')) scheduleSave(root);
   });
   root.addEventListener('click', (e) => {
+    const sheetBtn = e.target.closest?.('[data-field="sheet"]');
+    if (sheetBtn) {
+      setToggleSwitch(sheetBtn, sheetBtn.getAttribute('aria-checked') !== 'true');
+      scheduleSave(root);
+      return;
+    }
     const addBtn = e.target.closest?.('[data-catalog-add]');
     if (addBtn) {
       const group = addBtn.getAttribute('data-catalog-add');

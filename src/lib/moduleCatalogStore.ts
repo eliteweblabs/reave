@@ -11,6 +11,7 @@ import { dirname, join } from 'path';
 import pg from 'pg';
 import {
   CATALOG_GROUPS,
+  canonicalRowId,
   defaultModuleCatalog,
   isCatalogGroupId,
   slugifyCatalogFeature,
@@ -118,7 +119,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       key,
       kind,
       group,
-      id: typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 16) : '—',
+      id: typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 16) : '',
       feature,
       label: label.slice(0, 120),
       blurb: typeof o.blurb === 'string' ? o.blurb.trim().slice(0, 400) : '',
@@ -128,6 +129,11 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       visibility: o.visibility === 'private' ? 'private' : 'public',
     });
   });
+  const taken: string[] = [];
+  for (const row of out) {
+    row.id = canonicalRowId(row, taken);
+    taken.push(row.id);
+  }
   const groupRank = new Map(CATALOG_GROUPS.map((id, i) => [id, i]));
   return out.sort((a, b) => {
     const gr = (groupRank.get(a.group) ?? 99) - (groupRank.get(b.group) ?? 99);

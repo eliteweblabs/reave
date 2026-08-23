@@ -41,6 +41,7 @@ import {
   EMPTY_INDUSTRY_PLAYBOOK,
   normalizeIndustryPlaybook,
 } from '../src/lib/industryPlaybook.ts';
+import { DEMO_BASELINE_MODULE_IDS, demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
   featureVisibility,
   isPrivateFeature,
@@ -364,36 +365,51 @@ const salonPlaybook = mergeDeployWizardSeedIndustries([
     playbook: { moduleIds: ['006', '009'], extras: ['materials'], notes: 'Book + voice', postAlias: 'client' },
   },
 ]).find((row) => row.id === 'salon');
-assert.deepEqual(salonPlaybook?.playbook.moduleIds, ['006', '009', '035']);
+const salonIds = [
+  demoModuleIdForFeature('analytic_audit'),
+  demoModuleIdForFeature('documents'),
+  demoModuleIdForFeature('materials_pricing'),
+].sort();
+assert.deepEqual(salonPlaybook?.playbook.moduleIds, salonIds);
 assert.deepEqual(salonPlaybook?.playbook.extras, []);
 assert.equal(salonPlaybook?.playbook.postAlias, 'client');
 const applied = applyIndustryPlaybookToWizard({
   industryId: 'salon',
   playbook: salonPlaybook?.playbook,
-  allowedModuleIds: new Set(['001', '002', '003', '004', '006', '009', '035']),
-  baselineModuleIds: ['001', '002', '003'],
-  currentModuleIds: ['001', '002', '003'],
+  allowedModuleIds: new Set([...DEMO_BASELINE_MODULE_IDS, ...salonIds]),
+  baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
+  currentModuleIds: [...DEMO_BASELINE_MODULE_IDS],
   currentExtras: [],
   currentPostAlias: 'project',
 });
-assert.deepEqual(applied.moduleIds, ['001', '002', '003', '006', '009', '035']);
+assert.deepEqual(applied.moduleIds, [...DEMO_BASELINE_MODULE_IDS, ...salonIds].sort());
 assert.deepEqual(applied.extras, []);
 assert.equal(applied.postAlias, 'client');
+const lawCurrent = [
+  ...DEMO_BASELINE_MODULE_IDS,
+  demoModuleIdForFeature('billing'),
+  demoModuleIdForFeature('documents'),
+  demoModuleIdForFeature('vapi'),
+  demoModuleIdForFeature('scheduling'),
+].sort();
 const lawKept = applyIndustryPlaybookToWizard({
   industryId: 'law',
   playbook: defaultFixturePlaybook('law'),
-  allowedModuleIds: new Set(['001', '002', '003', '004', '009', '011', '013']),
-  baselineModuleIds: ['001', '002', '003'],
-  currentModuleIds: ['001', '002', '003', '004', '009', '011', '013'],
+  allowedModuleIds: new Set(lawCurrent),
+  baselineModuleIds: [...DEMO_BASELINE_MODULE_IDS],
+  currentModuleIds: lawCurrent,
   currentExtras: ['plausible_railway'],
   currentPostAlias: 'project',
 });
-assert.deepEqual(lawKept.moduleIds, ['001', '002', '003', '004', '009', '011', '013']);
+assert.deepEqual(lawKept.moduleIds, lawCurrent);
 assert.deepEqual(lawKept.extras, ['plausible_railway']);
 assert.equal(lawKept.postAlias, 'matter');
 const vapiPlan = buildDeployWizardPlan({ features: ['vapi'], installSlug: 'levineslaw' });
 assert.equal(vapiPlan.variables.find((v) => v.name === 'FEATURES')?.filled, '["vapi"]');
-assert.equal(normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','), '006');
+assert.equal(
+  normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','),
+  demoModuleIdForFeature('analytic_audit'),
+);
 const backfilled = backfillCanonicalDeployIndustries([
   {
     id: 1,

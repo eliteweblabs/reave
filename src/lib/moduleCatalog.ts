@@ -1,8 +1,11 @@
 /**
  * Default module catalog for the super-admin Catalog page.
  * Runtime edits live in moduleCatalogStore (Postgres / JSON overlay).
+ *
+ * Numeric ids are banded with gaps (like Railway variables — room to insert):
+ * Core 1–100, Work 101–200, Social 201–300, E-commerce 301–400,
+ * Web Development 401–500, Other 501–600, Internal 601–700.
  */
-import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import {
   FEATURE_BLURBS,
   FEATURE_IDS,
@@ -13,7 +16,22 @@ import {
   type FeatureId,
 } from './featureCatalog';
 import { MODULE_DISPLAY_GROUPS } from './moduleDisplayGroups';
-import { PAID_MODULE_PRICES } from './moduleStorefront';
+import { PAID_MODULE_PRICES } from './paidModulePrices';
+
+/** Core OS cards that are also FeatureIds (demo suite / playbook baseline). */
+export const CORE_CARD_FEATURES: Readonly<Record<string, FeatureId>> = {
+  'client-portal': 'client_portal',
+  'handoff-vault': 'web_handoff',
+  'portal-assistant': 'portal_assistant',
+};
+
+export const CATALOG_BASELINE_FEATURES: readonly FeatureId[] = [
+  'client_portal',
+  'web_handoff',
+  'portal_assistant',
+];
+
+const BASELINE_FEATURE_SET = new Set<string>(CATALOG_BASELINE_FEATURES);
 
 export const CATALOG_GROUPS = [
   'core',
@@ -26,6 +44,45 @@ export const CATALOG_GROUPS = [
 ] as const;
 
 export type CatalogGroupId = (typeof CATALOG_GROUPS)[number];
+
+export const CATALOG_ID_BANDS: Record<CatalogGroupId, { start: number; end: number }> = {
+  core: { start: 1, end: 100 },
+  work: { start: 101, end: 200 },
+  social: { start: 201, end: 300 },
+  'e-commerce': { start: 301, end: 400 },
+  'web-development': { start: 401, end: 500 },
+  other: { start: 501, end: 600 },
+  internal: { start: 601, end: 700 },
+};
+
+export function formatCatalogId(n: number): string {
+  return String(n).padStart(3, '0');
+}
+
+export function parseCatalogId(raw: string): number | null {
+  const n = Number(String(raw).trim());
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function byLabel(a: { label: string }, b: { label: string }): number {
+  return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+}
+
+/** Gaps of 5 in Core (1–100), 10 in later hundreds — room to insert. */
+export function spacedCatalogIds(count: number, group: CatalogGroupId): string[] {
+  const band = CATALOG_ID_BANDS[group];
+  const step = group === 'core' ? 5 : 10;
+  const first = group === 'core' ? step : band.start - 1 + step;
+  const ids: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const n = first + i * step;
+    if (n > band.end) {
+      throw new Error(`Catalog id overflow in ${group} (${n} > ${band.end})`);
+    }
+    ids.push(formatCatalogId(n));
+  }
+  return ids;
+}
 
 export const CATALOG_GROUP_TITLES: Record<CatalogGroupId, string> = {
   core: 'Core OS',
@@ -132,7 +189,7 @@ export type CatalogRow = {
   visibility: 'public' | 'private';
 };
 
-function featureGroup(feature: FeatureId): CatalogGroupId {
+export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
   if (isPrivateFeature(feature) || feature === 'demo') return 'internal';
   const grouped = MODULE_DISPLAY_GROUPS.find((g) => g.features.includes(feature));
   if (grouped?.id === 'work') return 'work';
@@ -140,6 +197,115 @@ function featureGroup(feature: FeatureId): CatalogGroupId {
   if (grouped?.id === 'e-commerce') return 'e-commerce';
   if (grouped?.id === 'web-development') return 'web-development';
   return 'other';
+}
+
+type IdTables = {
+  byFeature: Map<FeatureId, string>;
+  byCard: Map<string, string>;
+  all: Set<string>;
+};
+
+let _ids: IdTables | null = null;
+
+function buildIdTables(): IdTables {
+  const byFeature = new Map<FeatureId, string>();
+  const byCard = new Map<string, string>();
+  const all = new Set<string>();
+
+  const coreCards = [...CORE_OS_CARDS].sort(byLabel);
+  const coreIds = spacedCatalogIds(coreCards.length, 'core');
+  coreCards.forEach((card, i) => {
+    const id = coreIds[i]!;
+    byCard.set(card.id, id);
+    all.add(id);
+    const feature = CORE_CARD_FEATURES[card.id];
+    if (feature) byFeature.set(feature, id);
+  });
+
+  const grouped = new Map<CatalogGroupId, FeatureId[]>();
+  for (const group of CATALOG_GROUPS) {
+    if (group === 'core') continue;
+    grouped.set(group, []);
+  }
+  for (const feature of FEATURE_IDS) {
+    if (byFeature.has(feature)) continue;
+    const group = catalogGroupForFeature(feature);
+    if (group === 'core') continue;
+    grouped.get(group)!.push(feature);
+  }
+
+  for (const [group, features] of grouped) {
+    features.sort((a, b) => FEATURE_LABELS[a].localeCompare(FEATURE_LABELS[b], undefined, { sensitivity: 'base' }));
+    const ids = spacedCatalogIds(features.length, group);
+    features.forEach((feature, i) => {
+      const id = ids[i]!;
+      byFeature.set(feature, id);
+      all.add(id);
+    });
+  }
+
+  return { byFeature, byCard, all };
+}
+
+function idTables(): IdTables {
+  if (!_ids) _ids = buildIdTables();
+  return _ids;
+}
+
+export function catalogIdForFeature(feature: FeatureId): string {
+  return idTables().byFeature.get(feature) ?? '';
+}
+
+export function catalogIdForCard(cardId: string): string {
+  return idTables().byCard.get(cardId) ?? '';
+}
+
+export function isAssignedCatalogId(id: string): boolean {
+  const padded = id.trim().padStart(3, '0');
+  return idTables().all.has(padded);
+}
+
+/** Old sequential 001–N (FEATURE_IDS order) → current banded id. */
+export function migrateLegacyModuleId(raw: string): string {
+  const padded = raw.trim().padStart(3, '0');
+  if (!/^\d{3}$/.test(padded)) return padded;
+  const index = Number(padded) - 1;
+  if (index < 0 || index >= FEATURE_IDS.length) return padded;
+  const feature = FEATURE_IDS[index]!;
+  return catalogIdForFeature(feature) || padded;
+}
+
+export function canonicalRowId(row: Pick<CatalogRow, 'kind' | 'group' | 'feature' | 'id'>, taken: Iterable<string>): string {
+  if (row.kind === 'core') return catalogIdForCard(row.feature) || nextCatalogId(row.group, taken);
+  if (row.kind === 'module' && FEATURE_ID_SET_LOCAL.has(row.feature)) {
+    return catalogIdForFeature(row.feature as FeatureId) || nextCatalogId(row.group, taken);
+  }
+  const existing = parseCatalogId(row.id || '');
+  const band = CATALOG_ID_BANDS[row.group];
+  if (existing != null && existing >= band.start && existing <= band.end) {
+    return formatCatalogId(existing);
+  }
+  return nextCatalogId(row.group, taken);
+}
+
+const FEATURE_ID_SET_LOCAL = new Set<string>(FEATURE_IDS);
+
+export function nextCatalogId(group: CatalogGroupId, taken: Iterable<string>): string {
+  const band = CATALOG_ID_BANDS[group];
+  const step = group === 'core' ? 5 : 10;
+  const first = group === 'core' ? step : band.start - 1 + step;
+  const used = new Set(
+    [...taken].map((id) => id.trim().padStart(3, '0')).filter((id) => /^\d{3}$/.test(id)),
+  );
+  for (let n = first; n <= band.end; n += step) {
+    const id = formatCatalogId(n);
+    if (!used.has(id)) return id;
+  }
+  for (let n = band.start; n <= band.end; n++) {
+    const id = formatCatalogId(n);
+    if (!used.has(id)) return id;
+  }
+  return formatCatalogId(band.end);
 }
 
 function priceFields(feature: FeatureId): Pick<CatalogRow, 'priceAmount' | 'priceLabel'> {
@@ -155,7 +321,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
     key: `core:${card.id}`,
     kind: 'core',
     group: 'core',
-    id: '—',
+    id: catalogIdForCard(card.id) || '—',
     feature: card.id,
     label: card.label,
     blurb: card.blurb,
@@ -167,17 +333,15 @@ export function defaultModuleCatalog(): CatalogRow[] {
 
   const modules: CatalogRow[] = FEATURE_IDS.filter((feature) => {
     if (feature === 'content_management') return false;
-    const moduleId = demoModuleIdForFeature(feature);
-    if (moduleId && isDemoBaselineModuleId(moduleId)) return false;
+    if (BASELINE_FEATURE_SET.has(feature)) return false;
     return true;
   }).map((feature) => {
-    const moduleId = demoModuleIdForFeature(feature);
     const { priceAmount, priceLabel } = priceFields(feature);
     return {
       key: `module:${feature}`,
       kind: 'module' as const,
-      group: featureGroup(feature),
-      id: moduleId || '—',
+      group: catalogGroupForFeature(feature),
+      id: catalogIdForFeature(feature) || '—',
       feature,
       label: FEATURE_LABELS[feature],
       blurb: FEATURE_BLURBS[feature],

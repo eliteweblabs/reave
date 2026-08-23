@@ -25,9 +25,9 @@ stage: 1
 - Enable `demo` in install config `features[]` (only module in `config-demo.json`)
 - **Module IDs** — see [`plugins/demo/knowledge/demo-module-ids.md`](knowledge/demo-module-ids.md) or `GET /api/demo/suite`
 - **Demo suite URL** — pick modules + industry for each client pitch:
-  `/?demo=tier-1&modules=[001,004,006,009]&industry=plumbing`
+  `/?demo=tier-1&modules=[010,110,420]&industry=plumbing`
   Redirects to admin, stores suite in cookie, enables only those modules, then run seed with `{ fresh: true }`
-- Run `npm run seed:demo -- --industry plumbing --module-ids 001,004,006,009` or Admin → Demo seed
+- Run `npm run seed:demo -- --industry plumbing` with Catalog ids from `GET /api/demo/suite`, or Admin → Demo seed
 
 ## Checklist
 
