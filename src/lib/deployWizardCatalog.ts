@@ -1568,15 +1568,15 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'GOOGLE_CLIENT_ID',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Google OAuth client (GSC / GA4).',
-    features: ['analytic_audit'],
+    description: 'Google OAuth client (GSC / GA4 / Workspace DKIM).',
+    features: ['analytic_audit', 'google_workspace'],
   }),
   v({
     name: 'GOOGLE_CLIENT_SECRET',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description: 'Google OAuth secret.',
-    features: ['analytic_audit'],
+    features: ['analytic_audit', 'google_workspace'],
   }),
   v({
     name: 'PLAUSIBLE_API_BASE_URL',

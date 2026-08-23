@@ -4,7 +4,7 @@ import { isGoogleWebmasterOAuthConfigured } from '../../src/lib/googleWebmasterA
 
 export const googleWorkspaceDkimPlugin: ReavePlugin = {
   id: 'google-workspace-dkim',
-  // No feature gate — active whenever Google OAuth is configured
+  feature: 'google_workspace',
   configured: isGoogleWebmasterOAuthConfigured,
   agentTools: gmailDkimAgentTools,
 };

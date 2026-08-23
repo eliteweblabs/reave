@@ -16,7 +16,8 @@
     "real_estate_data",
     "online_reviews",
     "stock_photos",
-    "social_inbox"
+    "social_inbox",
+    "google_workspace"
   ],
   "footerNav": [
     "__system__",

@@ -30,7 +30,8 @@
     "cookie_notice",
     "deploy_wizard",
     "credit_check",
-    "social_inbox"
+    "social_inbox",
+    "google_workspace"
   ],
   "footerNav": [
     "__system__",

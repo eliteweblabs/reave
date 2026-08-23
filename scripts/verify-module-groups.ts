@@ -3,7 +3,7 @@
  * Run: npm run check:module-groups
  */
 import assert from 'node:assert/strict';
-import { FEATURE_IDS, FEATURE_LABELS, FEATURE_SALE_SHEET } from '../src/lib/featureCatalog.ts';
+import { FEATURE_IDS, FEATURE_LABELS, FEATURE_MARKETING, FEATURE_SALE_SHEET } from '../src/lib/featureCatalog.ts';
 import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
@@ -21,13 +21,17 @@ function configFeatures(slug: string): string[] {
 }
 
 assert.ok(FEATURE_IDS.includes('social_inbox'));
+assert.ok(FEATURE_IDS.includes('google_workspace'));
 assert.equal(FEATURE_LABELS.social_inbox, 'Agentic Social Media');
+assert.equal(FEATURE_LABELS.google_workspace, 'Google Workspace');
 assert.equal(FEATURE_LABELS.time_tracking, 'Time Tracking');
 assert.equal(FEATURE_LABELS.materials_pricing, 'Materials pricing');
 assert.equal(FEATURE_LABELS.website, 'Agentic Website Editor');
 assert.equal(demoModuleIdForFeature('social_inbox'), '036');
+assert.equal(demoModuleIdForFeature('google_workspace'), '037');
 assert.ok(FEATURE_SALE_SHEET.has('time_tracking'));
 assert.ok(FEATURE_SALE_SHEET.has('social_inbox'));
+assert.ok(FEATURE_SALE_SHEET.has('google_workspace'));
 assert.ok(!FEATURE_SALE_SHEET.has('content_management'));
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);
@@ -42,6 +46,7 @@ assert.equal(moduleDisplayGroupId('event_ticketing'), 'e-commerce');
 assert.equal(moduleDisplayGroupId('client_portal'), null);
 assert.equal(moduleDisplayGroupId('time_tracking'), 'work');
 assert.equal(moduleDisplayGroupFor('time_tracking')?.title, 'Work');
+assert.equal(moduleDisplayGroupId('google_workspace'), 'work');
 
 for (const id of FEATURE_SALE_SHEET) {
   assert.ok(FEATURE_IDS.includes(id), `unknown sale-sheet feature ${id}`);
@@ -51,13 +56,18 @@ const catalog = defaultModuleCatalog();
 assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
+assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'work' && row.saleSheet));
 assert.ok(!catalog.some((row) => row.feature === 'content_management'));
+assert.equal(FEATURE_MARKETING.google_workspace?.length, 5);
+assert.ok(FEATURE_MARKETING.google_workspace?.some((c) => c.id === 'gmail-mx'));
+assert.ok(FEATURE_MARKETING.google_workspace?.some((c) => c.id === 'gmail-dkim'));
 
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('youtube'));
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('tiktok'));
 
 for (const slug of ['reave', 'tonybarlettajr', 'barry-levine', 'barrylevine', 'levineslaw']) {
   assert.ok(configFeatures(slug).includes('social_inbox'), `${slug} must enable social_inbox`);
+  assert.ok(configFeatures(slug).includes('google_workspace'), `${slug} must enable google_workspace`);
 }
 
 const emailDraft = parseComposeDraftResponse(

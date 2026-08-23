@@ -14,7 +14,8 @@
     "voice",
     "vapi",
     "website",
-    "content_management"
+    "content_management",
+    "google_workspace"
   ],
   "footerNav": [
     "__system__",

@@ -66,6 +66,7 @@ const SYSTEM_NODES = [
   { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · SSR data · noindex · Mapbox pins', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
   { id: 'dealer_map', title: 'Used-car dealer map', sub: '/dealer-map · public demo · Places search-on-zoom · inventory toggles · /api/dealer-map/places', icon: '🚗', hue: 28, status: true, group: 'reave', x: 400, y: 840 },
   { id: 'sales_sheet', title: 'Audit sales sheet', sub: '/admin/sales-sheet · custom client front · static REΛVE back (gate welcome + Q&A, builds + full stack, cover) · Places SERP in iPhone frame', icon: '🧾', hue: 168, status: true, group: 'reave', x: 220, y: 720 },
+  { id: 'google_workspace_mod', title: 'Google Workspace', sub: 'Gmail MX · SPF · DKIM · DMARC · domains (FEATURES: google_workspace)', icon: '📧', brand: 'google', hue: 155, status: true, group: 'reave', x: 640, y: 1164 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
@@ -91,7 +92,7 @@ const SYSTEM_NODES = [
   { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · REΛVE agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
   { id: 'namecom', title: 'Name.com', sub: 'registrar DNS · zone records + nameservers · namecom_dns (FEATURES: namecom_dns)', icon: '🌐', hue: 210, status: true, group: 'external', x: 1160, y: 1780 },
   { id: 'cloudflare', title: 'Cloudflare', sub: 'DNS · SSL · cloudflare_dns · setup_google_workspace · CLOUDFLARE_API_TOKEN', icon: '☁️', brand: 'cloudflare', hue: 22, status: true, group: 'external', x: 1160, y: 1900 },
-  { id: 'google_workspace', title: 'Google Workspace', sub: 'Admin domains · DKIM · MX/SPF via Cloudflare · gmail_dkim', icon: '📧', brand: 'google', hue: 155, status: true, group: 'external', x: 1400, y: 1300 },
+  { id: 'google_workspace', title: 'Google Workspace', sub: 'Admin domains · DKIM · MX/SPF via Cloudflare · gmail_dkim (FEATURES: google_workspace)', icon: '📧', brand: 'google', hue: 155, status: true, group: 'external', x: 1400, y: 1300 },
 ];
 
 const SYSTEM_EDGES = [
@@ -201,6 +202,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'namecom', label: 'namecom_dns · records + NS', dashed: true },
   { from: 'astro', to: 'cloudflare', label: 'cloudflare_dns · MX/SSL/zones', dashed: true },
   { from: 'astro', to: 'google_workspace', label: 'gmail_dkim · domains', dashed: true },
+  { from: 'google_workspace_mod', to: 'google_workspace', label: 'FEATURES: google_workspace', dashed: true },
   { from: 'google_workspace', to: 'cloudflare', label: 'setup_google_workspace · DKIM TXT', dashed: true },
   { from: 'dev', to: 'website', label: 'client website pack', dashed: true },
   { from: 'website', to: 'content_mgmt', label: 'editor + Git', dashed: true },
@@ -229,7 +231,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
