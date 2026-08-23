@@ -168,10 +168,19 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
   namecom_dns: 'private',
 };
 
+/**
+ * Modules that appear on the audit sales sheet. Unlisted default to false.
+ */
+export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([]);
+
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 
 export function featureVisibility(id: FeatureId): FeatureVisibility {
   return FEATURE_VISIBILITY[id] ?? 'public';
+}
+
+export function isSaleSheetFeature(id: FeatureId): boolean {
+  return FEATURE_SALE_SHEET.has(id);
 }
 
 export function isPublicFeature(id: string): boolean {

@@ -8,7 +8,7 @@ import {
   DEMO_LOADER_SECTION_GROUPS,
   type DemoLoaderIncludedCard,
 } from './demoLoaderCatalog';
-import { FEATURE_BLURBS, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, isSaleSheetFeature, type FeatureId } from './featureCatalog';
 import { hasFeature } from './features';
 import {
   formatModulePrice,
@@ -32,6 +32,7 @@ export type AddonsModule = {
   price: (ModulePrice & { label: string }) | null;
   entitlement: ModuleEntitlement | null;
   visibility: 'public' | 'private';
+  saleSheet: boolean;
 };
 
 export type AddonsSection = {
@@ -90,6 +91,7 @@ export function buildAddonsCatalog(opts: {
       price: price ? { ...price, label: formatModulePrice(price) } : null,
       entitlement,
       visibility: m.visibility,
+      saleSheet: isSaleSheetFeature(m.feature),
     });
   }
   modules.sort(byTitle);

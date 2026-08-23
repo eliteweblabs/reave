@@ -3,7 +3,7 @@
  * Run: npm run check:module-groups
  */
 import assert from 'node:assert/strict';
-import { FEATURE_IDS, FEATURE_LABELS } from '../src/lib/featureCatalog.ts';
+import { FEATURE_IDS, FEATURE_LABELS, FEATURE_SALE_SHEET } from '../src/lib/featureCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
   MODULE_DISPLAY_GROUPS,
@@ -33,6 +33,10 @@ assert.equal(moduleDisplayGroupFor('inventory_sync')?.title, 'E-commerce');
 assert.equal(moduleDisplayGroupId('dealership_wizard'), 'e-commerce');
 assert.equal(moduleDisplayGroupId('event_ticketing'), 'e-commerce');
 assert.equal(moduleDisplayGroupId('client_portal'), null);
+
+for (const id of FEATURE_SALE_SHEET) {
+  assert.ok(FEATURE_IDS.includes(id), `unknown sale-sheet feature ${id}`);
+}
 
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('youtube'));
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('tiktok'));

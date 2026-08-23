@@ -8,7 +8,7 @@ import { join } from 'path';
 import { demoModuleDeployStatus, demoShouldShowDeployBanner } from './demoFeatures.ts';
 import { isDemoMode } from './demoMode.ts';
 import { FEATURE_IDS, FEATURE_LABELS, hasFeature, type FeatureId } from './features.ts';
-import { featureVisibility, isPrivateFeature, type FeatureVisibility } from './featureCatalog.ts';
+import { featureVisibility, isPrivateFeature, isSaleSheetFeature, type FeatureVisibility } from './featureCatalog.ts';
 import { getInstallConfigSync } from './installConfig.ts';
 import { getPlugin, isPluginActive, REAVE_PLUGINS } from './pluginRegistry.ts';
 
@@ -42,6 +42,7 @@ export type DeployModuleSnapshot = DeployModulePlaybook & {
   runtimeAllowed: boolean;
   showBanner: boolean;
   visibility: FeatureVisibility;
+  saleSheet: boolean;
 };
 
 let _playbooksCached: DeployModulePlaybook[] | null = null;
@@ -213,6 +214,7 @@ export function listAllDeployModules(): DeployModuleSnapshot[] {
       runtimeAllowed,
       showBanner: shouldShowDeployBanner(feature),
       visibility: featureVisibility(feature),
+      saleSheet: isSaleSheetFeature(feature),
     };
   });
 }

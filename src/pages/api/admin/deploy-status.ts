@@ -96,6 +96,7 @@ export async function GET(context: APIContext): Promise<Response> {
       runtimeAllowed: m.runtimeAllowed,
       showBanner: m.showBanner,
       visibility: m.visibility,
+      saleSheet: m.saleSheet,
       stage: m.stage,
       playbook: m.path || null,
       pluginId: m.pluginId,
