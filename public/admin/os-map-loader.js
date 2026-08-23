@@ -7244,7 +7244,7 @@ function renderCompanyPanel(company, fontCatalog) {
               `<p class="prof-font-preview-primary">Runs the whole business</p>` +
               `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
             `</div>` +
-            `<span id="company-font-hint" class="prof-hint prof-hint--block">Uses the website domain below — same idea as fetching logos from the source site.</span>`,
+            `<span id="company-font-hint" class="prof-hint prof-hint--block">Uses the homepage address below — same idea as fetching logos from the source site.</span>`,
           ) +
           profSection(
             'Colors',
@@ -7265,7 +7265,7 @@ function renderCompanyPanel(company, fontCatalog) {
           profSection(
             'Website &amp; contact',
             'Hostname for link previews and legal pages, plus support contacts shown on client portals.',
-            `<div class="prof-field"><label for="company-domain">Website domain</label>` +
+            `<div class="prof-field"><label for="company-domain">Homepage address</label>` +
             `<input id="company-domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" readonly disabled autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
             `<span class="prof-hint">Set by the <code>PUBLIC_SITE_DOMAIN</code> Railway variable.</span></div>` +
             `<div class="prof-field-row">` +
